@@ -13,6 +13,7 @@ from collections import defaultdict
 import inspect
 
 from simpleeval import EvalWithCompoundTypes
+from simpleeval import NameNotDefined
 
 from edsl.Base import Base
 from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
@@ -22,6 +23,8 @@ from edsl.scenarios.ScenarioListExportMixin import ScenarioListExportMixin
 
 from edsl.utilities.naming_utilities import sanitize_string
 from edsl.utilities.utilities import is_valid_variable_name
+
+from edsl.exceptions.scenarios import ScenarioError
 
 
 class ScenarioListMixin(ScenarioListPdfMixin, ScenarioListExportMixin):
@@ -191,7 +194,7 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         # Check if the function is compatible with the specified variables
         func_params = inspect.signature(func).parameters
         if len(func_params) != len(variables):
-            raise ValueError(
+            raise ScenarioError(
                 f"Function {func.__name__} expects {len(func_params)} arguments, but {len(variables)} variables were provided"
             )
 
@@ -208,10 +211,12 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
             try:
                 aggregated = func(*[group[var] for var in variables])
             except Exception as e:
-                raise ValueError(f"Error applying function to group {key}: {str(e)}")
+                raise ScenarioError(f"Error applying function to group {key}: {str(e)}")
 
             if not isinstance(aggregated, dict):
-                raise ValueError(f"Function {func.__name__} must return a dictionary")
+                raise ScenarioError(
+                    f"Function {func.__name__} must return a dictionary"
+                )
 
             new_scenario = dict(zip(id_vars, key))
             new_scenario.update(aggregated)
@@ -288,40 +293,6 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         random.seed(seed)
         random.shuffle(self.data)
         return self
-
-    def _repr_html_(self):
-        """Return an HTML representation of the AgentList."""
-        # return (
-        #     str(self.summary(format="html")) + "<br>" + str(self.table(tablefmt="html"))
-        # )
-        footer = f"<a href={self.__documentation__}>(docs)</a>"
-        return str(self.summary(format="html")) + footer
-
-    # def _repr_html_(self) -> str:
-    # from edsl.utilities.utilities import data_to_html
-
-    # data = self.to_dict()
-    # _ = data.pop("edsl_version")
-    # _ = data.pop("edsl_class_name")
-    # for s in data["scenarios"]:
-    #     _ = s.pop("edsl_version")
-    #     _ = s.pop("edsl_class_name")
-    # for scenario in data["scenarios"]:
-    #     for key, value in scenario.items():
-    #         if hasattr(value, "to_dict"):
-    #             data[key] = value.to_dict()
-    # return data_to_html(data)
-
-    # def tally(self, field) -> dict:
-    #     """Return a tally of the values in the field.
-
-    #     Example:
-
-    #     >>> s = ScenarioList([Scenario({'a': 1, 'b': 1}), Scenario({'a': 1, 'b': 2})])
-    #     >>> s.tally('b')
-    #     {1: 1, 2: 1}
-    #     """
-    #     return dict(Counter([scenario[field] for scenario in self]))
 
     def sample(self, n: int, seed: Optional[str] = None) -> ScenarioList:
         """Return a random sample from the ScenarioList
@@ -436,7 +407,7 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
 
         """
         if "=" not in new_var_string:
-            raise Exception(
+            raise ScenarioError(
                 f"Mutate requires an '=' in the string, but '{new_var_string}' doesn't have one."
             )
         raw_var_name, expression = new_var_string.split("=", 1)
@@ -444,7 +415,7 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         from edsl.utilities.utilities import is_valid_variable_name
 
         if not is_valid_variable_name(var_name):
-            raise Exception(f"{var_name} is not a valid variable name.")
+            raise ScenarioError(f"{var_name} is not a valid variable name.")
 
         # create the evaluator
         functions_dict = functions_dict or {}
@@ -462,7 +433,7 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         try:
             new_data = [new_scenario(s, var_name) for s in self]
         except Exception as e:
-            raise Exception(f"Error in mutate. Exception:{e}")
+            raise ScenarioError(f"Error in mutate. Exception:{e}")
 
         return ScenarioList(new_data)
 
@@ -491,6 +462,16 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         >>> s.filter("b == 2")
         ScenarioList([Scenario({'a': 1, 'b': 2})])
         """
+        base_keys = set(self[0].keys())
+        keys = set()
+        for scenario in self:
+            keys.update(scenario.keys())
+        if keys != base_keys:
+            import warnings
+
+            warnings.warn(
+                "Ragged ScenarioList detected (different keys for different scenario entries). This may cause unexpected behavior."
+            )
 
         def create_evaluator(scenario: Scenario):
             """Create an evaluator for the given result.
@@ -500,14 +481,22 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
 
         try:
             # iterates through all the results and evaluates the expression
-            new_data = [
-                scenario
-                for scenario in self.data
-                if create_evaluator(scenario).eval(expression)
-            ]
+            new_data = []
+            for scenario in self:
+                if create_evaluator(scenario).eval(expression):
+                    new_data.append(scenario)
+        except NameNotDefined as e:
+            available_fields = ", ".join(self.data[0].keys() if self.data else [])
+            raise ScenarioError(
+                f"Error in filter: '{e}'\n"
+                f"The expression '{expression}' refers to a field that does not exist.\n"
+                f"Scenario: {scenario}\n"
+                f"Available fields: {available_fields}\n"
+                "Check your filter expression or consult the documentation: "
+                "https://docs.expectedparrot.com/en/latest/scenarios.html#module-edsl.scenarios.Scenario"
+            ) from None
         except Exception as e:
-            print(f"Exception:{e}")
-            raise Exception(f"Error in filter. Exception:{e}")
+            raise ScenarioError(f"Error in filter. Exception:{e}")
 
         return ScenarioList(new_data)
 
@@ -533,14 +522,18 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         >>> s.select('a')
         ScenarioList([Scenario({'a': 1}), Scenario({'a': 1})])
         """
-        if len(fields) == 1:
-            fields_to_select = [list(fields)[0]]
-        else:
-            fields_to_select = list(fields)
+        from edsl.scenarios.ScenarioSelector import ScenarioSelector
 
-        return ScenarioList(
-            [scenario.select(fields_to_select) for scenario in self.data]
-        )
+        ss = ScenarioSelector(self)
+        return ss.select(*fields)
+        # if len(fields) == 1:
+        #     fields_to_select = [list(fields)[0]]
+        # else:
+        #     fields_to_select = list(fields)
+
+        # return ScenarioList(
+        #     [scenario.select(fields_to_select) for scenario in self.data]
+        # )
 
     def drop(self, *fields) -> ScenarioList:
         """Drop fields from the scenarios.
@@ -599,9 +592,8 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
 
     def _summary(self):
         d = {
-            "EDSL Class name": "ScenarioList",
-            "# Scenarios": len(self),
-            "Scenario Keys": list(self.parameters),
+            "scenarios": len(self),
+            "keys": list(self.parameters),
         }
         return d
 
@@ -631,8 +623,14 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         """
         from edsl.results.Dataset import Dataset
 
-        keys = self[0].keys()
-        data = [{key: [scenario[key] for scenario in self.data]} for key in keys]
+        keys = list(self[0].keys())
+        for scenario in self:
+            new_keys = list(scenario.keys())
+            if new_keys != keys:
+                keys = list(set(keys + new_keys))
+        data = [
+            {key: [scenario.get(key, None) for scenario in self.data]} for key in keys
+        ]
         return Dataset(data)
 
     def unpack(

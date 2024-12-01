@@ -1,6 +1,11 @@
-from typing import Union, List, Dict, Any
+from typing import Union, List, Dict, Any, Optional
+import sys
 from collections import defaultdict
 from edsl.results.Dataset import Dataset
+
+from edsl.exceptions.results import ResultsColumnNotFoundError
+
+from edsl.utilities.utilities import is_notebook
 
 
 class Selector:
@@ -19,11 +24,17 @@ class Selector:
         self._fetch_list = fetch_list_func
         self.columns = columns
 
-    def select(self, *columns: Union[str, List[str]]) -> "Dataset":
-        columns = self._normalize_columns(columns)
-        to_fetch = self._get_columns_to_fetch(columns)
-        # breakpoint()
-        new_data = self._fetch_data(to_fetch)
+    def select(self, *columns: Union[str, List[str]]) -> Optional[Dataset]:
+        try:
+            columns = self._normalize_columns(columns)
+            to_fetch = self._get_columns_to_fetch(columns)
+            new_data = self._fetch_data(to_fetch)
+        except ResultsColumnNotFoundError as e:
+            if is_notebook():
+                print("Error:", e, file=sys.stderr)
+                return None
+            else:
+                raise e
         return Dataset(new_data)
 
     def _normalize_columns(self, columns: Union[str, List[str]]) -> tuple:
@@ -63,17 +74,16 @@ class Selector:
             search_in_list = self.columns
         else:
             search_in_list = [s.split(".")[1] for s in self.columns]
-        # breakpoint()
         matches = [s for s in search_in_list if s.startswith(partial_name)]
         return [partial_name] if partial_name in matches else matches
 
     def _validate_matches(self, column: str, matches: List[str]):
         if len(matches) > 1:
-            raise ValueError(
+            raise ResultsColumnNotFoundError(
                 f"Column '{column}' is ambiguous. Did you mean one of {matches}?"
             )
         if len(matches) == 0 and ".*" not in column:
-            raise ValueError(f"Column '{column}' not found in data.")
+            raise ResultsColumnNotFoundError(f"Column '{column}' not found in data.")
 
     def _parse_column(self, column: str) -> tuple[str, str]:
         if "." in column:
@@ -89,11 +99,11 @@ class Selector:
         close_matches = difflib.get_close_matches(column, self._key_to_data_type.keys())
         if close_matches:
             suggestions = ", ".join(close_matches)
-            raise KeyError(
+            raise ResultsColumnNotFoundError(
                 f"Column '{column}' not found in data. Did you mean: {suggestions}?"
             )
         else:
-            raise KeyError(f"Column {column} not found in data")
+            raise ResultsColumnNotFoundError(f"Column {column} not found in data")
 
     def _process_column(self, data_type: str, key: str, to_fetch: Dict[str, List[str]]):
         data_types = self._get_data_types_to_return(data_type)
@@ -108,13 +118,13 @@ class Selector:
                     self.items_in_order.append(f"{dt}.{k}")
 
         if not found_once:
-            raise ValueError(f"Key {key} not found in data.")
+            raise ResultsColumnNotFoundError(f"Key {key} not found in data.")
 
     def _get_data_types_to_return(self, parsed_data_type: str) -> List[str]:
         if parsed_data_type == "*":
             return self.known_data_types
         if parsed_data_type not in self.known_data_types:
-            raise ValueError(
+            raise ResultsColumnNotFoundError(
                 f"Data type {parsed_data_type} not found in data. Did you mean one of {self.known_data_types}"
             )
         return [parsed_data_type]

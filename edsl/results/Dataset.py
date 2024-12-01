@@ -48,6 +48,79 @@ class Dataset(UserList, ResultsExportMixin):
     def filter(self, expression):
         return self.to_scenario_list().filter(expression).to_dataset()
 
+    def long(self, exclude_fields: list[str] = None) -> Dataset:
+        headers, data = self._tabular()
+        exclude_fields = exclude_fields or []
+
+        # Initialize result dictionaries for each column
+        result_dict = {}
+
+        for index, row in enumerate(data):
+            row_values = dict(zip(headers, row))
+            excluded_values = {field: row_values[field] for field in exclude_fields}
+
+            # Transform non-excluded fields to long format
+            for header, value in row_values.items():
+                if header not in exclude_fields:
+                    # Initialize lists in result_dict if needed
+                    if not result_dict:
+                        result_dict = {
+                            "row": [],
+                            "key": [],
+                            "value": [],
+                            **{field: [] for field in exclude_fields},
+                        }
+
+                    # Add values to each column
+                    result_dict["row"].append(index)
+                    result_dict["key"].append(header)
+                    result_dict["value"].append(value)
+                    for field in exclude_fields:
+                        result_dict[field].append(excluded_values[field])
+
+        return Dataset([{k: v} for k, v in result_dict.items()])
+
+    def wide(self) -> "Dataset":
+        """
+        Convert a long-format dataset (with row, key, value columns) to wide format.
+
+        Expected input format:
+        - A dataset with three columns containing dictionaries:
+          - row: list of row indices
+          - key: list of column names
+          - value: list of values
+
+        Returns:
+        - Dataset: A new dataset with columns corresponding to unique keys
+        """
+        # Extract the component arrays
+        row_dict = next(col for col in self if "row" in col)
+        key_dict = next(col for col in self if "key" in col)
+        value_dict = next(col for col in self if "value" in col)
+
+        rows = row_dict["row"]
+        keys = key_dict["key"]
+        values = value_dict["value"]
+
+        if not (len(rows) == len(keys) == len(values)):
+            raise ValueError("All input arrays must have the same length")
+
+        # Get unique keys and row indices
+        unique_keys = sorted(set(keys))
+        unique_rows = sorted(set(rows))
+
+        # Create a dictionary to store the result
+        result = {key: [None] * len(unique_rows) for key in unique_keys}
+
+        # Populate the result dictionary
+        for row_idx, key, value in zip(rows, keys, values):
+            # Find the position in the output array for this row
+            output_row_idx = unique_rows.index(row_idx)
+            result[key][output_row_idx] = value
+
+        # Convert to list of column dictionaries format
+        return Dataset([{key: values} for key, values in result.items()])
+
     def __repr__(self) -> str:
         """Return a string representation of the dataset."""
         return f"Dataset({self.data})"
@@ -128,6 +201,17 @@ class Dataset(UserList, ResultsExportMixin):
 
         return get_values(self.data[0])[0]
 
+    def remove_prefix(self) -> Dataset:
+        new_data = []
+        for observation in self.data:
+            key, values = list(observation.items())[0]
+            if "." in key:
+                new_key = key.split(".")[1]
+                new_data.append({new_key: values})
+            else:
+                new_data.append({key: values})
+        return Dataset(new_data)
+
     def print(self, pretty_labels=None, **kwargs):
         if "format" in kwargs:
             if kwargs["format"] not in ["html", "markdown", "rich", "latex"]:
@@ -145,6 +229,16 @@ class Dataset(UserList, ResultsExportMixin):
             new_key = rename_dic.get(key, key)
             new_data.append({new_key: values})
         return Dataset(new_data)
+
+    def merge(self, other: Dataset, by_x, by_y) -> Dataset:
+        """Merge the dataset with another dataset on the given keys.""
+
+        merged_df = df1.merge(df2, how="left", on=["key1", "key2"])
+        """
+        df1 = self.to_pandas()
+        df2 = other.to_pandas()
+        merged_df = df1.merge(df2, how="left", left_on=by_x, right_on=by_y)
+        return Dataset.from_pandas_dataframe(merged_df)
 
     def select(self, *keys) -> Dataset:
         """Return a new dataset with only the selected keys.
@@ -416,6 +510,16 @@ class Dataset(UserList, ResultsExportMixin):
         Dataset([{'a': [1, 2, 3, 4]}, {'b': [4, 3, 2, 1]}])
         """
         return Dataset([{"a": [1, 2, 3, 4]}, {"b": [4, 3, 2, 1]}])
+
+    @classmethod
+    def from_edsl_object(cls, object):
+        d = object.to_dict(add_edsl_version=False)
+        return cls([{"key": list(d.keys())}, {"value": list(d.values())}])
+
+    @classmethod
+    def from_pandas_dataframe(cls, df):
+        result = cls([{col: df[col].tolist()} for col in df.columns])
+        return result
 
 
 if __name__ == "__main__":

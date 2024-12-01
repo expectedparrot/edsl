@@ -1,54 +1,13 @@
 import textwrap
 from random import random
 from edsl.config import CONFIG
+from functools import lru_cache
+from edsl.utilities.PrettyList import PrettyList
 
 # if "EDSL_DEFAULT_MODEL" not in CONFIG:
 #     default_model = "test"
 # else:
 #     default_model = CONFIG.get("EDSL_DEFAULT_MODEL")
-
-from collections import UserList
-
-
-class PrettyList(UserList):
-    def __init__(self, data=None, columns=None):
-        super().__init__(data)
-        self.columns = columns
-
-    def _repr_html_(self):
-        if isinstance(self[0], list) or isinstance(self[0], tuple):
-            num_cols = len(self[0])
-        else:
-            num_cols = 1
-
-        if self.columns:
-            columns = self.columns
-        else:
-            columns = list(range(num_cols))
-
-        if num_cols > 1:
-            return (
-                "<pre><table>"
-                + "".join(["<th>" + str(column) + "</th>" for column in columns])
-                + "".join(
-                    [
-                        "<tr>"
-                        + "".join(["<td>" + str(x) + "</td>" for x in row])
-                        + "</tr>"
-                        for row in self
-                    ]
-                )
-                + "</table></pre>"
-            )
-        else:
-            return (
-                "<pre><table>"
-                + "".join(["<th>" + str(index) + "</th>" for index in columns])
-                + "".join(
-                    ["<tr>" + "<td>" + str(row) + "</td>" + "</tr>" for row in self]
-                )
-                + "</table></pre>"
-            )
 
 
 def get_model_class(model_name, registry=None):
@@ -111,7 +70,14 @@ class Model(metaclass=Meta):
         return [r._inference_service_ for r in registry.services]
 
     @classmethod
-    def available(cls, search_term=None, name_only=False, registry=None, service=None):
+    @lru_cache(maxsize=128)
+    def available(
+        cls,
+        search_term: str = None,
+        name_only: bool = False,
+        registry=None,
+        service: str = None,
+    ):
         from edsl.inference_services.registry import default
 
         registry = registry or default

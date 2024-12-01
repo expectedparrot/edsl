@@ -6,8 +6,10 @@ import base64
 from importlib import resources
 from edsl.jobs.tasks.task_status_enum import TaskStatus
 
+from edsl.Base import RepresentationMixin
 
-class TaskHistory:
+
+class TaskHistory(RepresentationMixin):
     def __init__(
         self,
         interviews: List["Interview"],
@@ -120,14 +122,6 @@ class TaskHistory:
     def has_unfixed_exceptions(self) -> bool:
         """Return True if there are any exceptions."""
         return len(self.unfixed_exceptions) > 0
-
-    def _repr_html_(self):
-        """Return an HTML representation of the TaskHistory."""
-        d = self.to_dict(add_edsl_version=False)
-        data = [[k, v] for k, v in d.items()]
-        from tabulate import tabulate
-
-        return tabulate(data, headers=["keys", "values"], tablefmt="html")
 
     def show_exceptions(self, tracebacks=False):
         """Print the exceptions."""
