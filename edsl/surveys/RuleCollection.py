@@ -1,7 +1,7 @@
 """A collection of rules for a survey."""
 
 from typing import List, Union, Any, Optional
-from collections import defaultdict, UserList
+from collections import defaultdict, UserList, namedtuple
 
 from edsl.exceptions import (
     SurveyRuleCannotEvaluateError,
@@ -12,9 +12,6 @@ from edsl.surveys.Rule import Rule
 from edsl.surveys.base import EndOfSurvey
 from edsl.surveys.DAG import DAG
 
-# from graphlib import TopologicalSorter
-
-from collections import namedtuple
 
 NextQuestion = namedtuple(
     "NextQuestion", "next_q, num_rules_found, expressions_evaluating_to_true, priority"
@@ -45,6 +42,22 @@ class RuleCollection(UserList):
 
         """
         return f"RuleCollection(rules={self.data}, num_questions={self.num_questions})"
+
+    def to_dataset(self):
+        """Return a Dataset object representation of the RuleCollection object."""
+        from edsl.results.Dataset import Dataset
+
+        keys = ["current_q", "expression", "next_q", "priority", "before_rule"]
+        rule_list = []
+        for rule in sorted(self, key=lambda r: r.current_q):
+            rule_list.append({k: str(getattr(rule, k)) for k in keys})
+        return Dataset(rule_list)
+
+    def _repr_html_(self):
+        """Return an HTML representation of the RuleCollection object."""
+        from edsl.results.Dataset import Dataset
+
+        return self.to_dataset()._repr_html_()
 
     def to_dict(self, add_edsl_version=True):
         """Create a dictionary representation of the RuleCollection object."""
@@ -183,17 +196,6 @@ class RuleCollection(UserList):
         NextQuestion(next_q=3, num_rules_found=2, expressions_evaluating_to_true=1, priority=1)
 
         """
-        # # is this the first question? If it is, we need to check if it should be skipped.
-        # if q_now == 0:
-        #     if self.skip_question_before_running(q_now, answers):
-        #         return NextQuestion(
-        #             next_q=q_now + 1,
-        #             num_rules_found=0,
-        #             expressions_evaluating_to_true=0,
-        #             priority=-1,
-        #         )
-
-        # breakpoint()
         expressions_evaluating_to_true = 0
         next_q = None
         highest_priority = -2  # start with -2 to 'pick up' the default rule added
@@ -215,7 +217,6 @@ class RuleCollection(UserList):
                 f"No rules found for question {q_now}"
             )
 
-        # breakpoint()
         ## Now we need to check if the *next question* has any 'before; rules that we should follow
         for rule in self.applicable_rules(next_q, before_rule=True):
             if rule.evaluate(answers):  # rule evaluates to True
@@ -260,8 +261,7 @@ class RuleCollection(UserList):
             [2, 3]
 
         """
-        # If it's the end of the survey, all questions between the start_q and the end of the survey
-        # now depend on the start_q
+        # If it's the end of the survey, all questions between the start_q and the end of the survey now depend on the start_q
         if end_q == EndOfSurvey:
             if self.num_questions is None:
                 raise ValueError(
@@ -381,7 +381,6 @@ class RuleCollection(UserList):
 
 
 if __name__ == "__main__":
-    # pass
     import doctest
 
     doctest.testmod(optionflags=doctest.ELLIPSIS)

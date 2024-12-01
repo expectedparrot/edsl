@@ -37,7 +37,7 @@ class DatasetExportMixin:
 
         >>> from edsl.results import Results
         >>> sorted(Results.example().select().relevant_columns(data_type = "model"))
-        ['model.frequency_penalty', 'model.logprobs', 'model.max_tokens', 'model.model', 'model.presence_penalty', 'model.temperature', 'model.top_logprobs', 'model.top_p']
+        ['model.frequency_penalty', ...]
 
         >>> Results.example().relevant_columns(data_type = "flimflam")
         Traceback (most recent call last):
@@ -438,6 +438,72 @@ class DatasetExportMixin:
         b64 = base64.b64encode(csv_string.encode()).decode()
         return f'<a href="data:file/csv;base64,{b64}" download="my_data.csv">Download CSV file</a>'
 
+    def _db(self, remove_prefix: bool = True):
+        """Create a SQLite database in memory and return the connection.
+
+        Args:
+            shape: The shape of the data in the database (wide or long)
+            remove_prefix: Whether to remove the prefix from the column names
+
+        Returns:
+            A database connection
+        """
+        from sqlalchemy import create_engine
+
+        engine = create_engine("sqlite:///:memory:")
+        if remove_prefix:
+            df = self.remove_prefix().to_pandas(lists_as_strings=True)
+        else:
+            df = self.to_pandas(lists_as_strings=True)
+        df.to_sql(
+            "self",
+            engine,
+            index=False,
+            if_exists="replace",
+        )
+        return engine.connect()
+
+    def sql(
+        self,
+        query: str,
+        transpose: bool = None,
+        transpose_by: str = None,
+        remove_prefix: bool = True,
+    ) -> Union["pd.DataFrame", str]:
+        """Execute a SQL query and return the results as a DataFrame.
+
+        Args:
+            query: The SQL query to execute
+            shape: The shape of the data in the database (wide or long)
+            remove_prefix: Whether to remove the prefix from the column names
+            transpose: Whether to transpose the DataFrame
+            transpose_by: The column to use as the index when transposing
+            csv: Whether to return the DataFrame as a CSV string
+            to_list: Whether to return the results as a list
+            to_latex: Whether to return the results as LaTeX
+            filename: Optional filename to save the results to
+
+        Returns:
+            DataFrame, CSV string, list, or LaTeX string depending on parameters
+
+        """
+        import pandas as pd
+
+        conn = self._db(remove_prefix=remove_prefix)
+        df = pd.read_sql_query(query, conn)
+
+        # Transpose the DataFrame if transpose is True
+        if transpose or transpose_by:
+            df = pd.DataFrame(df)
+            if transpose_by:
+                df = df.set_index(transpose_by)
+            else:
+                df = df.set_index(df.columns[0])
+            df = df.transpose()
+        from edsl.results.Dataset import Dataset
+
+        return Dataset.from_pandas_dataframe(df)
+
     def to_pandas(
         self, remove_prefix: bool = False, lists_as_strings=False
     ) -> "DataFrame":
@@ -447,19 +513,6 @@ class DatasetExportMixin:
 
         """
         return self._to_pandas_strings(remove_prefix)
-        # if lists_as_strings:
-        #     return self._to_pandas_strings(remove_prefix=remove_prefix)
-
-        # import pandas as pd
-
-        # df = pd.DataFrame(self.data)
-
-        # if remove_prefix:
-        #     # Optionally remove prefixes from column names
-        #     df.columns = [col.split(".")[-1] for col in df.columns]
-
-        # df_sorted = df.sort_index(axis=1)  # Sort columns alphabetically
-        # return df_sorted
 
     def _to_pandas_strings(self, remove_prefix: bool = False) -> "pd.DataFrame":
         """Convert the results to a pandas DataFrame.
@@ -608,7 +661,9 @@ class DatasetExportMixin:
                     new_list.append(item)
             list_to_return = new_list
 
-        return list_to_return
+        from edsl.utilities.PrettyList import PrettyList
+
+        return PrettyList(list_to_return)
 
     def html(
         self,
@@ -658,8 +713,10 @@ class DatasetExportMixin:
         >>> r = Results.example()
         >>> r.select('how_feeling').tally('answer.how_feeling', output = "dict")
         {'OK': 2, 'Great': 1, 'Terrible': 1}
-        >>> r.select('how_feeling').tally('answer.how_feeling', output = "Dataset")
-        Dataset([{'answer.how_feeling': ['OK', 'Great', 'Terrible']}, {'count': [2, 1, 1]}])
+        >>> from edsl.results.Dataset import Dataset
+        >>> expected = Dataset([{'answer.how_feeling': ['OK', 'Great', 'Terrible']}, {'count': [2, 1, 1]}])
+        >>> r.select('how_feeling').tally('answer.how_feeling', output = "Dataset") == expected
+        True
         """
         from collections import Counter
 

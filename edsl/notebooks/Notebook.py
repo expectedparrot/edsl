@@ -130,15 +130,6 @@ class Notebook(Base):
 
         nbformat.write(nbformat.from_dict(self.data), fp=path)
 
-    def print(self):
-        """
-        Print the notebook.
-        """
-        from rich import print_json
-        import json
-
-        print_json(json.dumps(self.to_dict()))
-
     def __repr__(self):
         """
         Return representation of Notebook.

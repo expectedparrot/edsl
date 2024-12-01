@@ -271,7 +271,9 @@ class FileStore(Scenario):
         return cls(**d)
 
     def __repr__(self):
-        return f"FileStore(path='{self.path}')"
+        # return f"FileStore(path='{self.path}')"
+        params = ", ".join(f"{key}={repr(value)}" for key, value in self.data.items())
+        return f"{self.__class__.__name__}({params})"
 
     def encode_file_to_base64_string(self, file_path: str):
         try:
