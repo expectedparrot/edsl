@@ -53,8 +53,16 @@ from edsl.utilities.decorators import remove_edsl_version
 from edsl.Base import PersistenceMixin, RepresentationMixin
 from edsl.Base import Base
 from edsl.language_models.RegisterLanguageModelsMeta import RegisterLanguageModelsMeta
-from edsl.language_models.KeyLookup import KeyLookup
+
+# from edsl.language_models.KeyLookup import KeyLookup
 from edsl.exceptions.language_models import LanguageModelBadResponseError
+
+# from edsl.language_models.ServiceDataSources import KeyLookupBuilder, KeyLookup
+from edsl.language_models.ServiceDataSources import (
+    KeyLookupBuilder,
+    KeyLookupCollection,
+    KeyLookup,
+)
 
 TIMEOUT = float(CONFIG.get("EDSL_API_TIMEOUT"))
 
@@ -149,12 +157,23 @@ class LanguageModel(
         self.remote = False
         self.omit_system_prompt_if_empty = omit_system_prompt_if_empty_string
 
+        if key_lookup is not None:
+            self.key_lookup = key_lookup
+        else:
+            klc = KeyLookupCollection()
+            klc.add_key_lookup(fetch_order=("env", "coop", "config"))
+            self.key_lookup = klc.get(("env", "coop", "config"))
+
         # self._rpm / _tpm comes from the class
         if rpm is not None:
             self._rpm = rpm
+        else:
+            self._rpm = self.key_lookup.get(self._inference_service_).rpm
 
         if tpm is not None:
             self._tpm = tpm
+        else:
+            self._rpm = self.key_lookup.get(self._inference_service_).tpm
 
         for key, value in parameters.items():
             setattr(self, key, value)
@@ -172,26 +191,24 @@ class LanguageModel(
             # Skip the API key check. Sometimes this is useful for testing.
             self._api_token = None
 
-        if key_lookup is not None:
-            self.key_lookup = key_lookup
-        else:
-            self.key_lookup = KeyLookup.from_os_environ()
-
     def ask_question(self, question):
         user_prompt = question.get_instructions().render(question.data).text
         system_prompt = "You are a helpful agent pretending to be a human."
         return self.execute_model_call(user_prompt, system_prompt)
 
-    def set_key_lookup(self, key_lookup: KeyLookup) -> None:
+    def set_key_lookup(self, key_lookup: "KeyLookup") -> None:
         del self._api_token
         self.key_lookup = key_lookup
 
     @property
     def api_token(self) -> str:
         if not hasattr(self, "_api_token"):
-            self._api_token = self.key_lookup.get_api_token(
-                self._inference_service_, self.remote
-            )
+            info = self.key_lookup.get(self._inference_service_, None)
+            if info is None:
+                raise ValueError(
+                    f"No key found for service '{self._inference_service_}'"
+                )
+            self._api_token = info.api_token
         return self._api_token
 
     def __getitem__(self, key):

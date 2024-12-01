@@ -242,13 +242,6 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         index = self.question_name_to_index[question_name]
         return self._questions[index]
 
-    # def get_question(self, question_name: str) -> QuestionBase:
-    #     """Return the question object given the question name."""
-    #     raise Exception
-    #     # import warnings
-    #     # warnings.warn("survey.get_question is deprecated. Use subscript operator instead.")
-    #     return self.get(question_name)
-
     def question_names_to_questions(self) -> dict:
         """Return a dictionary mapping question names to question attributes."""
         return {q.question_name: q for q in self.questions}
@@ -667,16 +660,8 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
         >>> s = Survey.example()
         >>> s.show_rules()
-        ┏━━━━━━━━━━━┳━━━━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━━━┓
-        ┃ current_q ┃ expression  ┃ next_q ┃ priority ┃ before_rule ┃
-        ┡━━━━━━━━━━━╇━━━━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━━━┩
-        │ 0         │ True        │ 1      │ -1       │ False       │
-        │ 0         │ q0 == 'yes' │ 2      │ 0        │ False       │
-        │ 1         │ True        │ 2      │ -1       │ False       │
-        │ 2         │ True        │ 3      │ -1       │ False       │
-        └───────────┴─────────────┴────────┴──────────┴─────────────┘
         """
-        self.rule_collection.show_rules()
+        return self.rule_collection.show_rules()
 
     def add_stop_rule(
         self, question: Union[QuestionBase, str], expression: str
