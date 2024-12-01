@@ -271,6 +271,7 @@ class Coop:
         self,
         object: EDSLObject,
         description: Optional[str] = None,
+        alias: Optional[str] = None,
         visibility: Optional[VisibilityType] = "unlisted",
     ) -> dict:
         """
@@ -282,6 +283,7 @@ class Coop:
             method="POST",
             payload={
                 "description": description,
+                "alias": alias,
                 "json_string": json.dumps(
                     object.to_dict(),
                     default=self._json_handle_none,
@@ -376,6 +378,7 @@ class Coop:
         uuid: Union[str, UUID] = None,
         url: str = None,
         description: Optional[str] = None,
+        alias: Optional[str] = None,
         value: Optional[EDSLObject] = None,
         visibility: Optional[VisibilityType] = None,
     ) -> dict:
@@ -392,6 +395,7 @@ class Coop:
             params={"uuid": uuid},
             payload={
                 "description": description,
+                "alias": alias,
                 "json_string": (
                     json.dumps(
                         value.to_dict(),
