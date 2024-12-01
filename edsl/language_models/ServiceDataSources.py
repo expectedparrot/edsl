@@ -40,6 +40,10 @@ class LanguageModelInput:
     tpm: int
     api_id: Optional[str] = None
 
+    token_source: Optional[str] = None
+    limit_source: Optional[str] = None
+    id_source: Optional[str] = None
+
     def to_dict(self):
         return asdict(self)
 
@@ -84,7 +88,7 @@ class KeyLookupCollection(UserDict):
 
     def add_key_lookup(self, fetch_order=None):
         if fetch_order is None:
-            fetch_order = ("env", "coop", "config")
+            fetch_order = ("config", "env")
         if fetch_order not in self.data:
             self.data[fetch_order] = KeyLookupBuilder(fetch_order=fetch_order).build()
 
@@ -109,7 +113,7 @@ class KeyLookupBuilder:
 
     def __init__(self, fetch_order: Optional[tuple[str]] = None):
         if fetch_order is None:
-            self.fetch_order = ("env", "coop", "config")
+            self.fetch_order = ("config", "env")
         else:
             self.fetch_order = fetch_order
 
@@ -131,7 +135,7 @@ class KeyLookupBuilder:
         return set(self.key_data.keys()) | set(self.limit_data.keys())
 
     @lru_cache
-    def build(self):
+    def build(self) -> "KeyLookup":
         d = {}
         for service in self.known_services:
             try:
@@ -152,7 +156,9 @@ class KeyLookupBuilder:
         if key_entry is None:
             raise MissingAPIKeyError(f"No key found for service {service}")
         api_token = key_entry.value
+        token_source = key_entry.source
         id_entry = self.id_data.get(service, None)
+        id_source = id_entry.source if id_entry is not None else None
         if id_entry is not None:
             api_id = id_entry.value
         else:
@@ -161,14 +167,25 @@ class KeyLookupBuilder:
         limit_entry = self.limit_data.get(service, None)
         if limit_entry is None:
             limit_entry = LimitEntry(
-                service=service, rpm=self.DEFAULT_RPM, tpm=self.DEFAULT_TPM
+                service=service,
+                rpm=self.DEFAULT_RPM,
+                tpm=self.DEFAULT_TPM,
+                source="default",
             )
+        if limit_entry.rpm is None:
+            limit_entry.rpm = self.DEFAULT_RPM
+        if limit_entry.tpm is None:
+            limit_entry.tpm = self.DEFAULT_TPM
+        limit_source = limit_entry.source
 
         return LanguageModelInput(
             api_token=api_token,
-            rpm=limit_entry.rpm,
-            tpm=limit_entry.tpm,
+            rpm=int(limit_entry.rpm),
+            tpm=int(limit_entry.tpm),
             api_id=api_id,
+            token_source=token_source,
+            limit_source=limit_source,
+            id_source=id_source,
         )
 
     def __repr__(self):
@@ -201,13 +218,12 @@ class KeyLookupBuilder:
             "coop": self._coop_key_value_pairs,
             "config": self._config_key_value_pairs,
         }
-        function_order = [fetching_functions[fetch] for fetch in self.fetch_order]
         d = {}
-        for f in function_order:
-            try:
-                d.update(f())
-            except Exception as e:
-                print(e)
+        for source in self.fetch_order:
+            f = fetching_functions[source]
+            new_data = f()
+            for k, v in new_data.items():
+                d[k] = (v, source)
         return d
 
     def _entry_type(self, key, value) -> str:
@@ -219,28 +235,32 @@ class KeyLookupBuilder:
             return "api_id"
         return "unknown"
 
-    def _add_id(self, key: str, value: str) -> None:
+    def _add_id(self, key: str, value: str, source: str) -> None:
         """Add an api key to the key_data dictionary"""
         service = api_id_to_service[key]
         if service not in self.id_data:
-            self.id_data[service] = APIIDEntry(service=service, name=key, value=value)
+            self.id_data[service] = APIIDEntry(
+                service=service, name=key, value=value, source=source
+            )
         else:
             raise ValueError(f"Duplicate ID for service {service}")
 
-    def _add_limit(self, key: str, value: str) -> None:
+    def _add_limit(self, key: str, value: str, source: str) -> None:
         """Add a limit to the limit_data dictionary"""
         service, limit_type = self.extract_service(key)
         if service in self.limit_data:
             setattr(self.limit_data[service], limit_type.lower(), value)
         else:
-            new_limit_entry = LimitEntry(service=service, rpm=None, tpm=None)
+            new_limit_entry = LimitEntry(
+                service=service, rpm=None, tpm=None, source=source
+            )
             setattr(new_limit_entry, limit_type.lower(), value)
             self.limit_data[service] = new_limit_entry
 
-    def _add_api_key(self, key: str, value: str) -> None:
+    def _add_api_key(self, key: str, value: str, source: str) -> None:
         """Add an api key to the key_data dictionary"""
         service = api_keyname_to_service[key]
-        new_entry = APIKeyEntry(service=service, name=key, value=value)
+        new_entry = APIKeyEntry(service=service, name=key, value=value, source=source)
         if service not in self.key_data:
             self.key_data[service] = [new_entry]
         else:
@@ -249,13 +269,14 @@ class KeyLookupBuilder:
     def process_key_value_pairs(self) -> tuple[dict, dict]:
         """Fetch the data from the source"""
         print("fetching key value pairs")
-        for key, value in self.get_key_value_pairs().items():
+        for key, value_pair in self.get_key_value_pairs().items():
+            value, source = value_pair
             if (entry_type := self._entry_type(key, value)) == "limit":
-                self._add_limit(key, value)
+                self._add_limit(key, value, source)
             elif entry_type == "api_key":
-                self._add_api_key(key, value)
+                self._add_api_key(key, value, source)
             elif entry_type == "api_id":
-                self._add_id(key, value)
+                self._add_id(key, value, source)
 
 
 # combined = KeyLookupBuilder()

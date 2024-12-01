@@ -161,8 +161,8 @@ class LanguageModel(
             self.key_lookup = key_lookup
         else:
             klc = KeyLookupCollection()
-            klc.add_key_lookup(fetch_order=("env", "coop", "config"))
-            self.key_lookup = klc.get(("env", "coop", "config"))
+            klc.add_key_lookup(fetch_order=("config", "env"))
+            self.key_lookup = klc.get(("config", "env"))
 
         # self._rpm / _tpm comes from the class
         if rpm is not None:
