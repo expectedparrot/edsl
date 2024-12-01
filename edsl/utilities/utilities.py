@@ -406,11 +406,13 @@ def shorten_string(s, max_length, placeholder="..."):
     return s[:start_remove] + placeholder + s[end_remove:]
 
 
-def write_api_key_to_env(api_key: str) -> None:
+def write_api_key_to_env(api_key: str) -> str:
     """
     Write the user's Expected Parrot key to their .env file.
 
     If a .env file doesn't exist in the current directory, one will be created.
+
+    Returns a string representing the absolute path to the .env file.
     """
     from pathlib import Path
     from dotenv import set_key
@@ -422,3 +424,7 @@ def write_api_key_to_env(api_key: str) -> None:
 
     # Write API key to file
     set_key(env_path, "EXPECTED_PARROT_API_KEY", str(api_key))
+
+    absolute_path_to_env = env_file.absolute().as_posix()
+
+    return absolute_path_to_env
