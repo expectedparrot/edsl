@@ -2,7 +2,6 @@ import json
 from typing import Optional, Any, List
 from edsl.exceptions.language_models import LanguageModelBadResponseError
 
-from edsl.data_transfer_models import EDSLOutput
 from json_repair import repair_json
 
 
@@ -64,8 +63,11 @@ class RawResponseHandler:
             return {}
         return _extract_item_from_raw_response(raw_response, self.usage_sequence)
 
-    def parse_response(self, raw_response: dict[str, Any]) -> EDSLOutput:
+    def parse_response(self, raw_response: dict[str, Any]) -> "EDSLOutput":
         """Parses the API response and returns the response text."""
+
+        from edsl.data_transfer_models import EDSLOutput
+
         generated_token_string = self.get_generated_token_string(raw_response)
         last_newline = generated_token_string.rfind("\n")
 

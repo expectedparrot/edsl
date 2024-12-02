@@ -64,6 +64,8 @@ from edsl.language_models.ServiceDataSources import (
     KeyLookup,
 )
 
+from edsl.language_models.PriceManager import PriceManager
+
 TIMEOUT = float(CONFIG.get("EDSL_API_TIMEOUT"))
 
 from edsl.language_models.RawResponseHandler import RawResponseHandler
@@ -143,7 +145,7 @@ class LanguageModel(
 
         self.model_info = self.key_lookup.get(self._inference_service_)
 
-        if rpm is not None::
+        if rpm is not None:
             self._rpm = rpm
 
         if tpm is not None:
@@ -340,12 +342,12 @@ class LanguageModel(
     def get_generated_token_string(cls, raw_response: dict[str, Any]) -> str:
         """Return the generated token string from the raw response."""
         return cls.response_handler.get_generated_token_string(raw_response)
-    
+
     @classmethod
     def get_usage_dict(cls, raw_response: dict[str, Any]) -> dict[str, Any]:
         """Return the usage dictionary from the raw response."""
         return cls.response_handler.get_usage_dict(raw_response)
-  
+
     @staticmethod
     def convert_answer(response_part):
         import json
@@ -370,7 +372,7 @@ class LanguageModel(
     def parse_response(cls, raw_response: dict[str, Any]) -> EDSLOutput:
         """Parses the API response and returns the response text."""
         return cls.response_handler.parse_response(raw_response)
-  
+
     async def _async_get_intended_model_call_outcome(
         self,
         user_prompt: str,
@@ -434,8 +436,8 @@ class LanguageModel(
             )  # store the response in the cache
             assert new_cache_key == cache_key  # should be the same
 
-        cost = self.cost(response)
-
+        # cost = self.cost(response)
+        cost = 12
         return ModelResponse(
             response=response,
             cache_used=cache_used,
@@ -505,48 +507,58 @@ class LanguageModel(
         """Return the dollar cost of a raw response."""
 
         usage = self.get_usage_dict(raw_response)
-        from edsl.coop import Coop
 
-        c = Coop()
-        price_lookup = c.fetch_prices()
-        key = (self._inference_service_, self.model)
-        if key not in price_lookup:
-            return f"Could not find price for model {self.model} in the price lookup."
+        price_manger = PriceManager()
+        return price_manger.calculate_cost(
+            inference_service=self._inference_service_,
+            model=self.model,
+            usage=usage,
+            input_token_name=self.input_token_name,
+            output_token_name=self.output_token_name,
+        )
 
-        relevant_prices = price_lookup[key]
-        try:
-            input_tokens = int(usage[self.input_token_name])
-            output_tokens = int(usage[self.output_token_name])
-        except Exception as e:
-            return f"Could not fetch tokens from model response: {e}"
+        # from edsl.coop import Coop
+        # c = Coop()
+        # price_lookup = c.fetch_prices()
+        # key = (self._inference_service_, self.model)
+        # if key not in price_lookup:
+        #    return f"Could not find price for model {self.model} in the price lookup."
 
-        try:
-            inverse_output_price = relevant_prices["output"]["one_usd_buys"]
-            inverse_input_price = relevant_prices["input"]["one_usd_buys"]
-        except Exception as e:
-            if "output" not in relevant_prices:
-                return f"Could not fetch prices from {relevant_prices} - {e}; Missing 'output' key."
-            if "input" not in relevant_prices:
-                return f"Could not fetch prices from {relevant_prices} - {e}; Missing 'input' key."
-            return f"Could not fetch prices from {relevant_prices} - {e}"
+        # relevant_prices = price_lookup[key]
+        # relevant_prices = price_manger.get_price(self._inference_service_, self.model)
+        # try:
+        #     input_tokens = int(usage[self.input_token_name])
+        #     output_tokens = int(usage[self.output_token_name])
+        # except Exception as e:
+        #     return f"Could not fetch tokens from model response: {e}"
 
-        if inverse_input_price == "infinity":
-            input_cost = 0
-        else:
-            try:
-                input_cost = input_tokens / float(inverse_input_price)
-            except Exception as e:
-                return f"Could not compute input price - {e}."
+        # try:
+        #     inverse_output_price = relevant_prices["output"]["one_usd_buys"]
+        #     inverse_input_price = relevant_prices["input"]["one_usd_buys"]
+        # except Exception as e:
+        #     if "output" not in relevant_prices:
+        #         return f"Could not fetch prices from {relevant_prices} - {e}; Missing 'output' key."
+        #     if "input" not in relevant_prices:
+        #         return f"Could not fetch prices from {relevant_prices} - {e}; Missing 'input' key."
+        #     return f"Could not fetch prices from {relevant_prices} - {e}"
 
-        if inverse_output_price == "infinity":
-            output_cost = 0
-        else:
-            try:
-                output_cost = output_tokens / float(inverse_output_price)
-            except Exception as e:
-                return f"Could not compute output price - {e}"
+        # if inverse_input_price == "infinity":
+        #     input_cost = 0
+        # else:
+        #     try:
+        #         input_cost = input_tokens / float(inverse_input_price)
+        #     except Exception as e:
+        #         return f"Could not compute input price - {e}."
 
-        return input_cost + output_cost
+        # if inverse_output_price == "infinity":
+        #     output_cost = 0
+        # else:
+        #     try:
+        #         output_cost = output_tokens / float(inverse_output_price)
+        #     except Exception as e:
+        #         return f"Could not compute output price - {e}"
+
+        # return input_cost + output_cost
 
     def to_dict(self, add_edsl_version: bool = True) -> dict[str, Any]:
         """Convert instance to a dictionary
