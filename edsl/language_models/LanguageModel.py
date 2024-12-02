@@ -141,6 +141,9 @@ class LanguageModel(
     __rate_limits = None
     _safety_factor = 0.8
 
+    DEFAULT_RPM = 100
+    DEFAULT_TPM = 1000
+
     def __init__(
         self,
         tpm: float = None,
@@ -201,7 +204,8 @@ class LanguageModel(
     def rpm(self):
         if not hasattr(self, "_rpm"):
             if self.model_info is None:
-                raise ValueError(f"No key for for service {self._inference_service_}")
+                # raise ValueError(f"No key for for service {self._inference_service_}")
+                self._rpm = self.DEFAULT_RPM
             self._rpm = self.model_info.rpm
         return self._rpm
 
@@ -209,7 +213,8 @@ class LanguageModel(
     def tpm(self):
         if not hasattr(self, "_tpm"):
             if self.model_info is None:
-                raise ValueError(f"No key for for service {self._inference_service_}")
+                self._tpm = self.DEFAULT_TPM
+                # raise ValueError(f"No key for for service {self._inference_service_}")
             self._tpm = self.model_info.tpm
         return self._tpm
 
