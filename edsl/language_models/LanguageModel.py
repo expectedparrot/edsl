@@ -66,49 +66,7 @@ from edsl.language_models.ServiceDataSources import (
 
 TIMEOUT = float(CONFIG.get("EDSL_API_TIMEOUT"))
 
-
-# you might be tempated to move this to be a static method of LanguageModel, but this doesn't work
-# for reasons I don't understand. So leave it here.
-def extract_item_from_raw_response(data, key_sequence):
-    if isinstance(data, str):
-        try:
-            data = json.loads(data)
-        except json.JSONDecodeError as e:
-            return data
-    current_data = data
-    for i, key in enumerate(key_sequence):
-        try:
-            if isinstance(current_data, (list, tuple)):
-                if not isinstance(key, int):
-                    raise TypeError(
-                        f"Expected integer index for sequence at position {i}, got {type(key).__name__}"
-                    )
-                if key < 0 or key >= len(current_data):
-                    raise IndexError(
-                        f"Index {key} out of range for sequence of length {len(current_data)} at position {i}"
-                    )
-            elif isinstance(current_data, dict):
-                if key not in current_data:
-                    raise KeyError(
-                        f"Key '{key}' not found in dictionary at position {i}"
-                    )
-            else:
-                raise TypeError(
-                    f"Cannot index into {type(current_data).__name__} at position {i}. Full response is: {data} of type {type(data)}. Key sequence is: {key_sequence}"
-                )
-
-            current_data = current_data[key]
-        except Exception as e:
-            path = " -> ".join(map(str, key_sequence[: i + 1]))
-            if "error" in data:
-                msg = data["error"]
-            else:
-                msg = f"Error accessing path: {path}. {str(e)}. Full response is: '{data}'"
-            raise LanguageModelBadResponseError(message=msg, response_json=data)
-    if isinstance(current_data, str):
-        return current_data.strip()
-    else:
-        return current_data
+from edsl.language_models.RawResponseHandler import RawResponseHandler
 
 
 def handle_key_error(func):
@@ -124,6 +82,14 @@ def handle_key_error(func):
             returned a JSON object we were not expecting."""
 
     return wrapper
+
+
+class classproperty:
+    def __init__(self, method):
+        self.method = method
+
+    def __get__(self, instance, cls):
+        return self.method(cls)
 
 
 class LanguageModel(
@@ -144,6 +110,12 @@ class LanguageModel(
     DEFAULT_RPM = 100
     DEFAULT_TPM = 1000
 
+    @classproperty
+    def response_handler(cls):
+        key_sequence = cls.key_sequence
+        usage_sequence = cls.usage_sequence if hasattr(cls, "usage_sequence") else None
+        return RawResponseHandler(key_sequence, usage_sequence)
+
     def __init__(
         self,
         tpm: float = None,
@@ -160,6 +132,8 @@ class LanguageModel(
         self.remote = False
         self.omit_system_prompt_if_empty = omit_system_prompt_if_empty_string
 
+        # self.raw_response_handler = RawResponseHandler(self.key_sequence)
+
         if key_lookup is not None:
             self.key_lookup = key_lookup
         else:
@@ -169,11 +143,11 @@ class LanguageModel(
 
         self.model_info = self.key_lookup.get(self._inference_service_)
 
-        if "rpm" in kwargs:
-            self._rpm = kwargs["rpm"]
+        if rpm is not None::
+            self._rpm = rpm
 
-        if "tpm" in kwargs:
-            self._tpm = kwargs["tpm"]
+        if tpm is not None:
+            self._tpm = tpm
 
         for key, value in parameters.items():
             setattr(self, key, value)
@@ -218,6 +192,7 @@ class LanguageModel(
                 self._tpm = self.model_info.tpm
         return self._tpm
 
+    # in case we want to override the default values
     @tpm.setter
     def tpm(self, value):
         self._tpm = value
@@ -364,17 +339,13 @@ class LanguageModel(
     @classmethod
     def get_generated_token_string(cls, raw_response: dict[str, Any]) -> str:
         """Return the generated token string from the raw response."""
-        return extract_item_from_raw_response(raw_response, cls.key_sequence)
-
+        return cls.response_handler.get_generated_token_string(raw_response)
+    
     @classmethod
     def get_usage_dict(cls, raw_response: dict[str, Any]) -> dict[str, Any]:
         """Return the usage dictionary from the raw response."""
-        if not hasattr(cls, "usage_sequence"):
-            raise NotImplementedError(
-                "This inference service does not have a usage_sequence."
-            )
-        return extract_item_from_raw_response(raw_response, cls.usage_sequence)
-
+        return cls.response_handler.get_usage_dict(raw_response)
+  
     @staticmethod
     def convert_answer(response_part):
         import json
@@ -398,24 +369,8 @@ class LanguageModel(
     @classmethod
     def parse_response(cls, raw_response: dict[str, Any]) -> EDSLOutput:
         """Parses the API response and returns the response text."""
-        generated_token_string = cls.get_generated_token_string(raw_response)
-        last_newline = generated_token_string.rfind("\n")
-
-        if last_newline == -1:
-            # There is no comment
-            edsl_dict = {
-                "answer": cls.convert_answer(generated_token_string),
-                "generated_tokens": generated_token_string,
-                "comment": None,
-            }
-        else:
-            edsl_dict = {
-                "answer": cls.convert_answer(generated_token_string[:last_newline]),
-                "comment": generated_token_string[last_newline + 1 :].strip(),
-                "generated_tokens": generated_token_string,
-            }
-        return EDSLOutput(**edsl_dict)
-
+        return cls.response_handler.parse_response(raw_response)
+  
     async def _async_get_intended_model_call_outcome(
         self,
         user_prompt: str,
