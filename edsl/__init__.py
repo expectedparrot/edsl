@@ -18,6 +18,7 @@ from edsl.questions import QuestionFreeText
 from edsl.questions import QuestionFunctional
 from edsl.questions import QuestionLikertFive
 from edsl.questions import QuestionList
+from edsl.questions import QuestionMatrix
 from edsl.questions import QuestionLinearScale
 from edsl.questions import QuestionNumerical
 from edsl.questions import QuestionYesNo
