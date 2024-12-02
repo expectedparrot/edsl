@@ -255,7 +255,7 @@ class KeyLookupBuilder:
 
     def process_key_value_pairs(self) -> tuple[dict, dict]:
         """Fetch the data from the source"""
-        print("fetching key value pairs")
+        # print("fetching key value pairs")
         for key, value_pair in self.get_key_value_pairs().items():
             value, source = value_pair
             if (entry_type := self._entry_type(key, value)) == "limit":

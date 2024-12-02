@@ -13,23 +13,23 @@ from edsl.questions.QuestionBase import QuestionBase
 from edsl.utilities.decorators import remove_edsl_version
 from edsl.agents.Agent import Agent
 
-from .instructions.InstructionCollection import InstructionCollection
-from .instructions.Instruction import Instruction
-from .instructions.ChangeInstruction import ChangeInstruction
-from .ConstructDAG import ConstructDAG
-from .base import RulePriority, EndOfSurvey
-from .DAG import DAG
-from .descriptors import QuestionsDescriptor
-from .MemoryPlan import MemoryPlan
-from .Rule import Rule
-from .RuleCollection import RuleCollection
-from .SurveyExportMixin import SurveyExportMixin
-from .SurveyFlowVisualizationMixin import SurveyFlowVisualizationMixin
-from .InstructionHandler import InstructionHandler
-from .EditSurvey import EditSurvey
-from .Simulator import Simulator
-from .MemoryManagement import MemoryManagement
-from .RuleManager import RuleManager
+from edsl.surveys.instructions.InstructionCollection import InstructionCollection
+from edsl.surveys.instructions.Instruction import Instruction
+from edsl.surveys.instructions.ChangeInstruction import ChangeInstruction
+from edsl.surveys.ConstructDAG import ConstructDAG
+from edsl.surveys.base import RulePriority, EndOfSurvey
+from edsl.surveys.DAG import DAG
+from edsl.surveys.descriptors import QuestionsDescriptor
+from edsl.surveys.MemoryPlan import MemoryPlan
+from edsl.surveys.Rule import Rule
+from edsl.surveys.RuleCollection import RuleCollection
+from edsl.surveys.SurveyExportMixin import SurveyExportMixin
+from edsl.surveys.SurveyFlowVisualizationMixin import SurveyFlowVisualizationMixin
+from edsl.surveys.InstructionHandler import InstructionHandler
+from edsl.surveys.EditSurvey import EditSurvey
+from edsl.surveys.Simulator import Simulator
+from edsl.surveys.MemoryManagement import MemoryManagement
+from edsl.surveys.RuleManager import RuleManager
 
 
 class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
@@ -660,6 +660,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
         >>> s = Survey.example()
         >>> s.show_rules()
+        Dataset([{'current_q': [0, 0, 1, 2]}, {'expression': ['True', "q0 == 'yes'", 'True', 'True']}, {'next_q': [1, 2, 2, 3]}, {'priority': [-1, 0, -1, -1]}, {'before_rule': [False, False, False, False]}])
         """
         return self.rule_collection.show_rules()
 
@@ -697,22 +698,9 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         """Remove all non-default rules from the survey.
 
         >>> Survey.example().show_rules()
-        ┏━━━━━━━━━━━┳━━━━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━━━┓
-        ┃ current_q ┃ expression  ┃ next_q ┃ priority ┃ before_rule ┃
-        ┡━━━━━━━━━━━╇━━━━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━━━┩
-        │ 0         │ True        │ 1      │ -1       │ False       │
-        │ 0         │ q0 == 'yes' │ 2      │ 0        │ False       │
-        │ 1         │ True        │ 2      │ -1       │ False       │
-        │ 2         │ True        │ 3      │ -1       │ False       │
-        └───────────┴─────────────┴────────┴──────────┴─────────────┘
+        Dataset([{'current_q': [0, 0, 1, 2]}, {'expression': ['True', "q0 == 'yes'", 'True', 'True']}, {'next_q': [1, 2, 2, 3]}, {'priority': [-1, 0, -1, -1]}, {'before_rule': [False, False, False, False]}])
         >>> Survey.example().clear_non_default_rules().show_rules()
-        ┏━━━━━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━━━┓
-        ┃ current_q ┃ expression ┃ next_q ┃ priority ┃ before_rule ┃
-        ┡━━━━━━━━━━━╇━━━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━━━┩
-        │ 0         │ True       │ 1      │ -1       │ False       │
-        │ 1         │ True       │ 2      │ -1       │ False       │
-        │ 2         │ True       │ 3      │ -1       │ False       │
-        └───────────┴────────────┴────────┴──────────┴─────────────┘
+        Dataset([{'current_q': [0, 1, 2]}, {'expression': ['True', 'True', 'True']}, {'next_q': [1, 2, 3]}, {'priority': [-1, -1, -1]}, {'before_rule': [False, False, False]}])
         """
         s = Survey()
         for question in self.questions:
@@ -937,14 +925,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
         >>> s = Survey.example()
         >>> s.show_rules()
-        ┏━━━━━━━━━━━┳━━━━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━━━┓
-        ┃ current_q ┃ expression  ┃ next_q ┃ priority ┃ before_rule ┃
-        ┡━━━━━━━━━━━╇━━━━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━━━┩
-        │ 0         │ True        │ 1      │ -1       │ False       │
-        │ 0         │ q0 == 'yes' │ 2      │ 0        │ False       │
-        │ 1         │ True        │ 2      │ -1       │ False       │
-        │ 2         │ True        │ 3      │ -1       │ False       │
-        └───────────┴─────────────┴────────┴──────────┴─────────────┘
+        Dataset([{'current_q': [0, 0, 1, 2]}, {'expression': ['True', "q0 == 'yes'", 'True', 'True']}, {'next_q': [1, 2, 2, 3]}, {'priority': [-1, 0, -1, -1]}, {'before_rule': [False, False, False, False]}])
 
         Note that q0 has a rule that if the answer is 'yes', the next question is q2. If the answer is 'no', the next question is q1.
 

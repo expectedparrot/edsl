@@ -204,9 +204,9 @@ class LanguageModel(
     def rpm(self):
         if not hasattr(self, "_rpm"):
             if self.model_info is None:
-                # raise ValueError(f"No key for for service {self._inference_service_}")
                 self._rpm = self.DEFAULT_RPM
-            self._rpm = self.model_info.rpm
+            else:
+                self._rpm = self.model_info.rpm
         return self._rpm
 
     @property
@@ -214,8 +214,8 @@ class LanguageModel(
         if not hasattr(self, "_tpm"):
             if self.model_info is None:
                 self._tpm = self.DEFAULT_TPM
-                # raise ValueError(f"No key for for service {self._inference_service_}")
-            self._tpm = self.model_info.tpm
+            else:
+                self._tpm = self.model_info.tpm
         return self._tpm
 
     @tpm.setter
@@ -289,7 +289,7 @@ class LanguageModel(
 
         >>> m = LanguageModel.example()
         >>> m.set_rate_limits(rpm=100, tpm=1000)
-        >>> m.RPM
+        >>> m.rpm
         100
         """
         if rpm is not None:
