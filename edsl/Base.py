@@ -57,6 +57,7 @@ class PersistenceMixin:
     def push(
         self,
         description: Optional[str] = None,
+        alias: Optional[str] = None,
         visibility: Optional[str] = "unlisted",
         expected_parrot_url: Optional[str] = None,
     ):
@@ -64,7 +65,7 @@ class PersistenceMixin:
         from edsl.coop import Coop
 
         c = Coop(url=expected_parrot_url)
-        return c.create(self, description, visibility)
+        return c.create(self, description, alias, visibility)
 
     @classmethod
     def pull(
@@ -95,6 +96,7 @@ class PersistenceMixin:
         uuid: Optional[Union[str, UUID]] = None,
         url: Optional[str] = None,
         description: Optional[str] = None,
+        alias: Optional[str] = None,
         value: Optional[Any] = None,
         visibility: Optional[str] = None,
     ):
@@ -107,7 +109,7 @@ class PersistenceMixin:
         from edsl.coop import Coop
 
         coop = Coop()
-        return coop.patch(uuid, url, description, value, visibility)
+        return coop.patch(uuid, url, description, alias, value, visibility)
 
     @classmethod
     def search(cls, query):
