@@ -101,9 +101,27 @@ class MatrixResponseValidator(ResponseValidatorABC):
 
                 fixed = json.loads(response["generated_tokens"])
                 if isinstance(fixed, dict):
-                    return {"answer": fixed}
+                    # Map numeric keys to question items
+                    mapped_answer = {}
+                    for idx, item in enumerate(self.question_items):
+                        if str(idx) in fixed:
+                            mapped_answer[item] = fixed[str(idx)]
+                    if (
+                        mapped_answer
+                    ):  # Only return if we successfully mapped some answers
+                        return {"answer": mapped_answer}
             except:
                 pass
+
+        # If answer uses numeric keys, map them to question items
+        if "answer" in response and isinstance(response["answer"], dict):
+            if all(str(key).isdigit() for key in response["answer"].keys()):
+                mapped_answer = {}
+                for idx, item in enumerate(self.question_items):
+                    if str(idx) in response["answer"]:
+                        mapped_answer[item] = response["answer"][str(idx)]
+                if mapped_answer:  # Only update if we successfully mapped some answers
+                    response["answer"] = mapped_answer
 
         return response
 
