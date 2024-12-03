@@ -1133,6 +1133,21 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
             d["edsl_class_name"] = self.__class__.__name__
         return d
 
+    def to(self, survey: Union["Survey", "QuestionBase"]) -> "Jobs":
+        """Create a Jobs object from a ScenarioList and a Survey object.
+
+        Example:
+        """
+        from edsl.surveys.Survey import Survey
+        from edsl.questions.QuestionBase import QuestionBase
+
+        from edsl.jobs.Jobs import Jobs
+
+        if isinstance(survey, QuestionBase):
+            return Survey([survey]).by(self)
+        else:
+            return survey.by(self)
+
     @classmethod
     def gen(cls, scenario_dicts_list: List[dict]) -> ScenarioList:
         """Create a `ScenarioList` from a list of dictionaries.

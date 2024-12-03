@@ -48,7 +48,7 @@ class TableDisplay:
             self.printing_parameters = {}
 
     def to_csv(self, filename: str):
-        self.raw_data_set.to_csv(filename)
+        return self.raw_data_set.to_csv(filename)
 
     def write(self, filename: str):
         if self.tablefmt is None:
