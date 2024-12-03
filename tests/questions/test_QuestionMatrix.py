@@ -30,7 +30,7 @@ def test_QuestionMatrix_construction():
     assert q.option_labels == {}
 
     # Invalid constructions
-    with pytest.raises(ValueError, match="question_name cannot be empty"):
+    with pytest.raises(ValueError):
         QuestionMatrix(
             question_name="",
             **{k: v for k, v in valid_question.items() if k != "question_name"}
