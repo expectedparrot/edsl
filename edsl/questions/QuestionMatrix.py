@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import Union, Optional, Dict, List, Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from jinja2 import Template
 
 from edsl.questions.QuestionBase import QuestionBase
