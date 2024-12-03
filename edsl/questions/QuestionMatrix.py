@@ -3,15 +3,19 @@ from typing import Union, Optional, Dict, List, Any
 
 from pydantic import BaseModel, Field, field_validator
 from jinja2 import Template
-
+import random
 from edsl.questions.QuestionBase import QuestionBase
 from edsl.questions.descriptors import (
     QuestionOptionsDescriptor,
     OptionLabelDescriptor,
+    QuestionTextDescriptor,
 )
 from edsl.questions.ResponseValidatorABC import ResponseValidatorABC
 from edsl.questions.decorators import inject_exception
-from edsl.exceptions import QuestionAnswerValidationError
+from edsl.exceptions import (
+    QuestionAnswerValidationError,
+    QuestionCreationValidationError,
+)
 
 
 def create_matrix_response(
@@ -130,6 +134,7 @@ class QuestionMatrix(QuestionBase):
     """A question that presents a matrix/grid where multiple items are rated using the same scale."""
 
     question_type = "matrix"
+    question_text: str = QuestionTextDescriptor()
     question_items: List[str] = QuestionOptionsDescriptor()
     question_options: List[Union[int, str, float]] = QuestionOptionsDescriptor()
     option_labels: Optional[Dict[Union[int, str, float], str]] = OptionLabelDescriptor()
@@ -163,7 +168,14 @@ class QuestionMatrix(QuestionBase):
             permissive: Whether to strictly validate responses
         """
         self.question_name = question_name
-        self.question_text = question_text
+
+        try:
+            self.question_text = question_text
+        except Exception as e:
+            raise QuestionCreationValidationError(
+                "question_text cannot be empty or too short!"
+            ) from e
+
         self.question_items = question_items
         self.question_options = question_options
         self.option_labels = option_labels or {}
@@ -236,6 +248,15 @@ class QuestionMatrix(QuestionBase):
             question_options=[1, 2, 3, 4, 5],
             option_labels={1: "Very sad", 3: "Neutral", 5: "Extremely happy"},
         )
+
+    def _simulate_answer(self) -> dict:
+        """Simulate a random valid answer."""
+        return {
+            "answer": {
+                item: random.choice(self.question_options)
+                for item in self.question_items
+            }
+        }
 
 
 if __name__ == "__main__":

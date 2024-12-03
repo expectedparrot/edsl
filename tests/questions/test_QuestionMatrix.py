@@ -41,7 +41,8 @@ def test_QuestionMatrix_construction():
         )
 
     with pytest.raises(
-        QuestionCreationValidationError, match="question_text cannot be empty"
+        QuestionCreationValidationError,
+        match="question_text cannot be empty or too short!",
     ):
         QuestionMatrix(
             question_text="",
@@ -49,7 +50,7 @@ def test_QuestionMatrix_construction():
         )
 
     with pytest.raises(
-        QuestionCreationValidationError, match="question_items cannot be empty"
+        QuestionCreationValidationError, match="Too few question options"
     ):
         QuestionMatrix(
             question_items=[],
@@ -57,7 +58,7 @@ def test_QuestionMatrix_construction():
         )
 
     with pytest.raises(
-        QuestionCreationValidationError, match="question_options cannot be empty"
+        QuestionCreationValidationError, match="Too few question options"
     ):
         QuestionMatrix(
             question_options=[],
