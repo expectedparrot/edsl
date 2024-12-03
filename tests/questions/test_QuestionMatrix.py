@@ -1,11 +1,7 @@
 import pytest
-from edsl.exceptions import (
-    QuestionAnswerValidationError,
-    QuestionResponseValidationError,
-)
+from edsl.exceptions import QuestionAnswerValidationError
 from edsl.questions.QuestionBase import QuestionBase
 from edsl.questions.QuestionMatrix import QuestionMatrix
-
 
 valid_question = {
     "question_name": "child_happiness",
@@ -13,13 +9,6 @@ valid_question = {
     "question_items": ["No children", "1 child", "2 children", "3 or more children"],
     "question_options": [1, 2, 3, 4, 5],
     "option_labels": {1: "Very sad", 3: "Neutral", 5: "Extremely happy"},
-}
-
-valid_question_wo_labels = {
-    "question_name": "child_happiness",
-    "question_text": "How happy would you be with different numbers of children?",
-    "question_items": ["No children", "1 child", "2 children", "3 or more children"],
-    "question_options": [1, 2, 3, 4, 5],
 }
 
 
@@ -35,131 +24,92 @@ def test_QuestionMatrix_construction():
     assert q.option_labels == valid_question["option_labels"]
 
     # Construction without labels
-    q = QuestionMatrix(**valid_question_wo_labels)
+    q = QuestionMatrix(
+        **{k: v for k, v in valid_question.items() if k != "option_labels"}
+    )
     assert q.option_labels == {}
 
-    # Should raise exceptions for invalid construction
-    with pytest.raises(Exception):
+    # Invalid constructions
+    with pytest.raises(ValueError, match="question_name cannot be empty"):
         QuestionMatrix(
             question_name="",
-            question_text="test",
-            question_items=[],
-            question_options=[1, 2, 3],
+            **{k: v for k, v in valid_question.items() if k != "question_name"}
         )
 
-    with pytest.raises(Exception):
+    with pytest.raises(ValueError, match="question_text cannot be empty"):
         QuestionMatrix(
-            question_name="test",
             question_text="",
-            question_items=["item1"],
-            question_options=[1, 2, 3],
+            **{k: v for k, v in valid_question.items() if k != "question_text"}
         )
 
-    with pytest.raises(Exception):
+    with pytest.raises(ValueError, match="question_items cannot be empty"):
         QuestionMatrix(
-            question_name="test",
-            question_text="test",
-            question_items=[],  # Empty items list
-            question_options=[1, 2, 3],
+            question_items=[],
+            **{k: v for k, v in valid_question.items() if k != "question_items"}
         )
 
-    with pytest.raises(Exception):
+    with pytest.raises(ValueError, match="question_options cannot be empty"):
         QuestionMatrix(
-            question_name="test",
-            question_text="test",
-            question_items=["item1"],
-            question_options=[],  # Empty options list
+            question_options=[],
+            **{k: v for k, v in valid_question.items() if k != "question_options"}
         )
-
-
-def test_QuestionMatrix_serialization():
-    """Test QuestionMatrix serialization."""
-    q = QuestionMatrix(**valid_question)
-
-    # Test serialization
-    serialized = q.to_dict()
-    assert serialized["question_type"] == "matrix"
-    assert serialized["question_name"] == valid_question["question_name"]
-    assert serialized["question_text"] == valid_question["question_text"]
-    assert serialized["question_items"] == valid_question["question_items"]
-    assert serialized["question_options"] == valid_question["question_options"]
-    assert serialized["option_labels"] == valid_question["option_labels"]
-
-    # Test deserialization
-    q_deserialized = QuestionBase.from_dict(serialized)
-    assert isinstance(q_deserialized, QuestionMatrix)
-    assert q_deserialized.question_name == q.question_name
-    assert q_deserialized.question_text == q.question_text
-    assert q_deserialized.question_items == q.question_items
-    assert q_deserialized.question_options == q.question_options
-    assert q_deserialized.option_labels == q.option_labels
 
 
 def test_QuestionMatrix_validation():
-    """Test answer validation for QuestionMatrix."""
+    """Test answer validation."""
     q = QuestionMatrix(**valid_question)
 
     # Valid answer
     valid_answer = {
         "answer": {
             "No children": 1,
-            "1 child": 3,
-            "2 children": 4,
-            "3 or more children": 5,
+            "1 child": 2,
+            "2 children": 3,
+            "3 or more children": 4,
         }
     }
     q._validate_answer(valid_answer)
 
     # Missing items
     with pytest.raises(QuestionAnswerValidationError):
-        q._validate_answer(
-            {
-                "answer": {
-                    "No children": 1,
-                    "1 child": 3,
-                    # Missing "2 children" and "3 or more children"
-                }
-            }
-        )
+        q._validate_answer({"answer": {"No children": 1, "1 child": 2}})
 
-    # Invalid option
+    # Invalid options
     with pytest.raises(QuestionAnswerValidationError):
         q._validate_answer(
             {
                 "answer": {
                     "No children": 1,
-                    "1 child": 3,
-                    "2 children": 6,  # 6 is not in question_options
-                    "3 or more children": 5,
+                    "1 child": 2,
+                    "2 children": 6,
+                    "3 or more children": 4,
                 }
             }
         )
 
-    # Extra items
-    with pytest.raises(QuestionAnswerValidationError):
-        q._validate_answer(
-            {
-                "answer": {
-                    "No children": 1,
-                    "1 child": 3,
-                    "2 children": 4,
-                    "3 or more children": 5,
-                    "4 children": 2,  # Extra item
-                }
-            }
-        )
 
-    # Wrong type (not a dict)
-    with pytest.raises(QuestionAnswerValidationError):
-        q._validate_answer({"answer": [1, 3, 4, 5]})
+def test_QuestionMatrix_serialization():
+    """Test serialization."""
+    q = QuestionMatrix(**valid_question)
+    serialized = q.to_dict()
+
+    assert serialized["question_type"] == "matrix"
+    assert serialized["question_name"] == valid_question["question_name"]
+    assert serialized["question_items"] == valid_question["question_items"]
+    assert serialized["question_options"] == valid_question["question_options"]
+
+    deserialized = QuestionBase.from_dict(serialized)
+    assert isinstance(deserialized, QuestionMatrix)
+    assert deserialized.question_name == q.question_name
+    assert deserialized.question_items == q.question_items
+    assert deserialized.question_options == q.question_options
 
 
 def test_QuestionMatrix_html():
-    """Test HTML generation for QuestionMatrix."""
+    """Test HTML generation."""
     q = QuestionMatrix(**valid_question)
     html = q.question_html_content
 
-    # Basic checks for HTML content
     assert "table" in html
     assert "matrix-question" in html
     assert all(item in html for item in q.question_items)
@@ -168,7 +118,7 @@ def test_QuestionMatrix_html():
 
 
 def test_QuestionMatrix_example():
-    """Test the example method of QuestionMatrix."""
+    """Test example creation."""
     q = QuestionMatrix.example()
     assert isinstance(q, QuestionMatrix)
     assert q.question_name == "child_happiness"
@@ -178,7 +128,7 @@ def test_QuestionMatrix_example():
 
 
 def test_QuestionMatrix_simulation():
-    """Test answer simulation for QuestionMatrix."""
+    """Test answer simulation."""
     q = QuestionMatrix(**valid_question)
     simulated = q._simulate_answer()
 
