@@ -280,10 +280,24 @@ class RepresentationMixin:
         return self.__repr__()
 
 
+class HashingMixin:
+
+    def __hash__(self) -> int:
+        """Return a hash of the question."""
+        from edsl.utilities.utilities import dict_hash
+
+        return dict_hash(self.to_dict(add_edsl_version=False))
+
+    def __eq__(self, other):
+        """Return whether two objects are equal."""
+        return hash(self) == hash(other)
+
+
 class Base(
     RepresentationMixin,
     PersistenceMixin,
     DiffMethodsMixin,
+    HashingMixin,
     ABC,
     metaclass=RegisterSubclassesMeta,
 ):
@@ -304,24 +318,6 @@ class Base(
         keys = self.keys()
         return {data[key] for key in keys}
 
-    def __hash__(self) -> int:
-        """Return a hash of the question."""
-        from edsl.utilities.utilities import dict_hash
-
-        return dict_hash(self.to_dict(add_edsl_version=False))
-
-    def __eq__(self, other):
-        """Return whether two objects are equal."""
-        return hash(self) == hash(other)
-        # import inspect
-
-        # if not isinstance(other, self.__class__):
-        #     return False
-        # if "sort" in inspect.signature(self.to_dict).parameters:
-        #     return self.to_dict(sort=True) == other.to_dict(sort=True)
-        # else:
-        #     return self.to_dict() == other.to_dict()
-
     @abstractmethod
     def example():
         """This method should be implemented by subclasses."""
@@ -334,6 +330,13 @@ class Base(
 
     def to_json(self):
         return json.dumps(self.to_dict())
+
+    def store(self, d: dict, key_name: Optional[str] = None):
+        if key_name is None:
+            index = len(d)
+        else:
+            index = key_name
+        d[index] = self
 
     @abstractmethod
     def from_dict():
