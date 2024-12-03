@@ -94,9 +94,13 @@ class classproperty:
         return self.method(cls)
 
 
+from edsl.Base import HashingMixin
+
+
 class LanguageModel(
     PersistenceMixin,
     RepresentationMixin,
+    HashingMixin,
     ABC,
     metaclass=RegisterLanguageModelsMeta,
 ):
@@ -136,13 +140,7 @@ class LanguageModel(
 
         # self.raw_response_handler = RawResponseHandler(self.key_sequence)
 
-        if key_lookup is not None:
-            self.key_lookup = key_lookup
-        else:
-            klc = KeyLookupCollection()
-            klc.add_key_lookup(fetch_order=("config", "env"))
-            self.key_lookup = klc.get(("config", "env"))
-
+        self.key_lookup = self._set_key_lookup(key_lookup)
         self.model_info = self.key_lookup.get(self._inference_service_)
 
         if rpm is not None:
@@ -166,6 +164,14 @@ class LanguageModel(
         if kwargs.get("skip_api_key_check", False):
             # Skip the API key check. Sometimes this is useful for testing.
             self._api_token = None
+
+    def _set_key_lookup(self, key_lookup: KeyLookup) -> "KeyLookup":
+        if key_lookup is not None:
+            return key_lookup
+        else:
+            klc = KeyLookupCollection()
+            klc.add_key_lookup(fetch_order=("config", "env"))
+            return klc.get(("config", "env"))
 
     def ask_question(self, question):
         user_prompt = question.get_instructions().render(question.data).text
@@ -261,20 +267,6 @@ class LanguageModel(
         """
         return self.model == other.model and self.parameters == other.parameters
 
-    def set_rate_limits(self, rpm=None, tpm=None) -> None:
-        """Set the rate limits for the model.
-
-        >>> m = LanguageModel.example()
-        >>> m.set_rate_limits(rpm=100, tpm=1000)
-        >>> m.rpm
-        100
-        """
-        if rpm is not None:
-            self._rpm = rpm
-        if tpm is not None:
-            self._tpm = tpm
-        return None
-
     @staticmethod
     def _overide_default_parameters(passed_parameter_dict, default_parameter_dict):
         """Return a dictionary of parameters, with passed parameters taking precedence over defaults.
@@ -348,26 +340,6 @@ class LanguageModel(
         """Return the usage dictionary from the raw response."""
         return cls.response_handler.get_usage_dict(raw_response)
 
-    @staticmethod
-    def convert_answer(response_part):
-        import json
-
-        response_part = response_part.strip()
-
-        if response_part == "None":
-            return None
-
-        repaired = repair_json(response_part)
-        if repaired == '""':
-            # it was a literal string
-            return response_part
-
-        try:
-            return json.loads(repaired)
-        except json.JSONDecodeError as j:
-            # last resort
-            return response_part
-
     @classmethod
     def parse_response(cls, raw_response: dict[str, Any]) -> EDSLOutput:
         """Parses the API response and returns the response text."""
@@ -436,8 +408,7 @@ class LanguageModel(
             )  # store the response in the cache
             assert new_cache_key == cache_key  # should be the same
 
-        # cost = self.cost(response)
-        cost = 12
+        cost = self.cost(response)
         return ModelResponse(
             response=response,
             cache_used=cache_used,
@@ -516,49 +487,6 @@ class LanguageModel(
             input_token_name=self.input_token_name,
             output_token_name=self.output_token_name,
         )
-
-        # from edsl.coop import Coop
-        # c = Coop()
-        # price_lookup = c.fetch_prices()
-        # key = (self._inference_service_, self.model)
-        # if key not in price_lookup:
-        #    return f"Could not find price for model {self.model} in the price lookup."
-
-        # relevant_prices = price_lookup[key]
-        # relevant_prices = price_manger.get_price(self._inference_service_, self.model)
-        # try:
-        #     input_tokens = int(usage[self.input_token_name])
-        #     output_tokens = int(usage[self.output_token_name])
-        # except Exception as e:
-        #     return f"Could not fetch tokens from model response: {e}"
-
-        # try:
-        #     inverse_output_price = relevant_prices["output"]["one_usd_buys"]
-        #     inverse_input_price = relevant_prices["input"]["one_usd_buys"]
-        # except Exception as e:
-        #     if "output" not in relevant_prices:
-        #         return f"Could not fetch prices from {relevant_prices} - {e}; Missing 'output' key."
-        #     if "input" not in relevant_prices:
-        #         return f"Could not fetch prices from {relevant_prices} - {e}; Missing 'input' key."
-        #     return f"Could not fetch prices from {relevant_prices} - {e}"
-
-        # if inverse_input_price == "infinity":
-        #     input_cost = 0
-        # else:
-        #     try:
-        #         input_cost = input_tokens / float(inverse_input_price)
-        #     except Exception as e:
-        #         return f"Could not compute input price - {e}."
-
-        # if inverse_output_price == "infinity":
-        #     output_cost = 0
-        # else:
-        #     try:
-        #         output_cost = output_tokens / float(inverse_output_price)
-        #     except Exception as e:
-        #         return f"Could not compute output price - {e}"
-
-        # return input_cost + output_cost
 
     def to_dict(self, add_edsl_version: bool = True) -> dict[str, Any]:
         """Convert instance to a dictionary
