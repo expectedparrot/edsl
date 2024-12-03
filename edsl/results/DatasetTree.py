@@ -115,10 +115,29 @@ class Tree:
         body_style.font.size = Pt(11)
 
         self._add_to_docx(doc, self.root, 0)
-        doc.save(filename)
-        from edsl.utilities.utilities import file_notice
+        import base64
+        from io import BytesIO
+        import base64
 
-        file_notice(filename)
+        # Save document to bytes buffer
+        doc_buffer = BytesIO()
+        doc.save(doc_buffer)
+        doc_buffer.seek(0)
+
+        base64_string = base64.b64encode(doc_buffer.getvalue()).decode("utf-8")
+        from edsl.scenarios.FileStore import FileStore
+
+        # Create and return FileStore instance
+        return FileStore(
+            path="tree_structure.docx",  # Default name
+            mime_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            binary=True,
+            suffix="docx",
+            base64_string=base64_string,
+        )
+        # doc.save(filename)
+        # from edsl.utilities.utilities import file_notice
+        # file_notice(filename)
 
     def _repr_html_(self):
         """Returns an interactive HTML representation of the tree with collapsible sections."""
