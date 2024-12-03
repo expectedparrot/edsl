@@ -2,6 +2,7 @@ import pytest
 from edsl.exceptions import QuestionAnswerValidationError
 from edsl.questions.QuestionBase import QuestionBase
 from edsl.questions.QuestionMatrix import QuestionMatrix
+from edsl.exceptions.questions import QuestionCreationValidationError
 
 valid_question = {
     "question_name": "child_happiness",
@@ -30,25 +31,34 @@ def test_QuestionMatrix_construction():
     assert q.option_labels == {}
 
     # Invalid constructions
-    with pytest.raises(ValueError):
+    with pytest.raises(
+        QuestionCreationValidationError,
+        match="`question_name` is not a valid variable name",
+    ):
         QuestionMatrix(
             question_name="",
             **{k: v for k, v in valid_question.items() if k != "question_name"}
         )
 
-    with pytest.raises(ValueError, match="question_text cannot be empty"):
+    with pytest.raises(
+        QuestionCreationValidationError, match="question_text cannot be empty"
+    ):
         QuestionMatrix(
             question_text="",
             **{k: v for k, v in valid_question.items() if k != "question_text"}
         )
 
-    with pytest.raises(ValueError, match="question_items cannot be empty"):
+    with pytest.raises(
+        QuestionCreationValidationError, match="question_items cannot be empty"
+    ):
         QuestionMatrix(
             question_items=[],
             **{k: v for k, v in valid_question.items() if k != "question_items"}
         )
 
-    with pytest.raises(ValueError, match="question_options cannot be empty"):
+    with pytest.raises(
+        QuestionCreationValidationError, match="question_options cannot be empty"
+    ):
         QuestionMatrix(
             question_options=[],
             **{k: v for k, v in valid_question.items() if k != "question_options"}
