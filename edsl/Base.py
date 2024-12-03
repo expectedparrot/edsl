@@ -15,41 +15,6 @@ from edsl.utilities.utilities import is_notebook
 class RichPrintingMixin:
     pass
 
-    # def print(self):
-    #     print(self)
-
-
-#     """Mixin for rich printing and persistence of objects."""
-
-#     def _for_console(self):
-#         """Return a string representation of the object for console printing."""
-#         from rich.console import Console
-
-#         with io.StringIO() as buf:
-#             console = Console(file=buf, record=True)
-#             table = self.rich_print()
-#             console.print(table)
-#             return console.export_text()
-
-#     def __str__(self):
-#         """Return a string representation of the object for console printing."""
-#         # return self._for_console()
-#         return self.__repr__()
-
-#     def print(self):
-#         """Print the object to the console."""
-#         from edsl.utilities.utilities import is_notebook
-
-#         if is_notebook():
-#             from IPython.display import display
-
-#             display(self.rich_print())
-#         else:
-#             from rich.console import Console
-
-#             console = Console()
-#             console.print(self.rich_print())
-
 
 class PersistenceMixin:
     """Mixin for saving and loading objects to and from files."""
@@ -65,6 +30,16 @@ class PersistenceMixin:
 
         c = Coop(url=expected_parrot_url)
         return c.create(self, description, visibility)
+
+    def create_download_link(self):
+        from tempfile import NamedTemporaryFile
+        from edsl.scenarios.FileStore import FileStore
+
+        with NamedTemporaryFile(suffix=".json.gz") as f:
+            self.save(f.name)
+            print(f.name)
+            fs = FileStore(path=f.name)
+        return fs.create_link()
 
     @classmethod
     def pull(

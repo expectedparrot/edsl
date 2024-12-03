@@ -6,12 +6,52 @@ import os
 from typing import Dict, Any, IO, Optional
 import requests
 from urllib.parse import urlparse
-
+import subprocess
 import google.generativeai as genai
 
 from edsl import Scenario
 from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
 from edsl.utilities.utilities import is_notebook
+
+
+def view_docx(docx_path):
+    import os
+    import subprocess
+    from IPython.display import HTML, display
+    import base64
+
+    if is_notebook():
+        # For Jupyter notebooks, we'll need to convert DOCX to HTML
+        # since browsers can't directly display DOCX files
+        try:
+            import mammoth
+
+            with open(docx_path, "rb") as docx_file:
+                result = mammoth.convert_to_html(docx_file)
+                html = f"""
+                <div style="width: 800px; height: 800px; padding: 20px; 
+                           border: 1px solid #ccc; overflow-y: auto;">
+                    {result.value}
+                </div>
+                """
+                display(HTML(html))
+        except ImportError:
+            print("Please install mammoth for notebook preview: pip install mammoth")
+        finally:
+            return
+
+    if os.path.exists(docx_path):
+        try:
+            if (os_name := os.name) == "posix":
+                subprocess.run(["open", docx_path], check=True)  # macOS
+            elif os_name == "nt":
+                os.startfile(docx_path)  # Windows
+            else:
+                subprocess.run(["xdg-open", docx_path], check=True)  # Linux
+        except Exception as e:
+            print(f"Error opening DOCX: {e}")
+    else:
+        print("DOCX file was not found.")
 
 
 def view_csv(csv_path):
@@ -95,6 +135,7 @@ def view_pdf(pdf_path):
         ></iframe>
         """
         display(HTML(html))
+        return
 
     if os.path.exists(pdf_path):
         try:
@@ -302,6 +343,41 @@ class FileStore(Scenario):
         else:
             return self.base64_to_text_file(self["base64_string"])
 
+    def write(self, filename: Optional[str] = None) -> str:
+        """
+        Write the file content to disk, either to a specified filename or a temporary file.
+
+        Args:
+            filename (Optional[str]): The destination filename. If None, creates a temporary file.
+
+        Returns:
+            str: The path to the written file.
+        """
+        # Determine the mode based on binary flag
+        mode = "wb" if self.binary else "w"
+
+        # If no filename provided, create a temporary file
+        if filename is None:
+            from tempfile import NamedTemporaryFile
+
+            with NamedTemporaryFile(delete=False, suffix="." + self.suffix) as f:
+                filename = f.name
+
+        # Write the content using the appropriate mode
+        try:
+            with open(filename, mode) as f:
+                content = self.open().read()
+                # For text mode, ensure we're writing a string
+                if not self.binary and isinstance(content, bytes):
+                    content = content.decode("utf-8")
+                f.write(content)
+                print(f"File written to {filename}")
+        except Exception as e:
+            print(f"Error writing file: {e}")
+            raise
+
+        # return filename
+
     @staticmethod
     def base64_to_text_file(base64_string) -> "IO":
         # Decode the base64 string to bytes
@@ -328,6 +404,15 @@ class FileStore(Scenario):
             text_data = file_data.decode("utf-8")
             # Create a StringIO object for text data
             return io.StringIO(text_data)
+
+    @property
+    def text(self):
+        if self.binary:
+            import warnings
+
+            warnings.warn("This is a binary file.")
+        else:
+            return self.base64_to_text_file(self["base64_string"]).read()
 
     def to_tempfile(self, suffix=None):
         if suffix is None:
@@ -364,6 +449,9 @@ class FileStore(Scenario):
 
         if self.suffix == "html":
             view_html(self.path)
+
+        if self.suffix == "docx":
+            view_docx(self.path)
 
         if self.suffix == "png" or self.suffix == "jpg" or self.suffix == "jpeg":
             if is_notebook():
