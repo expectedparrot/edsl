@@ -390,7 +390,7 @@ class DatasetExportMixin:
 
         import pandas as pd
 
-        csv_string = self.to_csv(remove_prefix=remove_prefix)
+        csv_string = self.to_csv(remove_prefix=remove_prefix).text
         csv_buffer = io.StringIO(csv_string)
         df = pd.read_csv(csv_buffer)
         # df_sorted = df.sort_index(axis=1)  # Sort columns alphabetically
