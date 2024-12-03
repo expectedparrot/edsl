@@ -240,6 +240,15 @@ class Dataset(UserList, ResultsExportMixin):
         merged_df = df1.merge(df2, how="left", left_on=by_x, right_on=by_y)
         return Dataset.from_pandas_dataframe(merged_df)
 
+    def to(self, survey_or_question: Union["Survey", "QuestionBase"]) -> "Jobs":
+        from edsl.surveys.Survey import Survey
+        from edsl.questions.QuestionBase import QuestionBase
+
+        if isinstance(survey_or_question, Survey):
+            return survey_or_question.by(self.to_scenario_list())
+        elif isinstance(survey_or_question, QuestionBase):
+            return Survey([survey_or_question]).by(self.to_scenario_list())
+
     def select(self, *keys) -> Dataset:
         """Return a new dataset with only the selected keys.
 

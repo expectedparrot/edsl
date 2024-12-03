@@ -448,6 +448,11 @@ class FileStore(Scenario):
         # Create and return a new File instance
         return cls(download_path, mime_type=mime_type)
 
+    def create_link(self, custom_filename=None, style=None):
+        from edsl.scenarios.ConstructDownloadLink import ConstructDownloadLink
+
+        return ConstructDownloadLink(self).create_link(custom_filename, style)
+
 
 class CSVFileStore(FileStore):
     @classmethod
