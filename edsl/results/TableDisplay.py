@@ -127,13 +127,9 @@ class TableDisplay:
             num_rows * 30 + 50, self.max_height
         )  # Added extra space for header
 
-        # if height < self.min_height:
-        #     print("Using min height")
-        #     height = self.min_height
-        # else:
-        #     print("Using defined height")
+        if height < self.min_height:
+            height = self.min_height
 
-        print("Height is", height)
         html_template = """
         <style>
             {css}
