@@ -92,6 +92,13 @@ class PersistenceMixin:
         c = Coop()
         return c.search(cls, query)
 
+    def store(self, d: dict, key_name: Optional[str] = None):
+        if key_name is None:
+            index = len(d)
+        else:
+            index = key_name
+        d[index] = self
+
     def save(self, filename, compress=True):
         """Save the object to a file as zippped JSON.
 
@@ -226,6 +233,45 @@ class RepresentationMixin:
         console = Console(record=True)
         console.print(table)
 
+    def help(obj):
+        """
+        Extract all public instance methods and their docstrings from a class instance.
+
+        Args:
+            obj: The instance to inspect
+
+        Returns:
+            dict: A dictionary where keys are method names and values are their docstrings
+        """
+        import inspect
+
+        if inspect.isclass(obj):
+            raise TypeError("Please provide a class instance, not a class")
+
+        methods = {}
+
+        # Get all members of the instance
+        for name, member in inspect.getmembers(obj):
+            # Skip private and special methods (those starting with underscore)
+            if name.startswith("_"):
+                continue
+
+            # Check if it's specifically an instance method
+            if inspect.ismethod(member):
+                # Get the docstring (or empty string if none exists)
+                docstring = inspect.getdoc(member) or ""
+                methods[name] = docstring
+
+        from edsl.results.Dataset import Dataset
+
+        d = Dataset(
+            [
+                {"method": list(methods.keys())},
+                {"documentation": list(methods.values())},
+            ]
+        )
+        return d
+
     def _repr_html_(self):
         from edsl.results.TableDisplay import TableDisplay
 
@@ -305,13 +351,6 @@ class Base(
 
     def to_json(self):
         return json.dumps(self.to_dict())
-
-    def store(self, d: dict, key_name: Optional[str] = None):
-        if key_name is None:
-            index = len(d)
-        else:
-            index = key_name
-        d[index] = self
 
     @abstractmethod
     def from_dict():

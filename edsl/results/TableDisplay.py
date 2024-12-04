@@ -6,7 +6,21 @@ from edsl.results.CSSParameterizer import CSSParameterizer
 
 class TableDisplay:
     max_height = 400
-    min_height = 200
+    min_height = 100
+
+    def __init__(self, headers, data, tablefmt=None, raw_data_set=None):
+        self.headers = headers
+        self.data = data
+        self.tablefmt = tablefmt
+        self.raw_data_set = raw_data_set
+
+        if hasattr(raw_data_set, "print_parameters"):
+            if raw_data_set.print_parameters:
+                self.printing_parameters = raw_data_set.print_parameters
+            else:
+                self.printing_parameters = {}
+        else:
+            self.printing_parameters = {}
 
     @classmethod
     def get_css(cls):
@@ -32,20 +46,6 @@ class TableDisplay:
     def from_dataset(cls, dataset, tablefmt=None):
         headers, data = dataset._tabular()
         return TableDisplay(dataset.headers, dataset.data, tablefmt, dataset)
-
-    def __init__(self, headers, data, tablefmt=None, raw_data_set=None):
-        self.headers = headers
-        self.data = data
-        self.tablefmt = tablefmt
-        self.raw_data_set = raw_data_set
-
-        if hasattr(raw_data_set, "print_parameters"):
-            if raw_data_set.print_parameters:
-                self.printing_parameters = raw_data_set.print_parameters
-            else:
-                self.printing_parameters = {}
-        else:
-            self.printing_parameters = {}
 
     def to_csv(self, filename: str):
         return self.raw_data_set.to_csv(filename)
@@ -107,28 +107,6 @@ class TableDisplay:
 
             console.print(table)
 
-            # console = Console(record=True)
-            # with console.capture() as capture:
-            #     console.print(table)
-            # return capture.get()
-
-    # def __repr__(self):
-    #     from rich.table import Table
-    #     from rich.console import Console
-
-    #     table = Table(show_lines=True)
-
-    #     for header in self.headers:
-    #         table.add_column(str(header))
-
-    #     for index in range(len(self.data)):
-    #         table.add_row(*[str(e) for e in self.data[index]])
-
-    #     console = Console(record=True)
-    #     with console.capture() as capture:
-    #         console.print(table)
-    #     return capture.get()
-
     def long(self):
         new_header = ["row", "key", "value"]
         new_data = []
@@ -149,9 +127,13 @@ class TableDisplay:
             num_rows * 30 + 50, self.max_height
         )  # Added extra space for header
 
-        if height < self.min_height:
-            height = self.min_height
+        # if height < self.min_height:
+        #     print("Using min height")
+        #     height = self.min_height
+        # else:
+        #     print("Using defined height")
 
+        print("Height is", height)
         html_template = """
         <style>
             {css}
