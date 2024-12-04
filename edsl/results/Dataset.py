@@ -12,8 +12,10 @@ from edsl.results.ResultsExportMixin import ResultsExportMixin
 from edsl.results.DatasetTree import Tree
 from edsl.results.TableDisplay import TableDisplay
 
+from edsl.Base import PersistenceMixin, HashingMixin
 
-class Dataset(UserList, ResultsExportMixin):
+
+class Dataset(UserList, ResultsExportMixin, PersistenceMixin, HashingMixin):
     """A class to represent a dataset of observations."""
 
     def __init__(
@@ -512,13 +514,16 @@ class Dataset(UserList, ResultsExportMixin):
         return Dataset([{"num_observations": [len(self)], "keys": [self.keys()]}])
 
     @classmethod
-    def example(self):
+    def example(self, n: int = None):
         """Return an example dataset.
 
         >>> Dataset.example()
         Dataset([{'a': [1, 2, 3, 4]}, {'b': [4, 3, 2, 1]}])
         """
-        return Dataset([{"a": [1, 2, 3, 4]}, {"b": [4, 3, 2, 1]}])
+        if n is None:
+            return Dataset([{"a": [1, 2, 3, 4]}, {"b": [4, 3, 2, 1]}])
+        else:
+            return Dataset([{"a": [1] * n}, {"b": [2] * n}])
 
     @classmethod
     def from_edsl_object(cls, object):

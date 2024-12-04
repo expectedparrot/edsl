@@ -413,7 +413,6 @@ class DatasetExportMixin:
         for d in list_of_dicts:
             scenarios.append(Scenario(d))
         return ScenarioList(scenarios)
-        # return ScenarioList([Scenario(d) for d in list_of_dicts])
 
     def to_agent_list(self, remove_prefix: bool = True):
         """Convert the results to a list of dictionaries, one per agent.
