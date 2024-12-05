@@ -40,6 +40,7 @@ class JobsRunnerAsyncio:
     MAX_CONCURRENT_DEFAULT = 500
 
     def __init__(self, jobs: "Jobs", bucket_collection: "BucketCollection"):
+
         self.jobs = jobs
         self.interviews: List["Interview"] = jobs.interviews()
         self.bucket_collection: "BucketCollection" = bucket_collection
@@ -308,8 +309,6 @@ class JobsRunnerAsyncio:
                 raise Exception(
                     "EDSL_OPEN_EXCEPTION_REPORT_URL", "must be either True or False"
                 )
-
-            # print("open_in_browser", open_in_browser)
 
             filepath = results.task_history.html(
                 cta="Open report to see details.",
