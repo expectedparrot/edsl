@@ -15,51 +15,6 @@ import json
 from datetime import datetime
 import re
 
-
-# class JupyterJobLogger:
-#     def __init__(self):
-#         self.messages = []
-#         self.log_id = str(uuid.uuid4())
-#         self.is_expanded = True
-#         self.display_handle = display(HTML(""), display_id=True)
-
-#     def _linkify(self, text):
-#         url_pattern = r'(https?://[^\s<>"]+|www\.[^\s<>"]+)'
-#         return re.sub(
-#             url_pattern,
-#             r'<a href="\1" target="_blank" style="color: #3b82f6; text-decoration: underline;">\1</a>',
-#             text,
-#         )
-
-#     def _get_html(self):
-#         messages_html = "\n".join(
-#             [
-#                 f'<div style="border-left: 3px solid {msg["color"]}; padding: 5px 10px; margin: 5px 0;">{self._linkify(msg["text"])}</div>'
-#                 for msg in self.messages
-#             ]
-#         )
-
-#         display_style = "block" if self.is_expanded else "none"
-#         arrow = "▼" if self.is_expanded else "▶"
-
-#         return f"""
-#             <div style="border: 1px solid #ccc; margin: 10px 0; max-width: 800px;">
-#                 <div onclick="document.getElementById('content-{self.log_id}').style.display = document.getElementById('content-{self.log_id}').style.display === 'none' ? 'block' : 'none';
-#                              document.getElementById('arrow-{self.log_id}').innerHTML = document.getElementById('content-{self.log_id}').style.display === 'none' ? '▶' : '▼';"
-#                      style="padding: 10px; background: #f5f5f5; cursor: pointer;">
-#                     <span id="arrow-{self.log_id}">{arrow}</span> Remote Job Log ({datetime.now().strftime('%Y-%m-%d %H:%M:%S')})
-#                 </div>
-#                 <div id="content-{self.log_id}" style="padding: 10px; display: {display_style};">
-#                     {messages_html}
-#                 </div>
-#             </div>
-#         """
-
-#     def update(self, message, status="running"):
-#         colors = {"running": "#3b82f6", "completed": "#22c55e", "failed": "#ef4444"}
-#         self.messages.append({"text": message, "color": colors.get(status, "#666")})
-#         self.display_handle.update(HTML(self._get_html()))
-
 from edsl.jobs.JobsRemoteInferenceLogger import JupyterJobLogger
 from edsl.jobs.JobsRemoteInferenceLogger import StdOutJobLogger
 
@@ -68,18 +23,7 @@ from edsl.utilities.utilities import is_notebook
 
 class JobsRemoteInferenceHandler:
     def __init__(self, jobs, verbose=False, poll_interval=3):
-        """
-        >>> from edsl.jobs import Jobs
-        >>> jh = JobsRemoteInferenceHandler(Jobs.example(), verbose=True)
-        >>> jh.use_remote_inference(True)
-        False
-        >>> jh._poll_remote_inference_job({'uuid':1234}, testing_simulated_response={"status": "failed"}) # doctest: +NORMALIZE_WHITESPACE
-        Job failed.
-        ...
-        >>> jh._poll_remote_inference_job({'uuid':1234}, testing_simulated_response={"status": "completed"}) # doctest: +NORMALIZE_WHITESPACE
-        Job completed and Results stored on Coop: None.
-        Results(...)
-        """
+        """ """
         self.jobs = jobs
         self.verbose = verbose
         self.poll_interval = poll_interval
