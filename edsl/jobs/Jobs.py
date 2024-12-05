@@ -21,26 +21,26 @@ if TYPE_CHECKING:
     from edsl.agents.AgentList import AgentList
     from edsl.language_models.LanguageModel import LanguageModel
     from edsl.scenarios.Scenario import Scenario
+    from edsl.scenarios.ScenarioList import ScenarioList
     from edsl.surveys.Survey import Survey
     from edsl.results.Results import Results
     from edsl.results.Dataset import Dataset
+    from edsl.language_models.ModelList import ModelList
 
 
 class Jobs(Base):
     """
-    A collection of agents, scenarios and models and one survey.
-    The actual running of a job is done by a `JobsRunner`, which is a subclass of `JobsRunner`.
-    The `JobsRunner` is chosen by the user, and is stored in the `jobs_runner_name` attribute.
+    A collection of agents, scenarios and models and one survey that creates 'interviews'
     """
 
     __documentation__ = "https://docs.expectedparrot.com/en/latest/jobs.html"
 
     def __init__(
         self,
-        survey: "Survey",
-        agents: Optional[list["Agent"]] = None,
-        models: Optional[list["LanguageModel"]] = None,
-        scenarios: Optional[list["Scenario"]] = None,
+        survey: Survey,
+        agents: Optional[Union[list[Agent], AgentList]] = None,
+        models: Optional[Union[ModelList, list[LanguageModel]]] = None,
+        scenarios: Optional[Union[ScenarioList, list[Scenario]]] = None,
     ):
         """Initialize a Jobs instance.
 
@@ -50,13 +50,14 @@ class Jobs(Base):
         :param scenarios: a list of scenarios
         """
         self.survey = survey
-        self.agents: "AgentList" = agents
-        self.scenarios: "ScenarioList" = scenarios
+        self.agents: AgentList = agents
+        self.scenarios: ScenarioList = scenarios
         self.models = models
 
         self.__bucket_collection = None
 
-    # these setters and getters are used to ensure that the agents, models, and scenarios are stored as AgentList, ModelList, and ScenarioList objects
+    # these setters and getters are used to ensure that the agents, models, and scenarios
+    # are stored as AgentList, ModelList, and ScenarioList objects.
 
     @property
     def models(self):
@@ -115,14 +116,19 @@ class Jobs(Base):
     def by(
         self,
         *args: Union[
-            "Agent",
-            "Scenario",
-            "LanguageModel",
+            Agent,
+            Scenario,
+            LanguageModel,
             Sequence[Union["Agent", "Scenario", "LanguageModel"]],
         ],
     ) -> Jobs:
         """
-        Add Agents, Scenarios and LanguageModels to a job. If no objects of this type exist in the Jobs instance, it stores the new objects as a list in the corresponding attribute. Otherwise, it combines the new objects with existing objects using the object's `__add__` method.
+        Add Agents, Scenarios and LanguageModels to a job.
+
+        :param args: objects or a sequence (list, tuple, ...) of objects of the same type
+
+        If no objects of this type exist in the Jobs instance, it stores the new objects as a list in the corresponding attribute.
+        Otherwise, it combines the new objects with existing objects using the object's `__add__` method.
 
         This 'by' is intended to create a fluent interface.
 
@@ -136,7 +142,6 @@ class Jobs(Base):
         >>> j.by(a).agents
         AgentList([Agent(traits = {'status': 'Sad'})])
 
-        :param args: objects or a sequence (list, tuple, ...) of objects of the same type
 
         Notes:
         - all objects must implement the 'get_value', 'set_value', and `__add__` methods
@@ -144,28 +149,31 @@ class Jobs(Base):
         - scenarios: traits of new scenarios are combined with traits of old existing. New scenarios will overwrite overlapping traits, and do not increase the number of scenarios in the instance
         - models: new models overwrite old models.
         """
-        from edsl.results.Dataset import Dataset
+        from edsl.jobs.JobsComponentConstructor import JobsComponentConstructor
 
-        if isinstance(
-            args[0], Dataset
-        ):  # let the user user a Dataset as if it were a ScenarioList
-            args = args[0].to_scenario_list()
+        return JobsComponentConstructor(self).by(*args)
+        # from edsl.results.Dataset import Dataset
 
-        passed_objects = self._turn_args_to_list(
-            args
-        )  # objects can also be passed comma-separated
+        # if isinstance(
+        #     args[0], Dataset
+        # ):  # let the user use a Dataset as if it were a ScenarioList
+        #     args = args[0].to_scenario_list()
 
-        current_objects, objects_key = self._get_current_objects_of_this_type(
-            passed_objects[0]
-        )
+        # passed_objects = self._turn_args_to_list(
+        #     args
+        # )  # objects can also be passed comma-separated
 
-        if not current_objects:
-            new_objects = passed_objects
-        else:
-            new_objects = self._merge_objects(passed_objects, current_objects)
+        # current_objects, objects_key = self._get_current_objects_of_this_type(
+        #     passed_objects[0]
+        # )
 
-        setattr(self, objects_key, new_objects)  # update the job
-        return self
+        # if not current_objects:
+        #     new_objects = passed_objects
+        # else:
+        #     new_objects = self._merge_objects(passed_objects, current_objects)
+
+        # setattr(self, objects_key, new_objects)  # update the job object
+        # return self
 
     def prompts(self) -> "Dataset":
         """Return a Dataset of prompts that will be used.
@@ -177,10 +185,9 @@ class Jobs(Base):
         """
         from edsl.jobs.JobsPrompts import JobsPrompts
 
-        j = JobsPrompts(self)
-        return j.prompts()
+        return JobsPrompts(self).prompts()
 
-    def show_prompts(self, all=False) -> None:
+    def show_prompts(self, all: bool = False) -> None:
         """Print the prompts."""
         if all:
             return self.prompts().to_scenario_list().table()
@@ -200,6 +207,11 @@ class Jobs(Base):
         """
         Estimate the cost of running the prompts.
         :param iterations: the number of iterations to run
+        :param system_prompt: the system prompt
+        :param user_prompt: the user prompt
+        :param price_lookup: the price lookup
+        :param inference_service: the inference service
+        :param model: the model name
         """
         from edsl.jobs.JobsPrompts import JobsPrompts
 
@@ -232,112 +244,6 @@ class Jobs(Base):
         Computes the cost of a completed job in USD.
         """
         return job_results.compute_job_cost()
-
-    @staticmethod
-    def _get_container_class(object):
-        from edsl.agents.AgentList import AgentList
-        from edsl.agents.Agent import Agent
-        from edsl.scenarios.Scenario import Scenario
-        from edsl.scenarios.ScenarioList import ScenarioList
-        from edsl.language_models.ModelList import ModelList
-
-        if isinstance(object, Agent):
-            return AgentList
-        elif isinstance(object, Scenario):
-            return ScenarioList
-        elif isinstance(object, ModelList):
-            return ModelList
-        else:
-            return list
-
-    @staticmethod
-    def _turn_args_to_list(args):
-        """Return a list of the first argument if it is a sequence, otherwise returns a list of all the arguments.
-
-        Example:
-
-        >>> Jobs._turn_args_to_list([1,2,3])
-        [1, 2, 3]
-
-        """
-
-        def did_user_pass_a_sequence(args):
-            """Return True if the user passed a sequence, False otherwise.
-
-            Example:
-
-            >>> did_user_pass_a_sequence([1,2,3])
-            True
-
-            >>> did_user_pass_a_sequence(1)
-            False
-            """
-            return len(args) == 1 and isinstance(args[0], Sequence)
-
-        if did_user_pass_a_sequence(args):
-            container_class = Jobs._get_container_class(args[0][0])
-            return container_class(args[0])
-        else:
-            container_class = Jobs._get_container_class(args[0])
-            return container_class(args)
-
-    def _get_current_objects_of_this_type(
-        self, object: Union["Agent", "Scenario", "LanguageModel"]
-    ) -> tuple[list, str]:
-        from edsl.agents.Agent import Agent
-        from edsl.scenarios.Scenario import Scenario
-        from edsl.language_models.LanguageModel import LanguageModel
-
-        """Return the current objects of the same type as the first argument.
-
-        >>> from edsl.jobs import Jobs
-        >>> j = Jobs.example()
-        >>> j._get_current_objects_of_this_type(j.agents[0])
-        (AgentList([Agent(traits = {'status': 'Joyful'}), Agent(traits = {'status': 'Sad'})]), 'agents')
-        """
-        class_to_key = {
-            Agent: "agents",
-            Scenario: "scenarios",
-            LanguageModel: "models",
-        }
-        for class_type in class_to_key:
-            if isinstance(object, class_type) or issubclass(
-                object.__class__, class_type
-            ):
-                key = class_to_key[class_type]
-                break
-        else:
-            raise ValueError(
-                f"First argument must be an Agent, Scenario, or LanguageModel, not {object}"
-            )
-        current_objects = getattr(self, key, None)
-        return current_objects, key
-
-    @staticmethod
-    def _get_empty_container_object(object):
-        from edsl.agents.AgentList import AgentList
-        from edsl.scenarios.ScenarioList import ScenarioList
-
-        return {"Agent": AgentList([]), "Scenario": ScenarioList([])}.get(
-            object.__class__.__name__, []
-        )
-
-    @staticmethod
-    def _merge_objects(passed_objects, current_objects) -> list:
-        """
-        Combine all the existing objects with the new objects.
-
-        For example, if the user passes in 3 agents,
-        and there are 2 existing agents, this will create 6 new agents
-
-        >>> Jobs(survey = [])._merge_objects([1,2,3], [4,5,6])
-        [5, 6, 7, 6, 7, 8, 7, 8, 9]
-        """
-        new_objects = Jobs._get_empty_container_object(passed_objects[0])
-        for current_object in current_objects:
-            for new_object in passed_objects:
-                new_objects.append(current_object + new_object)
-        return new_objects
 
     def interviews(self) -> list[Interview]:
         """
