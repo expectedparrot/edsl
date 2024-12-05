@@ -283,11 +283,12 @@ class Jobs(Base):
         >>> bc
         BucketCollection(...)
         """
-        bucket_collection = BucketCollection()
+        # bucket_collection = BucketCollection()
         self.replace_missing_objects()
-        for model in self.models:
-            bucket_collection.add_model(model)
-        return bucket_collection
+        return BucketCollection.from_models(self.models)
+        # for model in self.models:
+        #     bucket_collection.add_model(model)
+        # return bucket_collection
 
     @property
     def bucket_collection(self) -> BucketCollection:
