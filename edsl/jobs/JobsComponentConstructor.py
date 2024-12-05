@@ -13,6 +13,7 @@ from edsl.jobs.Jobs import Jobs
 
 
 class JobsComponentConstructor:
+    "Handles the creation of Agents, Scenarios, and LanguageModels in a job."
 
     def __init__(self, jobs):
         self.jobs = jobs
@@ -156,7 +157,7 @@ class JobsComponentConstructor:
         For example, if the user passes in 3 agents,
         and there are 2 existing agents, this will create 6 new agents
 
-        >>> Jobs(survey = [])._merge_objects([1,2,3], [4,5,6])
+        >>> JobsComponentConstructor(Jobs(survey = []))._merge_objects([1,2,3], [4,5,6])
         [5, 6, 7, 6, 7, 8, 7, 8, 9]
         """
         new_objects = JobsComponentConstructor._get_empty_container_object(
