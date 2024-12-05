@@ -222,6 +222,15 @@ class Jobs(Base):
         """
         return job_results.compute_job_cost()
 
+    def replace_missing_objects(self) -> None:
+        from edsl.agents.Agent import Agent
+        from edsl.language_models.registry import Model
+        from edsl.scenarios.Scenario import Scenario
+
+        self.agents = self.agents or [Agent()]
+        self.models = self.models or [Model()]
+        self.scenarios = self.scenarios or [Scenario()]
+
     def interviews(self) -> list[Interview]:
         """
         Return a list of :class:`edsl.jobs.interviews.Interview` objects.
@@ -239,13 +248,7 @@ class Jobs(Base):
         if hasattr(self, "_interviews"):
             return self._interviews
         else:
-            from edsl.agents.Agent import Agent
-            from edsl.language_models.registry import Model
-            from edsl.scenarios.Scenario import Scenario
-
-            self.agents = self.agents or [Agent()]
-            self.models = self.models or [Model()]
-            self.scenarios = self.scenarios or [Scenario()]
+            self.replace_missing_objects()
             from edsl.jobs.InterviewsConstructor import InterviewsConstructor
 
             self._interviews = list(InterviewsConstructor(self).create_interviews())
@@ -267,45 +270,6 @@ class Jobs(Base):
         jobs._interviews = interview_list
         return jobs
 
-    # def _create_interviews(self) -> Generator[Interview, None, None]:
-    #     """
-    #     Generate interviews.
-
-    #     Note that this sets the agents, model and scenarios if they have not been set. This is a side effect of the method.
-    #     This is useful because a user can create a job without setting the agents, models, or scenarios, and the job will still run,
-    #     with us filling in defaults.
-
-    #     """
-    #     # if no agents, models, or scenarios are set, set them to defaults
-    #     from edsl.agents.Agent import Agent
-    #     from edsl.language_models.registry import Model
-    #     from edsl.scenarios.Scenario import Scenario
-
-    #     self.agents = self.agents or [Agent()]
-    #     self.models = self.models or [Model()]
-    #     self.scenarios = self.scenarios or [Scenario()]
-
-    #     agent_index = {hash(agent): index for index, agent in enumerate(self.agents)}
-    #     model_index = {hash(model): index for index, model in enumerate(self.models)}
-    #     scenario_index = {
-    #         hash(scenario): index for index, scenario in enumerate(self.scenarios)
-    #     }
-
-    #     for agent, scenario, model in product(self.agents, self.scenarios, self.models):
-    #         yield Interview(
-    #             survey=self.survey,
-    #             agent=agent,
-    #             scenario=scenario,
-    #             model=model,
-    #             skip_retry=self.skip_retry,
-    #             raise_validation_errors=self.raise_validation_errors,
-    #             indices={
-    #                 "agent": agent_index[hash(agent)],
-    #                 "model": model_index[hash(model)],
-    #                 "scenario": scenario_index[hash(scenario)],
-    #             },
-    #         )
-
     def create_bucket_collection(self) -> BucketCollection:
         """
         Create a collection of buckets for each model.
@@ -320,6 +284,7 @@ class Jobs(Base):
         BucketCollection(...)
         """
         bucket_collection = BucketCollection()
+        self.replace_missing_objects()
         for model in self.models:
             bucket_collection.add_model(model)
         return bucket_collection
@@ -358,6 +323,14 @@ class Jobs(Base):
         """Check if a Job is verbose. If so, print the message."""
         if hasattr(self, "verbose") and self.verbose:
             print(message)
+
+    def all_question_parameters(self):
+        """Return all the fields in the questions in the survey.
+        >>> from edsl.jobs import Jobs
+        >>> Jobs.example().all_question_parameters()
+        {'period'}
+        """
+        return set.union(*[question.parameters for question in self.survey.questions])
 
     def _check_parameters(self, strict=False, warn=False) -> None:
         """Check if the parameters in the survey and scenarios are consistent.
@@ -468,6 +441,7 @@ class Jobs(Base):
         raise_validation_errors: bool = False,
         disable_remote_cache: bool = False,
         disable_remote_inference: bool = False,
+        bucket_collection: Optional[BucketCollection] = None,
     ) -> Results:
         """
         Runs the Job: conducts Interviews and returns their results.
@@ -485,22 +459,19 @@ class Jobs(Base):
         :param disable_remote_inference: If True, the job will not use remote inference
         """
         from edsl.coop.coop import Coop
+        from edsl.jobs.JobsChecks import JobsChecks
+        from edsl.jobs.JobsRemoteInferenceHandler import JobsRemoteInferenceHandler
 
         self._check_parameters()
         self._skip_retry = skip_retry
         self._raise_validation_errors = raise_validation_errors
-
         self.verbose = verbose
-
-        from edsl.jobs.JobsChecks import JobsChecks
 
         jc = JobsChecks(self)
 
         # check if the user has all the keys they need
         if jc.needs_key_process():
             jc.key_process()
-
-        from edsl.jobs.JobsRemoteInferenceHandler import JobsRemoteInferenceHandler
 
         jh = JobsRemoteInferenceHandler(self, verbose=verbose)
         if jh.use_remote_inference(disable_remote_inference):
@@ -525,6 +496,9 @@ class Jobs(Base):
 
             cache = Cache()
 
+        if bucket_collection is None:
+            bucket_collection = self.create_bucket_collection()
+
         remote_cache = self.use_remote_cache(disable_remote_cache)
         with RemoteCacheSync(
             coop=Coop(),
@@ -541,9 +515,8 @@ class Jobs(Base):
                 sidecar_model=sidecar_model,
                 print_exceptions=print_exceptions,
                 raise_validation_errors=raise_validation_errors,
+                bucket_collection=bucket_collection,
             )
-
-        # results.cache = cache.new_entries_cache()
         return results
 
     async def run_async(
@@ -555,6 +528,7 @@ class Jobs(Base):
         remote_inference_results_visibility: Optional[
             Literal["private", "public", "unlisted"]
         ] = "unlisted",
+        bucket_collection: Optional[BucketCollection] = None,
         **kwargs,
     ):
         """Run the job asynchronously, either locally or remotely.
@@ -579,22 +553,21 @@ class Jobs(Base):
             )
             return results
 
-        # If not using remote inference, run locally with async
-        return await JobsRunnerAsyncio(self).run_async(cache=cache, n=n, **kwargs)
+        if bucket_collection is None:
+            bucket_collection = self.create_bucket_collection()
 
-    def _run_local(self, *args, **kwargs):
+        # If not using remote inference, run locally with async
+        return await JobsRunnerAsyncio(
+            self, bucket_collection=bucket_collection
+        ).run_async(cache=cache, n=n, **kwargs)
+
+    def _run_local(self, bucket_collection, *args, **kwargs):
         """Run the job locally."""
 
-        results = JobsRunnerAsyncio(self).run(*args, **kwargs)
+        results = JobsRunnerAsyncio(self, bucket_collection=bucket_collection).run(
+            *args, **kwargs
+        )
         return results
-
-    def all_question_parameters(self):
-        """Return all the fields in the questions in the survey.
-        >>> from edsl.jobs import Jobs
-        >>> Jobs.example().all_question_parameters()
-        {'period'}
-        """
-        return set.union(*[question.parameters for question in self.survey.questions])
 
     def __repr__(self) -> str:
         """Return an eval-able string representation of the Jobs instance."""
