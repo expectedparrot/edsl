@@ -2,7 +2,6 @@
 from __future__ import annotations
 import warnings
 import requests
-from itertools import product
 from typing import Literal, Optional, Union, Sequence, Generator, TYPE_CHECKING
 
 from edsl.Base import Base
@@ -152,28 +151,6 @@ class Jobs(Base):
         from edsl.jobs.JobsComponentConstructor import JobsComponentConstructor
 
         return JobsComponentConstructor(self).by(*args)
-        # from edsl.results.Dataset import Dataset
-
-        # if isinstance(
-        #     args[0], Dataset
-        # ):  # let the user use a Dataset as if it were a ScenarioList
-        #     args = args[0].to_scenario_list()
-
-        # passed_objects = self._turn_args_to_list(
-        #     args
-        # )  # objects can also be passed comma-separated
-
-        # current_objects, objects_key = self._get_current_objects_of_this_type(
-        #     passed_objects[0]
-        # )
-
-        # if not current_objects:
-        #     new_objects = passed_objects
-        # else:
-        #     new_objects = self._merge_objects(passed_objects, current_objects)
-
-        # setattr(self, objects_key, new_objects)  # update the job object
-        # return self
 
     def prompts(self) -> "Dataset":
         """Return a Dataset of prompts that will be used.
@@ -262,7 +239,18 @@ class Jobs(Base):
         if hasattr(self, "_interviews"):
             return self._interviews
         else:
-            return list(self._create_interviews())
+            from edsl.agents.Agent import Agent
+            from edsl.language_models.registry import Model
+            from edsl.scenarios.Scenario import Scenario
+
+            self.agents = self.agents or [Agent()]
+            self.models = self.models or [Model()]
+            self.scenarios = self.scenarios or [Scenario()]
+            from edsl.jobs.InterviewsConstructor import InterviewsConstructor
+
+            self._interviews = list(InterviewsConstructor(self).create_interviews())
+
+        return self._interviews
 
     @classmethod
     def from_interviews(cls, interview_list):
@@ -279,45 +267,44 @@ class Jobs(Base):
         jobs._interviews = interview_list
         return jobs
 
-    def _create_interviews(self) -> Generator[Interview, None, None]:
-        """
-        Generate interviews.
+    # def _create_interviews(self) -> Generator[Interview, None, None]:
+    #     """
+    #     Generate interviews.
 
-        Note that this sets the agents, model and scenarios if they have not been set. This is a side effect of the method.
-        This is useful because a user can create a job without setting the agents, models, or scenarios, and the job will still run,
-        with us filling in defaults.
+    #     Note that this sets the agents, model and scenarios if they have not been set. This is a side effect of the method.
+    #     This is useful because a user can create a job without setting the agents, models, or scenarios, and the job will still run,
+    #     with us filling in defaults.
 
+    #     """
+    #     # if no agents, models, or scenarios are set, set them to defaults
+    #     from edsl.agents.Agent import Agent
+    #     from edsl.language_models.registry import Model
+    #     from edsl.scenarios.Scenario import Scenario
 
-        """
-        # if no agents, models, or scenarios are set, set them to defaults
-        from edsl.agents.Agent import Agent
-        from edsl.language_models.registry import Model
-        from edsl.scenarios.Scenario import Scenario
+    #     self.agents = self.agents or [Agent()]
+    #     self.models = self.models or [Model()]
+    #     self.scenarios = self.scenarios or [Scenario()]
 
-        self.agents = self.agents or [Agent()]
-        self.models = self.models or [Model()]
-        self.scenarios = self.scenarios or [Scenario()]
+    #     agent_index = {hash(agent): index for index, agent in enumerate(self.agents)}
+    #     model_index = {hash(model): index for index, model in enumerate(self.models)}
+    #     scenario_index = {
+    #         hash(scenario): index for index, scenario in enumerate(self.scenarios)
+    #     }
 
-        agent_index = {hash(agent): index for index, agent in enumerate(self.agents)}
-        model_index = {hash(model): index for index, model in enumerate(self.models)}
-        scenario_index = {
-            hash(scenario): index for index, scenario in enumerate(self.scenarios)
-        }
-
-        for agent, scenario, model in product(self.agents, self.scenarios, self.models):
-            yield Interview(
-                survey=self.survey,
-                agent=agent,
-                scenario=scenario,
-                model=model,
-                skip_retry=self.skip_retry,
-                raise_validation_errors=self.raise_validation_errors,
-                indices={
-                    "agent": agent_index[hash(agent)],
-                    "model": model_index[hash(model)],
-                    "scenario": scenario_index[hash(scenario)],
-                },
-            )
+    #     for agent, scenario, model in product(self.agents, self.scenarios, self.models):
+    #         yield Interview(
+    #             survey=self.survey,
+    #             agent=agent,
+    #             scenario=scenario,
+    #             model=model,
+    #             skip_retry=self.skip_retry,
+    #             raise_validation_errors=self.raise_validation_errors,
+    #             indices={
+    #                 "agent": agent_index[hash(agent)],
+    #                 "model": model_index[hash(model)],
+    #                 "scenario": scenario_index[hash(scenario)],
+    #             },
+    #         )
 
     def create_bucket_collection(self) -> BucketCollection:
         """
@@ -467,7 +454,7 @@ class Jobs(Base):
         n: int = 1,
         progress_bar: bool = False,
         stop_on_exception: bool = False,
-        cache: Union[Cache, bool] = None,
+        cache: Union["Cache", bool] = None,
         check_api_keys: bool = False,
         sidecar_model: Optional[LanguageModel] = None,
         verbose: bool = True,
@@ -781,14 +768,14 @@ class Jobs(Base):
 
         return job
 
-    def rich_print(self):
-        """Print a rich representation of the Jobs instance."""
-        from rich.table import Table
+    # def rich_print(self):
+    #     """Print a rich representation of the Jobs instance."""
+    #     from rich.table import Table
 
-        table = Table(title="Jobs")
-        table.add_column("Jobs")
-        table.add_row(self.survey.rich_print())
-        return table
+    #     table = Table(title="Jobs")
+    #     table.add_column("Jobs")
+    #     table.add_row(self.survey.rich_print())
+    #     return table
 
     def code(self):
         """Return the code to create this instance."""
