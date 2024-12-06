@@ -46,13 +46,13 @@ class Interview:
         survey: Survey,
         scenario: Scenario,
         model: Type["LanguageModel"],
-        debug: Optional[bool] = False,
+        debug: Optional[bool] = False,  # DEPRECATE
         iteration: int = 0,
         cache: Optional["Cache"] = None,
-        sidecar_model: Optional["LanguageModel"] = None,
-        skip_retry: bool = False,
+        sidecar_model: Optional["LanguageModel"] = None,  # DEPRECATE
+        skip_retry: bool = False,  # COULD BE SET WITH CONFIG
         raise_validation_errors: bool = True,
-        indices=None,
+        indices: dict = None,  # explain?
     ):
         """Initialize the Interview instance.
 
@@ -66,7 +66,7 @@ class Interview:
         :param sidecar_model: a sidecar model used to answer questions.
 
         >>> i = Interview.example()
-        >>> i.task_creators
+        >>> i.task_manager.task_creators
         {}
 
         >>> i.exceptions
