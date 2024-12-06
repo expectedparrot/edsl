@@ -3,29 +3,87 @@
 Starter Tutorial
 ================
 
-This tutorial provides example code for basic features of EDSL, an open-source Python library for simulating surveys, experiments and other research using AI agents and large language models.
+This tutorial provides example code for getting started using EDSL, an open-source Python library for simulating surveys, experiments and other research tasks using AI agents and large language models.
+EDSL is available under the MIT License at `PyPI <https://pypi.org/project/edsl/>`_ and `GitHub <https://github.com/expectedparrot/edsl>`_.
 
 In the steps below we show how to construct and run a simple question in EDSL, and then how to design more complex surveys with AI agents and different language models.
 We also demonstrate methods for applying logic and rules to surveys, piping answers and adding data to questions, and analyzing survey results as datasets.
 
 You can also `view this notebook at the Coop <https://www.expectedparrot.com/content/26d569e1-8356-45b7-9786-471dda1710ce>`_, a platform for creating, storing and sharing AI-based research.
+Coop is fully integrated with EDSL and free to use.
 Learn more in the `Coop <https://docs.expectedparrot.com/en/latest/coop.html>`_ section of the documentation.
 
 Please also see an :ref:`overview` of features and common use cases for EDSL, and a :ref:`checklist` of tips on using EDSL effectively.
+If you encounter any issues or have questions, please email us at info@expectedparrot.com or post a question at our `Discord channel <https://discord.com/invite/mxAYkjfy9m>`_.
 
 
 Technical setup
 ---------------
 
-Before running the code below, please ensure that you have completed the following setup steps:
+To run the examples below you first need to install the EDSL library and choose how you want to access language models.
 
-1. Download the EDSL package. See :ref:`installation` instructions. 
-2. Choose how you want to use EDSL:
+Install EDSL
+^^^^^^^^^^^^
 
-    * Run surveys remotely on the Expected Parrot server by activating :ref:`remote_inference` at your `Coop <https://docs.expectedparrot.com/en/latest/questions.html>`_ account. Create an account `here <https://www.expectedparrot.com/login>`_.
-    * Run surveys locally by storing your own :ref:`api_keys` for language models that you want to use with EDSL.
+Run the following code to install the EDSL library. See :ref:`installation` instructions for more details.
 
-If you encounter any issues or have questions, please email us at info@expectedparrot.com or post a question at our `Discord channel <https://discord.com/invite/mxAYkjfy9m>`_.
+.. code-block:: python
+
+  pip install edsl
+
+
+If you have already installed EDSL, you can check the version by running the following code and comparing the output to the version shown at PyPI:
+
+.. code-block:: python
+
+  pip show edsl 
+
+
+If your version of EDSL is not up to date, run the following code to update it:
+
+.. code-block:: python
+
+  pip install --upgrade edsl
+
+
+Choose how to access language models
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Next, decide how you want to access language models with EDSL and obtain the required API keys:
+
+* *Remote inference*: This method allows you to run surveys at the Expected Parrot server and access all available language models at once with your Expected Parrot API key.
+
+* *Local inference*: Alternatively, you can obtain your own API keys for service providers to run EDSL on your own machine.
+
+Your Expected Parrot API key can be found at the Settings page of your `Coop account <https://www.expectedparrot.com/login>`_, where you can select the option to `activate remote inference <https://docs.expectedparrot.com/en/latest/remote_inference.html>`_. 
+This key also allows you to `post and share content at the Coop <https://www.expectedparrot.com/content/explore>`_ that you create using either remote or local inference.
+
+
+Store your API keys
+^^^^^^^^^^^^^^^^^^^
+
+Make your keys available to EDSL by storing then in a file named "**.env**" in your working directory. Modify the code below (replacing '**your_key_here**' with each key that you want to use) and then run it to create an .env file in your current directory (the folder where you are running this notebooK). 
+If you already have a .env file, you can use the template below to modify the file instead of running the code to avoid overwriting the existing file contents.
+
+If you are using remote inference, you only need to store your Expected Parrot API key.
+
+**Note: Your API keys should be treated like passwords and deleted from notebooks or content that you share with others. We recommend deleting your keys from the code below after your .env file has been created.**
+
+.. code-block:: python 
+
+  with open('.env', 'w') as f:
+    f.write('''
+  # Environment variables file
+  EXPECTED_PARROT_API_KEY = 'your_key_here'
+
+  ANTHROPIC_API_KEY = 'your_key_here'
+  DEEP_INFRA_API_KEY = 'your_key_here'
+  GOOGLE_API_KEY = 'your_key_here'
+  GROQ_API_KEY = 'your_key_here'
+  MISTRAL_API_KEY = 'your_key_here'
+  OPENAI_API_KEY = 'your_key_here'
+  REPLICATE_API_KEY = 'your_key_here'
+  ''')
 
 
 Example: Running a simple question
