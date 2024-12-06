@@ -37,13 +37,12 @@ class JobsRunnerAsyncio:
     The Jobs object is a collection of interviews that are to be run.
     """
 
-    MAX_CONCURRENT_DEFAULT = 500
-
     def __init__(self, jobs: "Jobs", bucket_collection: "BucketCollection"):
 
         self.jobs = jobs
         self.interviews: List["Interview"] = jobs.interviews()
         self.bucket_collection: "BucketCollection" = bucket_collection
+
         self.total_interviews: List["Interview"] = []
         self._initialized = threading.Event()
 
