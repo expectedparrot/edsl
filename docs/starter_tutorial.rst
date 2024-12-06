@@ -52,7 +52,7 @@ Choose how to access language models
 Next, decide how you want to access language models with EDSL and obtain the required API keys:
 
 * *Remote inference*: This method allows you to run surveys at the Expected Parrot server and access all available language models at once with your Expected Parrot API key.
-
+<br>
 * *Local inference*: Alternatively, you can obtain your own API keys for service providers to run EDSL on your own machine.
 
 Your Expected Parrot API key can be found at the Settings page of your `Coop account <https://www.expectedparrot.com/login>`_, where you can select the option to `activate remote inference <https://docs.expectedparrot.com/en/latest/remote_inference.html>`_. 
@@ -63,7 +63,8 @@ Store your API keys
 ^^^^^^^^^^^^^^^^^^^
 
 Make your keys available to EDSL by storing then in a file named "**.env**" in your working directory. Modify the code below (replacing '**your_key_here**' with each key that you want to use) and then run it to create an .env file in your current directory (the folder where you are running this notebooK). 
-If you already have a .env file, you can use the template below to modify the file instead of running the code to avoid overwriting the existing file contents.
+
+If you already have a *.env* file, you can use the template below to modify the contents of the file instead of running the code to avoid overwriting it.
 
 If you are using remote inference, you only need to store your Expected Parrot API key.
 
@@ -94,9 +95,9 @@ To see a list of all question types:
 
 .. code-block:: python
 
-    from edsl import Question
+  from edsl import Question
 
-    Question.available()
+  Question.available()
 
 
 Output:
@@ -149,23 +150,23 @@ We can see the components of a particular question type by importing the questio
 
 .. code-block:: python
 
-    from edsl import (
-        # QuestionCheckBox,
-        # QuestionExtract,
-        # QuestionFreeText,
-        # QuestionFunctional,
-        # QuestionLikertFive,
-        # QuestionLinearScale,
-        # QuestionList,
-        QuestionMultipleChoice,
-        # QuestionNumerical,
-        # QuestionRank,
-        # QuestionTopK,
-        # QuestionYesNo
-    )
+  from edsl import (
+      # QuestionCheckBox,
+      # QuestionExtract,
+      # QuestionFreeText,
+      # QuestionFunctional,
+      # QuestionLikertFive,
+      # QuestionLinearScale,
+      # QuestionList,
+      QuestionMultipleChoice,
+      # QuestionNumerical,
+      # QuestionRank,
+      # QuestionTopK,
+      # QuestionYesNo
+  )
 
-    q = QuestionMultipleChoice.example() # substitute any question type class name
-    q
+  q = QuestionMultipleChoice.example() # substitute any question type class name
+  q
 
 
 Output:
@@ -191,20 +192,20 @@ Here we create a simple multiple choice question:
 
 .. code-block:: python
 
-    from edsl import QuestionMultipleChoice
+  from edsl import QuestionMultipleChoice
 
-    q = QuestionMultipleChoice(
-        question_name = "smallest_prime",
-        question_text = "Which is the smallest prime number?",
-        question_options = [0, 1, 2, 3]
-    )
+  q = QuestionMultipleChoice(
+      question_name = "smallest_prime",
+      question_text = "Which is the smallest prime number?",
+      question_options = [0, 1, 2, 3]
+  )
 
 
 We can administer it to a language model by calling the run method (note: if remote inference has been activated, information about the job and results will be stored on the Expected Parrot server and URLs will be displayed):
 
 .. code-block:: python
 
-    results = q.run()
+  results = q.run()
 
 
 This generates a dataset of `Results` that we can readily access with `built-in methods for analysis <https://docs.expectedparrot.com/en/latest/results.html>`_. 
@@ -212,7 +213,7 @@ Here we inspect the response, together with the model that was used and the mode
 
 .. code-block:: python
 
-    results.select("model", "smallest_prime", "smallest_prime_comment")
+  results.select("model", "smallest_prime", "smallest_prime_comment")
 
 
 Output:
@@ -238,30 +239,32 @@ To see a list of all the components:
 
 Output:
 
-.. code_block:: text 
+.. list-table::
+  :header-rows: 1 
 
-    ['agent.agent_instruction',
-    'agent.agent_name',
-    'answer.smallest_prime',
-    'comment.smallest_prime_comment',
-    'generated_tokens.smallest_prime_generated_tokens',
-    'iteration.iteration',
-    'model.frequency_penalty',
-    'model.logprobs',
-    'model.max_tokens',
-    'model.model',
-    'model.presence_penalty',
-    'model.temperature',
-    'model.top_logprobs',
-    'model.top_p',
-    'prompt.smallest_prime_system_prompt',
-    'prompt.smallest_prime_user_prompt',
-    'question_options.smallest_prime_question_options',
-    'question_text.smallest_prime_question_text',
-    'question_type.smallest_prime_question_type',
-    'raw_model_response.smallest_prime_cost',
-    'raw_model_response.smallest_prime_one_usd_buys',
-    'raw_model_response.smallest_prime_raw_model_response']
+  * - 
+    - 'agent.agent_instruction',
+    - 'agent.agent_name',
+    - 'answer.smallest_prime',
+    - 'comment.smallest_prime_comment',
+    - 'generated_tokens.smallest_prime_generated_tokens',
+    - 'iteration.iteration',
+    - 'model.frequency_penalty',
+    - 'model.logprobs',
+    - 'model.max_tokens',
+    - 'model.model',
+    - 'model.presence_penalty',
+    - 'model.temperature',
+    - 'model.top_logprobs',
+    - 'model.top_p',
+    - 'prompt.smallest_prime_system_prompt',
+    - 'prompt.smallest_prime_user_prompt',
+    - 'question_options.smallest_prime_question_options',
+    - 'question_text.smallest_prime_question_text',
+    - 'question_type.smallest_prime_question_type',
+    - 'raw_model_response.smallest_prime_cost',
+    - 'raw_model_response.smallest_prime_one_usd_buys',
+    - 'raw_model_response.smallest_prime_raw_model_response']
 
 
 Example: Conducting a survey with agents and models
@@ -309,11 +312,11 @@ Here we construct several simple agent personas to use with our survey:
 
 .. code-block:: python 
 
-    from edsl import AgentList, Agent
+  from edsl import AgentList, Agent
 
-    agents = AgentList(
-        Agent(traits = {"persona":p}) for p in ["artist", "mechanic", "sailor"]
-    )
+  agents = AgentList(
+      Agent(traits = {"persona":p}) for p in ["artist", "mechanic", "sailor"]
+  )
 
 
 Language models 
@@ -326,16 +329,16 @@ To see a current list of available models:
 
 .. code-block:: python 
 
-    from edsl import Model
+  from edsl import Model
 
-    # Model.available() # uncomment this code and run it to see the list of available models
+  # Model.available() # uncomment this code and run it to see the list of available models
 
 
 To check the default model that will be used if no models are specified for a survey (e.g., as in the first example above):
 
 .. code-block:: python
 
-    Model()
+  Model()
 
 
 Output (may be different if the default model has changed):
@@ -367,11 +370,11 @@ Here we select some models to use with our survey:
 
 .. code-block:: python 
 
-    from edsl import ModelList, Model
+  from edsl import ModelList, Model
 
-    models = ModelList(
-        Model(m) for m in ["gpt-4o", "gemini-pro"]
-)
+  models = ModelList(
+      Model(m) for m in ["gpt-4o", "gemini-pro"]
+      )
 
 
 Running a survey
@@ -382,13 +385,13 @@ Then we administer a survey the same way that we do an individual question, by c
 
 .. code-block:: python
 
-    results = survey.by(agents).by(models).run()
+  results = survey.by(agents).by(models).run()
 
-    (
-        results
-        .sort_by("persona", "model")
-        .select("model", "persona", "enjoy", "favorite_place")
-    )
+  (
+      results
+      .sort_by("persona", "model")
+      .select("model", "persona", "enjoy", "favorite_place")
+  )
 
 Example output:
 
@@ -447,28 +450,28 @@ Here we insert the answer to a numerical question into the text of a follow-on y
 
 .. code-block:: python 
 
-    from edsl import QuestionNumerical, QuestionYesNo, Survey
+  from edsl import QuestionNumerical, QuestionYesNo, Survey
 
-    q1 = QuestionNumerical(
-        question_name = "random_number",
-        question_text = "Pick a random number between 1 and 1,000."
-    )
+  q1 = QuestionNumerical(
+      question_name = "random_number",
+      question_text = "Pick a random number between 1 and 1,000."
+  )
 
-    q2 = QuestionYesNo(
-        question_name = "prime",
-        question_text = "Is this a prime number: {{ random_number.answer }}"
-    )
+  q2 = QuestionYesNo(
+      question_name = "prime",
+      question_text = "Is this a prime number: {{ random_number.answer }}"
+  )
 
-    survey = Survey([q1, q2])
+  survey = Survey([q1, q2])
 
-    results = survey.run()
+  results = survey.run()
 
 
 We can check the `user_prompt` for the `prime` question to verify that that the answer to the `random_number` question was piped into it:
 
 .. code-block:: python
 
-    results.select("random_number", "prime_user_prompt", "prime", "prime_comment")
+  results.select("random_number", "prime_user_prompt", "prime", "prime_comment")
 
 
 Example output:
@@ -498,28 +501,28 @@ Here we demonstrate the `add_targeted_memory` method (we could also use `set_ful
 
 .. code-block:: python 
 
-    from edsl import QuestionNumerical, QuestionYesNo, Survey
+  from edsl import QuestionNumerical, QuestionYesNo, Survey
 
-    q1 = QuestionNumerical(
-        question_name = "random_number",
-        question_text = "Pick a random number between 1 and 1,000."
-    )
+  q1 = QuestionNumerical(
+      question_name = "random_number",
+      question_text = "Pick a random number between 1 and 1,000."
+  )
 
-    q2 = QuestionYesNo(
-        question_name = "prime",
-        question_text = "Is the number you picked a prime number?"
-    )
+  q2 = QuestionYesNo(
+      question_name = "prime",
+      question_text = "Is the number you picked a prime number?"
+  )
 
-    survey = Survey([q1, q2]).add_targeted_memory(q2, q1)
+  survey = Survey([q1, q2]).add_targeted_memory(q2, q1)
 
-    results = survey.run()
+  results = survey.run()
 
 
 We can again use the `user_prompt` to verify the context that was added to the follow-on question:
 
 .. code-block:: python
 
-    results.select("random_number", "prime_user_prompt", "prime", "prime_comment").table().long()
+  results.select("random_number", "prime_user_prompt", "prime", "prime_comment").table().long()
 
 
 Example output:
@@ -567,9 +570,9 @@ Here we create simple scenarios for a list of activities:
 
 .. code-block:: python 
 
-    from edsl import ScenarioList, Scenario
+  from edsl import ScenarioList, Scenario
 
-    scenarios = ScenarioList.from_list("activity", ["reading", "running", "relaxing"])  
+  scenarios = ScenarioList.from_list("activity", ["reading", "running", "relaxing"])  
 
 
 Adding scenarios using the `by` method
@@ -579,30 +582,30 @@ Here we add the scenarios to the survey when we run it, together with any desire
 
 .. code-block:: python
 
-    from edsl import QuestionLinearScale, QuestionFreeText, Survey
+  from edsl import QuestionLinearScale, QuestionFreeText, Survey
 
-    q_enjoy = QuestionLinearScale(
-        question_name = "enjoy",
-        question_text = "On a scale from 1 to 5, how much do you enjoy {{ activity }}?",
-        question_options = [1, 2, 3, 4, 5],
-        option_labels = {1:"Not at all", 5:"Very much"}
-    )
+  q_enjoy = QuestionLinearScale(
+      question_name = "enjoy",
+      question_text = "On a scale from 1 to 5, how much do you enjoy {{ activity }}?",
+      question_options = [1, 2, 3, 4, 5],
+      option_labels = {1:"Not at all", 5:"Very much"}
+  )
 
-    q_favorite_place = QuestionFreeText(
-        question_name = "favorite_place",
-        question_text = "In a brief sentence, describe your favorite place for {{ activity }}."
-    )
+  q_favorite_place = QuestionFreeText(
+      question_name = "favorite_place",
+      question_text = "In a brief sentence, describe your favorite place for {{ activity }}."
+  )
 
-    survey = Survey([q_enjoy, q_favorite_place])
+  survey = Survey([q_enjoy, q_favorite_place])
 
-    results = survey.by(scenarios).by(agents).by(models).run()
+  results = survey.by(scenarios).by(agents).by(models).run()
 
-    (
-        results
-        .filter("model.model == 'gpt-4o'")
-        .sort_by("activity", "persona")
-        .select("activity", "persona", "enjoy", "favorite_place")
-    )
+  (
+      results
+      .filter("model.model == 'gpt-4o'")
+      .sort_by("activity", "persona")
+      .select("activity", "persona", "enjoy", "favorite_place")
+  )
 
 
 Example output:
@@ -661,126 +664,128 @@ Note that we can also optionally use the scenario key in the question names (the
 
 .. code-block:: python
 
-    from edsl import QuestionLinearScale, QuestionFreeText
+  from edsl import QuestionLinearScale, QuestionFreeText
 
-    q_enjoy = QuestionLinearScale(
-        question_name = "enjoy_{{ activity }}", # optional use of scenario key
-        question_text = "On a scale from 1 to 5, how much do you enjoy {{ activity }}?",
-        question_options = [1, 2, 3, 4, 5],
-        option_labels = {1:"Not at all", 5:"Very much"}
-    )
+  q_enjoy = QuestionLinearScale(
+      question_name = "enjoy_{{ activity }}", # optional use of scenario key
+      question_text = "On a scale from 1 to 5, how much do you enjoy {{ activity }}?",
+      question_options = [1, 2, 3, 4, 5],
+      option_labels = {1:"Not at all", 5:"Very much"}
+  )
 
-    q_favorite_place = QuestionFreeText(
-        question_name = "favorite_place_{{ activity }}", # optional use of scenario key
-        question_text = "In a brief sentence, describe your favorite place for {{ activity }}."
-    )
+  q_favorite_place = QuestionFreeText(
+      question_name = "favorite_place_{{ activity }}", # optional use of scenario key
+      question_text = "In a brief sentence, describe your favorite place for {{ activity }}."
+  )
 
 
 Looping the scenarios to create a lists of versions of the `enjoy` question:
 
 .. code-block:: python 
 
-    enjoy_questions = q_enjoy.loop(scenarios)
-    enjoy_questions
+  enjoy_questions = q_enjoy.loop(scenarios)
+  enjoy_questions
 
 
 Output:
 
 .. code_block:: python 
 
-    [Question('linear_scale', question_name = """enjoy_reading""", question_text = """On a scale from 1 to 5, how much do you enjoy reading?""", question_options = [1, 2, 3, 4, 5], option_labels = {1: 'Not at all', 5: 'Very much'}),
-    Question('linear_scale', question_name = """enjoy_running""", question_text = """On a scale from 1 to 5, how much do you enjoy running?""", question_options = [1, 2, 3, 4, 5], option_labels = {1: 'Not at all', 5: 'Very much'}),
-    Question('linear_scale', question_name = """enjoy_relaxing""", question_text = """On a scale from 1 to 5, how much do you enjoy relaxing?""", question_options = [1, 2, 3, 4, 5], option_labels = {1: 'Not at all', 5: 'Very much'})]
+  [Question('linear_scale', question_name = """enjoy_reading""", question_text = """On a scale from 1 to 5, how much do you enjoy reading?""", question_options = [1, 2, 3, 4, 5], option_labels = {1: 'Not at all', 5: 'Very much'}),
+  Question('linear_scale', question_name = """enjoy_running""", question_text = """On a scale from 1 to 5, how much do you enjoy running?""", question_options = [1, 2, 3, 4, 5], option_labels = {1: 'Not at all', 5: 'Very much'}),
+  Question('linear_scale', question_name = """enjoy_relaxing""", question_text = """On a scale from 1 to 5, how much do you enjoy relaxing?""", question_options = [1, 2, 3, 4, 5], option_labels = {1: 'Not at all', 5: 'Very much'})]
 
 
 Looping the scenarios to create a lists of versions of the `favorite_place` question:
 
 .. code-block:: python 
 
-    favorite_place_questions = q_favorite_place.loop(scenarios)
-    favorite_place_questions
+  favorite_place_questions = q_favorite_place.loop(scenarios)
+  favorite_place_questions
 
 
 Output:
 
 .. code-block:: python 
 
-    [Question('free_text', question_name = """favorite_place_reading""", question_text = """In a brief sentence, describe your favorite place for reading."""),
-    Question('free_text', question_name = """favorite_place_running""", question_text = """In a brief sentence, describe your favorite place for running."""),
-    Question('free_text', question_name = """favorite_place_relaxing""", question_text = """In a brief sentence, describe your favorite place for relaxing.""")]
+  [Question('free_text', question_name = """favorite_place_reading""", question_text = """In a brief sentence, describe your favorite place for reading."""),
+  Question('free_text', question_name = """favorite_place_running""", question_text = """In a brief sentence, describe your favorite place for running."""),
+  Question('free_text', question_name = """favorite_place_relaxing""", question_text = """In a brief sentence, describe your favorite place for relaxing.""")]
 
 
 Combining the questions into a survey and running it:
 
 .. code-block:: python 
 
-    survey = Survey(questions = enjoy_questions + favorite_place_questions)
+  survey = Survey(questions = enjoy_questions + favorite_place_questions)
 
-    results = survey.by(agents).by(models).run()
+  results = survey.by(agents).by(models).run()
 
 
 We can see that there are additional question fields and no scenario fields:
 
 .. code-block:: python
 
-    results.columns
+  results.columns
 
 
 Output:
 
-.. code-block:: text 
+.. list-table::
+  :header-rows: 1
 
-    ['agent.agent_instruction',
-    'agent.agent_name',
-    'agent.persona',
-    'answer.enjoy_reading',
-    'answer.enjoy_relaxing',
-    'answer.enjoy_running',
-    'answer.favorite_place_reading',
-    'answer.favorite_place_relaxing',
-    'answer.favorite_place_running',
-    'comment.enjoy_reading_comment',
-    'comment.enjoy_relaxing_comment',
-    'comment.enjoy_running_comment',
-    'comment.favorite_place_reading_comment',
-    'comment.favorite_place_relaxing_comment',
-    'comment.favorite_place_running_comment',
-    'generated_tokens.enjoy_reading_generated_tokens',
-    'generated_tokens.enjoy_relaxing_generated_tokens',
-    'generated_tokens.enjoy_running_generated_tokens',
-    'generated_tokens.favorite_place_reading_generated_tokens',
-    'generated_tokens.favorite_place_relaxing_generated_tokens',
-    'generated_tokens.favorite_place_running_generated_tokens',
-    'iteration.iteration',
-    'model.frequency_penalty',
-    'model.logprobs',
-    'model.maxOutputTokens',
-    'model.max_tokens',
-    'model.model',
-    'model.presence_penalty',
-    'model.stopSequences',
-    'model.temperature',
-    'model.topK',
-    'model.topP',
-    'model.top_logprobs',
-    'model.top_p',
-    'prompt.enjoy_reading_system_prompt',
-    'prompt.enjoy_reading_user_prompt',
-    'prompt.enjoy_relaxing_system_prompt',
-    'prompt.enjoy_relaxing_user_prompt',
-    'prompt.enjoy_running_system_prompt',
-    'prompt.enjoy_running_user_prompt',
-    'prompt.favorite_place_reading_system_prompt',
-    'prompt.favorite_place_reading_user_prompt',
-    'prompt.favorite_place_relaxing_system_prompt',
-    'prompt.favorite_place_relaxing_user_prompt',
-    'prompt.favorite_place_running_system_prompt',
-    'prompt.favorite_place_running_user_prompt',
-    'question_options.enjoy_reading_question_options',
-    'question_options.enjoy_relaxing_question_options',
-    'question_options.enjoy_running_question_options',
-    'question_options.favorite_place_reading_question_options',
-    'question_options.favorite_place_relaxing_question_options',
+  * - 
+    - 'agent.agent_instruction',
+    - 'agent.agent_name',
+    - 'agent.persona',
+    - 'answer.enjoy_reading',
+    - 'answer.enjoy_relaxing',
+    - 'answer.enjoy_running',
+    - 'answer.favorite_place_reading',
+    - 'answer.favorite_place_relaxing',
+    - 'answer.favorite_place_running',
+    - 'comment.enjoy_reading_comment',
+    - 'comment.enjoy_relaxing_comment',
+    - 'comment.enjoy_running_comment',
+    - 'comment.favorite_place_reading_comment',
+    - 'comment.favorite_place_relaxing_comment',
+    - 'comment.favorite_place_running_comment',
+    - 'generated_tokens.enjoy_reading_generated_tokens',
+    - 'generated_tokens.enjoy_relaxing_generated_tokens',
+    - 'generated_tokens.enjoy_running_generated_tokens',
+    - 'generated_tokens.favorite_place_reading_generated_tokens',
+    - 'generated_tokens.favorite_place_relaxing_generated_tokens',
+    - 'generated_tokens.favorite_place_running_generated_tokens',
+    - 'iteration.iteration',
+    - 'model.frequency_penalty',
+    - 'model.logprobs',
+    - 'model.maxOutputTokens',
+    - 'model.max_tokens',
+    - 'model.model',
+    - 'model.presence_penalty',
+    - 'model.stopSequences',
+    - 'model.temperature',
+    - 'model.topK',
+    - 'model.topP',
+    - 'model.top_logprobs',
+    - 'model.top_p',
+    - 'prompt.enjoy_reading_system_prompt',
+    - 'prompt.enjoy_reading_user_prompt',
+    - 'prompt.enjoy_relaxing_system_prompt',
+    - 'prompt.enjoy_relaxing_user_prompt',
+    - 'prompt.enjoy_running_system_prompt',
+    - 'prompt.enjoy_running_user_prompt',
+    - 'prompt.favorite_place_reading_system_prompt',
+    - 'prompt.favorite_place_reading_user_prompt',
+    - 'prompt.favorite_place_relaxing_system_prompt',
+    - 'prompt.favorite_place_relaxing_user_prompt',
+    - 'prompt.favorite_place_running_system_prompt',
+    - 'prompt.favorite_place_running_user_prompt',
+    - 'question_options.enjoy_reading_question_options',
+    - 'question_options.enjoy_relaxing_question_options',
+    - 'question_options.enjoy_running_question_options',
+    - 'question_options.favorite_place_reading_question_options',
+    - 'question_options.favorite_place_relaxing_question_options',
     'question_options.favorite_place_running_question_options',
     'question_text.enjoy_reading_question_text',
     'question_text.enjoy_relaxing_question_text',
@@ -882,7 +887,7 @@ The `Results` object also supports SQL-like queries with the the `sql` method:
     select model, persona, enjoy_reading, favorite_place_reading
     from self
     order by 1,2,3
-    """, shape="wide")
+    """)
 
 
 Output:
@@ -895,7 +900,7 @@ Output:
   * -
     - model
     - person
-    - aenjoy_reading
+    - enjoy_reading
     - favorite_place_reading
   * - 0
     - gemini-pro
@@ -940,30 +945,30 @@ We can post any EDSL object to the Coop by call the `push` method on it, optiona
 
 .. code-block:: python 
 
-    results.push(description = "Starter tutorial sample survey results", visibility="public")
+  results.push(description = "Starter tutorial sample survey results", visibility="public")
 
 
 Example output (UUIDs will be unique to objects):
 
 .. code-block:: python 
 
-    {'description': 'Starter tutorial sample survey results',
-    'object_type': 'results',
-    'url': 'https://www.expectedparrot.com/content/4ec94be1-2a1a-42bb-a463-9f171341ac30',
-    'uuid': '4ec94be1-2a1a-42bb-a463-9f171341ac30',
-    'version': '0.1.38.dev1',
-    'visibility': 'public'}
+  {'description': 'Starter tutorial sample survey results',
+  'object_type': 'results',
+  'url': 'https://www.expectedparrot.com/content/4ec94be1-2a1a-42bb-a463-9f171341ac30',
+  'uuid': '4ec94be1-2a1a-42bb-a463-9f171341ac30',
+  'version': '0.1.38.dev1',
+  'visibility': 'public'}
 
 
 To post a notebook:
 
 .. code-block:: python 
 
-    from edsl import Notebook
+  from edsl import Notebook
 
-    notebook = Notebook(path="filename.ipynb")
+  notebook = Notebook(path="filename.ipynb")
 
-    notebook.push(description="Starter Tutorial", visibility="public")
+  notebook.push(description="Starter Tutorial", visibility="public")
 
 
-You can view and download a notebook for this tutorial at the Coop `here <https://www.expectedparrot.com/content/2d0c7905-933c-441a-8203-741d9dd942c9>`_.
+You can view and download a notebook for this tutorial `at the Coop <https://www.expectedparrot.com/content/26d569e1-8356-45b7-9786-471dda1710ce>`_.
