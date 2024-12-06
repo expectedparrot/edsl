@@ -285,7 +285,7 @@ class Prompt(PersistenceMixin, RepresentationMixin):
                 f"Template syntax error: {e}. Bad template: {text}"
             )
 
-    def to_dict(self) -> dict[str, Any]:
+    def to_dict(self, add_edsl_version=False) -> dict[str, Any]:
         """Return the `Prompt` as a dictionary.
 
         Example:

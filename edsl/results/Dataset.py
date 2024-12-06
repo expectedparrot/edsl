@@ -38,6 +38,17 @@ class Dataset(UserList, ResultsExportMixin, PersistenceMixin, HashingMixin):
         _, values = list(self.data[0].items())[0]
         return len(values)
 
+    def view(self):
+        from perspective.widget import PerspectiveWidget
+
+        w = PerspectiveWidget(
+            self.to_pandas(),
+            plugin="Datagrid",
+            aggregates={"datetime": "any"},
+            sort=[["date", "desc"]],
+        )
+        return w
+
     def keys(self) -> list[str]:
         """Return the keys of the first observation in the dataset.
 

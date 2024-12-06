@@ -222,7 +222,7 @@ class TableDisplay:
         )
 
     def _repr_html_(self):
-        return self._interactive_html()
+        # return self._interactive_html()
         if self.tablefmt is not None:
             return (
                 "<pre>"

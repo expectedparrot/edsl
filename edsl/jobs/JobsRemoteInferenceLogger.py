@@ -20,6 +20,9 @@ import re
 
 
 class JobLogger(ABC):
+    def __init__(self, verbose: bool = False):
+        self.verbose = verbose
+
     @abstractmethod
     def update(self, message: str, status: str = "running"):
         pass
@@ -39,22 +42,28 @@ class LogMessage:
 
 
 class StdOutJobLogger:
-    def __init__(self):
+
+    def __init__(self, **kwargs):
         self.messages: List[LogMessage] = []
+        super().__init__(**kwargs)
 
     def update(self, message: str, status: str = "running"):
         log_msg = LogMessage(text=message, status=status, timestamp=datetime.now())
         self.messages.append(log_msg)
-        sys.stdout.write(f"│ {message}\n")
-        sys.stdout.flush()
+        if self.verbose:
+            sys.stdout.write(f"│ {message}\n")
+            sys.stdout.flush()
+        else:
+            return None
 
 
 class JupyterJobLogger(JobLogger):
-    def __init__(self):
+    def __init__(self, **kwargs):
         self.messages = []
         self.log_id = str(uuid.uuid4())
         self.is_expanded = True
         self.display_handle = display(HTML(""), display_id=True)
+        super().__init__(**kwargs)
 
     def _linkify(self, text):
         url_pattern = r'(https?://[^\s<>"]+|www\.[^\s<>"]+)'
@@ -91,4 +100,7 @@ class JupyterJobLogger(JobLogger):
     def update(self, message, status="running"):
         colors = {"running": "#3b82f6", "completed": "#22c55e", "failed": "#ef4444"}
         self.messages.append({"text": message, "color": colors.get(status, "#666")})
-        self.display_handle.update(HTML(self._get_html()))
+        if self.verbose:
+            self.display_handle.update(HTML(self._get_html()))
+        else:
+            return None

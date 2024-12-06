@@ -3,18 +3,7 @@ import requests
 import sys
 from edsl.exceptions.coop import CoopServerResponseError
 
-# from edsl.enums import VisibilityType
 from edsl.results import Results
-
-from IPython.display import display, HTML
-import uuid
-
-from IPython.display import display, HTML
-import uuid
-import json
-from datetime import datetime
-import re
-
 from edsl.jobs.JobsRemoteInferenceLogger import JupyterJobLogger
 from edsl.jobs.JobsRemoteInferenceLogger import StdOutJobLogger
 
@@ -69,9 +58,9 @@ class JobsRemoteInferenceHandler:
 
         # Initialize logger
         if is_notebook():
-            self.logger = JupyterJobLogger()
+            self.logger = JupyterJobLogger(verbose=verbose)
         else:
-            self.logger = StdOutJobLogger()
+            self.logger = StdOutJobLogger(verbose=verbose)
 
         coop = Coop()
         self.logger.update(

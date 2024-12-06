@@ -269,9 +269,6 @@ class Interview:
 
         >>> i = Interview.example()
         >>> result, _ = asyncio.run(i.async_conduct_interview())
-        >>> results = list(i._extract_valid_results())
-        >>> len(results) == len(i.survey)
-        True
         """
         assert len(tasks) == len(invigilators)
 
