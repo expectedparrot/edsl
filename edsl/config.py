@@ -144,6 +144,14 @@ class Config:
             raise MissingEnvironmentVariableError(f"{env_var} is not set. {info}")
         return self.__dict__.get(env_var)
 
+    def __iter__(self):
+        """Iterate over the environment variables."""
+        return iter(self.__dict__)
+
+    def items(self):
+        """Iterate over the environment variables and their values."""
+        return self.__dict__.items()
+
     def show(self) -> str:
         """Print the currently set environment vars."""
         max_env_var_length = max(len(env_var) for env_var in self.__dict__)
