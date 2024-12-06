@@ -55,6 +55,120 @@ EDSL_BACKOFF_START_SEC = float(CONFIG.get("EDSL_BACKOFF_START_SEC"))
 EDSL_BACKOFF_MAX_SEC = float(CONFIG.get("EDSL_BACKOFF_MAX_SEC"))
 EDSL_MAX_ATTEMPTS = int(CONFIG.get("EDSL_MAX_ATTEMPTS"))
 
+from edsl.jobs.FetchInvigilator import FetchInvigilator
+
+
+class RequestTokenEstimator:
+
+    def __init__(self, interview):
+        self.interview = interview
+
+    def __call__(self, question) -> float:
+        """Estimate the number of tokens that will be required to run the focal task."""
+        from edsl.scenarios.FileStore import FileStore
+
+        invigilator = FetchInvigilator(self.interview)(question=question)
+
+        # TODO: There should be a way to get a more accurate estimate.
+        combined_text = ""
+        file_tokens = 0
+        for prompt in invigilator.get_prompts().values():
+            if hasattr(prompt, "text"):
+                combined_text += prompt.text
+            elif isinstance(prompt, str):
+                combined_text += prompt
+            elif isinstance(prompt, list):
+                for file in prompt:
+                    if isinstance(file, FileStore):
+                        file_tokens += file.size * 0.25
+            else:
+                raise ValueError(f"Prompt is of type {type(prompt)}")
+        return len(combined_text) / 4.0 + file_tokens
+
+
+class InterviewTaskManager:
+    """Handles creation and management of interview tasks."""
+
+    def __init__(self, survey, iteration=0):
+        self.survey = survey
+        self.iteration = iteration
+        self.task_creators = TaskCreators()
+        self.to_index = {
+            question_name: index
+            for index, question_name in enumerate(self.survey.question_names)
+        }
+        self._task_status_log_dict = InterviewStatusLog()
+
+    def build_question_tasks(
+        self, answer_func, token_estimator, model_buckets
+    ) -> list[asyncio.Task]:
+        """Create tasks for all questions with proper dependencies."""
+        tasks = []
+        for question in self.survey.questions:
+            dependencies = self._get_task_dependencies(tasks, question)
+            task = self._create_single_task(
+                question=question,
+                dependencies=dependencies,
+                answer_func=answer_func,
+                token_estimator=token_estimator,
+                model_buckets=model_buckets,
+            )
+            tasks.append(task)
+        return tuple(tasks)
+
+    def _get_task_dependencies(
+        self, existing_tasks: list[asyncio.Task], question: "QuestionBase"
+    ) -> list[asyncio.Task]:
+        """Get tasks that must be completed before the given question."""
+        dag = self.survey.dag(textify=True)
+        parents = dag.get(question.question_name, [])
+        return [existing_tasks[self.to_index[parent_name]] for parent_name in parents]
+
+    def _create_single_task(
+        self,
+        question: QuestionBase,
+        dependencies: list[asyncio.Task],
+        answer_func,
+        token_estimator,
+        model_buckets,
+    ) -> asyncio.Task:
+        """Create a single question task with its dependencies."""
+        task_creator = QuestionTaskCreator(
+            question=question,
+            answer_question_func=answer_func,
+            token_estimator=token_estimator,
+            model_buckets=model_buckets,
+            iteration=self.iteration,
+        )
+
+        for dependency in dependencies:
+            task_creator.add_dependency(dependency)
+
+        self.task_creators[question.question_name] = task_creator
+        return task_creator.generate_task()
+
+    @property
+    def task_status_logs(self) -> InterviewStatusLog:
+        """Return the task status logs for the interview.
+
+        The keys are the question names; the values are the lists of status log changes for each task.
+        """
+        for task_creator in self.task_creators.values():
+            self._task_status_log_dict[task_creator.question.question_name] = (
+                task_creator.status_log
+            )
+        return self._task_status_log_dict
+
+    @property
+    def token_usage(self) -> InterviewTokenUsage:
+        """Determine how many tokens were used for the interview."""
+        return self.task_creators.token_usage
+
+    @property
+    def interview_status(self) -> InterviewStatusDictionary:
+        """Return a dictionary mapping task status codes to counts."""
+        return self.task_creators.interview_status
+
 
 class Interview:
     """
@@ -105,7 +219,7 @@ class Interview:
 
         """
         self.agent = agent
-        self.survey = copy.deepcopy(survey)
+        self.survey = copy.deepcopy(survey)  # why do we need to deepcopy the survey?
         self.scenario = scenario
         self.model = model
         self.debug = debug
@@ -117,10 +231,15 @@ class Interview:
         self.sidecar_model = sidecar_model
 
         # Trackers
-        self.task_creators = TaskCreators()  # tracks the task creators
+        # self.task_creators = TaskCreators()  # tracks the task creators
+
+        self.task_manager = InterviewTaskManager(
+            survey=self.survey,
+            iteration=iteration,
+        )
+
         self.exceptions = InterviewExceptionCollection()
 
-        self._task_status_log_dict = InterviewStatusLog()
         self.skip_retry = skip_retry
         self.raise_validation_errors = raise_validation_errors
 
@@ -145,21 +264,18 @@ class Interview:
 
         The keys are the question names; the values are the lists of status log changes for each task.
         """
-        for task_creator in self.task_creators.values():
-            self._task_status_log_dict[task_creator.question.question_name] = (
-                task_creator.status_log
-            )
-        return self._task_status_log_dict
+        return self.task_manager.task_status_logs
 
     @property
     def token_usage(self) -> InterviewTokenUsage:
         """Determine how many tokens were used for the interview."""
-        return self.task_creators.token_usage
+        return self.task_manager.token_usage  # task_creators.token_usage
 
     @property
     def interview_status(self) -> InterviewStatusDictionary:
         """Return a dictionary mapping task status codes to counts."""
-        return self.task_creators.interview_status
+        # return self.task_creators.interview_status
+        return self.task_manager.interview_status
 
     # region: Serialization
     def to_dict(self, include_exceptions=True, add_edsl_version=True) -> dict[str, Any]:
@@ -219,104 +335,11 @@ class Interview:
         """
         return hash(self) == hash(other)
 
-    # endregion
-
-    # region: Creating tasks
-    @property
-    def dag(self) -> "DAG":
-        """Return the directed acyclic graph for the survey.
-
-        The DAG, or directed acyclic graph, is a dictionary that maps question names to their dependencies.
-        It is used to determine the order in which questions should be answered.
-        This reflects both agent 'memory' considerations and 'skip' logic.
-        The 'textify' parameter is set to True, so that the question names are returned as strings rather than integer indices.
-
-        >>> i = Interview.example()
-        >>> i.dag == {'q2': {'q0'}, 'q1': {'q0'}}
-        True
-        """
-        return self.survey.dag(textify=True)
-
-    def _build_question_tasks(
-        self,
-        model_buckets: ModelBuckets,
-    ) -> list[asyncio.Task]:
-        """Create a task for each question, with dependencies on the questions that must be answered before this one can be answered.
-
-        :param debug: whether to use debug mode, in which case `InvigilatorDebug` is used.
-        :param model_buckets: the model buckets used to track and control usage rates.
-        """
-        tasks = []
-        for question in self.survey.questions:
-            tasks_that_must_be_completed_before = list(
-                self._get_tasks_that_must_be_completed_before(
-                    tasks=tasks, question=question
-                )
-            )
-            question_task = self._create_question_task(
-                question=question,
-                tasks_that_must_be_completed_before=tasks_that_must_be_completed_before,
-                model_buckets=model_buckets,
-                iteration=self.iteration,
-            )
-            tasks.append(question_task)
-        return tuple(tasks)
-
-    def _get_tasks_that_must_be_completed_before(
-        self, *, tasks: list[asyncio.Task], question: "QuestionBase"
-    ) -> Generator[asyncio.Task, None, None]:
-        """Return the tasks that must be completed before the given question can be answered.
-
-        :param tasks: a list of tasks that have been created so far.
-        :param question: the question for which we are determining dependencies.
-
-        If a question has no dependencies, this will be an empty list, [].
-        """
-        parents_of_focal_question = self.dag.get(question.question_name, [])
-        for parent_question_name in parents_of_focal_question:
-            yield tasks[self.to_index[parent_question_name]]
-
-    def _create_question_task(
-        self,
-        *,
-        question: QuestionBase,
-        tasks_that_must_be_completed_before: list[asyncio.Task],
-        model_buckets: ModelBuckets,
-        iteration: int = 0,
-    ) -> asyncio.Task:
-        """Create a task that depends on the passed-in dependencies that are awaited before the task is run.
-
-        :param question: the question to be answered. This is the question we are creating a task for.
-        :param tasks_that_must_be_completed_before: the tasks that must be completed before the focal task is run.
-        :param model_buckets: the model buckets used to track and control usage rates.
-        :param debug: whether to use debug mode, in which case `InvigilatorDebug` is used.
-        :param iteration: the iteration number for the interview.
-
-        The task is created by a `QuestionTaskCreator`, which is responsible for creating the task and managing its dependencies.
-        It is passed a reference to the function that will be called to answer the question.
-        It is passed a list "tasks_that_must_be_completed_before" that are awaited before the task is run.
-        These are added as a dependency to the focal task.
-        """
-        task_creator = QuestionTaskCreator(
-            question=question,
-            answer_question_func=self._answer_question_and_record_task,
-            token_estimator=self._get_estimated_request_tokens,
-            model_buckets=model_buckets,
-            iteration=iteration,
-        )
-        for task in tasks_that_must_be_completed_before:
-            task_creator.add_dependency(task)
-
-        self.task_creators.update(
-            {question.question_name: task_creator}
-        )  # track this task creator
-        return task_creator.generate_task()
-
     def _get_estimated_request_tokens(self, question) -> float:
         """Estimate the number of tokens that will be required to run the focal task."""
         from edsl.scenarios.FileStore import FileStore
 
-        invigilator = self._get_invigilator(question=question)
+        invigilator = FetchInvigilator(self)(question=question)
         # TODO: There should be a way to get a more accurate estimate.
         combined_text = ""
         file_tokens = 0
@@ -354,7 +377,7 @@ class Interview:
         async def attempt_answer():
             nonlocal had_language_model_no_response_error
 
-            invigilator = self._get_invigilator(question)
+            invigilator = FetchInvigilator(self)(question)
 
             if self._skip_this_question(question):
                 return invigilator.get_failed_task_result(
@@ -415,31 +438,31 @@ class Interview:
             # All retries have failed for LanguageModelNoResponseError
             original_error = retry_error.last_attempt.exception()
             self._handle_exception(
-                original_error, self._get_invigilator(question), task
+                original_error, FetchInvigilator(self)(question), task
             )
             raise original_error  # Re-raise the original error after handling
 
-    def _get_invigilator(self, question: QuestionBase) -> InvigilatorBase:
-        """Return an invigilator for the given question.
+    # def _get_invigilator(self, question: QuestionBase) -> InvigilatorBase:
+    #     """Return an invigilator for the given question.
 
-        :param question: the question to be answered
-        :param debug: whether to use debug mode, in which case `InvigilatorDebug` is used.
-        """
-        invigilator = self.agent.create_invigilator(
-            question=question,
-            scenario=self.scenario,
-            model=self.model,
-            debug=False,
-            survey=self.survey,
-            memory_plan=self.survey.memory_plan,
-            current_answers=self.answers,
-            iteration=self.iteration,
-            cache=self.cache,
-            sidecar_model=self.sidecar_model,
-            raise_validation_errors=self.raise_validation_errors,
-        )
-        """Return an invigilator for the given question."""
-        return invigilator
+    #     :param question: the question to be answered
+    #     :param debug: whether to use debug mode, in which case `InvigilatorDebug` is used.
+    #     """
+    #     invigilator = self.agent.create_invigilator(
+    #         question=question,
+    #         scenario=self.scenario,
+    #         model=self.model,
+    #         debug=False,
+    #         survey=self.survey,
+    #         memory_plan=self.survey.memory_plan,
+    #         current_answers=self.answers,
+    #         iteration=self.iteration,
+    #         cache=self.cache,
+    #         sidecar_model=self.sidecar_model,
+    #         raise_validation_errors=self.raise_validation_errors,
+    #     )
+    #     """Return an invigilator for the given question."""
+    #     return invigilator
 
     def _skip_this_question(self, current_question: "QuestionBase") -> bool:
         """Determine if the current question should be skipped.
@@ -458,8 +481,6 @@ class Interview:
         self, e: Exception, invigilator: "InvigilatorBase", task=None
     ):
         import copy
-
-        # breakpoint()
 
         answers = copy.copy(self.answers)
         exception_entry = InterviewExceptionEntry(
@@ -558,13 +579,19 @@ class Interview:
         if model_buckets is None or hasattr(self.agent, "answer_question_directly"):
             model_buckets = ModelBuckets.infinity_bucket()
 
+        self.tasks = self.task_manager.build_question_tasks(
+            answer_func=self._answer_question_and_record_task,
+            token_estimator=RequestTokenEstimator(self),
+            model_buckets=model_buckets,
+        )
+
         ## This is the key part---it creates a task for each question,
         ## with dependencies on the questions that must be answered before this one can be answered.
-        self.tasks = self._build_question_tasks(model_buckets=model_buckets)
+        # self.tasks = self._build_question_tasks(model_buckets=model_buckets)
 
         ## 'Invigilators' are used to administer the survey
         self.invigilators = [
-            self._get_invigilator(question) for question in self.survey.questions
+            FetchInvigilator(self)(question) for question in self.survey.questions
         ]
         await asyncio.gather(
             *self.tasks, return_exceptions=not stop_on_exception
