@@ -7,23 +7,19 @@ import copy
 
 from edsl import CONFIG
 
-from edsl.jobs.buckets.ModelBuckets import ModelBuckets
 from edsl.jobs.Answers import Answers
 from edsl.jobs.interviews.InterviewStatusLog import InterviewStatusLog
+from edsl.jobs.interviews.InterviewStatusDictionary import InterviewStatusDictionary
 from edsl.jobs.interviews.InterviewExceptionCollection import (
     InterviewExceptionCollection,
 )
-
-from edsl.jobs.buckets.ModelBuckets import ModelBuckets
 from edsl.jobs.interviews.InterviewExceptionEntry import InterviewExceptionEntry
 
+from edsl.jobs.buckets.ModelBuckets import ModelBuckets
 from edsl import Agent, Survey, Scenario, Cache
 from edsl.language_models import LanguageModel
 
-from edsl.jobs.interviews.InterviewStatusLog import InterviewStatusLog
 from edsl.jobs.tokens.InterviewTokenUsage import InterviewTokenUsage
-from edsl.jobs.interviews.InterviewStatusDictionary import InterviewStatusDictionary
-
 from edsl.jobs.AnswerQuestionFunctionConstructor import (
     AnswerQuestionFunctionConstructor,
 )
@@ -87,9 +83,8 @@ class Interview:
         self.debug = debug
         self.iteration = iteration
         self.cache = cache
-        self.answers: dict[str, str] = (
-            Answers()
-        )  # will get filled in as interview progresses
+
+        self.answers = Answers()  # will get filled in as interview progresses
         self.sidecar_model = sidecar_model
 
         self.task_manager = InterviewTaskManager(
@@ -235,6 +230,7 @@ class Interview:
         if model_buckets is None or hasattr(self.agent, "answer_question_directly"):
             model_buckets = ModelBuckets.infinity_bucket()
 
+        # was "self.tasks" - is that necessary?
         self.tasks = self.task_manager.build_question_tasks(
             answer_func=AnswerQuestionFunctionConstructor(
                 self
@@ -245,23 +241,26 @@ class Interview:
 
         ## This is the key part---it creates a task for each question,
         ## with dependencies on the questions that must be answered before this one can be answered.
-        # self.tasks = self._build_question_tasks(model_buckets=model_buckets)
 
-        ## 'Invigilators' are used to administer the survey
+        ## 'Invigilators' are used to administer the survey.
         self.invigilators = [
-            FetchInvigilator(self)(question) for question in self.survey.questions
+            FetchInvigilator(interview=self, current_answers=self.answers)(question)
+            for question in self.survey.questions
         ]
-        await asyncio.gather(
-            *self.tasks, return_exceptions=not stop_on_exception
-        )  # not stop_on_exception)
+        await asyncio.gather(*self.tasks, return_exceptions=not stop_on_exception)
         self.answers.replace_missing_answers_with_none(self.survey)
-        valid_results = list(self._extract_valid_results())
+        valid_results = list(
+            self._extract_valid_results(self.tasks, self.invigilators, self.exceptions)
+        )
         return self.answers, valid_results
 
     # endregion
 
     # region: Extracting results and recording errors
-    def _extract_valid_results(self) -> Generator["Answers", None, None]:
+    @staticmethod
+    def _extract_valid_results(
+        tasks, invigilators, exceptions
+    ) -> Generator["Answers", None, None]:
         """Extract the valid results from the list of results.
 
         It iterates through the tasks and invigilators, and yields the results of the tasks that are done.
@@ -274,9 +273,9 @@ class Interview:
         >>> len(results) == len(i.survey)
         True
         """
-        assert len(self.tasks) == len(self.invigilators)
+        assert len(tasks) == len(invigilators)
 
-        for task, invigilator in zip(self.tasks, self.invigilators):
+        for task, invigilator in zip(tasks, invigilators):
             if not task.done():
                 raise ValueError(f"Task {task.get_name()} is not done.")
 
@@ -294,7 +293,8 @@ class Interview:
                     exception=e,
                     invigilator=invigilator,
                 )
-                self.exceptions.add(task.get_name(), exception_entry)
+                exceptions.add(task.get_name(), exception_entry)
+                # self.exceptions.add(task.get_name(), exception_entry)
 
             yield result
 
