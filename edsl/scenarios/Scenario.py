@@ -160,7 +160,7 @@ class Scenario(Base, UserDict, ScenarioHtmlMixin):
         """Rename the keys of a scenario.
 
         >>> s = Scenario({"food": "wood chips"})
-        >>> s.new_column_names("food_preference")
+        >>> s.new_column_names(["food_preference"])
         Scenario({'food_preference': 'wood chips'})
         """
         try:
