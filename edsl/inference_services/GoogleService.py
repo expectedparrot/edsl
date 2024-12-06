@@ -77,7 +77,6 @@ class GoogleService(InferenceServiceABC):
                 "stopSequences": [],
             }
 
-            api_token = None
             model = None
 
             def __init__(self, *args, **kwargs):
@@ -102,7 +101,6 @@ class GoogleService(InferenceServiceABC):
 
                 if files_list is None:
                     files_list = []
-
                 genai.configure(api_key=self.api_token)
                 if (
                     system_prompt is not None
