@@ -3,6 +3,7 @@
 from __future__ import annotations
 from typing import Any, Optional, Union, List, Callable
 import csv
+import requests
 import random
 from collections import UserList, Counter
 from collections.abc import Iterable
@@ -708,6 +709,22 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
             new_list.append(new_obj)
         return new_list
 
+    def new_column_names(self, new_names: List[str]) -> ScenarioList:
+        """Rename the fields in the scenarios.
+
+        Example:
+
+        >>> s = ScenarioList([Scenario({'name': 'Alice', 'age': 30}), Scenario({'name': 'Bob', 'age': 25})])
+        >>> s.new_column_names(['first_name', 'years'])
+        ScenarioList([Scenario({'first_name': 'Alice', 'years': 30}), Scenario({'first_name': 'Bob', 'years': 25})])
+
+        """
+        new_list = ScenarioList([])
+        for obj in self:
+            new_obj = obj.new_column_names(new_names)
+            new_list.append(new_obj)
+        return new_list
+
     @classmethod
     def from_sqlite(cls, filepath: str, table: str):
         import sqlite3
@@ -974,31 +991,14 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
     def from_delimited_file(
         cls, source: Union[str, urllib.parse.ParseResult], delimiter: str = ","
     ) -> ScenarioList:
-        """Create a ScenarioList from a delimited file (CSV/TSV) or URL.
-
-        Args:
-            source: A string representing either a local file path or a URL to a delimited file,
-                    or a urllib.parse.ParseResult object for a URL.
-            delimiter: The delimiter used in the file. Defaults to ',' for CSV files.
-                    Use '\t' for TSV files.
-
-        Returns:
-            ScenarioList: A ScenarioList object containing the data from the file.
-
-        Example:
-            # For CSV files
-
-            >>> with open('data.csv', 'w') as f:
-            ...     _ = f.write('name,age\\nAlice,30\\nBob,25\\n')
-            >>> scenario_list = ScenarioList.from_delimited_file('data.csv')
-
-            # For TSV files
-            >>> with open('data.tsv', 'w') as f:
-            ...     _ = f.write('name\\tage\\nAlice\t30\\nBob\t25\\n')
-            >>> scenario_list = ScenarioList.from_delimited_file('data.tsv', delimiter='\\t')
-
-        """
+        """Create a ScenarioList from a delimited file (CSV/TSV) or URL."""
+        import requests
         from edsl.scenarios.Scenario import Scenario
+
+        headers = {
+            "Accept": "text/csv,application/csv,text/plain",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        }
 
         def is_url(source):
             try:
@@ -1007,21 +1007,22 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
             except ValueError:
                 return False
 
-        if isinstance(source, str) and is_url(source):
-            with urllib.request.urlopen(source) as response:
-                file_content = response.read().decode("utf-8")
-            file_obj = StringIO(file_content)
-        elif isinstance(source, urllib.parse.ParseResult):
-            with urllib.request.urlopen(source.geturl()) as response:
-                file_content = response.read().decode("utf-8")
-            file_obj = StringIO(file_content)
-        else:
-            file_obj = open(source, "r")
-
         try:
+            if isinstance(source, str) and is_url(source):
+                response = requests.get(source, headers=headers)
+                response.raise_for_status()
+                file_obj = StringIO(response.text)
+            elif isinstance(source, urllib.parse.ParseResult):
+                response = requests.get(source.geturl(), headers=headers)
+                response.raise_for_status()
+                file_obj = StringIO(response.text)
+            else:
+                file_obj = open(source, "r")
+
             reader = csv.reader(file_obj, delimiter=delimiter)
             header = next(reader)
             observations = [Scenario(dict(zip(header, row))) for row in reader]
+
         finally:
             file_obj.close()
 

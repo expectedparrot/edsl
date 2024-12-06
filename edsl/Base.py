@@ -202,6 +202,10 @@ class RepresentationMixin:
 
         return Dataset.from_edsl_object(self)
 
+    def view(self):
+        "Displays an interactive / perspective view of the object"
+        return self.to_dataset().view()
+
     # def print(self, format="rich"):
     #     return self.to_dataset().table()
 

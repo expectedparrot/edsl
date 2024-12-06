@@ -6,8 +6,8 @@ from typing import Literal, Optional, Union, Sequence, Generator, TYPE_CHECKING
 
 from edsl.Base import Base
 
-from edsl.exceptions import MissingAPIKeyError
 from edsl.jobs.buckets.BucketCollection import BucketCollection
+from edsl.jobs.JobsPrompts import JobsPrompts
 from edsl.jobs.interviews.Interview import Interview
 from edsl.jobs.runners.JobsRunnerAsyncio import JobsRunnerAsyncio
 from edsl.utilities.decorators import remove_edsl_version
@@ -160,8 +160,6 @@ class Jobs(Base):
         >>> Jobs.example().prompts()
         Dataset(...)
         """
-        from edsl.jobs.JobsPrompts import JobsPrompts
-
         return JobsPrompts(self).prompts()
 
     def show_prompts(self, all: bool = False) -> None:
@@ -190,8 +188,6 @@ class Jobs(Base):
         :param inference_service: the inference service
         :param model: the model name
         """
-        from edsl.jobs.JobsPrompts import JobsPrompts
-
         return JobsPrompts.estimate_prompt_cost(
             system_prompt, user_prompt, price_lookup, inference_service, model
         )
@@ -202,18 +198,14 @@ class Jobs(Base):
 
         :param iterations: the number of iterations to run
         """
-        from edsl.jobs.JobsPrompts import JobsPrompts
-
-        j = JobsPrompts(self)
-        return j.estimate_job_cost(iterations)
+        return JobsPrompts(self).estimate_job_cost(iterations)
 
     def estimate_job_cost_from_external_prices(
         self, price_lookup: dict, iterations: int = 1
     ) -> dict:
-        from edsl.jobs.JobsPrompts import JobsPrompts
-
-        j = JobsPrompts(self)
-        return j.estimate_job_cost_from_external_prices(price_lookup, iterations)
+        return JobsPrompts(self).estimate_job_cost_from_external_prices(
+            price_lookup, iterations
+        )
 
     @staticmethod
     def compute_job_cost(job_results: Results) -> float:
@@ -283,12 +275,8 @@ class Jobs(Base):
         >>> bc
         BucketCollection(...)
         """
-        # bucket_collection = BucketCollection()
-        self.replace_missing_objects()
+        self.replace_missing_objects()  # ensure that all objects are present
         return BucketCollection.from_models(self.models)
-        # for model in self.models:
-        #     bucket_collection.add_model(model)
-        # return bucket_collection
 
     @property
     def bucket_collection(self) -> BucketCollection:
