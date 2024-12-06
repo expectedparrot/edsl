@@ -22,6 +22,9 @@ Technical setup
 
 To run the examples below you first need to install the EDSL library and choose how you want to access language models.
 
+*Note:* If you are using EDSL in Colab, please see the `Colab setup <https://docs.expectedparrot.com/en/latest/colab_setup.html>`_ page for additional instructions.
+
+
 Install EDSL
 ^^^^^^^^^^^^
 
@@ -876,7 +879,7 @@ For example, you can call the `to_pandas` method to convert results into a dataf
 .. code-block:: python 
     
     df = results.to_pandas(remove_prefix=True)
-    # df
+    # df # uncomment to view output
 
 
 The `Results` object also supports SQL-like queries with the the `sql` method:
@@ -897,8 +900,7 @@ Output:
 .. list-table::
   :header-rows: 1
 
-  * -
-    - model
+  * - model
     - person
     - enjoy_reading
     - favorite_place_reading
