@@ -48,6 +48,9 @@ from edsl.jobs.interviews.InterviewStatusLog import InterviewStatusLog
 from edsl.jobs.tokens.InterviewTokenUsage import InterviewTokenUsage
 from edsl.jobs.interviews.InterviewStatusDictionary import InterviewStatusDictionary
 
+from edsl.jobs.AnswerQuestionFunctionConstructor import (
+    AnswerQuestionFunctionConstructor,
+)
 
 from edsl import CONFIG
 
@@ -442,28 +445,6 @@ class Interview:
             )
             raise original_error  # Re-raise the original error after handling
 
-    # def _get_invigilator(self, question: QuestionBase) -> InvigilatorBase:
-    #     """Return an invigilator for the given question.
-
-    #     :param question: the question to be answered
-    #     :param debug: whether to use debug mode, in which case `InvigilatorDebug` is used.
-    #     """
-    #     invigilator = self.agent.create_invigilator(
-    #         question=question,
-    #         scenario=self.scenario,
-    #         model=self.model,
-    #         debug=False,
-    #         survey=self.survey,
-    #         memory_plan=self.survey.memory_plan,
-    #         current_answers=self.answers,
-    #         iteration=self.iteration,
-    #         cache=self.cache,
-    #         sidecar_model=self.sidecar_model,
-    #         raise_validation_errors=self.raise_validation_errors,
-    #     )
-    #     """Return an invigilator for the given question."""
-    #     return invigilator
-
     def _skip_this_question(self, current_question: "QuestionBase") -> bool:
         """Determine if the current question should be skipped.
 
@@ -580,7 +561,9 @@ class Interview:
             model_buckets = ModelBuckets.infinity_bucket()
 
         self.tasks = self.task_manager.build_question_tasks(
-            answer_func=self._answer_question_and_record_task,
+            answer_func=AnswerQuestionFunctionConstructor(
+                self
+            ).get_function(),  # self._answer_question_and_record_task,
             token_estimator=RequestTokenEstimator(self),
             model_buckets=model_buckets,
         )
