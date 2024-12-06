@@ -284,14 +284,15 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         """
         return self.__mul__(other)
 
-    def shuffle(self, seed: Optional[str] = "edsl") -> ScenarioList:
+    def shuffle(self, seed: Optional[str] = None) -> ScenarioList:
         """Shuffle the ScenarioList.
 
         >>> s = ScenarioList.from_list("a", [1,2,3,4])
-        >>> s.shuffle()
-        ScenarioList([Scenario({'a': 3}), Scenario({'a': 4}), Scenario({'a': 1}), Scenario({'a': 2})])
+        >>> s.shuffle(seed = "1234")
+        ScenarioList([Scenario({'a': 1}), Scenario({'a': 4}), Scenario({'a': 3}), Scenario({'a': 2})])
         """
-        random.seed(seed)
+        if seed:
+            random.seed(seed)
         random.shuffle(self.data)
         return self
 
@@ -527,14 +528,6 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
 
         ss = ScenarioSelector(self)
         return ss.select(*fields)
-        # if len(fields) == 1:
-        #     fields_to_select = [list(fields)[0]]
-        # else:
-        #     fields_to_select = list(fields)
-
-        # return ScenarioList(
-        #     [scenario.select(fields_to_select) for scenario in self.data]
-        # )
 
     def drop(self, *fields) -> ScenarioList:
         """Drop fields from the scenarios.
@@ -709,21 +702,22 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
             new_list.append(new_obj)
         return new_list
 
-    def new_column_names(self, new_names: List[str]) -> ScenarioList:
-        """Rename the fields in the scenarios.
+    ## NEEDS TO BE FIXED
+    # def new_column_names(self, new_names: List[str]) -> ScenarioList:
+    #     """Rename the fields in the scenarios.
 
-        Example:
+    #     Example:
 
-        >>> s = ScenarioList([Scenario({'name': 'Alice', 'age': 30}), Scenario({'name': 'Bob', 'age': 25})])
-        >>> s.new_column_names(['first_name', 'years'])
-        ScenarioList([Scenario({'first_name': 'Alice', 'years': 30}), Scenario({'first_name': 'Bob', 'years': 25})])
+    #     >>> s = ScenarioList([Scenario({'name': 'Alice', 'age': 30}), Scenario({'name': 'Bob', 'age': 25})])
+    #     >>> s.new_column_names(['first_name', 'years'])
+    #     ScenarioList([Scenario({'first_name': 'Alice', 'years': 30}), Scenario({'first_name': 'Bob', 'years': 25})])
 
-        """
-        new_list = ScenarioList([])
-        for obj in self:
-            new_obj = obj.new_column_names(new_names)
-            new_list.append(new_obj)
-        return new_list
+    #     """
+    #     new_list = ScenarioList([])
+    #     for obj in self:
+    #         new_obj = obj.new_column_names(new_names)
+    #         new_list.append(new_obj)
+    #     return new_list
 
     @classmethod
     def from_sqlite(cls, filepath: str, table: str):
@@ -1051,64 +1045,6 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
 
         sj = ScenarioJoin(self, other)
         return sj.left_join(by)
-        # # Validate join keys
-        # if not by:
-        #     raise ValueError(
-        #         "Join keys cannot be empty. Please specify at least one key to join on."
-        #     )
-
-        # # Convert single string to list for consistent handling
-        # by_keys = [by] if isinstance(by, str) else by
-
-        # # Verify all join keys exist in both ScenarioLists
-        # left_keys = set(next(iter(self)).keys()) if self else set()
-        # right_keys = set(next(iter(other)).keys()) if other else set()
-
-        # missing_left = set(by_keys) - left_keys
-        # missing_right = set(by_keys) - right_keys
-        # if missing_left or missing_right:
-        #     missing = missing_left | missing_right
-        #     raise ValueError(f"Join key(s) {missing} not found in both ScenarioLists")
-
-        # # Create lookup dictionary from the other ScenarioList
-        # def get_key_tuple(scenario: Scenario, keys: list[str]) -> tuple:
-        #     return tuple(scenario[k] for k in keys)
-
-        # other_dict = {get_key_tuple(scenario, by_keys): scenario for scenario in other}
-
-        # # Collect all possible keys (like SQL combining all columns)
-        # all_keys = set()
-        # for scenario in self:
-        #     all_keys.update(scenario.keys())
-        # for scenario in other:
-        #     all_keys.update(scenario.keys())
-
-        # new_scenarios = []
-        # for scenario in self:
-        #     new_scenario = {
-        #         key: None for key in all_keys
-        #     }  # Start with nulls (like SQL)
-        #     new_scenario.update(scenario)  # Add all left values
-
-        #     key_tuple = get_key_tuple(scenario, by_keys)
-        #     if matching_scenario := other_dict.get(key_tuple):
-        #         # Check for overlapping keys with different values
-        #         overlapping_keys = set(scenario.keys()) & set(matching_scenario.keys())
-        #         for key in overlapping_keys:
-        #             if key not in by_keys and scenario[key] != matching_scenario[key]:
-        #                 join_conditions = [f"{k}='{scenario[k]}'" for k in by_keys]
-        #                 print(
-        #                     f"Warning: Conflicting values for key '{key}' where {' AND '.join(join_conditions)}. "
-        #                     f"Keeping left value: {scenario[key]} (discarding: {matching_scenario[key]})"
-        #                 )
-
-        #         # Only update with non-overlapping keys from matching scenario
-        #         new_keys = set(matching_scenario.keys()) - set(scenario.keys())
-        #         new_scenario.update({k: matching_scenario[k] for k in new_keys})
-
-        #     new_scenarios.append(Scenario(new_scenario))
-
-        # return ScenarioList(new_scenarios)
 
     @classmethod
     def from_tsv(cls, source: Union[str, urllib.parse.ParseResult]) -> ScenarioList:

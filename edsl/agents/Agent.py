@@ -169,6 +169,9 @@ class Agent(Base):
         else:
             self.traits_presentation_template = "Your traits: {{traits}}"
 
+    def duplicate(self):
+        return Agent.from_dict(self.to_dict())
+
     @property
     def agent_persona(self) -> Prompt:
         return Prompt(text=self.traits_presentation_template)
