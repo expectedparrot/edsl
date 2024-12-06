@@ -279,6 +279,46 @@ class AnswerValidatorMixin:
                 f"Rank answer {value}, but exactly {self.num_selections} selections required."
             )
 
+    def _validate_answer_matrix(self, answer: dict[str, Any]) -> None:
+        """Validate QuestionMatrix-specific answer.
+
+        Check that answer["answer"]:
+        - is a dictionary
+        - has all required question_items as keys
+        - has values that are valid options from question_options
+        - has the correct number of responses (one per item)
+        """
+        value = answer.get("answer")
+
+        # Check that answer is a dictionary
+        if not isinstance(value, dict):
+            raise QuestionAnswerValidationError(
+                f"Matrix answer must be a dictionary mapping items to responses (got {value})"
+            )
+
+        # Check that all required items are present
+        required_items = set(self.question_items)
+        provided_items = set(value.keys())
+
+        if missing_items := (required_items - provided_items):
+            raise QuestionAnswerValidationError(
+                f"Missing responses for items: {missing_items}"
+            )
+
+        if extra_items := (provided_items - required_items):
+            raise QuestionAnswerValidationError(
+                f"Unexpected responses for items: {extra_items}"
+            )
+
+        # Check that all responses are valid options
+        valid_options = set(self.question_options)
+        for item, response in value.items():
+            if response not in valid_options:
+                raise QuestionAnswerValidationError(
+                    f"Invalid response '{response}' for item '{item}'. "
+                    f"Must be one of: {valid_options}"
+                )
+
 
 if __name__ == "__main__":
     pass

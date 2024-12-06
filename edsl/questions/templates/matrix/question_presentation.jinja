@@ -1,0 +1,20 @@
+{{question_text}}
+
+Rows:
+    {% for item in question_items %}
+{{ loop.index0 }}: {{item}}
+    {% endfor %}
+
+Columns:
+    {% for option in question_options %}
+{{ loop.index0 }}: {{option}}
+        {%- if option in option_labels %}
+ ({{option_labels[option]}})
+        {%- endif %}
+    {% endfor %}
+
+
+Select one column option for each row.
+{% if required %}
+All rows require a response.
+{% endif %} 
