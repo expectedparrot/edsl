@@ -10,6 +10,12 @@ This page contains a list of papers that use or cite EDSL.
 | Send an email to info@expectedparrot.com and we'll give you credits to run your project.
 
 
+| *Generative AI for Economic Research: LLMs Learn to Collaborate and Reason*
+| Anton Korinek
+| November 2024
+| https://www.nber.org/papers/w33198
+
+
 | *Theorizing with Large Language Models*
 | Matteo Tranchero, Cecil-Francis Brenninkmeijer, Arul Murugan, Abhishek Nagaraj
 | September 2024

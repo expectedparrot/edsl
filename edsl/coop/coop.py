@@ -165,18 +165,21 @@ class Coop(CoopFunctionsMixin):
                 edsl_auth_token = secrets.token_urlsafe(16)
 
                 print("Your Expected Parrot API key is invalid.")
-                print(
-                    "\nUse the link below to log in to Expected Parrot so we can automatically update your API key."
+                self._display_login_url(
+                    edsl_auth_token=edsl_auth_token,
+                    link_description="\n🔗 Use the link below to log in to Expected Parrot so we can automatically update your API key.",
                 )
-                self._display_login_url(edsl_auth_token=edsl_auth_token)
                 api_key = self._poll_for_api_key(edsl_auth_token)
 
                 if api_key is None:
                     print("\nTimed out waiting for login. Please try again.")
                     return
 
-                write_api_key_to_env(api_key)
-                print("\n✨ API key retrieved and written to .env file.")
+                path_to_env = write_api_key_to_env(api_key)
+                print(
+                    "\n✨ API key retrieved and written to .env file at the following path:"
+                )
+                print(f"    {path_to_env}")
                 print("Rerun your code to try again with a valid API key.")
                 return
 
@@ -270,6 +273,7 @@ class Coop(CoopFunctionsMixin):
         self,
         object: EDSLObject,
         description: Optional[str] = None,
+        alias: Optional[str] = None,
         visibility: Optional[VisibilityType] = "unlisted",
     ) -> dict:
         """
@@ -281,6 +285,7 @@ class Coop(CoopFunctionsMixin):
             method="POST",
             payload={
                 "description": description,
+                "alias": alias,
                 "json_string": json.dumps(
                     object.to_dict(),
                     default=self._json_handle_none,
@@ -375,6 +380,7 @@ class Coop(CoopFunctionsMixin):
         uuid: Union[str, UUID] = None,
         url: str = None,
         description: Optional[str] = None,
+        alias: Optional[str] = None,
         value: Optional[EDSLObject] = None,
         visibility: Optional[VisibilityType] = None,
     ) -> dict:
@@ -391,6 +397,7 @@ class Coop(CoopFunctionsMixin):
             params={"uuid": uuid},
             payload={
                 "description": description,
+                "alias": alias,
                 "json_string": (
                     json.dumps(
                         value.to_dict(),
@@ -837,7 +844,9 @@ class Coop(CoopFunctionsMixin):
         data = response.json()
         return data
 
-    def _display_login_url(self, edsl_auth_token: str):
+    def _display_login_url(
+        self, edsl_auth_token: str, link_description: Optional[str] = None
+    ):
         """
         Uses rich.print to display a login URL.
 
@@ -847,7 +856,12 @@ class Coop(CoopFunctionsMixin):
 
         url = f"{CONFIG.EXPECTED_PARROT_URL}/login?edsl_auth_token={edsl_auth_token}"
 
-        rich_print(f"[#38bdf8][link={url}]{url}[/link][/#38bdf8]")
+        if link_description:
+            rich_print(
+                f"{link_description}\n    [#38bdf8][link={url}]{url}[/link][/#38bdf8]"
+            )
+        else:
+            rich_print(f"    [#38bdf8][link={url}]{url}[/link][/#38bdf8]")
 
     def _get_api_key(self, edsl_auth_token: str):
         """
@@ -875,17 +889,18 @@ class Coop(CoopFunctionsMixin):
 
         edsl_auth_token = secrets.token_urlsafe(16)
 
-        print(
-            "\nUse the link below to log in to Expected Parrot so we can automatically update your API key."
+        self._display_login_url(
+            edsl_auth_token=edsl_auth_token,
+            link_description="\n🔗 Use the link below to log in to Expected Parrot so we can automatically update your API key.",
         )
-        self._display_login_url(edsl_auth_token=edsl_auth_token)
         api_key = self._poll_for_api_key(edsl_auth_token)
 
         if api_key is None:
             raise Exception("Timed out waiting for login. Please try again.")
 
-        write_api_key_to_env(api_key)
-        print("\n✨ API key retrieved and written to .env file.")
+        path_to_env = write_api_key_to_env(api_key)
+        print("\n✨ API key retrieved and written to .env file at the following path:")
+        print(f"    {path_to_env}")
 
         # Add API key to environment
         load_dotenv()
