@@ -44,30 +44,13 @@ class TokenBucketClient:
                 json=payload,
             ) as response:
                 if response.status != 200:
-                    breakpoint()
                     raise ValueError(f"Unexpected error: {await response.text()}")
 
                 result = await response.json()
                 if result["status"] == "existing":
                     # Update our local values to match the existing bucket
-                    self.capacity = result["bucket"]["capacity"]
-                    self.refill_rate = result["bucket"]["refill_rate"]
-
-    # async def _create_bucket(self):
-    #     async with aiohttp.ClientSession() as session:
-    #         async with session.post(
-    #             f"{self.api_base_url}/bucket",
-    #             json={
-    #                 "bucket_name": self.bucket_name,
-    #                 "bucket_type": self.bucket_type,
-    #                 "capacity": self.capacity,
-    #                 "refill_rate": self.refill_rate,
-    #             },
-    #         ) as response:
-    #             if response.status != 200:
-    #                 raise ValueError(
-    #                     f"Failed to create bucket: {await response.text()}"
-    #                 )
+                    self.capacity = float(result["bucket"]["capacity"])
+                    self.refill_rate = float(result["bucket"]["refill_rate"])
 
     def turbo_mode_on(self):
         """Set the refill rate to infinity."""
@@ -157,14 +140,17 @@ class TokenBucketClient:
     def tokens(self) -> float:
         """Get the number of tokens remaining in the bucket."""
         status = asyncio.run(self._get_status())
-        return status["tokens"]
+        return float(status["tokens"])
 
     def wait_time(self, requested_tokens: Union[float, int]) -> float:
         """Calculate the time to wait for the requested number of tokens."""
         # self.refill()  # Update the current token count
-        if self.tokens >= requested_tokens:
-            return 0
-        return (requested_tokens - self.tokens) / self.refill_rate
+        if self.tokens >= float(requested_tokens):
+            return 0.0
+        try:
+            return (requested_tokens - self.tokens) / self.refill_rate
+        except Exception as e:
+            raise ValueError(f"Error calculating wait time: {e}")
 
     # def wait_time(self, num_tokens: Union[int, float]) -> float:
     #     return 0  # TODO - Need to implement this on the server side

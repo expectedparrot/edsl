@@ -17,9 +17,7 @@ class BucketCollection(UserDict):
     Models themselves are hashable, so this works.
     """
 
-    def __init__(
-        self, infinity_buckets: bool = False, remote_url: Optional[str] = None
-    ):
+    def __init__(self, infinity_buckets: bool = False):
         """Create a new BucketCollection.
         An infinity bucket is a bucket that never runs out of tokens or requests.
         """
@@ -29,8 +27,14 @@ class BucketCollection(UserDict):
         self.services_to_buckets = {}
         self._lock = RLock()
 
-        # self.remote_url = remote_url
-        self.remote_url = "http://localhost:8001"
+        from edsl.config import CONFIG
+        import os
+
+        if (url := os.environ["EDSL_REMOTE_TOKEN_BUCKET_URL"]) != "None":
+            self.remote_url = url
+            print(f"Using remote token bucket URL: {url}")
+        else:
+            self.remote_url = None
 
     @classmethod
     def from_models(
