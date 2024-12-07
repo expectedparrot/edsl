@@ -4,10 +4,52 @@ import time
 from threading import RLock
 from edsl.jobs.decorators import synchronized_class
 
+from typing import Union, List, Any, Optional
+import asyncio
+import time
+from threading import RLock
+from edsl.jobs.decorators import synchronized_class
+
 
 @synchronized_class
 class TokenBucket:
-    """This is a token bucket used to respect rate limits to services."""
+    """This is a token bucket used to respect rate limits to services.
+    It can operate either locally or remotely via a REST API based on initialization parameters.
+    """
+
+    def __new__(
+        cls,
+        *,
+        bucket_name: str,
+        bucket_type: str,
+        capacity: Union[int, float],
+        refill_rate: Union[int, float],
+        remote_url: Optional[str] = None,
+    ):
+        """Factory method to create either a local or remote token bucket.
+
+        Args:
+            bucket_name: Name of the bucket
+            bucket_type: Type of the bucket
+            capacity: Maximum number of tokens
+            refill_rate: Rate at which tokens are refilled
+            remote_url: If provided, creates a remote token bucket client
+        """
+        if remote_url is not None:
+            # Import here to avoid circular imports
+            from edsl.jobs.buckets.TokenBucketClient import TokenBucketClient
+
+            return TokenBucketClient(
+                bucket_name=bucket_name,
+                bucket_type=bucket_type,
+                capacity=capacity,
+                refill_rate=refill_rate,
+                api_base_url=remote_url,
+            )
+
+        # Create a local token bucket
+        instance = super(TokenBucket, cls).__new__(cls)
+        return instance
 
     def __init__(
         self,
@@ -16,10 +58,15 @@ class TokenBucket:
         bucket_type: str,
         capacity: Union[int, float],
         refill_rate: Union[int, float],
+        remote_url: Optional[str] = None,
     ):
+        # Skip initialization if this is a remote bucket
+        if remote_url is not None:
+            return
+
         self.bucket_name = bucket_name
         self.bucket_type = bucket_type
-        self.capacity = capacity  # Maximum number of tokens
+        self.capacity = capacity
         self.added_tokens = 0
         self._lock = RLock()
 
