@@ -30,11 +30,13 @@ class BucketCollection(UserDict):
         from edsl.config import CONFIG
         import os
 
-        if (url := os.environ["EDSL_REMOTE_TOKEN_BUCKET_URL"]) != "None":
-            self.remote_url = url
-            print(f"Using remote token bucket URL: {url}")
-        else:
+        url = os.environ.get("EDSL_REMOTE_TOKEN_BUCKET_URL", None)
+
+        if url == "None" or url is None:
             self.remote_url = None
+            # print(f"Using remote token bucket URL: {url}")
+        else:
+            self.remote_url = url
 
     @classmethod
     def from_models(
