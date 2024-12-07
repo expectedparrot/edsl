@@ -29,8 +29,8 @@ class BucketCollection(UserDict):
         self.services_to_buckets = {}
         self._lock = RLock()
 
-        # self.remote_url = remote_url
-        self.remote_url = "http://localhost:8001"
+        self.remote_url = remote_url
+        # self.remote_url = "http://localhost:8001"
 
     @classmethod
     def from_models(
