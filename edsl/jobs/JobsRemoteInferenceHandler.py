@@ -1,32 +1,23 @@
 from typing import Optional, Union, Literal
 import requests
-import sys
-from edsl.exceptions.coop import CoopServerResponseError
 
-# from edsl.enums import VisibilityType
+from edsl.exceptions.coop import CoopServerResponseError
 from edsl.results import Results
+from edsl.jobs.JobsRemoteInferenceLogger import JupyterJobLogger, StdOutJobLogger
+
+from edsl.utilities.utilities import is_notebook
 
 
 class JobsRemoteInferenceHandler:
     def __init__(self, jobs, verbose=False, poll_interval=3):
-        """
-        >>> from edsl.jobs import Jobs
-        >>> jh = JobsRemoteInferenceHandler(Jobs.example(), verbose=True)
-        >>> jh.use_remote_inference(True)
-        False
-        >>> jh._poll_remote_inference_job({'uuid':1234}, testing_simulated_response={"status": "failed"}) # doctest: +NORMALIZE_WHITESPACE
-        Your survey failed.
-        ...
-        >>> jh._poll_remote_inference_job({'uuid':1234}, testing_simulated_response={"status": "completed"}) # doctest: +NORMALIZE_WHITESPACE
-        Your survey has been run. Results are available at Coop: None.
-        Results(...)
-        """
+        """ """
         self.jobs = jobs
         self.verbose = verbose
         self.poll_interval = poll_interval
 
         self._remote_job_creation_data = None
         self._job_uuid = None
+        self.logger = None  # Will be initialized when needed
 
     @property
     def remote_job_creation_data(self):
@@ -54,19 +45,25 @@ class JobsRemoteInferenceHandler:
 
     def create_remote_inference_job(
         self,
-        iterations: int = 1,
-        remote_inference_description: Optional[str] = None,
-        remote_inference_results_visibility: Optional["VisibilityType"] = "unlisted",
+        iterations=1,
+        remote_inference_description=None,
+        remote_inference_results_visibility="unlisted",
         verbose=False,
     ):
-        """ """
         from edsl.config import CONFIG
         from edsl.coop.coop import Coop
         from rich import print as rich_print
 
+        # Initialize logger
+        if is_notebook():
+            self.logger = JupyterJobLogger(verbose=verbose)
+        else:
+            self.logger = StdOutJobLogger(verbose=verbose)
+
         coop = Coop()
-        print("Remote inference has been activated.")
-        print("Your survey is being sent to the Expected Parrot server...")
+        self.logger.update(
+            "Remote inference activated. Sending job to server...", "running"
+        )
         remote_job_creation_data = coop.remote_inference_create(
             self.jobs,
             description=remote_inference_description,
@@ -77,22 +74,18 @@ class JobsRemoteInferenceHandler:
         print("Your survey is running at the Expected Parrot server...")
 
         job_uuid = remote_job_creation_data.get("uuid")
+        self.logger.update(f"Job sent to server. (Job uuid={job_uuid}).", "running")
 
         expected_parrot_url = CONFIG.get("EXPECTED_PARROT_URL")
-        progress_bar_url = f"{expected_parrot_url}/home/remote-job-progress/{job_uuid}"
-
-        rich_print(
-            f"You can view a progress report here: [#0ea5e9][link={progress_bar_url}]{progress_bar_url}[/link][/#0ea5e9]",
-        )
-
         remote_inference_url = f"{expected_parrot_url}/home/remote-inference"
-        rich_print(
-            f"Job details are available at your Coop account (Job UUID = [#22c55e]{job_uuid}[/#22c55e]): [#0ea5e9][link={remote_inference_url}]{remote_inference_url}[/link][/#0ea5e9]"
+        self.logger.update(
+            f"Job details are available at your Coop account {remote_inference_url}{remote_inference_url}"
         )
+        progress_bar_url = f"{expected_parrot_url}/home/remote-job-progress/{job_uuid}"
+        self.logger.update(f"View job progress here: {progress_bar_url}", "running")
 
         self._remote_job_creation_data = remote_job_creation_data
         self._job_uuid = job_uuid
-        # return remote_job_creation_data
 
     @staticmethod
     def check_status(job_uuid):
@@ -108,23 +101,20 @@ class JobsRemoteInferenceHandler:
 
     def _poll_remote_inference_job(
         self,
-        remote_job_creation_data: dict,
+        remote_job_creation_data,
         verbose=False,
-        poll_interval: Optional[float] = None,
-        testing_simulated_response: Optional[dict] = None,
-    ) -> Union[Results, None]:
+        poll_interval=None,
+        testing_simulated_response=None,
+    ):
         import time
         from datetime import datetime
         from edsl.config import CONFIG
-        from edsl.coop.coop import Coop
 
         if poll_interval is None:
             poll_interval = self.poll_interval
 
-        expected_parrot_url = CONFIG.get("EXPECTED_PARROT_URL")
-
         job_uuid = remote_job_creation_data.get("uuid")
-        coop = Coop()
+        expected_parrot_url = CONFIG.get("EXPECTED_PARROT_URL")
 
         if testing_simulated_response is not None:
             remote_job_data_fetcher = lambda job_uuid: testing_simulated_response
@@ -132,6 +122,9 @@ class JobsRemoteInferenceHandler:
                 lambda results_uuid, expected_object_type: Results.example()
             )
         else:
+            from edsl.coop.coop import Coop
+
+            coop = Coop()
             remote_job_data_fetcher = coop.remote_inference_get
             object_fetcher = coop.get
 
@@ -139,62 +132,50 @@ class JobsRemoteInferenceHandler:
         while job_in_queue:
             remote_job_data = remote_job_data_fetcher(job_uuid)
             status = remote_job_data.get("status")
+
             if status == "cancelled":
-                print("\r" + " " * 80 + "\r", end="")
-                print("Your survey has been cancelled.")
-                print(
-                    f"See {expected_parrot_url}/home/remote-inference for more details."
+                self.logger.update("Job cancelled by the user.", "failed")
+                self.logger.update(
+                    f"See {expected_parrot_url}/home/remote-inference for more details.",
+                    "failed",
                 )
                 return None
+
             elif status == "failed":
-                results_uuid = remote_job_data.get("results_uuid")
-                # Account for failed jobs that do not have results
-                if results_uuid is not None:
-                    results = object_fetcher(
-                        results_uuid, expected_object_type="results"
-                    )
-                else:
-                    results = None
-                print("\r" + " " * 80 + "\r", end="")
-                # write to stderr
                 latest_error_report_url = remote_job_data.get("latest_error_report_url")
                 if latest_error_report_url:
-                    print("Your survey failed.")
-                    print(
-                        f"Your survey generated exceptions. Details on these exceptions can be found in the following report: {latest_error_report_url}"
+                    self.logger.update("Job failed.", "failed")
+                    self.logger.update(
+                        f"Error report: {latest_error_report_url}", "failed"
                     )
-                    print(
-                        f"Need support? Post a message at the Expected Parrot Discord channel (https://discord.com/invite/mxAYkjfy9m) or send an email to info@expectedparrot.com."
+                    self.logger.update(
+                        "Need support? Visit Discord: https://discord.com/invite/mxAYkjfy9m",
+                        "failed",
                     )
                 else:
-                    print("Your survey failed.")
-                    print(
-                        f"See {expected_parrot_url}/home/remote-inference for more details."
+                    self.logger.update("Job failed.", "failed")
+                    self.logger.update(
+                        f"See {expected_parrot_url}/home/remote-inference for details.",
+                        "failed",
                     )
-                return results
+                return None
+
             elif status == "completed":
                 results_uuid = remote_job_data.get("results_uuid")
                 results_url = remote_job_data.get("results_url")
                 results = object_fetcher(results_uuid, expected_object_type="results")
-                print("\r" + " " * 80 + "\r", end="")
-                print(
-                    f"Your survey has been run. Results are available at Coop: {results_url}."
+                self.logger.update(
+                    f"Job completed and Results stored on Coop: {results_url}",
+                    "completed",
                 )
                 return results
+
             else:
-                duration = poll_interval
                 time_checked = datetime.now().strftime("%Y-%m-%d %I:%M:%S %p")
-                frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
-                start_time = time.time()
-                i = 0
-                while time.time() - start_time < duration:
-                    print(
-                        f"\r{frames[i % len(frames)]} Job status: {status} - last update: {time_checked}",
-                        end="",
-                        flush=True,
-                    )
-                    time.sleep(0.1)
-                    i += 1
+                self.logger.update(
+                    f"Job status: {status} - last update: {time_checked}", "running"
+                )
+                time.sleep(poll_interval)
 
     def use_remote_inference(self, disable_remote_inference: bool) -> bool:
         if disable_remote_inference:

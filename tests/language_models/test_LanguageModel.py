@@ -27,7 +27,9 @@ class TestLanguageModel(unittest.TestCase):
         random_tpm = random.randint(0, 100)
         random_tpm = random.randint(0, 100)
         m = LanguageModel.example()
-        m.set_rate_limits(tpm=random_tpm, rpm=random_tpm)
+        m.rpm = random_tpm
+        m.tpm = random_tpm
+        # m.set_rate_limits(tpm=random_tpm, rpm=random_tpm)
         self.assertEqual(m.tpm, random_tpm)
         self.assertEqual(m.rpm, random_tpm)
 

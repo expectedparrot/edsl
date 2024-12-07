@@ -61,14 +61,15 @@ class AgentList(UserList, ResultsExportMixin, Base):
         else:
             super().__init__()
 
-    def shuffle(self, seed: Optional[str] = "edsl") -> AgentList:
+    def shuffle(self, seed: Optional[str] = None) -> AgentList:
         """Shuffle the AgentList.
 
         :param seed: The seed for the random number generator.
         """
         import random
 
-        random.seed(seed)
+        if seed is not None:
+            random.seed(seed)
         random.shuffle(self.data)
         return self
 
@@ -84,22 +85,38 @@ class AgentList(UserList, ResultsExportMixin, Base):
             random.seed(seed)
         return AgentList(random.sample(self.data, n))
 
-    def to_pandas(self):
+    def to_pandas(self) -> "pandas.DataFrame":
         """Return a pandas DataFrame."""
         return self.to_scenario_list().to_pandas()
 
     def tally(self):
         return self.to_scenario_list().tally()
 
-    def rename(self, old_name, new_name):
+    def duplicate(self):
+        return AgentList([a.duplicate() for a in self.data])
+
+    def rename(self, old_name, new_name, inplace: bool = False) -> AgentList:
         """Rename a trait in the AgentList.
 
         :param old_name: The old name of the trait.
         :param new_name: The new name of the trait.
+        :param inplace: Whether to rename the trait in place.
+
+        >>> from edsl.agents.Agent import Agent
+        >>> al = AgentList([Agent(traits = {'a': 1, 'b': 1}), Agent(traits = {'a': 1, 'b': 2})])
+        >>> al2 = al.rename('a', 'c')
+        >>> assert al2 == AgentList([Agent(traits = {'c': 1, 'b': 1}), Agent(traits = {'c': 1, 'b': 2})])
+        >>> assert al != al2
         """
-        for agent in self.data:
-            agent.rename(old_name, new_name)
-        return self
+        if inplace:
+            for agent in self.data:
+                agent.rename(old_name, new_name)
+            return self
+        else:
+            new_al = self.duplicate()
+            for agent in new_al.data:
+                agent.rename(old_name, new_name)
+            return new_al
 
     def select(self, *traits) -> AgentList:
         """Selects agents with only the references traits.
@@ -200,7 +217,7 @@ class AgentList(UserList, ResultsExportMixin, Base):
                     agent_list.append(Agent(traits=row))
         return cls(agent_list)
 
-    def translate_traits(self, values_codebook: dict[str, str]):
+    def translate_traits(self, codebook: dict[str, str]):
         """Translate traits to a new codebook.
 
         :param codebook: The new codebook.
@@ -209,7 +226,7 @@ class AgentList(UserList, ResultsExportMixin, Base):
             agent.translate_traits(codebook)
         return self
 
-    def remove_trait(self, trait: str):
+    def remove_trait(self, trait: str, inplace=False):
         """Remove traits from the AgentList.
 
         :param traits: The traits to remove.
@@ -218,11 +235,20 @@ class AgentList(UserList, ResultsExportMixin, Base):
         >>> al.remove_trait('age')
         AgentList([Agent(traits = {'hair': 'brown', 'height': 5.5}), Agent(traits = {'hair': 'brown', 'height': 5.5})])
         """
-        for agent in self.data:
-            _ = agent.remove_trait(trait)
-        return self
 
-    def add_trait(self, trait, values):
+        def _remove_trait(agents):
+            for agent in agents:
+                _ = agent.remove_trait(trait)
+
+        if inplace:
+            _remove_trait(self.data)
+            return self
+        else:
+            new_al = self.duplicate()
+            _remove_trait(new_al.data)
+            return new_al
+
+    def add_trait(self, trait: str, values: List[Any]) -> AgentList:
         """Adds a new trait to every agent, with values taken from values.
 
         :param trait: The name of the trait.
@@ -305,6 +331,24 @@ class AgentList(UserList, ResultsExportMixin, Base):
         return {
             "agents": len(self),
         }
+
+    def set_codebook(self, codebook: dict[str, str]) -> AgentList:
+        """Set the codebook for the AgentList.
+
+        >>> from edsl.agents.Agent import Agent
+        >>> a = Agent(traits = {'hair': 'brown'})
+        >>> al = AgentList([a, a])
+        >>> _ = al.set_codebook({'hair': "Color of hair on driver's license"})
+        >>> al[0].codebook
+        {'hair': "Color of hair on driver's license"}
+
+
+        :param codebook: The codebook.
+        """
+        for agent in self.data:
+            agent.codebook = codebook
+
+        return self
 
     def to_csv(self, file_path: str):
         """Save the AgentList to a CSV file.
@@ -438,13 +482,13 @@ class AgentList(UserList, ResultsExportMixin, Base):
             return "\n".join(lines)
         return lines
 
-    def rich_print(self) -> Table:
-        """Display an object as a rich table."""
-        table = Table(title="AgentList")
-        table.add_column("Agents", style="bold")
-        for agent in self.data:
-            table.add_row(agent.rich_print())
-        return table
+    # def rich_print(self) -> Table:
+    #     """Display an object as a rich table."""
+    #     table = Table(title="AgentList")
+    #     table.add_column("Agents", style="bold")
+    #     for agent in self.data:
+    #         table.add_row(agent.rich_print())
+    #     return table
 
 
 if __name__ == "__main__":
