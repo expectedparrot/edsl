@@ -33,16 +33,18 @@ class TokenBucketClient:
 
     async def _create_bucket(self):
         async with aiohttp.ClientSession() as session:
+            payload = {
+                "bucket_name": self.bucket_name,
+                "bucket_type": self.bucket_type,
+                "capacity": self.capacity,
+                "refill_rate": self.refill_rate,
+            }
             async with session.post(
                 f"{self.api_base_url}/bucket",
-                json={
-                    "bucket_name": self.bucket_name,
-                    "bucket_type": self.bucket_type,
-                    "capacity": self.capacity,
-                    "refill_rate": self.refill_rate,
-                },
+                json=payload,
             ) as response:
                 if response.status != 200:
+                    breakpoint()
                     raise ValueError(f"Unexpected error: {await response.text()}")
 
                 result = await response.json()
@@ -76,6 +78,16 @@ class TokenBucketClient:
         """Restore the refill rate to its original value."""
         asyncio.run(self._set_turbo_mode(False))
         self.turbo_mode = False
+
+    async def add_tokens(self, amount: Union[int, float]):
+        """Add tokens to the bucket."""
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                f"{self.api_base_url}/bucket/{self.bucket_id}/add_tokens",
+                params={"amount": amount},
+            ) as response:
+                if response.status != 200:
+                    raise ValueError(f"Failed to add tokens: {await response.text()}")
 
     async def _set_turbo_mode(self, state: bool):
         async with aiohttp.ClientSession() as session:

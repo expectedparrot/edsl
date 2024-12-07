@@ -7,6 +7,21 @@ import asyncio
 from threading import RLock
 from edsl.jobs.buckets.TokenBucket import TokenBucket  # Original implementation
 
+
+def safe_float_for_json(value: float) -> Union[float, str]:
+    """Convert float('inf') to 'infinity' for JSON serialization.
+
+    Args:
+        value: The float value to convert
+
+    Returns:
+        Either the original float or the string 'infinity' if the value is infinite
+    """
+    if value == float("inf"):
+        return "infinity"
+    return value
+
+
 app = FastAPI()
 
 # In-memory storage for TokenBucket instances
@@ -54,6 +69,9 @@ async def list_buckets(
             "num_released": bucket.num_released,
             "tokens_returned": bucket.tokens_returned,
         }
+        for k, v in bucket_info.items():
+            if isinstance(v, float):
+                bucket_info[k] = safe_float_for_json(v)
 
         # Only include logs if requested
         if include_logs:
@@ -62,6 +80,29 @@ async def list_buckets(
         result[bucket_id] = bucket_info
 
     return result
+
+
+@app.post("/bucket/{bucket_id}/add_tokens")
+async def add_tokens(bucket_id: str, amount: float):
+    """Add tokens to an existing bucket."""
+    if bucket_id not in buckets:
+        raise HTTPException(status_code=404, detail="Bucket not found")
+
+    if not isinstance(amount, (int, float)) or amount != amount:  # Check for NaN
+        raise HTTPException(status_code=400, detail="Invalid amount specified")
+
+    if amount == float("inf") or amount == float("-inf"):
+        raise HTTPException(status_code=400, detail="Amount cannot be infinite")
+
+    bucket = buckets[bucket_id]
+    bucket.add_tokens(amount)
+
+    # Ensure we return a JSON-serializable float
+    current_tokens = float(bucket.tokens)
+    if not -1e308 <= current_tokens <= 1e308:  # Check if within JSON float bounds
+        current_tokens = 0.0  # or some other reasonable default
+
+    return {"status": "success", "current_tokens": safe_float_for_json(current_tokens)}
 
 
 # @app.post("/bucket")
@@ -82,14 +123,26 @@ async def list_buckets(
 
 @app.post("/bucket")
 async def create_bucket(bucket: TokenBucketCreate):
+    if (
+        not isinstance(bucket.capacity, (int, float))
+        or bucket.capacity != bucket.capacity
+    ):  # Check for NaN
+        raise HTTPException(status_code=400, detail="Invalid capacity value")
+    if (
+        not isinstance(bucket.refill_rate, (int, float))
+        or bucket.refill_rate != bucket.refill_rate
+    ):  # Check for NaN
+        raise HTTPException(status_code=400, detail="Invalid refill rate value")
+    if bucket.capacity == float("inf") or bucket.refill_rate == float("inf"):
+        raise HTTPException(status_code=400, detail="Values cannot be infinite")
     bucket_id = f"{bucket.bucket_name}_{bucket.bucket_type}"
     if bucket_id in buckets:
         # Instead of error, return success with "existing" status
         return {
             "status": "existing",
             "bucket": {
-                "capacity": buckets[bucket_id].capacity,
-                "refill_rate": buckets[bucket_id].refill_rate,
+                "capacity": safe_float_for_json(buckets[bucket_id].capacity),
+                "refill_rate": safe_float_for_json(buckets[bucket_id].refill_rate),
             },
         }
 
@@ -132,7 +185,7 @@ async def get_bucket_status(bucket_id: str):
         raise HTTPException(status_code=404, detail="Bucket not found")
 
     bucket = buckets[bucket_id]
-    return {
+    status = {
         "tokens": bucket.tokens,
         "capacity": bucket.capacity,
         "refill_rate": bucket.refill_rate,
@@ -142,6 +195,16 @@ async def get_bucket_status(bucket_id: str):
         "tokens_returned": bucket.tokens_returned,
         "log": bucket.log,
     }
+    for k, v in status.items():
+        if isinstance(v, float):
+            status[k] = safe_float_for_json(v)
+
+    for index, entry in enumerate(status["log"]):
+        ts, value = entry
+        status["log"][index] = (ts, safe_float_for_json(value))
+
+    # print(status)
+    return status
 
 
 if __name__ == "__main__":
