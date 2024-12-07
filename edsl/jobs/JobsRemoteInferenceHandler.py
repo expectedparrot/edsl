@@ -1,11 +1,9 @@
 from typing import Optional, Union, Literal
 import requests
-import sys
-from edsl.exceptions.coop import CoopServerResponseError
 
+from edsl.exceptions.coop import CoopServerResponseError
 from edsl.results import Results
-from edsl.jobs.JobsRemoteInferenceLogger import JupyterJobLogger
-from edsl.jobs.JobsRemoteInferenceLogger import StdOutJobLogger
+from edsl.jobs.JobsRemoteInferenceLogger import JupyterJobLogger, StdOutJobLogger
 
 from edsl.utilities.utilities import is_notebook
 
@@ -73,10 +71,16 @@ class JobsRemoteInferenceHandler:
             iterations=iterations,
             initial_results_visibility=remote_inference_results_visibility,
         )
+        print("Your survey is running at the Expected Parrot server...")
+
         job_uuid = remote_job_creation_data.get("uuid")
         self.logger.update(f"Job sent to server. (Job uuid={job_uuid}).", "running")
 
         expected_parrot_url = CONFIG.get("EXPECTED_PARROT_URL")
+        remote_inference_url = f"{expected_parrot_url}/home/remote-inference"
+        self.logger.update(
+            f"Job details are available at your Coop account {remote_inference_url}{remote_inference_url}"
+        )
         progress_bar_url = f"{expected_parrot_url}/home/remote-job-progress/{job_uuid}"
         self.logger.update(f"View job progress here: {progress_bar_url}", "running")
 
