@@ -34,21 +34,23 @@ class DisplayYAML:
 
 
 class Scenario(Base, UserDict, ScenarioHtmlMixin):
-    """A Scenario is a dictionary of keys/values.
-
-    They can be used parameterize EDSL questions."""
+    """A Scenario is a dictionary of keys/values that can be used to parameterize questions."""
 
     __documentation__ = "https://docs.expectedparrot.com/en/latest/scenarios.html"
 
-    def __init__(self, data: Union[dict, None] = None, name: str = None):
+    def __init__(self, data: Optional[dict] = None, name: str = None):
         """Initialize a new Scenario.
 
-        # :param data: A dictionary of keys/values for parameterizing questions.
-        #"""
+        :param data: A dictionary of keys/values for parameterizing questions.
+        :param name: The name of the scenario.
+        """
         if not isinstance(data, dict) and data is not None:
-            raise EDSLScenarioError(
-                "You must pass in a dictionary to initialize a Scenario."
-            )
+            try:
+                data = dict(data)
+            except Exception as e:
+                raise ScenarioError(
+                    f"You must pass in a dictionary to initialize a Scenario. You passed in {data}"
+                )
 
         self.data = data if data is not None else {}
         self.name = name
