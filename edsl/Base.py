@@ -174,9 +174,15 @@ class RegisterSubclassesMeta(ABCMeta):
             RegisterSubclassesMeta._registry[cls.__name__] = cls
 
     @staticmethod
-    def get_registry():
+    def get_registry(exclude_classes: Optional[list] = None):
         """Return the registry of subclasses."""
-        return dict(RegisterSubclassesMeta._registry)
+        if exclude_classes is None:
+            exclude_classes = []
+        return {
+            k: v
+            for k, v in dict(RegisterSubclassesMeta._registry).items()
+            if k not in exclude_classes
+        }
 
 
 class DiffMethodsMixin:
