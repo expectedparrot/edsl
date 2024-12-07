@@ -576,6 +576,10 @@ class Agent(Base):
         ...
         edsl.exceptions.agents.AgentCombinationError: The agents have overlapping traits: {'age'}.
         ...
+        >>> a1 = Agent(traits = {"age": 10}, codebook = {"age": "Their age is"})
+        >>> a2 = Agent(traits = {"height": 5.5}, codebook = {"height": "Their height is"})
+        >>> a1 + a2
+        Agent(traits = {'age': 10, 'height': 5.5}, codebook = {'age': 'Their age is', 'height': 'Their height is'})
         """
         if other_agent is None:
             return self
@@ -584,8 +588,12 @@ class Agent(Base):
                 f"The agents have overlapping traits: {common_traits}."
             )
         else:
+            new_codebook = copy.deepcopy(self.codebook) | copy.deepcopy(
+                other_agent.codebook
+            )
             new_agent = Agent(traits=copy.deepcopy(self.traits))
             new_agent.traits.update(other_agent.traits)
+            new_agent.codebook = new_codebook
             return new_agent
 
     def __eq__(self, other: Agent) -> bool:
