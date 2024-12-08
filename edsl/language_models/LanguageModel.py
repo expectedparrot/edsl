@@ -47,60 +47,24 @@ if TYPE_CHECKING:
     from edsl.questions.QuestionBase import QuestionBase
 
 from edsl.config import CONFIG
-from edsl.utilities.decorators import sync_wrapper, jupyter_nb_handler
-from edsl.utilities.decorators import remove_edsl_version
+from edsl.utilities.decorators import (
+    sync_wrapper,
+    jupyter_nb_handler,
+    remove_edsl_version,
+)
 
 from edsl.Base import PersistenceMixin, RepresentationMixin
-from edsl.Base import Base
 from edsl.language_models.RegisterLanguageModelsMeta import RegisterLanguageModelsMeta
-from edsl.language_models.KeyLookup import KeyLookup
-from edsl.exceptions.language_models import LanguageModelBadResponseError
+
+from edsl.language_models.key_management.KeyLookupCollection import (
+    KeyLookupCollection,
+)
+from edsl.language_models.key_management.KeyLookup import KeyLookup
+from edsl.language_models.PriceManager import PriceManager
 
 TIMEOUT = float(CONFIG.get("EDSL_API_TIMEOUT"))
 
-
-# you might be tempated to move this to be a static method of LanguageModel, but this doesn't work
-# for reasons I don't understand. So leave it here.
-def extract_item_from_raw_response(data, key_sequence):
-    if isinstance(data, str):
-        try:
-            data = json.loads(data)
-        except json.JSONDecodeError as e:
-            return data
-    current_data = data
-    for i, key in enumerate(key_sequence):
-        try:
-            if isinstance(current_data, (list, tuple)):
-                if not isinstance(key, int):
-                    raise TypeError(
-                        f"Expected integer index for sequence at position {i}, got {type(key).__name__}"
-                    )
-                if key < 0 or key >= len(current_data):
-                    raise IndexError(
-                        f"Index {key} out of range for sequence of length {len(current_data)} at position {i}"
-                    )
-            elif isinstance(current_data, dict):
-                if key not in current_data:
-                    raise KeyError(
-                        f"Key '{key}' not found in dictionary at position {i}"
-                    )
-            else:
-                raise TypeError(
-                    f"Cannot index into {type(current_data).__name__} at position {i}. Full response is: {data} of type {type(data)}. Key sequence is: {key_sequence}"
-                )
-
-            current_data = current_data[key]
-        except Exception as e:
-            path = " -> ".join(map(str, key_sequence[: i + 1]))
-            if "error" in data:
-                msg = data["error"]
-            else:
-                msg = f"Error accessing path: {path}. {str(e)}. Full response is: '{data}'"
-            raise LanguageModelBadResponseError(message=msg, response_json=data)
-    if isinstance(current_data, str):
-        return current_data.strip()
-    else:
-        return current_data
+from edsl.language_models.RawResponseHandler import RawResponseHandler
 
 
 def handle_key_error(func):
@@ -118,9 +82,21 @@ def handle_key_error(func):
     return wrapper
 
 
+class classproperty:
+    def __init__(self, method):
+        self.method = method
+
+    def __get__(self, instance, cls):
+        return self.method(cls)
+
+
+from edsl.Base import HashingMixin
+
+
 class LanguageModel(
     PersistenceMixin,
     RepresentationMixin,
+    HashingMixin,
     ABC,
     metaclass=RegisterLanguageModelsMeta,
 ):
@@ -132,6 +108,15 @@ class LanguageModel(
     )
     __rate_limits = None
     _safety_factor = 0.8
+
+    DEFAULT_RPM = 100
+    DEFAULT_TPM = 1000
+
+    @classproperty
+    def response_handler(cls):
+        key_sequence = cls.key_sequence
+        usage_sequence = cls.usage_sequence if hasattr(cls, "usage_sequence") else None
+        return RawResponseHandler(key_sequence, usage_sequence)
 
     def __init__(
         self,
@@ -149,7 +134,11 @@ class LanguageModel(
         self.remote = False
         self.omit_system_prompt_if_empty = omit_system_prompt_if_empty_string
 
-        # self._rpm / _tpm comes from the class
+        # self.raw_response_handler = RawResponseHandler(self.key_sequence)
+
+        self.key_lookup = self._set_key_lookup(key_lookup)
+        self.model_info = self.key_lookup.get(self._inference_service_)
+
         if rpm is not None:
             self._rpm = rpm
 
@@ -168,30 +157,63 @@ class LanguageModel(
                 "The use_cache parameter is deprecated. Use the Cache class instead."
             )
 
-        if skip_api_key_check := kwargs.get("skip_api_key_check", False):
+        if kwargs.get("skip_api_key_check", False):
             # Skip the API key check. Sometimes this is useful for testing.
             self._api_token = None
 
+    def _set_key_lookup(self, key_lookup: KeyLookup) -> "KeyLookup":
         if key_lookup is not None:
-            self.key_lookup = key_lookup
+            return key_lookup
         else:
-            self.key_lookup = KeyLookup.from_os_environ()
+            klc = KeyLookupCollection()
+            klc.add_key_lookup(fetch_order=("config", "env"))
+            return klc.get(("config", "env"))
 
     def ask_question(self, question):
         user_prompt = question.get_instructions().render(question.data).text
         system_prompt = "You are a helpful agent pretending to be a human."
         return self.execute_model_call(user_prompt, system_prompt)
 
-    def set_key_lookup(self, key_lookup: KeyLookup) -> None:
+    def set_key_lookup(self, key_lookup: "KeyLookup") -> None:
         del self._api_token
         self.key_lookup = key_lookup
 
     @property
+    def rpm(self):
+        if not hasattr(self, "_rpm"):
+            if self.model_info is None:
+                self._rpm = self.DEFAULT_RPM
+            else:
+                self._rpm = self.model_info.rpm
+        return self._rpm
+
+    @property
+    def tpm(self):
+        if not hasattr(self, "_tpm"):
+            if self.model_info is None:
+                self._tpm = self.DEFAULT_TPM
+            else:
+                self._tpm = self.model_info.tpm
+        return self._tpm
+
+    # in case we want to override the default values
+    @tpm.setter
+    def tpm(self, value):
+        self._tpm = value
+
+    @rpm.setter
+    def rpm(self, value):
+        self._rpm = value
+
+    @property
     def api_token(self) -> str:
         if not hasattr(self, "_api_token"):
-            self._api_token = self.key_lookup.get_api_token(
-                self._inference_service_, self.remote
-            )
+            info = self.key_lookup.get(self._inference_service_, None)
+            if info is None:
+                raise ValueError(
+                    f"No key found for service '{self._inference_service_}'"
+                )
+            self._api_token = info.api_token
         return self._api_token
 
     def __getitem__(self, key):
@@ -240,46 +262,6 @@ class LanguageModel(
 
         """
         return self.model == other.model and self.parameters == other.parameters
-
-    def set_rate_limits(self, rpm=None, tpm=None) -> None:
-        """Set the rate limits for the model.
-
-        >>> m = LanguageModel.example()
-        >>> m.set_rate_limits(rpm=100, tpm=1000)
-        >>> m.RPM
-        100
-        """
-        if rpm is not None:
-            self._rpm = rpm
-        if tpm is not None:
-            self._tpm = tpm
-        return None
-
-    @property
-    def RPM(self):
-        """Model's requests-per-minute limit."""
-        return self._rpm
-
-    @property
-    def TPM(self):
-        """Model's tokens-per-minute limit."""
-        return self._tpm
-
-    @property
-    def rpm(self):
-        return self._rpm
-
-    @rpm.setter
-    def rpm(self, value):
-        self._rpm = value
-
-    @property
-    def tpm(self):
-        return self._tpm
-
-    @tpm.setter
-    def tpm(self, value):
-        self._tpm = value
 
     @staticmethod
     def _overide_default_parameters(passed_parameter_dict, default_parameter_dict):
@@ -347,57 +329,17 @@ class LanguageModel(
     @classmethod
     def get_generated_token_string(cls, raw_response: dict[str, Any]) -> str:
         """Return the generated token string from the raw response."""
-        return extract_item_from_raw_response(raw_response, cls.key_sequence)
+        return cls.response_handler.get_generated_token_string(raw_response)
 
     @classmethod
     def get_usage_dict(cls, raw_response: dict[str, Any]) -> dict[str, Any]:
         """Return the usage dictionary from the raw response."""
-        if not hasattr(cls, "usage_sequence"):
-            raise NotImplementedError(
-                "This inference service does not have a usage_sequence."
-            )
-        return extract_item_from_raw_response(raw_response, cls.usage_sequence)
-
-    @staticmethod
-    def convert_answer(response_part):
-        import json
-
-        response_part = response_part.strip()
-
-        if response_part == "None":
-            return None
-
-        repaired = repair_json(response_part)
-        if repaired == '""':
-            # it was a literal string
-            return response_part
-
-        try:
-            return json.loads(repaired)
-        except json.JSONDecodeError as j:
-            # last resort
-            return response_part
+        return cls.response_handler.get_usage_dict(raw_response)
 
     @classmethod
     def parse_response(cls, raw_response: dict[str, Any]) -> EDSLOutput:
         """Parses the API response and returns the response text."""
-        generated_token_string = cls.get_generated_token_string(raw_response)
-        last_newline = generated_token_string.rfind("\n")
-
-        if last_newline == -1:
-            # There is no comment
-            edsl_dict = {
-                "answer": cls.convert_answer(generated_token_string),
-                "generated_tokens": generated_token_string,
-                "comment": None,
-            }
-        else:
-            edsl_dict = {
-                "answer": cls.convert_answer(generated_token_string[:last_newline]),
-                "comment": generated_token_string[last_newline + 1 :].strip(),
-                "generated_tokens": generated_token_string,
-            }
-        return EDSLOutput(**edsl_dict)
+        return cls.response_handler.parse_response(raw_response)
 
     async def _async_get_intended_model_call_outcome(
         self,
@@ -463,7 +405,6 @@ class LanguageModel(
             assert new_cache_key == cache_key  # should be the same
 
         cost = self.cost(response)
-
         return ModelResponse(
             response=response,
             cache_used=cache_used,
@@ -533,48 +474,15 @@ class LanguageModel(
         """Return the dollar cost of a raw response."""
 
         usage = self.get_usage_dict(raw_response)
-        from edsl.coop import Coop
 
-        c = Coop()
-        price_lookup = c.fetch_prices()
-        key = (self._inference_service_, self.model)
-        if key not in price_lookup:
-            return f"Could not find price for model {self.model} in the price lookup."
-
-        relevant_prices = price_lookup[key]
-        try:
-            input_tokens = int(usage[self.input_token_name])
-            output_tokens = int(usage[self.output_token_name])
-        except Exception as e:
-            return f"Could not fetch tokens from model response: {e}"
-
-        try:
-            inverse_output_price = relevant_prices["output"]["one_usd_buys"]
-            inverse_input_price = relevant_prices["input"]["one_usd_buys"]
-        except Exception as e:
-            if "output" not in relevant_prices:
-                return f"Could not fetch prices from {relevant_prices} - {e}; Missing 'output' key."
-            if "input" not in relevant_prices:
-                return f"Could not fetch prices from {relevant_prices} - {e}; Missing 'input' key."
-            return f"Could not fetch prices from {relevant_prices} - {e}"
-
-        if inverse_input_price == "infinity":
-            input_cost = 0
-        else:
-            try:
-                input_cost = input_tokens / float(inverse_input_price)
-            except Exception as e:
-                return f"Could not compute input price - {e}."
-
-        if inverse_output_price == "infinity":
-            output_cost = 0
-        else:
-            try:
-                output_cost = output_tokens / float(inverse_output_price)
-            except Exception as e:
-                return f"Could not compute output price - {e}"
-
-        return input_cost + output_cost
+        price_manger = PriceManager()
+        return price_manger.calculate_cost(
+            inference_service=self._inference_service_,
+            model=self.model,
+            usage=usage,
+            input_token_name=self.input_token_name,
+            output_token_name=self.output_token_name,
+        )
 
     def to_dict(self, add_edsl_version: bool = True) -> dict[str, Any]:
         """Convert instance to a dictionary

@@ -4,13 +4,18 @@ from edsl.exceptions import MissingAPIKeyError
 
 class JobsChecks:
     def __init__(self, jobs):
-        """ """
+        """Checks a Jobs object for missing API keys and other requirements."""
         self.jobs = jobs
 
     def check_api_keys(self) -> None:
         from edsl import Model
 
-        for model in self.jobs.models + [Model()]:
+        if len(self.jobs.models) == 0:
+            models = [Model()]
+        else:
+            models = self.jobs.models
+
+        for model in models:  # + [Model()]:
             if not model.has_valid_api_key():
                 raise MissingAPIKeyError(
                     model_name=str(model.model),
@@ -95,11 +100,28 @@ class JobsChecks:
             return True
 
     def needs_key_process(self):
+        """
+        A User needs the key process when:
+        1. They don't have all the model keys
+        2. They don't have the EP API
+        3. They need external LLMs to run the job
+        """
         return (
             not self.user_has_all_model_keys()
             and not self.user_has_ep_api_key()
             and self.needs_external_llms()
         )
+
+    def status(self) -> dict:
+        """
+        Returns a dictionary with the status of the job checks.
+        """
+        return {
+            "user_has_ep_api_key": self.user_has_ep_api_key(),
+            "user_has_all_model_keys": self.user_has_all_model_keys(),
+            "needs_external_llms": self.needs_external_llms(),
+            "needs_key_process": self.needs_key_process(),
+        }
 
     def key_process(self):
         import secrets

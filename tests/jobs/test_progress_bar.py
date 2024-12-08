@@ -39,8 +39,12 @@ def test_progress_bar():
             status_dict = self.get_status_dict()
 
     j = q.by(s).by(a)
+    bc = j.create_bucket_collection()
     results = j._run_local(
-        progress_bar=True, cache=Cache(), jobs_runner_status=TestJobsRunnerStatus
+        bucket_collection=bc,
+        progress_bar=True,
+        cache=Cache(),
+        jobs_runner_status=TestJobsRunnerStatus,
     )
 
 

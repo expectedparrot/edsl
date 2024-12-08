@@ -44,43 +44,31 @@ class InferenceServiceABC(ABC):
             return True
         return (datetime.now() - cls._last_config_fetch) > timedelta(hours=24)
 
-    @classmethod
-    def _get_limt(cls, limit_type: str) -> int:
-        key = f"EDSL_SERVICE_{limit_type.upper()}_{cls._inference_service_.upper()}"
-        if key in os.environ:
-            return int(os.getenv(key))
+    # @classmethod
+    # def _get_limt(cls, limit_type: str) -> int:
+    #     key = f"EDSL_SERVICE_{limit_type.upper()}_{cls._inference_service_.upper()}"
+    #     if key in os.environ:
+    #         return int(os.getenv(key))
 
-        if cls._coop_config_vars is None or cls._should_refresh_coop_config_vars():
-            try:
-                from edsl import Coop
+    #     if cls._coop_config_vars is None or cls._should_refresh_coop_config_vars():
+    #         try:
+    #             from edsl import Coop
 
-                c = Coop()
-                cls._coop_config_vars = c.fetch_rate_limit_config_vars()
-                cls._last_config_fetch = datetime.now()
-                if key in cls._coop_config_vars:
-                    return cls._coop_config_vars[key]
-            except Exception:
-                cls._coop_config_vars = None
-        else:
-            if key in cls._coop_config_vars:
-                return cls._coop_config_vars[key]
+    #             c = Coop()
+    #             cls._coop_config_vars = c.fetch_rate_limit_config_vars()
+    #             cls._last_config_fetch = datetime.now()
+    #             if key in cls._coop_config_vars:
+    #                 return cls._coop_config_vars[key]
+    #         except Exception:
+    #             cls._coop_config_vars = None
+    #     else:
+    #         if key in cls._coop_config_vars:
+    #             return cls._coop_config_vars[key]
 
-        if cls._inference_service_ in cls.default_levels:
-            return int(cls.default_levels[cls._inference_service_][limit_type])
+    #     if cls._inference_service_ in cls.default_levels:
+    #         return int(cls.default_levels[cls._inference_service_][limit_type])
 
-        return int(CONFIG.get(f"EDSL_SERVICE_{limit_type.upper()}_BASELINE"))
-
-    def get_tpm(cls) -> int:
-        """
-        Returns the TPM for the service. If the service is not defined in the environment variables, it will return the baseline TPM.
-        """
-        return cls._get_limt(limit_type="tpm")
-
-    def get_rpm(cls):
-        """
-        Returns the RPM for the service. If the service is not defined in the environment variables, it will return the baseline RPM.
-        """
-        return cls._get_limt(limit_type="rpm")
+    #     return int(CONFIG.get(f"EDSL_SERVICE_{limit_type.upper()}_BASELINE"))
 
     @abstractmethod
     def available() -> list[str]:

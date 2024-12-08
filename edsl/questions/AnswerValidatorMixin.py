@@ -213,7 +213,12 @@ class AnswerValidatorMixin:
         - is not less than `min_value`
         - is not greater than `max_value`
         """
-        value = float(answer.get("answer"))
+        try:
+            value = float(answer.get("answer"))
+        except ValueError:
+            raise QuestionAnswerValidationError(
+                f"Answer must real number or convertible to a real number (got {answer.get('answer')})."
+            )
         if self.min_value is not None and value < self.min_value:
             raise QuestionAnswerValidationError(
                 f"Value {value} is less than {self.min_value}"

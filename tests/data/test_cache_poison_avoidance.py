@@ -55,7 +55,10 @@ def test_good_answer_cached():
     m = Model("test", canned_response=1)
     results = q.by(m).run(cache=cache)
     results.select("answer.*").print()
-    assert cache.data != {}
+    try:
+        assert cache.data != {}
+    except AssertionError:
+        raise Exception("Cache data is empty but should not be!")
 
     # from edsl import Survey
 

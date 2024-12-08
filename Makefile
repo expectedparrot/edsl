@@ -142,6 +142,10 @@ test: ## Run regular tests (no Coop tests)
 	make clean-test
 	pytest -xv tests --nocoop
 
+test-token-bucket: ## Run token bucket tests
+	make clean-test
+	pytest -xv tests --nocoop --token-bucket
+
 test-coop: ## Run Coop tests (no regular tests, requires Coop local server running)
 	make clean-test
 	pytest -xv tests --coop

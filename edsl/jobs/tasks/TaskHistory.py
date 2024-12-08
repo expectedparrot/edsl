@@ -324,8 +324,11 @@ class TaskHistory(RepresentationMixin):
         }
         return sorted_exceptions_by_model
 
-    def generate_html_report(self, css: Optional[str]):
-        performance_plot_html = self.plot(num_periods=100, get_embedded_html=True)
+    def generate_html_report(self, css: Optional[str], include_plot=False):
+        if include_plot:
+            performance_plot_html = self.plot(num_periods=100, get_embedded_html=True)
+        else:
+            performance_plot_html = ""
 
         if css is None:
             css = self.css()
