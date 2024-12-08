@@ -67,7 +67,7 @@ class CSSParameterizer:
         missing_vars = self._validate_parameters(parameters)
 
         if missing_vars:
-            print(f"Error: Missing required variables: {missing_vars}")
+            # print(f"Error: Missing required variables: {missing_vars}")
             return None
 
         # Format parameters with -- prefix if not present

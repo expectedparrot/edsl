@@ -29,7 +29,8 @@ a3 = Agent(
 c1 = Conversation(agent_list=AgentList([a1, a3, a2]), max_turns=5, verbose=True)
 c2 = Conversation(agent_list=AgentList([a1, a2]), max_turns=5, verbose=True)
 
-c = Cache.load("car_talk.json.gz")
+# c = Cache.load("car_talk.json.gz")
+c = Cache()
 # breakpoint()
 combo = ConversationList([c1, c2], cache=c)
 combo.run()

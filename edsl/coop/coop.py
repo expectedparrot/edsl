@@ -15,8 +15,10 @@ from edsl.coop.utils import (
     VisibilityType,
 )
 
+from edsl.coop.CoopFunctionsMixin import CoopFunctionsMixin
 
-class Coop:
+
+class Coop(CoopFunctionsMixin):
     """
     Client for the Expected Parrot API.
     """

@@ -12,8 +12,10 @@ from edsl.results.ResultsExportMixin import ResultsExportMixin
 from edsl.results.DatasetTree import Tree
 from edsl.results.TableDisplay import TableDisplay
 
+from edsl.Base import PersistenceMixin, HashingMixin
 
-class Dataset(UserList, ResultsExportMixin):
+
+class Dataset(UserList, ResultsExportMixin, PersistenceMixin, HashingMixin):
     """A class to represent a dataset of observations."""
 
     def __init__(
@@ -35,6 +37,17 @@ class Dataset(UserList, ResultsExportMixin):
         """
         _, values = list(self.data[0].items())[0]
         return len(values)
+
+    def view(self):
+        from perspective.widget import PerspectiveWidget
+
+        w = PerspectiveWidget(
+            self.to_pandas(),
+            plugin="Datagrid",
+            aggregates={"datetime": "any"},
+            sort=[["date", "desc"]],
+        )
+        return w
 
     def keys(self) -> list[str]:
         """Return the keys of the first observation in the dataset.
@@ -239,6 +252,15 @@ class Dataset(UserList, ResultsExportMixin):
         df2 = other.to_pandas()
         merged_df = df1.merge(df2, how="left", left_on=by_x, right_on=by_y)
         return Dataset.from_pandas_dataframe(merged_df)
+
+    def to(self, survey_or_question: Union["Survey", "QuestionBase"]) -> "Jobs":
+        from edsl.surveys.Survey import Survey
+        from edsl.questions.QuestionBase import QuestionBase
+
+        if isinstance(survey_or_question, Survey):
+            return survey_or_question.by(self.to_scenario_list())
+        elif isinstance(survey_or_question, QuestionBase):
+            return Survey([survey_or_question]).by(self.to_scenario_list())
 
     def select(self, *keys) -> Dataset:
         """Return a new dataset with only the selected keys.
@@ -503,13 +525,16 @@ class Dataset(UserList, ResultsExportMixin):
         return Dataset([{"num_observations": [len(self)], "keys": [self.keys()]}])
 
     @classmethod
-    def example(self):
+    def example(self, n: int = None):
         """Return an example dataset.
 
         >>> Dataset.example()
         Dataset([{'a': [1, 2, 3, 4]}, {'b': [4, 3, 2, 1]}])
         """
-        return Dataset([{"a": [1, 2, 3, 4]}, {"b": [4, 3, 2, 1]}])
+        if n is None:
+            return Dataset([{"a": [1, 2, 3, 4]}, {"b": [4, 3, 2, 1]}])
+        else:
+            return Dataset([{"a": [1] * n}, {"b": [2] * n}])
 
     @classmethod
     def from_edsl_object(cls, object):
