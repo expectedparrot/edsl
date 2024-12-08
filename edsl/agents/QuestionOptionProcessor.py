@@ -69,7 +69,7 @@ class QuestionOptionProcessor:
     @staticmethod
     def _get_options_from_prior_answers(
         prior_answers: dict, option_key: str
-    ) -> list | None:
+    ) -> Union[list, None]:
         """
         Try to get options from prior answers.
 
