@@ -66,10 +66,29 @@ class PromptConstructor:
         """We need to find all the keys in the scenario that refer to FileStore objects.
         These will be used to append to the prompt a list of files that are part of the scenario.
         """
+        return self._find_file_keys(self.scenario)
+
+    @staticmethod
+    def _find_file_keys(scenario: "Scenario") -> list:
+        """We need to find all the keys in the scenario that refer to FileStore objects.
+        These will be used to append to the prompt a list of files that are part of the scenario.
+
+        >>> from edsl import Scenario
+        >>> from edsl.scenarios.FileStore import FileStore
+        >>> import tempfile
+        >>> with tempfile.NamedTemporaryFile() as f:
+        ...     _ = f.write(b"Hello, world!")
+        ...     _ = f.seek(0)
+        ...     fs = FileStore(f.name)
+        ...     scenario = Scenario({"fs_file": fs, 'a': 1})
+        ...     from edsl.agents.PromptConstructor import PromptConstructor
+        ...     PromptConstructor._find_file_keys(scenario)
+        ['fs_file']
+        """
         from edsl.scenarios.FileStore import FileStore
 
         file_entries = []
-        for key, value in self.scenario.items():
+        for key, value in scenario.items():
             if isinstance(value, FileStore):
                 file_entries.append(key)
         return file_entries
@@ -104,37 +123,62 @@ class PromptConstructor:
 
         return self.agent.prompt()
 
-    def prior_answers_dict(self) -> dict:
-        # this is all questions
-        d = self.survey.question_names_to_questions()
-        # This attaches the answer to the question
-        for question in d:
-            if question in self.current_answers:
-                d[question].answer = self.current_answers[question]
+    def prior_answers_dict(self) -> dict[str, "QuestionBase"]:
+        """This is a dictionary of prior answers, if they exist."""
+        return self._add_answers(
+            self.survey.question_names_to_questions(), self.current_answers
+        )
+
+    @staticmethod
+    def _add_answers(answer_dict: dict, current_answers) -> dict[str, "QuestionBase"]:
+        """
+        >>> from edsl import QuestionFreeText
+        >>> d = {"q0": QuestionFreeText(question_text="Do you like school?", question_name = "q0")}
+        >>> current_answers = {"q0": "LOVE IT!"}
+        >>> PromptConstructor._add_answers(d, current_answers)['q0'].answer
+        'LOVE IT!'
+        """
+        for question in answer_dict:
+            if question in current_answers:
+                answer_dict[question].answer = current_answers[question]
             else:
-                d[question].answer = PlaceholderAnswer()
-
-                # if (new_question := question.split("_comment")[0]) in d:
-                #     d[new_question].comment = answer
-                # d[question].answer = PlaceholderAnswer()
-
-        # breakpoint()
-        return d
+                answer_dict[question].answer = PlaceholderAnswer()
+        return answer_dict
 
     @property
-    def question_file_keys(self):
-        raw_question_text = self.question.question_text
-        variables = get_jinja2_variables(raw_question_text)
+    def question_file_keys(self) -> list:
+        """Extracts the file keys from the question text."""
+        return self._extract_file_keys_from_question_text(
+            self.question.question_text, self.scenario_file_keys
+        )
+
+    @staticmethod
+    def _extract_file_keys_from_question_text(
+        question_text: str, scenario_file_keys: list
+    ) -> list:
+        """
+        Extracts the file keys from a question text.
+
+        >>> from edsl import Scenario
+        >>> from edsl.scenarios.FileStore import FileStore
+        >>> import tempfile
+        >>> with tempfile.NamedTemporaryFile() as f:
+        ...     _ = f.write(b"Hello, world!")
+        ...     _ = f.seek(0)
+        ...     fs = FileStore(f.name)
+        ...     scenario = Scenario({"fs_file": fs, 'a': 1})
+        ...     from edsl.agents.PromptConstructor import PromptConstructor
+        ...     PromptConstructor._extract_file_keys_from_question_text("{{ fs_file }}", ['fs_file'])
+        ['fs_file']
+        """
+        variables = get_jinja2_variables(question_text)
         question_file_keys = []
         for var in variables:
-            if var in self.scenario_file_keys:
+            if var in scenario_file_keys:
                 question_file_keys.append(var)
         return question_file_keys
 
-    def build_replacement_dict(self, question_data: dict):
-        """
-        Builds a dictionary of replacement values by combining multiple data sources.
-        """
+    def _scenario_replacements(self) -> dict[str, Any]:
         # File references dictionary
         file_refs = {key: f"<see file {key}>" for key in self.scenario_file_keys}
 
@@ -142,56 +186,48 @@ class PromptConstructor:
         scenario_items = {
             k: v for k, v in self.scenario.items() if k not in self.scenario_file_keys
         }
+        return {**file_refs, **scenario_items}
 
-        # Question settings with defaults
+    @staticmethod
+    def _question_data_replacements(
+        question: dict, question_data: dict
+    ) -> dict[str, Any]:
+        """Builds a dictionary of replacement values for rendering a prompt by combining multiple data sources.
+
+        >>> from edsl import QuestionMultipleChoice
+        >>> q = QuestionMultipleChoice(question_text="Do you like school?", question_name = "q0", question_options = ["yes", "no"])
+        >>> PromptConstructor._question_data_replacements(q, q.data)
+        {'use_code': False, 'include_comment': True, 'question_name': 'q0', 'question_text': 'Do you like school?', 'question_options': ['yes', 'no']}
+
+        """
         question_settings = {
-            "use_code": getattr(self.question, "_use_code", True),
-            "include_comment": getattr(self.question, "_include_comment", False),
+            "use_code": getattr(question, "_use_code", True),
+            "include_comment": getattr(question, "_include_comment", False),
         }
+        return {**question_settings, **question_data}
+
+    def build_replacement_dict(self, question_data: dict) -> dict[str, Any]:
+        """Builds a dictionary of replacement values for rendering a prompt by combining multiple data sources."""
+        rpl = {}
+        rpl["scenario"] = self._scenario_replacements()
+        rpl["question"] = self._question_data_replacements(self.question, question_data)
+        rpl["prior_answers"] = self.prior_answers_dict()
+        rpl["agent"] = {"agent": self.agent}
 
         # Combine all dictionaries using dict.update() for clarity
         replacement_dict = {}
-        for d in [
-            file_refs,
-            question_data,
-            scenario_items,
-            self.prior_answers_dict(),
-            {"agent": self.agent},
-            question_settings,
-        ]:
-            replacement_dict.update(d)
+        for r in rpl.values():
+            replacement_dict.update(r)
 
         return replacement_dict
 
-    def _get_question_options(self, question_data):
-        question_options_entry = question_data.get("question_options", None)
-        question_options = question_options_entry
+    def _get_question_options(self, question_data: dict) -> list:
+        """
+        Extract and process question options from question data.
+        """
+        from edsl.agents.QuestionOptionProcessor import QuestionOptionProcessor
 
-        placeholder = ["<< Option 1 - Placholder >>", "<< Option 2 - Placholder >>"]
-
-        # print("Question options entry: ", question_options_entry)
-
-        if isinstance(question_options_entry, str):
-            env = Environment()
-            parsed_content = env.parse(question_options_entry)
-            question_option_key = list(meta.find_undeclared_variables(parsed_content))[
-                0
-            ]
-            if isinstance(self.scenario.get(question_option_key), list):
-                question_options = self.scenario.get(question_option_key)
-
-            # might be getting it from the prior answers
-            if self.prior_answers_dict().get(question_option_key) is not None:
-                prior_question = self.prior_answers_dict().get(question_option_key)
-                if hasattr(prior_question, "answer"):
-                    if isinstance(prior_question.answer, list):
-                        question_options = prior_question.answer
-                    else:
-                        question_options = placeholder
-                else:
-                    question_options = placeholder
-
-        return question_options
+        return QuestionOptionProcessor(self).get_question_options(question_data)
 
     def build_question_instructions_prompt(self):
         """Buils the question instructions prompt."""
@@ -229,9 +265,6 @@ class PromptConstructor:
             import warnings
 
             warnings.warn(msg)
-            # raise QuestionScenarioRenderError(
-            #     f"Question instructions still has variables: {undefined_template_variables}."
-            # )
 
         # Check if question has instructions - these are instructions in a Survey that can apply to multiple follow-on questions
         relevant_instructions = self.survey.relevant_instructions(
@@ -239,9 +272,6 @@ class PromptConstructor:
         )
 
         if relevant_instructions != []:
-            # preamble_text = Prompt(
-            #    text="You were given the following instructions: "
-            # )
             preamble_text = Prompt(text="")
             for instruction in relevant_instructions:
                 preamble_text += instruction.text
