@@ -48,7 +48,6 @@ class JobsRemoteInferenceHandler:
         iterations=1,
         remote_inference_description=None,
         remote_inference_results_visibility="unlisted",
-        verbose=False,
     ):
         from edsl.config import CONFIG
         from edsl.coop.coop import Coop
@@ -56,9 +55,9 @@ class JobsRemoteInferenceHandler:
 
         # Initialize logger
         if is_notebook():
-            self.logger = JupyterJobLogger(verbose=verbose)
+            self.logger = JupyterJobLogger(verbose=self.verbose)
         else:
-            self.logger = StdOutJobLogger(verbose=verbose)
+            self.logger = StdOutJobLogger(verbose=self.verbose)
 
         coop = Coop()
         self.logger.update(
@@ -71,7 +70,7 @@ class JobsRemoteInferenceHandler:
             iterations=iterations,
             initial_results_visibility=remote_inference_results_visibility,
         )
-        print("Your survey is running at the Expected Parrot server...")
+        self.logger.update("Your survey is running at the Expected Parrot server...")
 
         job_uuid = remote_job_creation_data.get("uuid")
         self.logger.update(f"Job sent to server. (Job uuid={job_uuid}).", "running")
