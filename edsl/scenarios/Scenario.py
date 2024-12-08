@@ -392,18 +392,9 @@ class Scenario(Base, UserDict, ScenarioHtmlMixin):
         Scenario({'file_path': 'test.docx', 'text': 'EDSL Survey\\nThis is a test.'})
         >>> import os; os.remove("test.docx")
         """
-        from docx import Document
+        from edsl.scenarios.DocxScenario import DocxScenario
 
-        doc = Document(docx_path)
-
-        # Extract all text
-        full_text = []
-        for para in doc.paragraphs:
-            full_text.append(para.text)
-
-        # Join the text from all paragraphs
-        text = "\n".join(full_text)
-        return Scenario({"file_path": docx_path, "text": text})
+        return Scenario(DocxScenario(docx_path).get_scenario_dict())
 
     @staticmethod
     def _line_chunks(text, num_lines: int) -> Generator[str, None, None]:
@@ -488,36 +479,41 @@ class Scenario(Base, UserDict, ScenarioHtmlMixin):
         ...
         ValueError: You must specify either num_words or num_lines, but not both.
         """
-        from edsl.scenarios.ScenarioList import ScenarioList
+        from edsl.scenarios.DocumentChunker import DocumentChunker
 
-        if num_words is not None:
-            chunks = list(self._word_chunks(self[field], num_words))
+        return DocumentChunker(self).chunk(
+            field, num_words, num_lines, include_original, hash_original
+        )
+        # from edsl.scenarios.ScenarioList import ScenarioList
 
-        if num_lines is not None:
-            chunks = list(self._line_chunks(self[field], num_lines))
+        # if num_words is not None:
+        #     chunks = list(self._word_chunks(self[field], num_words))
 
-        if num_words is None and num_lines is None:
-            raise ValueError("You must specify either num_words or num_lines.")
+        # if num_lines is not None:
+        #     chunks = list(self._line_chunks(self[field], num_lines))
 
-        if num_words is not None and num_lines is not None:
-            raise ValueError(
-                "You must specify either num_words or num_lines, but not both."
-            )
+        # if num_words is None and num_lines is None:
+        #     raise ValueError("You must specify either num_words or num_lines.")
 
-        scenarios = []
-        for i, chunk in enumerate(chunks):
-            new_scenario = copy.deepcopy(self)
-            new_scenario[field] = chunk
-            new_scenario[field + "_chunk"] = i
-            if include_original:
-                if hash_original:
-                    new_scenario[field + "_original"] = hashlib.md5(
-                        self[field].encode()
-                    ).hexdigest()
-                else:
-                    new_scenario[field + "_original"] = self[field]
-            scenarios.append(new_scenario)
-        return ScenarioList(scenarios)
+        # if num_words is not None and num_lines is not None:
+        #     raise ValueError(
+        #         "You must specify either num_words or num_lines, but not both."
+        #     )
+
+        # scenarios = []
+        # for i, chunk in enumerate(chunks):
+        #     new_scenario = copy.deepcopy(self)
+        #     new_scenario[field] = chunk
+        #     new_scenario[field + "_chunk"] = i
+        #     if include_original:
+        #         if hash_original:
+        #             new_scenario[field + "_original"] = hashlib.md5(
+        #                 self[field].encode()
+        #             ).hexdigest()
+        #         else:
+        #             new_scenario[field + "_original"] = self[field]
+        #     scenarios.append(new_scenario)
+        # return ScenarioList(scenarios)
 
     @classmethod
     @remove_edsl_version
