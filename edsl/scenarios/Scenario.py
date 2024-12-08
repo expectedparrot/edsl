@@ -458,21 +458,6 @@ class Scenario(Base, UserDict, ScenarioHtmlMixin):
         column_names = ["Attribute", "Value"]
         return table_data, column_names
 
-    # def rich_print(self) -> "Table":
-    #     """Display an object as a rich table."""
-    #     from rich.table import Table
-
-    #     table_data, column_names = self._table()
-    #     table = Table(title=f"{self.__class__.__name__} Attributes")
-    #     for column in column_names:
-    #         table.add_column(column, style="bold")
-
-    #     for row in table_data:
-    #         row_data = [row[column] for column in column_names]
-    #         table.add_row(*row_data)
-
-    #     return table
-
     @classmethod
     def example(cls, randomize: bool = False, has_image=False) -> Scenario:
         """
