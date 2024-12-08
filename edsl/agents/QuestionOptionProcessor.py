@@ -1,4 +1,5 @@
 from jinja2 import Environment, meta
+from typing import List, Optional, Union
 
 
 class QuestionOptionProcessor:
@@ -47,9 +48,12 @@ class QuestionOptionProcessor:
         return undeclared_variables[0]
 
     @staticmethod
-    def _get_options_from_scenario(scenario: dict, option_key: str) -> list | None:
+    def _get_options_from_scenario(
+        scenario: dict, option_key: str
+    ) -> Union[list, None]:
         """
         Try to get options from scenario data.
+
         >>> from edsl import Scenario
         >>> scenario = Scenario({"options": ["Option 1", "Option 2"]})
         >>> QuestionOptionProcessor._get_options_from_scenario(scenario, "options")

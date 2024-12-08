@@ -94,10 +94,8 @@ class InvigilatorAI(InvigilatorBase):
                 # question options have be treated differently because of dynamic question
                 # this logic is all in the prompt constructor
                 if "question_options" in self.question.data:
-                    new_question_options = (
-                        self.prompt_constructor._get_question_options(
-                            self.question.data
-                        )
+                    new_question_options = self.prompt_constructor.get_question_options(
+                        self.question.data
                     )
                     if new_question_options != self.question.data["question_options"]:
                         # I don't love this direct writing but it seems to work
