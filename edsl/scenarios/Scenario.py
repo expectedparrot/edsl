@@ -2,17 +2,20 @@
 
 from __future__ import annotations
 import copy
-import hashlib
 import os
 import json
 from collections import UserDict
-from typing import Union, List, Optional, Generator
+from typing import Union, List, Optional, TYPE_CHECKING
 from uuid import uuid4
 
 from edsl.Base import Base
 from edsl.scenarios.ScenarioHtmlMixin import ScenarioHtmlMixin
-from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
+from edsl.utilities.decorators import remove_edsl_version
 from edsl.exceptions.scenarios import ScenarioError
+
+if TYPE_CHECKING:
+    from edsl.scenarios.ScenarioList import ScenarioList
+    from edsl.results.Dataset import Dataset
 
 
 class DisplayJSON:
@@ -85,7 +88,7 @@ class Scenario(Base, UserDict, ScenarioHtmlMixin):
         return False
 
     def convert_jinja_braces(
-        self, replacement_left="<<", replacement_right=">>"
+        self, replacement_left: str = "<<", replacement_right: str = ">>"
     ) -> Scenario:
         """Convert Jinja braces to some other character.
 
@@ -104,7 +107,7 @@ class Scenario(Base, UserDict, ScenarioHtmlMixin):
                 new_scenario[key] = value
         return new_scenario
 
-    def __add__(self, other_scenario: "Scenario") -> "Scenario":
+    def __add__(self, other_scenario: Scenario) -> Scenario:
         """Combine two scenarios by taking the union of their keys
 
         If the other scenario is None, then just return self.
@@ -130,7 +133,7 @@ class Scenario(Base, UserDict, ScenarioHtmlMixin):
 
     def rename(
         self, old_name_or_replacement_dict: dict, new_name: Optional[str] = None
-    ) -> "Scenario":
+    ) -> Scenario:
         """Rename the keys of a scenario.
 
         :param replacement_dict: A dictionary of old keys to new keys.
@@ -158,7 +161,7 @@ class Scenario(Base, UserDict, ScenarioHtmlMixin):
                 new_scenario[key] = value
         return new_scenario
 
-    def new_column_names(self, new_names: List[str]) -> "Scenario":
+    def new_column_names(self, new_names: List[str]) -> Scenario:
         """Rename the keys of a scenario.
 
         >>> s = Scenario({"food": "wood chips"})
@@ -176,12 +179,8 @@ class Scenario(Base, UserDict, ScenarioHtmlMixin):
         return new_scenario
 
     def table(self, tablefmt: str = "grid") -> str:
-        from edsl.results.Dataset import Dataset
-
-        keys = [key for key, value in self.items()]
-        values = [value for key, value in self.items()]
-        d = Dataset([{"key": keys}, {"value": values}])
-        return d.table(tablefmt=tablefmt)
+        """Display a scenario as a table."""
+        return self.to_dataset().table(tablefmt=tablefmt)
 
     def json(self):
         return DisplayJSON(self.to_dict(add_edsl_version=False))
@@ -236,11 +235,16 @@ class Scenario(Base, UserDict, ScenarioHtmlMixin):
         return "Scenario(" + repr(self.data) + ")"
 
     def to_dataset(self) -> "Dataset":
-        # d = Dataset([{'a.b':[1,2,3,4]}])
+        """Convert a scenario to a dataset.
+
+        >>> s = Scenario({"food": "wood chips"})
+        >>> s.to_dataset()
+        Dataset([{'key': ['food'], 'value': ['wood chips']}])
+        """
         from edsl.results.Dataset import Dataset
 
-        keys = [key for key, value in self.items()]
-        values = [value for key, value in self.items()]
+        keys = list(self.keys())
+        values = list(self.values())
         return Dataset([{"key": keys}, {"value": values}])
 
     def select(self, list_of_keys: List[str]) -> "Scenario":
@@ -345,34 +349,9 @@ class Scenario(Base, UserDict, ScenarioHtmlMixin):
 
     @classmethod
     def from_pdf(cls, pdf_path):
-        # Ensure the file exists
-        import fitz
+        from edsl.scenarios.PdfExtractor import PdfExtractor
 
-        if not os.path.exists(pdf_path):
-            raise FileNotFoundError(f"The file {pdf_path} does not exist.")
-
-        # Open the PDF file
-        document = fitz.open(pdf_path)
-
-        # Get the filename from the path
-        filename = os.path.basename(pdf_path)
-
-        # Iterate through each page and extract text
-        text = ""
-        for page_num in range(len(document)):
-            page = document.load_page(page_num)
-            blocks = page.get_text("blocks")  # Extract text blocks
-
-            # Sort blocks by their vertical position (y0) to maintain reading order
-            blocks.sort(key=lambda b: (b[1], b[0]))  # Sort by y0 first, then x0
-
-            # Combine the text blocks in order
-            for block in blocks:
-                text += block[4] + "\n"
-
-        # Create a dictionary for the combined text
-        page_info = {"filename": filename, "text": text}
-        return Scenario(page_info)
+        return PdfExtractor(pdf_path, self).get_object()
 
     @classmethod
     def from_docx(cls, docx_path: str) -> "Scenario":
@@ -395,40 +374,6 @@ class Scenario(Base, UserDict, ScenarioHtmlMixin):
         from edsl.scenarios.DocxScenario import DocxScenario
 
         return Scenario(DocxScenario(docx_path).get_scenario_dict())
-
-    @staticmethod
-    def _line_chunks(text, num_lines: int) -> Generator[str, None, None]:
-        """Split a text into chunks of a given size.
-
-        :param text: The text to split.
-        :param num_lines: The number of lines in each chunk.
-
-        Example:
-
-        >>> list(Scenario._line_chunks("This is a test.\\nThis is a test. This is a test.", 1))
-        ['This is a test.', 'This is a test. This is a test.']
-        """
-        lines = text.split("\n")
-        for i in range(0, len(lines), num_lines):
-            chunk = "\n".join(lines[i : i + num_lines])
-            yield chunk
-
-    @staticmethod
-    def _word_chunks(text, num_words: int) -> Generator[str, None, None]:
-        """Split a text into chunks of a given size.
-
-        :param text: The text to split.
-        :param num_words: The number of words in each chunk.
-
-        Example:
-
-        >>> list(Scenario._word_chunks("This is a test.", 2))
-        ['This is', 'a test.']
-        """
-        words = text.split()
-        for i in range(0, len(words), num_words):
-            chunk = " ".join(words[i : i + num_words])
-            yield chunk
 
     def chunk(
         self,
@@ -484,36 +429,6 @@ class Scenario(Base, UserDict, ScenarioHtmlMixin):
         return DocumentChunker(self).chunk(
             field, num_words, num_lines, include_original, hash_original
         )
-        # from edsl.scenarios.ScenarioList import ScenarioList
-
-        # if num_words is not None:
-        #     chunks = list(self._word_chunks(self[field], num_words))
-
-        # if num_lines is not None:
-        #     chunks = list(self._line_chunks(self[field], num_lines))
-
-        # if num_words is None and num_lines is None:
-        #     raise ValueError("You must specify either num_words or num_lines.")
-
-        # if num_words is not None and num_lines is not None:
-        #     raise ValueError(
-        #         "You must specify either num_words or num_lines, but not both."
-        #     )
-
-        # scenarios = []
-        # for i, chunk in enumerate(chunks):
-        #     new_scenario = copy.deepcopy(self)
-        #     new_scenario[field] = chunk
-        #     new_scenario[field + "_chunk"] = i
-        #     if include_original:
-        #         if hash_original:
-        #             new_scenario[field + "_original"] = hashlib.md5(
-        #                 self[field].encode()
-        #             ).hexdigest()
-        #         else:
-        #             new_scenario[field + "_original"] = self[field]
-        #     scenarios.append(new_scenario)
-        # return ScenarioList(scenarios)
 
     @classmethod
     @remove_edsl_version
@@ -543,20 +458,20 @@ class Scenario(Base, UserDict, ScenarioHtmlMixin):
         column_names = ["Attribute", "Value"]
         return table_data, column_names
 
-    def rich_print(self) -> "Table":
-        """Display an object as a rich table."""
-        from rich.table import Table
+    # def rich_print(self) -> "Table":
+    #     """Display an object as a rich table."""
+    #     from rich.table import Table
 
-        table_data, column_names = self._table()
-        table = Table(title=f"{self.__class__.__name__} Attributes")
-        for column in column_names:
-            table.add_column(column, style="bold")
+    #     table_data, column_names = self._table()
+    #     table = Table(title=f"{self.__class__.__name__} Attributes")
+    #     for column in column_names:
+    #         table.add_column(column, style="bold")
 
-        for row in table_data:
-            row_data = [row[column] for column in column_names]
-            table.add_row(*row_data)
+    #     for row in table_data:
+    #         row_data = [row[column] for column in column_names]
+    #         table.add_row(*row_data)
 
-        return table
+    #     return table
 
     @classmethod
     def example(cls, randomize: bool = False, has_image=False) -> Scenario:
