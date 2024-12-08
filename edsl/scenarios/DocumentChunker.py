@@ -22,7 +22,7 @@ class DocumentChunker:
 
         Example:
 
-        >>> list(Scenario._line_chunks("This is a test.\\nThis is a test. This is a test.", 1))
+        >>> list(DocumentChunker._line_chunks("This is a test.\\nThis is a test. This is a test.", 1))
         ['This is a test.', 'This is a test. This is a test.']
         """
         lines = text.split("\n")
@@ -39,7 +39,7 @@ class DocumentChunker:
 
         Example:
 
-        >>> list(Scenario._word_chunks("This is a test.", 2))
+        >>> list(DocumentChunker._word_chunks("This is a test.", 2))
         ['This is', 'a test.']
         """
         words = text.split()
@@ -64,37 +64,6 @@ class DocumentChunker:
         :param hash_original: Whether to hash the original field in the new scenarios.
 
         If you specify `include_original=True`, the original field will be included in the new scenarios with an "_original" suffix.
-
-        Either `num_words` or `num_lines` must be specified, but not both.
-
-        The `hash_original` parameter is useful if you do not want to store the original text, but still want a unique identifier for it.
-
-        Example:
-
-        >>> s = Scenario({"text": "This is a test.\\nThis is a test.\\n\\nThis is a test."})
-        >>> s.chunk("text", num_lines = 1)
-        ScenarioList([Scenario({'text': 'This is a test.', 'text_chunk': 0}), Scenario({'text': 'This is a test.', 'text_chunk': 1}), Scenario({'text': '', 'text_chunk': 2}), Scenario({'text': 'This is a test.', 'text_chunk': 3})])
-
-        >>> s.chunk("text", num_words = 2)
-        ScenarioList([Scenario({'text': 'This is', 'text_chunk': 0}), Scenario({'text': 'a test.', 'text_chunk': 1}), Scenario({'text': 'This is', 'text_chunk': 2}), Scenario({'text': 'a test.', 'text_chunk': 3}), Scenario({'text': 'This is', 'text_chunk': 4}), Scenario({'text': 'a test.', 'text_chunk': 5})])
-
-        >>> s = Scenario({"text": "Hello World"})
-        >>> s.chunk("text", num_words = 1, include_original = True)
-        ScenarioList([Scenario({'text': 'Hello', 'text_chunk': 0, 'text_original': 'Hello World'}), Scenario({'text': 'World', 'text_chunk': 1, 'text_original': 'Hello World'})])
-
-        >>> s = Scenario({"text": "Hello World"})
-        >>> s.chunk("text", num_words = 1, include_original = True, hash_original = True)
-        ScenarioList([Scenario({'text': 'Hello', 'text_chunk': 0, 'text_original': 'b10a8db164e0754105b7a99be72e3fe5'}), Scenario({'text': 'World', 'text_chunk': 1, 'text_original': 'b10a8db164e0754105b7a99be72e3fe5'})])
-
-        >>> s.chunk("text")
-        Traceback (most recent call last):
-        ...
-        ValueError: You must specify either num_words or num_lines.
-
-        >>> s.chunk("text", num_words = 1, num_lines = 1)
-        Traceback (most recent call last):
-        ...
-        ValueError: You must specify either num_words or num_lines, but not both.
         """
         from edsl.scenarios.ScenarioList import ScenarioList
 
