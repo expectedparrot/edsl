@@ -239,7 +239,7 @@ class Scenario(Base, UserDict, ScenarioHtmlMixin):
 
         >>> s = Scenario({"food": "wood chips"})
         >>> s.to_dataset()
-        Dataset([{'key': ['food'], 'value': ['wood chips']}])
+        Dataset([{'key': ['food']}, {'value': ['wood chips']}])
         """
         from edsl.results.Dataset import Dataset
 
