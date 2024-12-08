@@ -47,23 +47,19 @@ if TYPE_CHECKING:
     from edsl.questions.QuestionBase import QuestionBase
 
 from edsl.config import CONFIG
-from edsl.utilities.decorators import sync_wrapper, jupyter_nb_handler
-from edsl.utilities.decorators import remove_edsl_version
-
-from edsl.Base import PersistenceMixin, RepresentationMixin
-from edsl.Base import Base
-from edsl.language_models.RegisterLanguageModelsMeta import RegisterLanguageModelsMeta
-
-# from edsl.language_models.KeyLookup import KeyLookup
-from edsl.exceptions.language_models import LanguageModelBadResponseError
-
-# from edsl.language_models.ServiceDataSources import KeyLookupBuilder, KeyLookup
-from edsl.language_models.ServiceDataSources import (
-    KeyLookupBuilder,
-    KeyLookupCollection,
-    KeyLookup,
+from edsl.utilities.decorators import (
+    sync_wrapper,
+    jupyter_nb_handler,
+    remove_edsl_version,
 )
 
+from edsl.Base import PersistenceMixin, RepresentationMixin
+from edsl.language_models.RegisterLanguageModelsMeta import RegisterLanguageModelsMeta
+
+from edsl.language_models.key_management.KeyLookupCollection import (
+    KeyLookupCollection,
+)
+from edsl.language_models.key_management.KeyLookup import KeyLookup
 from edsl.language_models.PriceManager import PriceManager
 
 TIMEOUT = float(CONFIG.get("EDSL_API_TIMEOUT"))
