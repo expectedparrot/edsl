@@ -40,6 +40,15 @@ from edsl.utilities.decorators import (
 from edsl.data_transfer_models import AgentResponseDict
 from edsl.utilities.restricted_python import create_restricted_function
 
+from edsl.scenarios.Scenario import Scenario
+
+
+class AgentTraits(Scenario):
+    """A class representing the traits of an agent."""
+
+    def __repr__(self):
+        return f"{self.data}"
+
 
 class Agent(Base):
     """An class representing an agent that can answer questions."""
@@ -120,7 +129,7 @@ class Agent(Base):
 
         """
         self.name = name
-        self._traits = traits or dict()
+        self._traits = AgentTraits(traits or dict())
         self.codebook = codebook or dict()
         if instruction is None:
             self.instruction = self.default_instruction
@@ -169,8 +178,38 @@ class Agent(Base):
         else:
             self.traits_presentation_template = "Your traits: {{traits}}"
 
+    def duplicate(self):
+        """Return a duplicate of the agent.
+
+        >>> a = Agent(traits = {"age": 10, "hair": "brown", "height": 5.5}, codebook = {'age': 'Their age is'})
+        >>> a2 = a.duplicate()
+        >>> a2 == a
+        True
+        >>> id(a) == id(a2)
+        False
+        >>> def f(self, question, scenario): return "I am a direct answer."
+        >>> a.add_direct_question_answering_method(f)
+        >>> hasattr(a, "answer_question_directly")
+        True
+        >>> a2 = a.duplicate()
+        >>> a2.answer_question_directly(None, None)
+        'I am a direct answer.'
+        """
+        new_agent = Agent.from_dict(self.to_dict())
+        if hasattr(self, "answer_question_directly"):
+            answer_question_directly = self.answer_question_directly
+            newf = lambda self, question, scenario: answer_question_directly(
+                question, scenario
+            )
+            new_agent.add_direct_question_answering_method(newf)
+        if hasattr(self, "dynamic_traits_function"):
+            dynamic_traits_function = self.dynamic_traits_function
+            new_agent.dynamic_traits_function = dynamic_traits_function
+        return new_agent
+
     @property
     def agent_persona(self) -> Prompt:
+        """Return the agent persona template."""
         return Prompt(text=self.traits_presentation_template)
 
     def prompt(self) -> str:
@@ -246,7 +285,20 @@ class Agent(Base):
             else:
                 return self.dynamic_traits_function()
         else:
-            return self._traits
+            return dict(self._traits)
+
+    def _check_before_modifying_traits(self):
+        """Check before modifying traits."""
+        if self.has_dynamic_traits_function:
+            raise AgentErrors(
+                "You cannot modify the traits of an agent that has a dynamic traits function.",
+                "If you want to modify the traits, you should remove the dynamic traits function.",
+            )
+
+    @traits.setter
+    def traits(self, traits: dict[str, str]):
+        self._check_before_modifying_traits()
+        self._traits = AgentTraits(traits)
 
     def rename(
         self, old_name_or_dict: Union[str, dict], new_name: Optional[str] = None
@@ -256,28 +308,48 @@ class Agent(Base):
         Example usage:
 
         >>> a = Agent(traits = {"age": 10, "hair": "brown", "height": 5.5})
-        >>> a.rename("age", "years") == Agent(traits = {'years': 10, 'hair': 'brown', 'height': 5.5})
+        >>> newa = a.rename("age", "years")
+        >>> newa == Agent(traits = {'years': 10, 'hair': 'brown', 'height': 5.5})
         True
 
-        >>> a.rename({'years': 'smage'})
-        Agent(traits = {'hair': 'brown', 'height': 5.5, 'smage': 10})
+        >>> newa.rename({'years': 'smage'}) == Agent(traits = {'smage': 10, 'hair': 'brown', 'height': 5.5})
+        True
 
         """
-        if isinstance(old_name_or_dict, dict) and new_name is None:
-            for old_name, new_name in old_name_or_dict.items():
-                self = self._rename(old_name, new_name)
-            return self
-
+        self._check_before_modifying_traits()
         if isinstance(old_name_or_dict, dict) and new_name:
             raise AgentErrors(
                 f"You passed a dict: {old_name_or_dict} and a new name: {new_name}. You should pass only a dict."
             )
 
+        if isinstance(old_name_or_dict, dict) and new_name is None:
+            return self._rename_dict(old_name_or_dict)
+
         if isinstance(old_name_or_dict, str):
-            self._rename(old_name_or_dict, new_name)
-            return self
+            return self._rename(old_name_or_dict, new_name)
 
         raise AgentErrors("Something is not right with Agent renaming")
+
+    def _rename_dict(self, renaming_dict: dict):
+        """
+        Internal method to rename traits using a dictionary.
+        The keys should all be old names and the values should all be new names.
+
+        Example usage:
+        >>> a = Agent(traits = {"age": 10, "hair": "brown", "height": 5.5})
+        >>> a._rename_dict({"age": "years", "height": "feet"})
+        Agent(traits = {'years': 10, 'hair': 'brown', 'feet': 5.5})
+
+        """
+        try:
+            assert all(k in self.traits for k in renaming_dict.keys())
+        except AssertionError:
+            raise AgentErrors(
+                f"The trait(s) {set(renaming_dict.keys()) - set(self.traits.keys())} do not exist in the agent's traits, which are {self.traits}."
+            )
+        new_agent = self.duplicate()
+        new_agent.traits = {renaming_dict.get(k, k): v for k, v in self.traits.items()}
+        return new_agent
 
     def _rename(self, old_name: str, new_name: str) -> Agent:
         """Rename a trait.
@@ -285,11 +357,24 @@ class Agent(Base):
         Example usage:
 
         >>> a = Agent(traits = {"age": 10, "hair": "brown", "height": 5.5})
-        >>> a.rename("age", "years") == Agent(traits = {'years': 10, 'hair': 'brown', 'height': 5.5})
-        True
+        >>> a._rename(old_name="age", new_name="years")
+        Agent(traits = {'years': 10, 'hair': 'brown', 'height': 5.5})
+
         """
-        self.traits[new_name] = self.traits.pop(old_name)
-        return self
+        try:
+            assert old_name in self.traits
+        except AssertionError:
+            raise AgentErrors(
+                f"The trait '{old_name}' does not exist in the agent's traits, which are {self.traits}."
+            )
+        newagent = self.duplicate()
+        newagent.traits = {
+            new_name if k == old_name else k: v for k, v in self.traits.items()
+        }
+        newagent.codebook = {
+            new_name if k == old_name else k: v for k, v in self.codebook.items()
+        }
+        return newagent
 
     def __getitem__(self, key):
         """Allow for accessing traits using the bracket notation.
@@ -514,9 +599,9 @@ class Agent(Base):
 
         if sidecar_model is not None:
             # this is the case when a 'simple' model is being used
-            from edsl.agents.Invigilator import InvigilatorSidecar
-
-            invigilator_class = InvigilatorSidecar
+            # from edsl.agents.Invigilator import InvigilatorSidecar
+            # invigilator_class = InvigilatorSidecar
+            raise DeprecationWarning("Sidecar models are deprecated.")
 
         invigilator = invigilator_class(
             self,
@@ -536,14 +621,16 @@ class Agent(Base):
     def select(self, *traits: str) -> Agent:
         """Selects agents with only the references traits
 
-        >>> a = Agent(traits = {"age": 10, "hair": "brown", "height": 5.5})
+        >>> a = Agent(traits = {"age": 10, "hair": "brown", "height": 5.5}, codebook = {'age': 'Their age is'})
+        >>> a
+        Agent(traits = {'age': 10, 'hair': 'brown', 'height': 5.5}, codebook = {'age': 'Their age is'})
 
 
         >>> a.select("age", "height")
-        Agent(traits = {'age': 10, 'height': 5.5})
+        Agent(traits = {'age': 10, 'height': 5.5}, codebook = {'age': 'Their age is'})
 
-        >>> a.select("age")
-        Agent(traits = {'age': 10})
+        >>> a.select("height")
+        Agent(traits = {'height': 5.5})
 
         """
 
@@ -552,9 +639,17 @@ class Agent(Base):
         else:
             traits_to_select = list(traits)
 
-        return Agent(
-            traits={trait: self.traits.get(trait, None) for trait in traits_to_select}
+        def _remove_none(d):
+            return {k: v for k, v in d.items() if v is not None}
+
+        newagent = self.duplicate()
+        newagent.traits = {
+            trait: self.traits.get(trait, None) for trait in traits_to_select
+        }
+        newagent.codebook = _remove_none(
+            {trait: self.codebook.get(trait, None) for trait in traits_to_select}
         )
+        return newagent
 
     def __add__(self, other_agent: Optional[Agent] = None) -> Agent:
         """
@@ -573,6 +668,10 @@ class Agent(Base):
         ...
         edsl.exceptions.agents.AgentCombinationError: The agents have overlapping traits: {'age'}.
         ...
+        >>> a1 = Agent(traits = {"age": 10}, codebook = {"age": "Their age is"})
+        >>> a2 = Agent(traits = {"height": 5.5}, codebook = {"height": "Their height is"})
+        >>> a1 + a2
+        Agent(traits = {'age': 10, 'height': 5.5}, codebook = {'age': 'Their age is', 'height': 'Their height is'})
         """
         if other_agent is None:
             return self
@@ -581,9 +680,14 @@ class Agent(Base):
                 f"The agents have overlapping traits: {common_traits}."
             )
         else:
-            new_agent = Agent(traits=copy.deepcopy(self.traits))
-            new_agent.traits.update(other_agent.traits)
-            return new_agent
+            new_codebook = copy.deepcopy(self.codebook) | copy.deepcopy(
+                other_agent.codebook
+            )
+            d = self.traits | other_agent.traits
+            newagent = self.duplicate()
+            newagent.traits = d
+            newagent.codebook = new_codebook
+            return newagent
 
     def __eq__(self, other: Agent) -> bool:
         """Check if two agents are equal.
@@ -600,7 +704,11 @@ class Agent(Base):
         return self.data == other.data
 
     def __getattr__(self, name):
-        # This will be called only if 'name' is not found in the usual places
+        """
+        >>> a = Agent(traits = {"age": 10, "hair": "brown", "height": 5.5})
+        >>> a.age
+        10
+        """
         if name == "has_dynamic_traits_function":
             return self.has_dynamic_traits_function
 
@@ -632,9 +740,6 @@ class Agent(Base):
         ]
         return f"{class_name}({', '.join(items)})"
 
-    #######################
-    # SERIALIZATION METHODS
-    #######################
     @property
     def data(self) -> dict:
         """Format the data for serialization.
@@ -684,6 +789,7 @@ class Agent(Base):
                 raw_data["answer_question_directly_function_name"] = (
                     self.answer_question_directly_function_name
                 )
+        raw_data["traits"] = dict(raw_data["traits"])
 
         return raw_data
 
@@ -692,7 +798,6 @@ class Agent(Base):
 
         return dict_hash(self.to_dict(add_edsl_version=False))
 
-    # @add_edsl_version
     def to_dict(self, add_edsl_version=True) -> dict[str, Union[dict, bool]]:
         """Serialize to a dictionary with EDSL info.
 
@@ -733,10 +838,15 @@ class Agent(Base):
         return table_data, column_names
 
     def add_trait(self, trait_name_or_dict: str, value: Optional[Any] = None) -> Agent:
-        """Adds a trait to an agent and returns that agent"""
+        """Adds a trait to an agent and returns that agent
+        >>> a = Agent(traits = {"age": 10, "hair": "brown", "height": 5.5})
+        >>> a.add_trait("weight", 150)
+        Agent(traits = {'age': 10, 'hair': 'brown', 'height': 5.5, 'weight': 150})
+        """
         if isinstance(trait_name_or_dict, dict) and value is None:
-            self.traits.update(trait_name_or_dict)
-            return self
+            newagent = self.duplicate()
+            newagent.traits = {**self.traits, **trait_name_or_dict}
+            return newagent
 
         if isinstance(trait_name_or_dict, dict) and value:
             raise AgentErrors(
@@ -744,9 +854,9 @@ class Agent(Base):
             )
 
         if isinstance(trait_name_or_dict, str):
-            trait = trait_name_or_dict
-            self.traits[trait] = value
-            return self
+            newagent = self.duplicate()
+            newagent.traits = {**self.traits, **{trait_name_or_dict: value}}
+            return newagent
 
         raise AgentErrors("Something is not right with adding a trait to an Agent")
 
@@ -759,8 +869,10 @@ class Agent(Base):
         >>> a.remove_trait("age")
         Agent(traits = {'hair': 'brown', 'height': 5.5})
         """
-        _ = self.traits.pop(trait)
-        return self
+        # _ = self.traits.pop(trait)
+        newagent = self.duplicate()
+        newagent.traits = {k: v for k, v in self.traits.items() if k != trait}
+        return newagent
 
     def translate_traits(self, values_codebook: dict) -> Agent:
         """Translate traits to a new codebook.
@@ -771,10 +883,15 @@ class Agent(Base):
 
         :param values_codebook: The new codebook.
         """
+        new_traits = {}
         for key, value in self.traits.items():
             if key in values_codebook:
-                self.traits[key] = values_codebook[key][value]
-        return self
+                new_traits[key] = values_codebook[key].get(value, value)
+            else:
+                new_traits[key] = value
+        newagent = self.duplicate()
+        newagent.traits = new_traits
+        return newagent
 
     @classmethod
     def example(cls, randomize: bool = False) -> Agent:

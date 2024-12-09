@@ -288,17 +288,13 @@ def test_jobs_bucket_creator(valid_job):
     # JobRunner = JobsRunnersRegistry["asyncio"](jobs=valid_job)
     from edsl.jobs.runners.JobsRunnerAsyncio import JobsRunnerAsyncio
 
-    bc = JobsRunnerAsyncio(jobs=valid_job).bucket_collection
+    bc_to_use = valid_job.create_bucket_collection()
+
+    bc = JobsRunnerAsyncio(
+        jobs=valid_job, bucket_collection=bc_to_use
+    ).bucket_collection
     assert bc[valid_job.models[0]].requests_bucket.tokens > 10
     assert bc[valid_job.models[0]].tokens_bucket.tokens > 10
-
-
-# def test_bad_jobs():
-#     from edsl.jobs import Jobs
-
-#     j = Jobs.example(throw_exception_probability=1.0)
-#     results = j.run()
-#     assert hasattr(results, "failed_jobs")
 
 
 def test_jobs_main():
