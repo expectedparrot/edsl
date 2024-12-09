@@ -48,10 +48,12 @@ class RuleCollection(UserList):
         from edsl.results.Dataset import Dataset
 
         keys = ["current_q", "expression", "next_q", "priority", "before_rule"]
-        rule_list = []
+        rule_list = {}
         for rule in sorted(self, key=lambda r: r.current_q):
-            rule_list.append({k: str(getattr(rule, k)) for k in keys})
-        return Dataset(rule_list)
+            for k in keys:
+                rule_list.setdefault(k, []).append(getattr(rule, k))
+
+        return Dataset([{k: v} for k, v in rule_list.items()])
 
     def _repr_html_(self):
         """Return an HTML representation of the RuleCollection object."""
@@ -119,12 +121,7 @@ class RuleCollection(UserList):
         │ 1         │ q1 == 'no'  │ 2      │ 1        │ False       │
         └───────────┴─────────────┴────────┴──────────┴─────────────┘
         """
-        keys = ["current_q", "expression", "next_q", "priority", "before_rule"]
-        rule_list = []
-        for rule in sorted(self, key=lambda r: r.current_q):
-            rule_list.append({k: getattr(rule, k) for k in keys})
-
-        print_table_with_rich(rule_list)
+        return self.to_dataset()
 
     def skip_question_before_running(self, q_now: int, answers: dict[str, Any]) -> bool:
         """Determine if a question should be skipped before running the question.
@@ -384,3 +381,5 @@ if __name__ == "__main__":
     import doctest
 
     doctest.testmod(optionflags=doctest.ELLIPSIS)
+
+    print(RuleCollection.example()._repr_html_())
