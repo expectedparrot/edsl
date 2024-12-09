@@ -64,8 +64,8 @@ This will return:
   :header-rows: 1
 
   * - key
-    - activity 
-  * - value
+    - value 
+  * - activity
     - running
 
 
@@ -117,8 +117,8 @@ This will return:
   :header-rows: 1
 
   * - activity 
-    - running
-    - reading   
+  * - running
+  * - reading   
 
 
 A list of scenarios is used in the same way as a `ScenarioList`.
@@ -163,19 +163,19 @@ This will print the questions created with the f-string with the scenarios added
   :header-rows: 1
 
   * - user_prompt
-    - How much do you enjoy running?
-    - How much do you hate running?
-    - How much do you love running?
-    - How much do you enjoy reading?
-    - How much do you hate reading?
-    - How much do you love reading? 
-  * - system_prompt
+    - system_prompt
+  * - How much do you enjoy running?
     - 
-    -
-    -
-    -
-    -
-    -
+  * - How much do you hate running?
+    - 
+  * - How much do you love running?
+    - 
+  * - How much do you enjoy reading?
+    - 
+  * - How much do you hate reading?
+    - 
+  * - How much do you love reading? 
+    - 
     
 
 To learn more about prompts, please see the :ref:`prompts` section.
@@ -218,8 +218,8 @@ This will print a table of the selected components of the results:
   :header-rows: 1
 
   * - scenario.activity
-    - running 
-  * - answer.enjoy
+    - answer.enjoy
+  * - running 
     - Somewhat
 
 
@@ -285,8 +285,8 @@ This will print a table of the response for each question (note that "activity" 
   :header-rows: 1
 
   * - answer.enjoy_reading
-    - Very much 
-  * - answer.enjoy_running
+    - answer.enjoy_running
+  * - Very much 
     - Somewhat
 
 
@@ -317,10 +317,10 @@ This will print a table of the selected components of the results:
   :header-rows: 1
 
   * - scenario.unit
-    - inches 
-  * - scenario.distance
+    - scenario.distance
+    - answer.counting
+  * - inches 
     - mile
-  * - answer.counting
     - There are 63,360 inches in a mile.
 
 
@@ -356,7 +356,7 @@ Output:
   :header-rows: 1
 
   * - answer.capital_of_france
-    - Paris
+  * - Paris
     
 
 Combining Scenarios 
@@ -382,10 +382,10 @@ This will return:
   :header-rows: 1
 
   * - key
-    - food 
+    - value
+  * - food 
     - drink 
-  * - value
-    - apple 
+  * - apple 
     - water
 
 
@@ -409,22 +409,22 @@ This will return:
   :header-rows: 1
 
   * - food
-    - apple 
+    - drink
+    - color
+    - shape
+  * - apple 
     - 
     - 
     -
-  * - drink 
-    - 
+  * - 
     - water
     -
     -
-  * - color 
-    - 
+  * - 
     - 
     - red
     -
-  * - shape 
-    - 
+  * - 
     -
     -
     - circle 
@@ -450,24 +450,25 @@ This will return:
   :header-rows: 1
 
   * - food
-    - apple 
-    - apple
-    - 
-    -
-  * - drink
-    - 
-    - 
-    - water
-    - water
-  * - color
-    - red
+    - drink
+    - color
+    - shape
+  * - apple 
     - 
     - red
     -
-  * - shape
-    -
+  * - apple
+    - 
+    - 
     - circle
+  * - 
+    - red
     - 
+    - water
+    -
+  * - 
+    - 
+    - water
     - circle
 
 
@@ -507,12 +508,12 @@ Our results are:
   :header-rows: 1
 
   * - agent.persona 
-    - Child 
-    - Magician
-    - Olympic breakdancer
-  * - answer.random
+    - answer.random
+  * - Child 
     - 7
+  * - Magician
     - 472
+  * - Olympic breakdancer
     - 529
 
 
@@ -531,12 +532,12 @@ We can inspect the scenarios to see that they have been created correctly:
   :header-rows: 1
 
   * - persona 
-    - Child 
-    - Magician
-    - Olympic breakdancer
-  * - random
-    - 7 
+    - random
+  * - Child 
+    - 7
+  * - Magician
     - 472
+  * - Olympic breakdancer
     - 529
 
 
@@ -650,8 +651,8 @@ Output using the Expected Parrot logo:
   :header-rows: 1
 
   * - answer.identify 
-    - The image shows a large letter "E" followed by a pair of square brackets containing an illustration of a parrot. The parrot is green with a yellow beak and some red and blue coloring on its body. This combination suggests the mathematical notation for the expected value, often denoted as "E" followed by a random variable in brackets, commonly used in probability and statistics.
-  * - answer.colors  
+    - answer.colors  
+  * - The image shows a large letter "E" followed by a pair of square brackets containing an illustration of a parrot. The parrot is green with a yellow beak and some red and blue coloring on its body. This combination suggests the mathematical notation for the expected value, often denoted as "E" followed by a random variable in brackets, commonly used in probability and statistics.
     - ['gray', 'green', 'orange', 'pink', 'blue', 'black']
 
 
@@ -680,9 +681,9 @@ This will return:
   :header-rows: 1
 
   * - item 
-    - color
-    - food
-    - animal
+  * - color
+  * - food
+  * - animal
     
     
 Creating a scenario list from a dictionary
@@ -713,12 +714,12 @@ This will return a single scenario for the list of items in the dict:
   :header-rows: 1
 
   * - key
-    - item:0
-    - item:1
-    - item:2 
-  * - value  
+    - value  
+  * - item:0
     - color
+  * - item:1
     - food
+  * - item:2 
     - animal
 
 
@@ -739,9 +740,9 @@ This will return:
   :header-rows: 1
 
   * - item 
-    - color
-    - food
-    - animal
+  * - color
+  * - food
+  * - animal
 
 
 Creating a scenario list from a Wikipedia table
@@ -766,259 +767,259 @@ This will return a list of scenarios for the first table on the Wikipedia page:
   :header-rows: 1
 
   * - Rank
-    - 1
-    - 2
-    - 3
-    - 4
-    - 5
-    - 6
-    - 7
-    - 8
-    - 9
-    - 10
-    - 11
-    - 12
-    - 13
-    - 14
-    - 15
-    - 16
-    - 17
-    - 18
-    - 19
-    - 20
-    - 21
-    - 22
-    - 23
-    - 24
-    - 25
-    - 26
-    - 27
-    - 28
-    - 29
-    - 30
-    - 31
-    - 32
-    - 33
-    - 34
-    - 35
-    - 36
-    - 37
-    - 38
-    - 39
-    - 40
-    - 41
-    - 42
-    - 43
-    - 44
-    - 45
-    - 46
-    - 47
-    - 48
-    - 49
-    - 50
-  * - Title
+    - Title
+    - Studios 
+    - Worldwide gross
+    - Year
+  * - 1
     - Titanic
-    - Star Wars: Episode I - The Phantom Menace
-    - Jurassic Park
-    - Independence Day
-    - The Lion King
-    - Forrest Gump
-    - The Sixth Sense
-    - The Lost World: Jurassic Park
-    - Men in Black
-    - Armageddon
-    - Terminator 2: Judgment Day
-    - Ghost
-    - Aladdin
-    - Twister
-    - Toy Story 2
-    - Saving Private Ryan
-    - Home Alone
-    - The Matrix
-    - Pretty Woman
-    - Mission: Impossible
-    - Tarzan
-    - Mrs. Doubtfire
-    - Dances with Wolves
-    - The Mummy
-    - The Bodyguard
-    - Robin Hood: Prince of Thieves
-    - Godzilla
-    - True Lies
-    - Toy Story
-    - There's Something About Mary
-    - The Fugitive
-    - Die Hard with a Vengeance
-    - Notting Hill
-    - A Bug's Life
-    - The World Is Not Enough
-    - Home Alone 2: Lost in New York
-    - American Beauty
-    - Apollo 13
-    - Basic Instinct
-    - GoldenEye
-    - The Mask
-    - Speed
-    - Deep Impact
-    - Beauty and the Beast
-    - Pocahontas
-    - The Flintstones
-    - Batman Forever
-    - The Rock
-    - Tomorrow Never Dies
-    - Seven
-  * - Studios
     - Paramount Pictures/20th Century Fox
-    - 20th Century Fox
-    - Universal Pictures
-    - 20th Century Fox
-    - Walt Disney Studios
-    - Paramount Pictures
-    - Walt Disney Studios
-    - Universal Pictures
-    - Sony Pictures/Columbia Pictures
-    - Walt Disney Studios
-    - TriStar Pictures
-    - Paramount Pictures
-    - Walt Disney Studios
-    - Warner Bros./Universal Pictures
-    - Walt Disney Studios
-    - DreamWorks Pictures/Paramount Pictures
-    - 20th Century Fox
-    - Warner Bros.
-    - Walt Disney Studios
-    - Paramount Pictures
-    - Walt Disney Studios
-    - 20th Century Fox
-    - Orion Pictures
-    - Universal Pictures
-    - Warner Bros.
-    - Warner Bros.
-    - TriStar Pictures
-    - 20th Century Fox
-    - Walt Disney Studios
-    - 20th Century Fox
-    - Warner Bros.
-    - 20th Century Fox/Cinergi Pictures
-    - PolyGram Filmed Entertainment
-    - Walt Disney Studios
-    - Metro-Goldwyn-Mayer Pictures
-    - 20th Century Fox
-    - DreamWorks Pictures
-    - Universal Pictures/Imagine Entertainment
-    - TriStar Pictures
-    - MGM/United Artists
-    - New Line Cinema
-    - 20th Century Fox
-    - Paramount Pictures/DreamWorks Pictures
-    - Walt Disney Studios
-    - Walt Disney Studios
-    - Universal Pictures
-    - Warner Bros.
-    - Walt Disney Studios
-    - MGM/United Artists
-    - New Line Cinema
-  * - Worldwide gross
     - $1,843,201,268
+    - 1997
+  * - 2
+    - Star Wars: Episode I - The Phantom Menace
+    - 20th Century Fox
     - $924,317,558
+    - 1999
+  * - 3
+    - Jurassic Park
+    - Universal Pictures
     - $914,691,118
+    - 1993
+  * - 4
+    - Independence Day
+    - 20th Century Fox
     - $817,400,891
+    - 1996
+  * - 5
+    - The Lion King
+    - Walt Disney Studios
     - $763,455,561
+    - 1994
+  * - 6
+    - Forrest Gump
+    - Paramount Pictures
     - $677,387,716
+    - 1994
+  * - 7
+    - The Sixth Sense
+    - Walt Disney Studios
     - $672,806,292
+    - 1999
+  * - 8
+    - The Lost World: Jurassic Park
+    - Universal Pictures
     - $618,638,999
+    - 1997
+  * - 9
+    - Men in Black
+    - Sony Pictures/Columbia Pictures
     - $589,390,539
+    - 1997
+  * - 10
+    - Armageddon
+    - Walt Disney Studios
     - $553,709,788
+    - 1998
+  * - 11
+    - Terminator 2: Judgment Day
+    - TriStar Pictures
     - $519,843,345
+    - 1991
+  * - 12
+    - Ghost
+    - Paramount Pictures
     - $505,702,588
+    - 1990
+  * - 13
+    - Aladdin
+    - Walt Disney Studios
     - $504,050,219
+    - 1992
+  * - 14
+    - Twister
+    - Warner Bros./Universal Pictures
     - $494,471,524
+    - 1996
+  * - 15
+    - Toy Story 2
+    - Walt Disney Studios
     - $485,015,179
+    - 1999
+  * - 16
+    - Saving Private Ryan
+    - DreamWorks Pictures/Paramount Pictures
     - $481,840,909
+    - 1998
+  * - 17
+    - Home Alone
+    - 20th Century Fox
     - $476,684,675
+    - 1990
+  * - 18
+    - The Matrix
+    - Warner Bros.
     - $463,517,383
+    - 1999
+  * - 19
+    - Pretty Woman
+    - Walt Disney Studios
     - $463,406,268
+    - 1990
+  * - 20
+    - Mission: Impossible
+    - Paramount Pictures
     - $457,696,359
+    - 1996
+  * - 21
+    - Tarzan
+    - Walt Disney Studios
     - $448,191,819
+    - 1999
+  * - 22
+    - Mrs. Doubtfire
+    - 20th Century Fox
     - $441,286,195
+    - 1993
+  * - 23
+    - Dances with Wolves
+    - Orion Pictures
     - $424,208,848
+    - 1990
+  * - 24
+    - The Mummy
+    - Universal Pictures
     - $415,933,406
+    - 1999
+  * - 25
+    - The Bodyguard
+    - Warner Bros.
     - $411,006,740
+    - 1992
+  * - 26
+    - Robin Hood: Prince of Thieves
+    - Warner Bros.
     - $390,493,908
+    - 1991
+  * - 27
+    - Godzilla
+    - TriStar Pictures
     - $379,014,294
+    - 1998
+  * - 28
+    - True Lies
+    - 20th Century Fox
     - $378,882,411
+    - 1994
+  * - 29
+    - Toy Story
+    - Walt Disney Studios
     - $373,554,033
+    - 1995
+  * - 30
+    - There's Something About Mary
+    - 20th Century Fox
     - $369,884,651
+    - 1998
+  * - 31
+    - The Fugitive
+    - Warner Bros.
     - $368,875,760
+    - 1993
+  * - 32
+    - Die Hard with a Vengeance
+    - 20th Century Fox/Cinergi Pictures
     - $366,101,666
+    - 1995
+  * - 33
+    - Notting Hill
+    - PolyGram Filmed Entertainment
     - $363,889,678
+    - 1999
+  * - 34
+    - A Bug's Life
+    - Walt Disney Studios
     - $363,398,565
+    - 1998
+  * - 35
+    - The World Is Not Enough
+    - Metro-Goldwyn-Mayer Pictures
     - $361,832,400
+    - 1999
+  * - 36
+    - Home Alone 2: Lost in New York
+    - 20th Century Fox
     - $358,994,850
+    - 1992
+  * - 37
+    - American Beauty
+    - DreamWorks Pictures
     - $356,296,601
+    - 1999
+  * - 38
+    - Apollo 13
+    - Universal Pictures/Imagine Entertainment
     - $355,237,933
+    - 1995
+  * - 39
+    - Basic Instinct
+    - TriStar Pictures
     - $352,927,224
+    - 1992
+  * - 40
+    - GoldenEye
+    - MGM/United Artists
     - $352,194,034
+    - 1995
+  * - 41
+    - The Mask
+    - New Line Cinema
     - $351,583,407
+    - 1994
+  * - 42
+    - Speed
+    - 20th Century Fox
     - $350,448,145
+    - 1994
+  * - 43
+    - Deep Impact
+    - Paramount Pictures/DreamWorks Pictures
     - $349,464,664
+    - 1998
+  * - 44
+    - Beauty and the Beast
+    - Walt Disney Studios
     - $346,317,207
+    - 1991
+  * - 45
+    - Pocahontas
+    - Walt Disney Studios
     - $346,079,773
+    - 1995
+  * - 46
+    - The Flintstones
+    - Universal Pictures
     - $341,631,208
+    - 1994
+  * - 47
+    - Batman Forever
+    - Warner Bros.
     - $336,529,144
+    - 1995
+  * - 48
+    - The Rock
+    - Walt Disney Studios
     - $335,062,621
+    - 1996
+  * - 49
+    - Tomorrow Never Dies
+    - MGM/United Artists
     - $333,011,068
+    - 1997
+  * - 50
+    - Seven
+    - New Line Cinema
     - $327,311,859
-  * - Year
-    - 1997
-    - 1999
-    - 1993
-    - 1996
-    - 1994
-    - 1994
-    - 1999
-    - 1997
-    - 1997
-    - 1998
-    - 1991
-    - 1990
-    - 1992
-    - 1996
-    - 1999
-    - 1998
-    - 1990
-    - 1999
-    - 1990
-    - 1996
-    - 1999
-    - 1993
-    - 1990
-    - 1999
-    - 1992
-    - 1991
-    - 1998
-    - 1994
-    - 1995
-    - 1998
-    - 1993
-    - 1995
-    - 1999
-    - 1998
-    - 1999
-    - 1992
-    - 1999
-    - 1995
-    - 1992
-    - 1995
-    - 1994
-    - 1994
-    - 1998
-    - 1991
-    - 1995
-    - 1994
-    - 1995
-    - 1996
-    - 1997
     - 1995
 
 
@@ -1060,110 +1061,111 @@ The scenarios can be used to ask questions about the data in the table:
 Output:
 
 .. list-table:: 
-  :header-rows: 1
+   :header-rows: 1
 
-  * - Title
-    - A Bug's Life
-    - Aladdin
-    - American Beauty
-    - Apollo 13
-    - Armageddon
-    - Basic Instinct
-    - Batman Forever
-    - Beauty and the Beast
-    - Dances with Wolves
-    - Deep Impact
-    - Die Hard with a Vengeance
-    - Forrest Gump
-    - Ghost
-    - Godzilla
-    - GoldenEye
-    - Home Alone
-    - Home Alone 2: Lost in New York
-    - Independence Day
-    - Jurassic Park
-    - Men in Black
-    - Mission: Impossible
-    - Mrs. Doubtfire
-    - Notting Hill
-    - Pocahontas
-    - Pretty Woman
-    - Robin Hood: Prince of Thieves
-    - Saving Private Ryan
-    - Seven
-    - Speed
-    - Star Wars: Episode I - The Phantom Menace
-    - Tarzan
-    - Terminator 2: Judgment Day
-    - The Bodyguard
-    - The Flintstones
-    - The Fugitive
-    - The Lion King
-    - The Lost World: Jurassic Park
-    - The Mask
-    - The Matrix
-    - The Mummy
-    - The Rock
-    - The Sixth Sense
-    - The World Is Not Enough
-    - There's Something About Mary
-    - Titanic
-    - Tomorrow Never Dies
-    - Toy Story
-    - Toy Story 2
-    - True Lies
-    - Twister
-  * - Leads
-    - Dave Foley, Kevin Spacey, Julia Louis-Dreyfus, Hayden Panettiere, Phyllis Diller, Richard Kind, David Hyde Pierce
-    - Mena Massoud, Naomi Scott, Will Smith
-    - Kevin Spacey, Annette Bening, Thora Birch, Mena Suvari, Wes Bentley, Chris Cooper
-    - Tom Hanks, Kevin Bacon, Bill Paxton
-    - Bruce Willis, Billy Bob Thornton, Liv Tyler, Ben Affleck
-    - Michael Douglas, Sharon Stone
-    - Val Kilmer, Tommy Lee Jones, Jim Carrey, Nicole Kidman, Chris O'Donnell
-    - Emma Watson, Dan Stevens, Luke Evans, Kevin Kline, Josh Gad
-    - Kevin Costner, Mary McDonnell, Graham Greene, Rodney A. Grant
-    - Téa Leoni, Morgan Freeman, Elijah Wood, Robert Duvall
-    - Bruce Willis, Samuel L. Jackson, Jeremy Irons
-    - Tom Hanks, Robin Wright, Gary Sinise, Mykelti Williamson, Sally Field
-    - Patrick Swayze, Demi Moore, Whoopi Goldberg
-    - Matthew Broderick, Jean Reno, Bryan Cranston, Aaron Taylor-Johnson, Elizabeth Olsen, Kyle Chandler, Vera Farmiga, Millie Bobby Brown
-    - Pierce Brosnan, Sean Bean, Izabella Scorupco, Famke Janssen
-    - Macaulay Culkin, Joe Pesci, Daniel Stern, Catherine O'Hara, John Heard
-    - Macaulay Culkin, Joe Pesci, Daniel Stern, Catherine O'Hara, John Heard
-    - Will Smith, Bill Pullman, Jeff Goldblum
-    - Sam Neill, Laura Dern, Jeff Goldblum, Richard Attenborough
-    - Tommy Lee Jones, Will Smith
-    - Tom Cruise, Ving Rhames, Simon Pegg, Rebecca Ferguson, Jeremy Renner
-    - Robin Williams, Sally Field, Pierce Brosnan, Lisa Jakub, Matthew Lawrence, Mara Wilson
-    - Julia Roberts, Hugh Grant
-    - Irene Bedard, Mel Gibson, Judy Kuhn, David Ogden Stiers, Russell Means, Christian Bale
-    - Richard Gere, Julia Roberts
-    - Kevin Costner, Morgan Freeman, Mary Elizabeth Mastrantonio, Christian Slater, Alan Rickman
-    - Tom Hanks, Matt Damon, Tom Sizemore, Edward Burns, Barry Pepper, Adam Goldberg, Vin Diesel, Giovanni Ribisi, Jeremy Davies
-    - Brad Pitt, Morgan Freeman, Gwyneth Paltrow
-    - Keanu Reeves, Sandra Bullock, Dennis Hopper
-    - Liam Neeson, Ewan McGregor, Natalie Portman, Jake Lloyd
-    - Johnny Weissmuller, Maureen O'Sullivan
-    - Arnold Schwarzenegger, Linda Hamilton, Edward Furlong, Robert Patrick
-    - Kevin Costner, Whitney Houston
-    - John Goodman, Elizabeth Perkins, Rick Moranis, Rosie O'Donnell
-    - Harrison Ford, Tommy Lee Jones
-    - Matthew Broderick, James Earl Jones, Jeremy Irons, Moira Kelly, Nathan Lane, Ernie Sabella, Rowan Atkinson, Whoopi Goldberg
-    - Jeff Goldblum, Julianne Moore, Pete Postlethwaite
-    - Jim Carrey, Cameron Diaz
-    - Keanu Reeves, Laurence Fishburne, Carrie-Anne Moss
-    - Brendan Fraser, Rachel Weisz, John Hannah, Arnold Vosloo
-    - Sean Connery, Nicolas Cage, Ed Harris
-    - Bruce Willis, Haley Joel Osment, Toni Collette, Olivia Williams
-    - Pierce Brosnan, Sophie Marceau, Denise Richards, Robert Carlyle
-    - Cameron Diaz, Ben Stiller, Matt Dillon
-    - Leonardo DiCaprio, Kate Winslet
-    - Pierce Brosnan, Michelle Yeoh, Jonathan Pryce, Teri Hatcher
-    - Tom Hanks, Tim Allen
-    - Tom Hanks, Tim Allen, Joan Cusack
-    - Arnold Schwarzenegger, Jamie Lee Curtis
-    - Helen Hunt, Bill Paxton
+   * - Title
+     - Leads
+   * - A Bug's Life
+     - Dave Foley, Kevin Spacey, Julia Louis-Dreyfus, Hayden Panettiere, Phyllis Diller, Richard Kind, David Hyde Pierce
+   * - Aladdin
+     - Mena Massoud, Naomi Scott, Will Smith
+   * - American Beauty
+     - Kevin Spacey, Annette Bening, Thora Birch, Mena Suvari, Wes Bentley, Chris Cooper
+   * - Apollo 13
+     - Tom Hanks, Kevin Bacon, Bill Paxton
+   * - Armageddon
+     - Bruce Willis, Billy Bob Thornton, Liv Tyler, Ben Affleck
+   * - Basic Instinct
+     - Michael Douglas, Sharon Stone
+   * - Batman Forever
+     - Val Kilmer, Tommy Lee Jones, Jim Carrey, Nicole Kidman, Chris O'Donnell
+   * - Beauty and the Beast
+     - Emma Watson, Dan Stevens, Luke Evans, Kevin Kline, Josh Gad
+   * - Dances with Wolves
+     - Kevin Costner, Mary McDonnell, Graham Greene, Rodney A. Grant
+   * - Deep Impact
+     - Téa Leoni, Morgan Freeman, Elijah Wood, Robert Duvall
+   * - Die Hard with a Vengeance
+     - Bruce Willis, Samuel L. Jackson, Jeremy Irons
+   * - Forrest Gump
+     - Tom Hanks, Robin Wright, Gary Sinise, Mykelti Williamson, Sally Field
+   * - Ghost
+     - Patrick Swayze, Demi Moore, Whoopi Goldberg
+   * - Godzilla
+     - Matthew Broderick, Jean Reno, Bryan Cranston, Aaron Taylor-Johnson, Elizabeth Olsen, Kyle Chandler, Vera Farmiga, Millie Bobby Brown
+   * - GoldenEye
+     - Pierce Brosnan, Sean Bean, Izabella Scorupco, Famke Janssen
+   * - Home Alone
+     - Macaulay Culkin, Joe Pesci, Daniel Stern, Catherine O'Hara, John Heard
+   * - Home Alone 2: Lost in New York
+     - Macaulay Culkin, Joe Pesci, Daniel Stern, Catherine O'Hara, John Heard
+   * - Independence Day
+     - Will Smith, Bill Pullman, Jeff Goldblum
+   * - Jurassic Park
+     - Sam Neill, Laura Dern, Jeff Goldblum, Richard Attenborough
+   * - Men in Black
+     - Tommy Lee Jones, Will Smith
+   * - Mission: Impossible
+     - Tom Cruise, Ving Rhames, Simon Pegg, Rebecca Ferguson, Jeremy Renner
+   * - Mrs. Doubtfire
+     - Robin Williams, Sally Field, Pierce Brosnan, Lisa Jakub, Matthew Lawrence, Mara Wilson
+   * - Notting Hill
+     - Julia Roberts, Hugh Grant
+   * - Pocahontas
+     - Irene Bedard, Mel Gibson, Judy Kuhn, David Ogden Stiers, Russell Means, Christian Bale
+   * - Pretty Woman
+     - Richard Gere, Julia Roberts
+   * - Robin Hood: Prince of Thieves
+     - Kevin Costner, Morgan Freeman, Mary Elizabeth Mastrantonio, Christian Slater, Alan Rickman
+   * - Saving Private Ryan
+     - Tom Hanks, Matt Damon, Tom Sizemore, Edward Burns, Barry Pepper, Adam Goldberg, Vin Diesel, Giovanni Ribisi, Jeremy Davies
+   * - Seven
+     - Brad Pitt, Morgan Freeman, Gwyneth Paltrow
+   * - Speed
+     - Keanu Reeves, Sandra Bullock, Dennis Hopper
+   * - Star Wars: Episode I - The Phantom Menace
+     - Liam Neeson, Ewan McGregor, Natalie Portman, Jake Lloyd
+   * - Tarzan
+     - Johnny Weissmuller, Maureen O'Sullivan
+   * - Terminator 2: Judgment Day
+     - Arnold Schwarzenegger, Linda Hamilton, Edward Furlong, Robert Patrick
+   * - The Bodyguard
+     - Kevin Costner, Whitney Houston
+   * - The Flintstones
+     - John Goodman, Elizabeth Perkins, Rick Moranis, Rosie O'Donnell
+   * - The Fugitive
+     - Harrison Ford, Tommy Lee Jones
+   * - The Lion King
+     - Matthew Broderick, James Earl Jones, Jeremy Irons, Moira Kelly, Nathan Lane, Ernie Sabella, Rowan Atkinson, Whoopi Goldberg
+   * - The Lost World: Jurassic Park
+     - Jeff Goldblum, Julianne Moore, Pete Postlethwaite
+   * - The Mask
+     - Jim Carrey, Cameron Diaz
+   * - The Matrix
+     - Keanu Reeves, Laurence Fishburne, Carrie-Anne Moss
+   * - The Mummy
+     - Brendan Fraser, Rachel Weisz, John Hannah, Arnold Vosloo
+   * - The Rock
+     - Sean Connery, Nicolas Cage, Ed Harris
+   * - The Sixth Sense
+     - Bruce Willis, Haley Joel Osment, Toni Collette, Olivia Williams
+   * - The World Is Not Enough
+     - Pierce Brosnan, Sophie Marceau, Denise Richards, Robert Carlyle
+   * - There's Something About Mary
+     - Cameron Diaz, Ben Stiller, Matt Dillon
+   * - Titanic
+     - Leonardo DiCaprio, Kate Winslet
+   * - Tomorrow Never Dies
+     - Pierce Brosnan, Michelle Yeoh, Jonathan Pryce, Teri Hatcher
+   * - Toy Story
+     - Tom Hanks, Tim Allen
+   * - Toy Story 2
+     - Tom Hanks, Tim Allen, Joan Cusack
+   * - True Lies
+     - Arnold Schwarzenegger, Jamie Lee Curtis
+   * - Twister
+     - Helen Hunt, Bill Paxton
+
 
 
 Creating a scenario list from a CSV
@@ -1197,28 +1199,28 @@ We can create a list of scenarios from the CSV file:
 This will return a scenario for each row:
 
 .. list-table:: 
-  :header-rows: 1
+   :header-rows: 1
 
-  * - Message
-    - I can't log in...
-    - I need help with my bill...
-    - I have a safety concern...
-    - I need help with a product...
-  * - User
-    - Alice
-    - Bob
-    - Charlie  
-    - David
-  * - Source
-    - Customer support
-    - Phone
-    - Email
-    - Chat
-  * - Date
-    - 2022-01-01
-    - 2022-01-02
-    - 2022-01-03
-    - 2022-01-04
+   * - Message
+     - User
+     - Source
+     - Date
+   * - I can't log in...
+     - Alice
+     - Customer support
+     - 2022-01-01
+   * - I need help with my bill...
+     - Bob
+     - Phone
+     - 2022-01-02
+   * - I have a safety concern...
+     - Charlie
+     - Email
+     - 2022-01-03
+   * - I need help with a product...
+     - David
+     - Chat
+     - 2022-01-04
 
 
 If the scenario keys are not valid Python identifiers, we can use the `give_valid_names()` method to convert them to valid identifiers.
@@ -1250,28 +1252,28 @@ We can create a list of scenarios from the CSV file:
 This will return scenarios with non-Pythonic identifiers:
 
 .. list-table::
-  :header-rows: 1
+   :header-rows: 1
 
-  * - What is the message?
-    - I can't log in...
-    - I need help with my bill...
-    - I have a safety concern...
-    - I need help with a product...
-  * - Who is the user?
-    - Alice
-    - Bob
-    - Charlie
-    - David
-  * - What is the source?
-    - Customer support
-    - Phone
-    - Email
-    - Chat
-  * - What is the date?
-    - 2022-01-01
-    - 2022-01-02
-    - 2022-01-03
-    - 2022-01-04
+   * - What is the message?
+     - Who is the user?
+     - What is the source?
+     - What is the date?
+   * - I can't log in...
+     - Alice
+     - Customer support
+     - 2022-01-01
+   * - I need help with my bill...
+     - Bob
+     - Phone
+     - 2022-01-02
+   * - I have a safety concern...
+     - Charlie
+     - Email
+     - 2022-01-03
+   * - I need help with a product...
+     - David
+     - Chat
+     - 2022-01-04
 
 
 We can then use the `give_valid_names()` method to convert the keys to valid identifiers:
@@ -1286,28 +1288,28 @@ We can then use the `give_valid_names()` method to convert the keys to valid ide
 This will return scenarios with valid identifiers (removing stop words and using underscores):
 
 .. list-table::
-  :header-rows: 1
+   :header-rows: 1
 
-  * - message
-    - I can't log in...
-    - I need help with my bill...
-    - I have a safety concern...
-    - I need help with a product...
-  * - user
-    - Alice
-    - Bob
-    - Charlie
-    - David
-  * - source
-    - Customer support
-    - Phone
-    - Email
-    - Chat
-  * - date
-    - 2022-01-01 
-    - 2022-01-02
-    - 2022-01-03
-    - 2022-01-04
+   * - message
+     - user
+     - source
+     - date
+   * - I can't log in...
+     - Alice
+     - Customer support
+     - 2022-01-01
+   * - I need help with my bill...
+     - Bob
+     - Phone
+     - 2022-01-02
+   * - I have a safety concern...
+     - Charlie
+     - Email
+     - 2022-01-03
+   * - I need help with a product...
+     - David
+     - Chat
+     - 2022-01-04
 
 
 Methods for un/pivoting and grouping scenarios
@@ -1345,47 +1347,47 @@ We can call the unpivot the scenario list:
 This will return a list of scenarios with the `source`, `date`, and `message` key/value pairs unpivoted:
 
 .. list-table::
-  :header-rows: 1
+   :header-rows: 1
 
-  * - user
-    - Alice
-    - Alice
-    - Alice 
-    - Bob
-    - Bob
-    - Bob
-    - Charlie
-    - Charlie
-    - Charlie
-    - David
-    - David
-    - David
-  * - variable
-    - source
-    - date
-    - message
-    - source
-    - date 
-    - message
-    - source
-    - date
-    - message
-    - source
-    - date
-    - message
-  * - value
-    - Customer support
-    - 2022-01-01
-    - I can't log in...
-    - Phone
-    - 2022-01-02 
-    - I need help with my bill...
-    - Email
-    - 2022-01-03
-    - I have a safety concern...
-    - Chat
-    - 2022-01-04
-    - I need help with a product...
+   * - user
+     - variable
+     - value
+   * - Alice
+     - source
+     - Customer support
+   * - Alice
+     - date
+     - 2022-01-01
+   * - Alice
+     - message
+     - I can't log in...
+   * - Bob
+     - source
+     - Phone
+   * - Bob
+     - date
+     - 2022-01-02
+   * - Bob
+     - message
+     - I need help with my bill...
+   * - Charlie
+     - source
+     - Email
+   * - Charlie
+     - date
+     - 2022-01-03
+   * - Charlie
+     - message
+     - I have a safety concern...
+   * - David
+     - source
+     - Chat
+   * - David
+     - date
+     - 2022-01-04
+   * - David
+     - message
+     - I need help with a product...
 
 
 Pivoting a scenario list
@@ -1402,31 +1404,29 @@ We can call the `pivot()` method to reverse the unpivot operation:
 
 This will return a list of scenarios with the `source`, `date`, and `message` key/value pairs pivoted back to their original form:
 
-.. code-block:: python
-
 .. list-table::
-  :header-rows: 1
+   :header-rows: 1
 
-  * - user
-    - Alice
-    - Bob
-    - Charlie
-    - David
-  * - source
-    - Customer support
-    - Phone
-    - Email
-    - Chat
-  * - date
-    - 2022-01-01
-    - 2022-01-02
-    - 2022-01-03
-    - 2022-01-04
-  * - message
-    - I can't log in...
-    - I need help with my bill...
-    - I have a safety concern...
-    - I need help with a product...
+   * - user
+     - source
+     - date
+     - message
+   * - Alice
+     - Customer support
+     - 2022-01-01
+     - I can't log in...
+   * - Bob
+     - Phone
+     - 2022-01-02
+     - I need help with my bill...
+   * - Charlie
+     - Email
+     - 2022-01-03
+     - I have a safety concern...
+   * - David
+     - Chat
+     - 2022-01-04
+     - I need help with a product...
 
 
 Grouping scenarios
@@ -1456,17 +1456,17 @@ Example usage:
 This will return a list of scenarios with the `a` and `b` key/value pairs grouped by the `group` key and the `avg_a` and `sum_b` key/value pairs calculated by the `avg_sum` function:
 
 .. list-table::
-  :header-rows: 1
+   :header-rows: 1
 
-  * - group
-    - A
-    - B
-  * - avg_a
-    - 12.5
-    - 14.5
-  * - sum_b
-    - 45
-    - 49
+   * - group
+     - avg_a
+     - sum_b
+   * - A
+     - 12.5
+     - 45
+   * - B
+     - 14.5
+     - 49
 
 
 Data labeling tasks
@@ -1522,23 +1522,23 @@ We can then analyze the results to see how the agent answered the questions for 
 This will print a table of the scenarios and the answers to the questions for each scenario:
 
 .. list-table::
-  :header-rows: 1
+   :header-rows: 1
 
-  * - message
-    - I can't log in...
-    - I need help with a product...
-    - I need help with my bill...
-    - I have a safety concern...
-  * - safety
-    - No
-    - No
-    - No
-    - Yes
-  * - topic
-    - Login issue
-    - Product support
-    - Billing
-    - Safety
+   * - message
+     - safety
+     - topic
+   * - I can't log in...
+     - No
+     - Login issue
+   * - I need help with a product...
+     - No
+     - Product support
+   * - I need help with my bill...
+     - No
+     - Billing
+   * - I have a safety concern...
+     - Yes
+     - Safety
 
 
 Adding metadata
@@ -1591,38 +1591,38 @@ Note that the question texts are unchanged:
 We can see how the agent answered the questions for each scenario, together with the metadata that was not included in the question text:
 
 .. list-table::
-  :header-rows: 1
+   :header-rows: 1
 
-  * - user
-    - Alice
-    - Bob
-    - Charlie
-    - David
-  * - source
-    - Customer support
-    - Phone
-    - Email
-    - Chat
-  * - message
-    - I can't log in...
-    - I need help with my bill...
-    - I have a safety concern...
-    - I need help with a product...
-  * - date
-    - 2022-01-01
-    - 2022-01-02
-    - 2022-01-03
-    - 2022-01-04
-  * - topic
-    - Login issue
-    - Billing
-    - Safety 
-    - Product support
-  * - safety
-    - No
-    - No
-    - Yes
-    - No
+   * - user
+     - source
+     - message
+     - date
+     - topic
+     - safety
+   * - Alice
+     - Customer support
+     - I can't log in...
+     - 2022-01-01
+     - Login issue
+     - No
+   * - Bob
+     - Phone
+     - I need help with my bill...
+     - 2022-01-02
+     - Billing
+     - No
+   * - Charlie
+     - Email
+     - I have a safety concern...
+     - 2022-01-03
+     - Safety
+     - Yes
+   * - David
+     - Chat
+     - I need help with a product...
+     - 2022-01-04
+     - Product support
+     - No
 
 
 To learn more about accessing, analyzing and visualizing survey results, please see the :ref:`results` section.
@@ -1656,20 +1656,20 @@ Example usage:
 This will return:
 
 .. list-table::
-  :header-rows: 1
+   :header-rows: 1
 
-  * - my_text
-    - This is a long text.
-    - Pages and pages, oh my!
-    - I need to chunk it.
-  * - my_text_chunk
-    - 0
-    - 1
-    - 2
-  * - my_text_original
-    - 4aec42eda32b7f32bde8be6a6bc11125
-    - 4aec42eda32b7f32bde8be6a6bc11125
-    - 4aec42eda32b7f32bde8be6a6bc11125
+   * - my_text
+     - my_text_chunk
+     - my_text_original
+   * - This is a long text.
+     - 0
+     - 4aec42eda32b7f32bde8be6a6bc11125
+   * - Pages and pages, oh my!
+     - 1
+     - 4aec42eda32b7f32bde8be6a6bc11125
+   * - I need to chunk it.
+     - 2
+     - 4aec42eda32b7f32bde8be6a6bc11125
 
 
 
