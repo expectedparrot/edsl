@@ -63,11 +63,32 @@ class Model(metaclass=Meta):
         registry.add_model(service_name, model_name)
 
     @classmethod
+    def service_classes(cls, registry=None):
+        from edsl.inference_services.registry import default
+
+        registry = registry or default
+        return [r for r in registry.services]
+
+    @classmethod
     def services(cls, registry=None):
         from edsl.inference_services.registry import default
 
         registry = registry or default
-        return [r._inference_service_ for r in registry.services]
+        return PrettyList(
+            [r._inference_service_ for r in registry.services], columns=["Service Name"]
+        )
+
+    @classmethod
+    def key_info(cls):
+        from edsl.language_models.ServiceDataSources import KeyLookupCollection
+        from edsl.scenarios import Scenario, ScenarioList
+
+        klc = KeyLookupCollection()
+        klc.add_key_lookup(fetch_order=None)
+        sl = ScenarioList()
+        for service, entry in list(klc.data.values())[0].items():
+            sl.append(Scenario({"service": service} | entry.to_dict()))
+        return sl.to_dataset()
 
     @classmethod
     @lru_cache(maxsize=128)
