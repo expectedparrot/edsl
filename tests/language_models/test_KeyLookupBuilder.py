@@ -1,13 +1,15 @@
 import pytest
 from unittest.mock import patch, MagicMock
-from edsl.language_models.ServiceDataSources import (
-    KeyLookupBuilder,
+from edsl.language_models.key_management.models import (
     APIKeyEntry,
     LimitEntry,
     APIIDEntry,
     LanguageModelInput,
-    MissingAPIKeyError,
 )
+
+from edsl.language_models.key_management.KeyLookupBuilder import KeyLookupBuilder
+
+from edsl.exceptions import MissingAPIKeyError
 
 
 @pytest.fixture
