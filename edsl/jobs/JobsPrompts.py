@@ -11,6 +11,8 @@ if TYPE_CHECKING:
     # from edsl.scenarios.ScenarioList import ScenarioList
     # from edsl.surveys.Survey import Survey
 
+from edsl.jobs.FetchInvigilator import FetchInvigilator
+
 
 class JobsPrompts:
     def __init__(self, jobs: "Jobs"):
@@ -48,7 +50,7 @@ class JobsPrompts:
 
         for interview_index, interview in enumerate(interviews):
             invigilators = [
-                interview._get_invigilator(question)
+                FetchInvigilator(interview)(question)
                 for question in self.survey.questions
             ]
             for _, invigilator in enumerate(invigilators):
@@ -184,7 +186,7 @@ class JobsPrompts:
         data = []
         for interview in interviews:
             invigilators = [
-                interview._get_invigilator(question)
+                FetchInvigilator(interview)(question)
                 for question in self.survey.questions
             ]
             for invigilator in invigilators:

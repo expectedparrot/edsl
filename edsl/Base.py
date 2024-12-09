@@ -15,41 +15,6 @@ from edsl.utilities.utilities import is_notebook
 class RichPrintingMixin:
     pass
 
-    # def print(self):
-    #     print(self)
-
-
-#     """Mixin for rich printing and persistence of objects."""
-
-#     def _for_console(self):
-#         """Return a string representation of the object for console printing."""
-#         from rich.console import Console
-
-#         with io.StringIO() as buf:
-#             console = Console(file=buf, record=True)
-#             table = self.rich_print()
-#             console.print(table)
-#             return console.export_text()
-
-#     def __str__(self):
-#         """Return a string representation of the object for console printing."""
-#         # return self._for_console()
-#         return self.__repr__()
-
-#     def print(self):
-#         """Print the object to the console."""
-#         from edsl.utilities.utilities import is_notebook
-
-#         if is_notebook():
-#             from IPython.display import display
-
-#             display(self.rich_print())
-#         else:
-#             from rich.console import Console
-
-#             console = Console()
-#             console.print(self.rich_print())
-
 
 class PersistenceMixin:
     """Mixin for saving and loading objects to and from files."""
@@ -66,6 +31,16 @@ class PersistenceMixin:
 
         c = Coop(url=expected_parrot_url)
         return c.create(self, description, alias, visibility)
+
+    def create_download_link(self):
+        from tempfile import NamedTemporaryFile
+        from edsl.scenarios.FileStore import FileStore
+
+        with NamedTemporaryFile(suffix=".json.gz") as f:
+            self.save(f.name)
+            print(f.name)
+            fs = FileStore(path=f.name)
+        return fs.create_link()
 
     @classmethod
     def pull(
@@ -118,6 +93,13 @@ class PersistenceMixin:
 
         c = Coop()
         return c.search(cls, query)
+
+    def store(self, d: dict, key_name: Optional[str] = None):
+        if key_name is None:
+            index = len(d)
+        else:
+            index = key_name
+        d[index] = self
 
     def save(self, filename, compress=True):
         """Save the object to a file as zippped JSON.
@@ -222,6 +204,10 @@ class RepresentationMixin:
 
         return Dataset.from_edsl_object(self)
 
+    def view(self):
+        "Displays an interactive / perspective view of the object"
+        return self.to_dataset().view()
+
     # def print(self, format="rich"):
     #     return self.to_dataset().table()
 
@@ -252,6 +238,45 @@ class RepresentationMixin:
 
         console = Console(record=True)
         console.print(table)
+
+    def help(obj):
+        """
+        Extract all public instance methods and their docstrings from a class instance.
+
+        Args:
+            obj: The instance to inspect
+
+        Returns:
+            dict: A dictionary where keys are method names and values are their docstrings
+        """
+        import inspect
+
+        if inspect.isclass(obj):
+            raise TypeError("Please provide a class instance, not a class")
+
+        methods = {}
+
+        # Get all members of the instance
+        for name, member in inspect.getmembers(obj):
+            # Skip private and special methods (those starting with underscore)
+            if name.startswith("_"):
+                continue
+
+            # Check if it's specifically an instance method
+            if inspect.ismethod(member):
+                # Get the docstring (or empty string if none exists)
+                docstring = inspect.getdoc(member) or ""
+                methods[name] = docstring
+
+        from edsl.results.Dataset import Dataset
+
+        d = Dataset(
+            [
+                {"method": list(methods.keys())},
+                {"documentation": list(methods.values())},
+            ]
+        )
+        return d
 
     def _repr_html_(self):
         from edsl.results.TableDisplay import TableDisplay

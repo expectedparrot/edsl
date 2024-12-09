@@ -36,6 +36,14 @@ class QuestionBase(
 ):
     """ABC for the Question class. All questions inherit from this class.
     Some of the constraints on child questions are defined in the RegisterQuestionsMeta metaclass.
+
+
+    Every child class wiill have class attributes of question_type, _response_model and response_validator_class e.g.,
+
+        question_type = "free_text"
+        _response_model = FreeTextResponse
+        response_validator_class = FreeTextResponseValidator
+
     """
 
     question_name: str = QuestionNameDescriptor()
@@ -45,36 +53,12 @@ class QuestionBase(
     _question_presentation = None
 
     @property
-    def response_model(self) -> type["BaseModel"]:
-        if self._response_model is not None:
-            return self._response_model
-        else:
-            return self.create_response_model()
-
-    # region: Validation and simulation methods
-    @property
     def response_validator(self) -> "ResponseValidatorBase":
         """Return the response validator."""
-        params = (
-            {
-                "response_model": self.response_model,
-            }
-            | {k: getattr(self, k) for k in self.validator_parameters}
-            | {"exception_to_throw": getattr(self, "exception_to_throw", None)}
-            | {"override_answer": getattr(self, "override_answer", None)}
-        )
-        return self.response_validator_class(**params)
+        from edsl.questions.ResponseValidatorFactory import ResponseValidatorFactory
 
-    @property
-    def validator_parameters(self) -> list[str]:
-        """Return the parameters required for the response validator.
-
-        >>> from edsl import QuestionMultipleChoice as Q
-        >>> Q.example().validator_parameters
-        ['question_options', 'use_code']
-
-        """
-        return self.response_validator_class.required_params
+        rvf = ResponseValidatorFactory(self)
+        return rvf.response_validator
 
     @property
     def fake_data_factory(self):
@@ -117,9 +101,6 @@ class QuestionBase(
 
         return self.response_validator.validate(answer, replacement_dict)
 
-    # endregion
-
-    # region: Serialization methods
     @property
     def name(self) -> str:
         "Helper function so questions and instructions can use the same access method"
@@ -353,9 +334,6 @@ class QuestionBase(
         else:
             return results
 
-    # endregion
-
-    # region: Magic methods
     def __getitem__(self, key: str) -> Any:
         """Get an attribute of the question so it can be treated like a dictionary.
 
@@ -393,9 +371,7 @@ class QuestionBase(
         False
 
         """
-        if not isinstance(other, QuestionBase):
-            return False
-        return self.to_dict() == other.to_dict()
+        return hash(self) == hash(other)
 
     def __sub__(self, other) -> BaseDiff:
         """Return the difference between two objects.
@@ -412,25 +388,11 @@ class QuestionBase(
     def __add__(self, other_question_or_diff):
         """
         Compose two questions into a single question.
-
-        TODO: Probably getting deprecated.
-
         """
         if isinstance(other_question_or_diff, BaseDiff) or isinstance(
             other_question_or_diff, BaseDiffCollection
         ):
             return other_question_or_diff.apply(self)
-
-        # from edsl.questions import compose_questions
-        # return compose_questions(self, other_question_or_diff)
-
-    # def _validate_response(self, response):
-    #     """Validate the response from the LLM. Behavior depends on the question type."""
-    #     if "answer" not in response:
-    #         raise QuestionResponseValidationError(
-    #             "Response from LLM does not have an answer"
-    #         )
-    #     return response
 
     def _translate_answer_code_to_answer(
         self, answer, scenario: Optional["Scenario"] = None
@@ -438,9 +400,6 @@ class QuestionBase(
         """There is over-ridden by child classes that ask for codes."""
         return answer
 
-    # endregion
-
-    # region: Forward methods
     def add_question(self, other: QuestionBase) -> "Survey":
         """Add a question to this question by turning them into a survey with two questions.
 
@@ -450,10 +409,7 @@ class QuestionBase(
         >>> len(s.questions)
         2
         """
-        from edsl.surveys.Survey import Survey
-
-        s = Survey([self, other])
-        return s
+        return self.to_survey().add_question(other)
 
     def to_survey(self) -> "Survey":
         """Turn a single question into a survey.
@@ -472,15 +428,6 @@ class QuestionBase(
 
         s = Survey([self])
         return s.by(*args)
-
-    # endregion
-
-    # region: Display methods
-    # def print(self):
-    #     from rich import print_json
-    #     import json
-
-    #     print_json(json.dumps(self.to_dict()))
 
     def human_readable(self) -> str:
         """Print the question in a human readable format.
@@ -508,93 +455,11 @@ class QuestionBase(
         width: Optional[int] = None,
         iframe=False,
     ):
-        """Return the question in HTML format."""
-        from jinja2 import Template
+        from edsl.questions.HTMLQuestion import HTMLQuestion
 
-        if scenario is None:
-            scenario = {}
-
-        prior_answers_dict = {}
-
-        if isinstance(answers, dict):
-            for key, value in answers.items():
-                if not key.endswith("_comment") and not key.endswith(
-                    "_generated_tokens"
-                ):
-                    prior_answers_dict[key] = {"answer": value}
-
-        # breakpoint()
-
-        base_template = """
-        <div id="{{ question_name }}" class="survey_question" data-type="{{ question_type }}">
-            {% if include_question_name %}
-            <p>question_name: {{ question_name }}</p>
-            {% endif %}
-            <p class="question_text">{{ question_text }}</p>
-            {{ question_content }}
-        </div>
-        """
-        if not hasattr(self, "question_type"):
-            self.question_type = "unknown"
-
-        if hasattr(self, "question_html_content"):
-            question_content = self.question_html_content
-        else:
-            question_content = Template("")
-
-        base_template = Template(base_template)
-
-        context = {
-            "scenario": scenario,
-            "agent": agent,
-        } | prior_answers_dict
-
-        # Render the question text
-        try:
-            question_text = Template(self.question_text).render(context)
-        except Exception as e:
-            print(
-                f"Error rendering question: question_text = {self.question_text}, error = {e}"
-            )
-            question_text = self.question_text
-
-        try:
-            question_content = Template(question_content).render(context)
-        except Exception as e:
-            print(
-                f"Error rendering question: question_content = {question_content}, error = {e}"
-            )
-            question_content = question_content
-
-        try:
-            params = {
-                "question_name": self.question_name,
-                "question_text": question_text,
-                "question_type": self.question_type,
-                "question_content": question_content,
-                "include_question_name": include_question_name,
-            }
-        except Exception as e:
-            raise ValueError(
-                f"Error rendering question: params = {params}, error = {e}"
-            )
-        rendered_html = base_template.render(**params)
-
-        if iframe:
-            import html
-            from IPython.display import display, HTML
-
-            height = height or 200
-            width = width or 600
-            escaped_output = html.escape(rendered_html)
-            # escaped_output = rendered_html
-            iframe = f""""
-            <iframe srcdoc="{ escaped_output }" style="width: {width}px; height: {height}px;"></iframe>
-            """
-            display(HTML(iframe))
-            return None
-
-        return rendered_html
+        return HTMLQuestion(self).html(
+            scenario, agent, answers, include_question_name, height, width, iframe
+        )
 
     @classmethod
     def example_model(cls):

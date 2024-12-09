@@ -2,7 +2,45 @@ from collections import UserDict
 from edsl.jobs.buckets.TokenBucket import TokenBucket
 from edsl.jobs.buckets.ModelBuckets import ModelBuckets
 
+from functools import wraps
+from threading import RLock
+import inspect
 
+from edsl.jobs.decorators import synchronized_class
+
+# def synchronized_class(wrapped_class):
+#     """Class decorator that makes all methods thread-safe."""
+
+#     # Add a lock to the class
+#     setattr(wrapped_class, "_lock", RLock())
+
+#     # Get all methods from the class
+#     for name, method in inspect.getmembers(wrapped_class, inspect.isfunction):
+#         # Skip magic methods except __getitem__, __setitem__, __delitem__
+#         if name.startswith("__") and name not in [
+#             "__getitem__",
+#             "__setitem__",
+#             "__delitem__",
+#         ]:
+#             continue
+
+#         # Create synchronized version of the method
+#         def create_synchronized_method(method):
+#             @wraps(method)
+#             def synchronized_method(*args, **kwargs):
+#                 instance = args[0]  # first arg is self
+#                 with instance._lock:
+#                     return method(*args, **kwargs)
+
+#             return synchronized_method
+
+#         # Replace the original method with synchronized version
+#         setattr(wrapped_class, name, create_synchronized_method(method))
+
+#     return wrapped_class
+
+
+@synchronized_class
 class BucketCollection(UserDict):
     """A Jobs object will have a whole collection of model buckets, as multiple models could be used.
 
@@ -10,11 +48,25 @@ class BucketCollection(UserDict):
     Models themselves are hashable, so this works.
     """
 
-    def __init__(self, infinity_buckets=False):
+    def __init__(self, infinity_buckets: bool = False):
+        """Create a new BucketCollection.
+        An infinity bucket is a bucket that never runs out of tokens or requests.
+        """
         super().__init__()
         self.infinity_buckets = infinity_buckets
         self.models_to_services = {}
         self.services_to_buckets = {}
+        self._lock = RLock()
+
+    @classmethod
+    def from_models(
+        cls, models_list: list, infinity_buckets: bool = False
+    ) -> "BucketCollection":
+        """Create a BucketCollection from a list of models."""
+        bucket_collection = cls(infinity_buckets=infinity_buckets)
+        for model in models_list:
+            bucket_collection.add_model(model)
+        return bucket_collection
 
     def __repr__(self):
         return f"BucketCollection({self.data})"
