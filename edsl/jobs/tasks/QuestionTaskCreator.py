@@ -57,8 +57,10 @@ class QuestionTaskCreator(UserList):
         self.iteration = iteration
 
         self.model_buckets = model_buckets
+
         self.requests_bucket = self.model_buckets.requests_bucket
         self.tokens_bucket = self.model_buckets.tokens_bucket
+
         self.status_log = TaskStatusLog()
 
         def fake_token_estimator(question):
@@ -125,11 +127,13 @@ class QuestionTaskCreator(UserList):
 
         await self.tokens_bucket.get_tokens(requested_tokens)
 
-        if (estimated_wait_time := self.requests_bucket.wait_time(1)) > 0:
+        if (estimated_wait_time := self.model_buckets.requests_bucket.wait_time(1)) > 0:
             self.waiting = True  #  do we need this?
             self.task_status = TaskStatus.WAITING_FOR_REQUEST_CAPACITY
 
-        await self.requests_bucket.get_tokens(1, cheat_bucket_capacity=True)
+        await self.model_buckets.requests_bucket.get_tokens(
+            1, cheat_bucket_capacity=True
+        )
 
         self.task_status = TaskStatus.API_CALL_IN_PROGRESS
         try:
@@ -142,15 +146,15 @@ class QuestionTaskCreator(UserList):
             raise e
 
         if results.cache_used:
-            self.tokens_bucket.add_tokens(requested_tokens)
-            self.requests_bucket.add_tokens(1)
+            self.model_buckets.tokens_bucket.add_tokens(requested_tokens)
+            self.model_buckets.requests_bucket.add_tokens(1)
             self.from_cache = True
             # Turbo mode means that we don't wait for tokens or requests.
-            self.tokens_bucket.turbo_mode_on()
-            self.requests_bucket.turbo_mode_on()
+            self.model_buckets.tokens_bucket.turbo_mode_on()
+            self.model_buckets.requests_bucket.turbo_mode_on()
         else:
-            self.tokens_bucket.turbo_mode_off()
-            self.requests_bucket.turbo_mode_off()
+            self.model_buckets.tokens_bucket.turbo_mode_off()
+            self.model_buckets.requests_bucket.turbo_mode_off()
 
         return results
 

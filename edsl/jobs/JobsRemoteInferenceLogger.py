@@ -14,20 +14,8 @@ import uuid
 
 from IPython.display import display, HTML
 import uuid
-import json
 from datetime import datetime
 import re
-
-
-class JobLogger(ABC):
-    def __init__(self, verbose: bool = False):
-        self.verbose = verbose
-
-    @abstractmethod
-    def update(self, message: str, status: str = "running"):
-        pass
-
-
 import sys
 from datetime import datetime
 from typing import List
@@ -41,11 +29,20 @@ class LogMessage:
     timestamp: datetime
 
 
-class StdOutJobLogger:
+class JobLogger(ABC):
+    def __init__(self, verbose: bool = False):
+        self.verbose = verbose
 
-    def __init__(self, **kwargs):
+    @abstractmethod
+    def update(self, message: str, status: str = "running"):
+        pass
+
+
+class StdOutJobLogger(JobLogger):
+
+    def __init__(self, verbose=True, **kwargs):
+        super().__init__(verbose=verbose)  # Properly call parent's __init__
         self.messages: List[LogMessage] = []
-        super().__init__(**kwargs)
 
     def update(self, message: str, status: str = "running"):
         log_msg = LogMessage(text=message, status=status, timestamp=datetime.now())
@@ -58,12 +55,12 @@ class StdOutJobLogger:
 
 
 class JupyterJobLogger(JobLogger):
-    def __init__(self, **kwargs):
+    def __init__(self, verbose=True, **kwargs):
+        super().__init__(verbose=verbose)
         self.messages = []
         self.log_id = str(uuid.uuid4())
         self.is_expanded = True
         self.display_handle = display(HTML(""), display_id=True)
-        super().__init__(**kwargs)
 
     def _linkify(self, text):
         url_pattern = r'(https?://[^\s<>"]+|www\.[^\s<>"]+)'

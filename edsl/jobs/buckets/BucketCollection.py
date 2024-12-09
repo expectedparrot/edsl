@@ -1,43 +1,12 @@
+from typing import Optional
 from collections import UserDict
 from edsl.jobs.buckets.TokenBucket import TokenBucket
 from edsl.jobs.buckets.ModelBuckets import ModelBuckets
 
-from functools import wraps
+# from functools import wraps
 from threading import RLock
-import inspect
 
 from edsl.jobs.decorators import synchronized_class
-
-# def synchronized_class(wrapped_class):
-#     """Class decorator that makes all methods thread-safe."""
-
-#     # Add a lock to the class
-#     setattr(wrapped_class, "_lock", RLock())
-
-#     # Get all methods from the class
-#     for name, method in inspect.getmembers(wrapped_class, inspect.isfunction):
-#         # Skip magic methods except __getitem__, __setitem__, __delitem__
-#         if name.startswith("__") and name not in [
-#             "__getitem__",
-#             "__setitem__",
-#             "__delitem__",
-#         ]:
-#             continue
-
-#         # Create synchronized version of the method
-#         def create_synchronized_method(method):
-#             @wraps(method)
-#             def synchronized_method(*args, **kwargs):
-#                 instance = args[0]  # first arg is self
-#                 with instance._lock:
-#                     return method(*args, **kwargs)
-
-#             return synchronized_method
-
-#         # Replace the original method with synchronized version
-#         setattr(wrapped_class, name, create_synchronized_method(method))
-
-#     return wrapped_class
 
 
 @synchronized_class
@@ -58,6 +27,17 @@ class BucketCollection(UserDict):
         self.services_to_buckets = {}
         self._lock = RLock()
 
+        from edsl.config import CONFIG
+        import os
+
+        url = os.environ.get("EDSL_REMOTE_TOKEN_BUCKET_URL", None)
+
+        if url == "None" or url is None:
+            self.remote_url = None
+            # print(f"Using remote token bucket URL: {url}")
+        else:
+            self.remote_url = url
+
     @classmethod
     def from_models(
         cls, models_list: list, infinity_buckets: bool = False
@@ -67,6 +47,13 @@ class BucketCollection(UserDict):
         for model in models_list:
             bucket_collection.add_model(model)
         return bucket_collection
+
+    def get_tokens(
+        self, model: "LanguageModel", bucket_type: str, num_tokens: int
+    ) -> int:
+        """Get the number of tokens remaining in the bucket."""
+        relevant_bucket = getattr(self[model], bucket_type)
+        return relevant_bucket.get_tokens(num_tokens)
 
     def __repr__(self):
         return f"BucketCollection({self.data})"
@@ -92,12 +79,14 @@ class BucketCollection(UserDict):
                     bucket_type="requests",
                     capacity=RPS,
                     refill_rate=RPS,
+                    remote_url=self.remote_url,
                 )
                 tokens_bucket = TokenBucket(
                     bucket_name=service,
                     bucket_type="tokens",
                     capacity=TPS,
                     refill_rate=TPS,
+                    remote_url=self.remote_url,
                 )
                 self.services_to_buckets[service] = ModelBuckets(
                     requests_bucket, tokens_bucket

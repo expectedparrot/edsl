@@ -69,6 +69,10 @@ CONFIG_MAP = {
         "default": "False",
         "info": "This config var determines whether to open the exception report URL in the browser",
     },
+    "EDSL_REMOTE_TOKEN_BUCKET_URL": {
+        "default": "None",
+        "info": "This config var holds the URL of the remote token bucket server.",
+    },
 }
 
 
