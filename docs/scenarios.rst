@@ -463,7 +463,6 @@ This will return:
     - circle
   * - 
     - red
-    - 
     - water
     -
   * - 
