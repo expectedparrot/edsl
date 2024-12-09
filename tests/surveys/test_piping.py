@@ -97,7 +97,7 @@ def test_option_expand_piping():
 
     survey = Survey([q1, q2])
 
-    results = survey.by(m).run()
+    results = survey.by(m).run(stop_on_exception=True)
     # results.select("primary").print(format="rich")
     # breakpoint()
     # Conform it got passed through

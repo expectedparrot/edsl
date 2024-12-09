@@ -69,6 +69,10 @@ CONFIG_MAP = {
         "default": "False",
         "info": "This config var determines whether to open the exception report URL in the browser",
     },
+    "EDSL_REMOTE_TOKEN_BUCKET_URL": {
+        "default": "None",
+        "info": "This config var holds the URL of the remote token bucket server.",
+    },
 }
 
 
@@ -143,6 +147,14 @@ class Config:
             info = CONFIG_MAP[env_var].get("info")
             raise MissingEnvironmentVariableError(f"{env_var} is not set. {info}")
         return self.__dict__.get(env_var)
+
+    def __iter__(self):
+        """Iterate over the environment variables."""
+        return iter(self.__dict__)
+
+    def items(self):
+        """Iterate over the environment variables and their values."""
+        return self.__dict__.items()
 
     def show(self) -> str:
         """Print the currently set environment vars."""

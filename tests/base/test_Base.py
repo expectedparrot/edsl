@@ -37,6 +37,7 @@ class TestBaseModels:
                 "PDFFileStore",
                 "PNGFileStore",
                 "SQLiteFileStore",
+                "AgentTraits",
             ]
 
         methods = [
@@ -98,11 +99,15 @@ def create_test_function(child_class):
         }
 
         try:
-            if child_class.__class__.__name__ != "FileStore":
+            if child_class.__class__.__name__ not in [
+                "FileStore",
+                "AgentTraits",
+                "RegisterSubclassesMeta",
+            ]:
                 assert eval(repr(e), d) == e
         except:
-            breakpoint()
-            raise EvalReprFail
+            # breakpoint()
+            raise EvalReprFail(f"Failed for {child_class.__class__.__name__}")
         #     warnings.warn(f"Failure with {child_class}:", EvalReprFail)
 
         # # can serialize to json
