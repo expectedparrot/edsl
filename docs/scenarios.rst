@@ -60,11 +60,13 @@ We can inspect the scenario and see that it consists of the key/value pair that 
 
 This will return:
 
-.. code-block:: python
+.. list-table::
+  :header-rows: 1
 
-    {
-        "activity": "running"
-    }
+  * - key
+    - value 
+  * - activity
+    - running
 
 
 ScenarioList 
@@ -73,6 +75,8 @@ ScenarioList
 If multiple values will be used, we can create a list of `Scenario` objects:
 
 .. code-block:: python
+
+    from edsl import Scenario
 
     scenarios = [Scenario({"activity": a}) for a in ["running", "reading"]]
 
@@ -109,18 +113,12 @@ We can inspect it:
 
 This will return:
 
-.. code-block:: python
+.. list-table::
+  :header-rows: 1
 
-    {
-        "scenarios": [
-            {
-                "activity": "running"
-            },
-            {
-                "activity": "reading"
-            }
-        ]
-    }
+  * - activity 
+  * - running
+  * - reading   
 
 
 A list of scenarios is used in the same way as a `ScenarioList`.
@@ -161,27 +159,26 @@ Then we use the `show_prompts()` method to examine the user prompts that are cre
 
 This will print the questions created with the f-string with the scenarios added (not that the system prompts are blank because we have not created any agents):
 
-.. code-block:: text
+.. list-table::
+  :header-rows: 1
 
-    ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┓
-    ┃ user_prompt                    ┃ system_prompt ┃
-    ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━┩
-    │ How much do you enjoy running? │               │
-    ├────────────────────────────────┼───────────────┤
-    │ How much do you hate running?  │               │
-    ├────────────────────────────────┼───────────────┤
-    │ How much do you love running?  │               │
-    ├────────────────────────────────┼───────────────┤
-    │ How much do you enjoy reading? │               │
-    ├────────────────────────────────┼───────────────┤
-    │ How much do you hate reading?  │               │
-    ├────────────────────────────────┼───────────────┤
-    │ How much do you love reading?  │               │
-    └────────────────────────────────┴───────────────┘
-
+  * - user_prompt
+    - system_prompt
+  * - How much do you enjoy running?
+    - 
+  * - How much do you hate running?
+    - 
+  * - How much do you love running?
+    - 
+  * - How much do you enjoy reading?
+    - 
+  * - How much do you hate reading?
+    - 
+  * - How much do you love reading? 
+    - 
+    
 
 To learn more about prompts, please see the :ref:`prompts` section.
-
 
 
 Using a Scenario
@@ -212,19 +209,18 @@ We can check the results to verify that the scenario has been used correctly:
 
 .. code-block:: python
 
-    results.select("activity", "enjoy").print(format="rich")
+    results.select("activity", "enjoy")
 
 
 This will print a table of the selected components of the results:
 
-.. code-block:: text
+.. list-table::
+  :header-rows: 1
 
-    ┏━━━━━━━━━━━┳━━━━━━━━━━┓
-    ┃ scenario  ┃ answer   ┃
-    ┃ .activity ┃ .enjoy   ┃
-    ┡━━━━━━━━━━━╇━━━━━━━━━━┩
-    │ running   │ Somewhat │
-    └───────────┴──────────┘
+  * - scenario.activity
+    - answer.enjoy
+  * - running 
+    - Somewhat
 
 
 Looping  
@@ -280,19 +276,18 @@ We can pass the questions to a survey and run it:
 
     results = survey.by(a).run()
 
-    results.select("answer.*").print(format="rich")
+    results.select("answer.*")
 
 
 This will print a table of the response for each question (note that "activity" is no longer in a separate scenario field):
 
-.. code-block:: text
+.. list-table::
+  :header-rows: 1
 
-    ┏━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━┓
-    ┃ answer         ┃ answer         ┃
-    ┃ .enjoy_reading ┃ .enjoy_running ┃
-    ┡━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━┩
-    │ Very much      │ Somewhat       │
-    └────────────────┴────────────────┘
+  * - answer.enjoy_reading
+    - answer.enjoy_running
+  * - Very much 
+    - Somewhat
 
 
 Multiple parameters
@@ -313,19 +308,20 @@ We can also create a `Scenario` for multiple parameters:
 
     results = q.by(scenario).run()
 
-    results.select("unit", "distance", "counting").print(format="rich")
+    results.select("unit", "distance", "counting")
 
 
 This will print a table of the selected components of the results:
 
-.. code-block:: text
+.. list-table::
+  :header-rows: 1
 
-    ┏━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-    ┃ scenario ┃ scenario  ┃ answer                             ┃
-    ┃ .unit    ┃ .distance ┃ .counting                          ┃
-    ┡━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
-    │ inches   │ mile      │ There are 63,360 inches in a mile. │
-    └──────────┴───────────┴────────────────────────────────────┘
+  * - scenario.unit
+    - scenario.distance
+    - answer.counting
+  * - inches 
+    - mile
+    - There are 63,360 inches in a mile.
 
 
 To learn more about constructing surveys, please see the :ref:`surveys` module.
@@ -351,20 +347,17 @@ We can also create a `Scenario` for `question_options`, e.g., in a multiple choi
 
     results = q.by(s).run()
 
-    results.select("answer.*").print(format="rich")
+    results.select("answer.*")
 
 
 Output:
 
-.. code-block:: text
+.. list-table::
+  :header-rows: 1
 
-    ┏━━━━━━━━━━━━━━━━━━━━┓
-    ┃ answer             ┃
-    ┃ .capital_of_france ┃
-    ┡━━━━━━━━━━━━━━━━━━━━┩
-    │ Paris              │
-    └────────────────────┘
-
+  * - answer.capital_of_france
+  * - Paris
+    
 
 Combining Scenarios 
 -------------------
@@ -385,12 +378,15 @@ We can combine multiple scenarios into a single `Scenario` object:
 
 This will return:
 
-.. code-block:: python
+.. list-table::
+  :header-rows: 1
 
-    {
-        "food": "apple",
-        "drink": "water"
-    }
+  * - key
+    - value
+  * - food 
+    - drink 
+  * - apple 
+    - water
 
 
 We can also combine `ScenarioList` objects:
@@ -409,24 +405,29 @@ We can also combine `ScenarioList` objects:
 
 This will return:
 
-.. code-block:: python
+.. list-table::
+  :header-rows: 1
 
-    {
-        "scenarios": [
-            {
-                "food": "apple"
-            },
-            {
-                "drink": "water"
-            },
-            {
-                "color": "red"
-            },
-            {
-                "shape": "circle"
-            }
-        ]
-    }
+  * - food
+    - drink
+    - color
+    - shape
+  * - apple 
+    - 
+    - 
+    -
+  * - 
+    - water
+    -
+    -
+  * - 
+    - 
+    - red
+    -
+  * - 
+    -
+    -
+    - circle 
 
 
 We can create a cross product of `ScenarioList` objects (combine the scenarios in each list with each other):
@@ -445,28 +446,29 @@ We can create a cross product of `ScenarioList` objects (combine the scenarios i
 
 This will return:
 
-.. code-block:: python
+.. list-table::
+  :header-rows: 1
 
-    {
-        "scenarios": [
-            {
-                "food": "apple",
-                "color": "red"
-            },
-            {
-                "food": "apple",
-                "shape": "circle"
-            },
-            {
-                "drink": "water",
-                "color": "red"
-            },
-            {
-                "drink": "water",
-                "shape": "circle"
-            }
-        ]
-    }
+  * - food
+    - drink
+    - color
+    - shape
+  * - apple 
+    - 
+    - red
+    -
+  * - apple
+    - 
+    - 
+    - circle
+  * - 
+    - red
+    - water
+    -
+  * - 
+    - 
+    - water
+    - circle
 
 
 Creating scenarios from a dataset
@@ -496,23 +498,22 @@ Say we have some results from a survey where we asked agents to choose a random 
     agents = [Agent({"persona":p}) for p in ["Child", "Magician", "Olympic breakdancer"]]
 
     results = q_random.by(agents).run()
-    results.select("persona", "random").print(format="rich")
+    results.select("persona", "random")
 
 
 Our results are:
 
-.. code-block:: text
+.. list-table::
+  :header-rows: 1
 
-    ┏━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┓
-    ┃ agent               ┃ answer  ┃
-    ┃ .persona            ┃ .random ┃
-    ┡━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━┩
-    │ Child               │ 7       │
-    ├─────────────────────┼─────────┤
-    │ Magician            │ 472     │
-    ├─────────────────────┼─────────┤
-    │ Olympic breakdancer │ 529     │
-    └─────────────────────┴─────────┘
+  * - agent.persona 
+    - answer.random
+  * - Child 
+    - 7
+  * - Magician
+    - 472
+  * - Olympic breakdancer
+    - 529
 
 
 We can use the `to_scenario_list()` method turn components of the results into a list of scenarios to use in a new survey:
@@ -526,24 +527,17 @@ We can use the `to_scenario_list()` method turn components of the results into a
 
 We can inspect the scenarios to see that they have been created correctly:
 
-.. code-block:: text
+.. list-table::
+  :header-rows: 1
 
-    {
-        "scenarios": [
-            {
-                "persona": "Child",
-                "random": 7
-            },
-            {
-                "persona": "Magician",
-                "random": 472
-            },
-            {
-                "persona": "Olympic breakdancer",
-                "random": 529
-            }
-        ]
-    }
+  * - persona 
+    - random
+  * - Child 
+    - 7
+  * - Magician
+    - 472
+  * - Olympic breakdancer
+    - 529
 
 
 PDFs as textual scenarios
@@ -581,7 +575,7 @@ Example usage:
     results = survey.by(scenarios).run()
 
     # To print the page and text of each PDF page scenario together with the answers to the question:
-    results.select("page", "text", "answer.*").print(format="rich")
+    results.select("page", "text", "answer.*")
 
 
 See a demo notebook of this method in the notebooks section of the docs index: "Extracting information from PDFs".
@@ -647,25 +641,18 @@ We can add the key to questions as we do scenarios from other data sources:
 
     results = survey.by(s).run()
 
-    results.select("logo", "identify", "colors").print(format="rich")
+    results.select("logo", "identify", "colors")
 
 
 Output using the Expected Parrot logo:
 
-.. code-block:: text 
+.. list-table::
+  :header-rows: 1
 
-    ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-    ┃ answer                                                   ┃ answer                                               ┃
-    ┃ .identify                                                ┃ .colors                                              ┃
-    ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
-    │ The image shows a large letter "E" followed by a pair of │ ['gray', 'green', 'orange', 'pink', 'blue', 'black'] │
-    │ square brackets containing an illustration of a parrot.  │                                                      │
-    │ The parrot is green with a yellow beak and some red and  │                                                      │
-    │ blue coloring on its body. This combination suggests the │                                                      │
-    │ mathematical notation for the expected value, often      │                                                      │
-    │ denoted as "E" followed by a random variable in          │                                                      │
-    │ brackets, commonly used in probability and statistics.   │                                                      │
-    └──────────────────────────────────────────────────────────┴──────────────────────────────────────────────────────┘
+  * - answer.identify 
+    - answer.colors  
+  * - The image shows a large letter "E" followed by a pair of square brackets containing an illustration of a parrot. The parrot is green with a yellow beak and some red and blue coloring on its body. This combination suggests the mathematical notation for the expected value, often denoted as "E" followed by a random variable in brackets, commonly used in probability and statistics.
+    - ['gray', 'green', 'orange', 'pink', 'blue', 'black']
 
 
 See an example of this method in the notebooks section of the docs index: `Using images in a survey <https://docs.expectedparrot.com/en/latest/notebooks/image_scenario_example.html>`_.
@@ -689,23 +676,15 @@ Example usage:
 
 This will return:
 
-.. code-block:: text
+.. list-table::
+  :header-rows: 1
 
-    {
-        "scenarios": [
-            {
-                "item": "color"
-            },
-            {
-                "item": "food"
-            },
-            {
-                "item": "animal"
-            }
-        ]
-    }
-
-
+  * - item 
+  * - color
+  * - food
+  * - animal
+    
+    
 Creating a scenario list from a dictionary
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -730,15 +709,17 @@ Example usage:
 
 This will return a single scenario for the list of items in the dict:
 
-.. code-block:: text 
+.. list-table::
+  :header-rows: 1
 
-    {
-        "item": [
-            "color",
-            "food",
-            "animal"
-        ]
-    }
+  * - key
+    - value  
+  * - item:0
+    - color
+  * - item:1
+    - food
+  * - item:2 
+    - animal
 
 
 If we instead want to create a scenario for each item in the list individually:
@@ -754,21 +735,13 @@ If we instead want to create a scenario for each item in the list individually:
 
 This will return:
 
-.. code-block:: text
+.. list-table::
+  :header-rows: 1
 
-    {
-        "scenarios": [
-            {
-                "item": "color"
-            },
-            {
-                "item": "food"
-            },
-            {
-                "item": "animal"
-            }
-        ]
-    }
+  * - item 
+  * - color
+  * - food
+  * - animal
 
 
 Creating a scenario list from a Wikipedia table
@@ -784,121 +757,269 @@ Example usage:
 
     scenarios = ScenarioList.from_wikipedia("https://en.wikipedia.org/wiki/1990s_in_film", 3)
 
-    scenarios.print(format="rich")
+    scenarios
 
 
 This will return a list of scenarios for the first table on the Wikipedia page:
 
-.. code-block:: text
+.. list-table:: 
+  :header-rows: 1
 
-    ┏━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━┳━━━━━━┳━━━━━┓
-    ┃      ┃                                     ┃                                     ┃                 ┃      ┃ Ref ┃
-    ┃ Rank ┃ Title                               ┃ Studios                             ┃ Worldwide gross ┃ Year ┃ .   ┃
-    ┡━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━╇━━━━━━╇━━━━━┩
-    │ 1    │ Titanic                             │ Paramount Pictures/20th Century Fox │ $1,843,201,268  │ 1997 │     │
-    ├──────┼─────────────────────────────────────┼─────────────────────────────────────┼─────────────────┼──────┼─────┤
-    │ 2    │ Star Wars: Episode I - The Phantom  │ 20th Century Fox                    │ $924,317,558    │ 1999 │     │
-    │      │ Menace                              │                                     │                 │      │     │
-    ├──────┼─────────────────────────────────────┼─────────────────────────────────────┼─────────────────┼──────┼─────┤
-    │ 3    │ Jurassic Park                       │ Universal Pictures                  │ $914,691,118    │ 1993 │     │
-    ├──────┼─────────────────────────────────────┼─────────────────────────────────────┼─────────────────┼──────┼─────┤
-    │ 4    │ Independence Day                    │ 20th Century Fox                    │ $817,400,891    │ 1996 │     │
-    ├──────┼─────────────────────────────────────┼─────────────────────────────────────┼─────────────────┼──────┼─────┤
-    │ 5    │ The Lion King                       │ Walt Disney Studios                 │ $763,455,561    │ 1994 │     │
-    ├──────┼─────────────────────────────────────┼─────────────────────────────────────┼─────────────────┼──────┼─────┤
-    │ 6    │ Forrest Gump                        │ Paramount Pictures                  │ $677,387,716    │ 1994 │     │
-    ├──────┼─────────────────────────────────────┼─────────────────────────────────────┼─────────────────┼──────┼─────┤
-    │ 7    │ The Sixth Sense                     │ Walt Disney Studios                 │ $672,806,292    │ 1999 │     │
-    ├──────┼─────────────────────────────────────┼─────────────────────────────────────┼─────────────────┼──────┼─────┤
-    │ 8    │ The Lost World: Jurassic Park       │ Universal Pictures                  │ $618,638,999    │ 1997 │     │
-    ├──────┼─────────────────────────────────────┼─────────────────────────────────────┼─────────────────┼──────┼─────┤
-    │ 9    │ Men in Black                        │ Sony Pictures/Columbia Pictures     │ $589,390,539    │ 1997 │     │
-    ├──────┼─────────────────────────────────────┼─────────────────────────────────────┼─────────────────┼──────┼─────┤
-    │ 10   │ Armageddon                          │ Walt Disney Studios                 │ $553,709,788    │ 1998 │     │
-    ├──────┼─────────────────────────────────────┼─────────────────────────────────────┼─────────────────┼──────┼─────┤
-    │ 11   │ Terminator 2: Judgment Day          │ TriStar Pictures                    │ $519,843,345    │ 1991 │     │
-    ├──────┼─────────────────────────────────────┼─────────────────────────────────────┼─────────────────┼──────┼─────┤
-    │ 12   │ Ghost                               │ Paramount Pictures                  │ $505,702,588    │ 1990 │     │
-    ├──────┼─────────────────────────────────────┼─────────────────────────────────────┼─────────────────┼──────┼─────┤
-    │ 13   │ Aladdin                             │ Walt Disney Studios                 │ $504,050,219    │ 1992 │     │
-    ├──────┼─────────────────────────────────────┼─────────────────────────────────────┼─────────────────┼──────┼─────┤
-    │ 14   │ Twister                             │ Warner Bros./Universal Pictures     │ $494,471,524    │ 1996 │     │
-    ├──────┼─────────────────────────────────────┼─────────────────────────────────────┼─────────────────┼──────┼─────┤
-    │ 15   │ Toy Story 2                         │ Walt Disney Studios                 │ $485,015,179    │ 1999 │     │
-    ├──────┼─────────────────────────────────────┼─────────────────────────────────────┼─────────────────┼──────┼─────┤
-    │ 16   │ Saving Private Ryan                 │ DreamWorks Pictures/Paramount       │ $481,840,909    │ 1998 │     │
-    │      │                                     │ Pictures                            │                 │      │     │
-    ├──────┼─────────────────────────────────────┼─────────────────────────────────────┼─────────────────┼──────┼─────┤
-    │ 17   │ Home Alone                          │ 20th Century Fox                    │ $476,684,675    │ 1990 │     │
-    ├──────┼─────────────────────────────────────┼─────────────────────────────────────┼─────────────────┼──────┼─────┤
-    │ 18   │ The Matrix                          │ Warner Bros.                        │ $463,517,383    │ 1999 │     │
-    ├──────┼─────────────────────────────────────┼─────────────────────────────────────┼─────────────────┼──────┼─────┤
-    │ 19   │ Pretty Woman                        │ Walt Disney Studios                 │ $463,406,268    │ 1990 │     │
-    ├──────┼─────────────────────────────────────┼─────────────────────────────────────┼─────────────────┼──────┼─────┤
-    │ 20   │ Mission: Impossible                 │ Paramount Pictures                  │ $457,696,359    │ 1996 │     │
-    ├──────┼─────────────────────────────────────┼─────────────────────────────────────┼─────────────────┼──────┼─────┤
-    │ 21   │ Tarzan                              │ Walt Disney Studios                 │ $448,191,819    │ 1999 │     │
-    ├──────┼─────────────────────────────────────┼─────────────────────────────────────┼─────────────────┼──────┼─────┤
-    │ 22   │ Mrs. Doubtfire                      │ 20th Century Fox                    │ $441,286,195    │ 1993 │     │
-    ├──────┼─────────────────────────────────────┼─────────────────────────────────────┼─────────────────┼──────┼─────┤
-    │ 23   │ Dances with Wolves                  │ Orion Pictures                      │ $424,208,848    │ 1990 │     │
-    ├──────┼─────────────────────────────────────┼─────────────────────────────────────┼─────────────────┼──────┼─────┤
-    │ 24   │ The Mummy                           │ Universal Pictures                  │ $415,933,406    │ 1999 │     │
-    ├──────┼─────────────────────────────────────┼─────────────────────────────────────┼─────────────────┼──────┼─────┤
-    │ 25   │ The Bodyguard                       │ Warner Bros.                        │ $411,006,740    │ 1992 │     │
-    ├──────┼─────────────────────────────────────┼─────────────────────────────────────┼─────────────────┼──────┼─────┤
-    │ 26   │ Robin Hood: Prince of Thieves       │ Warner Bros.                        │ $390,493,908    │ 1991 │     │
-    ├──────┼─────────────────────────────────────┼─────────────────────────────────────┼─────────────────┼──────┼─────┤
-    │ 27   │ Godzilla                            │ TriStar Pictures                    │ $379,014,294    │ 1998 │     │
-    ├──────┼─────────────────────────────────────┼─────────────────────────────────────┼─────────────────┼──────┼─────┤
-    │ 28   │ True Lies                           │ 20th Century Fox                    │ $378,882,411    │ 1994 │     │
-    ├──────┼─────────────────────────────────────┼─────────────────────────────────────┼─────────────────┼──────┼─────┤
-    │ 29   │ Toy Story                           │ Walt Disney Studios                 │ $373,554,033    │ 1995 │     │
-    ├──────┼─────────────────────────────────────┼─────────────────────────────────────┼─────────────────┼──────┼─────┤
-    │ 30   │ There's Something About Mary        │ 20th Century Fox                    │ $369,884,651    │ 1998 │     │
-    ├──────┼─────────────────────────────────────┼─────────────────────────────────────┼─────────────────┼──────┼─────┤
-    │ 31   │ The Fugitive                        │ Warner Bros.                        │ $368,875,760    │ 1993 │     │
-    ├──────┼─────────────────────────────────────┼─────────────────────────────────────┼─────────────────┼──────┼─────┤
-    │ 32   │ Die Hard with a Vengeance           │ 20th Century Fox/Cinergi Pictures   │ $366,101,666    │ 1995 │     │
-    ├──────┼─────────────────────────────────────┼─────────────────────────────────────┼─────────────────┼──────┼─────┤
-    │ 33   │ Notting Hill                        │ PolyGram Filmed Entertainment       │ $363,889,678    │ 1999 │     │
-    ├──────┼─────────────────────────────────────┼─────────────────────────────────────┼─────────────────┼──────┼─────┤
-    │ 34   │ A Bug's Life                        │ Walt Disney Studios                 │ $363,398,565    │ 1998 │     │
-    ├──────┼─────────────────────────────────────┼─────────────────────────────────────┼─────────────────┼──────┼─────┤
-    │ 35   │ The World Is Not Enough             │ Metro-Goldwyn-Mayer Pictures        │ $361,832,400    │ 1999 │     │
-    ├──────┼─────────────────────────────────────┼─────────────────────────────────────┼─────────────────┼──────┼─────┤
-    │ 36   │ Home Alone 2: Lost in New York      │ 20th Century Fox                    │ $358,994,850    │ 1992 │     │
-    ├──────┼─────────────────────────────────────┼─────────────────────────────────────┼─────────────────┼──────┼─────┤
-    │ 37   │ American Beauty                     │ DreamWorks Pictures                 │ $356,296,601    │ 1999 │     │
-    ├──────┼─────────────────────────────────────┼─────────────────────────────────────┼─────────────────┼──────┼─────┤
-    │ 38   │ Apollo 13                           │ Universal Pictures/Imagine          │ $355,237,933    │ 1995 │     │
-    │      │                                     │ Entertainment                       │                 │      │     │
-    ├──────┼─────────────────────────────────────┼─────────────────────────────────────┼─────────────────┼──────┼─────┤
-    │ 39   │ Basic Instinct                      │ TriStar Pictures                    │ $352,927,224    │ 1992 │     │
-    ├──────┼─────────────────────────────────────┼─────────────────────────────────────┼─────────────────┼──────┼─────┤
-    │ 40   │ GoldenEye                           │ MGM/United Artists                  │ $352,194,034    │ 1995 │     │
-    ├──────┼─────────────────────────────────────┼─────────────────────────────────────┼─────────────────┼──────┼─────┤
-    │ 41   │ The Mask                            │ New Line Cinema                     │ $351,583,407    │ 1994 │     │
-    ├──────┼─────────────────────────────────────┼─────────────────────────────────────┼─────────────────┼──────┼─────┤
-    │ 42   │ Speed                               │ 20th Century Fox                    │ $350,448,145    │ 1994 │     │
-    ├──────┼─────────────────────────────────────┼─────────────────────────────────────┼─────────────────┼──────┼─────┤
-    │ 43   │ Deep Impact                         │ Paramount Pictures/DreamWorks       │ $349,464,664    │ 1998 │     │
-    │      │                                     │ Pictures                            │                 │      │     │
-    ├──────┼─────────────────────────────────────┼─────────────────────────────────────┼─────────────────┼──────┼─────┤
-    │ 44   │ Beauty and the Beast                │ Walt Disney Studios                 │ $346,317,207    │ 1991 │     │
-    ├──────┼─────────────────────────────────────┼─────────────────────────────────────┼─────────────────┼──────┼─────┤
-    │ 45   │ Pocahontas                          │ Walt Disney Studios                 │ $346,079,773    │ 1995 │     │
-    ├──────┼─────────────────────────────────────┼─────────────────────────────────────┼─────────────────┼──────┼─────┤
-    │ 46   │ The Flintstones                     │ Universal Pictures                  │ $341,631,208    │ 1994 │     │
-    ├──────┼─────────────────────────────────────┼─────────────────────────────────────┼─────────────────┼──────┼─────┤
-    │ 47   │ Batman Forever                      │ Warner Bros.                        │ $336,529,144    │ 1995 │     │
-    ├──────┼─────────────────────────────────────┼─────────────────────────────────────┼─────────────────┼──────┼─────┤
-    │ 48   │ The Rock                            │ Walt Disney Studios                 │ $335,062,621    │ 1996 │     │
-    ├──────┼─────────────────────────────────────┼─────────────────────────────────────┼─────────────────┼──────┼─────┤
-    │ 49   │ Tomorrow Never Dies                 │ MGM/United Artists                  │ $333,011,068    │ 1997 │     │
-    ├──────┼─────────────────────────────────────┼─────────────────────────────────────┼─────────────────┼──────┼─────┤
-    │ 50   │ Seven                               │ New Line Cinema                     │ $327,311,859    │ 1995 │     │
-    └──────┴─────────────────────────────────────┴─────────────────────────────────────┴─────────────────┴──────┴─────┘
+  * - Rank
+    - Title
+    - Studios 
+    - Worldwide gross
+    - Year
+  * - 1
+    - Titanic
+    - Paramount Pictures/20th Century Fox
+    - $1,843,201,268
+    - 1997
+  * - 2
+    - Star Wars: Episode I - The Phantom Menace
+    - 20th Century Fox
+    - $924,317,558
+    - 1999
+  * - 3
+    - Jurassic Park
+    - Universal Pictures
+    - $914,691,118
+    - 1993
+  * - 4
+    - Independence Day
+    - 20th Century Fox
+    - $817,400,891
+    - 1996
+  * - 5
+    - The Lion King
+    - Walt Disney Studios
+    - $763,455,561
+    - 1994
+  * - 6
+    - Forrest Gump
+    - Paramount Pictures
+    - $677,387,716
+    - 1994
+  * - 7
+    - The Sixth Sense
+    - Walt Disney Studios
+    - $672,806,292
+    - 1999
+  * - 8
+    - The Lost World: Jurassic Park
+    - Universal Pictures
+    - $618,638,999
+    - 1997
+  * - 9
+    - Men in Black
+    - Sony Pictures/Columbia Pictures
+    - $589,390,539
+    - 1997
+  * - 10
+    - Armageddon
+    - Walt Disney Studios
+    - $553,709,788
+    - 1998
+  * - 11
+    - Terminator 2: Judgment Day
+    - TriStar Pictures
+    - $519,843,345
+    - 1991
+  * - 12
+    - Ghost
+    - Paramount Pictures
+    - $505,702,588
+    - 1990
+  * - 13
+    - Aladdin
+    - Walt Disney Studios
+    - $504,050,219
+    - 1992
+  * - 14
+    - Twister
+    - Warner Bros./Universal Pictures
+    - $494,471,524
+    - 1996
+  * - 15
+    - Toy Story 2
+    - Walt Disney Studios
+    - $485,015,179
+    - 1999
+  * - 16
+    - Saving Private Ryan
+    - DreamWorks Pictures/Paramount Pictures
+    - $481,840,909
+    - 1998
+  * - 17
+    - Home Alone
+    - 20th Century Fox
+    - $476,684,675
+    - 1990
+  * - 18
+    - The Matrix
+    - Warner Bros.
+    - $463,517,383
+    - 1999
+  * - 19
+    - Pretty Woman
+    - Walt Disney Studios
+    - $463,406,268
+    - 1990
+  * - 20
+    - Mission: Impossible
+    - Paramount Pictures
+    - $457,696,359
+    - 1996
+  * - 21
+    - Tarzan
+    - Walt Disney Studios
+    - $448,191,819
+    - 1999
+  * - 22
+    - Mrs. Doubtfire
+    - 20th Century Fox
+    - $441,286,195
+    - 1993
+  * - 23
+    - Dances with Wolves
+    - Orion Pictures
+    - $424,208,848
+    - 1990
+  * - 24
+    - The Mummy
+    - Universal Pictures
+    - $415,933,406
+    - 1999
+  * - 25
+    - The Bodyguard
+    - Warner Bros.
+    - $411,006,740
+    - 1992
+  * - 26
+    - Robin Hood: Prince of Thieves
+    - Warner Bros.
+    - $390,493,908
+    - 1991
+  * - 27
+    - Godzilla
+    - TriStar Pictures
+    - $379,014,294
+    - 1998
+  * - 28
+    - True Lies
+    - 20th Century Fox
+    - $378,882,411
+    - 1994
+  * - 29
+    - Toy Story
+    - Walt Disney Studios
+    - $373,554,033
+    - 1995
+  * - 30
+    - There's Something About Mary
+    - 20th Century Fox
+    - $369,884,651
+    - 1998
+  * - 31
+    - The Fugitive
+    - Warner Bros.
+    - $368,875,760
+    - 1993
+  * - 32
+    - Die Hard with a Vengeance
+    - 20th Century Fox/Cinergi Pictures
+    - $366,101,666
+    - 1995
+  * - 33
+    - Notting Hill
+    - PolyGram Filmed Entertainment
+    - $363,889,678
+    - 1999
+  * - 34
+    - A Bug's Life
+    - Walt Disney Studios
+    - $363,398,565
+    - 1998
+  * - 35
+    - The World Is Not Enough
+    - Metro-Goldwyn-Mayer Pictures
+    - $361,832,400
+    - 1999
+  * - 36
+    - Home Alone 2: Lost in New York
+    - 20th Century Fox
+    - $358,994,850
+    - 1992
+  * - 37
+    - American Beauty
+    - DreamWorks Pictures
+    - $356,296,601
+    - 1999
+  * - 38
+    - Apollo 13
+    - Universal Pictures/Imagine Entertainment
+    - $355,237,933
+    - 1995
+  * - 39
+    - Basic Instinct
+    - TriStar Pictures
+    - $352,927,224
+    - 1992
+  * - 40
+    - GoldenEye
+    - MGM/United Artists
+    - $352,194,034
+    - 1995
+  * - 41
+    - The Mask
+    - New Line Cinema
+    - $351,583,407
+    - 1994
+  * - 42
+    - Speed
+    - 20th Century Fox
+    - $350,448,145
+    - 1994
+  * - 43
+    - Deep Impact
+    - Paramount Pictures/DreamWorks Pictures
+    - $349,464,664
+    - 1998
+  * - 44
+    - Beauty and the Beast
+    - Walt Disney Studios
+    - $346,317,207
+    - 1991
+  * - 45
+    - Pocahontas
+    - Walt Disney Studios
+    - $346,079,773
+    - 1995
+  * - 46
+    - The Flintstones
+    - Universal Pictures
+    - $341,631,208
+    - 1994
+  * - 47
+    - Batman Forever
+    - Warner Bros.
+    - $336,529,144
+    - 1995
+  * - 48
+    - The Rock
+    - Walt Disney Studios
+    - $335,062,621
+    - 1996
+  * - 49
+    - Tomorrow Never Dies
+    - MGM/United Artists
+    - $333,011,068
+    - 1997
+  * - 50
+    - Seven
+    - New Line Cinema
+    - $327,311,859
+    - 1995
 
 
 The `parameters` let us know the keys that can be used in the question text or stored as metadata. 
@@ -933,143 +1054,117 @@ The scenarios can be used to ask questions about the data in the table:
         results
         .sort_by("Title")
         .select("Title", "leads")
-        .print(format="rich")
     )
 
 
 Output:
 
-.. code-block:: text
+.. list-table:: 
+   :header-rows: 1
 
-    ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-    ┃ scenario                                  ┃ answer                                                              ┃
-    ┃ .Title                                    ┃ .leads                                                              ┃
-    ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
-    │ A Bug's Life                              │ ['Dave Foley', 'Kevin Spacey', 'Julia Louis-Dreyfus', 'Hayden       │
-    │                                           │ Panettiere', 'Phyllis Diller', 'Richard Kind', 'David Hyde Pierce'] │
-    ├───────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────┤
-    │ Aladdin                                   │ ['Mena Massoud', 'Naomi Scott', 'Will Smith']                       │
-    ├───────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────┤
-    │ American Beauty                           │ ['Kevin Spacey', 'Annette Bening', 'Thora Birch', 'Mena Suvari',    │
-    │                                           │ 'Wes Bentley', 'Chris Cooper']                                      │
-    ├───────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────┤
-    │ Apollo 13                                 │ ['Tom Hanks', 'Kevin Bacon', 'Bill Paxton']                         │
-    ├───────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────┤
-    │ Armageddon                                │ ['Bruce Willis', 'Billy Bob Thornton', 'Liv Tyler', 'Ben Affleck']  │
-    ├───────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────┤
-    │ Basic Instinct                            │ ['Michael Douglas', 'Sharon Stone']                                 │
-    ├───────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────┤
-    │ Batman Forever                            │ ['Val Kilmer', 'Tommy Lee Jones', 'Jim Carrey', 'Nicole Kidman',    │
-    │                                           │ "Chris O'Donnell"]                                                  │
-    ├───────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────┤
-    │ Beauty and the Beast                      │ ['Emma Watson', 'Dan Stevens', 'Luke Evans', 'Kevin Kline', 'Josh   │
-    │                                           │ Gad']                                                               │
-    ├───────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────┤
-    │ Dances with Wolves                        │ ['Kevin Costner', 'Mary McDonnell', 'Graham Greene', 'Rodney A.     │
-    │                                           │ Grant']                                                             │
-    ├───────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────┤
-    │ Deep Impact                               │ ['Téa Leoni', 'Morgan Freeman', 'Elijah Wood', 'Robert Duvall']     │
-    ├───────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────┤
-    │ Die Hard with a Vengeance                 │ ['Bruce Willis', 'Samuel L. Jackson', 'Jeremy Irons']               │
-    ├───────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────┤
-    │ Forrest Gump                              │ ['Tom Hanks', 'Robin Wright', 'Gary Sinise', 'Mykelti Williamson',  │
-    │                                           │ 'Sally Field']                                                      │
-    ├───────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────┤
-    │ Ghost                                     │ ['Patrick Swayze', 'Demi Moore', 'Whoopi Goldberg']                 │
-    ├───────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────┤
-    │ Godzilla                                  │ ['Matthew Broderick', 'Jean Reno', 'Bryan Cranston', 'Aaron         │
-    │                                           │ Taylor-Johnson', 'Elizabeth Olsen', 'Kyle Chandler', 'Vera          │
-    │                                           │ Farmiga', 'Millie Bobby Brown']                                     │
-    ├───────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────┤
-    │ GoldenEye                                 │ ['Pierce Brosnan', 'Sean Bean', 'Izabella Scorupco', 'Famke         │
-    │                                           │ Janssen']                                                           │
-    ├───────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────┤
-    │ Home Alone                                │ ['Macaulay Culkin', 'Joe Pesci', 'Daniel Stern', "Catherine         │
-    │                                           │ O'Hara", 'John Heard']                                              │
-    ├───────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────┤
-    │ Home Alone 2: Lost in New York            │ ['Macaulay Culkin', 'Joe Pesci', 'Daniel Stern', "Catherine         │
-    │                                           │ O'Hara", 'John Heard']                                              │
-    ├───────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────┤
-    │ Independence Day                          │ ['Will Smith', 'Bill Pullman', 'Jeff Goldblum']                     │
-    ├───────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────┤
-    │ Jurassic Park                             │ ['Sam Neill', 'Laura Dern', 'Jeff Goldblum', 'Richard               │
-    │                                           │ Attenborough']                                                      │
-    ├───────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────┤
-    │ Men in Black                              │ ['Tommy Lee Jones', 'Will Smith']                                   │
-    ├───────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────┤
-    │ Mission: Impossible                       │ ['Tom Cruise', 'Ving Rhames', 'Simon Pegg', 'Rebecca Ferguson',     │
-    │                                           │ 'Jeremy Renner']                                                    │
-    ├───────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────┤
-    │ Mrs. Doubtfire                            │ ['Robin Williams', 'Sally Field', 'Pierce Brosnan', 'Lisa Jakub',   │
-    │                                           │ 'Matthew Lawrence', 'Mara Wilson']                                  │
-    ├───────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────┤
-    │ Notting Hill                              │ ['Julia Roberts', 'Hugh Grant']                                     │
-    ├───────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────┤
-    │ Pocahontas                                │ ['Irene Bedard', 'Mel Gibson', 'Judy Kuhn', 'David Ogden Stiers',   │
-    │                                           │ 'Russell Means', 'Christian Bale']                                  │
-    ├───────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────┤
-    │ Pretty Woman                              │ ['Richard Gere', 'Julia Roberts']                                   │
-    ├───────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────┤
-    │ Robin Hood: Prince of Thieves             │ ['Kevin Costner', 'Morgan Freeman', 'Mary Elizabeth Mastrantonio',  │
-    │                                           │ 'Christian Slater', 'Alan Rickman']                                 │
-    ├───────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────┤
-    │ Saving Private Ryan                       │ ['Tom Hanks', 'Matt Damon', 'Tom Sizemore', 'Edward Burns', 'Barry  │
-    │                                           │ Pepper', 'Adam Goldberg', 'Vin Diesel', 'Giovanni Ribisi', 'Jeremy  │
-    │                                           │ Davies']                                                            │
-    ├───────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────┤
-    │ Seven                                     │ ['Brad Pitt', 'Morgan Freeman', 'Gwyneth Paltrow']                  │
-    ├───────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────┤
-    │ Speed                                     │ ['Keanu Reeves', 'Sandra Bullock', 'Dennis Hopper']                 │
-    ├───────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────┤
-    │ Star Wars: Episode I - The Phantom Menace │ ['Liam Neeson', 'Ewan McGregor', 'Natalie Portman', 'Jake Lloyd']   │
-    ├───────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────┤
-    │ Tarzan                                    │ ['Johnny Weissmuller', "Maureen O'Sullivan"]                        │
-    ├───────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────┤
-    │ Terminator 2: Judgment Day                │ ['Arnold Schwarzenegger', 'Linda Hamilton', 'Edward Furlong',       │
-    │                                           │ 'Robert Patrick']                                                   │
-    ├───────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────┤
-    │ The Bodyguard                             │ ['Kevin Costner', 'Whitney Houston']                                │
-    ├───────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────┤
-    │ The Flintstones                           │ ['John Goodman', 'Elizabeth Perkins', 'Rick Moranis', "Rosie        │
-    │                                           │ O'Donnell"]                                                         │
-    ├───────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────┤
-    │ The Fugitive                              │ ['Harrison Ford', 'Tommy Lee Jones']                                │
-    ├───────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────┤
-    │ The Lion King                             │ ['Matthew Broderick', 'James Earl Jones', 'Jeremy Irons', 'Moira    │
-    │                                           │ Kelly', 'Nathan Lane', 'Ernie Sabella', 'Rowan Atkinson', 'Whoopi   │
-    │                                           │ Goldberg']                                                          │
-    ├───────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────┤
-    │ The Lost World: Jurassic Park             │ ['Jeff Goldblum', 'Julianne Moore', 'Pete Postlethwaite']           │
-    ├───────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────┤
-    │ The Mask                                  │ ['Jim Carrey', 'Cameron Diaz']                                      │
-    ├───────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────┤
-    │ The Matrix                                │ ['Keanu Reeves', 'Laurence Fishburne', 'Carrie-Anne Moss']          │
-    ├───────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────┤
-    │ The Mummy                                 │ ['Brendan Fraser', 'Rachel Weisz', 'John Hannah', 'Arnold Vosloo']  │
-    ├───────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────┤
-    │ The Rock                                  │ ['Sean Connery', 'Nicolas Cage', 'Ed Harris']                       │
-    ├───────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────┤
-    │ The Sixth Sense                           │ ['Bruce Willis', 'Haley Joel Osment', 'Toni Collette', 'Olivia      │
-    │                                           │ Williams']                                                          │
-    ├───────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────┤
-    │ The World Is Not Enough                   │ ['Pierce Brosnan', 'Sophie Marceau', 'Denise Richards', 'Robert     │
-    │                                           │ Carlyle']                                                           │
-    ├───────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────┤
-    │ There's Something About Mary              │ ['Cameron Diaz', 'Ben Stiller', 'Matt Dillon']                      │
-    ├───────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────┤
-    │ Titanic                                   │ ['Leonardo DiCaprio', 'Kate Winslet']                               │
-    ├───────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────┤
-    │ Tomorrow Never Dies                       │ ['Pierce Brosnan', 'Michelle Yeoh', 'Jonathan Pryce', 'Teri         │
-    │                                           │ Hatcher']                                                           │
-    ├───────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────┤
-    │ Toy Story                                 │ ['Tom Hanks', 'Tim Allen']                                          │
-    ├───────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────┤
-    │ Toy Story 2                               │ ['Tom Hanks', 'Tim Allen', 'Joan Cusack']                           │
-    ├───────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────┤
-    │ True Lies                                 │ ['Arnold Schwarzenegger', 'Jamie Lee Curtis']                       │
-    ├───────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────┤
-    │ Twister                                   │ ['Helen Hunt', 'Bill Paxton']                                       │
-    └───────────────────────────────────────────┴─────────────────────────────────────────────────────────────────────┘
+   * - Title
+     - Leads
+   * - A Bug's Life
+     - Dave Foley, Kevin Spacey, Julia Louis-Dreyfus, Hayden Panettiere, Phyllis Diller, Richard Kind, David Hyde Pierce
+   * - Aladdin
+     - Mena Massoud, Naomi Scott, Will Smith
+   * - American Beauty
+     - Kevin Spacey, Annette Bening, Thora Birch, Mena Suvari, Wes Bentley, Chris Cooper
+   * - Apollo 13
+     - Tom Hanks, Kevin Bacon, Bill Paxton
+   * - Armageddon
+     - Bruce Willis, Billy Bob Thornton, Liv Tyler, Ben Affleck
+   * - Basic Instinct
+     - Michael Douglas, Sharon Stone
+   * - Batman Forever
+     - Val Kilmer, Tommy Lee Jones, Jim Carrey, Nicole Kidman, Chris O'Donnell
+   * - Beauty and the Beast
+     - Emma Watson, Dan Stevens, Luke Evans, Kevin Kline, Josh Gad
+   * - Dances with Wolves
+     - Kevin Costner, Mary McDonnell, Graham Greene, Rodney A. Grant
+   * - Deep Impact
+     - Téa Leoni, Morgan Freeman, Elijah Wood, Robert Duvall
+   * - Die Hard with a Vengeance
+     - Bruce Willis, Samuel L. Jackson, Jeremy Irons
+   * - Forrest Gump
+     - Tom Hanks, Robin Wright, Gary Sinise, Mykelti Williamson, Sally Field
+   * - Ghost
+     - Patrick Swayze, Demi Moore, Whoopi Goldberg
+   * - Godzilla
+     - Matthew Broderick, Jean Reno, Bryan Cranston, Aaron Taylor-Johnson, Elizabeth Olsen, Kyle Chandler, Vera Farmiga, Millie Bobby Brown
+   * - GoldenEye
+     - Pierce Brosnan, Sean Bean, Izabella Scorupco, Famke Janssen
+   * - Home Alone
+     - Macaulay Culkin, Joe Pesci, Daniel Stern, Catherine O'Hara, John Heard
+   * - Home Alone 2: Lost in New York
+     - Macaulay Culkin, Joe Pesci, Daniel Stern, Catherine O'Hara, John Heard
+   * - Independence Day
+     - Will Smith, Bill Pullman, Jeff Goldblum
+   * - Jurassic Park
+     - Sam Neill, Laura Dern, Jeff Goldblum, Richard Attenborough
+   * - Men in Black
+     - Tommy Lee Jones, Will Smith
+   * - Mission: Impossible
+     - Tom Cruise, Ving Rhames, Simon Pegg, Rebecca Ferguson, Jeremy Renner
+   * - Mrs. Doubtfire
+     - Robin Williams, Sally Field, Pierce Brosnan, Lisa Jakub, Matthew Lawrence, Mara Wilson
+   * - Notting Hill
+     - Julia Roberts, Hugh Grant
+   * - Pocahontas
+     - Irene Bedard, Mel Gibson, Judy Kuhn, David Ogden Stiers, Russell Means, Christian Bale
+   * - Pretty Woman
+     - Richard Gere, Julia Roberts
+   * - Robin Hood: Prince of Thieves
+     - Kevin Costner, Morgan Freeman, Mary Elizabeth Mastrantonio, Christian Slater, Alan Rickman
+   * - Saving Private Ryan
+     - Tom Hanks, Matt Damon, Tom Sizemore, Edward Burns, Barry Pepper, Adam Goldberg, Vin Diesel, Giovanni Ribisi, Jeremy Davies
+   * - Seven
+     - Brad Pitt, Morgan Freeman, Gwyneth Paltrow
+   * - Speed
+     - Keanu Reeves, Sandra Bullock, Dennis Hopper
+   * - Star Wars: Episode I - The Phantom Menace
+     - Liam Neeson, Ewan McGregor, Natalie Portman, Jake Lloyd
+   * - Tarzan
+     - Johnny Weissmuller, Maureen O'Sullivan
+   * - Terminator 2: Judgment Day
+     - Arnold Schwarzenegger, Linda Hamilton, Edward Furlong, Robert Patrick
+   * - The Bodyguard
+     - Kevin Costner, Whitney Houston
+   * - The Flintstones
+     - John Goodman, Elizabeth Perkins, Rick Moranis, Rosie O'Donnell
+   * - The Fugitive
+     - Harrison Ford, Tommy Lee Jones
+   * - The Lion King
+     - Matthew Broderick, James Earl Jones, Jeremy Irons, Moira Kelly, Nathan Lane, Ernie Sabella, Rowan Atkinson, Whoopi Goldberg
+   * - The Lost World: Jurassic Park
+     - Jeff Goldblum, Julianne Moore, Pete Postlethwaite
+   * - The Mask
+     - Jim Carrey, Cameron Diaz
+   * - The Matrix
+     - Keanu Reeves, Laurence Fishburne, Carrie-Anne Moss
+   * - The Mummy
+     - Brendan Fraser, Rachel Weisz, John Hannah, Arnold Vosloo
+   * - The Rock
+     - Sean Connery, Nicolas Cage, Ed Harris
+   * - The Sixth Sense
+     - Bruce Willis, Haley Joel Osment, Toni Collette, Olivia Williams
+   * - The World Is Not Enough
+     - Pierce Brosnan, Sophie Marceau, Denise Richards, Robert Carlyle
+   * - There's Something About Mary
+     - Cameron Diaz, Ben Stiller, Matt Dillon
+   * - Titanic
+     - Leonardo DiCaprio, Kate Winslet
+   * - Tomorrow Never Dies
+     - Pierce Brosnan, Michelle Yeoh, Jonathan Pryce, Teri Hatcher
+   * - Toy Story
+     - Tom Hanks, Tim Allen
+   * - Toy Story 2
+     - Tom Hanks, Tim Allen, Joan Cusack
+   * - True Lies
+     - Arnold Schwarzenegger, Jamie Lee Curtis
+   * - Twister
+     - Helen Hunt, Bill Paxton
+
 
 
 Creating a scenario list from a CSV
@@ -1102,36 +1197,29 @@ We can create a list of scenarios from the CSV file:
 
 This will return a scenario for each row:
 
-.. code-block:: text
+.. list-table:: 
+   :header-rows: 1
 
-    {
-        "scenarios": [
-            {
-                "message": "I can't log in...",
-                "user": "Alice",
-                "source": "Customer support",
-                "date": "2022-01-01"
-            },
-            {
-                "message": "I need help with my bill...",
-                "user": "Bob",
-                "source": "Phone",
-                "date": "2022-01-02"
-            },
-            {
-                "message": "I have a safety concern...",
-                "user": "Charlie",
-                "source": "Email",
-                "date": "2022-01-03"
-            },
-            {
-                "message": "I need help with a product...",
-                "user": "David",
-                "source": "Chat",
-                "date": "2022-01-04"
-            }
-        ]
-    }
+   * - Message
+     - User
+     - Source
+     - Date
+   * - I can't log in...
+     - Alice
+     - Customer support
+     - 2022-01-01
+   * - I need help with my bill...
+     - Bob
+     - Phone
+     - 2022-01-02
+   * - I have a safety concern...
+     - Charlie
+     - Email
+     - 2022-01-03
+   * - I need help with a product...
+     - David
+     - Chat
+     - 2022-01-04
 
 
 If the scenario keys are not valid Python identifiers, we can use the `give_valid_names()` method to convert them to valid identifiers.
@@ -1162,36 +1250,29 @@ We can create a list of scenarios from the CSV file:
 
 This will return scenarios with non-Pythonic identifiers:
 
-.. code-block:: text
+.. list-table::
+   :header-rows: 1
 
-    {
-        "scenarios": [
-            {
-                "What is the message?": "I can't log in...",
-                "Who is the user?": "Alice",
-                "What is the source?": "Customer support",
-                "What is the date?": "2022-01-01"
-            },
-            {
-                "What is the message?": "I need help with my bill...",
-                "Who is the user?": "Bob",
-                "What is the source?": "Phone",
-                "What is the date?": "2022-01-02"
-            },
-            {
-                "What is the message?": "I have a safety concern...",
-                "Who is the user?": "Charlie",
-                "What is the source?": "Email",
-                "What is the date?": "2022-01-03"
-            },
-            {
-                "What is the message?": "I need help with a product...",
-                "Who is the user?": "David",
-                "What is the source?": "Chat",
-                "What is the date?": "2022-01-04"
-            }
-        ]
-    }
+   * - What is the message?
+     - Who is the user?
+     - What is the source?
+     - What is the date?
+   * - I can't log in...
+     - Alice
+     - Customer support
+     - 2022-01-01
+   * - I need help with my bill...
+     - Bob
+     - Phone
+     - 2022-01-02
+   * - I have a safety concern...
+     - Charlie
+     - Email
+     - 2022-01-03
+   * - I need help with a product...
+     - David
+     - Chat
+     - 2022-01-04
 
 
 We can then use the `give_valid_names()` method to convert the keys to valid identifiers:
@@ -1205,36 +1286,29 @@ We can then use the `give_valid_names()` method to convert the keys to valid ide
 
 This will return scenarios with valid identifiers (removing stop words and using underscores):
 
-.. code-block:: text
+.. list-table::
+   :header-rows: 1
 
-    {
-        "scenarios": [
-            {
-                "message": "I can't log in...",
-                "user": "Alice",
-                "source": "Customer support",
-                "date": "2022-01-01"
-            },
-            {
-                "message": "I need help with my bill...",
-                "user": "Bob",
-                "source": "Phone",
-                "date": "2022-01-02"
-            },
-            {
-                "message": "I have a safety concern...",
-                "user": "Charlie",
-                "source": "Email",
-                "date": "2022-01-03"
-            },
-            {
-                "message": "I need help with a product...",
-                "user": "David",
-                "source": "Chat",
-                "date": "2022-01-04"
-            }
-        ]
-    }
+   * - message
+     - user
+     - source
+     - date
+   * - I can't log in...
+     - Alice
+     - Customer support
+     - 2022-01-01
+   * - I need help with my bill...
+     - Bob
+     - Phone
+     - 2022-01-02
+   * - I have a safety concern...
+     - Charlie
+     - Email
+     - 2022-01-03
+   * - I need help with a product...
+     - David
+     - Chat
+     - 2022-01-04
 
 
 Methods for un/pivoting and grouping scenarios
@@ -1271,72 +1345,48 @@ We can call the unpivot the scenario list:
 
 This will return a list of scenarios with the `source`, `date`, and `message` key/value pairs unpivoted:
 
-.. code-block:: python
+.. list-table::
+   :header-rows: 1
 
-    {
-        "scenarios": [
-            {
-                "user": "Alice",
-                "variable": "source",
-                "value": "Customer support"
-            },
-            {
-                "user": "Alice",
-                "variable": "date",
-                "value": "2022-01-01"
-            },
-            {
-                "user": "Alice",
-                "variable": "message",
-                "value": "I can't log in..."
-            },
-            {
-                "user": "Bob",
-                "variable": "source",
-                "value": "Phone"
-            },
-            {
-                "user": "Bob",
-                "variable": "date",
-                "value": "2022-01-02"
-            },
-            {
-                "user": "Bob",
-                "variable": "message",
-                "value": "I need help with my bill..."
-            },
-            {
-                "user": "Charlie",
-                "variable": "source",
-                "value": "Email"
-            },
-            {
-                "user": "Charlie",
-                "variable": "date",
-                "value": "2022-01-03"
-            },
-            {
-                "user": "Charlie",
-                "variable": "message",
-                "value": "I have a safety concern..."
-            },
-            {
-                "user": "David",
-                "variable": "source",
-                "value": "Chat"
-            },
-            {
-                "user": "David",
-                "variable": "date",
-                "value": "2022-01-04"
-            },
-            {
-                "user": "David",
-                "variable": "message",
-                "value": "I need help with a product..."
-            }
-        ]
-    }
+   * - user
+     - variable
+     - value
+   * - Alice
+     - source
+     - Customer support
+   * - Alice
+     - date
+     - 2022-01-01
+   * - Alice
+     - message
+     - I can't log in...
+   * - Bob
+     - source
+     - Phone
+   * - Bob
+     - date
+     - 2022-01-02
+   * - Bob
+     - message
+     - I need help with my bill...
+   * - Charlie
+     - source
+     - Email
+   * - Charlie
+     - date
+     - 2022-01-03
+   * - Charlie
+     - message
+     - I have a safety concern...
+   * - David
+     - source
+     - Chat
+   * - David
+     - date
+     - 2022-01-04
+   * - David
+     - message
+     - I need help with a product...
 
 
 Pivoting a scenario list
@@ -1353,36 +1403,29 @@ We can call the `pivot()` method to reverse the unpivot operation:
 
 This will return a list of scenarios with the `source`, `date`, and `message` key/value pairs pivoted back to their original form:
 
-.. code-block:: python
+.. list-table::
+   :header-rows: 1
 
-    {
-        "scenarios": [
-            {
-                "user": "Alice",
-                "source": "Customer support",
-                "date": "2022-01-01",
-                "message": "I can't log in..."
-            },
-            {
-                "user": "Bob",
-                "source": "Phone",
-                "date": "2022-01-02",
-                "message": "I need help with my bill..."
-            },
-            {
-                "user": "Charlie",
-                "source": "Email",
-                "date": "2022-01-03",
-                "message": "I have a safety concern..."
-            },
-            {
-                "user": "David",
-                "source": "Chat",
-                "date": "2022-01-04",
-                "message": "I need help with a product..."
-            }
-        ]
-    }
+   * - user
+     - source
+     - date
+     - message
+   * - Alice
+     - Customer support
+     - 2022-01-01
+     - I can't log in...
+   * - Bob
+     - Phone
+     - 2022-01-02
+     - I need help with my bill...
+   * - Charlie
+     - Email
+     - 2022-01-03
+     - I have a safety concern...
+   * - David
+     - Chat
+     - 2022-01-04
+     - I need help with a product...
 
 
 Grouping scenarios
@@ -1411,23 +1454,18 @@ Example usage:
 
 This will return a list of scenarios with the `a` and `b` key/value pairs grouped by the `group` key and the `avg_a` and `sum_b` key/value pairs calculated by the `avg_sum` function:
 
-.. code-block:: python
+.. list-table::
+   :header-rows: 1
 
-    {
-        "scenarios": [
-            {
-                "group": "A",
-                "avg_a": 12.5,
-                "sum_b": 45
-            },
-            {
-                "group": "B",
-                "avg_a": 14.5,
-                "sum_b": 49
-            }
-        ]
-    }
-
+   * - group
+     - avg_a
+     - sum_b
+   * - A
+     - 12.5
+     - 45
+   * - B
+     - 14.5
+     - 49
 
 
 Data labeling tasks
@@ -1477,25 +1515,29 @@ We can then analyze the results to see how the agent answered the questions for 
 
 .. code-block:: python
 
-    results.select("message", "safety", "topic").print(format="rich")
+    results.select("message", "safety", "topic")
 
 
 This will print a table of the scenarios and the answers to the questions for each scenario:
 
-.. code-block:: text
+.. list-table::
+   :header-rows: 1
 
-    ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━━━━━━━━━┓
-    ┃ scenario                      ┃ answer  ┃ answer          ┃
-    ┃ .message                      ┃ .safety ┃ .topic          ┃
-    ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━━━━━━━━━┩
-    │ I can't log in...             │ No      │ Login issue     │
-    ├───────────────────────────────┼─────────┼─────────────────┤
-    │ I need help with a product... │ No      │ Product support │
-    ├───────────────────────────────┼─────────┼─────────────────┤
-    │ I need help with my bill...   │ No      │ Billing         │
-    ├───────────────────────────────┼─────────┼─────────────────┤
-    │ I have a safety concern...    │ Yes     │ Safety          │
-    └───────────────────────────────┴─────────┴─────────────────┘
+   * - message
+     - safety
+     - topic
+   * - I can't log in...
+     - No
+     - Login issue
+   * - I need help with a product...
+     - No
+     - Product support
+   * - I need help with my bill...
+     - No
+     - Billing
+   * - I have a safety concern...
+     - Yes
+     - Safety
 
 
 Adding metadata
@@ -1542,29 +1584,47 @@ Note that the question texts are unchanged:
     results = survey.by(scenarios).run()
 
     # Inspect the results
-    results.select("scenario.*", "answer.*").print(format="rich")
+    results.select("scenario.*", "answer.*")
 
 
 We can see how the agent answered the questions for each scenario, together with the metadata that was not included in the question text:
 
-.. code-block:: text
+.. list-table::
+   :header-rows: 1
 
-    ┏━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━┳━━━━━━━━━┓
-    ┃ scenario ┃ scenario         ┃ scenario                      ┃ scenario   ┃ answer          ┃ answer  ┃
-    ┃ .user    ┃ .source          ┃ .message                      ┃ .date      ┃ .topic          ┃ .safety ┃
-    ┡━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━╇━━━━━━━━━┩
-    │ Alice    │ Customer support │ I can't log in...             │ 2022-01-01 │ Login issue     │ No      │
-    ├──────────┼──────────────────┼───────────────────────────────┼────────────┼─────────────────┼─────────┤
-    │ Bob      │ Phone            │ I need help with my bill...   │ 2022-01-02 │ Billing         │ No      │
-    ├──────────┼──────────────────┼───────────────────────────────┼────────────┼─────────────────┼─────────┤
-    │ Charlie  │ Email            │ I have a safety concern...    │ 2022-01-03 │ Safety          │ Yes     │
-    ├──────────┼──────────────────┼───────────────────────────────┼────────────┼─────────────────┼─────────┤
-    │ David    │ Chat             │ I need help with a product... │ 2022-01-04 │ Product support │ No      │
-    └──────────┴──────────────────┴───────────────────────────────┴────────────┴─────────────────┴─────────┘
+   * - user
+     - source
+     - message
+     - date
+     - topic
+     - safety
+   * - Alice
+     - Customer support
+     - I can't log in...
+     - 2022-01-01
+     - Login issue
+     - No
+   * - Bob
+     - Phone
+     - I need help with my bill...
+     - 2022-01-02
+     - Billing
+     - No
+   * - Charlie
+     - Email
+     - I have a safety concern...
+     - 2022-01-03
+     - Safety
+     - Yes
+   * - David
+     - Chat
+     - I need help with a product...
+     - 2022-01-04
+     - Product support
+     - No
 
 
 To learn more about accessing, analyzing and visualizing survey results, please see the :ref:`results` section.
-
 
 
 Slicing/chunking content into scenarios
@@ -1594,27 +1654,21 @@ Example usage:
 
 This will return:
 
-.. code-block:: text 
+.. list-table::
+   :header-rows: 1
 
-    {
-        "scenarios": [
-            {
-                "my_text": "This is a long text.",
-                "my_text_chunk": 0,
-                "my_text_original": "4aec42eda32b7f32bde8be6a6bc11125"
-            },
-            {
-                "my_text": "Pages and pages, oh my!",
-                "my_text_chunk": 1,
-                "my_text_original": "4aec42eda32b7f32bde8be6a6bc11125"
-            },
-            {
-                "my_text": "I need to chunk it.",
-                "my_text_chunk": 2,
-                "my_text_original": "4aec42eda32b7f32bde8be6a6bc11125"
-            }
-        ]
-    }
+   * - my_text
+     - my_text_chunk
+     - my_text_original
+   * - This is a long text.
+     - 0
+     - 4aec42eda32b7f32bde8be6a6bc11125
+   * - Pages and pages, oh my!
+     - 1
+     - 4aec42eda32b7f32bde8be6a6bc11125
+   * - I need to chunk it.
+     - 2
+     - 4aec42eda32b7f32bde8be6a6bc11125
 
 
 
