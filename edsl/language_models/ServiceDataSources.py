@@ -266,16 +266,12 @@ class KeyLookupBuilder:
                 self._add_id(key, value, source)
 
 
-# combined = KeyLookupBuilder()
-# KEY_LOOKUP = combined.service_lookup()
-
 if __name__ == "__main__":
     import doctest
 
     doctest.testmod()
 
     combined = KeyLookupBuilder()
-
     d = combined.service_lookup()
 
     print(d["openai"])
