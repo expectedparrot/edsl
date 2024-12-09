@@ -33,16 +33,19 @@ class AvailableModelFetcher:
         self.services: List["InferenceServiceABC"] = services
         self.added_models = added_models
 
+        self._service_map = {
+            service._inference_service_: service for service in services
+        }
+
     def fetch_service_by_service_name(self, service_name: str) -> "InferenceServiceABC":
         """The service name is the _inference_service_ attribute of the service."""
-        for service in self.services:
-            if service._inference_service_ == service_name:
-                return service
+        if service_name in self._service_map:
+            return self._service_map[service_name]
         raise ValueError(f"Service {service_name} not found")
 
     @classmethod
     @lru_cache(maxsize=128)
-    def _get_service_available(
+    def get_available_models_by_service(
         cls, service: "InferenceServiceABC", warn: bool = False
     ) -> list[str]:
         """
@@ -56,7 +59,7 @@ class AvailableModelFetcher:
         self, service: "InferenceServiceABC"
     ) -> Tuple[List[List[Any]], str]:
         """Helper function to get models for a single service."""
-        service_models = self._get_service_available(service)
+        service_models = self.get_available_models_by_service(service)
         return (
             [[model, service._inference_service_, -1] for model in service_models],
             service._inference_service_,

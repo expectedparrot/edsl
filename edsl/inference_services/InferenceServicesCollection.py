@@ -15,6 +15,11 @@ class InferenceServicesCollection:
         self.availability_fetcher = AvailableModelFetcher(
             self.services, self.added_models
         )
+        self._service_names_to_classes = {
+            service._inference_service_: service for service in self.services
+        }
+
+        self._models_to_services = {}
 
     @classmethod
     def add_model(cls, service_name: str, model_name: str) -> None:
@@ -41,18 +46,25 @@ class InferenceServicesCollection:
 
             return TestService.create_model(model_name)
 
-        if service_name:  # they passed a service name
-            for service in self.services:
-                if (
-                    service_name == service._inference_service_
-                ):  # find the right inference service; short list so ok to loop
-                    return service.create_model(model_name)
+        # they passed a service name
+        if service_name:
+            service = self._service_names_to_classes.get(service_name)
+            return service.create_model(model_name)
 
-        for service in self.services:  # this didn't pass a service name
-            matching_models = self.availability_fetcher._get_service_available(service)
-            if model_name in matching_models:
-                if service_name is None or service_name == service._inference_service_:
-                    return service.create_model(model_name)
+        # they didn't pass a service name but maybe we know which service to use
+        if model_name in self._models_to_services:
+            service = self._models_to_services[model_name]
+            return service.create_model(model_name)
+
+        # they didn't pass a service name and we don't know which service to use
+        for service in self.services:
+            available_models = (
+                self.availability_fetcher.get_available_models_by_service(service)
+            )
+            if model_name in available_models:
+                self._models_to_services[model_name] = service
+            if service_name is None or service_name == service._inference_service_:
+                return service.create_model(model_name)
 
         raise InferenceServiceError(
             f"Model {model_name} not found in any of the services"
