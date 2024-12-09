@@ -3,9 +3,25 @@ import warnings
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from edsl.inference_services.ServiceAvailability import ServiceAvailability
 from functools import lru_cache
+from dataclasses import dataclass
 
 if TYPE_CHECKING:
     from edsl.inference_services.InferenceServiceABC import InferenceServiceABC
+
+
+@dataclass
+class ModelInfo:
+    model: str
+    service_name: str
+    index: int
+
+
+@dataclass
+class AvailableModels:
+    models: List[ModelInfo]
+
+    def __in__(self, model_name: str) -> bool:
+        return any(model.model == model_name for model in self.models)
 
 
 class AvailableModelFetcher:

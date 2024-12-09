@@ -49,9 +49,8 @@ class InferenceServicesCollection:
                     return service.create_model(model_name)
 
         for service in self.services:  # this didn't pass a service name
-            if model_name in self.availability_fetcher.get_service_models(
-                service
-            ):  # self._get_service_available(service):
+            matching_models = self.availability_fetcher._get_service_available(service)
+            if model_name in matching_models:
                 if service_name is None or service_name == service._inference_service_:
                     return service.create_model(model_name)
 
