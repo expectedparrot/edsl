@@ -780,12 +780,17 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         return Jobs(survey=self).by(*args)
 
     def to_jobs(self):
-        """Convert the survey to a Jobs object."""
+        """Convert the survey to a Jobs object.
+        >>> s = Survey.example()
+        >>> s.to_jobs()
+        Jobs(...)
+        """
         from edsl.jobs.Jobs import Jobs
 
         return Jobs(survey=self)
 
     def show_prompts(self):
+        """Show the prompts for the survey."""
         return self.to_jobs().show_prompts()
 
     # endregion

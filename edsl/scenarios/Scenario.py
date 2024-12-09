@@ -156,6 +156,23 @@ class Scenario(Base, UserDict, ScenarioHtmlMixin):
                 new_scenario[key] = value
         return new_scenario
 
+    def new_column_names(self, new_names: List[str]) -> "Scenario":
+        """Rename the keys of a scenario.
+
+        >>> s = Scenario({"food": "wood chips"})
+        >>> s.new_column_names(["food_preference"])
+        Scenario({'food_preference': 'wood chips'})
+        """
+        try:
+            assert len(new_names) == len(self.keys())
+        except AssertionError:
+            print("The number of new names must match the number of keys.")
+
+        new_scenario = Scenario()
+        for new_names, value in zip(new_names, self.values()):
+            new_scenario[new_names] = value
+        return new_scenario
+
     def table(self, tablefmt: str = "grid") -> str:
         from edsl.results.Dataset import Dataset
 

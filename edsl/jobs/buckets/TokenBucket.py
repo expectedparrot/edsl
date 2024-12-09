@@ -1,8 +1,11 @@
 from typing import Union, List, Any, Optional
 import asyncio
 import time
+from threading import RLock
+from edsl.jobs.decorators import synchronized_class
 
 
+@synchronized_class
 class TokenBucket:
     """This is a token bucket used to respect rate limits to services."""
 
@@ -18,6 +21,7 @@ class TokenBucket:
         self.bucket_type = bucket_type
         self.capacity = capacity  # Maximum number of tokens
         self.added_tokens = 0
+        self._lock = RLock()
 
         self.target_rate = (
             capacity * 60
@@ -224,25 +228,6 @@ class TokenBucket:
             return self.num_released / 0.001
 
         return (self.num_released / elapsed_time) * 60
-
-        # # Filter log entries within the time window
-        # relevant_log = [(t, tokens) for t, tokens in self.log if t >= start_time]
-
-        # if len(relevant_log) < 2:
-        #     return 0  # Not enough data points to calculate throughput
-
-        # # Calculate total tokens used
-        # initial_tokens = relevant_log[0][1]
-        # final_tokens = relevant_log[-1][1]
-        # tokens_used = self.num_released - (final_tokens - initial_tokens)
-
-        # # Calculate actual time elapsed
-        # actual_time_elapsed = relevant_log[-1][0] - relevant_log[0][0]
-
-        # # Calculate throughput in tokens per minute
-        # throughput = (tokens_used / actual_time_elapsed) * 60
-
-        # return throughput
 
 
 if __name__ == "__main__":
