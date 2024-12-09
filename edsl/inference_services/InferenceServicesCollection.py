@@ -78,7 +78,6 @@ class InferenceServicesCollection:
 
     @lru_cache(maxsize=128)
     def available(self, service: Optional[str] = None) -> List[Tuple[str, str, int]]:
-        print("Fetching available models")
         return self.availability_fetcher.available(service)
 
     def reset_cache(self) -> None:
