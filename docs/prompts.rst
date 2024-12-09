@@ -48,13 +48,13 @@ For example, here we create a survey consisting of a single question and use the
 
 Output:
 
-.. code-block:: text
+.. list-table::
+   :header-rows: 1
 
-   ┏━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┓
-   ┃ user_prompt            ┃ system_prompt ┃
-   ┡━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━┩
-   │ How do you feel today? │               │
-   └────────────────────────┴───────────────┘
+   * - user_prompt
+     - system_prompt
+   * - How do you feel today?
+     - 
 
 
 In this example, the `user_prompt` is identical to the question text because there are no default additional instructions for free text questions, and the `system_prompt` is blank because we did not use an agent.
@@ -84,14 +84,13 @@ Here we create an agent, add it to the survey and show the prompts again:
 
 Output:
 
-.. code-block:: text
+.. list-table::
+   :header-rows: 1
 
-   ┏━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-   ┃ user_prompt            ┃ system_prompt                                                                          ┃
-   ┡━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
-   │ How do you feel today? │ You are answering questions as if you were a human. Do not break character. Your       │
-   │                        │ traits: {'persona': 'You are a high school student.', 'age': 15}                       │
-   └────────────────────────┴────────────────────────────────────────────────────────────────────────────────────────┘
+   * - user_prompt
+     - system_prompt
+   * - How do you feel today?
+     - You are answering questions as if you were a human. Do not break character. Your traits: {'persona': 'You are a high school student.', 'age': 15}
 
 
 This time we can see that the `system_prompt` includes the default agent instructions (*You are answering questions as if you were a human. Do not break character. Your traits:*) and the agent's traits.
@@ -104,30 +103,30 @@ If we want to see more information about the question, we can create a job that 
 
    model = Model("gpt-4o")
 
-   survey.by(agent).by(model).prompts().print(format="rich") # to display the prompts in a rich format
+   survey.by(agent).by(model).prompts()
 
 
 Output:
 
-.. code-block:: text
+.. list-table::
+   :header-rows: 1
 
-   ┏━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━━━━━┓
-   ┃ user_prompt  ┃ system_prom… ┃ interview_i… ┃ question_na… ┃ scenario_ind… ┃ agent_index ┃ model  ┃ estimated_c… ┃
-   ┡━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━━━━━┩
-   │ How do you   │ You are      │ 0            │ today        │ 0             │ 0           │ gpt-4o │ 3.074999999… │
-   │ feel today?  │ answering    │              │              │               │             │        │              │
-   │              │ questions as │              │              │               │             │        │              │
-   │              │ if you were  │              │              │               │             │        │              │
-   │              │ a human. Do  │              │              │               │             │        │              │
-   │              │ not break    │              │              │               │             │        │              │
-   │              │ character.   │              │              │               │             │        │              │
-   │              │ Your traits: │              │              │               │             │        │              │
-   │              │ {'persona':  │              │              │               │             │        │              │
-   │              │ 'You are a   │              │              │               │             │        │              │
-   │              │ high school  │              │              │               │             │        │              │
-   │              │ student.',   │              │              │               │             │        │              │
-   │              │ 'age': 15}   │              │              │               │             │        │              │
-   └──────────────┴──────────────┴──────────────┴──────────────┴───────────────┴─────────────┴────────┴──────────────┘
+   * - user_prompt
+     - system_prompt
+     - interview_index
+     - question_name
+     - scenario_index
+     - agent_index
+     - model
+     - estimated_cost
+   * - How do you feel today?
+     - You are answering questions as if you were a human. Do not break character. Your traits: {'persona': 'You are a high school student.', 'age': 15}
+     - 0
+     - today
+     - 0
+     - 0
+     - gpt-4o
+     - 0.0004125
 
 
 Modifying agent instructions
@@ -157,55 +156,53 @@ Here we create agents with and without an instruction and compare the prompts:
 
 Output:
 
-.. code-block:: text
+.. list-table::
+   :header-rows: 1
 
-   ┏━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-   ┃ user_prompt            ┃ system_prompt                                                                          ┃
-   ┡━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
-   │ How do you feel today? │ You are answering questions as if you were a human. Do not break character. Your       │
-   │                        │ traits: {'persona': 'You are a high school student.', 'age': 15}                       │
-   ├────────────────────────┼────────────────────────────────────────────────────────────────────────────────────────┤
-   │ How do you feel today? │ You are tired. Your traits: {'persona': 'You are a high school student.', 'age': 15}   │
-   └────────────────────────┴────────────────────────────────────────────────────────────────────────────────────────┘
+   * - user_prompt
+     - system_prompt
+   * - How do you feel today?
+     - You are answering questions as if you were a human. Do not break character. Your traits: {'persona': 'You are a high school student.', 'age': 15}
+   * - How do you feel today?
+     - You are tired. Your traits: {'persona': 'You are a high school student.', 'age': 15}
 
 
 If we use the `prompts()` method to see more details, we will find that the `agent_index` is different for each agent, allowing us to distinguish between them in the survey results, and the `interview_index` is also incremented for each question/agent/model combination:
 
 .. code-block:: python
 
-   survey.by(agents).by(model).prompts().print(format="rich") # using the survey, agents and model from examples above
+   survey.by(agents).by(model).prompts() # using the survey, agents and model from examples above
 
 
 Output:
 
-.. code-block:: text 
+.. list-table::
+   :header-rows: 1
 
-   ┏━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━━━━━┓
-   ┃ user_prompt  ┃ system_prom… ┃ interview_i… ┃ question_na… ┃ scenario_ind… ┃ agent_index ┃ model  ┃ estimated_c… ┃
-   ┡━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━━━━━┩
-   │ How do you   │ You are      │ 0            │ today        │ 0             │ 0           │ gpt-4o │ 3.074999999… │
-   │ feel today?  │ answering    │              │              │               │             │        │              │
-   │              │ questions as │              │              │               │             │        │              │
-   │              │ if you were  │              │              │               │             │        │              │
-   │              │ a human. Do  │              │              │               │             │        │              │
-   │              │ not break    │              │              │               │             │        │              │
-   │              │ character.   │              │              │               │             │        │              │
-   │              │ Your traits: │              │              │               │             │        │              │
-   │              │ {'persona':  │              │              │               │             │        │              │
-   │              │ 'You are a   │              │              │               │             │        │              │
-   │              │ high school  │              │              │               │             │        │              │
-   │              │ student.',   │              │              │               │             │        │              │
-   │              │ 'age': 15}   │              │              │               │             │        │              │
-   ├──────────────┼──────────────┼──────────────┼──────────────┼───────────────┼─────────────┼────────┼──────────────┤
-   │ How do you   │ You are      │ 1            │ today        │ 0             │ 1           │ gpt-4o │ 1.95e-05     │
-   │ feel today?  │ tired. Your  │              │              │               │             │        │              │
-   │              │ traits:      │              │              │               │             │        │              │
-   │              │ {'persona':  │              │              │               │             │        │              │
-   │              │ 'You are a   │              │              │               │             │        │              │
-   │              │ high school  │              │              │               │             │        │              │
-   │              │ student.',   │              │              │               │             │        │              │
-   │              │ 'age': 15}   │              │              │               │             │        │              │
-   └──────────────┴──────────────┴──────────────┴──────────────┴───────────────┴─────────────┴────────┴──────────────┘
+   * - user_prompt
+     - system_prompt
+     - interview_index
+     - question_name
+     - scenario_index
+     - agent_index
+     - model
+     - estimated_cost
+   * - How do you feel today?
+     - You are answering questions as if you were a human. Do not break character. Your traits: {'persona': 'You are a high school student.', 'age': 15}
+     - 0
+     - today
+     - 0
+     - 0
+     - gpt-4o
+     - 0.0004125
+   * - How do you feel today?
+     - You are tired. Your traits: {'persona': 'You are a high school student.', 'age': 15}
+     - 1
+     - today
+     - 0
+     - 1
+     - gpt-4o
+     - 0.000265
 
 
 Agent names 
@@ -239,38 +236,32 @@ For example, here we create a multiple choice question and inspect the user prom
 
    survey = Survey([q])
 
-   survey.by(agent).prompts().select("user_prompt").print(format="rich") # to display just the user prompt
+   survey.by(agent).prompts().select("user_prompt") # to display just the user prompt
 
 
 Output:
 
-.. code-block:: text
+.. list-table::
+   :header-rows: 1
 
-   ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-   ┃ user_prompt                                                                                    ┃
-   ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
-   │                                                                                                │
-   │ What is your favorite subject?                                                                 │
-   │                                                                                                │
-   │                                                                                                │
-   │ Math                                                                                           │
-   │                                                                                                │
-   │ English                                                                                        │
-   │                                                                                                │
-   │ Social studies                                                                                 │
-   │                                                                                                │
-   │ Science                                                                                        │
-   │                                                                                                │
-   │ Other                                                                                          │
-   │                                                                                                │
-   │                                                                                                │
-   │ Only 1 option may be selected.                                                                 │
-   │                                                                                                │
-   │ Respond only with a string corresponding to one of the options.                                │
-   │                                                                                                │
-   │                                                                                                │
-   │ After the answer, you can put a comment explaining why you chose that option on the next line. │
-   └────────────────────────────────────────────────────────────────────────────────────────────────┘
+   * - user_prompt
+   * - What is your favorite subject?
+
+       Math
+
+       English
+
+       Social studies
+
+       Science
+
+       Other
+
+       Only 1 option may be selected.
+
+       Respond only with a string corresponding to one of the options.
+
+       After the answer, you can put a comment explaining why you chose that option on the next line.
 
 
 In this case, the `user_prompt` for the question includes both the question text and the default instructions for multiple choice questions: *"Only one answer may be selected..."*
@@ -306,35 +297,30 @@ For example, here we modify the multiple choice question above to not include a 
 
    survey = Survey([q])
 
-   survey.by(agent).prompts().select("user_prompt").print(format="rich") # using the agent and model from previous examples
+   survey.by(agent).prompts().select("user_prompt") # using the agent and model from previous examples
 
 
 Output:
 
-.. code-block:: text
+.. list-table::
+   :header-rows: 1
 
-   ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-   ┃ user_prompt                                                     ┃
-   ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
-   │                                                                 │
-   │ What is your favorite subject?                                  │
-   │                                                                 │
-   │                                                                 │
-   │ Math                                                            │
-   │                                                                 │
-   │ English                                                         │
-   │                                                                 │
-   │ Social studies                                                  │
-   │                                                                 │
-   │ Science                                                         │
-   │                                                                 │
-   │ Other                                                           │
-   │                                                                 │
-   │                                                                 │
-   │ Only 1 option may be selected.                                  │
-   │                                                                 │
-   │ Respond only with a string corresponding to one of the options. │
-   └─────────────────────────────────────────────────────────────────┘
+   * - user_prompt
+   * - What is your favorite subject?
+
+       Math
+
+       English
+
+       Social studies
+
+       Science
+
+       Other
+
+       Only 1 option may be selected.
+
+       Respond only with a string corresponding to one of the options.
 
 
 There is no longer any instruction about a comment at the end of the user prompt.
@@ -364,85 +350,64 @@ For example:
 
    survey = Survey([q1, q2])
 
-   survey.by(agent).by(model).prompts().print(format="rich") # using the agent and model from previous examples
+   survey.by(agent).by(model).prompts() # using the agent and model from previous examples
 
 
 Output:
 
-.. code-block:: text
+.. list-table::
+   :header-rows: 1
 
-   ┏━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━━━━━━┓
-   ┃ user_prompt  ┃ system_prom… ┃ interview_i… ┃ question_na… ┃ scenario_in… ┃ agent_index ┃ model  ┃ estimated_co… ┃
-   ┡━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━╇━━━━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━━━━━━┩
-   │              │ You are      │ 0            │ favorite_su… │ 0            │ 0           │ gpt-4o │ 8.2499999999… │
-   │ What is your │ answering    │              │              │              │             │        │               │
-   │ favorite     │ questions as │              │              │              │             │        │               │
-   │ subject?     │ if you were  │              │              │              │             │        │               │
-   │              │ a human. Do  │              │              │              │             │        │               │
-   │              │ not break    │              │              │              │             │        │               │
-   │ Math         │ character.   │              │              │              │             │        │               │
-   │              │ Your traits: │              │              │              │             │        │               │
-   │ English      │ {'persona':  │              │              │              │             │        │               │
-   │              │ 'You are a   │              │              │              │             │        │               │
-   │ Social       │ high school  │              │              │              │             │        │               │
-   │ studies      │ student.',   │              │              │              │             │        │               │
-   │              │ 'age': 15}   │              │              │              │             │        │               │
-   │ Science      │              │              │              │              │             │        │               │
-   │              │              │              │              │              │             │        │               │
-   │ Other        │              │              │              │              │             │        │               │
-   │              │              │              │              │              │             │        │               │
-   │              │              │              │              │              │             │        │               │
-   │ Only 1       │              │              │              │              │             │        │               │
-   │ option may   │              │              │              │              │             │        │               │
-   │ be selected. │              │              │              │              │             │        │               │
-   │              │              │              │              │              │             │        │               │
-   │ Respond only │              │              │              │              │             │        │               │
-   │ with a       │              │              │              │              │             │        │               │
-   │ string       │              │              │              │              │             │        │               │
-   │ correspondi… │              │              │              │              │             │        │               │
-   │ to one of    │              │              │              │              │             │        │               │
-   │ the options. │              │              │              │              │             │        │               │
-   │              │              │              │              │              │             │        │               │
-   │              │              │              │              │              │             │        │               │
-   │ After the    │              │              │              │              │             │        │               │
-   │ answer, you  │              │              │              │              │             │        │               │
-   │ can put a    │              │              │              │              │             │        │               │
-   │ comment      │              │              │              │              │             │        │               │
-   │ explaining   │              │              │              │              │             │        │               │
-   │ why you      │              │              │              │              │             │        │               │
-   │ chose that   │              │              │              │              │             │        │               │
-   │ option on    │              │              │              │              │             │        │               │
-   │ the next     │              │              │              │              │             │        │               │
-   │ line.        │              │              │              │              │             │        │               │
-   ├──────────────┼──────────────┼──────────────┼──────────────┼──────────────┼─────────────┼────────┼───────────────┤
-   │              │ You are      │ 0            │ college_plan │ 0            │ 0           │ gpt-4o │ 6.3e-05       │
-   │ Do you plan  │ answering    │              │              │              │             │        │               │
-   │ to go to     │ questions as │              │              │              │             │        │               │
-   │ college?     │ if you were  │              │              │              │             │        │               │
-   │              │ a human. Do  │              │              │              │             │        │               │
-   │              │ not break    │              │              │              │             │        │               │
-   │ No           │ character.   │              │              │              │             │        │               │
-   │              │ Your traits: │              │              │              │             │        │               │
-   │ Yes          │ {'persona':  │              │              │              │             │        │               │
-   │              │ 'You are a   │              │              │              │             │        │               │
-   │              │ high school  │              │              │              │             │        │               │
-   │ Only 1       │ student.',   │              │              │              │             │        │               │
-   │ option may   │ 'age': 15}   │              │              │              │             │        │               │
-   │ be selected. │              │              │              │              │             │        │               │
-   │ Please       │              │              │              │              │             │        │               │
-   │ respond with │              │              │              │              │             │        │               │
-   │ just your    │              │              │              │              │             │        │               │
-   │ answer.      │              │              │              │              │             │        │               │
-   │              │              │              │              │              │             │        │               │
-   │              │              │              │              │              │             │        │               │
-   │ After the    │              │              │              │              │             │        │               │
-   │ answer, you  │              │              │              │              │             │        │               │
-   │ can put a    │              │              │              │              │             │        │               │
-   │ comment      │              │              │              │              │             │        │               │
-   │ explaining   │              │              │              │              │             │        │               │
-   │ your         │              │              │              │              │             │        │               │
-   │ response.    │              │              │              │              │             │        │               │
-   └──────────────┴──────────────┴──────────────┴──────────────┴──────────────┴─────────────┴────────┴───────────────┘
+   * - user_prompt
+     - system_prompt
+     - interview_index
+     - question_name
+     - scenario_index
+     - agent_index
+     - model
+     - estimated_cost
+   * - What is your favorite subject?
+
+       Math
+
+       English
+
+       Social studies
+
+       Science
+
+       Other
+
+       Only 1 option may be selected.
+
+       Respond only with a string corresponding to one of the options.
+
+       After the answer, you can put a comment explaining why you chose that option on the next line.
+     - You are answering questions as if you were a human. Do not break character. Your traits: {'persona': 'You are a high school student.', 'age': 15}
+     - 0
+     - favorite_subject
+     - 0
+     - 0
+     - gpt-4o
+     - 0.001105
+   * - Do you plan to go to college?
+
+       No
+
+       Yes
+
+       Only 1 option may be selected.
+
+       Please respond with just your answer.
+
+       After the answer, you can put a comment explaining your response.
+     - You are answering questions as if you were a human. Do not break character. Your traits: {'persona': 'You are a high school student.', 'age': 15}
+     - 0
+     - college_plan
+     - 0
+     - 0
+     - gpt-4o
+     - 0.00084
 
 
 Modifying prompts
@@ -480,46 +445,48 @@ To select all the `prompt` columns at once:
 
 .. code-block:: python
 
-   results.select("prompt.*").print(format="rich") 
+   results.select("prompt.*") 
 
 
 Output:
 
-.. code-block:: text
+.. list-table::
+   :header-rows: 1
 
-   ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-   ┃ prompt                    ┃ prompt                     ┃ prompt                    ┃ prompt                     ┃
-   ┃ .favorite_subject_user_p… ┃ .college_plan_system_prom… ┃ .favorite_subject_system… ┃ .college_plan_user_prompt  ┃
-   ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
-   │                           │ You are answering          │ You are answering         │                            │
-   │ What is your favorite     │ questions as if you were a │ questions as if you were  │ Do you plan to go to       │
-   │ subject?                  │ human. Do not break        │ a human. Do not break     │ college?                   │
-   │                           │ character. You are an      │ character. You are an     │                            │
-   │                           │ agent with the following   │ agent with the following  │                            │
-   │ Math                      │ persona:                   │ persona:                  │ No                         │
-   │                           │ {'persona': 'You are a     │ {'persona': 'You are a    │                            │
-   │ English                   │ high school student.',     │ high school student.',    │ Yes                        │
-   │                           │ 'age': 15}                 │ 'age': 15}                │                            │
-   │ Social studies            │                            │                           │                            │
-   │                           │                            │                           │ Only 1 option may be       │
-   │ Science                   │                            │                           │ selected.                  │
-   │                           │                            │                           │ Please respond with just   │
-   │ Other                     │                            │                           │ your answer.               │
-   │                           │                            │                           │                            │
-   │                           │                            │                           │                            │
-   │ Only 1 option may be      │                            │                           │ After the answer, you can  │
-   │ selected.                 │                            │                           │ put a comment explaining   │
-   │                           │                            │                           │ your response.             │
-   │ Respond only with a       │                            │                           │                            │
-   │ string corresponding to   │                            │                           │                            │
-   │ one of the options.       │                            │                           │                            │
-   │                           │                            │                           │                            │
-   │                           │                            │                           │                            │
-   │ After the answer, you can │                            │                           │                            │
-   │ put a comment explaining  │                            │                           │                            │
-   │ why you chose that option │                            │                           │                            │
-   │ on the next line.         │                            │                           │                            │
-   └───────────────────────────┴────────────────────────────┴───────────────────────────┴────────────────────────────┘
+   * - prompt.favorite_subject_user_prompt
+     - prompt.college_plan_user_prompt
+     - prompt.favorite_subject_system_prompt
+     - prompt.college_plan_system_prompt
+   * - What is your favorite subject?
+
+       Math
+
+       English
+
+       Social studies
+
+       Science
+
+       Other
+
+       Only 1 option may be selected.
+
+       Respond only with a string corresponding to one of the options.
+
+       After the answer, you can put a comment explaining why you chose that option on the next line.
+     - Do you plan to go to college?
+
+       No
+
+       Yes
+
+       Only 1 option may be selected.
+
+       Please respond with just your answer.
+
+       After the answer, you can put a comment explaining your response.
+     - You are answering questions as if you were a human. Do not break character. Your traits: {'persona': 'You are a high school student.', 'age': 15}
+     - You are answering questions as if you were a human. Do not break character. Your traits: {'persona': 'You are a high school student.', 'age': 15}
 
 
 Or to specify the order in the table we can name them individually:
@@ -533,47 +500,48 @@ Or to specify the order in the table we can name them individually:
          "favorite_subject_user_prompt",
          "college_plan_user_prompt"
       )
-      .print(format="rich")
    )
 
 
 Output:
 
-.. code-block:: text
+.. list-table::
+   :header-rows: 1
 
-   ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-   ┃ prompt                    ┃ prompt                     ┃ prompt                    ┃ prompt                     ┃
-   ┃ .favorite_subject_system… ┃ .college_plan_system_prom… ┃ .favorite_subject_user_p… ┃ .college_plan_user_prompt  ┃
-   ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
-   │ You are answering         │ You are answering          │                           │                            │
-   │ questions as if you were  │ questions as if you were a │ What is your favorite     │ Do you plan to go to       │
-   │ a human. Do not break     │ human. Do not break        │ subject?                  │ college?                   │
-   │ character. You are an     │ character. You are an      │                           │                            │
-   │ agent with the following  │ agent with the following   │                           │                            │
-   │ persona:                  │ persona:                   │ Math                      │ No                         │
-   │ {'persona': 'You are a    │ {'persona': 'You are a     │                           │                            │
-   │ high school student.',    │ high school student.',     │ English                   │ Yes                        │
-   │ 'age': 15}                │ 'age': 15}                 │                           │                            │
-   │                           │                            │ Social studies            │                            │
-   │                           │                            │                           │ Only 1 option may be       │
-   │                           │                            │ Science                   │ selected.                  │
-   │                           │                            │                           │ Please respond with just   │
-   │                           │                            │ Other                     │ your answer.               │
-   │                           │                            │                           │                            │
-   │                           │                            │                           │                            │
-   │                           │                            │ Only 1 option may be      │ After the answer, you can  │
-   │                           │                            │ selected.                 │ put a comment explaining   │
-   │                           │                            │                           │ your response.             │
-   │                           │                            │ Respond only with a       │                            │
-   │                           │                            │ string corresponding to   │                            │
-   │                           │                            │ one of the options.       │                            │
-   │                           │                            │                           │                            │
-   │                           │                            │                           │                            │
-   │                           │                            │ After the answer, you can │                            │
-   │                           │                            │ put a comment explaining  │                            │
-   │                           │                            │ why you chose that option │                            │
-   │                           │                            │ on the next line.         │                            │
-   └───────────────────────────┴────────────────────────────┴───────────────────────────┴────────────────────────────┘
+   * - prompt.favorite_subject_system_prompt
+     - prompt.college_plan_system_prompt
+     - prompt.favorite_subject_user_prompt
+     - prompt.college_plan_user_prompt
+   * - You are answering questions as if you were a human. Do not break character. Your traits: {'persona': 'You are a high school student.', 'age': 15}
+     - You are answering questions as if you were a human. Do not break character. Your traits: {'persona': 'You are a high school student.', 'age': 15}
+     - What is your favorite subject?
+
+       Math
+
+       English
+
+       Social studies
+
+       Science
+
+       Other
+
+       Only 1 option may be selected.
+
+       Respond only with a string corresponding to one of the options.
+
+       After the answer, you can put a comment explaining why you chose that option on the next line.
+     - Do you plan to go to college?
+
+       No
+
+       Yes
+
+       Only 1 option may be selected.
+
+       Please respond with just your answer.
+
+       After the answer, you can put a comment explaining your response.
 
 
 More about question prompts
