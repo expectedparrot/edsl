@@ -1,80 +1,93 @@
-from typing import Any, List, Tuple
+from typing import Any, List, Tuple, Optional, TYPE_CHECKING
 import warnings
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from edsl.inference_services.ServiceAvailability import ServiceAvailability
+from functools import lru_cache
+from dataclasses import dataclass
+
+if TYPE_CHECKING:
+    from edsl.inference_services.InferenceServiceABC import InferenceServiceABC
+
+
+@dataclass
+class ModelInfo:
+    model: str
+    service_name: str
+    index: int
+
+
+@dataclass
+class AvailableModels:
+    models: List[ModelInfo]
+
+    def __in__(self, model_name: str) -> bool:
+        return any(model.model == model_name for model in self.models)
 
 
 class AvailableModelFetcher:
+    """Fetches available models from the various services."""
 
     service_availability = ServiceAvailability()
 
     def __init__(self, services, added_models):
-        self.services = services
+        self.services: List["InferenceServiceABC"] = services
         self.added_models = added_models
 
+        self._service_map = {
+            service._inference_service_: service for service in services
+        }
+
+    def fetch_service_by_service_name(self, service_name: str) -> "InferenceServiceABC":
+        """The service name is the _inference_service_ attribute of the service."""
+        if service_name in self._service_map:
+            return self._service_map[service_name]
+        raise ValueError(f"Service {service_name} not found")
+
     @classmethod
-    def _get_service_available(cls, service, warn: bool = False) -> list[str]:
+    @lru_cache(maxsize=128)
+    def get_available_models_by_service(
+        cls, service: "InferenceServiceABC", warn: bool = False
+    ) -> list[str]:
+        """
+        Gets the available models for a single service.
+        It service *not* the name of the service but rather the service object.
+        """
         return cls.service_availability.get_service_available(service, warn)
 
-        # try:
-        #     service_models = service.available()
-        # except Exception:
-        #     if warn:
-        #         warnings.warn(
-        #             f"""Error getting models for {service._inference_service_}.
-        #             Check that you have properly stored your Expected Parrot API key and activated remote inference, or stored your own API keys for the language models that you want to use.
-        #             See https://docs.expectedparrot.com/en/latest/api_keys.html for instructions on storing API keys.
-        #             Relying on Coop.""",
-        #             UserWarning,
-        #         )
-        #     # Use the list of models on Coop as a fallback
-        #     try:
-        #         models_from_coop = cls.models_from_coop()
-        #         service_models = models_from_coop.get(service._inference_service_, [])
+    @lru_cache(maxsize=128)
+    def get_service_models(
+        self, service: "InferenceServiceABC"
+    ) -> Tuple[List[List[Any]], str]:
+        """Helper function to get models for a single service."""
+        service_models = self.get_available_models_by_service(service)
+        return (
+            [[model, service._inference_service_, -1] for model in service_models],
+            service._inference_service_,
+        )
 
-        #         # cache results
-        #         service._models_list_cache = service_models
-
-        #     # Finally, use the available models cache from the Python file
-        #     except Exception:
-        #         if warn:
-        #             warnings.warn(
-        #                 f"""Error getting models for {service._inference_service_}.
-        #                 Relying on EDSL cache.""",
-        #                 UserWarning,
-        #             )
-
-        #         from edsl.inference_services.models_available_cache import (
-        #             models_available,
-        #         )
-
-        #         service_models = models_available.get(service._inference_service_, [])
-
-        #         # cache results
-        #         service._models_list_cache = service_models
-
-        # return service_models
-
-    def available(self) -> List[List[Any]]:
+    def available(self, service: Optional[str] = None) -> List[List[Any]]:
         """
         Get available models from all services using parallel execution.
         Returns a list of [model, service_name, -1] entries.
         """
-        total_models = []
+        if service:
+            service = self.fetch_service_by_service_name(service)
+            total_models = self.get_service_models(service=service)[
+                0
+            ]  # don't need to the service name b/c we already know it
+            sorted_models = sorted(total_models)
+            for i, model in enumerate(sorted_models):
+                model[2] = "NA"
+                model = tuple(model)
+            return sorted_models
 
-        def get_service_models(service) -> Tuple[List[List[Any]], str]:
-            """Helper function to get models for a single service."""
-            service_models = self._get_service_available(service)
-            return (
-                [[model, service._inference_service_, -1] for model in service_models],
-                service._inference_service_,
-            )
+        total_models = []
 
         # Use a ThreadPoolExecutor to parallel process the services
         with ThreadPoolExecutor(max_workers=min(len(self.services), 10)) as executor:
             # Submit all service queries to the thread pool
             future_to_service = {
-                executor.submit(get_service_models, service): service
+                executor.submit(self.get_service_models, service): service
                 for service in self.services
             }
 
