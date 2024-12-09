@@ -85,9 +85,6 @@ class MistralAIService(InferenceServiceABC):
                 "top_p": 0.9,
             }
 
-            _tpm = cls.get_tpm(cls)
-            _rpm = cls.get_rpm(cls)
-
             def sync_client(self):
                 return cls.sync_client()
 
