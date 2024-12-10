@@ -255,11 +255,11 @@ We can call the `show_flow()` method to display a graphic of the flow of the sur
 .. image:: static/survey_show_flow.png
    :alt: Survey Flow Diagram
    :align: left
-   :width: 300px
   
 
-::
-::
+.. code-block:: html 
+
+   <br><br>
 
 
 Stop rules
