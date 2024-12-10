@@ -50,6 +50,7 @@ Output:
 
 .. list-table::
    :header-rows: 1
+   :widths: 30 50
 
    * - user_prompt
      - system_prompt
@@ -110,6 +111,7 @@ Output:
 
 .. list-table::
    :header-rows: 1
+   :widths: 20 20 20 20 20 20 20 20
 
    * - user_prompt
      - system_prompt
@@ -158,6 +160,7 @@ Output:
 
 .. list-table::
    :header-rows: 1
+   :widths: 30 50 
 
    * - user_prompt
      - system_prompt
@@ -178,6 +181,7 @@ Output:
 
 .. list-table::
    :header-rows: 1
+   :widths: 20 20 20 20 20 20 20 20
 
    * - user_prompt
      - system_prompt
@@ -243,6 +247,7 @@ Output:
 
 .. list-table::
    :header-rows: 1
+   :widths: 30 50 
 
    * - user_prompt
    * - What is your favorite subject?
@@ -304,6 +309,7 @@ Output:
 
 .. list-table::
    :header-rows: 1
+   :widths: 30 50
 
    * - user_prompt
    * - What is your favorite subject?
@@ -357,6 +363,7 @@ Output:
 
 .. list-table::
    :header-rows: 1
+   :widths: 20 20 20 20 20 20 20 20
 
    * - user_prompt
      - system_prompt
@@ -452,6 +459,7 @@ Output:
 
 .. list-table::
    :header-rows: 1
+   :widths: 50 50 50 50
 
    * - prompt.favorite_subject_user_prompt
      - prompt.college_plan_user_prompt
@@ -507,6 +515,7 @@ Output:
 
 .. list-table::
    :header-rows: 1
+   :widths: 50 50 50 50
 
    * - prompt.favorite_subject_system_prompt
      - prompt.college_plan_system_prompt
