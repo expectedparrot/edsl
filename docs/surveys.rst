@@ -224,19 +224,22 @@ We can run the survey and verify that the rule was applied:
 .. code-block:: python
 
    results = survey.by(agent).by(model).run() # using the agent and model from the previous example
-   results.select("consume_local_news", "sources", "rate_coverage", "minutes_reading").print(format="rich")
+   results.select("consume_local_news", "sources", "rate_coverage", "minutes_reading")
 
 
 This will print the answers, showing "None" for a skipped question (your own results for answers may vary):
 
-.. code-block:: text
-    
-   ┏━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━┓
-   ┃ answer              ┃ answer   ┃ answer         ┃ answer           ┃
-   ┃ .consume_local_news ┃ .sources ┃ .rate_coverage ┃ .minutes_reading ┃
-   ┡━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━┩
-   │ Never               │ None     │ 4              │ 0                │
-   └─────────────────────┴──────────┴────────────────┴──────────────────┘
+.. list-table::
+   :header-rows: 1
+
+   * - answer.consume_local_news
+     - answer.sources
+     - answer.rate_coverage
+     - answer.minutes_reading
+   * - Never
+     - None
+     - 4
+     - 0
 
 
 Show flow
@@ -252,7 +255,7 @@ We can call the `show_flow()` method to display a graphic of the flow of the sur
 .. image:: static/survey_show_flow.png
    :alt: Survey Flow Diagram
    :align: left
-   :width: 50%
+   :width: 300px
   
 
 .. raw:: html
@@ -276,21 +279,28 @@ Here we use `add_stop_rule()` to end the survey at q1 if the response is "Never"
    survey = survey.add_stop_rule(q1, "consume_local_news == 'Never'")
 
 
-This time we see that the survey ended when the response to "color" was "Blue":
+This time we see that the survey ended when the response to "consume_local_news" was "Never":
 
 .. code-block:: python
     
    results = survey.by(agent).run()
-   results.select("consume_local_news", "sources", "rate_coverage", "minutes_reading").print(format="rich")
+   results.select("consume_local_news", "sources", "rate_coverage", "minutes_reading")
 
-.. code-block:: text
-    
-   ┏━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━┓
-   ┃ answer              ┃ answer   ┃ answer         ┃ answer           ┃
-   ┃ .consume_local_news ┃ .sources ┃ .rate_coverage ┃ .minutes_reading ┃
-   ┡━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━┩
-   │ Never               │ None     │ None           │ None             │
-   └─────────────────────┴──────────┴────────────────┴──────────────────┘
+
+Output:
+
+.. list-table::
+   :header-rows: 1
+
+   * - answer.consume_local_news
+     - answer.sources
+     - answer.rate_coverage
+     - answer.minutes_reading
+   * - Never
+     - None
+     - None
+     - None
+
 
 
 Other rules
@@ -312,20 +322,22 @@ We can run the survey and verify that the rule was applied:
 .. code-block:: python
     
    results = survey.by(agent).run()
-   results.select("consume_local_news", "sources", "rate_coverage", "minutes_reading").print(format="rich")
+   results.select("consume_local_news", "sources", "rate_coverage", "minutes_reading")
 
 
 We can see that both q2 and q3 were skipped but q4 was administered (and the response makes sense for the agent):
 
-.. code-block:: text
-    
-   ┏━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━┓
-   ┃ answer              ┃ answer   ┃ answer         ┃ answer           ┃
-   ┃ .consume_local_news ┃ .sources ┃ .rate_coverage ┃ .minutes_reading ┃
-   ┡━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━┩
-   │ Never               │ None     │ None           │ 0                │
-   └─────────────────────┴──────────┴────────────────┴──────────────────┘
+.. list-table::
+   :header-rows: 1
 
+   * - answer.consume_local_news
+     - answer.sources
+     - answer.rate_coverage
+     - answer.minutes_reading
+   * - Never
+     - None
+     - None
+     - 0
 
 
 Conditional expressions
@@ -363,23 +375,19 @@ For example, here we use the answer to q0 in the prompt for q1:
 
    results = survey.by(agent).run()
 
-   results.select("color", "examples").print(format="rich")
+   results.select("color", "examples")
 
 
 In this example, q0 will be administered before q1 and the response to q0 is piped into q1.
 Output:
 
-.. code-block:: text
+.. list-table::
+   :header-rows: 1
 
-   ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-   ┃ answer                                                    ┃ answer                                              ┃
-   ┃ .color                                                    ┃ .examples                                           ┃
-   ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
-   │ As a botanist, I find myself drawn to the vibrant greens  │ ['Leaves', 'Grass', 'Ferns', 'Moss', 'Green algae'] │
-   │ of nature. Green is a color that symbolizes growth, life, │                                                     │
-   │ and the beauty of plants, which are central to my work    │                                                     │
-   │ and passion.                                              │                                                     │
-   └───────────────────────────────────────────────────────────┴─────────────────────────────────────────────────────┘
+   * - answer.color
+     - answer.examples
+   * - As a botanist, I find myself drawn to the vibrant greens of nature. Green is a color that symbolizes growth, life, and the beauty of plants, which are central to my work and passion.
+     - ['Leaves', 'Grass', 'Ferns', 'Moss', 'Green algae']
 
 
 If an answer is a list, we can use the list as the `question_options` in another question, or index items individually.
@@ -416,41 +424,35 @@ Here we demonstrate examples of both:
 
    results = survey.by(agent).run()
 
-   results.select("colors", "examples", "favorite").print(format="rich")
+   results.select("colors", "examples", "favorite")
 
 
 Output:
 
-.. code-block:: text
+.. list-table::
+   :header-rows: 1
 
-   ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━┓
-   ┃ answer                       ┃ answer                                                               ┃ answer    ┃
-   ┃ .colors                      ┃ .examples                                                            ┃ .favorite ┃
-   ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━┩
-   │ ['Green', 'Brown', 'Yellow'] │ Certainly! Here are some things that can be green, brown, or yellow: │ Green     │
-   │                              │                                                                      │           │
-   │                              │ **Green:**                                                           │           │
-   │                              │ 1. Leaves - Many plants have green leaves due to chlorophyll, which  │           │
-   │                              │ is essential for photosynthesis.                                     │           │
-   │                              │ 2. Grass - Typically green, especially when healthy and              │           │
-   │                              │ well-watered.                                                        │           │
-   │                              │ 3. Green Apples - Varieties like Granny Smith are known for their    │           │
-   │                              │ green color.                                                         │           │
-   │                              │                                                                      │           │
-   │                              │ **Brown:**                                                           │           │
-   │                              │ 1. Tree Bark - The outer layer of trees is often brown, providing    │           │
-   │                              │ protection.                                                          │           │
-   │                              │ 2. Soil - Many types of soil appear brown, indicating organic        │           │
-   │                              │ matter.                                                              │           │
-   │                              │ 3. Acorns - These seeds from oak trees are generally brown when      │           │
-   │                              │ mature.                                                              │           │
-   │                              │                                                                      │           │
-   │                              │ **Yellow:**                                                          │           │
-   │                              │ 1. Sunflowers - Known for their bright yellow petals.                │           │
-   │                              │ 2. Bananas - Yellow when ripe and ready to eat.                      │           │
-   │                              │ 3. Daffodils - These flowers are often a vibrant yellow, heralding   │           │
-   │                              │ spring.                                                              │           │
-   └──────────────────────────────┴──────────────────────────────────────────────────────────────────────┴───────────┘
+   * - answer.colors
+     - answer.examples
+     - answer.favorite
+   * - ['Green', 'Brown', 'Yellow']
+     - Certainly! Here are some things that can be green, brown, or yellow:
+
+       **Green:**
+       1. Leaves - Many plants have green leaves due to chlorophyll, which is essential for photosynthesis.
+       2. Grass - Typically green, especially when healthy and well-watered.
+       3. Green Apples - Varieties like Granny Smith are known for their green color.
+
+       **Brown:**
+       1. Tree Bark - The outer layer of trees is often brown, providing protection.
+       2. Soil - Many types of soil appear brown, indicating organic matter.
+       3. Acorns - These seeds from oak trees are generally brown when mature.
+
+       **Yellow:**
+       1. Sunflowers - Known for their bright yellow petals.
+       2. Bananas - Yellow when ripe and ready to eat.
+       3. Daffodils - These flowers are often a vibrant yellow, heralding spring.
+     - Green
 
 
 This can also be done with agent traits. For example:
@@ -468,7 +470,7 @@ This can also be done with agent traits. For example:
 
    job = q.by(a)
    
-   job.prompts().select('user_prompt').print(format="rich")
+   job.prompts().select('user_prompt')
 
 
 This code will output the text of the prompt for the question:
@@ -487,27 +489,25 @@ We can also show both system and user prompts together with information about th
 
 Output:
 
-.. code-block:: text
+.. list-table::
+   :header-rows: 1
 
-   ┏━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━━━━━┓
-   ┃ user_prompt  ┃ system_prom… ┃ interview_i… ┃ question_na… ┃ scenario_ind… ┃ agent_index ┃ model  ┃ estimated_c… ┃
-   ┡━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━━━━━┩
-   │ What is your │ You are      │ 0            │ last_name    │ 0             │ 0           │ gpt-4o │ 0.0005375    │
-   │ last name,   │ answering    │              │              │               │             │        │              │
-   │ John?        │ questions as │              │              │               │             │        │              │
-   │              │ if you were  │              │              │               │             │        │              │
-   │              │ a human. Do  │              │              │               │             │        │              │
-   │              │ not break    │              │              │               │             │        │              │
-   │              │ character.   │              │              │               │             │        │              │
-   │              │ You are an   │              │              │               │             │        │              │
-   │              │ agent with   │              │              │               │             │        │              │
-   │              │ the          │              │              │               │             │        │              │
-   │              │ following    │              │              │               │             │        │              │
-   │              │ persona:     │              │              │               │             │        │              │
-   │              │ {'first_nam… │              │              │               │             │        │              │
-   │              │ 'John'}      │              │              │               │             │        │              │
-   └──────────────┴──────────────┴──────────────┴──────────────┴───────────────┴─────────────┴────────┴──────────────┘
-
+   * - user_prompt
+     - system_prompt
+     - interview_index
+     - question_name
+     - scenario_index
+     - agent_index
+     - model
+     - estimated_cost
+   * - What is your last name, John?
+     - You are answering questions as if you were a human. Do not break character. You are an agent with the following persona: {'first_name': 'John'}
+     - 0
+     - last_name
+     - 0
+     - 0
+     - gpt-4o
+     - 0.0005375
 
 
 Question memory
@@ -539,74 +539,65 @@ In the results, we can inspect the `_user_prompt` for each question to see that 
    (
       results
       .select("consume_local_news_user_prompt", "sources_user_prompt", "rate_coverage_user_prompt", "minutes_reading_user_prompt")
-      .print(format="rich")
    )
 
 
 This will print the prompt that was used for each question, and we can see that each successive prompt references all prior questions and answers that were given:
 
-.. code-block:: text
+.. list-table::
+   :header-rows: 1
 
-   ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-   ┃ prompt                     ┃ prompt                    ┃ prompt                     ┃ prompt                    ┃
-   ┃ .consume_local_news_user_… ┃ .sources_user_prompt      ┃ .rate_coverage_user_prompt ┃ .minutes_reading_user_pr… ┃
-   ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
-   │                            │ What are your most common │ On a scale of 1 to 10, how │ On average, how many      │
-   │ How often do you consume   │ sources of local news?    │ would you rate the quality │ minutes do you spend      │
-   │ local news?                │ (Select all that apply)   │ of local news coverage in  │ consuming local news each │
-   │                            │                           │ your area?                 │ day?                      │
-   │                            │                           │                            │                           │
-   │ Daily                      │ 0: Television             │ 1 : Very poor              │     Minimum answer value: │
-   │                            │                           │                            │ 0                         │
-   │ Weekly                     │ 1: Newspaper              │ 2 :                        │                           │
-   │                            │                           │                            │                           │
-   │ Monthly                    │ 2: Online news websites   │ 3 :                        │     Maximum answer value: │
-   │                            │                           │                            │ 1440                      │
-   │ Never                      │ 3: Social Media           │ 4 :                        │ This question requires a  │
-   │                            │                           │                            │ numerical response in the │
-   │                            │ 4: Radio                  │ 5 :                        │ form of an integer or     │
-   │ Only 1 option may be       │                           │                            │ decimal (e.g., -12, 0, 1, │
-   │ selected.                  │ 5: Other                  │ 6 :                        │ 2, 3.45, ...).            │
-   │                            │                           │                            │ Respond with just your    │
-   │ Respond only with a string │                           │ 7 :                        │ number on a single line.  │
-   │ corresponding to one of    │                           │                            │ If your response is       │
-   │ the options.               │                           │ 8 :                        │ equivalent to zero,       │
-   │                            │                           │                            │ report '0'                │
-   │                            │                           │ 9 :                        │                           │
-   │ After the answer, you can  │                           │                            │                           │
-   │ put a comment explaining   │ Please respond only with  │ 10 : Excellent             │ After the answer, put a   │
-   │ why you chose that option  │ a comma-separated list of │                            │ comment explaining your   │
-   │ on the next line.          │ the code of the options   │ Only 1 option may be       │ choice on the next line.  │
-   │                            │ that apply, with square   │ selected.                  │         Before the        │
-   │                            │ brackets. E.g., [0, 1, 3] │                            │ question you are now      │
-   │                            │                           │ Respond only with the code │ answering, you already    │
-   │                            │                           │ corresponding to one of    │ answered the following    │
-   │                            │ After the answer, you can │ the options. E.g., "1" or  │ question(s):              │
-   │                            │ put a comment explaining  │ "5" by itself.             │                 Question: │
-   │                            │ your choice on the next   │                            │ How often do you consume  │
-   │                            │ line.                     │ After the answer, you can  │ local news?               │
-   │                            │         Before the        │ put a comment explaining   │         Answer: Weekly    │
-   │                            │ question you are now      │ why you chose that option  │                           │
-   │                            │ answering, you already    │ on the next line.          │  Prior questions and      │
-   │                            │ answered the following    │         Before the         │ answers:   Question: What │
-   │                            │ question(s):              │ question you are now       │ are your most common      │
-   │                            │                 Question: │ answering, you already     │ sources of local news?    │
-   │                            │ How often do you consume  │ answered the following     │ (Select all that apply)   │
-   │                            │ local news?               │ question(s):               │         Answer: ['Online  │
-   │                            │         Answer: Weekly    │                 Question:  │ news websites', 'Social   │
-   │                            │                           │ How often do you consume   │ Media']                   │
-   │                            │                           │ local news?                │                           │
-   │                            │                           │         Answer: Weekly     │  Prior questions and      │
-   │                            │                           │                            │ answers:   Question: On a │
-   │                            │                           │  Prior questions and       │ scale of 1 to 10, how     │
-   │                            │                           │ answers:   Question: What  │ would you rate the        │
-   │                            │                           │ are your most common       │ quality of local news     │
-   │                            │                           │ sources of local news?     │ coverage in your area?    │
-   │                            │                           │ (Select all that apply)    │         Answer: 6         │
-   │                            │                           │         Answer: ['Online   │                           │
-   │                            │                           │ news websites', 'Social    │                           │
-   │                            │                           │ Media']                    │                           │
-   └────────────────────────────┴───────────────────────────┴────────────────────────────┴───────────────────────────┘
+   * - prompt.consume_local_news_user_prompt
+     - prompt.sources_user_prompt
+     - prompt.rate_coverage_user_prompt
+     - prompt.minutes_reading_user_prompt
+   * - How often do you consume local news?
+
+       Daily  
+       Weekly  
+       Monthly  
+       Never  
+
+       Only 1 option may be selected.
+
+       Respond only with a string corresponding to one of the options.
+
+       After the answer, you can put a comment explaining why you chose that option on the next line.
+     - What are your most common sources of local news?
+
+       0: Television  
+       1: Newspaper  
+       2: Online news websites  
+       3: Social Media  
+       4: Radio  
+       5: Other  
+
+       Please respond only with a comma-separated list of the code of the options that apply, with square brackets.  
+       E.g., [0, 1, 3]
+
+       After the answer, you can put a comment explaining your choice on the next line.
+     - On a scale of 1 to 10, how would you rate the quality of local news coverage in your area?
+
+       1 : Very poor  
+       10 : Excellent  
+
+       Only 1 option may be selected.  
+
+       Respond only with the code corresponding to one of the options.  
+       E.g., "1" or "10" by itself.  
+
+       After the answer, you can put a comment explaining why you chose that option on the next line.
+     - On average, how many minutes do you spend consuming local news each day?
+
+       Minimum answer value: 0  
+       Maximum answer value: 1440  
+
+       This question requires a numerical response in the form of an integer or decimal (e.g., -12, 0, 1, 2, 3.45, ...).  
+       Respond with just your number on a single line.  
+
+       If your response is equivalent to zero, report '0'.
+
+       After the answer, put a comment explaining your choice on the next line.
 
 
 Note that this is slow and token-intensive, as the questions must be answered serially and requires the agent to remember all of the answers to the questions in the survey.
@@ -635,68 +626,64 @@ We can inspect each `_user_prompt` again and see that the agent is only prompted
    (
       results
       .select("consume_local_news_user_prompt", "sources_user_prompt", "rate_coverage_user_prompt", "minutes_reading_user_prompt")
-      .print(format="rich")
    )
 
 
 This will print the prompts for each question:
 
-.. code-block:: text
+.. list-table::
+   :header-rows: 1
 
-   ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-   ┃ prompt                     ┃ prompt                    ┃ prompt                     ┃ prompt                    ┃
-   ┃ .consume_local_news_user_… ┃ .sources_user_prompt      ┃ .rate_coverage_user_prompt ┃ .minutes_reading_user_pr… ┃
-   ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
-   │                            │ What are your most common │ On a scale of 1 to 10, how │ On average, how many      │
-   │ How often do you consume   │ sources of local news?    │ would you rate the quality │ minutes do you spend      │
-   │ local news?                │ (Select all that apply)   │ of local news coverage in  │ consuming local news each │
-   │                            │                           │ your area?                 │ day?                      │
-   │                            │                           │                            │                           │
-   │ Daily                      │ 0: Television             │ 1 : Very poor              │     Minimum answer value: │
-   │                            │                           │                            │ 0                         │
-   │ Weekly                     │ 1: Newspaper              │ 2 :                        │                           │
-   │                            │                           │                            │                           │
-   │ Monthly                    │ 2: Online news websites   │ 3 :                        │     Maximum answer value: │
-   │                            │                           │                            │ 1440                      │
-   │ Never                      │ 3: Social Media           │ 4 :                        │ This question requires a  │
-   │                            │                           │                            │ numerical response in the │
-   │                            │ 4: Radio                  │ 5 :                        │ form of an integer or     │
-   │ Only 1 option may be       │                           │                            │ decimal (e.g., -12, 0, 1, │
-   │ selected.                  │ 5: Other                  │ 6 :                        │ 2, 3.45, ...).            │
-   │                            │                           │                            │ Respond with just your    │
-   │ Respond only with a string │                           │ 7 :                        │ number on a single line.  │
-   │ corresponding to one of    │                           │                            │ If your response is       │
-   │ the options.               │                           │ 8 :                        │ equivalent to zero,       │
-   │                            │                           │                            │ report '0'                │
-   │                            │                           │ 9 :                        │                           │
-   │ After the answer, you can  │                           │                            │                           │
-   │ put a comment explaining   │ Please respond only with  │ 10 : Excellent             │ After the answer, put a   │
-   │ why you chose that option  │ a comma-separated list of │                            │ comment explaining your   │
-   │ on the next line.          │ the code of the options   │ Only 1 option may be       │ choice on the next line.  │
-   │                            │ that apply, with square   │ selected.                  │         Before the        │
-   │                            │ brackets. E.g., [0, 1, 3] │                            │ question you are now      │
-   │                            │                           │ Respond only with the code │ answering, you already    │
-   │                            │                           │ corresponding to one of    │ answered the following    │
-   │                            │ After the answer, you can │ the options. E.g., "1" or  │ question(s):              │
-   │                            │ put a comment explaining  │ "5" by itself.             │                 Question: │
-   │                            │ your choice on the next   │                            │ On a scale of 1 to 10,    │
-   │                            │ line.                     │ After the answer, you can  │ how would you rate the    │
-   │                            │         Before the        │ put a comment explaining   │ quality of local news     │
-   │                            │ question you are now      │ why you chose that option  │ coverage in your area?    │
-   │                            │ answering, you already    │ on the next line.          │         Answer: 6         │
-   │                            │ answered the following    │         Before the         │                           │
-   │                            │ question(s):              │ question you are now       │                           │
-   │                            │                 Question: │ answering, you already     │                           │
-   │                            │ How often do you consume  │ answered the following     │                           │
-   │                            │ local news?               │ question(s):               │                           │
-   │                            │         Answer: Weekly    │                 Question:  │                           │
-   │                            │                           │ What are your most common  │                           │
-   │                            │                           │ sources of local news?     │                           │
-   │                            │                           │ (Select all that apply)    │                           │
-   │                            │                           │         Answer: ['Online   │                           │
-   │                            │                           │ news websites', 'Social    │                           │
-   │                            │                           │ Media']                    │                           │
-   └────────────────────────────┴───────────────────────────┴────────────────────────────┴───────────────────────────┘
+   * - prompt.consume_local_news_user_prompt
+     - prompt.sources_user_prompt
+     - prompt.rate_coverage_user_prompt
+     - prompt.minutes_reading_user_prompt
+   * - How often do you consume local news?
+
+       Daily  
+       Weekly  
+       Monthly  
+       Never  
+
+       Only 1 option may be selected.  
+
+       Respond only with a string corresponding to one of the options.  
+
+       After the answer, you can put a comment explaining why you chose that option on the next line.
+     - What are your most common sources of local news?
+
+       0: Television  
+       1: Newspaper  
+       2: Online news websites  
+       3: Social Media  
+       4: Radio  
+       5: Other  
+
+       Please respond only with a comma-separated list of the code of the options that apply, with square brackets (e.g., [0, 1, 3]).  
+
+       After the answer, you can put a comment explaining your choice on the next line.
+     - On a scale of 1 to 10, how would you rate the quality of local news coverage in your area?
+
+       1 : Very poor  
+       10 : Excellent  
+
+       Only 1 option may be selected.  
+
+       Respond only with the code corresponding to one of the options (e.g., "1" or "10").  
+
+       After the answer, you can put a comment explaining why you chose that option on the next line.
+     - On average, how many minutes do you spend consuming local news each day?
+
+       Minimum answer value: 0  
+       Maximum answer value: 1440  
+
+       This question requires a numerical response in the form of an integer or decimal (e.g., -12, 0, 1, 2, 3.45, ...).  
+
+       Respond with just your number on a single line.  
+
+       If your response is equivalent to zero, report '0'.  
+
+       After the answer, put a comment explaining your choice on the next line.
 
 
 Targeted memory 
@@ -716,56 +703,64 @@ Here we use it to give the agent the question/answer to q1 when prompting it to 
    (
       results
       .select("consume_local_news_user_prompt", "sources_user_prompt", "rate_coverage_user_prompt", "minutes_reading_user_prompt")
-      .print(format="rich")
    )
 
 
 Output:
 
-.. code-block:: text
+.. list-table::
+   :header-rows: 1
 
-   ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-   ┃ prompt                     ┃ prompt                    ┃ prompt                     ┃ prompt                    ┃
-   ┃ .consume_local_news_user_… ┃ .sources_user_prompt      ┃ .rate_coverage_user_prompt ┃ .minutes_reading_user_pr… ┃
-   ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
-   │                            │ What are your most common │ On a scale of 1 to 10, how │ On average, how many      │
-   │ How often do you consume   │ sources of local news?    │ would you rate the quality │ minutes do you spend      │
-   │ local news?                │ (Select all that apply)   │ of local news coverage in  │ consuming local news each │
-   │                            │                           │ your area?                 │ day?                      │
-   │                            │                           │                            │                           │
-   │ Daily                      │ 0: Television             │ 1 : Very poor              │     Minimum answer value: │
-   │                            │                           │                            │ 0                         │
-   │ Weekly                     │ 1: Newspaper              │ 2 :                        │                           │
-   │                            │                           │                            │                           │
-   │ Monthly                    │ 2: Online news websites   │ 3 :                        │     Maximum answer value: │
-   │                            │                           │                            │ 1440                      │
-   │ Never                      │ 3: Social Media           │ 4 :                        │ This question requires a  │
-   │                            │                           │                            │ numerical response in the │
-   │                            │ 4: Radio                  │ 5 :                        │ form of an integer or     │
-   │ Only 1 option may be       │                           │                            │ decimal (e.g., -12, 0, 1, │
-   │ selected.                  │ 5: Other                  │ 6 :                        │ 2, 3.45, ...).            │
-   │                            │                           │                            │ Respond with just your    │
-   │ Respond only with a string │                           │ 7 :                        │ number on a single line.  │
-   │ corresponding to one of    │                           │                            │ If your response is       │
-   │ the options.               │                           │ 8 :                        │ equivalent to zero,       │
-   │                            │                           │                            │ report '0'                │
-   │                            │                           │ 9 :                        │                           │
-   │ After the answer, you can  │                           │                            │                           │
-   │ put a comment explaining   │ Please respond only with  │ 10 : Excellent             │ After the answer, put a   │
-   │ why you chose that option  │ a comma-separated list of │                            │ comment explaining your   │
-   │ on the next line.          │ the code of the options   │ Only 1 option may be       │ choice on the next line.  │
-   │                            │ that apply, with square   │ selected.                  │         Before the        │
-   │                            │ brackets. E.g., [0, 1, 3] │                            │ question you are now      │
-   │                            │                           │ Respond only with the code │ answering, you already    │
-   │                            │                           │ corresponding to one of    │ answered the following    │
-   │                            │ After the answer, you can │ the options. E.g., "1" or  │ question(s):              │
-   │                            │ put a comment explaining  │ "5" by itself.             │                 Question: │
-   │                            │ your choice on the next   │                            │ How often do you consume  │
-   │                            │ line.                     │ After the answer, you can  │ local news?               │
-   │                            │                           │ put a comment explaining   │         Answer: Weekly    │
-   │                            │                           │ why you chose that option  │                           │
-   │                            │                           │ on the next line.          │                           │
-   └────────────────────────────┴───────────────────────────┴────────────────────────────┴───────────────────────────┘
+   * - prompt.consume_local_news_user_prompt
+     - prompt.sources_user_prompt
+     - prompt.rate_coverage_user_prompt
+     - prompt.minutes_reading_user_prompt
+   * - How often do you consume local news?
+
+       Daily  
+       Weekly  
+       Monthly  
+       Never  
+
+       Only 1 option may be selected.  
+
+       Respond only with a string corresponding to one of the options.  
+
+       After the answer, you can put a comment explaining why you chose that option on the next line.
+     - What are your most common sources of local news?
+
+       0: Television  
+       1: Newspaper  
+       2: Online news websites  
+       3: Social Media  
+       4: Radio  
+       5: Other  
+
+       Please respond only with a comma-separated list of the code of the options that apply, with square brackets (e.g., [0, 1, 3]).  
+
+       After the answer, you can put a comment explaining your choice on the next line.
+     - On a scale of 1 to 10, how would you rate the quality of local news coverage in your area?
+
+       1 : Very poor  
+       10 : Excellent  
+
+       Only 1 option may be selected.  
+
+       Respond only with the code corresponding to one of the options (e.g., "1" or "10").  
+
+       After the answer, you can put a comment explaining why you chose that option on the next line.
+     - On average, how many minutes do you spend consuming local news each day?
+
+       Minimum answer value: 0  
+       Maximum answer value: 1440  
+
+       This question requires a numerical response in the form of an integer or decimal (e.g., -12, 0, 1, 2, 3.45, ...).  
+
+       Respond with just your number on a single line.  
+
+       If your response is equivalent to zero, report '0'.  
+
+       After the answer, put a comment explaining your choice on the next line.
 
 
 Memory collection 
@@ -785,64 +780,64 @@ For example, we can add the questions/answers for both q1 and q2 when prompting 
    (
       results
       .select("consume_local_news_user_prompt", "sources_user_prompt", "rate_coverage_user_prompt", "minutes_reading_user_prompt")
-      .print(format="rich")
    )
 
 
 Output:
 
-.. code-block:: text
+.. list-table::
+   :header-rows: 1
 
-   ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-   ┃ prompt                     ┃ prompt                    ┃ prompt                     ┃ prompt                    ┃
-   ┃ .consume_local_news_user_… ┃ .sources_user_prompt      ┃ .rate_coverage_user_prompt ┃ .minutes_reading_user_pr… ┃
-   ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
-   │                            │ What are your most common │ On a scale of 1 to 10, how │ On average, how many      │
-   │ How often do you consume   │ sources of local news?    │ would you rate the quality │ minutes do you spend      │
-   │ local news?                │ (Select all that apply)   │ of local news coverage in  │ consuming local news each │
-   │                            │                           │ your area?                 │ day?                      │
-   │                            │                           │                            │                           │
-   │ Daily                      │ 0: Television             │ 1 : Very poor              │     Minimum answer value: │
-   │                            │                           │                            │ 0                         │
-   │ Weekly                     │ 1: Newspaper              │ 2 :                        │                           │
-   │                            │                           │                            │                           │
-   │ Monthly                    │ 2: Online news websites   │ 3 :                        │     Maximum answer value: │
-   │                            │                           │                            │ 1440                      │
-   │ Never                      │ 3: Social Media           │ 4 :                        │ This question requires a  │
-   │                            │                           │                            │ numerical response in the │
-   │                            │ 4: Radio                  │ 5 :                        │ form of an integer or     │
-   │ Only 1 option may be       │                           │                            │ decimal (e.g., -12, 0, 1, │
-   │ selected.                  │ 5: Other                  │ 6 :                        │ 2, 3.45, ...).            │
-   │                            │                           │                            │ Respond with just your    │
-   │ Respond only with a string │                           │ 7 :                        │ number on a single line.  │
-   │ corresponding to one of    │                           │                            │ If your response is       │
-   │ the options.               │                           │ 8 :                        │ equivalent to zero,       │
-   │                            │                           │                            │ report '0'                │
-   │                            │                           │ 9 :                        │                           │
-   │ After the answer, you can  │                           │                            │                           │
-   │ put a comment explaining   │ Please respond only with  │ 10 : Excellent             │ After the answer, put a   │
-   │ why you chose that option  │ a comma-separated list of │                            │ comment explaining your   │
-   │ on the next line.          │ the code of the options   │ Only 1 option may be       │ choice on the next line.  │
-   │                            │ that apply, with square   │ selected.                  │         Before the        │
-   │                            │ brackets. E.g., [0, 1, 3] │                            │ question you are now      │
-   │                            │                           │ Respond only with the code │ answering, you already    │
-   │                            │                           │ corresponding to one of    │ answered the following    │
-   │                            │ After the answer, you can │ the options. E.g., "1" or  │ question(s):              │
-   │                            │ put a comment explaining  │ "5" by itself.             │                 Question: │
-   │                            │ your choice on the next   │                            │ How often do you consume  │
-   │                            │ line.                     │ After the answer, you can  │ local news?               │
-   │                            │                           │ put a comment explaining   │         Answer: Weekly    │
-   │                            │                           │ why you chose that option  │                           │
-   │                            │                           │ on the next line.          │  Prior questions and      │
-   │                            │                           │                            │ answers:   Question: What │
-   │                            │                           │                            │ are your most common      │
-   │                            │                           │                            │ sources of local news?    │
-   │                            │                           │                            │ (Select all that apply)   │
-   │                            │                           │                            │         Answer: ['Online  │
-   │                            │                           │                            │ news websites', 'Social   │
-   │                            │                           │                            │ Media']                   │
-   └────────────────────────────┴───────────────────────────┴────────────────────────────┴───────────────────────────┘
-    
+   * - prompt.consume_local_news_user_prompt
+     - prompt.sources_user_prompt
+     - prompt.rate_coverage_user_prompt
+     - prompt.minutes_reading_user_prompt
+   * - How often do you consume local news?
+
+       Daily  
+       Weekly  
+       Monthly  
+       Never  
+
+       Only 1 option may be selected.  
+
+       Respond only with a string corresponding to one of the options.  
+
+       After the answer, you can put a comment explaining why you chose that option on the next line.
+     - What are your most common sources of local news?
+
+       0: Television  
+       1: Newspaper  
+       2: Online news websites  
+       3: Social Media  
+       4: Radio  
+       5: Other  
+
+       Please respond only with a comma-separated list of the code of the options that apply, with square brackets (e.g., [0, 1, 3]).  
+
+       After the answer, you can put a comment explaining your choice on the next line.
+     - On a scale of 1 to 10, how would you rate the quality of local news coverage in your area?
+
+       1 : Very poor  
+       10 : Excellent  
+
+       Only 1 option may be selected.  
+
+       Respond only with the code corresponding to one of the options (e.g., "1" or "10").  
+
+       After the answer, you can put a comment explaining why you chose that option on the next line.
+     - On average, how many minutes do you spend consuming local news each day?
+
+       Minimum answer value: 0  
+       Maximum answer value: 1440  
+
+       This question requires a numerical response in the form of an integer or decimal (e.g., -12, 0, 1, 2, 3.45, ...).  
+
+       Respond with just your number on a single line.  
+
+       If your response is equivalent to zero, report '0'.  
+
+       After the answer, put a comment explaining your choice on the next line.
    
 
 Costs 
@@ -891,14 +886,14 @@ Output:
 
 .. code-block:: text
 
-    {'estimated_total_cost': 0.0009175000000000001,
-     'estimated_total_input_tokens': 91,
-     'estimated_total_output_tokens': 69,
-     'model_costs': [{'inference_service': 'openai',
-       'model': 'gpt-4o',
-       'estimated_cost': 0.0009175000000000001,
-       'estimated_input_tokens': 91,
-       'estimated_output_tokens': 69}]}
+   {'estimated_total_cost_usd': 0.0008625000000000001,
+   'estimated_total_input_tokens': 85,
+   'estimated_total_output_tokens': 65,
+   'model_costs': [{'inference_service': 'openai',
+      'model': 'gpt-4o',
+      'estimated_cost_usd': 0.0008625000000000001,
+      'estimated_input_tokens': 85,
+      'estimated_output_tokens': 65}]}
 
 
 To get the estimated cost in credits to run the job remotely:
@@ -917,7 +912,7 @@ Output:
 
 .. code-block:: text
 
-   {'credits': 0.1, 'usd': 0.00092}    
+   {'credits': 0.09, 'usd': 0.0008650000000000001}
 
 
 Details of the calculations for these methods can be found in the :ref:`credits` section.
