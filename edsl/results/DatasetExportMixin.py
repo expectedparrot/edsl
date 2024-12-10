@@ -4,9 +4,8 @@ import base64
 import csv
 import io
 import html
-from typing import Optional
-
-from typing import Literal, Optional, Union, List
+from typing import Optional, Tuple, Union, List
+from openpyxl import Workbook
 
 
 class DatasetExportMixin:
@@ -144,299 +143,159 @@ class DatasetExportMixin:
             for value in list_of_values:
                 print(f"{key}: {value}")
 
-    # def print(
-    #     self,
-    #     pretty_labels: Optional[dict] = None,
-    #     filename: Optional[str] = None,
-    #     format: Optional[Literal["rich", "html", "markdown", "latex"]] = None,
-    #     interactive: bool = False,
-    #     split_at_dot: bool = True,
-    #     max_rows=None,
-    #     tee=False,
-    #     iframe=False,
-    #     iframe_height: int = 200,
-    #     iframe_width: int = 600,
-    #     web=False,
-    #     return_string: bool = False,
-    # ) -> Union[None, str, "Results"]:
-    #     """Print the results in a pretty format.
+    def _get_tabular_data(
+        self,
+        remove_prefix: bool = False,
+        pretty_labels: Optional[dict] = None,
+    ) -> Tuple[List[str], List[List]]:
+        """Internal method to get tabular data in a standard format.
 
-    #     :param pretty_labels: A dictionary of pretty labels for the columns.
-    #     :param filename: The filename to save the results to.
-    #     :param format: The format to print the results in. Options are 'rich', 'html', 'markdown', or 'latex'.
-    #     :param interactive: Whether to print the results interactively in a Jupyter notebook.
-    #     :param split_at_dot: Whether to split the column names at the last dot w/ a newline.
-    #     :param max_rows: The maximum number of rows to print.
-    #     :param tee: Whether to return the dataset.
-    #     :param iframe: Whether to display the table in an iframe.
-    #     :param iframe_height: The height of the iframe.
-    #     :param iframe_width: The width of the iframe.
-    #     :param web: Whether to display the table in a web browser.
-    #     :param return_string: Whether to return the output as a string instead of printing.
+        Args:
+            remove_prefix: Whether to remove the prefix from column names
+            pretty_labels: Dictionary mapping original column names to pretty labels
 
-    #     :return: None if tee is False and return_string is False, the dataset if tee is True, or a string if return_string is True.
+        Returns:
+            Tuple containing (header_row, data_rows)
+        """
+        if pretty_labels is None:
+            pretty_labels = {}
 
-    #     Example: Print in rich format at the terminal
+        return self._make_tabular(
+            remove_prefix=remove_prefix, pretty_labels=pretty_labels
+        )
 
-    #     >>> from edsl.results import Results
-    #     >>> r = Results.example()
-    #     >>> r.select('how_feeling').print(format = "rich")
-    #     ┏━━━━━━━━━━━━━━┓
-    #     ┃ answer       ┃
-    #     ┃ .how_feeling ┃
-    #     ┡━━━━━━━━━━━━━━┩
-    #     │ OK           │
-    #     ├──────────────┤
-    #     │ Great        │
-    #     ├──────────────┤
-    #     │ Terrible     │
-    #     ├──────────────┤
-    #     │ OK           │
-    #     └──────────────┘
+    def to_jsonl(self, filename: Optional[str] = None) -> "FileStore":
+        """Export the results to a FileStore instance containing JSONL data.
 
-    #     >>> r = Results.example()
-    #     >>> r2 = r.select("how_feeling").print(format = "rich", tee = True, max_rows = 2)
-    #     ┏━━━━━━━━━━━━━━┓
-    #     ┃ answer       ┃
-    #     ┃ .how_feeling ┃
-    #     ┡━━━━━━━━━━━━━━┩
-    #     │ OK           │
-    #     ├──────────────┤
-    #     │ Great        │
-    #     └──────────────┘
-    #     >>> r2
-    #     Dataset([{'answer.how_feeling': ['OK', 'Great', 'Terrible', 'OK']}])
+        Args:
+            filename: Optional filename for the JSONL file (defaults to "results.jsonl")
 
-    #     >>> r.select('how_feeling').print(format = "rich", max_rows = 2)
-    #     ┏━━━━━━━━━━━━━━┓
-    #     ┃ answer       ┃
-    #     ┃ .how_feeling ┃
-    #     ┡━━━━━━━━━━━━━━┩
-    #     │ OK           │
-    #     ├──────────────┤
-    #     │ Great        │
-    #     └──────────────┘
+        Returns:
+            FileStore: Instance containing the JSONL data
+        """
+        if filename is None:
+            filename = "results.jsonl"
 
-    #     >>> r.select('how_feeling').print(format = "rich", split_at_dot = False)
-    #     ┏━━━━━━━━━━━━━━━━━━━━┓
-    #     ┃ answer.how_feeling ┃
-    #     ┡━━━━━━━━━━━━━━━━━━━━┩
-    #     │ OK                 │
-    #     ├────────────────────┤
-    #     │ Great              │
-    #     ├────────────────────┤
-    #     │ Terrible           │
-    #     ├────────────────────┤
-    #     │ OK                 │
-    #     └────────────────────┘
+        # Write to string buffer
+        output = io.StringIO()
+        for entry in self:
+            key, values = list(entry.items())[0]
+            output.write(f'{{"{key}": {values}}}\n')
 
-    #     Example: using the pretty_labels parameter
+        # Get the CSV string and encode to base64
+        jsonl_string = output.getvalue()
+        base64_string = base64.b64encode(jsonl_string.encode()).decode()
+        from edsl.scenarios.FileStore import FileStore
 
-    #     >>> r.select('how_feeling').print(format="rich", pretty_labels = {'answer.how_feeling': "How are you feeling"})
-    #     ┏━━━━━━━━━━━━━━━━━━━━━┓
-    #     ┃ How are you feeling ┃
-    #     ┡━━━━━━━━━━━━━━━━━━━━━┩
-    #     │ OK                  │
-    #     ├─────────────────────┤
-    #     │ Great               │
-    #     ├─────────────────────┤
-    #     │ Terrible            │
-    #     ├─────────────────────┤
-    #     │ OK                  │
-    #     └─────────────────────┘
-
-    #     Example: printing in markdown format
-
-    #     >>> r.select('how_feeling').print(format='markdown')
-    #     | answer.how_feeling |
-    #     |--|
-    #     | OK |
-    #     | Great |
-    #     | Terrible |
-    #     | OK |
-    #     ...
-
-    #     >>> r.select('how_feeling').print(format='latex')
-    #     \\begin{tabular}{l}
-    #     ...
-    #     \\end{tabular}
-    #     <BLANKLINE>
-    #     """
-    #     from IPython.display import HTML, display
-    #     from edsl.utilities.utilities import is_notebook
-    #     import io
-    #     import sys
-
-    #     def _determine_format(format):
-    #         if format is None:
-    #             if is_notebook():
-    #                 format = "html"
-    #             else:
-    #                 format = "rich"
-    #         if format not in ["rich", "html", "markdown", "latex"]:
-    #             raise ValueError(
-    #                 "format must be one of 'rich', 'html', 'markdown', or 'latex'."
-    #             )
-
-    #         return format
-
-    #     format = _determine_format(format)
-
-    #     if pretty_labels is None:
-    #         pretty_labels = {}
-
-    #     if pretty_labels != {}:  # only split at dot if there are no pretty labels
-    #         split_at_dot = False
-
-    #     def _create_data():
-    #         for index, entry in enumerate(self):
-    #             key, list_of_values = list(entry.items())[0]
-    #             yield {pretty_labels.get(key, key): list_of_values[:max_rows]}
-
-    #     new_data = list(_create_data())
-
-    #     # Capture output if return_string is True
-    #     if return_string:
-    #         old_stdout = sys.stdout
-    #         sys.stdout = io.StringIO()
-
-    #     output = None
-
-    #     if format == "rich":
-    #         from edsl.utilities.interface import print_dataset_with_rich
-
-    #         output = print_dataset_with_rich(
-    #             new_data, filename=filename, split_at_dot=split_at_dot
-    #         )
-    #     elif format == "markdown":
-    #         from edsl.utilities.interface import print_list_of_dicts_as_markdown_table
-
-    #         output = print_list_of_dicts_as_markdown_table(new_data, filename=filename)
-    #     elif format == "latex":
-    #         df = self.to_pandas()
-    #         df.columns = [col.replace("_", " ") for col in df.columns]
-    #         latex_string = df.to_latex(index=False)
-
-    #         if filename is not None:
-    #             with open(filename, "w") as f:
-    #                 f.write(latex_string)
-    #         else:
-    #             print(latex_string)
-    #             output = latex_string
-    #     elif format == "html":
-    #         from edsl.utilities.interface import print_list_of_dicts_as_html_table
-
-    #         html_source = print_list_of_dicts_as_html_table(
-    #             new_data, interactive=interactive
-    #         )
-
-    #         if iframe:
-    #             iframe = f""""
-    #             <iframe srcdoc="{ html.escape(html_source) }" style="width: {iframe_width}px; height: {iframe_height}px;"></iframe>
-    #             """
-    #             display(HTML(iframe))
-    #         elif is_notebook():
-    #             display(HTML(html_source))
-    #         else:
-    #             from edsl.utilities.interface import view_html
-
-    #             view_html(html_source)
-
-    #         output = html_source
-
-    #     # Restore stdout and get captured output if return_string is True
-    #     if return_string:
-    #         captured_output = sys.stdout.getvalue()
-    #         sys.stdout = old_stdout
-    #         return captured_output or output
-
-    #     if tee:
-    #         return self
-
-    #     return None
+        return FileStore(
+            path=filename,
+            mime_type="application/jsonl",
+            binary=False,
+            suffix="jsonl",
+            base64_string=base64_string,
+        )
 
     def to_csv(
         self,
         filename: Optional[str] = None,
         remove_prefix: bool = False,
-        download_link: bool = False,
         pretty_labels: Optional[dict] = None,
-    ):
-        """Export the results to a CSV file.
+    ) -> "FileStore":
+        """Export the results to a FileStore instance containing CSV data.
 
-        :param filename: The filename to save the CSV file to.
-        :param remove_prefix: Whether to remove the prefix from the column names.
-        :param download_link: Whether to display a download link in a Jupyter notebook.
+        Args:
+            filename: Optional filename for the CSV (defaults to "results.csv")
+            remove_prefix: Whether to remove the prefix from column names
+            pretty_labels: Dictionary mapping original column names to pretty labels
 
-        Example:
-
-        >>> from edsl.results import Results
-        >>> r = Results.example()
-        >>> r.select('how_feeling').to_csv()
-        'answer.how_feeling\\r\\nOK\\r\\nGreat\\r\\nTerrible\\r\\nOK\\r\\n'
-
-        >>> r.select('how_feeling').to_csv(pretty_labels = {'answer.how_feeling': "How are you feeling"})
-        'How are you feeling\\r\\nOK\\r\\nGreat\\r\\nTerrible\\r\\nOK\\r\\n'
-
-        >>> import tempfile
-        >>> filename = tempfile.NamedTemporaryFile(delete=False).name
-        >>> r.select('how_feeling').to_csv(filename = filename)
-        >>> import os
-        >>> import csv
-        >>> with open(filename, newline='') as f:
-        ...     reader = csv.reader(f)
-        ...     for row in reader:
-        ...         print(row)
-        ['answer.how_feeling']
-        ['OK']
-        ['Great']
-        ['Terrible']
-        ['OK']
-
+        Returns:
+            FileStore: Instance containing the CSV data
         """
-        if pretty_labels is None:
-            pretty_labels = {}
-        header, rows = self._make_tabular(
+        if filename is None:
+            filename = "results.csv"
+
+        # Get the tabular data
+        header, rows = self._get_tabular_data(
             remove_prefix=remove_prefix, pretty_labels=pretty_labels
         )
 
-        if filename is not None:
-            with open(filename, "w") as f:
-                writer = csv.writer(f)
-                writer.writerow(header)
-                writer.writerows(rows)
-            # print(f"Saved to {filename}")
-        else:
-            output = io.StringIO()
-            writer = csv.writer(output)
-            writer.writerow(header)
-            writer.writerows(rows)
+        # Write to string buffer
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(header)
+        writer.writerows(rows)
 
-            if download_link:
-                from IPython.display import HTML, display
+        # Get the CSV string and encode to base64
+        csv_string = output.getvalue()
+        base64_string = base64.b64encode(csv_string.encode()).decode()
+        from edsl.scenarios.FileStore import FileStore
 
-                csv_file = output.getvalue()
-                b64 = base64.b64encode(csv_file.encode()).decode()
-                download_link = f'<a href="data:file/csv;base64,{b64}" download="my_data.csv">Download CSV file</a>'
-                display(HTML(download_link))
-            else:
-                return output.getvalue()
+        return FileStore(
+            path=filename,
+            mime_type="text/csv",
+            binary=False,
+            suffix="csv",
+            base64_string=base64_string,
+        )
 
-    def download_link(self, pretty_labels: Optional[dict] = None) -> str:
-        """Return a download link for the results.
+    def to_excel(
+        self,
+        filename: Optional[str] = None,
+        remove_prefix: bool = False,
+        pretty_labels: Optional[dict] = None,
+        sheet_name: Optional[str] = None,
+    ) -> "FileStore":
+        """Export the results to a FileStore instance containing Excel data.
 
-        :param pretty_labels: A dictionary of pretty labels for the columns.
+        Args:
+            filename: Optional filename for the Excel file (defaults to "results.xlsx")
+            remove_prefix: Whether to remove the prefix from column names
+            pretty_labels: Dictionary mapping original column names to pretty labels
+            sheet_name: Name of the worksheet (defaults to "Results")
 
-        >>> from edsl.results import Results
-        >>> r = Results.example()
-        >>> r.select('how_feeling').download_link()
-        '<a href="data:file/csv;base64,YW5zd2VyLmhvd19mZWVsaW5nDQpPSw0KR3JlYXQNClRlcnJpYmxlDQpPSw0K" download="my_data.csv">Download CSV file</a>'
+        Returns:
+            FileStore: Instance containing the Excel data
         """
-        import base64
+        if filename is None:
+            filename = "results.xlsx"
+        if sheet_name is None:
+            sheet_name = "Results"
 
-        csv_string = self.to_csv(pretty_labels=pretty_labels)
-        b64 = base64.b64encode(csv_string.encode()).decode()
-        return f'<a href="data:file/csv;base64,{b64}" download="my_data.csv">Download CSV file</a>'
+        # Get the tabular data
+        header, rows = self._get_tabular_data(
+            remove_prefix=remove_prefix, pretty_labels=pretty_labels
+        )
+
+        # Create Excel workbook in memory
+        wb = Workbook()
+        ws = wb.active
+        ws.title = sheet_name
+
+        # Write header
+        for col, value in enumerate(header, 1):
+            ws.cell(row=1, column=col, value=value)
+
+        # Write data rows
+        for row_idx, row_data in enumerate(rows, 2):
+            for col, value in enumerate(row_data, 1):
+                ws.cell(row=row_idx, column=col, value=value)
+
+        # Save to bytes buffer
+        buffer = io.BytesIO()
+        wb.save(buffer)
+        buffer.seek(0)
+
+        # Convert to base64
+        base64_string = base64.b64encode(buffer.getvalue()).decode()
+        from edsl.scenarios.FileStore import FileStore
+
+        return FileStore(
+            path=filename,
+            mime_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            binary=True,
+            suffix="xlsx",
+            base64_string=base64_string,
+        )
 
     def _db(self, remove_prefix: bool = True):
         """Create a SQLite database in memory and return the connection.
@@ -531,7 +390,7 @@ class DatasetExportMixin:
 
         import pandas as pd
 
-        csv_string = self.to_csv(remove_prefix=remove_prefix)
+        csv_string = self.to_csv(remove_prefix=remove_prefix).text
         csv_buffer = io.StringIO(csv_string)
         df = pd.read_csv(csv_buffer)
         # df_sorted = df.sort_index(axis=1)  # Sort columns alphabetically
@@ -554,7 +413,6 @@ class DatasetExportMixin:
         for d in list_of_dicts:
             scenarios.append(Scenario(d))
         return ScenarioList(scenarios)
-        # return ScenarioList([Scenario(d) for d in list_of_dicts])
 
     def to_agent_list(self, remove_prefix: bool = True):
         """Convert the results to a list of dictionaries, one per agent.

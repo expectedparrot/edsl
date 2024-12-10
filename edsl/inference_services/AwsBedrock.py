@@ -69,8 +69,6 @@ class AwsBedrockService(InferenceServiceABC):
             }
             input_token_name = cls.input_token_name
             output_token_name = cls.output_token_name
-            _rpm = cls.get_rpm(cls)
-            _tpm = cls.get_tpm(cls)
 
             async def async_execute_model_call(
                 self,

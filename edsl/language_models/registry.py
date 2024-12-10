@@ -3,11 +3,7 @@ from random import random
 from edsl.config import CONFIG
 from functools import lru_cache
 from edsl.utilities.PrettyList import PrettyList
-
-# if "EDSL_DEFAULT_MODEL" not in CONFIG:
-#     default_model = "test"
-# else:
-#     default_model = CONFIG.get("EDSL_DEFAULT_MODEL")
+from typing import Optional
 
 
 def get_model_class(model_name, registry=None):
@@ -63,11 +59,32 @@ class Model(metaclass=Meta):
         registry.add_model(service_name, model_name)
 
     @classmethod
+    def service_classes(cls, registry=None):
+        from edsl.inference_services.registry import default
+
+        registry = registry or default
+        return [r for r in registry.services]
+
+    @classmethod
     def services(cls, registry=None):
         from edsl.inference_services.registry import default
 
         registry = registry or default
-        return [r._inference_service_ for r in registry.services]
+        return PrettyList(
+            [r._inference_service_ for r in registry.services], columns=["Service Name"]
+        )
+
+    @classmethod
+    def key_info(cls):
+        from edsl.language_models.key_management import KeyLookupCollection
+        from edsl.scenarios import Scenario, ScenarioList
+
+        klc = KeyLookupCollection()
+        klc.add_key_lookup(fetch_order=None)
+        sl = ScenarioList()
+        for service, entry in list(klc.data.values())[0].items():
+            sl.append(Scenario({"service": service} | entry.to_dict()))
+        return sl.to_dataset()
 
     @classmethod
     @lru_cache(maxsize=128)
@@ -76,18 +93,18 @@ class Model(metaclass=Meta):
         search_term: str = None,
         name_only: bool = False,
         registry=None,
-        service: str = None,
+        service: Optional[str] = None,
     ):
         from edsl.inference_services.registry import default
 
         registry = registry or default
-        full_list = registry.available()
+        # full_list = registry.available()
 
         if service is not None:
             if service not in cls.services(registry=registry):
                 raise ValueError(f"Service {service} not found in available services.")
 
-            full_list = [m for m in full_list if m[1] == service]
+        full_list = registry.available(service=service)
 
         if search_term is None:
             if name_only:

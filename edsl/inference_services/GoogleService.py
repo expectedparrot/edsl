@@ -39,10 +39,6 @@ class GoogleService(InferenceServiceABC):
 
     model_exclude_list = []
 
-    # @classmethod
-    # def available(cls) -> List[str]:
-    #     return ["gemini-pro", "gemini-1.5-pro", "gemini-1.5-flash", "gemini-1.0-pro"]
-
     @classmethod
     def available(cls) -> List[str]:
         model_list = []
@@ -66,9 +62,6 @@ class GoogleService(InferenceServiceABC):
             output_token_name = cls.output_token_name
             _inference_service_ = cls._inference_service_
 
-            _tpm = cls.get_tpm(cls)
-            _rpm = cls.get_rpm(cls)
-
             _parameters_ = {
                 "temperature": 0.5,
                 "topP": 1,
@@ -77,7 +70,6 @@ class GoogleService(InferenceServiceABC):
                 "stopSequences": [],
             }
 
-            api_token = None
             model = None
 
             def __init__(self, *args, **kwargs):
@@ -102,7 +94,6 @@ class GoogleService(InferenceServiceABC):
 
                 if files_list is None:
                     files_list = []
-
                 genai.configure(api_key=self.api_token)
                 if (
                     system_prompt is not None

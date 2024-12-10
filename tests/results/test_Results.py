@@ -42,11 +42,11 @@ class TestResults(unittest.TestCase):
 
     def test_csv_export(self):
         # Just prints to screen
-        csv = self.example_results.to_csv()
+        csv = self.example_results.to_csv().text
         self.assertIsInstance(csv, str)
         self.assertIn("how_feeling", csv)
         # Saves the file
-        csv = self.example_results.to_csv(filename="test.csv")
+        csv = self.example_results.to_csv().write("test.csv")
         self.assertIsNone(csv)
         os.remove("test.csv")
 

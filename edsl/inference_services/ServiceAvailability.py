@@ -1,7 +1,10 @@
 from enum import Enum
-from typing import List, Optional
+from typing import List, Optional, TYPE_CHECKING
 from functools import partial
 import warnings
+
+if TYPE_CHECKING:
+    from edsl.inference_services.InferenceServiceABC import InferenceServiceABC
 
 
 class ModelSource(Enum):
@@ -11,6 +14,7 @@ class ModelSource(Enum):
 
 
 class ServiceAvailability:
+    """This class is responsible for fetching available models from different sources."""
 
     _coop_model_list = None
 
@@ -42,7 +46,9 @@ class ServiceAvailability:
             ModelSource.CACHE: self._fetch_from_cache,
         }
 
-    def get_service_available(self, service, warn: bool = False) -> list[str]:
+    def get_service_available(
+        self, service: "InferenceServiceABC", warn: bool = False
+    ) -> list[str]:
         """
         Try to fetch available models from sources in specified order.
         Returns first successful result.
@@ -75,19 +81,19 @@ class ServiceAvailability:
         return service.available()
 
     @classmethod
-    def _fetch_from_coop(cls, service) -> list[str]:
+    def _fetch_from_coop(cls, service: "InferenceServiceABC") -> list[str]:
         """Fetch models from Coop."""
         models_from_coop = cls.models_from_coop()
         return models_from_coop.get(service._inference_service_, [])
 
     @staticmethod
-    def _fetch_from_cache(service) -> list[str]:
+    def _fetch_from_cache(service: "InferenceServiceABC") -> list[str]:
         """Fetch models from local cache."""
         from edsl.inference_services.models_available_cache import models_available
 
         return models_available.get(service._inference_service_, [])
 
-    def _warn_source_failed(self, service, source: ModelSource):
+    def _warn_source_failed(self, service: "InferenceServiceABC", source: ModelSource):
         """Display appropriate warning message based on failed source."""
         messages = {
             ModelSource.LOCAL: f"""Error getting models for {service._inference_service_}. 

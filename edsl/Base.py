@@ -15,41 +15,6 @@ from edsl.utilities.utilities import is_notebook
 class RichPrintingMixin:
     pass
 
-    # def print(self):
-    #     print(self)
-
-
-#     """Mixin for rich printing and persistence of objects."""
-
-#     def _for_console(self):
-#         """Return a string representation of the object for console printing."""
-#         from rich.console import Console
-
-#         with io.StringIO() as buf:
-#             console = Console(file=buf, record=True)
-#             table = self.rich_print()
-#             console.print(table)
-#             return console.export_text()
-
-#     def __str__(self):
-#         """Return a string representation of the object for console printing."""
-#         # return self._for_console()
-#         return self.__repr__()
-
-#     def print(self):
-#         """Print the object to the console."""
-#         from edsl.utilities.utilities import is_notebook
-
-#         if is_notebook():
-#             from IPython.display import display
-
-#             display(self.rich_print())
-#         else:
-#             from rich.console import Console
-
-#             console = Console()
-#             console.print(self.rich_print())
-
 
 class PersistenceMixin:
     """Mixin for saving and loading objects to and from files."""
@@ -66,6 +31,16 @@ class PersistenceMixin:
 
         c = Coop(url=expected_parrot_url)
         return c.create(self, description, alias, visibility)
+
+    def create_download_link(self):
+        from tempfile import NamedTemporaryFile
+        from edsl.scenarios.FileStore import FileStore
+
+        with NamedTemporaryFile(suffix=".json.gz") as f:
+            self.save(f.name)
+            print(f.name)
+            fs = FileStore(path=f.name)
+        return fs.create_link()
 
     @classmethod
     def pull(
@@ -118,6 +93,13 @@ class PersistenceMixin:
 
         c = Coop()
         return c.search(cls, query)
+
+    def store(self, d: dict, key_name: Optional[str] = None):
+        if key_name is None:
+            index = len(d)
+        else:
+            index = key_name
+        d[index] = self
 
     def save(self, filename, compress=True):
         """Save the object to a file as zippped JSON.
@@ -192,9 +174,15 @@ class RegisterSubclassesMeta(ABCMeta):
             RegisterSubclassesMeta._registry[cls.__name__] = cls
 
     @staticmethod
-    def get_registry():
+    def get_registry(exclude_classes: Optional[list] = None):
         """Return the registry of subclasses."""
-        return dict(RegisterSubclassesMeta._registry)
+        if exclude_classes is None:
+            exclude_classes = []
+        return {
+            k: v
+            for k, v in dict(RegisterSubclassesMeta._registry).items()
+            if k not in exclude_classes
+        }
 
 
 class DiffMethodsMixin:
@@ -221,6 +209,10 @@ class RepresentationMixin:
         from edsl.results.Dataset import Dataset
 
         return Dataset.from_edsl_object(self)
+
+    def view(self):
+        "Displays an interactive / perspective view of the object"
+        return self.to_dataset().view()
 
     # def print(self, format="rich"):
     #     return self.to_dataset().table()
@@ -253,6 +245,45 @@ class RepresentationMixin:
         console = Console(record=True)
         console.print(table)
 
+    def help(obj):
+        """
+        Extract all public instance methods and their docstrings from a class instance.
+
+        Args:
+            obj: The instance to inspect
+
+        Returns:
+            dict: A dictionary where keys are method names and values are their docstrings
+        """
+        import inspect
+
+        if inspect.isclass(obj):
+            raise TypeError("Please provide a class instance, not a class")
+
+        methods = {}
+
+        # Get all members of the instance
+        for name, member in inspect.getmembers(obj):
+            # Skip private and special methods (those starting with underscore)
+            if name.startswith("_"):
+                continue
+
+            # Check if it's specifically an instance method
+            if inspect.ismethod(member):
+                # Get the docstring (or empty string if none exists)
+                docstring = inspect.getdoc(member) or ""
+                methods[name] = docstring
+
+        from edsl.results.Dataset import Dataset
+
+        d = Dataset(
+            [
+                {"method": list(methods.keys())},
+                {"documentation": list(methods.values())},
+            ]
+        )
+        return d
+
     def _repr_html_(self):
         from edsl.results.TableDisplay import TableDisplay
 
@@ -282,10 +313,24 @@ class RepresentationMixin:
         return self.__repr__()
 
 
+class HashingMixin:
+
+    def __hash__(self) -> int:
+        """Return a hash of the question."""
+        from edsl.utilities.utilities import dict_hash
+
+        return dict_hash(self.to_dict(add_edsl_version=False))
+
+    def __eq__(self, other):
+        """Return whether two objects are equal."""
+        return hash(self) == hash(other)
+
+
 class Base(
     RepresentationMixin,
     PersistenceMixin,
     DiffMethodsMixin,
+    HashingMixin,
     ABC,
     metaclass=RegisterSubclassesMeta,
 ):
@@ -306,24 +351,6 @@ class Base(
         keys = self.keys()
         return {data[key] for key in keys}
 
-    def __hash__(self) -> int:
-        """Return a hash of the question."""
-        from edsl.utilities.utilities import dict_hash
-
-        return dict_hash(self.to_dict(add_edsl_version=False))
-
-    def __eq__(self, other):
-        """Return whether two objects are equal."""
-        return hash(self) == hash(other)
-        # import inspect
-
-        # if not isinstance(other, self.__class__):
-        #     return False
-        # if "sort" in inspect.signature(self.to_dict).parameters:
-        #     return self.to_dict(sort=True) == other.to_dict(sort=True)
-        # else:
-        #     return self.to_dict() == other.to_dict()
-
     @abstractmethod
     def example():
         """This method should be implemented by subclasses."""
@@ -336,6 +363,13 @@ class Base(
 
     def to_json(self):
         return json.dumps(self.to_dict())
+
+    def store(self, d: dict, key_name: Optional[str] = None):
+        if key_name is None:
+            index = len(d)
+        else:
+            index = key_name
+        d[index] = self
 
     @abstractmethod
     def from_dict():
