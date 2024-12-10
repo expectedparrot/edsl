@@ -157,14 +157,13 @@ We can use built-in methods to inspect the response and other components of the 
 
 This will return:
 
-.. code-block:: text
+.. list-table::
+   :header-rows: 1
 
-   ┏━━━━━━━━┳━━━━━━━━━━┓
-   ┃ model  ┃ answer   ┃
-   ┃ .model ┃ .capital ┃
-   ┡━━━━━━━━╇━━━━━━━━━━┩
-   │ gpt-4o │ Paris    │
-   └────────┴──────────┘
+   * - model.model
+     - answer.capital
+   * - gpt-4o
+     - Paris
 
 
 A more complex example
@@ -238,32 +237,44 @@ We can then run the survey with the agents and models we have created, and analy
          "model.model":"Model", 
          "agent.party":"Party", 
          "agent.age":"Age", 
-         "answer.issues":q4.question_text + "\n" + ", ".join(q4.question_options)},
-            format="rich")
+         "answer.issues":q4.question_text + "\n" + ", ".join(q4.question_options)}
+         )
    )
 
 
 Example output:
 
-.. code-block:: text
+.. list-table::
+   :header-rows: 1
 
-   ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━┳━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-   ┃                            ┃             ┃     ┃ Which issues are most important to you?                        ┃
-   ┃                            ┃             ┃     ┃ Economy, Healthcare, Education, Climate change, National       ┃
-   ┃ Model                      ┃ Party       ┃ Age ┃ security, Other                                                ┃
-   ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━╇━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
-   │ claude-3-5-sonnet-20240620 │ Democrat    │ 60  │ ['Healthcare', 'Education', 'Climate change']                  │
-   ├────────────────────────────┼─────────────┼─────┼────────────────────────────────────────────────────────────────┤
-   │ claude-3-5-sonnet-20240620 │ Independent │ 60  │ ['Economy', 'Healthcare', 'Education', 'Climate change']       │
-   ├────────────────────────────┼─────────────┼─────┼────────────────────────────────────────────────────────────────┤
-   │ claude-3-5-sonnet-20240620 │ Republican  │ 60  │ ['Economy', 'National security']                               │
-   ├────────────────────────────┼─────────────┼─────┼────────────────────────────────────────────────────────────────┤
-   │ gpt-4                      │ Democrat    │ 60  │ ['Healthcare', 'Education', 'Climate change']                  │
-   ├────────────────────────────┼─────────────┼─────┼────────────────────────────────────────────────────────────────┤
-   │ gpt-4                      │ Independent │ 60  │ ['Economy', 'Healthcare', 'Education', 'Climate change']       │
-   ├────────────────────────────┼─────────────┼─────┼────────────────────────────────────────────────────────────────┤
-   │ gpt-4                      │ Republican  │ 60  │ ['Economy', 'Healthcare', 'National security']                 │
-   └────────────────────────────┴─────────────┴─────┴────────────────────────────────────────────────────────────────┘
+   * - Model
+     - Party
+     - Age
+     - Which issues are most important to you?
+   * - claude-3-5-sonnet-20240620
+     - Democrat
+     - 60
+     - ['Healthcare', 'Education', 'Climate change']
+   * - claude-3-5-sonnet-20240620
+     - Independent
+     - 60
+     - ['Economy', 'Healthcare', 'Education', 'Climate change']
+   * - claude-3-5-sonnet-20240620
+     - Republican
+     - 60
+     - ['Economy', 'National security']
+   * - gpt-4
+     - Democrat
+     - 60
+     - ['Healthcare', 'Education', 'Climate change']
+   * - gpt-4
+     - Independent
+     - 60
+     - ['Economy', 'Healthcare', 'Education', 'Climate change']
+   * - gpt-4
+     - Republican
+     - 60
+     - ['Economy', 'Healthcare', 'National security']
 
 
 Creating scenarios of questions
@@ -309,20 +320,24 @@ Scenarios can be particularly useful for data labeling tasks or when conducting 
       .filter("optimistic > 7 and age == 25")
       .sort_by("optimistic", "party")
       .select("party", "age", "topic", "primary_news_source", "optimistic")
-      .print(format="rich")
    )
 
 
 Example output:  
 
-.. code-block:: text
+.. list-table::
+   :header-rows: 1
 
-   ┏━━━━━━━━━━┳━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━┓
-   ┃ agent    ┃ agent ┃ scenario  ┃ answer               ┃ answer      ┃
-   ┃ .party   ┃ .age  ┃ .topic    ┃ .primary_news_source ┃ .optimistic ┃
-   ┡━━━━━━━━━━╇━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━┩
-   │ Democrat │ 25    │ Education │ Online news websites │ 8           │
-   └──────────┴───────┴───────────┴──────────────────────┴─────────────┘
+   * - agent.party
+     - agent.age
+     - scenario.topic
+     - answer.primary_news_source
+     - answer.optimistic
+   * - Democrat
+     - 25
+     - Education
+     - Online news websites
+     - 8
 
 
 EDSL comes with built-in methods for data analysis and visualization, making it easy to explore and interpret the results of your research.
