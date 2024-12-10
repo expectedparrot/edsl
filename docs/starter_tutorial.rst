@@ -106,47 +106,51 @@ To see a list of all question types:
 Output:
 
 .. list-table::
-  :header-rows: 1
+   :header-rows: 1
+   :widths: 15 20 65
 
-  * - question_type
-    - question_class
-    - example_question
-  * - checkbox
-    - QuestionCheckBox
-    - Question('checkbox', name="never_eat", text="Which foods would you eat?", min=2, max=5, options=['soggy meatpie', 'rare snails', 'mouldy bread', 'panda milk custard', 'McDonalds'])
-  * - extract 
-    - QuestionExtract
-    - Question('extract', name="extract_name", text="My name is Moby Dick...", template={'name': 'John Doe', 'profession': 'Carpenter'})
-  * - free_text
-    - QuestionFreeText  
-    - Question('free_text', name="how_are_you", text="How are you?")
-  * - functional
-    - QuestionFunctional
-    - Question('functional', name="sum_and_multiply", text="Calculate sum and multiply by trait multiplier.")
-  * - likert_five
-    - QuestionLikertFive
-    - Question('likert_five', name="happy_raining", text="I'm only happy when it rains.", options=['Strongly disagree'-'Strongly agree'])
-  * - linear_scale
-    - QuestionLinearScale
-    - Question('linear_scale', name="ice_cream", text="How much do you like ice cream?", options=[1-5], labels={1:'hate', 5:'love'})
-  * - list
-    - QuestionList
-    - Question('list', name="list_of_foods", text="What are your favorite foods?")
-  * - multiple_choice
-    - QuestionMultipleChoice
-    - Question('multiple_choice', name="how_feeling", text="How are you?", options=['Good','Great','OK','Bad'])
-  * - numerical
-    - QuestionNumerical
-    - Question('numerical', name="age", text="You are 45. How old are you?", min=0, max=86.7)
-  * - rank
-    - QuestionRank
-    - Question('rank', name="rank_foods", text="Rank your favorite foods.", options=['Pizza','Pasta','Salad','Soup'], num=2)
-  * - top_k
-    - QuestionTopK
-    - Question('top_k', name="two_fruits", text="Which fruits do you prefer?", min=2, max=2, options=['apple','banana','carrot','durian'])
-  * - yes_no
-    - QuestionYesNo
-    - Question('yes_no', name="is_it_equal", text="Is 5 + 5 equal to 11?", options=['No','Yes'])
+   * - question_type
+     - question_class
+     - example_question
+   * - checkbox
+     - QuestionCheckBox
+     - Question('checkbox', question_name="""never_eat""", question_text="""Which of the following foods would you eat if you had to?""", min_selections=2, max_selections=5, question_options=['soggy meatpie', 'rare snails', 'mouldy bread', 'panda milk custard', 'McDonalds'], include_comment=False, use_code=True)
+   * - extract
+     - QuestionExtract
+     - Question('extract', question_name="""extract_name""", question_text="""My name is Moby Dick. I have a PhD in astrology, but I'm actually a truck driver""", answer_template={'name': 'John Doe', 'profession': 'Carpenter'})
+   * - free_text
+     - QuestionFreeText
+     - Question('free_text', question_name="""how_are_you""", question_text="""How are you?""")
+   * - functional
+     - QuestionFunctional
+     - Question('functional', question_name="""sum_and_multiply""", question_text="""Calculate the sum of the list and multiply it by the agent trait multiplier.""")
+   * - likert_five
+     - QuestionLikertFive
+     - Question('likert_five', question_name="""happy_raining""", question_text="""I'm only happy when it rains.""", question_options=['Strongly disagree', 'Disagree', 'Neutral', 'Agree', 'Strongly agree'])
+   * - linear_scale
+     - QuestionLinearScale
+     - Question('linear_scale', question_name="""ice_cream""", question_text="""How much do you like ice cream?""", question_options=[1, 2, 3, 4, 5], option_labels={1: 'I hate it', 5: 'I love it'})
+   * - list
+     - QuestionList
+     - Question('list', question_name="""list_of_foods""", question_text="""What are your favorite foods?""", max_list_items=None)
+   * - matrix
+     - QuestionMatrix
+     - Question('matrix', question_name="""child_happiness""", question_text="""How happy would you be with different numbers of children?""", question_items=['No children', '1 child', '2 children', '3 or more children'], question_options=[1, 2, 3, 4, 5], option_labels={1: 'Very sad', 3: 'Neutral', 5: 'Extremely happy'})
+   * - multiple_choice
+     - QuestionMultipleChoice
+     - Question('multiple_choice', question_name="""how_feeling""", question_text="""How are you?""", question_options=['Good', 'Great', 'OK', 'Bad'], include_comment=False)
+   * - numerical
+     - QuestionNumerical
+     - Question('numerical', question_name="""age""", question_text="""You are a 45 year old man. How old are you in years?""", min_value=0, max_value=86.7, include_comment=False)
+   * - rank
+     - QuestionRank
+     - Question('rank', question_name="""rank_foods""", question_text="""Rank your favorite foods.""", question_options=['Pizza', 'Pasta', 'Salad', 'Soup'], num_selections=2)
+   * - top_k
+     - QuestionTopK
+     - Question('top_k', question_name="""two_fruits""", question_text="""Which of the following fruits do you prefer?""", min_selections=2, max_selections=2, question_options=['apple', 'banana', 'carrot', 'durian'], use_code=True)
+   * - yes_no
+     - QuestionYesNo
+     - Question('yes_no', question_name="""is_it_equal""", question_text="""Is 5 + 5 equal to 11?""", question_options=['No', 'Yes'])
  
 
 We can see the components of a particular question type by importing the question type class and calling the `example` method on it:
@@ -154,18 +158,18 @@ We can see the components of a particular question type by importing the questio
 .. code-block:: python
 
   from edsl import (
-      # QuestionCheckBox,
-      # QuestionExtract,
-      # QuestionFreeText,
-      # QuestionFunctional,
-      # QuestionLikertFive,
-      # QuestionLinearScale,
-      # QuestionList,
-      QuestionMultipleChoice,
-      # QuestionNumerical,
-      # QuestionRank,
-      # QuestionTopK,
-      # QuestionYesNo
+    # QuestionCheckBox,
+    # QuestionExtract,
+    # QuestionFreeText,
+    # QuestionFunctional,
+    # QuestionLikertFive,
+    # QuestionLinearScale,
+    # QuestionList,
+    QuestionMultipleChoice,
+    # QuestionNumerical,
+    # QuestionRank,
+    # QuestionTopK,
+    # QuestionYesNo
   )
 
   q = QuestionMultipleChoice.example() # substitute any question type class name
@@ -175,20 +179,26 @@ We can see the components of a particular question type by importing the questio
 Output:
 
 .. list-table::
-  :header-rows: 1
+   :header-rows: 1
 
-  * - keys
-    - values
-  * - question_name
-    - how_feeling
-  * - question_text
-    - How are you?
-  * - question_options
-    - ['Good', 'Great', 'OK', 'Bad']
-  * - include_comment
-    - False
-  * - question_type
-    - multiple_choice
+   * - key
+     - value
+   * - question_name
+     - how_feeling
+   * - question_text
+     - How are you?
+   * - question_options:0
+     - Good
+   * - question_options:1
+     - Great
+   * - question_options:2
+     - OK
+   * - question_options:3
+     - Bad
+   * - include_comment
+     - False
+   * - question_type
+     - multiple_choice
 
 
 Here we create a simple multiple choice question:
@@ -198,9 +208,9 @@ Here we create a simple multiple choice question:
   from edsl import QuestionMultipleChoice
 
   q = QuestionMultipleChoice(
-      question_name = "smallest_prime",
-      question_text = "Which is the smallest prime number?",
-      question_options = [0, 1, 2, 3]
+    question_name = "smallest_prime",
+    question_text = "Which is the smallest prime number?",
+    question_options = [0, 1, 2, 3]
   )
 
 
@@ -222,14 +232,14 @@ Here we inspect the response, together with the model that was used and the mode
 Output:
 
 .. list-table::
-  :header-rows: 1
+   :header-rows: 1
 
-  * - model.model
-    - answer.smallest_prime
-    - comment.smallest_prime_comment
-  * - gpt-4o
-    - 2
-    - 2 is the smallest prime number because it is the only even number greater than 1 that is divisible only by 1 and itself.
+   * - model.model
+     - answer.smallest_prime
+     - comment.smallest_prime_comment
+   * - gpt-4o
+     - 2
+     - 2 is the smallest prime number because it is the only even number greater than 1 that is divisible only by 1 and itself.
 
 
 The `Results` also include information about the question, model parameters, prompts, generated tokens and raw responses. 
@@ -243,31 +253,31 @@ To see a list of all the components:
 Output:
 
 .. list-table::
-   :header-rows: 1 
+   :header-rows: 1
 
-  * - 
-    - 'agent.agent_instruction',
-    - 'agent.agent_name',
-    - 'answer.smallest_prime',
-    - 'comment.smallest_prime_comment',
-    - 'generated_tokens.smallest_prime_generated_tokens',
-    - 'iteration.iteration',
-    - 'model.frequency_penalty',
-    - 'model.logprobs',
-    - 'model.max_tokens',
-    - 'model.model',
-    - 'model.presence_penalty',
-    - 'model.temperature',
-    - 'model.top_logprobs',
-    - 'model.top_p',
-    - 'prompt.smallest_prime_system_prompt',
-    - 'prompt.smallest_prime_user_prompt',
-    - 'question_options.smallest_prime_question_options',
-    - 'question_text.smallest_prime_question_text',
-    - 'question_type.smallest_prime_question_type',
-    - 'raw_model_response.smallest_prime_cost',
-    - 'raw_model_response.smallest_prime_one_usd_buys',
-    - 'raw_model_response.smallest_prime_raw_model_response']
+   * - 0
+   * - agent.agent_instruction
+   * - agent.agent_name
+   * - answer.smallest_prime
+   * - comment.smallest_prime_comment
+   * - generated_tokens.smallest_prime_generated_tokens
+   * - iteration.iteration
+   * - model.frequency_penalty
+   * - model.logprobs
+   * - model.max_tokens
+   * - model.model
+   * - model.presence_penalty
+   * - model.temperature
+   * - model.top_logprobs
+   * - model.top_p
+   * - prompt.smallest_prime_system_prompt
+   * - prompt.smallest_prime_user_prompt
+   * - question_options.smallest_prime_question_options
+   * - question_text.smallest_prime_question_text
+   * - question_type.smallest_prime_question_type
+   * - raw_model_response.smallest_prime_cost
+   * - raw_model_response.smallest_prime_one_usd_buys
+   * - raw_model_response.smallest_prime_raw_model_response
 
 
 Example: Conducting a survey with agents and models
@@ -280,28 +290,28 @@ We start by creating questions in different types and passing them to a `Survey`
 
 .. code-block:: python 
 
-    from edsl import QuestionLinearScale, QuestionFreeText
+  from edsl import QuestionLinearScale, QuestionFreeText
 
-    q_enjoy = QuestionLinearScale(
-        question_name = "enjoy",
-        question_text = "On a scale from 1 to 5, how much do you enjoy reading?",
-        question_options = [1, 2, 3, 4, 5],
-        option_labels = {1:"Not at all", 5:"Very much"}
-    )
+  q_enjoy = QuestionLinearScale(
+    question_name = "enjoy",
+    question_text = "On a scale from 1 to 5, how much do you enjoy reading?",
+    question_options = [1, 2, 3, 4, 5],
+    option_labels = {1:"Not at all", 5:"Very much"}
+  )
 
-    q_favorite_place = QuestionFreeText(
-        question_name = "favorite_place",
-        question_text = "Describe your favorite place for reading."
-    )
+  q_favorite_place = QuestionFreeText(
+    question_name = "favorite_place",
+    question_text = "Describe your favorite place for reading."
+  )
 
 
 We construct a `Survey` by passing a list of questions:
 
 .. code-block:: python
 
-    from edsl import Survey
+  from edsl import Survey
 
-    survey = Survey(questions = [q_enjoy, q_favorite_place])
+  survey = Survey(questions = [q_enjoy, q_favorite_place])
 
 
 Agents
@@ -318,7 +328,7 @@ Here we construct several simple agent personas to use with our survey:
   from edsl import AgentList, Agent
 
   agents = AgentList(
-      Agent(traits = {"persona":p}) for p in ["artist", "mechanic", "sailor"]
+    Agent(traits = {"persona":p}) for p in ["artist", "mechanic", "sailor"]
   )
 
 
@@ -347,26 +357,26 @@ To check the default model that will be used if no models are specified for a su
 Output (may be different if the default model has changed):
 
 .. list-table::
-  :header-rows: 1
+   :header-rows: 1
 
-  * - keys
-    - values
-  * - model
-    - gpt-4o
-  * - temperature
-    - 0.5
-  * - max_tokens
-    - 1000
-  * - top_p
-    - 1
-  * - frequency_penalty
-    - 0
-  * - presence_penalty
-    - 0
-  * - logprobs
-    - False
-  * - top_logprobs
-    - 3
+   * - key
+     - value
+   * - model
+     - gpt-4o
+   * - parameters:temperature
+     - 0.5
+   * - parameters:max_tokens
+     - 1000
+   * - parameters:top_p
+     - 1
+   * - parameters:frequency_penalty
+     - 0
+   * - parameters:presence_penalty
+     - 0
+   * - parameters:logprobs
+     - False
+   * - parameters:top_logprobs
+     - 3
 
 
 Here we select some models to use with our survey:
@@ -376,8 +386,8 @@ Here we select some models to use with our survey:
   from edsl import ModelList, Model
 
   models = ModelList(
-      Model(m) for m in ["gpt-4o", "gemini-pro"]
-      )
+    Model(m) for m in ["gpt-4o", "gemini-pro"]
+    )
 
 
 Running a survey
@@ -391,44 +401,44 @@ Then we administer a survey the same way that we do an individual question, by c
   results = survey.by(agents).by(models).run()
 
   (
-      results
-      .sort_by("persona", "model")
-      .select("model", "persona", "enjoy", "favorite_place")
+    results
+    .sort_by("persona", "model")
+    .select("model", "persona", "enjoy", "favorite_place")
   )
 
 Example output:
 
 .. list-table::
-  :header-rows: 1
+   :header-rows: 1
 
-  * - model.model
-    - agent.persona
-    - answer.enjoy
-    - answer.favorite_place
-  * - gemini-pro
-    - artist
-    - 5
-    - Nestled amidst the verdant embrace of a sprawling park, my favorite reading sanctuary unfolds as a secluded haven where tranquility reigns supreme. Beneath the towering canopy of ancient oak trees, a quaint bench beckons, its weathered surface inviting me to sink into its embrace. As I settle in, the gentle rustling of leaves overhead creates a soothing symphony that calms my mind and prepares me for the literary journey ahead. The air is fragrant with the sweet scent of blooming wildflowers, carried by a soft breeze that whispers secrets through the trees. The vibrant hues of nature paint the canvas around me, inspiring a sense of wonder and connection to the world. As I open the pages of my chosen book, the outside world fades into oblivion. The words dance before my eyes, inviting me into realms unknown. The characters become my companions, their stories unfolding before me like a captivating tapestry. Time seems to stand still in this idyllic setting. The worries of the day dissolve as I immerse myself in the written word. The worries of the day dissolve as I immerse myself in the written word. The worries of the day dissolve as I immerse myself in the written word. As the sun begins its descent, casting long shadows across the park, I close my book and savor the lingering glow of the day. The world around me has transformed into a magical realm, where the boundaries between reality and imagination blur.
-  * - gpt-4o
-    - artist
-    - 4
-    - My favorite place for reading is a cozy nook by a large window in my art studio. The natural light that streams in during the day is perfect for both reading and painting. I have a comfortable armchair draped with a colorful throw, and a small wooden side table where I keep a steaming cup of herbal tea. The walls are adorned with my paintings, which add a touch of inspiration and creativity to the atmosphere. It's a quiet, peaceful space where I can lose myself in a good book or simply gaze out at the changing scenery outside.
-  * - gemini-pro
-    - mechanic
-    - 5
-    - In the heart of my cozy abode, where solitude and inspiration intertwine, lies my sanctuary of literary bliss—my reading nook. Bathed in the warm glow of a vintage lamp, it beckons me with its allure, a haven where I can escape into the realms of imagination. The walls are adorned with shelves brimming with an eclectic collection of books, their spines whispering tales of adventure, romance, and wisdom. The air is infused with the faint scent of paper and ink, a symphony that awakens my senses. A plush armchair, upholstered in soft velvet, invites me to sink into its embrace, enveloping me in a cocoon of comfort. A large window frames the verdant garden outside, offering a tranquil view of nature's artistry. As I turn the pages, the rustling of leaves and the chirping of birds create a soothing soundtrack that enhances my reading experience. The gentle breeze carries the sweet fragrance of blooming flowers, mingling with the scent of freshly brewed coffee on my side table. In this tranquil haven, I am free to lose myself in the written word. Time seems to stand still as I journey through distant lands, unravel mysteries, and explore the depths of human emotion. The characters become my companions, their struggles and triumphs mirroring my own.
-  * - gpt-4o
-    - mechanic
-    - 2
-    - As a mechanic, my favorite place for reading might not be what you'd expect. I enjoy reading in my garage, surrounded by the hum of engines and the smell of oil. There's something comforting about being in my element, with tools and parts all around me. I usually set up a small corner with a sturdy chair and a good lamp, so I can dive into a book during my breaks. Whether it's a manual on the latest automotive technology or a novel to unwind, the garage is my go-to spot.
-  * - gemini-pro
-    - sailor
-    - 5
-    - Amidst the bustling city's cacophony, I seek solace in a sanctuary of tranquility—my favorite reading nook. Nestled in a cozy corner of my apartment, it is an oasis of serenity. The soft glow of a vintage lamp illuminates a comfortable armchair, its plush cushions inviting me to sink into its embrace. A large window frames a vibrant cityscape, providing a backdrop of constant movement and life. Yet, within this cozy haven, I find stillness and escape. The walls are adorned with an eclectic collection of artwork, each piece evoking a different memory or inspiration. A vibrant abstract painting captures the essence of a stormy sea, while a delicate watercolor depicts the serene beauty of a mountain meadow. These visual cues transport me to distant realms, setting the stage for literary adventures. The air is scented with the faint aroma of freshly brewed coffee and the subtle fragrance of old books. The gentle hum of the city outside fades into a distant murmur, creating an atmosphere conducive to deep contemplation and immersion. As I settle into my armchair, I reach for a book. Its pages hold the promise of countless worlds to explore, characters to meet, and lessons to learn. The weight of the book in my hands feels both comforting and exhilarating, a tangible connection to the boundless possibilities within its covers. With each turn of the page, I am transported to different times and places. I witness the rise and fall of empires, the triumphs and tragedies of human lives, and the wonders of the natural world. The words dance before my eyes, painting vivid images in my mind. I become lost in the stories, my own worries and concerns fading away.
-  * - gpt-4o
-    - sailor
-    - 3
-    - Ah, my favorite place for reading has to be the deck of a ship, with the vast ocean stretching out endlessly before me. There's something about the gentle rocking of the waves and the salty sea breeze that makes any book come alive. I love settling into a sturdy deck chair, perhaps with a mug of strong coffee or a tot of rum by my side, and losing myself in a tale while the sun sets on the horizon, painting the sky with colors that even the best of stories can't quite capture. The sound of the water lapping against the hull provides a soothing background, making it the perfect spot to dive into a good book.
+   * - model.model
+     - agent.persona
+     - answer.enjoy
+     - answer.favorite_place
+   * - gemini-pro
+     - artist
+     - 5
+     - Nestled amidst the verdant embrace of a sprawling park, my favorite reading sanctuary unfolds as a secluded haven where tranquility reigns supreme. Beneath the towering canopy of ancient oak trees, a quaint bench beckons, its weathered surface inviting me to sink into its embrace. As I settle in, the gentle rustling of leaves overhead creates a soothing symphony that calms my mind and prepares me for the literary journey ahead. The air is fragrant with the sweet scent of blooming wildflowers, carried by a soft breeze that whispers secrets through the trees. The vibrant hues of nature paint the canvas around me, inspiring a sense of wonder and connection to the world. As I open the pages of my chosen book, the outside world fades into oblivion. The words dance before my eyes, inviting me into realms unknown. The characters become my companions, their stories unfolding before me like a captivating tapestry. Time seems to stand still in this idyllic setting. The worries of the day dissolve as I immerse myself in the written word. As the sun begins its descent, casting long shadows across the park, I close my book and savor the lingering glow of the day. The world around me has transformed into a magical realm, where the boundaries between reality and imagination blur.
+   * - gpt-4o
+     - artist
+     - 4
+     - My favorite place for reading is a cozy nook by a large window in my art studio. The natural light that streams in during the day is perfect for both reading and painting. I have a comfortable armchair draped with a colorful throw, and a small wooden side table where I keep a steaming cup of herbal tea. The walls are adorned with my paintings, which add a touch of inspiration and creativity to the atmosphere. It's a quiet, peaceful space where I can lose myself in a good book or simply gaze out at the changing scenery outside.
+   * - gemini-pro
+     - mechanic
+     - 5
+     - In the heart of my cozy abode, where solitude and inspiration intertwine, lies my sanctuary of literary bliss—my reading nook. Bathed in the warm glow of a vintage lamp, it beckons me with its allure, a haven where I can escape into the realms of imagination. The walls are adorned with shelves brimming with an eclectic collection of books, their spines whispering tales of adventure, romance, and wisdom. The air is infused with the faint scent of paper and ink, a symphony that awakens my senses. A plush armchair, upholstered in soft velvet, invites me to sink into its embrace, enveloping me in a cocoon of comfort. A large window frames the verdant garden outside, offering a tranquil view of nature's artistry. As I turn the pages, the rustling of leaves and the chirping of birds create a soothing soundtrack that enhances my reading experience. The gentle breeze carries the sweet fragrance of blooming flowers, mingling with the scent of freshly brewed coffee on my side table. In this tranquil haven, I am free to lose myself in the written word. Time seems to stand still as I journey through distant lands, unravel mysteries, and explore the depths of human emotion. The characters become my companions, their struggles and triumphs mirroring my own.
+   * - gpt-4o
+     - mechanic
+     - 2
+     - As a mechanic, my favorite place for reading might not be what you'd expect. I enjoy reading in my garage, surrounded by the hum of engines and the smell of oil. There's something comforting about being in my element, with tools and parts all around me. I usually set up a small corner with a sturdy chair and a good lamp, so I can dive into a book during my breaks. Whether it's a manual on the latest automotive technology or a novel to unwind, the garage is my go-to spot.
+   * - gemini-pro
+     - sailor
+     - 5
+     - Amidst the bustling city's cacophony, I seek solace in a sanctuary of tranquility—my favorite reading nook. Nestled in a cozy corner of my apartment, it is an oasis of serenity. The soft glow of a vintage lamp illuminates a comfortable armchair, its plush cushions inviting me to sink into its embrace. A large window frames a vibrant cityscape, providing a backdrop of constant movement and life. Yet, within this cozy haven, I find stillness and escape. The walls are adorned with an eclectic collection of artwork, each piece evoking a different memory or inspiration. A vibrant abstract painting captures the essence of a stormy sea, while a delicate watercolor depicts the serene beauty of a mountain meadow. These visual cues transport me to distant realms, setting the stage for literary adventures. The air is scented with the faint aroma of freshly brewed coffee and the subtle fragrance of old books. The gentle hum of the city outside fades into a distant murmur, creating an atmosphere conducive to deep contemplation and immersion. As I settle into my armchair, I reach for a book. Its pages hold the promise of countless worlds to explore, characters to meet, and lessons to learn. The weight of the book in my hands feels both comforting and exhilarating, a tangible connection to the boundless possibilities within its covers. With each turn of the page, I am transported to different times and places. I witness the rise and fall of empires, the triumphs and tragedies of human lives, and the wonders of the natural world. The words dance before my eyes, painting vivid images in my mind. I become lost in the stories, my own worries and concerns fading away.
+   * - gpt-4o
+     - sailor
+     - 3
+     - Ah, my favorite place for reading has to be the deck of a ship, with the vast ocean stretching out endlessly before me. There's something about the gentle rocking of the waves and the salty sea breeze that makes any book come alive. I love settling into a sturdy deck chair, perhaps with a mug of strong coffee or a tot of rum by my side, and losing myself in a tale while the sun sets on the horizon, painting the sky with colors that even the best of stories can't quite capture. The sound of the water lapping against the hull provides a soothing background, making it the perfect spot to dive into a good book.
 
 
 Example: Adding context to questions
@@ -456,13 +466,13 @@ Here we insert the answer to a numerical question into the text of a follow-on y
   from edsl import QuestionNumerical, QuestionYesNo, Survey
 
   q1 = QuestionNumerical(
-      question_name = "random_number",
-      question_text = "Pick a random number between 1 and 1,000."
+    question_name = "random_number",
+    question_text = "Pick a random number between 1 and 1,000."
   )
 
   q2 = QuestionYesNo(
-      question_name = "prime",
-      question_text = "Is this a prime number: {{ random_number.answer }}"
+    question_name = "prime",
+    question_text = "Is this a prime number: {{ random_number.answer }}"
   )
 
   survey = Survey([q1, q2])
@@ -480,16 +490,25 @@ We can check the `user_prompt` for the `prime` question to verify that that the 
 Example output:
 
 .. list-table::
-  :header-rows: 1
+   :header-rows: 1
 
-  * - answer.random_number
-    - prompt.prime_user_prompt
-    - answer.prime
-    - comment.prime_comment
-  * - 487
-    - Is this a prime number: 487 No Yes Only 1 option may be selected. Please respond with just your answer. After the answer, you can put a comment explaining your response.
-    - No
-    - 487 is not a prime number because it can be divided evenly by 1, 487, and also by 19 and 25.
+   * - answer.random_number
+     - prompt.prime_user_prompt
+     - answer.prime
+     - comment.prime_comment
+   * - 487
+     - Is this a prime number: 487
+
+       No
+
+       Yes
+
+       Only 1 option may be selected.
+       Please respond with just your answer.
+
+       After the answer, you can put a comment explaining your response.
+     - No
+     - 487 is not a prime number because it can be divided evenly by 1, 487, and also by 19 and 25.
 
 
 Adding "memory" of questions and answers
@@ -507,13 +526,13 @@ Here we demonstrate the `add_targeted_memory` method (we could also use `set_ful
   from edsl import QuestionNumerical, QuestionYesNo, Survey
 
   q1 = QuestionNumerical(
-      question_name = "random_number",
-      question_text = "Pick a random number between 1 and 1,000."
+    question_name = "random_number",
+    question_text = "Pick a random number between 1 and 1,000."
   )
 
   q2 = QuestionYesNo(
-      question_name = "prime",
-      question_text = "Is the number you picked a prime number?"
+    question_name = "prime",
+    question_text = "Is the number you picked a prime number?"
   )
 
   survey = Survey([q1, q2]).add_targeted_memory(q2, q1)
@@ -531,23 +550,21 @@ We can again use the `user_prompt` to verify the context that was added to the f
 Example output:
 
 .. list-table::
-  :header-rows: 1
+   :header-rows: 1
 
-  * - row
-    - key
-    - value
-  * - 0
-    - answer.random_number
-    - 487
-  * - 0
-    - prompt.prime_user_prompt
-    - Is the number you picked a prime number? No Yes Only 1 option may be selected. Please respond with just your answer. After the answer, you can put a comment explaining your response. Before the question you are now answering, you already answered the following question(s): Question: Pick a random number between 1 and 1,000. Answer: 487
-  * - 0
-    - answer.prime
-    - Yes
-  * - 0
-    - comment.prime_comment
-    - 487 is a prime number because it has no divisors other than 1 and itself.
+   * - row
+     - key
+     - value
+   * - 0
+     - answer.random_number
+     - 487
+   * - 0
+     - prompt.prime_user_prompt
+     - Is the number you picked a prime number?
+
+       No
+
+       Yes
 
 
 Scenarios
@@ -588,15 +605,15 @@ Here we add the scenarios to the survey when we run it, together with any desire
   from edsl import QuestionLinearScale, QuestionFreeText, Survey
 
   q_enjoy = QuestionLinearScale(
-      question_name = "enjoy",
-      question_text = "On a scale from 1 to 5, how much do you enjoy {{ activity }}?",
-      question_options = [1, 2, 3, 4, 5],
-      option_labels = {1:"Not at all", 5:"Very much"}
+    question_name = "enjoy",
+    question_text = "On a scale from 1 to 5, how much do you enjoy {{ activity }}?",
+    question_options = [1, 2, 3, 4, 5],
+    option_labels = {1:"Not at all", 5:"Very much"}
   )
 
   q_favorite_place = QuestionFreeText(
-      question_name = "favorite_place",
-      question_text = "In a brief sentence, describe your favorite place for {{ activity }}."
+    question_name = "favorite_place",
+    question_text = "In a brief sentence, describe your favorite place for {{ activity }}."
   )
 
   survey = Survey([q_enjoy, q_favorite_place])
@@ -604,58 +621,58 @@ Here we add the scenarios to the survey when we run it, together with any desire
   results = survey.by(scenarios).by(agents).by(models).run()
 
   (
-      results
-      .filter("model.model == 'gpt-4o'")
-      .sort_by("activity", "persona")
-      .select("activity", "persona", "enjoy", "favorite_place")
+    results
+    .filter("model.model == 'gpt-4o'")
+    .sort_by("activity", "persona")
+    .select("activity", "persona", "enjoy", "favorite_place")
   )
 
 
-Example output:
+Output:
 
 .. list-table::
-  :header-rows: 1
+   :header-rows: 1
 
-  * - scenario.activity
-    - agent.persona
-    - answer.enjoy
-    - answer.favorite_place
-  * - reading
-    - artist
-    - 4
-    - My favorite place for reading is a cozy nook by a large window, where the natural light spills over the pages, surrounded by plants and the gentle hum of city life outside.
-  * - reading
-    - mechanic
-    - 2
-    - My favorite place for reading is in my garage, surrounded by the hum of engines and the scent of motor oil, where I can escape into a good book during breaks.
-  * - reading
-    - sailor
-    - 3
-    - Ah, my favorite place for reading is out on the deck of a ship, with the salty sea breeze in my hair and the gentle rocking of the waves beneath me.
-  * - relaxing
-    - artist
-    - 4
-    - My favorite place for relaxing is a sun-dappled studio filled with the scent of fresh paint and the gentle hum of creativity.
-  * - relaxing
-    - mechanic
-    - 3
-    - My favorite place for relaxing is in my garage, tinkering with an old engine, where the hum of tools and the smell of grease help me unwind.
-  * - relaxing
-    - sailor
-    - 3
-    - There's nothing quite like the gentle sway of a hammock on the deck of a ship, with the sound of the ocean waves lapping against the hull and the salty breeze in the air.
-  * - running
-    - artist
-    - 2
-    - My favorite place for running is a winding forest trail where the sunlight filters through the leaves, creating a dappled pattern on the ground.
-  * - running
-    - mechanic
-    - 1
-    - My favorite place for running is a quiet trail through the woods, where the fresh air and natural surroundings make each step feel refreshing.
-  * - running
-    - sailor
-    - 2
-    - Ah, my favorite place for running is along the rugged coastline, where the salty sea breeze fills the air and the waves crash against the rocks, reminding me of the vastness of the ocean.
+   * - scenario.activity
+     - agent.persona
+     - answer.enjoy
+     - answer.favorite_place
+   * - reading
+     - artist
+     - 4
+     - My favorite place for reading is a cozy nook by a large window, where the natural light spills over the pages, surrounded by plants and the gentle hum of city life outside.
+   * - reading
+     - mechanic
+     - 2
+     - My favorite place for reading is in my garage, surrounded by the hum of engines and the scent of motor oil, where I can escape into a good book during breaks.
+   * - reading
+     - sailor
+     - 3
+     - Ah, my favorite place for reading is out on the deck of a ship, with the salty sea breeze in my hair and the gentle rocking of the waves beneath me.
+   * - relaxing
+     - artist
+     - 4
+     - My favorite place for relaxing is a sun-dappled studio filled with the scent of fresh paint and the gentle hum of creativity.
+   * - relaxing
+     - mechanic
+     - 3
+     - My favorite place for relaxing is in my garage, tinkering with an old engine, where the hum of tools and the smell of grease help me unwind.
+   * - relaxing
+     - sailor
+     - 3
+     - There's nothing quite like the gentle sway of a hammock on the deck of a ship, with the sound of the ocean waves lapping against the hull and the salty breeze in the air.
+   * - running
+     - artist
+     - 2
+     - My favorite place for running is a winding forest trail where the sunlight filters through the leaves, creating a dappled pattern on the ground.
+   * - running
+     - mechanic
+     - 1
+     - My favorite place for running is a quiet trail through the woods, where the fresh air and natural surroundings make each step feel refreshing.
+   * - running
+     - sailor
+     - 2
+     - Ah, my favorite place for running is along the rugged coastline, where the salty sea breeze fills the air and the waves crash against the rocks, reminding me of the vastness of the ocean.
 
 
 Adding scenarios using the `loop` method
@@ -670,15 +687,15 @@ Note that we can also optionally use the scenario key in the question names (the
   from edsl import QuestionLinearScale, QuestionFreeText
 
   q_enjoy = QuestionLinearScale(
-      question_name = "enjoy_{{ activity }}", # optional use of scenario key
-      question_text = "On a scale from 1 to 5, how much do you enjoy {{ activity }}?",
-      question_options = [1, 2, 3, 4, 5],
-      option_labels = {1:"Not at all", 5:"Very much"}
+    question_name = "enjoy_{{ activity }}", # optional use of scenario key
+    question_text = "On a scale from 1 to 5, how much do you enjoy {{ activity }}?",
+    question_options = [1, 2, 3, 4, 5],
+    option_labels = {1:"Not at all", 5:"Very much"}
   )
 
   q_favorite_place = QuestionFreeText(
-      question_name = "favorite_place_{{ activity }}", # optional use of scenario key
-      question_text = "In a brief sentence, describe your favorite place for {{ activity }}."
+    question_name = "favorite_place_{{ activity }}", # optional use of scenario key
+    question_text = "In a brief sentence, describe your favorite place for {{ activity }}."
   )
 
 
@@ -692,7 +709,7 @@ Looping the scenarios to create a lists of versions of the `enjoy` question:
 
 Output:
 
-.. code_block:: python 
+.. code_block:: text 
 
   [Question('linear_scale', question_name = """enjoy_reading""", question_text = """On a scale from 1 to 5, how much do you enjoy reading?""", question_options = [1, 2, 3, 4, 5], option_labels = {1: 'Not at all', 5: 'Very much'}),
   Question('linear_scale', question_name = """enjoy_running""", question_text = """On a scale from 1 to 5, how much do you enjoy running?""", question_options = [1, 2, 3, 4, 5], option_labels = {1: 'Not at all', 5: 'Very much'}),
@@ -709,7 +726,7 @@ Looping the scenarios to create a lists of versions of the `favorite_place` ques
 
 Output:
 
-.. code-block:: python 
+.. code-block:: text 
 
   [Question('free_text', question_name = """favorite_place_reading""", question_text = """In a brief sentence, describe your favorite place for reading."""),
   Question('free_text', question_name = """favorite_place_running""", question_text = """In a brief sentence, describe your favorite place for running."""),
@@ -828,10 +845,10 @@ Here we inspect a subset of results:
 .. code-block:: python
 
   (
-      results
-      .filter("model.model == 'gpt-4o'")
-      .sort_by("persona")
-      .select("persona", "enjoy_reading", "enjoy_running", "enjoy_relaxing", "favorite_place_reading", "favorite_place_running", "favorite_place_relaxing")
+    results
+    .filter("model.model == 'gpt-4o'")
+    .sort_by("persona")
+    .select("persona", "enjoy_reading", "enjoy_running", "enjoy_relaxing", "favorite_place_reading", "favorite_place_running", "favorite_place_relaxing")
   )
 
 
