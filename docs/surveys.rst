@@ -258,10 +258,8 @@ We can call the `show_flow()` method to display a graphic of the flow of the sur
    :width: 300px
   
 
-.. raw:: html
-
-  <br><br>
-
+::
+::
 
 
 Stop rules
@@ -431,6 +429,7 @@ Output:
 
 .. list-table::
    :header-rows: 1
+   :widths: 30 50 20
 
    * - answer.colors
      - answer.examples
@@ -491,6 +490,7 @@ Output:
 
 .. list-table::
    :header-rows: 1
+   :widths: 20 20 20 20 20 20 20 20
 
    * - user_prompt
      - system_prompt
@@ -546,6 +546,7 @@ This will print the prompt that was used for each question, and we can see that 
 
 .. list-table::
    :header-rows: 1
+   :widths: 50 50 50 50
 
    * - prompt.consume_local_news_user_prompt
      - prompt.sources_user_prompt
@@ -633,6 +634,7 @@ This will print the prompts for each question:
 
 .. list-table::
    :header-rows: 1
+   :widths: 50 50 50 50
 
    * - prompt.consume_local_news_user_prompt
      - prompt.sources_user_prompt
@@ -710,6 +712,7 @@ Output:
 
 .. list-table::
    :header-rows: 1
+   :widths: 50 50 50 50
 
    * - prompt.consume_local_news_user_prompt
      - prompt.sources_user_prompt
@@ -787,6 +790,7 @@ Output:
 
 .. list-table::
    :header-rows: 1
+   :widths: 50 50 50 50
 
    * - prompt.consume_local_news_user_prompt
      - prompt.sources_user_prompt
