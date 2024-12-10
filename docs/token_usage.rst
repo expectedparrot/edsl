@@ -325,6 +325,7 @@ Output:
 
 .. list-table::
    :header-rows: 1
+   :widths: 50 50 50 50
 
    * - prompt.income_pref_user_prompt
      - generated_tokens.income_pref_generated_tokens
