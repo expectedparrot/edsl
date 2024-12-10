@@ -3,10 +3,11 @@ import io
 import tempfile
 import mimetypes
 import os
-from typing import Dict, Any, IO, Optional
+from typing import Dict, Any, IO, Optional, Literal
 import requests
 from urllib.parse import urlparse
-
+import time
+import subprocess
 import google.generativeai as genai
 
 from edsl import Scenario
@@ -447,6 +448,60 @@ class FileStore(Scenario):
 
         # Create and return a new File instance
         return cls(download_path, mime_type=mime_type)
+
+    @classmethod
+    def from_url_screenshot(
+        cls,
+        url: str,
+        full_page: bool = True,
+        wait_until: Literal[
+            "load", "domcontentloaded", "networkidle", "commit"
+        ] = "networkidle",
+        download_path: Optional[str] = None,
+    ) -> "FileStore":
+        """
+        Takes a screenshot of a webpage and returns it as a FileStore object.
+
+        :param url: The URL of the webpage to screenshot
+        :param full_page: Whether to capture the full scrollable page or just the viewport
+        :param wait_until: When to consider the page load finished. Options:
+            - 'load': consider load finished when the load event is fired
+            - 'domcontentloaded': consider load finished when the DOMContentLoaded event is fired
+            - 'networkidle': consider load finished when there are no network connections for at least 500ms
+            - 'commit': consider load finished when network response is received and the document started loading
+        :param download_path: Optional path where to save the screenshot. If None, a temporary file will be used.
+        :return: FileStore instance containing the screenshot
+        """
+        try:
+            from playwright.async_api import async_playwright
+            import asyncio
+        except ImportError:
+            raise ImportError(
+                "Screenshot functionality requires additional dependencies.\n"
+                "Install them with: pip install 'edsl[screenshot]'"
+            )
+
+        # Generate filename if not provided
+        if download_path is None:
+            download_path = os.path.join(
+                os.getcwd(), f"screenshot_{int(time.time())}.png"
+            )
+
+        async def _take_screenshot():
+            async with async_playwright() as p:
+                browser = await p.chromium.launch()
+                page = await browser.new_page()
+                await page.goto(url, wait_until=wait_until)
+                await page.screenshot(path=download_path, full_page=full_page)
+                await browser.close()
+
+        # Create a new event loop and run the async function
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(_take_screenshot())
+        loop.close()
+
+        return cls(download_path, mime_type="image/png")
 
 
 class CSVFileStore(FileStore):
