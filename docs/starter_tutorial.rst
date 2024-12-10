@@ -738,88 +738,89 @@ Output:
    :header-rows: 1
 
    * - 0
-     - agent.agent_instruction
-     - agent.agent_name
-     - agent.persona
-     - answer.enjoy_reading
-     - answer.enjoy_relaxing
-     - answer.enjoy_running
-     - answer.favorite_place_reading
-     - answer.favorite_place_relaxing
-     - answer.favorite_place_running
-     - comment.enjoy_reading_comment
-     - comment.enjoy_relaxing_comment
-     - comment.enjoy_running_comment
-     - comment.favorite_place_reading_comment
-     - comment.favorite_place_relaxing_comment
-     - comment.favorite_place_running_comment
-     - generated_tokens.enjoy_reading_generated_tokens
-     - generated_tokens.enjoy_relaxing_generated_tokens
-     - generated_tokens.enjoy_running_generated_tokens
-     - generated_tokens.favorite_place_reading_generated_tokens
-     - generated_tokens.favorite_place_relaxing_generated_tokens
-     - generated_tokens.favorite_place_running_generated_tokens
-     - iteration.iteration
-     - model.frequency_penalty
-     - model.logprobs
-     - model.maxOutputTokens
-     - model.max_tokens
-     - model.model
-     - model.presence_penalty
-     - model.stopSequences
-     - model.temperature
-     - model.topK
-     - model.topP
-     - model.top_logprobs
-     - model.top_p
-     - prompt.enjoy_reading_system_prompt
-     - prompt.enjoy_reading_user_prompt
-     - prompt.enjoy_relaxing_system_prompt
-     - prompt.enjoy_relaxing_user_prompt
-     - prompt.enjoy_running_system_prompt
-     - prompt.enjoy_running_user_prompt
-     - prompt.favorite_place_reading_system_prompt
-     - prompt.favorite_place_reading_user_prompt
-     - prompt.favorite_place_relaxing_system_prompt
-     - prompt.favorite_place_relaxing_user_prompt
-     - prompt.favorite_place_running_system_prompt
-     - prompt.favorite_place_running_user_prompt
-     - question_options.enjoy_reading_question_options
-     - question_options.enjoy_relaxing_question_options
-     - question_options.enjoy_running_question_options
-     - question_options.favorite_place_reading_question_options
-     - question_options.favorite_place_relaxing_question_options
-     - question_options.favorite_place_running_question_options
-     - question_text.enjoy_reading_question_text
-     - question_text.enjoy_relaxing_question_text
-     - question_text.enjoy_running_question_text
-     - question_text.favorite_place_reading_question_text
-     - question_text.favorite_place_relaxing_question_text
-     - question_text.favorite_place_running_question_text
-     - question_type.enjoy_reading_question_type
-     - question_type.enjoy_relaxing_question_type
-     - question_type.enjoy_running_question_type
-     - question_type.favorite_place_reading_question_type
-     - question_type.favorite_place_relaxing_question_type
-     - question_type.favorite_place_running_question_type
-     - raw_model_response.enjoy_reading_cost
-     - raw_model_response.enjoy_reading_one_usd_buys
-     - raw_model_response.enjoy_reading_raw_model_response
-     - raw_model_response.enjoy_relaxing_cost
-     - raw_model_response.enjoy_relaxing_one_usd_buys
-     - raw_model_response.enjoy_relaxing_raw_model_response
-     - raw_model_response.enjoy_running_cost
-     - raw_model_response.enjoy_running_one_usd_buys
-     - raw_model_response.enjoy_running_raw_model_response
-     - raw_model_response.favorite_place_reading_cost
-     - raw_model_response.favorite_place_reading_one_usd_buys
-     - raw_model_response.favorite_place_reading_raw_model_response
-     - raw_model_response.favorite_place_relaxing_cost
-     - raw_model_response.favorite_place_relaxing_one_usd_buys
-     - raw_model_response.favorite_place_relaxing_raw_model_response
-     - raw_model_response.favorite_place_running_cost
-     - raw_model_response.favorite_place_running_one_usd_buys
-     - raw_model_response.favorite_place_running_raw_model_response
+   * - Fields
+   * - agent.agent_instruction
+   * - agent.agent_name
+   * - agent.persona
+   * - answer.enjoy_reading
+   * - answer.enjoy_relaxing
+   * - answer.enjoy_running
+   * - answer.favorite_place_reading
+   * - answer.favorite_place_relaxing
+   * - answer.favorite_place_running
+   * - comment.enjoy_reading_comment
+   * - comment.enjoy_relaxing_comment
+   * - comment.enjoy_running_comment
+   * - comment.favorite_place_reading_comment
+   * - comment.favorite_place_relaxing_comment
+   * - comment.favorite_place_running_comment
+   * - generated_tokens.enjoy_reading_generated_tokens
+   * - generated_tokens.enjoy_relaxing_generated_tokens
+   * - generated_tokens.enjoy_running_generated_tokens
+   * - generated_tokens.favorite_place_reading_generated_tokens
+   * - generated_tokens.favorite_place_relaxing_generated_tokens
+   * - generated_tokens.favorite_place_running_generated_tokens
+   * - iteration.iteration
+   * - model.frequency_penalty
+   * - model.logprobs
+   * - model.maxOutputTokens
+   * - model.max_tokens
+   * - model.model
+   * - model.presence_penalty
+   * - model.stopSequences
+   * - model.temperature
+   * - model.topK
+   * - model.topP
+   * - model.top_logprobs
+   * - model.top_p
+   * - prompt.enjoy_reading_system_prompt
+   * - prompt.enjoy_reading_user_prompt
+   * - prompt.enjoy_relaxing_system_prompt
+   * - prompt.enjoy_relaxing_user_prompt
+   * - prompt.enjoy_running_system_prompt
+   * - prompt.enjoy_running_user_prompt
+   * - prompt.favorite_place_reading_system_prompt
+   * - prompt.favorite_place_reading_user_prompt
+   * - prompt.favorite_place_relaxing_system_prompt
+   * - prompt.favorite_place_relaxing_user_prompt
+   * - prompt.favorite_place_running_system_prompt
+   * - prompt.favorite_place_running_user_prompt
+   * - question_options.enjoy_reading_question_options
+   * - question_options.enjoy_relaxing_question_options
+   * - question_options.enjoy_running_question_options
+   * - question_options.favorite_place_reading_question_options
+   * - question_options.favorite_place_relaxing_question_options
+   * - question_options.favorite_place_running_question_options
+   * - question_text.enjoy_reading_question_text
+   * - question_text.enjoy_relaxing_question_text
+   * - question_text.enjoy_running_question_text
+   * - question_text.favorite_place_reading_question_text
+   * - question_text.favorite_place_relaxing_question_text
+   * - question_text.favorite_place_running_question_text
+   * - question_type.enjoy_reading_question_type
+   * - question_type.enjoy_relaxing_question_type
+   * - question_type.enjoy_running_question_type
+   * - question_type.favorite_place_reading_question_type
+   * - question_type.favorite_place_relaxing_question_type
+   * - question_type.favorite_place_running_question_type
+   * - raw_model_response.enjoy_reading_cost
+   * - raw_model_response.enjoy_reading_one_usd_buys
+   * - raw_model_response.enjoy_reading_raw_model_response
+   * - raw_model_response.enjoy_relaxing_cost
+   * - raw_model_response.enjoy_relaxing_one_usd_buys
+   * - raw_model_response.enjoy_relaxing_raw_model_response
+   * - raw_model_response.enjoy_running_cost
+   * - raw_model_response.enjoy_running_one_usd_buys
+   * - raw_model_response.enjoy_running_raw_model_response
+   * - raw_model_response.favorite_place_reading_cost
+   * - raw_model_response.favorite_place_reading_one_usd_buys
+   * - raw_model_response.favorite_place_reading_raw_model_response
+   * - raw_model_response.favorite_place_relaxing_cost
+   * - raw_model_response.favorite_place_relaxing_one_usd_buys
+   * - raw_model_response.favorite_place_relaxing_raw_model_response
+   * - raw_model_response.favorite_place_running_cost
+   * - raw_model_response.favorite_place_running_one_usd_buys
+   * - raw_model_response.favorite_place_running_raw_model_response
 
 
 Here we inspect a subset of results:
