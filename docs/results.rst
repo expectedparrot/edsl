@@ -3,121 +3,93 @@
 Results
 =======
 
-A `Results` object is the result of running a survey. 
-It is a list of individual `Result` objects, each of which represents a response to a `Survey` for each combination of `Agent`, `Model` and `Scenario` objects that were used with the survey.
-For example, the `Results` of a survey administered to 2 agents and 2 language models with no question scenarios will contain 4 individual `Result` objects.
-If the survey questions are parameterized with 2 scenarios then the survey `Results` will include 8 `Result` objects.
+A `Results` object represents the outcome of running a `Survey`. 
+It contains a list of individual `Result` objects, where each `Result` corresponds to a response to the survey for a unique combination of `Agent`, `Model`, and `Scenario` object used in the survey.
 
-A `Results` object is not typically instantiated directly, but is returned by calling the `run()` method of a survey after any agents, language models and scenarios are added to it. 
-To inspect the form of an example `Results` we can call the `example()` method (it is long -- we show it at the end of this page):
-
-.. code-block:: python
-
-   from edsl import Results
-
-   example_results = Results.example()
+For example, if a survey is administered to 2 agents and 2 language models without any scenarios, the `Results` will contain 4 `Result` objects (one for each combination of agent and model). 
+If the survey includes parameterized questions with 2 scenarios, the `Results` will expand to include 8 `Result` objects (accounting for all combinations of agents, models, and scenarios).
 
 
-We can see the number of `Result` objects created by inspecting the length of the `Results`:
+Generating results 
+^^^^^^^^^^^^^^^^^^
 
-.. code-block:: python
+A `Results` object is not typically instantiated directly, but is returned by calling the `run()` method of a `Survey` after any agents, language models and scenarios are added to it. 
 
-   len(example_results)
+In order to demonstrate how to access and interact with results, we use the following code to generate results for a simple survey.
+Note that specifying agent traits, scenarios (question parameter values) and language models is optional, and we include those steps here for illustrative purposes.
+(See the :ref:`agents`, :ref:`scenarios` and :ref:`models` sections for more details on these components.)
 
+**Note:** You must store API keys for language models in order to generate results. 
+Please see the :ref:`api_keys` section for instructions on activating :ref:`remote_inference` from your :ref:`coop` account or storing your own API keys from service providers.
 
-Output:
-
-.. code-block:: text
-
-   4
-
-
-We can verify that object types:
+To construct a survey we start by creating questions:
 
 .. code-block:: python
 
-   type(example_results)
-
-
-Output
-
-.. code-block:: text
-
-   edsl.results.Results.Results
-
-
-And the 4 `Result` objects:
-
-.. code-block:: python
-
-   type(example_results[0])
-
-
-Output:
-
-.. code-block:: text
-
-   edsl.results.Results.Result
-
-
-**Note:** You must have API keys for language models in order to generate results. 
-Please see the :ref:`api_keys` section for instructions on activating :ref:`remote_inference` from your :ref:`coop` account or storing your own API keys.
-
-For purposes of demonstrating how to unpack and interact with results, we'll use the following code to generate results for a simple survey.
-Note that specifying agent traits, scenarios (question parameter values) and language models is optional, and we include those steps here for illustrative purposes:
-
-.. code-block:: python
-
-   # Create questions
-   from edsl import QuestionLinearScale, QuestionFreeText, QuestionMultipleChoice
+   from edsl import QuestionLinearScale, QuestionMultipleChoice
 
    q1 = QuestionLinearScale(
       question_name = "important",
       question_text = "On a scale from 1 to 5, how important to you is {{ topic }}?",
       question_options = [0, 1, 2, 3, 4, 5],
-      option_labels = {0:"Not at all", 5:"Very much"}
+      option_labels = {0:"Not at all important", 5:"Very important"}
    )
 
-   q2 = QuestionFreeText(
-      question_name = "opinions",
-      question_text = "What are your opinions on {{ topic }}?"
-   )
-
-   q3 = QuestionMultipleChoice(
+   q2 = QuestionMultipleChoice(
       question_name = "read",
       question_text = "Have you read any books about {{ topic }}?",
       question_options = ["Yes", "No", "I do not know"]
    )
 
-   # Optionally parameterize the questions with scenarios
+
+We combine them in a survey to administer them together:
+
+.. code-block:: python
+
+   from edsl import Survey
+
+   survey = Survey([q1, q2])
+
+
+We have parameterized our questions, so we can use them with different scenarios: 
+
+.. code-block:: python
+
    from edsl import ScenarioList
 
-   scenarios = ScenarioList.from_list("topic", ["climate change", "data privacy"])
+   scenarios = ScenarioList.from_list("topic", ["climate change", "house prices"])
 
-   # Optionally create agents with traits
+
+We can optionally create agents with personas or other relevant traits to answer the survey:
+
+.. code-block:: python
+
    from edsl import AgentList, Agent
 
    agents = AgentList(
       Agent(traits = {"persona": p}) for p in ["student", "celebrity"]
    )
 
-   # Optionally specify language models
+
+We can specify the language models that we want to use to generate responses:
+
+.. code-block:: python
+
    from edsl import ModelList, Model
 
    models = ModelList(
-      Model(m) for m in ["gemma-7b-it", "gpt-4o"]
+      Model(m) for m in ["gemini-1.5-flash", "gpt-4o"]
    )
 
-   # Create a survey with the questions
-   from edsl import Survey
 
-   survey = Survey([q1, q2, q3])
+Finally, we generate results by adding the scenarios, agents and models to the survey and calling the `run()` method:
 
-   # Run the survey with the scenarios, agents and models
+.. code-block:: python
+
    results = survey.by(scenarios).by(agents).by(models).run()
 
 
-For more details on each of the above steps, please see the relevant sections of the docs.
+For more details on each of the above steps, please see the :ref:`agents`, :ref:`scenarios` and :ref:`models` sections of the docs.
 
 
 Result objects 
@@ -177,117 +149,51 @@ Output:
    * - scenario:topic
      - climate change
    * - model:model
-     - gemma-7b-it
+     - gemini-1.5-flash
    * - model:parameters
-     - {'temperature': 0.5, 'max_tokens': 1000, 'top_p': 1, 'frequency_penalty': 0, 'presence_penalty': 0, 'logprobs': False, 'top_logprobs': 3}
+     - {'temperature': 0.5, 'topP': 1, 'topK': 1, 'maxOutputTokens': 2048, 'stopSequences': []}
    * - iteration
      - 0
    * - answer:important
      - 5
-   * - answer:opinions
-     - Climate change is an urgent and complex issue that demands immediate attention. The overwhelming scientific consensus points towards human activities as the primary drivers of global warming and its devastating consequences.
-
-       The effects of climate change are undeniable. Rising global temperatures, melting glaciers, extreme weather events, and rising sea levels are just some of the devastating impacts we are witnessing. These changes have far-reaching consequences for human societies and ecosystems.
-
-       I believe it is crucial for us to take decisive action to mitigate climate change and adapt to its effects. This requires a concerted global effort involving governments, businesses, and individuals.
-
-       **Key concerns:**
-       * The unprecedented rate and magnitude of climate change
-       * The irreversible damage already caused to ecosystems
-       * The disproportionate impact on vulnerable communities
-       * The need for urgent action to transition towards renewable energy and sustainable practices
-
-       **Possible solutions:**
-       * Promoting renewable energy technologies
-       * Enhancing energy efficiency
-       * Reducing deforestation and promoting carbon capture
-       * Implementing carbon pricing mechanisms
-       * Promoting sustainable land and forest management
-
-       **Individual actions:**
-       * Reducing carbon footprint through transportation and energy choices
-       * Supporting renewable energy initiatives
-       * Conserving natural resources
-       * Engaging in climate activism and advocacy
-       * Investing in sustainable businesses and technologies
    * - answer:read
      - Yes
    * - prompt:important_user_prompt
-     - {'text': 'On a scale from 1 to 5, how important to you is climate change?\n\n0 : Not at all\n\n1 : \n\n2 : \n\n3 : \n\n4 : \n\n5 : Very much\n\nOnly 1 option may be selected.\n\nRespond only with the code corresponding to one of the options. E.g., "1" or "5" by itself.\n\nAfter the answer, you can put a comment explaining why you chose that option on the next line.', 'class_name': 'Prompt'}
+     - {'text': 'On a scale from 1 to 5, how important to you is climate change?\n\n0 : Not at all important\n\n1 : \n\n2 : \n\n3 : \n\n4 : \n\n5 : Very important\n\nOnly 1 option may be selected.\n\nRespond only with the code corresponding to one of the options. E.g., "1" or "5" by itself.\n\nAfter the answer, you can put a comment explaining why you chose that option on the next line.', 'class_name': 'Prompt'}
    * - prompt:important_system_prompt
-     - {'text': "You are answering questions as if you were a human. Do not break character. Your traits: {'persona': 'student'}", 'class_name': 'Prompt'}
-   * - prompt:opinions_user_prompt
-     - {'text': 'What are your opinions on climate change?', 'class_name': 'Prompt'}
-   * - prompt:opinions_system_prompt
      - {'text': "You are answering questions as if you were a human. Do not break character. Your traits: {'persona': 'student'}", 'class_name': 'Prompt'}
    * - prompt:read_user_prompt
      - {'text': '\nHave you read any books about climate change?\n\n    \nYes\n    \nNo\n    \nI do not know\n    \n\nOnly 1 option may be selected.\n\nRespond only with a string corresponding to one of the options.\n\n\nAfter the answer, you can put a comment explaining why you chose that option on the next line.', 'class_name': 'Prompt'}
    * - prompt:read_system_prompt
      - {'text': "You are answering questions as if you were a human. Do not break character. Your traits: {'persona': 'student'}", 'class_name': 'Prompt'}
    * - raw_model_response:important_raw_model_response
-     - {'id': 'chatcmpl-64ad087e-9cf8-4034-a343-a2f61e3aaed8', 'choices': [{'finish_reason': 'stop', 'index': 0, 'logprobs': None, 'message': {'content': '5\n\n**Comment:** Climate change poses an urgent and existential threat to humanity and the natural world, demanding immediate action to mitigate its devastating effects on our planet and future generations.', 'role': 'assistant', 'function_call': None, 'tool_calls': None}}], 'created': 1733769788, 'model': 'gemma-7b-it', 'object': 'chat.completion', 'system_fingerprint': 'fp_7d8efeb0b1', 'usage': {'completion_tokens': 36, 'prompt_tokens': 136, 'total_tokens': 172, 'completion_time': 0.042352941, 'prompt_time': 0.153796878, 'queue_time': 0.0031890820000000097, 'total_time': 0.196149819}, 'x_groq': {'id': 'req_01jepbpyqcfr4s5532y37k9fdk'}}
+     - {'candidates': [{'content': {'parts': [{'text': "5\n\nIt's, like, a huge deal.  The future of the planet is at stake, and that affects everything – from the environment to the economy to social justice.  It's something I worry about a lot.\n"}], 'role': 'model'}, 'finish_reason': 1, 'safety_ratings': [{'category': 8, 'probability': 1, 'blocked': False}, {'category': 10, 'probability': 1, 'blocked': False}, {'category': 7, 'probability': 1, 'blocked': False}, {'category': 9, 'probability': 1, 'blocked': False}], 'avg_logprobs': -0.12477729758437799, 'token_count': 0, 'grounding_attributions': []}], 'usage_metadata': {'prompt_token_count': 129, 'candidates_token_count': 49, 'total_token_count': 178, 'cached_content_token_count': 0}}
    * - raw_model_response:important_cost
-     - 1.203999939800003e-05
+     - 1.78e-12
    * - raw_model_response:important_one_usd_buys
-     - 83056.48255813954
-   * - raw_model_response:opinions_raw_model_response
-     - {'id': 'chatcmpl-e61706c8-4741-48ed-b344-0dc7a34cbd19', 'choices': [{'finish_reason': 'stop', 'index': 0, 'logprobs': None, 'message': {'content': 'Climate change is an urgent and complex issue that demands immediate attention. The overwhelming scientific consensus points towards human activities as the primary drivers of global warming and its devastating consequences.\n\nThe effects of climate change are undeniable. Rising global temperatures, melting glaciers, extreme weather events, and rising sea levels are just some of the devastating impacts we are witnessing. These changes have far-reaching consequences for human societies and ecosystems.\n\nI believe it is crucial for us to take decisive action to mitigate climate change and adapt to its effects. This requires a concerted global effort involving governments, businesses, and individuals.\n\n**Key concerns:**\n\n* The unprecedented rate and magnitude of climate change\n* The irreversible damage already caused to ecosystems\n* The disproportionate impact on vulnerable communities\n* The need for urgent action to transition towards renewable energy and sustainable practices\n\n**Possible solutions:**\n\n* Promoting renewable energy technologies\n* Enhancing energy efficiency\n* Reducing deforestation and promoting carbon capture\n* Implementing carbon pricing mechanisms\n* Promoting sustainable land and forest management\n\n**Individual actions:**\n\n* Reducing carbon footprint through transportation and energy choices\n* Supporting renewable energy initiatives\n* Conserving natural resources\n* Engaging in climate activism and advocacy\n* Investing in sustainable businesses and technologies\n\nI believe it is our responsibility to leave a healthy planet for future generations and to mitigate the devastating effects of climate change.', 'role': 'assistant', 'function_call': None, 'tool_calls': None}}], 'created': 1733769790, 'model': 'gemma-7b-it', 'object': 'chat.completion', 'system_fingerprint': 'fp_7d8efeb0b1', 'usage': {'completion_tokens': 272, 'prompt_tokens': 42, 'total_tokens': 314, 'completion_time': 0.321678595, 'prompt_time': 0.040667402, 'queue_time': 0.003672768, 'total_time': 0.362345997}, 'x_groq': {'id': 'req_01jepbq1e0f26v8smj25yv7pxm'}}
-   * - raw_model_response:opinions_cost
-     - 2.1979998901000053e-05
-   * - raw_model_response:opinions_one_usd_buys
-     - 45495.90764331211
+     - 561797752808.9888
    * - raw_model_response:read_raw_model_response
-     - {'id': 'chatcmpl-d85aab9b-b26f-4794-b1fd-574a4490cc26', 'choices': [{'finish_reason': 'stop', 'index': 0, 'logprobs': None, 'message': {'content': 'Yes\n\n**Comment:** I have always been interested in environmental issues and have read several books on the topic to better understand the complexities of climate change and potential solutions.', 'role': 'assistant', 'function_call': None, 'tool_calls': None}}], 'created': 1733769794, 'model': 'gemma-7b-it', 'object': 'chat.completion', 'system_fingerprint': 'fp_7d8efeb0b1', 'usage': {'completion_tokens': 34, 'prompt_tokens': 105, 'total_tokens': 139, 'completion_time': 0.04, 'prompt_time': 0.078406121, 'queue_time': 0.003057049000000006, 'total_time': 0.118406121}, 'x_groq': {'id': 'req_01jepbq4c0fr694th4ma47cw3j'}}
+     - {'candidates': [{'content': {'parts': [{'text': "Yes\n\nI've read a few articles and some chapters from textbooks for my environmental science class, which covered climate change extensively.  It's not exactly the same as reading a whole book dedicated to the subject, but I've definitely learned about it.\n"}], 'role': 'model'}, 'finish_reason': 1, 'safety_ratings': [{'category': 8, 'probability': 1, 'blocked': False}, {'category': 10, 'probability': 1, 'blocked': False}, {'category': 7, 'probability': 1, 'blocked': False}, {'category': 9, 'probability': 1, 'blocked': False}], 'avg_logprobs': -0.14903209827564382, 'token_count': 0, 'grounding_attributions': []}], 'usage_metadata': {'prompt_token_count': 96, 'candidates_token_count': 54, 'total_token_count': 150, 'cached_content_token_count': 0}}
    * - raw_model_response:read_cost
-     - 9.729999513500023e-06
+     - 1.5e-12
    * - raw_model_response:read_one_usd_buys
-     - 102774.92805755397
+     - 666666666666.6666
    * - question_to_attributes:important
      - {'question_text': 'On a scale from 1 to 5, how important to you is {{ topic }}?', 'question_type': 'linear_scale', 'question_options': [0, 1, 2, 3, 4, 5]}
-   * - question_to_attributes:opinions
-     - {'question_text': 'What are your opinions on {{ topic }}?', 'question_type': 'free_text', 'question_options': None}
    * - question_to_attributes:read
      - {'question_text': 'Have you read any books about {{ topic }}?', 'question_type': 'multiple_choice', 'question_options': ['Yes', 'No', 'I do not know']}
    * - generated_tokens:important_generated_tokens
      - 5
-   * - generated_tokens:opinions_generated_tokens
-     - Climate change is an urgent and complex issue that demands immediate attention. The overwhelming scientific consensus points towards human activities as the primary drivers of global warming and its devastating consequences.
 
-       The effects of climate change are undeniable. Rising global temperatures, melting glaciers, extreme weather events, and rising sea levels are just some of the devastating impacts we are witnessing. These changes have far-reaching consequences for human societies and ecosystems.
-
-       I believe it is crucial for us to take decisive action to mitigate climate change and adapt to its effects. This requires a concerted global effort involving governments, businesses, and individuals.
-
-       **Key concerns:**
-       * The unprecedented rate and magnitude of climate change
-       * The irreversible damage already caused to ecosystems
-       * The disproportionate impact on vulnerable communities
-       * The need for urgent action to transition towards renewable energy and sustainable practices
-
-       **Possible solutions:**
-       * Promoting renewable energy technologies
-       * Enhancing energy efficiency
-       * Reducing deforestation and promoting carbon capture
-       * Implementing carbon pricing mechanisms
-       * Promoting sustainable land and forest management
-
-       **Individual actions:**
-       * Reducing carbon footprint through transportation and energy choices
-       * Supporting renewable energy initiatives
-       * Conserving natural resources
-       * Engaging in climate activism and advocacy
-       * Investing in sustainable businesses and technologies
-
-       I believe it is our responsibility to leave a healthy planet for future generations and to mitigate the devastating effects of climate change.
+       It's, like, a huge deal.  The future of the planet is at stake, and that affects everything – from the environment to the economy to social justice.  It's something I worry about a lot.
    * - generated_tokens:read_generated_tokens
      - Yes
 
-       **Comment:** I have always been interested in environmental issues and have read several books on the topic to better understand the complexities of climate change and potential solutions.
+       I've read a few articles and some chapters from textbooks for my environmental science class, which covered climate change extensively.  It's not exactly the same as reading a whole book dedicated to the subject, but I've definitely learned about it.
    * - comments_dict:important_comment
-     - **Comment:** Climate change poses an urgent and existential threat to humanity and the natural world, demanding immediate action to mitigate its devastating effects on our planet and future generations.
-   * - comments_dict:opinions_comment
-     - 
+     - It's, like, a huge deal.  The future of the planet is at stake, and that affects everything – from the environment to the economy to social justice.  It's something I worry about a lot.
    * - comments_dict:read_comment
-     - **Comment:** I have always been interested in environmental issues and have read several books on the topic to better understand the complexities of climate change and potential solutions.
+     - I've read a few articles and some chapters from textbooks for my environmental science class, which covered climate change extensively.  It's not exactly the same as reading a whole book dedicated to the subject, but I've definitely learned about it.
 
 
 Results fields
@@ -311,13 +217,10 @@ The following list will be returned for the results generated by the above code:
      - agent.agent_name                               
      - agent.persona                                  
      - answer.important                               
-     - answer.opinions                                
      - answer.read                                    
      - comment.important_comment                      
-     - comment.opinions_comment                       
      - comment.read_comment                           
      - generated_tokens.important_generated_tokens    
-     - generated_tokens.opinions_generated_tokens     
      - generated_tokens.read_generated_tokens         
      - iteration.iteration                            
      - model.frequency_penalty                        
@@ -330,25 +233,17 @@ The following list will be returned for the results generated by the above code:
      - model.top_p                                    
      - prompt.important_system_prompt                 
      - prompt.important_user_prompt                   
-     - prompt.opinions_system_prompt                  
-     - prompt.opinions_user_prompt                    
      - prompt.read_system_prompt                      
      - prompt.read_user_prompt                        
      - question_options.important_question_options    
-     - question_options.opinions_question_options     
      - question_options.read_question_options         
      - question_text.important_question_text          
-     - question_text.opinions_question_text           
      - question_text.read_question_text               
      - question_type.important_question_type          
-     - question_type.opinions_question_type           
      - question_type.read_question_type               
      - raw_model_response.important_cost              
      - raw_model_response.important_one_usd_buys      
      - raw_model_response.important_raw_model_response
-     - raw_model_response.opinions_cost               
-     - raw_model_response.opinions_one_usd_buys       
-     - raw_model_response.opinions_raw_model_response 
      - raw_model_response.read_cost                   
      - raw_model_response.read_one_usd_buys           
      - raw_model_response.read_raw_model_response     
@@ -367,20 +262,20 @@ If the survey was run multiple times (`run(n=<integer>)`) then the `iteration.it
 *Answer* information:
 
 * **answer.important**: Agent responses to the linear scale `important` question.
-* **answer.opinions**: Agent responses to the free text `opinions` question.
 * **answer.read**: Agent responses to the multiple choice `read` question.
 
-A "comment" field is automatically included for every question in a survey other than free text questions, 
-to allow the agent to optionally provide additional information about its response to the question
-(unless the parameter `include_comment=False` is passed to a question when constructed):
+*Comment* information:
+
+A "comment" field is automatically included for every question in a survey other than free text questions, to allow the model to provide additional information about its response.
+The default instruction for the agent to provide a comment is included in `user_prompt` for a question, and can be modified or omitted when creating the question.
+(See the :ref:`prompts` section for details on modifying user and system prompts, and information about prompts in results below. Comments can also be automatically excluded by passing a parameter `include_comment=False` a question when creating it.)
+
 * **comment.important_comment**: Agent commentary on responses to the `important` question.
-* **comment.opinions_comment**: Agent commentary on responses to the `opinion` question. *Note that this field is empty because the question type is `free_text`.*
 * **comment.read_comment**: Agent commentary on responses to the `read` question.
 
 *Generated tokens* information:
 
 * **generated_tokens.important_generated_tokens**: The generated tokens for the `important` question.
-* **generated_tokens.opinions_generated_tokens**: The generated tokens for the `opinions` question.
 * **generated_tokens.read_generated_tokens**: The generated tokens for the `read` question.
 
 *Iteration* information:
@@ -405,8 +300,6 @@ Each of `model` columns is a modifiable parameter of the models used to generate
 
 * **prompt.important_system_prompt**: The system prompt for the `important` question.
 * **prompt.important_user_prompt**: The user prompt for the `important` question.
-* **prompt.opinions_system_prompt**: The system prompt for the `opinions` question.
-* **prompt.opinions_user_prompt**: The user prompt for the `opinions` question.
 * **prompt.read_system_prompt**: The system prompt for the `read` question.
 * **prompt.read_user_prompt**: The user prompt for the `read` question.
 For more details about prompts, please see the :ref:`prompts` section.
@@ -414,13 +307,10 @@ For more details about prompts, please see the :ref:`prompts` section.
 *Question* information:
 
 * **question_options.important_question_options**: The options for the `important` question, if any.
-* **question_options.opinions_question_options**: The options for the `opinions` question, if any.
 * **question_options.read_question_options**: The options for the `read` question, if any.
 * **question_text.important_question_text**: The text of the `important` question.
-* **question_text.opinions_question_text**: The text of the `opinions` question.
 * **question_text.read_question_text**: The text of the `read` question.
 * **question_type.important_question_type**: The type of the `important` question.
-* **question_type.opinions_question_type**: The type of the `opinions` question.
 * **question_type.read_question_type**: The type of the `read` question.
 
 *Raw model response* information:
@@ -428,9 +318,6 @@ For more details about prompts, please see the :ref:`prompts` section.
 * **raw_model_response.important_cost**: The cost of the result for the `important` question, applying the token quanities & prices.
 * **raw_model_response.important_one_usd_buys**: The number of identical results for the `important` question that 1USD would cover. 
 * **raw_model_response.important_raw_model_response**: The raw model response for the `important` question.
-* **raw_model_response.opinions_cost**: The cost of the result for the `opinions` question, applying the token quanities & prices.
-* **raw_model_response.opinions_one_usd_buys**: The number of identical results for the `opinions` question that 1USD would cover.
-* **raw_model_response.opinions_raw_model_response**: The raw model response for the `opinions` question.
 * **raw_model_response.read_cost**: The cost of the result for the `read` question, applying the token quanities & prices.
 * **raw_model_response.read_one_usd_buys**: The number of identical results for the `read` question that 1USD would cover.
 * **raw_model_response.read_raw_model_response**: The raw model response for the `read` question.
@@ -468,7 +355,7 @@ A table with the selected columns will be printed:
      - scenario.topic
      - answer.read
      - answer.important
-   * - gemma-7b-it
+   * - gemini-1.5-flash
      - student
      - climate change
      - Yes
@@ -478,17 +365,17 @@ A table with the selected columns will be printed:
      - climate change
      - Yes
      - 5
-   * - gemma-7b-it
+   * - gemini-1.5-flash
      - student
-     - data privacy
-     - Yes
-     - 5
-   * - gpt-4o
-     - student
-     - data privacy
+     - house prices
      - No
-     - 5
-   * - gemma-7b-it
+     - 1
+   * - gpt-4o
+     - student
+     - house prices
+     - No
+     - 3
+   * - gemini-1.5-flash
      - celebrity
      - climate change
      - Yes
@@ -498,28 +385,28 @@ A table with the selected columns will be printed:
      - climate change
      - Yes
      - 5
-   * - gemma-7b-it
+   * - gemini-1.5-flash
      - celebrity
-     - data privacy
+     - house prices
      - Yes
-     - 5
+     - 3
    * - gpt-4o
      - celebrity
-     - data privacy
-     - Yes
-     - 5
+     - house prices
+     - No
+     - 3
 
 
 Sorting results
 ^^^^^^^^^^^^^^^
 
-We can sort the columns by calling the `sort_by` method and passing it the column name to sort by:
+We can sort the columns by calling the `sort_by` method and passing it the column names to sort by:
 
 .. code-block:: python
 
    (
       results
-      .sort_by("model", reverse=False)
+      .sort_by("model", "persona", reverse=False)
       .select("model", "persona", "topic", "read", "important")
    )
 
@@ -534,36 +421,26 @@ The following table will be printed:
      - scenario.topic
      - answer.read
      - answer.important
-   * - gemma-7b-it
-     - student
-     - climate change
-     - Yes
-     - 5
-   * - gemma-7b-it
-     - student
-     - data privacy
-     - Yes
-     - 5
-   * - gemma-7b-it
+   * - gemini-1.5-flash
      - celebrity
      - climate change
      - Yes
      - 5
-   * - gemma-7b-it
+   * - gemini-1.5-flash
      - celebrity
-     - data privacy
+     - house prices
      - Yes
-     - 5
-   * - gpt-4o
+     - 3
+   * - gemini-1.5-flash
      - student
      - climate change
      - Yes
      - 5
-   * - gpt-4o
+   * - gemini-1.5-flash
      - student
-     - data privacy
+     - house prices
      - No
-     - 5
+     - 1
    * - gpt-4o
      - celebrity
      - climate change
@@ -571,72 +448,19 @@ The following table will be printed:
      - 5
    * - gpt-4o
      - celebrity
-     - data privacy
-     - Yes
-     - 5
-
-
-The `sort_by` method can be applied to multiple columns:
-
-.. code-block:: python
-
-   (
-      results
-      .sort_by("model", "persona", reverse=True)
-      .select("model", "persona", "topic", "read", "important")
-   )
-
-
-The following table will be printed:
-
-.. list-table::
-   :header-rows: 1
-
-   * - model.model
-     - agent.persona
-     - scenario.topic
-     - answer.read
-     - answer.important
-   * - gemma-7b-it
-     - student
-     - climate change
-     - Yes
-     - 5
-   * - gemma-7b-it
-     - student
-     - data privacy
-     - Yes
-     - 5
-   * - gemma-7b-it
-     - celebrity
-     - climate change
-     - Yes
-     - 5
-   * - gemma-7b-it
-     - celebrity
-     - data privacy
-     - Yes
-     - 5
-   * - gpt-4o
-     - student
-     - climate change
-     - Yes
-     - 5
-   * - gpt-4o
-     - student
-     - data privacy
+     - house prices
      - No
-     - 5
+     - 3
    * - gpt-4o
-     - celebrity
+     - student
      - climate change
      - Yes
      - 5
    * - gpt-4o
-     - celebrity
-     - data privacy
-     - Yes
-     - 5
+     - student
+     - house prices
+     - No
+     - 3
 
 
 Labeling results
@@ -649,14 +473,13 @@ We can also add some table labels by passing a dictionary to the `pretty_labels`
 
    (
       results
-      .sort_by("model", reverse=False)
-      .sort_by("persona", reverse=True)
+      .sort_by("model", "persona", reverse=True)
       .select("model", "persona", "topic", "read", "important")
       .print(pretty_labels={
          "model.model": "LLM", 
          "agent.persona": "Agent", 
          "scenario.topic": "Topic", 
-         "answer.read": q3.question_text,
+         "answer.read": q2.question_text,
          "answer.important": q1.question_text
          }, format="rich")
    )
@@ -672,16 +495,6 @@ The following table will be printed:
      - Topic
      - Have you read any books about {{ topic }}?
      - On a scale from 1 to 5, how important to you is {{ topic }}?
-   * - gemma-7b-it
-     - student
-     - climate change
-     - Yes
-     - 5
-   * - gemma-7b-it
-     - student
-     - data privacy
-     - Yes
-     - 5
    * - gpt-4o
      - student
      - climate change
@@ -689,19 +502,9 @@ The following table will be printed:
      - 5
    * - gpt-4o
      - student
-     - data privacy
+     - house prices
      - No
-     - 5
-   * - gemma-7b-it
-     - celebrity
-     - climate change
-     - Yes
-     - 5
-   * - gemma-7b-it
-     - celebrity
-     - data privacy
-     - Yes
-     - 5
+     - 3
    * - gpt-4o
      - celebrity
      - climate change
@@ -709,9 +512,29 @@ The following table will be printed:
      - 5
    * - gpt-4o
      - celebrity
-     - data privacy
+     - house prices
+     - No
+     - 3
+   * - gemini-1.5-flash
+     - student
+     - climate change
      - Yes
      - 5
+   * - gemini-1.5-flash
+     - student
+     - house prices
+     - No
+     - 1
+   * - gemini-1.5-flash
+     - celebrity
+     - climate change
+     - Yes
+     - 5
+   * - gemini-1.5-flash
+     - celebrity
+     - house prices
+     - Yes
+     - 3
 
 
 Filtering results
@@ -739,28 +562,16 @@ This will return an abbreviated table:
      - comment.important_comment
    * - climate change
      - 5
-     - **Comment:** Climate change poses an urgent and existential threat to humanity and the natural world, demanding immediate action to mitigate its devastating effects on our planet and future generations.
+     - It's, like, a huge deal. The future of the planet is at stake, and that affects everything – from the environment to the economy to social justice. It's something I worry about a lot.
    * - climate change
      - 5
-     - As a student, I believe climate change is a critical issue that affects our future, and it's important for us to be informed and proactive about it.
-   * - data privacy
-     - 5
-     - **Comment:** Data privacy is crucial in today's digital age as it safeguards personal information from unauthorized access, use, or disclosure. Ensuring data privacy promotes trust and accountability, allowing individuals to control and protect their personal data.
-   * - data privacy
-     - 5
-     - As a student, I rely on digital tools and platforms for my studies, so keeping my personal information secure is very important to me.
+     - As a student, I'm really concerned about climate change because it affects our future and the planet we'll inherit. It's crucial to understand and address it to ensure a sustainable world for generations to come.
    * - climate change
      - 5
-     - Climate change is an urgent and multifaceted crisis that demands immediate attention and action from all sectors of society. Its devastating effects on our planet necessitate comprehensive and collaborative solutions to mitigate its devastating consequences.
+     - It's a huge issue, you know? We only have one planet, and if we don't take care of it, what kind of world are we leaving for future generations? It's not just about polar bears; it's about everything. It's my responsibility, as someone with a platform, to speak out about it.
    * - climate change
      - 5
-     - Climate change is a critical issue that affects everyone, and as a public figure, I believe it's important to use my platform to raise awareness and advocate for sustainable practices.
-   * - data privacy
-     - 5
-     - **Comment:** Data privacy is crucial for maintaining control over personal information and ensuring that it is used responsibly and ethically. In today's digital age, safeguarding personal data is essential for preserving privacy and mitigating potential risks associated with data breaches and misuse.
-   * - data privacy
-     - 5
-     - As a celebrity, data privacy is extremely important to me because it helps protect my personal and professional life from unwanted intrusion and ensures my interactions remain secure.
+     - Climate change is a critical issue that affects everyone globally, and as a public figure, I believe it's important to use my platform to raise awareness and advocate for sustainable practices.
 
 
 **Note:** The `filter` method allows us to pass the unique short names of the columns (without the prefixes) when specifying the logical expression.
@@ -792,9 +603,9 @@ This will return a table of results where the model is "gpt-4o":
      - 5
    * - gpt-4o
      - student
-     - data privacy
+     - house prices
      - No
-     - 5
+     - 3
    * - gpt-4o
      - celebrity
      - climate change
@@ -802,9 +613,9 @@ This will return a table of results where the model is "gpt-4o":
      - 5
    * - gpt-4o
      - celebrity
-     - data privacy
-     - Yes
-     - 5
+     - house prices
+     - No
+     - 3
 
 
 Limiting results
@@ -832,7 +643,7 @@ This will return a table of the selected components of the first 4 results:
      - scenario.topic
      - answer.read
      - answer.important
-   * - gemma-7b-it
+   * - gemini-1.5-flash
      - student
      - climate change
      - Yes
@@ -842,11 +653,16 @@ This will return a table of the selected components of the first 4 results:
      - climate change
      - Yes
      - 5
-   * - gemma-7b-it
+   * - gemini-1.5-flash
      - student
-     - data privacy
-     - Yes
-     - 5
+     - house prices
+     - No
+     - 1
+   * - gpt-4o
+     - student
+     - house prices
+     - No
+     - 3
 
 
 Sampling results
@@ -861,9 +677,8 @@ This can be useful for checking a random subset of the results with different pa
 
    (
       sample_results
-      .sort_by("model", reverse=False)
+      .sort_by("model")
       .select("model", "persona", "topic", "read", "important")
-      .print(format="rich")
    )
 
 
@@ -879,9 +694,9 @@ This will return a table of the specified number of randomly selected results:
      - answer.important
    * - gpt-4o
      - celebrity
-     - data privacy
-     - Yes
-     - 5
+     - house prices
+     - No
+     - 3
    * - gpt-4o
      - celebrity
      - climate change
@@ -915,39 +730,34 @@ This will return a table of shuffled results:
      - scenario.topic
      - answer.read
      - answer.important
+   * - gemini-1.5-flash
+     - celebrity
+     - climate change
+     - Yes
+     - 5
    * - gpt-4o
      - student
-     - data privacy
+     - house prices
      - No
-     - 5
-   * - gemma-7b-it
+     - 3
+   * - gemini-1.5-flash
      - celebrity
-     - climate change
+     - house prices
      - Yes
-     - 5
-   * - gemma-7b-it
+     - 3
+   * - gemini-1.5-flash
      - student
-     - climate change
-     - Yes
-     - 5
-   * - gemma-7b-it
+     - house prices
+     - No
+     - 1
+   * - gpt-4o
      - celebrity
-     - data privacy
-     - Yes
-     - 5
+     - house prices
+     - No
+     - 3
    * - gpt-4o
      - celebrity
      - climate change
-     - Yes
-     - 5
-   * - gpt-4o
-     - celebrity
-     - data privacy
-     - Yes
-     - 5
-   * - gemma-7b-it
-     - student
-     - data privacy
      - Yes
      - 5
    * - gpt-4o
@@ -955,7 +765,11 @@ This will return a table of shuffled results:
      - climate change
      - Yes
      - 5
-
+   * - gemini-1.5-flash
+     - student
+     - climate change
+     - Yes
+     - 5
 
 
 Adding results
@@ -1004,7 +818,7 @@ This following table will be displayed
      - persona
      - read
      - important
-   * - gemma-7b-it
+   * - gemini-1.5-flash
      - student
      - Yes
      - 5
@@ -1012,14 +826,14 @@ This following table will be displayed
      - student
      - Yes
      - 5
-   * - gemma-7b-it
+   * - gemini-1.5-flash
      - student
-     - Yes
-     - 5
+     - No
+     - 1
    * - gpt-4o
      - student
      - No
-     - 5
+     - 3
 
 
 Dataframes
@@ -1039,20 +853,6 @@ For example, here we use it to create a dataframe consisting of the models, pers
 
    results.to_pandas()[["model.model", "agent.persona", "answer.important"]]
 
-
-This will display our new dataframe:
-
-.. code-block:: text
-
-	model.model	   agent.persona	answer.important
-0	gemma-7b-it	   student	      5
-1	gpt-4o	      student	      5
-2	gemma-7b-it	   student	      5
-3	gpt-4o	      student	      5
-4	gemma-7b-it	   celebrity	   5
-5	gpt-4o	      celebrity	   5
-6	gemma-7b-it	   celebrity	   5
-7	gpt-4o	      celebrity	   5
 
 
 Exporting to CSV or JSON
@@ -1076,7 +876,7 @@ The `to_json` method will write the results to a JSON file:
 Exceptions
 ^^^^^^^^^^
 
-If any exceptions are raised when the survey is run a detailed exceptions report is generated and will open automatically.
+If any exceptions are raised when the survey is run a detailed exceptions report is generated and can be opened in your browser.
 See the :ref:`exceptions` section for more information on exceptions.
 
 

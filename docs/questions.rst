@@ -201,7 +201,6 @@ Example results:
      - Top half
 
 
-
 Optional parameters
 ^^^^^^^^^^^^^^^^^^^
 
@@ -291,7 +290,7 @@ For example, we can print just the `answer` to the question:
 Output:
 
 .. list-table::
-  :header-rows: 1
+   :header-rows: 1
 
    * - answer.primary_colors
    * - ['Red', 'Yellow', 'Blue']
@@ -307,7 +306,7 @@ Or to inspect the model:
 Output: 
 
 .. list-table::
-  :header-rows: 1
+   :header-rows: 1
 
    * - model.model
    * - gpt-4o
@@ -352,7 +351,7 @@ We can inspect the results in the same way as for a single question, and use "*"
 Output:
 
 .. list-table::
-  :header-rows: 1
+   :header-rows: 1
 
    * - answer.largest_us_cities
      - answer.dc_state
@@ -616,7 +615,6 @@ We can then pass the questions to a survey and run it:
    survey = Survey(questions = questions)
 
    results = survey.run()
-
 
 
 Designing AI agents 
