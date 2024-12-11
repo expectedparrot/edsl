@@ -186,7 +186,7 @@ def test_test_QuestionList_extras():
 
 def test_repairs():
     q = QuestionList(question_text="Blah", question_name="list_of_foods")
-    from edsl.language_models import LanguageModel
+    from edsl.language_models.LanguageModel import LanguageModel
 
     m = LanguageModel.example(
         test_model=True, canned_response="""["{'a':1}", "{'b':2}"]"""

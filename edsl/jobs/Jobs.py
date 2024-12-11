@@ -674,7 +674,7 @@ class Jobs(Base):
         addition = "" if not randomize else str(uuid4())
 
         if test_model:
-            from edsl.language_models import LanguageModel
+            from edsl.language_models.LanguageModel import LanguageModel
 
             m = LanguageModel.example(test_model=True)
 
