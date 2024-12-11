@@ -25,7 +25,7 @@ class JobsPrompts:
     @property
     def price_lookup(self):
         if self._price_lookup is None:
-            from edsl import Coop
+            from edsl.coop.coop import Coop
 
             c = Coop()
             self._price_lookup = c.fetch_prices()

@@ -1,4 +1,4 @@
-from edsl import Coop
+from edsl.coop.coop import Coop
 
 
 def test_latest_stable_version():

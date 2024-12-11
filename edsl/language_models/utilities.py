@@ -1,6 +1,6 @@
 import asyncio
 from typing import Any, Optional, List
-from edsl import Survey
+from edsl.surveys.Survey import Survey
 from edsl.config import CONFIG
 from edsl.enums import InferenceServiceType
 from edsl.language_models.LanguageModel import LanguageModel

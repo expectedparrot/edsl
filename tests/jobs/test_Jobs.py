@@ -6,6 +6,7 @@ from edsl.jobs.Jobs import Jobs, main
 from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
 from edsl.questions.QuestionFreeText import QuestionFreeText
 from edsl.scenarios.Scenario import Scenario
+from edsl.scenarios.ScenarioList import ScenarioList
 from edsl.surveys.Survey import Survey
 from edsl.language_models.registry import Model
 from edsl.questions.question_registry import (
@@ -14,7 +15,6 @@ from edsl.questions.question_registry import (
 from edsl.language_models import LanguageModel
 from edsl.data.Cache import Cache
 
-from edsl.scenarios.ScenarioList import ScenarioList
 from edsl.agents.AgentList import AgentList
 from edsl.language_models.ModelList import ModelList
 
@@ -102,7 +102,6 @@ def test_jobs_by_scenarios():
         question_options=["Good", "Great", "OK", "Bad"],
         question_name="how_feeling",
     )
-    from edsl import ScenarioList
 
     survey = Survey(name="Test Survey", questions=[q])
     scenario1 = Scenario({"price": "100"})
@@ -241,7 +240,6 @@ def test_handle_model_exception():
     from edsl.enums import InferenceServiceType
     import asyncio
     from typing import Any
-    from edsl import Scenario
 
     from httpcore import ConnectionNotAvailable
     from edsl.questions import QuestionFreeText

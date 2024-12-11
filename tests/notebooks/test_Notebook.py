@@ -1,6 +1,6 @@
 import pytest
 
-from edsl import Notebook
+from edsl.notebooks.Notebook import Notebook
 from jsonschema.exceptions import ValidationError
 from nbformat.reader import NotJSONError
 from nbformat.validator import NotebookValidationError
@@ -88,7 +88,9 @@ def test_notebook_creation_from_path_invalid():
 
     # No such file
     with pytest.raises(FileNotFoundError):
-        notebook = Notebook(path="docs/notebooks/invalid_path_to_starter_tutorial.ipynb")
+        notebook = Notebook(
+            path="docs/notebooks/invalid_path_to_starter_tutorial.ipynb"
+        )
     # File exists, but is not JSON
     with pytest.raises(NotJSONError):
         notebook = Notebook(path="docs/agents.rst")

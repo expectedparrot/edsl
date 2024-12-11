@@ -32,7 +32,7 @@ class JobsRemoteInferenceHandler:
             return False
         if not disable_remote_inference:
             try:
-                from edsl import Coop
+                from edsl.coop.coop import Coop
 
                 user_edsl_settings = Coop().edsl_settings
                 return user_edsl_settings.get("remote_inference", False)
@@ -181,7 +181,7 @@ class JobsRemoteInferenceHandler:
             return False
         if not disable_remote_inference:
             try:
-                from edsl import Coop
+                from edsl.coop.coop import Coop
 
                 user_edsl_settings = Coop().edsl_settings
                 return user_edsl_settings.get("remote_inference", False)
