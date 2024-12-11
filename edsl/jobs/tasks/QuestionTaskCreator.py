@@ -2,7 +2,6 @@ import asyncio
 from typing import Callable, Union, List, TYPE_CHECKING
 from collections import UserList, UserDict
 
-from edsl.jobs.buckets import ModelBuckets
 from edsl.exceptions.jobs import InterviewErrorPriorTaskCanceled
 
 from edsl.jobs.tasks.task_status_enum import TaskStatus, TaskStatusDescriptor
@@ -12,6 +11,7 @@ from edsl.jobs.Answers import Answers
 
 if TYPE_CHECKING:
     from edsl.questions.QuestionBase import QuestionBase
+    from edsl.jobs.buckets import ModelBuckets
 
 
 class TokensUsed(UserDict):
@@ -36,7 +36,7 @@ class QuestionTaskCreator(UserList):
         *,
         question: "QuestionBase",
         answer_question_func: Callable,
-        model_buckets: ModelBuckets,
+        model_buckets: "ModelBuckets",
         token_estimator: Union[Callable, None] = None,
         iteration: int = 0,
     ):

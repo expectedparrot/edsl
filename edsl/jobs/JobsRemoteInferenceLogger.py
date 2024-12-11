@@ -1,25 +1,14 @@
-from abc import ABC, abstractmethod
-import uuid
-
-from typing import Optional, Union, Literal
-import requests
-import sys
-from edsl.exceptions.coop import CoopServerResponseError
-
-# from edsl.enums import VisibilityType
-from edsl.results import Results
-
-from IPython.display import display, HTML
-import uuid
-
-from IPython.display import display, HTML
-import uuid
-from datetime import datetime
 import re
 import sys
+import uuid
+from abc import ABC, abstractmethod
+from typing import Optional, Union, Literal, TYPE_CHECKING, List, Dict
 from datetime import datetime
-from typing import List
 from dataclasses import dataclass
+from edsl.exceptions.coop import CoopServerResponseError
+
+if TYPE_CHECKING:
+    from edsl.results.Results import Results
 
 
 @dataclass
@@ -56,6 +45,8 @@ class StdOutJobLogger(JobLogger):
 
 class JupyterJobLogger(JobLogger):
     def __init__(self, verbose=True, **kwargs):
+        from IPython.display import display, HTML
+
         super().__init__(verbose=verbose)
         self.messages = []
         self.log_id = str(uuid.uuid4())
@@ -95,6 +86,8 @@ class JupyterJobLogger(JobLogger):
         """
 
     def update(self, message, status="running"):
+        from IPython.display import HTML
+
         colors = {"running": "#3b82f6", "completed": "#22c55e", "failed": "#ef4444"}
         self.messages.append({"text": message, "color": colors.get(status, "#666")})
         if self.verbose:

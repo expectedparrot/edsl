@@ -1,7 +1,7 @@
 from typing import Union, Optional
-import aiohttp
 import asyncio
 import time
+import aiohttp
 
 
 class TokenBucketClient:
@@ -177,12 +177,15 @@ class TokenBucketClient:
 
 
 if __name__ == "__main__":
-    bucket = TokenBucketClient(
-        bucket_name="test", bucket_type="test", capacity=100, refill_rate=10
-    )
-    asyncio.run(bucket.get_tokens(50))
-    time.sleep(1)  # Wait for 1 second
-    asyncio.run(bucket.get_tokens(30))
-    throughput = bucket.get_throughput(1)
-    print(throughput)
-    bucket.visualize()
+    import doctest
+
+    doctest.testmod()
+    # bucket = TokenBucketClient(
+    #     bucket_name="test", bucket_type="test", capacity=100, refill_rate=10
+    # )
+    # asyncio.run(bucket.get_tokens(50))
+    # time.sleep(1)  # Wait for 1 second
+    # asyncio.run(bucket.get_tokens(30))
+    # throughput = bucket.get_throughput(1)
+    # print(throughput)
+    # bucket.visualize()

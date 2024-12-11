@@ -1,15 +1,10 @@
 from typing import Union, Sequence, TYPE_CHECKING
 
-from edsl.agents.Agent import Agent
-from edsl.agents.AgentList import AgentList
-from edsl.language_models.LanguageModel import LanguageModel
-from edsl.scenarios.Scenario import Scenario
-from edsl.scenarios.ScenarioList import ScenarioList
-from edsl.surveys.Survey import Survey
-from edsl.results.Results import Results
-from edsl.results.Dataset import Dataset
-from edsl.language_models.ModelList import ModelList
-from edsl.jobs.Jobs import Jobs
+if TYPE_CHECKING:
+    from edsl.agents.Agent import Agent
+    from edsl.language_models.LanguageModel import LanguageModel
+    from edsl.scenarios.Scenario import Scenario
+    from edsl.jobs.Jobs import Jobs
 
 
 class JobsComponentConstructor:
@@ -21,12 +16,12 @@ class JobsComponentConstructor:
     def by(
         self,
         *args: Union[
-            Agent,
-            Scenario,
-            LanguageModel,
+            "Agent",
+            "Scenario",
+            "LanguageModel",
             Sequence[Union["Agent", "Scenario", "LanguageModel"]],
         ],
-    ) -> Jobs:
+    ) -> "Jobs":
         """
         Add Agents, Scenarios and LanguageModels to a job.
 
