@@ -1,7 +1,9 @@
 import pytest
 
-from edsl import Study
-from edsl import QuestionFreeText, QuestionMultipleChoice
+from edsl.study.Study import Study
+from edsl.questions.QuestionFreeText import QuestionFreeText
+from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
+
 from uuid import UUID
 
 
@@ -13,8 +15,6 @@ def test_instantiate():
 
 def test_exception_non_empty_namespace():
     with pytest.raises(ValueError):
-        from edsl import QuestionFreeText
-
         q = QuestionFreeText.example()
         with Study() as study:
             pass
@@ -24,8 +24,6 @@ def test_record_objects():
     import tempfile
 
     f = tempfile.NamedTemporaryFile()
-    from edsl import QuestionFreeText
-
     with Study(filename=f.name) as study:
         q = QuestionFreeText.example()
 
@@ -47,8 +45,6 @@ def test_equality():
     f1 = tempfile.NamedTemporaryFile()
     f2 = tempfile.NamedTemporaryFile()
     f3 = tempfile.NamedTemporaryFile()
-
-    from edsl import QuestionFreeText, QuestionMultipleChoice
 
     with Study(filename=f1.name) as study1:
         q = QuestionFreeText.example()
@@ -77,8 +73,6 @@ def test_versions():
     import tempfile
 
     f1 = tempfile.NamedTemporaryFile()
-
-    from edsl import QuestionFreeText, QuestionMultipleChoice
 
     with Study(filename=f1.name) as study1:
         q = QuestionFreeText.example()

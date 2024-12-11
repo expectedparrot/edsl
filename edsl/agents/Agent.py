@@ -7,7 +7,9 @@ import types
 from typing import Callable, Optional, Union, Any, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from edsl import Cache, Survey, Scenario
+    from edsl.data.Cache import Cache
+    from edsl.surveys.Survey import Survey
+    from edsl.scenarios.Scenario import Scenario
     from edsl.language_models import LanguageModel
     from edsl.surveys.MemoryPlan import MemoryPlan
     from edsl.questions import QuestionBase
@@ -472,7 +474,9 @@ class Agent(Base):
         An invigator is an object that is responsible for administering a question to an agent and
         recording the responses.
         """
-        from edsl import Model, Scenario
+        from edsl.language_models.registry import Model
+
+        from edsl.scenarios.Scenario import Scenario
 
         cache = cache
         self.current_question = question
@@ -523,7 +527,7 @@ class Agent(Base):
 
         >>> a = Agent(traits = {})
         >>> a.add_direct_question_answering_method(lambda self, question, scenario: "I am a direct answer.")
-        >>> from edsl import QuestionFreeText
+        >>> from edsl.questions.QuestionFreeText import QuestionFreeText
         >>> q = QuestionFreeText.example()
         >>> a.answer_question(question = q, cache = False).answer
         'I am a direct answer.'
@@ -563,8 +567,8 @@ class Agent(Base):
         raise_validation_errors: bool = True,
     ) -> "InvigilatorBase":
         """Create an Invigilator."""
-        from edsl import Model
-        from edsl import Scenario
+        from edsl.language_models.registry import Model
+        from edsl.scenarios.Scenario import Scenario
 
         model = model or Model()
         scenario = scenario or Scenario()
@@ -910,10 +914,12 @@ class Agent(Base):
 
         >>> a = Agent(traits = {"age": 10, "hair": "brown", "height": 5.5})
         >>> print(a.code())
-        from edsl import Agent
+        from edsl.agents.Agent import Agent
         agent = Agent(traits={'age': 10, 'hair': 'brown', 'height': 5.5})
         """
-        return f"from edsl import Agent\nagent = Agent(traits={self.traits})"
+        return (
+            f"from edsl.agents.Agent import Agent\nagent = Agent(traits={self.traits})"
+        )
 
 
 def main():

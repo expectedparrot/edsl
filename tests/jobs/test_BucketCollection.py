@@ -1,6 +1,7 @@
 import pytest
 
-from edsl import Model, QuestionFreeText
+from edsl.language_models.registry import Model
+from edsl.questions.QuestionFreeText import QuestionFreeText
 
 
 def test_one_per_service():

@@ -121,27 +121,27 @@ def clean_json(bad_json_str):
     return s
 
 
-def data_to_html(data, replace_new_lines=False):
-    if "edsl_version" in data:
-        _ = data.pop("edsl_version")
-    if "edsl_class_name" in data:
-        _ = data.pop("edsl_class_name")
+# def data_to_html(data, replace_new_lines=False):
+#     if "edsl_version" in data:
+#         _ = data.pop("edsl_version")
+#     if "edsl_class_name" in data:
+#         _ = data.pop("edsl_class_name")
 
-    from pygments import highlight
-    from pygments.lexers import JsonLexer
-    from pygments.formatters import HtmlFormatter
-    from IPython.display import HTML
+#     from pygments import highlight
+#     from pygments.lexers import JsonLexer
+#     from pygments.formatters import HtmlFormatter
+#     from IPython.display import HTML
 
-    json_str = json.dumps(data, indent=4, cls=CustomEncoder)
-    formatted_json = highlight(
-        json_str,
-        JsonLexer(),
-        HtmlFormatter(style="default", full=False, noclasses=False),
-    )
-    if replace_new_lines:
-        formatted_json = formatted_json.replace("\\n", "<br>")
+#     json_str = json.dumps(data, indent=4, cls=CustomEncoder)
+#     formatted_json = highlight(
+#         json_str,
+#         JsonLexer(),
+#         HtmlFormatter(style="default", full=False, noclasses=False),
+#     )
+#     if replace_new_lines:
+#         formatted_json = formatted_json.replace("\\n", "<br>")
 
-    return HTML(formatted_json).data
+#     return HTML(formatted_json).data
 
 
 def is_gzipped(file_path):

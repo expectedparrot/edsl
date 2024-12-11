@@ -64,7 +64,7 @@ class Jobs(Base):
 
     @models.setter
     def models(self, value):
-        from edsl import ModelList
+        from edsl.language_models.ModelList import ModelList
 
         if value:
             if not isinstance(value, ModelList):
@@ -80,7 +80,7 @@ class Jobs(Base):
 
     @agents.setter
     def agents(self, value):
-        from edsl import AgentList
+        from edsl.agents.AgentList import AgentList
 
         if value:
             if not isinstance(value, AgentList):
@@ -96,7 +96,7 @@ class Jobs(Base):
 
     @scenarios.setter
     def scenarios(self, value):
-        from edsl import ScenarioList
+        from edsl.scenarios.ScenarioList import ScenarioList
         from edsl.results.Dataset import Dataset
 
         if value:
@@ -131,13 +131,13 @@ class Jobs(Base):
 
         This 'by' is intended to create a fluent interface.
 
-        >>> from edsl import Survey
-        >>> from edsl import QuestionFreeText
+        >>> from edsl.surveys.Survey import Survey
+        >>> from edsl.questions.QuestionFreeText import QuestionFreeText
         >>> q = QuestionFreeText(question_name="name", question_text="What is your name?")
         >>> j = Jobs(survey = Survey(questions=[q]))
         >>> j
         Jobs(survey=Survey(...), agents=AgentList([]), models=ModelList([]), scenarios=ScenarioList([]))
-        >>> from edsl import Agent; a = Agent(traits = {"status": "Sad"})
+        >>> from edsl.agents.Agent import Agent; a = Agent(traits = {"status": "Sad"})
         >>> j.by(a).agents
         AgentList([Agent(traits = {'status': 'Sad'})])
 
@@ -324,9 +324,9 @@ class Jobs(Base):
     def _check_parameters(self, strict=False, warn=False) -> None:
         """Check if the parameters in the survey and scenarios are consistent.
 
-        >>> from edsl import QuestionFreeText
-        >>> from edsl import Survey
-        >>> from edsl import Scenario
+        >>> from edsl.questions.QuestionFreeText import QuestionFreeText
+        >>> from edsl.surveys.Survey import Survey
+        >>> from edsl.scenarios.Scenario import Scenario
         >>> q = QuestionFreeText(question_text = "{{poo}}", question_name = "ugly_question")
         >>> j = Jobs(survey = Survey(questions=[q]))
         >>> with warnings.catch_warnings(record=True) as w:
@@ -621,7 +621,7 @@ class Jobs(Base):
     @remove_edsl_version
     def from_dict(cls, data: dict) -> Jobs:
         """Creates a Jobs instance from a dictionary."""
-        from edsl import Survey
+        from edsl.surveys.Survey import Survey
         from edsl.agents.Agent import Agent
         from edsl.language_models.LanguageModel import LanguageModel
         from edsl.scenarios.Scenario import Scenario
@@ -665,7 +665,7 @@ class Jobs(Base):
         """
         import random
         from uuid import uuid4
-        from edsl.questions import QuestionMultipleChoice
+        from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
         from edsl.agents.Agent import Agent
         from edsl.scenarios.Scenario import Scenario
 
@@ -713,7 +713,8 @@ class Jobs(Base):
             question_options=["Good", "Great", "OK", "Terrible"],
             question_name="how_feeling_yesterday",
         )
-        from edsl import Survey, ScenarioList
+        from edsl.surveys.Survey import Survey
+        from edsl.scenarios.ScenarioList import ScenarioList
 
         base_survey = Survey(questions=[q1, q2])
 
@@ -729,15 +730,6 @@ class Jobs(Base):
             job = base_survey.by(scenario_list).by(joy_agent, sad_agent)
 
         return job
-
-    # def rich_print(self):
-    #     """Print a rich representation of the Jobs instance."""
-    #     from rich.table import Table
-
-    #     table = Table(title="Jobs")
-    #     table.add_column("Jobs")
-    #     table.add_row(self.survey.rich_print())
-    #     return table
 
     def code(self):
         """Return the code to create this instance."""

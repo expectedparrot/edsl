@@ -119,7 +119,7 @@ class TestSurvey(unittest.TestCase):
             question_name="own_shovel", question_text="Do you own a shovel?"
         )
 
-        from edsl import Agent
+        from edsl.agents.Agent import Agent
 
         d = Agent()
 
@@ -144,7 +144,7 @@ class TestSurvey(unittest.TestCase):
 
     def test_serialiation_with_memory(self):
         from edsl.questions import QuestionYesNo, QuestionLinearScale
-        from edsl import Survey
+        from edsl.surveys import Survey
 
         q1 = QuestionYesNo(
             question_name="enjoy",
@@ -191,7 +191,7 @@ class TestSurvey(unittest.TestCase):
         survey.add_rule(q1, "like_school == 'no'", q3)
 
         original_length = len(survey._questions)
-        from edsl import QuestionFreeText
+        from edsl.questions import QuestionFreeText
 
         new_q = QuestionFreeText(
             question_text="Where are you from?", question_name="hometown"

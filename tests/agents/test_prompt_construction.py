@@ -1,11 +1,14 @@
 import pytest
 
-from edsl import Agent
-from edsl.questions import QuestionMultipleChoice as q
+from edsl.agents.Agent import Agent
+from edsl.questions import QuestionMultipleChoice, QuestionList, QuestionFreeText
+from edsl.scenarios import Scenario
+from edsl.surveys import Survey
+from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice as q
 
 
 def test_option_expansion_from_current_answers_list_not_present_yet():
-    from edsl import QuestionMultipleChoice, QuestionList, Survey
+    # from edsl import QuestionMultipleChoice, QuestionList, Survey
     from edsl.agents.InvigilatorBase import InvigilatorBase
 
     q0 = QuestionList(
@@ -25,7 +28,6 @@ def test_option_expansion_from_current_answers_list_not_present_yet():
 
 
 def test_option_expansion_from_current_answers_list():
-    from edsl import QuestionMultipleChoice, QuestionList, Survey
     from edsl.agents.InvigilatorBase import InvigilatorBase
 
     q0 = QuestionList(
@@ -44,7 +46,6 @@ def test_option_expansion_from_current_answers_list():
 
 
 def test_option_expansion_from_current_answers():
-    from edsl import QuestionMultipleChoice, QuestionList, Survey
     from edsl.agents.InvigilatorBase import InvigilatorBase
 
     q0 = QuestionList(
@@ -63,7 +64,6 @@ def test_option_expansion_from_current_answers():
 
 
 def test_option_expansion_from_scenario():
-    from edsl import QuestionMultipleChoice, Scenario
 
     q = QuestionMultipleChoice(
         question_text="Here is a question",
@@ -86,8 +86,6 @@ def test_system_prompt_traits_passed():
 
 def test_user_prompt_question_text_passed():
     agent = Agent(traits={"age": 10, "hair": "brown", "height": 5.5})
-    from edsl.questions import QuestionMultipleChoice as q
-    from edsl import Survey
 
     i = agent._create_invigilator(question=q.example(), survey=Survey([q.example()]))
     user_prompt = i.prompt_constructor.get_prompts()["user_prompt"]
@@ -95,9 +93,6 @@ def test_user_prompt_question_text_passed():
 
 
 def test_scenario_render_in_user_prompt():
-    from edsl.questions import QuestionFreeText
-    from edsl.scenarios import Scenario
-    from edsl import Agent
 
     agent = Agent(traits={"age": 10, "hair": "brown", "height": 5.5})
     q = QuestionFreeText(

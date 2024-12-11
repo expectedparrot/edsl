@@ -3,11 +3,11 @@ from edsl.BaseDiff import (
     BaseDiff,
     BaseDiffCollection,
 )  # Adjust the import path as necessary
+from edsl.questions.question_registry import Question
 
 
 @pytest.fixture
 def example_questions():
-    from edsl import Question
 
     q_ft = Question.example("free_text")
     q_mc = Question.example("multiple_choice")
@@ -24,7 +24,6 @@ def test_diff_apply(example_questions):
 
 
 def test_diff_chain_apply():
-    from edsl import Question
 
     q0 = Question.example("free_text")
     q1 = q0.copy()

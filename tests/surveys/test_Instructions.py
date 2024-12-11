@@ -2,7 +2,7 @@ import pytest
 from edsl import Survey
 from edsl.surveys.instructions.Instruction import Instruction
 from edsl.surveys.instructions.ChangeInstruction import ChangeInstruction
-from edsl import QuestionFreeText, QuestionMultipleChoice
+from edsl.questions import QuestionFreeText, QuestionMultipleChoice
 
 
 def test_instructions():

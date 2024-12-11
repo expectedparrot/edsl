@@ -405,7 +405,7 @@ class Study:
 
         study_file = tempfile.NamedTemporaryFile()
         with cls(filename=study_file.name, verbose=verbose) as study:
-            from edsl import QuestionFreeText
+            from edsl.questions.QuestionFreeText import QuestionFreeText
 
             q = QuestionFreeText.example(randomize=randomize)
         return study
@@ -517,12 +517,3 @@ if __name__ == "__main__":
     import doctest
 
     doctest.testmod(optionflags=doctest.ELLIPSIS)
-
-    # with Study(name = "cool_study") as study:
-    #      from edsl import QuestionFreeText
-    #      q = QuestionFreeText.example()
-
-    # assert len(study.objects) == 1
-
-    # print(study.versions())
-    # {'q': [ObjectEntry(variable_name='q', object=Question('free_text', question_name = """how_are_you""", question_text = """How are you?"""), description='Question name: how_are_you', coop_info=None, created_at=1720276402.561273, edsl_class_name='QuestionFreeText')]}

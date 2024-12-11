@@ -9,8 +9,8 @@ from urllib.parse import urlparse
 import subprocess
 import google.generativeai as genai
 
-from edsl import Scenario
-from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
+from edsl.scenarios.Scenario import Scenario
+from edsl.utilities.decorators import remove_edsl_version
 from edsl.utilities.utilities import is_notebook
 
 

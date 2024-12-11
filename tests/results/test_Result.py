@@ -1,14 +1,7 @@
-# from edsl.results.Result import main
-
-
-# def test_result_main():
-#     main()
-
-
 from edsl.results.Result import Result
 
-from edsl import Agent
-from edsl import Scenario
+from edsl.agents.Agent import Agent
+from edsl.scenarios.Scenario import Scenario
 from edsl.language_models import LanguageModel
 
 

@@ -24,7 +24,6 @@ class TokensUsed(UserDict):
 
 class QuestionTaskCreator(UserList):
     """Class to create and manage a single question and its dependencies.
-    The class is an instance of a UserList of tasks that must be completed before the focal task can be run.
 
     It is a UserList with all the tasks that must be completed before the focal task can be run.
     The focal task is the question that we are interested in answering.
@@ -51,7 +50,6 @@ class QuestionTaskCreator(UserList):
 
         """
         super().__init__([])
-        # answer_question_func is the 'interview.answer_question_and_record_task" method
         self.answer_question_func = answer_question_func
         self.question = question
         self.iteration = iteration
@@ -161,7 +159,7 @@ class QuestionTaskCreator(UserList):
     @classmethod
     def example(cls):
         """Return an example instance of the class."""
-        from edsl import QuestionFreeText
+        from edsl.questions.QuestionFreeText import QuestionFreeText
         from edsl.jobs.buckets.ModelBuckets import ModelBuckets
 
         m = ModelBuckets.infinity_bucket()

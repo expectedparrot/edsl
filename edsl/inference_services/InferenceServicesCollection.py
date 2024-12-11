@@ -1,10 +1,13 @@
 from functools import lru_cache
 from collections import defaultdict
-from typing import Optional, Protocol, Dict, List, Tuple
+from typing import Optional, Protocol, Dict, List, Tuple, TYPE_CHECKING
 
 from edsl.inference_services.InferenceServiceABC import InferenceServiceABC
 from edsl.inference_services.AvailableModelFetcher import AvailableModelFetcher
 from edsl.exceptions.inference_services import InferenceServiceError
+
+if TYPE_CHECKING:
+    from edsl.language_models.LanguageModel import LanguageModel
 
 
 class ModelCreator(Protocol):
@@ -22,6 +25,9 @@ class ModelResolver:
         models_to_services: Dict[str, InferenceService],
         availability_fetcher: "AvailableModelFetcher",
     ):
+        """
+        Class for determining which service to use for a given model.
+        """
         self.services = services
         self._models_to_services = models_to_services
         self.availability_fetcher = availability_fetcher
@@ -91,3 +97,9 @@ class InferenceServicesCollection:
     ) -> "LanguageModel":
         service = self.resolver.resolve_model(model_name, service_name)
         return service.create_model(model_name)
+
+
+if __name__ == "__main__":
+    import doctest
+
+    doctest.testmod()

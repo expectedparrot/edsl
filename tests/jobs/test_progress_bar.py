@@ -1,7 +1,9 @@
 import pytest
 
 import time
-from edsl import Agent, Cache, Scenario
+from edsl.agents.Agent import Agent
+from edsl.data.Cache import Cache
+from edsl.scenarios.Scenario import Scenario
 from edsl.questions import QuestionYesNo
 from edsl.jobs.runners.JobsRunnerStatus import JobsRunnerStatusBase
 
