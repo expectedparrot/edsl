@@ -207,22 +207,16 @@ class InvigilatorBase(ABC):
 
         """
         from edsl.agents.Agent import Agent
-        from edsl.questions import QuestionMultipleChoice
         from edsl.scenarios.Scenario import Scenario
-        from edsl.language_models import LanguageModel
         from edsl.surveys.MemoryPlan import MemoryPlan
-
-        from edsl.enums import InferenceServiceType
-
-        from edsl import Model
+        from edsl.language_models.registry import Model
+        from edsl.surveys.Survey import Survey
 
         model = Model("test", canned_response="SPAM!")
 
         if throw_an_exception:
             model.throw_an_exception = True
         agent = Agent.example()
-        # question = QuestionMultipleChoice.example()
-        from edsl.surveys import Survey
 
         if not survey:
             survey = Survey.example()
@@ -232,12 +226,8 @@ class InvigilatorBase(ABC):
 
         question = question or survey.questions[0]
         scenario = scenario or Scenario.example()
-        # memory_plan = None #memory_plan = MemoryPlan()
-        from edsl import Survey
-
         memory_plan = MemoryPlan(survey=survey)
         current_answers = None
-        from edsl.agents.PromptConstructor import PromptConstructor
 
         class InvigilatorExample(InvigilatorBase):
             """An example invigilator."""

@@ -7,7 +7,9 @@ import socket
 from datetime import datetime
 from typing import Dict, Optional, Union
 from uuid import UUID, uuid4
-from edsl import Cache, set_session_cache, unset_session_cache
+
+from edsl.data.Cache import Cache
+from edsl import set_session_cache, unset_session_cache
 from edsl.utilities.utilities import dict_hash
 from edsl.study.ObjectEntry import ObjectEntry
 from edsl.study.ProofOfWork import ProofOfWork
@@ -464,7 +466,7 @@ class Study:
     def push(self) -> dict:
         """Push the objects to coop."""
 
-        from edsl import Coop
+        from edsl.coop.coop import Coop
 
         coop = Coop()
         return coop.create(self, description=self.description)

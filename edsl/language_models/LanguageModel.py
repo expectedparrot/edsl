@@ -551,7 +551,7 @@ class LanguageModel(
         Exception report saved to ...
         Also see: ...
         """
-        from edsl import Model
+        from edsl.language_models.registry import Model
 
         if test_model:
             m = Model(

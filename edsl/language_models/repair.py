@@ -32,11 +32,11 @@ async def async_repair(
     else:
         return valid_dict, success
 
-    from edsl import Model
+    from edsl.language_models.registry import Model
 
     m = Model()
 
-    from edsl import QuestionExtract
+    from edsl.questions.QuestionExtract import QuestionExtract
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", UserWarning)

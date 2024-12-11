@@ -71,7 +71,7 @@ class QuestionBasePromptsMixin:
         >>> q.get_instructions(model = "gpt3")
         Prompt(text=\"""{{question_text}}. Answer in valid JSON like so {'answer': 'comment: <>}\""")
         """
-        from edsl import Model
+        from edsl.language_models.registry import Model
 
         if not hasattr(self, "_model_instructions"):
             self._model_instructions = {}

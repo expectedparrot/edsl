@@ -400,7 +400,7 @@ class Jobs(Base):
             return False
         if not disable_remote_cache:
             try:
-                from edsl import Coop
+                from edsl.coop.coop import Coop
 
                 user_edsl_settings = Coop().edsl_settings
                 return user_edsl_settings.get("remote_caching", False)

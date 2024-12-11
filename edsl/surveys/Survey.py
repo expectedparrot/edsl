@@ -1112,7 +1112,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
     def get_job(self, model=None, agent=None, **kwargs):
         if model is None:
-            from edsl import Model
+            from edsl.language_models.registry import Model
 
             model = Model()
 
@@ -1121,7 +1121,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         s = Scenario(kwargs)
 
         if not agent:
-            from edsl import Agent
+            from edsl.agents.Agent import Agent
 
             agent = Agent()
 

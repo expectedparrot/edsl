@@ -589,7 +589,7 @@ class Results(UserList, Mixins, Base):
         >>> r.models[0]
         Model(model_name = ...)
         """
-        from edsl import ModelList
+        from edsl.language_models.ModelList import ModelList
 
         return ModelList([r.model for r in self.data])
 

@@ -5,7 +5,12 @@ import requests
 from typing import Any, Optional, Union, Literal
 from uuid import UUID
 import edsl
-from edsl import CONFIG, CacheEntry, Jobs, Survey
+from edsl import CONFIG
+
+from edsl.data.CacheEntry import CacheEntry
+from edsl.jobs.Jobs import Jobs
+from edsl.surveys.Survey import Survey
+
 from edsl.exceptions.coop import CoopNoUUIDError, CoopServerResponseError
 from edsl.coop.utils import (
     EDSLObject,

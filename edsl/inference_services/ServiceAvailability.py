@@ -21,7 +21,7 @@ class ServiceAvailability:
     @classmethod
     def models_from_coop(cls):
         if not cls._coop_model_list:
-            from edsl import Coop
+            from edsl.coop.coop import Coop
 
             c = Coop()
             coop_model_list = c.fetch_models()

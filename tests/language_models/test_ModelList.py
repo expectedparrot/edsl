@@ -1,5 +1,5 @@
 import pytest
-from edsl import Model
+from edsl.language_models.registry import Model
 from edsl.language_models import LanguageModel
 from edsl.language_models.ModelList import (
     ModelList,

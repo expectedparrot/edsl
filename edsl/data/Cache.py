@@ -83,9 +83,9 @@ class Cache(Base):
 
         self._perform_checks()
 
-    def rich_print(sefl):
-        pass
-        # raise NotImplementedError("This method is not implemented yet.")
+    # def rich_print(sefl):
+    #     pass
+    #     # raise NotImplementedError("This method is not implemented yet.")
 
     def code(sefl):
         pass
@@ -353,7 +353,8 @@ class Cache(Base):
                 f.write(json.dumps({key: value.to_dict()}) + "\n")
 
     def to_scenario_list(self):
-        from edsl import ScenarioList, Scenario
+        from edsl.scenarios.ScenarioList import ScenarioList
+        from edsl.scenarios.Scenario import Scenario
 
         scenarios = []
         for key, value in self.data.items():
