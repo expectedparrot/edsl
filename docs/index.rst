@@ -5,11 +5,11 @@ Expected Parrot: Tools for AI-Powered Research
 
 Expected Parrot delivers powerful tools for conducting research with human and artificial intelligences.
 
-This page provides documentation for the **Expected Parrot Domain-Specific Language (EDSL)**, a Python package for performing research with AI agents and language models,
+This page provides documentation for **Expected Parrot Domain-Specific Language (EDSL)**, a Python package for performing research with AI agents and language models,
 and **Coop**, a platform for creating, storing and sharing AI-based research projects.
 
 * EDSL is available to download at `PyPI <https://pypi.org/project/edsl/>`_ and `GitHub <https://github.com/expectedparrot/edsl>`_.
-* Create a `Coop account <https://www.expectedparrot.com/login>`_ to access special features, storage and collaboration tools. Learn more about `how it works <https://docs.expectedparrot.com/en/latest/coop.html>`_ and start `exploring <https://www.expectedparrot.com/content/explore>`_.
+* Create a `Coop account <https://www.expectedparrot.com/login>`_ to access special features, free storage and collaboration tools. Learn more about `how it works <https://docs.expectedparrot.com/en/latest/coop.html>`_ and start `exploring <https://www.expectedparrot.com/content/explore>`_.
 
 
 Key features 
@@ -19,7 +19,7 @@ Simplified access to hundreds of models
    A single API key lets you conduct research with many popular models at once. `Learn more <https://docs.expectedparrot.com/en/latest/remote_inference.html>`_.
 
 Collaboration made easy
-   Use `Coop <https://www.expectedparrot.com/content/explore>`_ to create, store, and share your research projects seamlessly.
+   Use `Coop <https://www.expectedparrot.com/content/explore>`_ to create, store and share your research projects seamlessly.
 
 Data integrations
    Easily import, analyze and extend many types of data. `Learn more <https://docs.expectedparrot.com/en/latest/scenarios.html>`_.
@@ -28,7 +28,7 @@ Hybrid human-AI surveys
    Collect responses from both humans and AI. `Learn more <https://docs.expectedparrot.com/en/latest/survey_builder.html>`_.
 
 Built-in analysis tools
-   Analyze results with built-in methods. `Learn more <https://docs.expectedparrot.com/en/latest/results.html>`_.
+   Readily visualize, analyze and compare responses. `Learn more <https://docs.expectedparrot.com/en/latest/results.html>`_.
 
 
 Use cases 
@@ -61,21 +61,17 @@ For more on EDSL's key features and use cases, visit the :ref:`overview` section
 Getting started 
 ---------------
 
-*Technical setup:*
+1. **Install EDSL.** See :ref:`installation` instructions.
 
-1. Install the EDSL package. See :ref:`installation` instructions.
-
-2. Log in to `Coop <https://www.expectedparrot.com/login>`_ to access special features for working with AI agents and language models, storage and collaboration tools.
+2. **Create a Coop account.** `Sign up / login <https://www.expectedparrot.com/login>`_ to access special features, free storage and collaboration tools.
 
 3. Choose how to access language models: 
    
-   * **Remote:** Use your Expected Parrot API key to access models at Coop. See instructions on activating :ref:`remote_inference` and purchasing `credits <https://docs.expectedparrot.com/en/latest/credits.html>`_.
-   * **Local:** Use your own API keys for models to use on your own machine. See instructions on storing :ref:`api_keys`.
+   * **Remote inference:** Use your Expected Parrot API key to access all available language models at the Expected Parrot server. See instructions on activating :ref:`remote_inference` and purchasing `credits <https://docs.expectedparrot.com/en/latest/credits.html>`_.
+   * **Local inference:** Use your own API keys for language models to access them on your own machine. See instructions on storing :ref:`api_keys`.
 
 
-*Support and resources:*
-
-Explore a :ref:`starter_tutorial`, how-to guides and notebooks.
+Explore examples and use cases in our :ref:`starter_tutorial`, how-to guides and notebooks listed in the menu.
 See `tips <https://docs.expectedparrot.com/en/latest/checklist.html>`_ on using EDSL effectively.
 
 Join our `Discord channel <https://discord.com/invite/mxAYkjfy9m>`_ to ask questions and chat with other users!
@@ -120,18 +116,15 @@ Coop
 ----
  
 `Coop <https://www.expectedparrot.com/content/explore>`_ is a platform for creating, storing and sharing AI-based research.
-It is fully integrated with EDSL and provides access to special features for working with AI agents and language models, storage and collaboration tools, including:
+It is fully integrated with EDSL and provides access to special features for working with AI agents and language models, free storage and collaboration tools, including:
 
-- `Credits <https://docs.expectedparrot.com/en/latest/credits.html>`_: Get credits to use remote inference.
-- :ref:`remote_inference`: Run surveys with any available models on the Expected Parrot server. 
-- :ref:`remote_caching`: Automatically store results and API calls on the Expected Parrot server. 
-- :ref:`survey_builder`: Design and launch hybrid human-AI surveys.
-- :ref:`notebooks` & :ref:`colab_notebooks`: Post `.ipynb` and `.py` files to the Coop. 
-
+- :ref:`survey_builder`: A user-friendly no-code interface for creating surveys and gathering responses from humans and AI agents.
+- :ref:`remote_inference`: Access all available language models and run surveys at the Expected Parrot server. 
+- :ref:`remote_caching`: Automatically store results and API calls at the Expected Parrot server. 
+- :ref:`notebooks` & :ref:`colab_notebooks`: Easily post and share `.ipynb` and `.py` files to the Coop and access with Colab. 
 - :ref:`filestore`: Store and share data files for use in EDSL projects.
 
-| `Log in <https://www.expectedparrot.com/login>`_ to access Coop. 
-| Learn more about `how it works <https://docs.expectedparrot.com/en/latest/coop.html>`_
+Learn more about `how it works <https://docs.expectedparrot.com/en/latest/coop.html>`_ and purchasing `credits <https://docs.expectedparrot.com/en/latest/credits.html>`_.
 
 
 .. Importing Surveys
