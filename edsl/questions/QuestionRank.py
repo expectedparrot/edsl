@@ -1,10 +1,8 @@
 from __future__ import annotations
-import random
-import textwrap
 from jinja2 import Template
 from typing import Any, Optional, Union
 from edsl.questions.QuestionBase import QuestionBase
-from edsl.exceptions import QuestionAnswerValidationError
+from edsl.exceptions.questions import QuestionAnswerValidationError
 
 from edsl.questions.descriptors import (
     QuestionOptionsDescriptor,
@@ -16,7 +14,6 @@ from edsl.prompts import Prompt
 from pydantic import field_validator
 from edsl.questions.ResponseValidatorABC import ResponseValidatorABC
 from edsl.questions.ResponseValidatorABC import BaseResponse
-from edsl.exceptions import QuestionAnswerValidationError
 
 from pydantic import BaseModel, Field, create_model
 from typing import Optional, Any, List, Annotated, Literal

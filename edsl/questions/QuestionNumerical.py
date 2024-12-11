@@ -1,17 +1,15 @@
 from __future__ import annotations
 
-# from decimal import Decimal
 from random import uniform
 from typing import Any, Optional, Union, Literal
 
 from pydantic import BaseModel, Field, field_validator
 
-from edsl.exceptions import QuestionAnswerValidationError
+from edsl.exceptions.questions import QuestionAnswerValidationError
 from edsl.questions.QuestionBase import QuestionBase
 from edsl.questions.descriptors import NumericalOrNoneDescriptor
 from edsl.questions.decorators import inject_exception
 from edsl.questions.ResponseValidatorABC import ResponseValidatorABC
-from edsl.exceptions.questions import QuestionAnswerValidationError
 
 
 def create_numeric_response(

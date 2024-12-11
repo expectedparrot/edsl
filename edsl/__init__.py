@@ -5,7 +5,8 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ROOT_DIR = os.path.dirname(BASE_DIR)
 
 from edsl.__version__ import __version__
-from edsl.config import Config, CONFIG
+
+# from edsl.config import Config, CONFIG
 
 # from edsl.agents.Agent import Agent
 # from edsl.agents.AgentList import AgentList
@@ -39,9 +40,11 @@ from edsl.config import Config, CONFIG
 # from edsl.results.Results import Results
 
 # from edsl.data.Cache import Cache
+
 # from edsl.data.CacheEntry import CacheEntry
 from edsl.data.CacheHandler import set_session_cache, unset_session_cache
-from edsl.shared import shared_globals
+
+# from edsl.shared import shared_globals
 
 # from edsl.jobs.Jobs import Jobs
 # from edsl.notebooks.Notebook import Notebook
@@ -52,4 +55,4 @@ from edsl.shared import shared_globals
 # from edsl.coop.coop import Coop
 
 # from edsl.surveys.instructions.Instruction import Instruction
-from edsl.surveys.instructions.ChangeInstruction import ChangeInstruction
+# from edsl.surveys.instructions.ChangeInstruction import ChangeInstruction

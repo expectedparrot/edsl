@@ -1,5 +1,5 @@
 import pytest
-from edsl.exceptions import QuestionAnswerValidationError
+from edsl.exceptions.questions import QuestionAnswerValidationError
 from edsl.questions.QuestionBase import QuestionBase
 from edsl.questions.QuestionMatrix import QuestionMatrix
 from edsl.exceptions.questions import QuestionCreationValidationError

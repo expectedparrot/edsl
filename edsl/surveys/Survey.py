@@ -3,25 +3,38 @@
 from __future__ import annotations
 import re
 
-from typing import Any, Generator, Optional, Union, List, Literal, Callable
+from typing import (
+    Any,
+    Generator,
+    Optional,
+    Union,
+    List,
+    Literal,
+    Callable,
+    TYPE_CHECKING,
+)
 from uuid import uuid4
 from edsl.Base import Base
-from edsl.exceptions import SurveyCreationError, SurveyHasNoRulesError
+from edsl.exceptions.surveys import SurveyCreationError, SurveyHasNoRulesError
 from edsl.exceptions.surveys import SurveyError
 
-from edsl.questions.QuestionBase import QuestionBase
+if TYPE_CHECKING:
+    from edsl.questions.QuestionBase import QuestionBase
+    from edsl.agents.Agent import Agent
+
 from edsl.utilities.decorators import remove_edsl_version
-from edsl.agents.Agent import Agent
 
 from edsl.surveys.instructions.InstructionCollection import InstructionCollection
 from edsl.surveys.instructions.Instruction import Instruction
 from edsl.surveys.instructions.ChangeInstruction import ChangeInstruction
-from edsl.surveys.ConstructDAG import ConstructDAG
-from edsl.surveys.base import RulePriority, EndOfSurvey
-from edsl.surveys.DAG import DAG
+
+from edsl.surveys.base import EndOfSurvey
+
+if TYPE_CHECKING:
+    from edsl.surveys.DAG import DAG
+
 from edsl.surveys.descriptors import QuestionsDescriptor
 from edsl.surveys.MemoryPlan import MemoryPlan
-from edsl.surveys.Rule import Rule
 from edsl.surveys.RuleCollection import RuleCollection
 from edsl.surveys.SurveyExportMixin import SurveyExportMixin
 from edsl.surveys.SurveyFlowVisualizationMixin import SurveyFlowVisualizationMixin
@@ -58,8 +71,8 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         questions: Optional[
             list[Union[QuestionBase, Instruction, ChangeInstruction]]
         ] = None,
-        memory_plan: Optional[MemoryPlan] = None,
-        rule_collection: Optional[RuleCollection] = None,
+        memory_plan: Optional["MemoryPlan"] = None,
+        rule_collection: Optional["RuleCollection"] = None,
         question_groups: Optional[dict[str, tuple[int, int]]] = None,
         name: Optional[str] = None,
     ):
@@ -978,6 +991,8 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         {1: {0}, 2: {0}}
 
         """
+        from edsl.surveys.ConstructDAG import ConstructDAG
+
         return ConstructDAG(self).dag(textify)
 
     ###################
@@ -1007,18 +1022,18 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         elif isinstance(index, str):
             return getattr(self, index)
 
-    def _diff(self, other):
-        """Used for debugging. Print out the differences between two surveys."""
-        from rich import print
+    # def _diff(self, other):
+    #     """Used for debugging. Print out the differences between two surveys."""
+    #     from rich import print
 
-        for key, value in self.to_dict().items():
-            if value != other.to_dict()[key]:
-                print(f"Key: {key}")
-                print("\n")
-                print(f"Self: {value}")
-                print("\n")
-                print(f"Other: {other.to_dict()[key]}")
-                print("\n\n")
+    #     for key, value in self.to_dict().items():
+    #         if value != other.to_dict()[key]:
+    #             print(f"Key: {key}")
+    #             print("\n")
+    #             print(f"Self: {value}")
+    #             print("\n")
+    #             print(f"Other: {other.to_dict()[key]}")
+    #             print("\n\n")
 
     def __repr__(self) -> str:
         """Return a string representation of the survey."""

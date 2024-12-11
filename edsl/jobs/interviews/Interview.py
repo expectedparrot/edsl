@@ -5,7 +5,7 @@ import asyncio
 from typing import Any, Type, List, Generator, Optional, Union, TYPE_CHECKING
 import copy
 
-from edsl import CONFIG
+from edsl.config import CONFIG
 from edsl.utilities.utilities import dict_hash
 
 from edsl.jobs.Answers import Answers

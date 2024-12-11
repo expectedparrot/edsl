@@ -5,7 +5,7 @@ from abc import ABC, abstractmethod
 from typing import Any, Type, Optional, List, Callable, Union, TypedDict
 import copy
 
-from edsl.exceptions import (
+from edsl.exceptions.questions import (
     QuestionResponseValidationError,
     QuestionAnswerValidationError,
     QuestionSerializationError,

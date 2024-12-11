@@ -7,13 +7,12 @@ from pydantic import field_validator
 from edsl.questions.QuestionBase import QuestionBase
 from edsl.questions.ResponseValidatorABC import ResponseValidatorABC
 
-from edsl.exceptions import QuestionAnswerValidationError
+from edsl.exceptions.questions import QuestionAnswerValidationError
 from edsl.questions.decorators import inject_exception
 
 from pydantic import BaseModel
 from typing import Optional, Any, List
 
-from edsl.exceptions import QuestionAnswerValidationError
 from edsl.prompts.Prompt import Prompt
 
 

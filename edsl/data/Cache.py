@@ -6,12 +6,12 @@ from __future__ import annotations
 import json
 import os
 import warnings
-import copy
 from typing import Optional, Union
 from edsl.Base import Base
-from edsl.data.CacheEntry import CacheEntry
-from edsl.utilities.utilities import dict_hash
-from edsl.utilities.decorators import remove_edsl_version
+
+
+# from edsl.utilities.decorators import remove_edsl_version
+from edsl.utilities.remove_edsl_version import remove_edsl_version
 from edsl.exceptions.cache import CacheError
 
 
@@ -201,6 +201,7 @@ class Cache(Base):
         >>> len(c)
         1
         """
+        from edsl.data.CacheEntry import CacheEntry
 
         entry = CacheEntry(
             model=model,
@@ -246,6 +247,8 @@ class Cache(Base):
 
         :param write_now: Whether to write to the cache immediately (similar to `immediate_write`).
         """
+        from edsl.data.CacheEntry import CacheEntry
+
         with open(filename, "a+") as f:
             f.seek(0)
             lines = f.readlines()
@@ -400,6 +403,8 @@ class Cache(Base):
     ####################
     def __hash__(self):
         """Return the hash of the Cache."""
+        from edsl.utilities.utilities import dict_hash
+
         return dict_hash(self.to_dict(add_edsl_version=False))
 
     def to_dict(self, add_edsl_version=True) -> dict:
@@ -536,6 +541,8 @@ class Cache(Base):
 
         :param randomize: If True, uses CacheEntry's randomize method.
         """
+        from edsl.data.CacheEntry import CacheEntry
+
         return cls(
             data={
                 CacheEntry.example(randomize).key: CacheEntry.example(),

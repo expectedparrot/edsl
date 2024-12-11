@@ -3,7 +3,7 @@ from pydantic import BaseModel, Field
 from typing import Optional, Any
 from decimal import Decimal
 
-from edsl.exceptions import QuestionAnswerValidationError
+from edsl.exceptions.questions import QuestionAnswerValidationError
 from abc import ABC, abstractmethod
 
 # Import the module we're testing (assuming it's named response_validator.py)

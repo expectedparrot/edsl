@@ -1,6 +1,6 @@
 import pytest
 import uuid
-from edsl.exceptions import QuestionAnswerValidationError
+from edsl.exceptions.questions import QuestionAnswerValidationError
 from edsl.questions import QuestionBudget, Settings
 from edsl.questions.QuestionBudget import QuestionBudget, main
 
