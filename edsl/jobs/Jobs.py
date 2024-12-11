@@ -1,7 +1,6 @@
 # """The Jobs class is a collection of agents, scenarios and models and one survey."""
 from __future__ import annotations
 import warnings
-import requests
 from typing import Literal, Optional, Union, Sequence, Generator, TYPE_CHECKING
 
 from edsl.Base import Base
@@ -9,8 +8,7 @@ from edsl.Base import Base
 from edsl.jobs.buckets.BucketCollection import BucketCollection
 from edsl.jobs.JobsPrompts import JobsPrompts
 from edsl.jobs.interviews.Interview import Interview
-from edsl.jobs.runners.JobsRunnerAsyncio import JobsRunnerAsyncio
-from edsl.utilities.decorators import remove_edsl_version
+from edsl.utilities.remove_edsl_version import remove_edsl_version
 
 from edsl.data.RemoteCacheSync import RemoteCacheSync
 from edsl.exceptions.coop import CoopServerResponseError
@@ -36,7 +34,7 @@ class Jobs(Base):
 
     def __init__(
         self,
-        survey: Survey,
+        survey: "Survey",
         agents: Optional[Union[list[Agent], AgentList]] = None,
         models: Optional[Union[ModelList, list[LanguageModel]]] = None,
         scenarios: Optional[Union[ScenarioList, list[Scenario]]] = None,
@@ -396,6 +394,8 @@ class Jobs(Base):
         return self._raise_validation_errors
 
     def use_remote_cache(self, disable_remote_cache: bool) -> bool:
+        import requests
+
         if disable_remote_cache:
             return False
         if not disable_remote_cache:
@@ -532,6 +532,7 @@ class Jobs(Base):
         """
         # Check if we should use remote inference
         from edsl.jobs.JobsRemoteInferenceHandler import JobsRemoteInferenceHandler
+        from edsl.jobs.runners.JobsRunnerAsyncio import JobsRunnerAsyncio
 
         jh = JobsRemoteInferenceHandler(self, verbose=False)
         if jh.use_remote_inference(disable_remote_inference):
@@ -552,6 +553,7 @@ class Jobs(Base):
 
     def _run_local(self, bucket_collection, *args, **kwargs):
         """Run the job locally."""
+        from edsl.jobs.runners.JobsRunnerAsyncio import JobsRunnerAsyncio
 
         results = JobsRunnerAsyncio(self, bucket_collection=bucket_collection).run(
             *args, **kwargs
@@ -738,7 +740,7 @@ class Jobs(Base):
 
 def main():
     """Run the module's doctests."""
-    from edsl.jobs import Jobs
+    from edsl.jobs.Jobs import Jobs
     from edsl.data.Cache import Cache
 
     job = Jobs.example()

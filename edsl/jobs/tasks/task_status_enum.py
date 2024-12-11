@@ -3,8 +3,6 @@ from collections import UserDict
 import enum
 import time
 
-# from edsl.jobs.tasks.TaskStatusLogEntry import TaskStatusLogEntry
-
 
 class TaskStatus(enum.Enum):
     "These are the possible states a task can be in."
