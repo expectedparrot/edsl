@@ -1,5 +1,5 @@
 import pytest
-from edsl import Question
+from edsl.questions.question_registry import Question
 
 
 @pytest.mark.parametrize("question_type", Question.list_question_types())

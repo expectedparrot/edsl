@@ -1,8 +1,10 @@
 import os
 import pytest
-from edsl import CONFIG, QuestionFreeText
+from edsl import CONFIG
+from edsl.questions import QuestionFreeText
 from edsl.data.Cache import Cache
 from edsl.data.CacheEntry import CacheEntry
+from edsl.language_models.registry import Model
 
 
 @pytest.fixture(scope="module")
@@ -142,7 +144,6 @@ def test_throw_file_note_found_error():
 
 
 def test_caching():
-    from edsl import Model
 
     m = Model("test")
     m.remote = False

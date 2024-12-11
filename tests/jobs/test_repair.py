@@ -1,4 +1,5 @@
-from edsl import Model, QuestionFreeText
+from edsl.language_models.registry import Model
+from edsl.questions.QuestionFreeText import QuestionFreeText
 import time
 import pytest
 

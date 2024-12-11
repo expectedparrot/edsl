@@ -1,18 +1,18 @@
-from edsl import (
-    Agent,
-    AgentList,
-    Cache,
-    ModelList,
-    Notebook,
-    Results,
-    Scenario,
-    ScenarioList,
-    Survey,
-    Study,
-)
-from edsl.language_models import LanguageModel
-from edsl.questions import QuestionBase
 from typing import Literal, Optional, Type, Union
+
+from edsl.agents.Agent import Agent
+from edsl.agents.AgentList import AgentList
+from edsl.data.Cache import Cache
+from edsl.language_models.ModelList import ModelList
+from edsl.notebooks.Notebook import Notebook
+from edsl.results.Results import Results
+from edsl.scenarios.Scenario import Scenario
+from edsl.scenarios.ScenarioList import ScenarioList
+from edsl.surveys.Survey import Survey
+from edsl.study.Study import Study
+
+from edsl.language_models.LanguageModel import LanguageModel
+from edsl.questions.QuestionBase import QuestionBase
 
 EDSLObject = Union[
     Agent,

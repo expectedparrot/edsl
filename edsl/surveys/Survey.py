@@ -771,7 +771,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
         This takes the survey and adds an Agent and a Scenario via 'by' which converts to a Jobs object:
 
-        >>> s = Survey.example(); from edsl import Agent; from edsl import Scenario
+        >>> s = Survey.example(); from edsl.agents import Agent; from edsl import Scenario
         >>> s.by(Agent.example()).by(Scenario.example())
         Jobs(...)
         """

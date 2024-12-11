@@ -1,19 +1,17 @@
 import pytest
-from edsl import (
-    Agent,
-    AgentList,
-    Cache,
-    Coop,
-    Jobs,
-    Notebook,
-    QuestionCheckBox,
-    QuestionFreeText,
-    QuestionMultipleChoice,
-    Results,
-    Scenario,
-    ScenarioList,
-    Survey,
-)
+
+from edsl.agents.Agent import Agent
+from edsl.agents.AgentList import AgentList
+from edsl.data.Cache import Cache
+from edsl.scenarios.Scenario import Scenario
+from edsl.scenarios.ScenarioList import ScenarioList
+from edsl.questions.QuestionCheckBox import QuestionCheckBox
+from edsl.questions.QuestionFreeText import QuestionFreeText
+from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
+from edsl.notebooks.Notebook import Notebook
+from edsl.results.Results import Results
+from edsl.surveys.Survey import Survey
+from edsl.coop import Coop
 
 
 def coop_object_api_workflows(object_type, object_examples):

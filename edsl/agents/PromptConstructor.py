@@ -1,14 +1,17 @@
 from __future__ import annotations
-from typing import Dict, Any, Optional, Set, Union
-
+from typing import Dict, Any, Optional, Set, Union, TYPE_CHECKING
+from functools import cached_property
 
 from edsl.prompts.Prompt import Prompt
-from edsl.agents.prompt_helpers import PromptPlan
 
-from edsl.agents.QuestionTemplateReplacementsBuilder import (
+from .prompt_helpers import PromptPlan
+from .QuestionTemplateReplacementsBuilder import (
     QuestionTemplateReplacementsBuilder,
 )
-from edsl.agents.QuestionOptionProcessor import QuestionOptionProcessor
+from .QuestionOptionProcessor import QuestionOptionProcessor
+
+if TYPE_CHECKING:
+    from edsl.agents.InvigilatorBase import InvigilatorBase
 
 
 class PlaceholderAnswer:
@@ -39,7 +42,9 @@ class PromptConstructor:
     - The memory prompt - "Before the question you are now answering, you already answered the following question(s): Question: Do you like school? Answer: Prior answer"
     """
 
-    def __init__(self, invigilator, prompt_plan: Optional["PromptPlan"] = None):
+    def __init__(
+        self, invigilator: "InvigilatorBase", prompt_plan: Optional["PromptPlan"] = None
+    ):
         self.invigilator = invigilator
         self.agent = invigilator.agent
         self.question = invigilator.question
@@ -54,7 +59,7 @@ class PromptConstructor:
         """Get the question options."""
         return QuestionOptionProcessor(self).get_question_options(question_data)
 
-    @property
+    @cached_property
     def agent_instructions_prompt(self) -> Prompt:
         """
         >>> from edsl.agents.InvigilatorBase import InvigilatorBase
@@ -62,14 +67,14 @@ class PromptConstructor:
         >>> i.prompt_constructor.agent_instructions_prompt
         Prompt(text=\"""You are answering questions as if you were a human. Do not break character.\""")
         """
-        from edsl import Agent
+        from edsl.agents.Agent import Agent
 
         if self.agent == Agent():  # if agent is empty, then return an empty prompt
             return Prompt(text="")
 
         return Prompt(text=self.agent.instruction)
 
-    @property
+    @cached_property
     def agent_persona_prompt(self) -> Prompt:
         """
         >>> from edsl.agents.InvigilatorBase import InvigilatorBase
@@ -77,7 +82,7 @@ class PromptConstructor:
         >>> i.prompt_constructor.agent_persona_prompt
         Prompt(text=\"""Your traits: {'age': 22, 'hair': 'brown', 'height': 5.5}\""")
         """
-        from edsl import Agent
+        from edsl.agents.Agent import Agent
 
         if self.agent == Agent():  # if agent is empty, then return an empty prompt
             return Prompt(text="")
@@ -106,14 +111,14 @@ class PromptConstructor:
                 answer_dict[question].answer = PlaceholderAnswer()
         return answer_dict
 
-    @property
+    @cached_property
     def question_file_keys(self) -> list:
         """Extracts the file keys from the question text.
         It checks if the variables in the question text are in the scenario file keys.
         """
         return QuestionTemplateReplacementsBuilder(self).question_file_keys()
 
-    @property
+    @cached_property
     def question_instructions_prompt(self) -> Prompt:
         """
         >>> from edsl.agents.InvigilatorBase import InvigilatorBase
@@ -122,12 +127,7 @@ class PromptConstructor:
         Prompt(text=\"""...
         ...
         """
-        if not hasattr(self, "_question_instructions_prompt"):
-            self._question_instructions_prompt = (
-                self.build_question_instructions_prompt()
-            )
-
-        return self._question_instructions_prompt
+        return self.build_question_instructions_prompt()
 
     def build_question_instructions_prompt(self) -> Prompt:
         """Buils the question instructions prompt."""
@@ -137,18 +137,14 @@ class PromptConstructor:
 
         return QuestionInstructionPromptBuilder(self).build()
 
-    @property
+    @cached_property
     def prior_question_memory_prompt(self) -> Prompt:
-        if not hasattr(self, "_prior_question_memory_prompt"):
-            from edsl.prompts.Prompt import Prompt
-
-            memory_prompt = Prompt(text="")
-            if self.memory_plan is not None:
-                memory_prompt += self.create_memory_prompt(
-                    self.question.question_name
-                ).render(self.scenario | self.prior_answers_dict())
-            self._prior_question_memory_prompt = memory_prompt
-        return self._prior_question_memory_prompt
+        memory_prompt = Prompt(text="")
+        if self.memory_plan is not None:
+            memory_prompt += self.create_memory_prompt(
+                self.question.question_name
+            ).render(self.scenario | self.prior_answers_dict())
+        return memory_prompt
 
     def create_memory_prompt(self, question_name: str) -> Prompt:
         """Create a memory for the agent.
@@ -189,16 +185,6 @@ class PromptConstructor:
                 files_list.append(self.scenario[key])
             prompts["files_list"] = files_list
         return prompts
-
-    # def _get_scenario_with_image(self) -> Scenario:
-    #     """This is a helper function to get a scenario with an image, for testing purposes."""
-    #     from edsl import Scenario
-
-    #     try:
-    #         scenario = Scenario.from_image("../../static/logo.png")
-    #     except FileNotFoundError:
-    #         scenario = Scenario.from_image("static/logo.png")
-    #     return scenario
 
 
 if __name__ == "__main__":

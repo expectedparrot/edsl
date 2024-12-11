@@ -1,12 +1,11 @@
 import asyncio
 import pytest
+from collections import namedtuple
 
 from edsl.jobs.tasks.task_status_enum import TaskStatus
 from edsl.jobs.tasks.QuestionTaskCreator import QuestionTaskCreator
-from edsl import QuestionFreeText
+from edsl.questions.QuestionFreeText import QuestionFreeText
 from edsl.jobs.buckets.ModelBuckets import ModelBuckets
-
-from collections import namedtuple
 
 AnswerTuple = namedtuple("AnswerTuple", ["answer", "cache_used"])
 
@@ -69,12 +68,6 @@ async def test_task_add_dependency():
     ]
 
     asyncio.run(creator_2._run_task_async())
-    # breakpoint()
-
-    # results = await creator._run_focal_task(debug=False)
-    # assert results == {"answer": 42}
-
-    # assert creator.task_status == TaskStatus.FINISHED
 
 
 @pytest.mark.asyncio
@@ -98,11 +91,3 @@ async def test_task_add_dependency():
 
     task_1 = creator_1.generate_task()
     creator_2.add_dependency(task_1)
-
-    # ## What should we do here?
-    # task_1.cancel()
-    # #assert creator_2.generate_task(debug=False).depends_on == [QuestionFreeText.example().question_name]
-    # with pytest.raises(asyncio.CancelledError):
-    #     asyncio.run(creator_2._run_task_async(debug=False))
-
-    # breakpoint()

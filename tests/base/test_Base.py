@@ -57,9 +57,9 @@ def create_test_function(child_class):
     def base_test_func():
         from edsl.agents.Agent import Agent
         from edsl.surveys.Survey import Survey
-        from edsl import Question
+        from edsl.questions.question_registry import Question
         from edsl.data.CacheEntry import CacheEntry
-        from edsl import Model
+        from edsl.language_models.registry import Model
         from edsl.surveys.RuleCollection import RuleCollection
         from edsl.surveys.Rule import Rule
         from edsl.agents.AgentList import AgentList

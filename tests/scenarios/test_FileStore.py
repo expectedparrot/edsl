@@ -5,7 +5,8 @@ import pandas as pd
 import sqlite3
 from io import StringIO, BytesIO
 from unittest.mock import patch, MagicMock
-from edsl import Scenario
+from edsl.scenarios.Scenario import Scenario
+
 from edsl.scenarios.FileStore import (
     FileStore,
     CSVFileStore,
@@ -115,7 +116,7 @@ def test_filestore_to_tempfile(sample_files, file_type, FileStoreClass):
     fs = FileStoreClass(file_path)
     temp_path = fs.to_tempfile()
     assert os.path.exists(temp_path)
-    #breakpoint()
+    # breakpoint()
     assert temp_path.endswith(f".{file_type}")
     os.unlink(temp_path)
 

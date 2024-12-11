@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 import asyncio
-from typing import Any, Type, List, Generator, Optional, Union
+from typing import Any, Type, List, Generator, Optional, Union, TYPE_CHECKING
 import copy
 
 from edsl import CONFIG
+from edsl.utilities.utilities import dict_hash
 
 from edsl.jobs.Answers import Answers
 from edsl.jobs.interviews.InterviewStatusLog import InterviewStatusLog
@@ -14,18 +15,21 @@ from edsl.jobs.interviews.InterviewExceptionCollection import (
     InterviewExceptionCollection,
 )
 from edsl.jobs.interviews.InterviewExceptionEntry import InterviewExceptionEntry
-
 from edsl.jobs.buckets.ModelBuckets import ModelBuckets
-from edsl import Agent, Survey, Scenario, Cache
-from edsl.language_models import LanguageModel
-
-from edsl.jobs.tokens.InterviewTokenUsage import InterviewTokenUsage
 from edsl.jobs.AnswerQuestionFunctionConstructor import (
     AnswerQuestionFunctionConstructor,
 )
 from edsl.jobs.InterviewTaskManager import InterviewTaskManager
 from edsl.jobs.FetchInvigilator import FetchInvigilator
 from edsl.jobs.RequestTokenEstimator import RequestTokenEstimator
+
+if TYPE_CHECKING:
+    from edsl.agents.Agent import Agent
+    from edsl.surveys.Survey import Survey
+    from edsl.scenarios.Scenario import Scenario
+    from edsl.data.Cache import Cache
+    from edsl.language_models import LanguageModel
+    from edsl.jobs.tokens.InterviewTokenUsage import InterviewTokenUsage
 
 
 class Interview:
@@ -157,6 +161,12 @@ class Interview:
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> "Interview":
         """Return an Interview instance from a dictionary."""
+
+        from edsl.agents.Agent import Agent
+        from edsl.surveys.Survey import Survey
+        from edsl.scenarios.Scenario import Scenario
+        from edsl.language_models import LanguageModel
+
         agent = Agent.from_dict(d["agent"])
         survey = Survey.from_dict(d["survey"])
         scenario = Scenario.from_dict(d["scenario"])
@@ -178,8 +188,6 @@ class Interview:
         return interview
 
     def __hash__(self) -> int:
-        from edsl.utilities.utilities import dict_hash
-
         return dict_hash(self.to_dict(include_exceptions=False, add_edsl_version=False))
 
     def __eq__(self, other: "Interview") -> bool:
