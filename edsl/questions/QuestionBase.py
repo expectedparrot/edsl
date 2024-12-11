@@ -3,11 +3,8 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Any, Type, Optional, List, Callable, Union, TypedDict
-import copy
 
 from edsl.exceptions.questions import (
-    QuestionResponseValidationError,
-    QuestionAnswerValidationError,
     QuestionSerializationError,
 )
 from edsl.questions.descriptors import QuestionNameDescriptor, QuestionTextDescriptor
@@ -21,7 +18,7 @@ from edsl.BaseDiff import BaseDiff, BaseDiffCollection
 from edsl.questions.SimpleAskMixin import SimpleAskMixin
 from edsl.questions.QuestionBasePromptsMixin import QuestionBasePromptsMixin
 from edsl.questions.QuestionBaseGenMixin import QuestionBaseGenMixin
-from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
+from edsl.utilities.decorators import remove_edsl_version
 
 
 class QuestionBase(

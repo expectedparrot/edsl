@@ -1,17 +1,18 @@
+from typing import TYPE_CHECKING, Dict, List, Generator, Union
+from collections import UserDict
+
 from edsl.surveys.instructions.Instruction import Instruction
 from edsl.surveys.instructions.ChangeInstruction import ChangeInstruction
-from edsl.questions import QuestionBase
-from typing import Union, Optional, List, Generator, Dict
 
-
-from collections import UserDict
+if TYPE_CHECKING:
+    from edsl.questions.QuestionBase import QuestionBase
 
 
 class InstructionCollection(UserDict):
     def __init__(
         self,
         instruction_names_to_instruction: Dict[str, Instruction],
-        questions: List[QuestionBase],
+        questions: List["QuestionBase"],
     ):
         self.instruction_names_to_instruction = instruction_names_to_instruction
         self.questions = questions
@@ -24,6 +25,8 @@ class InstructionCollection(UserDict):
 
     def __getitem__(self, key):
         # in case the person uses question instead of the name
+        from edsl.questions.QuestionBase import QuestionBase
+
         if isinstance(key, QuestionBase):
             key = key.name
         return self.data[key]
@@ -54,9 +57,11 @@ class InstructionCollection(UserDict):
         return instructions, changes
 
     def relevant_instructions(
-        self, question: Union[str, QuestionBase]
+        self, question: Union[str, "QuestionBase"]
     ) -> Generator[Instruction, None, None]:
         ## Find all the questions that are after a given instruction
+        from edsl.questions.QuestionBase import QuestionBase
+
         if isinstance(question, str):
             question_name = question
         elif isinstance(question, QuestionBase):

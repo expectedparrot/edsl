@@ -1,5 +1,5 @@
 from typing import Optional
-from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
+from edsl.utilities.remove_edsl_version import remove_edsl_version
 
 
 class CSSRuleMeta(type):

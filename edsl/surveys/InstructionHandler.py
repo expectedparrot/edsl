@@ -1,5 +1,5 @@
+from typing import TYPE_CHECKING
 from dataclasses import dataclass
-from edsl.questions.QuestionBase import QuestionBase
 
 
 @dataclass
@@ -56,6 +56,7 @@ class InstructionHandler:
         """
         from edsl.surveys.instructions.Instruction import Instruction
         from edsl.surveys.instructions.ChangeInstruction import ChangeInstruction
+        from edsl.questions.QuestionBase import QuestionBase
 
         true_questions = []
         instruction_names_to_instructions = {}

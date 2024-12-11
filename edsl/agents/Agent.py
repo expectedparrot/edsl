@@ -14,11 +14,12 @@ if TYPE_CHECKING:
     from edsl.surveys.MemoryPlan import MemoryPlan
     from edsl.questions import QuestionBase
     from edsl.agents.Invigilator import InvigilatorBase
+    from edsl.prompts import Prompt
+
 
 from uuid import uuid4
 
 from edsl.Base import Base
-from edsl.prompts import Prompt
 from edsl.exceptions.questions import QuestionScenarioRenderError
 
 from edsl.exceptions.agents import (
@@ -36,7 +37,6 @@ from edsl.agents.descriptors import (
 )
 from edsl.utilities.decorators import (
     sync_wrapper,
-    add_edsl_version,
     remove_edsl_version,
 )
 from edsl.data_transfer_models import AgentResponseDict
