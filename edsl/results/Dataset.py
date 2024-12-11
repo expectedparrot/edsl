@@ -1,17 +1,15 @@
 """A module to represent a dataset of observations."""
 
 from __future__ import annotations
-import random
+import sys
 import json
+import random
 from collections import UserList
 from typing import Any, Union, Optional
-import sys
-import numpy as np
 
 from edsl.results.ResultsExportMixin import ResultsExportMixin
 from edsl.results.DatasetTree import Tree
 from edsl.results.TableDisplay import TableDisplay
-
 from edsl.Base import PersistenceMixin, HashingMixin
 
 
@@ -397,6 +395,7 @@ class Dataset(UserList, ResultsExportMixin, PersistenceMixin, HashingMixin):
 
 
         """
+        import numpy as np
 
         def sort_indices(lst: list[Any]) -> list[int]:
             """

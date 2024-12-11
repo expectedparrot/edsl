@@ -1,8 +1,10 @@
 from __future__ import annotations
 import asyncio
-from typing import Any, Type, List, Generator, Optional, Union
+from typing import Any, Type, List, Generator, Optional, Union, TYPE_CHECKING
 
-from edsl.questions import QuestionBase
+if TYPE_CHECKING:
+    from edsl.questions import QuestionBase
+
 from edsl.jobs.tasks.QuestionTaskCreator import QuestionTaskCreator
 from edsl.jobs.tasks.TaskCreators import TaskCreators
 from edsl.jobs.interviews.InterviewStatusLog import InterviewStatusLog
@@ -50,7 +52,7 @@ class InterviewTaskManager:
 
     def _create_single_task(
         self,
-        question: QuestionBase,
+        question: "QuestionBase",
         dependencies: list[asyncio.Task],
         answer_func,
         token_estimator,

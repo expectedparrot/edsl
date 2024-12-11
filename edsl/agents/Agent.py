@@ -37,8 +37,8 @@ from edsl.agents.descriptors import (
 )
 from edsl.utilities.decorators import (
     sync_wrapper,
-    remove_edsl_version,
 )
+from edsl.utilities.remove_edsl_version import remove_edsl_version
 from edsl.data_transfer_models import AgentResponseDict
 from edsl.utilities.restricted_python import create_restricted_function
 
@@ -212,6 +212,8 @@ class Agent(Base):
     @property
     def agent_persona(self) -> Prompt:
         """Return the agent persona template."""
+        from edsl.prompts.Prompt import Prompt
+
         return Prompt(text=self.traits_presentation_template)
 
     def prompt(self) -> str:

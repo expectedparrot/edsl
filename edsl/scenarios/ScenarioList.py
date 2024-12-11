@@ -1,28 +1,28 @@
 """A list of Scenarios to be used in a survey."""
 
 from __future__ import annotations
-from typing import Any, Optional, Union, List, Callable
+from typing import Any, Optional, Union, List, Callable, TYPE_CHECKING
 import csv
 import random
-from collections import UserList, Counter, defaultdict
+from collections import UserList, defaultdict
 from collections.abc import Iterable
-import urllib.parse
-import urllib.request
+
+if TYPE_CHECKING:
+    from urllib.parse import ParseResult
+
 from io import StringIO
 import inspect
 
-from simpleeval import EvalWithCompoundTypes
-from simpleeval import NameNotDefined
+from simpleeval import EvalWithCompoundTypes, NameNotDefined
 
 from edsl.Base import Base
-from edsl.utilities.decorators import remove_edsl_version
+from edsl.utilities.remove_edsl_version import remove_edsl_version
+
 from edsl.scenarios.Scenario import Scenario
 from edsl.scenarios.ScenarioListPdfMixin import ScenarioListPdfMixin
 from edsl.scenarios.ScenarioListExportMixin import ScenarioListExportMixin
-
 from edsl.utilities.naming_utilities import sanitize_string
-from edsl.utilities.utilities import is_valid_variable_name
-
+from edsl.utilities.is_valid_variable_name import is_valid_variable_name
 from edsl.exceptions.scenarios import ScenarioError
 
 
@@ -92,7 +92,11 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
             new_scenaerios.append(Scenario(new_scenario))
         return ScenarioList(new_scenaerios, codebook)
 
-    def unpivot(self, id_vars=None, value_vars=None):
+    def unpivot(
+        self,
+        id_vars: Optional[List[str]] = None,
+        value_vars: Optional[List[str]] = None,
+    ) -> ScenarioList:
         """
         Unpivot the ScenarioList, allowing for id variables to be specified.
 
@@ -1023,11 +1027,13 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
 
     @classmethod
     def from_delimited_file(
-        cls, source: Union[str, urllib.parse.ParseResult], delimiter: str = ","
+        cls, source: Union[str, "ParseResult"], delimiter: str = ","
     ) -> ScenarioList:
         """Create a ScenarioList from a delimited file (CSV/TSV) or URL."""
         import requests
         from edsl.scenarios.Scenario import Scenario
+        from urllib.parse import urlparse
+        from urllib.parse import ParseResult
 
         headers = {
             "Accept": "text/csv,application/csv,text/plain",
@@ -1036,7 +1042,7 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
 
         def is_url(source):
             try:
-                result = urllib.parse.urlparse(source)
+                result = urlparse(source)
                 return all([result.scheme, result.netloc])
             except ValueError:
                 return False
@@ -1046,7 +1052,7 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
                 response = requests.get(source, headers=headers)
                 response.raise_for_status()
                 file_obj = StringIO(response.text)
-            elif isinstance(source, urllib.parse.ParseResult):
+            elif isinstance(source, ParseResult):
                 response = requests.get(source.geturl(), headers=headers)
                 response.raise_for_status()
                 file_obj = StringIO(response.text)
@@ -1064,7 +1070,7 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
 
     # Convenience methods for specific file types
     @classmethod
-    def from_csv(cls, source: Union[str, urllib.parse.ParseResult]) -> ScenarioList:
+    def from_csv(cls, source: Union[str, "ParseResult"]) -> ScenarioList:
         """Create a ScenarioList from a CSV file or URL."""
         return cls.from_delimited_file(source, delimiter=",")
 
@@ -1087,7 +1093,7 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         return sj.left_join(by)
 
     @classmethod
-    def from_tsv(cls, source: Union[str, urllib.parse.ParseResult]) -> ScenarioList:
+    def from_tsv(cls, source: Union[str, "ParseResult"]) -> ScenarioList:
         """Create a ScenarioList from a TSV file or URL."""
         return cls.from_delimited_file(source, delimiter="\t")
 
@@ -1124,7 +1130,6 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         """
         from edsl.surveys.Survey import Survey
         from edsl.questions.QuestionBase import QuestionBase
-
         from edsl.jobs.Jobs import Jobs
 
         if isinstance(survey, QuestionBase):

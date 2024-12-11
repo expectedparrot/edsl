@@ -5,7 +5,7 @@ from edsl.results.Dataset import Dataset
 
 from edsl.exceptions.results import ResultsColumnNotFoundError
 
-from edsl.utilities.utilities import is_notebook
+from edsl.utilities.is_notebook import is_notebook
 
 
 class Selector:
