@@ -1,5 +1,5 @@
 import unittest
-from edsl.exceptions import SurveyRuleCollectionHasNoRulesAtNodeError
+from edsl.exceptions.surveys import SurveyRuleCollectionHasNoRulesAtNodeError
 from edsl.surveys.Rule import Rule
 from edsl.surveys.RuleCollection import RuleCollection
 

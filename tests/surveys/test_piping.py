@@ -1,8 +1,8 @@
 import pytest
 from edsl.questions import QuestionList, QuestionMultipleChoice
-from edsl.surveys import Survey
-from edsl.agents import Agent
-from edsl.language_models import LanguageModel
+from edsl.surveys.Survey import Survey
+from edsl.agents.Agent import Agent
+from edsl.language_models.LanguageModel import LanguageModel
 
 
 def test_survey_flow():
@@ -37,9 +37,7 @@ def test_survey_flow():
 
 def test_alt_piping():
     # this one uses a test model to return the answers
-    from edsl.questions import QuestionList, QuestionMultipleChoice
     from edsl.language_models.registry import Model
-    from edsl.surveys import Survey
 
     def two_responses_closure():
 
@@ -74,7 +72,6 @@ def test_alt_piping():
 
 def test_option_expand_piping():
     from edsl.questions import QuestionList, QuestionCheckBox
-    from edsl.surveys import Survey
     from edsl.language_models.registry import Model
 
     def two_responses_closure():
