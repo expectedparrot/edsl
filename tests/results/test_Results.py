@@ -8,8 +8,7 @@ from edsl.exceptions.results import (
     ResultsInvalidNameError,
 )
 
-# from edsl.report.InputOutputDataTypes import CategoricalData
-from edsl.results import Results
+from edsl.results.Results import Results
 
 
 class TestResults(unittest.TestCase):

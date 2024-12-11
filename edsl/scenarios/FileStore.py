@@ -4,14 +4,11 @@ import tempfile
 import mimetypes
 import os
 from typing import Dict, Any, IO, Optional
-import requests
-from urllib.parse import urlparse
 import subprocess
-import google.generativeai as genai
 
 from edsl.scenarios.Scenario import Scenario
-from edsl.utilities.decorators import remove_edsl_version
-from edsl.utilities.utilities import is_notebook
+from edsl.utilities.remove_edsl_version import remove_edsl_version
+from edsl.utilities.is_notebook import is_notebook
 
 
 def view_docx(docx_path):
@@ -301,6 +298,8 @@ class FileStore(Scenario):
         return os.path.getsize(self.path)
 
     def upload_google(self, refresh: bool = False) -> None:
+        import google.generativeai as genai
+
         genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
         google_info = genai.upload_file(self.path, mime_type=self.mime_type)
         self.external_locations["google"] = google_info.to_dict()
@@ -513,6 +512,8 @@ class FileStore(Scenario):
         :param download_path: The path to save the downloaded file.
         :param mime_type: The MIME type of the file. If None, it will be guessed from the file extension.
         """
+        import requests
+        from urllib.parse import urlparse
 
         response = requests.get(url, stream=True)
         response.raise_for_status()  # Raises an HTTPError for bad responses
@@ -701,27 +702,6 @@ class HTMLFileStore(FileStore):
 
 
 if __name__ == "__main__":
-    # file_path = "../conjure/examples/Ex11-2.sav"
-    # fs = FileStore(file_path)
-    # info = fs.push()
-    # print(info)
+    import doctest
 
-    # fs = CSVFileStore.example()
-    # fs.to_tempfile()
-    # print(fs.view())
-
-    # fs = PDFFileStore.example()
-    # fs.view()
-
-    # fs = PDFFileStore("paper.pdf")
-    # fs.view()
-    # from edsl import Conjure
-    pass
-    # fs = PNGFileStore("logo.png")
-    # fs.view()
-    # fs.upload_google()
-
-    # c = Conjure(datafile_name=fs.to_tempfile())
-    # f = PDFFileStore("paper.pdf")
-    # print(f.to_tempfile())
-    # f.push()
+    doctest.testmod()

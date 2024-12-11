@@ -111,6 +111,7 @@ class InvigilatorBase(ABC):
         from edsl.surveys.MemoryPlan import MemoryPlan
         from edsl.language_models.LanguageModel import LanguageModel
         from edsl.surveys.Survey import Survey
+        from edsl.data.Cache import Cache
 
         agent = Agent.from_dict(data["agent"])
         question = QuestionBase.from_dict(data["question"])

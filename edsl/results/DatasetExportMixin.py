@@ -6,7 +6,6 @@ import io
 import warnings
 import textwrap
 from typing import Optional, Tuple, Union, List
-from openpyxl import Workbook
 
 
 class DatasetExportMixin:
@@ -257,6 +256,8 @@ class DatasetExportMixin:
         Returns:
             FileStore: Instance containing the Excel data
         """
+        from openpyxl import Workbook
+
         if filename is None:
             filename = "results.xlsx"
         if sheet_name is None:

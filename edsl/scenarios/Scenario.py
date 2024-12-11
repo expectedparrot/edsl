@@ -10,7 +10,7 @@ from uuid import uuid4
 
 from edsl.Base import Base
 from edsl.scenarios.ScenarioHtmlMixin import ScenarioHtmlMixin
-from edsl.utilities.decorators import remove_edsl_version
+from edsl.utilities.remove_edsl_version import remove_edsl_version
 from edsl.exceptions.scenarios import ScenarioError
 
 if TYPE_CHECKING:

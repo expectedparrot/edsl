@@ -1,7 +1,4 @@
-import requests
 from typing import Optional
-from requests.adapters import HTTPAdapter
-from requests.packages.urllib3.util.retry import Retry
 
 
 class ScenarioHtmlMixin:
@@ -22,6 +19,10 @@ class ScenarioHtmlMixin:
 
     def fetch_html(url):
         # Define the user-agent to mimic a browser
+        import requests
+        from requests.adapters import HTTPAdapter
+        from requests.packages.urllib3.util.retry import Retry
+
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
         }

@@ -9,11 +9,7 @@ import random
 from collections import UserList, defaultdict
 from typing import Optional, Callable, Any, Type, Union, List, TYPE_CHECKING
 
-
-from simpleeval import EvalWithCompoundTypes
-
 from edsl.Base import Base
-
 from edsl.exceptions.results import (
     ResultsError,
     ResultsBadMutationstringError,
@@ -33,14 +29,12 @@ if TYPE_CHECKING:
     from edsl.results.Result import Result
     from edsl.jobs.tasks.TaskHistory import TaskHistory
     from edsl.language_models.ModelList import ModelList
+    from simpleeval import EvalWithCompoundTypes
 
 from edsl.results.ResultsExportMixin import ResultsExportMixin
-
 from edsl.results.ResultsGGMixin import ResultsGGMixin
 from edsl.results.ResultsFetchMixin import ResultsFetchMixin
-
-from edsl.utilities.decorators import remove_edsl_version
-from edsl.utilities.utilities import dict_hash
+from edsl.utilities.remove_edsl_version import remove_edsl_version
 
 
 class Mixins(
@@ -408,6 +402,8 @@ class Results(UserList, Mixins, Base):
         return self.task_history.has_unfixed_exceptions
 
     def __hash__(self) -> int:
+        from edsl.utilities.utilities import dict_hash
+
         return dict_hash(self.to_dict(sort=True, add_edsl_version=False))
 
     @property
@@ -768,7 +764,7 @@ class Results(UserList, Mixins, Base):
     @staticmethod
     def _create_evaluator(
         result: Result, functions_dict: Optional[dict] = None
-    ) -> EvalWithCompoundTypes:
+    ) -> "EvalWithCompoundTypes":
         """Create an evaluator for the expression.
 
         >>> from unittest.mock import Mock
@@ -791,6 +787,8 @@ class Results(UserList, Mixins, Base):
         ...
         simpleeval.NameNotDefined: 'how_feeling' is not defined for expression 'how_feeling== 'OK''
         """
+        from simpleeval import EvalWithCompoundTypes
+
         if functions_dict is None:
             functions_dict = {}
         evaluator = EvalWithCompoundTypes(

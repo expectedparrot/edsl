@@ -2,7 +2,7 @@ from typing import Optional, Union, Literal
 import requests
 
 from edsl.exceptions.coop import CoopServerResponseError
-from edsl.results import Results
+from edsl.results.Results import Results
 from edsl.jobs.JobsRemoteInferenceLogger import JupyterJobLogger, StdOutJobLogger
 
 from edsl.utilities.utilities import is_notebook

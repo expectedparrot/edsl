@@ -27,13 +27,6 @@ def decorate_methods_from_mixin(cls, mixin_cls):
     return cls
 
 
-# def decorate_all_methods(cls):
-#     for attr_name, attr_value in cls.__dict__.items():
-#         if callable(attr_value):
-#             setattr(cls, attr_name, to_dataset(attr_value))
-#     return cls
-
-
 # @decorate_all_methods
 class ScenarioListExportMixin(DatasetExportMixin):
     """Mixin class for exporting Results objects."""
