@@ -34,6 +34,7 @@ class CacheHandler:
     This CacheHandler figures out what caches are available and does migrations, as needed.
     """
 
+    @property
     def CACHE_PATH(self):
         from edsl.config import CONFIG
 

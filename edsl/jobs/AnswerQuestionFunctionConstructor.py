@@ -1,5 +1,5 @@
-import asyncio
 import copy
+import asyncio
 
 from typing import Union, Type, Callable, TYPE_CHECKING
 
@@ -7,12 +7,10 @@ if TYPE_CHECKING:
     from edsl.questions.QuestionBase import QuestionBase
 
 from edsl.surveys.base import EndOfSurvey
-from edsl.jobs.interviews.InterviewExceptionEntry import InterviewExceptionEntry
 from edsl.jobs.tasks.task_status_enum import TaskStatus
 
 from edsl.jobs.FetchInvigilator import FetchInvigilator
 from edsl.exceptions.language_models import LanguageModelNoResponseError
-
 from edsl.exceptions.questions import QuestionAnswerValidationError
 from edsl.data_transfer_models import AgentResponseDict, EDSLResultObjectInput
 
@@ -44,6 +42,8 @@ class AnswerQuestionFunctionConstructor:
     def _handle_exception(
         self, e: Exception, invigilator: "InvigilatorBase", task=None
     ):
+        from edsl.jobs.interviews.InterviewExceptionEntry import InterviewExceptionEntry
+
         answers = copy.copy(self.answers)  # copy to freeze the answers here for logging
         exception_entry = InterviewExceptionEntry(
             exception=e,

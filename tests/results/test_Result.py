@@ -2,7 +2,7 @@ from edsl.results.Result import Result
 
 from edsl.agents.Agent import Agent
 from edsl.scenarios.Scenario import Scenario
-from edsl.language_models import LanguageModel
+from edsl.language_models.LanguageModel import LanguageModel
 
 
 def test_constructor():

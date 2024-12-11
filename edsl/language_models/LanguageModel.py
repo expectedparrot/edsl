@@ -32,7 +32,7 @@ from typing import (
 )
 from abc import ABC, abstractmethod
 
-from json_repair import repair_json
+# from json_repair import repair_json
 
 from edsl.data_transfer_models import (
     ModelResponse,
@@ -45,13 +45,14 @@ if TYPE_CHECKING:
     from edsl.data.Cache import Cache
     from edsl.scenarios.FileStore import FileStore
     from edsl.questions.QuestionBase import QuestionBase
+    from edsl.language_models.key_management.KeyLookup import KeyLookup
 
-from edsl.config import CONFIG
+# from edsl.config import CONFIG
 from edsl.utilities.decorators import (
     sync_wrapper,
     jupyter_nb_handler,
-    remove_edsl_version,
 )
+from edsl.utilities.remove_edsl_version import remove_edsl_version
 
 from edsl.Base import PersistenceMixin, RepresentationMixin
 from edsl.language_models.RegisterLanguageModelsMeta import RegisterLanguageModelsMeta
@@ -59,10 +60,6 @@ from edsl.language_models.RegisterLanguageModelsMeta import RegisterLanguageMode
 from edsl.language_models.key_management.KeyLookupCollection import (
     KeyLookupCollection,
 )
-from edsl.language_models.key_management.KeyLookup import KeyLookup
-from edsl.language_models.PriceManager import PriceManager
-
-TIMEOUT = float(CONFIG.get("EDSL_API_TIMEOUT"))
 
 from edsl.language_models.RawResponseHandler import RawResponseHandler
 
@@ -123,7 +120,7 @@ class LanguageModel(
         tpm: float = None,
         rpm: float = None,
         omit_system_prompt_if_empty_string: bool = True,
-        key_lookup: Optional[KeyLookup] = None,
+        key_lookup: Optional["KeyLookup"] = None,
         **kwargs,
     ):
         """Initialize the LanguageModel."""
@@ -161,7 +158,7 @@ class LanguageModel(
             # Skip the API key check. Sometimes this is useful for testing.
             self._api_token = None
 
-    def _set_key_lookup(self, key_lookup: KeyLookup) -> "KeyLookup":
+    def _set_key_lookup(self, key_lookup: "KeyLookup") -> "KeyLookup":
         if key_lookup is not None:
             return key_lookup
         else:
@@ -398,6 +395,10 @@ class LanguageModel(
                 "system_prompt": system_prompt,
                 "files_list": files_list,
             }
+            from edsl.config import CONFIG
+
+            TIMEOUT = float(CONFIG.get("EDSL_API_TIMEOUT"))
+
             response = await asyncio.wait_for(f(**params), timeout=TIMEOUT)
             new_cache_key = cache.store(
                 **cache_call_params, response=response
@@ -474,6 +475,7 @@ class LanguageModel(
         """Return the dollar cost of a raw response."""
 
         usage = self.get_usage_dict(raw_response)
+        from edsl.language_models.PriceManager import PriceManager
 
         price_manger = PriceManager()
         return price_manger.calculate_cost(

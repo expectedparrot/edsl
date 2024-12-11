@@ -1,6 +1,6 @@
 import pytest
 from edsl.language_models.registry import Model
-from edsl.language_models import LanguageModel
+from edsl.language_models.LanguageModel import LanguageModel
 from edsl.language_models.ModelList import (
     ModelList,
 )  # Replace with the actual module name
