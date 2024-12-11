@@ -144,7 +144,7 @@ class TestSurvey(unittest.TestCase):
 
     def test_serialiation_with_memory(self):
         from edsl.questions import QuestionYesNo, QuestionLinearScale
-        from edsl.surveys import Survey
+        from edsl.surveys.Survey import Survey
 
         q1 = QuestionYesNo(
             question_name="enjoy",

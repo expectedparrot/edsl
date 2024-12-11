@@ -227,6 +227,7 @@ class Cache(Base):
 
         :param write_now: Whether to write to the cache immediately (similar to `immediate_write`).
         """
+        from edsl.data.CacheEntry import CacheEntry
 
         for key, value in new_data.items():
             if key in self.data:
@@ -443,6 +444,8 @@ class Cache(Base):
     @remove_edsl_version
     def from_dict(cls, data) -> Cache:
         """Construct a Cache from a dictionary."""
+        from edsl.data.CacheEntry import CacheEntry
+
         newdata = {k: CacheEntry.from_dict(v) for k, v in data.items()}
         return cls(data=newdata)
 
@@ -485,6 +488,8 @@ class Cache(Base):
         """
         Create an example input for a 'fetch' operation.
         """
+        from edsl.data.CacheEntry import CacheEntry
+
         return CacheEntry.fetch_input_example()
 
     def to_html(self):

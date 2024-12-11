@@ -66,11 +66,13 @@ class CacheHandler:
         if self.test:
             return Cache(data={})
 
-        if self.CACHE_PATH is not None:
-            return self.CACHE_PATH
+        # if self.CACHE_PATH is not None:
+        #    return self.CACHE_PATH
+        from edsl.config import CONFIG
 
-        # if hasattr(CONFIG, "EDSL_SESSION_CACHE"):
-        #    return CONFIG.EDSL_SESSION_CACHE
+        if hasattr(CONFIG, "EDSL_SESSION_CACHE"):
+            return CONFIG.EDSL_SESSION_CACHE
+
         from edsl.data.SQLiteDict import SQLiteDict
 
         cache = Cache(data=SQLiteDict(self.CACHE_PATH))

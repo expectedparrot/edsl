@@ -326,6 +326,8 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         """
 
         def get_class(pass_dict):
+            from edsl.questions.QuestionBase import QuestionBase
+
             if (class_name := pass_dict.get("edsl_class_name")) == "QuestionBase":
                 return QuestionBase
             elif class_name == "Instruction":
@@ -339,6 +341,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
                 return ChangeInstruction
             else:
+
                 return QuestionBase
 
         questions = [
