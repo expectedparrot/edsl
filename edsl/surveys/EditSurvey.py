@@ -1,12 +1,12 @@
-import copy
-from typing import Union, Optional
+from typing import Union, Optional, TYPE_CHECKING
 from edsl.exceptions.surveys import SurveyError
-from edsl.questions.QuestionBase import QuestionBase
+
+if TYPE_CHECKING:
+    from edsl.questions.QuestionBase import QuestionBase
 
 from edsl.exceptions.surveys import SurveyError, SurveyCreationError
 from .Rule import Rule
 from .base import RulePriority, EndOfSurvey
-from .RuleCollection import RuleCollection
 
 
 class EditSurvey:
@@ -37,7 +37,7 @@ class EditSurvey:
         return new_survey
 
     def add_question(
-        self, question: QuestionBase, index: Optional[int] = None
+        self, question: "QuestionBase", index: Optional[int] = None
     ) -> "Survey":
 
         if question.question_name in self.survey.question_names:
@@ -149,6 +149,8 @@ class EditSurvey:
                 self.survey.pseudo_indices[question_name] = old_index - 1
 
         # Update rules
+        from .RuleCollection import RuleCollection
+
         new_rule_collection = RuleCollection()
         for rule in self.survey.rule_collection:
             if rule.current_q == index:

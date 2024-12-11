@@ -1,5 +1,8 @@
-from typing import Union
-from edsl.questions.QuestionBase import QuestionBase
+from typing import Union, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from edsl.questions.QuestionBase import QuestionBase
+
 from edsl.surveys.Rule import Rule
 from .base import RulePriority, EndOfSurvey
 from edsl.exceptions.surveys import SurveyError, SurveyCreationError
@@ -20,7 +23,7 @@ class RuleManager:
         self.survey = survey
 
     def _get_question_index(
-        self, q: Union[QuestionBase, str, EndOfSurvey.__class__]
+        self, q: Union["QuestionBase", str, EndOfSurvey.__class__]
     ) -> Union[int, EndOfSurvey.__class__]:
         """Return the index of the question or EndOfSurvey object.
 
@@ -85,9 +88,9 @@ class RuleManager:
 
     def add_rule(
         self,
-        question: Union[QuestionBase, str],
+        question: Union["QuestionBase", str],
         expression: str,
-        next_question: Union[QuestionBase, str, int],
+        next_question: Union["QuestionBase", str, int],
         before_rule: bool = False,
     ) -> "Survey":
         """
@@ -126,7 +129,7 @@ class RuleManager:
         return self.survey
 
     def add_stop_rule(
-        self, question: Union[QuestionBase, str], expression: str
+        self, question: Union["QuestionBase", str], expression: str
     ) -> "Survey":
         """Add a rule that stops the survey.
         The rule is evaluated *after* the question is answered. If the rule is true, the survey ends.

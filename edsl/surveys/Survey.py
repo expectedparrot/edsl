@@ -22,7 +22,7 @@ if TYPE_CHECKING:
     from edsl.questions.QuestionBase import QuestionBase
     from edsl.agents.Agent import Agent
 
-from edsl.utilities.decorators import remove_edsl_version
+from edsl.utilities.remove_edsl_version import remove_edsl_version
 
 from edsl.surveys.instructions.InstructionCollection import InstructionCollection
 from edsl.surveys.instructions.Instruction import Instruction

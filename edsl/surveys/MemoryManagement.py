@@ -1,5 +1,8 @@
-from typing import Callable, Union, List
-from edsl.questions.QuestionBase import QuestionBase
+from __future__ import annotations
+from typing import Callable, Union, List, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from edsl.questions.QuestionBase import QuestionBase
 
 
 class MemoryManagement:

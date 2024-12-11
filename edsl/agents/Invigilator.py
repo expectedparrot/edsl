@@ -1,8 +1,10 @@
 """Module for creating Invigilators, which are objects to administer a question to an Agent."""
 
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, TYPE_CHECKING
 
-from edsl.prompts.Prompt import Prompt
+if TYPE_CHECKING:
+    from edsl.prompts.Prompt import Prompt
+
 from edsl.utilities.decorators import sync_wrapper, jupyter_nb_handler
 
 # from edsl.prompts.registry import get_classes as prompt_lookup
@@ -22,7 +24,7 @@ class NotApplicable(str):
 class InvigilatorAI(InvigilatorBase):
     """An invigilator that uses an AI model to answer questions."""
 
-    def get_prompts(self) -> Dict[str, Prompt]:
+    def get_prompts(self) -> Dict[str, "Prompt"]:
         """Return the prompts used."""
         return self.prompt_constructor.get_prompts()
 
@@ -217,7 +219,9 @@ class InvigilatorFunctional(InvigilatorBase):
             exception_occurred=None,
         )
 
-    def get_prompts(self) -> Dict[str, Prompt]:
+    def get_prompts(self) -> Dict[str, "Prompt"]:
+        from edsl.prompts.Prompt import Prompt
+
         """Return the prompts used."""
         return {
             "user_prompt": Prompt("NA"),
