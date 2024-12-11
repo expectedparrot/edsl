@@ -1,5 +1,5 @@
 import pytest
-from edsl.exceptions import QuestionAnswerValidationError
+from edsl.exceptions.questions import QuestionAnswerValidationError
 from edsl.questions.AnswerValidatorMixin import AnswerValidatorMixin
 
 

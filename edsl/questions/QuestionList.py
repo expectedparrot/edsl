@@ -1,6 +1,6 @@
 from __future__ import annotations
-import random
-import textwrap
+import json
+
 from typing import Any, Optional, Union
 from edsl.questions.QuestionBase import QuestionBase
 from edsl.questions.descriptors import IntegerOrNoneDescriptor
@@ -10,9 +10,7 @@ from pydantic import field_validator, Field
 from edsl.questions.ResponseValidatorABC import ResponseValidatorABC
 from edsl.questions.ResponseValidatorABC import BaseResponse
 
-from edsl.exceptions import QuestionAnswerValidationError
-import textwrap
-import json
+from edsl.exceptions.questions import QuestionAnswerValidationError
 
 from json_repair import repair_json
 

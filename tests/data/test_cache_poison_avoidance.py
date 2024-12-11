@@ -10,7 +10,7 @@ from edsl.language_models import LanguageModel
 from edsl.enums import InferenceServiceType
 
 
-from edsl.data import Cache
+from edsl.data.Cache import Cache
 from edsl.prompts.Prompt import Prompt
 
 

@@ -3,7 +3,7 @@ from typing import Callable, Union, List
 from collections import UserList, UserDict
 
 from edsl.jobs.buckets import ModelBuckets
-from edsl.exceptions import InterviewErrorPriorTaskCanceled
+from edsl.exceptions.jobs import InterviewErrorPriorTaskCanceled
 
 from edsl.jobs.interviews.InterviewStatusDictionary import InterviewStatusDictionary
 from edsl.jobs.tasks.task_status_enum import TaskStatus, TaskStatusDescriptor

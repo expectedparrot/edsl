@@ -1,10 +1,10 @@
 import re
 import textwrap
 
-from IPython.core.error import UsageError
+# from IPython.core.error import UsageError
 
 
-class AgentListError(UsageError):
+class AgentListError(Exception):
     def __init__(self, message):
         super().__init__(message)
 

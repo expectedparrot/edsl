@@ -3,7 +3,7 @@
 from abc import ABC, abstractmethod
 import re
 from typing import Any, Callable, List, Optional
-from edsl.exceptions import (
+from edsl.exceptions.questions import (
     QuestionCreationValidationError,
     QuestionAnswerValidationError,
 )

@@ -2,7 +2,7 @@
 
 import re
 from typing import Any, Type, Union
-from edsl.exceptions import (
+from edsl.exceptions.questions import (
     QuestionAnswerValidationError,
 )
 

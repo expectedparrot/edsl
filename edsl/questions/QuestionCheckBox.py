@@ -16,7 +16,7 @@ from pydantic import field_validator
 from edsl.questions.ResponseValidatorABC import ResponseValidatorABC
 from edsl.questions.ResponseValidatorABC import BaseResponse
 
-from edsl.exceptions import QuestionAnswerValidationError
+from edsl.exceptions.questions import QuestionAnswerValidationError
 
 from pydantic import BaseModel, Field, conlist
 from typing import List, Literal, Optional, Annotated

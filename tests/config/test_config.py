@@ -1,7 +1,7 @@
 import os
 import pytest
 from edsl.config import Config
-from edsl.exceptions import InvalidEnvironmentVariableError
+from edsl.exceptions.configuration import InvalidEnvironmentVariableError
 
 
 def test_config_store_and_load(set_env_vars):

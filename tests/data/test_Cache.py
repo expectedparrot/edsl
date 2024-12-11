@@ -1,6 +1,6 @@
 import os
 import pytest
-from edsl import CONFIG
+from edsl.config import CONFIG
 from edsl.questions import QuestionFreeText
 from edsl.data.Cache import Cache
 from edsl.data.CacheEntry import CacheEntry

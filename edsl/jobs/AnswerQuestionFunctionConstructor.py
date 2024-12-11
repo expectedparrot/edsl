@@ -10,7 +10,7 @@ from tenacity import (
     RetryError,
 )
 
-from edsl import CONFIG
+from edsl.config import CONFIG
 from edsl.questions.QuestionBase import QuestionBase
 from edsl.surveys.base import EndOfSurvey
 from edsl.jobs.interviews.InterviewExceptionEntry import InterviewExceptionEntry
@@ -24,8 +24,7 @@ EDSL_MAX_ATTEMPTS = int(CONFIG.get("EDSL_MAX_ATTEMPTS"))
 from edsl.jobs.FetchInvigilator import FetchInvigilator
 from edsl.exceptions.language_models import LanguageModelNoResponseError
 
-from edsl.exceptions import QuestionAnswerValidationError
-from edsl.exceptions import QuestionAnswerValidationError
+from edsl.exceptions.questions import QuestionAnswerValidationError
 from edsl.data_transfer_models import AgentResponseDict, EDSLResultObjectInput
 
 from edsl.jobs.Answers import Answers

@@ -12,7 +12,7 @@ from edsl.questions.descriptors import (
 )
 from edsl.questions.ResponseValidatorABC import ResponseValidatorABC
 from edsl.questions.decorators import inject_exception
-from edsl.exceptions import (
+from edsl.exceptions.questions import (
     QuestionAnswerValidationError,
     QuestionCreationValidationError,
 )
