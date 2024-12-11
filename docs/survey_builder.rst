@@ -3,38 +3,46 @@
 Survey Builder
 ==============
 
-**This page is under construction.** Please check back for updates.
+*Interested in testing new features for Survey Builder?*
+*Send us a message at info@expectedparrot.com and we will enable beta features and add credits to your account!*
 
 
 Overview
 --------
 
-Survey Builder is a web-based application for constructing and launching surveys that can be administered to humans and/or AI agents.
-It is fully integrated with EDSL and the Coop, allowing you to access survey contents, agents and results directly from the Coop.
+Survey Builder is a user-friendly, no-code application for creating surveys and gathering responses from both human respondents and AI agents. 
+It is fully integrated with EDSL and available at your Coop account, allowing you to seamlessly create surveys and agents, and access and visualize hybrid responses.
 
-*Survey Builder* is currently in beta and available to users who have activated beta features on the Coop.
 
 Features
 --------
 
-- **Survey creation**: Select from a variety of question types to build surveys, such as multiple choice, free text, linear scale and others.
-- **Agent selection**: Design AI agents with relevant traits to respond to survey questions.
-- **Using data**: Import data to dynamically parameterize survey questions.
-- **Survey deployment**: Launch surveys for human and AI respondents.
-- **Results analysis**: Access and analyze survey results with built-in tools.
-- **Coop integration**: Store and share survey contents, agents, and results on the Coop.
+- **Survey Creation**: Build customized surveys using a wide range of question types, including multiple choice, free text, linear scale, and more.
+- **AI Agent Design**: Create and configure AI agent personas to respond to your survey questions. 
+- **Dynamic Data Integration**: Import data from Coop and other sources to dynamically parameterize your survey questions.
+- **Seamless Survey Deployment**: Easily launch surveys with human and AI respondents.
+- **Results Analysis**: Leverage built-in tools to visualize and analyze responses, combining human and AI data for greater insights.
+- **Team Collaboration**: Share surveys, agents, results and projects with your team with tools for streamlined sharing and collaboration.
 
 
 Getting started 
 ---------------
 
-1. **Create a Coop account**: Sign up for a `Coop account <https://www.expectedparrot.com/login>`_.
+1. **Log into your Coop account**: Sign in or create an account `here <https://www.expectedparrot.com/login>`_.
 
-2. **Activate beta features**: Navigate to your Profile page and select the option to activate beta features.
+2. **Create a survey**: Select the *Create* page at the menu and open the Survey Builder interface. 
+Create a new survey by adding questions and any desired logic and rules.  
 
-3. **Create a survey**: Navigate to the "Create" page to build a survey.
+3. **Deploy the survey**: *Publish* the survey to get a shareable link for human audiences.
+Navigate to your survey *Jobs* and select the option to *Run with agents* to design AI agents and generate responses.
 
-4. **Deploy the survey**: Navigate to the "Project" page to deploy the survey for human and AI respondents.
+4. **Analyze results**: View and analyze survey responses in real-time, and export data for further analysis.
+
+
+.. raw:: html
+
+   <iframe width="560" height="315" src="https://www.youtube.com/embed/VIDEO_ID" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+
 
 
 Questions
