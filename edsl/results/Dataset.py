@@ -13,59 +13,7 @@ from edsl.results.TableDisplay import TableDisplay
 from edsl.Base import PersistenceMixin, HashingMixin
 
 
-class SmartInt(int):
-    pass
-
-
-class SmartFloat(float):
-    pass
-
-
-class SmartStr(str):
-
-    def write(self, filename: str):
-        with open(filename, "w") as f:
-            f.write(str(self))
-        return None
-
-    def _repr_html_(self):
-        pass
-
-    def markdown(self):
-        return SmartMarkdown(self)
-
-    def pdf(self, filename: Optional[str] = None):  # Markdown will have this as well
-        # renders the markdown as a pdf that can be downloaded
-        from edsl.results.MarkdownToPDF import MarkdownToPDF
-
-        return MarkdownToPDF(self, filename).preview()
-
-    def docx(self, filename: Optional[str] = None):
-        # renders the markdown as a docx that can be downloaded
-        from edsl.results.MarkdownToDocx import MarkdownToDocx
-
-        return MarkdownToDocx(self, filename).preview()
-
-
-class SmartMarkdown(SmartStr):
-    def _repr_markdown_(self):
-        return self
-
-    def _repr_html_(self):
-        from IPython.display import Markdown, display
-
-        display(Markdown(self))
-
-
-class FirstObject:
-    def __new__(self, value):
-        if isinstance(value, int):
-            return SmartInt(value)
-        if isinstance(value, float):
-            return SmartFloat(value)
-        if isinstance(value, str):
-            return SmartStr(value)
-        return value
+from edsl.results.smart_objects import FirstObject
 
 
 class Dataset(UserList, ResultsExportMixin, PersistenceMixin, HashingMixin):
@@ -266,6 +214,9 @@ class Dataset(UserList, ResultsExportMixin, PersistenceMixin, HashingMixin):
             return list(d.values())[0]
 
         return FirstObject(get_values(self.data[0])[0])
+
+    def latex(self, **kwargs):
+        return self.table().latex()
 
     def remove_prefix(self) -> Dataset:
         new_data = []

@@ -315,6 +315,13 @@ class FileStore(Scenario):
         params = ", ".join(f"{key}={repr(value)}" for key, value in self.data.items())
         return f"{self.__class__.__name__}({params})"
 
+    def _repr_html_(self):
+        parent_html = super()._repr_html_()
+        from edsl.scenarios.ConstructDownloadLink import ConstructDownloadLink
+
+        link = ConstructDownloadLink(self).html_create_link(self.path, style=None)
+        return f"{parent_html}<br>{link}"
+
     def encode_file_to_base64_string(self, file_path: str):
         try:
             # Attempt to open the file in text mode

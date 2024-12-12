@@ -18,6 +18,12 @@ class ConstructDownloadLink:
         self.filestore = filestore
 
     def create_link(self, custom_filename=None, style=None):
+        from IPython.display import HTML
+
+        html = self.html_create_link(custom_filename, style)
+        return HTML(html)
+
+    def html_create_link(self, custom_filename=None, style=None):
         """
         Create an HTML download link for the file.
 
@@ -30,7 +36,6 @@ class ConstructDownloadLink:
         Returns:
             IPython.display.HTML: HTML object containing the download link
         """
-        from IPython.display import HTML
 
         # Get filename from path or use custom filename
         original_filename = os.path.basename(self.filestore.path)
@@ -65,8 +70,7 @@ class ConstructDownloadLink:
             Download {filename}
         </a>
         """
-
-        return HTML(html)
+        return html
 
     def create_multiple_links(self, files, custom_filenames=None, style=None):
         """
