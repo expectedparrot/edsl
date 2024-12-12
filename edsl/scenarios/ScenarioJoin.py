@@ -88,6 +88,8 @@ class ScenarioJoin:
         self, by_keys: list[str], other_dict: dict, all_keys: set
     ) -> list[Scenario]:
         """Create the joined scenarios."""
+        from edsl.scenarios.Scenario import Scenario
+
         new_scenarios = []
 
         for scenario in self.left:
