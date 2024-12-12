@@ -2,7 +2,6 @@ try:
     import gradio as gr
 except ImportError:
     print("Gradio is not installed. Please install it using `pip install gradio`")
-    exit()
 
 import time
 
