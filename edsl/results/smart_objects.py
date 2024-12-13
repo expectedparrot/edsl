@@ -11,6 +11,18 @@ class SmartFloat(float):
 
 class SmartStr(str):
 
+    def clipboard(self) -> None:
+        try:
+            import pyperclip
+        except ImportError:
+            print(
+                "pyperclip is not installed. Run `pip install pyperclip` to install it."
+            )
+            return None
+
+        pyperclip.copy(self)
+        print("Text copied to clipboard.")
+
     def write(self, filename: str):
         with open(filename, "w") as f:
             f.write(str(self))
@@ -50,6 +62,28 @@ class SmartMarkdown(SmartStr):
         from IPython.display import Markdown, display
 
         display(Markdown(self))
+
+
+class SmartLaTeX(SmartStr):
+    def _repr_html_(self):
+        print(self)
+
+    def pdf(self, filename: Optional[str] = None):
+        from edsl.results.LaTeXToPDF import LaTeXToPDF
+
+        return LaTeXToPDF(self, filename).preview()
+
+    def docx(self, filename: Optional[str] = None):
+        from edsl.results.LaTeXToDocx import LaTeXToDocx
+
+        return LaTeXToDocx(self, filename).preview()
+
+    def edit(self):
+        from edsl.results.TextEditor import TextEditor
+
+        editor = TextEditor(self)
+        self = self.__class__(editor.edit_gui())
+        # print(f"Updated LaTeX: {self}")
 
 
 class FirstObject:
