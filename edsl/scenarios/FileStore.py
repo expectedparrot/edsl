@@ -233,7 +233,11 @@ class FileStore(Scenario):
         return temp_file.name
 
     def view(self) -> None:
-        FileMethods.get_handler(self.suffix)(self.path).view()
+        handler = FileMethods.get_handler(self.suffix)
+        if handler:
+            handler(self.path).view()
+        else:
+            print(f"Viewing of {self.suffix} files is not supported.")
 
     def push(
         self, description: Optional[str] = None, visibility: str = "unlisted"

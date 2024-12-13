@@ -3,3 +3,7 @@ from .docx import DocxMethods
 from .png import PngMethods
 from .txt import TxtMethods
 from .html import HtmlMethods
+from .md import MarkdownMethods
+from .csv import CsvMethods
+from .json import JsonMethods
+from .sql import SqlMethods
