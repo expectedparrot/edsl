@@ -5,8 +5,8 @@ if TYPE_CHECKING:
     from edsl.questions.QuestionBase import QuestionBase
 
 from edsl.exceptions.surveys import SurveyError, SurveyCreationError
-from .Rule import Rule
-from .base import RulePriority, EndOfSurvey
+from edsl.surveys.Rule import Rule
+from edsl.surveys.base import RulePriority, EndOfSurvey
 
 
 class EditSurvey:
@@ -201,7 +201,7 @@ class EditSurvey:
         self.survey._instruction_names_to_instructions[instruction.name] = instruction
 
         # was the last thing added an instruction or a question?
-        if self.survey.pseudo_indices.last_item_was_instruction:
+        if self.survey._pseudo_indices.last_item_was_instruction:
             pseudo_index = (
                 self.survey._pseudo_indices.max_pseudo_index
                 + (

@@ -11,7 +11,7 @@ def count_query(field):
 
 
 def get_options(results, field):
-    question_type = results.survey.get_question(field).question_type
+    question_type = results.survey._get_question_by_name(field).question_type
     if question_type in ["multiple_choice", "checkbox"]:
         return results.select(f"{field}_question_options").first()
     else:
