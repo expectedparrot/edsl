@@ -28,13 +28,18 @@ Features
 Getting started 
 ---------------
 
-1. **Log into your Coop account**: Sign in or create an account `here <https://www.expectedparrot.com/login>`_.
+1. Log into your Coop account
+    Sign in or create an account `here <https://www.expectedparrot.com/login>`_.
 
-2. **Create a survey**: Navigate to the *Create* page and choose whether to create a new survey or create a project using an existing survey at Coop. 
-Access features for creating and modifying questions, adding survey logic, designing AI agents and sharing your web-based survey.
-See videos below for a quick overview of the survey creation process.
+2. Create a survey
+    Navigate to the *Create* page and choose whether to create a new survey or create a project using an existing survey at Coop. 
+    Access features for creating and modifying questions, adding survey logic, designing AI agents and sharing your web-based survey.
+    
+    See videos below for a quick overview of the survey creation process.
 
-3. **Analyze results**: View and analyze survey responses in real-time, and export data for further analysis.
+3. Analyze results
+    View and analyze survey responses in real-time, and export data for further analysis.
+
 
 
 Create a survey
@@ -46,7 +51,9 @@ Add questions, configure survey logic, design AI agents and share your survey wi
 
 .. raw:: html
 
-   <iframe width="560" height="315" src="https://youtu.be/Ed4gRNPqlGE" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+    <iframe width="560" height="315" src="https://www.youtube.com/embed/Ed4gRNPqlGE" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+
+    <br><br>
 
 
 Human responses
@@ -58,7 +65,9 @@ Recorded responses will be displayed in the "Human responses" tab, where you can
 
 .. raw:: html
 
-   <iframe width="560" height="315" src="https://youtu.be/-rnRPjxqCKk" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+    <iframe width="560" height="315" src="https://www.youtube.com/embed/-rnRPjxqCKk" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+
+    <br><br>
 
 
 Agent responses 
@@ -70,7 +79,9 @@ Recorded responses will be displayed in the "Agent responses" tab, where you can
 
 .. raw:: html
 
-   <iframe width="560" height="315" src="https://youtu.be/U8AoQydWR-0" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+    <iframe width="560" height="315" src="https://www.youtube.com/embed/U8AoQydWR-0" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+
+    <br><br><br>
 
 
 Questions
