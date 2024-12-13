@@ -167,11 +167,11 @@ class Survey(SurveyExportMixin, Base):
 
     # region: Survey instruction handling
     @property
-    def relevant_instructions_dict(self) -> InstructionCollection:
+    def _relevant_instructions_dict(self) -> InstructionCollection:
         """Return a dictionary with keys as question names and values as instructions that are relevant to the question.
 
         >>> s = Survey.example(include_instructions=True)
-        >>> s.relevant_instructions_dict
+        >>> s._relevant_instructions_dict
         {'q0': [Instruction(name="attention", text="Please pay attention!")], 'q1': [Instruction(name="attention", text="Please pay attention!")], 'q2': [Instruction(name="attention", text="Please pay attention!")]}
 
         """
@@ -179,7 +179,7 @@ class Survey(SurveyExportMixin, Base):
             self._instruction_names_to_instructions, self.questions
         )
 
-    def relevant_instructions(self, question: QuestionBase) -> dict:
+    def _relevant_instructions(self, question: QuestionBase) -> dict:
         """This should be a dictionry with keys as question names and values as instructions that are relevant to the question.
 
         :param question: The question to get the relevant instructions for.
