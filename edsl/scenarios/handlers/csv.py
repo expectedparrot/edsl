@@ -1,5 +1,5 @@
 import tempfile
-from edsl.scenarios.FileMethods import FileMethods
+from edsl.scenarios.file_methods import FileMethods
 
 
 class CsvMethods(FileMethods):
