@@ -11,9 +11,6 @@ class SmartFloat(float):
 
 class SmartStr(str):
 
-    def __repr__(self):
-        return f"{self.__class__.__name__}({super().__repr__()})"
-
     def write(self, filename: str):
         with open(filename, "w") as f:
             f.write(str(self))
