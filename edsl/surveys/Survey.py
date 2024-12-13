@@ -12,7 +12,6 @@ from typing import (
     Literal,
     Callable,
     TYPE_CHECKING,
-    TypeAlias,
 )
 from uuid import uuid4
 from edsl.Base import Base
@@ -59,6 +58,12 @@ if TYPE_CHECKING:
     from edsl.language_models.LanguageModel import LanguageModel
     from edsl.scenarios.Scenario import Scenario
     from edsl.data.Cache import Cache
+
+    # This is a hack to get around the fact that TypeAlias is not available in typing until Python 3.10
+    try:
+        from typing import TypeAlias
+    except ImportError:
+        from typing import _GenericAlias as TypeAlias
 
     QuestionType: TypeAlias = Union[QuestionBase, Instruction, ChangeInstruction]
     QuestionGroupType: TypeAlias = dict[str, tuple[int, int]]
@@ -915,7 +920,9 @@ class Survey(SurveyExportMixin, Base):
 
     # region: Survey flow
     def next_question(
-        self, current_question: Optional[Union[str, QuestionBase]]=None, answers: Optional[dict]=None
+        self,
+        current_question: Optional[Union[str, QuestionBase]] = None,
+        answers: Optional[dict] = None,
     ) -> Union[QuestionBase, EndOfSurvey.__class__]:
         """
         Return the next question in a survey.
