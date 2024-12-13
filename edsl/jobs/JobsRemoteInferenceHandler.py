@@ -157,7 +157,15 @@ class JobsRemoteInferenceHandler:
                         f"See {expected_parrot_url}/home/remote-inference for details.",
                         "failed",
                     )
-                return None
+
+                results_uuid = remote_job_data.get("results_uuid")
+                if results_uuid:
+                    results = object_fetcher(
+                        results_uuid, expected_object_type="results"
+                    )
+                    return results
+                else:
+                    return None
 
             elif status == "completed":
                 results_uuid = remote_job_data.get("results_uuid")
