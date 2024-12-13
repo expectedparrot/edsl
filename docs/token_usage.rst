@@ -46,27 +46,35 @@ Here we inspect the default language model and its parameters, including the tok
 
 This will show the following information:
 
-.. code-block:: python
+.. list-table::
+   :header-rows: 1
 
-    {
-        "model": "gpt-4o",
-        "parameters": {
-            "temperature": 0.5,
-            "max_tokens": 1000,
-            "top_p": 1,
-            "frequency_penalty": 0,
-            "presence_penalty": 0,
-            "logprobs": false,
-            "top_logprobs": 3
-        }
-    }
+   * - key
+     - value
+   * - model
+     - gpt-4o
+   * - parameters:temperature
+     - 0.5
+   * - parameters:max_tokens
+     - 1000
+   * - parameters:top_p
+     - 1
+   * - parameters:frequency_penalty
+     - 0
+   * - parameters:presence_penalty
+     - 0
+   * - parameters:logprobs
+     - False
+   * - parameters:top_logprobs
+     - 3
+
 
 
 We can also inspect the RPM and TPM for the model:
 
 .. code-block:: python
 
-    [model.RPM, model.TPM]
+    [model.rpm, model.tpm]
 
 
 This will show the following information:
@@ -83,9 +91,12 @@ We can reset the default RPM and TPM and then check the new values:
 
 .. code-block:: python
 
-    model.set_rate_limits(rpm=10, tpm=10)
+    model = Model()
 
-    [model.RPM, model.TPM]
+    model.rpm=10
+    model.tpm=10
+
+    [model.rpm, model.tpm]
 
 
 This will show the following information:
@@ -101,9 +112,10 @@ Here we change it again:
 
     model = Model()
 
-    model.set_rate_limits(rpm=100, tpm=1000)
+    model.rpm=100
+    model.tpm=1000
 
-    [model.RPM, model.TPM]
+    [model.rpm, model.tpm]
 
 
 Output:
@@ -167,27 +179,50 @@ We can check the responses and confirm that the `comment` field for the `sum_sil
 
 .. code-block:: python 
 
-    results.select("number_1", "number_2", "sum", "sum_comment", "sum_silent", "sum_silent_comment").print(format="rich")
+    results.select("number_1", "number_2", "sum", "sum_comment", "sum_silent", "sum_silent_comment")
 
 
 Output:
 
-.. code-block:: text 
+.. list-table::
+   :header-rows: 1
 
-    ┏━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━┓
-    ┃ scenario  ┃ scenario  ┃ answer ┃ comment                  ┃ answer      ┃ comment             ┃
-    ┃ .number_1 ┃ .number_2 ┃ .sum   ┃ .sum_comment             ┃ .sum_silent ┃ .sum_silent_comment ┃
-    ┡━━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━┩
-    │ 0         │ 5         │ 5      │ The sum of 0 and 5 is 5. │ 5           │ None                │
-    ├───────────┼───────────┼────────┼──────────────────────────┼─────────────┼─────────────────────┤
-    │ 1         │ 4         │ 5      │ The sum of 1 and 4 is 5. │ 5           │ None                │
-    ├───────────┼───────────┼────────┼──────────────────────────┼─────────────┼─────────────────────┤
-    │ 2         │ 3         │ 5      │ The sum of 2 and 3 is 5. │ 5           │ None                │
-    ├───────────┼───────────┼────────┼──────────────────────────┼─────────────┼─────────────────────┤
-    │ 3         │ 2         │ 5      │ The sum of 3 and 2 is 5. │ 5           │ None                │
-    ├───────────┼───────────┼────────┼──────────────────────────┼─────────────┼─────────────────────┤
-    │ 4         │ 1         │ 5      │ The sum of 4 and 1 is 5. │ 5           │ None                │
-    └───────────┴───────────┴────────┴──────────────────────────┴─────────────┴─────────────────────┘
+   * - scenario.number_1
+     - scenario.number_2
+     - answer.sum
+     - comment.sum_comment
+     - answer.sum_silent
+     - comment.sum_silent_comment
+   * - 0
+     - 5
+     - 5
+     - The sum of 0 and 5 is 5.
+     - 5
+     - None
+   * - 1
+     - 4
+     - 5
+     - The sum of 1 and 4 is 5.
+     - 5
+     - None
+   * - 2
+     - 3
+     - 5
+     - The sum of 2 and 3 is 5.
+     - 5
+     - None
+   * - 3
+     - 2
+     - 5
+     - The sum of 3 and 2 is 5.
+     - 5
+     - None
+   * - 4
+     - 1
+     - 5
+     - The sum of 4 and 1 is 5.
+     - 5
+     - None
 
 
 Coding question options 
@@ -236,45 +271,39 @@ Here we also pass the parameter `include_comment = False`:
     job = survey.by(Model())
 
     # Inspect the question prompts
-    job.prompts().select("question_index", "user_prompt").print(format="rich")
+    job.prompts().select("question_index", "user_prompt")
 
 
 Output:
 
-.. code-block:: text
+.. list-table::
+   :header-rows: 1
 
-    ┏━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-    ┃ question_index    ┃ user_prompt                                                                                 ┃
-    ┡━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
-    │ income_pref       │                                                                                             │
-    │                   │ Which of the following is more important to you:                                            │
-    │                   │                                                                                             │
-    │                   │                                                                                             │
-    │                   │ Financial stability                                                                         │
-    │                   │                                                                                             │
-    │                   │ Moving up the income ladder                                                                 │
-    │                   │                                                                                             │
-    │                   │                                                                                             │
-    │                   │ Only 1 option may be selected.                                                              │
-    │                   │                                                                                             │
-    │                   │ Respond only with a string corresponding to one of the options.                             │
-    │                   │                                                                                             │
-    │                   │                                                                                             │
-    │                   │ After the answer, you can put a comment explaining why you chose that option on the next    │
-    │                   │ line.                                                                                       │
-    ├───────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────┤
-    │ income_pref_coded │                                                                                             │
-    │                   │ Which of the following is more important to you:                                            │
-    │                   │                                                                                             │
-    │                   │ 0: Financial stability                                                                      │
-    │                   │                                                                                             │
-    │                   │ 1: Moving up the income ladder                                                              │
-    │                   │                                                                                             │
-    │                   │                                                                                             │
-    │                   │ Only 1 option may be selected.                                                              │
-    │                   │                                                                                             │
-    │                   │ Respond only with the code corresponding to one of the options.                             │
-    └───────────────────┴─────────────────────────────────────────────────────────────────────────────────────────────┘
+   * - question_index
+     - user_prompt
+   * - income_pref
+     - Which of the following is more important to you:
+
+       Financial stability
+
+       Moving up the income ladder
+
+       Only 1 option may be selected.
+
+       Respond only with a string corresponding to one of the options.
+
+       After the answer, you can put a comment explaining why you chose that option on the next line.
+   * - income_pref_coded
+     - Which of the following is more important to you:
+
+       0: Financial stability
+
+       1: Moving up the income ladder
+
+       Only 1 option may be selected.
+
+       Respond only with the code corresponding to one of the options.
+
 
 
 The prompts can also be inspected after the survey is run:
@@ -289,42 +318,41 @@ The prompts can also be inspected after the survey is run:
             "income_pref_user_prompt", "income_pref_generated_tokens",
             "income_pref_coded_user_prompt", "income_pref_coded_generated_tokens"
         )
-        .print(format="rich")
     )
 
 
 Output:
 
-.. code-block:: text
+.. list-table::
+   :header-rows: 1
+   :widths: 50 50 50 50
 
-    ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-    ┃ prompt                    ┃ generated_tokens           ┃ prompt                    ┃ generated_tokens           ┃
-    ┃ .income_pref_user_prompt  ┃ .income_pref_generated_to… ┃ .income_pref_coded_user_… ┃ .income_pref_coded_genera… ┃
-    ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
-    │                           │ Financial stability        │                           │ 0                          │
-    │ Which of the following is │                            │ Which of the following is │                            │
-    │ more important to you:    │ Financial stability        │ more important to you:    │                            │
-    │                           │ provides a secure          │                           │                            │
-    │                           │ foundation and peace of    │ 0: Financial stability    │                            │
-    │ Financial stability       │ mind, allowing for better  │                           │                            │
-    │                           │ long-term planning and     │ 1: Moving up the income   │                            │
-    │ Moving up the income      │ resilience against         │ ladder                    │                            │
-    │ ladder                    │ unexpected challenges.     │                           │                            │
-    │                           │                            │                           │                            │
-    │                           │                            │ Only 1 option may be      │                            │
-    │ Only 1 option may be      │                            │ selected.                 │                            │
-    │ selected.                 │                            │                           │                            │
-    │                           │                            │ Respond only with the     │                            │
-    │ Respond only with a       │                            │ code corresponding to one │                            │
-    │ string corresponding to   │                            │ of the options.           │                            │
-    │ one of the options.       │                            │                           │                            │
-    │                           │                            │                           │                            │
-    │                           │                            │                           │                            │
-    │ After the answer, you can │                            │                           │                            │
-    │ put a comment explaining  │                            │                           │                            │
-    │ why you chose that option │                            │                           │                            │
-    │ on the next line.         │                            │                           │                            │
-    └───────────────────────────┴────────────────────────────┴───────────────────────────┴────────────────────────────┘
+   * - prompt.income_pref_user_prompt
+     - generated_tokens.income_pref_generated_tokens
+     - prompt.income_pref_coded_user_prompt
+     - generated_tokens.income_pref_coded_generated_tokens
+   * - Which of the following is more important to you:
+
+       Financial stability
+
+       Moving up the income ladder
+
+       Only 1 option may be selected.
+
+       Respond only with a string corresponding to one of the options.
+
+       After the answer, you can put a comment explaining why you chose that option on the next line.
+     - Financial stability provides a secure foundation and peace of mind, allowing for better long-term planning and resilience against unexpected challenges.
+     - Which of the following is more important to you:
+
+       0: Financial stability
+
+       1: Moving up the income ladder
+
+       Only 1 option may be selected.
+
+       Respond only with the code corresponding to one of the options.
+     - 0
 
 
 No agent instructions
@@ -343,9 +371,11 @@ For example:
 
 .. code-block:: python 
 
-    from edsl import QuestionMultipleChoice, Model
+    from edsl import QuestionMultipleChoice, Agent, Model
 
     m = Model("gpt-4o", temperature = 1, logprobs = True)
+
+    a = Agent(traits = {"persona":"financial advisor"})
 
     q = QuestionMultipleChoice(
         question_name = "income_pref_coded", 
@@ -355,7 +385,7 @@ For example:
         include_comment = False
     )
 
-    results = q.by(m).run()
+    results = q.by(a).by(m).run()
 
     example = results.select("raw_model_response.income_pref_coded_raw_model_response").to_list()[0]  
 
@@ -364,34 +394,39 @@ For example:
 
 Output:
 
-.. code-block:: python 
+.. code-block:: text 
 
-    {'id': 'chatcmpl-A9cawzuAcQJ2xygIcQziMc4kqR4lp',
+    {'id': 'chatcmpl-AcgR7Wy6MMDqoorytBlzS2lzpwQAA',
     'choices': [{'finish_reason': 'stop',
     'index': 0,
     'logprobs': {'content': [{'token': '0',
         'bytes': [48],
-        'logprob': -0.00063428195,
+        'logprob': -0.00019960667,
         'top_logprobs': [{'token': '0',
             'bytes': [48],
-            'logprob': -0.00063428195},
-        {'token': '1', 'bytes': [49], 'logprob': -7.375634},
-        {'token': ' ', 'bytes': [32], 'logprob': -12.250634}]}],
+            'logprob': -0.00019960667},
+        {'token': '1', 'bytes': [49], 'logprob': -9.000199},
+        {'token': 'As', 'bytes': [65, 115], 'logprob': -10.875199}]}],
         'refusal': None},
     'message': {'content': '0',
         'refusal': None,
         'role': 'assistant',
+        'audio': None,
         'function_call': None,
         'tool_calls': None}}],
-    'created': 1726856674,
-    'model': 'gpt-4o-2024-05-13',
+    'created': 1733782953,
+    'model': 'gpt-4o-2024-08-06',
     'object': 'chat.completion',
     'service_tier': None,
-    'system_fingerprint': 'fp_52a7f40b0b',
+    'system_fingerprint': 'fp_9d50cd990b',
     'usage': {'completion_tokens': 1,
-    'prompt_tokens': 66,
-    'total_tokens': 67,
-    'completion_tokens_details': {'reasoning_tokens': 0}}}
+    'prompt_tokens': 82,
+    'total_tokens': 83,
+    'completion_tokens_details': {'accepted_prediction_tokens': 0,
+    'audio_tokens': 0,
+    'reasoning_tokens': 0,
+    'rejected_prediction_tokens': 0},
+    'prompt_tokens_details': {'audio_tokens': 0, 'cached_tokens': 0}}}
 
 
 We can use the information to calculate next token probabilities:
@@ -406,9 +441,9 @@ Output:
 
 .. code-block:: text 
 
-    [{'token': '0', 'bytes': [48], 'logprob': -0.00063428195},
-    {'token': '1', 'bytes': [49], 'logprob': -7.375634},
-    {'token': ' ', 'bytes': [32], 'logprob': -12.250634}]
+    [{'token': '0', 'bytes': [48], 'logprob': -0.00019960667},
+    {'token': '1', 'bytes': [49], 'logprob': -9.000199},
+    {'token': 'As', 'bytes': [65, 115], 'logprob': -10.875199}]
 
 
 Translating the information:
@@ -418,19 +453,19 @@ Translating the information:
     import math
 
     # Specifying the codes for the answer options and non-responses:
-    options = {'0': "Financial stability", '1':"Moving up the income ladder", ' ': "Skipped"}
+    options = {'0': "Financial stability", '1':"Moving up the income ladder"}
 
     for token_info in next_token_probs:
-        option = options[token_info['token']]
-        p = math.exp(token_info['logprob'])
+        option = options.get(token_info['token'], None)
+        if option:
+            p = math.exp(token_info['logprob'])
         
-        print(f"Probability of selecting '{option}' was {p:.3f}")
+            print(f"Probability of selecting '{option}' was {p:.3f}")
 
 
 Output:
 
 .. code-block:: text 
 
-    Probability of selecting 'Financial stability' was 0.999
-    Probability of selecting 'Moving up the income ladder' was 0.001
-    Probability of selecting 'Skipped' was 0.000
+    Probability of selecting 'Financial stability' was 0.992
+    Probability of selecting 'Moving up the income ladder' was 0.008

@@ -915,7 +915,7 @@ class Survey(SurveyExportMixin, Base):
 
     # region: Survey flow
     def next_question(
-        self, current_question: Union[str, QuestionBase], answers: dict
+        self, current_question: Optional[Union[str, QuestionBase]]=None, answers: Optional[dict]=None
     ) -> Union[QuestionBase, EndOfSurvey.__class__]:
         """
         Return the next question in a survey.
@@ -934,6 +934,9 @@ class Survey(SurveyExportMixin, Base):
         'q1'
 
         """
+        if current_question is None:
+            return self.questions[0]
+
         if isinstance(current_question, str):
             current_question = self._get_question_by_name(current_question)
 
