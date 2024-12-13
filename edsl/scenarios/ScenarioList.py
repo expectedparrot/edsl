@@ -603,6 +603,51 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         if not func:
             func = lambda x: x
         return cls([Scenario({name: func(value)}) for value in values])
+    
+    @classmethod
+    def from_directory_docx(cls, directory_path: str) ->  ScenarioList:
+        """Creates a list of scenarios from all DOCX files in the specified directory.
+        
+        :param directory_path: Path to the directory containing DOCX files
+        :return: List of Scenario objects created from DOCX files
+        
+        Example:
+        >>> import os
+        >>> from docx import Document
+        >>> os.makedirs("test_dir", exist_ok=True)
+        >>> doc1 = Document()
+        >>> _ = doc1.add_heading("First Survey")
+        >>> doc1.save("test_dir/test1.docx")
+        >>> doc2 = Document()
+        >>> _ = doc2.add_heading("Second Survey")
+        >>> doc2.save("test_dir/test2.docx")
+        >>> scenarios = Scenario.from_directory("test_dir")
+        >>> len(scenarios)
+        2
+        >>> scenarios[0].text.startswith("First Survey")
+        True
+        >>> import shutil; shutil.rmtree("test_dir")
+        """
+        import os
+        
+        scenarios = []
+        from edsl.scenarios.Scenario import Scenario
+        
+        # Walk through the directory
+        for root, _, files in os.walk(directory_path):
+            for file in files:
+                # Check if the file is a DOCX file
+                if file.lower().endswith('.docx'):
+                    docx_path = os.path.join(root, file)
+                    try:
+                        # Create a scenario from each DOCX file
+                        scenario = Scenario.from_docx(docx_path)
+                        scenarios.append(scenario)
+                    except Exception as e:
+                        # Optionally, you might want to log the error instead of just printing
+                        print(f"Error processing {docx_path}: {str(e)}")
+        
+        return cls(scenarios)
 
     def table(self, *fields, tablefmt=None, pretty_labels=None) -> str:
         """Return the ScenarioList as a table."""
