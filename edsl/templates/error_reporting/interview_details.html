@@ -31,7 +31,7 @@
  
             <tr>
                 <td>Human-readable question</td>
-                <td>{{ interview.survey.get_question(question).html(
+                <td>{{ interview.survey._get_question_by_name(question).html(
                     scenario = interview.scenario, 
                     agent = interview.agent,
                     answers = exception_message.answers) 

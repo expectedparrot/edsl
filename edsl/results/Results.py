@@ -554,7 +554,7 @@ class Results(UserList, Mixins, Base):
         answer_keys = self._data_type_to_keys["answer"]
         answer_keys = {k for k in answer_keys if "_comment" not in k}
         questions_text = [
-            self.survey.get_question(k).question_text for k in answer_keys
+            self.survey._get_question_by_name(k).question_text for k in answer_keys
         ]
         short_question_text = [shorten_string(q, 80) for q in questions_text]
         initial_dict = dict(zip(answer_keys, short_question_text))

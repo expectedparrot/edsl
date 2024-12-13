@@ -26,7 +26,7 @@ class PseudoIndices(UserDict):
     @property
     def max_pseudo_index(self) -> float:
         """Return the maximum pseudo index in the survey.
-        >>> Survey.example().max_pseudo_index
+        >>> Survey.example()._pseudo_indices.max_pseudo_index
         2
         """
         if len(self) == 0:
@@ -256,14 +256,14 @@ class Survey(SurveyExportMixin, Base):
                 )
             return self.question_name_to_index[question_name]
 
-    def get_question(self, question_name: str) -> QuestionBase:
+    def _get_question_by_name(self, question_name: str) -> QuestionBase:
         """
         Return the question object given the question name.
 
         :param question_name: The name of the question to get.
 
         >>> s = Survey.example()
-        >>> s.get_question("q0")
+        >>> s._get_question_by_name("q0")
         Question('multiple_choice', question_name = \"""q0\""", question_text = \"""Do you like school?\""", question_options = ['yes', 'no'])
         """
         if question_name not in self.question_name_to_index:
@@ -931,7 +931,7 @@ class Survey(SurveyExportMixin, Base):
 
         """
         if isinstance(current_question, str):
-            current_question = self.get_question(current_question)
+            current_question = self._get_question_by_name(current_question)
 
         question_index = self.question_name_to_index[current_question.question_name]
         next_question_object = self.rule_collection.next_question(

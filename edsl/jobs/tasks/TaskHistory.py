@@ -275,7 +275,7 @@ class TaskHistory(RepresentationMixin):
         exceptions_by_question_name = {}
         for interview in self.total_interviews:
             for question_name, exceptions in interview.exceptions.items():
-                question_type = interview.survey.get_question(
+                question_type = interview.survey._get_question_by_name(
                     question_name
                 ).question_type
                 if (question_name, question_type) not in exceptions_by_question_name:
