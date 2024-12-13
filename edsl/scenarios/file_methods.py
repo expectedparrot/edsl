@@ -33,7 +33,12 @@ class FileMethods(ABC):
         from edsl.scenarios import handlers
 
         # Then load any external plugins
-        for ep in importlib.metadata.entry_points(group="file_handlers"):
+        try:
+            entries = importlib.metadata.entry_points(group="file_handlers")
+        except TypeError:  # some Python 3.9 bullshit
+            entries = importlib.metadata.entry_points()
+
+        for ep in entries:
             try:
                 handler_class = ep.load()
                 # Registration happens automatically via __init_subclass__
