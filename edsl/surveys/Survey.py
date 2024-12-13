@@ -132,13 +132,7 @@ class Survey(SurveyExportMixin, Base):
 
         self.raw_passed_questions = questions
 
-        handler = InstructionHandler(self)
-        components = handler.separate_questions_and_instructions(questions or [])
-        true_questions = components.true_questions
-        self._instruction_names_to_instructions = (
-            components.instruction_names_to_instructions
-        )
-        self._pseudo_indices = PseudoIndices(components.pseudo_indices)
+        true_questions = self._process_raw_questions(self.raw_passed_questions)
 
         self.rule_collection = RuleCollection(
             num_questions=len(true_questions) if true_questions else None
@@ -156,7 +150,7 @@ class Survey(SurveyExportMixin, Base):
         else:
             self.question_groups = {}
 
-        # if a rule collection is provided, use it instead
+        # if a rule collection is provided, use it instead of the constructed one
         if rule_collection is not None:
             self.rule_collection = rule_collection
 
@@ -164,6 +158,16 @@ class Survey(SurveyExportMixin, Base):
             import warnings
 
             warnings.warn("name parameter to a survey is deprecated.")
+
+    def _process_raw_questions(self, questions: Optional[List["QuestionType"]]) -> list:
+        """Process the raw questions passed to the survey."""
+        handler = InstructionHandler(self)
+        components = handler.separate_questions_and_instructions(questions or [])
+        self._instruction_names_to_instructions = (
+            components.instruction_names_to_instructions
+        )
+        self._pseudo_indices = PseudoIndices(components.pseudo_indices)
+        return components.true_questions
 
     # region: Survey instruction handling
     @property
