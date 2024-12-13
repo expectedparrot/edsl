@@ -43,7 +43,8 @@ All question types require a `question_name` and `question_text`.
 The `question_name` is a unique Pythonic identifier for a question (e.g., "favorite_color").
 The `question_text` is the text of the question itself written as a string (e.g., "What is your favorite color?").
 Question types other than free text also require a `question_options` list of possible answer options.
-The `question_options` list can be a list of strings, integers, a list of lists or other data types depending on the question type.
+The `question_options` list can be a list of strings, floats, integers, dictionaries, lists or other data types depending on the question type.
+(See a `demo notebook <https://www.expectedparrot.com/content/a8f39497-3e6e-4d40-aeaf-2b7f78cf4721>`_ of allowed question options types at Coop.)
 
 For example, to create a multiple choice question where the response should be a single option selected from a list of colors, 
 we import the `QuestionMultipleChoice` class and create an instance of it with the required fields:
@@ -139,6 +140,51 @@ For example, in a rank question where the respondent must rank their top 3 favor
       question_options = ["Pizza", "Pasta", "Salad", "Soup"],
       num_selections = 3 # optional
    )
+
+
+`use_code` - *Optional* boolean parameter of `multiple_choice` questions that adds an instruction to the `user_prompt` for the model to provide the code number of the question option that it selects as its answer (i.e., 0, 1, 2, etc.) instead of the value of the option.
+This can be useful when the question options are long or complex, or include formatting that a model may make errors in reproducing to provide an answer, resulting in a validation error that may be avoidable by returning the code number of the option instead.
+The code is then translated back to the option value in the survey results.
+For example, in a multiple choice question where the respondent must select a programming language we can add the `use_code` parameter and then inspect how the user prompt is modified to include *"Respond only with the code corresponding to one of the options."*:
+
+.. code-block:: python
+
+   from edsl import QuestionMultipleChoice
+
+   q = QuestionMultipleChoice(
+      question_name = "programming_language",
+      question_text = "Which programming language do you prefer?",
+      question_options = ["Python", "Java", "C++", "JavaScript"],
+      use_code = True # optional
+   )
+
+   a = Agent(traits = {"persona":"You are an experienced computer programmer."})
+
+   survey = Survey([q])
+
+   survey.by(a).show_prompts()
+
+
+Output:
+
+.. list-table::
+   :header-rows: 1
+
+   * - user_prompt
+     - system_prompt
+   * - Which programming language do you prefer?
+       0: Python
+       1: Java
+       2: C++
+       3: JavaScript
+
+       Only 1 option may be selected. 
+
+       Respond only with the code corresponding to one of the options. 
+       
+       After the answer, you can put a comment explaining why you chose that option on the next line.
+     - You are answering questions as if you were a human. Do not break character.
+       Your traits: {'persona': 'You are an experienced computer programmer.'}
 
 
 `answer_template` - *Required* parameter of `extract` questions to specify a template for the extracted information.
