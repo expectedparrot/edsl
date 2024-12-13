@@ -214,6 +214,7 @@ Links
    :hidden:
 
    coop
+   survey_builder
    notebooks
    colab_notebooks
    remote_inference
