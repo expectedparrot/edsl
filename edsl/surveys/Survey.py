@@ -12,15 +12,57 @@ from typing import (
     Literal,
     Callable,
     TYPE_CHECKING,
+    TypeAlias,
 )
 from uuid import uuid4
 from edsl.Base import Base
 from edsl.exceptions.surveys import SurveyCreationError, SurveyHasNoRulesError
 from edsl.exceptions.surveys import SurveyError
+from collections import UserDict
+
+
+class PseudoIndices(UserDict):
+
+    @property
+    def max_pseudo_index(self) -> float:
+        """Return the maximum pseudo index in the survey.
+        >>> Survey.example().max_pseudo_index
+        2
+        """
+        if len(self) == 0:
+            return -1
+        return max(self.values())
+
+    @property
+    def _last_item_was_instruction(self) -> bool:
+        """Return whether the last item added to the survey was an instruction.
+
+        This is used to determine the pseudo-index of the next item added to the survey.
+
+        Example:
+
+        >>> s = Survey.example()
+        >>> s._last_item_was_instruction
+        False
+        >>> from edsl.surveys.instructions.Instruction import Instruction
+        >>> s = s.add_instruction(Instruction(text="Pay attention to the following questions.", name="intro"))
+        >>> s._last_item_was_instruction
+        True
+        """
+        return isinstance(self.max_pseudo_index, float)
+
 
 if TYPE_CHECKING:
     from edsl.questions.QuestionBase import QuestionBase
     from edsl.agents.Agent import Agent
+    from edsl.surveys.DAG import DAG
+    from edsl.language_models.LanguageModel import LanguageModel
+    from edsl.scenarios.Scenario import Scenario
+    from edsl.data.Cache import Cache
+
+    QuestionType: TypeAlias = Union[QuestionBase, Instruction, ChangeInstruction]
+    QuestionGroupType: TypeAlias = dict[str, tuple[int, int]]
+
 
 from edsl.utilities.remove_edsl_version import remove_edsl_version
 
@@ -29,15 +71,11 @@ from edsl.surveys.instructions.Instruction import Instruction
 from edsl.surveys.instructions.ChangeInstruction import ChangeInstruction
 
 from edsl.surveys.base import EndOfSurvey
-
-if TYPE_CHECKING:
-    from edsl.surveys.DAG import DAG
-
 from edsl.surveys.descriptors import QuestionsDescriptor
 from edsl.surveys.MemoryPlan import MemoryPlan
 from edsl.surveys.RuleCollection import RuleCollection
 from edsl.surveys.SurveyExportMixin import SurveyExportMixin
-from edsl.surveys.SurveyFlowVisualizationMixin import SurveyFlowVisualizationMixin
+from edsl.surveys.SurveyFlowVisualization import SurveyFlowVisualization
 from edsl.surveys.InstructionHandler import InstructionHandler
 from edsl.surveys.EditSurvey import EditSurvey
 from edsl.surveys.Simulator import Simulator
@@ -45,7 +83,7 @@ from edsl.surveys.MemoryManagement import MemoryManagement
 from edsl.surveys.RuleManager import RuleManager
 
 
-class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
+class Survey(SurveyExportMixin, Base):
     """A collection of questions that supports skip logic."""
 
     __documentation__ = """https://docs.expectedparrot.com/en/latest/surveys.html"""
@@ -68,12 +106,10 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
     def __init__(
         self,
-        questions: Optional[
-            list[Union[QuestionBase, Instruction, ChangeInstruction]]
-        ] = None,
+        questions: Optional[List["QuestionType"]] = None,
         memory_plan: Optional["MemoryPlan"] = None,
         rule_collection: Optional["RuleCollection"] = None,
-        question_groups: Optional[dict[str, tuple[int, int]]] = None,
+        question_groups: Optional["QuestionGroupType"] = None,
         name: Optional[str] = None,
     ):
         """Create a new survey.
@@ -99,8 +135,10 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         handler = InstructionHandler(self)
         components = handler.separate_questions_and_instructions(questions or [])
         true_questions = components.true_questions
-        instruction_names_to_instructions = components.instruction_names_to_instructions
-        self.pseudo_indices = components.pseudo_indices
+        self.instruction_names_to_instructions = (
+            components.instruction_names_to_instructions
+        )
+        self._pseudo_indices = PseudoIndices(components.pseudo_indices)
 
         self.rule_collection = RuleCollection(
             num_questions=len(true_questions) if true_questions else None
@@ -108,8 +146,9 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         # the RuleCollection needs to be present while we add the questions; we might override this later
         # if a rule_collection is provided. This allows us to serialize the survey with the rule_collection.
 
-        self.questions = true_questions  # this is where the constructor is called.
-        self.instruction_names_to_instructions = instruction_names_to_instructions
+        # this is where the Questions constructor is called.
+        self.questions = true_questions
+        # self.instruction_names_to_instructions = instruction_names_to_instructions
 
         self.memory_plan = memory_plan or MemoryPlan(self)
         if question_groups is not None:
@@ -126,6 +165,12 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
             warnings.warn("name parameter to a survey is deprecated.")
 
+    def _process_raw_question_list(
+        self, questions: List[QuestionType]
+    ) -> List[QuestionType]:
+        """Process the raw question list."""
+        return questions
+
     # region: Survey instruction handling
     @property
     def relevant_instructions_dict(self) -> InstructionCollection:
@@ -140,7 +185,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
             self.instruction_names_to_instructions, self.questions
         )
 
-    def relevant_instructions(self, question) -> dict:
+    def relevant_instructions(self, question: QuestionBase) -> dict:
         """This should be a dictionry with keys as question names and values as instructions that are relevant to the question.
 
         :param question: The question to get the relevant instructions for.
@@ -158,26 +203,29 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         >>> Survey.example().max_pseudo_index
         2
         """
-        if len(self.pseudo_indices) == 0:
-            return -1
-        return max(self.pseudo_indices.values())
+        return self._pseudo_indices.max_pseudo_index
 
     @property
-    def last_item_was_instruction(self) -> bool:
+    def _last_item_was_instruction(self) -> bool:
         """Return whether the last item added to the survey was an instruction.
+
         This is used to determine the pseudo-index of the next item added to the survey.
 
         Example:
 
         >>> s = Survey.example()
-        >>> s.last_item_was_instruction
+        >>> s._last_item_was_instruction
         False
         >>> from edsl.surveys.instructions.Instruction import Instruction
         >>> s = s.add_instruction(Instruction(text="Pay attention to the following questions.", name="intro"))
-        >>> s.last_item_was_instruction
+        >>> s._last_item_was_instruction
         True
         """
-        return isinstance(self.max_pseudo_index, float)
+        return self._pseudo_indices._last_item_was_instruction
+
+    def show_flow(self, filename: Optional[str] = None) -> None:
+        """Show the flow of the survey."""
+        SurveyFlowVisualization(self).show_flow(filename=filename)
 
     def add_instruction(
         self, instruction: Union["Instruction", "ChangeInstruction"]
@@ -192,7 +240,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         >>> s = Survey().add_instruction(i)
         >>> s.instruction_names_to_instructions
         {'intro': Instruction(name="intro", text="Pay attention to the following questions.")}
-        >>> s.pseudo_indices
+        >>> s._pseudo_indices
         {'intro': -0.5}
         """
         return EditSurvey(self).add_instruction(instruction)
@@ -503,7 +551,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
             self.instruction_names_to_instructions.values()
         )
         return sorted(
-            questions_and_instructions, key=lambda x: self.pseudo_indices[x.name]
+            questions_and_instructions, key=lambda x: self._pseudo_indices[x.name]
         )
 
     # endregion
@@ -842,7 +890,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
     async def run_async(
         self,
-        model: Optional["Model"] = None,
+        model: Optional["LanguageModel"] = None,
         agent: Optional["Agent"] = None,
         cache: Optional["Cache"] = None,
         disable_remote_inference: bool = False,
