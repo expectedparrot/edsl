@@ -36,7 +36,8 @@ class FileMethods(ABC):
         try:
             entries = importlib.metadata.entry_points(group="file_handlers")
         except TypeError:  # some Python 3.9 bullshit
-            entries = importlib.metadata.entry_points()
+            # entries = importlib.metadata.entry_points()
+            entries = []
 
         for ep in entries:
             try:
