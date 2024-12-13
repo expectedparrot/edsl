@@ -63,11 +63,11 @@ class EditSurvey:
         self.survey._questions.insert(index, question)
 
         if interior_insertion:
-            for question_name, old_index in self.survey.pseudo_indices.items():
+            for question_name, old_index in self.survey._pseudo_indices.items():
                 if old_index >= index:
-                    self.survey.pseudo_indices[question_name] = old_index + 1
+                    self.survey._pseudo_indices[question_name] = old_index + 1
 
-        self.survey.pseudo_indices[question.question_name] = index
+        self.survey._pseudo_indices[question.question_name] = index
 
         ## Re-do question_name to index - this is done automatically
         # for question_name, old_index in self.survey.question_name_to_index.items():
@@ -141,12 +141,12 @@ class EditSurvey:
 
         # Remove the question
         deleted_question = self.survey._questions.pop(index)
-        del self.survey.pseudo_indices[deleted_question.question_name]
+        del self.survey._pseudo_indices[deleted_question.question_name]
 
         # Update indices
-        for question_name, old_index in self.survey.pseudo_indices.items():
+        for question_name, old_index in self.survey._pseudo_indices.items():
             if old_index > index:
-                self.survey.pseudo_indices[question_name] = old_index - 1
+                self.survey._pseudo_indices[question_name] = old_index - 1
 
         # Update rules
         from .RuleCollection import RuleCollection
@@ -189,7 +189,7 @@ class EditSurvey:
         >>> s = Survey().add_instruction(i)
         >>> s.instruction_names_to_instructions
         {'intro': Instruction(name="intro", text="Pay attention to the following questions.")}
-        >>> s.pseudo_indices
+        >>> s._pseudo_indices
         {'intro': -0.5}
         """
         import math
@@ -201,7 +201,7 @@ class EditSurvey:
         self.survey.instruction_names_to_instructions[instruction.name] = instruction
 
         # was the last thing added an instruction or a question?
-        if self.survey.last_item_was_instruction:
+        if self.survey._last_item_was_instruction:
             pseudo_index = (
                 self.survey.max_pseudo_index
                 + (
@@ -212,7 +212,7 @@ class EditSurvey:
             )
         else:
             pseudo_index = self.survey.max_pseudo_index + 1.0 / 2.0
-        self.survey.pseudo_indices[instruction.name] = pseudo_index
+        self.survey._pseudo_indices[instruction.name] = pseudo_index
 
         return self.survey
 
