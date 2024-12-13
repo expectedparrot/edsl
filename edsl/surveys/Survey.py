@@ -34,7 +34,7 @@ class PseudoIndices(UserDict):
         return max(self.values())
 
     @property
-    def _last_item_was_instruction(self) -> bool:
+    def last_item_was_instruction(self) -> bool:
         """Return whether the last item added to the survey was an instruction.
 
         This is used to determine the pseudo-index of the next item added to the survey.
@@ -42,11 +42,11 @@ class PseudoIndices(UserDict):
         Example:
 
         >>> s = Survey.example()
-        >>> s._last_item_was_instruction
+        >>> s._pseudo_indices.last_item_was_instruction
         False
         >>> from edsl.surveys.instructions.Instruction import Instruction
         >>> s = s.add_instruction(Instruction(text="Pay attention to the following questions.", name="intro"))
-        >>> s._last_item_was_instruction
+        >>> s._pseudo_indices.last_item_was_instruction
         True
         """
         return isinstance(self.max_pseudo_index, float)
@@ -135,7 +135,7 @@ class Survey(SurveyExportMixin, Base):
         handler = InstructionHandler(self)
         components = handler.separate_questions_and_instructions(questions or [])
         true_questions = components.true_questions
-        self.instruction_names_to_instructions = (
+        self._instruction_names_to_instructions = (
             components.instruction_names_to_instructions
         )
         self._pseudo_indices = PseudoIndices(components.pseudo_indices)
@@ -165,12 +165,6 @@ class Survey(SurveyExportMixin, Base):
 
             warnings.warn("name parameter to a survey is deprecated.")
 
-    def _process_raw_question_list(
-        self, questions: List[QuestionType]
-    ) -> List[QuestionType]:
-        """Process the raw question list."""
-        return questions
-
     # region: Survey instruction handling
     @property
     def relevant_instructions_dict(self) -> InstructionCollection:
@@ -182,7 +176,7 @@ class Survey(SurveyExportMixin, Base):
 
         """
         return InstructionCollection(
-            self.instruction_names_to_instructions, self.questions
+            self._instruction_names_to_instructions, self.questions
         )
 
     def relevant_instructions(self, question: QuestionBase) -> dict:
@@ -194,34 +188,8 @@ class Survey(SurveyExportMixin, Base):
 
         """
         return InstructionCollection(
-            self.instruction_names_to_instructions, self.questions
+            self._instruction_names_to_instructions, self.questions
         )[question]
-
-    @property
-    def max_pseudo_index(self) -> float:
-        """Return the maximum pseudo index in the survey.
-        >>> Survey.example().max_pseudo_index
-        2
-        """
-        return self._pseudo_indices.max_pseudo_index
-
-    @property
-    def _last_item_was_instruction(self) -> bool:
-        """Return whether the last item added to the survey was an instruction.
-
-        This is used to determine the pseudo-index of the next item added to the survey.
-
-        Example:
-
-        >>> s = Survey.example()
-        >>> s._last_item_was_instruction
-        False
-        >>> from edsl.surveys.instructions.Instruction import Instruction
-        >>> s = s.add_instruction(Instruction(text="Pay attention to the following questions.", name="intro"))
-        >>> s._last_item_was_instruction
-        True
-        """
-        return self._pseudo_indices._last_item_was_instruction
 
     def show_flow(self, filename: Optional[str] = None) -> None:
         """Show the flow of the survey."""
@@ -238,7 +206,7 @@ class Survey(SurveyExportMixin, Base):
         >>> from edsl import Instruction
         >>> i = Instruction(text="Pay attention to the following questions.", name="intro")
         >>> s = Survey().add_instruction(i)
-        >>> s.instruction_names_to_instructions
+        >>> s._instruction_names_to_instructions
         {'intro': Instruction(name="intro", text="Pay attention to the following questions.")}
         >>> s._pseudo_indices
         {'intro': -0.5}
@@ -300,8 +268,7 @@ class Survey(SurveyExportMixin, Base):
         """
         if question_name not in self.question_name_to_index:
             raise SurveyError(f"Question name {question_name} not found in survey.")
-        index = self.question_name_to_index[question_name]
-        return self._questions[index]
+        return self._questions[self.question_name_to_index[question_name]]
 
     def question_names_to_questions(self) -> dict:
         """Return a dictionary mapping question names to question attributes."""
@@ -548,7 +515,7 @@ class Survey(SurveyExportMixin, Base):
     ) -> list[Union[QuestionBase, "Instruction"]]:
         """Return a list of questions and instructions sorted by pseudo index."""
         questions_and_instructions = self._questions + list(
-            self.instruction_names_to_instructions.values()
+            self._instruction_names_to_instructions.values()
         )
         return sorted(
             questions_and_instructions, key=lambda x: self._pseudo_indices[x.name]
