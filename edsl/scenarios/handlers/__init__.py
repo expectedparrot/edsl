@@ -7,3 +7,6 @@ from .md import MarkdownMethods
 from .csv import CsvMethods
 from .json import JsonMethods
 from .sql import SqlMethods
+from .pptx import PptxMethods
+from .latex import LaTeXMethods
+from .py import PyMethods

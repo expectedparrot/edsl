@@ -7,7 +7,6 @@ from typing import Dict, Any, IO, Optional
 
 from edsl.scenarios.Scenario import Scenario
 from edsl.utilities.remove_edsl_version import remove_edsl_version
-from edsl.utilities.is_notebook import is_notebook
 
 from edsl.scenarios.file_methods import FileMethods
 
@@ -23,6 +22,7 @@ class FileStore(Scenario):
         suffix: Optional[str] = None,
         base64_string: Optional[str] = None,
         external_locations: Optional[Dict[str, str]] = None,
+        extracted_text: Optional[str] = None,
         **kwargs,
     ):
         if path is None and "filename" in kwargs:
@@ -38,6 +38,9 @@ class FileStore(Scenario):
         )
         self.base64_string = base64_string or self.encode_file_to_base64_string(path)
         self.external_locations = external_locations or {}
+
+        self.extracted_text = self.extract_text() if extracted_text is None else extracted_text
+
         super().__init__(
             {
                 "path": path,
@@ -46,6 +49,7 @@ class FileStore(Scenario):
                 "suffix": self.suffix,
                 "mime_type": self.mime_type,
                 "external_locations": self.external_locations,
+                "extracted_text": self.extracted_text,
             }
         )
 
@@ -98,10 +102,17 @@ class FileStore(Scenario):
         return cls(**d)
 
     def __repr__(self):
-        # return f"FileStore(path='{self.path}')"
-        params = ", ".join(f"{key}={repr(value)}" for key, value in self.data.items())
+        import reprlib
+        r = reprlib.Repr()
+        r.maxstring = 20  # Limit strings to 20 chars
+        r.maxother = 30   # Limit other types to 30 chars
+        
+        params = ", ".join(
+            f"{key}={r.repr(value)}" 
+            for key, value in self.data.items()
+        )
         return f"{self.__class__.__name__}({params})"
-
+    
     def _repr_html_(self):
         parent_html = super()._repr_html_()
         from edsl.scenarios.ConstructDownloadLink import ConstructDownloadLink
@@ -132,9 +143,9 @@ class FileStore(Scenario):
 
     def open(self) -> "IO":
         if self.binary:
-            return self.base64_to_file(self["base64_string"], is_binary=True)
+            return self.base64_to_file(self.base64_string, is_binary=True)
         else:
-            return self.base64_to_text_file(self["base64_string"])
+            return self.base64_to_text_file(self.base64_string)
 
     def write(self, filename: Optional[str] = None) -> str:
         """
@@ -205,7 +216,7 @@ class FileStore(Scenario):
 
             warnings.warn("This is a binary file.")
         else:
-            return self.base64_to_text_file(self["base64_string"]).read()
+            return self.base64_to_text_file(self.base64_string).read()
 
     def to_tempfile(self, suffix=None):
         if suffix is None:
@@ -215,7 +226,7 @@ class FileStore(Scenario):
                 self["base64_string"], is_binary=True
             )
         else:
-            file_like_object = self.base64_to_text_file(self["base64_string"])
+            file_like_object = self.base64_to_text_file(self.base64_string)
 
         # Create a named temporary file
         mode = "wb" if self.binary else "w"
@@ -239,6 +250,17 @@ class FileStore(Scenario):
         else:
             print(f"Viewing of {self.suffix} files is not supported.")
 
+    def extract_text(self) -> str:
+        handler = FileMethods.get_handler(self.suffix)
+        if handler and hasattr(handler, "extract_text"):
+            return handler(self.path).extract_text()
+        
+        if not self.binary:
+            return self.text
+        
+        return None
+        #raise TypeError("No text method found for this file type.")
+        
     def push(
         self, description: Optional[str] = None, visibility: str = "unlisted"
     ) -> dict:
@@ -472,8 +494,8 @@ if __name__ == "__main__":
     # fs = FileStore.example("pdf")
     # fs.view()
 
-    formats = ["html"]
-    for file_type in formats:  # FileMethods.supported_file_types():
+    formats = FileMethods.supported_file_types()
+    for file_type in formats:  
         print("Now testinging", file_type)
         fs = FileStore.example(file_type)
         fs.view()

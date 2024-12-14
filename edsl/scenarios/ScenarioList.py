@@ -609,6 +609,28 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         return cls([Scenario({name: func(value)}) for value in values])
 
     @classmethod
+    def from_directory(cls, directory_path: str, recursive: bool = False) -> ScenarioList:
+        import os 
+        from edsl.scenarios.FileStore import FileStore
+
+        scenarios = []
+
+        if recursive:
+            # Use os.walk for recursive traversal
+            for root, _, files in os.walk(directory_path):
+                for file in files:
+                    file_path = os.path.join(root, file)
+                    scenarios.append(FileStore(file_path))
+        else:
+            # Use os.listdir for non-recursive (single directory) traversal
+            for file in os.listdir(directory_path):
+                file_path = os.path.join(directory_path, file)
+                if os.path.isfile(file_path):  # Only include files, not subdirectories
+                    scenarios.append(FileStore(file_path))
+
+        return cls(scenarios)
+
+    @classmethod
     def from_directory_docx(cls, directory_path: str) -> ScenarioList:
         """Creates a list of scenarios from all DOCX files in the specified directory.
 

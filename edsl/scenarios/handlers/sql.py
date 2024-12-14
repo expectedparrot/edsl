@@ -2,11 +2,10 @@ from edsl.scenarios.file_methods import FileMethods
 import tempfile
 import re
 from typing import List, Optional
-import sqlparse
+import textwrap
 
 
 class SqlMethods(FileMethods):
-
     suffix = "sql"
 
     def view_system(self):
@@ -33,24 +32,67 @@ class SqlMethods(FileMethods):
         from pygments.formatters import HtmlFormatter
 
         try:
-            # Read the SQL file
             with open(self.path, "r", encoding="utf-8") as f:
                 content = f.read()
 
-            # Format SQL with syntax highlighting
             formatter = HtmlFormatter(style="monokai")
             highlighted_sql = pygments.highlight(content, SqlLexer(), formatter)
-
-            # Add CSS for syntax highlighting
             css = formatter.get_style_defs(".highlight")
-
-            # Display formatted SQL
             display(HTML(f"<style>{css}</style>{highlighted_sql}"))
-
-            # Provide download link
             display(FileLink(self.path))
         except Exception as e:
             print(f"Error displaying SQL: {e}")
+
+    def _format_keywords(self, sql: str) -> str:
+        """Capitalize SQL keywords."""
+        keywords = {
+            'select', 'from', 'where', 'and', 'or', 'insert', 'update', 'delete',
+            'create', 'drop', 'alter', 'table', 'into', 'values', 'group', 'by',
+            'having', 'order', 'limit', 'join', 'left', 'right', 'inner', 'outer',
+            'on', 'as', 'distinct', 'count', 'sum', 'avg', 'max', 'min', 'between',
+            'like', 'in', 'is', 'null', 'not', 'case', 'when', 'then', 'else', 'end'
+        }
+        
+        words = sql.split()
+        formatted_words = []
+        for word in words:
+            lower_word = word.lower()
+            if lower_word in keywords:
+                formatted_words.append(word.upper())
+            else:
+                formatted_words.append(word.lower())
+        return ' '.join(formatted_words)
+
+    def _indent_sql(self, sql: str) -> str:
+        """Add basic indentation to SQL statement."""
+        lines = sql.split('\n')
+        indented_lines = []
+        indent_level = 0
+        
+        for line in lines:
+            line = line.strip()
+            
+            # Decrease indent for closing parentheses
+            if line.startswith(')'):
+                indent_level = max(0, indent_level - 1)
+            
+            # Add indentation
+            if line:
+                indented_lines.append('    ' * indent_level + line)
+            else:
+                indented_lines.append('')
+            
+            # Increase indent after opening parentheses
+            if line.endswith('('):
+                indent_level += 1
+            
+            # Special cases for common SQL clauses
+            lower_line = line.lower()
+            if any(clause in lower_line for clause in 
+                   ['select', 'from', 'where', 'group by', 'having', 'order by']):
+                indent_level = 1
+            
+        return '\n'.join(indented_lines)
 
     def format_sql(self) -> bool:
         """Format the SQL file with proper indentation and keyword capitalization."""
@@ -58,15 +100,23 @@ class SqlMethods(FileMethods):
             with open(self.path, "r", encoding="utf-8") as f:
                 content = f.read()
 
-            # Format each statement in the file
-            formatted_sql = sqlparse.format(
-                content,
-                reindent=True,
-                keyword_case="upper",
-                identifier_case="lower",
-                comma_first=False,
-                wrap_after=80,
-            )
+            # Remove extra whitespace and format
+            content = ' '.join(content.split())
+            content = self._format_keywords(content)
+            content = self._indent_sql(content)
+            
+            # Wrap long lines
+            wrapped_content = []
+            for line in content.split('\n'):
+                if len(line) > 80:
+                    wrapped_line = textwrap.fill(
+                        line, width=80, subsequent_indent='    '
+                    )
+                    wrapped_content.append(wrapped_line)
+                else:
+                    wrapped_content.append(line)
+            
+            formatted_sql = '\n'.join(wrapped_content)
 
             with open(self.path, "w", encoding="utf-8") as f:
                 f.write(formatted_sql)
@@ -82,7 +132,33 @@ class SqlMethods(FileMethods):
             with open(self.path, "r", encoding="utf-8") as f:
                 content = f.read()
 
-            return sqlparse.split(content)
+            # Handle both semicolon and GO statement terminators
+            statements = []
+            current_stmt = []
+            
+            for line in content.split('\n'):
+                line = line.strip()
+                
+                # Skip empty lines and comments
+                if not line or line.startswith('--'):
+                    continue
+                
+                if line.endswith(';'):
+                    current_stmt.append(line[:-1])  # Remove semicolon
+                    statements.append(' '.join(current_stmt))
+                    current_stmt = []
+                elif line.upper() == 'GO':
+                    if current_stmt:
+                        statements.append(' '.join(current_stmt))
+                        current_stmt = []
+                else:
+                    current_stmt.append(line)
+            
+            # Add any remaining statement
+            if current_stmt:
+                statements.append(' '.join(current_stmt))
+
+            return [stmt.strip() for stmt in statements if stmt.strip()]
         except Exception as e:
             print(f"Error splitting SQL statements: {e}")
             return []
@@ -90,19 +166,14 @@ class SqlMethods(FileMethods):
     def validate_basic_syntax(self) -> bool:
         """
         Perform basic SQL syntax validation.
-        Note: This is a simple check and doesn't replace proper SQL parsing.
+        This is a simple check and doesn't replace proper SQL parsing.
         """
         try:
             with open(self.path, "r", encoding="utf-8") as f:
                 content = f.read()
 
-            statements = sqlparse.split(content)
+            statements = self.split_statements()
             for stmt in statements:
-                parsed = sqlparse.parse(stmt)
-                if not parsed:
-                    print(f"Invalid SQL syntax: {stmt}")
-                    return False
-
                 # Check for basic SQL keywords
                 stmt_upper = stmt.upper()
                 if not any(
@@ -118,6 +189,16 @@ class SqlMethods(FileMethods):
                     ]
                 ):
                     print(f"Warning: Statement might be incomplete: {stmt}")
+                
+                # Check for basic parentheses matching
+                if stmt.count('(') != stmt.count(')'):
+                    print(f"Error: Unmatched parentheses in statement: {stmt}")
+                    return False
+                
+                # Check for basic quote matching
+                if stmt.count("'") % 2 != 0:
+                    print(f"Error: Unmatched quotes in statement: {stmt}")
+                    return False
 
             return True
         except Exception as e:
@@ -131,8 +212,6 @@ class SqlMethods(FileMethods):
             with open(self.path, "r", encoding="utf-8") as f:
                 content = f.read()
 
-            # Simple regex pattern for table names
-            # Note: This is a basic implementation and might miss some edge cases
             patterns = [
                 r"FROM\s+([a-zA-Z_][a-zA-Z0-9_]*)",
                 r"JOIN\s+([a-zA-Z_][a-zA-Z0-9_]*)",

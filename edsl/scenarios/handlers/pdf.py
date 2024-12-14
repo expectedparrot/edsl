@@ -8,6 +8,26 @@ class PdfMethods(FileMethods):
 
     suffix = "pdf"
 
+    def extract_text(self):
+
+        from PyPDF2 import PdfReader
+
+        # Create a PDF reader object
+        reader = PdfReader(self.path)
+        
+        # Get number of pages
+        num_pages = len(reader.pages)
+        
+        # Extract text from all pages
+        text = ""
+        for page_num in range(num_pages):
+            # Get the page object
+            page = reader.pages[page_num]
+            # Extract text from page
+            text += page.extract_text()
+            
+        return text
+
     def view_system(self):
         import os
         import subprocess
@@ -43,54 +63,6 @@ class PdfMethods(FileMethods):
         return
 
     def example(self):
-        import textwrap
+        from edsl.results.Results import Results
+        return Results.example().select('answer.how_feeling').first().pdf().to_tempfile()
 
-        pdf_string = textwrap.dedent(
-            """\
-        %PDF-1.4
-        1 0 obj
-        << /Type /Catalog /Pages 2 0 R >>
-        endobj
-        2 0 obj
-        << /Type /Pages /Kids [3 0 R] /Count 1 >>
-        endobj
-        3 0 obj
-        << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R >>
-        endobj
-        4 0 obj
-        << /Length 44 >>
-        stream
-        BT
-        /F1 24 Tf
-        100 700 Td
-        (Hello, World!) Tj
-        ET
-        endstream
-        endobj
-        5 0 obj
-        << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
-        endobj
-        6 0 obj
-        << /ProcSet [/PDF /Text] /Font << /F1 5 0 R >> >>
-        endobj
-        xref
-        0 7
-        0000000000 65535 f 
-        0000000010 00000 n 
-        0000000053 00000 n 
-        0000000100 00000 n 
-        0000000173 00000 n 
-        0000000232 00000 n 
-        0000000272 00000 n 
-        trailer
-        << /Size 7 /Root 1 0 R >>
-        startxref
-        318
-        %%EOF"""
-        )
-        import tempfile
-
-        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as f:
-            f.write(pdf_string.encode())
-
-        return f.name
