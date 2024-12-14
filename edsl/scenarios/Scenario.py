@@ -93,7 +93,7 @@ class Scenario(Base, UserDict, ScenarioHtmlMixin):
         """Convert Jinja braces to some other character.
 
         >>> s = Scenario({"food": "I love {{wood chips}}"})
-        >>> s.convert_jinja_braces()
+        >>> s._convert_jinja_braces()
         Scenario({'food': 'I love <<wood chips>>'})
 
         """
