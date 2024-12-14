@@ -7,6 +7,19 @@ class DocxMethods(FileMethods):
 
     suffix = "docx"
 
+    def extract_text(self):
+        from docx import Document
+
+        self.doc = Document(self.path)
+
+        # Extract all text
+        full_text = []
+        for para in self.doc.paragraphs:
+            full_text.append(para.text)
+
+        text = "\n".join(full_text)
+        return text
+
     def view_system(self):
         import os
         import subprocess
@@ -55,3 +68,9 @@ class DocxMethods(FileMethods):
             tmp.close()
 
         return tmp.name
+
+
+if __name__ == "__main__":
+    docx_temp = DocxMethods.example()
+    from edsl.scenarios.FileStore import FileStore
+    fs = FileStore(docx_temp)
