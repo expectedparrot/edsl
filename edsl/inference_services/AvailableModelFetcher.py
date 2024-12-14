@@ -1,9 +1,13 @@
-from typing import Any, List, Tuple, Optional, TYPE_CHECKING
+from typing import Any, List, Tuple, Optional, Dict, TYPE_CHECKING
 import warnings
+import json
+import time
+from datetime import datetime, timedelta
+from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from edsl.inference_services.ServiceAvailability import ServiceAvailability
-from functools import lru_cache
 from dataclasses import dataclass
+from platformdirs import user_cache_dir
 
 if TYPE_CHECKING:
     from edsl.inference_services.InferenceServiceABC import InferenceServiceABC
@@ -25,17 +29,48 @@ class AvailableModels:
 
 
 class AvailableModelFetcher:
-    """Fetches available models from the various services."""
+    """Fetches available models from the various services with JSON caching."""
 
     service_availability = ServiceAvailability()
+    CACHE_VALIDITY_HOURS = 48  # Cache validity period in hours
 
     def __init__(self, services, added_models):
         self.services: List["InferenceServiceABC"] = services
         self.added_models = added_models
-
         self._service_map = {
             service._inference_service_: service for service in services
         }
+        self.cache_dir = Path(user_cache_dir("edsl", "model_availability"))
+        self.cache_file = self.cache_dir / "available_models.json"
+        self.cache_dir.mkdir(parents=True, exist_ok=True)
+
+    def _read_cache(self) -> Optional[Dict]:
+        """Read the cached model availability data if it exists and is valid."""
+
+        print("Reading from cache at ", self.cache_file)
+        if not self.cache_file.exists():
+            return None
+
+        try:
+            with open(self.cache_file, "r") as f:
+                cache_data = json.load(f)
+
+            # Check cache validity
+            cache_time = datetime.fromisoformat(str(cache_data["timestamp"]))
+            if datetime.now() - cache_time > timedelta(hours=self.CACHE_VALIDITY_HOURS):
+                return None
+
+            return cache_data
+        except (json.JSONDecodeError, KeyError, ValueError):
+            return None
+
+    def _write_cache(self, models_data: List[List[Any]]):
+        """Write the model availability data to cache."""
+        cache_data = {"timestamp": datetime.now().isoformat(), "models": models_data}
+
+        print("Writing to cache at ", self.cache_file)
+        with open(self.cache_file, "w") as f:
+            json.dump(cache_data, f, indent=2)
 
     def fetch_service_by_service_name(self, service_name: str) -> "InferenceServiceABC":
         """The service name is the _inference_service_ attribute of the service."""
@@ -43,18 +78,12 @@ class AvailableModelFetcher:
             return self._service_map[service_name]
         raise ValueError(f"Service {service_name} not found")
 
-    @classmethod
-    @lru_cache(maxsize=128)
     def get_available_models_by_service(
-        cls, service: "InferenceServiceABC", warn: bool = False
+        self, service: "InferenceServiceABC", warn: bool = False
     ) -> list[str]:
-        """
-        Gets the available models for a single service.
-        It service *not* the name of the service but rather the service object.
-        """
-        return cls.service_availability.get_service_available(service, warn)
+        """Gets the available models for a single service."""
+        return self.service_availability.get_service_available(service, warn)
 
-    @lru_cache(maxsize=128)
     def get_service_models(
         self, service: "InferenceServiceABC"
     ) -> Tuple[List[List[Any]], str]:
@@ -67,31 +96,33 @@ class AvailableModelFetcher:
 
     def available(self, service: Optional[str] = None) -> List[List[Any]]:
         """
-        Get available models from all services using parallel execution.
-        Returns a list of [model, service_name, -1] entries.
+        Get available models from all services, using cached data when available.
+        Returns a list of [model, service_name, index] entries.
         """
+        # If requesting specific service, bypass cache
         if service:
-            service = self.fetch_service_by_service_name(service)
-            total_models = self.get_service_models(service=service)[
-                0
-            ]  # don't need to the service name b/c we already know it
+            service_obj = self.fetch_service_by_service_name(service)
+            total_models = self.get_service_models(service=service_obj)[0]
             sorted_models = sorted(total_models)
             for i, model in enumerate(sorted_models):
                 model[2] = "NA"
                 model = tuple(model)
             return sorted_models
 
+        # Try to get cached data
+        cache_data = self._read_cache()
+        if cache_data:
+            return cache_data["models"]
+
         total_models = []
 
-        # Use a ThreadPoolExecutor to parallel process the services
+        # Use ThreadPoolExecutor to parallel process the services
         with ThreadPoolExecutor(max_workers=min(len(self.services), 10)) as executor:
-            # Submit all service queries to the thread pool
             future_to_service = {
                 executor.submit(self.get_service_models, service): service
                 for service in self.services
             }
 
-            # Collect results as they complete
             for future in as_completed(future_to_service):
                 try:
                     models, service_name = future.result()
@@ -103,11 +134,14 @@ class AvailableModelFetcher:
 
                 except Exception as exc:
                     print(f"Service query failed: {exc}")
-                    # Optionally handle the error more gracefully
                     continue
 
         sorted_models = sorted(total_models)
         for i, model in enumerate(sorted_models):
             model[2] = i
             model = tuple(model)
+
+        # Cache the results
+        self._write_cache(sorted_models)
+
         return sorted_models
