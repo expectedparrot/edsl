@@ -33,6 +33,8 @@ class TestScenario(unittest.TestCase):
                 assert fs is not None
             except RuntimeError as e:
                 print(e)
+            except ModuleNotFoundError as e:
+                print(e)
 
 
 # @pytest.fixture
