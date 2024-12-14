@@ -3,12 +3,19 @@
 Credits
 =======
 
-Credits are required in order to access certain features of the Expected Parrot server, such as running your surveys remotely using your Expected Parrot API key.
+Credits are required in order to `run your surveys remotely <https://docs.expectedparrot.com/en/latest/remote_inference.html>`_ at the Expected Parrot server and to access certain other special features of Coop.
+They are available for purchase at your `Coop account <https://www.expectedparrot.com/login>`_ (details below).
+Credits are *not* required in order to run your surveys locally on your own machine (by storing your own :ref:`api_keys` for service providers), or to `post and share content at the Coop <https://www.expectedparrot.com/content/explore>`_ that you have created.
+
 When you use remote inference, credits are deducted from your balance to cover the costs of API calls to language model service providers, which are based on token rates set by providers.
 A list of token rates for different models available with remote inference can be found on the `Pricing <https://www.expectedparrot.com/getting-started/coop-pricing>`_ page.
 Details on how credits are consumed are provided below. 
 Credits must be purchased in advance and are consumed when surveys are run. 
 If you do not have enough credits to run a survey, you will be prompted to purchase more credits.
+
+*Note: We are adding new features for storing your own API keys for service providers at your Coop account in order to use them with remote inference.*
+*This page will be updated with details.* 
+*If you are interested in testing these and other new features, please send us a message at info@expectedparrot.com and we will activate beta features and add credits to your Coop account!*
 
 
 Free credits
