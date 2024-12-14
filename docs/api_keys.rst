@@ -10,7 +10,7 @@ Remote inference allows you to run surveys on the Expected Parrot server with av
 
 
 Special note for Colab users
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 If you are using EDSL in a Colab notebook, please see `special instructions <https://docs.expectedparrot.com/en/latest/colab_setup.html>`_ on storing API keys as "secrets" in lieu of storing them in a `.env` file as described below (:ref:`colab_setup`).
 
@@ -18,9 +18,9 @@ If you are using EDSL in a Colab notebook, please see `special instructions <htt
 Remote inference 
 ----------------
 
-This method allows you to purchase credits to run EDSL surveys on the Expected Parrot server instead of your local machine, and avoid managing your own API keys for different LLM providers.
+This method allows you to purchase credits to run EDSL surveys at the Expected Parrot server instead of your local machine, and avoid managing your own API keys for different service providers.
 
-To use remote inference you must activate it at your `Coop <https://www.expectedparrot.com/home/api>`_ account and store your Expected Parrot API key in a `.env` file in your EDSL working directory.
+To use remote inference you must activate it at your `Coop <https://www.expectedparrot.com/home/api>`_ account and store your Expected Parrot API key in a file named `.env` in your EDSL working directory.
 Your `.env` file should include the following line (replace `your_key_here` with your actual Expected Parrot API key from your Coop account):
 
 .. code-block:: python
@@ -28,7 +28,15 @@ Your `.env` file should include the following line (replace `your_key_here` with
    EXPECTED_PARROT_API_KEY='your_key_here'
 
 
-Please see the :ref:`remote_inference` section for more details on how to use remote inference with EDSL, and the `Credits <https://docs.expectedparrot.com/en/latest/credits.html>`_ section for information on purchasing and calculating credit costs.
+If you do not already have a file named `.env` in your working directory, you can create one and add the line above by running the following code:
+
+.. code-block:: python
+
+   with open(".env", "w") as f:
+       f.write("EXPECTED_PARROT_API_KEY='your_key_here'")
+
+
+Please see the :ref:`remote_inference` section for more details on how to use remote inference with EDSL, and the `Credits <https://docs.expectedparrot.com/en/latest/credits.html>`_ section for information on purchasing credits and calculating costs.
 
 
 Local inference 
@@ -40,7 +48,7 @@ There are two ways of providing your own API keys to EDSL:
 
 **1. Using a .env file (recommended)**
 
-Create a `.env` file in your EDSL working directory and populate it with your API keys.
+Create a `.env` file in your EDSL working directory (as described above) and populate it with your API keys.
 Replace `your_key_here` with your actual API key for each service that you plan to use:
 
 .. code-block:: python
@@ -89,59 +97,76 @@ It is also important to remove your API keys from your code before sharing it wi
 
 
 Caution
-~~~~~~~
+-------
 
 Treat your API keys as sensitive information, akin to passwords. 
 Never share them publicly or upload files containing your API keys to public repositories.
 
 
 Troubleshooting
-~~~~~~~~~~~~~~~
+---------------
 
-In addition to API keys, you must also have credits available on your account with a language model provider in order to run surveys with some models.
-(If you are using remote inference, simply ensure that you have credits on your Expected Parrot account.)
+In order to use local inference, you must also have credits available on your account with a service provider in order to run surveys with some models.
+If you are using remote inference, simply ensure that you have credits on your Expected Parrot account to access all available models.
 
+When you run a survey, EDSL checks whether you are using remote or local inference and then checks for the requisite API keys for the models that you have specified to use with the survey.
 If you do not specify a model to use for a survey, EDSL will attempt to run it with the default model.
-In practice, this means that the following sets of commands are equivalent:
-
-*Version 1*:
+You can check the current default model by running the following command:
 
 .. code-block:: python
 
-   from edsl import Survey 
+   from edsl import Model
+   Model()
 
-   results = Survey.example().run()
+
+Output:
+
+.. list-table::
+   :header-rows: 1
+
+   * - key
+     - value
+   * - model
+     - gpt-4o
+   * - parameters:temperature
+     - 0.5
+   * - parameters:max_tokens
+     - 1000
+   * - parameters:top_p
+     - 1
+   * - parameters:frequency_penalty
+     - 0
+   * - parameters:presence_penalty
+     - 0
+   * - parameters:logprobs
+     - False
+   * - parameters:top_logprobs
+     - 3
 
 
-*Version 2*:
+To check all available models:
 
 .. code-block:: python
 
-   from edsl import Survey, Model 
+   from edsl import Model
+   Model.available()
 
-   results = Survey.example().by(Model()).run() 
 
-
-*Version 3*:
+To check all available models for a specific provider:
 
 .. code-block:: python
 
-   from edsl import Survey, Model 
-
-   s = Survey.example()
-   m = Model()
-
-   results = s.by(m).run()
+   from edsl import Model
+   Model.available(service="openai")
 
 
-If you have not provided an API key for the default model you will receive an error message about an exception.
-You may also receive an error message if you do not have credits on your account with the model provider.
+Learn more about available models in the :ref:`language_models` section of the documentation.
+
+If you have not provided a required API key you will receive an error message about an exception.
 A common exception for this problem is an `AuthenticationError` about API keys: `Incorrect API key provided...`
+You may also receive an error message if you do not have credits on your account with a service provider.
 
-To resolve this issue, you can either provide the correct API key for the default model (and ensure that you have credits from the provider) or specify a different model to use for the survey.
-
-See more information on the available models in the  :ref:`language_models` section of the documentation.
-
+Learn more about handling errors in the :ref:`exceptions` section of the documentation.
 
 Please also feel free to reach out to us to help you troubleshoot:
 
