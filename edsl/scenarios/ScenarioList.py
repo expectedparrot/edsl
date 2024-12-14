@@ -25,6 +25,8 @@ from edsl.utilities.naming_utilities import sanitize_string
 from edsl.utilities.is_valid_variable_name import is_valid_variable_name
 from edsl.exceptions.scenarios import ScenarioError
 
+from edsl.scenarios.DirectoryScanner import DirectoryScanner
+
 
 class ScenarioListMixin(ScenarioListPdfMixin, ScenarioListExportMixin):
     pass
@@ -609,26 +611,31 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         return cls([Scenario({name: func(value)}) for value in values])
 
     @classmethod
-    def from_directory(cls, directory_path: str, recursive: bool = False) -> ScenarioList:
-        import os 
+    def from_directory(
+        cls,
+        directory_path: str,
+        recursive: bool = False,
+        suffix_allow_list: Optional[List[str]] = None,
+        suffix_exclude_list: Optional[List[str]] = None,
+        example_suffix: Optional[str] = None,
+        include_no_extension: bool = True,
+    ) -> "ScenarioList":
+        """
+        Eagerly load all scenarios from a directory into a ScenarioList.
+        """
+        scanner = DirectoryScanner(directory_path)
         from edsl.scenarios.FileStore import FileStore
 
-        scenarios = []
-
-        if recursive:
-            # Use os.walk for recursive traversal
-            for root, _, files in os.walk(directory_path):
-                for file in files:
-                    file_path = os.path.join(root, file)
-                    scenarios.append(FileStore(file_path))
-        else:
-            # Use os.listdir for non-recursive (single directory) traversal
-            for file in os.listdir(directory_path):
-                file_path = os.path.join(directory_path, file)
-                if os.path.isfile(file_path):  # Only include files, not subdirectories
-                    scenarios.append(FileStore(file_path))
-
-        return cls(scenarios)
+        return cls(
+            scanner.scan(
+                FileStore,
+                recursive=recursive,
+                suffix_allow_list=suffix_allow_list,
+                suffix_exclude_list=suffix_exclude_list,
+                example_suffix=example_suffix,
+                include_no_extension=include_no_extension,
+            )
+        )
 
     @classmethod
     def from_directory_docx(cls, directory_path: str) -> ScenarioList:
