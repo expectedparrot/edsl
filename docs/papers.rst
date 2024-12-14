@@ -1,13 +1,25 @@
 .. _papers:
 
-Papers
-======
+Papers & Citations
+==================
 
-This page contains a list of papers that use or cite EDSL.
+This page provides a list of papers that use or cite EDSL.
 *Please let us know of any omissions!*
 
 | **Are you using EDSL for a research project?**
-| Send an email to info@expectedparrot.com and we'll give you credits to run your project.
+| Send us an email at info@expectedparrot.com and we'll provide credits to run your project for free at the Expected Parrot server.
+
+If you use the EDSL package in your research or projects, please use the following citation:
+
+.. code-block:: text
+
+    @techreport{Horton2024EDSL,
+    title = {EDSL: Expected Parrot Domain Specific Language for AI Powered Social Science},
+    author = {John Horton and Apostolos Filippas and Robin Horton},
+    year = {2024},
+    institution = {Expected Parrot},
+    type = {Whitepaper}
+    }
 
 
 | *Generative AI for Economic Research: LLMs Learn to Collaborate and Reason*

@@ -171,7 +171,6 @@ Links
 
    overview
    whitepaper
-   citation
    papers
 
 .. toctree::
