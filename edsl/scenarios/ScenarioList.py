@@ -11,9 +11,13 @@ from collections.abc import Iterable
 
 if TYPE_CHECKING:
     from urllib.parse import ParseResult
+    from edsl.results.Dataset import Dataset
+    from edsl.jobs.Jobs import Jobs
+    from edsl.surveys.Survey import Survey
+    from edsl.questions.QuestionBase import QuestionBase
 
 
-from simpleeval import EvalWithCompoundTypes, NameNotDefined
+from simpleeval import EvalWithCompoundTypes, NameNotDefined  # type: ignore
 
 from edsl.Base import Base
 from edsl.utilities.remove_edsl_version import remove_edsl_version
@@ -39,7 +43,9 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         "https://docs.expectedparrot.com/en/latest/scenarios.html#scenariolist"
     )
 
-    def __init__(self, data: Optional[list] = None, codebook: Optional[dict] = None):
+    def __init__(
+        self, data: Optional[list] = None, codebook: Optional[dict[str, str]] = None
+    ):
         """Initialize the ScenarioList class."""
         if data is not None:
             super().__init__(data)
@@ -61,9 +67,9 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         """Check if the ScenarioList has Jinja braces."""
         return any([scenario.has_jinja_braces for scenario in self])
 
-    def convert_jinja_braces(self) -> ScenarioList:
+    def _convert_jinja_braces(self) -> ScenarioList:
         """Convert Jinja braces to Python braces."""
-        return ScenarioList([scenario.convert_jinja_braces() for scenario in self])
+        return ScenarioList([scenario._convert_jinja_braces() for scenario in self])
 
     def give_valid_names(self) -> ScenarioList:
         """Give valid names to the scenario keys.
@@ -202,7 +208,7 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
             )
 
         # Group the scenarios
-        grouped = defaultdict(lambda: defaultdict(list))
+        grouped: dict[str, list] = defaultdict(lambda: defaultdict(list))
         for scenario in self:
             key = tuple(scenario[id_var] for id_var in id_vars)
             for var in variables:
@@ -709,7 +715,7 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         }
         return d
 
-    def reorder_keys(self, new_order):
+    def reorder_keys(self, new_order) -> "ScenarioList":
         """Reorder the keys in the scenarios.
 
         Example:
@@ -1173,7 +1179,7 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         """Create a ScenarioList from a TSV file or URL."""
         return cls.from_delimited_file(source, delimiter="\t")
 
-    def to_dict(self, sort=False, add_edsl_version=True) -> dict:
+    def to_dict(self, sort: bool = False, add_edsl_version: bool = True) -> dict:
         """
         >>> s = ScenarioList([Scenario({'food': 'wood chips'}), Scenario({'food': 'wood-fired pizza'})])
         >>> s.to_dict()

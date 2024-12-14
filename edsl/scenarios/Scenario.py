@@ -87,7 +87,7 @@ class Scenario(Base, UserDict, ScenarioHtmlMixin):
                     return True
         return False
 
-    def convert_jinja_braces(
+    def _convert_jinja_braces(
         self, replacement_left: str = "<<", replacement_right: str = ">>"
     ) -> Scenario:
         """Convert Jinja braces to some other character.

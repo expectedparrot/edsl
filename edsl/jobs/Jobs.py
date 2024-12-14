@@ -379,7 +379,7 @@ class Jobs(Base):
             warnings.warn(
                 "The scenarios have Jinja braces ({{ and }}). Converting to '<<' and '>>'. If you want a different conversion, use the convert_jinja_braces method first to modify the scenario."
             )
-            self.scenarios = self.scenarios.convert_jinja_braces()
+            self.scenarios = self.scenarios._convert_jinja_braces()
 
     @property
     def skip_retry(self):
