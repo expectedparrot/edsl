@@ -2,8 +2,7 @@
 from __future__ import annotations
 import inspect
 from collections import UserDict
-from typing import Any, Type, Callable, Optional, TYPE_CHECKING
-from collections import UserDict
+from typing import Any, Type, Callable, Optional, TYPE_CHECKING, Union
 from edsl.Base import Base
 from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
 
@@ -13,10 +12,6 @@ if TYPE_CHECKING:
     from edsl.language_models.LanguageModel import LanguageModel
     from edsl.prompts.Prompt import Prompt
     from edsl.surveys.Survey import Survey
-
-
-class PromptDict(UserDict):
-    pass
 
 
 QuestionName = str
@@ -50,7 +45,7 @@ class Result(Base, UserDict):
         self,
         agent: "Agent",
         scenario: "Scenario",
-        model: Type["LanguageModel"],
+        model: "LanguageModel",
         iteration: int,
         answer: dict[QuestionName, AnswerValue],
         prompt: dict[QuestionName, str] = None,
@@ -79,21 +74,9 @@ class Result(Base, UserDict):
         :param indices: A dictionary of indices.
 
         """
-
-        question_to_attributes = question_to_attributes or {}
-        if survey is not None:
-            question_to_attributes = {
-                q.question_name: {
-                    "question_text": q.question_text,
-                    "question_type": q.question_type,
-                    "question_options": (
-                        None
-                        if not hasattr(q, "question_options")
-                        else q.question_options
-                    ),
-                }
-                for q in survey.questions
-            }
+        self.question_to_attributes = (
+            question_to_attributes or self._create_question_to_attributes(survey)
+        )
 
         data = {
             "agent": agent,
@@ -110,29 +93,27 @@ class Result(Base, UserDict):
         }
         super().__init__(**data)
 
-        # but also store the data as attributes
-        # self.agent = agent
-        # self.scenario = scenario
-        self.model = model
-        # self.iteration = iteration
-        self.answer = answer
-        self.prompt = prompt or {}
-
-        self.raw_model_response = raw_model_response or {}
-        self.question_to_attributes = question_to_attributes
-
-        # self.survey = survey
-        # self.generated_tokens = generated_tokens
-        # self.comments_dict = comments_dict or {}
-        # self.cache_used_dict = cache_used_dict or {}
-
-        # self._combined_dict = None
-        # self._problem_keys = None
         self._sub_dicts = self._construct_sub_dicts()
         self._combined_dict, self._problem_keys = (
             self._compute_combined_dict_and_problem_keys()
         )
         self.indices = indices
+
+    @staticmethod
+    def _create_question_to_attributes(survey):
+        """Create a dictionary of question attributes."""
+        if survey is None:
+            return {}
+        return {
+            q.question_name: {
+                "question_text": q.question_text,
+                "question_type": q.question_type,
+                "question_options": (
+                    None if not hasattr(q, "question_options") else q.question_options
+                ),
+            }
+            for q in survey.questions
+        }
 
     @property
     def agent(self) -> "Agent":
@@ -144,8 +125,19 @@ class Result(Base, UserDict):
         """Return the Scenario object."""
         return self.data["scenario"]
 
+    @property
+    def model(self) -> "LanguageModel":
+        """Return the LanguageModel object."""
+        return self.data["model"]
+
+    @property
+    def answer(self) -> dict[QuestionName, AnswerValue]:
+        """Return the answers."""
+        return self.data["answer"]
+
     @staticmethod
     def _create_agent_sub_dict(agent) -> dict:
+        """Create a dictionary of agent details"""
         if agent.name is None:
             agent_name = agent_namer(agent)
         else:
@@ -170,13 +162,14 @@ class Result(Base, UserDict):
         }
 
     def _construct_sub_dicts(self) -> dict[str, dict]:
+        """Construct a dictionary of sub-dictionaries for the Result object."""
         sub_dicts_needing_new_keys = {
             "question_text": {},
             "question_options": {},
             "question_type": {},
         }
 
-        for question_name in self.answer:
+        for question_name in self.data["answer"]:
             if question_name in self.question_to_attributes:
                 for dictionary_name in sub_dicts_needing_new_keys:
                     new_key = question_name + "_" + dictionary_name
@@ -184,9 +177,9 @@ class Result(Base, UserDict):
                         self.question_to_attributes[question_name][dictionary_name]
                     )
 
-        new_cache_dict = {}
-        for key in self.data["cache_used_dict"]:
-            new_cache_dict[key + "_cache_used"] = self.data["cache_used_dict"][key]
+        new_cache_dict = {
+            f"{k}_cache_used": v for k, v in self.data["cache_used_dict"].items()
+        }
 
         d = {
             **self._create_agent_sub_dict(self.data["agent"]),
@@ -249,8 +242,6 @@ class Result(Base, UserDict):
             # I *think* this allows us to do do things like "answer.how_feelling" i.e., that the evaluator can use
             # dot notation to access the subdicts.
         return combined, problem_keys
-        # self._combined_dict = combined
-        # self._problem_keys = problem_keys
 
     @property
     def combined_dict(self) -> dict[str, Any]:
@@ -307,7 +298,6 @@ class Result(Base, UserDict):
                     )
                     problem_keys.append((key, data_type))
                     key = f"{key}_{data_type}"
-                    # raise ValueError(f"Key '{key}' is already in the dictionary")
                 d[key] = data_type
 
         for key, data_type in problem_keys:
@@ -336,11 +326,10 @@ class Result(Base, UserDict):
         True
 
         """
-        # return self.to_dict() == other.to_dict()
         return hash(self) == hash(other)
 
     def to_dict(
-        self, add_edsl_version=True, include_cache_info=False
+        self, add_edsl_version: bool = True, include_cache_info: bool = False
     ) -> dict[str, Any]:
         """Return a dictionary representation of the Result object.
 
@@ -436,7 +425,7 @@ class Result(Base, UserDict):
 
         return Results.example()[0]
 
-    def score(self, scoring_function: Callable) -> Any:
+    def score(self, scoring_function: Callable) -> Union[int, float]:
         """Score the result using a passed-in scoring function.
 
         >>> def f(status): return 1 if status == 'Joyful' else 0
