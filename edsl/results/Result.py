@@ -16,46 +16,34 @@ if TYPE_CHECKING:
 
 
 class PromptDict(UserDict):
-    """A dictionary that is used to store the prompt for a given result."""
-
     pass
 
 
-def agent_namer_closure():
-    """Return a function that can be used to name an agent."""
-    agent_dict = {}
-
-    def agent_namer(agent):
-        """Return a name for an agent. If the agent has been named before, return the same name. Otherwise, return a new name."""
-        nonlocal agent_dict
-        agent_count = len(agent_dict)
-        if id(agent) in agent_dict:
-            return agent_dict[id(agent)]
-        else:
-            agent_dict[id(agent)] = f"Agent_{agent_count}"
-            return agent_dict[id(agent)]
-
-    return agent_namer
+QuestionName = str
+AnswerValue = Any
 
 
-agent_namer = agent_namer_closure()
+class AgentNamer:
+    """Maintains a registry of agent names to ensure unique naming."""
+
+    def __init__(self):
+        self._registry = {}
+
+    def get_name(self, agent: "Agent") -> str:
+        """Get or create a unique name for an agent."""
+        agent_id = id(agent)
+        if agent_id not in self._registry:
+            self._registry[agent_id] = f"Agent_{len(self._registry)}"
+        return self._registry[agent_id]
+
+
+# Global instance for agent naming
+agent_namer = AgentNamer().get_name
 
 
 class Result(Base, UserDict):
     """
     This class captures the result of one interview.
-
-    The answer dictionary has the structure:
-
-    >>> import warnings
-    >>> warnings.simplefilter("ignore", UserWarning)
-    >>> Result.example().answer == {'how_feeling_yesterday': 'Great', 'how_feeling': 'OK'}
-    True
-
-    Its main data is an Agent, a Scenario, a Model, an Iteration, and an Answer.
-    These are stored both in the UserDict and as attributes.
-
-
     """
 
     def __init__(
@@ -64,14 +52,14 @@ class Result(Base, UserDict):
         scenario: "Scenario",
         model: Type["LanguageModel"],
         iteration: int,
-        answer: str,
-        prompt: dict[str, str] = None,
-        raw_model_response=None,
+        answer: dict[QuestionName, AnswerValue],
+        prompt: dict[QuestionName, str] = None,
+        raw_model_response: Optional[dict] = None,
         survey: Optional["Survey"] = None,
-        question_to_attributes: Optional[dict] = None,
+        question_to_attributes: Optional[dict[QuestionName, Any]] = None,
         generated_tokens: Optional[dict] = None,
         comments_dict: Optional[dict] = None,
-        cache_used_dict: Optional[dict] = None,
+        cache_used_dict: Optional[dict[QuestionName, bool]] = None,
         indices: Optional[dict] = None,
     ):
         """Initialize a Result object.
@@ -83,13 +71,16 @@ class Result(Base, UserDict):
         :param answer: The answer string.
         :param prompt: A dictionary of prompts.
         :param raw_model_response: The raw model response.
+        :param survey: The Survey object.
+        :param question_to_attributes: A dictionary of question attributes.
+        :param generated_tokens: A dictionary of generated tokens.
+        :param comments_dict: A dictionary of comments.
+        :param cache_used_dict: A dictionary of cache usage.
+        :param indices: A dictionary of indices.
 
         """
-        if question_to_attributes is not None:
-            question_to_attributes = question_to_attributes
-        else:
-            question_to_attributes = {}
 
+        question_to_attributes = question_to_attributes or {}
         if survey is not None:
             question_to_attributes = {
                 q.question_name: {
@@ -115,73 +106,102 @@ class Result(Base, UserDict):
             "question_to_attributes": question_to_attributes,
             "generated_tokens": generated_tokens or {},
             "comments_dict": comments_dict or {},
+            "cache_used_dict": cache_used_dict or {},
         }
         super().__init__(**data)
+
         # but also store the data as attributes
-        self.agent = agent
-        self.scenario = scenario
+        # self.agent = agent
+        # self.scenario = scenario
         self.model = model
-        self.iteration = iteration
+        # self.iteration = iteration
         self.answer = answer
         self.prompt = prompt or {}
+
         self.raw_model_response = raw_model_response or {}
-        self.survey = survey
         self.question_to_attributes = question_to_attributes
-        self.generated_tokens = generated_tokens
-        self.comments_dict = comments_dict or {}
-        self.cache_used_dict = cache_used_dict or {}
 
-        self._combined_dict = None
-        self._problem_keys = None
+        # self.survey = survey
+        # self.generated_tokens = generated_tokens
+        # self.comments_dict = comments_dict or {}
+        # self.cache_used_dict = cache_used_dict or {}
 
+        # self._combined_dict = None
+        # self._problem_keys = None
+        self._sub_dicts = self._construct_sub_dicts()
+        self._combined_dict, self._problem_keys = (
+            self._compute_combined_dict_and_problem_keys()
+        )
         self.indices = indices
 
     @property
-    def sub_dicts(self) -> dict[str, dict]:
-        """Return a dictionary where keys are strings for each of the main class attributes/objects."""
-        if self.agent.name is None:
-            agent_name = agent_namer(self.agent)
+    def agent(self) -> "Agent":
+        """Return the Agent object."""
+        return self.data["agent"]
+
+    @property
+    def scenario(self) -> "Scenario":
+        """Return the Scenario object."""
+        return self.data["scenario"]
+
+    @staticmethod
+    def _create_agent_sub_dict(agent) -> dict:
+        if agent.name is None:
+            agent_name = agent_namer(agent)
         else:
-            agent_name = self.agent.name
+            agent_name = agent.name
 
-        question_text_dict = {}
-        question_options_dict = {}
-        question_type_dict = {}
-        cache_used_dict = {}
+        return {
+            "agent": agent.traits
+            | {"agent_name": agent_name}
+            | {"agent_instruction": agent.instruction},
+        }
 
-        for key, _ in self.answer.items():
-            if key in self.question_to_attributes:
-                # You might be tempted to just use the naked key
-                # but this is a bad idea because it pollutes the namespace
-                question_text_dict[key + "_question_text"] = (
-                    self.question_to_attributes[key]["question_text"]
-                )
-                question_options_dict[key + "_question_options"] = (
-                    self.question_to_attributes[key]["question_options"]
-                )
-                question_type_dict[key + "_question_type"] = (
-                    self.question_to_attributes[key]["question_type"]
-                )
-                cache_used_dict[key + "_cache_used"] = self.cache_used_dict.get(
-                    key, False
-                )
+    @staticmethod
+    def _create_model_sub_dict(model) -> dict:
+        return {
+            "model": model.parameters | {"model": model.model},
+        }
+
+    @staticmethod
+    def _iteration_sub_dict(iteration) -> dict:
+        return {
+            "iteration": {"iteration": iteration},
+        }
+
+    def _construct_sub_dicts(self) -> dict[str, dict]:
+        sub_dicts_needing_new_keys = {
+            "question_text": {},
+            "question_options": {},
+            "question_type": {},
+        }
+
+        for question_name in self.answer:
+            if question_name in self.question_to_attributes:
+                for dictionary_name in sub_dicts_needing_new_keys:
+                    new_key = question_name + "_" + dictionary_name
+                    sub_dicts_needing_new_keys[dictionary_name][new_key] = (
+                        self.question_to_attributes[question_name][dictionary_name]
+                    )
+
+        new_cache_dict = {}
+        for key in self.data["cache_used_dict"]:
+            new_cache_dict[key + "_cache_used"] = self.data["cache_used_dict"][key]
 
         d = {
-            "agent": self.agent.traits
-            | {"agent_name": agent_name}
-            | {"agent_instruction": self.agent.instruction},
-            "scenario": self.scenario,
-            "model": self.model.parameters | {"model": self.model.model},
-            "answer": self.answer,
-            "prompt": self.prompt,
-            "raw_model_response": self.raw_model_response,
-            "iteration": {"iteration": self.iteration},
-            "question_text": question_text_dict,
-            "question_options": question_options_dict,
-            "question_type": question_type_dict,
-            "comment": self.comments_dict,
-            "generated_tokens": self.generated_tokens,
-            "cache_used": cache_used_dict,
+            **self._create_agent_sub_dict(self.data["agent"]),
+            **self._create_model_sub_dict(self.data["model"]),
+            **self._iteration_sub_dict(self.data["iteration"]),
+            "scenario": self.data["scenario"],
+            "answer": self.data["answer"],
+            "prompt": self.data["prompt"],
+            "comment": self.data["comments_dict"],
+            "generated_tokens": self.data["generated_tokens"],
+            "raw_model_response": self.data["raw_model_response"],
+            "question_text": sub_dicts_needing_new_keys["question_text"],
+            "question_options": sub_dicts_needing_new_keys["question_options"],
+            "question_type": sub_dicts_needing_new_keys["question_type"],
+            "cache_used": new_cache_dict,
         }
         if hasattr(self, "indices") and self.indices is not None:
             d["agent"].update({"agent_index": self.indices["agent"]})
@@ -189,7 +209,14 @@ class Result(Base, UserDict):
             d["model"].update({"model_index": self.indices["model"]})
         return d
 
-    def check_expression(self, expression) -> None:
+    @property
+    def sub_dicts(self) -> dict[str, dict]:
+        """Return a dictionary where keys are strings for each of the main class attributes/objects."""
+        if self._sub_dicts is None:
+            self._sub_dicts = self._construct_sub_dicts()
+        return self._sub_dicts
+
+    def check_expression(self, expression: str) -> None:
         for key in self.problem_keys:
             if key in expression and not key + "." in expression:
                 raise ValueError(
@@ -202,11 +229,13 @@ class Result(Base, UserDict):
         raise NotImplementedError
 
     @property
-    def problem_keys(self):
+    def problem_keys(self) -> list[str]:
         """Return a list of keys that are problematic."""
         return self._problem_keys
 
-    def _compute_combined_dict_and_problem_keys(self) -> None:
+    def _compute_combined_dict_and_problem_keys(
+        self,
+    ) -> tuple[dict[str, Any], list[str]]:
         combined = {}
         problem_keys = []
         for key, sub_dict in self.sub_dicts.items():
@@ -219,8 +248,9 @@ class Result(Base, UserDict):
             combined.update({key: sub_dict})
             # I *think* this allows us to do do things like "answer.how_feelling" i.e., that the evaluator can use
             # dot notation to access the subdicts.
-        self._combined_dict = combined
-        self._problem_keys = problem_keys
+        return combined, problem_keys
+        # self._combined_dict = combined
+        # self._problem_keys = problem_keys
 
     @property
     def combined_dict(self) -> dict[str, Any]:
@@ -231,11 +261,13 @@ class Result(Base, UserDict):
         'OK'
         """
         if self._combined_dict is None or self._problem_keys is None:
-            self._compute_combined_dict_and_problem_keys()
+            self._combined_dict, self._problem_keys = (
+                self._compute_combined_dict_and_problem_keys()
+            )
         return self._combined_dict
 
     @property
-    def problem_keys(self):
+    def problem_keys(self) -> list[str]:
         """Return a list of keys that are problematic."""
         if self._combined_dict is None or self._problem_keys is None:
             self._compute_combined_dict_and_problem_keys()
@@ -284,34 +316,16 @@ class Result(Base, UserDict):
             ].pop(key)
         return d
 
-    def rows(self, index) -> tuple[int, str, str, str]:
-        """Return a generator of rows for the Result object."""
-        for data_type, subdict in self.sub_dicts.items():
-            for key, value in subdict.items():
-                yield (index, data_type, key, str(value))
-
-    def leaves(self):
-        leaves = []
-        for question_name, answer in self.answer.items():
-            if not question_name.endswith("_comment"):
-                leaves.append(
-                    {
-                        "question": f"({question_name}): "
-                        + str(
-                            self.question_to_attributes[question_name]["question_text"]
-                        ),
-                        "answer": answer,
-                        "comment": self.answer.get(question_name + "_comment", ""),
-                        "scenario": repr(self.scenario),
-                        "agent": repr(self.agent),
-                        "model": repr(self.model),
-                        "iteration": self.iteration,
-                    }
-                )
-        return leaves
-
     def copy(self) -> Result:
-        """Return a copy of the Result object."""
+        """Return a copy of the Result object.
+
+        >>> r = Result.example()
+        >>> r2 = r.copy()
+        >>> r == r2
+        True
+        >>> id(r) == id(r2)
+        False
+        """
         return Result.from_dict(self.to_dict())
 
     def __eq__(self, other) -> bool:
@@ -322,9 +336,12 @@ class Result(Base, UserDict):
         True
 
         """
-        return self.to_dict() == other.to_dict()
+        # return self.to_dict() == other.to_dict()
+        return hash(self) == hash(other)
 
-    def to_dict(self, add_edsl_version=True) -> dict[str, Any]:
+    def to_dict(
+        self, add_edsl_version=True, include_cache_info=False
+    ) -> dict[str, Any]:
         """Return a dictionary representation of the Result object.
 
         >>> r = Result.example()
@@ -357,13 +374,18 @@ class Result(Base, UserDict):
             d["edsl_version"] = __version__
             d["edsl_class_name"] = "Result"
 
+        if include_cache_info:
+            d["cache_used_dict"] = self.data["cache_used_dict"]
+        else:
+            d.pop("cache_used_dict", None)
+
         return d
 
     def __hash__(self):
         """Return a hash of the Result object."""
         from edsl.utilities.utilities import dict_hash
 
-        return dict_hash(self.to_dict(add_edsl_version=False))
+        return dict_hash(self.to_dict(add_edsl_version=False, include_cache_info=False))
 
     @classmethod
     @remove_edsl_version
@@ -404,7 +426,12 @@ class Result(Base, UserDict):
 
     @classmethod
     def example(cls):
-        """Return an example Result object."""
+        """Return an example Result object.
+
+        >>> Result.example()
+        Result(...)
+
+        """
         from edsl.results.Results import Results
 
         return Results.example()[0]
