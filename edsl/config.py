@@ -90,6 +90,9 @@ class Config:
         self._load_dotenv()
         self._set_env_vars()
 
+    def show_path_to_dot_env(self):
+        print(find_dotenv(usecwd=True))
+
     def _set_run_mode(self) -> None:
         """
         Sets EDSL_RUN_MODE as a class attribute.
