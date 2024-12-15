@@ -1,13 +1,4 @@
-"""A list of Agent objects.
-
-Example usage:
-
-.. code-block:: python
-
-    al = AgentList([Agent.example(), Agent.example()])
-    len(al)
-    2
-    
+"""A list of Agents
 """
 
 from __future__ import annotations
@@ -18,8 +9,6 @@ from collections.abc import Iterable
 
 from typing import Any, List, Optional, Union, TYPE_CHECKING
 
-# from rich import print_json
-# from rich.table import Table
 from simpleeval import EvalWithCompoundTypes, NameNotDefined
 
 from edsl.Base import Base
@@ -33,6 +22,8 @@ logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from edsl.scenarios.ScenarioList import ScenarioList
+    from edsl.agents.Agent import Agent
+    from pandas import DataFrame
 
 
 def is_iterable(obj):
@@ -85,8 +76,18 @@ class AgentList(UserList, ResultsExportMixin, Base):
             random.seed(seed)
         return AgentList(random.sample(self.data, n))
 
-    def to_pandas(self) -> "pandas.DataFrame":
-        """Return a pandas DataFrame."""
+    def to_pandas(self) -> "DataFrame":
+        """Return a pandas DataFrame.
+
+        >>> from edsl.agents.Agent import Agent
+        >>> al = AgentList([Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5}), Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5})])
+        >>> al.to_pandas()
+              age   hair  height
+        0    22  brown     5.5
+        1    22  brown     5.5X
+
+
+        """
         return self.to_scenario_list().to_pandas()
 
     def tally(self):
