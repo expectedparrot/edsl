@@ -20,20 +20,6 @@ class PromptDict(UserDict):
 
     pass
 
-    # def rich_print(self):
-    #     """Display an object as a table."""
-    #     from rich.table import Table
-
-    #     table = Table(title="")
-    #     table.add_column("Attribute", style="bold")
-    #     table.add_column("Value")
-
-    #     to_display = self
-    #     for attr_name, attr_value in to_display.items():
-    #         table.add_row(attr_name, repr(attr_value))
-
-    #     return table
-
 
 def agent_namer_closure():
     """Return a function that can be used to name an agent."""
@@ -150,9 +136,6 @@ class Result(Base, UserDict):
 
         self.indices = indices
 
-    ###############
-    # Used in Results
-    ###############
     @property
     def sub_dicts(self) -> dict[str, dict]:
         """Return a dictionary where keys are strings for each of the main class attributes/objects."""
@@ -161,10 +144,11 @@ class Result(Base, UserDict):
         else:
             agent_name = self.agent.name
 
-        # comments_dict = {k: v for k, v in self.answer.items() if k.endswith("_comment")}
         question_text_dict = {}
         question_options_dict = {}
         question_type_dict = {}
+        cache_used_dict = {}
+
         for key, _ in self.answer.items():
             if key in self.question_to_attributes:
                 # You might be tempted to just use the naked key
@@ -177,6 +161,9 @@ class Result(Base, UserDict):
                 )
                 question_type_dict[key + "_question_type"] = (
                     self.question_to_attributes[key]["question_type"]
+                )
+                cache_used_dict[key + "_cache_used"] = self.cache_used_dict.get(
+                    key, False
                 )
 
         d = {
@@ -194,8 +181,8 @@ class Result(Base, UserDict):
             "question_type": question_type_dict,
             "comment": self.comments_dict,
             "generated_tokens": self.generated_tokens,
+            "cache_used": cache_used_dict,
         }
-        # breakpoint()
         if hasattr(self, "indices") and self.indices is not None:
             d["agent"].update({"agent_index": self.indices["agent"]})
             d["scenario"].update({"scenario_index": self.indices["scenario"]})
@@ -323,9 +310,6 @@ class Result(Base, UserDict):
                 )
         return leaves
 
-    ###############
-    # Useful
-    ###############
     def copy(self) -> Result:
         """Return a copy of the Result object."""
         return Result.from_dict(self.to_dict())
@@ -340,9 +324,6 @@ class Result(Base, UserDict):
         """
         return self.to_dict() == other.to_dict()
 
-    ###############
-    # Serialization
-    ###############
     def to_dict(self, add_edsl_version=True) -> dict[str, Any]:
         """Return a dictionary representation of the Result object.
 
@@ -412,34 +393,10 @@ class Result(Base, UserDict):
             question_to_attributes=json_dict.get("question_to_attributes", None),
             generated_tokens=json_dict.get("generated_tokens", {}),
             comments_dict=json_dict.get("comments_dict", {}),
+            cache_used_dict=json_dict.get("cache_used_dict", {}),
         )
         return result
 
-    # def rich_print(self) -> None:
-    #     """Display an object as a table."""
-    #     # from edsl.utilities import print_dict_with_rich
-    #     from rich import print
-    #     from rich.table import Table
-
-    #     table = Table(title="Result")
-    #     table.add_column("Attribute", style="bold")
-    #     table.add_column("Value")
-
-    #     to_display = self.__dict__.copy()
-    #     data = to_display.pop("data", None)
-    #     for attr_name, attr_value in to_display.items():
-    #         if hasattr(attr_value, "rich_print"):
-    #             table.add_row(attr_name, attr_value.rich_print())
-    #         elif isinstance(attr_value, dict):
-    #             a = PromptDict(attr_value)
-    #             table.add_row(attr_name, a.rich_print())
-    #         else:
-    #             table.add_row(attr_name, repr(attr_value))
-    #     return table
-
-    # def __repr__(self):
-    #     """Return a string representation of the Result object."""
-    #     return f"Result(agent={repr(self.agent)}, scenario={repr(self.scenario)}, model={repr(self.model)}, iteration={self.iteration}, answer={repr(self.answer)}, prompt={repr(self.prompt)})"
     def __repr__(self):
         """Return a string representation of the Result object."""
         params = ", ".join(f"{key}={repr(value)}" for key, value in self.data.items())

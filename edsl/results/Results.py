@@ -87,6 +87,7 @@ class Results(UserList, Mixins, Base):
         "question_type",
         "comment",
         "generated_tokens",
+        "cache_used",
     ]
 
     def __init__(
