@@ -297,8 +297,10 @@ For example:
 
 .. code-block:: python
 
-    a = Agent(traits = {'age': 22, 'hair': 'brown', 'gender': 'female'}, 
-        traits_presentation_template = "I am a {{ age }} year-old {{ gender }} with {{ hair }} hair.")
+    a = Agent(
+        traits = {'age': 22, 'hair': 'brown', 'gender': 'female'}, 
+        traits_presentation_template = "I am a {{ age }} year-old {{ gender }} with {{ hair }} hair."
+        )
 
     a.agent_persona.render(primary_replacement = a.traits)
 
@@ -319,9 +321,11 @@ This can be handled by using a dictionary with string keys and values, for examp
 
     codebook = {'age': 'The age of the agent'}
 
-    a = Agent(traits = {'age': 22}, 
+    a = Agent(
+        traits = {'age': 22}, 
         codebook = codebook, 
-        traits_presentation_template = "{{ codebook['age'] }} is {{ age }}.")
+        traits_presentation_template = "{{ codebook['age'] }} is {{ age }}."
+        )
 
     a.agent_persona.render(primary_replacement = a.traits)
 
@@ -596,14 +600,15 @@ We can also add a new trait to an agent:
 
 Output:
 
-.. code-block:: text
+.. list-table::
+    :header-rows: 1
 
-    {
-        "traits": {
-            "age": 22,
-            "location": "California"
-        }
-    }
+    * - key
+      - value
+    * - traits:age
+      - 22
+    * - traits:location
+      - California
 
 
 Removing a trait
@@ -623,13 +628,13 @@ We can remove a trait from an agent:
 
 Output:
 
-.. code-block:: text
+.. list-table::
+    :header-rows: 1
 
-    {
-        "traits": {
-            "location": "California"
-        }
-    }
+    * - key
+      - value
+    * - traits:location
+      - California
 
 
 Using survey responses as new agent traits
@@ -644,7 +649,7 @@ After running a survey, we can use the responses to create new traits for an age
     a = Agent(traits = {"age": 22, "location": "California"})
 
     q = QuestionMultipleChoice(
-        question_name = "surfing"
+        question_name = "surfing",
         question_text = "How often do you go surfing?",
         question_options = ["Never", "Sometimes", "Often"]
     )
@@ -652,20 +657,21 @@ After running a survey, we can use the responses to create new traits for an age
     survey = Survey([q])
     results = survey.by(a).run()
 
-    a = results.select("age", "location", "surfing").to_agent_list()[0] # create new agent with traits from results
+    a = results.select("age", "location", "surfing").to_agent_list() # create new agent with traits from results
+    a
 
 
 Output: 
 
-.. code-block:: text
+.. list-table::
+  :header-rows: 1
 
-    {
-        "traits": {
-            "age": 22,
-            "location": "California",
-            "surfing": "Sometimes"
-        }
-    }
+  * - location
+    - surfing
+    - age
+  * - California
+    - Sometimes
+    - 22
 
 
 Note that in the example above we simply replaced the original agent by selecting the first agent from the agent list that we created.
@@ -693,35 +699,26 @@ Here we use the same method to update multiple agents at once:
     results = survey.by(agents).run()
 
     agents = results.select("age", "location", "surfing").to_agent_list() 
+    agents
 
 
 Output:
 
-.. code-block:: text
+.. list-table::
+  :header-rows: 1
 
-    [
-        {
-            "traits": {
-                "age": 22,
-                "location": "California",
-                "surfing": "Sometimes"
-            }
-        },
-        {
-            "traits": {
-                "age": 40,
-                "location": "Texas",
-                "surfing": "Never"
-            }
-        },
-        {
-            "traits": {
-                "age": 30,
-                "location": "New York",
-                "surfing": "Never"
-            }
-        }
-    ]
+  * - location
+    - surfing
+    - age
+  * - California
+    - Sometimes
+    - 22
+  * - New York
+    - Never
+    - 30
+  * - Texas
+    - Never
+    - 40
 
 
 Agent class
@@ -732,6 +729,7 @@ Agent class
    :show-inheritance:
    :special-members: __init__
    :exclude-members: codebook, data, main
+   
    
 AgentList class
 ---------------
