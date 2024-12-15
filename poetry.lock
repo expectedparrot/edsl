@@ -6101,4 +6101,8 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9.1,<3.13"
+<<<<<<< HEAD
 content-hash = "0fbbb8ae8aaec8547aac6db0874c82141697fbc9f9af2f72eb42fb6d33228df2"
+=======
+content-hash = "70c83e5a5f0f4ec5e30657251230222751152a8901f1df0d3c307e50f37975e3"
+>>>>>>> platform_dirs

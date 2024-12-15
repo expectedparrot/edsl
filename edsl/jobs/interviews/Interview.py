@@ -241,9 +241,7 @@ class Interview:
 
         # was "self.tasks" - is that necessary?
         self.tasks = self.task_manager.build_question_tasks(
-            answer_func=AnswerQuestionFunctionConstructor(
-                self
-            )(),  # self._answer_question_and_record_task,
+            answer_func=AnswerQuestionFunctionConstructor(self)(),
             token_estimator=RequestTokenEstimator(self),
             model_buckets=model_buckets,
         )
@@ -268,7 +266,7 @@ class Interview:
     # region: Extracting results and recording errors
     @staticmethod
     def _extract_valid_results(
-        tasks, invigilators, exceptions
+        tasks, invigilators: List["InvigilatorABC"], exceptions
     ) -> Generator["Answers", None, None]:
         """Extract the valid results from the list of results.
 
@@ -300,7 +298,6 @@ class Interview:
                     invigilator=invigilator,
                 )
                 exceptions.add(task.get_name(), exception_entry)
-                # self.exceptions.add(task.get_name(), exception_entry)
 
             yield result
 

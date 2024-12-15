@@ -452,8 +452,11 @@ class LanguageModel(
             params.update({"invigilator": kwargs["invigilator"]})
 
         model_inputs = ModelInputs(user_prompt=user_prompt, system_prompt=system_prompt)
-        model_outputs = await self._async_get_intended_model_call_outcome(**params)
-        edsl_dict = self.parse_response(model_outputs.response)
+        model_outputs: ModelResponse = (
+            await self._async_get_intended_model_call_outcome(**params)
+        )
+        edsl_dict: EDSLOutput = self.parse_response(model_outputs.response)
+
         agent_response_dict = AgentResponseDict(
             model_inputs=model_inputs,
             model_outputs=model_outputs,
