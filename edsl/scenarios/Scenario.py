@@ -19,18 +19,18 @@ if TYPE_CHECKING:
 
 
 class DisplayJSON:
-    def __init__(self, dict):
-        self.text = json.dumps(dict, indent=4)
+    def __init__(self, input_dict: dict):
+        self.text = json.dumps(input_dict, indent=4)
 
     def __repr__(self):
         return self.text
 
 
 class DisplayYAML:
-    def __init__(self, dict):
+    def __init__(self, input_dict: dict):
         import yaml
 
-        self.text = yaml.dump(dict)
+        self.text = yaml.dump(input_dict)
 
     def __repr__(self):
         return self.text
@@ -52,9 +52,11 @@ class Scenario(Base, UserDict, ScenarioHtmlMixin):
                 data = dict(data)
             except Exception as e:
                 raise ScenarioError(
-                    f"You must pass in a dictionary to initialize a Scenario. You passed in {data}"
+                    f"You must pass in a dictionary to initialize a Scenario. You passed in {data}",
+                    "Exception message:" + str(e),
                 )
 
+        super().__init__()
         self.data = data if data is not None else {}
         self.name = name
 
