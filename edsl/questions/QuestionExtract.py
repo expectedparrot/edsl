@@ -8,7 +8,7 @@ from edsl.questions.descriptors import AnswerTemplateDescriptor
 
 from edsl.questions.ResponseValidatorABC import ResponseValidatorABC
 from edsl.questions.ResponseValidatorABC import BaseResponse
-from edsl.exceptions import QuestionAnswerValidationError
+from edsl.exceptions.questions import QuestionAnswerValidationError
 from edsl.questions.decorators import inject_exception
 
 from typing import Dict, Any

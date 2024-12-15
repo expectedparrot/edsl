@@ -3,11 +3,11 @@
 from typing import List, Union, Any, Optional
 from collections import defaultdict, UserList, namedtuple
 
-from edsl.exceptions import (
+from edsl.exceptions.surveys import (
     SurveyRuleCannotEvaluateError,
     SurveyRuleCollectionHasNoRulesAtNodeError,
 )
-from edsl.utilities.interface import print_table_with_rich
+
 from edsl.surveys.Rule import Rule
 from edsl.surveys.base import EndOfSurvey
 from edsl.surveys.DAG import DAG

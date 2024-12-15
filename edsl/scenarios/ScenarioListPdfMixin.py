@@ -1,22 +1,9 @@
-import fitz  # PyMuPDF
 import os
-import copy
-import subprocess
-import requests
-import tempfile
-import os
-
-# import urllib.parse as urlparse
-from urllib.parse import urlparse
-
-# from edsl import Scenario
-
-import requests
 import re
-import tempfile
-import os
+import copy
 import atexit
-from urllib.parse import urlparse, parse_qs
+import tempfile
+import subprocess
 
 
 class GoogleDriveDownloader:
@@ -25,6 +12,8 @@ class GoogleDriveDownloader:
 
     @classmethod
     def fetch_from_drive(cls, url, filename=None):
+        import requests
+
         # Extract file ID from the URL
         file_id = cls._extract_file_id(url)
         if not file_id:
@@ -67,6 +56,8 @@ class GoogleDriveDownloader:
 
     @staticmethod
     def _extract_file_id(url):
+        from urllib.parse import urlparse, parse_qs
+
         # Try to extract file ID from '/file/d/' format
         file_id_match = re.search(r"/d/([a-zA-Z0-9-_]+)", url)
         if file_id_match:
@@ -92,6 +83,8 @@ class GoogleDriveDownloader:
 
 def fetch_and_save_pdf(url, filename):
     # Send a GET request to the URL
+    import requests
+
     response = requests.get(url)
 
     # Check if the request was successful
@@ -112,11 +105,6 @@ def fetch_and_save_pdf(url, filename):
         # The file will be automatically deleted when you exit this block
 
     return temp_file_path
-
-
-# Example usage:
-# url = "https://example.com/sample.pdf"
-# fetch_and_save_pdf(url, "sample.pdf")
 
 
 class ScenarioListPdfMixin:
@@ -151,6 +139,8 @@ class ScenarioListPdfMixin:
 
     @staticmethod
     def is_url(string):
+        from urllib.parse import urlparse
+
         try:
             result = urlparse(string)
             return all([result.scheme, result.netloc])
@@ -189,7 +179,8 @@ class ScenarioListPdfMixin:
 
     @staticmethod
     def extract_text_from_pdf(pdf_path):
-        from edsl import Scenario
+        from edsl.scenarios.Scenario import Scenario
+        import fitz  # PyMuPDF
 
         # TODO: Add test case
         # Ensure the file exists
@@ -243,19 +234,6 @@ class ScenarioListPdfMixin:
 
 
 if __name__ == "__main__":
-    pass
+    import doctest
 
-    # from edsl import ScenarioList
-
-    # class ScenarioListNew(ScenarioList, ScenaroListPdfMixin):
-    #     pass
-
-    # #ScenarioListNew.create_hello_world_pdf('hello_world')
-    # #scenarios = ScenarioListNew.from_pdf('hello_world.pdf')
-    # #print(scenarios)
-
-    # from edsl import ScenarioList, QuestionFreeText
-    # homo_silicus = ScenarioList.from_pdf('w31122.pdf')
-    # q = QuestionFreeText(question_text = "What is the key point of the text in {{ text }}?", question_name = "key_point")
-    # results = q.by(homo_silicus).run(progress_bar = True)
-    # results.select('scenario.page', 'answer.key_point').order_by('page').print()
+    doctest.testmod()

@@ -1,5 +1,5 @@
+from typing import TYPE_CHECKING
 from dataclasses import dataclass
-from edsl.questions.QuestionBase import QuestionBase
 
 
 @dataclass
@@ -32,20 +32,20 @@ class InstructionHandler:
         >>> from edsl import QuestionFreeText; q1 = QuestionFreeText.example()
         >>> from edsl import QuestionMultipleChoice; q2 = QuestionMultipleChoice.example()
         >>> s = Survey([q1, i, i2, q2])
-        >>> len(s.instruction_names_to_instructions)
+        >>> len(s._instruction_names_to_instructions)
         2
-        >>> s.pseudo_indices
+        >>> s._pseudo_indices
         {'how_are_you': 0, 'intro': 0.5, 'followon_intro': 0.75, 'how_feeling': 1}
 
         >>> from edsl import ChangeInstruction
         >>> q3 = QuestionFreeText(question_text = "What is your favorite color?", question_name = "color")
         >>> i_change = ChangeInstruction(drop = ["intro"])
         >>> s = Survey([q1, i, q2, i_change, q3])
-        >>> [i.name for i in s.relevant_instructions(q1)]
+        >>> [i.name for i in s._relevant_instructions(q1)]
         []
-        >>> [i.name for i in s.relevant_instructions(q2)]
+        >>> [i.name for i in s._relevant_instructions(q2)]
         ['intro']
-        >>> [i.name for i in s.relevant_instructions(q3)]
+        >>> [i.name for i in s._relevant_instructions(q3)]
         []
 
         >>> i_change = ChangeInstruction(keep = ["poop"], drop = [])
@@ -56,6 +56,7 @@ class InstructionHandler:
         """
         from edsl.surveys.instructions.Instruction import Instruction
         from edsl.surveys.instructions.ChangeInstruction import ChangeInstruction
+        from edsl.questions.QuestionBase import QuestionBase
 
         true_questions = []
         instruction_names_to_instructions = {}

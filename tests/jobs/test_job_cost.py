@@ -1,7 +1,7 @@
-from edsl import Model
+from edsl.language_models.registry import Model
 from edsl.jobs.Jobs import Jobs
-from edsl.questions import QuestionFreeText
-from edsl.surveys import Survey
+from edsl.questions.QuestionFreeText import QuestionFreeText
+from edsl.surveys.Survey import Survey
 
 price_lookup = {
     ("test", "test"): {

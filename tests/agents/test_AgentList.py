@@ -1,5 +1,6 @@
 import unittest
-from edsl.agents import AgentList, Agent
+from edsl.agents.Agent import Agent
+from edsl.agents.AgentList import AgentList
 
 
 class TestAgentList(unittest.TestCase):

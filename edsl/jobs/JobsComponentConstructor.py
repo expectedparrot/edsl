@@ -1,32 +1,27 @@
 from typing import Union, Sequence, TYPE_CHECKING
 
-from edsl.agents.Agent import Agent
-from edsl.agents.AgentList import AgentList
-from edsl.language_models.LanguageModel import LanguageModel
-from edsl.scenarios.Scenario import Scenario
-from edsl.scenarios.ScenarioList import ScenarioList
-from edsl.surveys.Survey import Survey
-from edsl.results.Results import Results
-from edsl.results.Dataset import Dataset
-from edsl.language_models.ModelList import ModelList
-from edsl.jobs.Jobs import Jobs
+if TYPE_CHECKING:
+    from edsl.agents.Agent import Agent
+    from edsl.language_models.LanguageModel import LanguageModel
+    from edsl.scenarios.Scenario import Scenario
+    from edsl.jobs.Jobs import Jobs
 
 
 class JobsComponentConstructor:
     "Handles the creation of Agents, Scenarios, and LanguageModels in a job."
 
-    def __init__(self, jobs):
+    def __init__(self, jobs: "Jobs"):
         self.jobs = jobs
 
     def by(
         self,
         *args: Union[
-            Agent,
-            Scenario,
-            LanguageModel,
+            "Agent",
+            "Scenario",
+            "LanguageModel",
             Sequence[Union["Agent", "Scenario", "LanguageModel"]],
         ],
-    ) -> Jobs:
+    ) -> "Jobs":
         """
         Add Agents, Scenarios and LanguageModels to a job.
 
@@ -37,9 +32,10 @@ class JobsComponentConstructor:
 
         This 'by' is intended to create a fluent interface.
 
-        >>> from edsl import Survey
-        >>> from edsl import QuestionFreeText
+        >>> from edsl.surveys import Survey
+        >>> from edsl.questions import QuestionFreeText
         >>> q = QuestionFreeText(question_name="name", question_text="What is your name?")
+        >>> from edsl.jobs import Jobs
         >>> j = Jobs(survey = Survey(questions=[q]))
         >>> j
         Jobs(survey=Survey(...), agents=AgentList([]), models=ModelList([]), scenarios=ScenarioList([]))
@@ -156,7 +152,7 @@ class JobsComponentConstructor:
 
         For example, if the user passes in 3 agents,
         and there are 2 existing agents, this will create 6 new agents
-
+        >>> from edsl.jobs import Jobs
         >>> JobsComponentConstructor(Jobs(survey = []))._merge_objects([1,2,3], [4,5,6])
         [5, 6, 7, 6, 7, 8, 7, 8, 9]
         """

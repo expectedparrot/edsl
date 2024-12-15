@@ -1,23 +1,12 @@
 from __future__ import annotations
-from typing import Optional
-from abc import ABC
-from typing import Any, List
-
-from jinja2 import Environment, FileSystemLoader
-from typing import Union, Dict
+from typing import Any, List, Union, Dict, Optional
 from pathlib import Path
 
-from rich.table import Table
-from jinja2 import Template, Environment, meta, TemplateSyntaxError, Undefined
-
-
-class PreserveUndefined(Undefined):
-    def __str__(self):
-        return "{{ " + str(self._undefined_name) + " }}"
+# from jinja2 import Undefined
 
 
 from edsl.exceptions.prompts import TemplateRenderError
-from edsl.Base import PersistenceMixin, RichPrintingMixin, RepresentationMixin
+from edsl.Base import PersistenceMixin, RepresentationMixin
 
 MAX_NESTING = 100
 
@@ -174,6 +163,12 @@ class Prompt(PersistenceMixin, RepresentationMixin):
         :param template: The template to find the variables in.
 
         """
+        from jinja2 import Environment, meta, Undefined
+
+        class PreserveUndefined(Undefined):
+            def __str__(self):
+                return "{{ " + str(self._undefined_name) + " }}"
+
         env = Environment(undefined=PreserveUndefined)
         ast = env.parse(template)
         return list(meta.find_undeclared_variables(ast))
@@ -262,6 +257,12 @@ class Prompt(PersistenceMixin, RepresentationMixin):
         >>> p.render({"name": "John", "age": 44}, codebook=codebook)
         Prompt(text=\"""You are an agent named John. Age: 44\""")
         """
+        from jinja2 import Environment, meta, TemplateSyntaxError, Undefined
+
+        class PreserveUndefined(Undefined):
+            def __str__(self):
+                return "{{ " + str(self._undefined_name) + " }}"
+
         env = Environment(undefined=PreserveUndefined)
         try:
             previous_text = None
@@ -312,18 +313,18 @@ class Prompt(PersistenceMixin, RepresentationMixin):
         # class_name = data["class_name"]
         return Prompt(text=data["text"])
 
-    def rich_print(self):
-        """Display an object as a table."""
-        table = Table(title="Prompt")
-        table.add_column("Attribute", style="bold")
-        table.add_column("Value")
+    # def rich_print(self):
+    #     """Display an object as a table."""
+    #     table = Table(title="Prompt")
+    #     table.add_column("Attribute", style="bold")
+    #     table.add_column("Value")
 
-        to_display = self.__dict__.copy()
-        for attr_name, attr_value in to_display.items():
-            table.add_row(attr_name, repr(attr_value))
-        table.add_row("Component type", str(self.component_type))
-        table.add_row("Model", str(getattr(self, "model", "Not specified")))
-        return table
+    #     to_display = self.__dict__.copy()
+    #     for attr_name, attr_value in to_display.items():
+    #         table.add_row(attr_name, repr(attr_value))
+    #     table.add_row("Component type", str(self.component_type))
+    #     table.add_row("Model", str(getattr(self, "model", "Not specified")))
+    #     return table
 
     @classmethod
     def example(cls):

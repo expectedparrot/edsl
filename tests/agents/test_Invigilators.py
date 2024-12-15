@@ -2,6 +2,7 @@ import pytest
 import unittest
 from unittest.mock import Mock
 from edsl.agents.Invigilator import InvigilatorHuman
+from edsl.surveys.Survey import Survey
 
 
 class TestInvigilatorHuman(unittest.TestCase):
@@ -14,8 +15,6 @@ class TestInvigilatorHuman(unittest.TestCase):
         model = Mock()
         memory_plan = Mock()
         current_answers = Mock()
-
-        from edsl import Survey
 
         invigilator = InvigilatorHuman(
             agent=agent,

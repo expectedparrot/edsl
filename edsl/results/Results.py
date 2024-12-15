@@ -9,13 +9,7 @@ import random
 from collections import UserList, defaultdict
 from typing import Optional, Callable, Any, Type, Union, List, TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from edsl import Survey, Cache, AgentList, ModelList, ScenarioList
-    from edsl.results.Result import Result
-    from edsl.jobs.tasks.TaskHistory import TaskHistory
-
-from simpleeval import EvalWithCompoundTypes
-
+from edsl.Base import Base
 from edsl.exceptions.results import (
     ResultsError,
     ResultsBadMutationstringError,
@@ -26,25 +20,27 @@ from edsl.exceptions.results import (
     ResultsDeserializationError,
 )
 
-from edsl.results.ResultsExportMixin import ResultsExportMixin
-from edsl.results.ResultsToolsMixin import ResultsToolsMixin
+if TYPE_CHECKING:
+    from edsl.surveys.Survey import Survey
+    from edsl.data.Cache import Cache
+    from edsl.agents.AgentList import AgentList
+    from edsl.language_models.registry import Model
+    from edsl.scenarios.ScenarioList import ScenarioList
+    from edsl.results.Result import Result
+    from edsl.jobs.tasks.TaskHistory import TaskHistory
+    from edsl.language_models.ModelList import ModelList
+    from simpleeval import EvalWithCompoundTypes
 
+from edsl.results.ResultsExportMixin import ResultsExportMixin
 from edsl.results.ResultsGGMixin import ResultsGGMixin
 from edsl.results.ResultsFetchMixin import ResultsFetchMixin
-
-from edsl.utilities.decorators import remove_edsl_version
-from edsl.utilities.utilities import dict_hash
-
-
-from edsl.Base import Base
+from edsl.utilities.remove_edsl_version import remove_edsl_version
 
 
 class Mixins(
     ResultsExportMixin,
-    # ResultsDBMixin,
     ResultsFetchMixin,
     ResultsGGMixin,
-    # ResultsToolsMixin,
 ):
     def long(self):
         return self.table().long()
@@ -253,23 +249,23 @@ class Results(UserList, Mixins, Base):
 
         raise TypeError("Invalid argument type")
 
-    def _update_results(self) -> None:
-        from edsl import Agent, Scenario
-        from edsl.language_models import LanguageModel
-        from edsl.results import Result
+    # def _update_results(self) -> None:
+    #     from edsl import Agent, Scenario
+    #     from edsl.language_models import LanguageModel
+    #     from edsl.results import Result
 
-        if self._job_uuid and len(self.data) < self._total_results:
-            results = [
-                Result(
-                    agent=Agent.from_dict(json.loads(r.agent)),
-                    scenario=Scenario.from_dict(json.loads(r.scenario)),
-                    model=LanguageModel.from_dict(json.loads(r.model)),
-                    iteration=1,
-                    answer=json.loads(r.answer),
-                )
-                for r in CRUD.read_results(self._job_uuid)
-            ]
-            self.data = results
+    #     if self._job_uuid and len(self.data) < self._total_results:
+    #         results = [
+    #             Result(
+    #                 agent=Agent.from_dict(json.loads(r.agent)),
+    #                 scenario=Scenario.from_dict(json.loads(r.scenario)),
+    #                 model=LanguageModel.from_dict(json.loads(r.model)),
+    #                 iteration=1,
+    #                 answer=json.loads(r.answer),
+    #             )
+    #             for r in CRUD.read_results(self._job_uuid)
+    #         ]
+    #         self.data = results
 
     def __add__(self, other: Results) -> Results:
         """Add two Results objects together.
@@ -406,6 +402,8 @@ class Results(UserList, Mixins, Base):
         return self.task_history.has_unfixed_exceptions
 
     def __hash__(self) -> int:
+        from edsl.utilities.utilities import dict_hash
+
         return dict_hash(self.to_dict(sort=True, add_edsl_version=False))
 
     @property
@@ -452,24 +450,31 @@ class Results(UserList, Mixins, Base):
         >>> r == r2
         True
         """
-        from edsl import Survey, Cache
+        from edsl.surveys.Survey import Survey
+        from edsl.data.Cache import Cache
         from edsl.results.Result import Result
         from edsl.jobs.tasks.TaskHistory import TaskHistory
+        from edsl.agents.Agent import Agent
+
+        survey = Survey.from_dict(data["survey"])
+        results_data = [Result.from_dict(r) for r in data["data"]]
+        created_columns = data.get("created_columns", None)
+        cache = Cache.from_dict(data.get("cache")) if "cache" in data else Cache()
+        task_history = (
+            TaskHistory.from_dict(data.get("task_history"))
+            if "task_history" in data
+            else TaskHistory(interviews=[])
+        )
+        params = {
+            "survey": survey,
+            "data": results_data,
+            "created_columns": created_columns,
+            "cache": cache,
+            "task_history": task_history,
+        }
 
         try:
-            results = cls(
-                survey=Survey.from_dict(data["survey"]),
-                data=[Result.from_dict(r) for r in data["data"]],
-                created_columns=data.get("created_columns", None),
-                cache=(
-                    Cache.from_dict(data.get("cache")) if "cache" in data else Cache()
-                ),
-                task_history=(
-                    TaskHistory.from_dict(data.get("task_history"))
-                    if "task_history" in data
-                    else TaskHistory(interviews=[])
-                ),
-            )
+            results = cls(**params)
         except Exception as e:
             raise ResultsDeserializationError(f"Error in Results.from_dict: {e}")
         return results
@@ -549,7 +554,7 @@ class Results(UserList, Mixins, Base):
         answer_keys = self._data_type_to_keys["answer"]
         answer_keys = {k for k in answer_keys if "_comment" not in k}
         questions_text = [
-            self.survey.get_question(k).question_text for k in answer_keys
+            self.survey._get_question_by_name(k).question_text for k in answer_keys
         ]
         short_question_text = [shorten_string(q, 80) for q in questions_text]
         initial_dict = dict(zip(answer_keys, short_question_text))
@@ -566,7 +571,7 @@ class Results(UserList, Mixins, Base):
         >>> r.agents
         AgentList([Agent(traits = {'status': 'Joyful'}), Agent(traits = {'status': 'Joyful'}), Agent(traits = {'status': 'Sad'}), Agent(traits = {'status': 'Sad'})])
         """
-        from edsl import AgentList
+        from edsl.agents.AgentList import AgentList
 
         return AgentList([r.agent for r in self.data])
 
@@ -580,7 +585,7 @@ class Results(UserList, Mixins, Base):
         >>> r.models[0]
         Model(model_name = ...)
         """
-        from edsl import ModelList
+        from edsl.language_models.ModelList import ModelList
 
         return ModelList([r.model for r in self.data])
 
@@ -594,7 +599,7 @@ class Results(UserList, Mixins, Base):
         >>> r.scenarios
         ScenarioList([Scenario({'period': 'morning'}), Scenario({'period': 'afternoon'}), Scenario({'period': 'morning'}), Scenario({'period': 'afternoon'})])
         """
-        from edsl import ScenarioList
+        from edsl.scenarios.ScenarioList import ScenarioList
 
         return ScenarioList([r.scenario for r in self.data])
 
@@ -759,7 +764,7 @@ class Results(UserList, Mixins, Base):
     @staticmethod
     def _create_evaluator(
         result: Result, functions_dict: Optional[dict] = None
-    ) -> EvalWithCompoundTypes:
+    ) -> "EvalWithCompoundTypes":
         """Create an evaluator for the expression.
 
         >>> from unittest.mock import Mock
@@ -782,6 +787,8 @@ class Results(UserList, Mixins, Base):
         ...
         simpleeval.NameNotDefined: 'how_feeling' is not defined for expression 'how_feeling== 'OK''
         """
+        from simpleeval import EvalWithCompoundTypes
+
         if functions_dict is None:
             functions_dict = {}
         evaluator = EvalWithCompoundTypes(
@@ -1152,17 +1159,3 @@ if __name__ == "__main__":
     import doctest
 
     doctest.testmod(optionflags=doctest.ELLIPSIS)
-
-    from edsl import Results
-    from edsl.results.Result import Result
-    from edsl.agents.Agent import Agent
-    from edsl import Scenario
-    from edsl import Model
-    from edsl.language_models.LanguageModel import LanguageModel
-    from edsl.prompts.Prompt import Prompt
-    from edsl.surveys.Survey import Survey
-    from edsl import Question
-    from edsl.surveys.RuleCollection import RuleCollection
-    from edsl.surveys.Rule import Rule
-
-    assert eval(repr(Results.example())) == Results.example()

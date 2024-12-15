@@ -1,7 +1,6 @@
 from __future__ import annotations
 from typing import Optional, Generator, TYPE_CHECKING
 import copy
-import hashlib
 
 if TYPE_CHECKING:
     from edsl.scenarios.Scenario import Scenario
@@ -66,6 +65,7 @@ class DocumentChunker:
         If you specify `include_original=True`, the original field will be included in the new scenarios with an "_original" suffix.
         """
         from edsl.scenarios.ScenarioList import ScenarioList
+        import hashlib
 
         if num_words is not None:
             chunks = list(self._word_chunks(self.scenario[field], num_words))
@@ -95,3 +95,9 @@ class DocumentChunker:
                     new_scenario[field + "_original"] = self.scenario[field]
             scenarios.append(new_scenario)
         return ScenarioList(scenarios)
+
+
+if __name__ == "__main__":
+    import doctest
+
+    doctest.testmod()

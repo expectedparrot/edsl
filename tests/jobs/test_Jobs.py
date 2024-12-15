@@ -1,14 +1,23 @@
 import pytest
-from edsl.agents import Agent
-from edsl.exceptions import AgentCombinationError, JobsRunError
+from edsl.agents.Agent import Agent
+from edsl.exceptions.jobs import JobsRunError
+from edsl.exceptions.agents import AgentCombinationError
 from edsl.jobs.interviews.Interview import Interview
 from edsl.jobs.Jobs import Jobs, main
-from edsl.questions import QuestionMultipleChoice
-from edsl.scenarios import Scenario
-from edsl.surveys import Survey
-from edsl import Model
-from edsl import Question  # needed for the eval() of the repr() of the Job
-from edsl.language_models import LanguageModel
+from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
+from edsl.questions.QuestionFreeText import QuestionFreeText
+from edsl.scenarios.Scenario import Scenario
+from edsl.scenarios.ScenarioList import ScenarioList
+from edsl.surveys.Survey import Survey
+from edsl.language_models.registry import Model
+from edsl.questions.question_registry import (
+    Question,
+)  # needed for the eval() of the repr() of the Job
+from edsl.language_models.LanguageModel import LanguageModel
+from edsl.data.Cache import Cache
+
+from edsl.agents.AgentList import AgentList
+from edsl.language_models.ModelList import ModelList
 
 
 @pytest.fixture(scope="function")
@@ -43,9 +52,6 @@ def test_jobs_simple_stuf(valid_job):
     assert valid_job.scenarios[0].get("price") == 100
     # eval works and returns eval-able string
     assert "Jobs(survey=Survey(" in repr(valid_job)
-    from edsl import ScenarioList
-    from edsl import AgentList
-    from edsl import ModelList
 
     assert isinstance(eval(repr(valid_job)), Jobs)
     # serialization
@@ -61,7 +67,7 @@ def test_jobs_simple_stuf(valid_job):
 
 
 def test_jobs_by_agents():
-    from edsl import AgentList
+    from edsl.agents.AgentList import AgentList
 
     q = QuestionMultipleChoice(
         question_text="How are you?",
@@ -97,7 +103,6 @@ def test_jobs_by_scenarios():
         question_options=["Good", "Great", "OK", "Bad"],
         question_name="how_feeling",
     )
-    from edsl import ScenarioList
 
     survey = Survey(name="Test Survey", questions=[q])
     scenario1 = Scenario({"price": "100"})
@@ -126,10 +131,7 @@ def test_jobs_by_scenarios():
 
 
 def test_agent_info():
-    from edsl import Agent
-
     agent = Agent(traits={"first_name": "John"})
-    from edsl import QuestionFreeText
 
     q = QuestionFreeText(
         question_text="What is your name, {{ agent.first_name }}?", question_name="name"
@@ -139,8 +141,6 @@ def test_agent_info():
 
 
 def test_jobs_by_models():
-    from edsl import ModelList
-
     q = QuestionMultipleChoice(
         question_text="How are you?",
         question_options=["Good", "Great", "OK", "Bad"],
@@ -190,7 +190,6 @@ def test_jobs_interviews(valid_job):
 
 
 def test_jobs_run(valid_job):
-    from edsl.data.Cache import Cache
 
     cache = Cache()
 
@@ -242,7 +241,6 @@ def test_handle_model_exception():
     from edsl.enums import InferenceServiceType
     import asyncio
     from typing import Any
-    from edsl import Scenario
 
     from httpcore import ConnectionNotAvailable
     from edsl.questions import QuestionFreeText

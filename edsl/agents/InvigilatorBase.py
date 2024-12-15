@@ -1,21 +1,21 @@
 from abc import ABC, abstractmethod
 import asyncio
-from typing import Coroutine, Dict, Any, Optional
+from typing import Coroutine, Dict, Any, Optional, TYPE_CHECKING
 
-from edsl.prompts.Prompt import Prompt
 from edsl.utilities.decorators import jupyter_nb_handler
 from edsl.data_transfer_models import AgentResponseDict
 
-from edsl.data.Cache import Cache
-
-from edsl.questions.QuestionBase import QuestionBase
-from edsl.scenarios.Scenario import Scenario
-from edsl.surveys.MemoryPlan import MemoryPlan
-from edsl.language_models.LanguageModel import LanguageModel
+if TYPE_CHECKING:
+    from edsl.prompts.Prompt import Prompt
+    from edsl.data.Cache import Cache
+    from edsl.questions.QuestionBase import QuestionBase
+    from edsl.scenarios.Scenario import Scenario
+    from edsl.surveys.MemoryPlan import MemoryPlan
+    from edsl.language_models.LanguageModel import LanguageModel
+    from edsl.surveys.Survey import Survey
 
 from edsl.data_transfer_models import EDSLResultObjectInput
 from edsl.agents.PromptConstructor import PromptConstructor
-
 from edsl.agents.prompt_helpers import PromptPlan
 
 
@@ -36,16 +36,16 @@ class InvigilatorBase(ABC):
     def __init__(
         self,
         agent: "Agent",
-        question: QuestionBase,
-        scenario: Scenario,
-        model: LanguageModel,
-        memory_plan: MemoryPlan,
+        question: "QuestionBase",
+        scenario: "Scenario",
+        model: "LanguageModel",
+        memory_plan: "MemoryPlan",
         current_answers: dict,
         survey: Optional["Survey"],
-        cache: Optional[Cache] = None,
+        cache: Optional["Cache"] = None,
         iteration: Optional[int] = 1,
         additional_prompt_data: Optional[dict] = None,
-        sidecar_model: Optional[LanguageModel] = None,
+        sidecar_model: Optional["LanguageModel"] = None,
         raise_validation_errors: Optional[bool] = True,
         prompt_plan: Optional["PromptPlan"] = None,
     ):
@@ -177,8 +177,9 @@ class InvigilatorBase(ABC):
         }
         return EDSLResultObjectInput(**data)
 
-    def get_prompts(self) -> Dict[str, Prompt]:
+    def get_prompts(self) -> Dict[str, "Prompt"]:
         """Return the prompt used."""
+        from edsl.prompts.Prompt import Prompt
 
         return {
             "user_prompt": Prompt("NA"),
@@ -212,22 +213,16 @@ class InvigilatorBase(ABC):
 
         """
         from edsl.agents.Agent import Agent
-        from edsl.questions import QuestionMultipleChoice
         from edsl.scenarios.Scenario import Scenario
-        from edsl.language_models import LanguageModel
         from edsl.surveys.MemoryPlan import MemoryPlan
-
-        from edsl.enums import InferenceServiceType
-
-        from edsl import Model
+        from edsl.language_models.registry import Model
+        from edsl.surveys.Survey import Survey
 
         model = Model("test", canned_response="SPAM!")
 
         if throw_an_exception:
             model.throw_an_exception = True
         agent = Agent.example()
-        # question = QuestionMultipleChoice.example()
-        from edsl.surveys import Survey
 
         if not survey:
             survey = Survey.example()
@@ -237,12 +232,8 @@ class InvigilatorBase(ABC):
 
         question = question or survey.questions[0]
         scenario = scenario or Scenario.example()
-        # memory_plan = None #memory_plan = MemoryPlan()
-        from edsl import Survey
-
         memory_plan = MemoryPlan(survey=survey)
         current_answers = None
-        from edsl.agents.PromptConstructor import PromptConstructor
 
         class InvigilatorExample(InvigilatorBase):
             """An example invigilator."""

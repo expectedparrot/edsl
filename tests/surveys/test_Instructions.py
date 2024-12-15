@@ -1,8 +1,8 @@
 import pytest
-from edsl import Survey
+from edsl.surveys.Survey import Survey
 from edsl.surveys.instructions.Instruction import Instruction
 from edsl.surveys.instructions.ChangeInstruction import ChangeInstruction
-from edsl import QuestionFreeText, QuestionMultipleChoice
+from edsl.questions import QuestionFreeText, QuestionMultipleChoice
 
 
 def test_instructions():
@@ -16,7 +16,7 @@ def test_instructions():
     s = Survey([q1, i, i2, q2])
 
     # instructions, change = s.instructions._entries_before("how_feeling")
-    instructions, change = s.relevant_instructions_dict._entries_before("how_feeling")
+    instructions, change = s._relevant_instructions_dict._entries_before("how_feeling")
     assert [x.name for x in instructions] == ["intro", "followon_intro"]
 
 
@@ -31,9 +31,9 @@ def test_change_instruction_drop():
     i_change = ChangeInstruction(drop=["intro"])
     s = Survey([q1, i, q2, i_change, q3])
 
-    assert [i.name for i in s.relevant_instructions("how_are_you")] == []
-    assert [i.name for i in s.relevant_instructions("how_feeling")] == ["intro"]
-    assert [i.name for i in s.relevant_instructions("color")] == []
+    assert [i.name for i in s._relevant_instructions("how_are_you")] == []
+    assert [i.name for i in s._relevant_instructions("how_feeling")] == ["intro"]
+    assert [i.name for i in s._relevant_instructions("color")] == []
 
 
 def test_change_instruction_keep():
@@ -47,9 +47,9 @@ def test_change_instruction_keep():
     i_change_keep = ChangeInstruction(keep=["intro"])
     s = Survey([q1, i, q2, i_change_keep, q3])
 
-    assert [i.name for i in s.relevant_instructions("how_are_you")] == []
-    assert [i.name for i in s.relevant_instructions("how_feeling")] == ["intro"]
-    assert [i.name for i in s.relevant_instructions("color")] == ["intro"]
+    assert [i.name for i in s._relevant_instructions("how_are_you")] == []
+    assert [i.name for i in s._relevant_instructions("how_feeling")] == ["intro"]
+    assert [i.name for i in s._relevant_instructions("color")] == ["intro"]
 
 
 def test_serialization():

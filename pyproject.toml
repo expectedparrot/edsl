@@ -48,6 +48,8 @@ mistralai = "^1.0.2"
 urllib3 = ">=1.25.4,<1.27"
 google-generativeai = "^0.8.2"
 tabulate = "^0.9.0"
+pypdf2 = "^3.0.1"
+python-pptx = "^1.0.2"
 
 [tool.poetry.dependencies.black]
 extras = ["jupyter"]
@@ -81,3 +83,8 @@ uvicorn = "^0.30.6"
 
 [tool.tomlsort.overrides."tool.poetry.dependencies"]
 table_keys = false
+
+
+[project.entry-points."edsl.scenarios.file_handlers"]
+pdf = "edsl.scenarios.handlers.pdf:PdfMethods"
+docx = "edsl.scenarios.handlers.docx:DocxMethods"

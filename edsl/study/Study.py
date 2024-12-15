@@ -7,7 +7,9 @@ import socket
 from datetime import datetime
 from typing import Dict, Optional, Union
 from uuid import UUID, uuid4
-from edsl import Cache, set_session_cache, unset_session_cache
+
+from edsl.data.Cache import Cache
+from edsl import set_session_cache, unset_session_cache
 from edsl.utilities.utilities import dict_hash
 from edsl.study.ObjectEntry import ObjectEntry
 from edsl.study.ProofOfWork import ProofOfWork
@@ -405,7 +407,7 @@ class Study:
 
         study_file = tempfile.NamedTemporaryFile()
         with cls(filename=study_file.name, verbose=verbose) as study:
-            from edsl import QuestionFreeText
+            from edsl.questions.QuestionFreeText import QuestionFreeText
 
             q = QuestionFreeText.example(randomize=randomize)
         return study
@@ -464,7 +466,7 @@ class Study:
     def push(self) -> dict:
         """Push the objects to coop."""
 
-        from edsl import Coop
+        from edsl.coop.coop import Coop
 
         coop = Coop()
         return coop.create(self, description=self.description)
@@ -517,12 +519,3 @@ if __name__ == "__main__":
     import doctest
 
     doctest.testmod(optionflags=doctest.ELLIPSIS)
-
-    # with Study(name = "cool_study") as study:
-    #      from edsl import QuestionFreeText
-    #      q = QuestionFreeText.example()
-
-    # assert len(study.objects) == 1
-
-    # print(study.versions())
-    # {'q': [ObjectEntry(variable_name='q', object=Question('free_text', question_name = """how_are_you""", question_text = """How are you?"""), description='Question name: how_are_you', coop_info=None, created_at=1720276402.561273, edsl_class_name='QuestionFreeText')]}

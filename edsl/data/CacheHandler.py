@@ -3,19 +3,19 @@ import ast
 import json
 import os
 import shutil
-import sqlite3
-from edsl.config import CONFIG
-from edsl.data.Cache import Cache
-from edsl.data.CacheEntry import CacheEntry
-from edsl.data.SQLiteDict import SQLiteDict
+from typing import TYPE_CHECKING
 
-from edsl.config import CONFIG
+if TYPE_CHECKING:
+    from edsl.data.Cache import Cache
+    from edsl.data.CacheEntry import CacheEntry
 
 
-def set_session_cache(cache: Cache) -> None:
+def set_session_cache(cache: "Cache") -> None:
     """
     Set the session cache.
     """
+    from edsl.config import CONFIG
+
     CONFIG.EDSL_SESSION_CACHE = cache
 
 
@@ -23,6 +23,8 @@ def unset_session_cache() -> None:
     """
     Unset the session cache.
     """
+    from edsl.config import CONFIG
+
     if hasattr(CONFIG, "EDSL_SESSION_CACHE"):
         del CONFIG.EDSL_SESSION_CACHE
 
@@ -32,7 +34,11 @@ class CacheHandler:
     This CacheHandler figures out what caches are available and does migrations, as needed.
     """
 
-    CACHE_PATH = CONFIG.get("EDSL_DATABASE_PATH")
+    @property
+    def CACHE_PATH(self):
+        from edsl.config import CONFIG
+
+        return CONFIG.get("EDSL_DATABASE_PATH")
 
     def __init__(self, test: bool = False):
         self.test = test
@@ -52,15 +58,23 @@ class CacheHandler:
             if notify:
                 print(f"Created cache directory: {dir_path}")
 
-    def gen_cache(self) -> Cache:
+    def gen_cache(self) -> "Cache":
         """
         Generate a Cache object.
         """
+        from edsl.data.Cache import Cache
+
         if self.test:
             return Cache(data={})
 
+        # if self.CACHE_PATH is not None:
+        #    return self.CACHE_PATH
+        from edsl.config import CONFIG
+
         if hasattr(CONFIG, "EDSL_SESSION_CACHE"):
             return CONFIG.EDSL_SESSION_CACHE
+
+        from edsl.data.SQLiteDict import SQLiteDict
 
         cache = Cache(data=SQLiteDict(self.CACHE_PATH))
         return cache
@@ -76,6 +90,8 @@ class CacheHandler:
         if not os.path.exists(os.path.join(os.getcwd(), path)):
             return old_data
         try:
+            import sqlite3
+
             conn = sqlite3.connect(path)
             with conn:
                 cur = conn.cursor()
@@ -108,6 +124,8 @@ class CacheHandler:
         entry_dict["user_prompt"] = entry_dict.pop("prompt")
         parameters = entry_dict["parameters"]
         entry_dict["parameters"] = ast.literal_eval(parameters)
+        from edsl.data.CacheEntry import CacheEntry
+
         entry = CacheEntry(**entry_dict)
         return entry
 
@@ -117,7 +135,7 @@ class CacheHandler:
     ###############
     # NOT IN USE
     ###############
-    def from_sqlite(uri="new_edsl_cache.db") -> dict[str, CacheEntry]:
+    def from_sqlite(uri="new_edsl_cache.db") -> dict[str, "CacheEntry"]:
         """
         Read in a new-style sqlite cache and return a dictionary of dictionaries.
         """
@@ -131,7 +149,7 @@ class CacheHandler:
                 newdata[entry.key] = entry
         return newdata
 
-    def from_jsonl(filename="edsl_cache.jsonl") -> dict[str, CacheEntry]:
+    def from_jsonl(filename="edsl_cache.jsonl") -> dict[str, "CacheEntry"]:
         """Read in a jsonl file and return a dictionary of CacheEntry objects."""
         with open(filename, "a+") as f:
             f.seek(0)
@@ -146,4 +164,7 @@ class CacheHandler:
 
 
 if __name__ == "__main__":
-    ch = CacheHandler()
+    # ch = CacheHandler()
+    import doctest
+
+    doctest.testmod()

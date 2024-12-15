@@ -1,7 +1,7 @@
 import time
 import webbrowser
 from typing import Any, Dict, Optional, Type
-from edsl import QuestionBase
+from edsl.questions.QuestionBase import QuestionBase
 from edsl.Base import RegisterSubclassesMeta
 
 

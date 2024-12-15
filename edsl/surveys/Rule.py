@@ -21,13 +21,13 @@ import ast
 import random
 from typing import Any, Union, List
 
-from jinja2 import Template
-from rich import print
+
+# from rich import print
 from simpleeval import EvalWithCompoundTypes
 
 from edsl.exceptions.surveys import SurveyError
 
-from edsl.exceptions import (
+from edsl.exceptions.surveys import (
     SurveyRuleCannotEvaluateError,
     SurveyRuleCollectionHasNoRulesAtNodeError,
     SurveyRuleRefersToFutureStateError,
@@ -37,7 +37,7 @@ from edsl.exceptions import (
 )
 from edsl.surveys.base import EndOfSurvey
 from edsl.utilities.ast_utilities import extract_variable_names
-from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
+from edsl.utilities.remove_edsl_version import remove_edsl_version
 
 
 class QuestionIndex:
@@ -253,6 +253,7 @@ class Rule:
         ...
         edsl.exceptions.surveys.SurveyRuleCannotEvaluateError...
         """
+        from jinja2 import Template
 
         def substitute_in_answers(expression, current_info_env):
             """Take the dictionary of answers and substitute them into the expression."""

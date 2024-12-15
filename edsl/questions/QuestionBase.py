@@ -3,15 +3,11 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Any, Type, Optional, List, Callable, Union, TypedDict
-import copy
 
-from edsl.exceptions import (
-    QuestionResponseValidationError,
-    QuestionAnswerValidationError,
+from edsl.exceptions.questions import (
     QuestionSerializationError,
 )
 from edsl.questions.descriptors import QuestionNameDescriptor, QuestionTextDescriptor
-
 
 from edsl.questions.AnswerValidatorMixin import AnswerValidatorMixin
 from edsl.questions.RegisterQuestionsMeta import RegisterQuestionsMeta
@@ -21,7 +17,7 @@ from edsl.BaseDiff import BaseDiff, BaseDiffCollection
 from edsl.questions.SimpleAskMixin import SimpleAskMixin
 from edsl.questions.QuestionBasePromptsMixin import QuestionBasePromptsMixin
 from edsl.questions.QuestionBaseGenMixin import QuestionBaseGenMixin
-from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
+from edsl.utilities.remove_edsl_version import remove_edsl_version
 
 
 class QuestionBase(
@@ -93,8 +89,8 @@ class QuestionBase(
         self, answer: dict, replacement_dict: dict = None
     ) -> ValidatedAnswer:
         """Validate the answer.
-        >>> from edsl.exceptions import QuestionAnswerValidationError
-        >>> from edsl import QuestionFreeText as Q
+        >>> from edsl.exceptions.questions import QuestionAnswerValidationError
+        >>> from edsl.questions import QuestionFreeText as Q
         >>> Q.example()._validate_answer({'answer': 'Hello', 'generated_tokens': 'Hello'})
         {'answer': 'Hello', 'generated_tokens': 'Hello'}
         """
@@ -121,7 +117,7 @@ class QuestionBase(
     def data(self) -> dict:
         """Return a dictionary of question attributes **except** for question_type.
 
-        >>> from edsl import QuestionFreeText as Q
+        >>> from edsl.questions import QuestionFreeText as Q
         >>> Q.example().data
         {'question_name': 'how_are_you', 'question_text': 'How are you?'}
         """
@@ -166,7 +162,7 @@ class QuestionBase(
     def to_dict(self, add_edsl_version=True):
         """Convert the question to a dictionary that includes the question type (used in deserialization).
 
-        >>> from edsl import QuestionFreeText as Q; Q.example().to_dict(add_edsl_version = False)
+        >>> from edsl.questions import QuestionFreeText as Q; Q.example().to_dict(add_edsl_version = False)
         {'question_name': 'how_are_you', 'question_text': 'How are you?', 'question_type': 'free_text'}
         """
         candidate_data = self.data.copy()
@@ -247,7 +243,7 @@ class QuestionBase(
         Dataset([{'answer.how_are_you': ["Yo, what's up?"]}])
         """
         if model is None:
-            from edsl import Model
+            from edsl.language_models.registry import Model
 
             model = Model()
         results = (
@@ -315,7 +311,7 @@ class QuestionBase(
         """Call the question asynchronously.
 
         >>> import asyncio
-        >>> from edsl import QuestionFreeText as Q
+        >>> from edsl.questions import QuestionFreeText as Q
         >>> m = Q._get_test_model(canned_response = "Blue")
         >>> q = Q(question_name = "color", question_text = "What is your favorite color?")
         >>> async def test_run_async(): result = await q.run_async(model=m, disable_remote_inference = True); print(result)
@@ -463,7 +459,7 @@ class QuestionBase(
 
     @classmethod
     def example_model(cls):
-        from edsl import Model
+        from edsl.language_models.registry import Model
 
         q = cls.example()
         m = Model("test", canned_response=cls._simulate_answer(q)["answer"])

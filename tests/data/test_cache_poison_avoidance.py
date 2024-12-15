@@ -5,12 +5,12 @@ from typing import Any
 from unittest.mock import Mock
 from edsl.agents.Invigilator import InvigilatorAI
 
-from edsl import Agent
+from edsl.agents.Agent import Agent
 from edsl.language_models import LanguageModel
 from edsl.enums import InferenceServiceType
 
 
-from edsl.data import Cache
+from edsl.data.Cache import Cache
 from edsl.prompts.Prompt import Prompt
 
 
@@ -30,28 +30,10 @@ class InvigilatorTest(InvigilatorAI):
         }
 
 
-# def test_bad_answer_not_cached():
-#     from edsl import Survey
-
-#     cache = Cache()
-#     from edsl.language_models import LanguageModel
-
-#     m = LanguageModel.example(test_model=True, canned_response="bad")
-#     results = q.by(m).run(cache=cache)
-#     results.select("answer.*").print()
-#     assert cache.data == {}
-
-#     m = LanguageModel.example(test_model=True, canned_response="1")
-#     results = q.by(m).run(cache=cache)
-#     results.select("answer.*").print()
-#     assert cache.data != {}
-
-
 def test_good_answer_cached():
     cache = Cache()
-    from edsl import Model
+    from edsl.language_models.registry import Model
 
-    # m = LanguageModel.example(test_model=True, canned_response="1")
     m = Model("test", canned_response=1)
     results = q.by(m).run(cache=cache)
     results.select("answer.*").print()
@@ -59,23 +41,3 @@ def test_good_answer_cached():
         assert cache.data != {}
     except AssertionError:
         raise Exception("Cache data is empty but should not be!")
-
-    # from edsl import Survey
-
-    # m = create_language_model(
-    #     exception=ValueError, fail_at_number=10, invalid_json=False
-    # )()
-    # i = InvigilatorTest(
-    #     agent=a,
-    #     model=m,
-    #     question=q,
-    #     scenario={},
-    #     memory_plan=Mock(),
-    #     current_answers={},
-    #     survey=Survey.example(),
-    #     cache=c,
-    # )
-
-    # response = i.answer_question()
-
-    # assert c.data != {}

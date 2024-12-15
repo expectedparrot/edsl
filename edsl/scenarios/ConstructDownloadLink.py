@@ -1,4 +1,3 @@
-from IPython.display import HTML
 import os
 import mimetypes
 
@@ -19,6 +18,12 @@ class ConstructDownloadLink:
         self.filestore = filestore
 
     def create_link(self, custom_filename=None, style=None):
+        from IPython.display import HTML
+
+        html = self.html_create_link(custom_filename, style)
+        return HTML(html)
+
+    def html_create_link(self, custom_filename=None, style=None):
         """
         Create an HTML download link for the file.
 
@@ -31,6 +36,7 @@ class ConstructDownloadLink:
         Returns:
             IPython.display.HTML: HTML object containing the download link
         """
+
         # Get filename from path or use custom filename
         original_filename = os.path.basename(self.filestore.path)
         filename = custom_filename or original_filename
@@ -64,8 +70,7 @@ class ConstructDownloadLink:
             Download {filename}
         </a>
         """
-
-        return HTML(html)
+        return html
 
     def create_multiple_links(self, files, custom_filenames=None, style=None):
         """
@@ -98,30 +103,7 @@ class ConstructDownloadLink:
         )
 
 
-# Example usage:
-"""
-# Create download link with default styling
-filestore_obj = FileStore.example()  # Your FileStore object
-download_link = ConstructDownloadLink(filestore_obj)
-display(download_link.create_link())
+if __name__ == "__main__":
+    import doctest
 
-# Create download link with custom styling
-custom_style = {
-    'background-color': '#007bff',
-    'color': 'white',
-    'padding': '12px 24px',
-    'border-radius': '8px'
-}
-display(download_link.create_link(
-    custom_filename='my_file.txt',
-    style=custom_style
-))
-
-# Create multiple download links
-files = [FileStore.example(), FileStore.example('csv')]
-custom_names = ['file1.txt', 'data.csv']
-display(download_link.create_multiple_links(
-    files,
-    custom_filenames=custom_names
-))
-"""
+    doctest.testmod()

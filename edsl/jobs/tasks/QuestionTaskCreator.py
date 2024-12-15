@@ -1,17 +1,17 @@
 import asyncio
-from typing import Callable, Union, List
+from typing import Callable, Union, List, TYPE_CHECKING
 from collections import UserList, UserDict
 
-from edsl.jobs.buckets import ModelBuckets
-from edsl.exceptions import InterviewErrorPriorTaskCanceled
+from edsl.exceptions.jobs import InterviewErrorPriorTaskCanceled
 
-from edsl.jobs.interviews.InterviewStatusDictionary import InterviewStatusDictionary
 from edsl.jobs.tasks.task_status_enum import TaskStatus, TaskStatusDescriptor
 from edsl.jobs.tasks.TaskStatusLog import TaskStatusLog
-from edsl.jobs.tokens.InterviewTokenUsage import InterviewTokenUsage
 from edsl.jobs.tokens.TokenUsage import TokenUsage
 from edsl.jobs.Answers import Answers
-from edsl.questions.QuestionBase import QuestionBase
+
+if TYPE_CHECKING:
+    from edsl.questions.QuestionBase import QuestionBase
+    from edsl.jobs.buckets import ModelBuckets
 
 
 class TokensUsed(UserDict):
@@ -24,7 +24,6 @@ class TokensUsed(UserDict):
 
 class QuestionTaskCreator(UserList):
     """Class to create and manage a single question and its dependencies.
-    The class is an instance of a UserList of tasks that must be completed before the focal task can be run.
 
     It is a UserList with all the tasks that must be completed before the focal task can be run.
     The focal task is the question that we are interested in answering.
@@ -35,9 +34,9 @@ class QuestionTaskCreator(UserList):
     def __init__(
         self,
         *,
-        question: QuestionBase,
+        question: "QuestionBase",
         answer_question_func: Callable,
-        model_buckets: ModelBuckets,
+        model_buckets: "ModelBuckets",
         token_estimator: Union[Callable, None] = None,
         iteration: int = 0,
     ):
@@ -51,7 +50,6 @@ class QuestionTaskCreator(UserList):
 
         """
         super().__init__([])
-        # answer_question_func is the 'interview.answer_question_and_record_task" method
         self.answer_question_func = answer_question_func
         self.question = question
         self.iteration = iteration
@@ -161,7 +159,7 @@ class QuestionTaskCreator(UserList):
     @classmethod
     def example(cls):
         """Return an example instance of the class."""
-        from edsl import QuestionFreeText
+        from edsl.questions.QuestionFreeText import QuestionFreeText
         from edsl.jobs.buckets.ModelBuckets import ModelBuckets
 
         m = ModelBuckets.infinity_bucket()

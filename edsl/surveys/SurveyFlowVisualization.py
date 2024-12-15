@@ -1,13 +1,15 @@
 """A mixin for visualizing the flow of a survey with parameter nodes."""
 
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 from edsl.surveys.base import RulePriority, EndOfSurvey
 import tempfile
-import os
 
 
-class SurveyFlowVisualizationMixin:
+class SurveyFlowVisualization:
     """A mixin for visualizing the flow of a survey with parameter visualization."""
+
+    def __init__(self, survey: "Survey"):
+        self.survey = survey
 
     def show_flow(self, filename: Optional[str] = None):
         """Create an image showing the flow of users through the survey and question parameters."""
@@ -22,7 +24,7 @@ class SurveyFlowVisualizationMixin:
         answer_refs = set()  # Track answer references between questions
 
         # First pass: collect parameters and their question associations
-        for index, question in enumerate(self.questions):
+        for index, question in enumerate(self.survey.questions):
             # Add the main question node
             question_node = pydot.Node(
                 f"Q{index}", label=f"{question.question_name}", shape="ellipse"
@@ -69,7 +71,7 @@ class SurveyFlowVisualizationMixin:
             # Find the source question index by name
             source_q_index = next(
                 i
-                for i, q in enumerate(self.questions)
+                for i, q in enumerate(self.survey.questions)
                 if q.question_name == source_q_name
             )
             ref_edge = pydot.Edge(
@@ -87,7 +89,7 @@ class SurveyFlowVisualizationMixin:
         )
 
         # Add edges for normal flow through the survey
-        num_questions = len(self.questions)
+        num_questions = len(self.survey.questions)
         for index in range(num_questions - 1):
             graph.add_edge(pydot.Edge(f"Q{index}", f"Q{index+1}"))
 
@@ -95,7 +97,7 @@ class SurveyFlowVisualizationMixin:
 
         relevant_rules = [
             rule
-            for rule in self.rule_collection
+            for rule in self.survey.rule_collection
             if rule.priority > RulePriority.DEFAULT.value
         ]
 
@@ -159,10 +161,10 @@ class SurveyFlowVisualizationMixin:
                         on Ubuntu.
                     """
                 )
-            from edsl.utilities.utilities import is_notebook
+            from edsl.utilities.is_notebook import is_notebook
 
             if is_notebook():
-                from IPython.display import Image
+                from IPython.display import Image, display
 
                 display(Image(tmp_file.name))
             else:

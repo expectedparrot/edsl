@@ -21,7 +21,7 @@ class QuestionBaseGenMixin:
     def option_permutations(self) -> list[QuestionBase]:
         """Return a list of questions with all possible permutations of the options.
 
-        >>> from edsl import QuestionMultipleChoice as Q
+        >>> from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice as Q
         >>> len(Q.example().option_permutations())
         24
         """
@@ -44,8 +44,8 @@ class QuestionBaseGenMixin:
 
         :param scenario_list: The list of scenarios to loop through.
 
-        >>> from edsl import QuestionFreeText
-        >>> from edsl import ScenarioList
+        >>> from edsl.questions.QuestionFreeText import QuestionFreeText
+        >>> from edsl.scenarios.ScenarioList import ScenarioList
         >>> q = QuestionFreeText(question_text = "What are your thoughts on: {{ subject}}?", question_name = "base_{{subject}}")
         >>> len(q.loop(ScenarioList.from_list("subject", ["Math", "Economics", "Chemistry"])))
         3
@@ -102,7 +102,7 @@ class QuestionBaseGenMixin:
     def render(self, replacement_dict: dict) -> "QuestionBase":
         """Render the question components as jinja2 templates with the replacement dictionary."""
         from jinja2 import Environment
-        from edsl import Scenario
+        from edsl.scenarios.Scenario import Scenario
 
         strings_only_replacement_dict = {
             k: v for k, v in replacement_dict.items() if not isinstance(v, Scenario)

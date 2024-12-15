@@ -1,6 +1,5 @@
 from typing import NamedTuple, Dict, List, Optional, Any
 from dataclasses import dataclass, fields
-import reprlib
 
 
 class ModelInputs(NamedTuple):
@@ -56,6 +55,8 @@ class ImageInfo:
     encoded_image: str
 
     def __repr__(self):
+        import reprlib
+
         reprlib_instance = reprlib.Repr()
         reprlib_instance.maxstring = 30  # Limit the string length for the encoded image
 

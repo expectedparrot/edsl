@@ -1,19 +1,21 @@
 from __future__ import annotations
 import asyncio
-from typing import Any, Type, List, Generator, Optional, Union
+from typing import Any, Type, List, Generator, Optional, Union, TYPE_CHECKING
 
-from edsl.questions import QuestionBase
-from edsl.jobs.tasks.QuestionTaskCreator import QuestionTaskCreator
-from edsl.jobs.tasks.TaskCreators import TaskCreators
-from edsl.jobs.interviews.InterviewStatusLog import InterviewStatusLog
-from edsl.jobs.tokens.InterviewTokenUsage import InterviewTokenUsage
-from edsl.jobs.interviews.InterviewStatusDictionary import InterviewStatusDictionary
+if TYPE_CHECKING:
+    from edsl.questions import QuestionBase
+    from edsl.jobs.tokens.InterviewTokenUsage import InterviewTokenUsage
+    from edsl.jobs.interviews.InterviewStatusDictionary import InterviewStatusDictionary
+    from edsl.jobs.interviews.InterviewStatusLog import InterviewStatusLog
 
 
 class InterviewTaskManager:
     """Handles creation and management of interview tasks."""
 
     def __init__(self, survey, iteration=0):
+        from edsl.jobs.tasks.TaskCreators import TaskCreators
+        from edsl.jobs.interviews.InterviewStatusLog import InterviewStatusLog
+
         self.survey = survey
         self.iteration = iteration
         self.task_creators = TaskCreators()
@@ -50,13 +52,15 @@ class InterviewTaskManager:
 
     def _create_single_task(
         self,
-        question: QuestionBase,
+        question: "QuestionBase",
         dependencies: list[asyncio.Task],
         answer_func,
         token_estimator,
         model_buckets,
     ) -> asyncio.Task:
         """Create a single question task with its dependencies."""
+        from edsl.jobs.tasks.QuestionTaskCreator import QuestionTaskCreator
+
         task_creator = QuestionTaskCreator(
             question=question,
             answer_question_func=answer_func,
@@ -72,7 +76,7 @@ class InterviewTaskManager:
         return task_creator.generate_task()
 
     @property
-    def task_status_logs(self) -> InterviewStatusLog:
+    def task_status_logs(self) -> "InterviewStatusLog":
         """Return the task status logs for the interview.
 
         The keys are the question names; the values are the lists of status log changes for each task.
@@ -84,11 +88,11 @@ class InterviewTaskManager:
         return self._task_status_log_dict
 
     @property
-    def token_usage(self) -> InterviewTokenUsage:
+    def token_usage(self) -> "InterviewTokenUsage":
         """Determine how many tokens were used for the interview."""
         return self.task_creators.token_usage
 
     @property
-    def interview_status(self) -> InterviewStatusDictionary:
+    def interview_status(self) -> "InterviewStatusDictionary":
         """Return a dictionary mapping task status codes to counts."""
         return self.task_creators.interview_status

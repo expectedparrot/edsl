@@ -5,7 +5,7 @@ from functools import lru_cache
 from dataclasses import dataclass, asdict
 
 from edsl.enums import service_to_api_keyname
-from edsl.exceptions import MissingAPIKeyError
+from edsl.exceptions.general import MissingAPIKeyError
 
 from edsl.language_models.key_management.KeyLookup import KeyLookup
 
@@ -158,7 +158,7 @@ class KeyLookupBuilder:
         return dict(list(c.fetch_rate_limit_config_vars().items()))
 
     def _config_key_value_pairs(self):
-        from edsl import CONFIG
+        from edsl.config import CONFIG
 
         return dict(list(CONFIG.items()))
 
