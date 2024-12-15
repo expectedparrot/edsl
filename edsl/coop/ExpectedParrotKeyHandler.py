@@ -49,7 +49,8 @@ class ExpectedParrotKeyHandler:
                 return api_key
 
         api_key = os.getenv("EXPECTED_PARROT_API_KEY")
-        _ = self.ask_to_store(api_key)
+        if api_key is not None:
+            _ = self.ask_to_store(api_key)
         return api_key
 
     def delete_ep_api_key(self):
