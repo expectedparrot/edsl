@@ -2,7 +2,7 @@
 
 import os
 from dotenv import load_dotenv, find_dotenv
-from edsl.exceptions import (
+from edsl.exceptions.configuration import (
     InvalidEnvironmentVariableError,
     MissingEnvironmentVariableError,
 )

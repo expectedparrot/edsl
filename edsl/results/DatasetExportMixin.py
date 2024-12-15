@@ -3,9 +3,9 @@
 import base64
 import csv
 import io
-import html
+import warnings
+import textwrap
 from typing import Optional, Tuple, Union, List
-from openpyxl import Workbook
 
 
 class DatasetExportMixin:
@@ -71,7 +71,7 @@ class DatasetExportMixin:
     def num_observations(self):
         """Return the number of observations in the dataset.
 
-        >>> from edsl.results import Results
+        >>> from edsl.results.Results import Results
         >>> Results.example().num_observations()
         4
         """
@@ -256,6 +256,8 @@ class DatasetExportMixin:
         Returns:
             FileStore: Instance containing the Excel data
         """
+        from openpyxl import Workbook
+
         if filename is None:
             filename = "results.xlsx"
         if sheet_name is None:
@@ -406,7 +408,8 @@ class DatasetExportMixin:
         >>> r.select('how_feeling').to_scenario_list()
         ScenarioList([Scenario({'how_feeling': 'OK'}), Scenario({'how_feeling': 'Great'}), Scenario({'how_feeling': 'Terrible'}), Scenario({'how_feeling': 'OK'})])
         """
-        from edsl import ScenarioList, Scenario
+        from edsl.scenarios.ScenarioList import ScenarioList
+        from edsl.scenarios.Scenario import Scenario
 
         list_of_dicts = self.to_dicts(remove_prefix=remove_prefix)
         scenarios = []
@@ -424,7 +427,8 @@ class DatasetExportMixin:
         >>> r.select('how_feeling').to_agent_list()
         AgentList([Agent(traits = {'how_feeling': 'OK'}), Agent(traits = {'how_feeling': 'Great'}), Agent(traits = {'how_feeling': 'Terrible'}), Agent(traits = {'how_feeling': 'OK'})])
         """
-        from edsl import AgentList, Agent
+        from edsl.agents import Agent
+        from edsl.agents.AgentList import AgentList
 
         list_of_dicts = self.to_dicts(remove_prefix=remove_prefix)
         agents = []
@@ -606,8 +610,6 @@ class DatasetExportMixin:
         if top_n is not None:
             sorted_tally = dict(list(sorted_tally.items())[:top_n])
 
-        import warnings
-        import textwrap
         from edsl.results.Dataset import Dataset
 
         if output == "dict":

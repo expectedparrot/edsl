@@ -9,7 +9,7 @@ from edsl.language_models.key_management.models import (
 
 from edsl.language_models.key_management.KeyLookupBuilder import KeyLookupBuilder
 
-from edsl.exceptions import MissingAPIKeyError
+from edsl.exceptions.general import MissingAPIKeyError
 
 
 @pytest.fixture

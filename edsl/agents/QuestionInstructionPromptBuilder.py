@@ -114,7 +114,7 @@ class QuestionInstructionPromptBuilder:
         Returns:
             Prompt: Final prompt with survey instructions
         """
-        relevant_instructions = self.survey.relevant_instructions(
+        relevant_instructions = self.survey._relevant_instructions(
             self.question.question_name
         )
 

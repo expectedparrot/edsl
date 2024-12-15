@@ -1,8 +1,9 @@
 import pytest
-from edsl.exceptions import QuestionScenarioRenderError
-from edsl.questions import QuestionFreeText
-from edsl.surveys import Survey
-
+from edsl.exceptions.questions import QuestionScenarioRenderError
+from edsl.questions.QuestionFreeText import QuestionFreeText
+from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
+from edsl.surveys.Survey import Survey
+from edsl.scenarios.Scenario import Scenario
 from edsl.exceptions.questions import QuestionMissingTypeError, QuestionBadTypeError
 
 valid_question = {
@@ -22,12 +23,9 @@ valid_question_three = {
 
 
 def test_parameters():
-    from edsl import QuestionFreeText
 
     q = QuestionFreeText(question_text="{{ poo}}", question_name="ugly_question")
     assert q.parameters == {"poo"}
-
-    from edsl import QuestionMultipleChoice
 
     q = QuestionMultipleChoice(
         question_text="{{ poo}}",
@@ -39,34 +37,6 @@ def test_parameters():
 
 def test_meta():
     pass
-
-    # from edsl.questions.QuestionBase import QuestionBase
-
-    # class ABCMixins:
-    #     _response_model = None
-    #     response_validator_class = None
-
-    #     def _validate_answer(self, answer: dict[str, str]):
-    #         pass
-
-    #     def _validate_response(self, response):
-    #         pass
-
-    #     def _translate_answer_code_to_answer(self):
-    #         pass
-
-    #     def _simulate_answer(self, human_readable=True) -> dict:
-    #         pass
-
-    # with pytest.raises(QuestionMissingTypeError):
-
-    #     class BadQuestion(ABCMixins, QuestionBase):
-    #         pass
-
-    # with pytest.raises(QuestionBadTypeError):
-
-    #     class BadQuestion(ABCMixins, QuestionBase):
-    #         question_type = "poop"
 
 
 def test_Question_properties(capsys):
@@ -100,7 +70,7 @@ def test_Question_properties(capsys):
 
 def test_hashing():
     # NB: Will break if a new question is added or one is removed
-    from edsl import Question
+    from edsl.questions.question_registry import Question
 
     examples = [
         Question.example(question_type)
@@ -113,7 +83,6 @@ def test_hashing():
 
 
 def test_validation_with_rendering():
-    from edsl import QuestionMultipleChoice, Scenario
 
     s = Scenario({"city": ["Paris", "London", "Berlin", "Madrid"]})
 

@@ -1,10 +1,13 @@
 import datetime
 import pytest
 import unittest
-from edsl import Cache, Coop, Survey
+from edsl.data.Cache import Cache
+from edsl.coop import Coop
+from edsl.surveys.Survey import Survey
 from edsl.data.CacheEntry import CacheEntry
-from edsl.questions import QuestionMultipleChoice
+from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
 from unittest.mock import patch, PropertyMock
+from edsl.language_models.LanguageModel import LanguageModel
 
 example_cache_entries = [
     CacheEntry(
@@ -55,7 +58,6 @@ def test_coop_remote_cache():
 class TestRemoteCacheWithJobs(unittest.TestCase):
 
     def setUp(self):
-        from edsl.language_models.LanguageModel import LanguageModel
 
         sky_model = LanguageModel.example(test_model=True, canned_response="blue")
         grass_model = LanguageModel.example(test_model=True, canned_response="green")

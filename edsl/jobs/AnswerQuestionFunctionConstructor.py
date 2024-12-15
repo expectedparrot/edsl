@@ -1,31 +1,17 @@
-import asyncio
 import copy
+import asyncio
 
-from typing import Union, Type, Callable
-from tenacity import (
-    retry,
-    stop_after_attempt,
-    wait_exponential,
-    retry_if_exception_type,
-    RetryError,
-)
+from typing import Union, Type, Callable, TYPE_CHECKING
 
-from edsl import CONFIG
-from edsl.questions.QuestionBase import QuestionBase
+if TYPE_CHECKING:
+    from edsl.questions.QuestionBase import QuestionBase
+
 from edsl.surveys.base import EndOfSurvey
-from edsl.jobs.interviews.InterviewExceptionEntry import InterviewExceptionEntry
 from edsl.jobs.tasks.task_status_enum import TaskStatus
-
-
-EDSL_BACKOFF_START_SEC = float(CONFIG.get("EDSL_BACKOFF_START_SEC"))
-EDSL_BACKOFF_MAX_SEC = float(CONFIG.get("EDSL_BACKOFF_MAX_SEC"))
-EDSL_MAX_ATTEMPTS = int(CONFIG.get("EDSL_MAX_ATTEMPTS"))
 
 from edsl.jobs.FetchInvigilator import FetchInvigilator
 from edsl.exceptions.language_models import LanguageModelNoResponseError
-
-from edsl.exceptions import QuestionAnswerValidationError
-from edsl.exceptions import QuestionAnswerValidationError
+from edsl.exceptions.questions import QuestionAnswerValidationError
 from edsl.data_transfer_models import AgentResponseDict, EDSLResultObjectInput
 
 from edsl.jobs.Answers import Answers
@@ -56,6 +42,8 @@ class AnswerQuestionFunctionConstructor:
     def _handle_exception(
         self, e: Exception, invigilator: "InvigilatorBase", task=None
     ):
+        from edsl.jobs.interviews.InterviewExceptionEntry import InterviewExceptionEntry
+
         answers = copy.copy(self.answers)  # copy to freeze the answers here for logging
         exception_entry = InterviewExceptionEntry(
             exception=e,
@@ -77,7 +65,7 @@ class AnswerQuestionFunctionConstructor:
         if stop_on_exception:
             raise e
 
-    def _cancel_skipped_questions(self, current_question: QuestionBase) -> None:
+    def _cancel_skipped_questions(self, current_question: "QuestionBase") -> None:
         current_question_index: int = self.interview.to_index[
             current_question.question_name
         ]
@@ -107,6 +95,20 @@ class AnswerQuestionFunctionConstructor:
             cancel_between(current_question_index + 1, next_question_index)
 
     def __call__(self):
+        from edsl.config import CONFIG
+
+        EDSL_BACKOFF_START_SEC = float(CONFIG.get("EDSL_BACKOFF_START_SEC"))
+        EDSL_BACKOFF_MAX_SEC = float(CONFIG.get("EDSL_BACKOFF_MAX_SEC"))
+        EDSL_MAX_ATTEMPTS = int(CONFIG.get("EDSL_MAX_ATTEMPTS"))
+
+        from tenacity import (
+            retry,
+            stop_after_attempt,
+            wait_exponential,
+            retry_if_exception_type,
+            RetryError,
+        )
+
         async def answer_question_and_record_task(
             *,
             question: "QuestionBase",

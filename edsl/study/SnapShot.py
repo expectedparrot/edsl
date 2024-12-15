@@ -32,7 +32,7 @@ class SnapShot:
         {'Cache': <class 'edsl.data.Cache.Cache'>}
         """
         from edsl.Base import RegisterSubclassesMeta
-        from edsl import QuestionBase
+        from edsl.questions.QuestionBase import QuestionBase
 
         all_edsl_objects = RegisterSubclassesMeta.get_registry()
 

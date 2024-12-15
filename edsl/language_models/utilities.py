@@ -1,13 +1,12 @@
 import asyncio
 from typing import Any, Optional, List
-from edsl import Survey
-from edsl.config import CONFIG
 from edsl.enums import InferenceServiceType
-from edsl.language_models.LanguageModel import LanguageModel
-from edsl.questions import QuestionFreeText
 
 
 def create_survey(num_questions: int, chained: bool = True, take_scenario=False):
+    from edsl.surveys.Survey import Survey
+    from edsl.questions.QuestionFreeText import QuestionFreeText
+
     survey = Survey()
     for i in range(num_questions):
         if take_scenario:
@@ -28,6 +27,8 @@ def create_survey(num_questions: int, chained: bool = True, take_scenario=False)
 def create_language_model(
     exception: Exception, fail_at_number: int, never_ending=False
 ):
+    from edsl.language_models.LanguageModel import LanguageModel
+
     class LanguageModelFromUtilities(LanguageModel):
         _model_ = "test"
         _parameters_ = {"temperature": 0.5}

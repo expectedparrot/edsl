@@ -14,18 +14,18 @@ from __future__ import annotations
 import csv
 import sys
 from collections import UserList
-from typing import Any, List, Optional, Union, TYPE_CHECKING
-from rich import print_json
-from rich.table import Table
-from simpleeval import EvalWithCompoundTypes, NameNotDefined
-from edsl.Base import Base
-from edsl.utilities.decorators import remove_edsl_version
-
 from collections.abc import Iterable
 
-from edsl.exceptions.agents import AgentListError
-from edsl.utilities.utilities import is_notebook
+from typing import Any, List, Optional, Union, TYPE_CHECKING
 
+# from rich import print_json
+# from rich.table import Table
+from simpleeval import EvalWithCompoundTypes, NameNotDefined
+
+from edsl.Base import Base
+from edsl.utilities.remove_edsl_version import remove_edsl_version
+from edsl.exceptions.agents import AgentListError
+from edsl.utilities.is_notebook import is_notebook
 from edsl.results.ResultsExportMixin import ResultsExportMixin
 import logging
 
@@ -470,14 +470,6 @@ class AgentList(UserList, ResultsExportMixin, Base):
         if string:
             return "\n".join(lines)
         return lines
-
-    # def rich_print(self) -> Table:
-    #     """Display an object as a rich table."""
-    #     table = Table(title="AgentList")
-    #     table.add_column("Agents", style="bold")
-    #     for agent in self.data:
-    #         table.add_row(agent.rich_print())
-    #     return table
 
 
 if __name__ == "__main__":

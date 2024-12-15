@@ -1,7 +1,7 @@
 import pytest
 
-from edsl import Model
-from edsl import QuestionFreeText as Q
+from edsl.language_models.registry import Model
+from edsl.questions.QuestionFreeText import QuestionFreeText as Q
 
 
 def test_canned_response():

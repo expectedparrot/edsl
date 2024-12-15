@@ -4,152 +4,11 @@ import tempfile
 import mimetypes
 import os
 from typing import Dict, Any, IO, Optional
-import requests
-from urllib.parse import urlparse
-import subprocess
-import google.generativeai as genai
 
-from edsl import Scenario
-from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
-from edsl.utilities.utilities import is_notebook
+from edsl.scenarios.Scenario import Scenario
+from edsl.utilities.remove_edsl_version import remove_edsl_version
 
-
-def view_docx(docx_path):
-    import os
-    import subprocess
-    from IPython.display import HTML, display
-    import base64
-
-    if is_notebook():
-        # For Jupyter notebooks, we'll need to convert DOCX to HTML
-        # since browsers can't directly display DOCX files
-        try:
-            import mammoth
-
-            with open(docx_path, "rb") as docx_file:
-                result = mammoth.convert_to_html(docx_file)
-                html = f"""
-                <div style="width: 800px; height: 800px; padding: 20px; 
-                           border: 1px solid #ccc; overflow-y: auto;">
-                    {result.value}
-                </div>
-                """
-                display(HTML(html))
-        except ImportError:
-            print("Please install mammoth for notebook preview: pip install mammoth")
-        finally:
-            return
-
-    if os.path.exists(docx_path):
-        try:
-            if (os_name := os.name) == "posix":
-                subprocess.run(["open", docx_path], check=True)  # macOS
-            elif os_name == "nt":
-                os.startfile(docx_path)  # Windows
-            else:
-                subprocess.run(["xdg-open", docx_path], check=True)  # Linux
-        except Exception as e:
-            print(f"Error opening DOCX: {e}")
-    else:
-        print("DOCX file was not found.")
-
-
-def view_csv(csv_path):
-    import pandas as pd
-
-    df = pd.read_csv(csv_path)
-    return df
-
-
-def view_html(html_path):
-    import os
-    import subprocess
-    from IPython.display import IFrame, display, HTML
-
-    if os.path.exists(html_path):
-        if is_notebook():
-            # Display the HTML inline in Jupyter Notebook
-            display(IFrame(src=html_path, width=700, height=600))
-            display(
-                HTML(
-                    f'<a href="{html_path}" target="_blank">Open HTML in a new tab</a>'
-                )
-            )
-        else:
-            try:
-                if (os_name := os.name) == "posix":
-                    # Open with the default browser on macOS
-                    subprocess.run(["open", html_path], check=True)
-                elif os_name == "nt":
-                    # Open with the default browser on Windows
-                    os.startfile(html_path)
-                else:
-                    # Open with the default browser on Linux
-                    subprocess.run(["xdg-open", html_path], check=True)
-            except Exception as e:
-                print(f"Error opening HTML file: {e}")
-    else:
-        print("HTML file was not found.")
-
-
-def view_html(html_path):
-    import os
-    from IPython.display import display, HTML
-
-    if is_notebook():
-        with open(html_path, "r") as f:
-            html_content = f.read()
-        display(HTML(html_content))
-    else:
-        if os.path.exists(html_path):
-            try:
-                if (os_name := os.name) == "posix":
-                    subprocess.run(["open", html_path], check=True)
-                elif os_name == "nt":
-                    os.startfile(html_path)
-                else:
-                    subprocess.run(["xdg-open", html_path], check=True)
-            except Exception as e:
-                print(f"Error opening file: {e}")
-        else:
-            print("File was not created successfully.")
-
-
-def view_pdf(pdf_path):
-    import os
-    import subprocess
-    import os
-    from IPython.display import HTML, display
-
-    if is_notebook():
-        # Convert to absolute path if needed
-        with open(pdf_path, "rb") as f:
-            base64_pdf = base64.b64encode(f.read()).decode("utf-8")
-
-        html = f"""
-        <iframe
-            src="data:application/pdf;base64,{base64_pdf}"
-            width="800px"
-            height="800px"
-            type="application/pdf"
-        ></iframe>
-        """
-        display(HTML(html))
-        return
-
-    if os.path.exists(pdf_path):
-        try:
-            if (os_name := os.name) == "posix":
-                # for cool kids
-                subprocess.run(["open", pdf_path], check=True)  # macOS
-            elif os_name == "nt":
-                os.startfile(pdf_path)  # Windows
-            else:
-                subprocess.run(["xdg-open", pdf_path], check=True)  # Linux
-        except Exception as e:
-            print(f"Error opening PDF: {e}")
-    else:
-        print("PDF file was not created successfully.")
+from edsl.scenarios.file_methods import FileMethods
 
 
 class FileStore(Scenario):
@@ -163,6 +22,7 @@ class FileStore(Scenario):
         suffix: Optional[str] = None,
         base64_string: Optional[str] = None,
         external_locations: Optional[Dict[str, str]] = None,
+        extracted_text: Optional[str] = None,
         **kwargs,
     ):
         if path is None and "filename" in kwargs:
@@ -178,6 +38,9 @@ class FileStore(Scenario):
         )
         self.base64_string = base64_string or self.encode_file_to_base64_string(path)
         self.external_locations = external_locations or {}
+
+        self.extracted_text = self.extract_text() if extracted_text is None else extracted_text
+
         super().__init__(
             {
                 "path": path,
@@ -186,6 +49,7 @@ class FileStore(Scenario):
                 "suffix": self.suffix,
                 "mime_type": self.mime_type,
                 "external_locations": self.external_locations,
+                "extracted_text": self.extracted_text,
             }
         )
 
@@ -211,88 +75,12 @@ class FileStore(Scenario):
         return "FileStore: self.path"
 
     @classmethod
-    def example(cls, example_type="text"):
-        import textwrap
-        import tempfile
-
-        if example_type == "png" or example_type == "image":
-            import importlib.resources
-            from pathlib import Path
-
-            # Get package root directory
-            package_root = Path(__file__).parent.parent.parent
-            logo_path = package_root / "static" / "logo.png"
-            return cls(str(logo_path))
-
-        if example_type == "text":
-            with tempfile.NamedTemporaryFile(suffix=".txt", delete=False) as f:
-                f.write(b"Hello, World!")
-
-            return cls(path=f.name)
-
-        elif example_type == "csv":
-            from edsl.results.Results import Results
-
-            r = Results.example()
-
-            with tempfile.NamedTemporaryFile(suffix=".csv", delete=False) as f:
-                r.to_csv(filename=f.name)
-            return cls(f.name)
-
-        elif example_type == "pdf":
-            pdf_string = textwrap.dedent(
-                """\
-            %PDF-1.4
-            1 0 obj
-            << /Type /Catalog /Pages 2 0 R >>
-            endobj
-            2 0 obj
-            << /Type /Pages /Kids [3 0 R] /Count 1 >>
-            endobj
-            3 0 obj
-            << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R >>
-            endobj
-            4 0 obj
-            << /Length 44 >>
-            stream
-            BT
-            /F1 24 Tf
-            100 700 Td
-            (Hello, World!) Tj
-            ET
-            endstream
-            endobj
-            5 0 obj
-            << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
-            endobj
-            6 0 obj
-            << /ProcSet [/PDF /Text] /Font << /F1 5 0 R >> >>
-            endobj
-            xref
-            0 7
-            0000000000 65535 f 
-            0000000010 00000 n 
-            0000000053 00000 n 
-            0000000100 00000 n 
-            0000000173 00000 n 
-            0000000232 00000 n 
-            0000000272 00000 n 
-            trailer
-            << /Size 7 /Root 1 0 R >>
-            startxref
-            318
-            %%EOF"""
-            )
-            with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as f:
-                f.write(pdf_string.encode())
-
-            return cls(f.name)
-
-        elif example_type == "html":
-            with tempfile.NamedTemporaryFile(suffix=".html", delete=False) as f:
-                f.write("<html><body><h1>Test</h1></body></html>".encode())
-
-            return cls(f.name)
+    def example(cls, example_type="txt"):
+        file_methods_class = FileMethods.get_handler(example_type)
+        if file_methods_class:
+            return cls(file_methods_class().example())
+        else:
+            print(f"Example for {example_type} is not supported.")
 
     @property
     def size(self) -> int:
@@ -301,6 +89,8 @@ class FileStore(Scenario):
         return os.path.getsize(self.path)
 
     def upload_google(self, refresh: bool = False) -> None:
+        import google.generativeai as genai
+
         genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
         google_info = genai.upload_file(self.path, mime_type=self.mime_type)
         self.external_locations["google"] = google_info.to_dict()
@@ -312,9 +102,23 @@ class FileStore(Scenario):
         return cls(**d)
 
     def __repr__(self):
-        # return f"FileStore(path='{self.path}')"
-        params = ", ".join(f"{key}={repr(value)}" for key, value in self.data.items())
+        import reprlib
+        r = reprlib.Repr()
+        r.maxstring = 20  # Limit strings to 20 chars
+        r.maxother = 30   # Limit other types to 30 chars
+        
+        params = ", ".join(
+            f"{key}={r.repr(value)}" 
+            for key, value in self.data.items()
+        )
         return f"{self.__class__.__name__}({params})"
+    
+    def _repr_html_(self):
+        parent_html = super()._repr_html_()
+        from edsl.scenarios.ConstructDownloadLink import ConstructDownloadLink
+
+        link = ConstructDownloadLink(self).html_create_link(self.path, style=None)
+        return f"{parent_html}<br>{link}"
 
     def encode_file_to_base64_string(self, file_path: str):
         try:
@@ -339,9 +143,9 @@ class FileStore(Scenario):
 
     def open(self) -> "IO":
         if self.binary:
-            return self.base64_to_file(self["base64_string"], is_binary=True)
+            return self.base64_to_file(self.base64_string, is_binary=True)
         else:
-            return self.base64_to_text_file(self["base64_string"])
+            return self.base64_to_text_file(self.base64_string)
 
     def write(self, filename: Optional[str] = None) -> str:
         """
@@ -412,7 +216,7 @@ class FileStore(Scenario):
 
             warnings.warn("This is a binary file.")
         else:
-            return self.base64_to_text_file(self["base64_string"]).read()
+            return self.base64_to_text_file(self.base64_string).read()
 
     def to_tempfile(self, suffix=None):
         if suffix is None:
@@ -422,7 +226,7 @@ class FileStore(Scenario):
                 self["base64_string"], is_binary=True
             )
         else:
-            file_like_object = self.base64_to_text_file(self["base64_string"])
+            file_like_object = self.base64_to_text_file(self.base64_string)
 
         # Create a named temporary file
         mode = "wb" if self.binary else "w"
@@ -439,44 +243,24 @@ class FileStore(Scenario):
 
         return temp_file.name
 
-    def view(self, max_size: int = 300) -> None:
-        # with self.open() as f:
-        if self.suffix == "csv":
-            return view_csv(self.path)
+    def view(self) -> None:
+        handler = FileMethods.get_handler(self.suffix)
+        if handler:
+            handler(self.path).view()
+        else:
+            print(f"Viewing of {self.suffix} files is not supported.")
 
-        if self.suffix == "pdf":
-            view_pdf(self.path)
-
-        if self.suffix == "html":
-            view_html(self.path)
-
-        if self.suffix == "docx":
-            view_docx(self.path)
-
-        if self.suffix == "png" or self.suffix == "jpg" or self.suffix == "jpeg":
-            if is_notebook():
-                from IPython.display import Image
-                from PIL import Image as PILImage
-
-                if max_size:
-                    # Open the image using Pillow
-                    with PILImage.open(self.path) as img:
-                        # Get original width and height
-                        original_width, original_height = img.size
-
-                        # Calculate the scaling factor
-                        scale = min(
-                            max_size / original_width, max_size / original_height
-                        )
-
-                        # Calculate new dimensions
-                        new_width = int(original_width * scale)
-                        new_height = int(original_height * scale)
-
-                        return Image(self.path, width=new_width, height=new_height)
-                else:
-                    return Image(self.path)
-
+    def extract_text(self) -> str:
+        handler = FileMethods.get_handler(self.suffix)
+        if handler and hasattr(handler, "extract_text"):
+            return handler(self.path).extract_text()
+        
+        if not self.binary:
+            return self.text
+        
+        return None
+        #raise TypeError("No text method found for this file type.")
+        
     def push(
         self, description: Optional[str] = None, visibility: str = "unlisted"
     ) -> dict:
@@ -513,6 +297,8 @@ class FileStore(Scenario):
         :param download_path: The path to save the downloaded file.
         :param mime_type: The MIME type of the file. If None, it will be guessed from the file extension.
         """
+        import requests
+        from urllib.parse import urlparse
 
         response = requests.get(url, stream=True)
         response.raise_for_status()  # Raises an HTTPError for bad responses
@@ -701,27 +487,25 @@ class HTMLFileStore(FileStore):
 
 
 if __name__ == "__main__":
-    # file_path = "../conjure/examples/Ex11-2.sav"
-    # fs = FileStore(file_path)
-    # info = fs.push()
-    # print(info)
+    import doctest
 
-    # fs = CSVFileStore.example()
-    # fs.to_tempfile()
-    # print(fs.view())
+    doctest.testmod()
 
-    # fs = PDFFileStore.example()
+    # fs = FileStore.example("pdf")
     # fs.view()
 
-    # fs = PDFFileStore("paper.pdf")
-    # fs.view()
-    # from edsl import Conjure
-    pass
-    # fs = PNGFileStore("logo.png")
-    # fs.view()
-    # fs.upload_google()
+    formats = FileMethods.supported_file_types()
+    for file_type in formats:  
+        print("Now testinging", file_type)
+        fs = FileStore.example(file_type)
+        fs.view()
+        input("Press Enter to continue...")
 
-    # c = Conjure(datafile_name=fs.to_tempfile())
-    # f = PDFFileStore("paper.pdf")
-    # print(f.to_tempfile())
-    # f.push()
+    # pdf_example.view()
+    # FileStore(pdf_example).view()
+
+    # pdf_methods = methods.get("pdf")
+    # file = pdf_methods().example()
+    # pdf_methods(file).view()
+
+    # print(FileMethods._handlers)

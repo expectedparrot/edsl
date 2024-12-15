@@ -1,11 +1,9 @@
-from typing import Optional, Union, Literal
-import requests
+from typing import Optional, Union, Literal, TYPE_CHECKING
 
 from edsl.exceptions.coop import CoopServerResponseError
-from edsl.results import Results
-from edsl.jobs.JobsRemoteInferenceLogger import JupyterJobLogger, StdOutJobLogger
 
-from edsl.utilities.utilities import is_notebook
+if TYPE_CHECKING:
+    from edsl.results.Results import Results
 
 
 class JobsRemoteInferenceHandler:
@@ -28,11 +26,13 @@ class JobsRemoteInferenceHandler:
         return self._job_uuid
 
     def use_remote_inference(self, disable_remote_inference: bool) -> bool:
+        import requests
+
         if disable_remote_inference:
             return False
         if not disable_remote_inference:
             try:
-                from edsl import Coop
+                from edsl.coop.coop import Coop
 
                 user_edsl_settings = Coop().edsl_settings
                 return user_edsl_settings.get("remote_inference", False)
@@ -51,9 +51,14 @@ class JobsRemoteInferenceHandler:
     ):
         from edsl.config import CONFIG
         from edsl.coop.coop import Coop
-        from rich import print as rich_print
+
+        # from rich import print as rich_print
 
         # Initialize logger
+        from edsl.utilities.is_notebook import is_notebook
+        from edsl.jobs.JobsRemoteInferenceLogger import JupyterJobLogger
+        from edsl.jobs.JobsRemoteInferenceLogger import StdOutJobLogger
+
         if is_notebook():
             self.logger = JupyterJobLogger(verbose=self.verbose)
         else:
@@ -108,6 +113,7 @@ class JobsRemoteInferenceHandler:
         import time
         from datetime import datetime
         from edsl.config import CONFIG
+        from edsl.results.Results import Results
 
         if poll_interval is None:
             poll_interval = self.poll_interval
@@ -185,11 +191,13 @@ class JobsRemoteInferenceHandler:
                 time.sleep(poll_interval)
 
     def use_remote_inference(self, disable_remote_inference: bool) -> bool:
+        import requests
+
         if disable_remote_inference:
             return False
         if not disable_remote_inference:
             try:
-                from edsl import Coop
+                from edsl.coop.coop import Coop
 
                 user_edsl_settings = Coop().edsl_settings
                 return user_edsl_settings.get("remote_inference", False)
@@ -207,7 +215,7 @@ class JobsRemoteInferenceHandler:
         remote_inference_results_visibility: Optional[
             Literal["private", "public", "unlisted"]
         ] = "unlisted",
-    ) -> Union[Results, None]:
+    ) -> Union["Results", None]:
         """
         Creates and polls a remote inference job asynchronously.
         Reuses existing synchronous methods but runs them in an async context.

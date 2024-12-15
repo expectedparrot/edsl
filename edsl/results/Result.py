@@ -1,28 +1,38 @@
 # """This module contains the Result class, which captures the result of one interview."""
 from __future__ import annotations
+import inspect
 from collections import UserDict
-from typing import Any, Type, Callable, Optional
+from typing import Any, Type, Callable, Optional, TYPE_CHECKING
 from collections import UserDict
 from edsl.Base import Base
 from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
+
+if TYPE_CHECKING:
+    from edsl.agents.Agent import Agent
+    from edsl.scenarios.Scenario import Scenario
+    from edsl.language_models.LanguageModel import LanguageModel
+    from edsl.prompts.Prompt import Prompt
+    from edsl.surveys.Survey import Survey
 
 
 class PromptDict(UserDict):
     """A dictionary that is used to store the prompt for a given result."""
 
-    def rich_print(self):
-        """Display an object as a table."""
-        from rich.table import Table
+    pass
 
-        table = Table(title="")
-        table.add_column("Attribute", style="bold")
-        table.add_column("Value")
+    # def rich_print(self):
+    #     """Display an object as a table."""
+    #     from rich.table import Table
 
-        to_display = self
-        for attr_name, attr_value in to_display.items():
-            table.add_row(attr_name, repr(attr_value))
+    #     table = Table(title="")
+    #     table.add_column("Attribute", style="bold")
+    #     table.add_column("Value")
 
-        return table
+    #     to_display = self
+    #     for attr_name, attr_value in to_display.items():
+    #         table.add_row(attr_name, repr(attr_value))
+
+    #     return table
 
 
 def agent_namer_closure():
@@ -379,8 +389,8 @@ class Result(Base, UserDict):
     def from_dict(self, json_dict: dict) -> Result:
         """Return a Result object from a dictionary representation."""
 
-        from edsl import Agent
-        from edsl import Scenario
+        from edsl.agents.Agent import Agent
+        from edsl.scenarios.Scenario import Scenario
         from edsl.language_models.LanguageModel import LanguageModel
         from edsl.prompts.Prompt import Prompt
 
@@ -405,27 +415,27 @@ class Result(Base, UserDict):
         )
         return result
 
-    def rich_print(self) -> None:
-        """Display an object as a table."""
-        # from edsl.utilities import print_dict_with_rich
-        from rich import print
-        from rich.table import Table
+    # def rich_print(self) -> None:
+    #     """Display an object as a table."""
+    #     # from edsl.utilities import print_dict_with_rich
+    #     from rich import print
+    #     from rich.table import Table
 
-        table = Table(title="Result")
-        table.add_column("Attribute", style="bold")
-        table.add_column("Value")
+    #     table = Table(title="Result")
+    #     table.add_column("Attribute", style="bold")
+    #     table.add_column("Value")
 
-        to_display = self.__dict__.copy()
-        data = to_display.pop("data", None)
-        for attr_name, attr_value in to_display.items():
-            if hasattr(attr_value, "rich_print"):
-                table.add_row(attr_name, attr_value.rich_print())
-            elif isinstance(attr_value, dict):
-                a = PromptDict(attr_value)
-                table.add_row(attr_name, a.rich_print())
-            else:
-                table.add_row(attr_name, repr(attr_value))
-        return table
+    #     to_display = self.__dict__.copy()
+    #     data = to_display.pop("data", None)
+    #     for attr_name, attr_value in to_display.items():
+    #         if hasattr(attr_value, "rich_print"):
+    #             table.add_row(attr_name, attr_value.rich_print())
+    #         elif isinstance(attr_value, dict):
+    #             a = PromptDict(attr_value)
+    #             table.add_row(attr_name, a.rich_print())
+    #         else:
+    #             table.add_row(attr_name, repr(attr_value))
+    #     return table
 
     # def __repr__(self):
     #     """Return a string representation of the Result object."""
@@ -449,8 +459,6 @@ class Result(Base, UserDict):
         >>> Result.example().score(f)
         1
         """
-        import inspect
-
         signature = inspect.signature(scoring_function)
         params = {}
         for k, v in signature.parameters.items():
@@ -467,10 +475,3 @@ if __name__ == "__main__":
     import doctest
 
     doctest.testmod(optionflags=doctest.ELLIPSIS)
-    from edsl.agents.Agent import Agent
-    from edsl import Scenario
-    from edsl import Model
-    from edsl.language_models.LanguageModel import LanguageModel
-    from edsl.prompts.Prompt import Prompt
-
-    assert eval(repr(Result.example())) == Result.example()

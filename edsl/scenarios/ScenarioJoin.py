@@ -1,9 +1,9 @@
 from __future__ import annotations
 from typing import Union, TYPE_CHECKING
 
-# if TYPE_CHECKING:
-from edsl.scenarios.ScenarioList import ScenarioList
-from edsl.scenarios.Scenario import Scenario
+if TYPE_CHECKING:
+    from edsl.scenarios.ScenarioList import ScenarioList
+    from edsl.scenarios.Scenario import Scenario
 
 
 class ScenarioJoin:
@@ -23,7 +23,7 @@ class ScenarioJoin:
         self.left = left
         self.right = right
 
-    def left_join(self, by: Union[str, list[str]]) -> ScenarioList:
+    def left_join(self, by: Union[str, list[str]]) -> "ScenarioList":
         """Perform a left join between the two ScenarioLists.
 
         Args:
@@ -35,6 +35,8 @@ class ScenarioJoin:
         Raises:
             ValueError: If by is empty or if any join keys don't exist in both ScenarioLists
         """
+        from edsl.scenarios.ScenarioList import ScenarioList
+
         self._validate_join_keys(by)
         by_keys = [by] if isinstance(by, str) else by
 
@@ -86,6 +88,8 @@ class ScenarioJoin:
         self, by_keys: list[str], other_dict: dict, all_keys: set
     ) -> list[Scenario]:
         """Create the joined scenarios."""
+        from edsl.scenarios.Scenario import Scenario
+
         new_scenarios = []
 
         for scenario in self.left:
@@ -105,8 +109,8 @@ class ScenarioJoin:
     def _handle_matching_scenario(
         self,
         new_scenario: dict,
-        left_scenario: Scenario,
-        right_scenario: Scenario,
+        left_scenario: "Scenario",
+        right_scenario: "Scenario",
         by_keys: list[str],
     ) -> None:
         """Handle merging of matching scenarios and conflict warnings."""

@@ -2,14 +2,13 @@ import os
 import unittest
 from contextlib import redirect_stdout
 from io import StringIO
-from edsl.exceptions import (
+from edsl.exceptions.results import (
     ResultsBadMutationstringError,
     ResultsColumnNotFoundError,
     ResultsInvalidNameError,
 )
 
-# from edsl.report.InputOutputDataTypes import CategoricalData
-from edsl.results import Results
+from edsl.results.Results import Results
 
 
 class TestResults(unittest.TestCase):
@@ -142,7 +141,7 @@ class TestResults(unittest.TestCase):
             "task_history", self.example_results.to_dict(include_task_history=True)
         )
 
-        from edsl import QuestionFreeText
+        from edsl.questions.QuestionFreeText import QuestionFreeText
         from edsl.language_models.LanguageModel import LanguageModel
 
         q = QuestionFreeText.example()
@@ -164,47 +163,6 @@ class TestResults(unittest.TestCase):
         assert len(shuffled) == 1
         shuffled2 = self.example_results.select("answer.*").sample(n=1)
         assert len(shuffled2) == 1
-        # with self.assertRaises(Exception):
-        #    shuffled3 = self.example_results.sample(frac = 1.1, with_replacement = False)
-
-    # def test_fetch_answer_data(self):
-    #     self.assertEqual(
-    #         self.example_results._fetch_answer_data(
-    #             "how_feeling", CategoricalData
-    #         ).responses,
-    #         [result.answer.get("how_feeling") for result in self.example_results.data],
-    #     )
-
-    # def test_print_long(self):
-    #     from edsl.questions import QuestionLinearScale, QuestionMultipleChoice
-
-    #     from edsl import Agent
-
-    #     def answer_question_directly(self, question, scenario):
-    #         return "Never"
-
-    #     from edsl.data.Cache import Cache
-
-    #     cache = Cache()
-    #     agent = Agent()
-    #     agent.add_direct_question_answering_method(answer_question_directly)
-
-    #     q = QuestionMultipleChoice(
-    #         question_name="exercise",
-    #         question_text="How often do you typically exercise each week?",
-    #         question_options=["Never", "Sometimes", "Often"],
-    #     )
-    #     results = q.by(agent).run(cache=cache)
-
-    #     with StringIO() as buf, redirect_stdout(buf):
-    #         results.select("answer.*").print()
-    #         output = buf.getvalue()
-    #     self.assertIn("Never", output)
-
-    #     with StringIO() as buf, redirect_stdout(buf):
-    #         results.select("answer.*").print_long()
-    #         output = buf.getvalue()
-    #     self.assertIn("Never", output)
 
     def test_add(self):
         # just check that no exceptions are thrown
@@ -212,15 +170,6 @@ class TestResults(unittest.TestCase):
         r2 = self.example_results
         r3 = r1 + r2
         assert len(r3) == len(r1) + len(r2)
-
-    # def test_stefan(self):
-    #     from edsl.questions import QuestionBase
-    #     from edsl.results import Results
-    #     from edsl.surveys import Survey
-    #     results = Survey.example().run()
-
-    #     res_dect = results.to_dict()
-    #     res = Results.from_dict(res_dect)
 
 
 if __name__ == "__main__":

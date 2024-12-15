@@ -1,13 +1,13 @@
 import pytest
 import uuid
-from edsl.exceptions import (
+from edsl.exceptions.questions import (
     QuestionAnswerValidationError,
     QuestionResponseValidationError,
 )
 from edsl.questions.QuestionBase import QuestionBase
 from edsl.questions import Settings
 from edsl.questions.QuestionCheckBox import QuestionCheckBox, main
-
+from edsl.language_models.registry import Model
 
 valid_question = {
     "question_text": "Which weekdays do you like? Select 2 or 3.",
@@ -212,9 +212,6 @@ def test_QuestionCheckBox_serialization():
 
 
 def test_int_options():
-    from edsl import QuestionCheckBox
-    from edsl import Model
-
     m = Model("test", canned_response="2,3,5,7")
     q = QuestionCheckBox(
         question_name="prime_numbers",

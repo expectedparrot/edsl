@@ -1,29 +1,35 @@
 """A list of Scenarios to be used in a survey."""
 
 from __future__ import annotations
-from typing import Any, Optional, Union, List, Callable
+from typing import Any, Optional, Union, List, Callable, TYPE_CHECKING
 import csv
 import random
-from collections import UserList, Counter, defaultdict
-from collections.abc import Iterable
-import urllib.parse
-import urllib.request
 from io import StringIO
 import inspect
+from collections import UserList, defaultdict
+from collections.abc import Iterable
 
-from simpleeval import EvalWithCompoundTypes
-from simpleeval import NameNotDefined
+if TYPE_CHECKING:
+    from urllib.parse import ParseResult
+    from edsl.results.Dataset import Dataset
+    from edsl.jobs.Jobs import Jobs
+    from edsl.surveys.Survey import Survey
+    from edsl.questions.QuestionBase import QuestionBase
+
+
+from simpleeval import EvalWithCompoundTypes, NameNotDefined  # type: ignore
 
 from edsl.Base import Base
-from edsl.utilities.decorators import remove_edsl_version
+from edsl.utilities.remove_edsl_version import remove_edsl_version
+
 from edsl.scenarios.Scenario import Scenario
 from edsl.scenarios.ScenarioListPdfMixin import ScenarioListPdfMixin
 from edsl.scenarios.ScenarioListExportMixin import ScenarioListExportMixin
-
 from edsl.utilities.naming_utilities import sanitize_string
-from edsl.utilities.utilities import is_valid_variable_name
-
+from edsl.utilities.is_valid_variable_name import is_valid_variable_name
 from edsl.exceptions.scenarios import ScenarioError
+
+from edsl.scenarios.DirectoryScanner import DirectoryScanner
 
 
 class ScenarioListMixin(ScenarioListPdfMixin, ScenarioListExportMixin):
@@ -37,7 +43,9 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         "https://docs.expectedparrot.com/en/latest/scenarios.html#scenariolist"
     )
 
-    def __init__(self, data: Optional[list] = None, codebook: Optional[dict] = None):
+    def __init__(
+        self, data: Optional[list] = None, codebook: Optional[dict[str, str]] = None
+    ):
         """Initialize the ScenarioList class."""
         if data is not None:
             super().__init__(data)
@@ -59,9 +67,9 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         """Check if the ScenarioList has Jinja braces."""
         return any([scenario.has_jinja_braces for scenario in self])
 
-    def convert_jinja_braces(self) -> ScenarioList:
+    def _convert_jinja_braces(self) -> ScenarioList:
         """Convert Jinja braces to Python braces."""
-        return ScenarioList([scenario.convert_jinja_braces() for scenario in self])
+        return ScenarioList([scenario._convert_jinja_braces() for scenario in self])
 
     def give_valid_names(self) -> ScenarioList:
         """Give valid names to the scenario keys.
@@ -92,7 +100,11 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
             new_scenaerios.append(Scenario(new_scenario))
         return ScenarioList(new_scenaerios, codebook)
 
-    def unpivot(self, id_vars=None, value_vars=None):
+    def unpivot(
+        self,
+        id_vars: Optional[List[str]] = None,
+        value_vars: Optional[List[str]] = None,
+    ) -> ScenarioList:
         """
         Unpivot the ScenarioList, allowing for id variables to be specified.
 
@@ -196,7 +208,7 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
             )
 
         # Group the scenarios
-        grouped = defaultdict(lambda: defaultdict(list))
+        grouped: dict[str, list] = defaultdict(lambda: defaultdict(list))
         for scenario in self:
             key = tuple(scenario[id_var] for id_var in id_vars)
             for var in variables:
@@ -604,7 +616,58 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
             func = lambda x: x
         return cls([Scenario({name: func(value)}) for value in values])
 
-    def table(self, *fields, tablefmt=None, pretty_labels=None) -> str:
+    @classmethod
+    def from_directory(
+        cls,
+        directory_path: str,
+        recursive: bool = False,
+        suffix_allow_list: Optional[List[str]] = None,
+        suffix_exclude_list: Optional[List[str]] = None,
+        example_suffix: Optional[str] = None,
+        include_no_extension: bool = True,
+    ) -> "ScenarioList":
+        """
+        Eagerly load all scenarios from a directory into a ScenarioList.
+
+        :param directory_path: The path to the directory.
+        :param recursive: Whether to search recursively.
+        :param suffix_allow_list: A list of suffixes to allow.
+        :param suffix_exclude_list: A list of suffixes to exclude.
+        :param example_suffix: An optional suffix to use as an example.
+        :param include_no_extension: Whether to include files with no extension.
+
+        Example:
+
+        >>> import tempfile
+        >>> import os
+        >>> with tempfile.TemporaryDirectory() as tempdir:
+        ...     with open(os.path.join(tempdir, 'file1.txt'), 'w') as f:
+        ...         _ = f.write('Hello, World!')
+        ...     with open(os.path.join(tempdir, 'file2.txt'), 'w') as f:
+        ...         _ = f.write('Goodbye, World!')
+        ...     sl = ScenarioList.from_directory(tempdir)
+        ...     len(sl)
+        2
+
+
+        """
+        scanner = DirectoryScanner(directory_path)
+        from edsl.scenarios.FileStore import FileStore
+
+        return cls(
+            scanner.scan(
+                FileStore,
+                recursive=recursive,
+                suffix_allow_list=suffix_allow_list,
+                suffix_exclude_list=suffix_exclude_list,
+                example_suffix=example_suffix,
+                include_no_extension=include_no_extension,
+            )
+        )
+
+    def table(
+        self, *fields, tablefmt=None, pretty_labels: Optional[dict] = None
+    ) -> str:
         """Return the ScenarioList as a table."""
 
         from tabulate import tabulate_formats
@@ -629,7 +692,7 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         }
         return d
 
-    def reorder_keys(self, new_order):
+    def reorder_keys(self, new_order) -> "ScenarioList":
         """Reorder the keys in the scenarios.
 
         Example:
@@ -1023,11 +1086,13 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
 
     @classmethod
     def from_delimited_file(
-        cls, source: Union[str, urllib.parse.ParseResult], delimiter: str = ","
+        cls, source: Union[str, "ParseResult"], delimiter: str = ","
     ) -> ScenarioList:
         """Create a ScenarioList from a delimited file (CSV/TSV) or URL."""
         import requests
         from edsl.scenarios.Scenario import Scenario
+        from urllib.parse import urlparse
+        from urllib.parse import ParseResult
 
         headers = {
             "Accept": "text/csv,application/csv,text/plain",
@@ -1036,7 +1101,7 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
 
         def is_url(source):
             try:
-                result = urllib.parse.urlparse(source)
+                result = urlparse(source)
                 return all([result.scheme, result.netloc])
             except ValueError:
                 return False
@@ -1046,7 +1111,7 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
                 response = requests.get(source, headers=headers)
                 response.raise_for_status()
                 file_obj = StringIO(response.text)
-            elif isinstance(source, urllib.parse.ParseResult):
+            elif isinstance(source, ParseResult):
                 response = requests.get(source.geturl(), headers=headers)
                 response.raise_for_status()
                 file_obj = StringIO(response.text)
@@ -1064,7 +1129,7 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
 
     # Convenience methods for specific file types
     @classmethod
-    def from_csv(cls, source: Union[str, urllib.parse.ParseResult]) -> ScenarioList:
+    def from_csv(cls, source: Union[str, "ParseResult"]) -> ScenarioList:
         """Create a ScenarioList from a CSV file or URL."""
         return cls.from_delimited_file(source, delimiter=",")
 
@@ -1087,11 +1152,11 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         return sj.left_join(by)
 
     @classmethod
-    def from_tsv(cls, source: Union[str, urllib.parse.ParseResult]) -> ScenarioList:
+    def from_tsv(cls, source: Union[str, "ParseResult"]) -> ScenarioList:
         """Create a ScenarioList from a TSV file or URL."""
         return cls.from_delimited_file(source, delimiter="\t")
 
-    def to_dict(self, sort=False, add_edsl_version=True) -> dict:
+    def to_dict(self, sort: bool = False, add_edsl_version: bool = True) -> dict:
         """
         >>> s = ScenarioList([Scenario({'food': 'wood chips'}), Scenario({'food': 'wood-fired pizza'})])
         >>> s.to_dict()
@@ -1124,7 +1189,6 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         """
         from edsl.surveys.Survey import Survey
         from edsl.questions.QuestionBase import QuestionBase
-
         from edsl.jobs.Jobs import Jobs
 
         if isinstance(survey, QuestionBase):

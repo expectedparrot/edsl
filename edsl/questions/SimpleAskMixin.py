@@ -1,5 +1,3 @@
-from rich.table import Table
-from rich.console import Console
 import math
 
 
@@ -10,6 +8,9 @@ def logprob_to_prob(logprob):
 
 
 def format_output(data):
+    from rich.table import Table
+    from rich.console import Console
+
     content = data["choices"][0]["logprobs"]["content"]
     table = Table(show_header=True, header_style="bold magenta")
 
@@ -65,7 +66,7 @@ class SimpleAskMixin:
         system_prompt="You are a helpful agent pretending to be a human. Do not break character",
         top_logprobs=4,
     ):
-        from edsl import Model
+        from edsl.language_models.registry import Model
 
         if model is None:
             model = Model()

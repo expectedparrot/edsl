@@ -1,12 +1,12 @@
 from typing import Optional, List
 from collections import UserList
-from edsl import Model
 
-from edsl.language_models import LanguageModel
 from edsl.Base import Base
-from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
-from edsl.utilities.utilities import is_valid_variable_name
-from edsl.utilities.utilities import dict_hash
+from edsl.language_models.registry import Model
+
+# from edsl.language_models import LanguageModel
+from edsl.utilities.remove_edsl_version import remove_edsl_version
+from edsl.utilities.is_valid_variable_name import is_valid_variable_name
 
 
 class ModelList(Base, UserList):
@@ -54,7 +54,8 @@ class ModelList(Base, UserList):
         return dict_hash(self.to_dict(sort=True, add_edsl_version=False))
 
     def to_scenario_list(self):
-        from edsl import ScenarioList, Scenario
+        from edsl.scenarios.ScenarioList import ScenarioList
+        from edsl.scenarios.Scenario import Scenario
 
         sl = ScenarioList()
         for model in self:
@@ -133,6 +134,8 @@ class ModelList(Base, UserList):
         >>> newm = ModelList.from_dict(ModelList.example().to_dict())
         >>> assert ModelList.example() == newm
         """
+        from edsl.language_models.LanguageModel import LanguageModel
+
         return cls(data=[LanguageModel.from_dict(model) for model in data["models"]])
 
     def code(self):

@@ -10,7 +10,7 @@ from uuid import uuid4
 
 from edsl.Base import Base
 from edsl.scenarios.ScenarioHtmlMixin import ScenarioHtmlMixin
-from edsl.utilities.decorators import remove_edsl_version
+from edsl.utilities.remove_edsl_version import remove_edsl_version
 from edsl.exceptions.scenarios import ScenarioError
 
 if TYPE_CHECKING:
@@ -87,13 +87,13 @@ class Scenario(Base, UserDict, ScenarioHtmlMixin):
                     return True
         return False
 
-    def convert_jinja_braces(
+    def _convert_jinja_braces(
         self, replacement_left: str = "<<", replacement_right: str = ">>"
     ) -> Scenario:
         """Convert Jinja braces to some other character.
 
         >>> s = Scenario({"food": "I love {{wood chips}}"})
-        >>> s.convert_jinja_braces()
+        >>> s._convert_jinja_braces()
         Scenario({'food': 'I love <<wood chips>>'})
 
         """

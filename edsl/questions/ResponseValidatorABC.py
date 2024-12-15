@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field, field_validator
 # from decimal import Decimal
 from typing import Optional, Any, List, TypedDict
 
-from edsl.exceptions import QuestionAnswerValidationError
+from edsl.exceptions.questions import QuestionAnswerValidationError
 from pydantic import ValidationError
 
 

@@ -241,6 +241,16 @@ class Notebook(Base):
         lines.append(f'nb = Notebook(data={self.data}, name="""{self.name}""")')
         return lines
 
+    def to_latex(self, filename: str):
+        """
+        Convert notebook to LaTeX and create a folder with all necessary components.
+
+        :param filename: Name of the output folder and main tex file (without extension)
+        """
+        from edsl.notebooks.NotebookToLaTeX import NotebookToLaTeX
+
+        NotebookToLaTeX(self).convert(filename)
+
 
 if __name__ == "__main__":
     from edsl import Notebook

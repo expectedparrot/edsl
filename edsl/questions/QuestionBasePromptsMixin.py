@@ -1,8 +1,6 @@
 from importlib import resources
 from typing import Optional
-from edsl.prompts import Prompt
 from edsl.exceptions.questions import QuestionAnswerValidationError
-
 from functools import lru_cache
 
 
@@ -71,7 +69,7 @@ class QuestionBasePromptsMixin:
         >>> q.get_instructions(model = "gpt3")
         Prompt(text=\"""{{question_text}}. Answer in valid JSON like so {'answer': 'comment: <>}\""")
         """
-        from edsl import Model
+        from edsl.language_models.registry import Model
 
         if not hasattr(self, "_model_instructions"):
             self._model_instructions = {}
@@ -122,6 +120,8 @@ class QuestionBasePromptsMixin:
         template_text = template_manager.get_template(
             cls.question_type, "answering_instructions.jinja"
         )
+        from edsl.prompts import Prompt
+
         return Prompt(text=template_text)
 
     @classmethod
@@ -129,6 +129,8 @@ class QuestionBasePromptsMixin:
         template_text = template_manager.get_template(
             cls.question_type, "question_presentation.jinja"
         )
+        from edsl.prompts import Prompt
+
         return Prompt(text=template_text)
 
     @property
@@ -182,6 +184,8 @@ class QuestionBasePromptsMixin:
     @property
     def new_default_instructions(self) -> "Prompt":
         "This is set up as a property because there are mutable question values that determine how it is rendered."
+        from edsl.prompts import Prompt
+
         return Prompt(self.question_presentation) + Prompt(self.answering_instructions)
 
     @property

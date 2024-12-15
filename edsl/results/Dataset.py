@@ -1,18 +1,19 @@
 """A module to represent a dataset of observations."""
 
 from __future__ import annotations
-import random
+import sys
 import json
+import random
 from collections import UserList
 from typing import Any, Union, Optional
-import sys
-import numpy as np
 
 from edsl.results.ResultsExportMixin import ResultsExportMixin
 from edsl.results.DatasetTree import Tree
 from edsl.results.TableDisplay import TableDisplay
-
 from edsl.Base import PersistenceMixin, HashingMixin
+
+
+from edsl.results.smart_objects import FirstObject
 
 
 class Dataset(UserList, ResultsExportMixin, PersistenceMixin, HashingMixin):
@@ -212,7 +213,10 @@ class Dataset(UserList, ResultsExportMixin, PersistenceMixin, HashingMixin):
             """Get the values of the first key in the dictionary."""
             return list(d.values())[0]
 
-        return get_values(self.data[0])[0]
+        return FirstObject(get_values(self.data[0])[0])
+
+    def latex(self, **kwargs):
+        return self.table().latex()
 
     def remove_prefix(self) -> Dataset:
         new_data = []
@@ -397,6 +401,7 @@ class Dataset(UserList, ResultsExportMixin, PersistenceMixin, HashingMixin):
 
 
         """
+        import numpy as np
 
         def sort_indices(lst: list[Any]) -> list[int]:
             """

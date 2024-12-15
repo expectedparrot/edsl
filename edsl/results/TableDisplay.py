@@ -2,6 +2,7 @@ from tabulate import tabulate
 from pathlib import Path
 
 from edsl.results.CSSParameterizer import CSSParameterizer
+from edsl.results.smart_objects import FirstObject, SmartMarkdown, SmartLaTeX
 
 
 class TableDisplay:
@@ -46,6 +47,18 @@ class TableDisplay:
     def from_dataset(cls, dataset, tablefmt=None):
         headers, data = dataset._tabular()
         return TableDisplay(dataset.headers, dataset.data, tablefmt, dataset)
+
+    def latex(self):
+        # return FirstObject(tabulate(self.data, headers=self.headers, tablefmt="latex"))
+        return SmartLaTeX(
+            tabulate(self.data, headers=self.headers, tablefmt="latex_raw")
+        )
+
+    def markdown(self):
+        return SmartMarkdown(tabulate(self.data, headers=self.headers, tablefmt="pipe"))
+
+    def excel(self, filename: str):
+        return self.raw_data_set.to_excel(filename)
 
     def to_csv(self, filename: str):
         return self.raw_data_set.to_csv(filename)

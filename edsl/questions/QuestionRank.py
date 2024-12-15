@@ -1,25 +1,14 @@
 from __future__ import annotations
-import random
-import textwrap
-from jinja2 import Template
-from typing import Any, Optional, Union
-from edsl.questions.QuestionBase import QuestionBase
-from edsl.exceptions import QuestionAnswerValidationError
+from typing import Optional, Any, List, Annotated, Literal
 
+from pydantic import BaseModel, Field
+
+from edsl.questions.QuestionBase import QuestionBase
 from edsl.questions.descriptors import (
     QuestionOptionsDescriptor,
     NumSelectionsDescriptor,
 )
-
-from edsl.prompts import Prompt
-
-from pydantic import field_validator
 from edsl.questions.ResponseValidatorABC import ResponseValidatorABC
-from edsl.questions.ResponseValidatorABC import BaseResponse
-from edsl.exceptions import QuestionAnswerValidationError
-
-from pydantic import BaseModel, Field, create_model
-from typing import Optional, Any, List, Annotated, Literal
 
 
 def create_response_model(
@@ -201,7 +190,8 @@ class QuestionRank(QuestionBase):
         self, answer_codes, scenario: Scenario = None
     ) -> list[str]:
         """Translate the answer code to the actual answer."""
-        from edsl.scenarios import Scenario
+        from edsl.scenarios.Scenario import Scenario
+        from jinja2 import Template
 
         scenario = scenario or Scenario()
         translated_options = [

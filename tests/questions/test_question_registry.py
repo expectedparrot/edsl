@@ -1,15 +1,8 @@
 import os
 import pytest
 import re
-from edsl.exceptions import QuestionSerializationError
+from edsl.exceptions.questions import QuestionSerializationError
 from edsl.questions.question_registry import get_question_class
-
-# def test_get_question_class_with_valid_types():
-#     # Test with each registered question type
-#     for question_type in CLASS_REGISTRY.keys():
-#         # check that module exists
-#         question_class = get_question_class(question_type)
-#         assert question_class is not None
 
 
 def test_get_question_class_with_invalid_type():

@@ -1,5 +1,5 @@
 import unittest
-from edsl.exceptions import (
+from edsl.exceptions.surveys import (
     SurveyRuleSkipLogicSyntaxError,
     SurveyRuleRefersToFutureStateError,
     SurveyRuleSendsYouBackwardsError,
