@@ -39,6 +39,35 @@ class Dataset(UserList, ResultsExportMixin, PersistenceMixin, HashingMixin):
         _, values = list(self.data[0].items())[0]
         return len(values)
 
+    def tail(self, n: int = 5) -> Dataset:
+        """Return the last n observations in the dataset.
+
+        >>> d = Dataset([{'a.b':[1,2,3,4]}])
+        >>> d.tail(2)
+        Dataset([{'a.b': [3, 4]}])
+        """
+        new_data = []
+        for observation in self.data:
+            key, values = list(observation.items())[0]
+            new_data.append({key: values[-n:]})
+        return Dataset(new_data)
+
+    def head(self, n: int = 5) -> Dataset:
+        """Return the first n observations in the dataset.
+
+        >>> d = Dataset([{'a.b':[1,2,3,4]}])
+        >>> d.head(2)
+        Dataset([{'a.b': [1, 2]}])
+        """
+        new_data = []
+        for observation in self.data:
+            key, values = list(observation.items())[0]
+            new_data.append({key: values[:n]})
+        return Dataset(new_data)
+
+    def expand(self, field):
+        return self.to_scenario_list().expand(field)
+
     def view(self):
         from perspective.widget import PerspectiveWidget
 
