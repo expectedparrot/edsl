@@ -35,10 +35,12 @@ class ExpectedParrotKeyHandler:
                 "Would you like to store your Expected Parrot key for future use? (y/n): "
             )
             if can_we_store.lower() == "y":
+                Path(self.config_dir).mkdir(parents=True, exist_ok=True)
                 self.store_ep_api_key(api_key)
                 print("Stored Expected Parrot API key at ", self.config_dir)
                 return True
             else:
+                Path(self.config_dir).mkdir(parents=True, exist_ok=True)
                 with open(
                     Path(self.config_dir).joinpath(self.asked_to_store_file_name), "w"
                 ) as f:
