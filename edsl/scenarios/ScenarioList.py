@@ -861,13 +861,7 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
 
     @classmethod
     def from_sqlite(cls, filepath: str, table: str):
-        """Create a ScenarioList from a SQLite database.
-
-        >>> from edsl.scenarios.FileStore import FileStore
-        >>> fs = FileStore.example("db")
-        >>> sl = ScenarioList.from_sqlite(fs.filepath, "table")
-        >>> sl
-        """
+        """Create a ScenarioList from a SQLite database."""
         import sqlite3
 
         with sqlite3.connect(filepath) as conn:

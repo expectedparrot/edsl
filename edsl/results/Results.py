@@ -608,7 +608,7 @@ class Results(UserList, Mixins, Base):
 
         >>> r = Results.example()
         >>> r.scenarios
-        ScenarioList([Scenario({'period': 'morning'}), Scenario({'period': 'afternoon'}), Scenario({'period': 'morning'}), Scenario({'period': 'afternoon'})])
+        ScenarioList([Scenario({'period': 'morning', 'scenario_index': 0}), Scenario({'period': 'afternoon', 'scenario_index': 1}), Scenario({'period': 'morning', 'scenario_index': 0}), Scenario({'period': 'afternoon', 'scenario_index': 1})])
         """
         from edsl.scenarios.ScenarioList import ScenarioList
 

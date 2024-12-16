@@ -92,12 +92,11 @@ class Result(Base, UserDict):
             "cache_used_dict": cache_used_dict or {},
         }
         super().__init__(**data)
-
+        self.indices = indices
         self._sub_dicts = self._construct_sub_dicts()
         self._combined_dict, self._problem_keys = (
             self._compute_combined_dict_and_problem_keys()
         )
-        self.indices = indices
 
     @staticmethod
     def _create_question_to_attributes(survey):
@@ -335,7 +334,7 @@ class Result(Base, UserDict):
 
         >>> r = Result.example()
         >>> r.to_dict()['scenario']
-        {'period': 'morning', 'edsl_version': '...', 'edsl_class_name': 'Scenario'}
+        {'period': 'morning', 'scenario_index': 0, 'edsl_version': '...', 'edsl_class_name': 'Scenario'}
         """
 
         def convert_value(value, add_edsl_version=True):

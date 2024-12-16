@@ -47,7 +47,7 @@ class AvailableModelFetcher:
     def _read_cache(self) -> Optional[Dict]:
         """Read the cached model availability data if it exists and is valid."""
 
-        print("Reading from cache at ", self.cache_file)
+        # print("Reading from cache at ", self.cache_file)
         if not self.cache_file.exists():
             return None
 
