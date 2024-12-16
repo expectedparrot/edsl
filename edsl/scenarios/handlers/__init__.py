@@ -10,3 +10,4 @@ from .sql import SqlMethods
 from .pptx import PptxMethods
 from .latex import LaTeXMethods
 from .py import PyMethods
+from .sqlite import SQLiteMethods

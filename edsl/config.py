@@ -1,11 +1,15 @@
 """This module provides a Config class that loads environment variables from a .env file and sets them as class attributes."""
 
 import os
+import platformdirs
 from dotenv import load_dotenv, find_dotenv
 from edsl.exceptions.configuration import (
     InvalidEnvironmentVariableError,
     MissingEnvironmentVariableError,
 )
+
+cache_dir = platformdirs.user_cache_dir("edsl")
+os.makedirs(cache_dir, exist_ok=True)
 
 # valid values for EDSL_RUN_MODE
 EDSL_RUN_MODES = [
@@ -34,7 +38,8 @@ CONFIG_MAP = {
         "info": "This config var determines the maximum number of seconds to wait before retrying a failed API call.",
     },
     "EDSL_DATABASE_PATH": {
-        "default": f"sqlite:///{os.path.join(os.getcwd(), '.edsl_cache/data.db')}",
+        # "default": f"sqlite:///{os.path.join(os.getcwd(), '.edsl_cache/data.db')}",
+        "default": f"sqlite:///{os.path.join(platformdirs.user_cache_dir('edsl'), 'lm_model_calls.db')}",
         "info": "This config var determines the path to the cache file.",
     },
     "EDSL_DEFAULT_MODEL": {
@@ -84,6 +89,9 @@ class Config:
         self._set_run_mode()
         self._load_dotenv()
         self._set_env_vars()
+
+    def show_path_to_dot_env(self):
+        print(find_dotenv(usecwd=True))
 
     def _set_run_mode(self) -> None:
         """

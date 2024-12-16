@@ -1,11 +1,11 @@
+import logging
 from abc import ABC, abstractmethod
-from pydantic import BaseModel, Field, field_validator
-
-# from decimal import Decimal
 from typing import Optional, Any, List, TypedDict
 
+from pydantic import BaseModel, Field, field_validator, ValidationError
+
 from edsl.exceptions.questions import QuestionAnswerValidationError
-from pydantic import ValidationError
+from edsl.questions.ExceptionExplainer import ExceptionExplainer
 
 
 class BaseResponse(BaseModel):
@@ -72,7 +72,8 @@ class ResponseValidatorABC(ABC):
         return self.override_answer if self.override_answer else data
 
     def _base_validate(self, data: RawEdslAnswerDict) -> BaseModel:
-        """This is the main validation function. It takes the response_model and checks the data against it, returning the instantiated model.
+        """This is the main validation function. It takes the response_model and checks the data against it,
+        returning the instantiated model.
 
         >>> rv = ResponseValidatorABC.example("numerical")
         >>> rv._base_validate({"answer": 42})
@@ -81,7 +82,9 @@ class ResponseValidatorABC(ABC):
         try:
             return self.response_model(**data)
         except ValidationError as e:
-            raise QuestionAnswerValidationError(e, data=data, model=self.response_model)
+            raise QuestionAnswerValidationError(
+                message=str(e), pydantic_error=e, data=data, model=self.response_model
+            )
 
     def post_validation_answer_convert(self, data):
         return data
@@ -128,9 +131,12 @@ class ResponseValidatorABC(ABC):
             edsl_answer_dict = self._extract_answer(pydantic_edsl_answer)
             return self._post_process(edsl_answer_dict)
         except QuestionAnswerValidationError as e:
-            if verbose:
-                print(f"Failed to validate {raw_edsl_answer_dict}; {str(e)}")
             return self._handle_exception(e, raw_edsl_answer_dict)
+
+    def human_explanation(self, e: QuestionAnswerValidationError):
+        explanation = ExceptionExplainer(e, model_response=e.data).explain()
+        return explanation
+        # return e
 
     def _handle_exception(self, e: Exception, raw_edsl_answer_dict) -> EdslAnswerDict:
         if self.fixes_tried == 0:
@@ -140,12 +146,18 @@ class ResponseValidatorABC(ABC):
             self.fixes_tried += 1
             fixed_data = self.fix(raw_edsl_answer_dict)
             try:
-                return self.validate(fixed_data, fix=True)
+                return self.validate(fixed_data, fix=True)  # early return if validates
             except Exception as e:
                 pass  # we don't log failed fixes
 
+        # If the exception is already a QuestionAnswerValidationError, raise it
+        if isinstance(self.original_exception, QuestionAnswerValidationError):
+            raise self.original_exception
+
+        # If nothing worked, raise the original exception
         raise QuestionAnswerValidationError(
-            self.original_exception,
+            message=self.original_exception,
+            pydantic_error=self.original_exception,
             data=raw_edsl_answer_dict,
             model=self.response_model,
         )
@@ -167,8 +179,22 @@ class ResponseValidatorABC(ABC):
         return q.response_validator
 
 
+def main():
+    rv = ResponseValidatorABC.example()
+    print(rv.validate({"answer": 42}))
+
+
 # Example usage
 if __name__ == "__main__":
     import doctest
 
     doctest.testmod(optionflags=doctest.ELLIPSIS)
+
+    rv = ResponseValidatorABC.example()
+    # print(rv.validate({"answer": 42}))
+
+    rv = ResponseValidatorABC.example()
+    try:
+        rv.validate({"answer": "120"})
+    except QuestionAnswerValidationError as e:
+        print(rv.human_explanation(e))

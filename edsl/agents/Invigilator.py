@@ -48,8 +48,6 @@ class InvigilatorAI(InvigilatorBase):
         params.update({"iteration": self.iteration, "cache": self.cache})
 
         params.update({"invigilator": self})
-        # if hasattr(self.question, "answer_template"):
-        #    breakpoint()
 
         agent_response_dict: AgentResponseDict = await self.model.async_get_response(
             **params
@@ -110,7 +108,6 @@ class InvigilatorAI(InvigilatorBase):
             else:
                 question_with_validators = self.question
 
-            # breakpoint()
             validated_edsl_dict = question_with_validators._validate_answer(edsl_dict)
             answer = self.determine_answer(validated_edsl_dict["answer"])
             comment = validated_edsl_dict.get("comment", "")
