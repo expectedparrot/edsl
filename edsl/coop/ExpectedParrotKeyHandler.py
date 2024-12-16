@@ -19,6 +19,11 @@ class ExpectedParrotKeyHandler:
 
     def ok_to_ask_to_store(self):
         """Check if it's okay to ask the user to store the key."""
+        from edsl.config import CONFIG
+
+        if CONFIG.get("EDSL_RUN_MODE") != "production":
+            return False
+
         return (
             not Path(self.config_dir).joinpath(self.asked_to_store_file_name).exists()
         )
