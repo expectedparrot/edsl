@@ -795,6 +795,13 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
             new_scenarios.append(new_scenario)
         return ScenarioList(new_scenarios)
 
+    @classmethod
+    def from_list_of_tuples(self, *names: str, values: List[Tuple]) -> ScenarioList:
+        sl = ScenarioList.from_list(names[0], [value[0] for value in values])
+        for index, name in enumerate(names[1:]):
+            sl = sl.add_list(name, [value[index + 1] for value in values])
+        return sl
+
     def add_list(self, name: str, values: List[Any]) -> ScenarioList:
         """Add a list of values to a ScenarioList.
 
