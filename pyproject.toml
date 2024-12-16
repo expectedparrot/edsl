@@ -84,7 +84,3 @@ uvicorn = "^0.30.6"
 [tool.tomlsort.overrides."tool.poetry.dependencies"]
 table_keys = false
 
-
-[project.entry-points."edsl.scenarios.file_handlers"]
-pdf = "edsl.scenarios.handlers.pdf:PdfMethods"
-docx = "edsl.scenarios.handlers.docx:DocxMethods"
