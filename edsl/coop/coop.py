@@ -2,9 +2,14 @@ import aiohttp
 import json
 import os
 import requests
+import platformdirs
+
 from typing import Any, Optional, Union, Literal
 from uuid import UUID
+
 import edsl
+from pathlib import Path
+
 from edsl.config import CONFIG
 from edsl.data.CacheEntry import CacheEntry
 from edsl.jobs.Jobs import Jobs
@@ -20,6 +25,7 @@ from edsl.coop.utils import (
 )
 
 from edsl.coop.CoopFunctionsMixin import CoopFunctionsMixin
+from edsl.coop.ExpectedParrotKeyHandler import ExpectedParrotKeyHandler
 
 
 class Coop(CoopFunctionsMixin):
@@ -27,13 +33,78 @@ class Coop(CoopFunctionsMixin):
     Client for the Expected Parrot API.
     """
 
-    def __init__(self, api_key: str = None, url: str = None) -> None:
+    # asked_to_store_file_name = "asked_to_store.txt"
+    # ep_key_file_name = "ep_api_key.txt"
+    # application_name = "edsl"
+
+    # def _ep_key_file_exists(self) -> bool:
+    #     config_dir = platformdirs.user_config_dir(self.application_name)
+    #     return Path(config_dir).joinpath(self.ep_key_file_name).exists()
+
+    # def ok_to_ask_to_store(self):
+    #     config_dir = platformdirs.user_config_dir(self.application_name)
+    #     return not Path(config_dir).joinpath(self.asked_to_store_file_name).exists()
+
+    # def ask_to_store(self, api_key):
+    #     config_dir = platformdirs.user_config_dir(self.application_name)
+    #     if self.ok_to_ask_to_store():
+    #         can_we_store = input(
+    #             "Would you like to store your Expected Parrot key for future use? (y/n): "
+    #         )
+    #         if can_we_store.lower() == "y":
+    #             self.store_ep_api_key(api_key)
+    #             return True
+    #         else:
+    #             with open(
+    #                 Path(config_dir).joinpath(self.asked_to_store_file_name), "w"
+    #             ) as f:
+    #                 f.write("Yes")
+    #     return False
+
+    # def get_ep_api_key(self):
+    #     # check if the key is stored in the config_dir
+    #     config_dir = platformdirs.user_config_dir(self.application_name)
+    #     if self._ep_key_file_exists():
+    #         with open(Path(config_dir).joinpath(self.ep_key_file_name), "r") as f:
+    #             api_key = f.read().strip()
+    #             print("Using stored Expected Parrot API key at ", f.name)
+    #             return api_key
+
+    #     api_key = os.getenv("EXPECTED_PARROT_API_KEY")
+    #     _ = self.ask_to_store(api_key)
+    #     return api_key
+
+    # def delete_ep_api_key(self):
+    #     config_dir = platformdirs.user_config_dir(self.application_name)
+    #     key_path = Path(config_dir) / self.ep_key_file_name
+    #     if key_path.exists():
+    #         os.remove(key_path)
+    #         print("Deleted Expected Parrot API key at ", key_path)
+
+    # def store_ep_api_key(self, api_key):
+    #     config_dir = platformdirs.user_config_dir(self.application_name)
+
+    #     # Create the directory if it doesn't exist
+    #     os.makedirs(config_dir, exist_ok=True)
+
+    #     # Create the path for the key file
+    #     key_path = Path(config_dir) / self.ep_key_file_name
+
+    #     # Save the key
+    #     with open(key_path, "w") as f:
+    #         f.write(api_key)
+    #     print("Stored Expected Parrot API key at ", key_path)
+
+    def __init__(
+        self, api_key: Optional[str] = None, url: Optional[str] = None
+    ) -> None:
         """
         Initialize the client.
         - Provide an API key directly, or through an env variable.
         - Provide a URL directly, or use the default one.
         """
-        self.api_key = api_key or os.getenv("EXPECTED_PARROT_API_KEY")
+        self.ep_key_handler = ExpectedParrotKeyHandler()
+        self.api_key = api_key or self.ep_key_handler.get_ep_api_key()
 
         self.url = url or CONFIG.EXPECTED_PARROT_URL
         if self.url.endswith("/"):
@@ -179,12 +250,17 @@ class Coop(CoopFunctionsMixin):
                     print("\nTimed out waiting for login. Please try again.")
                     return
 
-                path_to_env = write_api_key_to_env(api_key)
-                print(
-                    "\n✨ API key retrieved and written to .env file at the following path:"
-                )
-                print(f"    {path_to_env}")
-                print("Rerun your code to try again with a valid API key.")
+                print("\n✨ API key retrieved.")
+
+                if stored_in_user_space := self.ep_key_handler.ask_to_store(api_key):
+                    pass
+                else:
+                    path_to_env = write_api_key_to_env(api_key)
+                    print(
+                        "\n✨ API key retrieved and written to .env file at the following path:"
+                    )
+                    print(f"    {path_to_env}")
+                    print("Rerun your code to try again with a valid API key.")
                 return
 
             elif "Authorization" in message:

@@ -87,6 +87,7 @@ class Results(UserList, Mixins, Base):
         "question_type",
         "comment",
         "generated_tokens",
+        "cache_used",
     ]
 
     def __init__(
@@ -343,6 +344,7 @@ class Results(UserList, Mixins, Base):
         add_edsl_version=False,
         include_cache=False,
         include_task_history=False,
+        include_cache_info=True,
     ) -> dict[str, Any]:
         from edsl.data.Cache import Cache
 
@@ -353,7 +355,11 @@ class Results(UserList, Mixins, Base):
 
         d = {
             "data": [
-                result.to_dict(add_edsl_version=add_edsl_version) for result in data
+                result.to_dict(
+                    add_edsl_version=add_edsl_version,
+                    include_cache_info=include_cache_info,
+                )
+                for result in data
             ],
             "survey": self.survey.to_dict(add_edsl_version=add_edsl_version),
             "created_columns": self.created_columns,
@@ -404,7 +410,9 @@ class Results(UserList, Mixins, Base):
     def __hash__(self) -> int:
         from edsl.utilities.utilities import dict_hash
 
-        return dict_hash(self.to_dict(sort=True, add_edsl_version=False))
+        return dict_hash(
+            self.to_dict(sort=True, add_edsl_version=False, include_cache_info=False)
+        )
 
     @property
     def hashes(self) -> set:
@@ -589,6 +597,9 @@ class Results(UserList, Mixins, Base):
 
         return ModelList([r.model for r in self.data])
 
+    def __eq__(self, other):
+        return hash(self) == hash(other)
+
     @property
     def scenarios(self) -> ScenarioList:
         """Return a list of all of the scenarios in the Results.
@@ -597,7 +608,7 @@ class Results(UserList, Mixins, Base):
 
         >>> r = Results.example()
         >>> r.scenarios
-        ScenarioList([Scenario({'period': 'morning'}), Scenario({'period': 'afternoon'}), Scenario({'period': 'morning'}), Scenario({'period': 'afternoon'})])
+        ScenarioList([Scenario({'period': 'morning', 'scenario_index': 0}), Scenario({'period': 'afternoon', 'scenario_index': 1}), Scenario({'period': 'morning', 'scenario_index': 0}), Scenario({'period': 'afternoon', 'scenario_index': 1})])
         """
         from edsl.scenarios.ScenarioList import ScenarioList
 
