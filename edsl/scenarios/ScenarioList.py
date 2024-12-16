@@ -8,9 +8,14 @@ from typing import (
     List,
     Callable,
     Literal,
-    TypeAlias,
     TYPE_CHECKING,
 )
+
+try:
+    from typing import TypeAlias
+except ImportError:
+    from typing_extensions import TypeAlias
+
 import csv
 import random
 from io import StringIO
