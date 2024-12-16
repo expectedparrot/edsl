@@ -61,7 +61,7 @@ class JobsRemoteInferenceHandler:
         from edsl.utilities.is_notebook import is_notebook
         from edsl.jobs.JobsRemoteInferenceLogger import JupyterJobLogger
         from edsl.jobs.JobsRemoteInferenceLogger import StdOutJobLogger
-        from edsl.jobs.JobsRemoteInferenceLogger import HTMLTableJobLogger
+        from edsl.jobs.loggers.HTMLTableJobLogger import HTMLTableJobLogger
 
         if is_notebook():
             # self.logger = JupyterJobLogger(verbose=self.verbose)
