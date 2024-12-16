@@ -51,6 +51,11 @@ class TableDisplay:
         )
         return self.renderer_class(table_data).render_html()
 
+    def __repr__(self):
+        from tabulate import tabulate
+
+        return tabulate(self.data, headers=self.headers, tablefmt=self.tablefmt)
+
     @classmethod
     def from_dictionary(cls, dictionary, tablefmt=None, renderer=None):
         headers = list(dictionary.keys())
