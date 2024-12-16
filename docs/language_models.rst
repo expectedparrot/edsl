@@ -22,19 +22,22 @@ We can see all of the available services (model providers) by calling the `servi
 
 This will return a list of the services we can choose from:
 
-.. code-block:: python
+.. list-table::
+   :header-rows: 1
 
-   ['openai',
-   'anthropic',
-   'deep_infra',
-   'google',
-   'groq',
-   'bedrock',
-   'azure',
-   'ollama',
-   'test',
-   'together',
-   'mistral']
+   * - Service Name
+   * - openai
+   * - anthropic
+   * - deep_infra
+   * - google
+   * - groq
+   * - bedrock
+   * - azure
+   * - ollama
+   * - test
+   * - together
+   * - perplexity
+   * - mistral
 
 
 Available models
@@ -121,24 +124,32 @@ We can see that the object consists of a model name and a dictionary of paramete
 
 This will show the default parameters of the model:
 
-.. code-block:: python
+.. list-table::
+   :header-rows: 1
 
-   {
-      "model": "gpt-4o",
-      "parameters": {
-         "temperature": 0.5,
-         "max_tokens": 1000,
-         "top_p": 1,
-         "frequency_penalty": 0,
-         "presence_penalty": 0,
-         "logprobs": false,
-         "top_logprobs": 3
-      }
-   }
+   * - key
+     - value 
+   * - model
+     - gpt-4o
+   * - parameters:temperature
+     - 0.5
+   * - parameters:max_tokens
+     - 1000
+   * - parameters:top_p
+     - 1
+   * - parameters:frequency_penalty
+     - 0
+   * - parameters:presence_penalty
+     - 0
+   * - parameters:logprobs
+     - False
+   * - parameters:top_logprobs
+     - 3
 
 
 Running a survey with models
 ----------------------------
+
 Similar to how we specify :ref:`agents` and :ref:`scenarios` in running a survey, we specify the models to use by adding them to a survey with the `by()` method when the survey is run.
 We can pass either a single `Model` object or a list of models to the `by()` method. 
 If multiple models are to be used they are passed as a list or as a `ModelList` object.
@@ -214,10 +225,26 @@ For example, we can verify the default model when running a survey without speci
 
 This will return the following information about the default model that was used (note the default model may have changed since this page was last updated):
 
-.. code-block:: text
+.. list-table::
+  :header-rows: 1
 
-   [Model(model_name = 'gpt-4o', temperature = 0.5, max_tokens = 1000, top_p = 1, frequency_penalty = 0, presence_penalty = 0, logprobs = False, top_logprobs = 3)]  
-
+  * - model
+    - temperature
+    - max_tokens
+    - top_p
+    - frequency_penalty
+    - presence_penalty
+    - logprobs
+    - top_logprobs
+  * - gpt-4o
+    - 0.5
+    - 1000
+    - 1
+    - 0
+    - 0
+    - False
+    - 3
+    
 
 To learn more about all the components of a `Results` object, please see the :ref:`results` section.
 
@@ -240,16 +267,20 @@ For example, the following code prints a table of the model names and temperatur
 
    results = survey.by(models).run()
 
-   results.select("model", "temperature").print() # This is equivalent to: results.select("model.model", "model.temperature").print()
+   results.select("model", "temperature") # This is equivalent to: results.select("model.model", "model.temperature")
 
 
 Output:
 
-.. code-block:: text 
+.. list-table::
+  :header-rows: 1
 
-   model.model	      model.temperature
-   gpt-4o	         0.5
-   gemini-1.5-pro	   0.5
+  * - model.model
+    - model.temperature
+  * - gpt-4o
+    - 0.5
+  * - gemini-1.5-pro
+    - 0.5
 
 
 We can also print model attributes together with other components of results.
@@ -262,79 +293,84 @@ We can see a list of all components by calling the `columns` method on the resul
 
 Output:
 
-.. code-block:: python
+.. list-table::
+  :header-rows: 1
 
-   ['agent.agent_instruction',
-   'agent.agent_name',
-   'answer.q0',
-   'answer.q1',
-   'answer.q2',
-   'comment.q0_comment',
-   'comment.q1_comment',
-   'comment.q2_comment',
-   'generated_tokens.q0_generated_tokens',
-   'generated_tokens.q1_generated_tokens',
-   'generated_tokens.q2_generated_tokens',
-   'iteration.iteration',
-   'model.frequency_penalty',
-   'model.logprobs',
-   'model.maxOutputTokens',
-   'model.max_tokens',
-   'model.model',
-   'model.presence_penalty',
-   'model.stopSequences',
-   'model.temperature',
-   'model.topK',
-   'model.topP',
-   'model.top_logprobs',
-   'model.top_p',
-   'prompt.q0_system_prompt',
-   'prompt.q0_user_prompt',
-   'prompt.q1_system_prompt',
-   'prompt.q1_user_prompt',
-   'prompt.q2_system_prompt',
-   'prompt.q2_user_prompt',
-   'question_options.q0_question_options',
-   'question_options.q1_question_options',
-   'question_options.q2_question_options',
-   'question_text.q0_question_text',
-   'question_text.q1_question_text',
-   'question_text.q2_question_text',
-   'question_type.q0_question_type',
-   'question_type.q1_question_type',
-   'question_type.q2_question_type',
-   'raw_model_response.q0_cost',
-   'raw_model_response.q0_one_usd_buys',
-   'raw_model_response.q0_raw_model_response',
-   'raw_model_response.q1_cost',
-   'raw_model_response.q1_one_usd_buys',
-   'raw_model_response.q1_raw_model_response',
-   'raw_model_response.q2_cost',
-   'raw_model_response.q2_one_usd_buys',
-   'raw_model_response.q2_raw_model_response']
+  * - 0
+  * - agent.agent_instruction
+  * - agent.agent_name
+  * - answer.q0
+  * - answer.q1
+  * - answer.q2
+  * - comment.q0_comment
+  * - comment.q1_comment
+  * - comment.q2_comment
+  * - generated_tokens.q0_generated_tokens
+  * - generated_tokens.q1_generated_tokens
+  * - generated_tokens.q2_generated_tokens
+  * - iteration.iteration
+  * - model.frequency_penalty
+  * - model.logprobs
+  * - model.maxOutputTokens
+  * - model.max_tokens
+  * - model.model
+  * - model.presence_penalty
+  * - model.stopSequences
+  * - model.temperature
+  * - model.topK
+  * - model.topP
+  * - model.top_logprobs
+  * - model.top_p
+  * - prompt.q0_system_prompt
+  * - prompt.q0_user_prompt
+  * - prompt.q1_system_prompt
+  * - prompt.q1_user_prompt
+  * - prompt.q2_system_prompt
+  * - prompt.q2_user_prompt
+  * - question_options.q0_question_options
+  * - question_options.q1_question_options
+  * - question_options.q2_question_options
+  * - question_text.q0_question_text
+  * - question_text.q1_question_text
+  * - question_text.q2_question_text
+  * - question_type.q0_question_type
+  * - question_type.q1_question_type
+  * - question_type.q2_question_type
+  * - raw_model_response.q0_cost
+  * - raw_model_response.q0_one_usd_buys
+  * - raw_model_response.q0_raw_model_response
+  * - raw_model_response.q1_cost
+  * - raw_model_response.q1_one_usd_buys
+  * - raw_model_response.q1_raw_model_response
+  * - raw_model_response.q2_cost
+  * - raw_model_response.q2_one_usd_buys
+  * - raw_model_response.q2_raw_model_response
+
 
 The following code will display a table of the model names together with the simulated answers:
 
 .. code-block:: python
 
-   (
-      results
-      .select("model", "answer.*")
-      .print(format="rich")
-   )
+   results.select("model", "answer.*")
+
 
 Output:
 
-.. code-block:: text 
+.. list-table::
+   :header-rows: 1
 
-   ┏━━━━━━━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━┳━━━━━━━━┓
-   ┃ model          ┃ answer ┃ answer ┃ answer ┃
-   ┃ .model         ┃ .q2    ┃ .q1    ┃ .q0    ┃
-   ┡━━━━━━━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━╇━━━━━━━━┩
-   │ gpt-4o         │ other  │ None   │ yes    │
-   ├────────────────┼────────┼────────┼────────┤
-   │ gemini-1.5-pro │ other  │ other  │ no     │
-   └────────────────┴────────┴────────┴────────┘
+   * - model.model
+     - answer.q0
+     - answer.q1
+     - answer.q2
+   * - gpt-4o
+     - no
+     - killer bees in cafeteria
+     -
+   * - gemini-1.5-pro
+     - yes
+     - 
+     - other
 
 
 To learn more about methods of inspecting and printing results, please see the :ref:`results` section.
