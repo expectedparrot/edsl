@@ -4,10 +4,13 @@ from edsl.exceptions.coop import CoopServerResponseError
 
 if TYPE_CHECKING:
     from edsl.results.Results import Results
+    from edsl.jobs.Jobs import Jobs
+
+from edsl.jobs.jobs_status_enums import JobsStatus
 
 
 class JobsRemoteInferenceHandler:
-    def __init__(self, jobs, verbose=False, poll_interval=3):
+    def __init__(self, jobs: "Jobs", verbose=False, poll_interval=3):
         """ """
         self.jobs = jobs
         self.verbose = verbose
@@ -58,15 +61,18 @@ class JobsRemoteInferenceHandler:
         from edsl.utilities.is_notebook import is_notebook
         from edsl.jobs.JobsRemoteInferenceLogger import JupyterJobLogger
         from edsl.jobs.JobsRemoteInferenceLogger import StdOutJobLogger
+        from edsl.jobs.JobsRemoteInferenceLogger import HTMLTableJobLogger
 
         if is_notebook():
-            self.logger = JupyterJobLogger(verbose=self.verbose)
+            # self.logger = JupyterJobLogger(verbose=self.verbose)
+            self.logger = HTMLTableJobLogger(verbose=self.verbose)
         else:
             self.logger = StdOutJobLogger(verbose=self.verbose)
 
         coop = Coop()
         self.logger.update(
-            "Remote inference activated. Sending job to server...", "running"
+            "Remote inference activated. Sending job to server...",
+            status=JobsStatus.QUEUED,
         )
         remote_job_creation_data = coop.remote_inference_create(
             self.jobs,
@@ -75,18 +81,30 @@ class JobsRemoteInferenceHandler:
             iterations=iterations,
             initial_results_visibility=remote_inference_results_visibility,
         )
-        self.logger.update("Your survey is running at the Expected Parrot server...")
+        self.logger.update(
+            "Your survey is running at the Expected Parrot server...",
+            status=JobsStatus.RUNNING,
+        )
 
         job_uuid = remote_job_creation_data.get("uuid")
-        self.logger.update(f"Job sent to server. (Job uuid={job_uuid}).", "running")
+        self.logger.update(
+            message=f"Job sent to server. (Job uuid={job_uuid}).",
+            status=JobsStatus.RUNNING,
+        )
+        self.logger.add_info("job_uuid", job_uuid)
 
         expected_parrot_url = CONFIG.get("EXPECTED_PARROT_URL")
         remote_inference_url = f"{expected_parrot_url}/home/remote-inference"
+
         self.logger.update(
-            f"Job details are available at your Coop account {remote_inference_url}{remote_inference_url}"
+            f"Job details are available at your Coop account {remote_inference_url}{remote_inference_url}",
+            status=JobsStatus.RUNNING,
         )
         progress_bar_url = f"{expected_parrot_url}/home/remote-job-progress/{job_uuid}"
-        self.logger.update(f"View job progress here: {progress_bar_url}", "running")
+        self.logger.add_info("progress_bar_url", progress_bar_url)
+        self.logger.update(
+            f"View job progress here: {progress_bar_url}", status=JobsStatus.RUNNING
+        )
 
         self._remote_job_creation_data = remote_job_creation_data
         self._job_uuid = job_uuid
@@ -139,33 +157,37 @@ class JobsRemoteInferenceHandler:
             status = remote_job_data.get("status")
 
             if status == "cancelled":
-                self.logger.update("Job cancelled by the user.", "failed")
+                self.logger.update(
+                    messaged="Job cancelled by the user.", status=JobsStatus.CANCELLED
+                )
                 self.logger.update(
                     f"See {expected_parrot_url}/home/remote-inference for more details.",
-                    "failed",
+                    status=JobsStatus.CANCELLED,
                 )
                 return None
 
             elif status == "failed":
                 latest_error_report_url = remote_job_data.get("latest_error_report_url")
                 if latest_error_report_url:
-                    self.logger.update("Job failed.", "failed")
+                    self.logger.update("Job failed.", status=JobsStatus.FAILED)
                     self.logger.update(
                         f"Error report: {latest_error_report_url}", "failed"
                     )
+                    self.logger.add_info("error_report_url", latest_error_report_url)
                     self.logger.update(
                         "Need support? Visit Discord: https://discord.com/invite/mxAYkjfy9m",
-                        "failed",
+                        status=JobsStatus.FAILED,
                     )
                 else:
                     self.logger.update("Job failed.", "failed")
                     self.logger.update(
                         f"See {expected_parrot_url}/home/remote-inference for details.",
-                        "failed",
+                        status=JobsStatus.FAILED,
                     )
 
                 results_uuid = remote_job_data.get("results_uuid")
                 if results_uuid:
+                    self.logger.add_info("results_uuid", results_uuid)
                     results = object_fetcher(
                         results_uuid, expected_object_type="results"
                     )
@@ -175,18 +197,21 @@ class JobsRemoteInferenceHandler:
 
             elif status == "completed":
                 results_uuid = remote_job_data.get("results_uuid")
+                self.logger.add_info("results_uuid", results_uuid)
                 results_url = remote_job_data.get("results_url")
+                self.logger.add_info("results_url", results_url)
                 results = object_fetcher(results_uuid, expected_object_type="results")
                 self.logger.update(
                     f"Job completed and Results stored on Coop: {results_url}",
-                    "completed",
+                    status=JobsStatus.COMPLETED,
                 )
                 return results
 
             else:
                 time_checked = datetime.now().strftime("%Y-%m-%d %I:%M:%S %p")
                 self.logger.update(
-                    f"Job status: {status} - last update: {time_checked}", "running"
+                    f"Job status: {status} - last update: {time_checked}",
+                    status=JobsStatus.RUNNING,
                 )
                 time.sleep(poll_interval)
 
