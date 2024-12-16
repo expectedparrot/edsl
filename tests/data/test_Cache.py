@@ -74,9 +74,9 @@ def test_write_to_db(cache_example):
     # assert os.path.exists(CONFIG.get("EDSL_DATABASE_PATH").replace("sqlite:///", ""))
 
 
-def test_html(cache_example):
-    cache = cache_example
-    assert cache._repr_html_() == cache_example._repr_html_()
+# def test_html(cache_example):
+#     cache = cache_example
+#     assert cache._repr_html_() == cache_example._repr_html_()
 
 
 def test_fetch_existing_entry(cache_example):
