@@ -1,6 +1,7 @@
 """Enums for the different types of questions, language models, and inference services."""
 
 from enum import Enum
+from typing import Literal
 
 
 class EnumWithChecks(Enum):
@@ -65,6 +66,25 @@ class InferenceServiceType(EnumWithChecks):
     MISTRAL = "mistral"
     TOGETHER = "together"
     PERPLEXITY = "perplexity"
+
+
+# unavoidable violation of the DRY principle but it is necessary
+# checked w/ a unit test to make sure consistent with services in enums.py
+InferenceServiceLiteral = Literal[
+    "bedrock",
+    "deep_infra",
+    "replicate",
+    "openai",
+    "google",
+    "test",
+    "anthropic",
+    "groq",
+    "azure",
+    "ollama",
+    "mistral",
+    "together",
+    "perplexity",
+]
 
 
 service_to_api_keyname = {

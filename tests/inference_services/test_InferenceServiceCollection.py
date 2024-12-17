@@ -10,8 +10,8 @@ from edsl.inference_services.InferenceServicesCollection import (
     InferenceServicesCollection,
     ModelResolver,
     ModelCreator,
-    InferenceService,
 )
+from edsl.inference_services.InferenceServiceABC import InferenceServiceABC
 
 
 class MockInferenceService:
@@ -110,3 +110,23 @@ class TestInferenceServicesCollection:
     def test_create_model_factory_invalid_service(self, collection):
         with pytest.raises(InferenceServiceError):
             collection.create_model_factory("model1", "invalid_service")
+
+    def test_literal_matches_enum(self):
+        # Get all values from the Literal type
+        from typing import Literal, get_args
+        from edsl.inference_services.InferenceServicesCollection import (
+            InferenceServiceLiteral,
+        )
+        from edsl.enums import InferenceServiceType
+
+        literal_values = set(get_args(InferenceServiceLiteral))
+
+        # Get all values from the enum
+        enum_values = {member.value for member in InferenceServiceType}
+
+        # Check both directions to ensure complete equality
+        assert literal_values == enum_values, (
+            f"Mismatch between Literal and Enum values:\n"
+            f"In Literal but not in Enum: {literal_values - enum_values}\n"
+            f"In Enum but not in Literal: {enum_values - literal_values}"
+        )

@@ -1,6 +1,6 @@
 from functools import lru_cache
 from collections import defaultdict
-from typing import Optional, Protocol, Dict, List, Tuple, TYPE_CHECKING
+from typing import Optional, Protocol, Dict, List, Tuple, TYPE_CHECKING, Literal
 
 from edsl.inference_services.InferenceServiceABC import InferenceServiceABC
 from edsl.inference_services.AvailableModelFetcher import AvailableModelFetcher
@@ -8,21 +8,21 @@ from edsl.exceptions.inference_services import InferenceServiceError
 
 if TYPE_CHECKING:
     from edsl.language_models.LanguageModel import LanguageModel
+    from edsl.inference_services.InferenceServiceABC import InferenceServiceABC
 
 
 class ModelCreator(Protocol):
     def create_model(self, model_name: str) -> "LanguageModel": ...
 
 
-class InferenceService(ModelCreator, Protocol):
-    _inference_service_: str
+from edsl.enums import InferenceServiceLiteral
 
 
 class ModelResolver:
     def __init__(
         self,
-        services: List[InferenceService],
-        models_to_services: Dict[str, InferenceService],
+        services: List[InferenceServiceLiteral],
+        models_to_services: Dict[InferenceServiceLiteral, InferenceServiceABC],
         availability_fetcher: "AvailableModelFetcher",
     ):
         """
@@ -36,20 +36,29 @@ class ModelResolver:
         }
 
     def resolve_model(
-        self, model_name: str, service_name: Optional[str]
-    ) -> InferenceService:
+        self, model_name: str, service_name: Optional[InferenceServiceLiteral] = None
+    ) -> InferenceServiceABC:
+        """Returns an InferenceServiceABC object for the given model name.
+
+        :param model_name: The name of the model to resolve. E.g., 'gpt-4o'
+        :param service_name: The name of the service to use. E.g., 'openai'
+        :return: An InferenceServiceABC object
+
+        """
         if model_name == "test":
             from edsl.inference_services.TestService import TestService
 
             return TestService()
 
-        if service_name:
-            service = self._service_names_to_classes.get(service_name)
+        if service_name is not None:
+            service: InferenceServiceABC = self._service_names_to_classes.get(
+                service_name
+            )
             if not service:
                 raise InferenceServiceError(f"Service {service_name} not found")
             return service
 
-        if model_name in self._models_to_services:
+        if model_name in self._models_to_services:  # maybe we've seen it before!
             return self._models_to_services[model_name]
 
         for service in self.services:
@@ -66,9 +75,9 @@ class ModelResolver:
 class InferenceServicesCollection:
     added_models = defaultdict(list)  # Moved back to class level
 
-    def __init__(self, services: Optional[List[InferenceService]] = None):
+    def __init__(self, services: Optional[List[InferenceServiceABC]] = None):
         self.services = services or []
-        self._models_to_services: Dict[str, InferenceService] = {}
+        self._models_to_services: Dict[str, InferenceServiceABC] = {}
 
         self.availability_fetcher = AvailableModelFetcher(
             self.services, self.added_models
@@ -89,11 +98,11 @@ class InferenceServicesCollection:
     def reset_cache(self) -> None:
         self.available.cache_clear()
 
-    def register(self, service: InferenceService) -> None:
+    def register(self, service: InferenceServiceABC) -> None:
         self.services.append(service)
 
     def create_model_factory(
-        self, model_name: str, service_name: Optional[str] = None
+        self, model_name: str, service_name: Optional[InferenceServiceLiteral] = None
     ) -> "LanguageModel":
         service = self.resolver.resolve_model(model_name, service_name)
         return service.create_model(model_name)

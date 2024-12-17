@@ -1,31 +1,40 @@
-from typing import Optional, Union, Literal, TYPE_CHECKING
+from typing import Optional, Union, Literal, TYPE_CHECKING, NewType
+
+
+Seconds = NewType("Seconds", float)
+JobUUID = NewType("JobUUID", str)
 
 from edsl.exceptions.coop import CoopServerResponseError
 
 if TYPE_CHECKING:
     from edsl.results.Results import Results
     from edsl.jobs.Jobs import Jobs
+    from edsl.coop.coop import RemoteInferenceResponse, RemoteInferenceCreationInfo
+    from edsl.jobs.JobsRemoteInferenceLogger import JobLogger
+
+from edsl.coop.coop import RemoteInferenceResponse, RemoteInferenceCreationInfo
 
 from edsl.jobs.jobs_status_enums import JobsStatus
+from edsl.coop.utils import VisibilityType
 
 
 class JobsRemoteInferenceHandler:
-    def __init__(self, jobs: "Jobs", verbose=False, poll_interval=3):
+    def __init__(self, jobs: "Jobs", verbose: bool = False, poll_interval: Seconds = 1):
         """ """
         self.jobs = jobs
         self.verbose = verbose
         self.poll_interval = poll_interval
 
-        self._remote_job_creation_data = None
-        self._job_uuid = None
-        self.logger = None  # Will be initialized when needed
+        self._remote_job_creation_data: Union[None, RemoteInferenceCreationInfo] = None
+        self._job_uuid: Union[None, JobUUID] = None  # Will be set when job is created
+        self.logger: Union[None, JobLogger] = None  # Will be initialized when needed
 
     @property
-    def remote_job_creation_data(self):
+    def remote_job_creation_data(self) -> RemoteInferenceCreationInfo:
         return self._remote_job_creation_data
 
     @property
-    def job_uuid(self):
+    def job_uuid(self) -> JobUUID:
         return self._job_uuid
 
     def use_remote_inference(self, disable_remote_inference: bool) -> bool:
@@ -48,23 +57,20 @@ class JobsRemoteInferenceHandler:
 
     def create_remote_inference_job(
         self,
-        iterations=1,
-        remote_inference_description=None,
-        remote_inference_results_visibility="unlisted",
-    ):
+        iterations: int = 1,
+        remote_inference_description: Optional[str] = None,
+        remote_inference_results_visibility: Optional[VisibilityType] = "unlisted",
+    ) -> None:
         from edsl.config import CONFIG
         from edsl.coop.coop import Coop
-
-        # from rich import print as rich_print
 
         # Initialize logger
         from edsl.utilities.is_notebook import is_notebook
         from edsl.jobs.JobsRemoteInferenceLogger import JupyterJobLogger
         from edsl.jobs.JobsRemoteInferenceLogger import StdOutJobLogger
-        from edsl.jobs.JobsRemoteInferenceLogger import HTMLTableJobLogger
+        from edsl.jobs.loggers.HTMLTableJobLogger import HTMLTableJobLogger
 
         if is_notebook():
-            # self.logger = JupyterJobLogger(verbose=self.verbose)
             self.logger = HTMLTableJobLogger(verbose=self.verbose)
         else:
             self.logger = StdOutJobLogger(verbose=self.verbose)
@@ -110,24 +116,26 @@ class JobsRemoteInferenceHandler:
         self._job_uuid = job_uuid
 
     @staticmethod
-    def check_status(job_uuid):
+    def check_status(
+        job_uuid: JobUUID,
+    ) -> RemoteInferenceResponse:
         from edsl.coop.coop import Coop
 
         coop = Coop()
         return coop.remote_inference_get(job_uuid)
 
-    def poll_remote_inference_job(self):
+    def poll_remote_inference_job(self) -> Union[None, "Results"]:
         return self._poll_remote_inference_job(
             self.remote_job_creation_data, verbose=self.verbose
         )
 
     def _poll_remote_inference_job(
         self,
-        remote_job_creation_data,
-        verbose=False,
-        poll_interval=None,
+        remote_job_creation_data: RemoteInferenceCreationInfo,
+        verbose: bool = False,
+        poll_interval: Optional[Seconds] = None,
         testing_simulated_response=None,
-    ):
+    ) -> Union[None, "Results"]:
         import time
         from datetime import datetime
         from edsl.config import CONFIG
@@ -153,7 +161,7 @@ class JobsRemoteInferenceHandler:
 
         job_in_queue = True
         while job_in_queue:
-            remote_job_data = remote_job_data_fetcher(job_uuid)
+            remote_job_data: RemoteInferenceResponse = remote_job_data_fetcher(job_uuid)
             status = remote_job_data.get("status")
 
             if status == "cancelled":
@@ -237,9 +245,7 @@ class JobsRemoteInferenceHandler:
         self,
         iterations: int = 1,
         remote_inference_description: Optional[str] = None,
-        remote_inference_results_visibility: Optional[
-            Literal["private", "public", "unlisted"]
-        ] = "unlisted",
+        remote_inference_results_visibility: Optional[VisibilityType] = "unlisted",
     ) -> Union["Results", None]:
         """
         Creates and polls a remote inference job asynchronously.
