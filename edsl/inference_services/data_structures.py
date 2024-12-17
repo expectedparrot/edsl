@@ -1,5 +1,9 @@
-from collections import UserDict, defaultdict
+from collections import UserDict, defaultdict, UserList
 from edsl.enums import InferenceServiceLiteral
+
+
+class ModelNamesList(UserList):
+    pass
 
 
 class AvailableModels(UserDict):
