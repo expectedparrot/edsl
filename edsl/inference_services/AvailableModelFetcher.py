@@ -1,12 +1,6 @@
 from typing import Any, List, Tuple, Optional, Dict, TYPE_CHECKING, Union, Generator
-import json
-from collections import namedtuple
-from dataclasses import dataclass
-from datetime import datetime, timedelta
-from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
-
-from platformdirs import user_cache_dir
+from collections import UserList
 
 from edsl.inference_services.ServiceAvailability import ServiceAvailability
 from edsl.inference_services.InferenceServiceABC import InferenceServiceABC
@@ -17,8 +11,6 @@ from edsl.inference_services.data_structures import LanguageModelInfo
 from edsl.inference_services.AvailableModelCacheHandler import (
     AvailableModelCacheHandler,
 )
-
-from collections import UserList
 
 
 class AvailableModels(UserList):
@@ -141,7 +133,7 @@ class AvailableModelFetcher:
         all_models = []
         with ThreadPoolExecutor(max_workers=min(len(self.services), 10)) as executor:
             future_to_service = {
-                executor.submit(self._get_service_models, service): service
+                executor.submit(self.get_available_models_by_service, service): service
                 for service in self.services
             }
 
