@@ -30,14 +30,9 @@ class InferenceServiceABC(ABC):
                     f"Class {cls.__name__} must have a '{attr}' attribute."
                 )
 
-        # if not hasattr(cls, "key_sequence"):
-        #     raise NotImplementedError(
-        #         f"Class {cls.__name__} must have a 'key_sequence' attribute."
-        #     )
-        # if not hasattr(cls, "model_exclude_list"):
-        #     raise NotImplementedError(
-        #         f"Class {cls.__name__} must have a 'model_exclude_list' attribute."
-        #     )
+    @property
+    def service_name(self):
+        return self._inference_service_
 
     @classmethod
     def _should_refresh_coop_config_vars(cls):
