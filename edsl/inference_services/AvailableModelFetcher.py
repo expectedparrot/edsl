@@ -1,7 +1,5 @@
-from typing import Any, List, Tuple, Optional, Dict, TYPE_CHECKING
-import warnings
+from typing import Any, List, Tuple, Optional, Dict, TYPE_CHECKING, Union
 import json
-import time
 from datetime import datetime, timedelta
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -13,10 +11,13 @@ if TYPE_CHECKING:
     from edsl.inference_services.InferenceServiceABC import InferenceServiceABC
 
 
+from edsl.enums import InferenceServiceLiteral
+
+
 @dataclass
 class ModelInfo:
     model: str
-    service_name: str
+    service_name: InferenceServiceLiteral
     index: int
 
 
@@ -34,21 +35,33 @@ class AvailableModelFetcher:
     service_availability = ServiceAvailability()
     CACHE_VALIDITY_HOURS = 48  # Cache validity period in hours
 
-    def __init__(self, services, added_models):
-        self.services: List["InferenceServiceABC"] = services
+    def __init__(
+        self,
+        services: List["InferenceServiceABC"],
+        added_models: Dict[str, List[str]],
+        verbose: bool = False,
+        use_cache: bool = True,
+    ):
+        self.services = services
         self.added_models = added_models
         self._service_map = {
             service._inference_service_: service for service in services
         }
+        self.verbose = verbose
+        self.use_cache = use_cache
         self.cache_dir = Path(user_cache_dir("edsl", "model_availability"))
         self.cache_file = self.cache_dir / "available_models.json"
         self.cache_dir.mkdir(parents=True, exist_ok=True)
 
-    def _read_cache(self) -> Optional[Dict]:
+    def _read_cache(self) -> Union[dict, None]:
         """Read the cached model availability data if it exists and is valid."""
 
-        # print("Reading from cache at ", self.cache_file)
+        if self.verbose:
+            print("Reading from cache at ", self.cache_file)
+
         if not self.cache_file.exists():
+            if self.verbose:
+                print("No cache file found")
             return None
 
         try:
@@ -57,6 +70,9 @@ class AvailableModelFetcher:
 
             # Check cache validity
             cache_time = datetime.fromisoformat(str(cache_data["timestamp"]))
+            if self.verbose:
+                print("Cache time: ", cache_time)
+
             if datetime.now() - cache_time > timedelta(hours=self.CACHE_VALIDITY_HOURS):
                 return None
 
@@ -68,11 +84,14 @@ class AvailableModelFetcher:
         """Write the model availability data to cache."""
         cache_data = {"timestamp": datetime.now().isoformat(), "models": models_data}
 
-        print("Writing to cache at ", self.cache_file)
+        if self.verbose:
+            print("Writing to cache at ", self.cache_file)
         with open(self.cache_file, "w") as f:
             json.dump(cache_data, f, indent=2)
 
-    def fetch_service_by_service_name(self, service_name: str) -> "InferenceServiceABC":
+    def fetch_service_by_service_name(
+        self, service_name: InferenceServiceLiteral
+    ) -> "InferenceServiceABC":
         """The service name is the _inference_service_ attribute of the service."""
         if service_name in self._service_map:
             return self._service_map[service_name]
@@ -87,7 +106,7 @@ class AvailableModelFetcher:
     def get_service_models(
         self, service: "InferenceServiceABC"
     ) -> Tuple[List[List[Any]], str]:
-        """Helper function to get models for a single service."""
+        """Get models for a single service."""
         service_models = self.get_available_models_by_service(service)
         return (
             [[model, service._inference_service_, -1] for model in service_models],
@@ -145,3 +164,14 @@ class AvailableModelFetcher:
         self._write_cache(sorted_models)
 
         return sorted_models
+
+
+def main():
+    from edsl.inference_services.OpenAIService import OpenAIService
+
+    af = AvailableModelFetcher([OpenAIService()], {}, verbose=True)
+    print(af.available(service="openai"))
+
+
+if __name__ == "__main__":
+    main()

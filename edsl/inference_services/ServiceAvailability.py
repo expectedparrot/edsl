@@ -3,6 +3,8 @@ from typing import List, Optional, TYPE_CHECKING
 from functools import partial
 import warnings
 
+from edsl.inference_services.data_structures import AvailableModels
+
 if TYPE_CHECKING:
     from edsl.inference_services.InferenceServiceABC import InferenceServiceABC
 
@@ -17,16 +19,6 @@ class ServiceAvailability:
     """This class is responsible for fetching available models from different sources."""
 
     _coop_model_list = None
-
-    @classmethod
-    def models_from_coop(cls):
-        if not cls._coop_model_list:
-            from edsl.coop.coop import Coop
-
-            c = Coop()
-            coop_model_list = c.fetch_models()
-            cls._coop_model_list = coop_model_list
-        return cls._coop_model_list
 
     def __init__(self, source_order: Optional[List[ModelSource]] = None):
         """
@@ -45,6 +37,16 @@ class ServiceAvailability:
             ModelSource.COOP: self._fetch_from_coop,
             ModelSource.CACHE: self._fetch_from_cache,
         }
+
+    @classmethod
+    def models_from_coop(cls) -> AvailableModels:
+        if not cls._coop_model_list:
+            from edsl.coop.coop import Coop
+
+            c = Coop()
+            coop_model_list = c.fetch_models()
+            cls._coop_model_list = coop_model_list
+        return cls._coop_model_list
 
     def get_service_available(
         self, service: "InferenceServiceABC", warn: bool = False
@@ -106,6 +108,11 @@ class ServiceAvailability:
         }
         warnings.warn(messages[source], UserWarning)
 
+
+if __name__ == "__main__":
+    sa = ServiceAvailability()
+    models_from_coop = sa.models_from_coop()
+    print(models_from_coop)
 
 # Example usage:
 """
