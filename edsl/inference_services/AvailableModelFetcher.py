@@ -94,29 +94,59 @@ class AvailableModelFetcher:
         with open(self.cache_file, "w") as f:
             json.dump(cache_data, f, indent=2)
 
-    def fetch_service_by_service_name(
-        self, service_name: InferenceServiceLiteral
-    ) -> "InferenceServiceABC":
-        """The service name is the _inference_service_ attribute of the service."""
-        if service_name in self._service_map:
-            return self._service_map[service_name]
-        raise ValueError(f"Service {service_name} not found")
+    def available(
+        self, service: Optional[InferenceServiceABC] = None
+    ) -> List[LanguageModelInfo]:
+        """
+        Get available models from all services, using cached data when available.
 
-    def get_available_models_by_service(
-        self, service: "InferenceServiceABC", warn: bool = False
-    ) -> ModelNamesList:
-        """Gets the available models for a single service."""
-        return self.service_availability.get_service_available(service, warn)
+        :param service: Optional[InferenceServiceABC] - If specified, only fetch models for this service.
 
-    def get_service_models(
-        self, service: "InferenceServiceABC"
+        Returns a list of [model, service_name, index] entries.
+        """
+
+        if service:  # they passed a specific service
+            matching_models, _ = self._get_service_models(service=service)
+            return list(self._adjust_index(matching_models, include_index=False))
+
+        # They want them all!
+
+        # Try to get cached data
+        if self.use_cache:
+            cache_data = self._read_cache()
+            if cache_data is not None:
+                return cache_data["models"]
+
+        all_models = self._get_all_models()
+        if self.use_cache:
+            self._write_cache(all_models)
+
+        return all_models
+
+    @staticmethod
+    def _adjust_index(sorted_models, include_index=False) -> Generator:
+        """Adjust the index of the models."""
+        for index, model in enumerate(sorted_models):
+            model_name, service, _ = model
+            if include_index:
+                yield LanguageModelInfo(model_name, service, index)
+            else:
+                yield LanguageModelInfo(model_name, service, "NA")
+
+    def _get_service_models(
+        self, service: Union["InferenceServiceABC", InferenceServiceLiteral]
     ) -> Tuple[List[LanguageModelInfo], InferenceServiceLiteral]:
         """Get models for a single service.
 
         :param service: InferenceServiceABC - e.g., OpenAIService
         :return: Tuple[List[LanguageModelInfo], InferenceServiceLiteral]
         """
-        service_models: ModelNamesList = self.get_available_models_by_service(service)
+        if isinstance(service, str):
+            service = self._fetch_service_by_service_name(service)
+
+        service_models: ModelNamesList = (
+            self.service_availability.get_service_available(service, warn=False)
+        )
         service_name = service._inference_service_
 
         models_list = [
@@ -129,64 +159,36 @@ class AvailableModelFetcher:
         ]
         return models_list, service_name
 
-    def available(
-        self, service: Optional[InferenceServiceABC] = None
-    ) -> List[LanguageModelInfo]:
-        """
-        Get available models from all services, using cached data when available.
+    def _fetch_service_by_service_name(
+        self, service_name: InferenceServiceLiteral
+    ) -> "InferenceServiceABC":
+        """The service name is the _inference_service_ attribute of the service."""
+        if service_name in self._service_map:
+            return self._service_map[service_name]
+        raise ValueError(f"Service {service_name} not found")
 
-        :param service: Optional[InferenceServiceABC] - If specified, only fetch models for this service.
-
-        Returns a list of [model, service_name, index] entries.
-        """
-
-        # If requesting specific service, bypass cache
-        def adjust_index(sorted_models, include_index=False) -> Generator:
-            """Adjust the index of the models."""
-            for index, model in enumerate(sorted_models):
-                model_name, service, _ = model
-                if include_index:
-                    yield LanguageModelInfo(model_name, service, index)
-                else:
-                    yield LanguageModelInfo(model_name, service, "NA")
-
-        if service:
-            service_obj: InferenceServiceABC = self.fetch_service_by_service_name(
-                service
-            )
-            total_models, _ = self.get_service_models(service=service_obj)
-            return list(adjust_index(total_models, include_index=False))
-
-        # Try to get cached data
-        cache_data = self._read_cache()
-        if cache_data:
-            return cache_data["models"]
-
-        total_models = []
-
-        # Use ThreadPoolExecutor to parallel process the services
+    def _get_all_models(self) -> List[LanguageModelInfo]:
+        all_models = []
         with ThreadPoolExecutor(max_workers=min(len(self.services), 10)) as executor:
             future_to_service = {
-                executor.submit(self.get_service_models, service): service
+                executor.submit(self._get_service_models, service): service
                 for service in self.services
             }
 
             for future in as_completed(future_to_service):
                 try:
                     models, service_name = future.result()
-                    total_models.extend(models)
+                    all_models.extend(models)
 
                     # Add any additional models for this service
                     for model in self.added_models.get(service_name, []):
-                        total_models.append([model, service_name, -1])
+                        all_models.append([model, service_name, -1])
 
                 except Exception as exc:
                     print(f"Service query failed: {exc}")
                     continue
 
-        sorted_models = list(adjust_index(total_models, include_index=True))
-        self._write_cache(sorted_models)
-        return sorted_models
+        return list(self._adjust_index(all_models, include_index=True))
 
 
 def main():
