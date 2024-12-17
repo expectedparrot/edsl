@@ -22,6 +22,9 @@ If you use the EDSL package in your research or projects, please use the followi
     }
 
 
+Citations
+---------
+
 | *Generative AI for Economic Research: LLMs Learn to Collaborate and Reason*
 | Anton Korinek
 | November 2024
