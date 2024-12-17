@@ -277,6 +277,7 @@ class HTMLTableJobLogger(JobLogger):
         arrow = "▼" if self.is_expanded else "▶"
 
         return f"""
+            <!-- #region Remove Inference Info -->
             <div id="logger-{self.log_id}" class="job-logger">
                 <div class="job-logger-header">
                     <span>
@@ -291,6 +292,7 @@ class HTMLTableJobLogger(JobLogger):
                     {message_html}
                 </div>
             </div>
+            <!-- # endregion -->
         """
 
     def update(self, message: str, status: JobsStatus = JobsStatus.RUNNING):

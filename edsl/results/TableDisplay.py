@@ -1,13 +1,25 @@
-# table_renderers.py
-from abc import ABC, abstractmethod
+from typing import (
+    Protocol,
+    List,
+    Any,
+    Optional,
+    TYPE_CHECKING,
+    Sequence,
+    Union,
+    Literal,
+)
 
-from typing import Protocol, List, Any, Optional
-from dataclasses import dataclass
-from pathlib import Path
+if TYPE_CHECKING:
+    from edsl.results.Dataset import Dataset
 
 from edsl.results.table_data_class import TableData
 
 from edsl.results.table_renderers import DataTablesRenderer, PandasStyleRenderer
+
+Row = Sequence[Union[str, int, float, bool, None]]
+TableFormat = Literal[
+    "grid", "simple", "pipe", "orgtbl", "rst", "mediawiki", "html", "latex"
+]
 
 
 class TableRenderer(Protocol):
@@ -21,18 +33,20 @@ class TableRenderer(Protocol):
 class TableDisplay:
     def __init__(
         self,
-        headers: List[str],
-        data: List[List[Any]],
-        tablefmt: Optional[str] = None,
-        raw_data_set: Any = None,
-        renderer: Optional[TableRenderer] = None,
+        headers: Sequence[str],
+        data: Sequence[Row],
+        tablefmt: Optional[TableFormat] = None,
+        raw_data_set: "Dataset" = None,
+        renderer_class: Optional[TableRenderer] = None,
     ):
+        assert len(headers) == len(data[0])  # Check if headers and data are consistent
+
         self.headers = headers
         self.data = data
         self.tablefmt = tablefmt
         self.raw_data_set = raw_data_set
 
-        self.renderer_class = renderer or PandasStyleRenderer
+        self.renderer_class = renderer_class or PandasStyleRenderer
 
         # Handle printing parameters from raw_data_set
         if hasattr(raw_data_set, "print_parameters"):
@@ -42,7 +56,7 @@ class TableDisplay:
         else:
             self.printing_parameters = {}
 
-    def _repr_html_(self):
+    def _repr_html_(self) -> str:
         table_data = TableData(
             headers=self.headers,
             data=self.data,
@@ -57,29 +71,46 @@ class TableDisplay:
         return tabulate(self.data, headers=self.headers, tablefmt=self.tablefmt)
 
     @classmethod
-    def from_dictionary(cls, dictionary, tablefmt=None, renderer=None):
+    def from_dictionary(
+        cls,
+        dictionary: dict,
+        tablefmt: Optional[TableFormat] = None,
+        renderer: Optional[TableRenderer] = None,
+    ) -> "TableDisplay":
         headers = list(dictionary.keys())
         data = [list(dictionary.values())]
         return cls(headers, data, tablefmt, renderer=renderer)
 
     @classmethod
-    def from_dictionary_wide(cls, dictionary, tablefmt=None, renderer=None):
+    def from_dictionary_wide(
+        cls,
+        dictionary: dict,
+        tablefmt: Optional[TableFormat] = None,
+        renderer: Optional[TableFormat] = None,
+    ) -> "TableDisplay":
         headers = ["key", "value"]
         data = [[k, v] for k, v in dictionary.items()]
         return cls(headers, data, tablefmt, renderer=renderer)
 
     @classmethod
-    def from_dataset(cls, dataset, tablefmt=None, renderer=None):
+    def from_dataset(
+        cls,
+        dataset: "Dataset",
+        tablefmt: Optional[TableFormat] = None,
+        renderer: Optional[TableRenderer] = None,
+    ) -> "TableDisplay":
         headers, data = dataset._tabular()
         return cls(headers, data, tablefmt, dataset, renderer=renderer)
 
-    def long(self):
+    def long(self) -> "TableDisplay":
         """Convert to long format"""
         new_header = ["row", "key", "value"]
         new_data = []
         for index, row in enumerate(self.data):
             new_data.extend([[index, k, v] for k, v in zip(self.headers, row)])
-        return TableDisplay(new_header, new_data, self.tablefmt, renderer=self.renderer)
+        return TableDisplay(
+            new_header, new_data, self.tablefmt, renderer=self.renderer_class
+        )
 
 
 # Example usage:

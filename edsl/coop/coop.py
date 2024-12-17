@@ -1,11 +1,10 @@
 import aiohttp
 import json
-import os
 import requests
-import platformdirs
 
-from typing import Any, Optional, Union, Literal
+from typing import Any, Optional, Union, Literal, TypedDict
 from uuid import UUID
+from collections import UserDict, defaultdict
 
 import edsl
 from pathlib import Path
@@ -27,73 +26,34 @@ from edsl.coop.utils import (
 from edsl.coop.CoopFunctionsMixin import CoopFunctionsMixin
 from edsl.coop.ExpectedParrotKeyHandler import ExpectedParrotKeyHandler
 
+from edsl.inference_services.data_structures import AvailableModels
+
+
+class RemoteInferenceResponse(TypedDict):
+    job_uuid: str
+    results_uuid: str
+    results_url: str
+    latest_error_report_uuid: str
+    latest_error_report_url: str
+    status: str
+    reason: str
+    credits_consumed: float
+    version: str
+
+
+class RemoteInferenceCreationInfo(TypedDict):
+    uuid: str
+    description: str
+    status: str
+    iterations: int
+    visibility: str
+    version: str
+
 
 class Coop(CoopFunctionsMixin):
     """
     Client for the Expected Parrot API.
     """
-
-    # asked_to_store_file_name = "asked_to_store.txt"
-    # ep_key_file_name = "ep_api_key.txt"
-    # application_name = "edsl"
-
-    # def _ep_key_file_exists(self) -> bool:
-    #     config_dir = platformdirs.user_config_dir(self.application_name)
-    #     return Path(config_dir).joinpath(self.ep_key_file_name).exists()
-
-    # def ok_to_ask_to_store(self):
-    #     config_dir = platformdirs.user_config_dir(self.application_name)
-    #     return not Path(config_dir).joinpath(self.asked_to_store_file_name).exists()
-
-    # def ask_to_store(self, api_key):
-    #     config_dir = platformdirs.user_config_dir(self.application_name)
-    #     if self.ok_to_ask_to_store():
-    #         can_we_store = input(
-    #             "Would you like to store your Expected Parrot key for future use? (y/n): "
-    #         )
-    #         if can_we_store.lower() == "y":
-    #             self.store_ep_api_key(api_key)
-    #             return True
-    #         else:
-    #             with open(
-    #                 Path(config_dir).joinpath(self.asked_to_store_file_name), "w"
-    #             ) as f:
-    #                 f.write("Yes")
-    #     return False
-
-    # def get_ep_api_key(self):
-    #     # check if the key is stored in the config_dir
-    #     config_dir = platformdirs.user_config_dir(self.application_name)
-    #     if self._ep_key_file_exists():
-    #         with open(Path(config_dir).joinpath(self.ep_key_file_name), "r") as f:
-    #             api_key = f.read().strip()
-    #             print("Using stored Expected Parrot API key at ", f.name)
-    #             return api_key
-
-    #     api_key = os.getenv("EXPECTED_PARROT_API_KEY")
-    #     _ = self.ask_to_store(api_key)
-    #     return api_key
-
-    # def delete_ep_api_key(self):
-    #     config_dir = platformdirs.user_config_dir(self.application_name)
-    #     key_path = Path(config_dir) / self.ep_key_file_name
-    #     if key_path.exists():
-    #         os.remove(key_path)
-    #         print("Deleted Expected Parrot API key at ", key_path)
-
-    # def store_ep_api_key(self, api_key):
-    #     config_dir = platformdirs.user_config_dir(self.application_name)
-
-    #     # Create the directory if it doesn't exist
-    #     os.makedirs(config_dir, exist_ok=True)
-
-    #     # Create the path for the key file
-    #     key_path = Path(config_dir) / self.ep_key_file_name
-
-    #     # Save the key
-    #     with open(key_path, "w") as f:
-    #         f.write(api_key)
-    #     print("Stored Expected Parrot API key at ", key_path)
 
     def __init__(
         self, api_key: Optional[str] = None, url: Optional[str] = None
@@ -702,7 +662,7 @@ class Coop(CoopFunctionsMixin):
         visibility: Optional[VisibilityType] = "unlisted",
         initial_results_visibility: Optional[VisibilityType] = "unlisted",
         iterations: Optional[int] = 1,
-    ) -> dict:
+    ) -> RemoteInferenceCreationInfo:
         """
         Send a remote inference job to the server.
 
@@ -734,18 +694,21 @@ class Coop(CoopFunctionsMixin):
         )
         self._resolve_server_response(response)
         response_json = response.json()
-        return {
-            "uuid": response_json.get("job_uuid"),
-            "description": response_json.get("description"),
-            "status": response_json.get("status"),
-            "iterations": response_json.get("iterations"),
-            "visibility": response_json.get("visibility"),
-            "version": self._edsl_version,
-        }
+
+        return RemoteInferenceCreationInfo(
+            **{
+                "uuid": response_json.get("job_uuid"),
+                "description": response_json.get("description"),
+                "status": response_json.get("status"),
+                "iterations": response_json.get("iterations"),
+                "visibility": response_json.get("visibility"),
+                "version": self._edsl_version,
+            }
+        )
 
     def remote_inference_get(
         self, job_uuid: Optional[str] = None, results_uuid: Optional[str] = None
-    ) -> dict:
+    ) -> RemoteInferenceResponse:
         """
         Get the details of a remote inference job.
         You can pass either the job uuid or the results uuid as a parameter.
@@ -787,17 +750,19 @@ class Coop(CoopFunctionsMixin):
                 f"{self.url}/home/remote-inference/error/{latest_error_report_uuid}"
             )
 
-        return {
-            "job_uuid": data.get("job_uuid"),
-            "results_uuid": results_uuid,
-            "results_url": results_url,
-            "latest_error_report_uuid": latest_error_report_uuid,
-            "latest_error_report_url": latest_error_report_url,
-            "status": data.get("status"),
-            "reason": data.get("reason"),
-            "credits_consumed": data.get("price"),
-            "version": data.get("version"),
-        }
+        return RemoteInferenceResponse(
+            **{
+                "job_uuid": data.get("job_uuid"),
+                "results_uuid": results_uuid,
+                "results_url": results_url,
+                "latest_error_report_uuid": latest_error_report_uuid,
+                "latest_error_report_url": latest_error_report_url,
+                "status": data.get("status"),
+                "reason": data.get("reason"),
+                "credits_consumed": data.get("price"),
+                "version": data.get("version"),
+            }
+        )
 
     def remote_inference_cost(
         self, input: Union[Jobs, Survey], iterations: int = 1
@@ -899,7 +864,7 @@ class Coop(CoopFunctionsMixin):
                 "Invalid EDSL_FETCH_TOKEN_PRICES value---should be 'True' or 'False'."
             )
 
-    def fetch_models(self) -> dict:
+    def fetch_models(self) -> AvailableModels:
         """
         Fetch a dict of available models from Coop.
 
@@ -908,7 +873,7 @@ class Coop(CoopFunctionsMixin):
         response = self._send_server_request(uri="api/v0/models", method="GET")
         self._resolve_server_response(response)
         data = response.json()
-        return data
+        return AvailableModels(data)
 
     def fetch_rate_limit_config_vars(self) -> dict:
         """
