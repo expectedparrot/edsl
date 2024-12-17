@@ -62,7 +62,7 @@ class ModelResolver:
             return self._models_to_services[model_name]
 
         for service in self.services:
-            available_models = (
+            available_models, service_name = (
                 self.availability_fetcher.get_available_models_by_service(service)
             )
             if model_name in available_models:
