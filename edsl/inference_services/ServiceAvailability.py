@@ -3,7 +3,7 @@ from typing import List, Optional, TYPE_CHECKING
 from functools import partial
 import warnings
 
-from edsl.inference_services.data_structures import AvailableModels
+from edsl.inference_services.data_structures import AvailableModels, ModelNamesList
 
 if TYPE_CHECKING:
     from edsl.inference_services.InferenceServiceABC import InferenceServiceABC
@@ -16,7 +16,7 @@ class ModelSource(Enum):
 
 
 class ServiceAvailability:
-    """This class is responsible for fetching available models from different sources."""
+    """This class is responsible for fetching the available models from different sources."""
 
     _coop_model_list = None
 
@@ -50,7 +50,7 @@ class ServiceAvailability:
 
     def get_service_available(
         self, service: "InferenceServiceABC", warn: bool = False
-    ) -> list[str]:
+    ) -> ModelNamesList:
         """
         Try to fetch available models from sources in specified order.
         Returns first successful result.
@@ -78,18 +78,18 @@ class ServiceAvailability:
         )
 
     @staticmethod
-    def _fetch_from_local_service(service) -> list[str]:
+    def _fetch_from_local_service(service: "InferenceServiceABC") -> ModelNamesList:
         """Attempt to fetch models directly from the service."""
         return service.available()
 
     @classmethod
-    def _fetch_from_coop(cls, service: "InferenceServiceABC") -> list[str]:
+    def _fetch_from_coop(cls, service: "InferenceServiceABC") -> ModelNamesList:
         """Fetch models from Coop."""
         models_from_coop = cls.models_from_coop()
         return models_from_coop.get(service._inference_service_, [])
 
     @staticmethod
-    def _fetch_from_cache(service: "InferenceServiceABC") -> list[str]:
+    def _fetch_from_cache(service: "InferenceServiceABC") -> ModelNamesList:
         """Fetch models from local cache."""
         from edsl.inference_services.models_available_cache import models_available
 
@@ -110,9 +110,13 @@ class ServiceAvailability:
 
 
 if __name__ == "__main__":
-    sa = ServiceAvailability()
-    models_from_coop = sa.models_from_coop()
-    print(models_from_coop)
+    # sa = ServiceAvailability()
+    # models_from_coop = sa.models_from_coop()
+    # print(models_from_coop)
+    from edsl.inference_services.OpenAIService import OpenAIService
+
+    openai_models = ServiceAvailability._fetch_from_local_service(OpenAIService())
+    print(openai_models)
 
 # Example usage:
 """

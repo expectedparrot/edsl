@@ -1,17 +1,22 @@
 from typing import Any, List, Tuple, Optional, Dict, TYPE_CHECKING, Union
 import json
+from collections import namedtuple
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from edsl.inference_services.ServiceAvailability import ServiceAvailability
-from dataclasses import dataclass
+
 from platformdirs import user_cache_dir
 
-if TYPE_CHECKING:
-    from edsl.inference_services.InferenceServiceABC import InferenceServiceABC
-
-
+from edsl.inference_services.ServiceAvailability import ServiceAvailability
+from edsl.inference_services.InferenceServiceABC import InferenceServiceABC
+from edsl.inference_services.data_structures import ModelNamesList
 from edsl.enums import InferenceServiceLiteral
+
+
+LanguageModelInfo = namedtuple(
+    "LanguageModelInfo", ["model_name", "service_name", "index"]
+)
 
 
 @dataclass
@@ -99,28 +104,46 @@ class AvailableModelFetcher:
 
     def get_available_models_by_service(
         self, service: "InferenceServiceABC", warn: bool = False
-    ) -> list[str]:
+    ) -> ModelNamesList:
         """Gets the available models for a single service."""
         return self.service_availability.get_service_available(service, warn)
 
     def get_service_models(
         self, service: "InferenceServiceABC"
-    ) -> Tuple[List[List[Any]], str]:
-        """Get models for a single service."""
-        service_models = self.get_available_models_by_service(service)
-        return (
-            [[model, service._inference_service_, -1] for model in service_models],
-            service._inference_service_,
-        )
+    ) -> Tuple[List[LanguageModelInfo], InferenceServiceLiteral]:
+        """Get models for a single service.
 
-    def available(self, service: Optional[str] = None) -> List[List[Any]]:
+        :param service: InferenceServiceABC - e.g., OpenAIService
+        :return: Tuple[List[LanguageModelInfo], InferenceServiceLiteral]
+        """
+        service_models: ModelNamesList = self.get_available_models_by_service(service)
+        service_name = service._inference_service_
+
+        models_list = [
+            LanguageModelInfo(
+                model_name=model_name,
+                service_name=service_name,
+                index=-1,
+            )
+            for model_name in service_models
+        ]
+        return models_list, service_name
+
+    def available(
+        self, service: Optional[InferenceServiceABC] = None
+    ) -> List[LanguageModelInfo]:
         """
         Get available models from all services, using cached data when available.
+
+        :param service: Optional[InferenceServiceABC] - If specified, only fetch models for this service.
+
         Returns a list of [model, service_name, index] entries.
         """
         # If requesting specific service, bypass cache
         if service:
-            service_obj = self.fetch_service_by_service_name(service)
+            service_obj: InferenceServiceABC = self.fetch_service_by_service_name(
+                service
+            )
             total_models = self.get_service_models(service=service_obj)[0]
             sorted_models = sorted(total_models)
             for i, model in enumerate(sorted_models):
