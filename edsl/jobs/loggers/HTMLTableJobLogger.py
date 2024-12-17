@@ -1,14 +1,13 @@
-import uuid
 import re
-import datetime
+import uuid
+from datetime import datetime
+from IPython.display import display, HTML
 from edsl.jobs.JobsRemoteInferenceLogger import JobLogger
 from edsl.jobs.jobs_status_enums import JobsStatus
 
 
 class HTMLTableJobLogger(JobLogger):
-    def __init__(self, verbose=True, **kwargs):
-        from IPython.display import display, HTML
-
+    def __init__(self, verbose=True, theme="auto", **kwargs):
         super().__init__(verbose=verbose)
         self.display_handle = display(HTML(""), display_id=True)
         self.current_message = None
@@ -16,34 +15,52 @@ class HTMLTableJobLogger(JobLogger):
         self.is_expanded = True
         self.spinner_chars = ["◐", "◓", "◑", "◒"]
         self.spinner_idx = 0
+        self.theme = theme  # Can be "auto", "light", or "dark"
 
         # Initialize CSS once when the logger is created
         self._init_css()
 
     def _init_css(self):
-        """Initialize the CSS styles with theme support"""
+        """Initialize the CSS styles with enhanced theme support"""
         css = """
         <style>
+            /* Base theme variables */
             :root {
                 --jl-bg-primary: #ffffff;
-                --jl-bg-secondary: #f8f9fa;
-                --jl-border-color: #e2e8f0;
-                --jl-text-primary: #1a202c;
-                --jl-text-secondary: #4a5568;
-                --jl-link-color: #3b82f6;
-                --jl-success-color: #22c55e;
-                --jl-error-color: #ef4444;
+                --jl-bg-secondary: #f5f5f5;
+                --jl-border-color: #e0e0e0;
+                --jl-text-primary: #24292e;
+                --jl-text-secondary: #586069;
+                --jl-link-color: #0366d6;
+                --jl-success-color: #28a745;
+                --jl-error-color: #d73a49;
+                --jl-header-bg: #f1f1f1;
             }
             
-            [data-theme="dark"] {
-                --jl-bg-primary: #1a202c;
-                --jl-bg-secondary: #2d3748;
-                --jl-border-color: #4a5568;
-                --jl-text-primary: #f7fafc;
-                --jl-text-secondary: #e2e8f0;
-                --jl-link-color: #60a5fa;
-                --jl-success-color: #34d399;
-                --jl-error-color: #f87171;
+            /* Dark theme variables */
+            .theme-dark {
+                --jl-bg-primary: #1e1e1e;
+                --jl-bg-secondary: #252526;
+                --jl-border-color: #2d2d2d;
+                --jl-text-primary: #cccccc;
+                --jl-text-secondary: #999999;
+                --jl-link-color: #4e94ce;
+                --jl-success-color: #89d185;
+                --jl-error-color: #f14c4c;
+                --jl-header-bg: #333333;
+            }
+
+            /* High contrast theme variables */
+            .theme-high-contrast {
+                --jl-bg-primary: #000000;
+                --jl-bg-secondary: #1a1a1a;
+                --jl-border-color: #404040;
+                --jl-text-primary: #ffffff;
+                --jl-text-secondary: #cccccc;
+                --jl-link-color: #66b3ff;
+                --jl-success-color: #00ff00;
+                --jl-error-color: #ff0000;
+                --jl-header-bg: #262626;
             }
             
             .job-logger {
@@ -51,82 +68,157 @@ class HTMLTableJobLogger(JobLogger):
                 max-width: 800px;
                 margin: 10px 0;
                 color: var(--jl-text-primary);
+                box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+                border-radius: 4px;
+                overflow: hidden;
             }
             
             .job-logger-header {
-                padding: 10px;
-                background: var(--jl-bg-secondary);
-                border: 1px solid var(--jl-border-color);
-                border-radius: 4px;
+                padding: 12px 16px;
+                background: var(--jl-header-bg);
+                border: none;
+                border-radius: 4px 4px 0 0;
                 cursor: pointer;
                 color: var(--jl-text-primary);
                 user-select: none;
+                font-weight: 500;
+                letter-spacing: 0.3px;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
+            
+            .theme-select {
+                padding: 4px 8px;
+                border-radius: 4px;
+                border: 1px solid var(--jl-border-color);
+                background: var(--jl-bg-primary);
+                color: var(--jl-text-primary);
+                font-size: 0.9em;
             }
             
             .job-logger-table {
                 width: 100%;
-                border-collapse: collapse;
+                border-collapse: separate;
+                border-spacing: 0;
                 background: var(--jl-bg-primary);
                 border: 1px solid var(--jl-border-color);
+                margin-top: -1px;
             }
             
             .job-logger-cell {
-                padding: 8px;
-                border: 1px solid var(--jl-border-color);
+                padding: 12px 16px;
+                border-bottom: 1px solid var(--jl-border-color);
+                line-height: 1.4;
             }
             
             .job-logger-label {
-                font-weight: bold;
+                font-weight: 500;
                 color: var(--jl-text-primary);
+                width: 25%;
+                background: var(--jl-bg-secondary);
             }
             
             .job-logger-value {
                 color: var(--jl-text-secondary);
+                word-break: break-word;
             }
             
             .job-logger-status {
-                margin-top: 10px;
-                padding: 8px;
+                margin: 0;
+                padding: 12px 16px;
                 background-color: var(--jl-bg-secondary);
                 border: 1px solid var(--jl-border-color);
-                border-radius: 4px;
+                border-top: none;
+                border-radius: 0 0 4px 4px;
                 color: var(--jl-text-primary);
-            }
-            
-            .job-logger-link {
-                color: var(--jl-link-color);
-                text-decoration: underline;
-            }
-            
-            .job-logger-success {
-                color: var(--jl-success-color);
-            }
-            
-            .job-logger-error {
-                color: var(--jl-error-color);
+                font-size: 0.95em;
             }
         </style>
         
         <script>
-            // Auto-detect dark mode
-            const darkModeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-            const root = document.documentElement;
-            
-            function updateTheme(e) {
-                if (e.matches) {
-                    root.setAttribute('data-theme', 'dark');
-                } else {
-                    root.setAttribute('data-theme', 'light');
+            class ThemeManager {
+                constructor(logId, initialTheme = 'auto') {
+                    this.logId = logId;
+                    this.currentTheme = initialTheme;
+                    this.darkModeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+                    this.init();
+                }
+                
+                init() {
+                    this.setupThemeSwitcher();
+                    this.updateTheme(this.currentTheme);
+                    
+                    this.darkModeMediaQuery.addListener(() => {
+                        if (this.currentTheme === 'auto') {
+                            this.updateTheme('auto');
+                        }
+                    });
+                }
+                
+                setupThemeSwitcher() {
+                    const logger = document.querySelector(`#logger-${this.logId}`);
+                    if (!logger) return;
+                    
+                    const switcher = document.createElement('div');
+                    switcher.className = 'theme-switcher';
+                    switcher.innerHTML = `
+                        <select id="theme-select-${this.logId}" class="theme-select">
+                            <option value="auto">Auto</option>
+                            <option value="light">Light</option>
+                            <option value="dark">Dark</option>
+                            <option value="high-contrast">High Contrast</option>
+                        </select>
+                    `;
+                    
+                    const header = logger.querySelector('.job-logger-header');
+                    header.appendChild(switcher);
+                    
+                    const select = switcher.querySelector('select');
+                    select.value = this.currentTheme;
+                    select.addEventListener('change', (e) => {
+                        this.updateTheme(e.target.value);
+                    });
+                }
+                
+                updateTheme(theme) {
+                    const logger = document.querySelector(`#logger-${this.logId}`);
+                    if (!logger) return;
+                    
+                    this.currentTheme = theme;
+                    
+                    logger.classList.remove('theme-light', 'theme-dark', 'theme-high-contrast');
+                    
+                    if (theme === 'auto') {
+                        const isDark = this.darkModeMediaQuery.matches;
+                        logger.classList.add(isDark ? 'theme-dark' : 'theme-light');
+                    } else {
+                        logger.classList.add(`theme-${theme}`);
+                    }
+                    
+                    try {
+                        localStorage.setItem('jobLoggerTheme', theme);
+                    } catch (e) {
+                        console.warn('Unable to save theme preference:', e);
+                    }
                 }
             }
             
-            darkModeMediaQuery.addListener(updateTheme);
-            updateTheme(darkModeMediaQuery);
+            window.initThemeManager = (logId, initialTheme) => {
+                new ThemeManager(logId, initialTheme);
+            };
         </script>
         """
-        from IPython.display import HTML, display
 
-        display(HTML(css))
+        init_script = f"""
+        <script>
+            document.addEventListener('DOMContentLoaded', () => {{
+                window.initThemeManager('{self.log_id}', '{self.theme}');
+            }});
+        </script>
+        """
+
+        display(HTML(css + init_script))
 
     def _get_table_row(self, key: str, value: str) -> str:
         """Generate a table row with key-value pair"""
@@ -161,7 +253,7 @@ class HTMLTableJobLogger(JobLogger):
         return ""
 
     def _get_html(self, status: JobsStatus = JobsStatus.RUNNING) -> str:
-        """Generate the complete HTML display"""
+        """Generate the complete HTML display with theme support"""
         info_rows = ""
         for field, _ in self.jobs_info.__annotations__.items():
             if field != "pretty_names":
@@ -185,11 +277,12 @@ class HTMLTableJobLogger(JobLogger):
         arrow = "▼" if self.is_expanded else "▶"
 
         return f"""
-            <div class="job-logger">
-                <div onclick="document.getElementById('content-{self.log_id}').style.display = document.getElementById('content-{self.log_id}').style.display === 'none' ? 'block' : 'none';
-                             document.getElementById('arrow-{self.log_id}').innerHTML = document.getElementById('content-{self.log_id}').style.display === 'none' ? '▶' : '▼';"
-                     class="job-logger-header">
-                    <span id="arrow-{self.log_id}">{arrow}</span> Job Status ({datetime.now().strftime('%Y-%m-%d %H:%M:%S')})
+            <div id="logger-{self.log_id}" class="job-logger">
+                <div class="job-logger-header">
+                    <span>
+                        <span id="arrow-{self.log_id}">{arrow}</span> 
+                        Job Status ({datetime.now().strftime('%Y-%m-%d %H:%M:%S')})
+                    </span>
                 </div>
                 <div id="content-{self.log_id}" style="display: {display_style};">
                     <table class="job-logger-table">
@@ -202,8 +295,6 @@ class HTMLTableJobLogger(JobLogger):
 
     def update(self, message: str, status: JobsStatus = JobsStatus.RUNNING):
         """Update the display with new message and current JobsInfo state"""
-        from IPython.display import HTML
-
         self.current_message = message
         if self.verbose:
             self.display_handle.update(HTML(self._get_html(status)))
