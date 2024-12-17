@@ -34,7 +34,7 @@ class TestModelResolver:
     @pytest.fixture
     def mock_fetcher(self):
         fetcher = Mock()
-        fetcher.get_available_models_by_service.return_value = ["model2"]
+        fetcher.get_available_models_by_service.return_value = "model2", "fake_serivce"
         return fetcher
 
     @pytest.fixture

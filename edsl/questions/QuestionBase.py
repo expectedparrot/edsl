@@ -267,6 +267,7 @@ class QuestionBase(
         agent=None,
         disable_remote_cache: bool = False,
         disable_remote_inference: bool = False,
+        verbose: bool = False,
         **kwargs,
     ):
         """Call the question.
@@ -285,6 +286,7 @@ class QuestionBase(
             agent=agent,
             **kwargs,
             cache=False,
+            verbose=verbose,
             disable_remote_cache=disable_remote_cache,
             disable_remote_inference=disable_remote_inference,
         )
