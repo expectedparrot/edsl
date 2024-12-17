@@ -1,4 +1,4 @@
-from typing import Any, List, Tuple, Optional, Dict, TYPE_CHECKING, Union
+from typing import Any, List, Tuple, Optional, Dict, TYPE_CHECKING, Union, Generator
 import json
 from collections import namedtuple
 from dataclasses import dataclass
@@ -139,17 +139,23 @@ class AvailableModelFetcher:
 
         Returns a list of [model, service_name, index] entries.
         """
+
         # If requesting specific service, bypass cache
+        def adjust_index(sorted_models, include_index=False) -> Generator:
+            """Adjust the index of the models."""
+            for index, model in enumerate(sorted_models):
+                model_name, service, _ = model
+                if include_index:
+                    yield LanguageModelInfo(model_name, service, index)
+                else:
+                    yield LanguageModelInfo(model_name, service, "NA")
+
         if service:
             service_obj: InferenceServiceABC = self.fetch_service_by_service_name(
                 service
             )
-            total_models = self.get_service_models(service=service_obj)[0]
-            sorted_models = sorted(total_models)
-            for i, model in enumerate(sorted_models):
-                model[2] = "NA"
-                model = tuple(model)
-            return sorted_models
+            total_models, _ = self.get_service_models(service=service_obj)
+            return list(adjust_index(total_models, include_index=False))
 
         # Try to get cached data
         cache_data = self._read_cache()
@@ -178,14 +184,8 @@ class AvailableModelFetcher:
                     print(f"Service query failed: {exc}")
                     continue
 
-        sorted_models = sorted(total_models)
-        for i, model in enumerate(sorted_models):
-            model[2] = i
-            model = tuple(model)
-
-        # Cache the results
+        sorted_models = list(adjust_index(total_models, include_index=True))
         self._write_cache(sorted_models)
-
         return sorted_models
 
 
@@ -197,4 +197,5 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    # main()
+    pass
