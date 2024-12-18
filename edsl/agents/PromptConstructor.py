@@ -122,8 +122,8 @@ class PromptConstructor:
             if split_list[1] == "comment":
                 question_name = split_list[0]
                 entry_type = "comment"
-            elif split_list[1] == "generated_tokens":
-                question_name = split_list[0]
+            elif split_list[1] == "tokens":  # it's actually 'generated_tokens'
+                question_name = key_entry.replace("_generated_tokens", "")
                 entry_type = "generated_tokens"
             else:
                 question_name = key_entry
