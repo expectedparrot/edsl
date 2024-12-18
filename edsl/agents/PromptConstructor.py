@@ -105,14 +105,16 @@ class PromptConstructor:
         )
 
     @staticmethod
-    def _extract_quetion_and_entry_type(key_entry):
+    def _extract_quetion_and_entry_type(key_entry) -> tuple[str, str]:
         """
+        Extracts the question name and type for the current answer dictionary key entry.
+
         >>> PromptConstructor._extract_quetion_and_entry_type("q0")
         ('q0', 'answer')
         >>> PromptConstructor._extract_quetion_and_entry_type("q0_comment")
         ('q0', 'comment')
         >>> PromptConstructor._extract_quetion_and_entry_type("q0_alternate_generated_tokens")
-        ('q0_alternate_generated_tokens', 'generated_tokens')
+        ('q0_alternate', 'generated_tokens')
         """
         split_list = key_entry.rsplit("_", maxsplit=1)
         if len(split_list) == 1:
@@ -161,8 +163,6 @@ class PromptConstructor:
             if question in augmented_answers:
                 for entry_type, value in augmented_answers[question].items():
                     setattr(answer_dict[question], entry_type, value)
-                    # answer_dict[question].__dict__[entry_type] = value
-                    # answer_dict[question].answer = current_answers[question]
             else:
                 answer_dict[question].answer = PlaceholderAnswer()
                 answer_dict[question].comment = PlaceholderComment()
