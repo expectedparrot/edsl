@@ -112,25 +112,29 @@ class Model(metaclass=Meta):
         if search_term is None:
             if name_only:
                 return PrettyList(
-                    [m[0] for m in full_list],
-                    columns=["Model Name", "Service Name", "Code"],
+                    [m.model_name for m in full_list],
+                    columns=["Model Name"],
                 )
             else:
                 return PrettyList(
-                    full_list, columns=["Model Name", "Service Name", "Code"]
+                    [[m.model_name, m.service_name] for m in full_list],
+                    columns=["Model Name", "Service Name"],
                 )
         else:
             filtered_results = [
-                m for m in full_list if search_term in m[0] or search_term in m[1]
+                m
+                for m in full_list
+                if search_term in m.model_name or search_term in m.service_name
             ]
             if name_only:
                 return PrettyList(
-                    [m[0] for m in filtered_results],
-                    columns=["Model Name", "Service Name", "Code"],
+                    [m.model_name for m in filtered_results],
+                    columns=["Model Name"],
                 )
             else:
                 return PrettyList(
-                    filtered_results, columns=["Model Name", "Service Name", "Code"]
+                    [[m.model_name, m.service_name] for m in full_list],
+                    columns=["Model Name", "Service Name"],
                 )
 
     @classmethod
