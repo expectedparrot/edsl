@@ -1,114 +1,184 @@
-from typing import List, Any, Union, Dict, Optional, Generator
+from typing import List, Optional, get_args, Union
 from pathlib import Path
-
-from datetime import datetime, timedelta
-import json
+import sqlite3
+from datetime import datetime
+import tempfile
 from platformdirs import user_cache_dir
-from dataclasses import asdict
+from dataclasses import dataclass
+import os
 
-from edsl.inference_services.data_structures import LanguageModelInfo
+from edsl.inference_services.data_structures import LanguageModelInfo, AvailableModels
+from edsl.enums import InferenceServiceLiteral
 
 
 class AvailableModelCacheHandler:
-
-    CACHE_VALIDITY_HOURS = 48  # Cache validity period in hours
+    MAX_ROWS = 1000
+    CACHE_VALIDITY_HOURS = 48
 
     def __init__(
         self,
         cache_validity_hours: int = 48,
         verbose: bool = False,
-        testing_file_name: str = None,
+        testing_db_name: str = None,
     ):
         self.cache_validity_hours = cache_validity_hours
         self.verbose = verbose
 
-        if testing_file_name:  # for testing purposes
-            import tempfile
-
+        if testing_db_name:
             self.cache_dir = Path(tempfile.mkdtemp())
-            self.cache_file = self.cache_dir / testing_file_name
+            self.db_path = self.cache_dir / testing_db_name
         else:
             self.cache_dir = Path(user_cache_dir("edsl", "model_availability"))
-            self.cache_file = self.cache_dir / "available_models.json"
+            self.db_path = self.cache_dir / "available_models.db"
             self.cache_dir.mkdir(parents=True, exist_ok=True)
+
+        if os.path.exists(self.db_path):
+            if self.verbose:
+                print(f"Using existing cache DB: {self.db_path}")
+        else:
+            self._initialize_db()
+
+    @property
+    def path_to_db(self):
+        return self.db_path
+
+    def _initialize_db(self):
+        """Initialize the SQLite database with the required schema."""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            # Drop the old table if it exists (for migration)
+            cursor.execute("DROP TABLE IF EXISTS model_cache")
+            cursor.execute(
+                """
+                CREATE TABLE IF NOT EXISTS model_cache (
+                    timestamp DATETIME NOT NULL,
+                    model_name TEXT NOT NULL,
+                    service_name TEXT NOT NULL,
+                    UNIQUE(model_name, service_name)
+                )
+            """
+            )
+            conn.commit()
+
+    def _prune_old_entries(self, conn: sqlite3.Connection):
+        """Delete oldest entries when MAX_ROWS is exceeded."""
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM model_cache")
+        count = cursor.fetchone()[0]
+
+        if count > self.MAX_ROWS:
+            cursor.execute(
+                """
+                DELETE FROM model_cache 
+                WHERE rowid IN (
+                    SELECT rowid 
+                    FROM model_cache 
+                    ORDER BY timestamp ASC 
+                    LIMIT ?
+                )
+            """,
+                (count - self.MAX_ROWS,),
+            )
+            conn.commit()
 
     @classmethod
     def example_models(cls) -> List[LanguageModelInfo]:
         return [
             LanguageModelInfo(
-                "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo", "deep_infra", 111
+                "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo", "deep_infra"
             ),
-            LanguageModelInfo("openai/gpt-4o", "openai", 3),
+            LanguageModelInfo("openai/gpt-4", "openai"),
         ]
 
     def add_models_to_cache(self, models_data: List[LanguageModelInfo]):
-        """Add new models to the cache."""
-        cache_data = self.read_cache()
-        if not cache_data:
-            cache_data = {"timestamp": datetime.now().isoformat(), "models": []}
+        """Add new models to the cache, updating timestamps for existing entries."""
+        current_time = datetime.now()
 
-        cache_data["models"].extend([asdict(entry) for entry in models_data])
-        self.write_cache([LanguageModelInfo(**entry) for entry in cache_data["models"]])
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            for model in models_data:
+                cursor.execute(
+                    """
+                    INSERT INTO model_cache (timestamp, model_name, service_name)
+                    VALUES (?, ?, ?)
+                    ON CONFLICT(model_name, service_name) 
+                    DO UPDATE SET timestamp = excluded.timestamp
+                """,
+                    (current_time, model.model_name, model.service_name),
+                )
 
-    def write_cache(self, models_data: List[LanguageModelInfo]):
-        """Write the model availability data to cache."""
-        cache_data = {
-            "timestamp": datetime.now().isoformat(),
-            "models": [asdict(entry) for entry in models_data],
-        }
+            # self._prune_old_entries(conn)
+            conn.commit()
 
-        if self.verbose:
-            print("Writing to cache at ", self.cache_file)
-        with open(self.cache_file, "w") as f:
-            json.dump(cache_data, f, indent=2)
+    def reset_cache(self):
+        """Clear all entries from the cache."""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM model_cache")
+            conn.commit()
 
-    def clear_cache(self):
-        """Clear the cache file."""
-        if self.cache_file.exists():
-            self.cache_file.unlink()
+    @property
+    def num_cache_entries(self):
+        """Return the number of entries in the cache."""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT COUNT(*) FROM model_cache")
+            count = cursor.fetchone()[0]
+            return count
 
-    def models(self) -> List[LanguageModelInfo]:
-        """Return the available models."""
-        cache_data = self.read_cache()
-        if not cache_data:
-            return
-        else:
-            return [LanguageModelInfo(**entry) for entry in cache_data["models"]]
+    def models(
+        self,
+        service: Optional[InferenceServiceLiteral],
+    ) -> Union[None, AvailableModels]:
+        """Return the available models within the cache validity period."""
+        # if service is not None:
+        #    assert service in get_args(InferenceServiceLiteral)
 
-    def read_cache(self) -> Union[dict, None]:
-        """Read the cached model availability data if it exists and is valid."""
-        if self.verbose:
-            print("Reading from cache at ", self.cache_file)
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            valid_time = datetime.now().timestamp() - (self.cache_validity_hours * 3600)
 
-        if not self.cache_file.exists():
             if self.verbose:
-                print("No cache file found")
-            return None
+                print(f"Fetching all with timestamp greater than {valid_time}")
 
-        try:
-            with open(self.cache_file, "r") as f:
-                cache_data = json.load(f)
+            cursor.execute(
+                """
+                SELECT DISTINCT model_name, service_name
+                FROM model_cache
+                WHERE timestamp > ?
+                ORDER BY timestamp DESC
+            """,
+                (valid_time,),
+            )
 
-            # Check cache validity
-            cache_time = datetime.fromisoformat(str(cache_data["timestamp"]))
-            if self.verbose:
-                print("Cache time: ", cache_time)
-
-            if datetime.now() - cache_time > timedelta(hours=self.CACHE_VALIDITY_HOURS):
+            results = cursor.fetchall()
+            if not results:
+                if self.verbose:
+                    print("No results found in cache DB.")
                 return None
 
-            return cache_data
-        except (json.JSONDecodeError, KeyError, ValueError):
-            return None
+            matching_models = [
+                LanguageModelInfo(model_name=row[0], service_name=row[1])
+                for row in results
+            ]
+
+            if self.verbose:
+                print(f"Found {len(matching_models)} models in cache DB.")
+            if service:
+                matching_models = [
+                    model for model in matching_models if model.service_name == service
+                ]
+
+            return AvailableModels(matching_models)
 
 
 if __name__ == "__main__":
-    pass
-    # cache_handler = AvailableModelCacheHandler()
+    import doctest
+
+    doctest.testmod()
+    # cache_handler = AvailableModelCacheHandler(verbose=True)
     # models_data = cache_handler.example_models()
-    # cache_handler.write_cache(models_data)
-    # print(cache_handler.models())
-    # cache_handler.clear_cache()
+    # cache_handler.add_models_to_cache(models_data)
     # print(cache_handler.models())
     # cache_handler.clear_cache()
     # print(cache_handler.models())

@@ -87,7 +87,6 @@ class Model(metaclass=Meta):
         return sl.to_dataset()
 
     @classmethod
-    @lru_cache(maxsize=128)
     def available(
         cls,
         search_term: str = None,
@@ -104,7 +103,11 @@ class Model(metaclass=Meta):
             if service not in cls.services(registry=registry):
                 raise ValueError(f"Service {service} not found in available services.")
 
+        # import time
+        # start = time.time()
         full_list = registry.available(service=service)
+        # end = time.time()
+        # print(f"Time taken to get available models: {end-start}")
 
         if search_term is None:
             if name_only:
