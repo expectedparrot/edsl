@@ -3,89 +3,182 @@
 File Store
 ==========
 
-`FileStore` is a module for storing and sharing data on the Coop to use in EDSL projects, such as survey data, PDFs, CSVs, docs or images.
-It can be particularly useful for storing data intended to be used with surveys as `Scenario` objects, such as in data labeling tasks, 
-and allows you to include code for retrieving and processing the data files in your EDSL project to facilitate collaboration and replication of results.
+`FileStore` is a module for storing and sharing data at Coop. 
+It allows you to post and retrieve files of various types for use in EDSL projects, such as survey data, PDFs, CSVs, docs or images.
+In particular, it can be useful for storing data to be added to questions as `Scenario` objects or traits for `Agent` objects, and for sharing data with collaborators.
+
+*The examples below are also available in a notebook at Coop: https://www.expectedparrot.com/content/1c1d0d70-9730-4a04-a46e-1b677f9ba521*
 
 
 File types 
 ----------
 
-The following file types are currently supported by the FileStore:
+The following file types are currently supported by the `FileStore` module:
 
-* CSV
-* PDF
-* PNG (image)
+* docx (Word document)
+* csv (Comma-separated values)
+* html (HyperText Markup Language)
+* json (JavaScript Object Notation)
+* latex (LaTeX)
+* md (Markdown)
+* pdf (Portable Document Format)
+* png (image)
+* pptx (PowerPoint)
+* py (Python)
+* sql (SQL database)
+* sqlite (SQLite database)
+* txt (text)
 
 
 Posting a file
 --------------
 
-To post a file, import the `FileStore` type (`CSVFileStore`, `PDFFileStore` or `PNGFileStore`) and create an object with the path to the file.
+To post a file, import the `FileStore` constructor and create an object by passing the path to the file.
+The constructor will automatically infer the file type from the extension.
+
 Then call the `push` method to store the file on the Coop and get a URL and uuid for accessing it.
 You can optionally pass a `description` and `visibility` parameter to the `push` method (Coop objects can be *public*, *private* or *unlisted* by default).
+
+The `push` method returns a dictionary with the following keys and values (this is the same for any object posted to Coop):
+
+* `description`: the description of the file
+* `object_type`: the type of object (e.g., scenario)
+* `url`: the URL of the file on the Coop
+* `uuid`: the Coop uuid of the file
+* `version`: the version of the file
+* `visibility`: the visibility of the file (e.g., public, private, unlisted)
+
+
+Retrieving a file
+-----------------
+
+To retrieve a file, call the `pull` method on the `FileStore` constructor and pass it the Coop uuid of the file that you want to retrieve.
+
+Once retrieved, a file can be converted into a scenario or scenario list.
+To construct a single scenario from a file, use the `Scenario` constructor and pass the file as a value for a specified key (see image file example below).
+To construct a list of scenarios from a file, call the `from_csv` or `from_pdf` method of the `ScenarioList` constructor and pass the file as an argument (see CSV and PDF examples below).
+
+We can also create agents by calling the `from_csv()` method on an `AgentList` object.
+
 
 CSV example
 ^^^^^^^^^^^
 
-.. code-block:: python
+Here we create an example CSV and then post it to Coop using `FileStore` and retrieve it.
+Then we use the retrieved file to construct scenarios for questions (you can skip the step to create a CSV and replace with your own file).
 
-    from edsl.scenarios.FileStore import CSVFileStore
-
-    fs = CSVFileStore("example.csv")
-    info = fs.push()
-    print(info) # display the URL and Coop uuid of the stored file for retrieving it later
-
-
-Example output (showing the default description and visibility setting):
+To create an example CSV file:
 
 .. code-block:: python
 
-    {'description': 'File: example.csv', 
-    'object_type': 'scenario', 
-    'url': 'https://www.expectedparrot.com/content/4531d6ac-5425-4c93-aa02-07c1fa64aaa3', 
-    'uuid': '4531d6ac-5425-4c93-aa02-07c1fa64aaa3', 
-    'version': '0.1.33.dev1', 
-    'visibility': 'unlisted'}
+    # Sample data
+    data = [
+        ['Age', 'City', 'Occupation'],
+        [25, 'New York', 'Software Engineer'],
+        [30, 'San Francisco', 'Teacher'],
+        [35, 'Chicago', 'Doctor'],
+        [28, 'Boston', 'Data Scientist'],
+        [45, 'Seattle', 'Architect']
+    ]
+
+    # Writing to CSV file
+    with open('data.csv', 'w') as file:
+        for row in data:
+            line = ','.join(str(item) for item in row)
+            file.write(line + '\n')
 
 
-PDF example
-^^^^^^^^^^^
+Here we post the file to Coop and inspect the details:
 
 .. code-block:: python
 
-    from edsl.scenarios.FileStore import PDFFileStore
+    from edsl import FileStore
 
-    fs = PDFFileStore("top_secret.pdf")
-    info = fs.push()
-    print(info) # display the URL and Coop uuid of the stored file for retrieving it later
+    fs = FileStore("data.csv")
+    csv_info = fs.push(description = "My example CSV file", visibility = "public")
+    csv_info # display the URL and Coop uuid of the stored file for retrieving it later
 
 
 Example output:
 
 .. code-block:: python
 
-    {'description': 'File: top_secret.pdf', 
-    'object_type': 'scenario', 
-    'url': 'https://www.expectedparrot.com/content/a6231668-3166-4741-93d8-f3248b91660f', 
-    'uuid': 'a6231668-3166-4741-93d8-f3248b91660f', 
-    'version': '0.1.33.dev1', 
-    'visibility': 'unlisted'}
+    {'description': 'My example CSV file',
+    'object_type': 'scenario',
+    'url': 'https://www.expectedparrot.com/content/371e3ab0-5cf7-4050-89bb-99c5de752fef',
+    'uuid': '371e3ab0-5cf7-4050-89bb-99c5de752fef',
+    'version': '0.1.39.dev1',
+    'visibility': 'public'}
+
+
+Now we can retrieve the file and create scenarios from it:
+
+.. code-block:: python
+
+    from edsl import FileStore, ScenarioList
+
+    csv_file = FileStore.pull(csv_info["uuid"]) # info is the dictionary returned from the push method above 
+
+    scenarios = ScenarioList.from_csv(csv_file.to_tempfile())
+    scenarios # display the scenarios
+
+
+Output:
+
+.. list-table::
+  :header-rows: 1
+
+  * - Age
+    - City 
+    - Occupation
+  * - 25
+    - New York
+    - Software Engineer
+  * - 30
+    - San Francisco
+    - Teacher
+  * - 35
+    - Chicago
+    - Doctor
+  * - 28
+    - Boston
+    - Data Scientist
+  * - 45
+    - Seattle
+    - Architect
+
+
+Alternatively, we can create agents from the CSV file:
+
+.. code-block:: python
+
+    from edsl import AgentList
+
+    agents = AgentList.from_csv(csv_file.to_tempfile())
+
+
+Learn more about designing agents and using scenarios in the :ref:`agents` and :ref:`scenarios` sections.
 
 
 PNG example
 ^^^^^^^^^^^
 
+Here we post and retrieve an image file, and then create a scenario for it.
+Note that we need to specify the scenario key for the file when we create the scenario.
+We also need to ensure that we have specified a vision model when using it with a survey (e.g., GPT-4o).
+
+To post the file:
+
 .. code-block:: python
 
-    from edsl.scenarios.FileStore import PNGFileStore
+    from edsl import FileStore
 
-    fs = PNGFileStore("parrot_logo.png")
-    info = fs.push()
-    print(info) # display the URL and Coop uuid of the stored file for retrieving it later
+    fs = FileStore("parrot_logo.png") # replace with your own file
+    png_info = fs.push()
+    png_info # display the URL and Coop uuid of the stored file for retrieving it later
 
 
-Example output:
+Example output (showing the default description and visibility setting):
 
 .. code-block:: python
 
@@ -97,101 +190,44 @@ Example output:
     'visibility': 'unlisted'}
 
 
-Retrieving and using a file
----------------------------
-
-To retrieve a file, create a `FileStore` object (`CSVFileStore`, `PDFFileStore` or `PNGFileStore`) 
-and pass it the Coop uuid of the file you want to retrieve and the Expected Parrot URL.
-Then call the `pull` method to retrieve the file from the Coop.
-
-Once retrieved, a file can be converted into scenarios by calling the relevant method on a `ScenarioList` object:
-
-* `ScenarioList.from_csv()` for CSV files
-* `ScenarioList.from_pdf()` for PDF files
-* `ScenarioList.from_image()` for PNG files
-
-
-CSV example
-^^^^^^^^^^^
-
-Here we retrieve the CSV file posted above and then convert it into a `ScenarioList` object with the `from_csv()` method.
-The keys are the column names of the CSV file, which can be modified with the `rename` method.
+Here we retrieve the file and then create a `Scenario` object for it with a key for the placeholder in the questions where we want to use the image:
 
 .. code-block:: python
 
-    from edsl.scenarios.FileStore import CSVFileStore
-    from edsl import ScenarioList
+    from edsl import PNGFileStore, Scenario
     
-    csv_file = CSVFileStore.pull("4531d6ac-5425-4c93-aa02-07c1fa64aaa3", expected_parrot_url="https://www.expectedparrot.com")
-
-    scenarios = ScenarioList.from_csv(csv_file.to_tempfile())
-
-
-PDF example
-^^^^^^^^^^^
-
-Here we retrieve the PDF file posted above and then convert it into a `ScenarioList` object with the `from_pdf()` method.
-The default keys are `filename`, `page`, `text`, which can be modified with the `rename` method.
-
-.. code-block:: python
-
-    from edsl.scenarios.FileStore import PDFFileStore
-    from edsl import ScenarioList
-
-    pdf_file = PDFFileStore.pull("a6231668-3166-4741-93d8-f3248b91660f", expected_parrot_url="https://www.expectedparrot.com")
+    png_file = FileStore.pull(png_info["uuid"])
     
-    scenario = ScenarioList.from_pdf(pdf_file.to_tempfile())
+    scenario = Scenario({"parrot_logo":png_file}) # including a key for the scenario object
 
 
-To inspect the keys:
-
-.. code-block:: python
-
-    scenario.parameters
-
-
-Output:
-
-.. code-block:: python
-
-    {'filename', 'page', 'text'}
-
-
-PNG example
-^^^^^^^^^^^
-
-Here we retrieve the PNG file posted above and then convert it into a `ScenarioList` object with the `from_image()` method.
-We can optionally pass the name of a key to use for the scenario object, or edit the key later.
-
-.. code-block:: python
-
-    from edsl.scenarios.FileStore import PNGFileStore
-    from edsl import Scenario
-    
-    png_file = PNGFileStore.pull("148e6320-5642-486c-9332-a6d30be0daae", expected_parrot_url="https://www.expectedparrot.com")
-
-    scenario = Scenario.from_image(png_file.to_tempfile(), "parrot_logo") # including a key for the scenario object
-
-
-Working with scenarios 
-----------------------
-
-Before using the scenario, we can verify the key and value of the scenario object (e.g., by printing), and rename the key as desired to use in survey questions.
-
-For a single `Scenario` we can check the key:
+We can verify the key for the scenario object:
 
 .. code-block:: python
 
     scenario.keys()
 
 
-(For a `ScenarioList` object, we can call the `parameters` method to get the keys.)
+Output:
 
-If the key is `parrot_logo` and you want to rename it `logo`:
+.. code-block:: python
+
+    ['parrot_logo']
+
+
+To rename a key:
 
 .. code-block:: python
 
     scenario = scenario.rename({"parrot_logo": "logo"})
+    scenario,keys()
+
+
+Output:
+
+.. code-block:: python
+
+    ['logo']
 
 
 To use it in a question, the question should be parameterized with the key:
@@ -202,16 +238,117 @@ To use it in a question, the question should be parameterized with the key:
 
     q = QuestionFreeText(
         question_name = "test",
-        question_text = "What is the logo of the company? {{ logo }}"
+        question_text = "Describe this logo: {{ logo }}"
     )
 
-    results = q.by(scenario).run()
+
+Here we run the question with the scenario object.
+Note that we need to use a vision model; here we specify the default model for demonstration purposes and add an agent persona:
+
+.. code-block:: python
+
+    from edsl import Model
+
+    model = Model("gpt-4o") # specify a vision model
+
+    results = q.by(scenario).by(model).run() # run the question with the scenario and model
 
 
-Example notebook
-----------------
+Learn more about selecting models in the :ref:`language_models` section.
 
-The following notebook at the Coop includes the above code examples: https://www.expectedparrot.com/content/e1a00873-dfc6-4383-9426-cc032296bab1
+Output:
+
+.. list-table::
+  :header-rows: 1
+
+  * - model
+    - scenario.logo
+    - answer.test
+  * - gpt-4
+    - FileStore: self.path
+    - The logo features a large, stylized letter "E" in a serif font on the left. Next to it, within square brackets, is a colorful parrot. The parrot has a green body, an orange beak, a pink chest, blue lower body, and gray feet. The design combines a classic typographic element with a vibrant, playful illustration.
+
+
+PDF example
+^^^^^^^^^^^
+
+Here we download an example PDF from the internet, post and retrieve it from Coop using `FileStore` and then convert it into a `ScenarioList` object with the `from_pdf()` method.
+The default keys are `filename`, `page`, `text`, which can be modified with the `rename` method.
+
+To download a PDF file:
+
+.. code-block:: python
+
+    import requests
+
+    url = "https://arxiv.org/pdf/2404.11794" 
+    response = requests.get(url)
+    with open("automated_social_scientist.pdf", "wb") as file:
+        file.write(response.content)
+
+
+Here we post the file to Coop and inspect the details:
+
+.. code-block:: python
+
+    from edsl import FileStore
+
+    fs = FileStore("automated_social_scientist.pdf")
+    pdf_info = fs.push(description = "My example PDF file", visibility = "public")
+    pdf_info # display the URL and Coop uuid of the stored file for retrieving it later
+
+
+Example output:
+
+.. code-block:: python
+
+    {'description': 'My example PDF file',
+    'object_type': 'scenario',
+    'url': 'https://www.expectedparrot.com/content/8f4257bf-1b90-473a-a7d5-c7b926b8f104',
+    'uuid': '8f4257bf-1b90-473a-a7d5-c7b926b8f104',
+    'version': '0.1.39.dev1',
+    'visibility': 'public'}
+
+
+Now we retrieve the file and create a `ScenarioList` object from it:
+
+.. code-block:: python
+
+    from edsl import FileStore, ScenarioList
+
+    pdf_file = FileStore.pull(pdf_info["uuid"])
+    
+    scenarios = ScenarioList.from_pdf(pdf_file.to_tempfile())
+
+
+To inspect the keys:
+
+.. code-block:: python
+
+    scenarios.parameters
+
+
+Output:
+
+.. code-block:: python
+
+    {'filename', 'page', 'text'}
+
+
+Using the scenarios in a question:
+
+.. code-block:: python
+
+    from edsl import QuestionFreeText
+
+    q = QuestionFreeText(
+        question_name = "summary",
+        question_text = "Summarize this page: {{ text }}"
+    )
+
+
+Each result will contain the text from a page of the PDF file, together with columns for the filename and page number.
+Run `results.columns` to see all the components of results.
 
 
 FileStore class
