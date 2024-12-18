@@ -7,7 +7,7 @@ File Store
 It allows you to post and retrieve files of various types for use in EDSL projects, such as survey data, PDFs, CSVs, docs or images.
 In particular, it can be useful for storing data to be added to questions as `Scenario` objects or traits for `Agent` objects, and for sharing data with collaborators.
 
-*The examples below are also available in a notebook at Coop: https://www.expectedparrot.com/content/1c1d0d70-9730-4a04-a46e-1b677f9ba521*
+The examples below are also available in a `notebook at Coop <https://www.expectedparrot.com/content/1c1d0d70-9730-4a04-a46e-1b677f9ba521>`_.
 
 
 File types 
