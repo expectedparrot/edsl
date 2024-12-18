@@ -66,6 +66,19 @@ This is how the code looks in a Jupyter notebook and in Colab:
    :width: 300px
 
 
+Installing from source
+----------------------
+
+If you want to install EDSL from source, you can clone the repository from GitHub:
+
+.. code:: 
+
+    pip install git+https://github.com/expectedparrot/edsl.git@main
+
+
+This allows you to pull the latest changes from the repository (which may not be in the latest version available at PyPI) and install them on your system.
+
+
 Updating your version
 ---------------------
 
@@ -122,3 +135,5 @@ You can deactivate the virtual environment at any time by running:
 
 
 To delete the virtual environment, simply delete the myenv folder.
+
+
