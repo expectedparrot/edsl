@@ -8,7 +8,6 @@ from dataclasses import dataclass
 class LanguageModelInfo:
     model_name: str
     service_name: str
-    index: Union[int, str]
 
     def __getitem__(self, key: int) -> str:
         import warnings
@@ -24,8 +23,6 @@ class LanguageModelInfo:
             return self.model_name
         elif key == 1:
             return self.service_name
-        elif key == 2:
-            return self.index
         else:
             raise IndexError("Index out of range")
 
@@ -34,7 +31,19 @@ class ModelNamesList(UserList):
     pass
 
 
-class AvailableModels(UserDict):
+class AvailableModels(UserList):
+
+    def __init__(self, data: list) -> None:
+        super().__init__(data)
+
+    def __contains__(self, model_name: str) -> bool:
+        for model_entry in self:
+            if model_entry.model_name == model_name:
+                return True
+        return False
+
+
+class ServiceToModelsMapping(UserDict):
     def __init__(self, data: dict) -> None:
         super().__init__(data)
 

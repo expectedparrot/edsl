@@ -26,7 +26,7 @@ from edsl.coop.utils import (
 from edsl.coop.CoopFunctionsMixin import CoopFunctionsMixin
 from edsl.coop.ExpectedParrotKeyHandler import ExpectedParrotKeyHandler
 
-from edsl.inference_services.data_structures import AvailableModels
+from edsl.inference_services.data_structures import ServiceToModelsMapping
 
 
 class RemoteInferenceResponse(TypedDict):
@@ -864,7 +864,7 @@ class Coop(CoopFunctionsMixin):
                 "Invalid EDSL_FETCH_TOKEN_PRICES value---should be 'True' or 'False'."
             )
 
-    def fetch_models(self) -> AvailableModels:
+    def fetch_models(self) -> ServiceToModelsMapping:
         """
         Fetch a dict of available models from Coop.
 
@@ -873,7 +873,7 @@ class Coop(CoopFunctionsMixin):
         response = self._send_server_request(uri="api/v0/models", method="GET")
         self._resolve_server_response(response)
         data = response.json()
-        return AvailableModels(data)
+        return ServiceToModelsMapping(data)
 
     def fetch_rate_limit_config_vars(self) -> dict:
         """

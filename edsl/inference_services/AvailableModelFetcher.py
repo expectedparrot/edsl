@@ -13,16 +13,7 @@ from edsl.inference_services.AvailableModelCacheHandler import (
 )
 
 
-class AvailableModels(UserList):
-
-    def __init__(self, data: list) -> None:
-        super().__init__(data)
-
-    def __contains__(self, model_name: str) -> bool:
-        for model_entry in self:
-            if model_entry.model_name == model_name:
-                return True
-        return False
+from edsl.inference_services.data_structures import AvailableModels
 
 
 class AvailableModelFetcher:
@@ -49,8 +40,22 @@ class AvailableModelFetcher:
         else:
             self.cache_handler = None
 
+    @property
+    def num_cache_entries(self):
+        return self.cache_handler.num_cache_entries
+
+    @property
+    def path_to_db(self):
+        return self.cache_handler.path_to_db
+
+    def reset_cache(self):
+        if self.cache_handler:
+            self.cache_handler.reset_cache()
+
     def available(
-        self, service: Optional[InferenceServiceABC] = None
+        self,
+        service: Optional[InferenceServiceABC] = None,
+        force_refresh: bool = False,
     ) -> List[LanguageModelInfo]:
         """
         Get available models from all services, using cached data when available.
@@ -60,43 +65,62 @@ class AvailableModelFetcher:
         >>> from edsl.inference_services.OpenAIService import OpenAIService
         >>> af = AvailableModelFetcher([OpenAIService()], {})
         >>> af.available(service="openai")
-        [LanguageModelInfo(model_name='...', service_name='openai', index=...), ...]
+        [LanguageModelInfo(model_name='...', service_name='openai'), ...]
 
         Returns a list of [model, service_name, index] entries.
         """
 
         if service:  # they passed a specific service
-            matching_models, _ = self.get_available_models_by_service(service=service)
-            return list(self._adjust_index(matching_models, include_index=False))
-
-        # They want them all!
-
-        # Try to get cached data
-        if self.cache_handler:
-            if (all_models := self.cache_handler.models()) is not None:
-                return all_models
+            matching_models, _ = self.get_available_models_by_service(
+                service=service, force_refresh=force_refresh
+            )
+            return matching_models
 
         # Nope, we need to fetch them all
         all_models = self._get_all_models()
 
-        if self.cache_handler:
-            self.cache_handler.write_cache(all_models)
+        # if self.cache_handler:
+        #    self.cache_handler.add_models_to_cache(all_models)
 
         return all_models
 
-    @staticmethod
-    def _adjust_index(sorted_models, include_index=False) -> Generator:
-        """Adjust the index of the models."""
-        for index, model in enumerate(sorted_models):
-            if include_index:
-                yield LanguageModelInfo(model.model_name, model.service_name, index)
-            else:
-                yield LanguageModelInfo(model.model_name, model.service_name, "NA")
-
     def get_available_models_by_service(
-        self, service: Union["InferenceServiceABC", InferenceServiceLiteral]
-    ) -> Tuple[List[LanguageModelInfo], InferenceServiceLiteral]:
+        self,
+        service: Union["InferenceServiceABC", InferenceServiceLiteral],
+        force_refresh: bool = False,
+    ) -> Tuple[AvailableModels, InferenceServiceLiteral]:
         """Get models for a single service.
+
+        :param service: InferenceServiceABC - e.g., OpenAIService or "openai"
+        :return: Tuple[List[LanguageModelInfo], InferenceServiceLiteral]
+        """
+        if isinstance(service, str):
+            service = self._fetch_service_by_service_name(service)
+
+        if not force_refresh:
+            models_from_cache = self.cache_handler.models(
+                service=service._inference_service_
+            )
+            if self.verbose:
+                print(
+                    "Searching cache for models with service name:",
+                    service._inference_service_,
+                )
+                print("Got models from cache:", models_from_cache)
+        else:
+            models_from_cache = None
+
+        if models_from_cache:
+            # print(f"Models from cache for {service}: {models_from_cache}")
+            # print(hasattr(models_from_cache[0], "service_name"))
+            return models_from_cache, service._inference_service_
+        else:
+            return self.get_available_models_by_service_fresh(service)
+
+    def get_available_models_by_service_fresh(
+        self, service: Union["InferenceServiceABC", InferenceServiceLiteral]
+    ) -> Tuple[AvailableModels, InferenceServiceLiteral]:
+        """Get models for a single service. This method always fetches fresh data.
 
         :param service: InferenceServiceABC - e.g., OpenAIService or "openai"
         :return: Tuple[List[LanguageModelInfo], InferenceServiceLiteral]
@@ -114,11 +138,11 @@ class AvailableModelFetcher:
                 LanguageModelInfo(
                     model_name=model_name,
                     service_name=service_name,
-                    index=-1,
                 )
                 for model_name in service_models
             ]
         )
+        self.cache_handler.add_models_to_cache(models_list)  # update the cache
         return models_list, service_name
 
     def _fetch_service_by_service_name(
@@ -129,11 +153,13 @@ class AvailableModelFetcher:
             return self._service_map[service_name]
         raise ValueError(f"Service {service_name} not found")
 
-    def _get_all_models(self) -> List[LanguageModelInfo]:
+    def _get_all_models(self, force_refresh=False) -> List[LanguageModelInfo]:
         all_models = []
         with ThreadPoolExecutor(max_workers=min(len(self.services), 10)) as executor:
             future_to_service = {
-                executor.submit(self.get_available_models_by_service, service): service
+                executor.submit(
+                    self.get_available_models_by_service, service, force_refresh
+                ): service
                 for service in self.services
             }
 
@@ -144,22 +170,27 @@ class AvailableModelFetcher:
 
                     # Add any additional models for this service
                     for model in self.added_models.get(service_name, []):
-                        all_models.append([model, service_name, -1])
+                        all_models.append(
+                            LanguageModelInfo(
+                                model_name=model, service_name=service_name
+                            )
+                        )
 
                 except Exception as exc:
                     print(f"Service query failed: {exc}")
                     continue
 
-        return AvailableModels(list(self._adjust_index(all_models, include_index=True)))
+        return AvailableModels(all_models)
 
 
 def main():
     from edsl.inference_services.OpenAIService import OpenAIService
 
     af = AvailableModelFetcher([OpenAIService()], {}, verbose=True)
-    print(af.available(service="openai"))
-
-    all_models = AvailableModelFetcher([OpenAIService()], {})._get_all_models()
+    # print(af.available(service="openai"))
+    all_models = AvailableModelFetcher([OpenAIService()], {})._get_all_models(
+        force_refresh=True
+    )
     print(all_models)
 
 
@@ -167,5 +198,12 @@ if __name__ == "__main__":
     import doctest
 
     doctest.testmod(optionflags=doctest.ELLIPSIS)
+    # main()
 
-    main()
+    # from edsl.inference_services.OpenAIService import OpenAIService
+
+    # af = AvailableModelFetcher([OpenAIService()], {}, verbose=True)
+    # # print(af.available(service="openai"))
+
+    # all_models = AvailableModelFetcher([OpenAIService()], {})._get_all_models()
+    # print(all_models)

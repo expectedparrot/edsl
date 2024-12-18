@@ -88,13 +88,13 @@ class TestInferenceServicesCollection:
         expected_result = [("service1", "model1", 1), ("service2", "model2", 1)]
         collection.availability_fetcher.available = Mock(return_value=expected_result)
 
-        result = collection.available()
+        result = collection.available("service1")
         assert result == expected_result
 
     def test_reset_cache(self, collection):
         collection.available("service1")  # Cache a result
         collection.reset_cache()
-        assert collection.available.cache_info().currsize == 0
+        assert collection.num_cache_entries == 0
 
     def test_register(self, collection):
         new_service = MockInferenceService("service3")
