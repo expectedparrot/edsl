@@ -2,6 +2,7 @@ from edsl.language_models.registry import Model
 from edsl.jobs.Jobs import Jobs
 from edsl.questions.QuestionFreeText import QuestionFreeText
 from edsl.surveys.Survey import Survey
+from edsl.jobs.JobsPrompts import JobsPrompts
 
 price_lookup = {
     ("test", "test"): {
@@ -28,7 +29,7 @@ price_lookup = {
 
 
 def test_prompt_cost_estimation():
-    estimated_cost_dct = Jobs.estimate_prompt_cost(
+    estimated_cost_dct = JobsPrompts.estimate_prompt_cost(
         system_prompt="",
         user_prompt="What is your favorite month?",
         price_lookup=price_lookup,
@@ -40,7 +41,7 @@ def test_prompt_cost_estimation():
     assert estimated_cost_dct["output_tokens"] == 6
     assert estimated_cost_dct["cost_usd"] == 13
 
-    estimated_cost_dct = Jobs.estimate_prompt_cost(
+    estimated_cost_dct = JobsPrompts.estimate_prompt_cost(
         system_prompt="",
         user_prompt="Why is that your favorite month?",
         price_lookup=price_lookup,
@@ -54,7 +55,7 @@ def test_prompt_cost_estimation():
 
 
 def test_prompt_cost_estimation_with_piping():
-    estimated_cost_dct = Jobs.estimate_prompt_cost(
+    estimated_cost_dct = JobsPrompts.estimate_prompt_cost(
         system_prompt="",
         user_prompt="Why is {{ answer }} your favorite month?",
         price_lookup=price_lookup,
