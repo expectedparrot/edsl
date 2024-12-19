@@ -12,6 +12,7 @@ from .QuestionOptionProcessor import QuestionOptionProcessor
 
 if TYPE_CHECKING:
     from edsl.agents.InvigilatorBase import InvigilatorBase
+    from edsl.questions.QuestionBase import QuestionBase
 
 
 class PlaceholderAnswer:
@@ -25,10 +26,18 @@ class PlaceholderAnswer:
         return ""
 
     def __str__(self):
-        return "<<PlaceholderAnswer>>"
+        return f"<<{self.__class__.__name__}>>"
 
     def __repr__(self):
-        return "<<PlaceholderAnswer>>"
+        return f"<<{self.__class__.__name__}>>"
+
+
+class PlaceholderComment(PlaceholderAnswer):
+    pass
+
+
+class PlaceholderGeneratedTokens(PlaceholderAnswer):
+    pass
 
 
 class PromptConstructor:
@@ -96,6 +105,50 @@ class PromptConstructor:
         )
 
     @staticmethod
+    def _extract_quetion_and_entry_type(key_entry) -> tuple[str, str]:
+        """
+        Extracts the question name and type for the current answer dictionary key entry.
+
+        >>> PromptConstructor._extract_quetion_and_entry_type("q0")
+        ('q0', 'answer')
+        >>> PromptConstructor._extract_quetion_and_entry_type("q0_comment")
+        ('q0', 'comment')
+        >>> PromptConstructor._extract_quetion_and_entry_type("q0_alternate_generated_tokens")
+        ('q0_alternate', 'generated_tokens')
+        """
+        split_list = key_entry.rsplit("_", maxsplit=1)
+        if len(split_list) == 1:
+            question_name = split_list[0]
+            entry_type = "answer"
+        else:
+            if split_list[1] == "comment":
+                question_name = split_list[0]
+                entry_type = "comment"
+            elif split_list[1] == "tokens":  # it's actually 'generated_tokens'
+                question_name = key_entry.replace("_generated_tokens", "")
+                entry_type = "generated_tokens"
+            else:
+                question_name = key_entry
+                entry_type = "answer"
+        return question_name, entry_type
+
+    @staticmethod
+    def _augmented_answers_dict(current_answers: dict):
+        """
+        >>> PromptConstructor._augmented_answers_dict({"q0": "LOVE IT!", "q0_comment": "I love school!"})
+        {'q0': {'answer': 'LOVE IT!', 'comment': 'I love school!'}}
+        """
+        d = {}
+        for key, value in current_answers.items():
+            question_name, entry_type = (
+                PromptConstructor._extract_quetion_and_entry_type(key)
+            )
+            if question_name not in d:
+                d[question_name] = {}
+            d[question_name][entry_type] = value
+        return d
+
+    @staticmethod
     def _add_answers(answer_dict: dict, current_answers) -> dict[str, "QuestionBase"]:
         """
         >>> from edsl import QuestionFreeText
@@ -104,11 +157,16 @@ class PromptConstructor:
         >>> PromptConstructor._add_answers(d, current_answers)['q0'].answer
         'LOVE IT!'
         """
+        augmented_answers = PromptConstructor._augmented_answers_dict(current_answers)
+
         for question in answer_dict:
-            if question in current_answers:
-                answer_dict[question].answer = current_answers[question]
+            if question in augmented_answers:
+                for entry_type, value in augmented_answers[question].items():
+                    setattr(answer_dict[question], entry_type, value)
             else:
                 answer_dict[question].answer = PlaceholderAnswer()
+                answer_dict[question].comment = PlaceholderComment()
+                answer_dict[question].generated_tokens = PlaceholderGeneratedTokens()
         return answer_dict
 
     @cached_property

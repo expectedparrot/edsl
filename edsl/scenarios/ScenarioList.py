@@ -186,6 +186,34 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
 
         return ScenarioList(new_scenarios)
 
+    def sem_filter(self, language_predicate: str) -> ScenarioList:
+        """Filter the ScenarioList based on a language predicate.
+
+        :param language_predicate: The language predicate to use.
+
+        Inspired by:
+        @misc{patel2024semanticoperators,
+            title={Semantic Operators: A Declarative Model for Rich, AI-based Analytics Over Text Data},
+            author={Liana Patel and Siddharth Jha and Parth Asawa and Melissa Pan and Carlos Guestrin and Matei Zaharia},
+            year={2024},
+            eprint={2407.11418},
+            archivePrefix={arXiv},
+            primaryClass={cs.DB},
+            url={https://arxiv.org/abs/2407.11418},
+            }
+        """
+        from edsl import QuestionYesNo
+
+        new_scenario_list = self.duplicate()
+        q = QuestionYesNo(
+            question_text=language_predicate, question_name="binary_outcome"
+        )
+        results = q.by(new_scenario_list).run(verbose=False)
+        new_scenario_list = new_scenario_list.add_list(
+            "criteria", results.select("binary_outcome").to_list()
+        )
+        return new_scenario_list.filter("criteria == 'Yes'").drop("criteria")
+
     def pivot(
         self,
         id_vars: List[str] = None,

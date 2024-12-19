@@ -842,6 +842,7 @@ class Survey(SurveyExportMixin, Base):
         model=None,
         agent=None,
         cache=None,
+        verbose=False,
         disable_remote_cache: bool = False,
         disable_remote_inference: bool = False,
         **kwargs,
@@ -860,6 +861,7 @@ class Survey(SurveyExportMixin, Base):
 
         return self.get_job(model, agent, **kwargs).run(
             cache=cache,
+            verbose=verbose,
             disable_remote_cache=disable_remote_cache,
             disable_remote_inference=disable_remote_inference,
         )

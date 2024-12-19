@@ -62,7 +62,7 @@ class ModelResolver:
             return self._models_to_services[model_name]
 
         for service in self.services:
-            available_models = (
+            available_models, service_name = (
                 self.availability_fetcher.get_available_models_by_service(service)
             )
             if model_name in available_models:
@@ -91,12 +91,18 @@ class InferenceServicesCollection:
         if service_name not in cls.added_models:
             cls.added_models[service_name].append(model_name)
 
-    @lru_cache(maxsize=128)
-    def available(self, service: Optional[str] = None) -> List[Tuple[str, str, int]]:
+    def available(
+        self,
+        service: Optional[str] = None,
+    ) -> List[Tuple[str, str, int]]:
         return self.availability_fetcher.available(service)
 
     def reset_cache(self) -> None:
-        self.available.cache_clear()
+        self.availability_fetcher.reset_cache()
+
+    @property
+    def num_cache_entries(self) -> int:
+        return self.availability_fetcher.num_cache_entries
 
     def register(self, service: InferenceServiceABC) -> None:
         self.services.append(service)

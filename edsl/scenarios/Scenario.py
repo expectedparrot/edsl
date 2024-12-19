@@ -5,7 +5,7 @@ import copy
 import os
 import json
 from collections import UserDict
-from typing import Union, List, Optional, TYPE_CHECKING
+from typing import Union, List, Optional, TYPE_CHECKING, Collection
 from uuid import uuid4
 
 from edsl.Base import Base
@@ -134,11 +134,14 @@ class Scenario(Base, UserDict, ScenarioHtmlMixin):
             return s
 
     def rename(
-        self, old_name_or_replacement_dict: dict, new_name: Optional[str] = None
+        self,
+        old_name_or_replacement_dict: Union[str, dict],
+        new_name: Optional[str] = None,
     ) -> Scenario:
         """Rename the keys of a scenario.
 
-        :param replacement_dict: A dictionary of old keys to new keys.
+        :param old_name_or_replacement_dict: A dictionary of old keys to new keys *OR* a string of the old key.
+        :param new_name: The new name of the key.
 
         Example:
 
@@ -192,7 +195,7 @@ class Scenario(Base, UserDict, ScenarioHtmlMixin):
 
         return DisplayYAML(self.to_dict(add_edsl_version=False))
 
-    def to_dict(self, add_edsl_version=True) -> dict:
+    def to_dict(self, add_edsl_version: bool = True) -> dict:
         """Convert a scenario to a dictionary.
 
         Example:
@@ -220,8 +223,7 @@ class Scenario(Base, UserDict, ScenarioHtmlMixin):
         return d
 
     def __hash__(self) -> int:
-        """
-        Return a hash of the scenario.
+        """Return a hash of the scenario.
 
         Example:
 
@@ -249,7 +251,7 @@ class Scenario(Base, UserDict, ScenarioHtmlMixin):
         values = list(self.values())
         return Dataset([{"key": keys}, {"value": values}])
 
-    def select(self, list_of_keys: List[str]) -> "Scenario":
+    def select(self, list_of_keys: Collection[str]) -> "Scenario":
         """Select a subset of keys from a scenario.
 
         :param list_of_keys: The keys to select.
@@ -350,10 +352,10 @@ class Scenario(Base, UserDict, ScenarioHtmlMixin):
         return cls.from_file(image_path, image_name)
 
     @classmethod
-    def from_pdf(cls, pdf_path):
+    def from_pdf(cls, pdf_path: str):
         from edsl.scenarios.PdfExtractor import PdfExtractor
 
-        return PdfExtractor(pdf_path, self).get_object()
+        return PdfExtractor(pdf_path, cls).get_object()
 
     @classmethod
     def from_docx(cls, docx_path: str) -> "Scenario":
