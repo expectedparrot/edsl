@@ -70,6 +70,43 @@ def test_alt_piping():
     # assert results.select("answer.*").to_list() == [(["Reading", "Sailing"], "Sailing")]
 
 
+def test_comment_piping():
+
+    from edsl import QuestionFreeText, Model
+
+    def two_responses_closure():
+
+        num_calls = 0
+
+        def two_responses(user_prompt, system_prompt, files_list):
+            nonlocal num_calls
+            if num_calls == 0:
+                num_calls += 1
+                return """Parrots\nI think they are cool"""
+            else:
+                return "Oh, I love parrots!"
+
+        return two_responses
+
+    q1 = QuestionMultipleChoice(
+        question_text="What is your favorite kind of bird?",
+        question_name="bird",
+        question_options=["Parrots", "Owls", "Eagles"],
+    )
+    q2 = QuestionFreeText(
+        question_text="Why do you like {{ bird.answer }} - you also said {{ bird.comment}}?",
+        question_name="why_bird",
+    )
+    m = Model("test", func=two_responses_closure())
+    s = Survey([q1, q2])
+    results = s.by(m).run()
+
+    assert (
+        results.select("prompt.why_bird_user_prompt").first().text
+        == "Why do you like Parrots - you also said I think they are cool?"
+    )
+
+
 def test_option_expand_piping():
     from edsl.questions import QuestionList, QuestionCheckBox
     from edsl.language_models.registry import Model
