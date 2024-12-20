@@ -1,0 +1,35 @@
+<h2>Exceptions by Model</h2>
+<table border="1">
+    <thead>
+        <tr>
+            <th>Model</th>
+            <th>Number</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for model, exceptions in exceptions_by_model.items() %}
+            <tr>
+                <td>{{ model }}</td>
+                <td>{{ exceptions }}</td>
+            </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<h2>Exceptions by Service</h2>
+<table border="1">
+    <thead>
+        <tr>
+            <th>Service</th>
+            <th>Number</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for service, exceptions in exceptions_by_service.items() %}
+            <tr>
+                <td>{{ service }}</td>
+                <td>{{ exceptions }}</td>
+            </tr>
+        {% endfor %}
+    </tbody>
+</table>

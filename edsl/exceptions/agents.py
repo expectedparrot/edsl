@@ -1,37 +1,51 @@
-class AgentErrors(Exception):
-    pass
+from edsl.exceptions.BaseException import BaseException
+
+
+# from edsl.utilities.utilities import is_notebook
+
+# from IPython.core.error import UsageError
+
+# class AgentListErrorAlternative(UsageError):
+#     def __init__(self, message):
+#         super().__init__(message)
+
+import sys
+from edsl.utilities.is_notebook import is_notebook
+
+
+class AgentListError(BaseException):
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/agents.html#agent-lists"
+
+
+class AgentErrors(BaseException):
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/agents.html"
 
 
 class AgentDynamicTraitsFunctionError(AgentErrors):
-    pass
+    relevant_doc = (
+        "https://docs.expectedparrot.com/en/latest/agents.html#dynamic-traits-function"
+    )
+    relevant_notebook = "https://docs.expectedparrot.com/en/latest/notebooks/example_agent_dynamic_traits.html"
 
 
 class AgentDirectAnswerFunctionError(AgentErrors):
-    pass
-
-
-class AgentAttributeLookupCallbackError(AgentErrors):
-    pass
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/agents.html#agent-direct-answering-methods"
 
 
 class AgentCombinationError(AgentErrors):
-    pass
-
-
-class AgentLacksLLMError(AgentErrors):
-    pass
-
-
-class AgentRespondedWithBadJSONError(AgentErrors):
-    pass
+    relevant_doc = (
+        "https://docs.expectedparrot.com/en/latest/agents.html#combining-agents"
+    )
 
 
 class AgentNameError(AgentErrors):
-    pass
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/agents.html#agent-names"
 
 
 class AgentTraitKeyError(AgentErrors):
-    pass
+    relevant_doc = (
+        "https://docs.expectedparrot.com/en/latest/agents.html#constructing-an-agent"
+    )
 
 
 class FailedTaskException(Exception):

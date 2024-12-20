@@ -1,15 +1,17 @@
-from typing import Optional
+from typing import Optional, List
 from collections import UserList
-from edsl import Model
 
-from edsl.language_models import LanguageModel
 from edsl.Base import Base
-from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
-from edsl.utilities.utilities import is_valid_variable_name
-from edsl.utilities.utilities import dict_hash
+from edsl.language_models.registry import Model
+
+# from edsl.language_models import LanguageModel
+from edsl.utilities.remove_edsl_version import remove_edsl_version
+from edsl.utilities.is_valid_variable_name import is_valid_variable_name
 
 
 class ModelList(Base, UserList):
+    __documentation__ = """https://docs.expectedparrot.com/en/latest/language_models.html#module-edsl.language_models.ModelList"""
+
     def __init__(self, data: Optional[list] = None):
         """Initialize the ScenarioList class.
 
@@ -37,23 +39,79 @@ class ModelList(Base, UserList):
     def __repr__(self):
         return f"ModelList({super().__repr__()})"
 
+    def _summary(self):
+        return {"models": len(self)}
+
     def __hash__(self):
         """Return a hash of the ModelList. This is used for comparison of ModelLists.
 
-        >>> hash(ModelList.example())
-        1423518243781418961
+        >>> isinstance(hash(Model()), int)
+        True
 
         """
         from edsl.utilities.utilities import dict_hash
 
-        return dict_hash(self._to_dict(sort=True))
+        return dict_hash(self.to_dict(sort=True, add_edsl_version=False))
 
-    def _to_dict(self, sort=False):
+    def to_scenario_list(self):
+        from edsl.scenarios.ScenarioList import ScenarioList
+        from edsl.scenarios.Scenario import Scenario
+
+        sl = ScenarioList()
+        for model in self:
+            d = {"model": model.model}
+            d.update(model.parameters)
+            sl.append(Scenario(d))
+        return sl
+
+    def tree(self, node_list: Optional[List[str]] = None):
+        return self.to_scenario_list().tree(node_list)
+
+    def table(
+        self,
+        *fields,
+        tablefmt: Optional[str] = None,
+        pretty_labels: Optional[dict] = None,
+    ):
+        """
+        >>> ModelList.example().table('model')
+        model
+        -------
+        gpt-4o
+        gpt-4o
+        gpt-4o
+        """
+        return (
+            self.to_scenario_list()
+            .to_dataset()
+            .table(*fields, tablefmt=tablefmt, pretty_labels=pretty_labels)
+        )
+
+    def to_list(self):
+        return self.to_scenario_list().to_list()
+
+    def to_dict(self, sort=False, add_edsl_version=True):
         if sort:
             model_list = sorted([model for model in self], key=lambda x: hash(x))
-            return {"models": [model._to_dict() for model in model_list]}
+            d = {
+                "models": [
+                    model.to_dict(add_edsl_version=add_edsl_version)
+                    for model in model_list
+                ]
+            }
         else:
-            return {"models": [model._to_dict() for model in self]}
+            d = {
+                "models": [
+                    model.to_dict(add_edsl_version=add_edsl_version) for model in self
+                ]
+            }
+        if add_edsl_version:
+            from edsl import __version__
+
+            d["edsl_version"] = __version__
+            d["edsl_class_name"] = "ModelList"
+
+        return d
 
     @classmethod
     def from_names(self, *args, **kwargs):
@@ -61,15 +119,6 @@ class ModelList(Base, UserList):
         if len(args) == 1 and isinstance(args[0], list):
             args = args[0]
         return ModelList([Model(model_name, **kwargs) for model_name in args])
-
-    @add_edsl_version
-    def to_dict(self):
-        """
-        Convert the ModelList to a dictionary.
-        >>> ModelList.example().to_dict()
-        {'models': [...], 'edsl_version': '...', 'edsl_class_name': 'ModelList'}
-        """
-        return self._to_dict()
 
     @classmethod
     @remove_edsl_version
@@ -80,14 +129,22 @@ class ModelList(Base, UserList):
         >>> newm = ModelList.from_dict(ModelList.example().to_dict())
         >>> assert ModelList.example() == newm
         """
+        from edsl.language_models.LanguageModel import LanguageModel
+
         return cls(data=[LanguageModel.from_dict(model) for model in data["models"]])
 
     def code(self):
         pass
 
     @classmethod
-    def example(cl):
-        return ModelList([LanguageModel.example() for _ in range(3)])
+    def example(cls, randomize: bool = False) -> "ModelList":
+        """
+        Returns an example ModelList instance.
+
+        :param randomize: If True, uses Model's randomize method.
+        """
+
+        return cls([Model.example(randomize) for _ in range(3)])
 
 
 if __name__ == "__main__":

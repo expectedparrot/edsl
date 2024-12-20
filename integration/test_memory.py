@@ -46,9 +46,41 @@ def test_without_memory():
     s = get_survey(memory=False)
     flip_scenarios = flips(NUM_FLIPS)
     results = s.by(flip_scenarios).by(m).run(cache=c_no_memory)
+
+    generated_tokens = results.select("generated_tokens.q1_generated_tokens").to_list()
+    # got a generated token for each one
+    assert all([len(tokens) > 0 for tokens in generated_tokens])
+
+    # should cost less than 1 USD to run - will fail can't run this test
+    assert sum(results.select("raw_model_response.q2_cost").to_list()) < 1
+
+    assert results.select("answer.*").to_scenario_list().tally("q2").to_list()[0] == (
+        "I don't know",
+        NUM_FLIPS,
+    )
+
+    assert results.sql("select count(*) as num_obs from self").to_dict() == {
+        "num_obs": {0: NUM_FLIPS}
+    }
+
+    assert results.has_exceptions == False
+
+    # Test filtering - if you filter to an empty result, it currently throws an exception but probably shouldn't
+    # This test will fail 0.5^NUM_FLIPS of the time
+    assert (
+        results.filter("q1 == 'tails'").select("q1").__len__()
+        + results.filter("q1 == 'heads'").select("q1").__len__()
+        == NUM_FLIPS
+    )
+
     if verbose:
         results.select("coin_flip_observed", "q2").print()
-    assert all([result == "I don't know" for result in results.select("q2").to_list()])
+    try:
+        assert all(
+            [result == "I don't know" for result in results.select("q2").to_list()]
+        )
+    except AssertionError:
+        breakpoint()
     c_no_memory.write_jsonl("coin_flip_cache_no_memory.jsonl")
 
 

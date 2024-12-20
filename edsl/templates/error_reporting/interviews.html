@@ -1,0 +1,19 @@
+
+{% if interviews|length > max_interviews %}
+    <h1>Only showing the first {{ max_interviews }} interviews with errors</h1>
+{% else %}
+    <h1>Showing all interviews</h1>    
+{% endif %}
+
+{% for index, interview in interviews.items() %}
+    {% if index < max_interviews %}
+        {% if interview.exceptions != {} %}
+        <div class="interview">Interview: {{ index }} </div>
+        Model: {{ interview.model.model }}
+        <h1>Failing questions</h1>
+        {% endif %}
+        {% for question, exceptions in interview.exceptions.items() %}
+            {% include 'interview_details.html' %}
+        {% endfor %}
+    {% endif %}            
+{% endfor %}

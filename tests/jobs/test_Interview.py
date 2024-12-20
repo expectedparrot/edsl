@@ -1,51 +1,25 @@
-import asyncio
 import pytest
-from typing import Any
-from edsl import Survey
-from edsl.config import CONFIG
-from edsl.enums import InferenceServiceType
-from edsl.language_models.LanguageModel import LanguageModel
-from edsl.questions import QuestionFreeText
-
-
-def create_language_model(
-    exception: Exception, fail_at_number: int, never_ending=False
-):
-    class TestLanguageModel(LanguageModel):
-        _model_ = "test"
-        _parameters_ = {"temperature": 0.5}
-        _inference_service_ = InferenceServiceType.TEST.value
-
-        async def async_execute_model_call(
-            self, user_prompt: str, system_prompt: str
-        ) -> dict[str, Any]:
-            question_number = int(
-                user_prompt.split("XX")[1]
-            )  ## grabs the question number from the prompt
-            await asyncio.sleep(0.1)
-            if never_ending:  ## you're not going anywhere buddy
-                await asyncio.sleep(float("inf"))
-            if question_number == fail_at_number:
-                if asyncio.iscoroutinefunction(exception):
-                    await exception()
-                else:
-                    raise exception
-            return {"message": """{"answer": "SPAM!"}"""}
-
-        def parse_response(self, raw_response: dict[str, Any]) -> str:
-            return raw_response["message"]
-
-    return TestLanguageModel
+from edsl.surveys.Survey import Survey
+from edsl.questions.QuestionFreeText import QuestionFreeText
+from edsl.language_models.utilities import create_language_model
+from edsl.scenarios.ScenarioList import ScenarioList
+from edsl.data.Cache import Cache
 
 
 @pytest.fixture
 def create_survey():
-    def _create_survey(num_questions: int, chained: bool = True):
+    def _create_survey(num_questions: int, chained: bool = True, take_scenario=False):
         survey = Survey()
         for i in range(num_questions):
-            q = QuestionFreeText(
-                question_text=f"XX{i}XX", question_name=f"question_{i}"
-            )
+            if take_scenario:
+                q = QuestionFreeText(
+                    question_text=f"XX{i}XX and {{scenario_value }}",
+                    question_name=f"question_{i}",
+                )
+            else:
+                q = QuestionFreeText(
+                    question_text=f"XX{i}XX", question_name=f"question_{i}"
+                )
             survey.add_question(q)
             if i > 0 and chained:
                 survey.add_targeted_memory(f"question_{i}", f"question_{i-1}")
@@ -54,11 +28,28 @@ def create_survey():
     return _create_survey
 
 
+def test_order(create_survey):
+    survey = create_survey(5, chained=False, take_scenario=True)
+    import random
+
+    scenario_values = ["a", "b", "c", "d", "e"]
+    random.shuffle(scenario_values)
+    sl = ScenarioList.from_list("scenario_value", scenario_values)
+    # model = create_language_model(ValueError, 100)()
+    from edsl.language_models.registry import Model
+
+    # model = Model("test")
+    model = create_language_model(ValueError, 100)()
+    jobs = survey.by(model).by(sl)
+    results = jobs.run()
+    for result, interview in zip(results, jobs.interviews()):
+        assert result.interview_hash == hash(interview)
+
+
 def test_token_usage(create_survey):
     model = create_language_model(ValueError, 100)()
     survey = create_survey(num_questions=5, chained=False)
     jobs = survey.by(model)
-    from edsl.data.Cache import Cache
 
     cache = Cache()
     results = jobs.run(cache=cache)
@@ -78,7 +69,6 @@ def test_task_management(create_survey):
     model = create_language_model(ValueError, 100)()
     survey = create_survey(num_questions=5, chained=False)
     jobs = survey.by(model)
-    from edsl.data.Cache import Cache
 
     cache = Cache()
     results = jobs.run(cache=cache)
@@ -94,7 +84,6 @@ def test_bucket_collection(create_survey):
     model = create_language_model(ValueError, 100)()
     survey = create_survey(num_questions=5, chained=False)
     jobs = survey.by(model)
-    from edsl.data.Cache import Cache
 
     cache = Cache()
 
@@ -107,16 +96,24 @@ def test_bucket_collection(create_survey):
 
 
 @pytest.mark.parametrize("fail_at_number, chained", [(6, False), (10, True)])
-def test_handle_model_exceptions(create_survey, fail_at_number, chained):
+def test_handle_model_exceptions(set_env_vars, create_survey, fail_at_number, chained):
+    "A chained survey is one where each survey question depends on the previous one."
     model = create_language_model(ValueError, fail_at_number)()
     survey = create_survey(num_questions=20, chained=chained)
     jobs = survey.by(model)
-    from edsl.data.Cache import Cache
 
     cache = Cache()
 
-    results = jobs.run(cache=cache)
+    results = jobs.run(cache=cache, print_exceptions=False)
 
+    print(f"Results: {results}")
+    print(
+        f"Answer for question_{fail_at_number}: {results.select(f'answer.question_{fail_at_number}').first()}"
+    )
+    print(
+        f"Answer for question_{fail_at_number + 1}: {results.select(f'answer.question_{fail_at_number + 1}').first()}"
+    )
+    # raise Exception("Stop here")
     if not chained:
         assert results.select(f"answer.question_{fail_at_number}").first() is None
         assert (
@@ -131,10 +128,9 @@ def test_handle_timeout_exception(create_survey, capsys):
     ## TODO: We want to shrink the API_TIMEOUT_SEC param for testing purposes.
     model = create_language_model(ValueError, 3, never_ending=True)()
     survey = create_survey(num_questions=5, chained=False)
-    from edsl.data.Cache import Cache
 
     cache = Cache()
-    results = survey.by(model).run(cache=cache)
+    results = survey.by(model).run(cache=cache, print_exceptions=False)
     captured = capsys.readouterr()
     # assert (
     #     "WARNING: At least one question in the survey was not answered." in captured.out

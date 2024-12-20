@@ -37,12 +37,12 @@ class ResultsToolsMixin:
         print_exceptions=False,
     ) -> dict:
         from edsl import ScenarioList
+        from edsl import QuestionCheckBox
 
         values = self.select(field).to_list()
         scenarios = ScenarioList.from_list("field", values).add_value(
             "context", context
         )
-
         q = QuestionCheckBox(
             question_text="""
             {{ context }}

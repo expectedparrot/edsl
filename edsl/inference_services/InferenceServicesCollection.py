@@ -1,60 +1,120 @@
+from functools import lru_cache
+from collections import defaultdict
+from typing import Optional, Protocol, Dict, List, Tuple, TYPE_CHECKING, Literal
+
 from edsl.inference_services.InferenceServiceABC import InferenceServiceABC
-import warnings
+from edsl.inference_services.AvailableModelFetcher import AvailableModelFetcher
+from edsl.exceptions.inference_services import InferenceServiceError
+
+if TYPE_CHECKING:
+    from edsl.language_models.LanguageModel import LanguageModel
+    from edsl.inference_services.InferenceServiceABC import InferenceServiceABC
+
+
+class ModelCreator(Protocol):
+    def create_model(self, model_name: str) -> "LanguageModel": ...
+
+
+from edsl.enums import InferenceServiceLiteral
+
+
+class ModelResolver:
+    def __init__(
+        self,
+        services: List[InferenceServiceLiteral],
+        models_to_services: Dict[InferenceServiceLiteral, InferenceServiceABC],
+        availability_fetcher: "AvailableModelFetcher",
+    ):
+        """
+        Class for determining which service to use for a given model.
+        """
+        self.services = services
+        self._models_to_services = models_to_services
+        self.availability_fetcher = availability_fetcher
+        self._service_names_to_classes = {
+            service._inference_service_: service for service in services
+        }
+
+    def resolve_model(
+        self, model_name: str, service_name: Optional[InferenceServiceLiteral] = None
+    ) -> InferenceServiceABC:
+        """Returns an InferenceServiceABC object for the given model name.
+
+        :param model_name: The name of the model to resolve. E.g., 'gpt-4o'
+        :param service_name: The name of the service to use. E.g., 'openai'
+        :return: An InferenceServiceABC object
+
+        """
+        if model_name == "test":
+            from edsl.inference_services.TestService import TestService
+
+            return TestService()
+
+        if service_name is not None:
+            service: InferenceServiceABC = self._service_names_to_classes.get(
+                service_name
+            )
+            if not service:
+                raise InferenceServiceError(f"Service {service_name} not found")
+            return service
+
+        if model_name in self._models_to_services:  # maybe we've seen it before!
+            return self._models_to_services[model_name]
+
+        for service in self.services:
+            available_models, service_name = (
+                self.availability_fetcher.get_available_models_by_service(service)
+            )
+            if model_name in available_models:
+                self._models_to_services[model_name] = service
+                return service
+
+        raise InferenceServiceError(f"Model {model_name} not found in any services")
 
 
 class InferenceServicesCollection:
-    added_models = {}
+    added_models = defaultdict(list)  # Moved back to class level
 
-    def __init__(self, services: list[InferenceServiceABC] = None):
+    def __init__(self, services: Optional[List[InferenceServiceABC]] = None):
         self.services = services or []
+        self._models_to_services: Dict[str, InferenceServiceABC] = {}
+
+        self.availability_fetcher = AvailableModelFetcher(
+            self.services, self.added_models
+        )
+        self.resolver = ModelResolver(
+            self.services, self._models_to_services, self.availability_fetcher
+        )
 
     @classmethod
-    def add_model(cls, service_name, model_name):
+    def add_model(cls, service_name: str, model_name: str) -> None:
         if service_name not in cls.added_models:
-            cls.added_models[service_name] = []
-        cls.added_models[service_name].append(model_name)
+            cls.added_models[service_name].append(model_name)
 
-    @staticmethod
-    def _get_service_available(service) -> list[str]:
-        from_api = True
-        try:
-            service_models = service.available()
-        except Exception as e:
-            warnings.warn(
-                f"Error getting models for {service._inference_service_}. Relying on cache.",
-                UserWarning,
-            )
-            from edsl.inference_services.models_available_cache import models_available
+    def available(
+        self,
+        service: Optional[str] = None,
+    ) -> List[Tuple[str, str, int]]:
+        return self.availability_fetcher.available(service)
 
-            service_models = models_available.get(service._inference_service_, [])
-            # cache results
-            service._models_list_cache = service_models
-            from_api = False
-        return service_models  # , from_api
+    def reset_cache(self) -> None:
+        self.availability_fetcher.reset_cache()
 
-    def available(self):
-        total_models = []
-        for service in self.services:
-            service_models = self._get_service_available(service)
-            for model in service_models:
-                total_models.append([model, service._inference_service_, -1])
+    @property
+    def num_cache_entries(self) -> int:
+        return self.availability_fetcher.num_cache_entries
 
-            for model in self.added_models.get(service._inference_service_, []):
-                total_models.append([model, service._inference_service_, -1])
-
-        sorted_models = sorted(total_models)
-        for i, model in enumerate(sorted_models):
-            model[2] = i
-            model = tuple(model)
-        return sorted_models
-
-    def register(self, service):
+    def register(self, service: InferenceServiceABC) -> None:
         self.services.append(service)
 
-    def create_model_factory(self, model_name: str, service_name=None, index=None):
-        for service in self.services:
-            if model_name in self._get_service_available(service):
-                if service_name is None or service_name == service._inference_service_:
-                    return service.create_model(model_name)
+    def create_model_factory(
+        self, model_name: str, service_name: Optional[InferenceServiceLiteral] = None
+    ) -> "LanguageModel":
+        service = self.resolver.resolve_model(model_name, service_name)
+        return service.create_model(model_name)
 
-        raise Exception(f"Model {model_name} not found in any of the services")
+
+if __name__ == "__main__":
+    import doctest
+
+    doctest.testmod()

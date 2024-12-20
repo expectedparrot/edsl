@@ -1,10 +1,15 @@
-from typing import Any, List
-import re
-from openai import AsyncOpenAI
+from __future__ import annotations
+from typing import Any, List, Optional
+import os
+
+import openai
 
 from edsl.inference_services.InferenceServiceABC import InferenceServiceABC
-from edsl.language_models import LanguageModel
+from edsl.language_models.LanguageModel import LanguageModel
 from edsl.inference_services.rate_limits_cache import rate_limits
+from edsl.utilities.utilities import fix_partial_correct_response
+
+from edsl.config import CONFIG
 
 
 class OpenAIService(InferenceServiceABC):
@@ -12,8 +17,41 @@ class OpenAIService(InferenceServiceABC):
 
     _inference_service_ = "openai"
     _env_key_name_ = "OPENAI_API_KEY"
+    _base_url_ = None
 
-    # TODO: Make this a coop call
+    _sync_client_ = openai.OpenAI
+    _async_client_ = openai.AsyncOpenAI
+
+    _sync_client_instance = None
+    _async_client_instance = None
+
+    key_sequence = ["choices", 0, "message", "content"]
+    usage_sequence = ["usage"]
+    input_token_name = "prompt_tokens"
+    output_token_name = "completion_tokens"
+
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        # so subclasses have to create their own instances of the clients
+        cls._sync_client_instance = None
+        cls._async_client_instance = None
+
+    @classmethod
+    def sync_client(cls):
+        if cls._sync_client_instance is None:
+            cls._sync_client_instance = cls._sync_client_(
+                api_key=os.getenv(cls._env_key_name_), base_url=cls._base_url_
+            )
+        return cls._sync_client_instance
+
+    @classmethod
+    def async_client(cls):
+        if cls._async_client_instance is None:
+            cls._async_client_instance = cls._async_client_(
+                api_key=os.getenv(cls._env_key_name_), base_url=cls._base_url_
+            )
+        return cls._async_client_instance
+
     model_exclude_list = [
         "whisper-1",
         "davinci-002",
@@ -28,32 +66,30 @@ class OpenAIService(InferenceServiceABC):
         "text-embedding-3-small",
         "text-embedding-ada-002",
         "ft:davinci-002:mit-horton-lab::8OfuHgoo",
+        "gpt-3.5-turbo-instruct-0914",
+        "gpt-3.5-turbo-instruct",
     ]
     _models_list_cache: List[str] = []
 
     @classmethod
-    def available(cls) -> List[str]:
-        from openai import OpenAI
+    def get_model_list(cls):
+        raw_list = cls.sync_client().models.list()
+        if hasattr(raw_list, "data"):
+            return raw_list.data
+        else:
+            return raw_list
 
+    @classmethod
+    def available(cls) -> List[str]:
         if not cls._models_list_cache:
             try:
-                client = OpenAI()
                 cls._models_list_cache = [
                     m.id
-                    for m in client.models.list()
+                    for m in cls.get_model_list()
                     if m.id not in cls.model_exclude_list
                 ]
             except Exception as e:
                 raise
-                # print(
-                #     f"""Error retrieving models: {e}.
-                #     See instructions about storing your API keys: https://docs.expectedparrot.com/en/latest/api_keys.html"""
-                # )
-                # cls._models_list_cache = [
-                #     "gpt-3.5-turbo",
-                #     "gpt-4-1106-preview",
-                #     "gpt-4",
-                # ]  # Fallback list
         return cls._models_list_cache
 
     @classmethod
@@ -65,6 +101,11 @@ class OpenAIService(InferenceServiceABC):
             """
             Child class of LanguageModel for interacting with OpenAI models
             """
+
+            key_sequence = cls.key_sequence
+            usage_sequence = cls.usage_sequence
+            input_token_name = cls.input_token_name
+            output_token_name = cls.output_token_name
 
             _inference_service_ = cls._inference_service_
             _model_ = model_name
@@ -78,15 +119,18 @@ class OpenAIService(InferenceServiceABC):
                 "top_logprobs": 3,
             }
 
+            def sync_client(self):
+                return cls.sync_client()
+
+            def async_client(self):
+                return cls.async_client()
+
             @classmethod
             def available(cls) -> list[str]:
-                client = openai.OpenAI()
-                return client.models.list()
+                return cls.sync_client().models.list()
 
             def get_headers(self) -> dict[str, Any]:
-                from openai import OpenAI
-
-                client = OpenAI()
+                client = self.sync_client()
                 response = client.chat.completions.with_raw_response.create(
                     messages=[
                         {
@@ -121,11 +165,15 @@ class OpenAIService(InferenceServiceABC):
                 self,
                 user_prompt: str,
                 system_prompt: str = "",
-                encoded_image=None,
+                files_list: Optional[List["Files"]] = None,
+                invigilator: Optional[
+                    "InvigilatorAI"
+                ] = None,  # TBD - can eventually be used for function-calling
             ) -> dict[str, Any]:
                 """Calls the OpenAI API and returns the API response."""
-                content = [{"type": "text", "text": user_prompt}]
-                if encoded_image:
+                if files_list:
+                    encoded_image = files_list[0].base64_string
+                    content = [{"type": "text", "text": user_prompt}]
                     content.append(
                         {
                             "type": "image_url",
@@ -134,37 +182,39 @@ class OpenAIService(InferenceServiceABC):
                             },
                         }
                     )
-                self.client = AsyncOpenAI()
-                response = await self.client.chat.completions.create(
-                    model=self.model,
-                    messages=[
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": content},
-                    ],
-                    temperature=self.temperature,
-                    max_tokens=self.max_tokens,
-                    top_p=self.top_p,
-                    frequency_penalty=self.frequency_penalty,
-                    presence_penalty=self.presence_penalty,
-                    logprobs=self.logprobs,
-                    top_logprobs=self.top_logprobs if self.logprobs else None,
-                )
-                return response.model_dump()
-
-            @staticmethod
-            def parse_response(raw_response: dict[str, Any]) -> str:
-                """Parses the API response and returns the response text."""
-                try:
-                    response = raw_response["choices"][0]["message"]["content"]
-                except KeyError:
-                    print("Tried to parse response but failed:")
-                    print(raw_response)
-                pattern = r"^```json(?:\\n|\n)(.+?)(?:\\n|\n)```$"
-                match = re.match(pattern, response, re.DOTALL)
-                if match:
-                    return match.group(1)
                 else:
-                    return response
+                    content = user_prompt
+                client = self.async_client()
+
+                messages = [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": content},
+                ]
+                if (
+                    system_prompt == "" and self.omit_system_prompt_if_empty
+                ) or "o1" in self.model:
+                    messages = messages[1:]
+
+                params = {
+                    "model": self.model,
+                    "messages": messages,
+                    "temperature": self.temperature,
+                    "max_tokens": self.max_tokens,
+                    "top_p": self.top_p,
+                    "frequency_penalty": self.frequency_penalty,
+                    "presence_penalty": self.presence_penalty,
+                    "logprobs": self.logprobs,
+                    "top_logprobs": self.top_logprobs if self.logprobs else None,
+                }
+                if "o1" in self.model:
+                    params.pop("max_tokens")
+                    params["max_completion_tokens"] = self.max_tokens
+                    params["temperature"] = 1
+                try:
+                    response = await client.chat.completions.create(**params)
+                except Exception as e:
+                    print(e)
+                return response.model_dump()
 
         LLM.__name__ = "LanguageModel"
 

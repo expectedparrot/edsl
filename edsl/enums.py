@@ -1,6 +1,7 @@
 """Enums for the different types of questions, language models, and inference services."""
 
 from enum import Enum
+from typing import Literal
 
 
 class EnumWithChecks(Enum):
@@ -59,6 +60,31 @@ class InferenceServiceType(EnumWithChecks):
     GOOGLE = "google"
     TEST = "test"
     ANTHROPIC = "anthropic"
+    GROQ = "groq"
+    AZURE = "azure"
+    OLLAMA = "ollama"
+    MISTRAL = "mistral"
+    TOGETHER = "together"
+    PERPLEXITY = "perplexity"
+
+
+# unavoidable violation of the DRY principle but it is necessary
+# checked w/ a unit test to make sure consistent with services in enums.py
+InferenceServiceLiteral = Literal[
+    "bedrock",
+    "deep_infra",
+    "replicate",
+    "openai",
+    "google",
+    "test",
+    "anthropic",
+    "groq",
+    "azure",
+    "ollama",
+    "mistral",
+    "together",
+    "perplexity",
+]
 
 
 service_to_api_keyname = {
@@ -69,6 +95,11 @@ service_to_api_keyname = {
     InferenceServiceType.GOOGLE.value: "GOOGLE_API_KEY",
     InferenceServiceType.TEST.value: "TBD",
     InferenceServiceType.ANTHROPIC.value: "ANTHROPIC_API_KEY",
+    InferenceServiceType.GROQ.value: "GROQ_API_KEY",
+    InferenceServiceType.BEDROCK.value: ["AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"],
+    InferenceServiceType.MISTRAL.value: "MISTRAL_API_KEY",
+    InferenceServiceType.TOGETHER.value: "TOGETHER_API_KEY",
+    InferenceServiceType.PERPLEXITY.value: "PERPLEXITY_API_KEY",
 }
 
 

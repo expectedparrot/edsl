@@ -1,4 +1,5 @@
-from edsl import QuestionMultipleChoice
+from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
+from edsl.language_models.registry import Model
 
 new_instructions = """You are being asked the following question: {{question_text}}
     The options are
@@ -24,7 +25,6 @@ def test_no_model_passed_to_instructions():
 
 
 def test_model_specific_instructions():
-    from edsl import Model
 
     m1 = Model(Model.available()[0][0], skip_api_key_check=True)
     m2 = Model(Model.available()[1][0], skip_api_key_check=True)

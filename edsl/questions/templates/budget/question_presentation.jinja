@@ -1,0 +1,7 @@
+{{question_text}}
+The options are 
+{% for option in question_options %}
+{{ loop.index0 }}: {{option}}
+{% endfor %}                       
+Allocate your budget of {{budget_sum}} among the options. 
+

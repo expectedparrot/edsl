@@ -2,42 +2,9 @@
 
 from abc import ABC, abstractmethod, ABCMeta
 import gzip
-import io
 import json
 from typing import Any, Optional, Union
 from uuid import UUID
-
-
-class RichPrintingMixin:
-    """Mixin for rich printing and persistence of objects."""
-
-    def _for_console(self):
-        """Return a string representation of the object for console printing."""
-        from rich.console import Console
-
-        with io.StringIO() as buf:
-            console = Console(file=buf, record=True)
-            table = self.rich_print()
-            console.print(table)
-            return console.export_text()
-
-    def __str__(self):
-        """Return a string representation of the object for console printing."""
-        return self._for_console()
-
-    def print(self):
-        """Print the object to the console."""
-        from edsl.utilities.utilities import is_notebook
-
-        if is_notebook():
-            from IPython.display import display
-
-            display(self.rich_print())
-        else:
-            from rich.console import Console
-
-            console = Console()
-            console.print(self.rich_print())
 
 
 class PersistenceMixin:
@@ -46,22 +13,39 @@ class PersistenceMixin:
     def push(
         self,
         description: Optional[str] = None,
+        alias: Optional[str] = None,
         visibility: Optional[str] = "unlisted",
+        expected_parrot_url: Optional[str] = None,
     ):
         """Post the object to coop."""
         from edsl.coop import Coop
 
-        c = Coop()
-        return c.create(self, description, visibility)
+        c = Coop(url=expected_parrot_url)
+        return c.create(self, description, alias, visibility)
+
+    def create_download_link(self):
+        from tempfile import NamedTemporaryFile
+        from edsl.scenarios.FileStore import FileStore
+
+        with NamedTemporaryFile(suffix=".json.gz") as f:
+            self.save(f.name)
+            print(f.name)
+            fs = FileStore(path=f.name)
+        return fs.create_link()
 
     @classmethod
-    def pull(cls, uuid: Optional[Union[str, UUID]] = None, url: Optional[str] = None):
+    def pull(
+        cls,
+        uuid: Optional[Union[str, UUID]] = None,
+        url: Optional[str] = None,
+        expected_parrot_url: Optional[str] = None,
+    ):
         """Pull the object from coop."""
         from edsl.coop import Coop
         from edsl.coop.utils import ObjectRegistry
 
         object_type = ObjectRegistry.get_object_type_by_edsl_class(cls)
-        coop = Coop()
+        coop = Coop(url=expected_parrot_url)
         return coop.get(uuid, url, object_type)
 
     @classmethod
@@ -78,6 +62,7 @@ class PersistenceMixin:
         uuid: Optional[Union[str, UUID]] = None,
         url: Optional[str] = None,
         description: Optional[str] = None,
+        alias: Optional[str] = None,
         value: Optional[Any] = None,
         visibility: Optional[str] = None,
     ):
@@ -90,7 +75,7 @@ class PersistenceMixin:
         from edsl.coop import Coop
 
         coop = Coop()
-        return coop.patch(uuid, url, description, value, visibility)
+        return coop.patch(uuid, url, description, alias, value, visibility)
 
     @classmethod
     def search(cls, query):
@@ -99,6 +84,13 @@ class PersistenceMixin:
 
         c = Coop()
         return c.search(cls, query)
+
+    def store(self, d: dict, key_name: Optional[str] = None):
+        if key_name is None:
+            index = len(d)
+        else:
+            index = key_name
+        d[index] = self
 
     def save(self, filename, compress=True):
         """Save the object to a file as zippped JSON.
@@ -109,22 +101,20 @@ class PersistenceMixin:
         if filename.endswith("json.gz"):
             import warnings
 
-            warnings.warn(
-                "Do not apply the file extensions. The filename should not end with 'json.gz'."
-            )
-            filename = filename[:-7]
+            filename = filename[:-8]
         if filename.endswith("json"):
-            filename = filename[:-4]
-            warnings.warn(
-                "Do not apply the file extensions. The filename should not end with 'json'."
-            )
+            filename = filename[:-5]
 
         if compress:
-            with gzip.open(filename + ".json.gz", "wb") as f:
+            full_file_name = filename + ".json.gz"
+            with gzip.open(full_file_name, "wb") as f:
                 f.write(json.dumps(self.to_dict()).encode("utf-8"))
         else:
+            full_file_name = filename + ".json"
             with open(filename + ".json", "w") as f:
                 f.write(json.dumps(self.to_dict()))
+
+        print("Saved to", full_file_name)
 
     @staticmethod
     def open_compressed_file(filename):
@@ -154,11 +144,11 @@ class PersistenceMixin:
             d = cls.open_regular_file(filename)
         else:
             try:
-                d = cls.open_compressed_file(filename)
+                d = cls.open_compressed_file(filename + ".json.gz")
             except:
-                d = cls.open_regular_file(filename)
-            finally:
-                raise ValueError("File must be a json or json.gz file")
+                d = cls.open_regular_file(filename + ".json")
+            # finally:
+            #    raise ValueError("File must be a json or json.gz file")
 
         return cls.from_dict(d)
 
@@ -175,9 +165,15 @@ class RegisterSubclassesMeta(ABCMeta):
             RegisterSubclassesMeta._registry[cls.__name__] = cls
 
     @staticmethod
-    def get_registry():
+    def get_registry(exclude_classes: Optional[list] = None):
         """Return the registry of subclasses."""
-        return dict(RegisterSubclassesMeta._registry)
+        if exclude_classes is None:
+            exclude_classes = []
+        return {
+            k: v
+            for k, v in dict(RegisterSubclassesMeta._registry).items()
+            if k not in exclude_classes
+        }
 
 
 class DiffMethodsMixin:
@@ -188,25 +184,148 @@ class DiffMethodsMixin:
         return BaseDiff(self, other)
 
 
+def is_iterable(obj):
+    try:
+        iter(obj)
+    except TypeError:
+        return False
+    return True
+
+
+class RepresentationMixin:
+    def json(self):
+        return json.loads(json.dumps(self.to_dict(add_edsl_version=False)))
+
+    def to_dataset(self):
+        from edsl.results.Dataset import Dataset
+
+        return Dataset.from_edsl_object(self)
+
+    def view(self):
+        "Displays an interactive / perspective view of the object"
+        return self.to_dataset().view()
+
+    # def print(self, format="rich"):
+    #     return self.to_dataset().table()
+
+    def display_dict(self):
+        display_dict = {}
+        d = self.to_dict(add_edsl_version=False)
+        for key, value in d.items():
+            if isinstance(value, dict):
+                for k, v in value.items():
+                    display_dict[f"{key}:{k}"] = v
+            elif isinstance(value, list):
+                for i, v in enumerate(value):
+                    display_dict[f"{key}:{i}"] = v
+            else:
+                display_dict[key] = value
+        return display_dict
+
+    def print(self, format="rich"):
+        from rich.table import Table
+        from rich.console import Console
+
+        table = Table(title=self.__class__.__name__)
+        table.add_column("Key", style="bold")
+        table.add_column("Value", style="bold")
+
+        for key, value in self.display_dict().items():
+            table.add_row(key, str(value))
+
+        console = Console(record=True)
+        console.print(table)
+
+    def help(obj):
+        """
+        Extract all public instance methods and their docstrings from a class instance.
+
+        Args:
+            obj: The instance to inspect
+
+        Returns:
+            dict: A dictionary where keys are method names and values are their docstrings
+        """
+        import inspect
+
+        if inspect.isclass(obj):
+            raise TypeError("Please provide a class instance, not a class")
+
+        methods = {}
+
+        # Get all members of the instance
+        for name, member in inspect.getmembers(obj):
+            # Skip private and special methods (those starting with underscore)
+            if name.startswith("_"):
+                continue
+
+            # Check if it's specifically an instance method
+            if inspect.ismethod(member):
+                # Get the docstring (or empty string if none exists)
+                docstring = inspect.getdoc(member) or ""
+                methods[name] = docstring
+
+        from edsl.results.Dataset import Dataset
+
+        d = Dataset(
+            [
+                {"method": list(methods.keys())},
+                {"documentation": list(methods.values())},
+            ]
+        )
+        return d
+
+    def _repr_html_(self):
+        from edsl.results.TableDisplay import TableDisplay
+
+        if hasattr(self, "_summary"):
+            summary_dict = self._summary()
+            summary_line = "".join([f" {k}: {v};" for k, v in summary_dict.items()])
+            class_name = self.__class__.__name__
+            docs = getattr(self, "__documentation__", "")
+            return (
+                "<p>"
+                + f"<a href='{docs}'>{class_name}</a>"
+                + summary_line
+                + "</p>"
+                + self.table()._repr_html_()
+            )
+        else:
+            class_name = self.__class__.__name__
+            documenation = getattr(self, "__documentation__", "")
+            summary_line = "<p>" + f"<a href='{documenation}'>{class_name}</a>" + "</p>"
+            display_dict = self.display_dict()
+            return (
+                summary_line
+                + TableDisplay.from_dictionary_wide(display_dict)._repr_html_()
+            )
+
+    def __str__(self):
+        return self.__repr__()
+
+
+class HashingMixin:
+
+    def __hash__(self) -> int:
+        """Return a hash of the question."""
+        from edsl.utilities.utilities import dict_hash
+
+        return dict_hash(self.to_dict(add_edsl_version=False))
+
+    def __eq__(self, other):
+        """Return whether two objects are equal."""
+        return hash(self) == hash(other)
+
+
 class Base(
-    RichPrintingMixin,
+    RepresentationMixin,
     PersistenceMixin,
     DiffMethodsMixin,
+    HashingMixin,
     ABC,
     metaclass=RegisterSubclassesMeta,
 ):
     """Base class for all classes in the package."""
-
-    # def __getitem__(self, key):
-    #     return getattr(self, key)
-
-    # @abstractmethod
-    # def _repr_html_(self) -> str:
-    #     raise NotImplementedError("This method is not implemented yet.")
-
-    # @abstractmethod
-    # def _repr_(self) -> str:
-    #     raise NotImplementedError("This method is not implemented yet.")
 
     def keys(self):
         """Return the keys of the object."""
@@ -223,39 +342,8 @@ class Base(
         keys = self.keys()
         return {data[key] for key in keys}
 
-    def _repr_html_(self):
-        from edsl.utilities.utilities import data_to_html
-
-        return data_to_html(self.to_dict())
-
-    # def html(self):
-    #     html_string = self._repr_html_()
-    #     import tempfile
-    #     import webbrowser
-
-    #     with tempfile.NamedTemporaryFile("w", delete=False, suffix=".html") as f:
-    #         # print("Writing HTML to", f.name)
-    #         f.write(html_string)
-    #         webbrowser.open(f.name)
-
-    def __eq__(self, other):
-        """Return whether two objects are equal."""
-        import inspect
-
-        if not isinstance(other, self.__class__):
-            return False
-        if "sort" in inspect.signature(self._to_dict).parameters:
-            return self._to_dict(sort=True) == other._to_dict(sort=True)
-        else:
-            return self._to_dict() == other._to_dict()
-
     @abstractmethod
     def example():
-        """This method should be implemented by subclasses."""
-        raise NotImplementedError("This method is not implemented yet.")
-
-    @abstractmethod
-    def rich_print():
         """This method should be implemented by subclasses."""
         raise NotImplementedError("This method is not implemented yet.")
 
@@ -263,6 +351,16 @@ class Base(
     def to_dict():
         """This method should be implemented by subclasses."""
         raise NotImplementedError("This method is not implemented yet.")
+
+    def to_json(self):
+        return json.dumps(self.to_dict())
+
+    def store(self, d: dict, key_name: Optional[str] = None):
+        if key_name is None:
+            index = len(d)
+        else:
+            index = key_name
+        d[index] = self
 
     @abstractmethod
     def from_dict():

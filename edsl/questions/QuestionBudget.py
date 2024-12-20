@@ -1,8 +1,60 @@
 from __future__ import annotations
-import random
-from typing import Any, Optional, Union
+from typing import Any, Optional, Union, List
+
+from pydantic import Field, BaseModel, validator
+
 from edsl.questions.QuestionBase import QuestionBase
 from edsl.questions.descriptors import IntegerDescriptor, QuestionOptionsDescriptor
+from edsl.questions.ResponseValidatorABC import ResponseValidatorABC
+
+
+class BudgewResponseValidator(ResponseValidatorABC):
+    valid_examples = []
+
+    invalid_examples = []
+
+    def fix(self, response, verbose=False):
+        if verbose:
+            print(f"Fixing list response: {response}")
+        answer = str(response.get("answer") or response.get("generated_tokens", ""))
+        if len(answer.split(",")) > 0:
+            return (
+                {"answer": answer.split(",")} | {"comment": response.get("comment")}
+                if "comment" in response
+                else {}
+            )
+
+
+def create_budget_model(
+    budget_sum: float, permissive: bool, question_options: List[str]
+):
+    class BudgetResponse(BaseModel):
+        answer: List[float] = Field(
+            ...,
+            description="List of non-negative numbers representing budget allocation",
+            min_items=len(question_options),
+            max_items=len(question_options),
+        )
+        comment: Optional[str] = None
+        generated_tokens: Optional[str] = None
+
+        @validator("answer")
+        def validate_answer(cls, v):
+            if len(v) != len(question_options):
+                raise ValueError(f"Must provide {len(question_options)} values")
+            if any(x < 0 for x in v):
+                raise ValueError("All values must be non-negative")
+            total = sum(v)
+            if not permissive and total != budget_sum:
+                raise ValueError(f"Sum of numbers must equal {budget_sum}")
+            elif permissive and total > budget_sum:
+                raise ValueError(f"Sum of numbers cannot exceed {budget_sum}")
+            return v
+
+        class Config:
+            extra = "forbid"
+
+    return BudgetResponse
 
 
 class QuestionBudget(QuestionBase):
@@ -11,6 +63,8 @@ class QuestionBudget(QuestionBase):
     question_type = "budget"
     budget_sum: int = IntegerDescriptor(none_allowed=False)
     question_options: list[str] = QuestionOptionsDescriptor(q_budget=True)
+    _response_model = None
+    response_validator_class = BudgewResponseValidator
 
     def __init__(
         self,
@@ -18,6 +72,10 @@ class QuestionBudget(QuestionBase):
         question_text: str,
         question_options: list[str],
         budget_sum: int,
+        include_comment: bool = True,
+        question_presentation: Optional[str] = None,
+        answering_instructions: Optional[str] = None,
+        permissive: bool = False,
     ):
         """Instantiate a new QuestionBudget.
 
@@ -25,26 +83,24 @@ class QuestionBudget(QuestionBase):
         :param question_text: The text of the question.
         :param question_options: The options for allocation of the budget sum.
         :param budget_sum: The total amount of the budget to be allocated among the options.
-        :param instructions: Instructions for the question. If not provided, the default instructions are used. To view them, run `QuestionBudget.default_instructions`.
         """
         self.question_name = question_name
         self.question_text = question_text
         self.question_options = question_options
         self.budget_sum = budget_sum
+        self.question_presentation = question_presentation
+        self.answering_instructions = answering_instructions
+        self.permissive = permissive
+        self.include_comment = include_comment
 
-    ################
-    # Answer methods
-    ################
-    def _validate_answer(self, answer: dict[str, Any]) -> dict[str, Union[int, str]]:
-        """Validate the answer."""
-        self._validate_answer_template_basic(answer)
-        self._validate_answer_key_value(answer, "answer", dict)
-        self._validate_answer_budget(answer)
-        return answer
+    def create_response_model(self):
+        return create_budget_model(
+            self.budget_sum, self.permissive, self.question_options
+        )
 
     def _translate_answer_code_to_answer(
-        self, answer_codes: dict[str, int], scenario: "Scenario" = None
-    ):
+        self, answer_code, combined_dict
+    ) -> list[dict]:
         """
         Translate the answer codes to the actual answers.
 
@@ -53,35 +109,35 @@ class QuestionBudget(QuestionBase):
         This code will translate that to "a".
         """
         translated_codes = []
-        for answer_code, response in answer_codes.items():
-            translated_codes.append({self.question_options[int(answer_code)]: response})
+        for answer_code, question_option in zip(answer_code, self.question_options):
+            translated_codes.append({question_option: answer_code})
 
         return translated_codes
 
-    def _simulate_answer(self, human_readable=True):
-        """Simulate a valid answer for debugging purposes (what the validator expects)."""
-        from edsl.utilities.utilities import random_string
+    # def _simulate_answer(self, human_readable=True):
+    #     """Simulate a valid answer for debugging purposes (what the validator expects)."""
+    #     from edsl.utilities.utilities import random_string
 
-        if human_readable:
-            keys = self.question_options
-        else:
-            keys = range(len(self.question_options))
-        remaining_budget = self.budget_sum
-        values = []
-        for _ in range(len(self.question_options)):
-            if _ == len(self.question_options) - 1:
-                # Assign remaining budget to the last value
-                values.append(remaining_budget)
-            else:
-                # Generate a random value between 0 and remaining budget
-                value = random.randint(0, remaining_budget)
-                values.append(value)
-                remaining_budget -= value
-        answer = dict(zip(keys, values))
-        return {
-            "answer": answer,
-            "comment": random_string(),
-        }
+    #     if human_readable:
+    #         keys = self.question_options
+    #     else:
+    #         keys = range(len(self.question_options))
+    #     remaining_budget = self.budget_sum
+    #     values = []
+    #     for _ in range(len(self.question_options)):
+    #         if _ == len(self.question_options) - 1:
+    #             # Assign remaining budget to the last value
+    #             values.append(remaining_budget)
+    #         else:
+    #             # Generate a random value between 0 and remaining budget
+    #             value = random.randint(0, remaining_budget)
+    #             values.append(value)
+    #             remaining_budget -= value
+    #     answer = dict(zip(keys, values))
+    #     return {
+    #         "answer": answer,
+    #         "comment": random_string(),
+    #     }
 
     @property
     def question_html_content(self) -> str:
@@ -128,13 +184,14 @@ class QuestionBudget(QuestionBase):
     # Helpful methods
     ################
     @classmethod
-    def example(cls) -> QuestionBudget:
+    def example(cls, include_comment: bool = True) -> QuestionBudget:
         """Return an example of a budget question."""
         return cls(
             question_name="food_budget",
             question_text="How would you allocate $100?",
             question_options=["Pizza", "Ice Cream", "Burgers", "Salad"],
             budget_sum=100,
+            include_comment=include_comment,
         )
 
 

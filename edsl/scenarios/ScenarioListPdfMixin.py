@@ -1,15 +1,151 @@
-import fitz  # PyMuPDF
 import os
+import re
+import copy
+import atexit
+import tempfile
 import subprocess
 
-# from edsl import Scenario
+
+class GoogleDriveDownloader:
+    _temp_dir = None
+    _temp_file_path = None
+
+    @classmethod
+    def fetch_from_drive(cls, url, filename=None):
+        import requests
+
+        # Extract file ID from the URL
+        file_id = cls._extract_file_id(url)
+        if not file_id:
+            raise ValueError("Invalid Google Drive URL")
+
+        # Construct the download URL
+        download_url = f"https://drive.google.com/uc?export=download&id={file_id}"
+
+        # Send a GET request to the URL
+        session = requests.Session()
+        response = session.get(download_url, stream=True)
+        response.raise_for_status()
+
+        # Check for large file download prompt
+        for key, value in response.cookies.items():
+            if key.startswith("download_warning"):
+                params = {"id": file_id, "confirm": value}
+                response = session.get(download_url, params=params, stream=True)
+                break
+
+        # Create a temporary file to save the download
+        if not filename:
+            filename = "downloaded_file"
+
+        if cls._temp_dir is None:
+            cls._temp_dir = tempfile.TemporaryDirectory()
+            atexit.register(cls._cleanup)
+
+        cls._temp_file_path = os.path.join(cls._temp_dir.name, filename)
+
+        # Write the content to the temporary file
+        with open(cls._temp_file_path, "wb") as f:
+            for chunk in response.iter_content(32768):
+                if chunk:
+                    f.write(chunk)
+
+        print(f"File saved to: {cls._temp_file_path}")
+
+        return cls._temp_file_path
+
+    @staticmethod
+    def _extract_file_id(url):
+        from urllib.parse import urlparse, parse_qs
+
+        # Try to extract file ID from '/file/d/' format
+        file_id_match = re.search(r"/d/([a-zA-Z0-9-_]+)", url)
+        if file_id_match:
+            return file_id_match.group(1)
+
+        # If not found, try to extract from 'open?id=' format
+        parsed_url = urlparse(url)
+        query_params = parse_qs(parsed_url.query)
+        if "id" in query_params:
+            return query_params["id"][0]
+
+        return None
+
+    @classmethod
+    def _cleanup(cls):
+        if cls._temp_dir:
+            cls._temp_dir.cleanup()
+
+    @classmethod
+    def get_temp_file_path(cls):
+        return cls._temp_file_path
+
+
+def fetch_and_save_pdf(url, filename):
+    # Send a GET request to the URL
+    import requests
+
+    response = requests.get(url)
+
+    # Check if the request was successful
+    response.raise_for_status()
+
+    # Create a temporary directory
+    with tempfile.TemporaryDirectory() as temp_dir:
+        # Construct the full path for the file
+        temp_file_path = os.path.join(temp_dir, filename)
+
+        # Write the content to the temporary file
+        with open(temp_file_path, "wb") as file:
+            file.write(response.content)
+
+        print(f"PDF saved to: {temp_file_path}")
+
+        # Here you can perform operations with the file
+        # The file will be automatically deleted when you exit this block
+
+    return temp_file_path
 
 
 class ScenarioListPdfMixin:
     @classmethod
-    def from_pdf(cls, filename):
-        scenarios = list(cls.extract_text_from_pdf(filename))
-        return cls(scenarios)
+    def from_pdf(cls, filename_or_url, collapse_pages=False):
+        # Check if the input is a URL
+        if cls.is_url(filename_or_url):
+            # Check if it's a Google Drive URL
+            if "drive.google.com" in filename_or_url:
+                temp_filename = GoogleDriveDownloader.fetch_from_drive(
+                    filename_or_url, "temp_pdf.pdf"
+                )
+            else:
+                # For other URLs, use the previous fetch_and_save_pdf function
+                temp_filename = fetch_and_save_pdf(filename_or_url, "temp_pdf.pdf")
+
+            scenarios = list(cls.extract_text_from_pdf(temp_filename))
+        else:
+            # If it's not a URL, assume it's a local file path
+            scenarios = list(cls.extract_text_from_pdf(filename_or_url))
+        if not collapse_pages:
+            return cls(scenarios)
+        else:
+            txt = ""
+            for scenario in scenarios:
+                txt += scenario["text"]
+            from edsl.scenarios import Scenario
+
+            base_scenario = copy.copy(scenarios[0])
+            base_scenario["text"] = txt
+        return base_scenario
+
+    @staticmethod
+    def is_url(string):
+        from urllib.parse import urlparse
+
+        try:
+            result = urlparse(string)
+            return all([result.scheme, result.netloc])
+        except ValueError:
+            return False
 
     @classmethod
     def _from_pdf_to_image(cls, pdf_path, image_format="jpeg"):
@@ -38,11 +174,15 @@ class ScenarioListPdfMixin:
                 scenario = Scenario._from_filepath_image(image_path)
                 scenarios.append(scenario)
 
-            print(f"Saved {len(images)} pages as images in {output_folder}")
+            # print(f"Saved {len(images)} pages as images in {output_folder}")
             return cls(scenarios)
 
     @staticmethod
     def extract_text_from_pdf(pdf_path):
+        from edsl.scenarios.Scenario import Scenario
+        import fitz  # PyMuPDF
+
+        # TODO: Add test case
         # Ensure the file exists
         if not os.path.exists(pdf_path):
             raise FileNotFoundError(f"The file {pdf_path} does not exist.")
@@ -94,19 +234,6 @@ class ScenarioListPdfMixin:
 
 
 if __name__ == "__main__":
-    pass
+    import doctest
 
-    # from edsl import ScenarioList
-
-    # class ScenarioListNew(ScenarioList, ScenaroListPdfMixin):
-    #     pass
-
-    # #ScenarioListNew.create_hello_world_pdf('hello_world')
-    # #scenarios = ScenarioListNew.from_pdf('hello_world.pdf')
-    # #print(scenarios)
-
-    # from edsl import ScenarioList, QuestionFreeText
-    # homo_silicus = ScenarioList.from_pdf('w31122.pdf')
-    # q = QuestionFreeText(question_text = "What is the key point of the text in {{ text }}?", question_name = "key_point")
-    # results = q.by(homo_silicus).run(progress_bar = True)
-    # results.select('scenario.page', 'answer.key_point').order_by('page').print()
+    doctest.testmod()

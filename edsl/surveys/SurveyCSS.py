@@ -1,5 +1,5 @@
 from typing import Optional
-from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
+from edsl.utilities.remove_edsl_version import remove_edsl_version
 
 
 class CSSRuleMeta(type):
@@ -64,14 +64,21 @@ class CSSRule(metaclass=CSSRuleMeta):
     def __repr__(self) -> str:
         return f"CSSRule(select = {self.selector}, properties = {self.properties})"
 
-    @add_edsl_version
-    def to_dict(self) -> dict:
+    def to_dict(self, add_esl_version: bool = True) -> dict:
         """
         >>> rule = CSSRule("survey_container", {"width": "80%", "margin": "0 auto"})
         >>> rule.to_dict()
-        {'selector': 'survey_container', 'properties': {'width': '80%', 'margin': '0 auto'}, 'edsl_version': '...', 'edsl_class_name': 'CSSRule'}
+        {'selector': 'survey_container', 'properties': {'width': '80%', 'margin': '0 auto'}, 'edsl_version': '...', 'edsl_class_name': '...'}
         """
-        return {"selector": self.selector, "properties": self.properties}
+        d = {"selector": self.selector, "properties": self.properties}
+
+        if add_esl_version:
+            from edsl import __version__
+
+            d["edsl_version"] = __version__
+            d["edsl_class_name"] = self.__class__.__name__
+
+        return d
 
     @classmethod
     @remove_edsl_version
@@ -218,14 +225,19 @@ class SurveyCSS:
             css_lines.append(rule.generate_rule())
         return "\n".join(css_lines)
 
-    @add_edsl_version
-    def to_dict(self) -> dict:
+    def to_dict(self, add_edsl_version: bool = True) -> dict:
         """
         >>> css = SurveyCSS(rules = []).update_style("survey_container", "width", "100%")
         >>> css.to_dict()
         {'rules': [{'selector': 'survey_container', 'properties': {'width': '100%'}, 'edsl_version': '...', 'edsl_class_name': 'CSSRule'}], 'edsl_version': '...', 'edsl_class_name': 'SurveyCSS'}
         """
-        return {"rules": [rule.to_dict() for rule in self.rules.values()]}
+        d = {"rules": [rule.to_dict() for rule in self.rules.values()]}
+        if add_edsl_version:
+            from edsl import __version__
+
+            d["edsl_version"] = __version__
+            d["edsl_class_name"] = self.__class__.__name__
+        return d
 
     def __repr__(self) -> str:
         return f"SurveyCSS(rules = {[rule for rule in self.rules.values()]})"

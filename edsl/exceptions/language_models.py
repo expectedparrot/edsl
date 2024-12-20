@@ -1,8 +1,32 @@
 from textwrap import dedent
+from typing import Optional
 
 
 class LanguageModelExceptions(Exception):
-    pass
+    explanation = (
+        "This is the base class for all exceptions in the LanguageModel class."
+    )
+
+    def __init__(self, message):
+        super().__init__(message)
+        self.message = message
+
+
+class LanguageModelNoResponseError(LanguageModelExceptions):
+    explanation = (
+        """This happens when the LLM API cannot be reached and/or does not respond."""
+    )
+
+    def __init__(self, message):
+        super().__init__(message)
+
+
+class LanguageModelBadResponseError(LanguageModelExceptions):
+    explanation = """This happens when the LLM API can be reached and responds, does not return a usable answer."""
+
+    def __init__(self, message, response_json: Optional[dict] = None):
+        super().__init__(message)
+        self.response_json = response_json
 
 
 class LanguageModelNotFound(LanguageModelExceptions):

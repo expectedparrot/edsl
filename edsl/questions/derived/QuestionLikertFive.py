@@ -2,6 +2,8 @@ from __future__ import annotations
 from typing import Optional
 from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
 
+from edsl.questions.decorators import inject_exception
+
 
 class QuestionLikertFive(QuestionMultipleChoice):
     """This question prompts the agent to respond to a statement on a 5-point Likert scale."""
@@ -14,31 +16,34 @@ class QuestionLikertFive(QuestionMultipleChoice):
         "Agree",
         "Strongly agree",
     ]
-    # default_instructions = QuestionMultipleChoice.default_instructions
 
     def __init__(
         self,
         question_name: str,
         question_text: str,
         question_options: Optional[list[str]] = likert_options,
+        answering_instructions: Optional[str] = None,
+        question_presentation: Optional[str] = None,
+        include_comment: bool = True,
     ):
         """Initialize the question.
 
         :param question_name: The name of the question.
         :param question_text: The text of the question.
         :param question_options: The options the respondent should select from (list of strings). If not provided, the default Likert options are used (['Strongly disagree', 'Disagree', 'Neutral', 'Agree', 'Strongly agree']). To view them, run `QuestionLikertFive.likert_options`.
-        :param instructions: Instructions for the question. If not provided, the default instructions are used. To view them, run `QuestionLikertFive.default_instructions`.
         """
         super().__init__(
             question_name=question_name,
             question_text=question_text,
             question_options=question_options,
+            use_code=False,
+            include_comment=include_comment,
+            answering_instructions=answering_instructions,
+            question_presentation=question_presentation,
         )
 
-    ################
-    # Helpful
-    ################
     @classmethod
+    @inject_exception
     def example(cls) -> QuestionLikertFive:
         """Return an example question."""
         return cls(

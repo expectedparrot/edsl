@@ -20,6 +20,14 @@ from html import escape
 from typing import Callable, Union
 
 
+class CustomEncoder(json.JSONEncoder):
+    def default(self, obj):
+        try:
+            return json.JSONEncoder.default(self, obj)
+        except TypeError:
+            return str(obj)
+
+
 def time_it(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
@@ -61,6 +69,37 @@ def extract_json_from_string(text):
     return None
 
 
+def fix_partial_correct_response(text: str) -> dict:
+    # Find the start position of the key "answer"
+    answer_key_start = text.find('"answer"')
+
+    if answer_key_start == -1:
+        return {"error": "No 'answer' key found in the text"}
+
+    # Define regex to find the complete JSON object starting with "answer"
+    json_pattern = r'(\{[^\{\}]*"answer"[^\{\}]*\})'
+    match = re.search(json_pattern, text)
+
+    if not match:
+        return {"error": "No valid JSON object found"}
+
+    # Extract the matched JSON object
+    json_object = match.group(0)
+
+    # Find the start and stop positions of the JSON object in the original text
+    start_pos = text.find(json_object)
+    stop_pos = start_pos + len(json_object)
+
+    # Parse the JSON object to validate it
+    try:
+        parsed_json = json.loads(json_object)
+    except json.JSONDecodeError:
+        return {"error": "Failed to parse JSON object"}
+
+    # Return the result as a dictionary with positions
+    return {"start": start_pos, "stop": stop_pos, "extracted_json": json_object}
+
+
 def clean_json(bad_json_str):
     """
     Clean JSON string by replacing single quotes with double quotes
@@ -82,27 +121,27 @@ def clean_json(bad_json_str):
     return s
 
 
-def data_to_html(data, replace_new_lines=False):
-    if "edsl_version" in data:
-        _ = data.pop("edsl_version")
-    if "edsl_class_name" in data:
-        _ = data.pop("edsl_class_name")
+# def data_to_html(data, replace_new_lines=False):
+#     if "edsl_version" in data:
+#         _ = data.pop("edsl_version")
+#     if "edsl_class_name" in data:
+#         _ = data.pop("edsl_class_name")
 
-    from pygments import highlight
-    from pygments.lexers import JsonLexer
-    from pygments.formatters import HtmlFormatter
-    from IPython.display import HTML
+#     from pygments import highlight
+#     from pygments.lexers import JsonLexer
+#     from pygments.formatters import HtmlFormatter
+#     from IPython.display import HTML
 
-    json_str = json.dumps(data, indent=4)
-    formatted_json = highlight(
-        json_str,
-        JsonLexer(),
-        HtmlFormatter(style="default", full=False, noclasses=False),
-    )
-    if replace_new_lines:
-        formatted_json = formatted_json.replace("\\n", "<br>")
+#     json_str = json.dumps(data, indent=4, cls=CustomEncoder)
+#     formatted_json = highlight(
+#         json_str,
+#         JsonLexer(),
+#         HtmlFormatter(style="default", full=False, noclasses=False),
+#     )
+#     if replace_new_lines:
+#         formatted_json = formatted_json.replace("\\n", "<br>")
 
-    return HTML(formatted_json).data
+#     return HTML(formatted_json).data
 
 
 def is_gzipped(file_path):
@@ -155,17 +194,38 @@ def dict_to_html(d):
 
 
 def is_notebook() -> bool:
-    """Check if the code is running in a Jupyter notebook."""
+    """Check if the code is running in a Jupyter notebook or Google Colab."""
     try:
         shell = get_ipython().__class__.__name__
         if shell == "ZMQInteractiveShell":
             return True  # Jupyter notebook or qtconsole
+        elif shell == "Shell":  # Google Colab's shell class
+            import sys
+
+            if "google.colab" in sys.modules:
+                return True  # Running in Google Colab
+            return False
         elif shell == "TerminalInteractiveShell":
             return False  # Terminal running IPython
         else:
-            return False  # Other type (e.g., IDLE, PyCharm, etc.)
+            return False  # Other type
     except NameError:
         return False  # Probably standard Python interpreter
+
+
+def file_notice(file_name):
+    """Print a notice about the file being created."""
+    if is_notebook():
+        from IPython.display import HTML, display
+
+        link_text = "Download file"
+        display(
+            HTML(
+                f'<p>File created: {file_name}</p>.<a href="{file_name}" download>{link_text}</a>'
+            )
+        )
+    else:
+        print(f"File created: {file_name}")
 
 
 class HTMLSnippet(str):
@@ -350,3 +410,27 @@ def shorten_string(s, max_length, placeholder="..."):
         end_remove = end_space
 
     return s[:start_remove] + placeholder + s[end_remove:]
+
+
+def write_api_key_to_env(api_key: str) -> str:
+    """
+    Write the user's Expected Parrot key to their .env file.
+
+    If a .env file doesn't exist in the current directory, one will be created.
+
+    Returns a string representing the absolute path to the .env file.
+    """
+    from pathlib import Path
+    from dotenv import set_key
+
+    # Create .env file if it doesn't exist
+    env_path = ".env"
+    env_file = Path(env_path)
+    env_file.touch(exist_ok=True)
+
+    # Write API key to file
+    set_key(env_path, "EXPECTED_PARROT_API_KEY", str(api_key))
+
+    absolute_path_to_env = env_file.absolute().as_posix()
+
+    return absolute_path_to_env

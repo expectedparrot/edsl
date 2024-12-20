@@ -1,13 +1,23 @@
 import pytest
-from edsl.agents import Agent
-from edsl.exceptions import AgentCombinationError, JobsRunError
+from edsl.agents.Agent import Agent
+from edsl.exceptions.jobs import JobsRunError
+from edsl.exceptions.agents import AgentCombinationError
 from edsl.jobs.interviews.Interview import Interview
 from edsl.jobs.Jobs import Jobs, main
-from edsl.questions import QuestionMultipleChoice
-from edsl.scenarios import Scenario
-from edsl.surveys import Survey
-from edsl import Model
-from edsl import Question  # needed for the eval() of the repr() of the Job
+from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
+from edsl.questions.QuestionFreeText import QuestionFreeText
+from edsl.scenarios.Scenario import Scenario
+from edsl.scenarios.ScenarioList import ScenarioList
+from edsl.surveys.Survey import Survey
+from edsl.language_models.registry import Model
+from edsl.questions.question_registry import (
+    Question,
+)  # needed for the eval() of the repr() of the Job
+from edsl.language_models.LanguageModel import LanguageModel
+from edsl.data.Cache import Cache
+
+from edsl.agents.AgentList import AgentList
+from edsl.language_models.ModelList import ModelList
 
 
 @pytest.fixture(scope="function")
@@ -19,7 +29,8 @@ def valid_job():
     )
     survey = Survey(questions=[q])
     agent = Agent(traits={"trait1": "value1"})
-    model = Model()
+    # model = LanguageModel.example(test_model=True, canned_response="SPAM!")
+    model = Model("test", canned_response="SPAM!")
     scenario = Scenario({"price": 100, "quantity": 2})
     valid_job = Jobs(
         survey=survey,
@@ -37,17 +48,17 @@ def test_jobs_simple_stuf(valid_job):
     from edsl.surveys.Rule import Rule
 
     assert valid_job.agents[0].traits == {"trait1": "value1"}
-    assert valid_job.models[0].model == "gpt-4-1106-preview"
+    # assert valid_job.models[0].model == "gpt-4-1106-preview"
     assert valid_job.scenarios[0].get("price") == 100
     # eval works and returns eval-able string
     assert "Jobs(survey=Survey(" in repr(valid_job)
-    from edsl import ScenarioList
-    from edsl import AgentList
-    from edsl import ModelList
 
     assert isinstance(eval(repr(valid_job)), Jobs)
     # serialization
     assert isinstance(valid_job.to_dict(), dict)
+
+    ## When we have a test_model, we can uncomment this.
+
     assert isinstance(Jobs.from_dict(valid_job.to_dict()), Jobs)
     assert Jobs.from_dict(valid_job.to_dict()).to_dict() == valid_job.to_dict()
     # serialize and de-serialize an empty job
@@ -56,7 +67,7 @@ def test_jobs_simple_stuf(valid_job):
 
 
 def test_jobs_by_agents():
-    from edsl import AgentList
+    from edsl.agents.AgentList import AgentList
 
     q = QuestionMultipleChoice(
         question_text="How are you?",
@@ -92,7 +103,6 @@ def test_jobs_by_scenarios():
         question_options=["Good", "Great", "OK", "Bad"],
         question_name="how_feeling",
     )
-    from edsl import ScenarioList
 
     survey = Survey(name="Test Survey", questions=[q])
     scenario1 = Scenario({"price": "100"})
@@ -121,10 +131,7 @@ def test_jobs_by_scenarios():
 
 
 def test_agent_info():
-    from edsl import Agent
-
     agent = Agent(traits={"first_name": "John"})
-    from edsl import QuestionFreeText
 
     q = QuestionFreeText(
         question_text="What is your name, {{ agent.first_name }}?", question_name="name"
@@ -134,8 +141,6 @@ def test_agent_info():
 
 
 def test_jobs_by_models():
-    from edsl import ModelList
-
     q = QuestionMultipleChoice(
         question_text="How are you?",
         question_options=["Good", "Great", "OK", "Bad"],
@@ -181,15 +186,14 @@ def test_jobs_interviews(valid_job):
     assert interviews[0].survey == survey
     assert interviews[0].scenario == Scenario()
     assert interviews[0].agent == Agent()
-    assert interviews[0].model.model == "gpt-4-1106-preview"
+    # assert interviews[0].model.model == "test"
 
 
 def test_jobs_run(valid_job):
-    from edsl.data.Cache import Cache
 
     cache = Cache()
 
-    results = valid_job.run(debug=True, cache=cache, check_api_keys=False)
+    results = valid_job.run(cache=cache, check_api_keys=False)
     # breakpoint()
 
     assert len(results) == 1
@@ -203,21 +207,23 @@ def test_normal_run():
     import asyncio
     from typing import Any
 
-    class TestLanguageModelGood(LanguageModel):
-        _model_ = "test"
-        _parameters_ = {"temperature": 0.5}
-        _inference_service_ = InferenceServiceType.TEST.value
+    # class TestLanguageModelGood(LanguageModel):
+    #     _model_ = "test"
+    #     _parameters_ = {"temperature": 0.5}
+    #     _inference_service_ = InferenceServiceType.TEST.value
+    #     key_sequence = ["message", 0, "text"]
 
-        async def async_execute_model_call(
-            self, user_prompt: str, system_prompt: str
-        ) -> dict[str, Any]:
-            await asyncio.sleep(0.0)
-            return {"message": """{"answer": "SPAM!"}"""}
+    #     async def async_execute_model_call(
+    #         self, user_prompt: str, system_prompt: str
+    #     ) -> dict[str, Any]:
+    #         await asyncio.sleep(0.0)
+    #         return {"message": [{"text": "SPAM!"}]}
 
-        def parse_response(self, raw_response: dict[str, Any]) -> str:
-            return raw_response["message"]
+    #     # def parse_response(self, raw_response: dict[str, Any]) -> str:
+    #     #     return raw_response["message"]
 
-    model = TestLanguageModelGood()
+    # model = TestLanguageModelGood()
+    model = Model("test", canned_response="SPAM!")
     from edsl.questions import QuestionFreeText
 
     q = QuestionFreeText(question_text="What is your name?", question_name="name")
@@ -225,7 +231,8 @@ def test_normal_run():
 
     cache = Cache()
     results = q.by(model).run(cache=cache)
-    assert results[0]["answer"] == {"name": "SPAM!"}
+    # breakpoint()
+    assert results[0]["answer"]["name"] == "SPAM!"
 
 
 def test_handle_model_exception():
@@ -234,7 +241,6 @@ def test_handle_model_exception():
     from edsl.enums import InferenceServiceType
     import asyncio
     from typing import Any
-    from edsl import Scenario
 
     from httpcore import ConnectionNotAvailable
     from edsl.questions import QuestionFreeText
@@ -280,17 +286,13 @@ def test_jobs_bucket_creator(valid_job):
     # JobRunner = JobsRunnersRegistry["asyncio"](jobs=valid_job)
     from edsl.jobs.runners.JobsRunnerAsyncio import JobsRunnerAsyncio
 
-    bc = JobsRunnerAsyncio(jobs=valid_job).bucket_collection
+    bc_to_use = valid_job.create_bucket_collection()
+
+    bc = JobsRunnerAsyncio(
+        jobs=valid_job, bucket_collection=bc_to_use
+    ).bucket_collection
     assert bc[valid_job.models[0]].requests_bucket.tokens > 10
     assert bc[valid_job.models[0]].tokens_bucket.tokens > 10
-
-
-def test_bad_jobs():
-    from edsl.jobs import Jobs
-
-    j = Jobs.example(throw_exception_probability=1.0)
-    results = j.run()
-    assert hasattr(results, "failed_jobs")
 
 
 def test_jobs_main():

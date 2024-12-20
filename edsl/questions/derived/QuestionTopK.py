@@ -1,8 +1,9 @@
 from __future__ import annotations
 from typing import Optional
 
-from edsl.exceptions import QuestionCreationValidationError
+from edsl.exceptions.questions import QuestionCreationValidationError
 from edsl.questions.QuestionCheckBox import QuestionCheckBox
+from edsl.questions.decorators import inject_exception
 
 
 class QuestionTopK(QuestionCheckBox):
@@ -17,6 +18,10 @@ class QuestionTopK(QuestionCheckBox):
         question_options: list[str],
         min_selections: int,
         max_selections: int,
+        question_presentation: Optional[str] = None,
+        answering_instructions: Optional[str] = None,
+        include_comment: Optional[bool] = True,
+        use_code: Optional[bool] = True,
     ):
         """Initialize the question.
 
@@ -32,6 +37,10 @@ class QuestionTopK(QuestionCheckBox):
             question_options=question_options,
             min_selections=min_selections,
             max_selections=max_selections,
+            question_presentation=question_presentation,
+            answering_instructions=answering_instructions,
+            include_comment=include_comment,
+            use_code=use_code,
         )
         if min_selections != max_selections:
             raise QuestionCreationValidationError(
@@ -46,7 +55,8 @@ class QuestionTopK(QuestionCheckBox):
     # Helpful
     ################
     @classmethod
-    def example(cls) -> QuestionTopK:
+    @inject_exception
+    def example(cls, include_comment: bool = True) -> QuestionTopK:
         """Return an example question."""
         return cls(
             question_name="two_fruits",
@@ -54,6 +64,7 @@ class QuestionTopK(QuestionCheckBox):
             question_options=["apple", "banana", "carrot", "durian"],
             min_selections=2,
             max_selections=2,
+            include_comment=include_comment,
         )
 
 

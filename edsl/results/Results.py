@@ -7,38 +7,45 @@ from __future__ import annotations
 import json
 import random
 from collections import UserList, defaultdict
-from typing import Optional, Callable, Any, Type, Union, List
+from typing import Optional, Callable, Any, Type, Union, List, TYPE_CHECKING
 
-from simpleeval import EvalWithCompoundTypes
-
+from edsl.Base import Base
 from edsl.exceptions.results import (
+    ResultsError,
     ResultsBadMutationstringError,
     ResultsColumnNotFoundError,
     ResultsInvalidNameError,
     ResultsMutateError,
     ResultsFilterError,
+    ResultsDeserializationError,
 )
 
+if TYPE_CHECKING:
+    from edsl.surveys.Survey import Survey
+    from edsl.data.Cache import Cache
+    from edsl.agents.AgentList import AgentList
+    from edsl.language_models.registry import Model
+    from edsl.scenarios.ScenarioList import ScenarioList
+    from edsl.results.Result import Result
+    from edsl.jobs.tasks.TaskHistory import TaskHistory
+    from edsl.language_models.ModelList import ModelList
+    from simpleeval import EvalWithCompoundTypes
+
 from edsl.results.ResultsExportMixin import ResultsExportMixin
-from edsl.results.ResultsToolsMixin import ResultsToolsMixin
-from edsl.results.ResultsDBMixin import ResultsDBMixin
 from edsl.results.ResultsGGMixin import ResultsGGMixin
 from edsl.results.ResultsFetchMixin import ResultsFetchMixin
-
-from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
-from edsl.utilities.utilities import dict_hash
-
-from edsl.Base import Base
+from edsl.utilities.remove_edsl_version import remove_edsl_version
 
 
 class Mixins(
     ResultsExportMixin,
-    ResultsDBMixin,
     ResultsFetchMixin,
     ResultsGGMixin,
-    ResultsToolsMixin,
 ):
-    def print_long(self, max_rows=None) -> None:
+    def long(self):
+        return self.table().long()
+
+    def print_long(self, max_rows: int = None) -> None:
         """Print the results in long format.
 
         >>> from edsl.results import Results
@@ -65,6 +72,8 @@ class Results(UserList, Mixins, Base):
     It also has a list of created_columns, which are columns that have been created with `mutate` and are not part of the original data.
     """
 
+    __documentation__ = "https://docs.expectedparrot.com/en/latest/results.html"
+
     known_data_types = [
         "answer",
         "scenario",
@@ -77,16 +86,19 @@ class Results(UserList, Mixins, Base):
         "question_options",
         "question_type",
         "comment",
+        "generated_tokens",
+        "cache_used",
     ]
 
     def __init__(
         self,
-        survey: Optional["Survey"] = None,
-        data: Optional[list["Result"]] = None,
+        survey: Optional[Survey] = None,
+        data: Optional[list[Result]] = None,
         created_columns: Optional[list[str]] = None,
-        cache: Optional["Cache"] = None,
+        cache: Optional[Cache] = None,
         job_uuid: Optional[str] = None,
         total_results: Optional[int] = None,
+        task_history: Optional[TaskHistory] = None,
     ):
         """Instantiate a `Results` object with a survey and a list of `Result` objects.
 
@@ -98,6 +110,7 @@ class Results(UserList, Mixins, Base):
         """
         super().__init__(data)
         from edsl.data.Cache import Cache
+        from edsl.jobs.tasks.TaskHistory import TaskHistory
 
         self.survey = survey
         self.created_columns = created_columns or []
@@ -105,8 +118,122 @@ class Results(UserList, Mixins, Base):
         self._total_results = total_results
         self.cache = cache or Cache()
 
+        self.task_history = task_history or TaskHistory(interviews=[])
+
         if hasattr(self, "_add_output_functions"):
             self._add_output_functions()
+
+    def _summary(self) -> dict:
+        import reprlib
+
+        d = {
+            "observations": len(self),
+            "agents": len(set(self.agents)),
+            "models": len(set(self.models)),
+            "scenarios": len(set(self.scenarios)),
+            "questions": len(self.survey),
+            "Survey question names": reprlib.repr(self.survey.question_names),
+        }
+        return d
+
+    def compute_job_cost(self, include_cached_responses_in_cost=False) -> float:
+        """
+        Computes the cost of a completed job in USD.
+        """
+        total_cost = 0
+        for result in self:
+            for key in result.raw_model_response:
+                if key.endswith("_cost"):
+                    result_cost = result.raw_model_response[key]
+
+                    question_name = key.removesuffix("_cost")
+                    cache_used = result.cache_used_dict[question_name]
+
+                    if isinstance(result_cost, (int, float)):
+                        if include_cached_responses_in_cost:
+                            total_cost += result_cost
+                        elif not include_cached_responses_in_cost and not cache_used:
+                            total_cost += result_cost
+
+        return total_cost
+
+    def leaves(self):
+        leaves = []
+        for result in self:
+            leaves.extend(result.leaves())
+        return leaves
+
+    def tree(self, node_list: Optional[List[str]] = None):
+        return self.to_scenario_list().tree(node_list)
+
+    def interactive_tree(
+        self,
+        fold_attributes: Optional[List[str]] = None,
+        drop: Optional[List[str]] = None,
+        open_file=True,
+    ) -> dict:
+        """Return the results as a tree."""
+        from edsl.results.tree_explore import FoldableHTMLTableGenerator
+
+        if drop is None:
+            drop = []
+
+        valid_attributes = [
+            "model",
+            "scenario",
+            "agent",
+            "answer",
+            "question",
+            "iteration",
+        ]
+        if fold_attributes is None:
+            fold_attributes = []
+
+        for attribute in fold_attributes:
+            if attribute not in valid_attributes:
+                raise ValueError(
+                    f"Invalid fold attribute: {attribute}; must be in {valid_attributes}"
+                )
+        data = self.leaves()
+        generator = FoldableHTMLTableGenerator(data)
+        tree = generator.tree(fold_attributes=fold_attributes, drop=drop)
+        html_content = generator.generate_html(tree, fold_attributes)
+        import tempfile
+        from edsl.utilities.utilities import is_notebook
+
+        from IPython.display import display, HTML
+
+        if is_notebook():
+            import html
+            from IPython.display import display, HTML
+
+            height = 1000
+            width = 1000
+            escaped_output = html.escape(html_content)
+            # escaped_output = rendered_html
+            iframe = f""""
+            <iframe srcdoc="{ escaped_output }" style="width: {width}px; height: {height}px;"></iframe>
+            """
+            display(HTML(iframe))
+            return None
+
+        with tempfile.NamedTemporaryFile(suffix=".html", delete=False) as f:
+            f.write(html_content.encode())
+            print(f"HTML file has been generated: {f.name}")
+
+            if open_file:
+                import webbrowser
+                import time
+
+                time.sleep(1)  # Wait for 1 second
+                # webbrowser.open(f.name)
+                import os
+
+                filename = f.name
+                webbrowser.open(f"file://{os.path.abspath(filename)}")
+
+            else:
+                return html_content
 
     def code(self):
         raise NotImplementedError
@@ -123,23 +250,23 @@ class Results(UserList, Mixins, Base):
 
         raise TypeError("Invalid argument type")
 
-    def _update_results(self) -> None:
-        from edsl import Agent, Scenario
-        from edsl.language_models import LanguageModel
-        from edsl.results import Result
+    # def _update_results(self) -> None:
+    #     from edsl import Agent, Scenario
+    #     from edsl.language_models import LanguageModel
+    #     from edsl.results import Result
 
-        if self._job_uuid and len(self.data) < self._total_results:
-            results = [
-                Result(
-                    agent=Agent.from_dict(json.loads(r.agent)),
-                    scenario=Scenario.from_dict(json.loads(r.scenario)),
-                    model=LanguageModel.from_dict(json.loads(r.model)),
-                    iteration=1,
-                    answer=json.loads(r.answer),
-                )
-                for r in CRUD.read_results(self._job_uuid)
-            ]
-            self.data = results
+    #     if self._job_uuid and len(self.data) < self._total_results:
+    #         results = [
+    #             Result(
+    #                 agent=Agent.from_dict(json.loads(r.agent)),
+    #                 scenario=Scenario.from_dict(json.loads(r.scenario)),
+    #                 model=LanguageModel.from_dict(json.loads(r.model)),
+    #                 iteration=1,
+    #                 answer=json.loads(r.answer),
+    #             )
+    #             for r in CRUD.read_results(self._job_uuid)
+    #         ]
+    #         self.data = results
 
     def __add__(self, other: Results) -> Results:
         """Add two Results objects together.
@@ -153,11 +280,11 @@ class Results(UserList, Mixins, Base):
         >>> r3 = r + r2
         """
         if self.survey != other.survey:
-            raise Exception(
-                "The surveys are not the same so they cannot be added together."
+            raise ResultsError(
+                "The surveys are not the same so the the results cannot be added together."
             )
         if self.created_columns != other.created_columns:
-            raise Exception(
+            raise ResultsError(
                 "The created columns are not the same so they cannot be added together."
             )
 
@@ -168,36 +295,96 @@ class Results(UserList, Mixins, Base):
         )
 
     def __repr__(self) -> str:
+        # import reprlib
+
         return f"Results(data = {self.data}, survey = {repr(self.survey)}, created_columns = {self.created_columns})"
 
-    def _repr_html_(self) -> str:
-        from IPython.display import HTML
+    def table(
+        self,
+        # selector_string: Optional[str] = "*.*",
+        *fields,
+        tablefmt: Optional[str] = None,
+        pretty_labels: Optional[dict] = None,
+        print_parameters: Optional[dict] = None,
+    ):
+        new_fields = []
+        for field in fields:
+            if "." in field:
+                data_type, key = field.split(".")
+                if data_type not in self.known_data_types:
+                    raise ResultsInvalidNameError(
+                        f"{data_type} is not a valid data type. Must be in {self.known_data_types}"
+                    )
+                if key == "*":
+                    for k in self._data_type_to_keys[data_type]:
+                        new_fields.append(k)
+                else:
+                    if key not in self._key_to_data_type:
+                        raise ResultsColumnNotFoundError(
+                            f"{key} is not a valid key. Must be in {self._key_to_data_type}"
+                        )
+                    new_fields.append(key)
+            else:
+                new_fields.append(field)
 
-        json_str = json.dumps(self.to_dict()["data"], indent=4)
-        from pygments import highlight
-        from pygments.lexers import JsonLexer
-        from pygments.formatters import HtmlFormatter
-
-        formatted_json = highlight(
-            json_str,
-            JsonLexer(),
-            HtmlFormatter(style="default", full=True, noclasses=True),
+        return (
+            self.to_scenario_list()
+            .to_dataset()
+            .table(
+                *new_fields,
+                tablefmt=tablefmt,
+                pretty_labels=pretty_labels,
+                print_parameters=print_parameters,
+            )
         )
-        return HTML(formatted_json).data
 
-    def _to_dict(self, sort=False):
+    def to_dict(
+        self,
+        sort=False,
+        add_edsl_version=False,
+        include_cache=False,
+        include_task_history=False,
+        include_cache_info=True,
+    ) -> dict[str, Any]:
         from edsl.data.Cache import Cache
 
         if sort:
             data = sorted([result for result in self.data], key=lambda x: hash(x))
         else:
             data = [result for result in self.data]
-        return {
-            "data": [result.to_dict() for result in data],
-            "survey": self.survey.to_dict(),
+
+        d = {
+            "data": [
+                result.to_dict(
+                    add_edsl_version=add_edsl_version,
+                    include_cache_info=include_cache_info,
+                )
+                for result in data
+            ],
+            "survey": self.survey.to_dict(add_edsl_version=add_edsl_version),
             "created_columns": self.created_columns,
-            "cache": Cache() if not hasattr(self, "cache") else self.cache.to_dict(),
         }
+        if include_cache:
+            d.update(
+                {
+                    "cache": (
+                        Cache()
+                        if not hasattr(self, "cache")
+                        else self.cache.to_dict(add_edsl_version=add_edsl_version)
+                    )
+                }
+            )
+
+        if self.task_history.has_unfixed_exceptions or include_task_history:
+            d.update({"task_history": self.task_history.to_dict()})
+
+        if add_edsl_version:
+            from edsl import __version__
+
+            d["edsl_version"] = __version__
+            d["edsl_class_name"] = "Results"
+
+        return d
 
     def compare(self, other_results):
         """
@@ -216,28 +403,22 @@ class Results(UserList, Mixins, Base):
             "b_not_a": [other_results[i] for i in indices_other],
         }
 
-    @add_edsl_version
-    def to_dict(self) -> dict[str, Any]:
-        """Convert the Results object to a dictionary.
-
-        The dictionary can be quite large, as it includes all of the data in the Results object.
-
-        Example: Illustrating just the keys of the dictionary.
-
-        >>> r = Results.example()
-        >>> r.to_dict().keys()
-        dict_keys(['data', 'survey', 'created_columns', 'cache', 'edsl_version', 'edsl_class_name'])
-        """
-        return self._to_dict()
+    @property
+    def has_unfixed_exceptions(self):
+        return self.task_history.has_unfixed_exceptions
 
     def __hash__(self) -> int:
-        return dict_hash(self._to_dict(sort=True))
+        from edsl.utilities.utilities import dict_hash
+
+        return dict_hash(
+            self.to_dict(sort=True, add_edsl_version=False, include_cache_info=False)
+        )
 
     @property
     def hashes(self) -> set:
         return set(hash(result) for result in self.data)
 
-    def sample(self, n: int) -> "Results":
+    def sample(self, n: int) -> Results:
         """Return a random sample of the results.
 
         :param n: The number of samples to return.
@@ -255,7 +436,7 @@ class Results(UserList, Mixins, Base):
                 indices = list(range(len(values)))
                 sampled_indices = random.sample(indices, n)
                 if n > len(indices):
-                    raise ValueError(
+                    raise ResultsError(
                         f"Cannot sample {n} items from a list of length {len(indices)}."
                     )
             entry[key] = [values[i] for i in sampled_indices]
@@ -277,20 +458,33 @@ class Results(UserList, Mixins, Base):
         >>> r == r2
         True
         """
-        from edsl import Survey, Cache
+        from edsl.surveys.Survey import Survey
+        from edsl.data.Cache import Cache
         from edsl.results.Result import Result
+        from edsl.jobs.tasks.TaskHistory import TaskHistory
+        from edsl.agents.Agent import Agent
+
+        survey = Survey.from_dict(data["survey"])
+        results_data = [Result.from_dict(r) for r in data["data"]]
+        created_columns = data.get("created_columns", None)
+        cache = Cache.from_dict(data.get("cache")) if "cache" in data else Cache()
+        task_history = (
+            TaskHistory.from_dict(data.get("task_history"))
+            if "task_history" in data
+            else TaskHistory(interviews=[])
+        )
+        params = {
+            "survey": survey,
+            "data": results_data,
+            "created_columns": created_columns,
+            "cache": cache,
+            "task_history": task_history,
+        }
 
         try:
-            results = cls(
-                survey=Survey.from_dict(data["survey"]),
-                data=[Result.from_dict(r) for r in data["data"]],
-                created_columns=data.get("created_columns", None),
-                cache=(
-                    Cache.from_dict(data.get("cache")) if "cache" in data else Cache()
-                ),
-            )
+            results = cls(**params)
         except Exception as e:
-            breakpoint()
+            raise ResultsDeserializationError(f"Error in Results.from_dict: {e}")
         return results
 
     ######################
@@ -306,11 +500,12 @@ class Results(UserList, Mixins, Base):
         - Uses the key_to_data_type property of the Result class.
         - Includes any columns that the user has created with `mutate`
         """
-        d = {}
+        d: dict = {}
         for result in self.data:
             d.update(result.key_to_data_type)
         for column in self.created_columns:
             d[column] = "answer"
+
         return d
 
     @property
@@ -342,10 +537,12 @@ class Results(UserList, Mixins, Base):
 
         >>> r = Results.example()
         >>> r.columns
-        ['agent.agent_instruction', ...]
+        ['agent.agent_index', ...]
         """
         column_names = [f"{v}.{k}" for k, v in self._key_to_data_type.items()]
-        return sorted(column_names)
+        from edsl.utilities.PrettyList import PrettyList
+
+        return PrettyList(sorted(column_names))
 
     @property
     def answer_keys(self) -> dict[str, str]:
@@ -360,12 +557,12 @@ class Results(UserList, Mixins, Base):
         from edsl.utilities.utilities import shorten_string
 
         if not self.survey:
-            raise Exception("Survey is not defined so no answer keys are available.")
+            raise ResultsError("Survey is not defined so no answer keys are available.")
 
         answer_keys = self._data_type_to_keys["answer"]
         answer_keys = {k for k in answer_keys if "_comment" not in k}
         questions_text = [
-            self.survey.get_question(k).question_text for k in answer_keys
+            self.survey._get_question_by_name(k).question_text for k in answer_keys
         ]
         short_question_text = [shorten_string(q, 80) for q in questions_text]
         initial_dict = dict(zip(answer_keys, short_question_text))
@@ -373,7 +570,7 @@ class Results(UserList, Mixins, Base):
         return sorted_dict
 
     @property
-    def agents(self) -> "AgentList":
+    def agents(self) -> AgentList:
         """Return a list of all of the agents in the Results.
 
         Example:
@@ -382,33 +579,38 @@ class Results(UserList, Mixins, Base):
         >>> r.agents
         AgentList([Agent(traits = {'status': 'Joyful'}), Agent(traits = {'status': 'Joyful'}), Agent(traits = {'status': 'Sad'}), Agent(traits = {'status': 'Sad'})])
         """
-        from edsl import AgentList
+        from edsl.agents.AgentList import AgentList
 
         return AgentList([r.agent for r in self.data])
 
     @property
-    def models(self) -> list[Type["LanguageModel"]]:
+    def models(self) -> ModelList:
         """Return a list of all of the models in the Results.
 
         Example:
 
         >>> r = Results.example()
         >>> r.models[0]
-        Model(model_name = 'gpt-4-1106-preview', temperature = 0.5, max_tokens = 1000, top_p = 1, frequency_penalty = 0, presence_penalty = 0, logprobs = False, top_logprobs = 3)
+        Model(model_name = ...)
         """
-        return [r.model for r in self.data]
+        from edsl.language_models.ModelList import ModelList
+
+        return ModelList([r.model for r in self.data])
+
+    def __eq__(self, other):
+        return hash(self) == hash(other)
 
     @property
-    def scenarios(self) -> "ScenarioList":
+    def scenarios(self) -> ScenarioList:
         """Return a list of all of the scenarios in the Results.
 
         Example:
 
         >>> r = Results.example()
         >>> r.scenarios
-        ScenarioList([Scenario({'period': 'morning'}), Scenario({'period': 'afternoon'}), Scenario({'period': 'morning'}), Scenario({'period': 'afternoon'})])
+        ScenarioList([Scenario({'period': 'morning', 'scenario_index': 0}), Scenario({'period': 'afternoon', 'scenario_index': 1}), Scenario({'period': 'morning', 'scenario_index': 0}), Scenario({'period': 'afternoon', 'scenario_index': 1})])
         """
-        from edsl import ScenarioList
+        from edsl.scenarios.ScenarioList import ScenarioList
 
         return ScenarioList([r.scenario for r in self.data])
 
@@ -420,7 +622,7 @@ class Results(UserList, Mixins, Base):
 
         >>> r = Results.example()
         >>> r.agent_keys
-        ['agent_instruction', 'agent_name', 'status']
+        ['agent_index', 'agent_instruction', 'agent_name', 'status']
         """
         return sorted(self._data_type_to_keys["agent"])
 
@@ -430,7 +632,7 @@ class Results(UserList, Mixins, Base):
 
         >>> r = Results.example()
         >>> r.model_keys
-        ['frequency_penalty', 'logprobs', 'max_tokens', 'model', 'presence_penalty', 'temperature', 'top_logprobs', 'top_p']
+        ['frequency_penalty', 'logprobs', 'max_tokens', 'model', 'model_index', 'presence_penalty', 'temperature', 'top_logprobs', 'top_p']
         """
         return sorted(self._data_type_to_keys["model"])
 
@@ -440,7 +642,7 @@ class Results(UserList, Mixins, Base):
 
         >>> r = Results.example()
         >>> r.scenario_keys
-        ['period']
+        ['period', 'scenario_index']
         """
         return sorted(self._data_type_to_keys["scenario"])
 
@@ -466,7 +668,7 @@ class Results(UserList, Mixins, Base):
 
         >>> r = Results.example()
         >>> r.all_keys
-        ['agent_instruction', 'agent_name', 'frequency_penalty', 'how_feeling', 'how_feeling_yesterday', 'logprobs', 'max_tokens', 'model', 'period', 'presence_penalty', 'status', 'temperature', 'top_logprobs', 'top_p']
+        ['agent_index', ...]
         """
         answer_keys = set(self.answer_keys)
         all_keys = (
@@ -476,40 +678,7 @@ class Results(UserList, Mixins, Base):
         )
         return sorted(list(all_keys))
 
-    def _parse_column(self, column: str) -> tuple[str, str]:
-        """
-        Parses a column name into a tuple containing a data type and a key.
-
-        >>> r = Results.example()
-        >>> r._parse_column("answer.how_feeling")
-        ('answer', 'how_feeling')
-
-        The standard way a column is specified is with a dot-separated string, e.g. _parse_column("agent.status")
-        But you can also specify a single key, e.g. "status", in which case it will look up the data type.
-        """
-        if "." in column:
-            data_type, key = column.split(".")
-        else:
-            try:
-                data_type, key = self._key_to_data_type[column], column
-            except KeyError:
-                import difflib
-
-                close_matches = difflib.get_close_matches(
-                    column, self._key_to_data_type.keys()
-                )
-                if close_matches:
-                    suggestions = ", ".join(close_matches)
-                    raise ResultsColumnNotFoundError(
-                        f"Column '{column}' not found in data. Did you mean: {suggestions}?"
-                    )
-                else:
-                    raise ResultsColumnNotFoundError(
-                        f"Column {column} not found in data"
-                    )
-        return data_type, key
-
-    def first(self) -> "Result":
+    def first(self) -> Result:
         """Return the first observation in the results.
 
         Example:
@@ -603,6 +772,42 @@ class Results(UserList, Mixins, Base):
             self = self.add_column(key, values)
         return self
 
+    @staticmethod
+    def _create_evaluator(
+        result: Result, functions_dict: Optional[dict] = None
+    ) -> "EvalWithCompoundTypes":
+        """Create an evaluator for the expression.
+
+        >>> from unittest.mock import Mock
+        >>> result = Mock()
+        >>> result.combined_dict = {'how_feeling': 'OK'}
+
+        >>> evaluator = Results._create_evaluator(result = result, functions_dict = {})
+        >>> evaluator.eval("how_feeling == 'OK'")
+        True
+
+        >>> result.combined_dict = {'answer': {'how_feeling': 'OK'}}
+        >>> evaluator = Results._create_evaluator(result = result, functions_dict = {})
+        >>> evaluator.eval("answer.how_feeling== 'OK'")
+        True
+
+        Note that you need to refer to the answer dictionary in the expression.
+
+        >>> evaluator.eval("how_feeling== 'OK'")
+        Traceback (most recent call last):
+        ...
+        simpleeval.NameNotDefined: 'how_feeling' is not defined for expression 'how_feeling== 'OK''
+        """
+        from simpleeval import EvalWithCompoundTypes
+
+        if functions_dict is None:
+            functions_dict = {}
+        evaluator = EvalWithCompoundTypes(
+            names=result.combined_dict, functions=functions_dict
+        )
+        evaluator.functions.update(int=int, float=float)
+        return evaluator
+
     def mutate(
         self, new_var_string: str, functions_dict: Optional[dict] = None
     ) -> Results:
@@ -635,13 +840,8 @@ class Results(UserList, Mixins, Base):
         # create the evaluator
         functions_dict = functions_dict or {}
 
-        def create_evaluator(result: Result) -> EvalWithCompoundTypes:
-            return EvalWithCompoundTypes(
-                names=result.combined_dict, functions=functions_dict
-            )
-
         def new_result(old_result: "Result", var_name: str) -> "Result":
-            evaluator = create_evaluator(old_result)
+            evaluator = self._create_evaluator(old_result, functions_dict)
             value = evaluator.eval(expression)
             new_result = old_result.copy()
             new_result["answer"][var_name] = value
@@ -656,6 +856,26 @@ class Results(UserList, Mixins, Base):
             survey=self.survey,
             data=new_data,
             created_columns=self.created_columns + [var_name],
+        )
+
+    def add_column(self, column_name: str, values: list) -> Results:
+        """Adds columns to Results
+
+        >>> r = Results.example()
+        >>> r.add_column('a', [1,2,3, 4]).select('a')
+        Dataset([{'answer.a': [1, 2, 3, 4]}])
+        """
+
+        assert len(values) == len(
+            self.data
+        ), "The number of values must match the number of results."
+        new_results = self.data.copy()
+        for i, result in enumerate(new_results):
+            result["answer"][column_name] = values[i]
+        return Results(
+            survey=self.survey,
+            data=new_results,
+            created_columns=self.created_columns + [column_name],
         )
 
     def rename(self, old_name: str, new_name: str) -> Results:
@@ -693,8 +913,8 @@ class Results(UserList, Mixins, Base):
 
     def sample(
         self,
-        n: int = None,
-        frac: float = None,
+        n: Optional[int] = None,
+        frac: Optional[float] = None,
         with_replacement: bool = True,
         seed: Optional[str] = "edsl",
     ) -> Results:
@@ -730,7 +950,7 @@ class Results(UserList, Mixins, Base):
 
         return Results(survey=self.survey, data=new_data, created_columns=None)
 
-    def select(self, *columns: Union[str, list[str]]) -> "Dataset":
+    def select(self, *columns: Union[str, list[str]]) -> Results:
         """
         Select data from the results and format it.
 
@@ -741,67 +961,27 @@ class Results(UserList, Mixins, Base):
         >>> results = Results.example()
         >>> results.select('how_feeling')
         Dataset([{'answer.how_feeling': ['OK', 'Great', 'Terrible', 'OK']}])
+
+        >>> results.select('how_feeling', 'model', 'how_feeling')
+        Dataset([{'answer.how_feeling': ['OK', 'Great', 'Terrible', 'OK']}, {'answer.how_feeling': ['OK', 'Great', 'Terrible', 'OK']}, {'model.model': ['...', '...', '...', '...']}, {'answer.how_feeling': ['OK', 'Great', 'Terrible', 'OK']}, {'answer.how_feeling': ['OK', 'Great', 'Terrible', 'OK']}])
+
+        >>> from edsl import Results; r = Results.example(); r.select('answer.how_feeling_y')
+        Dataset([{'answer.how_feeling_yesterday': ['Great', 'Good', 'OK', 'Terrible']}])
         """
+
+        from edsl.results.Selector import Selector
 
         if len(self) == 0:
             raise Exception("No data to select from---the Results object is empty.")
 
-        if not columns or columns == ("*",) or columns == (None,):
-            columns = ("*.*",)
-
-        if isinstance(columns[0], list):
-            columns = tuple(columns[0])
-
-        def get_data_types_to_return(parsed_data_type):
-            if parsed_data_type == "*":  # they want all of the columns
-                return self.known_data_types
-            else:
-                if parsed_data_type not in self.known_data_types:
-                    raise Exception(
-                        f"Data type {parsed_data_type} not found in data. Did you mean one of {self.known_data_types}"
-                    )
-                return [parsed_data_type]
-
-        # we're doing to populate this with the data we want to fetch
-        to_fetch = defaultdict(list)
-
-        new_data = []
-        items_in_order = []
-        # iterate through the passed columns
-        for column in columns:
-            # a user could pass 'result.how_feeling' or just 'how_feeling'
-            parsed_data_type, parsed_key = self._parse_column(column)
-            data_types = get_data_types_to_return(parsed_data_type)
-            found_once = False  # we need to track this to make sure we found the key at least once
-
-            for data_type in data_types:
-                # the keys for that data_type e.g.,# if data_type is 'answer', then the keys are 'how_feeling', 'how_feeling_comment', etc.
-                relevant_keys = self._data_type_to_keys[data_type]
-
-                for key in relevant_keys:
-                    if key == parsed_key or parsed_key == "*":
-                        found_once = True
-                        to_fetch[data_type].append(key)
-                        items_in_order.append(data_type + "." + key)
-
-            if not found_once:
-                raise Exception(f"Key {parsed_key} not found in data.")
-
-        for data_type in to_fetch:
-            for key in to_fetch[data_type]:
-                entries = self._fetch_list(data_type, key)
-                new_data.append({data_type + "." + key: entries})
-
-        def sort_by_key_order(dictionary):
-            # Extract the single key from the dictionary
-            single_key = next(iter(dictionary))
-            # Return the index of this key in the list_of_keys
-            return items_in_order.index(single_key)
-
-        sorted(new_data, key=sort_by_key_order)
-        from edsl.results.Dataset import Dataset
-
-        return Dataset(new_data)
+        selector = Selector(
+            known_data_types=self.known_data_types,
+            data_type_to_keys=self._data_type_to_keys,
+            key_to_data_type=self._key_to_data_type,
+            fetch_list_func=self._fetch_list,
+            columns=self.columns,
+        )
+        return selector.select(*columns)
 
     def sort_by(self, *columns: str, reverse: bool = False) -> Results:
         import warnings
@@ -810,6 +990,11 @@ class Results(UserList, Mixins, Base):
             "sort_by is deprecated. Use order_by instead.", DeprecationWarning
         )
         return self.order_by(*columns, reverse=reverse)
+
+    def _parse_column(self, column: str) -> tuple[str, str]:
+        if "." in column:
+            return column.split(".")
+        return self._key_to_data_type[column], column
 
     def order_by(self, *columns: str, reverse: bool = False) -> Results:
         """Sort the results by one or more columns.
@@ -822,32 +1007,12 @@ class Results(UserList, Mixins, Base):
         Example:
 
         >>> r = Results.example()
-        >>> r.sort_by('how_feeling', reverse=False).select('how_feeling').print()
-        ┏━━━━━━━━━━━━━━┓
-        ┃ answer       ┃
-        ┃ .how_feeling ┃
-        ┡━━━━━━━━━━━━━━┩
-        │ Great        │
-        ├──────────────┤
-        │ OK           │
-        ├──────────────┤
-        │ OK           │
-        ├──────────────┤
-        │ Terrible     │
-        └──────────────┘
-        >>> r.sort_by('how_feeling', reverse=True).select('how_feeling').print()
-        ┏━━━━━━━━━━━━━━┓
-        ┃ answer       ┃
-        ┃ .how_feeling ┃
-        ┡━━━━━━━━━━━━━━┩
-        │ Terrible     │
-        ├──────────────┤
-        │ OK           │
-        ├──────────────┤
-        │ OK           │
-        ├──────────────┤
-        │ Great        │
-        └──────────────┘
+        >>> r.sort_by('how_feeling', reverse=False).select('how_feeling')
+        Dataset([{'answer.how_feeling': ['Great', 'OK', 'OK', 'Terrible']}])
+
+        >>> r.sort_by('how_feeling', reverse=True).select('how_feeling')
+        Dataset([{'answer.how_feeling': ['Terrible', 'OK', 'OK', 'Great']}])
+
         """
 
         def to_numeric_if_possible(v):
@@ -879,36 +1044,27 @@ class Results(UserList, Mixins, Base):
         Example usage: Create an example `Results` instance and apply filters to it:
 
         >>> r = Results.example()
-        >>> r.filter("how_feeling == 'Great'").select('how_feeling').print()
-        ┏━━━━━━━━━━━━━━┓
-        ┃ answer       ┃
-        ┃ .how_feeling ┃
-        ┡━━━━━━━━━━━━━━┩
-        │ Great        │
-        └──────────────┘
+        >>> r.filter("how_feeling == 'Great'").select('how_feeling')
+        Dataset([{'answer.how_feeling': ['Great']}])
 
         Example usage: Using an OR operator in the filter expression.
 
-        >>> r = Results.example().filter("how_feeling = 'Great'").select('how_feeling').print()
+        >>> r = Results.example().filter("how_feeling = 'Great'").select('how_feeling')
         Traceback (most recent call last):
         ...
         edsl.exceptions.results.ResultsFilterError: You must use '==' instead of '=' in the filter expression.
+        ...
 
-        >>> r.filter("how_feeling == 'Great' or how_feeling == 'Terrible'").select('how_feeling').print()
-        ┏━━━━━━━━━━━━━━┓
-        ┃ answer       ┃
-        ┃ .how_feeling ┃
-        ┡━━━━━━━━━━━━━━┩
-        │ Great        │
-        ├──────────────┤
-        │ Terrible     │
-        └──────────────┘
+        >>> r.filter("how_feeling == 'Great' or how_feeling == 'Terrible'").select('how_feeling')
+        Dataset([{'answer.how_feeling': ['Great', 'Terrible']}])
         """
 
         def has_single_equals(string):
             if "!=" in string:
                 return False
-            if "=" in string and not "==" in string:
+            if "=" in string and not (
+                "==" in string or "<=" in string or ">=" in string
+            ):
                 return True
 
         if has_single_equals(expression):
@@ -916,29 +1072,29 @@ class Results(UserList, Mixins, Base):
                 "You must use '==' instead of '=' in the filter expression."
             )
 
-        def create_evaluator(result):
-            """Create an evaluator for the given result.
-            The 'combined_dict' is a mapping of all values for that Result object.
-            """
-            return EvalWithCompoundTypes(names=result.combined_dict)
-
         try:
             # iterates through all the results and evaluates the expression
-            new_data = [
-                result
-                for result in self.data
-                if create_evaluator(result).eval(expression)
-            ]
+            new_data = []
+            for result in self.data:
+                evaluator = self._create_evaluator(result)
+                result.check_expression(expression)  # check expression
+                if evaluator.eval(expression):
+                    new_data.append(result)
+
+        except ValueError as e:
+            raise ResultsFilterError(
+                f"Error in filter. Exception:{e}",
+                f"The expression you provided was: {expression}",
+                "See https://docs.expectedparrot.com/en/latest/results.html#filtering-results for more details.",
+            )
         except Exception as e:
             raise ResultsFilterError(
-                f"""Error in filter. Exception:{e}.
-            The expression you provided was: {expression}. 
-            Please make sure that the expression is a valid Python expression that evaluates to a boolean.
-            For example, 'how_feeling == "Great"' is a valid expression, as is 'how_feeling in ["Great", "Terrible"]'.
-            However, 'how_feeling = "Great"' is not a valid expression.
-
-            See https://docs.expectedparrot.com/en/latest/results.html#filtering-results for more details.
-            """
+                f"""Error in filter. Exception:{e}.""",
+                f"""The expression you provided was: {expression}.""",
+                """Please make sure that the expression is a valid Python expression that evaluates to a boolean.""",
+                """For example, 'how_feeling == "Great"' is a valid expression, as is 'how_feeling in ["Great", "Terrible"]'., """,
+                """However, 'how_feeling = "Great"' is not a valid expression.""",
+                """See https://docs.expectedparrot.com/en/latest/results.html#filtering-results for more details.""",
             )
 
         if len(new_data) == 0:
@@ -949,7 +1105,7 @@ class Results(UserList, Mixins, Base):
         return Results(survey=self.survey, data=new_data, created_columns=None)
 
     @classmethod
-    def example(cls, debug: bool = False, randomize: bool = False) -> Results:
+    def example(cls, randomize: bool = False) -> Results:
         """Return an example `Results` object.
 
         Example usage:
@@ -963,20 +1119,19 @@ class Results(UserList, Mixins, Base):
 
         c = Cache()
         job = Jobs.example(randomize=randomize)
-        results = job.run(cache=c, debug=debug)
+        results = job.run(
+            cache=c,
+            stop_on_exception=True,
+            skip_retry=True,
+            raise_validation_errors=True,
+            disable_remote_cache=True,
+            disable_remote_inference=True,
+        )
         return results
 
     def rich_print(self):
         """Display an object as a table."""
         pass
-        # with io.StringIO() as buf:
-        #     console = Console(file=buf, record=True)
-
-        #     for index, result in enumerate(self):
-        #         console.print(f"Result {index}")
-        #         console.print(result.rich_print())
-
-        #     return console.export_text()
 
     def __str__(self):
         data = self.to_dict()["data"]

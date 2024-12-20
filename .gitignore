@@ -6,6 +6,7 @@ _build/*
 *db.bak
 *db-shm
 *db-wal
+*docx
 *gz
 *json
 *jsonl
@@ -40,3 +41,5 @@ venv
 !.vscode/settings.json
 !tests/serialization/data/*.json
 .env*
+docs/notebooks/drafts/*
+test.py

@@ -8,9 +8,11 @@ import os
 import warnings
 from typing import Optional, Union
 from edsl.Base import Base
-from edsl.data.CacheEntry import CacheEntry
-from edsl.utilities.utilities import dict_hash
-from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
+
+
+# from edsl.utilities.decorators import remove_edsl_version
+from edsl.utilities.remove_edsl_version import remove_edsl_version
+from edsl.exceptions.cache import CacheError
 
 
 class Cache(Base):
@@ -24,6 +26,8 @@ class Cache(Base):
 
     :param method: The method of storage to use for the cache.
     """
+
+    __documentation__ = "https://docs.expectedparrot.com/en/latest/data.html"
 
     data = {}
 
@@ -57,7 +61,7 @@ class Cache(Base):
 
         self.filename = filename
         if filename and data:
-            raise ValueError("Cannot provide both filename and data")
+            raise CacheError("Cannot provide both filename and data")
         if filename is None and data is None:
             data = {}
         if data is not None:
@@ -75,23 +79,36 @@ class Cache(Base):
                 if os.path.exists(filename):
                     self.add_from_sqlite(filename)
             else:
-                raise ValueError("Invalid file extension. Must be .jsonl or .db")
+                raise CacheError("Invalid file extension. Must be .jsonl or .db")
 
         self._perform_checks()
 
-    def rich_print(sefl):
-        pass
-        # raise NotImplementedError("This method is not implemented yet.")
+    # def rich_print(sefl):
+    #     pass
+    #     # raise NotImplementedError("This method is not implemented yet.")
 
     def code(sefl):
         pass
         # raise NotImplementedError("This method is not implemented yet.")
 
     def keys(self):
+        """
+        >>> from edsl import Cache
+        >>> Cache.example().keys()
+        ['5513286eb6967abc0511211f0402587d']
+        """
         return list(self.data.keys())
 
     def values(self):
+        """
+        >>> from edsl import Cache
+        >>> Cache.example().values()
+        [CacheEntry(...)]
+        """
         return list(self.data.values())
+
+    def items(self):
+        return zip(self.keys(), self.values())
 
     def new_entries_cache(self) -> Cache:
         """Return a new Cache object with the new entries."""
@@ -102,7 +119,7 @@ class Cache(Base):
         from edsl.data.CacheEntry import CacheEntry
 
         if any(not isinstance(value, CacheEntry) for value in self.data.values()):
-            raise Exception("Not all values are CacheEntry instances")
+            raise CacheError("Not all values are CacheEntry instances")
         if self.method is not None:
             warnings.warn("Argument `method` is deprecated", DeprecationWarning)
 
@@ -160,7 +177,7 @@ class Cache(Base):
         parameters: str,
         system_prompt: str,
         user_prompt: str,
-        response: str,
+        response: dict,
         iteration: int,
     ) -> str:
         """
@@ -174,7 +191,17 @@ class Cache(Base):
         * The key-value pair is added to `self.new_entries`
         * If `immediate_write` is True , the key-value pair is added to `self.data`
         * If `immediate_write` is False, the key-value pair is added to `self.new_entries_to_write_later`
+
+        >>> from edsl import Cache, Model, Question
+        >>> m = Model("test")
+        >>> c = Cache()
+        >>> len(c)
+        0
+        >>> results = Question.example("free_text").by(m).run(cache = c, disable_remote_cache = True, disable_remote_inference = True)
+        >>> len(c)
+        1
         """
+        from edsl.data.CacheEntry import CacheEntry
 
         entry = CacheEntry(
             model=model,
@@ -200,13 +227,14 @@ class Cache(Base):
 
         :param write_now: Whether to write to the cache immediately (similar to `immediate_write`).
         """
+        from edsl.data.CacheEntry import CacheEntry
 
         for key, value in new_data.items():
             if key in self.data:
                 if value != self.data[key]:
-                    raise Exception("Mismatch in values")
+                    raise CacheError("Mismatch in values")
             if not isinstance(value, CacheEntry):
-                raise Exception(f"Wrong type - the observed type is {type(value)}")
+                raise CacheError(f"Wrong type - the observed type is {type(value)}")
 
         self.new_entries.update(new_data)
         if write_now:
@@ -220,6 +248,8 @@ class Cache(Base):
 
         :param write_now: Whether to write to the cache immediately (similar to `immediate_write`).
         """
+        from edsl.data.CacheEntry import CacheEntry
+
         with open(filename, "a+") as f:
             f.seek(0)
             lines = f.readlines()
@@ -315,7 +345,7 @@ class Cache(Base):
         elif filename.endswith(".db"):
             self.write_sqlite_db(filename)
         else:
-            raise ValueError("Invalid file extension. Must be .jsonl or .db")
+            raise CacheError("Invalid file extension. Must be .jsonl or .db")
 
     def write_jsonl(self, filename: str) -> None:
         """
@@ -325,6 +355,18 @@ class Cache(Base):
         with open(path, "w") as f:
             for key, value in self.data.items():
                 f.write(json.dumps({key: value.to_dict()}) + "\n")
+
+    def to_scenario_list(self):
+        from edsl.scenarios.ScenarioList import ScenarioList
+        from edsl.scenarios.Scenario import Scenario
+
+        scenarios = []
+        for key, value in self.data.items():
+            new_d = value.to_dict()
+            new_d["cache_key"] = key
+            s = Scenario(new_d)
+            scenarios.append(s)
+        return ScenarioList(scenarios)
 
     ####################
     # REMOTE
@@ -362,25 +404,48 @@ class Cache(Base):
     ####################
     def __hash__(self):
         """Return the hash of the Cache."""
-        return dict_hash(self._to_dict())
+        from edsl.utilities.utilities import dict_hash
 
-    def _to_dict(self) -> dict:
-        return {k: v.to_dict() for k, v in self.data.items()}
+        return dict_hash(self.to_dict(add_edsl_version=False))
 
-    @add_edsl_version
-    def to_dict(self) -> dict:
-        """Return the Cache as a dictionary."""
-        return self._to_dict()
+    def to_dict(self, add_edsl_version=True) -> dict:
+        d = {k: v.to_dict() for k, v in self.data.items()}
+        if add_edsl_version:
+            from edsl import __version__
 
-    def _repr_html_(self):
-        from edsl.utilities.utilities import data_to_html
+            d["edsl_version"] = __version__
+            d["edsl_class_name"] = "Cache"
 
-        return data_to_html(self.to_dict())
+        return d
+
+    def _summary(self):
+        return {"EDSL Class": "Cache", "Number of entries": len(self.data)}
+
+    def table(
+        self,
+        *fields,
+        tablefmt: Optional[str] = None,
+        pretty_labels: Optional[dict] = None,
+    ) -> str:
+        return self.to_dataset().table(
+            *fields, tablefmt=tablefmt, pretty_labels=pretty_labels
+        )
+
+    def select(self, *fields):
+        return self.to_dataset().select(*fields)
+
+    def tree(self, node_list: Optional[list[str]] = None):
+        return self.to_scenario_list().tree(node_list)
+
+    def to_dataset(self):
+        return self.to_scenario_list().to_dataset()
 
     @classmethod
     @remove_edsl_version
     def from_dict(cls, data) -> Cache:
         """Construct a Cache from a dictionary."""
+        from edsl.data.CacheEntry import CacheEntry
+
         newdata = {k: CacheEntry.from_dict(v) for k, v in data.items()}
         return cls(data=newdata)
 
@@ -404,7 +469,7 @@ class Cache(Base):
         Combine two caches.
         """
         if not isinstance(other, Cache):
-            raise ValueError("Can only add two caches together")
+            raise CacheError("Can only add two caches together")
         self.data.update(other.data)
         return self
 
@@ -423,6 +488,8 @@ class Cache(Base):
         """
         Create an example input for a 'fetch' operation.
         """
+        from edsl.data.CacheEntry import CacheEntry
+
         return CacheEntry.fetch_input_example()
 
     def to_html(self):
@@ -479,6 +546,8 @@ class Cache(Base):
 
         :param randomize: If True, uses CacheEntry's randomize method.
         """
+        from edsl.data.CacheEntry import CacheEntry
+
         return cls(
             data={
                 CacheEntry.example(randomize).key: CacheEntry.example(),

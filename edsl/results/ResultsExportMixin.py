@@ -14,6 +14,8 @@ def to_dataset(func):
         """Return the function with the Results object converted to a Dataset object."""
         if self.__class__.__name__ == "Results":
             return func(self.select(), *args, **kwargs)
+        elif self.__class__.__name__ == "AgentList":
+            return func(self.to_dataset(), *args, **kwargs)
         else:
             return func(self, *args, **kwargs)
 

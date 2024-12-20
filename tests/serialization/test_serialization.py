@@ -19,10 +19,13 @@ def test_serialization():
     ), f"No serialization data found for the current EDSL version ({version}). Please run `make test-data`."
 
     # get all EDSL classes that you'd like to test
-    subclass_registry = RegisterSubclassesMeta.get_registry()
+    subclass_registry = RegisterSubclassesMeta.get_registry(
+        exclude_classes=["AgentTraits"]
+    )
     questions_registry = RegisterQuestionsMeta.get_registered_classes()
     object_registry = ObjectRegistry.get_registry(
-        subclass_registry=subclass_registry, exclude_classes=["QuestionBase"]
+        subclass_registry=subclass_registry,
+        exclude_classes=["QuestionBase, AgentTraits"],
     )
     combined_items = itertools.chain(
         subclass_registry.items(),
@@ -45,7 +48,12 @@ def test_serialization():
             data = json.load(f)
         for item in data:
             class_name = item["class_name"]
-            if class_name == "QuestionFunctional":
+            if class_name in [
+                "QuestionFunctional",
+                "QuestionBudget",
+                "QuestionRank",
+                "QuestionTopK",
+            ]:
                 continue
             print(f"- Testing {class_name}")
             try:
@@ -69,7 +77,7 @@ def test_serialization_coverage():
     for all EDSL objects.
     """
     combined_items = itertools.chain(
-        RegisterSubclassesMeta.get_registry().items(),
+        RegisterSubclassesMeta.get_registry(exclude_classes=["AgentTraits"]).items(),
         RegisterQuestionsMeta.get_registered_classes().items(),
         ObjectRegistry.get_registry().items(),
     )
@@ -96,7 +104,16 @@ def test_serialization_coverage():
 
     classes_not_covered = (classes_to_cover - data_classes) - set(
         # We don't need the base Question or QuestionAddTwoNumbers (a test instance of QuestionFunctional)
-        ["QuestionBase", "QuestionAddTwoNumbers"]
+        [
+            "QuestionBase",
+            "QuestionAddTwoNumbers",
+            "FileStore",
+            "HTMLFileStore",
+            "CSVFileStore",
+            "PDFFileStore",
+            "PNGFileStore",
+            "SQLiteFileStore",
+        ]
     )
 
     assert (

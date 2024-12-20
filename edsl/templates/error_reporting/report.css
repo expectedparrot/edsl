@@ -1,0 +1,74 @@
+body {
+    font-family: Arial, sans-serif;
+    line-height: 1.6;
+    background-color: #f9f9f9;
+    color: #333;
+    margin: 20px;
+}
+
+.interview {
+    font-size: 1.5em;
+    margin-bottom: 10px;
+    padding: 10px;
+    background-color: #e3f2fd;
+    border-left: 5px solid #2196f3;
+}
+
+.question {
+    font-size: 1.2em;
+    margin-bottom: 10px;
+    padding: 10px;
+    background-color: #fff9c4;
+    border-left: 5px solid #ffeb3b;
+}
+
+.exception-detail {
+    margin-bottom: 10px;
+    background-color: #ffebee;
+    border-left: 5px solid #f44336;
+}
+
+.exception-header {
+    padding: 10px;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.exception-content {
+    padding: 10px;
+    display: none;
+}
+
+.exception-content.show {
+    display: block;
+}
+
+.question-detail {
+    border: 3px solid black;
+    padding: 10px;
+}
+
+.exception-exception {
+    font-weight: bold;
+    color: #d32f2f;
+}
+
+.exception-time,
+.exception-traceback {
+    font-style: italic;
+    color: #555;
+}
+
+.toggle-btn {
+    background: none;
+    border: none;
+    font-size: 1.2em;
+    cursor: pointer;
+    transition: transform 0.3s;
+}
+
+.toggle-btn.rotated {
+    transform: rotate(180deg);
+}

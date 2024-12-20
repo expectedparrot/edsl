@@ -1,5 +1,5 @@
 import pytest
-from edsl.data import CacheEntry
+from edsl.data.CacheEntry import CacheEntry
 from edsl.data.SQLiteDict import main
 
 

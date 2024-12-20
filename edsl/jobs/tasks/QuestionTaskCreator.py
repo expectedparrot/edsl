@@ -1,21 +1,17 @@
 import asyncio
-from typing import Callable, Union, List
+from typing import Callable, Union, List, TYPE_CHECKING
 from collections import UserList, UserDict
-import time
 
-from edsl.jobs.buckets import ModelBuckets
-from edsl.exceptions import InterviewErrorPriorTaskCanceled
+from edsl.exceptions.jobs import InterviewErrorPriorTaskCanceled
 
-from edsl.jobs.interviews.InterviewStatusDictionary import InterviewStatusDictionary
 from edsl.jobs.tasks.task_status_enum import TaskStatus, TaskStatusDescriptor
-
-# from edsl.jobs.tasks.task_management import TokensUsed
 from edsl.jobs.tasks.TaskStatusLog import TaskStatusLog
-from edsl.jobs.tokens.InterviewTokenUsage import InterviewTokenUsage
 from edsl.jobs.tokens.TokenUsage import TokenUsage
 from edsl.jobs.Answers import Answers
 
-from edsl.questions.QuestionBase import QuestionBase
+if TYPE_CHECKING:
+    from edsl.questions.QuestionBase import QuestionBase
+    from edsl.jobs.buckets import ModelBuckets
 
 
 class TokensUsed(UserDict):
@@ -28,7 +24,6 @@ class TokensUsed(UserDict):
 
 class QuestionTaskCreator(UserList):
     """Class to create and manage a single question and its dependencies.
-    The class is an instance of a UserList of tasks that must be completed before the focal task can be run.
 
     It is a UserList with all the tasks that must be completed before the focal task can be run.
     The focal task is the question that we are interested in answering.
@@ -39,9 +34,9 @@ class QuestionTaskCreator(UserList):
     def __init__(
         self,
         *,
-        question: QuestionBase,
+        question: "QuestionBase",
         answer_question_func: Callable,
-        model_buckets: ModelBuckets,
+        model_buckets: "ModelBuckets",
         token_estimator: Union[Callable, None] = None,
         iteration: int = 0,
     ):
@@ -60,8 +55,10 @@ class QuestionTaskCreator(UserList):
         self.iteration = iteration
 
         self.model_buckets = model_buckets
+
         self.requests_bucket = self.model_buckets.requests_bucket
         self.tokens_bucket = self.model_buckets.tokens_bucket
+
         self.status_log = TaskStatusLog()
 
         def fake_token_estimator(question):
@@ -87,10 +84,10 @@ class QuestionTaskCreator(UserList):
         """
         self.append(task)
 
-    def generate_task(self, debug: bool) -> asyncio.Task:
+    def generate_task(self) -> asyncio.Task:
         """Create a task that depends on the passed-in dependencies."""
         task = asyncio.create_task(
-            self._run_task_async(debug), name=self.question.question_name
+            self._run_task_async(), name=self.question.question_name
         )
         task.depends_on = [t.get_name() for t in self]
         return task
@@ -103,7 +100,7 @@ class QuestionTaskCreator(UserList):
         """Returns the token usage for the task.
 
         >>> qt = QuestionTaskCreator.example()
-        >>> answers = asyncio.run(qt._run_focal_task(debug=False))
+        >>> answers = asyncio.run(qt._run_focal_task())
         >>> qt.token_usage()
         {'cached_tokens': TokenUsage(from_cache=True, prompt_tokens=0, completion_tokens=0), 'new_tokens': TokenUsage(from_cache=False, prompt_tokens=0, completion_tokens=0)}
         """
@@ -111,15 +108,15 @@ class QuestionTaskCreator(UserList):
             cached_tokens=self.cached_token_usage, new_tokens=self.new_token_usage
         )
 
-    async def _run_focal_task(self, debug: bool) -> Answers:
+    async def _run_focal_task(self) -> Answers:
         """Run the focal task i.e., the question that we are interested in answering.
 
         It is only called after all the dependency tasks are completed.
 
         >>> qt = QuestionTaskCreator.example()
-        >>> answers = asyncio.run(qt._run_focal_task(debug=False))
-        >>> answers["answer"]
-        'Yo!'
+        >>> answers = asyncio.run(qt._run_focal_task())
+        >>> answers.answer
+        'This is an example answer'
         """
 
         requested_tokens = self.estimated_tokens()
@@ -128,61 +125,52 @@ class QuestionTaskCreator(UserList):
 
         await self.tokens_bucket.get_tokens(requested_tokens)
 
-        if (estimated_wait_time := self.requests_bucket.wait_time(1)) > 0:
-            self.waiting = True
+        if (estimated_wait_time := self.model_buckets.requests_bucket.wait_time(1)) > 0:
+            self.waiting = True  #  do we need this?
             self.task_status = TaskStatus.WAITING_FOR_REQUEST_CAPACITY
 
-        await self.tokens_bucket.get_tokens(1)
+        await self.model_buckets.requests_bucket.get_tokens(
+            1, cheat_bucket_capacity=True
+        )
 
         self.task_status = TaskStatus.API_CALL_IN_PROGRESS
         try:
             results = await self.answer_question_func(
-                question=self.question, debug=debug, task=None  # self
+                question=self.question, task=None  # self
             )
             self.task_status = TaskStatus.SUCCESS
         except Exception as e:
             self.task_status = TaskStatus.FAILED
             raise e
 
-        ## This isn't working
-        # breakpoint()
-        if results.get("cache_used", False):
-            self.tokens_bucket.add_tokens(requested_tokens)
-            self.requests_bucket.add_tokens(1)
+        if results.cache_used:
+            self.model_buckets.tokens_bucket.add_tokens(requested_tokens)
+            self.model_buckets.requests_bucket.add_tokens(1)
             self.from_cache = True
-            # print("Turning on turbo!")
-            self.tokens_bucket.turbo_mode_on()
-            self.requests_bucket.turbo_mode_on()
+            # Turbo mode means that we don't wait for tokens or requests.
+            self.model_buckets.tokens_bucket.turbo_mode_on()
+            self.model_buckets.requests_bucket.turbo_mode_on()
         else:
-            # breakpoint()
-            # print("Turning off turbo!")
-            self.tokens_bucket.turbo_mode_off()
-            self.requests_bucket.turbo_mode_off()
-
-        _ = results.pop("cached_response", None)
-
-        tracker = self.cached_token_usage if self.from_cache else self.new_token_usage
-
-        # TODO: This is hacky. The 'func' call should return an object that definitely has a 'usage' key.
-        usage = results.get("usage", {"prompt_tokens": 0, "completion_tokens": 0})
-        prompt_tokens = usage.get("prompt_tokens", 0)
-        completion_tokens = usage.get("completion_tokens", 0)
-        tracker.add_tokens(
-            prompt_tokens=prompt_tokens, completion_tokens=completion_tokens
-        )
+            self.model_buckets.tokens_bucket.turbo_mode_off()
+            self.model_buckets.requests_bucket.turbo_mode_off()
 
         return results
 
     @classmethod
     def example(cls):
         """Return an example instance of the class."""
-        from edsl import QuestionFreeText
+        from edsl.questions.QuestionFreeText import QuestionFreeText
         from edsl.jobs.buckets.ModelBuckets import ModelBuckets
 
         m = ModelBuckets.infinity_bucket()
 
-        async def answer_question_func(question, debug, task):
-            return {"answer": "Yo!"}
+        from collections import namedtuple
+
+        AnswerDict = namedtuple("AnswerDict", ["answer", "cache_used"])
+        answer = AnswerDict(answer="This is an example answer", cache_used=False)
+
+        async def answer_question_func(question, task):
+            return answer
 
         return cls(
             question=QuestionFreeText.example(),
@@ -192,7 +180,7 @@ class QuestionTaskCreator(UserList):
             iteration=0,
         )
 
-    async def _run_task_async(self, debug) -> None:
+    async def _run_task_async(self) -> None:
         """Run the task asynchronously, awaiting the tasks that must be completed before this one can be run.
 
         >>> qt1 = QuestionTaskCreator.example()
@@ -235,8 +223,6 @@ class QuestionTaskCreator(UserList):
                 if isinstance(result, Exception):
                     raise result
 
-            return await self._run_focal_task(debug)
-
         except asyncio.CancelledError:
             self.task_status = TaskStatus.CANCELLED
             raise
@@ -247,6 +233,9 @@ class QuestionTaskCreator(UserList):
             raise InterviewErrorPriorTaskCanceled(
                 f"Required tasks failed for {self.question.question_name}"
             ) from e
+
+        # this only runs if all the dependencies are successful
+        return await self._run_focal_task()
 
 
 if __name__ == "__main__":
