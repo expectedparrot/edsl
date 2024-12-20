@@ -10,7 +10,6 @@ from edsl.surveys.base import RulePriority, EndOfSurvey
 
 
 class EditSurvey:
-
     def __init__(self, survey):
         self.survey = survey
 
@@ -39,7 +38,6 @@ class EditSurvey:
     def add_question(
         self, question: "QuestionBase", index: Optional[int] = None
     ) -> "Survey":
-
         if question.question_name in self.survey.question_names:
             raise SurveyCreationError(
                 f"""Question name '{question.question_name}' already exists in survey. Existing names are {self.survey.question_names}."""

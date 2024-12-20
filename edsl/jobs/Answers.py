@@ -21,7 +21,7 @@ class Answers(UserDict):
         if comment:
             self[question.question_name + "_comment"] = comment
 
-    def replace_missing_answers_with_none(self, survey:'Survey') -> None:
+    def replace_missing_answers_with_none(self, survey: "Survey") -> None:
         """Replace missing answers with None. Answers can be missing if the agent skips a question."""
         for question_name in survey.question_names:
             if question_name not in self:

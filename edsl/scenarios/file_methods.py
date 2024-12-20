@@ -67,10 +67,12 @@ class FileMethods(ABC):
         return list(cls._handlers.keys())
 
     @abstractmethod
-    def view_system(self): ...
+    def view_system(self):
+        ...
 
     @abstractmethod
-    def view_notebook(self): ...
+    def view_notebook(self):
+        ...
 
     def view(self):
         if is_notebook():
@@ -79,4 +81,5 @@ class FileMethods(ABC):
             self.view_system()
 
     @abstractmethod
-    def example(self): ...
+    def example(self):
+        ...

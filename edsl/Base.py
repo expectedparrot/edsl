@@ -305,7 +305,6 @@ class RepresentationMixin:
 
 
 class HashingMixin:
-
     def __hash__(self) -> int:
         """Return a hash of the question."""
         from edsl.utilities.utilities import dict_hash

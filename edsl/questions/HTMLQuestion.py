@@ -3,7 +3,6 @@ from edsl.prompts.Prompt import Prompt
 
 
 class HTMLQuestion:
-
     def __init__(self, question):
         self.question = question
 

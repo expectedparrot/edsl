@@ -10,7 +10,6 @@ class SeparatedComponents:
 
 
 class InstructionHandler:
-
     def __init__(self, survey):
         self.survey = survey
 

@@ -3,7 +3,6 @@ import tempfile
 
 
 class TxtMethods(FileMethods):
-
     suffix = "txt"
 
     def view_system(self):

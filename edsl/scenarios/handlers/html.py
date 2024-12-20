@@ -3,7 +3,6 @@ import tempfile
 
 
 class HtmlMethods(FileMethods):
-
     suffix = "html"
 
     def view_system(self):

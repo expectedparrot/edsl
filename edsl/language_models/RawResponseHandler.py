@@ -6,7 +6,6 @@ from json_repair import repair_json
 
 
 def _extract_item_from_raw_response(data, sequence):
-
     if isinstance(data, str):
         try:
             data = json.loads(data)
