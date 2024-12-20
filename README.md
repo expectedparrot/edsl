@@ -31,24 +31,23 @@ q = QuestionMultipleChoice(
 # Run it with the default language model
 results = q.run()
 
-# Inspect the results in a dataset
-results.select("example_question").print()
+# Inspect the results 
+results.select("example_question")
 ```
 
 Output:
 ```python
-┏━━━━━━━━━━━━━━━━━━━┓
-┃ answer            ┃
-┃ .example_question ┃
-┡━━━━━━━━━━━━━━━━━━━┩
-│ Good              │
-└───────────────────┘
+┏━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ answer.example_question ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━┩
+│ Good                    │
+└─────────────────────────┘
 ```
 
 ## 💻 Requirements
 * EDSL is compatible with Python 3.9 - 3.12.
 * API keys for large language models that you want to use, stored in a `.env` file.
-See instructions on [storing API keys](https://docs.expectedparrot.com/en/latest/api_keys.html).
+See instructions on [storing API keys](https://docs.expectedparrot.com/en/latest/api_keys.html) and [activating remote inference](https://docs.expectedparrot.com/en/latest/remote_inference.html).
 
 ## 💡 Contributions, feature requests & bugs
 Interested in contributing? Want us to add a new feature? Found a bug for us to squash? 
