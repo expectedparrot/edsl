@@ -177,7 +177,7 @@ class AvailableModelFetcher:
                         )
 
                 except Exception as exc:
-                    print(f"Service query failed: {exc}")
+                    print(f"Service query failed for service {service_name}: {exc}")
                     continue
 
         return AvailableModels(all_models)

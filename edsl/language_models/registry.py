@@ -70,13 +70,27 @@ class Model(metaclass=Meta):
         from edsl.inference_services.registry import default
 
         registry = registry or default
+        services_with_local_keys = set(cls.key_info().select("service").to_list())
+        f = lambda service_name: (
+            "yes" if service_name in services_with_local_keys else " "
+        )
         return PrettyList(
-            [r._inference_service_ for r in registry.services], columns=["Service Name"]
+            [
+                (r._inference_service_, f(r._inference_service_))
+                for r in registry.services
+            ],
+            columns=["Service Name", "Local key?"],
         )
 
     @classmethod
+    def services_with_local_keys(cls):
+        return set(cls.key_info().select("service").to_list())
+
+    @classmethod
     def key_info(cls):
-        from edsl.language_models.key_management import KeyLookupCollection
+        from edsl.language_models.key_management.KeyLookupCollection import (
+            KeyLookupCollection,
+        )
         from edsl.scenarios import Scenario, ScenarioList
 
         klc = KeyLookupCollection()
@@ -94,6 +108,15 @@ class Model(metaclass=Meta):
         registry=None,
         service: Optional[str] = None,
     ):
+        if search_term is None and service is None:
+            print("Getting available models...")
+            print("You have local keys for the following services:")
+            print(cls.services_with_local_keys())
+            print("\n")
+            print("To see models by service, use the 'service' parameter.")
+            print("E.g., Model.available(service='openai')")
+            return None
+
         from edsl.inference_services.registry import default
 
         registry = registry or default
@@ -103,11 +126,7 @@ class Model(metaclass=Meta):
             if service not in cls.services(registry=registry):
                 raise ValueError(f"Service {service} not found in available services.")
 
-        # import time
-        # start = time.time()
         full_list = registry.available(service=service)
-        # end = time.time()
-        # print(f"Time taken to get available models: {end-start}")
 
         if search_term is None:
             if name_only:

@@ -1,6 +1,7 @@
 from __future__ import annotations
-from typing import Any, List, Optional
+from typing import Any, List, Optional, Dict, NewType
 import os
+
 
 import openai
 
@@ -10,6 +11,8 @@ from edsl.inference_services.rate_limits_cache import rate_limits
 from edsl.utilities.utilities import fix_partial_correct_response
 
 from edsl.config import CONFIG
+
+APIToken = NewType("APIToken", str)
 
 
 class OpenAIService(InferenceServiceABC):
@@ -22,35 +25,41 @@ class OpenAIService(InferenceServiceABC):
     _sync_client_ = openai.OpenAI
     _async_client_ = openai.AsyncOpenAI
 
-    _sync_client_instance = None
-    _async_client_instance = None
+    _sync_client_instances: Dict[APIToken, openai.OpenAI] = {}
+    _async_client_instances: Dict[APIToken, openai.AsyncOpenAI] = {}
 
     key_sequence = ["choices", 0, "message", "content"]
     usage_sequence = ["usage"]
     input_token_name = "prompt_tokens"
     output_token_name = "completion_tokens"
 
+    available_models_url = "https://platform.openai.com/docs/models/gp"
+
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
-        # so subclasses have to create their own instances of the clients
-        cls._sync_client_instance = None
-        cls._async_client_instance = None
+        # so subclasses that use the OpenAI api key have to create their own instances of the clients
+        cls._sync_client_instances = {}
+        cls._async_client_instances = {}
 
     @classmethod
-    def sync_client(cls):
-        if cls._sync_client_instance is None:
-            cls._sync_client_instance = cls._sync_client_(
-                api_key=os.getenv(cls._env_key_name_), base_url=cls._base_url_
+    def sync_client(cls, api_key):
+        if api_key not in cls._sync_client_instances:
+            client = cls._sync_client_(
+                api_key=api_key,
+                base_url=cls._base_url_,
             )
-        return cls._sync_client_instance
+            cls._sync_client_instances[api_key] = client
+        return client
 
     @classmethod
-    def async_client(cls):
-        if cls._async_client_instance is None:
-            cls._async_client_instance = cls._async_client_(
-                api_key=os.getenv(cls._env_key_name_), base_url=cls._base_url_
+    def async_client(cls, api_key):
+        if api_key not in cls._async_client_instances:
+            client = cls._async_client_(
+                api_key=api_key,
+                base_url=cls._base_url_,
             )
-        return cls._async_client_instance
+            cls._async_client_instances[api_key] = client
+        return client
 
     model_exclude_list = [
         "whisper-1",
@@ -120,10 +129,10 @@ class OpenAIService(InferenceServiceABC):
             }
 
             def sync_client(self):
-                return cls.sync_client()
+                return cls.sync_client(api_key=self.api_token)
 
             def async_client(self):
-                return cls.async_client()
+                return cls.async_client(api_key=self.api_token)
 
             @classmethod
             def available(cls) -> list[str]:
@@ -172,16 +181,16 @@ class OpenAIService(InferenceServiceABC):
             ) -> dict[str, Any]:
                 """Calls the OpenAI API and returns the API response."""
                 if files_list:
-                    encoded_image = files_list[0].base64_string
                     content = [{"type": "text", "text": user_prompt}]
-                    content.append(
-                        {
-                            "type": "image_url",
-                            "image_url": {
-                                "url": f"data:image/jpeg;base64,{encoded_image}"
-                            },
-                        }
-                    )
+                    for file_entry in files_list:
+                        content.append(
+                            {
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": f"data:{file_entry.mime_type};base64,{file_entry.base64_string}"
+                                },
+                            }
+                        )
                 else:
                     content = user_prompt
                 client = self.async_client()
