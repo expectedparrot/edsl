@@ -3,7 +3,6 @@ from edsl.results.table_data_class import TableData
 
 
 class DataTablesRendererABC(ABC):
-
     def __init__(self, table_data: TableData):
         self.table_data = table_data
 

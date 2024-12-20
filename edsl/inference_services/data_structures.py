@@ -32,7 +32,6 @@ class ModelNamesList(UserList):
 
 
 class AvailableModels(UserList):
-
     def __init__(self, data: list) -> None:
         super().__init__(data)
 

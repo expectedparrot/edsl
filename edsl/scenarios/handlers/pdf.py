@@ -5,19 +5,17 @@ from edsl.scenarios.file_methods import FileMethods
 
 
 class PdfMethods(FileMethods):
-
     suffix = "pdf"
 
     def extract_text(self):
-
         from PyPDF2 import PdfReader
 
         # Create a PDF reader object
         reader = PdfReader(self.path)
-        
+
         # Get number of pages
         num_pages = len(reader.pages)
-        
+
         # Extract text from all pages
         text = ""
         for page_num in range(num_pages):
@@ -25,7 +23,7 @@ class PdfMethods(FileMethods):
             page = reader.pages[page_num]
             # Extract text from page
             text += page.extract_text()
-            
+
         return text
 
     def view_system(self):
@@ -64,5 +62,7 @@ class PdfMethods(FileMethods):
 
     def example(self):
         from edsl.results.Results import Results
-        return Results.example().select('answer.how_feeling').first().pdf().to_tempfile()
 
+        return (
+            Results.example().select("answer.how_feeling").first().pdf().to_tempfile()
+        )

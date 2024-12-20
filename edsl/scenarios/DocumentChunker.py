@@ -8,7 +8,6 @@ if TYPE_CHECKING:
 
 
 class DocumentChunker:
-
     def __init__(self, scenario: "Scenario"):
         self.scenario = scenario
 

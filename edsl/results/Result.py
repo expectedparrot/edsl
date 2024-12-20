@@ -94,9 +94,10 @@ class Result(Base, UserDict):
         super().__init__(**data)
         self.indices = indices
         self._sub_dicts = self._construct_sub_dicts()
-        self._combined_dict, self._problem_keys = (
-            self._compute_combined_dict_and_problem_keys()
-        )
+        (
+            self._combined_dict,
+            self._problem_keys,
+        ) = self._compute_combined_dict_and_problem_keys()
 
     @staticmethod
     def _create_question_to_attributes(survey):
@@ -172,9 +173,9 @@ class Result(Base, UserDict):
             if question_name in self.question_to_attributes:
                 for dictionary_name in sub_dicts_needing_new_keys:
                     new_key = question_name + "_" + dictionary_name
-                    sub_dicts_needing_new_keys[dictionary_name][new_key] = (
-                        self.question_to_attributes[question_name][dictionary_name]
-                    )
+                    sub_dicts_needing_new_keys[dictionary_name][
+                        new_key
+                    ] = self.question_to_attributes[question_name][dictionary_name]
 
         new_cache_dict = {
             f"{k}_cache_used": v for k, v in self.data["cache_used_dict"].items()
@@ -251,9 +252,10 @@ class Result(Base, UserDict):
         'OK'
         """
         if self._combined_dict is None or self._problem_keys is None:
-            self._combined_dict, self._problem_keys = (
-                self._compute_combined_dict_and_problem_keys()
-            )
+            (
+                self._combined_dict,
+                self._problem_keys,
+            ) = self._compute_combined_dict_and_problem_keys()
         return self._combined_dict
 
     @property

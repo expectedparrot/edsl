@@ -4,14 +4,13 @@ import tempfile
 
 
 class PptxMethods(FileMethods):
-
     suffix = "pptx"
 
     def extract_text(self):
         from pptx import Presentation
 
         self.ppt = Presentation(self.path)
-        
+
         # Extract all text from slides
         full_text = []
         for slide in self.ppt.slides:
@@ -44,9 +43,9 @@ class PptxMethods(FileMethods):
     def view_notebook(self):
         from pptx import Presentation
         from IPython.display import HTML, display
-        
+
         prs = Presentation(self.path)
-        
+
         # Create a simple HTML representation of the slides
         html_content = []
         for i, slide in enumerate(prs.slides, 1):
@@ -54,14 +53,16 @@ class PptxMethods(FileMethods):
             for shape in slide.shapes:
                 if hasattr(shape, "text"):
                     slide_content.append(f"<p>{shape.text}</p>")
-            
-            html_content.append(f"""
+
+            html_content.append(
+                f"""
                 <div style='border: 1px solid #ccc; margin: 10px; padding: 10px;'>
                     <h3>Slide {i}</h3>
                     {''.join(slide_content)}
                 </div>
-            """)
-        
+            """
+            )
+
         html = f"""
         <div style="width: 800px; height: 800px; padding: 20px; 
                    border: 1px solid #ccc; overflow-y: auto;">
@@ -76,14 +77,14 @@ class PptxMethods(FileMethods):
         from edsl.scenarios.ScenarioList import ScenarioList
 
         os.makedirs("test_dir", exist_ok=True)
-        
+
         # Create first presentation
         ppt1 = Presentation()
         slide = ppt1.slides.add_slide(ppt1.slide_layouts[0])
         title = slide.shapes.title
         title.text = "First Presentation"
         ppt1.save("test_dir/test1.pptx")
-        
+
         # Create second presentation
         ppt2 = Presentation()
         slide = ppt2.slides.add_slide(ppt2.slide_layouts[0])
@@ -100,4 +101,5 @@ class PptxMethods(FileMethods):
 if __name__ == "__main__":
     pptx_temp = PptxMethods.example()
     from edsl.scenarios.FileStore import FileStore
+
     fs = FileStore(pptx_temp)

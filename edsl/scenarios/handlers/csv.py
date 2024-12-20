@@ -3,7 +3,6 @@ from edsl.scenarios.file_methods import FileMethods
 
 
 class CsvMethods(FileMethods):
-
     suffix = "csv"
 
     def view_system(self):

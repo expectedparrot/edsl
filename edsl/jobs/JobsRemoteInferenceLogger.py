@@ -39,7 +39,6 @@ class JobsInfo:
 
 
 class JobLogger(ABC):
-
     def __init__(self, verbose: bool = False):
         self.verbose = verbose
         self.jobs_info = JobsInfo()
@@ -167,7 +166,6 @@ class HTMLTableJobLogger(JobLogger):
 
 
 class StdOutJobLogger(JobLogger):
-
     def __init__(self, verbose=True, **kwargs):
         super().__init__(verbose=verbose)  # Properly call parent's __init__
         self.messages: List[LogMessage] = []

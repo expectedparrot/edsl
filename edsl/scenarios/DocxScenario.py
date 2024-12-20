@@ -6,7 +6,6 @@ class DocxScenario:
         self.docx_path = docx_path
 
     def get_scenario_dict(self) -> dict:
-
         # Extract all text
         full_text = []
         for para in self.doc.paragraphs:

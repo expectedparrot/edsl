@@ -17,7 +17,6 @@ def get_input_with_timeout(prompt, timeout=5, default="y"):
 
 
 class ExpectedParrotKeyHandler:
-
     asked_to_store_file_name = "asked_to_store.txt"
     ep_key_file_name = "ep_api_key.txt"
     application_name = "edsl"
@@ -114,7 +113,6 @@ class ExpectedParrotKeyHandler:
             print("Deleted Expected Parrot API key at ", key_path)
 
     def store_ep_api_key(self, api_key):
-
         # Create the directory if it doesn't exist
         os.makedirs(self.config_dir, exist_ok=True)
 

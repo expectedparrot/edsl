@@ -4,7 +4,6 @@ import tempfile
 
 
 class DocxMethods(FileMethods):
-
     suffix = "docx"
 
     def extract_text(self):
@@ -73,4 +72,5 @@ class DocxMethods(FileMethods):
 if __name__ == "__main__":
     docx_temp = DocxMethods.example()
     from edsl.scenarios.FileStore import FileStore
+
     fs = FileStore(docx_temp)

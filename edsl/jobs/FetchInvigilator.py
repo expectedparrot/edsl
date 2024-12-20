@@ -2,7 +2,6 @@ from typing import List, Dict, Any, Optional
 
 
 class FetchInvigilator:
-
     def __init__(self, interview, current_answers: Optional[Dict[str, Any]] = None):
         self.interview = interview
         if current_answers is None:
