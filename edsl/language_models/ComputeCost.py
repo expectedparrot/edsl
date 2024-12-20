@@ -2,7 +2,6 @@ from typing import Any, Union
 
 
 class ComputeCost:
-
     def __init__(self, language_model: "LanguageModel"):
         self.language_model = language_model
         self._price_lookup = None

@@ -4,7 +4,6 @@ from edsl.exceptions.surveys import SurveyError
 
 
 class ConstructDAG:
-
     def __init__(self, survey):
         self.survey = survey
         self.questions = survey.questions

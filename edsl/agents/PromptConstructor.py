@@ -140,9 +140,10 @@ class PromptConstructor:
         """
         d = {}
         for key, value in current_answers.items():
-            question_name, entry_type = (
-                PromptConstructor._extract_quetion_and_entry_type(key)
-            )
+            (
+                question_name,
+                entry_type,
+            ) = PromptConstructor._extract_quetion_and_entry_type(key)
             if question_name not in d:
                 d[question_name] = {}
             d[question_name][entry_type] = value

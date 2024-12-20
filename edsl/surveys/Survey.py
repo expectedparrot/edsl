@@ -21,7 +21,6 @@ from collections import UserDict
 
 
 class PseudoIndices(UserDict):
-
     @property
     def max_pseudo_index(self) -> float:
         """Return the maximum pseudo index in the survey.
@@ -365,7 +364,6 @@ class Survey(SurveyExportMixin, Base):
 
                 return ChangeInstruction
             else:
-
                 return QuestionBase
 
         questions = [

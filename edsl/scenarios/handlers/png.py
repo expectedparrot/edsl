@@ -3,7 +3,6 @@ from edsl.scenarios.file_methods import FileMethods
 
 
 class PngMethods(FileMethods):
-
     suffix = "png"
 
     def view_system(self):

@@ -18,7 +18,6 @@ class ValidatedString(str):
 
 
 class RuleManager:
-
     def __init__(self, survey):
         self.survey = survey
 

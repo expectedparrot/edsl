@@ -371,7 +371,6 @@ class AgentList(UserList, ResultsExportMixin, Base):
         tablefmt: Optional[str] = None,
         pretty_labels: Optional[dict] = None,
     ) -> Table:
-
         if len(self) == 0:
             e = AgentListError("Cannot create a table from an empty AgentList.")
             if is_notebook():

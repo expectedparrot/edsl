@@ -10,7 +10,6 @@ class SmartFloat(float):
 
 
 class SmartStr(str):
-
     def clipboard(self) -> None:
         try:
             import pyperclip
