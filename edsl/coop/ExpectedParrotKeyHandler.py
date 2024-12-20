@@ -28,6 +28,17 @@ class ExpectedParrotKeyHandler:
             not Path(self.config_dir).joinpath(self.asked_to_store_file_name).exists()
         )
 
+    def reset_asked_to_store(self):
+        """Reset the flag that indicates whether the user has been asked to store the key."""
+        asked_to_store_path = Path(self.config_dir).joinpath(
+            self.asked_to_store_file_name
+        )
+        if asked_to_store_path.exists():
+            os.remove(asked_to_store_path)
+            print(
+                "Deleted the file that indicates whether the user has been asked to store the key."
+            )
+
     def ask_to_store(self, api_key) -> bool:
         """Ask the user if they want to store the Expected Parrot key. If they say "yes", store it."""
         if self.ok_to_ask_to_store():
@@ -51,11 +62,31 @@ class ExpectedParrotKeyHandler:
         # check if the key is stored in the config_dir
         if self._ep_key_file_exists():
             with open(Path(self.config_dir).joinpath(self.ep_key_file_name), "r") as f:
-                api_key = f.read().strip()
-                # print("Using stored Expected Parrot API key at ", f.name)
-                return api_key
+                api_key_from_cache = f.read().strip()
+        else:
+            api_key_from_cache = None
+            # print("Using stored Expected Parrot API key at ", f.name)
+            # return api_key
 
-        api_key = os.getenv("EXPECTED_PARROT_API_KEY")
+        api_key_from_os = os.getenv("EXPECTED_PARROT_API_KEY")
+
+        if api_key_from_os and api_key_from_cache:
+            if api_key_from_os != api_key_from_cache:
+                import warnings
+
+                warnings.warn(
+                    "WARNING: The Expected Parrot API key from the environment variable "
+                    "differs from the one stored in the config directory. Using the one "
+                    "from the environment variable."
+                )
+            api_key = api_key_from_os
+
+        if api_key_from_os and not api_key_from_cache:
+            api_key = api_key_from_os
+
+        if not api_key_from_os and api_key_from_cache:
+            api_key = api_key_from_cache
+
         if api_key is not None:
             _ = self.ask_to_store(api_key)
         return api_key
