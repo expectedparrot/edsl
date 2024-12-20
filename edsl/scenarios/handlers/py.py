@@ -66,12 +66,12 @@ class PyMethods(FileMethods):
             .highlight .p { color: var(--jp-content-font-color0, #000) } /* Punctuation */
             """
 
-            formatter = HtmlFormatter(style='default')
+            formatter = HtmlFormatter(style="default")
             highlighted_python = pygments.highlight(content, PythonLexer(), formatter)
-            
+
             # Combine the custom CSS with basic formatter CSS
-            css = formatter.get_style_defs('.highlight') + custom_css
-            
+            css = formatter.get_style_defs(".highlight") + custom_css
+
             display(HTML(f"<style>{css}</style>{highlighted_python}"))
             display(FileLink(self.path))
         except Exception as e:
@@ -190,7 +190,7 @@ class PyMethods(FileMethods):
             cmd = [sys.executable, self.path]
             if args:
                 cmd.extend(args)
-            
+
             result = subprocess.run(cmd, capture_output=True, text=True)
             print(result.stdout)
             if result.stderr:
@@ -207,7 +207,7 @@ class PyMethods(FileMethods):
             imports = self.extract_imports()
             for imp in imports:
                 # Get the top-level module name
-                top_module = imp.split('.')[0]
+                top_module = imp.split(".")[0]
                 if not util.find_spec(top_module):
                     missing_deps.append(top_module)
             return missing_deps

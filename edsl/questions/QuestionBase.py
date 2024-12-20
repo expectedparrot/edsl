@@ -62,7 +62,8 @@ class QuestionBase(
         if not hasattr(self, "_fake_data_factory"):
             from polyfactory.factories.pydantic_factory import ModelFactory
 
-            class FakeData(ModelFactory[self.response_model]): ...
+            class FakeData(ModelFactory[self.response_model]):
+                ...
 
             self._fake_data_factory = FakeData
         return self._fake_data_factory

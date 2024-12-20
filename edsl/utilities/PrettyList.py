@@ -8,7 +8,6 @@ class PrettyList(UserList):
         self.columns = columns
 
     def _repr_html_(self):
-
         if isinstance(self[0], list) or isinstance(self[0], tuple):
             num_cols = len(self[0])
         else:

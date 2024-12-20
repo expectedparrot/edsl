@@ -1,5 +1,4 @@
 class CoopFunctionsMixin:
-
     def better_names(self, existing_names):
         from edsl import QuestionList, Scenario
 

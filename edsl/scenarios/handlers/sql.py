@@ -46,13 +46,51 @@ class SqlMethods(FileMethods):
     def _format_keywords(self, sql: str) -> str:
         """Capitalize SQL keywords."""
         keywords = {
-            'select', 'from', 'where', 'and', 'or', 'insert', 'update', 'delete',
-            'create', 'drop', 'alter', 'table', 'into', 'values', 'group', 'by',
-            'having', 'order', 'limit', 'join', 'left', 'right', 'inner', 'outer',
-            'on', 'as', 'distinct', 'count', 'sum', 'avg', 'max', 'min', 'between',
-            'like', 'in', 'is', 'null', 'not', 'case', 'when', 'then', 'else', 'end'
+            "select",
+            "from",
+            "where",
+            "and",
+            "or",
+            "insert",
+            "update",
+            "delete",
+            "create",
+            "drop",
+            "alter",
+            "table",
+            "into",
+            "values",
+            "group",
+            "by",
+            "having",
+            "order",
+            "limit",
+            "join",
+            "left",
+            "right",
+            "inner",
+            "outer",
+            "on",
+            "as",
+            "distinct",
+            "count",
+            "sum",
+            "avg",
+            "max",
+            "min",
+            "between",
+            "like",
+            "in",
+            "is",
+            "null",
+            "not",
+            "case",
+            "when",
+            "then",
+            "else",
+            "end",
         }
-        
+
         words = sql.split()
         formatted_words = []
         for word in words:
@@ -61,38 +99,47 @@ class SqlMethods(FileMethods):
                 formatted_words.append(word.upper())
             else:
                 formatted_words.append(word.lower())
-        return ' '.join(formatted_words)
+        return " ".join(formatted_words)
 
     def _indent_sql(self, sql: str) -> str:
         """Add basic indentation to SQL statement."""
-        lines = sql.split('\n')
+        lines = sql.split("\n")
         indented_lines = []
         indent_level = 0
-        
+
         for line in lines:
             line = line.strip()
-            
+
             # Decrease indent for closing parentheses
-            if line.startswith(')'):
+            if line.startswith(")"):
                 indent_level = max(0, indent_level - 1)
-            
+
             # Add indentation
             if line:
-                indented_lines.append('    ' * indent_level + line)
+                indented_lines.append("    " * indent_level + line)
             else:
-                indented_lines.append('')
-            
+                indented_lines.append("")
+
             # Increase indent after opening parentheses
-            if line.endswith('('):
+            if line.endswith("("):
                 indent_level += 1
-            
+
             # Special cases for common SQL clauses
             lower_line = line.lower()
-            if any(clause in lower_line for clause in 
-                   ['select', 'from', 'where', 'group by', 'having', 'order by']):
+            if any(
+                clause in lower_line
+                for clause in [
+                    "select",
+                    "from",
+                    "where",
+                    "group by",
+                    "having",
+                    "order by",
+                ]
+            ):
                 indent_level = 1
-            
-        return '\n'.join(indented_lines)
+
+        return "\n".join(indented_lines)
 
     def format_sql(self) -> bool:
         """Format the SQL file with proper indentation and keyword capitalization."""
@@ -101,22 +148,22 @@ class SqlMethods(FileMethods):
                 content = f.read()
 
             # Remove extra whitespace and format
-            content = ' '.join(content.split())
+            content = " ".join(content.split())
             content = self._format_keywords(content)
             content = self._indent_sql(content)
-            
+
             # Wrap long lines
             wrapped_content = []
-            for line in content.split('\n'):
+            for line in content.split("\n"):
                 if len(line) > 80:
                     wrapped_line = textwrap.fill(
-                        line, width=80, subsequent_indent='    '
+                        line, width=80, subsequent_indent="    "
                     )
                     wrapped_content.append(wrapped_line)
                 else:
                     wrapped_content.append(line)
-            
-            formatted_sql = '\n'.join(wrapped_content)
+
+            formatted_sql = "\n".join(wrapped_content)
 
             with open(self.path, "w", encoding="utf-8") as f:
                 f.write(formatted_sql)
@@ -135,28 +182,28 @@ class SqlMethods(FileMethods):
             # Handle both semicolon and GO statement terminators
             statements = []
             current_stmt = []
-            
-            for line in content.split('\n'):
+
+            for line in content.split("\n"):
                 line = line.strip()
-                
+
                 # Skip empty lines and comments
-                if not line or line.startswith('--'):
+                if not line or line.startswith("--"):
                     continue
-                
-                if line.endswith(';'):
+
+                if line.endswith(";"):
                     current_stmt.append(line[:-1])  # Remove semicolon
-                    statements.append(' '.join(current_stmt))
+                    statements.append(" ".join(current_stmt))
                     current_stmt = []
-                elif line.upper() == 'GO':
+                elif line.upper() == "GO":
                     if current_stmt:
-                        statements.append(' '.join(current_stmt))
+                        statements.append(" ".join(current_stmt))
                         current_stmt = []
                 else:
                     current_stmt.append(line)
-            
+
             # Add any remaining statement
             if current_stmt:
-                statements.append(' '.join(current_stmt))
+                statements.append(" ".join(current_stmt))
 
             return [stmt.strip() for stmt in statements if stmt.strip()]
         except Exception as e:
@@ -189,12 +236,12 @@ class SqlMethods(FileMethods):
                     ]
                 ):
                     print(f"Warning: Statement might be incomplete: {stmt}")
-                
+
                 # Check for basic parentheses matching
-                if stmt.count('(') != stmt.count(')'):
+                if stmt.count("(") != stmt.count(")"):
                     print(f"Error: Unmatched parentheses in statement: {stmt}")
                     return False
-                
+
                 # Check for basic quote matching
                 if stmt.count("'") % 2 != 0:
                     print(f"Error: Unmatched quotes in statement: {stmt}")
