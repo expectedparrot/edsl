@@ -1,0 +1,5 @@
+{{question_text}}
+{% for option in question_options %}
+{{option}} : {{ option_labels.get(option, "") }}
+{% endfor %}
+Only 1 option may be selected.

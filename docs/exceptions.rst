@@ -1,110 +1,116 @@
 .. _exceptions:
 
-Exceptions
-==========
+Exceptions & Debugging
+======================
 
-Details on exceptions raised during the execution of a survey can be found in the `Results` object that is returned when a survey is run. 
-The `Results` method `show_exceptions()` can be called to display these exceptions in a table.
-
-Here's an example of a poorly written question that is likely to raise an exception:
-
-.. code-block:: python
-
-    from edsl.questions import QuestionMultipleChoice
-
-    q = QuestionMultipleChoice(
-        question_name = "bad_instruction",
-        question_text = "What is your favorite color?",
-        question_options = ["breakfast", "lunch", "dinner"] # Non-sensical options for the question
-    )
-
-    results = q.run()
+An exception is an error that occurs during the execution of a question or survey. 
+When an exception is raised, EDSL will display a message about the error and an interactive report with more details in a new browser tab.
 
 
-The above code will likely raise a `QuestionAnswerValidationError` exception because the question options are not related to the question text.
+Help debugging
+--------------
 
-This is the initial exception message that will be displayed:
+If you would like help debugging an error that you are encountering, please feel free to share your code, objects and exceptions report with us.
 
-.. code-block:: text
-
-    Exceptions were raised in the following interviews: [0]
-    The returned results have a ".show_exceptions()" attribute e.g., 
-
-    >>> results = suvey.by(agents).by(scenarios).run() 
-    >>> results.show_exceptions()
-
-    Exceptions details are available here: 
-
-    >>> from edsl import shared_globals
-    >>> shared_globals['edsl_runner_exceptions'].show_exceptions()
-
-    For more details see documentation: https://docs.expectedparrot.com/en/latest/exceptions.html
-
-
-We can then call `results.show_exceptions()` to see the details of the exceptions that were raised:
+An easy way to do this is to post a notebook with your code to the :ref:`coop` and **share the link with us at info@expectedparrot.com**.
+You can use the following code to generate a link to your notebook:
 
 .. code-block:: python
 
-    results.show_exceptions()
+    from edsl import notebook
+
+    n = Notebook(path="path/to/your/notebook.ipynb")
+
+    n.push(description="Notebook with code that raises an exception", visibility="private")
 
 
-This will display a table showing the question name, the exception that was raised, the time the exception was raised, and the traceback of the exception:
 
-.. code-block:: text
+Common exceptions
+-----------------
 
-    ┏━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━┓
-    ┃ Question     ┃                                  ┃                    ┃                      ┃
-    ┃ name         ┃ Exception                        ┃               Time ┃ Traceback            ┃
-    ┡━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━┩
-    │ bad_instruc… │ QuestionAnswerValidationError('… │  1715454910.892732 │                      │
-    │              │ code must be a string, a         │                    │                      │
-    │              │ bytes-like object or a real      │                    │                      │
-    │              │ number (got This question seems  │                    │                      │
-    │              │ to be malformed. Favorite colors │                    │                      │
-    │              │ are not typically associated     │                    │                      │
-    │              │ with meals. Please provide       │                    │                      │
-    │              │ appropriate options for favorite │                    │                      │
-    │              │ colors.).')                      │                    │                      │
-    │ bad_instruc… │ QuestionAnswerValidationError("… │ 1715454913.7596118 │                      │
-    │              │ code must be a string, a         │                    │                      │
-    │              │ bytes-like object or a real      │                    │                      │
-    │              │ number (got The question is      │                    │                      │
-    │              │ about my favorite color, which   │                    │                      │
-    │              │ isn't represented by any of the  │                    │                      │
-    │              │ options provided as they are     │                    │                      │
-    │              │ meals of the day. Please provide │                    │                      │
-    │              │ color options for a valid        │                    │                      │
-    │              │ selection.).")                   │                    │                      │
-    │ bad_instruc… │ QuestionAnswerValidationError('… │   1715454917.53185 │                      │
-    │              │ code must be a string, a         │                    │                      │
-    │              │ bytes-like object or a real      │                    │                      │
-    │              │ number (got Invalid).')          │                    │                      │
-    │ bad_instruc… │ QuestionAnswerValidationError('… │  1715454923.154378 │                      │
-    │              │ code must be a string, a         │                    │                      │
-    │              │ bytes-like object or a real      │                    │                      │
-    │              │ number (got The options provided │                    │                      │
-    │              │ do not include colors, they are  │                    │                      │
-    │              │ meal times. Therefore, I cannot  │                    │                      │
-    │              │ select a favorite color from     │                    │                      │
-    │              │ these options.).')               │                    │                      │
-    │ bad_instruc… │ QuestionAnswerValidationError('… │ 1715454933.1015732 │                      │
-    │              │ code must be a string, a         │                    │                      │
-    │              │ bytes-like object or a real      │                    │                      │
-    │              │ number (got Invalid).')          │                    │                      │
-    │ bad_instruc… │ InterviewErrorPriorTaskCanceled… │  1715454933.102806 │                      │
-    │              │ tasks failed for                 │                    │                      │
-    │              │ bad_instruction')                │                    │                      │
-    └──────────────┴──────────────────────────────────┴────────────────────┴──────────────────────┘
+Answer validation errors
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+A number of exceptions may indicate that there is a problem with the way that a question has been constructed or answered.
+For example, you may intend for the answer to be formatted as a list but receive a string instead.
+Or a question may be unanswered and the model has returned `None`.
+These exceptions are typically raised by the `Question` class and are subclassed from `QuestionAnswerValidationError`.
+
+A useful starting point for debugging these exceptions is to check the `Settings` class for the `Questions` model (https://github.com/expectedparrot/edsl/blob/main/edsl/questions/settings.py).
+The default settings (which can be modified) are as follows:
+
+.. code-block:: python
+
+    MAX_ANSWER_LENGTH = 2000
+    MAX_EXPRESSION_CONSTRAINT_LENGTH = 1000
+    MAX_NUM_OPTIONS = 200
+    MIN_NUM_OPTIONS = 2
+    MAX_OPTION_LENGTH = 10000
+    MAX_QUESTION_LENGTH = 100000
+
+
+Missing API key 
+^^^^^^^^^^^^^^^
+
+You will receive a `MissingAPIKeyError` exception if you try to run a question and have not activated :ref:`remote_inference` or stored an API key for the model that you are trying to use.
+
+
+Problem with inference provider
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Some exceptions may indicate that there is a problem with your account with an inference provider, such as insufficient credits.
+
+
+API Timeout
+^^^^^^^^^^^
+
+The maximum number of seconds to wait for an API call to return can be specified in `config.py`:
+
+.. code-block:: python
+
+    CONFIG_MAP = {
+        ...
+        "EDSL_API_TIMEOUT": {
+            "default": "60",
+            "info": "This env var determines the maximum number of seconds to wait for an API call to return.",
+        },
+        ...
 
 
 Missing packages
-----------------
+^^^^^^^^^^^^^^^^
+
 A `ModuleNotFoundError` exception will be raised if a required package is not installed. 
 This is more likely to occur when cloning the repository instead of installing the package using `pip install edsl`.
 It can typically be remedied by reinstalling your virtual environment or installing the missing package using `pip install <package_name>`.
 
 
-.. .. automodule:: edsl.results.Results
-..    :members: show_exceptions
-..    :undoc-members:
-..    :show-inheritance:
+Strategies for dealing with exceptions
+--------------------------------------
+
+Re-try the question
+^^^^^^^^^^^^^^^^^^^
+
+If an exception is raised, the question will be re-tried up to a maximum number of attempts.
+The number of retries can be specified in `config.py`:
+
+.. code-block:: python
+
+    CONFIG_MAP = {
+        ...
+        "EDSL_MAX_ATTEMPTS": {
+            "default": "5",
+            "info": "This env var determines the maximum number of times to retry a failed API call.",
+        },
+        ...
+
+
+By default, your successful results are cached, so re-executing a survey will only re-run the questions that were not answered successfully in the previous run.
+Learn more about working with :ref:`data`. 
+
+
+Search for the exception message in the documentation
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The name of the exception that is raised will often provide a clue as to what the problem is.
+You can search for the exception type in the search bar at the top of the main documentation page to find more information about the exception and how to resolve it.

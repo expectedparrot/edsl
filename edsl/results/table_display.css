@@ -1,0 +1,78 @@
+.table-container {
+    height: var(--containerHeight) !important;
+    width: 100%;
+    overflow: auto;  /* This enables both horizontal and vertical scrolling */
+    border: 1px solid #d4d4d4;
+    background: transparent;
+    position: relative;  /* Create stacking context for sticky header */
+}
+
+.scroll-table {
+    /* Remove width: 100% to prevent table from being constrained */
+    /* min-width: 100% ensures table takes at least full container width */
+    min-width: 100%;
+    border-collapse: separate;
+    border-spacing: 4px;
+    background: transparent;
+    table-layout: auto;  /* Allow table to size based on content */
+}
+
+.scroll-table th {
+    background: transparent;  /* Semi-transparent background to ensure text readability */
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    text-align: left !important;
+    padding: 8px;
+    font-weight: bold;
+    white-space: nowrap;  /* Prevent header text from wrapping */
+    min-width: 100px;    /* Ensure minimum column width */
+    backdrop-filter: blur(8px);  /* Optional: adds extra clarity */
+    color: var(--headerColor);
+}
+
+.scroll-table td {
+    padding: 8px;
+    text-align: left !important;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    vertical-align: top;
+    color: inherit;
+    border-bottom: none;
+    background: transparent;
+    min-width: 100px;    /* Match header minimum width */
+}
+
+.scroll-table tbody tr:hover {
+    background: transparent;
+}
+
+/* Additional rule to ensure header background is truly transparent */
+.scroll-table thead tr {
+    background: transparent !important;
+}
+
+/* Add shadow to indicate scrollable content */
+.table-container::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 5px;
+    background: linear-gradient(to right, transparent, rgba(242, 6, 6, 0.1));
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.table-container:hover::after {
+    opacity: 1;
+}
+
+/* Handle Jupyter notebook specific styling */
+.jp-OutputArea-output .table-container {
+    max-width: 100%;
+    margin: 0;
+    overflow-x: auto;
+}

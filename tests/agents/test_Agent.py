@@ -1,16 +1,13 @@
-import json
 import pytest
-from unittest.mock import patch
 from edsl.agents.Agent import Agent
 from edsl.exceptions.agents import (
     AgentCombinationError,
-    AgentRespondedWithBadJSONError,
     AgentDirectAnswerFunctionError,
     AgentDynamicTraitsFunctionError,
 )
 from edsl.jobs import Jobs
 from edsl.questions import QuestionMultipleChoice
-from edsl.surveys import Survey
+from edsl.surveys.Survey import Survey
 
 from edsl.exceptions.agents import AgentNameError
 from edsl.exceptions.agents import AgentTraitKeyError
@@ -29,32 +26,6 @@ def test_agent_creation_valid():
     agent_dict = {"traits": {"age": 10, "pro": [1, 2]}}
     agent = Agent(**agent_dict)
     assert agent.traits == agent_dict.get("traits")
-
-    # def test_agent_update_traits():
-    #     agent = Agent(traits={"age": 30})
-
-    #     # missing callback
-    #     # with pytest.raises(AgentAttributeLookupCallbackError):
-    #     #     agent.update_traits(["height"])
-
-    #     # valid callback and features
-    #     def valid_lookup_callback(attribute):
-    #         if attribute == "height":
-    #             return ("height", "170cm")
-    #         return (attribute, "unknown")
-
-    #     new_attributes = ["height", "profession"]
-    #     agent.update_traits(new_attributes, valid_lookup_callback)
-    #     assert agent.traits == {"height": "170cm", "profession": "unknown"}
-
-    # # invalid callback - doesn't handle missing
-    # def invalid_lookup_callback(attribute):
-    #     if attribute == "length":
-    #         return ("length", "150cm")
-
-    # new_attributes = ["duration"]
-    # with pytest.raises(AgentAttributeLookupCallbackError):
-    #     agent.update_traits(new_attributes, invalid_lookup_callback)
 
 
 def test_agent_dunder_methods():

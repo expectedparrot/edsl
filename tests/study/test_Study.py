@@ -1,6 +1,10 @@
 import pytest
 
-from edsl import Study
+from edsl.study.Study import Study
+from edsl.questions.QuestionFreeText import QuestionFreeText
+from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
+
+from uuid import UUID
 
 
 def test_instantiate():
@@ -11,8 +15,6 @@ def test_instantiate():
 
 def test_exception_non_empty_namespace():
     with pytest.raises(ValueError):
-        from edsl import QuestionFreeText
-
         q = QuestionFreeText.example()
         with Study() as study:
             pass
@@ -22,8 +24,6 @@ def test_record_objects():
     import tempfile
 
     f = tempfile.NamedTemporaryFile()
-    from edsl import QuestionFreeText
-
     with Study(filename=f.name) as study:
         q = QuestionFreeText.example()
 
@@ -45,8 +45,6 @@ def test_equality():
     f1 = tempfile.NamedTemporaryFile()
     f2 = tempfile.NamedTemporaryFile()
     f3 = tempfile.NamedTemporaryFile()
-
-    from edsl import QuestionFreeText, QuestionMultipleChoice
 
     with Study(filename=f1.name) as study1:
         q = QuestionFreeText.example()
@@ -76,8 +74,6 @@ def test_versions():
 
     f1 = tempfile.NamedTemporaryFile()
 
-    from edsl import QuestionFreeText, QuestionMultipleChoice
-
     with Study(filename=f1.name) as study1:
         q = QuestionFreeText.example()
 
@@ -89,3 +85,37 @@ def test_versions():
     assert len(study2.versions()["q"]) == 2
 
     del q
+
+
+def test_delete_object():
+    import tempfile
+
+    f = tempfile.NamedTemporaryFile()
+
+    with Study(filename=f.name, verbose=False) as study:
+        q1 = QuestionFreeText.example()
+        q2 = QuestionMultipleChoice.example()
+
+    assert len(study) == 2
+
+    # Test deleting by variable name
+    study.delete_object("q1")
+    assert len(study) == 1
+    assert "q1" not in study.name_to_object
+    assert "q2" in study.name_to_object
+
+    # Test deleting by hash
+    q2_hash = next(iter(study.objects.keys()))
+    study.delete_object(q2_hash)  # Pass the hash string directly
+    assert len(study) == 0
+
+    # Test deleting non-existent object
+    with pytest.raises(ValueError):
+        study.delete_object("non_existent")
+
+    with pytest.raises(ValueError):
+        study.delete_object("00000000-0000-0000-0000-000000000000")  # Use a string UUID
+
+    # Test with invalid identifier type
+    with pytest.raises(TypeError):
+        study.delete_object(123)

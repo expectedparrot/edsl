@@ -1,0 +1,9 @@
+{# Answering Instructions #}
+{% if use_code %}
+Respond only with the code corresponding to one of the options.
+{% else %}
+Respond only with a string corresponding to one of the options.
+{% endif %}
+{% if include_comment %}
+After the answer, you can put a comment explaining why you chose that option on the next line.
+{% endif %}

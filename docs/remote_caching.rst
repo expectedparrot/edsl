@@ -3,47 +3,78 @@
 Remote Caching
 ===============
 
-Getting started
-------------------
+Remote caching allows you to store responses from language models on the Expected Parrot server.
 
-Remote caching allows you to store responses from language models on our server.
-To get started, you will need to create a Coop account and store your 
-Expected Parrot API key in a *.env* file. See  :ref:`coop` for instructions.
 
-When that's done, you can go to the `Coop API <https://www.expectedparrot.com/home/api>`_
-page and turn remote caching on:
+Activating remote caching
+-------------------------
 
-.. image:: static/coop_toggle_remote_cache.png
-  :alt: Remote cache toggle on the Coop web app
+1. Log into your `Coop account <https://www.expectedparrot.com/login>`_.
+
+2. Navigate to `API Settings <a href="https://www.expectedparrot.com/home/api>`_. Toggle on the slider for *Remote caching* and copy your API key.
+
+.. image:: static/api_settings_key_remote_caching.png
+  :alt: Toggle on remote caching and copy your Expected Parrot API key
   :align: center
-  :width: 300px
+  :width: 100%
 
-Now, when you invoke the ``run`` method on EDSL, we will automatically 
-cache your language model responses on the server.
 
-Let's try it out. Note that we are using an empty in-memory cache here for 
-demonstration purposes, but this code should work with any local cache mentioned
-in :ref:`caching`.
+.. raw:: html
+  
+    <br>
+
+
+3. Add the following line to your `.env` file in your `edsl` working directory (replace `your_api_key_here` with your actual API key):
 
 .. code-block:: python
 
-  from edsl import Cache, Survey
-  from edsl.questions import QuestionMultipleChoice, QuestionFreeText
+  EXPECTED_PARROT_API_KEY='your_api_key_here'
+
+
+You can regenerate your key (and update your `.env` file) at any time.
+
+
+Using remote caching
+--------------------
+
+When remote caching is on, the results of any question or survey that you run will be stored automatically on the Expected Parrot server.
+
+We can use remote caching by passing a `Cache` object to the `run` method of a survey.
+
+
+Example 
+^^^^^^^
+
+Here we import the `Cache` module together with `Survey` and `Question` types, create a survey, and pass a `Cache()` object when we call the `run` on the survey.
+Note that we use an empty in-memory cache for demonstration purposes; the code can also be used with an existing local cache. 
+See :ref:`caching` for more details on caching results locally.
+
+.. code-block:: python
+
+  from edsl import QuestionMultipleChoice, QuestionFreeText, Survey, Cache
 
   survey = Survey(questions=[QuestionMultipleChoice.example(), QuestionFreeText.example()])
 
   result = survey.run(cache=Cache(), remote_cache_description="Example survey #1")
 
-We can look at the `Coop remote cache logs <https://www.expectedparrot.com/home/remote-cache>`_
-to verify that our results were cached successfully:
+
+Remote cache logs
+-----------------
+
+We can inspect `Coop remote cache logs <https://www.expectedparrot.com/home/remote-cache>`_ to verify that our results were cached successfully.
+The logs will show that we have 2 remote cache entries:
 
 .. image:: static/coop_remote_cache_logs_1.png
   :alt: Logs showing 2 remote cache entries on the Coop web app
   :align: center
   :width: 650px
 
-If you see more than 2 uploaded entries, it's likely that your local cache
-already contained some entries (see :ref:`syncing` for more details).
+.. raw:: html
+
+  <br>
+
+If you see more than 2 uploaded entries in your own logs, it may be that your local cache
+already contained some entries (see details about :ref:`syncing` below).
 
 We can inspect the details of individual entries by clicking on **View entries**.
 
@@ -56,13 +87,14 @@ We can inspect the details of individual entries by clicking on **View entries**
 
   <br>
 
-Bulk remote cache operations
-------------------------------
 
-The remote cache entry page allows you to perform bulk operations on your cache entries.
+Bulk remote cache operations
+----------------------------
+
+The remote cache logs page allows you to perform bulk operations on your cache entries.
 We currently support two bulk operations:
 
-  * **Send to cache:** This creates an unlisted cache object on Coop that will show up on your `My Caches <https://www.expectedparrot.com/home/caches/>`_ page. You can then change the visibility to public to share it with others.
+  * **Send to cache:** This creates unlisted cache objects on Coop that will appear at your `My Caches <https://www.expectedparrot.com/home/caches/>`_ page. After an object has been created you can change the visibility to public.
   * **Delete:** This deletes entries from your remote cache. This operation is currently irreversible, so use with caution!
 
 When performing a bulk remote cache operation, you can select from one of three targets:
@@ -71,8 +103,9 @@ When performing a bulk remote cache operation, you can select from one of three 
   * **Search results:** The entries that match your search query. Search queries are case insensitive. They match either the raw model output or the cache entry description. 
   * **Remote cache:** All of the entries in your remote cache. 
 
+
 Clearing the cache programatically
-------------------------------------
+----------------------------------
 
 You are currently allowed to store a maximum of 50,000 entries in the remote cache.
 Trying to exceed this limit will raise an ``APIRemoteCacheError``.
@@ -100,17 +133,24 @@ You can also clear the logs shown on Coop as follows:
 .. _syncing:
 
 Syncing
-------------------
+-------
+
+When you run a survey with remote caching enabled, the local and remote caches are synced.
+
+
+How it works
+^^^^^^^^^^^^
 
 Behind the scenes, remote caching involves the following steps:
 
-  * Find out which local cache entries are missing from the remote cache, and vice versa.
+  * Identify local cache entries not present in the remote cache, and vice versa.
   * Update the local cache with entries from the remote cache.
   * Run the EDSL survey.
   * Update the remote cache with entries from the local cache, along with the new entries from the survey.
 
-Let's take a closer look at how syncing works. To start, we'll create a local cache 
-with some example entries. We'll also add examples to the remote cache.
+Let's take a closer look at how syncing works. 
+To start, we'll create a local cache with some example entries. 
+We'll also add examples to the remote cache.
 
 .. code-block:: python
 
@@ -128,21 +168,23 @@ with some example entries. We'll also add examples to the remote cache.
   coop.remote_cache_create_many(remote_entries, description="Set of 15 example entries")
 
 
-We now have 10 entries in the local cache and 15 in the remote cache. We can
-verify this by looking at the remote cache logs:
+We now have 10 entries in the local cache and 15 in the remote cache.
+We can verify this by looking at the remote cache logs:
 
 .. image:: static/coop_remote_cache_syncing_logs_1.png
   :alt: Logs showing 15 remote cache entries on the Coop web app
   :align: center
   :width: 650px
 
+.. raw:: html
+  
+    <br>
 
 Now, let's run a survey:
 
 .. code-block:: python
 
-  from edsl import Survey
-  from edsl.questions import QuestionCheckBox, QuestionNumerical
+  from edsl import Survey, QuestionCheckBox, QuestionNumerical
 
   survey = Survey(questions=[QuestionCheckBox.example(), QuestionNumerical.example()])
 
@@ -168,23 +210,28 @@ We now have 27 entries in both caches:
   :align: center
   :width: 650px
 
+.. raw:: html
+
+  <br>
+
+
 To recap, our 27 entries come from:
  
   * 15 entries in remote cache (from calling ``coop.remote_cache_create_many``)
   * 10 entries in local cache (from calling ``c.add_from_dict``)
   * 2 entries from survey (from calling ``survey.run``)
 
+
 Remote cache methods
---------------
+--------------------
 
-Once you've activated remote caching on Coop, we will automatically send your LLM responses
-to the server when you run a job.
+When remote caching is activated, EDSL will automatically send your LLM responses to the server when you run a job
+(i.e., you do not need to execute methods manually).
 
-However, if you need to interact with the remote cache programatically, we 
-have the following methods.
+If you want to interact with the remote cache programatically, you can use the following methods:
 
 Coop class
-^^^^^^^^^^^^^^
+^^^^^^^^^^
 
 .. autoclass:: edsl.coop.coop.Coop
   :members: remote_cache_create, remote_cache_create_many, remote_cache_get, remote_cache_clear, remote_cache_clear_log

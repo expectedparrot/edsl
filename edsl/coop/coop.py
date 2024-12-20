@@ -1,11 +1,20 @@
 import aiohttp
 import json
-import os
 import requests
-from typing import Any, Optional, Union, Literal
+
+from typing import Any, Optional, Union, Literal, TypedDict
 from uuid import UUID
+from collections import UserDict, defaultdict
+
 import edsl
-from edsl import CONFIG, CacheEntry, Jobs, Survey
+from pathlib import Path
+
+from edsl.config import CONFIG
+from edsl.data.CacheEntry import CacheEntry
+from edsl.jobs.Jobs import Jobs
+from edsl.surveys.Survey import Survey
+
+from edsl.exceptions.coop import CoopNoUUIDError, CoopServerResponseError
 from edsl.coop.utils import (
     EDSLObject,
     ObjectRegistry,
@@ -14,23 +23,64 @@ from edsl.coop.utils import (
     VisibilityType,
 )
 
+from edsl.coop.CoopFunctionsMixin import CoopFunctionsMixin
+from edsl.coop.ExpectedParrotKeyHandler import ExpectedParrotKeyHandler
 
-class Coop:
+from edsl.inference_services.data_structures import ServiceToModelsMapping
+
+
+class RemoteInferenceResponse(TypedDict):
+    job_uuid: str
+    results_uuid: str
+    results_url: str
+    latest_error_report_uuid: str
+    latest_error_report_url: str
+    status: str
+    reason: str
+    credits_consumed: float
+    version: str
+
+
+class RemoteInferenceCreationInfo(TypedDict):
+    uuid: str
+    description: str
+    status: str
+    iterations: int
+    visibility: str
+    version: str
+
+
+class Coop(CoopFunctionsMixin):
     """
     Client for the Expected Parrot API.
     """
 
-    def __init__(self, api_key: str = None, url: str = None) -> None:
+    def __init__(
+        self, api_key: Optional[str] = None, url: Optional[str] = None
+    ) -> None:
         """
         Initialize the client.
         - Provide an API key directly, or through an env variable.
         - Provide a URL directly, or use the default one.
         """
-        self.api_key = api_key or os.getenv("EXPECTED_PARROT_API_KEY")
+        self.ep_key_handler = ExpectedParrotKeyHandler()
+        self.api_key = api_key or self.ep_key_handler.get_ep_api_key()
+
         self.url = url or CONFIG.EXPECTED_PARROT_URL
         if self.url.endswith("/"):
             self.url = self.url[:-1]
+        if "chick.expectedparrot" in self.url:
+            self.api_url = "https://chickapi.expectedparrot.com"
+        elif "expectedparrot" in self.url:
+            self.api_url = "https://api.expectedparrot.com"
+        elif "localhost:1234" in self.url:
+            self.api_url = "http://localhost:8000"
+        else:
+            self.api_url = self.url
         self._edsl_version = edsl.__version__
+
+    def get_progress_bar_url(self):
+        return f"{CONFIG.EXPECTED_PARROT_URL}"
 
     ################
     # BASIC METHODS
@@ -53,38 +103,171 @@ class Coop:
         method: str,
         payload: Optional[dict[str, Any]] = None,
         params: Optional[dict[str, Any]] = None,
+        timeout: Optional[float] = 5,
     ) -> requests.Response:
         """
         Send a request to the server and return the response.
         """
-        url = f"{self.url}/{uri}"
+        url = f"{self.api_url}/{uri}"
+        method = method.upper()
+        if payload is None:
+            timeout = 20
+        elif (
+            method.upper() == "POST"
+            and "json_string" in payload
+            and payload.get("json_string") is not None
+        ):
+            timeout = max(20, (len(payload.get("json_string", "")) // (1024 * 1024)))
         try:
-            method = method.upper()
             if method in ["GET", "DELETE"]:
                 response = requests.request(
-                    method, url, params=params, headers=self.headers
+                    method, url, params=params, headers=self.headers, timeout=timeout
                 )
             elif method in ["POST", "PATCH"]:
                 response = requests.request(
-                    method, url, params=params, json=payload, headers=self.headers
+                    method,
+                    url,
+                    params=params,
+                    json=payload,
+                    headers=self.headers,
+                    timeout=timeout,
                 )
             else:
                 raise Exception(f"Invalid {method=}.")
         except requests.ConnectionError:
-            raise requests.ConnectionError("Could not connect to the server.")
+            raise requests.ConnectionError(f"Could not connect to the server at {url}.")
 
         return response
 
-    def _resolve_server_response(self, response: requests.Response) -> None:
+    def _get_latest_stable_version(self, version: str) -> str:
+        """
+        Extract the latest stable PyPI version from a version string.
+
+        Examples:
+        - Decrement the patch number of a dev version: "0.1.38.dev1" -> "0.1.37"
+        - Return a stable version as is: "0.1.37" -> "0.1.37"
+        """
+        if "dev" not in version:
+            return version
+        else:
+            # For 0.1.38.dev1, split into ["0", "1", "38", "dev1"]
+            major, minor, patch = version.split(".")[:3]
+
+            current_patch = int(patch)
+            latest_patch = current_patch - 1
+            return f"{major}.{minor}.{latest_patch}"
+
+    def _user_version_is_outdated(
+        self, user_version_str: str, server_version_str: str
+    ) -> bool:
+        """
+        Check if the user's EDSL version is outdated compared to the server's.
+        """
+        server_stable_version_str = self._get_latest_stable_version(server_version_str)
+        user_stable_version_str = self._get_latest_stable_version(user_version_str)
+
+        # Turn the version strings into tuples of ints for comparison
+        user_stable_version = tuple(map(int, user_stable_version_str.split(".")))
+        server_stable_version = tuple(map(int, server_stable_version_str.split(".")))
+
+        return user_stable_version < server_stable_version
+
+    def _resolve_server_response(
+        self, response: requests.Response, check_api_key: bool = True
+    ) -> None:
         """
         Check the response from the server and raise errors as appropriate.
         """
+        # Get EDSL version from header
+        server_edsl_version = response.headers.get("X-EDSL-Version")
+
+        if server_edsl_version:
+            if self._user_version_is_outdated(
+                user_version_str=self._edsl_version,
+                server_version_str=server_edsl_version,
+            ):
+                print(
+                    "Please upgrade your EDSL version to access our latest features. To upgrade, open your terminal and run `pip upgrade edsl`"
+                )
+
         if response.status_code >= 400:
             message = response.json().get("detail")
-            if "Authorization" in message:
+            # print(response.text)
+            if "The API key you provided is invalid" in message and check_api_key:
+                import secrets
+                from edsl.utilities.utilities import write_api_key_to_env
+
+                edsl_auth_token = secrets.token_urlsafe(16)
+
+                print("Your Expected Parrot API key is invalid.")
+                self._display_login_url(
+                    edsl_auth_token=edsl_auth_token,
+                    link_description="\n🔗 Use the link below to log in to Expected Parrot so we can automatically update your API key.",
+                )
+                api_key = self._poll_for_api_key(edsl_auth_token)
+
+                if api_key is None:
+                    print("\nTimed out waiting for login. Please try again.")
+                    return
+
+                print("\n✨ API key retrieved.")
+
+                if stored_in_user_space := self.ep_key_handler.ask_to_store(api_key):
+                    pass
+                else:
+                    path_to_env = write_api_key_to_env(api_key)
+                    print(
+                        "\n✨ API key retrieved and written to .env file at the following path:"
+                    )
+                    print(f"    {path_to_env}")
+                    print("Rerun your code to try again with a valid API key.")
+                return
+
+            elif "Authorization" in message:
                 print(message)
                 message = "Please provide an Expected Parrot API key."
-            raise Exception(message)
+
+            raise CoopServerResponseError(message)
+
+    def _poll_for_api_key(
+        self, edsl_auth_token: str, timeout: int = 120
+    ) -> Union[str, None]:
+        """
+        Allows the user to retrieve their Expected Parrot API key by logging in with an EDSL auth token.
+
+        :param edsl_auth_token: The EDSL auth token to use for login
+        :param timeout: Maximum time to wait for login, in seconds (default: 120)
+        """
+        import time
+        from datetime import datetime
+
+        start_poll_time = time.time()
+        waiting_for_login = True
+        while waiting_for_login:
+            elapsed_time = time.time() - start_poll_time
+            if elapsed_time > timeout:
+                # Timed out waiting for the user to log in
+                print("\r" + " " * 80 + "\r", end="")
+                return None
+
+            api_key = self._get_api_key(edsl_auth_token)
+            if api_key is not None:
+                print("\r" + " " * 80 + "\r", end="")
+                return api_key
+            else:
+                duration = 5
+                time_checked = datetime.now().strftime("%Y-%m-%d %I:%M:%S %p")
+                frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
+                start_time = time.time()
+                i = 0
+                while time.time() - start_time < duration:
+                    print(
+                        f"\r{frames[i % len(frames)]} Waiting for login. Last checked: {time_checked}",
+                        end="",
+                        flush=True,
+                    )
+                    time.sleep(0.1)
+                    i += 1
 
     def _json_handle_none(self, value: Any) -> Any:
         """
@@ -101,7 +284,7 @@ class Coop:
         Resolve the uuid from a uuid or a url.
         """
         if not url and not uuid:
-            raise Exception("No uuid or url provided for the object.")
+            raise CoopNoUUIDError("No uuid or url provided for the object.")
         if not uuid and url:
             uuid = url.split("/")[-1]
         return uuid
@@ -110,10 +293,18 @@ class Coop:
     def edsl_settings(self) -> dict:
         """
         Retrieve and return the EDSL settings stored on Coop.
+        If no response is received within 5 seconds, return an empty dict.
         """
-        response = self._send_server_request(uri="api/v0/edsl-settings", method="GET")
-        self._resolve_server_response(response)
-        return response.json()
+        from requests.exceptions import Timeout
+
+        try:
+            response = self._send_server_request(
+                uri="api/v0/edsl-settings", method="GET", timeout=5
+            )
+            self._resolve_server_response(response, check_api_key=False)
+            return response.json()
+        except Timeout:
+            return {}
 
     ################
     # Objects
@@ -122,6 +313,7 @@ class Coop:
         self,
         object: EDSLObject,
         description: Optional[str] = None,
+        alias: Optional[str] = None,
         visibility: Optional[VisibilityType] = "unlisted",
     ) -> dict:
         """
@@ -133,6 +325,7 @@ class Coop:
             method="POST",
             payload={
                 "description": description,
+                "alias": alias,
                 "json_string": json.dumps(
                     object.to_dict(),
                     default=self._json_handle_none,
@@ -227,6 +420,7 @@ class Coop:
         uuid: Union[str, UUID] = None,
         url: str = None,
         description: Optional[str] = None,
+        alias: Optional[str] = None,
         value: Optional[EDSLObject] = None,
         visibility: Optional[VisibilityType] = None,
     ) -> dict:
@@ -243,6 +437,7 @@ class Coop:
             params={"uuid": uuid},
             payload={
                 "description": description,
+                "alias": alias,
                 "json_string": (
                     json.dumps(
                         value.to_dict(),
@@ -465,7 +660,9 @@ class Coop:
         description: Optional[str] = None,
         status: RemoteJobStatus = "queued",
         visibility: Optional[VisibilityType] = "unlisted",
-    ) -> dict:
+        initial_results_visibility: Optional[VisibilityType] = "unlisted",
+        iterations: Optional[int] = 1,
+    ) -> RemoteInferenceCreationInfo:
         """
         Send a remote inference job to the server.
 
@@ -473,10 +670,11 @@ class Coop:
         :param optional description: A description for this entry in the remote cache.
         :param status: The status of the job. Should be 'queued', unless you are debugging.
         :param visibility: The visibility of the cache entry.
+        :param iterations: The number of times to run each interview.
 
         >>> job = Jobs.example()
         >>> coop.remote_inference_create(job=job, description="My job")
-        {'uuid': '9f8484ee-b407-40e4-9652-4133a7236c9c', 'description': 'My job', 'status': 'queued', 'visibility': 'unlisted', 'version': '0.1.29.dev4'}
+        {'uuid': '9f8484ee-b407-40e4-9652-4133a7236c9c', 'description': 'My job', 'status': 'queued', 'iterations': None, 'visibility': 'unlisted', 'version': '0.1.38.dev1'}
         """
         response = self._send_server_request(
             uri="api/v0/remote-inference",
@@ -488,47 +686,87 @@ class Coop:
                 ),
                 "description": description,
                 "status": status,
+                "iterations": iterations,
                 "visibility": visibility,
                 "version": self._edsl_version,
+                "initial_results_visibility": initial_results_visibility,
             },
         )
         self._resolve_server_response(response)
         response_json = response.json()
-        return {
-            "uuid": response_json.get("jobs_uuid"),
-            "description": response_json.get("description"),
-            "status": response_json.get("status"),
-            "visibility": response_json.get("visibility"),
-            "version": self._edsl_version,
-        }
 
-    def remote_inference_get(self, job_uuid: str) -> dict:
+        return RemoteInferenceCreationInfo(
+            **{
+                "uuid": response_json.get("job_uuid"),
+                "description": response_json.get("description"),
+                "status": response_json.get("status"),
+                "iterations": response_json.get("iterations"),
+                "visibility": response_json.get("visibility"),
+                "version": self._edsl_version,
+            }
+        )
+
+    def remote_inference_get(
+        self, job_uuid: Optional[str] = None, results_uuid: Optional[str] = None
+    ) -> RemoteInferenceResponse:
         """
         Get the details of a remote inference job.
+        You can pass either the job uuid or the results uuid as a parameter.
+        If you pass both, the job uuid will be prioritized.
 
         :param job_uuid: The UUID of the EDSL job.
+        :param results_uuid: The UUID of the results associated with the EDSL job.
 
         >>> coop.remote_inference_get("9f8484ee-b407-40e4-9652-4133a7236c9c")
-        {'jobs_uuid': '9f8484ee-b407-40e4-9652-4133a7236c9c', 'results_uuid': 'dd708234-31bf-4fe1-8747-6e232625e026', 'results_url': 'https://www.expectedparrot.com/content/dd708234-31bf-4fe1-8747-6e232625e026', 'status': 'completed', 'reason': None, 'price': 16, 'version': '0.1.29.dev4'}
+        {'job_uuid': '9f8484ee-b407-40e4-9652-4133a7236c9c', 'results_uuid': 'dd708234-31bf-4fe1-8747-6e232625e026', 'results_url': 'https://www.expectedparrot.com/content/dd708234-31bf-4fe1-8747-6e232625e026', 'latest_error_report_uuid': None, 'latest_error_report_url': None, 'status': 'completed', 'reason': None, 'credits_consumed': 0.35, 'version': '0.1.38.dev1'}
         """
+        if job_uuid is None and results_uuid is None:
+            raise ValueError("Either job_uuid or results_uuid must be provided.")
+        elif job_uuid is not None:
+            params = {"job_uuid": job_uuid}
+        else:
+            params = {"results_uuid": results_uuid}
+
         response = self._send_server_request(
             uri="api/v0/remote-inference",
             method="GET",
-            params={"uuid": job_uuid},
+            params=params,
         )
         self._resolve_server_response(response)
         data = response.json()
-        return {
-            "jobs_uuid": data.get("jobs_uuid"),
-            "results_uuid": data.get("results_uuid"),
-            "results_url": f"{self.url}/content/{data.get('results_uuid')}",
-            "status": data.get("status"),
-            "reason": data.get("reason"),
-            "price": data.get("price"),
-            "version": data.get("version"),
-        }
 
-    def remote_inference_cost(self, input: Union[Jobs, Survey]) -> int:
+        results_uuid = data.get("results_uuid")
+        latest_error_report_uuid = data.get("latest_error_report_uuid")
+
+        if results_uuid is None:
+            results_url = None
+        else:
+            results_url = f"{self.url}/content/{results_uuid}"
+
+        if latest_error_report_uuid is None:
+            latest_error_report_url = None
+        else:
+            latest_error_report_url = (
+                f"{self.url}/home/remote-inference/error/{latest_error_report_uuid}"
+            )
+
+        return RemoteInferenceResponse(
+            **{
+                "job_uuid": data.get("job_uuid"),
+                "results_uuid": results_uuid,
+                "results_url": results_url,
+                "latest_error_report_uuid": latest_error_report_uuid,
+                "latest_error_report_url": latest_error_report_url,
+                "status": data.get("status"),
+                "reason": data.get("reason"),
+                "credits_consumed": data.get("price"),
+                "version": data.get("version"),
+            }
+        )
+
+    def remote_inference_cost(
+        self, input: Union[Jobs, Survey], iterations: int = 1
+    ) -> int:
         """
         Get the cost of a remote inference job.
 
@@ -536,7 +774,7 @@ class Coop:
 
         >>> job = Jobs.example()
         >>> coop.remote_inference_cost(input=job)
-        16
+        {'credits': 0.77, 'usd': 0.0076950000000000005}
         """
         if isinstance(input, Jobs):
             job = input
@@ -553,29 +791,15 @@ class Coop:
                     job.to_dict(),
                     default=self._json_handle_none,
                 ),
+                "iterations": iterations,
             },
         )
         self._resolve_server_response(response)
         response_json = response.json()
-        return response_json.get("cost")
-
-    ################
-    # Remote Errors
-    ################
-    def error_create(self, error_data: str) -> dict:
-        """
-        Send an error message to the server.
-        """
-        response = self._send_server_request(
-            uri="api/v0/errors",
-            method="POST",
-            payload={
-                "json_string": json.dumps(error_data),
-                "version": self._edsl_version,
-            },
-        )
-        self._resolve_server_response(response)
-        return response.json()
+        return {
+            "credits": response_json.get("cost_in_credits"),
+            "usd": response_json.get("cost_in_usd"),
+        }
 
     ################
     # DUNDER METHODS
@@ -590,7 +814,7 @@ class Coop:
     async def remote_async_execute_model_call(
         self, model_dict: dict, user_prompt: str, system_prompt: str
     ) -> dict:
-        url = self.url + "/inference/"
+        url = self.api_url + "/inference/"
         # print("Now using url: ", url)
         data = {
             "model_dict": model_dict,
@@ -611,7 +835,7 @@ class Coop:
         ] = "lime_survey",
         email=None,
     ):
-        url = f"{self.url}/api/v0/export_to_{platform}"
+        url = f"{self.api_url}/api/v0/export_to_{platform}"
         if email:
             data = {"json_string": json.dumps({"survey": survey, "email": email})}
         else:
@@ -620,6 +844,111 @@ class Coop:
         response_json = requests.post(url, headers=self.headers, data=json.dumps(data))
 
         return response_json
+
+    def fetch_prices(self) -> dict:
+        """
+        Fetch model prices from Coop. If the request fails, return an empty dict.
+        """
+
+        from edsl.coop.PriceFetcher import PriceFetcher
+
+        from edsl.config import CONFIG
+
+        if CONFIG.get("EDSL_FETCH_TOKEN_PRICES") == "True":
+            price_fetcher = PriceFetcher()
+            return price_fetcher.fetch_prices()
+        elif CONFIG.get("EDSL_FETCH_TOKEN_PRICES") == "False":
+            return {}
+        else:
+            raise ValueError(
+                "Invalid EDSL_FETCH_TOKEN_PRICES value---should be 'True' or 'False'."
+            )
+
+    def fetch_models(self) -> ServiceToModelsMapping:
+        """
+        Fetch a dict of available models from Coop.
+
+        Each key in the dict is an inference service, and each value is a list of models from that service.
+        """
+        response = self._send_server_request(uri="api/v0/models", method="GET")
+        self._resolve_server_response(response)
+        data = response.json()
+        return ServiceToModelsMapping(data)
+
+    def fetch_rate_limit_config_vars(self) -> dict:
+        """
+        Fetch a dict of rate limit config vars from Coop.
+
+        The dict keys are RPM and TPM variables like EDSL_SERVICE_RPM_OPENAI.
+        """
+        response = self._send_server_request(
+            uri="api/v0/config-vars",
+            method="GET",
+        )
+        self._resolve_server_response(response)
+        data = response.json()
+        return data
+
+    def _display_login_url(
+        self, edsl_auth_token: str, link_description: Optional[str] = None
+    ):
+        """
+        Uses rich.print to display a login URL.
+
+        - We need this function because URL detection with print() does not work alongside animations in VSCode.
+        """
+        from rich import print as rich_print
+
+        url = f"{CONFIG.EXPECTED_PARROT_URL}/login?edsl_auth_token={edsl_auth_token}"
+
+        if link_description:
+            rich_print(
+                f"{link_description}\n    [#38bdf8][link={url}]{url}[/link][/#38bdf8]"
+            )
+        else:
+            rich_print(f"    [#38bdf8][link={url}]{url}[/link][/#38bdf8]")
+
+    def _get_api_key(self, edsl_auth_token: str):
+        """
+        Given an EDSL auth token, find the corresponding user's API key.
+        """
+
+        response = self._send_server_request(
+            uri="api/v0/get-api-key",
+            method="POST",
+            payload={
+                "edsl_auth_token": edsl_auth_token,
+            },
+        )
+        data = response.json()
+        api_key = data.get("api_key")
+        return api_key
+
+    def login(self):
+        """
+        Starts the EDSL auth token login flow.
+        """
+        import secrets
+        from dotenv import load_dotenv
+        from edsl.utilities.utilities import write_api_key_to_env
+
+        edsl_auth_token = secrets.token_urlsafe(16)
+
+        self._display_login_url(
+            edsl_auth_token=edsl_auth_token,
+            link_description="\n🔗 Use the link below to log in to Expected Parrot so we can automatically update your API key.",
+        )
+        api_key = self._poll_for_api_key(edsl_auth_token)
+
+        if api_key is None:
+            raise Exception("Timed out waiting for login. Please try again.")
+
+        path_to_env = write_api_key_to_env(api_key)
+        print("\n✨ API key retrieved and written to .env file at the following path:")
+        print(f"    {path_to_env}")
+
+        # Add API key to environment
+        load_dotenv()
 
 
 def main():
@@ -756,12 +1085,6 @@ def main():
     ##############
     job = Jobs.example()
     coop.remote_inference_cost(job)
-    results = coop.remote_inference_create(job)
-    coop.remote_inference_get(results.get("uuid"))
-
-    ##############
-    # E. Errors
-    ##############
-    coop.error_create({"something": "This is an error message"})
-    coop.api_key = None
-    coop.error_create({"something": "This is an error message"})
+    job_coop_object = coop.remote_inference_create(job)
+    job_coop_results = coop.remote_inference_get(job_coop_object.get("uuid"))
+    coop.get(uuid=job_coop_results.get("results_uuid"))

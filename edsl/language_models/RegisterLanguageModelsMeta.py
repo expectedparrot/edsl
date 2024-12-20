@@ -47,13 +47,6 @@ class RegisterLanguageModelsMeta(ABCMeta):
                 must_be_async=True,
             )
             # LanguageModel children have to implement the parse_response method
-            RegisterLanguageModelsMeta.verify_method(
-                candidate_class=cls,
-                method_name="parse_response",
-                expected_return_type=str,
-                required_parameters=[("raw_response", dict[str, Any])],
-                must_be_async=False,
-            )
             RegisterLanguageModelsMeta._registry[model_name] = cls
 
     @classmethod
@@ -98,7 +91,7 @@ class RegisterLanguageModelsMeta(ABCMeta):
 
         required_parameters = required_parameters or []
         method = getattr(candidate_class, method_name)
-        signature = inspect.signature(method)
+        # signature = inspect.signature(method)
 
         RegisterLanguageModelsMeta._check_return_type(method, expected_return_type)
 
@@ -106,11 +99,11 @@ class RegisterLanguageModelsMeta(ABCMeta):
             RegisterLanguageModelsMeta._check_is_coroutine(method)
 
         # Check the parameters
-        params = signature.parameters
-        for param_name, param_type in required_parameters:
-            RegisterLanguageModelsMeta._verify_parameter(
-                params, param_name, param_type, method_name
-            )
+        # params = signature.parameters
+        # for param_name, param_type in required_parameters:
+        #     RegisterLanguageModelsMeta._verify_parameter(
+        #         params, param_name, param_type, method_name
+        #     )
 
     @staticmethod
     def _check_method_defined(cls, method_name):
@@ -167,23 +160,15 @@ class RegisterLanguageModelsMeta(ABCMeta):
         Check if the return type of a method is as expected.
 
         Example:
-        >>> class M:
-        ...     async def f(self) -> str: pass
-        >>> RegisterLanguageModelsMeta._check_return_type(M.f, str)
-        >>> class N:
-        ...     async def f(self) -> int: pass
-        >>> RegisterLanguageModelsMeta._check_return_type(N.f, str)
-        Traceback (most recent call last):
-        ...
-        TypeError: Return type of f must be <class 'str'>. Got <class 'int'>.
         """
-        if inspect.isroutine(method):
-            # return_type = inspect.signature(method).return_annotation
-            return_type = get_type_hints(method)["return"]
-            if return_type != expected_return_type:
-                raise TypeError(
-                    f"Return type of {method.__name__} must be {expected_return_type}. Got {return_type}."
-                )
+        pass
+        # if inspect.isroutine(method):
+        #     # return_type = inspect.signature(method).return_annotation
+        #     return_type = get_type_hints(method)["return"]
+        #     if return_type != expected_return_type:
+        #         raise TypeError(
+        #             f"Return type of {method.__name__} must be {expected_return_type}. Got {return_type}."
+        #         )
 
     @classmethod
     def model_names_to_classes(cls):

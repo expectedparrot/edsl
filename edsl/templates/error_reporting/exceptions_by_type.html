@@ -1,0 +1,17 @@
+<h2>Exceptions by Type</h2>
+<table border="1">
+    <thead>
+        <tr>
+            <th>Exception Type</th>
+            <th>Number</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for exception_type, exceptions in exceptions_by_type.items() %}
+            <tr>
+                <td>{{ exception_type }}</td>
+                <td>{{ exceptions }}</td>
+            </tr>
+        {% endfor %}
+    </tbody>
+</table>

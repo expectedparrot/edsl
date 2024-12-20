@@ -1,15 +1,173 @@
 # Changelog
 
-## [0.1.30] - 2024-TBD [In progress]
+## [0.1.39] - TBD
+
+## [0.1.38] - 2024-11-26
 ### Added
-- [In progress] `ScenarioList.from_sqlite` allows you to create a list of scenarios from a SQLite table.
-
-- [In progress] Added LaTeX support to SQL outputs and ability to write to files: `Results.print(format="latex", filename="example.tex")`
-
-- [In progress] Options that we think of as "terminal", such as `sql()`, `print()`, `html()`, etc., now take a `tee` boolean that causes them to return `self`. This is useful for chaining, e.g., if you run `print(format = "rich", tee = True)` it will return `self`, which allows you do also run `print(format = "rich", tee = True).print(format = "latex", filename = "example.tex")`.
+- `Results` are now automatically displayed in a scrollable table when you call `select()` on them. You can also call `table().long()` to display results in a long-view table. This replaces the need to call `print(format="rich")`. See examples in the starter tutorial.
 
 ### Changed
-- [In progress] `QuestionMultipleChoice` may be modified to allow combined options and free response "Other" option, as well as non-responsive answers. Previously, an error was thrown if the agent did not select one of the given options. Details TBD.
+- The progress bar is now web-based and a link to view it in a new tab is automatically returned when you call the `run()` method on a survey (`progress_bar=True` by default). See examples in the starter tutorial.
+
+### Fixed
+- Results were automatically appending cache; this was removed.
+
+
+## [0.1.37] - 2024-11-14
+### Added
+- EDSL auth token: It will automatically retrieve your EXPECTED_PARROT_API_KEY and write it to your *.env* file. *How it works:* If you try to run a survey remotely without storing your EXPECTED_PARROT_API_KEY, you will see a message with a Coop login link that will automatically write your key to your *.env* file when you click on the link and log in. Example message:
+```
+You're missing some of the API keys needed to run this job:
+     🔑 OPENAI_API_KEY
+
+You can either add the missing keys to your .env file, or use remote inference.
+Remote inference allows you to run jobs on our server.
+
+🚀 To use remote inference, sign up at the following link:
+    https://www.expectedparrot.com/login?edsl_auth_token=gVSxKvDcuB1x6d_dqa7xrA
+
+Once you log in, we will automatically retrieve your Expected Parrot API key and continue your job remotely.
+⠇ Waiting for login. Last checked: 2024-11-13 11:36:44 AM
+```
+
+Once you have logged in you will see a confirmation message:
+```
+✨ API key retrieved and written to .env file. 
+```
+
+### Changed
+- The `AgentList` method `from_csv()` now allows you to (optionally) automatically specify the `name` parameters for agents by including a column "name" in the CSV. Other columns are (still) passed as agent `traits`. See an example: https://docs.expectedparrot.com/en/latest/agents.html#from-a-csv-file
+
+- The `Job` method `run()` now takes a parameter `remote_inference_results_visibility` to set the visibility of results of jobs that are being run remotely. The allowed visibility settings are `public`, `private` and `unlisted` (the default setting is unlisted). This parameter has the same effect as passing the parameter `visibility` to the `push()` and `patch()` methods for posting and updating objects at the Coop. For example, these commands have the same effect when remote inference activated:
+
+```
+Survey.example().run() 
+```
+```
+Survey.example().run(remote_inference_visibility="unlisted")
+```
+
+### Fixed
+- Bug in using f-strings and scenarios at once. Example usage: https://docs.expectedparrot.com/en/latest/scenarios.html#using-f-strings-with-scenarios
+
+- Bug in optional question parameters `answering_instructions` and `question_presentation`, which can be used to modify user prompts separately from modifying question texts. Example usage: https://docs.expectedparrot.com/en/latest/questions.html#optional-question-parameters
+
+
+## [0.1.36] - 2024-10-28
+### Added
+- Method `show_prompts()` can be called on a `Survey` to display the user prompt and system prompt. This is in addition to the existing method `prompts()` that is called on a `Job` which will return the prompts and additional information about the questions, agents, models and estimated costs. Learn more: https://docs.expectedparrot.com/en/latest/prompts.html
+
+- Documentation on storing API keys as "secrets" for using EDSL in Colab.
+
+### Changed
+- `Conversation` module works with multiple models at once.
+
+- Improved features for adding new models.
+
+
+## [0.1.35] - 2024-10-17
+### Fixed
+- Access to Open AI o1 models
+
+
+## [0.1.34] - 2024-10-15
+### Added
+- Survey Builder is a new interface for creating and launching hybrid human-AI surveys. It is fully integrated with EDSL and Coop. Get access by activating beta features from your Coop account profile page. Learn more: https://docs.expectedparrot.com/en/latest/survey_builder.html
+
+- `Jobs` method `show_prompts()` returns a table showing the user and system prompts that will be used with a survey, together with information about the agent and model and estimated cost for each interview. `Jobs` method `prompts` returns the information in a dataset.
+
+- `Scenario` objects can contain multiple images to be presented to a model at once (works with Google models).
+
+### Fixed
+- Bug in piping a `ScenarioList` containing multiple lists of `question_options` to use with questions.
+
+
+## [0.1.33] - 2024-09-26
+### Added 
+
+- Optional parameters for `Question` objects:
+    - `include_comment = False` prevents a `comment` field from being added to a question (default is `True`: all question types other than free text automatically include a field for the model to comment on its answer, unless this parameter is passed) 
+    - `use_code = True` modifies user prompts for question types that take `question_options` to instruct the model to return the integer code for an option instead of the option value (default is `False`)
+    - `answering_instructions` and `question_presentation` allow you to control exact prompt language and separate instructions for the presentation of a question
+    - `permissive = True` turns off enforcement of question constraints (e.g., if min/max selections for a checkbox question have been specified, you can set `permissive = True` to allow responses that contain fewer or greater selections) (default is `False`)
+
+- Methods for `Question` objects:
+    - `loop()` generates a list of versions of a question for a `ScenarioList` that is passed to it. Questions are constructed with a `{{ placeholder }}` for a scenario as usual, but each scenario value is added to the question when it is created instead of when a survey is run (which is done with the `by()` method). Survey results for looped questions include fields for each unique question but no `scenario` field. See examples: https://docs.expectedparrot.com/en/latest/starter_tutorial.html#adding-scenarios-using-the-loop-method and https://docs.expectedparrot.com/en/latest/scenarios.html#looping 
+
+- Methods for `ScenarioList` objects:
+    - `unpivot()` expands a scenario list by specified identifiers
+    - `pivot()` undoes `unpivot()`, collapsing scenarios by identifiers
+    - `give_valid_names()` generates valid Pythonic identifiers for scenario keys
+    - `group_by()` groups scenarios by identifiers or applies a function to the values of the specified variables
+    - `from_wikipedia_table()` converts a Wikipedia table into a scenario list. See examples: https://docs.expectedparrot.com/en/latest/notebooks/scenario_list_wikipedia.html
+    - `to_docx()` exports scenario lists as structured Docx documents
+
+- Optional parameters for `Model` objects: 
+    - `raise_validation_errors = False` causes exceptions to only be raised (interrupting survey execution) when a model returns nothing at all (default: `raise_validation_errors = True`)
+    - `print_exceptions = False` causes exceptions to not be printed at all (default: `print_exceptions = True`)
+
+- Columns in `Results` for monitoring token usage:
+    - `generated_tokens` shows the tokens that were generated by the model
+    - `raw_model_response.<question_name>_cost` shows the cost of the result for the question, applying the token quanities & prices
+    - `raw_model_response.<question_name>_one_usd_buys` shows the number of results for the question that 1USD will buy
+    - `raw_model_response.<question_name>_raw_model_response` shows the raw response for the question
+
+- Methods for `Results` objects:
+    - `tree()` displays a nested tree for specified components
+    - `generate_html()` and `save_html()` generate and save HTML code for displaying results
+
+### Changed
+- General improvements to exceptions reports. 
+
+- General improvements to the progress bar: `survey.run(progress_bar=True)`
+
+- Question validation methods no longer use JSON. This will eliminate exceptions relating to JSON errors previously common to certain models.
+
+- Base agent instructions template is not added to a job if no agent is used with a survey (reducing tokens).
+
+- The `select()` method (for `Results` and `ScenarioList`) now allows partial match on key names to save typing.
+
+### Fixed
+- Bug in enforcement of token/rate limits.
+
+- Bug in generation of exceptions report that excluded agent information.
+
+
+## [0.1.32] - 2024-08-19
+### Added
+- Models: AWS Bedrock & Azure
+
+- Question: New method `loop()` allows you to create versions of questions when you are constructing a survey. It takes a `ScenarioList()` as a parameter and returns a list of `Question` objects.
+
+### Fixed
+- Bug in `Survey` question piping prevented you from adding questions after piping.
+
+
+## [0.1.31] - 2024-08-15
+
+- `ScenarioList.from_sqlite` allows you to create a list of scenarios from a SQLite table.
+
+- Added LaTeX support to SQL outputs and ability to write to files: `Results.print(format="latex", filename="example.tex")`
+
+- Options that we think of as "terminal", such as `sql()`, `print()`, `html()`, etc., now take a `tee` boolean that causes them to return `self`. This is useful for chaining, e.g., if you run `print(format = "rich", tee = True)` it will return `self`, which allows you do also run `print(format = "rich", tee = True).print(format = "latex", filename = "example.tex")`.
+
+
+## [0.1.30] - 2024-07-28
+### Added
+- Ability to create a `Scenario` for `question_options`. Example:
+```
+from edsl import QuestionMultipleChoice, Scenario
+
+q = QuestionMultipleChoice(
+    question_name = "capital_of_france",
+    question_text = "What is the capital of France?", 
+    question_options = "{{question_options}}"
+)
+
+s = Scenario({'question_options': ['Paris', 'London', 'Berlin', 'Madrid']})
+
+results = q.by(s).run()
+```
 
 
 ## [0.1.29] - 2024-07-21

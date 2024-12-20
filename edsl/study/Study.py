@@ -7,7 +7,9 @@ import socket
 from datetime import datetime
 from typing import Dict, Optional, Union
 from uuid import UUID, uuid4
-from edsl import Cache, set_session_cache, unset_session_cache
+
+from edsl.data.Cache import Cache
+from edsl import set_session_cache, unset_session_cache
 from edsl.utilities.utilities import dict_hash
 from edsl.study.ObjectEntry import ObjectEntry
 from edsl.study.ProofOfWork import ProofOfWork
@@ -405,7 +407,7 @@ class Study:
 
         study_file = tempfile.NamedTemporaryFile()
         with cls(filename=study_file.name, verbose=verbose) as study:
-            from edsl import QuestionFreeText
+            from edsl.questions.QuestionFreeText import QuestionFreeText
 
             q = QuestionFreeText.example(randomize=randomize)
         return study
@@ -461,13 +463,45 @@ class Study:
         else:
             self.objects[oe.hash] = oe
 
-    def push(self, refresh=False) -> None:
+    def push(self) -> dict:
         """Push the objects to coop."""
 
-        from edsl import Coop
+        from edsl.coop.coop import Coop
 
         coop = Coop()
-        coop.create(self, description=self.description)
+        return coop.create(self, description=self.description)
+
+    def delete_object(self, identifier: Union[str, UUID]):
+        """
+        Delete an EDSL object from the study.
+
+        :param identifier: Either the variable name or the hash of the object to delete
+        :raises ValueError: If the object is not found in the study
+        """
+        if isinstance(identifier, str):
+            # If identifier is a variable name or a string representation of UUID
+            for hash, obj_entry in list(self.objects.items()):
+                if obj_entry.variable_name == identifier or hash == identifier:
+                    del self.objects[hash]
+                    self._create_mapping_dicts()  # Update internal mappings
+                    if self.verbose:
+                        print(f"Deleted object with identifier: {identifier}")
+                    return
+            raise ValueError(f"No object found with identifier: {identifier}")
+        elif isinstance(identifier, UUID):
+            # If identifier is a UUID object
+            hash_str = str(identifier)
+            if hash_str in self.objects:
+                del self.objects[hash_str]
+                self._create_mapping_dicts()  # Update internal mappings
+                if self.verbose:
+                    print(f"Deleted object with hash: {hash_str}")
+                return
+            raise ValueError(f"No object found with hash: {hash_str}")
+        else:
+            raise TypeError(
+                "Identifier must be either a string (variable name or hash) or a UUID object"
+            )
 
     @classmethod
     def pull(cls, uuid: Optional[Union[str, UUID]] = None, url: Optional[str] = None):
@@ -485,12 +519,3 @@ if __name__ == "__main__":
     import doctest
 
     doctest.testmod(optionflags=doctest.ELLIPSIS)
-
-    # with Study(name = "cool_study") as study:
-    #      from edsl import QuestionFreeText
-    #      q = QuestionFreeText.example()
-
-    # assert len(study.objects) == 1
-
-    # print(study.versions())
-    # {'q': [ObjectEntry(variable_name='q', object=Question('free_text', question_name = """how_are_you""", question_text = """How are you?"""), description='Question name: how_are_you', coop_info=None, created_at=1720276402.561273, edsl_class_name='QuestionFreeText')]}

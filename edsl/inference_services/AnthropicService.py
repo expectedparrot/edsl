@@ -1,5 +1,5 @@
 import os
-from typing import Any
+from typing import Any, Optional, List
 import re
 from anthropic import AsyncAnthropic
 from edsl.inference_services.InferenceServiceABC import InferenceServiceABC
@@ -11,6 +11,11 @@ class AnthropicService(InferenceServiceABC):
 
     _inference_service_ = "anthropic"
     _env_key_name_ = "ANTHROPIC_API_KEY"
+    key_sequence = ["content", 0, "text"]  # ["content"][0]["text"]
+    usage_sequence = ["usage"]
+    input_token_name = "input_tokens"
+    output_token_name = "output_tokens"
+    model_exclude_list = []
 
     @classmethod
     def available(cls):
@@ -34,6 +39,11 @@ class AnthropicService(InferenceServiceABC):
             Child class of LanguageModel for interacting with OpenAI models
             """
 
+            key_sequence = cls.key_sequence
+            usage_sequence = cls.usage_sequence
+            input_token_name = cls.input_token_name
+            output_token_name = cls.output_token_name
+
             _inference_service_ = cls._inference_service_
             _model_ = model_name
             _parameters_ = {
@@ -47,7 +57,10 @@ class AnthropicService(InferenceServiceABC):
             }
 
             async def async_execute_model_call(
-                self, user_prompt: str, system_prompt: str = ""
+                self,
+                user_prompt: str,
+                system_prompt: str = "",
+                files_list: Optional[List["Files"]] = None,
             ) -> dict[str, Any]:
                 """Calls the OpenAI API and returns the API response."""
 
@@ -65,17 +78,6 @@ class AnthropicService(InferenceServiceABC):
                     ],
                 )
                 return response.model_dump()
-
-            @staticmethod
-            def parse_response(raw_response: dict[str, Any]) -> str:
-                """Parses the API response and returns the response text."""
-                response = raw_response["content"][0]["text"]
-                pattern = r"^```json(?:\\n|\n)(.+?)(?:\\n|\n)```$"
-                match = re.match(pattern, response, re.DOTALL)
-                if match:
-                    return match.group(1)
-                else:
-                    return response
 
         LLM.__name__ = model_class_name
 

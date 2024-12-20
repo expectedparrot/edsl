@@ -1,5 +1,15 @@
 import unittest
+from httpcore import ConnectionNotAvailable
+import random
+import asyncio
+from typing import Any
+
 from edsl.surveys.Memory import Memory
+from edsl.language_models.LanguageModel import LanguageModel
+from edsl.enums import InferenceServiceType
+from edsl.scenarios.Scenario import Scenario
+from edsl.surveys.Survey import Survey
+from edsl.questions import QuestionFreeText
 
 
 class TestMemory(unittest.TestCase):
@@ -28,20 +38,11 @@ class TestMemory(unittest.TestCase):
         self.assertEqual(memory, ["question1"])
 
     def test_adding_memories(self):
-        import random
-        from edsl.language_models.LanguageModel import LanguageModel
-        from edsl.enums import InferenceServiceType
-        import asyncio
-        from typing import Any
-        from edsl import Scenario, Survey
-
-        from httpcore import ConnectionNotAvailable
-        from edsl.questions import QuestionFreeText
 
         def create_exception_throwing_model(exception: Exception, probability: float):
             class TestLanguageModelGood(LanguageModel):
                 _model_ = "test"
-                _parameters_ = {"temperature": 0.5, "use_cache": False}
+                _parameters_ = {"temperature": 0.5}
                 _inference_service_ = InferenceServiceType.TEST.value
 
                 async def async_execute_model_call(

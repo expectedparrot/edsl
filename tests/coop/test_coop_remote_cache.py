@@ -1,10 +1,13 @@
 import datetime
 import pytest
 import unittest
-from edsl import Cache, Coop, Survey
+from edsl.data.Cache import Cache
+from edsl.coop import Coop
+from edsl.surveys.Survey import Survey
 from edsl.data.CacheEntry import CacheEntry
-from edsl.questions import QuestionMultipleChoice
+from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
 from unittest.mock import patch, PropertyMock
+from edsl.language_models.LanguageModel import LanguageModel
 
 example_cache_entries = [
     CacheEntry(
@@ -55,31 +58,12 @@ def test_coop_remote_cache():
 class TestRemoteCacheWithJobs(unittest.TestCase):
 
     def setUp(self):
-        import asyncio
-        from typing import Any
-        from edsl.enums import InferenceServiceType
-        from edsl.language_models.LanguageModel import LanguageModel
 
-        class CacheTestLanguageModel(LanguageModel):
-            use_cache = False
-            _model_ = "cache-test-model"
-            _parameters_ = {"temperature": 0.5}
-            _inference_service_ = InferenceServiceType.TEST.value
+        sky_model = LanguageModel.example(test_model=True, canned_response="blue")
+        grass_model = LanguageModel.example(test_model=True, canned_response="green")
 
-            async def async_execute_model_call(
-                self, user_prompt: str, system_prompt: str
-            ) -> dict[str, Any]:
-                await asyncio.sleep(0.1)
-                if "What is the color of the sky?" in user_prompt:
-                    return {"message": """{"answer": "2"}"""}
-                else:
-                    return {"message": """{"answer": "1"}"""}
-
-            def parse_response(self, raw_response: dict[str, Any]) -> str:
-                answer = raw_response["message"]
-                return answer
-
-        self.cache_test_model = CacheTestLanguageModel
+        self.sky_model = sky_model
+        self.grass_model = grass_model
 
     @patch(
         "edsl.Coop.edsl_settings",
@@ -139,9 +123,15 @@ class TestRemoteCacheWithJobs(unittest.TestCase):
             question_text="What is the color of the grass?",
             question_options=["red", "green", "blue"],
         )
-        m = self.cache_test_model()
-        survey = Survey(questions=[q_1, q_2])
-        survey.by(m).run(cache=Cache(), remote_cache_description="Example survey")
+
+        model = self.sky_model
+        survey = Survey(questions=[q_1])
+        survey.by(model).run(cache=Cache(), remote_cache_description="Example survey")
+
+        model = self.grass_model
+        survey = Survey(questions=[q_2])
+        survey.by(model).run(cache=Cache(), remote_cache_description="Example survey")
+
         descriptions = get_descriptions(coop)
         assert sorted(descriptions) == [
             "Example entry",
@@ -191,9 +181,13 @@ class TestRemoteCacheWithJobs(unittest.TestCase):
             question_text="What is the color of the grass?",
             question_options=["red", "green", "blue"],
         )
-        m = self.cache_test_model()
-        survey = Survey(questions=[q_1, q_2])
-        survey.by(m).run(cache=local_cache)
+        model = self.sky_model
+        survey = Survey(questions=[q_1])
+        survey.by(model).run(cache=local_cache)
+
+        model = self.grass_model
+        survey = Survey(questions=[q_2])
+        survey.by(model).run(cache=local_cache)
 
         # Local cache should not have synced with remote cache
         remote_cache_keys = [entry.key for entry in coop.remote_cache_get()]
@@ -236,8 +230,8 @@ class TestRemoteCacheWithJobs(unittest.TestCase):
             question_text="What is the color of the sky?",
             question_options=["red", "green", "blue"],
         )
-        m = self.cache_test_model()
-        q_1.by(m).run(cache=local_cache)
+        model = self.sky_model
+        q_1.by(model).run(cache=local_cache)
 
         # Local cache should have synced with remote cache
         remote_cache_keys = [entry.key for entry in coop.remote_cache_get()]
@@ -251,7 +245,8 @@ class TestRemoteCacheWithJobs(unittest.TestCase):
             question_text="What is the color of the grass?",
             question_options=["red", "green", "blue"],
         )
-        q_2.by(m).run(cache=local_cache)
+        model = self.grass_model
+        q_2.by(model).run(cache=local_cache)
 
         # Local cache should have synced with remote cache
         remote_cache_keys = [entry.key for entry in coop.remote_cache_get()]

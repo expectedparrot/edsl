@@ -4,16 +4,43 @@ import inspect
 from edsl.questions.QuestionBase import QuestionBase
 
 from edsl.utilities.restricted_python import create_restricted_function
+from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
 
 
 class QuestionFunctional(QuestionBase):
-    """A special type of question that is *not* answered by an LLM."""
+    """A special type of question that is *not* answered by an LLM.
+
+    >>> from edsl import Scenario, Agent
+
+    # Create an instance of QuestionFunctional with the new function
+    >>> question = QuestionFunctional.example()
+
+    # Activate and test the function
+    >>> question.activate()
+    >>> scenario = Scenario({"numbers": [1, 2, 3, 4, 5]})
+    >>> agent = Agent(traits={"multiplier": 10})
+    >>> results = question.by(scenario).by(agent).run(disable_remote_cache = True, disable_remote_inference = True)
+    >>> results.select("answer.*").to_list()[0] == 150
+    True
+
+    # Serialize the question to a dictionary
+
+    >>> from edsl.questions.QuestionBase import QuestionBase
+    >>> new_question = QuestionBase.from_dict(question.to_dict())
+    >>> results = new_question.by(scenario).by(agent).run(disable_remote_cache = True, disable_remote_inference = True)
+    >>> results.select("answer.*").to_list()[0] == 150
+    True
+
+    """
 
     question_type = "functional"
     default_instructions = ""
     activated = True
     function_source_code = ""
     function_name = ""
+
+    _response_model = None
+    response_validator_class = None
 
     def __init__(
         self,
@@ -23,6 +50,7 @@ class QuestionFunctional(QuestionBase):
         requires_loop: Optional[bool] = False,
         function_source_code: Optional[str] = None,
         function_name: Optional[str] = None,
+        unsafe: Optional[bool] = False,
     ):
         super().__init__()
         if func:
@@ -34,9 +62,12 @@ class QuestionFunctional(QuestionBase):
 
         self.requires_loop = requires_loop
 
-        self.func = create_restricted_function(
-            self.function_name, self.function_source_code
-        )
+        if unsafe:
+            self.func = func
+        else:
+            self.func = create_restricted_function(
+                self.function_name, self.function_source_code
+            )
 
         self.question_name = question_name
         self.question_text = question_text
@@ -73,14 +104,26 @@ class QuestionFunctional(QuestionBase):
         """Required by Question, but not used by QuestionFunctional."""
         raise NotImplementedError
 
-    def to_dict(self):
-        return {
+    @property
+    def question_html_content(self) -> str:
+        return "NA for QuestionFunctional"
+
+    # @add_edsl_version
+    def to_dict(self, add_edsl_version=True):
+        d = {
             "question_name": self.question_name,
             "function_source_code": self.function_source_code,
             "question_type": "functional",
             "requires_loop": self.requires_loop,
             "function_name": self.function_name,
         }
+        if add_edsl_version:
+            from edsl import __version__
+
+            d["edsl_version"] = __version__
+            d["edsl_class_name"] = self.__class__.__name__
+
+        return d
 
     @classmethod
     def example(cls):
@@ -113,4 +156,11 @@ def main():
     scenario = Scenario({"numbers": [1, 2, 3, 4, 5]})
     agent = Agent(traits={"multiplier": 10})
     results = question.by(scenario).by(agent).run()
-    print(results)
+    assert results.select("answer.*").to_list()[0] == 150
+
+
+if __name__ == "__main__":
+    # main()
+    import doctest
+
+    doctest.testmod(optionflags=doctest.ELLIPSIS)

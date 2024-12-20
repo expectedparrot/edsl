@@ -17,7 +17,13 @@ class TaskCreators(UserDict):
 
     @property
     def token_usage(self) -> InterviewTokenUsage:
-        """Determines how many tokens were used for the interview."""
+        """Determines how many tokens were used for the interview.
+
+        This is iterates through all tasks that make up an interview.
+        For each task, it determines how many tokens were used and whether they were cached or new.
+        It then sums the total number of cached and new tokens used for the interview.
+
+        """
         cached_tokens = TokenUsage(from_cache=True)
         new_tokens = TokenUsage(from_cache=False)
         for task_creator in self.values():
@@ -28,7 +34,7 @@ class TaskCreators(UserDict):
             new_token_usage=new_tokens, cached_token_usage=cached_tokens
         )
 
-    def print(self):
+    def print(self) -> None:
         from rich import print
 
         print({task.get_name(): task.task_status for task in self.values()})

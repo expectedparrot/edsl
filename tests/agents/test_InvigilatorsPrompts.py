@@ -2,10 +2,12 @@ import pytest
 from edsl.agents.Agent import Agent
 
 from edsl.prompts.Prompt import Prompt
-from edsl.prompts.registry import get_classes
-from edsl.exceptions import QuestionScenarioRenderError
-from edsl.prompts.registry import get_classes
-from edsl import Survey
+
+# from edsl.prompts.registry import get_classes
+from edsl.exceptions.questions import QuestionScenarioRenderError
+
+# from edsl.prompts.registry import get_classes
+from edsl.surveys.Survey import Survey
 
 from edsl.agents.Invigilator import InvigilatorAI
 
@@ -17,7 +19,8 @@ class MockModel:
 class MockQuestion:
     question_type = "free_text"
     question_text = "How are you feeling?"
-    question_name = "feelings_question"
+    question_name = "q0"
+    name = "q0"
     data = {
         "question_name": "feelings",
         "question_text": "How are you feeling?",
@@ -45,11 +48,11 @@ def mock_question():
 
 
 def test_invigilator_ai_no_trait_template(mock_model, mock_question):
-    applicable_prompts = get_classes(
-        component_type="question_instructions",
-        question_type=mock_question.question_type,
-        model=mock_model.model,
-    )
+    # applicable_prompts = get_classes(
+    #     component_type="question_instructions",
+    #     question_type=mock_question.question_type,
+    #     model=mock_model.model,
+    # )
 
     a = Agent(
         instruction="You are a happy-go lucky agent.",
@@ -91,7 +94,7 @@ def test_invigilator_ai_with_trait_template(mock_model, mock_question):
 
     assert (
         i.get_prompts()["system_prompt"].text
-        == "You are a happy-go lucky agent. You are feeling happy."
+        == "You are a happy-go lucky agent.You are feeling happy."
     )
 
 

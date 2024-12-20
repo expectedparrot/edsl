@@ -18,13 +18,16 @@ with a low (-1) priority.
 """
 
 import ast
+import random
 from typing import Any, Union, List
 
-from jinja2 import Template
-from rich import print
+
+# from rich import print
 from simpleeval import EvalWithCompoundTypes
 
-from edsl.exceptions import (
+from edsl.exceptions.surveys import SurveyError
+
+from edsl.exceptions.surveys import (
     SurveyRuleCannotEvaluateError,
     SurveyRuleCollectionHasNoRulesAtNodeError,
     SurveyRuleRefersToFutureStateError,
@@ -34,11 +37,31 @@ from edsl.exceptions import (
 )
 from edsl.surveys.base import EndOfSurvey
 from edsl.utilities.ast_utilities import extract_variable_names
-from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
+from edsl.utilities.remove_edsl_version import remove_edsl_version
+
+
+class QuestionIndex:
+    def __set_name__(self, owner, name):
+        self.name = f"_{name}"
+
+    def __get__(self, obj, objtype=None):
+        return getattr(obj, self.name)
+
+    def __set__(self, obj, value):
+        if not isinstance(value, (int, EndOfSurvey.__class__)):
+            raise SurveyError(f"{self.name} must be an integer or EndOfSurvey")
+        if self.name == "_next_q" and isinstance(value, int):
+            current_q = getattr(obj, "_current_q")
+            if value <= current_q:
+                raise SurveyError("next_q must be greater than current_q")
+        setattr(obj, self.name, value)
 
 
 class Rule:
     """The Rule class defines a "rule" for determining the next question presented to an agent."""
+
+    current_q = QuestionIndex()
+    next_q = QuestionIndex()
 
     # Not implemented but nice to have:
     # We could potentially use the question pydantic models to check for rule conflicts, as
@@ -74,14 +97,22 @@ class Rule:
         self.priority = priority
         self.before_rule = before_rule
 
+        if not self.next_q == EndOfSurvey:
+            if self.next_q <= self.current_q:
+                raise SurveyRuleSendsYouBackwardsError
+
         if not self.next_q == EndOfSurvey and self.current_q > self.next_q:
-            raise SurveyRuleSendsYouBackwardsError
+            raise SurveyRuleSendsYouBackwardsError(
+                f"current_q: {self.current_q}, next_q: {self.next_q}"
+            )
 
         # get the AST for the expression - used to extract the variables referenced in the expression
         try:
             self.ast_tree = ast.parse(self.expression)
         except SyntaxError:
-            raise SurveyRuleSkipLogicSyntaxError
+            raise SurveyRuleSkipLogicSyntaxError(
+                f"The expression {self.expression} is not valid Python syntax."
+            )
 
         # get the names of the variables in the expression
         # e.g., q1 == 'yes' -> ['q1']
@@ -117,13 +148,12 @@ class Rule:
     def _checks(self):
         pass
 
-    @add_edsl_version
-    def to_dict(self):
+    def to_dict(self, add_edsl_version=True):
         """Convert the rule to a dictionary for serialization.
 
         >>> r = Rule.example()
         >>> r.to_dict()
-        {'current_q': 1, 'expression': "q1 == 'yes'", 'next_q': 2, 'priority': 0, 'question_name_to_index': {'q1': 1}, 'before_rule': False, 'edsl_version': '...', 'edsl_class_name': 'Rule'}
+        {'current_q': 1, 'expression': "q1 == 'yes'", 'next_q': 2, 'priority': 0, 'question_name_to_index': {'q1': 1}, 'before_rule': False}
         """
         return {
             "current_q": self.current_q,
@@ -223,6 +253,7 @@ class Rule:
         ...
         edsl.exceptions.surveys.SurveyRuleCannotEvaluateError...
         """
+        from jinja2 import Template
 
         def substitute_in_answers(expression, current_info_env):
             """Take the dictionary of answers and substitute them into the expression."""
@@ -251,8 +282,16 @@ class Rule:
             msg = f"""Exception in evaluation: {e}. The expression is: {self.expression}. The current info env trying to substitute in is: {current_info_env}. After the substition, the expression was: {to_evaluate}."""
             raise SurveyRuleCannotEvaluateError(msg)
 
+        random_functions = {
+            "randint": random.randint,
+            "choice": random.choice,
+            "random": random.random,
+            "uniform": random.uniform,
+            # Add any other random functions you want to allow
+        }
+
         try:
-            return EvalWithCompoundTypes().eval(to_evaluate)
+            return EvalWithCompoundTypes(functions=random_functions).eval(to_evaluate)
         except Exception as e:
             msg = f"""Exception in evaluation: {e}. The expression is: {self.expression}. The current info env trying to substitute in is: {current_info_env}. After the substition, the expression was: {to_evaluate}."""
             raise SurveyRuleCannotEvaluateError(msg)

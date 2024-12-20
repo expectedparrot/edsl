@@ -1,0 +1,17 @@
+<h2>Exceptions by Question Name</h2>
+<table border="1">
+    <thead>
+        <tr>
+            <th>Question Name</th>
+            <th>Number of Exceptions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for question_name, exception_count in exceptions_by_question_name.items() %}
+            <tr>
+                <td>{{ question_name }}</td>
+                <td>{{ exception_count }}</td>
+            </tr>
+        {% endfor %}
+    </tbody>
+</table>

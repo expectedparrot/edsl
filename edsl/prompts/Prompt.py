@@ -1,43 +1,20 @@
 from __future__ import annotations
-from typing import Optional
-from abc import ABC
-from typing import Any, List
+from typing import Any, List, Union, Dict, Optional
+from pathlib import Path
 
-from rich.table import Table
-from jinja2 import Template, Environment, meta, TemplateSyntaxError, Undefined
-
-
-class PreserveUndefined(Undefined):
-    def __str__(self):
-        return "{{ " + self._undefined_name + " }}"
+# from jinja2 import Undefined
 
 
 from edsl.exceptions.prompts import TemplateRenderError
-from edsl.prompts.prompt_config import (
-    C2A,
-    names_to_component_types,
-    ComponentTypes,
-    NEGATIVE_INFINITY,
-)
-from edsl.prompts.registry import RegisterPromptsMeta
-from edsl.Base import PersistenceMixin, RichPrintingMixin
+from edsl.Base import PersistenceMixin, RepresentationMixin
 
 MAX_NESTING = 100
 
 
-class PromptBase(
-    PersistenceMixin, RichPrintingMixin, ABC, metaclass=RegisterPromptsMeta
-):
+class Prompt(PersistenceMixin, RepresentationMixin):
     """Class for creating a prompt to be used in a survey."""
 
     default_instructions: Optional[str] = "Do good things, friendly LLM!"
-    component_type = ComponentTypes.GENERIC
-
-    def _repr_html_(self):
-        """Return an HTML representation of the Prompt."""
-        from edsl.utilities.utilities import data_to_html
-
-        return data_to_html(self.to_dict())
 
     def __len__(self):
         """Return the length of the prompt text."""
@@ -58,6 +35,9 @@ class PromptBase(
                 text = self.default_instructions
             else:
                 text = ""
+        if isinstance(text, Prompt):
+            # make it idempotent w/ a prompt
+            text = text.text
         self._text = text
 
     @classmethod
@@ -67,6 +47,44 @@ class PromptBase(
         :param text: The text of the prompt.
         """
         with open(filename, "r") as f:
+            text = f.read()
+        return cls(text=text)
+
+    @classmethod
+    def from_template(
+        cls,
+        file_name: str,
+        path_to_folder: Optional[Union[str, Path]] = None,
+        **kwargs: Dict[str, Any],
+    ) -> "PromptBase":
+        """Create a `PromptBase` from a Jinja template.
+
+        Args:
+            file_name (str): The name of the Jinja template file.
+            path_to_folder (Union[str, Path]): The path to the folder containing the template.
+                            Can be absolute or relative.
+            **kwargs: Variables to be passed to the template for rendering.
+
+        Returns:
+            PromptBase: An instance of PromptBase with the rendered template as text.
+        """
+        # if file_name lacks the .j2 extension, add it
+        if not file_name.endswith(".jinja"):
+            file_name += ".jinja"
+
+        # Convert path_to_folder to a Path object if it's a string
+        if path_to_folder is None:
+            from importlib import resources
+            import os
+
+            path_to_folder = resources.path("edsl.questions", "prompt_templates")
+
+        try:
+            folder_path = Path(path_to_folder)
+        except Exception as e:
+            raise ValueError(f"Invalid path: {path_to_folder}. Error: {e}")
+
+        with open(folder_path.joinpath(file_name), "r") as f:
             text = f.read()
         return cls(text=text)
 
@@ -145,6 +163,12 @@ class PromptBase(
         :param template: The template to find the variables in.
 
         """
+        from jinja2 import Environment, meta, Undefined
+
+        class PreserveUndefined(Undefined):
+            def __str__(self):
+                return "{{ " + str(self._undefined_name) + " }}"
+
         env = Environment(undefined=PreserveUndefined)
         ast = env.parse(template)
         return list(meta.find_undeclared_variables(ast))
@@ -205,10 +229,14 @@ class PromptBase(
         >>> p.render({"person": "Mr. {{last_name}}"})
         Prompt(text=\"""Hello, Mr. {{ last_name }}\""")
         """
-        new_text = self._render(
-            self.text, primary_replacement, **additional_replacements
-        )
-        return self.__class__(text=new_text)
+        try:
+            new_text = self._render(
+                self.text, primary_replacement, **additional_replacements
+            )
+            return self.__class__(text=new_text)
+        except Exception as e:
+            print(f"Error rendering prompt: {e}")
+            return self
 
     @staticmethod
     def _render(
@@ -229,10 +257,17 @@ class PromptBase(
         >>> p.render({"name": "John", "age": 44}, codebook=codebook)
         Prompt(text=\"""You are an agent named John. Age: 44\""")
         """
+        from jinja2 import Environment, meta, TemplateSyntaxError, Undefined
+
+        class PreserveUndefined(Undefined):
+            def __str__(self):
+                return "{{ " + str(self._undefined_name) + " }}"
+
         env = Environment(undefined=PreserveUndefined)
         try:
             previous_text = None
             for _ in range(MAX_NESTING):
+                # breakpoint()
                 rendered_text = env.from_string(text).render(
                     primary_replacement, **additional_replacements
                 )
@@ -247,9 +282,11 @@ class PromptBase(
                 "Too much nesting - you created an infinite loop here, pal"
             )
         except TemplateSyntaxError as e:
-            raise TemplateRenderError(f"Template syntax error: {e}")
+            raise TemplateRenderError(
+                f"Template syntax error: {e}. Bad template: {text}"
+            )
 
-    def to_dict(self) -> dict[str, Any]:
+    def to_dict(self, add_edsl_version=False) -> dict[str, Any]:
         """Return the `Prompt` as a dictionary.
 
         Example:
@@ -273,33 +310,26 @@ class PromptBase(
         Prompt(text=\"""Hello, {{person}}\""")
 
         """
-        class_name = data["class_name"]
-        cls = RegisterPromptsMeta._registry.get(class_name, Prompt)
-        return cls(text=data["text"])
+        # class_name = data["class_name"]
+        return Prompt(text=data["text"])
 
-    def rich_print(self):
-        """Display an object as a table."""
-        table = Table(title="Prompt")
-        table.add_column("Attribute", style="bold")
-        table.add_column("Value")
+    # def rich_print(self):
+    #     """Display an object as a table."""
+    #     table = Table(title="Prompt")
+    #     table.add_column("Attribute", style="bold")
+    #     table.add_column("Value")
 
-        to_display = self.__dict__.copy()
-        for attr_name, attr_value in to_display.items():
-            table.add_row(attr_name, repr(attr_value))
-        table.add_row("Component type", str(self.component_type))
-        table.add_row("Model", str(getattr(self, "model", "Not specified")))
-        return table
+    #     to_display = self.__dict__.copy()
+    #     for attr_name, attr_value in to_display.items():
+    #         table.add_row(attr_name, repr(attr_value))
+    #     table.add_row("Component type", str(self.component_type))
+    #     table.add_row("Model", str(getattr(self, "model", "Not specified")))
+    #     return table
 
     @classmethod
     def example(cls):
         """Return an example of the prompt."""
         return cls(cls.default_instructions)
-
-
-class Prompt(PromptBase):
-    """A prompt to be used in a survey."""
-
-    component_type = ComponentTypes.GENERIC
 
 
 if __name__ == "__main__":
@@ -308,15 +338,15 @@ if __name__ == "__main__":
 
     doctest.testmod()
 
-from edsl.prompts.library.question_multiple_choice import *
-from edsl.prompts.library.agent_instructions import *
-from edsl.prompts.library.agent_persona import *
+# from edsl.prompts.library.question_multiple_choice import *
+# from edsl.prompts.library.agent_instructions import *
+# from edsl.prompts.library.agent_persona import *
 
-from edsl.prompts.library.question_budget import *
-from edsl.prompts.library.question_checkbox import *
-from edsl.prompts.library.question_freetext import *
-from edsl.prompts.library.question_linear_scale import *
-from edsl.prompts.library.question_numerical import *
-from edsl.prompts.library.question_rank import *
-from edsl.prompts.library.question_extract import *
-from edsl.prompts.library.question_list import *
+# from edsl.prompts.library.question_budget import *
+# from edsl.prompts.library.question_checkbox import *
+# from edsl.prompts.library.question_freetext import *
+# from edsl.prompts.library.question_linear_scale import *
+# from edsl.prompts.library.question_numerical import *
+# from edsl.prompts.library.question_rank import *
+# from edsl.prompts.library.question_extract import *
+# from edsl.prompts.library.question_list import *

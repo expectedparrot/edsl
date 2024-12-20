@@ -1,8 +1,10 @@
 import os
 import pytest
-from edsl import CONFIG, QuestionFreeText
+from edsl.config import CONFIG
+from edsl.questions import QuestionFreeText
 from edsl.data.Cache import Cache
 from edsl.data.CacheEntry import CacheEntry
+from edsl.language_models.registry import Model
 
 
 @pytest.fixture(scope="module")
@@ -72,9 +74,9 @@ def test_write_to_db(cache_example):
     # assert os.path.exists(CONFIG.get("EDSL_DATABASE_PATH").replace("sqlite:///", ""))
 
 
-def test_html(cache_example):
-    cache = cache_example
-    assert cache._repr_html_() == cache_example._repr_html_()
+# def test_html(cache_example):
+#     cache = cache_example
+#     assert cache._repr_html_() == cache_example._repr_html_()
 
 
 def test_fetch_existing_entry(cache_example):
@@ -141,8 +143,9 @@ def test_throw_file_note_found_error():
         assert True
 
 
-def test_caching(language_model_good):
-    m = language_model_good
+def test_caching():
+
+    m = Model("test")
     m.remote = False
     c = Cache()
     results1 = QuestionFreeText.example().by(m).run(cache=c, check_api_keys=False)

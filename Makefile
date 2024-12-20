@@ -3,7 +3,7 @@
 ###############
 GIT_ROOT ?= $(shell git rev-parse --show-toplevel)
 PROJECT_NAME ?= $(shell basename $(GIT_ROOT))
-.PHONY: bump docs docstrings find help integration
+.PHONY: bump docs docstrings find help integration model-report
 
 ###############
 ##@Utils ⭐ 
@@ -28,7 +28,12 @@ clean: ## Clean temp files
 	[ ! -d .temp ] || rm -rf .temp
 	[ ! -d dist ] || rm -rf dist
 	[ ! -d htmlcov ] || rm -rf htmlcov
+	[ ! -f output.html ] || rm output.html
 	[ ! -d prof ] || rm -rf prof
+	[ ! -f test.dta ] || rm test.dta
+	[ ! -f *.docx ] || rm *.docx
+	[ ! -f *.html ] || rm *.html
+	[ ! -f *.json ] || rm *.json
 	find . -type d -name '.venv' -prune -o -type f -name '*.db' -exec rm -rf {} +
 	find . -type d -name '.venv' -prune -o -type f -name '*.db.bak' -exec rm -rf {} +
 	find . -type d -name '.venv' -prune -o -type f -name '*.log' -exec rm -rf {} +
@@ -52,6 +57,10 @@ clean-test: ## Clean test files
 	@for file in *.jsonl; do \
 		[ ! -f "$$file" ] || rm "$$file"; \
 	done
+
+model-report: ## Generate a model report
+	python integration/test_all_questions_and_models.py | tee >> model_report.txt
+	echo "Model report generated in model_report.txt"
 
 clean-all: ## Clean everything (including the venv)
 	@if [ -n "$$VIRTUAL_ENV" ]; then \
@@ -133,6 +142,10 @@ test: ## Run regular tests (no Coop tests)
 	make clean-test
 	pytest -xv tests --nocoop
 
+test-token-bucket: ## Run token bucket tests
+	make clean-test
+	pytest -xv tests --nocoop --token-bucket
+
 test-coop: ## Run Coop tests (no regular tests, requires Coop local server running)
 	make clean-test
 	pytest -xv tests --coop
@@ -171,11 +184,34 @@ test-doctests: ## Run doctests
 	pytest --doctest-modules edsl/language_models
 	pytest --doctest-modules edsl/data
 	pytest --doctest-modules edsl/study
-	pytest --doctest-modules edsl/conjure
+
+test-services:
+	python integration/test_all_questions_and_models.py
+
+# Directory containing the notebooks
+NOTEBOOK_DIR := docs/notebooks
+
+.PHONY: test-notebooks
+
+# Test notebooks
+test-notebooks:
+	@if [ -z "$(notebook)" ]; then \
+		echo "Testing all notebooks..."; \
+		pytest -v integration/active/test_notebooks.py; \
+	else \
+		echo "Testing notebook: $(notebook)"; \
+		pytest -v integration/active/test_notebooks.py -k "$(notebook)"; \
+	fi
+
+
+# .PHONY: test-notebooks	
+# test-notebooks: ## Run the notebooks tests
+# 	pytest -v integration/active/test_example_notebooks.py
 
 test-integration: ## Run integration tests via pytest **consumes API credits**
-	cd integration/printing && python check_printing.py
-	pytest -v integration/test_example_notebooks.py
+	# cd integration/printing && python check_printing.py
+	pytest -v integration/active
+	# pytest -v integration/test_example_notebooks.py
 	pytest -v integration/test_integration_jobs.py
 	pytest -v integration/test_memory.py
 	pytest -v integration/test_models.py
@@ -187,14 +223,3 @@ integration-job-running: # DOES NOT WORK!
 
 integration-tricky-questions: # DOES NOT WORK!
 	pytest -v --log-cli-level=INFO integration/test_tricky_questions.py
-
-# ###############
-# ##@COOP 🪺
-# ###############
-# env-chick:
-# 	@echo "Setting up the environment"
-# 	cp .env_chick .env
-
-# env-local-coop: 
-# 	@echo "Setting up the environment"
-# 	cp .env_local_coop .env

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 import json
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 from uuid import uuid4
 from edsl.Base import Base
 from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
@@ -56,6 +56,8 @@ class Notebook(Base):
 
     @classmethod
     def from_script(cls, path: str, name: Optional[str] = None) -> "Notebook":
+        import nbformat
+
         # Read the script file
         with open(path, "r") as script_file:
             script_content = script_file.read()
@@ -92,12 +94,25 @@ class Notebook(Base):
         """
         return self.data == other.data
 
-    @add_edsl_version
-    def to_dict(self) -> dict:
+    def __hash__(self) -> int:
         """
-        Convert a Notebook to a dictionary.
+        Allow the model to be used as a key in a dictionary.
         """
-        return {"name": self.name, "data": self.data}
+        from edsl.utilities.utilities import dict_hash
+
+        return dict_hash(self.data["cells"])
+
+    def to_dict(self, add_edsl_version=False) -> dict:
+        """
+        Serialize to a dictionary.
+        """
+        d = {"name": self.name, "data": self.data}
+        if add_edsl_version:
+            from edsl import __version__
+
+            d["edsl_version"] = __version__
+            d["edsl_class_name"] = self.__class__.__name__
+        return d
 
     @classmethod
     @remove_edsl_version
@@ -111,16 +126,9 @@ class Notebook(Base):
         """
         Save the notebook at the specified filepath.
         """
+        import nbformat
+
         nbformat.write(nbformat.from_dict(self.data), fp=path)
-
-    def print(self):
-        """
-        Print the notebook.
-        """
-        from rich import print_json
-        import json
-
-        print_json(json.dumps(self.to_dict()))
 
     def __repr__(self):
         """
@@ -232,6 +240,16 @@ class Notebook(Base):
         lines.append("from edsl import Notebook")
         lines.append(f'nb = Notebook(data={self.data}, name="""{self.name}""")')
         return lines
+
+    def to_latex(self, filename: str):
+        """
+        Convert notebook to LaTeX and create a folder with all necessary components.
+
+        :param filename: Name of the output folder and main tex file (without extension)
+        """
+        from edsl.notebooks.NotebookToLaTeX import NotebookToLaTeX
+
+        NotebookToLaTeX(self).convert(filename)
 
 
 if __name__ == "__main__":

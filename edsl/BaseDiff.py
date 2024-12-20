@@ -25,7 +25,7 @@ class DummyObject:
     def __init__(self, object_dict):
         self.object_dict = object_dict
 
-    def _to_dict(self):
+    def to_dict(self):
         return self.object_dict
 
 
@@ -38,12 +38,12 @@ class BaseDiff:
         self.obj1 = obj1
         self.obj2 = obj2
 
-        if "sort" in inspect.signature(obj1._to_dict).parameters:
-            self._dict1 = obj1._to_dict(sort=True)
-            self._dict2 = obj2._to_dict(sort=True)
+        if "sort" in inspect.signature(obj1.to_dict).parameters:
+            self._dict1 = obj1.to_dict(sort=True)
+            self._dict2 = obj2.to_dict(sort=True)
         else:
-            self._dict1 = obj1._to_dict()
-            self._dict2 = obj2._to_dict()
+            self._dict1 = obj1.to_dict()
+            self._dict2 = obj2.to_dict()
         self._obj_class = type(obj1)
 
         self.added = added
@@ -139,7 +139,7 @@ class BaseDiff:
     def apply(self, obj: Any):
         """Apply the diff to the object."""
 
-        new_obj_dict = obj._to_dict()
+        new_obj_dict = obj.to_dict()
         for k, v in self.added.items():
             new_obj_dict[k] = v
         for k in self.removed.keys():

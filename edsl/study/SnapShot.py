@@ -32,7 +32,7 @@ class SnapShot:
         {'Cache': <class 'edsl.data.Cache.Cache'>}
         """
         from edsl.Base import RegisterSubclassesMeta
-        from edsl import QuestionBase
+        from edsl.questions.QuestionBase import QuestionBase
 
         all_edsl_objects = RegisterSubclassesMeta.get_registry()
 
@@ -57,10 +57,17 @@ class SnapShot:
         from edsl.Base import Base
         from edsl.study.Study import Study
 
+        def is_edsl_object(obj):
+            package_name = "edsl"
+            cls = obj.__class__
+            module_name = cls.__module__
+            return module_name.startswith(package_name)
+
         for name, value in namespace.items():
             # TODO check this code logic (if there are other objects with to_dict method that are not from edsl)
             if (
-                hasattr(value, "to_dict")
+                is_edsl_object(value)
+                and hasattr(value, "to_dict")
                 and not inspect.isclass(value)
                 and value.__class__ not in [o.__class__ for o in self.exclude]
             ):

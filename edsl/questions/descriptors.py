@@ -2,8 +2,8 @@
 
 from abc import ABC, abstractmethod
 import re
-from typing import Any, Callable
-from edsl.exceptions import (
+from typing import Any, Callable, List, Optional
+from edsl.exceptions.questions import (
     QuestionCreationValidationError,
     QuestionAnswerValidationError,
 )
@@ -53,33 +53,12 @@ class BaseDescriptor(ABC):
 
     def __set__(self, instance, value: Any) -> None:
         """Set the value of the attribute."""
-        self.validate(value, instance)
-        from edsl.prompts.registry import get_classes
+        new_value = self.validate(value, instance)
 
-        instance.__dict__[self.name] = value
-        if self.name == "_instructions":
-            instructions = value
-            if value is not None:
-                instance.__dict__[self.name] = instructions
-                instance.set_instructions = True
-            else:
-                potential_prompt_classes = get_classes(
-                    question_type=instance.question_type
-                )
-                if len(potential_prompt_classes) > 0:
-                    instructions = potential_prompt_classes[0]().text
-                    instance.__dict__[self.name] = instructions
-                    instance.set_instructions = False
-                else:
-                    if not hasattr(instance, "default_instructions"):
-                        raise Exception(
-                            "No default instructions found and no matching prompts!"
-                        )
-                    instructions = instance.default_instructions
-                    instance.__dict__[self.name] = instructions
-                    instance.set_instructions = False
-
-            # instance.set_instructions = value != instance.default_instructions
+        if new_value is not None:
+            instance.__dict__[self.name] = new_value
+        else:
+            instance.__dict__[self.name] = value
 
     def __set_name__(self, owner, name: str) -> None:
         """Set the name of the attribute."""
@@ -202,16 +181,32 @@ class NumSelectionsDescriptor(BaseDescriptor):
 
 
 class OptionLabelDescriptor(BaseDescriptor):
-    """Validate that the `option_label` attribute is a string."""
+    """Validate that the `option_label` attribute is a string.
+
+    >>> class TestQuestion:
+    ...     option_label = OptionLabelDescriptor()
+    ...     def __init__(self, option_label: str):
+    ...         self.option_label = option_label
+
+    >>> _ = TestQuestion("{{Option}}")
+
+    """
 
     def validate(self, value, instance):
         """Validate the value is a string."""
-        if value is not None:
-            if min(value.keys()) != min(instance.question_options):
+        if isinstance(value, str):
+            if "{{" in value and "}}" in value:
+                # they're trying to use a dynamic question name - let's let this play out
+                return None
+
+        key_values = [int(v) for v in value.keys()]
+
+        if value and (key_values := [float(v) for v in value.keys()]) != []:
+            if min(key_values) != min(instance.question_options):
                 raise QuestionCreationValidationError(
                     f"First option needs a label (got {value})"
                 )
-            if max(value.keys()) != max(instance.question_options):
+            if max(key_values) != max(instance.question_options):
                 raise QuestionCreationValidationError(
                     f"Last option needs a label (got {value})"
                 )
@@ -219,11 +214,16 @@ class OptionLabelDescriptor(BaseDescriptor):
                 raise QuestionCreationValidationError(
                     "Option labels must be strings (got {value})."
                 )
-            for key in value.keys():
+            for key in key_values:
                 if key not in instance.question_options:
                     raise QuestionCreationValidationError(
                         f"Option label key ({key}) is not in question options ({instance.question_options})."
                     )
+
+            if len(value.values()) != len(set(value.values())):
+                raise QuestionCreationValidationError(
+                    f"Option labels must be unique (got {value})."
+                )
 
 
 class QuestionNameDescriptor(BaseDescriptor):
@@ -233,6 +233,15 @@ class QuestionNameDescriptor(BaseDescriptor):
         """Validate the value is a valid variable name."""
         from edsl.utilities.utilities import is_valid_variable_name
 
+        if "{{" in value and "}}" in value:
+            # they're trying to use a dynamic question name - let's let this play out
+            return None
+
+        if value.endswith("_comment") or value.endswith("_generated_tokens"):
+            raise QuestionCreationValidationError(
+                f"`question_name` cannot end with '_comment' or '_generated_tokens - (got {value})."
+            )
+
         if not is_valid_variable_name(value):
             raise QuestionCreationValidationError(
                 f"`question_name` is not a valid variable name (got {value})."
@@ -241,6 +250,16 @@ class QuestionNameDescriptor(BaseDescriptor):
 
 class QuestionOptionsDescriptor(BaseDescriptor):
     """Validate that `question_options` is a list, does not exceed the min/max lengths, and has unique items."""
+
+    @classmethod
+    def example(cls):
+        class TestQuestion:
+            question_options = QuestionOptionsDescriptor()
+
+            def __init__(self, question_options: List[str]):
+                self.question_options = question_options
+
+        return TestQuestion
 
     def __init__(
         self,
@@ -254,7 +273,31 @@ class QuestionOptionsDescriptor(BaseDescriptor):
         self.q_budget = q_budget
 
     def validate(self, value: Any, instance) -> None:
-        """Validate the question options."""
+        """Validate the question options.
+
+        >>> q_class = QuestionOptionsDescriptor.example()
+        >>> _ = q_class(["a", "b", "c"])
+        >>> _ = q_class(["a", "b", "c", "d", "d"])
+        Traceback (most recent call last):
+        ...
+        edsl.exceptions.questions.QuestionCreationValidationError: Question options must be unique (got ['a', 'b', 'c', 'd', 'd']).
+
+        We allow dynamic question options, which are strings of the form '{{ question_options }}'.
+
+        >>> _ = q_class("{{dynamic_options}}")
+        >>> _ = q_class("dynamic_options")
+        Traceback (most recent call last):
+        ...
+        edsl.exceptions.questions.QuestionCreationValidationError: ...
+        """
+        if isinstance(value, str):
+            # Check if the string is a dynamic question option
+            if "{{" in value and "}}" in value:
+                return None
+            else:
+                raise QuestionCreationValidationError(
+                    f"Dynamic question options must have jinja2 braces - instead received: {value}."
+                )
         if not isinstance(value, list):
             raise QuestionCreationValidationError(
                 f"Question options must be a list (got {value})."
@@ -275,14 +318,15 @@ class QuestionOptionsDescriptor(BaseDescriptor):
             )
         if not self.linear_scale:
             if not self.q_budget:
-                if not (
-                    value
-                    and all(type(x) == type(value[0]) for x in value)
-                    and isinstance(value[0], (str, list, int, float))
-                ):
-                    raise QuestionCreationValidationError(
-                        f"Question options must be all same type (got {value}).)"
-                    )
+                pass
+            #     if not (
+            #         value
+            #         and all(type(x) == type(value[0]) for x in value)
+            #         and isinstance(value[0], (str, list, int, float))
+            #     ):
+            #         raise QuestionCreationValidationError(
+            #             f"Question options must be all same type (got {value}).)"
+            #         )
             else:
                 if not all(isinstance(x, (str)) for x in value):
                     raise QuestionCreationValidationError(
@@ -322,12 +366,26 @@ class QuestionOptionsDescriptor(BaseDescriptor):
 
 
 class QuestionTextDescriptor(BaseDescriptor):
-    """Validate that the `question_text` attribute is a string."""
+    """Validate that the `question_text` attribute is a string.
+
+
+    >>> class TestQuestion:
+    ...     question_text = QuestionTextDescriptor()
+    ...     def __init__(self, question_text: str):
+    ...         self.question_text = question_text
+
+    >>> _ = TestQuestion("What is the capital of France?")
+    >>> _ = TestQuestion("What is the capital of France? {{variable}}")
+    >>> _ = TestQuestion("What is the capital of France? {{variable name}}")
+    Traceback (most recent call last):
+    ...
+    edsl.exceptions.questions.QuestionCreationValidationError: Question text contains an invalid identifier: 'variable name'
+    """
 
     def validate(self, value, instance):
         """Validate the value is a string."""
-        if len(value) > Settings.MAX_QUESTION_LENGTH:
-            raise Exception("Question is too long!")
+        # if len(value) > Settings.MAX_QUESTION_LENGTH:
+        #     raise Exception("Question is too long!")
         if len(value) < 1:
             raise Exception("Question is too short!")
         if not isinstance(value, str):
@@ -335,7 +393,35 @@ class QuestionTextDescriptor(BaseDescriptor):
         if contains_single_braced_substring(value):
             import warnings
 
+            # # warnings.warn(
+            # #     f"WARNING: Question text contains a single-braced substring: If you intended to parameterize the question with a Scenario this should be changed to a double-braced substring, e.g. {{variable}}.\nSee details on constructing Scenarios in the docs: https://docs.expectedparrot.com/en/latest/scenarios.html",
+            # #     UserWarning,
+            # # )
             warnings.warn(
-                f"WARNING: Question text contains a single-braced substring: If you intended to parameterize the question with a Scenario this should be changed to a double-braced substring, e.g. {{variable}}.\nSee details on constructing Scenarios in the docs: https://docs.expectedparrot.com/en/latest/scenarios.html",
+                "WARNING: Question text contains a single-braced substring. "
+                "If you intended to parameterize the question with a Scenario, this will "
+                "be changed to a double-braced substring, e.g. {{variable}}.\n"
+                "See details on constructing Scenarios in the docs: "
+                "https://docs.expectedparrot.com/en/latest/scenarios.html",
                 UserWarning,
             )
+            # Automatically replace single braces with double braces
+            # This is here because if the user is using an f-string, the double brace will get converted to a single brace.
+            # This undoes that.
+            value = re.sub(r"\{([^\{\}]+)\}", r"{{\1}}", value)
+            return value
+
+        # iterate through all doubles braces and check if they are valid python identifiers
+        for match in re.finditer(r"\{\{([^\{\}]+)\}\}", value):
+            if " " in match.group(1).strip():
+                raise QuestionCreationValidationError(
+                    f"Question text contains an invalid identifier: '{match.group(1)}'"
+                )
+
+        return None
+
+
+if __name__ == "__main__":
+    import doctest
+
+    doctest.testmod(optionflags=doctest.ELLIPSIS)

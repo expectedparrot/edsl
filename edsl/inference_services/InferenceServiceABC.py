@@ -1,22 +1,67 @@
 from abc import abstractmethod, ABC
-from typing import Any
 import re
+from datetime import datetime, timedelta
+from edsl.config import CONFIG
 
 
 class InferenceServiceABC(ABC):
-    """Abstract class for inference services."""
+    """
+    Abstract class for inference services.
+    """
+
+    _coop_config_vars = None
+
+    def __init_subclass__(cls):
+        """
+        Check that the subclass has the required attributes.
+        - `key_sequence` attribute determines...
+        - `model_exclude_list` attribute determines...
+        """
+        must_have_attributes = [
+            "key_sequence",
+            "model_exclude_list",
+            "usage_sequence",
+            "input_token_name",
+            "output_token_name",
+        ]
+        for attr in must_have_attributes:
+            if not hasattr(cls, attr):
+                raise NotImplementedError(
+                    f"Class {cls.__name__} must have a '{attr}' attribute."
+                )
+
+    @property
+    def service_name(self):
+        return self._inference_service_
+
+    @classmethod
+    def _should_refresh_coop_config_vars(cls):
+        """
+        Returns True if config vars have been fetched over 24 hours ago, and False otherwise.
+        """
+
+        if cls._last_config_fetch is None:
+            return True
+        return (datetime.now() - cls._last_config_fetch) > timedelta(hours=24)
 
     @abstractmethod
     def available() -> list[str]:
+        """
+        Returns a list of available models for the service.
+        """
         pass
 
     @abstractmethod
     def create_model():
+        """
+        Returns a LanguageModel object.
+        """
         pass
 
     @staticmethod
     def to_class_name(s):
-        """Convert a string to a valid class name.
+        """
+        Converts a string to a valid class name.
 
         >>> InferenceServiceABC.to_class_name("hello world")
         'HelloWorld'
@@ -30,35 +75,6 @@ class InferenceServiceABC(ABC):
 
 
 if __name__ == "__main__":
-    pass
-    # deep_infra_service = DeepInfraService("deep_infra", "DEEP_INFRA_API_KEY")
-    # deep_infra_service.available()
-    # m = deep_infra_service.create_model("microsoft/WizardLM-2-7B")
-    # response = m().hello()
-    # print(response)
+    import doctest
 
-    # anthropic_service = AnthropicService("anthropic", "ANTHROPIC_API_KEY")
-    # anthropic_service.available()
-    # m = anthropic_service.create_model("claude-3-opus-20240229")
-    # response = m().hello()
-    # print(response)
-    # factory = OpenAIService("openai", "OPENAI_API")
-    # factory.available()
-    # m = factory.create_model("gpt-3.5-turbo")
-    # response = m().hello()
-
-    # from edsl import QuestionFreeText
-    # results = QuestionFreeText.example().by(m()).run()
-
-    # collection = InferenceServicesCollection([
-    #     OpenAIService,
-    #     AnthropicService,
-    #     DeepInfraService
-    # ])
-
-    # available = collection.available()
-    # factory = collection.create_model_factory(*available[0])
-    # m = factory()
-    # from edsl import QuestionFreeText
-    # results = QuestionFreeText.example().by(m).run()
-    # print(results)
+    doctest.testmod()

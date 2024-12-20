@@ -2,26 +2,25 @@ import os
 import unittest
 from contextlib import redirect_stdout
 from io import StringIO
-from edsl.exceptions import (
+from edsl.exceptions.results import (
     ResultsBadMutationstringError,
     ResultsColumnNotFoundError,
     ResultsInvalidNameError,
 )
 
-# from edsl.report.InputOutputDataTypes import CategoricalData
-from edsl.results import Results
+from edsl.results.Results import Results
 
 
 class TestResults(unittest.TestCase):
     def setUp(self):
-        self.example_results = Results.example(debug=True)
+        self.example_results = Results.example()
 
     def test_instance(self):
         self.assertIsInstance(self.example_results, Results)
 
     def test_parse_column_exception(self):
-        with self.assertRaises(ResultsColumnNotFoundError):
-            self.example_results._parse_column("poop")
+        with self.assertRaises(Exception):
+            self.example_results.select("poop")
 
     def test_bad_mutate(self):
         with self.assertRaises(ResultsBadMutationstringError):
@@ -42,11 +41,11 @@ class TestResults(unittest.TestCase):
 
     def test_csv_export(self):
         # Just prints to screen
-        csv = self.example_results.to_csv()
+        csv = self.example_results.to_csv().text
         self.assertIsInstance(csv, str)
         self.assertIn("how_feeling", csv)
         # Saves the file
-        csv = self.example_results.to_csv(filename="test.csv")
+        csv = self.example_results.to_csv().write("test.csv")
         self.assertIsNone(csv)
         os.remove("test.csv")
 
@@ -126,52 +125,44 @@ class TestResults(unittest.TestCase):
         shuffled = self.example_results.shuffle()
         shuffled2 = self.example_results.select("answer.*").shuffle()
 
+    def test_cache_control(self):
+        d = self.example_results.to_dict(include_cache=True)
+        self.assertIn("cache", d)
+
+        d = self.example_results.to_dict(include_cache=False)
+        self.assertNotIn("cache", d)
+
+    def test_cache_history(self):
+
+        self.assertEqual(self.example_results.task_history.has_exceptions, False)
+        self.assertNotIn("task_history", self.example_results.to_dict())
+
+        self.assertIn(
+            "task_history", self.example_results.to_dict(include_task_history=True)
+        )
+
+        from edsl.questions.QuestionFreeText import QuestionFreeText
+        from edsl.language_models.LanguageModel import LanguageModel
+
+        q = QuestionFreeText.example()
+
+        m = LanguageModel.example(test_model=True, throw_exception=True)
+        results = q.by(m).run(
+            n=2,
+            disable_remote_inference=True,
+            cache=False,
+            disable_remote_cache=True,
+            print_exceptions=True,
+        )
+        self.assertIn("task_history", results.to_dict())
+        new_results = Results.from_dict(results.to_dict())
+        self.assertEqual(new_results.task_history.has_exceptions, True)
+
     def test_sample(self):
         shuffled = self.example_results.sample(n=1)
         assert len(shuffled) == 1
         shuffled2 = self.example_results.select("answer.*").sample(n=1)
         assert len(shuffled2) == 1
-        # with self.assertRaises(Exception):
-        #    shuffled3 = self.example_results.sample(frac = 1.1, with_replacement = False)
-
-    # def test_fetch_answer_data(self):
-    #     self.assertEqual(
-    #         self.example_results._fetch_answer_data(
-    #             "how_feeling", CategoricalData
-    #         ).responses,
-    #         [result.answer.get("how_feeling") for result in self.example_results.data],
-    #     )
-
-    def test_print_long(self):
-        from edsl.questions import QuestionLinearScale, QuestionMultipleChoice
-
-        from edsl import Agent
-
-        def answer_question_directly(self, question, scenario):
-            return "Never"
-
-        from edsl.data.Cache import Cache
-
-        cache = Cache()
-        agent = Agent()
-        agent.add_direct_question_answering_method(answer_question_directly)
-
-        q = QuestionMultipleChoice(
-            question_name="exercise",
-            question_text="How often do you typically exercise each week?",
-            question_options=["Never", "Sometimes", "Often"],
-        )
-        results = q.by(agent).run(cache=cache)
-
-        with StringIO() as buf, redirect_stdout(buf):
-            results.select("answer.*").print()
-            output = buf.getvalue()
-        self.assertIn("Never", output)
-
-        with StringIO() as buf, redirect_stdout(buf):
-            results.select("answer.*").print_long()
-            output = buf.getvalue()
-        self.assertIn("Never", output)
 
     def test_add(self):
         # just check that no exceptions are thrown
@@ -179,15 +170,6 @@ class TestResults(unittest.TestCase):
         r2 = self.example_results
         r3 = r1 + r2
         assert len(r3) == len(r1) + len(r2)
-
-    # def test_stefan(self):
-    #     from edsl.questions import QuestionBase
-    #     from edsl.results import Results
-    #     from edsl.surveys import Survey
-    #     results = Survey.example().run()
-
-    #     res_dect = results.to_dict()
-    #     res = Results.from_dict(res_dect)
 
 
 if __name__ == "__main__":

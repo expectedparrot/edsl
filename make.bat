@@ -4,17 +4,19 @@
 @echo off
 setlocal
 :: To run a command, type `make.bat <command-name-here> in your terminal
-
-if "%1" == "clean-docs" goto clean-docs
-if "%1" == "clean-test" goto clean-test
-if "%1" == "docs" goto docs
-if "%1" == "docs-view" goto docs-view
-if "%1" == "install" goto install
-if "%1" == "test" goto test
-if "%1" == "test-coop" goto test-coop
-if "%1" == "test-coverage" goto test-coverage
-if "%1" == "test-data" goto test-data
-goto end
+if "%1" == "bump" goto :bump
+if "%1" == "clean-docs" goto :clean-docs
+if "%1" == "clean-test" goto :clean-test
+if "%1" == "docs" goto :docs
+if "%1" == "docs-view" goto :docs-view
+if "%1" == "install" goto :install
+if "%1" == "publish" goto :publish
+if "%1" == "test" goto :test
+if "%1" == "test-coop" goto :test-coop
+if "%1" == "test-coverage" goto :test-coverage
+if "%1" == "test-data" goto :test-data
+echo Command not found.
+goto :end
 
 ::###############
 ::##@Utils ⭐ 
@@ -26,7 +28,7 @@ call :clean-all
 echo Creating a venv from pyproject.toml and installing deps using poetry...
 poetry install --with dev
 echo All deps installed and venv created.
-goto end
+goto :end
 
 :clean
 echo Cleaning tempfiles...
@@ -58,13 +60,13 @@ for /r %%i in (.) do (
         )
     )
 )
-goto end
+goto :end
 
 :clean-docs
 :: Clean documentation files
 echo Cleaning docs...
 if exist .temp\docs rmdir /s /q .temp\docs
-goto end
+goto :end
 
 :clean-test
 :: Clean test files
@@ -80,7 +82,7 @@ for %%f in (*.html) do (
 for %%f in (*.jsonl) do (
     if exist "%%f" del /q "%%f"
 )
-goto end
+goto :end
 
 :clean-all
 :: Clean everything (including the venv)
@@ -97,11 +99,36 @@ if exist .venv (
     rmdir /s /q .venv
 )
 echo Done!
-goto end
+goto :end
+
+:publish
+:: Publish the package to PyPI (requires credentials)
+for /f "tokens=1,* delims=:" %%a in ('findstr /n /C:"version =" pyproject.toml') do if not defined version (
+    for /f "tokens=3 delims= " %%c in ("%%b") do set "version=%%~c"
+)
+set version=%version:"=%
+echo You are about to publish EDSL version '%version%' to PyPI.
+set /p answer=Are you sure you want to continue? (y/n) 
+if /i not "%answer%"=="y" (
+    echo Publish canceled.
+    goto end
+)
+poetry build
+poetry publish
+goto :end
 
 ::###############
 ::##@Development 🛠️  
 ::###############
+:bump
+:: Bump the version of the package
+if "%2" == "" (
+    echo Please specify the bump type: dev, patch, minor, or major
+    goto :end
+)
+echo Bumping version...
+python scripts\bump_version.py %2
+goto :end
 
 :docs
 :: Generate documentation
@@ -112,7 +139,7 @@ if not exist .temp\docs (
 poetry export -f requirements.txt --with dev --output .temp\docs\requirements.txt
 poetry export -f requirements.txt --with dev --output docs\requirements.txt
 sphinx-build -b html docs .temp\docs
-goto end
+goto :end
 
 :docs-view
 :: View documentation
@@ -124,7 +151,7 @@ if %errorlevel% == 0 (
 ) else (
     echo Unsupported operating system - docs will not open automatically: %OSNAME%
 )
-goto end
+goto :end
 
 ::###############
 ::##@Testing 🐛
@@ -134,13 +161,13 @@ goto end
 :: Run regular tests (no Coop tests) 
 call :clean-test
 pytest -xv tests --nocoop --windows
-goto end
+goto :end
 
 :test-coop
 :: Run Coop tests (no regular tests, requires Coop local server running)
 call :clean-test
 pytest -xv tests --coop --windows
-goto end
+goto :end
 
 :test-coverage
 :: Run regular tests and get a coverage report
@@ -159,12 +186,12 @@ if %errorlevel% == 0 (
 ) else (
     echo Unsupported operating system - coverage report will not open automatically: %OSNAME%
 )
-goto end
+goto :end
 
 :test-data
 :: Create serialization test data for the current EDSL version
 python scripts/create_serialization_test_data.py
-goto end
+goto :end
 
 :end
 endlocal

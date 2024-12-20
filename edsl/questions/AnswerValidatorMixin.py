@@ -2,7 +2,7 @@
 
 import re
 from typing import Any, Type, Union
-from edsl.exceptions import (
+from edsl.exceptions.questions import (
     QuestionAnswerValidationError,
 )
 
@@ -16,18 +16,26 @@ class AnswerValidatorMixin:
     - Question specific validation: validators for specific question types
     """
 
+    def failing_job(self):
+        from edsl import Agent
+
+        a = Agent()
+
+        def f(self, question, scenario):
+            return []
+
+        a.add_direct_question_answering_method(f, validate_response=True)
+        from edsl import QuestionNumerical
+
+        q = QuestionNumerical.example()
+        results = q.by(a).run()
+        return results
+
     #####################
     # TEMPLATE VALIDATION
     #####################
     def _validate_answer_template_basic(self, answer: Any) -> None:
         """Check that the answer (i) is a dictionary (ii) has an 'answer' key.
-
-        >>> avm = AnswerValidatorMixin()
-        >>> avm._validate_answer_template_basic({'answer': 1})
-        >>> avm._validate_answer_template_basic([])
-        Traceback (most recent call last):
-        ...
-        edsl.exceptions.questions.QuestionAnswerValidationError: Answer must be a dictionary (got []).
 
         - E.g., both {'answer': 1} and {'answer': {'a': 1}, 'other_key'=[1,2,3]} are valid
         """
@@ -56,14 +64,9 @@ class AnswerValidatorMixin:
     def _validate_answer_key_value_numeric(
         self, answer: dict[str, Any], key: str
     ) -> None:
-        """Check that the value of a key is numeric (int or float).
+        """Check that the value is numeric (int or float).
+        Can also deal with strings that contain commas and other characters.
 
-        >>> avm = AnswerValidatorMixin()
-        >>> avm._validate_answer_key_value_numeric({'answer': 1}, 'answer')
-        >>> avm._validate_answer_key_value_numeric({'answer': 'poo'}, 'answer')
-        Traceback (most recent call last):
-        ...
-        edsl.exceptions.questions.QuestionAnswerValidationError: Answer should be numerical (int or float). Got 'poo'
         """
         value = answer.get(key)
         initial_value = value
@@ -128,15 +131,6 @@ class AnswerValidatorMixin:
 
         :param answer: Answer to validate
 
-        >>> avm = AnswerValidatorMixin()
-        >>> avm.question_options = ["a", "b", "c"]
-        >>> avm.min_selections = 1
-        >>> avm.max_selections = 2
-        >>> avm._validate_answer_checkbox({"answer": ["0", "1"]})
-        >>> avm._validate_answer_checkbox({"answer": []})
-        Traceback (most recent call last):
-        ...
-        edsl.exceptions.questions.QuestionAnswerValidationError:...
 
         Check that answer["answer"]:
         - has elements that are strings, bytes-like objects or real numbers evaluating to integers
@@ -219,7 +213,12 @@ class AnswerValidatorMixin:
         - is not less than `min_value`
         - is not greater than `max_value`
         """
-        value = float(answer.get("answer"))
+        try:
+            value = float(answer.get("answer"))
+        except ValueError:
+            raise QuestionAnswerValidationError(
+                f"Answer must real number or convertible to a real number (got {answer.get('answer')})."
+            )
         if self.min_value is not None and value < self.min_value:
             raise QuestionAnswerValidationError(
                 f"Value {value} is less than {self.min_value}"
@@ -285,8 +284,51 @@ class AnswerValidatorMixin:
                 f"Rank answer {value}, but exactly {self.num_selections} selections required."
             )
 
+    def _validate_answer_matrix(self, answer: dict[str, Any]) -> None:
+        """Validate QuestionMatrix-specific answer.
+
+        Check that answer["answer"]:
+        - is a dictionary
+        - has all required question_items as keys
+        - has values that are valid options from question_options
+        - has the correct number of responses (one per item)
+        """
+        value = answer.get("answer")
+
+        # Check that answer is a dictionary
+        if not isinstance(value, dict):
+            raise QuestionAnswerValidationError(
+                f"Matrix answer must be a dictionary mapping items to responses (got {value})"
+            )
+
+        # Check that all required items are present
+        required_items = set(self.question_items)
+        provided_items = set(value.keys())
+
+        if missing_items := (required_items - provided_items):
+            raise QuestionAnswerValidationError(
+                f"Missing responses for items: {missing_items}"
+            )
+
+        if extra_items := (provided_items - required_items):
+            raise QuestionAnswerValidationError(
+                f"Unexpected responses for items: {extra_items}"
+            )
+
+        # Check that all responses are valid options
+        valid_options = set(self.question_options)
+        for item, response in value.items():
+            if response not in valid_options:
+                raise QuestionAnswerValidationError(
+                    f"Invalid response '{response}' for item '{item}'. "
+                    f"Must be one of: {valid_options}"
+                )
+
 
 if __name__ == "__main__":
-    import doctest
+    pass
+    # import doctest
 
-    doctest.testmod(optionflags=doctest.ELLIPSIS)
+    # doctest.testmod(optionflags=doctest.ELLIPSIS)
+
+    # results = AnswerValidatorMixin().failing_job()

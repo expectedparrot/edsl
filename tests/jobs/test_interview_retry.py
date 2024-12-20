@@ -1,10 +1,10 @@
 import pytest
 import asyncio
 
-from edsl.agents import Agent
-from edsl.surveys import Survey
-from edsl.scenarios import Scenario
-from edsl.questions import QuestionMultipleChoice
+from edsl.agents.Agent import Agent
+from edsl.surveys.Survey import Survey
+from edsl.scenarios.Scenario import Scenario
+from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
 from edsl.jobs.interviews.Interview import Interview
 
 
@@ -47,7 +47,7 @@ def test_retry():
 
     a.add_direct_question_answering_method(direct_question_answering_method)
     scenario = Scenario()
-    from edsl import Model
+    from edsl.language_models.registry import Model
 
     m = Model()
     I = Interview(agent=a, survey=s, scenario=scenario, model=m)

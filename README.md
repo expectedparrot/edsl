@@ -19,7 +19,7 @@ A quick example:
 
 ```python
 # Import a question type
-from edsl.questions import QuestionMultipleChoice
+from edsl import QuestionMultipleChoice
 
 # Construct a question using the question type template
 q = QuestionMultipleChoice(
