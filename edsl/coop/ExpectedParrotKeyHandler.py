@@ -3,6 +3,19 @@ import os
 import platformdirs
 
 
+import sys
+import select
+
+
+def get_input_with_timeout(prompt, timeout=5, default="y"):
+    print(prompt, end="", flush=True)
+    ready, _, _ = select.select([sys.stdin], [], [], timeout)
+    if ready:
+        return sys.stdin.readline().strip()
+    print(f"\nNo input received within {timeout} seconds. Using default: {default}")
+    return default
+
+
 class ExpectedParrotKeyHandler:
 
     asked_to_store_file_name = "asked_to_store.txt"
@@ -42,9 +55,12 @@ class ExpectedParrotKeyHandler:
     def ask_to_store(self, api_key) -> bool:
         """Ask the user if they want to store the Expected Parrot key. If they say "yes", store it."""
         if self.ok_to_ask_to_store():
-            can_we_store = input(
-                "Would you like to store your Expected Parrot key for future use? (y/n): "
-            )
+            # can_we_store = get_input_with_timeout(
+            #     "Would you like to store your Expected Parrot key for future use? (y/n): ",
+            #     timeout=5,
+            #     default="y",
+            # )
+            can_we_store = "y"
             if can_we_store.lower() == "y":
                 Path(self.config_dir).mkdir(parents=True, exist_ok=True)
                 self.store_ep_api_key(api_key)
@@ -60,13 +76,13 @@ class ExpectedParrotKeyHandler:
 
     def get_ep_api_key(self):
         # check if the key is stored in the config_dir
+        api_key = None
+        api_key_from_cache = None
+        api_key_from_os = None
+
         if self._ep_key_file_exists():
             with open(Path(self.config_dir).joinpath(self.ep_key_file_name), "r") as f:
                 api_key_from_cache = f.read().strip()
-        else:
-            api_key_from_cache = None
-            # print("Using stored Expected Parrot API key at ", f.name)
-            # return api_key
 
         api_key_from_os = os.getenv("EXPECTED_PARROT_API_KEY")
 
@@ -108,4 +124,4 @@ class ExpectedParrotKeyHandler:
         # Save the key
         with open(key_path, "w") as f:
             f.write(api_key)
-        print("Stored Expected Parrot API key at ", key_path)
+        # print("Stored Expected Parrot API key at ", key_path)
