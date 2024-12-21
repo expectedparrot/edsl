@@ -61,21 +61,26 @@ def test_notebook_creation_from_data_invalid():
     with pytest.raises(NotebookValidationError):
         invalid_data = valid_data.copy()
         invalid_data.pop("cells")
-        notebook = Notebook(invalid_data)
+        notebook = Notebook(data=invalid_data)
     # Missing metadata
     with pytest.raises(NotebookValidationError):
         invalid_data = valid_data.copy()
         invalid_data.pop("metadata")
-        notebook = Notebook(invalid_data)
+        notebook = Notebook(data=invalid_data)
     # Missing cell_type for first cell
     with pytest.raises(NotebookValidationError):
         invalid_dict = deepcopy(valid_data)
         invalid_dict["cells"][0].pop("cell_type")
-        notebook = Notebook(invalid_data)
+        notebook = Notebook(data=invalid_data)
 
 
 def test_notebook_creation_from_path_valid():
     """Tests that a notebook can be created from a filepath."""
+
+    notebook = Notebook("docs/notebooks/starter_tutorial.ipynb")
+    assert notebook.data["nbformat"] == 4
+    assert notebook.data["nbformat_minor"] == 5
+    assert notebook.data["cells"][0]["cell_type"] == "markdown"
 
     notebook = Notebook(path="docs/notebooks/starter_tutorial.ipynb")
     assert notebook.data["nbformat"] == 4
@@ -88,12 +93,10 @@ def test_notebook_creation_from_path_invalid():
 
     # No such file
     with pytest.raises(FileNotFoundError):
-        notebook = Notebook(
-            path="docs/notebooks/invalid_path_to_starter_tutorial.ipynb"
-        )
+        notebook = Notebook("docs/notebooks/invalid_path_to_starter_tutorial.ipynb")
     # File exists, but is not JSON
     with pytest.raises(NotJSONError):
-        notebook = Notebook(path="docs/agents.rst")
+        notebook = Notebook("docs/agents.rst")
     # No path - not implemented in environments other than VS Code
     with pytest.raises(NotImplementedError):
         notebook = Notebook()
@@ -104,14 +107,14 @@ def test_notebook_equality():
 
     # Test equality (only checks data, not name)
     notebook1 = Notebook.example()
-    notebook2 = Notebook(valid_data, name="second_notebook")
+    notebook2 = Notebook(data=valid_data, name="second_notebook")
     assert notebook1 == notebook2
 
 
 def test_notebook_serialization():
     """Tests notebook serialization."""
 
-    notebook = Notebook(valid_data)
+    notebook = Notebook(data=valid_data)
     notebook2 = Notebook.from_dict(notebook.to_dict())
     assert isinstance(notebook, Notebook)
     assert type(notebook) == type(notebook2)

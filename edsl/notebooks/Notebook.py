@@ -17,8 +17,8 @@ class Notebook(Base):
 
     def __init__(
         self,
-        data: Optional[Dict] = None,
         path: Optional[str] = None,
+        data: Optional[Dict] = None,
         name: Optional[str] = None,
     ):
         """
@@ -33,12 +33,16 @@ class Notebook(Base):
         import nbformat
 
         # Load current notebook path as fallback (VS Code only)
-        path = path or globals().get("__vsc_ipynb_file__")
-        if data is not None:
+        current_notebook_path = globals().get("__vsc_ipynb_file__")
+        if path is not None:
+            with open(path, mode="r", encoding="utf-8") as f:
+                data = nbformat.read(f, as_version=4)
+            self.data = json.loads(json.dumps(data))
+        elif data is not None:
             nbformat.validate(data)
             self.data = data
-        elif path is not None:
-            with open(path, mode="r", encoding="utf-8") as f:
+        elif current_notebook_path is not None:
+            with open(current_notebook_path, mode="r", encoding="utf-8") as f:
                 data = nbformat.read(f, as_version=4)
             self.data = json.loads(json.dumps(data))
         else:
