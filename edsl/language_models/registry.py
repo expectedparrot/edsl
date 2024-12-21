@@ -5,10 +5,13 @@ from functools import lru_cache
 from edsl.utilities.PrettyList import PrettyList
 from typing import Optional, TYPE_CHECKING, List
 
-# if TYPE_CHECKING:
+if TYPE_CHECKING:
+    from edsl.results.Dataset import Dataset
+
 from edsl.inference_services.InferenceServicesCollection import (
     InferenceServicesCollection,
 )
+from edsl.inference_services.data_structures import AvailableModels
 from edsl.inference_services.InferenceServiceABC import InferenceServiceABC
 from edsl.enums import InferenceServiceLiteral
 
@@ -87,6 +90,11 @@ class Model(metaclass=Meta):
 
     @classmethod
     def service_classes(cls) -> List["InferenceServiceABC"]:
+        """Returns a list of service classes.
+
+        >>> Model.service_classes()
+        [...]
+        """
         return [r for r in cls.services(name_only=True)]
 
     @classmethod
@@ -111,12 +119,13 @@ class Model(metaclass=Meta):
             )
 
     @classmethod
-    def services_with_local_keys(cls) -> List[str]:
+    def services_with_local_keys(cls) -> set:
         """Returns a list of services for which the user has local keys."""
         return set(cls.key_info().select("service").to_list())
 
     @classmethod
-    def key_info(cls):
+    def key_info(cls, obscure_api_key: bool = True) -> "Dataset":
+        """Returns a dataset of local key information."""
         from edsl.language_models.key_management.KeyLookupCollection import (
             KeyLookupCollection,
         )
@@ -127,6 +136,11 @@ class Model(metaclass=Meta):
         sl = ScenarioList()
         for service, entry in list(klc.data.values())[0].items():
             sl.append(Scenario({"service": service} | entry.to_dict()))
+        if obscure_api_key:
+            for service in sl:
+                service["api_token"] = (
+                    service["api_token"][:4] + "..." + service["api_token"][-4:]
+                )
         return sl.to_dataset()
 
     @classmethod
@@ -134,7 +148,7 @@ class Model(metaclass=Meta):
         return cls.available(search_term=search_term)
 
     @classmethod
-    def all_known_models(cls):
+    def all_known_models(cls) -> "AvailableModels":
         return cls.get_registry().available()
 
     @classmethod
