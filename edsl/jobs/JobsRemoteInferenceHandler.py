@@ -166,7 +166,7 @@ class JobsRemoteInferenceHandler:
 
             if status == "cancelled":
                 self.logger.update(
-                    messaged="Job cancelled by the user.", status=JobsStatus.CANCELLED
+                    message="Job cancelled by the user.", status=JobsStatus.CANCELLED
                 )
                 self.logger.update(
                     f"See {expected_parrot_url}/home/remote-inference for more details.",
@@ -176,6 +176,8 @@ class JobsRemoteInferenceHandler:
 
             elif status == "failed":
                 latest_error_report_url = remote_job_data.get("latest_error_report_url")
+                failure_reason = remote_job_data.get("latest_failure_reason")
+                failure_details = remote_job_data.get("latest_failure_details")
                 if latest_error_report_url:
                     self.logger.update("Job failed.", status=JobsStatus.FAILED)
                     self.logger.update(
@@ -186,6 +188,18 @@ class JobsRemoteInferenceHandler:
                         "Need support? Visit Discord: https://discord.com/invite/mxAYkjfy9m",
                         status=JobsStatus.FAILED,
                     )
+                elif failure_reason == "insufficient funds":
+                    self.logger.update("Job failed.", status=JobsStatus.FAILED)
+                    if failure_details:
+                        self.logger.update(
+                            f"Insufficient funds: {failure_details}. Please add more credits to your account at {expected_parrot_url}/home/purchases",
+                            status=JobsStatus.FAILED,
+                        )
+                    else:
+                        self.logger.update(
+                            f"You do not have enough credits to run this job. Please add more credits to your account at {expected_parrot_url}/home/purchases",
+                            status=JobsStatus.FAILED,
+                        )
                 else:
                     self.logger.update("Job failed.", "failed")
                     self.logger.update(

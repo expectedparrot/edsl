@@ -36,7 +36,8 @@ class RemoteInferenceResponse(TypedDict):
     latest_error_report_uuid: str
     latest_error_report_url: str
     status: str
-    reason: str
+    latest_failure_reason: str
+    latest_failure_details: str
     credits_consumed: float
     version: str
 
@@ -758,7 +759,8 @@ class Coop(CoopFunctionsMixin):
                 "latest_error_report_uuid": latest_error_report_uuid,
                 "latest_error_report_url": latest_error_report_url,
                 "status": data.get("status"),
-                "reason": data.get("reason"),
+                "latest_failure_reason": data.get("latest_failure_reason"),
+                "latest_failure_details": data.get("latest_failure_details"),
                 "credits_consumed": data.get("price"),
                 "version": data.get("version"),
             }
