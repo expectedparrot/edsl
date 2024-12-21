@@ -3,10 +3,17 @@ from random import random
 from edsl.config import CONFIG
 from functools import lru_cache
 from edsl.utilities.PrettyList import PrettyList
-from typing import Optional
+from typing import Optional, TYPE_CHECKING, List
+
+# if TYPE_CHECKING:
+from edsl.inference_services.InferenceServicesCollection import (
+    InferenceServicesCollection,
+)
+from edsl.inference_services.InferenceServiceABC import InferenceServiceABC
+from edsl.enums import InferenceServiceLiteral
 
 
-def get_model_class(model_name, registry=None):
+def get_model_class(model_name, registry: Optional[InferenceServicesCollection] = None):
     from edsl.inference_services.registry import default
 
     registry = registry or default
@@ -32,58 +39,80 @@ class Meta(type):
 
 class Model(metaclass=Meta):
     default_model = CONFIG.get("EDSL_DEFAULT_MODEL")
+    _registry: InferenceServicesCollection = None  # Class-level registry storage
+
+    @classmethod
+    def get_registry(cls) -> InferenceServicesCollection:
+        """Get the current registry or initialize with default if None"""
+        if cls._registry is None:
+            from edsl.inference_services.registry import default
+
+            cls._registry = default
+        return cls._registry
+
+    @classmethod
+    def set_registry(cls, registry: InferenceServicesCollection) -> None:
+        """Set a new registry"""
+        cls._registry = registry
 
     def __new__(
-        cls, model_name=None, registry=None, service_name=None, *args, **kwargs
+        cls,
+        model_name: Optional[str] = None,
+        service_name: Optional[InferenceServiceLiteral] = None,
+        registry: Optional[InferenceServicesCollection] = None,
+        *args,
+        **kwargs,
     ):
+        "Instantiate a new language model."
         # Map index to the respective subclass
         if model_name is None:
             model_name = (
                 cls.default_model
             )  # when model_name is None, use the default model, set in the config file
-        from edsl.inference_services.registry import default
 
-        registry = registry or default
+        if registry is not None:
+            cls.set_registry(registry)
 
         if isinstance(model_name, int):  # can refer to a model by index
             model_name = cls.available(name_only=True)[model_name]
 
-        factory = registry.create_model_factory(model_name, service_name=service_name)
+        factory = cls.get_registry().create_model_factory(
+            model_name, service_name=service_name
+        )
         return factory(*args, **kwargs)
 
     @classmethod
-    def add_model(cls, service_name, model_name):
-        from edsl.inference_services.registry import default
-
-        registry = default
-        registry.add_model(service_name, model_name)
+    def add_model(cls, service_name, model_name) -> None:
+        cls.get_registry().add_model(service_name, model_name)
 
     @classmethod
-    def service_classes(cls, registry=None):
-        from edsl.inference_services.registry import default
-
-        registry = registry or default
-        return [r for r in registry.services]
+    def service_classes(cls) -> List["InferenceServiceABC"]:
+        return [r for r in cls.services(name_only=True)]
 
     @classmethod
-    def services(cls, registry=None):
-        from edsl.inference_services.registry import default
-
-        registry = registry or default
+    def services(cls, name_only: bool = False) -> List[str]:
+        """Returns a list of services, annotated with whether the user has local keys for them."""
         services_with_local_keys = set(cls.key_info().select("service").to_list())
         f = lambda service_name: (
             "yes" if service_name in services_with_local_keys else " "
         )
-        return PrettyList(
-            [
-                (r._inference_service_, f(r._inference_service_))
-                for r in registry.services
-            ],
-            columns=["Service Name", "Local key?"],
-        )
+        if name_only:
+            return PrettyList(
+                [r._inference_service_ for r in cls.get_registry().services],
+                columns=["Service Name"],
+            )
+        else:
+            return PrettyList(
+                [
+                    (r._inference_service_, f(r._inference_service_))
+                    for r in cls.get_registry().services
+                ],
+                columns=["Service Name", "Local key?"],
+            )
 
     @classmethod
-    def services_with_local_keys(cls):
+    def services_with_local_keys(cls) -> List[str]:
+        """Returns a list of services for which the user has local keys."""
         return set(cls.key_info().select("service").to_list())
 
     @classmethod
@@ -101,32 +130,46 @@ class Model(metaclass=Meta):
         return sl.to_dataset()
 
     @classmethod
+    def search_models(cls, search_term: str):
+        return cls.available(search_term=search_term)
+
+    @classmethod
+    def all_known_models(cls):
+        return cls.get_registry().available()
+
+    @classmethod
+    def available_with_local_keys(cls):
+        services_with_local_keys = set(cls.key_info().select("service").to_list())
+        return [
+            m
+            for m in cls.get_registry().available()
+            if m.service_name in services_with_local_keys
+        ]
+
+    @classmethod
     def available(
         cls,
         search_term: str = None,
         name_only: bool = False,
-        registry=None,
         service: Optional[str] = None,
     ):
-        if search_term is None and service is None:
-            print("Getting available models...")
-            print("You have local keys for the following services:")
-            print(cls.services_with_local_keys())
-            print("\n")
-            print("To see models by service, use the 'service' parameter.")
-            print("E.g., Model.available(service='openai')")
-            return None
-
-        from edsl.inference_services.registry import default
-
-        registry = registry or default
-        # full_list = registry.available()
+        # if search_term is None and service is None:
+        #     print("Getting available models...")
+        #     print("You have local keys for the following services:")
+        #     print(cls.services_with_local_keys())
+        #     print("\n")
+        #     print("To see models by service, use the 'service' parameter.")
+        #     print("E.g., Model.available(service='openai')")
+        #     return None
 
         if service is not None:
-            if service not in cls.services(registry=registry):
-                raise ValueError(f"Service {service} not found in available services.")
+            if service not in cls.services(name_only=True):
+                raise ValueError(
+                    f"Service {service} not found in available services.",
+                    f"Available services are: {cls.services()}",
+                )
 
-        full_list = registry.available(service=service)
+        full_list = cls.get_registry().available(service=service)
 
         if search_term is None:
             if name_only:

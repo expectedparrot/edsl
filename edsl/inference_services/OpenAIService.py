@@ -81,20 +81,24 @@ class OpenAIService(InferenceServiceABC):
     _models_list_cache: List[str] = []
 
     @classmethod
-    def get_model_list(cls):
-        raw_list = cls.sync_client().models.list()
+    def get_model_list(cls, api_key=None):
+        if api_key is None:
+            api_key = os.getenv(cls._env_key_name_)
+        raw_list = cls.sync_client(api_key).models.list()
         if hasattr(raw_list, "data"):
             return raw_list.data
         else:
             return raw_list
 
     @classmethod
-    def available(cls) -> List[str]:
+    def available(cls, api_token=None) -> List[str]:
+        if api_token is None:
+            api_token = os.getenv(cls._env_key_name_)
         if not cls._models_list_cache:
             try:
                 cls._models_list_cache = [
                     m.id
-                    for m in cls.get_model_list()
+                    for m in cls.get_model_list(api_token=api_token)
                     if m.id not in cls.model_exclude_list
                 ]
             except Exception as e:

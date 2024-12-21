@@ -31,7 +31,7 @@ class AnthropicService(InferenceServiceABC):
 
     @classmethod
     def available(cls):
-        cls.get_model_list()
+        return cls.get_model_list()
 
     @classmethod
     def create_model(
