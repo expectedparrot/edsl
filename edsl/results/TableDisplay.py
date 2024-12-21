@@ -68,7 +68,7 @@ class TableDisplay:
     def __repr__(self):
         from tabulate import tabulate
 
-        return tabulate(self.data, headers=self.headers, tablefmt="grid")
+        return tabulate(self.data, headers=self.headers, tablefmt=self.tablefmt)
 
     @classmethod
     def from_dictionary(

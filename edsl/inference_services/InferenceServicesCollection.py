@@ -69,7 +69,12 @@ class ModelResolver:
                 self._models_to_services[model_name] = service
                 return service
 
-        raise InferenceServiceError(f"Model {model_name} not found in any services")
+        raise InferenceServiceError(
+            f"""Model {model_name} not found in any services. 
+                                    If you know the service that has this model, use the service_name parameter directly.
+                                    E.g., Model("gpt-4o", service_name="openai")
+                                    """
+        )
 
 
 class InferenceServicesCollection:
@@ -91,6 +96,9 @@ class InferenceServicesCollection:
         if service_name not in cls.added_models:
             cls.added_models[service_name].append(model_name)
 
+    def service_names_to_classes(self) -> Dict[str, InferenceServiceABC]:
+        return {service._inference_service_: service for service in self.services}
+
     def available(
         self,
         service: Optional[str] = None,
@@ -110,7 +118,15 @@ class InferenceServicesCollection:
     def create_model_factory(
         self, model_name: str, service_name: Optional[InferenceServiceLiteral] = None
     ) -> "LanguageModel":
-        service = self.resolver.resolve_model(model_name, service_name)
+
+        if service_name is None:  # we try to find the right service
+            service = self.resolver.resolve_model(model_name, service_name)
+        else:  # if they passed a service, we'll use that
+            service = self.service_names_to_classes().get(service_name)
+
+        if not service:  # but if we can't find it, we'll raise an error
+            raise InferenceServiceError(f"Service {service_name} not found")
+
         return service.create_model(model_name)
 
 

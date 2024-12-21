@@ -133,6 +133,12 @@ class AvailableModelFetcher:
         )
         service_name = service._inference_service_
 
+        if not service_models:
+            import warnings
+
+            warnings.warn(f"No models found for service {service_name}")
+            return [], service_name
+
         models_list = AvailableModels(
             [
                 LanguageModelInfo(
