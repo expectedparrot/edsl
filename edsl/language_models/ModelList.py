@@ -1,4 +1,4 @@
-from typing import Optional, List
+from typing import Optional, List, TYPE_CHECKING
 from collections import UserList
 
 from edsl.Base import Base
@@ -7,6 +7,9 @@ from edsl.language_models.registry import Model
 # from edsl.language_models import LanguageModel
 from edsl.utilities.remove_edsl_version import remove_edsl_version
 from edsl.utilities.is_valid_variable_name import is_valid_variable_name
+
+if TYPE_CHECKING:
+    from edsl.inference_services.data_structures import AvailableModels
 
 
 class ModelList(Base, UserList):
@@ -119,6 +122,16 @@ class ModelList(Base, UserList):
         if len(args) == 1 and isinstance(args[0], list):
             args = args[0]
         return ModelList([Model(model_name, **kwargs) for model_name in args])
+
+    @classmethod
+    def from_available_models(self, available_models_list: "AvailableModels"):
+        """Create a ModelList from an AvailableModels object"""
+        return ModelList(
+            [
+                Model(model.model_name, service_name=model.service_name)
+                for model in available_models_list
+            ]
+        )
 
     @classmethod
     @remove_edsl_version
