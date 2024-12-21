@@ -79,18 +79,18 @@ class TableDisplay:
     ) -> "TableDisplay":
         headers = list(dictionary.keys())
         data = [list(dictionary.values())]
-        return cls(headers, data, tablefmt, renderer=renderer)
+        return cls(headers, data, tablefmt, renderer_class=renderer)
 
     @classmethod
     def from_dictionary_wide(
         cls,
         dictionary: dict,
         tablefmt: Optional[TableFormat] = None,
-        renderer: Optional[TableFormat] = None,
+        renderer: Optional[TableRenderer] = None,
     ) -> "TableDisplay":
         headers = ["key", "value"]
         data = [[k, v] for k, v in dictionary.items()]
-        return cls(headers, data, tablefmt, renderer=renderer)
+        return cls(headers, data, tablefmt, renderer_class=renderer)
 
     @classmethod
     def from_dataset(
@@ -100,7 +100,7 @@ class TableDisplay:
         renderer: Optional[TableRenderer] = None,
     ) -> "TableDisplay":
         headers, data = dataset._tabular()
-        return cls(headers, data, tablefmt, dataset, renderer=renderer)
+        return cls(headers, data, tablefmt, dataset, renderer_class=renderer)
 
     def long(self) -> "TableDisplay":
         """Convert to long format"""
@@ -109,7 +109,7 @@ class TableDisplay:
         for index, row in enumerate(self.data):
             new_data.extend([[index, k, v] for k, v in zip(self.headers, row)])
         return TableDisplay(
-            new_header, new_data, self.tablefmt, renderer=self.renderer_class
+            new_header, new_data, self.tablefmt, renderer_class=self.renderer_class
         )
 
 
