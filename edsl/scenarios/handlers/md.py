@@ -3,7 +3,6 @@ import tempfile
 
 
 class MarkdownMethods(FileMethods):
-
     suffix = "md"
 
     def view_system(self):

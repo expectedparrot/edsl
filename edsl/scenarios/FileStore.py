@@ -39,7 +39,9 @@ class FileStore(Scenario):
         self.base64_string = base64_string or self.encode_file_to_base64_string(path)
         self.external_locations = external_locations or {}
 
-        self.extracted_text = self.extract_text() if extracted_text is None else extracted_text
+        self.extracted_text = (
+            self.extract_text() if extracted_text is None else extracted_text
+        )
 
         super().__init__(
             {
@@ -103,16 +105,14 @@ class FileStore(Scenario):
 
     def __repr__(self):
         import reprlib
+
         r = reprlib.Repr()
         r.maxstring = 20  # Limit strings to 20 chars
-        r.maxother = 30   # Limit other types to 30 chars
-        
-        params = ", ".join(
-            f"{key}={r.repr(value)}" 
-            for key, value in self.data.items()
-        )
+        r.maxother = 30  # Limit other types to 30 chars
+
+        params = ", ".join(f"{key}={r.repr(value)}" for key, value in self.data.items())
         return f"{self.__class__.__name__}({params})"
-    
+
     def _repr_html_(self):
         parent_html = super()._repr_html_()
         from edsl.scenarios.ConstructDownloadLink import ConstructDownloadLink
@@ -254,13 +254,13 @@ class FileStore(Scenario):
         handler = FileMethods.get_handler(self.suffix)
         if handler and hasattr(handler, "extract_text"):
             return handler(self.path).extract_text()
-        
+
         if not self.binary:
             return self.text
-        
+
         return None
-        #raise TypeError("No text method found for this file type.")
-        
+        # raise TypeError("No text method found for this file type.")
+
     def push(
         self, description: Optional[str] = None, visibility: str = "unlisted"
     ) -> dict:
@@ -495,7 +495,7 @@ if __name__ == "__main__":
     # fs.view()
 
     formats = FileMethods.supported_file_types()
-    for file_type in formats:  
+    for file_type in formats:
         print("Now testinging", file_type)
         fs = FileStore.example(file_type)
         fs.view()

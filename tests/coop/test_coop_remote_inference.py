@@ -2,6 +2,7 @@ import pytest
 
 # from edsl import Coop, Agent, Jobs, Model, Results, Survey
 
+from edsl.agents.Agent import Agent
 from edsl.coop.coop import Coop
 from edsl.jobs.Jobs import Jobs
 from edsl.language_models.registry import Model

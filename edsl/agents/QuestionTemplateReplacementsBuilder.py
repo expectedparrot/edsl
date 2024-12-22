@@ -7,7 +7,6 @@ if TYPE_CHECKING:
 
 
 class QuestionTemplateReplacementsBuilder:
-
     def __init__(self, prompt_constructor: "PromptConstructor"):
         self.prompt_constructor = prompt_constructor
 

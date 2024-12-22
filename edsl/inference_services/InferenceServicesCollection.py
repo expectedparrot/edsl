@@ -12,7 +12,8 @@ if TYPE_CHECKING:
 
 
 class ModelCreator(Protocol):
-    def create_model(self, model_name: str) -> "LanguageModel": ...
+    def create_model(self, model_name: str) -> "LanguageModel":
+        ...
 
 
 from edsl.enums import InferenceServiceLiteral
@@ -62,9 +63,10 @@ class ModelResolver:
             return self._models_to_services[model_name]
 
         for service in self.services:
-            available_models, service_name = (
-                self.availability_fetcher.get_available_models_by_service(service)
-            )
+            (
+                available_models,
+                service_name,
+            ) = self.availability_fetcher.get_available_models_by_service(service)
             if model_name in available_models:
                 self._models_to_services[model_name] = service
                 return service

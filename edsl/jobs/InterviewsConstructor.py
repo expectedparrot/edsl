@@ -6,7 +6,6 @@ if TYPE_CHECKING:
 
 
 class InterviewsConstructor:
-
     def __init__(self, jobs):
         self.jobs = jobs
 

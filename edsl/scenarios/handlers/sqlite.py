@@ -5,7 +5,6 @@ import sqlite3
 
 
 class SQLiteMethods(FileMethods):
-
     suffix = "db"  # or "sqlite", depending on your preference
 
     def extract_text(self):

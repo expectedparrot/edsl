@@ -6,7 +6,6 @@ if TYPE_CHECKING:
 
 
 class MemoryManagement:
-
     def __init__(self, survey):
         self.survey = survey
 
