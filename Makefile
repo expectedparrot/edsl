@@ -120,6 +120,14 @@ docs-view: ## View documentation
 docstrings: ## Check docstrings
 	pydocstyle edsl
 
+style-report: ## Check docstrings and generate a report
+	python scripts/style_report.py --source edsl --output style_report
+	open style_report/index.html
+
+typing-report:
+	python scripts/typing_report.py --source edsl --output typing_report
+	open typing_report/index.html
+
 format: ## Run code autoformatters (black).
 	pre-commit install
 	pre-commit run black-jupyter --all-files --all
