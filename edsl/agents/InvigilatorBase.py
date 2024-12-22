@@ -13,6 +13,7 @@ if TYPE_CHECKING:
     from edsl.surveys.MemoryPlan import MemoryPlan
     from edsl.language_models.LanguageModel import LanguageModel
     from edsl.surveys.Survey import Survey
+    from edsl.agents.Agent import Agent
 
 from edsl.data_transfer_models import EDSLResultObjectInput
 from edsl.agents.PromptConstructor import PromptConstructor
@@ -29,8 +30,6 @@ class InvigilatorBase(ABC):
     'Failed to get response'
 
     This returns an empty prompt because there is no memory the agent needs to have at q0.
-
-
     """
 
     def __init__(
@@ -45,7 +44,6 @@ class InvigilatorBase(ABC):
         cache: Optional["Cache"] = None,
         iteration: Optional[int] = 1,
         additional_prompt_data: Optional[dict] = None,
-        sidecar_model: Optional["LanguageModel"] = None,
         raise_validation_errors: Optional[bool] = True,
         prompt_plan: Optional["PromptPlan"] = None,
     ):
@@ -59,9 +57,9 @@ class InvigilatorBase(ABC):
         self.iteration = iteration
         self.additional_prompt_data = additional_prompt_data
         self.cache = cache
-        self.sidecar_model = sidecar_model
         self.survey = survey
         self.raise_validation_errors = raise_validation_errors
+
         if prompt_plan is None:
             self.prompt_plan = PromptPlan()
         else:
@@ -128,11 +126,6 @@ class InvigilatorBase(ABC):
         else:
             cache = Cache.from_dict(data["cache"])
 
-        if data["sidecar_model"] is None:
-            sidecar_model = None
-        else:
-            sidecar_model = LanguageModel.from_dict(data["sidecar_model"])
-
         return cls(
             agent=agent,
             question=question,
@@ -144,7 +137,6 @@ class InvigilatorBase(ABC):
             iteration=iteration,
             additional_prompt_data=additional_prompt_data,
             cache=cache,
-            sidecar_model=sidecar_model,
         )
 
     def __repr__(self) -> str:
