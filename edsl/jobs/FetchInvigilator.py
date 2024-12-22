@@ -1,8 +1,11 @@
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from edsl.questions.QuestionBase import QuestionBase
+    from edsl.agents.InvigilatorBase import InvigilatorBase
 
 
 class FetchInvigilator:
-
     def __init__(self, interview, current_answers: Optional[Dict[str, Any]] = None):
         self.interview = interview
         if current_answers is None:
@@ -21,13 +24,13 @@ class FetchInvigilator:
             question=question,
             scenario=self.interview.scenario,
             model=self.interview.model,
-            debug=False,
+            #            debug=False,
             survey=self.interview.survey,
             memory_plan=self.interview.survey.memory_plan,
             current_answers=self.current_answers,  # not yet known
             iteration=self.interview.iteration,
             cache=self.interview.cache,
-            sidecar_model=self.interview.sidecar_model,
+            #           sidecar_model=self.interview.sidecar_model,
             raise_validation_errors=self.interview.raise_validation_errors,
         )
         """Return an invigilator for the given question."""

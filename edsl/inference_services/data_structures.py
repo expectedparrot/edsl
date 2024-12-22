@@ -55,8 +55,12 @@ class ModelNamesList(UserList):
 
 
 class AvailableModels(UserList):
+<<<<<<< HEAD
 
     def __init__(self, data: List[LanguageModelInfo]) -> None:
+=======
+    def __init__(self, data: list) -> None:
+>>>>>>> main
         super().__init__(data)
 
     def __contains__(self, model_name: str) -> bool:

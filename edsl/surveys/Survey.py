@@ -21,7 +21,6 @@ from collections import UserDict
 
 
 class PseudoIndices(UserDict):
-
     @property
     def max_pseudo_index(self) -> float:
         """Return the maximum pseudo index in the survey.
@@ -365,7 +364,6 @@ class Survey(SurveyExportMixin, Base):
 
                 return ChangeInstruction
             else:
-
                 return QuestionBase
 
         questions = [
@@ -919,6 +917,19 @@ class Survey(SurveyExportMixin, Base):
         from edsl.jobs.Jobs import Jobs
 
         return Jobs(survey=self).run(*args, **kwargs)
+
+    def duplicate(self):
+        """Duplicate the survey.
+
+        >>> s = Survey.example()
+        >>> s2 = s.duplicate()
+        >>> s == s2
+        True
+        >>> s is s2
+        False
+
+        """
+        return Survey.from_dict(self.to_dict())
 
     # region: Survey flow
     def next_question(

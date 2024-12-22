@@ -2,7 +2,6 @@ from typing import Callable
 
 
 class Simulator:
-
     def __init__(self, survey):
         self.survey = survey
 

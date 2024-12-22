@@ -65,13 +65,7 @@ class TestService(InferenceServiceABC):
                 await asyncio.sleep(0.1)
                 # return {"message": """{"answer": "Hello, world"}"""}
 
-                if hasattr(self, "func"):
-                    return {
-                        "message": [
-                            {"text": self.func(user_prompt, system_prompt, files_list)}
-                        ],
-                        "usage": {"prompt_tokens": 1, "completion_tokens": 1},
-                    }
+                # breakpoint()
 
                 if hasattr(self, "throw_exception") and self.throw_exception:
                     if hasattr(self, "exception_probability"):
@@ -81,6 +75,15 @@ class TestService(InferenceServiceABC):
 
                     if random.random() < p:
                         raise Exception("This is a test error")
+
+                if hasattr(self, "func"):
+                    return {
+                        "message": [
+                            {"text": self.func(user_prompt, system_prompt, files_list)}
+                        ],
+                        "usage": {"prompt_tokens": 1, "completion_tokens": 1},
+                    }
+
                 return {
                     "message": [{"text": f"{self._canned_response}"}],
                     "usage": {"prompt_tokens": 1, "completion_tokens": 1},

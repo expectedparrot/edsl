@@ -5,7 +5,6 @@ from typing import Optional, Dict, Any
 
 
 class JsonMethods(FileMethods):
-
     suffix = "json"
 
     def view_system(self):

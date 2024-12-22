@@ -2,7 +2,6 @@ import os
 
 
 class PdfExtractor:
-
     def __init__(self, pdf_path: str, parent_object: object):
         self.pdf_path = pdf_path
         self.constructor = parent_object.__class__

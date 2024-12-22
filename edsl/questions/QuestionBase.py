@@ -339,7 +339,10 @@ class QuestionBase(
         >>> Q.example()['question_text']
         'How are you?'
         """
-        return getattr(self, key)
+        try:
+            return getattr(self, key)
+        except TypeError:
+            raise KeyError(f"Question has no attribute {key} of type {type(key)}")
 
     def __repr__(self) -> str:
         """Return a string representation of the question. Should be able to be used to reconstruct the question.
