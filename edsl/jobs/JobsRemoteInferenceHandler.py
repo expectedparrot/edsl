@@ -199,6 +199,8 @@ class JobsRemoteInferenceHandler:
                     results = object_fetcher(
                         results_uuid, expected_object_type="results"
                     )
+                    results.job_uuid = job_uuid
+                    results.results_uuid = results_uuid
                     return results
                 else:
                     return None
@@ -213,6 +215,8 @@ class JobsRemoteInferenceHandler:
                     f"Job completed and Results stored on Coop: {results_url}",
                     status=JobsStatus.COMPLETED,
                 )
+                results.job_uuid = job_uuid
+                results.results_uuid = results_uuid
                 return results
 
             else:
