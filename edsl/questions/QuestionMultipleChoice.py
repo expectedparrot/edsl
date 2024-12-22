@@ -120,9 +120,9 @@ class QuestionMultipleChoice(QuestionBase):
 
     question_type = "multiple_choice"
     purpose = "When options are known and limited"
-    question_options: Union[
-        list[str], list[list], list[float], list[int]
-    ] = QuestionOptionsDescriptor()
+    question_options: Union[list[str], list[list], list[float], list[int]] = (
+        QuestionOptionsDescriptor()
+    )
     _response_model = None
     response_validator_class = MultipleChoiceResponseValidator
 
@@ -175,8 +175,54 @@ class QuestionMultipleChoice(QuestionBase):
         else:
             return create_response_model(self.question_options, self.permissive)
 
+    @staticmethod
+    def _translate_question_options(
+        question_options, substitution_dict: dict
+    ) -> list[str]:
+
+        if isinstance(question_options, str):
+            # If dynamic options are provided like {{ options }}, render them with the scenario
+            # We can check if it's in the Scenario.
+            from jinja2 import Environment, meta
+
+            env = Environment()
+            parsed_content = env.parse(question_options)
+            template_variables = list(meta.find_undeclared_variables(parsed_content))
+            # print("The template variables are: ", template_variables)
+            question_option_key = template_variables[0]
+            # We need to deal with possibility it's actually an answer to a question.
+            potential_replacement = substitution_dict.get(question_option_key, None)
+
+            if isinstance(potential_replacement, list):
+                # translated_options = potential_replacement
+                return potential_replacement
+
+            if isinstance(potential_replacement, QuestionBase):
+                if hasattr(potential_replacement, "answer") and isinstance(
+                    potential_replacement.answer, list
+                ):
+                    return potential_replacement.answer
+                    # translated_options = potential_replacement.answer
+
+            # if not isinstance(potential_replacement, list):
+            # translated_options = potential_replacement
+
+            if potential_replacement is None:
+                # Nope - maybe it's in the substition dict?
+                raise ValueError(
+                    f"Could not find the key '{question_option_key}' in the scenario."
+                    f"The substition dict was: '{substitution_dict}.'"
+                    f"The question options were: '{question_options}'."
+                )
+        else:
+            translated_options = [
+                Template(str(option)).render(substitution_dict)
+                for option in question_options
+            ]
+        return translated_options
+
     def _translate_answer_code_to_answer(
-        self, answer_code: int, scenario: Optional["Scenario"] = None
+        self, answer_code: int, replacements_dict: Optional[dict] = None
     ):
         """Translate the answer code to the actual answer.
 
@@ -192,26 +238,24 @@ class QuestionMultipleChoice(QuestionBase):
         'Happy'
 
         """
+        if replacements_dict is None:
+            replacements_dict = {}
+        translated_options = self._translate_question_options(
+            self.question_options, replacements_dict
+        )
 
-        scenario = scenario or Scenario()
-
-        if isinstance(self.question_options, str):
-            # If dynamic options are provided like {{ options }}, render them with the scenario
-            from jinja2 import Environment, meta
-
-            env = Environment()
-            parsed_content = env.parse(self.question_options)
-            question_option_key = list(meta.find_undeclared_variables(parsed_content))[
-                0
-            ]
-            translated_options = scenario.get(question_option_key)
-        else:
-            translated_options = [
-                Template(str(option)).render(scenario)
-                for option in self.question_options
-            ]
         if self._use_code:
-            return translated_options[int(answer_code)]
+            try:
+                return translated_options[int(answer_code)]
+            except IndexError:
+                raise ValueError(
+                    f"Answer code is out of range. The answer code index was: {int(answer_code)}. The options were: {translated_options}."
+                )
+            except TypeError:
+                raise ValueError(
+                    f"The answer code was: '{answer_code}.'",
+                    f"The options were: '{translated_options}'.",
+                )
         else:
             # return translated_options[answer_code]
             return answer_code

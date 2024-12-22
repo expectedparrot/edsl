@@ -35,7 +35,8 @@ class EmptyAgentList:
         return "Empty AgentList"
 
 
-class AgentList(UserList, ResultsExportMixin, Base):
+# ResultsExportMixin,
+class AgentList(UserList, Base):
     """A list of Agents."""
 
     __documentation__ = (
@@ -82,18 +83,35 @@ class AgentList(UserList, ResultsExportMixin, Base):
         >>> from edsl.agents.Agent import Agent
         >>> al = AgentList([Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5}), Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5})])
         >>> al.to_pandas()
-              age   hair  height
-        0    22  brown     5.5
-        1    22  brown     5.5X
-
-
+           age   hair  height
+        0   22  brown     5.5
+        1   22  brown     5.5
         """
         return self.to_scenario_list().to_pandas()
 
-    def tally(self):
-        return self.to_scenario_list().tally()
+    def tally(
+        self, *fields: Optional[str], top_n: Optional[int] = None, output="Dataset"
+    ) -> Union[dict, "Dataset"]:
+        """Tally the values of a field or perform a cross-tab of multiple fields.
+
+        :param fields: The field(s) to tally, multiple fields for cross-tabulation.
+
+        >>> al = AgentList.example()
+        >>> al.tally('age')
+        Dataset([{'age': [22]}, {'count': [2]}])
+        """
+        return self.to_scenario_list().tally(*fields, top_n=top_n, output=output)
 
     def duplicate(self):
+        """Duplicate the AgentList.
+
+        >>> al = AgentList.example()
+        >>> al2 = al.duplicate()
+        >>> al2 == al
+        True
+        >>> id(al2) == id(al)
+        False
+        """
         return AgentList([a.duplicate() for a in self.data])
 
     def rename(self, old_name, new_name) -> AgentList:
@@ -168,7 +186,15 @@ class AgentList(UserList, ResultsExportMixin, Base):
         return AgentList(new_data)
 
     @property
-    def all_traits(self):
+    def all_traits(self) -> list[str]:
+        """Return all traits in the AgentList.
+        >>> from edsl.agents.Agent import Agent
+        >>> agent_1 = Agent(traits = {'age': 22})
+        >>> agent_2 = Agent(traits = {'hair': 'brown'})
+        >>> al = AgentList([agent_1, agent_2])
+        >>> al.all_traits
+        ['age', 'hair']
+        """
         d = {}
         for agent in self:
             d.update(agent.traits)
@@ -217,10 +243,16 @@ class AgentList(UserList, ResultsExportMixin, Base):
         """Translate traits to a new codebook.
 
         :param codebook: The new codebook.
+
+        >>> al = AgentList.example()
+        >>> codebook = {'hair': {'brown':'Secret word for green'}}
+        >>> al.translate_traits(codebook)
+        AgentList([Agent(traits = {'age': 22, 'hair': 'Secret word for green', 'height': 5.5}), Agent(traits = {'age': 22, 'hair': 'Secret word for green', 'height': 5.5})])
         """
+        new_agents = []
         for agent in self.data:
-            agent.translate_traits(codebook)
-        return self
+            new_agents.append(agent.translate_traits(codebook))
+        return AgentList(new_agents)
 
     def remove_trait(self, trait: str):
         """Remove traits from the AgentList.
@@ -284,12 +316,23 @@ class AgentList(UserList, ResultsExportMixin, Base):
             return {field: None for field in reader.fieldnames}
 
     def __hash__(self) -> int:
+        """Return the hash of the AgentList.
+
+        >>> al = AgentList.example()
+        >>> hash(al)
+        1681154913465662422
+        """
         from edsl.utilities.utilities import dict_hash
 
         return dict_hash(self.to_dict(add_edsl_version=False, sorted=True))
 
     def to_dict(self, sorted=False, add_edsl_version=True):
-        """Serialize the AgentList to a dictionary."""
+        """Serialize the AgentList to a dictionary.
+
+        >>> AgentList.example().to_dict(add_edsl_version=False)
+        {'agent_list': [{'traits': {'age': 22, 'hair': 'brown', 'height': 5.5}}, {'traits': {'age': 22, 'hair': 'brown', 'height': 5.5}}]}
+
+        """
         if sorted:
             data = self.data[:]
             data.sort(key=lambda x: hash(x))
@@ -351,19 +394,33 @@ class AgentList(UserList, ResultsExportMixin, Base):
         """Return a list of tuples."""
         return self.to_scenario_list(include_agent_name).to_list()
 
-    def to_scenario_list(self, include_agent_name=False) -> ScenarioList:
-        """Return a list of scenarios."""
+    def to_scenario_list(
+        self, include_agent_name: bool = False, include_instruction: bool = False
+    ) -> ScenarioList:
+        """Converts the agent to a scenario list."""
         from edsl.scenarios.ScenarioList import ScenarioList
         from edsl.scenarios.Scenario import Scenario
 
-        if include_agent_name:
-            return ScenarioList(
-                [
-                    Scenario(agent.traits | {"agent_name": agent.name})
-                    for agent in self.data
-                ]
-            )
-        return ScenarioList([Scenario(agent.traits) for agent in self.data])
+        # raise NotImplementedError("This method is not implemented yet.")
+
+        scenario_list = ScenarioList()
+        for agent in self.data:
+            d = agent.traits
+            if include_agent_name:
+                d["agent_name"] = agent.name
+            if include_instruction:
+                d["instruction"] = agent.instruction
+            scenario_list.append(Scenario(d))
+        return scenario_list
+
+        # if include_agent_name:
+        #     return ScenarioList(
+        #         [
+        #             Scenario(agent.traits | {"agent_name": agent.name} | })
+        #             for agent in self.data
+        #         ]
+        #     )
+        # return ScenarioList([Scenario(agent.traits) for agent in self.data])
 
     def table(
         self,
@@ -384,19 +441,35 @@ class AgentList(UserList, ResultsExportMixin, Base):
             .table(*fields, tablefmt=tablefmt, pretty_labels=pretty_labels)
         )
 
-    def to_dataset(self):
+    def to_dataset(self, traits_only: bool = True):
+        """
+        Convert the AgentList to a Dataset.
+
+        >>> from edsl.agents.AgentList import AgentList
+        >>> al = AgentList.example()
+        >>> al.to_dataset()
+        Dataset([{'age': [22, 22]}, {'hair': ['brown', 'brown']}, {'height': [5.5, 5.5]}])
+        >>> al.to_dataset(traits_only = False)
+        Dataset([{'age': [22, 22]}, {'hair': ['brown', 'brown']}, {'height': [5.5, 5.5]}, {'agent_parameters': [{'instruction': 'You are answering questions as if you were a human. Do not break character.', 'agent_name': None}, {'instruction': 'You are answering questions as if you were a human. Do not break character.', 'agent_name': None}]}])
+        """
         from edsl.results.Dataset import Dataset
+        from collections import defaultdict
 
-        keys = set({})
+        agent_trait_keys = []
         for agent in self:
-            keys.update(agent.traits.keys())
+            agent_keys = list(agent.traits.keys())
+            for key in agent_keys:
+                if key not in agent_trait_keys:
+                    agent_trait_keys.append(key)
 
-        data = {}
+        data = defaultdict(list)
         for agent in self:
-            for key in keys:
-                if key not in data:
-                    data[key] = []
-                data[key].append(agent.traits.get(key, None))
+            for trait_key in agent_trait_keys:
+                data[trait_key].append(agent.traits.get(trait_key, None))
+            if not traits_only:
+                data["agent_parameters"].append(
+                    {"instruction": agent.instruction, "agent_name": agent.name}
+                )
         return Dataset([{key: entry} for key, entry in data.items()])
 
     def tree(self, node_order: Optional[List[str]] = None):
