@@ -89,10 +89,29 @@ class AgentList(UserList, Base):
         """
         return self.to_scenario_list().to_pandas()
 
-    def tally(self):
-        return self.to_scenario_list().tally()
+    def tally(
+        self, *fields: Optional[str], top_n: Optional[int] = None, output="Dataset"
+    ) -> Union[dict, "Dataset"]:
+        """Tally the values of a field or perform a cross-tab of multiple fields.
+
+        :param fields: The field(s) to tally, multiple fields for cross-tabulation.
+
+        >>> al = AgentList.example()
+        >>> al.tally('age')
+        Dataset([{'age': [22]}, {'count': [2]}])
+        """
+        return self.to_scenario_list().tally(*fields, top_n=top_n, output=output)
 
     def duplicate(self):
+        """Duplicate the AgentList.
+
+        >>> al = AgentList.example()
+        >>> al2 = al.duplicate()
+        >>> al2 == al
+        True
+        >>> id(al2) == id(al)
+        False
+        """
         return AgentList([a.duplicate() for a in self.data])
 
     def rename(self, old_name, new_name) -> AgentList:
@@ -167,7 +186,15 @@ class AgentList(UserList, Base):
         return AgentList(new_data)
 
     @property
-    def all_traits(self):
+    def all_traits(self) -> list[str]:
+        """Return all traits in the AgentList.
+        >>> from edsl.agents.Agent import Agent
+        >>> agent_1 = Agent(traits = {'age': 22})
+        >>> agent_2 = Agent(traits = {'hair': 'brown'})
+        >>> al = AgentList([agent_1, agent_2])
+        >>> al.all_traits
+        ['age', 'hair']
+        """
         d = {}
         for agent in self:
             d.update(agent.traits)
@@ -216,10 +243,16 @@ class AgentList(UserList, Base):
         """Translate traits to a new codebook.
 
         :param codebook: The new codebook.
+
+        >>> al = AgentList.example()
+        >>> codebook = {'hair': {'brown':'Secret word for green'}}
+        >>> al.translate_traits(codebook)
+        AgentList([Agent(traits = {'age': 22, 'hair': 'Secret word for green', 'height': 5.5}), Agent(traits = {'age': 22, 'hair': 'Secret word for green', 'height': 5.5})])
         """
+        new_agents = []
         for agent in self.data:
-            agent.translate_traits(codebook)
-        return self
+            new_agents.append(agent.translate_traits(codebook))
+        return AgentList(new_agents)
 
     def remove_trait(self, trait: str):
         """Remove traits from the AgentList.
@@ -283,12 +316,23 @@ class AgentList(UserList, Base):
             return {field: None for field in reader.fieldnames}
 
     def __hash__(self) -> int:
+        """Return the hash of the AgentList.
+
+        >>> al = AgentList.example()
+        >>> hash(al)
+        1681154913465662422
+        """
         from edsl.utilities.utilities import dict_hash
 
         return dict_hash(self.to_dict(add_edsl_version=False, sorted=True))
 
     def to_dict(self, sorted=False, add_edsl_version=True):
-        """Serialize the AgentList to a dictionary."""
+        """Serialize the AgentList to a dictionary.
+
+        >>> AgentList.example().to_dict(add_edsl_version=False)
+        {'agent_list': [{'traits': {'age': 22, 'hair': 'brown', 'height': 5.5}}, {'traits': {'age': 22, 'hair': 'brown', 'height': 5.5}}]}
+
+        """
         if sorted:
             data = self.data[:]
             data.sort(key=lambda x: hash(x))

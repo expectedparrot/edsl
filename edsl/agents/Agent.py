@@ -133,6 +133,7 @@ class Agent(Base):
         self.name = name
         self._traits = AgentTraits(traits or dict())
         self.codebook = codebook or dict()
+
         if instruction is None:
             self.instruction = self.default_instruction
             self._instruction = self.default_instruction
@@ -177,8 +178,10 @@ class Agent(Base):
         if traits_presentation_template is not None:
             self._traits_presentation_template = traits_presentation_template
             self.traits_presentation_template = traits_presentation_template
+            self.set_traits_presentation_template = True
         else:
             self.traits_presentation_template = "Your traits: {{traits}}"
+            self.set_traits_presentation_template = False
 
     def duplicate(self):
         """Return a duplicate of the agent.
@@ -776,9 +779,9 @@ class Agent(Base):
             if dynamic_traits_func:
                 func = inspect.getsource(dynamic_traits_func)
                 raw_data["dynamic_traits_function_source_code"] = func
-                raw_data[
-                    "dynamic_traits_function_name"
-                ] = self.dynamic_traits_function_name
+                raw_data["dynamic_traits_function_name"] = (
+                    self.dynamic_traits_function_name
+                )
         if hasattr(self, "answer_question_directly"):
             raw_data.pop(
                 "answer_question_directly", None
@@ -792,9 +795,9 @@ class Agent(Base):
                 raw_data["answer_question_directly_source_code"] = inspect.getsource(
                     answer_question_directly_func
                 )
-                raw_data[
-                    "answer_question_directly_function_name"
-                ] = self.answer_question_directly_function_name
+                raw_data["answer_question_directly_function_name"] = (
+                    self.answer_question_directly_function_name
+                )
         raw_data["traits"] = dict(raw_data["traits"])
 
         return raw_data
@@ -811,9 +814,22 @@ class Agent(Base):
 
         >>> a = Agent(name = "Steve", traits = {"age": 10, "hair": "brown", "height": 5.5})
         >>> a.to_dict()
-        {'name': 'Steve', 'traits': {'age': 10, 'hair': 'brown', 'height': 5.5}, 'edsl_version': '...', 'edsl_class_name': 'Agent'}
+        {'traits': {'age': 10, 'hair': 'brown', 'height': 5.5}, 'name': 'Steve', 'edsl_version': '...', 'edsl_class_name': 'Agent'}
+
+        >>> a = Agent(traits = {"age": 10, "hair": "brown", "height": 5.5}, instruction = "Have fun.")
+        >>> a.to_dict()
+        {'traits': {'age': 10, 'hair': 'brown', 'height': 5.5}, 'instruction': 'Have fun.', 'edsl_version': '...', 'edsl_class_name': 'Agent'}
         """
-        d = copy.deepcopy(self.data)
+        d = {}
+        d["traits"] = copy.deepcopy(self.traits)
+        if self.name:
+            d["name"] = self.name
+        if self.set_instructions:
+            d["instruction"] = self.instruction
+        if self.set_traits_presentation_template:
+            d["traits_presentation_template"] = self.traits_presentation_template
+        if self.codebook:
+            d["codebook"] = self.codebook
         if add_edsl_version:
             from edsl import __version__
 
@@ -833,7 +849,18 @@ class Agent(Base):
         Agent(name = \"""Steve\""", traits = {'age': 10, 'hair': 'brown', 'height': 5.5})
 
         """
-        return cls(**agent_dict)
+        if "traits" in agent_dict:
+            return cls(
+                traits=agent_dict["traits"],
+                name=agent_dict.get("name", None),
+                instruction=agent_dict.get("instruction", None),
+                traits_presentation_template=agent_dict.get(
+                    "traits_presentation_template", None
+                ),
+                codebook=agent_dict.get("codebook", None),
+            )
+        else:
+            return cls(**agent_dict)
 
     def _table(self) -> tuple[dict, list]:
         """Prepare generic table data."""
