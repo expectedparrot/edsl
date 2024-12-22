@@ -25,7 +25,9 @@ class InvigilatorAI(InvigilatorBase):
     """An invigilator that uses an AI model to answer questions."""
 
     def get_prompts(self) -> Dict[str, "Prompt"]:
-        """Return the prompts used."""
+        """Return the prompts used.
+        >>> InvigilatorAI.example().get_prompts()
+        """
         return self.prompt_constructor.get_prompts()
 
     async def async_answer_question(self) -> AgentResponseDict:
@@ -42,6 +44,8 @@ class InvigilatorAI(InvigilatorBase):
         }
         if "encoded_image" in prompts:
             params["encoded_image"] = prompts["encoded_image"]
+            raise NotImplementedError("encoded_image not implemented")
+
         if "files_list" in prompts:
             params["files_list"] = prompts["files_list"]
 
@@ -63,7 +67,7 @@ class InvigilatorAI(InvigilatorBase):
         if cache_key:
             del self.cache.data[cache_key]
 
-    def determine_answer(self, raw_answer: str) -> Any:
+    def _determine_answer(self, raw_answer: str) -> Any:
         question_dict = self.survey.question_names_to_questions()
         # iterates through the current answers and updates the question_dict (which is all questions)
         for other_question, answer in self.current_answers.items():
@@ -109,7 +113,7 @@ class InvigilatorAI(InvigilatorBase):
                 question_with_validators = self.question
 
             validated_edsl_dict = question_with_validators._validate_answer(edsl_dict)
-            answer = self.determine_answer(validated_edsl_dict["answer"])
+            answer = self._determine_answer(validated_edsl_dict["answer"])
             comment = validated_edsl_dict.get("comment", "")
             validated = True
         except QuestionAnswerValidationError as e:
