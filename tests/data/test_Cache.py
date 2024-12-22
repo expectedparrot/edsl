@@ -4,7 +4,7 @@ from edsl.config import CONFIG
 from edsl.questions import QuestionFreeText
 from edsl.data.Cache import Cache
 from edsl.data.CacheEntry import CacheEntry
-from edsl.language_models.registry import Model
+from edsl.language_models.model import Model
 
 
 @pytest.fixture(scope="module")

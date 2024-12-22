@@ -1172,7 +1172,7 @@ class Survey(SurveyExportMixin, Base):
 
     def get_job(self, model=None, agent=None, **kwargs):
         if model is None:
-            from edsl.language_models.registry import Model
+            from edsl.language_models.model import Model
 
             model = Model()
 

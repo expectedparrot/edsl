@@ -505,7 +505,7 @@ class LanguageModel(
     @remove_edsl_version
     def from_dict(cls, data: dict) -> Type[LanguageModel]:
         """Convert dictionary to a LanguageModel child instance."""
-        from edsl.language_models.registry import get_model_class
+        from edsl.language_models.model import get_model_class
 
         model_class = get_model_class(data["model"])
         return model_class(**data)
@@ -553,7 +553,7 @@ class LanguageModel(
         Exception report saved to ...
         Also see: ...
         """
-        from edsl.language_models.registry import Model
+        from edsl.language_models.model import Model
 
         if test_model:
             m = Model(

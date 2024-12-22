@@ -2,20 +2,21 @@ from typing import Optional, List, TYPE_CHECKING
 from collections import UserList
 
 from edsl.Base import Base
-from edsl.language_models.registry import Model
+from edsl.language_models.model import Model
 
-# from edsl.language_models import LanguageModel
+#
 from edsl.utilities.remove_edsl_version import remove_edsl_version
 from edsl.utilities.is_valid_variable_name import is_valid_variable_name
 
 if TYPE_CHECKING:
     from edsl.inference_services.data_structures import AvailableModels
+    from edsl.language_models import LanguageModel
 
 
 class ModelList(Base, UserList):
     __documentation__ = """https://docs.expectedparrot.com/en/latest/language_models.html#module-edsl.language_models.ModelList"""
 
-    def __init__(self, data: Optional[list] = None):
+    def __init__(self, data: Optional["LanguageModel"] = None):
         """Initialize the ScenarioList class.
 
         >>> from edsl import Model
@@ -35,9 +36,6 @@ class ModelList(Base, UserList):
         {'...'}
         """
         return set([model.model for model in self])
-
-    def rich_print(self):
-        pass
 
     def __repr__(self):
         return f"ModelList({super().__repr__()})"
@@ -90,7 +88,7 @@ class ModelList(Base, UserList):
             .table(*fields, tablefmt=tablefmt, pretty_labels=pretty_labels)
         )
 
-    def to_list(self):
+    def to_list(self) -> list:
         return self.to_scenario_list().to_list()
 
     def to_dict(self, sort=False, add_edsl_version=True):

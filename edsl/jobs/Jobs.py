@@ -214,7 +214,7 @@ class Jobs(Base):
 
     def replace_missing_objects(self) -> None:
         from edsl.agents.Agent import Agent
-        from edsl.language_models.registry import Model
+        from edsl.language_models.model import Model
         from edsl.scenarios.Scenario import Scenario
 
         self.agents = self.agents or [Agent()]

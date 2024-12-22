@@ -8,7 +8,7 @@ class JobsChecks:
         self.jobs = jobs
 
     def check_api_keys(self) -> None:
-        from edsl.language_models.registry import Model
+        from edsl.language_models.model import Model
 
         if len(self.jobs.models) == 0:
             models = [Model()]
@@ -28,7 +28,7 @@ class JobsChecks:
         """
         missing_api_keys = set()
 
-        from edsl.language_models.registry import Model
+        from edsl.language_models.model import Model
         from edsl.enums import service_to_api_keyname
 
         for model in self.jobs.models + [Model()]:
