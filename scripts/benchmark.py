@@ -53,6 +53,6 @@ def plot_times(disable_remote_inference=False):
 # Main
 disable_remote_inference=True
 
-run_tests_in_parallel(disable_remote_inference=disable_remote_inference, nr_jobs=100)
+run_tests_in_parallel(disable_remote_inference=disable_remote_inference, nr_jobs=20)
 
 plot_times(disable_remote_inference=disable_remote_inference)
