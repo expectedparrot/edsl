@@ -95,7 +95,7 @@ class InvigilatorAI(InvigilatorBase):
         >>> i = InvigilatorAI.example(question = q2, scenario = s, survey = survey)
         >>> i.current_answers = {"favs": ["Green", "Blue", "Red"]}
         >>> i._determine_answer("2")
-        'Green'
+        'Red'
         """
         substitution_dict = self._prepare_substitution_dict(
             self.survey, self.current_answers, self.scenario
