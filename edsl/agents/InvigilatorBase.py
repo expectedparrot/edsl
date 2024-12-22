@@ -228,7 +228,7 @@ class InvigilatorBase(ABC):
         memory_plan = MemoryPlan(survey=survey)
         current_answers = None
 
-        class InvigilatorExample(InvigilatorBase):
+        class InvigilatorExample(cls):
             """An example invigilator."""
 
             async def async_answer_question(self):
