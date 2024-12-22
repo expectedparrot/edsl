@@ -35,7 +35,8 @@ class EmptyAgentList:
         return "Empty AgentList"
 
 
-class AgentList(UserList, ResultsExportMixin, Base):
+# ResultsExportMixin,
+class AgentList(UserList, Base):
     """A list of Agents."""
 
     __documentation__ = (
@@ -82,11 +83,9 @@ class AgentList(UserList, ResultsExportMixin, Base):
         >>> from edsl.agents.Agent import Agent
         >>> al = AgentList([Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5}), Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5})])
         >>> al.to_pandas()
-              age   hair  height
-        0    22  brown     5.5
-        1    22  brown     5.5X
-
-
+           age   hair  height
+        0   22  brown     5.5
+        1   22  brown     5.5
         """
         return self.to_scenario_list().to_pandas()
 
@@ -351,19 +350,33 @@ class AgentList(UserList, ResultsExportMixin, Base):
         """Return a list of tuples."""
         return self.to_scenario_list(include_agent_name).to_list()
 
-    def to_scenario_list(self, include_agent_name=False) -> ScenarioList:
-        """Return a list of scenarios."""
+    def to_scenario_list(
+        self, include_agent_name: bool = False, include_instruction: bool = False
+    ) -> ScenarioList:
+        """Converts the agent to a scenario list."""
         from edsl.scenarios.ScenarioList import ScenarioList
         from edsl.scenarios.Scenario import Scenario
 
-        if include_agent_name:
-            return ScenarioList(
-                [
-                    Scenario(agent.traits | {"agent_name": agent.name})
-                    for agent in self.data
-                ]
-            )
-        return ScenarioList([Scenario(agent.traits) for agent in self.data])
+        # raise NotImplementedError("This method is not implemented yet.")
+
+        scenario_list = ScenarioList()
+        for agent in self.data:
+            d = agent.traits
+            if include_agent_name:
+                d["agent_name"] = agent.name
+            if include_instruction:
+                d["instruction"] = agent.instruction
+            scenario_list.append(Scenario(d))
+        return scenario_list
+
+        # if include_agent_name:
+        #     return ScenarioList(
+        #         [
+        #             Scenario(agent.traits | {"agent_name": agent.name} | })
+        #             for agent in self.data
+        #         ]
+        #     )
+        # return ScenarioList([Scenario(agent.traits) for agent in self.data])
 
     def table(
         self,
@@ -384,19 +397,35 @@ class AgentList(UserList, ResultsExportMixin, Base):
             .table(*fields, tablefmt=tablefmt, pretty_labels=pretty_labels)
         )
 
-    def to_dataset(self):
+    def to_dataset(self, traits_only: bool = True):
+        """
+        Convert the AgentList to a Dataset.
+
+        >>> from edsl.agents.AgentList import AgentList
+        >>> al = AgentList.example()
+        >>> al.to_dataset()
+        Dataset([{'age': [22, 22]}, {'hair': ['brown', 'brown']}, {'height': [5.5, 5.5]}])
+        >>> al.to_dataset(traits_only = False)
+        Dataset([{'age': [22, 22]}, {'hair': ['brown', 'brown']}, {'height': [5.5, 5.5]}, {'agent_parameters': [{'instruction': 'You are answering questions as if you were a human. Do not break character.', 'agent_name': None}, {'instruction': 'You are answering questions as if you were a human. Do not break character.', 'agent_name': None}]}])
+        """
         from edsl.results.Dataset import Dataset
+        from collections import defaultdict
 
-        keys = set({})
+        agent_trait_keys = []
         for agent in self:
-            keys.update(agent.traits.keys())
+            agent_keys = list(agent.traits.keys())
+            for key in agent_keys:
+                if key not in agent_trait_keys:
+                    agent_trait_keys.append(key)
 
-        data = {}
+        data = defaultdict(list)
         for agent in self:
-            for key in keys:
-                if key not in data:
-                    data[key] = []
-                data[key].append(agent.traits.get(key, None))
+            for trait_key in agent_trait_keys:
+                data[trait_key].append(agent.traits.get(trait_key, None))
+            if not traits_only:
+                data["agent_parameters"].append(
+                    {"instruction": agent.instruction, "agent_name": agent.name}
+                )
         return Dataset([{key: entry} for key, entry in data.items()])
 
     def tree(self, node_order: Optional[List[str]] = None):

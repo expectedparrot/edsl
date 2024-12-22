@@ -436,6 +436,11 @@ class DatasetExportMixin:
             if "name" in d:
                 d["agent_name"] = d.pop("name")
                 agents.append(Agent(d, name=d["agent_name"]))
+            if "agent_parameters" in d:
+                agent_parameters = d.pop("agent_parameters")
+                agent_name = agent_parameters.get("name", None)
+                instruction = agent_parameters.get("instruction", None)
+                agents.append(Agent(d, name=agent_name, instruction=instruction))
             else:
                 agents.append(Agent(d))
         return AgentList(agents)
