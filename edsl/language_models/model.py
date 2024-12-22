@@ -1,12 +1,9 @@
 import textwrap
 from random import random
-from edsl.config import CONFIG
-from functools import lru_cache
-from edsl.utilities.PrettyList import PrettyList
 from typing import Optional, TYPE_CHECKING, List
 
-if TYPE_CHECKING:
-    from edsl.results.Dataset import Dataset
+from edsl.utilities.PrettyList import PrettyList
+from edsl.config import CONFIG
 
 from edsl.inference_services.InferenceServicesCollection import (
     InferenceServicesCollection,
@@ -14,6 +11,9 @@ from edsl.inference_services.InferenceServicesCollection import (
 from edsl.inference_services.data_structures import AvailableModels
 from edsl.inference_services.InferenceServiceABC import InferenceServiceABC
 from edsl.enums import InferenceServiceLiteral
+
+if TYPE_CHECKING:
+    from edsl.results.Dataset import Dataset
 
 
 def get_model_class(model_name, registry: Optional[InferenceServicesCollection] = None):

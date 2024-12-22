@@ -569,7 +569,7 @@ class Agent(Base):
         An invigator is an object that is responsible for administering a question to an agent and
         recording the responses.
         """
-        from edsl.language_models.registry import Model
+        from edsl.language_models.model import Model
 
         from edsl.scenarios.Scenario import Scenario
 
@@ -681,7 +681,7 @@ class Agent(Base):
         raise_validation_errors: bool = True,
     ) -> "InvigilatorBase":
         """Create an Invigilator."""
-        from edsl.language_models.registry import Model
+        from edsl.language_models.model import Model
         from edsl.scenarios.Scenario import Scenario
 
         model = model or Model()

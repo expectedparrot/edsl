@@ -208,7 +208,7 @@ class InvigilatorBase(ABC):
         from edsl.agents.Agent import Agent
         from edsl.scenarios.Scenario import Scenario
         from edsl.surveys.MemoryPlan import MemoryPlan
-        from edsl.language_models.registry import Model
+        from edsl.language_models.model import Model
         from edsl.surveys.Survey import Survey
 
         model = Model("test", canned_response="SPAM!")

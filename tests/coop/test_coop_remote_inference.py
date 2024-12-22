@@ -5,7 +5,7 @@ import pytest
 from edsl.agents.Agent import Agent
 from edsl.coop.coop import Coop
 from edsl.jobs.Jobs import Jobs
-from edsl.language_models.registry import Model
+from edsl.language_models.model import Model
 from edsl.results.Results import Results
 from edsl.surveys.Survey import Survey
 

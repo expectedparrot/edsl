@@ -265,7 +265,7 @@ class JobsRemoteInferenceHandler:
 
         # Create job using existing method
         loop = asyncio.get_event_loop()
-        remote_job_creation_data = await loop.run_in_executor(
+        _ = await loop.run_in_executor(
             None,
             partial(
                 self.create_remote_inference_job,
@@ -274,10 +274,14 @@ class JobsRemoteInferenceHandler:
                 remote_inference_results_visibility=remote_inference_results_visibility,
             ),
         )
-
+        # breakpoint()
         # Poll using existing method but with async sleep
+        if self._remote_job_creation_data is None:
+            raise ValueError("Remote job creation failed.")
+
         return await loop.run_in_executor(
-            None, partial(self.poll_remote_inference_job, remote_job_creation_data)
+            None,
+            partial(self.poll_remote_inference_job, None),
         )
 
 

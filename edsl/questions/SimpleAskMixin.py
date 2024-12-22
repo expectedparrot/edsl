@@ -66,7 +66,7 @@ class SimpleAskMixin:
         system_prompt="You are a helpful agent pretending to be a human. Do not break character",
         top_logprobs=4,
     ):
-        from edsl.language_models.registry import Model
+        from edsl.language_models.model import Model
 
         if model is None:
             model = Model()

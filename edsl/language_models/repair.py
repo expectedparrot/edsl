@@ -32,7 +32,7 @@ async def async_repair(
     else:
         return valid_dict, success
 
-    from edsl.language_models.registry import Model
+    from edsl.language_models.model import Model
 
     m = Model()
 
