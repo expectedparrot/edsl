@@ -918,6 +918,19 @@ class Survey(SurveyExportMixin, Base):
 
         return Jobs(survey=self).run(*args, **kwargs)
 
+    def duplicate(self):
+        """Duplicate the survey.
+
+        >>> s = Survey.example()
+        >>> s2 = s.duplicate()
+        >>> s == s2
+        True
+        >>> s is s2
+        False
+
+        """
+        return Survey.from_dict(self.to_dict())
+
     # region: Survey flow
     def next_question(
         self,

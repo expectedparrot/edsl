@@ -1380,9 +1380,18 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
                     f"The 'name' field is reserved for the agent's name---putting this value in {proposed_agent_name}"
                 )
                 new_scenario[proposed_agent_name] = name
-                agents.append(Agent(traits=new_scenario, name=name))
+                new_agent = Agent(traits=new_scenario, name=name)
+            if "agent_parameters" in new_scenario:
+                agent_parameters = new_scenario.pop("agent_parameters")
+                instruction = agent_parameters.get("instruction", None)
+                name = agent_parameters.get("name", None)
+                new_agent = Agent(
+                    traits=new_scenario, name=name, instruction=instruction
+                )
             else:
-                agents.append(Agent(traits=new_scenario))
+                new_agent = Agent(traits=new_scenario)
+
+            agents.append(new_agent)
 
         return AgentList(agents)
 
