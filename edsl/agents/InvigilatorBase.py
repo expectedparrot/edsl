@@ -65,16 +65,15 @@ class InvigilatorBase(ABC):
         else:
             self.prompt_plan = prompt_plan
 
-        self.raw_model_response = (
-            None  # placeholder for the raw response from the model
-        )
+        # placeholder to store the raw model response
+        self.raw_model_response = None
 
     @property
     def prompt_constructor(self) -> PromptConstructor:
         """Return the prompt constructor."""
         return PromptConstructor(self, prompt_plan=self.prompt_plan)
 
-    def to_dict(self, include_cache=False):
+    def to_dict(self, include_cache=False) -> Dict[str, Any]:
         attributes = [
             "agent",
             "question",
@@ -84,7 +83,6 @@ class InvigilatorBase(ABC):
             "current_answers",
             "iteration",
             "additional_prompt_data",
-            "sidecar_model",
             "survey",
         ]
         if include_cache:
@@ -103,7 +101,7 @@ class InvigilatorBase(ABC):
         return {attr: serialize_attribute(attr) for attr in attributes}
 
     @classmethod
-    def from_dict(cls, data):
+    def from_dict(cls, data) -> "InvigilatorBase":
         from edsl.agents.Agent import Agent
         from edsl.questions import QuestionBase
         from edsl.scenarios.Scenario import Scenario
@@ -112,32 +110,28 @@ class InvigilatorBase(ABC):
         from edsl.surveys.Survey import Survey
         from edsl.data.Cache import Cache
 
-        agent = Agent.from_dict(data["agent"])
-        question = QuestionBase.from_dict(data["question"])
-        scenario = Scenario.from_dict(data["scenario"])
-        model = LanguageModel.from_dict(data["model"])
-        memory_plan = MemoryPlan.from_dict(data["memory_plan"])
-        survey = Survey.from_dict(data["survey"])
-        current_answers = data["current_answers"]
-        iteration = data["iteration"]
-        additional_prompt_data = data["additional_prompt_data"]
-        if "cache" not in data:
-            cache = {}
-        else:
-            cache = Cache.from_dict(data["cache"])
+        attributes_to_classes = {
+            "agent": Agent,
+            "question": QuestionBase,
+            "scenario": Scenario,
+            "model": LanguageModel,
+            "memory_plan": MemoryPlan,
+            "survey": Survey,
+            "cache": Cache,
+        }
+        d = {}
+        for attr, cls_ in attributes_to_classes.items():
+            if attr in data and data[attr] is not None:
+                if attr not in data:
+                    d[attr] = {}
+                else:
+                    d[attr] = cls_.from_dict(data[attr])
 
-        return cls(
-            agent=agent,
-            question=question,
-            scenario=scenario,
-            model=model,
-            memory_plan=memory_plan,
-            current_answers=current_answers,
-            survey=survey,
-            iteration=iteration,
-            additional_prompt_data=additional_prompt_data,
-            cache=cache,
-        )
+        d["current_answers"] = data["current_answers"]
+        d["iteration"] = data["iteration"]
+        d["additional_prompt_data"] = data["additional_prompt_data"]
+
+        d = cls(**d)
 
     def __repr__(self) -> str:
         """Return a string representation of the Invigilator.
@@ -146,9 +140,9 @@ class InvigilatorBase(ABC):
         'InvigilatorExample(...)'
 
         """
-        return f"{self.__class__.__name__}(agent={repr(self.agent)}, question={repr(self.question)}, scneario={repr(self.scenario)}, model={repr(self.model)}, memory_plan={repr(self.memory_plan)}, current_answers={repr(self.current_answers)}, iteration{repr(self.iteration)}, additional_prompt_data={repr(self.additional_prompt_data)}, cache={repr(self.cache)}, sidecarmodel={repr(self.sidecar_model)})"
+        return f"{self.__class__.__name__}(agent={repr(self.agent)}, question={repr(self.question)}, scneario={repr(self.scenario)}, model={repr(self.model)}, memory_plan={repr(self.memory_plan)}, current_answers={repr(self.current_answers)}, iteration{repr(self.iteration)}, additional_prompt_data={repr(self.additional_prompt_data)}, cache={repr(self.cache)})"
 
-    def get_failed_task_result(self, failure_reason) -> EDSLResultObjectInput:
+    def get_failed_task_result(self, failure_reason: str) -> EDSLResultObjectInput:
         """Return an AgentResponseDict used in case the question-asking fails.
 
         Possible reasons include:
@@ -203,6 +197,13 @@ class InvigilatorBase(ABC):
         >>> InvigilatorBase.example()
         InvigilatorExample(...)
 
+        >>> InvigilatorBase.example().answer_question()
+        {'message': [{'text': 'SPAM!'}], 'usage': {'prompt_tokens': 1, 'completion_tokens': 1}}
+
+        >>> InvigilatorBase.example(throw_an_exception=True).answer_question()
+        Traceback (most recent call last):
+        ...
+        Exception: This is a test error
         """
         from edsl.agents.Agent import Agent
         from edsl.scenarios.Scenario import Scenario
@@ -213,7 +214,7 @@ class InvigilatorBase(ABC):
         model = Model("test", canned_response="SPAM!")
 
         if throw_an_exception:
-            model.throw_an_exception = True
+            model.throw_exception = True
         agent = Agent.example()
 
         if not survey:
