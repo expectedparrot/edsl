@@ -234,6 +234,7 @@ Links
 
    notebooks/edsl_intro.ipynb
    notebooks/estimating_costs.ipynb
+   notebooks/piping_comments.ipynb
    notebooks/analyze_customer_call.ipynb
    notebooks/updating_agents.ipynb
    notebooks/save_load_objects_locally.ipynb
