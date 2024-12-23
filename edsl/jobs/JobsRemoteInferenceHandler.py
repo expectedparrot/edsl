@@ -1,4 +1,6 @@
-from typing import Optional, Union, Literal, TYPE_CHECKING, NewType
+from typing import Optional, Union, Literal, TYPE_CHECKING, NewType, Callable, Any
+
+from dataclasses import dataclass
 
 
 Seconds = NewType("Seconds", float)
@@ -16,26 +18,52 @@ from edsl.coop.coop import RemoteInferenceResponse, RemoteInferenceCreationInfo
 
 from edsl.jobs.jobs_status_enums import JobsStatus
 from edsl.coop.utils import VisibilityType
+from edsl.jobs.JobsRemoteInferenceLogger import JobLogger
+
+
+class RemoteJobConstants:
+    """Constants for remote job handling."""
+
+    REMOTE_JOB_POLL_INTERVAL = 1
+    REMOTE_JOB_VERBOSE = False
+    DISCORD_URL = "https://discord.com/invite/mxAYkjfy9m"
+
+
+@dataclass
+class RemoteJobInfo:
+    creation_data: RemoteInferenceCreationInfo
+    job_uuid: JobUUID
+    logger: JobLogger
 
 
 class JobsRemoteInferenceHandler:
-    def __init__(self, jobs: "Jobs", verbose: bool = False, poll_interval: Seconds = 1):
-        """ """
+    def __init__(
+        self,
+        jobs: "Jobs",
+        verbose: bool = RemoteJobConstants.REMOTE_JOB_VERBOSE,
+        poll_interval: Seconds = RemoteJobConstants.REMOTE_JOB_POLL_INTERVAL,
+    ):
+        """Handles the creation and running of a remote inference job."""
         self.jobs = jobs
         self.verbose = verbose
         self.poll_interval = poll_interval
 
-        self._remote_job_creation_data: Union[None, RemoteInferenceCreationInfo] = None
-        self._job_uuid: Union[None, JobUUID] = None  # Will be set when job is created
-        self.logger: Union[None, JobLogger] = None  # Will be initialized when needed
+        from edsl.config import CONFIG
 
-    @property
-    def remote_job_creation_data(self) -> RemoteInferenceCreationInfo:
-        return self._remote_job_creation_data
+        self.expected_parrot_url = CONFIG.get("EXPECTED_PARROT_URL")
+        self.remote_inference_url = f"{self.expected_parrot_url}/home/remote-inference"
 
-    @property
-    def job_uuid(self) -> JobUUID:
-        return self._job_uuid
+    def _create_logger(self) -> JobLogger:
+        from edsl.utilities.is_notebook import is_notebook
+        from edsl.jobs.JobsRemoteInferenceLogger import (
+            JupyterJobLogger,
+            StdOutJobLogger,
+        )
+        from edsl.jobs.loggers.HTMLTableJobLogger import HTMLTableJobLogger
+
+        if is_notebook():
+            return HTMLTableJobLogger(verbose=self.verbose)
+        return StdOutJobLogger(verbose=self.verbose)
 
     def use_remote_inference(self, disable_remote_inference: bool) -> bool:
         import requests
@@ -60,23 +88,15 @@ class JobsRemoteInferenceHandler:
         iterations: int = 1,
         remote_inference_description: Optional[str] = None,
         remote_inference_results_visibility: Optional[VisibilityType] = "unlisted",
-    ) -> None:
+    ) -> RemoteJobInfo:
+
         from edsl.config import CONFIG
         from edsl.coop.coop import Coop
 
-        # Initialize logger
-        from edsl.utilities.is_notebook import is_notebook
-        from edsl.jobs.JobsRemoteInferenceLogger import JupyterJobLogger
-        from edsl.jobs.JobsRemoteInferenceLogger import StdOutJobLogger
-        from edsl.jobs.loggers.HTMLTableJobLogger import HTMLTableJobLogger
-
-        if is_notebook():
-            self.logger = HTMLTableJobLogger(verbose=self.verbose)
-        else:
-            self.logger = StdOutJobLogger(verbose=self.verbose)
+        logger = self._create_logger()
 
         coop = Coop()
-        self.logger.update(
+        logger.update(
             "Remote inference activated. Sending job to server...",
             status=JobsStatus.QUEUED,
         )
@@ -87,33 +107,34 @@ class JobsRemoteInferenceHandler:
             iterations=iterations,
             initial_results_visibility=remote_inference_results_visibility,
         )
-        self.logger.update(
+        logger.update(
             "Your survey is running at the Expected Parrot server...",
             status=JobsStatus.RUNNING,
         )
-
         job_uuid = remote_job_creation_data.get("uuid")
-        self.logger.update(
+        logger.update(
             message=f"Job sent to server. (Job uuid={job_uuid}).",
             status=JobsStatus.RUNNING,
         )
-        self.logger.add_info("job_uuid", job_uuid)
+        logger.add_info("job_uuid", job_uuid)
 
-        expected_parrot_url = CONFIG.get("EXPECTED_PARROT_URL")
-        remote_inference_url = f"{expected_parrot_url}/home/remote-inference"
-
-        self.logger.update(
-            f"Job details are available at your Coop account {remote_inference_url}{remote_inference_url}",
+        logger.update(
+            f"Job details are available at your Coop account {self.remote_inference_url}",
             status=JobsStatus.RUNNING,
         )
-        progress_bar_url = f"{expected_parrot_url}/home/remote-job-progress/{job_uuid}"
-        self.logger.add_info("progress_bar_url", progress_bar_url)
-        self.logger.update(
+        progress_bar_url = (
+            f"{self.expected_parrot_url}/home/remote-job-progress/{job_uuid}"
+        )
+        logger.add_info("progress_bar_url", progress_bar_url)
+        logger.update(
             f"View job progress here: {progress_bar_url}", status=JobsStatus.RUNNING
         )
 
-        self._remote_job_creation_data = remote_job_creation_data
-        self._job_uuid = job_uuid
+        return RemoteJobInfo(
+            creation_data=remote_job_creation_data,
+            job_uuid=job_uuid,
+            logger=logger,
+        )
 
     @staticmethod
     def check_status(
@@ -124,126 +145,127 @@ class JobsRemoteInferenceHandler:
         coop = Coop()
         return coop.remote_inference_get(job_uuid)
 
-    def poll_remote_inference_job(self) -> Union[None, "Results"]:
-        return self._poll_remote_inference_job(
-            self.remote_job_creation_data, verbose=self.verbose
-        )
-
-    def _poll_remote_inference_job(
-        self,
-        remote_job_creation_data: RemoteInferenceCreationInfo,
-        verbose: bool = False,
-        poll_interval: Optional[Seconds] = None,
-        testing_simulated_response=None,
-    ) -> Union[None, "Results"]:
-        import time
-        from datetime import datetime
-        from edsl.config import CONFIG
-        from edsl.results.Results import Results
-
-        if poll_interval is None:
-            poll_interval = self.poll_interval
-
-        job_uuid = remote_job_creation_data.get("uuid")
-        expected_parrot_url = CONFIG.get("EXPECTED_PARROT_URL")
-
+    def _construct_remote_job_fetcher(
+        self, testing_simulated_response: Optional[Any] = None
+    ) -> Callable:
         if testing_simulated_response is not None:
-            remote_job_data_fetcher = lambda job_uuid: testing_simulated_response
-            object_fetcher = (
-                lambda results_uuid, expected_object_type: Results.example()
-            )
+            return lambda job_uuid: testing_simulated_response
         else:
             from edsl.coop.coop import Coop
 
             coop = Coop()
-            remote_job_data_fetcher = coop.remote_inference_get
-            object_fetcher = coop.get
+            return coop.remote_inference_get
+
+    def _construct_object_fetcher(
+        self, testing_simulated_response: Optional[Any] = None
+    ) -> Callable:
+        "Constructs a function to fetch the results object from Coop."
+        if testing_simulated_response is not None:
+            return lambda results_uuid, expected_object_type: Results.example()
+        else:
+            from edsl.coop.coop import Coop
+
+            coop = Coop()
+            return coop.get
+
+    def _handle_cancelled_job(self, job_info: RemoteJobInfo) -> None:
+        "Handles a cancelled job by logging the cancellation and updating the job status."
+
+        job_info.logger.update(
+            message="Job cancelled by the user.", status=JobsStatus.CANCELLED
+        )
+        job_info.logger.update(
+            f"See {self.expected_parrot_url}/home/remote-inference for more details.",
+            status=JobsStatus.CANCELLED,
+        )
+
+    def _handle_failed_job(
+        self, job_info: RemoteJobInfo, remote_job_data: RemoteInferenceResponse
+    ) -> None:
+        "Handles a failed job by logging the error and updating the job status."
+        latest_error_report_url = remote_job_data.get("latest_error_report_url")
+        if latest_error_report_url:
+            job_info.logger.add_info("error_report_url", latest_error_report_url)
+
+        job_info.logger.update("Job failed.", status=JobsStatus.FAILED)
+        job_info.logger.update(
+            f"See {self.expected_parrot_url}/home/remote-inference for more details.",
+            status=JobsStatus.FAILED,
+        )
+        job_info.logger.update(
+            f"Need support? Visit Discord: {RemoteJobConstants.DISCORD_URL}",
+            status=JobsStatus.FAILED,
+        )
+
+    def _sleep_for_a_bit(self, job_info: RemoteJobInfo, status: str) -> None:
+        import time
+        from datetime import datetime
+
+        time_checked = datetime.now().strftime("%Y-%m-%d %I:%M:%S %p")
+        job_info.logger.update(
+            f"Job status: {status} - last update: {time_checked}",
+            status=JobsStatus.RUNNING,
+        )
+        time.sleep(self.poll_interval)
+
+    def _fetch_results_and_log(
+        self,
+        job_info: RemoteJobInfo,
+        results_uuid: str,
+        remote_job_data: RemoteInferenceResponse,
+        object_fetcher: Callable,
+    ) -> "Results":
+        "Fetches the results object and logs the results URL."
+        job_info.logger.add_info("results_uuid", results_uuid)
+        results = object_fetcher(results_uuid, expected_object_type="results")
+        results_url = remote_job_data.get("results_url")
+        job_info.logger.update(
+            f"Job completed and Results stored on Coop: {results_url}",
+            status=JobsStatus.COMPLETED,
+        )
+        results.job_uuid = job_info.job_uuid
+        results.results_uuid = results_uuid
+        return results
+
+    def poll_remote_inference_job(
+        self,
+        job_info: RemoteJobInfo,
+        testing_simulated_response=None,
+    ) -> Union[None, "Results"]:
+        """Polls a remote inference job for completion and returns the results."""
+
+        remote_job_data_fetcher = self._construct_remote_job_fetcher(
+            testing_simulated_response
+        )
+        object_fetcher = self._construct_object_fetcher(testing_simulated_response)
 
         job_in_queue = True
         while job_in_queue:
-            remote_job_data: RemoteInferenceResponse = remote_job_data_fetcher(job_uuid)
+            remote_job_data = remote_job_data_fetcher(job_info.job_uuid)
             status = remote_job_data.get("status")
 
             if status == "cancelled":
-                self.logger.update(
-                    messaged="Job cancelled by the user.", status=JobsStatus.CANCELLED
-                )
-                self.logger.update(
-                    f"See {expected_parrot_url}/home/remote-inference for more details.",
-                    status=JobsStatus.CANCELLED,
-                )
+                self._handle_cancelled_job(job_info)
                 return None
 
-            elif status == "failed":
-                latest_error_report_url = remote_job_data.get("latest_error_report_url")
-                if latest_error_report_url:
-                    self.logger.update("Job failed.", status=JobsStatus.FAILED)
-                    self.logger.update(
-                        f"Error report: {latest_error_report_url}", "failed"
-                    )
-                    self.logger.add_info("error_report_url", latest_error_report_url)
-                    self.logger.update(
-                        "Need support? Visit Discord: https://discord.com/invite/mxAYkjfy9m",
-                        status=JobsStatus.FAILED,
-                    )
-                else:
-                    self.logger.update("Job failed.", "failed")
-                    self.logger.update(
-                        f"See {expected_parrot_url}/home/remote-inference for details.",
-                        status=JobsStatus.FAILED,
-                    )
+            elif status == "failed" or status == "completed":
+                if status == "failed":
+                    self._handle_failed_job(job_info, remote_job_data)
 
                 results_uuid = remote_job_data.get("results_uuid")
                 if results_uuid:
-                    self.logger.add_info("results_uuid", results_uuid)
-                    results = object_fetcher(
-                        results_uuid, expected_object_type="results"
+                    results = self._fetch_results_and_log(
+                        job_info=job_info,
+                        results_uuid=results_uuid,
+                        remote_job_data=remote_job_data,
+                        object_fetcher=object_fetcher,
                     )
-                    results.job_uuid = job_uuid
-                    results.results_uuid = results_uuid
                     return results
                 else:
                     return None
 
-            elif status == "completed":
-                results_uuid = remote_job_data.get("results_uuid")
-                self.logger.add_info("results_uuid", results_uuid)
-                results_url = remote_job_data.get("results_url")
-                self.logger.add_info("results_url", results_url)
-                results = object_fetcher(results_uuid, expected_object_type="results")
-                self.logger.update(
-                    f"Job completed and Results stored on Coop: {results_url}",
-                    status=JobsStatus.COMPLETED,
-                )
-                results.job_uuid = job_uuid
-                results.results_uuid = results_uuid
-                return results
-
             else:
-                time_checked = datetime.now().strftime("%Y-%m-%d %I:%M:%S %p")
-                self.logger.update(
-                    f"Job status: {status} - last update: {time_checked}",
-                    status=JobsStatus.RUNNING,
-                )
-                time.sleep(poll_interval)
-
-    def use_remote_inference(self, disable_remote_inference: bool) -> bool:
-        import requests
-
-        if disable_remote_inference:
-            return False
-        if not disable_remote_inference:
-            try:
-                from edsl.coop.coop import Coop
-
-                user_edsl_settings = Coop().edsl_settings
-                return user_edsl_settings.get("remote_inference", False)
-            except requests.ConnectionError:
-                pass
-            except CoopServerResponseError as e:
-                pass
-
-        return False
+                self._sleep_for_a_bit(job_info, status)
 
     async def create_and_poll_remote_job(
         self,
@@ -265,7 +287,7 @@ class JobsRemoteInferenceHandler:
 
         # Create job using existing method
         loop = asyncio.get_event_loop()
-        _ = await loop.run_in_executor(
+        job_info = await loop.run_in_executor(
             None,
             partial(
                 self.create_remote_inference_job,
@@ -274,14 +296,12 @@ class JobsRemoteInferenceHandler:
                 remote_inference_results_visibility=remote_inference_results_visibility,
             ),
         )
-        # breakpoint()
-        # Poll using existing method but with async sleep
-        if self._remote_job_creation_data is None:
+        if job_info is None:
             raise ValueError("Remote job creation failed.")
 
         return await loop.run_in_executor(
             None,
-            partial(self.poll_remote_inference_job, None),
+            partial(self.poll_remote_inference_job, job_info),
         )
 
 
