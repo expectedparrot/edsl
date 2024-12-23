@@ -149,7 +149,9 @@ class JobsRunnerAsyncio:
                     interview.cache = self.cache
                     yield interview
 
-    async def run_async(self, cache: Optional[Cache] = None, n: int = 1) -> Results:
+    async def run_async(
+        self, cache: Optional[Cache] = None, n: int = 1, **kwargs
+    ) -> Results:
         """Used for some other modules that have a non-standard way of running interviews."""
         self.jobs_runner_status = JobsRunnerStatus(self, n=n)
         self.cache = Cache() if cache is None else cache
@@ -216,20 +218,20 @@ class JobsRunnerAsyncio:
 
         prompt_dictionary = {}
         for answer_key_name in answer_key_names:
-            prompt_dictionary[
-                answer_key_name + "_user_prompt"
-            ] = question_name_to_prompts[answer_key_name]["user_prompt"]
-            prompt_dictionary[
-                answer_key_name + "_system_prompt"
-            ] = question_name_to_prompts[answer_key_name]["system_prompt"]
+            prompt_dictionary[answer_key_name + "_user_prompt"] = (
+                question_name_to_prompts[answer_key_name]["user_prompt"]
+            )
+            prompt_dictionary[answer_key_name + "_system_prompt"] = (
+                question_name_to_prompts[answer_key_name]["system_prompt"]
+            )
 
         raw_model_results_dictionary = {}
         cache_used_dictionary = {}
         for result in valid_results:
             question_name = result.question_name
-            raw_model_results_dictionary[
-                question_name + "_raw_model_response"
-            ] = result.raw_model_response
+            raw_model_results_dictionary[question_name + "_raw_model_response"] = (
+                result.raw_model_response
+            )
             raw_model_results_dictionary[question_name + "_cost"] = result.cost
             one_use_buys = (
                 "NA"
