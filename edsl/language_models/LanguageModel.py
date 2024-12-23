@@ -155,7 +155,9 @@ class LanguageModel(
             return klc.get(("config", "env"))
 
     def set_key_lookup(self, key_lookup: "KeyLookup") -> None:
-        del self._api_token
+        """Set the key lookup, later"""
+        if hasattr(self, "_api_token"):
+            del self._api_token
         self.key_lookup = key_lookup
 
     def ask_question(self, question: "QuestionBase") -> str:

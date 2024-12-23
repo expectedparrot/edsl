@@ -3,7 +3,16 @@ import time
 import asyncio
 import threading
 import warnings
-from typing import Coroutine, List, AsyncGenerator, Optional, Union, Generator, Type
+from typing import (
+    Coroutine,
+    List,
+    AsyncGenerator,
+    Optional,
+    Union,
+    Generator,
+    Type,
+    TYPE_CHECKING,
+)
 from uuid import UUID
 from collections import UserList
 
@@ -19,6 +28,9 @@ from edsl.results.Result import Result
 from edsl.results.Results import Results
 from edsl.language_models.LanguageModel import LanguageModel
 from edsl.data.Cache import Cache
+
+if TYPE_CHECKING:
+    from edsl.language_models.key_management.KeyLookup import KeyLookup
 
 
 class StatusTracker(UserList):
@@ -37,10 +49,16 @@ class JobsRunnerAsyncio:
     The Jobs object is a collection of interviews that are to be run.
     """
 
-    def __init__(self, jobs: "Jobs", bucket_collection: "BucketCollection"):
+    def __init__(
+        self,
+        jobs: "Jobs",
+        bucket_collection: "BucketCollection",
+        key_lookup: Optional[KeyLookup],
+    ):
         self.jobs = jobs
         self.interviews: List["Interview"] = jobs.interviews()
         self.bucket_collection: "BucketCollection" = bucket_collection
+        self.key_lookup = key_lookup
 
         self.total_interviews: List["Interview"] = []
         self._initialized = threading.Event()
@@ -54,7 +72,6 @@ class JobsRunnerAsyncio:
         cache: Cache,
         n: int = 1,
         stop_on_exception: bool = False,
-        sidecar_model: Optional[LanguageModel] = None,
         total_interviews: Optional[List["Interview"]] = None,
         raise_validation_errors: bool = False,
     ) -> AsyncGenerator["Result", None]:
@@ -65,7 +82,6 @@ class JobsRunnerAsyncio:
 
         :param n: how many times to run each interview
         :param stop_on_exception: Whether to stop the interview if an exception is raised
-        :param sidecar_model: a language model to use in addition to the interview's model
         :param total_interviews: A list of interviews to run can be provided instead.
         :param raise_validation_errors: Whether to raise validation errors
         """
@@ -93,7 +109,6 @@ class JobsRunnerAsyncio:
                             self._build_interview_task(
                                 interview=interview,
                                 stop_on_exception=stop_on_exception,
-                                sidecar_model=sidecar_model,
                                 raise_validation_errors=raise_validation_errors,
                             )
                         )
@@ -169,14 +184,12 @@ class JobsRunnerAsyncio:
         *,
         interview: Interview,
         stop_on_exception: bool = False,
-        sidecar_model: Optional["LanguageModel"] = None,
         raise_validation_errors: bool = False,
     ) -> "Result":
         """Conducts an interview and returns the result.
 
         :param interview: the interview to conduct
         :param stop_on_exception: stops the interview if an exception is raised
-        :param sidecar_model: a language model to use in addition to the interview's model
         """
         # the model buckets are used to track usage rates
         model_buckets = self.bucket_collection[interview.model]
@@ -185,8 +198,8 @@ class JobsRunnerAsyncio:
         answer, valid_results = await interview.async_conduct_interview(
             model_buckets=model_buckets,
             stop_on_exception=stop_on_exception,
-            sidecar_model=sidecar_model,
             raise_validation_errors=raise_validation_errors,
+            key_lookup=self.key_lookup,
         )
 
         question_results = {}
@@ -340,7 +353,6 @@ class JobsRunnerAsyncio:
         n: int = 1,
         stop_on_exception: bool = False,
         progress_bar: bool = False,
-        sidecar_model: Optional[LanguageModel] = None,
         jobs_runner_status: Optional[Type[JobsRunnerStatusBase]] = None,
         job_uuid: Optional[UUID] = None,
         print_exceptions: bool = True,
@@ -352,7 +364,6 @@ class JobsRunnerAsyncio:
         self.start_time = time.monotonic()
         self.completed = False
         self.cache = cache
-        self.sidecar_model = sidecar_model
 
         from edsl.coop import Coop
 
@@ -376,7 +387,6 @@ class JobsRunnerAsyncio:
                 n=n,
                 stop_on_exception=stop_on_exception,
                 cache=cache,
-                sidecar_model=sidecar_model,
                 raise_validation_errors=raise_validation_errors,
             ):
                 self.results.append(result)

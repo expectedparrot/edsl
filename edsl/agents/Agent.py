@@ -549,12 +549,11 @@ class Agent(Base):
         survey: Optional["Survey"] = None,
         scenario: Optional["Scenario"] = None,
         model: Optional["LanguageModel"] = None,
-        #        debug: bool = False,
         memory_plan: Optional["MemoryPlan"] = None,
         current_answers: Optional[dict] = None,
         iteration: int = 1,
-        #        sidecar_model=None,
         raise_validation_errors: bool = True,
+        key_lookup: Optional["KeyLookup"] = None,
     ) -> "InvigilatorBase":
         """Create an Invigilator.
 
@@ -582,13 +581,12 @@ class Agent(Base):
             scenario=scenario,
             survey=survey,
             model=model,
-            #            debug=debug,
             memory_plan=memory_plan,
             current_answers=current_answers,
             iteration=iteration,
             cache=cache,
-            #           sidecar_model=sidecar_model,
             raise_validation_errors=raise_validation_errors,
+            key_lookup=key_lookup,
         )
         if hasattr(self, "validate_response"):
             invigilator.validate_response = self.validate_response
@@ -608,6 +606,7 @@ class Agent(Base):
         memory_plan: Optional[MemoryPlan] = None,
         current_answers: Optional[dict] = None,
         iteration: int = 0,
+        key_lookup: Optional["KeyLookup"] = None,
     ) -> AgentResponseDict:
         """
         Answer a posed question.
@@ -637,10 +636,10 @@ class Agent(Base):
             scenario=scenario,
             survey=survey,
             model=model,
-            #            debug=debug,
             memory_plan=memory_plan,
             current_answers=current_answers,
             iteration=iteration,
+            key_lookup=key_lookup,
         )
         response: AgentResponseDict = await invigilator.async_answer_question()
         return response
@@ -673,12 +672,11 @@ class Agent(Base):
         scenario: Optional[Scenario] = None,
         model: Optional[LanguageModel] = None,
         survey: Optional[Survey] = None,
-        #        debug: bool = False,
         memory_plan: Optional[MemoryPlan] = None,
         current_answers: Optional[dict] = None,
         iteration: int = 0,
-        #        sidecar_model=None,
         raise_validation_errors: bool = True,
+        key_lookup: Optional["KeyLookup"] = None,
     ) -> "InvigilatorBase":
         """Create an Invigilator."""
         from edsl.language_models.model import Model
@@ -694,12 +692,6 @@ class Agent(Base):
 
         invigilator_class = self._get_invigilator_class(question)
 
-        # if sidecar_model is not None:
-        #     # this is the case when a 'simple' model is being used
-        #     # from edsl.agents.Invigilator import InvigilatorSidecar
-        #     # invigilator_class = InvigilatorSidecar
-        #     raise DeprecationWarning("Sidecar models are deprecated.")
-
         invigilator = invigilator_class(
             self,
             question=question,
@@ -710,8 +702,8 @@ class Agent(Base):
             current_answers=current_answers,
             iteration=iteration,
             cache=cache,
-            #            sidecar_model=sidecar_model,
             raise_validation_errors=raise_validation_errors,
+            key_lookup=key_lookup,
         )
         return invigilator
 
