@@ -40,6 +40,7 @@ if TYPE_CHECKING:
     from edsl.results.Dataset import Dataset
     from edsl.language_models.ModelList import ModelList
     from edsl.data.Cache import Cache
+    from edsl.language_models.key_management.KeyLookup import KeyLookup
 
 VisibilityType = Literal["private", "public", "unlisted"]
 
@@ -49,6 +50,7 @@ class LocallyRunningConfig:
     cache: "Cache"
     bucket_collection: BucketCollection
     remote_cache: bool
+    key_lookup: Optional[KeyLookup] = None
 
 
 @dataclass
@@ -68,6 +70,7 @@ class RunConfig:
     disable_remote_cache: bool
     disable_remote_inference: bool
     bucket_collection: Optional[BucketCollection]
+    key_lookup: Optional[KeyLookup] = None
 
 
 from edsl.jobs.check_survey_scenario_compatibility import (
@@ -455,7 +458,9 @@ class Jobs(Base):
             bucket_collection = run_config.bucket_collection
 
         remote_cache = self.use_remote_cache(run_config.disable_remote_cache)
-        return LocallyRunningConfig(cache, bucket_collection, remote_cache)
+        return LocallyRunningConfig(
+            cache, bucket_collection, remote_cache, key_lookup=run_config.key_lookup
+        )
 
     async def _execute_with_remote_cache(
         self, run_config: RunConfig, run_func: Callable
@@ -479,6 +484,7 @@ class Jobs(Base):
                 "print_exceptions": run_config.print_exceptions,
                 "raise_validation_errors": run_config.raise_validation_errors,
                 "bucket_collection": locally_running_config.bucket_collection,
+                "key_lookup": locally_running_config.key_lookup,
             }
 
             if asyncio.iscoroutinefunction(run_func):
@@ -504,6 +510,7 @@ class Jobs(Base):
         disable_remote_cache: bool = False,
         disable_remote_inference: bool = False,
         bucket_collection: Optional[BucketCollection] = None,
+        key_lookup: Optional[KeyLookup] = None,
     ) -> Tuple[RunConfig, Optional[Results]]:
         parameters = locals()
         parameters.pop("self")
@@ -532,6 +539,8 @@ class Jobs(Base):
         :param remote_inference_results_visibility: The initial visibility of the Results object on Coop. This will only be used for remote jobs!
         :param disable_remote_cache: If True, the job will not use remote cache. This only works for local jobs!
         :param disable_remote_inference: If True, the job will not use remote inference
+        :param bucket_collection: A BucketCollection object to track API calls
+        :param key_lookup: A KeyLookup object to manage API keys
         """
         run_config, results = self._setup_and_check(**kwargs)
         if results:
@@ -544,20 +553,26 @@ class Jobs(Base):
             return results
         return await self._execute_with_remote_cache(run_config, self._run_local_async)
 
-    async def _run_local_async(self, bucket_collection, *args, **kwargs) -> "Results":
+    async def _run_local_async(
+        self, bucket_collection, key_lookup, *args, **kwargs
+    ) -> "Results":
         """Run the job locally."""
-        return await self._prepare_asyncio_runner(bucket_collection).run_async(
+        return await self._prepare_asyncio_runner(
+            bucket_collection, key_lookup=key_lookup
+        ).run_async(*args, **kwargs)
+
+    def _run_local(self, bucket_collection, key_lookup, *args, **kwargs) -> "Results":
+        """Run the job locally."""
+        return self._prepare_asyncio_runner(bucket_collection, key_lookup).run(
             *args, **kwargs
         )
 
-    def _run_local(self, bucket_collection, *args, **kwargs) -> "Results":
-        """Run the job locally."""
-        return self._prepare_asyncio_runner(bucket_collection).run(*args, **kwargs)
-
-    def _prepare_asyncio_runner(self, bucket_collection):
+    def _prepare_asyncio_runner(self, bucket_collection, key_lookup):
         from edsl.jobs.runners.JobsRunnerAsyncio import JobsRunnerAsyncio
 
-        return JobsRunnerAsyncio(self, bucket_collection=bucket_collection)
+        return JobsRunnerAsyncio(
+            self, bucket_collection=bucket_collection, key_lookup=key_lookup
+        )
 
     def __repr__(self) -> str:
         """Return an eval-able string representation of the Jobs instance."""

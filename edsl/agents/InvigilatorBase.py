@@ -14,6 +14,7 @@ if TYPE_CHECKING:
     from edsl.language_models.LanguageModel import LanguageModel
     from edsl.surveys.Survey import Survey
     from edsl.agents.Agent import Agent
+    from edsl.language_models.key_management.KeyLookup import KeyLookup
 
 from edsl.data_transfer_models import EDSLResultObjectInput
 from edsl.agents.PromptConstructor import PromptConstructor
@@ -46,6 +47,7 @@ class InvigilatorBase(ABC):
         additional_prompt_data: Optional[dict] = None,
         raise_validation_errors: Optional[bool] = True,
         prompt_plan: Optional["PromptPlan"] = None,
+        key_lookup: Optional["KeyLookup"] = None,
     ):
         """Initialize a new Invigilator."""
         self.agent = agent
@@ -59,6 +61,7 @@ class InvigilatorBase(ABC):
         self.cache = cache
         self.survey = survey
         self.raise_validation_errors = raise_validation_errors
+        self.key_lookup = key_lookup
 
         if prompt_plan is None:
             self.prompt_plan = PromptPlan()
