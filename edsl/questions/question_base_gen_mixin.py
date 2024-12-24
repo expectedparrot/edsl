@@ -1,11 +1,16 @@
 from __future__ import annotations
 import copy
 import itertools
-from typing import Optional, List, Callable, Type
-from typing import TypeVar
+from typing import Optional, List, Callable, Type, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from edsl.questions.QuestionBase import QuestionBase
+    from edsl.scenarios.ScenarioList import ScenarioList
 
 
 class QuestionBaseGenMixin:
+    """Mixin for QuestionBase."""
+
     def copy(self) -> QuestionBase:
         """Return a deep copy of the question.
 
@@ -39,8 +44,9 @@ class QuestionBaseGenMixin:
             questions.append(question)
         return questions
 
-    def draw(self, seed: Optional[str] = None) -> "QuestionBase":
+    def draw(self) -> "QuestionBase":
         """Return a new question with a randomly selected permutation of the options.
+
         If the question has no options, returns a copy of the original question.
 
         >>> from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice as Q
@@ -48,6 +54,8 @@ class QuestionBaseGenMixin:
         >>> drawn = q.draw()
         >>> len(drawn.question_options) == len(q.question_options)
         True
+        >>> q is drawn
+        False
         """
 
         if not hasattr(self, "question_options"):
@@ -77,52 +85,17 @@ class QuestionBaseGenMixin:
         lp = LoopProcessor(self)
         return lp.process_templates(scenario_list)
 
-        # from jinja2 import Environment
-        # from edsl.questions.QuestionBase import QuestionBase
-
-        # starting_name = self.question_name
-        # questions = []
-        # for index, scenario in enumerate(scenario_list):
-        #     env = Environment()
-        #     new_data = self.to_dict().copy()
-        #     for key, value in [(k, v) for k, v in new_data.items() if v is not None]:
-        #         if (
-        #             isinstance(value, str) or isinstance(value, int)
-        #         ) and key != "question_options":
-        #             new_data[key] = env.from_string(value).render(scenario)
-        #         elif isinstance(value, list):
-        #             new_data[key] = [
-        #                 env.from_string(v).render(scenario) if isinstance(v, str) else v
-        #                 for v in value
-        #             ]
-        #         elif isinstance(value, dict):
-        #             new_data[key] = {
-        #                 (
-        #                     env.from_string(k).render(scenario)
-        #                     if isinstance(k, str)
-        #                     else k
-        #                 ): (
-        #                     env.from_string(v).render(scenario)
-        #                     if isinstance(v, str)
-        #                     else v
-        #                 )
-        #                 for k, v in value.items()
-        #             }
-        #         elif key == "question_options" and isinstance(value, str):
-        #             new_data[key] = value
-        #         else:
-        #             raise ValueError(
-        #                 f"Unexpected value type: {type(value)} for key '{key}'"
-        #             )
-
-        #     if new_data["question_name"] == starting_name:
-        #         new_data["question_name"] = new_data["question_name"] + f"_{index}"
-
-        #     questions.append(QuestionBase.from_dict(new_data))
-        # return questions
-
     def render(self, replacement_dict: dict) -> "QuestionBase":
-        """Render the question components as jinja2 templates with the replacement dictionary."""
+        """Render the question components as jinja2 templates with the replacement dictionary.
+
+        :param replacement_dict: The dictionary of values to replace in the question components.
+
+        >>> from edsl.questions.QuestionFreeText import QuestionFreeText
+        >>> q = QuestionFreeText(question_name = "color", question_text = "What is your favorite {{ thing }}?")
+        >>> q.render({"thing": "color"})
+        Question('free_text', question_name = \"""color\""", question_text = \"""What is your favorite color?\""")
+
+        """
         from jinja2 import Environment
         from edsl.scenarios.Scenario import Scenario
 
@@ -149,14 +122,22 @@ class QuestionBaseGenMixin:
 
         return self.apply_function(render_string)
 
-    def apply_function(self, func: Callable, exclude_components=None) -> QuestionBase:
+    def apply_function(
+        self, func: Callable, exclude_components: List[str] = None
+    ) -> QuestionBase:
         """Apply a function to the question parts
+
+        :param func: The function to apply to the question parts.
+        :param exclude_components: The components to exclude from the function application.
 
         >>> from edsl.questions import QuestionFreeText
         >>> q = QuestionFreeText(question_name = "color", question_text = "What is your favorite color?")
         >>> shouting = lambda x: x.upper()
         >>> q.apply_function(shouting)
         Question('free_text', question_name = \"""color\""", question_text = \"""WHAT IS YOUR FAVORITE COLOR?\""")
+
+        >>> q.apply_function(shouting, exclude_components = ["question_type"])
+        Question('free_text', question_name = \"""COLOR\""", question_text = \"""WHAT IS YOUR FAVORITE COLOR?\""")
 
         """
         from edsl.questions.QuestionBase import QuestionBase

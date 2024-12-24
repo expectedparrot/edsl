@@ -9,14 +9,14 @@ from edsl.exceptions.questions import (
 )
 from edsl.questions.descriptors import QuestionNameDescriptor, QuestionTextDescriptor
 
-from edsl.questions.AnswerValidatorMixin import AnswerValidatorMixin
-from edsl.questions.RegisterQuestionsMeta import RegisterQuestionsMeta
+from edsl.questions.answer_validator_mixin import AnswerValidatorMixin
+from edsl.questions.register_questions_meta import RegisterQuestionsMeta
 from edsl.Base import PersistenceMixin, RepresentationMixin
 from edsl.BaseDiff import BaseDiff, BaseDiffCollection
 
 from edsl.questions.SimpleAskMixin import SimpleAskMixin
 from edsl.questions.QuestionBasePromptsMixin import QuestionBasePromptsMixin
-from edsl.questions.QuestionBaseGenMixin import QuestionBaseGenMixin
+from edsl.questions.question_base_gen_mixin import QuestionBaseGenMixin
 from edsl.utilities.remove_edsl_version import remove_edsl_version
 
 
@@ -289,7 +289,6 @@ class QuestionBase(
             model=model,
             agent=agent,
             **kwargs,
-            cache=False,
             verbose=verbose,
             disable_remote_cache=disable_remote_cache,
             disable_remote_inference=disable_remote_inference,
