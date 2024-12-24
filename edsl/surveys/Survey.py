@@ -357,8 +357,10 @@ class Survey(SurveyExportMixin, Base):
                 add_edsl_version=add_edsl_version
             ),
             "question_groups": self.question_groups,
-            "questions_to_randomize": self.questions_to_randomize,
         }
+        if self.questions_to_randomize != []:
+            d["questions_to_randomize"] = self.questions_to_randomize
+
         if add_edsl_version:
             d["edsl_version"] = __version__
             d["edsl_class_name"] = "Survey"
