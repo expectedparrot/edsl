@@ -45,7 +45,7 @@ from edsl.utilities.naming_utilities import sanitize_string
 from edsl.utilities.is_valid_variable_name import is_valid_variable_name
 from edsl.exceptions.scenarios import ScenarioError
 
-from edsl.scenarios.DirectoryScanner import DirectoryScanner
+from edsl.scenarios.directory_scanner import DirectoryScanner
 
 
 class ScenarioListMixin(ScenarioListPdfMixin, ScenarioListExportMixin):
@@ -661,7 +661,7 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         >>> s.select('a')
         ScenarioList([Scenario({'a': 1}), Scenario({'a': 1})])
         """
-        from edsl.scenarios.ScenarioSelector import ScenarioSelector
+        from edsl.scenarios.scenario_selector import ScenarioSelector
 
         return ScenarioSelector(self).select(*fields)
 
