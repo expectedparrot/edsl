@@ -88,12 +88,6 @@ def agent_eligibility(
         q_eligibility(model=model, questions=questions, persona=persona, cache=cache)
         == "Yes"
     )
-    # results = (
-    #     q.by(model)
-    #     .by(Scenario({"questions": questions, "persona": persona}))
-    #     .run(cache=cache)
-    # )
-    # return results.select("eligibility").first() == "Yes"
 
 
 def gen_agent_traits(dimension_dict: dict, seed_value: Optional[str] = None):

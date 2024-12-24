@@ -44,12 +44,6 @@ class TestSurvey(unittest.TestCase):
         survey = survey.add_skip_rule(q2, "True")
         next_question = survey.next_question("like_school", {})
         assert next_question == q3
-        # breakpoint()
-        # self.assertEqual(q3, s.next_question("like_school", {"like_school": "no"}))
-        # s = self.gen_survey()
-        # with self.assertRaises(Exception):
-        #     # can't skip the first question in the survey
-        #     s.add_skip_rule(q1, "True")
 
     def test_add_memory(self):
         survey = self.gen_survey()
@@ -253,28 +247,37 @@ class TestSurvey(unittest.TestCase):
         first_question = next(path)
         assert first_question == q1
 
-        # If first question's answer triggers the rule, next question should be q3
-        # if first_question.answer == "no":
-        #     assert next(path) == q3
-        # else:
-        #     # If the rule isn't triggered, the path should be exhausted
-        #     with self.assertRaises(StopIteration):
-        #         next(path)
-
-        # breakpoint()
-        # breakpoint()
-        # survey.show_flow()
-
-        # survey.add_rule(q1, "like_school == 'no'", q3)
-        # self.assertEqual(q3, s.next_question("like_school", {"like_school": "no"}))
-
-        # breakpoint()
-
     def test_simulations(self):
         for index in range(10):
             print("Running simulation:" + str(index))
             s = Survey.random_survey()
             s.simulate()
+
+    def test_draw(self):
+        from edsl import Survey, QuestionMultipleChoice, Agent, Model
+
+        q = QuestionMultipleChoice(
+            question_text="What is your favorite color?",
+            question_options=["Red", "Blue", "Green"],
+            question_name="color",
+        )
+        a = Agent(
+            traits={
+                "persona": "You are a lazy survey-taker that always selects the first option."
+            }
+        )
+        s = Survey([q], questions_to_randomize=["color"])
+        m = Model("test", canned_response="Red")
+        jobs = s.by(a).by(m)
+        results = jobs.run(
+            n=10, disable_remote_inference=True, disable_remote_cache=True
+        )
+        color_list = results.select("question_options.color")
+
+        assert (
+            "".join(["".join(l) for l in color_list.to_list()])
+            == "BlueGreenRedBlueRedGreenBlueRedGreenBlueGreenRedGreenRedBlueGreenBlueRedGreenBlueRedRedBlueGreenBlueRedGreenGreenBlueRed"
+        )
 
 
 if __name__ == "__main__":
