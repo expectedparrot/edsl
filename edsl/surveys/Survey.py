@@ -870,6 +870,7 @@ class Survey(SurveyExportMixin, Base):
         agent: Optional["Agent"] = None,
         cache: Optional["Cache"] = None,
         disable_remote_inference: bool = False,
+        disable_remote_cache: bool = False,
         **kwargs,
     ):
         """Run the survey with default model, taking the required survey as arguments.
@@ -879,7 +880,7 @@ class Survey(SurveyExportMixin, Base):
         >>> def f(scenario, agent_traits): return "yes" if scenario["period"] == "morning" else "no"
         >>> q = QuestionFunctional(question_name = "q0", func = f)
         >>> s = Survey([q])
-        >>> async def test_run_async(): result = await s.run_async(period="morning", disable_remote_inference = True); print(result.select("answer.q0").first())
+        >>> async def test_run_async(): result = await s.run_async(period="morning", disable_remote_inference = True, disable_remote_cache=True); print(result.select("answer.q0").first())
         >>> asyncio.run(test_run_async())
         yes
         >>> import asyncio
@@ -887,7 +888,7 @@ class Survey(SurveyExportMixin, Base):
         >>> def f(scenario, agent_traits): return "yes" if scenario["period"] == "morning" else "no"
         >>> q = QuestionFunctional(question_name = "q0", func = f)
         >>> s = Survey([q])
-        >>> async def test_run_async(): result = await s.run_async(period="evening", disable_remote_inference = True); print(result.select("answer.q0").first())
+        >>> async def test_run_async(): result = await s.run_async(period="evening", disable_remote_inference = True, disable_remote_cache = True); print(result.select("answer.q0").first())
         >>> asyncio.run(test_run_async())
         no
         """
@@ -900,7 +901,9 @@ class Survey(SurveyExportMixin, Base):
             c = cache
         jobs: "Jobs" = self.get_job(model=model, agent=agent, **kwargs)
         return await jobs.run_async(
-            cache=c, disable_remote_inference=disable_remote_inference
+            cache=c,
+            disable_remote_inference=disable_remote_inference,
+            disable_remote_cache=disable_remote_cache,
         )
 
     def run(self, *args, **kwargs) -> "Results":
