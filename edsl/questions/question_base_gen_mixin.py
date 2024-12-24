@@ -80,7 +80,7 @@ class QuestionBaseGenMixin:
         >>> len(q.loop(ScenarioList.from_list("subject", ["Math", "Economics", "Chemistry"])))
         3
         """
-        from edsl.questions.LoopProcessor import LoopProcessor
+        from edsl.questions.loop_processor import LoopProcessor
 
         lp = LoopProcessor(self)
         return lp.process_templates(scenario_list)

@@ -1222,7 +1222,7 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         >>> s3 == ScenarioList([Scenario({'age': 30, 'location': 'New York', 'name': 'Alice'}), Scenario({'age': 25, 'location': None, 'name': 'Bob'})])
         True
         """
-        from edsl.scenarios.ScenarioJoin import ScenarioJoin
+        from edsl.scenarios.scenario_join import ScenarioJoin
 
         sj = ScenarioJoin(self, other)
         return sj.left_join(by)

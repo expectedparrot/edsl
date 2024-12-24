@@ -283,9 +283,10 @@ class QuestionBase(
 
 
         >>> from edsl import QuestionFreeText as Q
-        >>> m = Q._get_test_model(canned_response = "Yo, what's up?")
+        >>> from edsl import Model
+        >>> m = Model("test", canned_response = "Yo, what's up?")
         >>> q = Q(question_name = "color", question_text = "What is your favorite color?")
-        >>> q(model = m, disable_remote_cache = True, disable_remote_inference = True)
+        >>> q(model = m, disable_remote_cache = True, disable_remote_inference = True, cache = False)
         "Yo, what's up?"
 
         """
