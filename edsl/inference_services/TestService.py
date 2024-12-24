@@ -51,6 +51,7 @@ class TestService(InferenceServiceABC):
             @property
             def _canned_response(self):
                 if hasattr(self, "canned_response"):
+
                     return self.canned_response
                 else:
                     return "Hello, world"
@@ -63,9 +64,6 @@ class TestService(InferenceServiceABC):
                 files_list: Optional[List["File"]] = None,
             ) -> dict[str, Any]:
                 await asyncio.sleep(0.1)
-                # return {"message": """{"answer": "Hello, world"}"""}
-
-                # breakpoint()
 
                 if hasattr(self, "throw_exception") and self.throw_exception:
                     if hasattr(self, "exception_probability"):

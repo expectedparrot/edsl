@@ -8,7 +8,7 @@ from edsl.scenarios.Scenario import Scenario
 from edsl.questions.QuestionBase import QuestionBase
 from edsl.questions.descriptors import QuestionOptionsDescriptor
 from edsl.questions.decorators import inject_exception
-from edsl.questions.ResponseValidatorABC import ResponseValidatorABC
+from edsl.questions.response_validator_abc import ResponseValidatorABC
 
 
 def create_response_model(choices: List[str], permissive: bool = False):

@@ -6,9 +6,8 @@ from typing import Any, Optional, Dict
 from edsl.questions.QuestionBase import QuestionBase
 from edsl.questions.descriptors import AnswerTemplateDescriptor
 
-from edsl.questions.ResponseValidatorABC import ResponseValidatorABC
-from edsl.questions.ResponseValidatorABC import BaseResponse
-from edsl.exceptions.questions import QuestionAnswerValidationError
+from edsl.questions.response_validator_abc import ResponseValidatorABC
+from edsl.questions.data_structures import BaseResponse
 from edsl.questions.decorators import inject_exception
 
 from typing import Dict, Any
@@ -57,7 +56,7 @@ def dict_to_pydantic_model(input_dict: Dict[str, Any]) -> Any:
     DynamicModel = create_model("DynamicModel", **field_definitions)
 
     class AnswerModel(BaseResponse):
-        answer: DynamicModel
+        answer: "DynamicModel"
         generated_tokens: Optional[str] = None
         comment: Optional[str] = None
 
@@ -113,6 +112,8 @@ class QuestionExtract(QuestionBase):
         :param question_name: The name of the question.
         :param question_text: The text of the question.
         :param answer_template: The template for the answer.
+        :param answering_instructions: Instructions for answering the question.
+        :param question_presentation: The presentation of the question.
         """
         self.question_name = question_name
         self.question_text = question_text
@@ -142,9 +143,6 @@ class QuestionExtract(QuestionBase):
         )
         return question_html_content
 
-    ################
-    # Helpful methods
-    ################
     @classmethod
     @inject_exception
     def example(cls) -> QuestionExtract:

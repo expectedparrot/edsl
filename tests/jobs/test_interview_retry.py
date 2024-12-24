@@ -47,7 +47,7 @@ def test_retry():
 
     a.add_direct_question_answering_method(direct_question_answering_method)
     scenario = Scenario()
-    from edsl.language_models.registry import Model
+    from edsl.language_models.model import Model
 
     m = Model()
     I = Interview(agent=a, survey=s, scenario=scenario, model=m)

@@ -5,7 +5,7 @@ from pydantic import Field, BaseModel, validator
 
 from edsl.questions.QuestionBase import QuestionBase
 from edsl.questions.descriptors import IntegerDescriptor, QuestionOptionsDescriptor
-from edsl.questions.ResponseValidatorABC import ResponseValidatorABC
+from edsl.questions.response_validator_abc import ResponseValidatorABC
 
 
 class BudgewResponseValidator(ResponseValidatorABC):

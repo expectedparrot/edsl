@@ -5,7 +5,7 @@ from uuid import uuid4
 from pydantic import field_validator
 
 from edsl.questions.QuestionBase import QuestionBase
-from edsl.questions.ResponseValidatorABC import ResponseValidatorABC
+from edsl.questions.response_validator_abc import ResponseValidatorABC
 
 from edsl.exceptions.questions import QuestionAnswerValidationError
 from edsl.questions.decorators import inject_exception

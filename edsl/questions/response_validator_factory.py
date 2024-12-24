@@ -1,4 +1,10 @@
+from edsl.questions.data_structures import BaseModel
+from edsl.questions.response_validator_abc import ResponseValidatorABC
+
+
 class ResponseValidatorFactory:
+    """Factory class to create a response validator for a question."""
+
     def __init__(self, question):
         self.question = question
 
@@ -10,7 +16,7 @@ class ResponseValidatorFactory:
             return self.question.create_response_model()
 
     @property
-    def response_validator(self) -> "ResponseValidatorBase":
+    def response_validator(self) -> "ResponseValidatorABC":
         """Return the response validator."""
         params = (
             {

@@ -398,6 +398,26 @@ class DatasetExportMixin:
         # df_sorted = df.sort_index(axis=1)  # Sort columns alphabetically
         return df
 
+    def to_polars(
+        self, remove_prefix: bool = False, lists_as_strings=False
+    ) -> "pl.DataFrame":
+        """Convert the results to a Polars DataFrame.
+
+        :param remove_prefix: Whether to remove the prefix from the column names.
+        """
+        return self._to_polars_strings(remove_prefix)
+
+    def _to_polars_strings(self, remove_prefix: bool = False) -> "pl.DataFrame":
+        """Convert the results to a Polars DataFrame.
+
+        :param remove_prefix: Whether to remove the prefix from the column names.
+        """
+        import polars as pl
+
+        csv_string = self.to_csv(remove_prefix=remove_prefix).text
+        df = pl.read_csv(io.StringIO(csv_string))
+        return df
+
     def to_scenario_list(self, remove_prefix: bool = True) -> list[dict]:
         """Convert the results to a list of dictionaries, one per scenario.
 

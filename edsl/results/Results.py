@@ -24,7 +24,7 @@ if TYPE_CHECKING:
     from edsl.surveys.Survey import Survey
     from edsl.data.Cache import Cache
     from edsl.agents.AgentList import AgentList
-    from edsl.language_models.registry import Model
+    from edsl.language_models.model import Model
     from edsl.scenarios.ScenarioList import ScenarioList
     from edsl.results.Result import Result
     from edsl.jobs.tasks.TaskHistory import TaskHistory
@@ -33,7 +33,7 @@ if TYPE_CHECKING:
 
 from edsl.results.ResultsExportMixin import ResultsExportMixin
 from edsl.results.ResultsGGMixin import ResultsGGMixin
-from edsl.results.ResultsFetchMixin import ResultsFetchMixin
+from edsl.results.results_fetch_mixin import ResultsFetchMixin
 from edsl.utilities.remove_edsl_version import remove_edsl_version
 
 
@@ -136,7 +136,7 @@ class Results(UserList, Mixins, Base):
         }
         return d
 
-    def compute_job_cost(self, include_cached_responses_in_cost=False) -> float:
+    def compute_job_cost(self, include_cached_responses_in_cost: bool = False) -> float:
         """
         Computes the cost of a completed job in USD.
         """
@@ -250,24 +250,6 @@ class Results(UserList, Mixins, Base):
 
         raise TypeError("Invalid argument type")
 
-    # def _update_results(self) -> None:
-    #     from edsl import Agent, Scenario
-    #     from edsl.language_models import LanguageModel
-    #     from edsl.results import Result
-
-    #     if self._job_uuid and len(self.data) < self._total_results:
-    #         results = [
-    #             Result(
-    #                 agent=Agent.from_dict(json.loads(r.agent)),
-    #                 scenario=Scenario.from_dict(json.loads(r.scenario)),
-    #                 model=LanguageModel.from_dict(json.loads(r.model)),
-    #                 iteration=1,
-    #                 answer=json.loads(r.answer),
-    #             )
-    #             for r in CRUD.read_results(self._job_uuid)
-    #         ]
-    #         self.data = results
-
     def __add__(self, other: Results) -> Results:
         """Add two Results objects together.
         They must have the same survey and created columns.
@@ -295,13 +277,10 @@ class Results(UserList, Mixins, Base):
         )
 
     def __repr__(self) -> str:
-        # import reprlib
-
         return f"Results(data = {self.data}, survey = {repr(self.survey)}, created_columns = {self.created_columns})"
 
     def table(
         self,
-        # selector_string: Optional[str] = "*.*",
         *fields,
         tablefmt: Optional[str] = None,
         pretty_labels: Optional[dict] = None,
@@ -340,11 +319,11 @@ class Results(UserList, Mixins, Base):
 
     def to_dict(
         self,
-        sort=False,
-        add_edsl_version=False,
-        include_cache=False,
-        include_task_history=False,
-        include_cache_info=True,
+        sort: bool = False,
+        add_edsl_version: bool = False,
+        include_cache: bool = False,
+        include_task_history: bool = False,
+        include_cache_info: bool = True,
     ) -> dict[str, Any]:
         from edsl.data.Cache import Cache
 
@@ -386,7 +365,7 @@ class Results(UserList, Mixins, Base):
 
         return d
 
-    def compare(self, other_results):
+    def compare(self, other_results: Results) -> dict:
         """
         Compare two Results objects and return the differences.
         """
@@ -404,7 +383,7 @@ class Results(UserList, Mixins, Base):
         }
 
     @property
-    def has_unfixed_exceptions(self):
+    def has_unfixed_exceptions(self) -> bool:
         return self.task_history.has_unfixed_exceptions
 
     def __hash__(self) -> int:
@@ -487,10 +466,6 @@ class Results(UserList, Mixins, Base):
             raise ResultsDeserializationError(f"Error in Results.from_dict: {e}")
         return results
 
-    ######################
-    ## Convenience methods
-    ## & Report methods
-    ######################
     @property
     def _key_to_data_type(self) -> dict[str, str]:
         """
@@ -689,13 +664,19 @@ class Results(UserList, Mixins, Base):
         """
         return self.data[0]
 
-    def answer_truncate(self, column: str, top_n=5, new_var_name=None) -> Results:
+    def answer_truncate(
+        self, column: str, top_n: int = 5, new_var_name: str = None
+    ) -> Results:
         """Create a new variable that truncates the answers to the top_n.
 
         :param column: The column to truncate.
         :param top_n: The number of top answers to keep.
         :param new_var_name: The name of the new variable. If None, it is the original name + '_truncated'.
 
+        Example:
+        >>> r = Results.example()
+        >>> r.answer_truncate('how_feeling', top_n = 2).select('how_feeling', 'how_feeling_truncated')
+        Dataset([{'answer.how_feeling': ['OK', 'Great', 'Terrible', 'OK']}, {'answer.how_feeling_truncated': ['Other', 'Other', 'Other', 'Other']}])
 
 
         """
@@ -969,7 +950,7 @@ class Results(UserList, Mixins, Base):
         Dataset([{'answer.how_feeling_yesterday': ['Great', 'Good', 'OK', 'Terrible']}])
         """
 
-        from edsl.results.Selector import Selector
+        from edsl.results.results_selector import Selector
 
         if len(self) == 0:
             raise Exception("No data to select from---the Results object is empty.")
@@ -984,6 +965,7 @@ class Results(UserList, Mixins, Base):
         return selector.select(*columns)
 
     def sort_by(self, *columns: str, reverse: bool = False) -> Results:
+        """Sort the results by one or more columns."""
         import warnings
 
         warnings.warn(
@@ -992,6 +974,7 @@ class Results(UserList, Mixins, Base):
         return self.order_by(*columns, reverse=reverse)
 
     def _parse_column(self, column: str) -> tuple[str, str]:
+        """Parse a column name into a data type and key."""
         if "." in column:
             return column.split(".")
         return self._key_to_data_type[column], column

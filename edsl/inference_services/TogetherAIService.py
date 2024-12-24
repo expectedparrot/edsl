@@ -143,15 +143,17 @@ class TogetherAIService(OpenAIService):
     _async_client_ = openai.AsyncOpenAI
 
     @classmethod
-    def get_model_list(cls):
+    def get_model_list(cls, api_token=None):
         # Togheter.ai has a different response in model list then openai
         # and the OpenAI class returns an error when calling .models.list()
         import requests
         import os
 
         url = "https://api.together.xyz/v1/models?filter=serverless"
-        token = os.getenv(cls._env_key_name_)
-        headers = {"accept": "application/json", "authorization": f"Bearer {token}"}
+        if api_token is None:
+            api_token = os.getenv(cls._env_key_name_)
+
+        headers = {"accept": "application/json", "authorization": f"Bearer {api_token}"}
 
         response = requests.get(url, headers=headers)
         return response.json()

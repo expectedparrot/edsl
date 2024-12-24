@@ -10,7 +10,7 @@ from edsl.questions.descriptors import (
     OptionLabelDescriptor,
     QuestionTextDescriptor,
 )
-from edsl.questions.ResponseValidatorABC import ResponseValidatorABC
+from edsl.questions.response_validator_abc import ResponseValidatorABC
 from edsl.questions.decorators import inject_exception
 from edsl.exceptions.questions import (
     QuestionAnswerValidationError,

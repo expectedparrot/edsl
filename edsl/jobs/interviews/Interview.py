@@ -29,6 +29,8 @@ if TYPE_CHECKING:
     from edsl.data.Cache import Cache
     from edsl.language_models.LanguageModel import LanguageModel
     from edsl.jobs.tokens.InterviewTokenUsage import InterviewTokenUsage
+    from edsl.agents.InvigilatorBase import InvigilatorBase
+    from edsl.language_models.key_management.KeyLookup import KeyLookup
 
 
 class Interview:
@@ -48,7 +50,6 @@ class Interview:
         debug: Optional[bool] = False,  # DEPRECATE
         iteration: int = 0,
         cache: Optional["Cache"] = None,
-        sidecar_model: Optional["LanguageModel"] = None,  # DEPRECATE
         skip_retry: bool = False,  # COULD BE SET WITH CONFIG
         raise_validation_errors: bool = True,
         indices: dict = None,  # explain?
@@ -62,7 +63,6 @@ class Interview:
         :param debug: if True, run without calls to the language model.
         :param iteration: the iteration number of the interview.
         :param cache: the cache used to store the answers.
-        :param sidecar_model: a sidecar model used to answer questions.
 
         >>> i = Interview.example()
         >>> i.task_manager.task_creators
@@ -88,7 +88,6 @@ class Interview:
         self.cache = cache
 
         self.answers = Answers()  # will get filled in as interview progresses
-        self.sidecar_model = sidecar_model
 
         self.task_manager = InterviewTaskManager(
             survey=self.survey,
@@ -134,7 +133,6 @@ class Interview:
         # return self.task_creators.interview_status
         return self.task_manager.interview_status
 
-    # region: Serialization
     def to_dict(self, include_exceptions=True, add_edsl_version=True) -> dict[str, Any]:
         """Return a dictionary representation of the Interview instance.
         This is just for hashing purposes.
@@ -198,13 +196,12 @@ class Interview:
         """
         return hash(self) == hash(other)
 
-    # region: Conducting the interview
     async def async_conduct_interview(
         self,
         model_buckets: Optional[ModelBuckets] = None,
         stop_on_exception: bool = False,
-        sidecar_model: Optional["LanguageModel"] = None,
         raise_validation_errors: bool = True,
+        key_lookup: Optional[KeyLookup] = None,
     ) -> tuple["Answers", List[dict[str, Any]]]:
         """
         Conduct an Interview asynchronously.
@@ -213,7 +210,6 @@ class Interview:
         :param model_buckets: a dictionary of token buckets for the model.
         :param debug: run without calls to LLM.
         :param stop_on_exception: if True, stops the interview if an exception is raised.
-        :param sidecar_model: a sidecar model used to answer questions.
 
         Example usage:
 
@@ -232,7 +228,6 @@ class Interview:
         ...
         asyncio.exceptions.CancelledError
         """
-        self.sidecar_model = sidecar_model
         self.stop_on_exception = stop_on_exception
 
         # if no model bucket is passed, create an 'infinity' bucket with no rate limits
@@ -241,7 +236,9 @@ class Interview:
 
         # was "self.tasks" - is that necessary?
         self.tasks = self.task_manager.build_question_tasks(
-            answer_func=AnswerQuestionFunctionConstructor(self)(),
+            answer_func=AnswerQuestionFunctionConstructor(
+                self, key_lookup=key_lookup
+            )(),
             token_estimator=RequestTokenEstimator(self),
             model_buckets=model_buckets,
         )
@@ -251,7 +248,9 @@ class Interview:
 
         ## 'Invigilators' are used to administer the survey.
         self.invigilators = [
-            FetchInvigilator(interview=self, current_answers=self.answers)(question)
+            FetchInvigilator(
+                interview=self, current_answers=self.answers, key_lookup=key_lookup
+            )(question)
             for question in self.survey.questions
         ]
         await asyncio.gather(*self.tasks, return_exceptions=not stop_on_exception)
@@ -261,12 +260,9 @@ class Interview:
         )
         return self.answers, valid_results
 
-    # endregion
-
-    # region: Extracting results and recording errors
     @staticmethod
     def _extract_valid_results(
-        tasks, invigilators: List["InvigilatorABC"], exceptions
+        tasks, invigilators: List["InvigilatorBase"], exceptions
     ) -> Generator["Answers", None, None]:
         """Extract the valid results from the list of results.
 
@@ -301,14 +297,13 @@ class Interview:
 
             yield result
 
-    # endregion
-
-    # region: Magic methods
     def __repr__(self) -> str:
         """Return a string representation of the Interview instance."""
         return f"Interview(agent = {repr(self.agent)}, survey = {repr(self.survey)}, scenario = {repr(self.scenario)}, model = {repr(self.model)})"
 
-    def duplicate(self, iteration: int, cache: "Cache") -> Interview:
+    def duplicate(
+        self, iteration: int, cache: "Cache", randomize_survey: Optional[bool] = True
+    ) -> Interview:
         """Duplicate the interview, but with a new iteration number and cache.
 
         >>> i = Interview.example()
@@ -317,9 +312,14 @@ class Interview:
         True
 
         """
+        if randomize_survey:
+            new_survey = self.survey.draw()
+        else:
+            new_survey = self.survey
+
         return Interview(
             agent=self.agent,
-            survey=self.survey,
+            survey=new_survey,
             scenario=self.scenario,
             model=self.model,
             iteration=iteration,
