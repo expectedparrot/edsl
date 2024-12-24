@@ -39,6 +39,28 @@ class QuestionBaseGenMixin:
             questions.append(question)
         return questions
 
+    def draw(self, seed: Optional[str] = None) -> "QuestionBase":
+        """Return a new question with a randomly selected permutation of the options.
+        If the question has no options, returns a copy of the original question.
+
+        >>> from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice as Q
+        >>> q = Q.example()
+        >>> drawn = q.draw()
+        >>> len(drawn.question_options) == len(q.question_options)
+        True
+        """
+
+        if not hasattr(self, "question_options"):
+            return copy.deepcopy(self)
+
+        import random
+
+        question = copy.deepcopy(self)
+        question.question_options = list(
+            random.sample(self.question_options, len(self.question_options))
+        )
+        return question
+
     def loop(self, scenario_list: ScenarioList) -> List[QuestionBase]:
         """Return a list of questions with the question name modified for each scenario.
 

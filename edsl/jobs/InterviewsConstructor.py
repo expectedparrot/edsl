@@ -34,7 +34,7 @@ class InterviewsConstructor:
             self.jobs.agents, self.jobs.scenarios, self.jobs.models
         ):
             yield Interview(
-                survey=self.jobs.survey,
+                survey=self.jobs.survey.draw(),
                 agent=agent,
                 scenario=scenario,
                 model=model,

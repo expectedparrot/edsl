@@ -301,7 +301,9 @@ class Interview:
         """Return a string representation of the Interview instance."""
         return f"Interview(agent = {repr(self.agent)}, survey = {repr(self.survey)}, scenario = {repr(self.scenario)}, model = {repr(self.model)})"
 
-    def duplicate(self, iteration: int, cache: "Cache") -> Interview:
+    def duplicate(
+        self, iteration: int, cache: "Cache", randomize_survey: Optional[bool] = True
+    ) -> Interview:
         """Duplicate the interview, but with a new iteration number and cache.
 
         >>> i = Interview.example()
@@ -310,9 +312,14 @@ class Interview:
         True
 
         """
+        if randomize_survey:
+            new_survey = self.survey.draw()
+        else:
+            new_survey = self.survey
+
         return Interview(
             agent=self.agent,
-            survey=self.survey,
+            survey=new_survey,
             scenario=self.scenario,
             model=self.model,
             iteration=iteration,

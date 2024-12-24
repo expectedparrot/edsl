@@ -56,6 +56,10 @@ class QuestionBase(
         rvf = ResponseValidatorFactory(self)
         return rvf.response_validator
 
+    def duplicate(self):
+        """Return a duplicate of the question."""
+        return self.from_dict(self.to_dict())
+
     @property
     def fake_data_factory(self):
         """Return the fake data factory."""
