@@ -53,7 +53,7 @@ class JobsRunnerAsyncio:
         self,
         jobs: "Jobs",
         bucket_collection: "BucketCollection",
-        key_lookup: Optional[KeyLookup],
+        key_lookup: Optional[KeyLookup] = None,
     ):
         self.jobs = jobs
         self.interviews: List["Interview"] = jobs.interviews()
