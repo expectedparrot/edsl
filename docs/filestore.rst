@@ -194,7 +194,7 @@ Here we retrieve the file and then create a `Scenario` object for it with a key 
 
 .. code-block:: python
 
-    from edsl import PNGFileStore, Scenario
+    from edsl import FileStore, Scenario
     
     png_file = FileStore.pull(png_info["uuid"])
     
