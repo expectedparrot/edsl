@@ -1,21 +1,18 @@
 from __future__ import annotations
 import json
-
 from typing import Any, Optional, Union
+
+from pydantic import Field
+from json_repair import repair_json
+
+from edsl.exceptions.questions import QuestionAnswerValidationError
 from edsl.questions.QuestionBase import QuestionBase
 from edsl.questions.descriptors import IntegerOrNoneDescriptor
 from edsl.questions.decorators import inject_exception
-
-from pydantic import field_validator, Field
-from edsl.questions.ResponseValidatorABC import ResponseValidatorABC
-from edsl.questions.ResponseValidatorABC import BaseResponse
-
-from edsl.exceptions.questions import QuestionAnswerValidationError
-
-from json_repair import repair_json
+from edsl.questions.response_validator_abc import ResponseValidatorABC
 
 
-def convert_string(s):
+def convert_string(s: str) -> Union[float, int, str, dict]:
     """Convert a string to a more appropriate type if possible.
 
     >>> convert_string("3.14")
@@ -58,7 +55,7 @@ def convert_string(s):
     return s
 
 
-def create_model(max_list_items: int, permissive):
+def create_model(max_list_items: int, permissive: bool) -> "ListResponse":
     from pydantic import BaseModel
 
     if permissive or max_list_items is None:
@@ -133,8 +130,8 @@ class QuestionList(QuestionBase):
         self,
         question_name: str,
         question_text: str,
-        max_list_items: Optional[int] = None,
         include_comment: bool = True,
+        max_list_items: Optional[int] = None,
         answering_instructions: Optional[str] = None,
         question_presentation: Optional[str] = None,
         permissive: bool = False,
@@ -184,9 +181,6 @@ class QuestionList(QuestionBase):
         ).render(question_name=self.question_name)
         return question_html_content
 
-    ################
-    # Helpful methods
-    ################
     @classmethod
     @inject_exception
     def example(
