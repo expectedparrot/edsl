@@ -554,20 +554,24 @@ class Jobs(Base):
         return await self._execute_with_remote_cache(run_config, self._run_local_async)
 
     async def _run_local_async(
-        self, bucket_collection, key_lookup, *args, **kwargs
+        self, bucket_collection, key_lookup: Optional[KeyLookup] = None, *args, **kwargs
     ) -> "Results":
         """Run the job locally."""
         return await self._prepare_asyncio_runner(
             bucket_collection, key_lookup=key_lookup
         ).run_async(*args, **kwargs)
 
-    def _run_local(self, bucket_collection, key_lookup, *args, **kwargs) -> "Results":
+    def _run_local(
+        self, bucket_collection, key_lookup: Optional[KeyLookup] = None, *args, **kwargs
+    ) -> "Results":
         """Run the job locally."""
         return self._prepare_asyncio_runner(bucket_collection, key_lookup).run(
             *args, **kwargs
         )
 
-    def _prepare_asyncio_runner(self, bucket_collection, key_lookup):
+    def _prepare_asyncio_runner(
+        self, bucket_collection, key_lookup: Optional[KeyLookup] = None
+    ):
         from edsl.jobs.runners.JobsRunnerAsyncio import JobsRunnerAsyncio
 
         return JobsRunnerAsyncio(
