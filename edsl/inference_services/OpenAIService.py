@@ -49,6 +49,7 @@ class OpenAIService(InferenceServiceABC):
                 base_url=cls._base_url_,
             )
             cls._sync_client_instances[api_key] = client
+        client = cls._sync_client_instances[api_key]
         return client
 
     @classmethod
@@ -59,6 +60,7 @@ class OpenAIService(InferenceServiceABC):
                 base_url=cls._base_url_,
             )
             cls._async_client_instances[api_key] = client
+        client = cls._async_client_instances[api_key]
         return client
 
     model_exclude_list = [
