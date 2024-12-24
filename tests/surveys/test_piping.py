@@ -37,7 +37,7 @@ def test_survey_flow():
 
 def test_alt_piping():
     # this one uses a test model to return the answers
-    from edsl.language_models.registry import Model
+    from edsl.language_models.model import Model
 
     def two_responses_closure():
 
@@ -109,7 +109,7 @@ def test_comment_piping():
 
 def test_option_expand_piping():
     from edsl.questions import QuestionList, QuestionCheckBox
-    from edsl.language_models.registry import Model
+    from edsl.language_models.model import Model
 
     def two_responses_closure():
 

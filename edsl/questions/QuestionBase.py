@@ -243,7 +243,7 @@ class QuestionBase(
         Dataset([{'answer.how_are_you': ["Yo, what's up?"]}])
         """
         if model is None:
-            from edsl.language_models.registry import Model
+            from edsl.language_models.model import Model
 
             model = Model()
         results = (
@@ -464,7 +464,7 @@ class QuestionBase(
 
     @classmethod
     def example_model(cls):
-        from edsl.language_models.registry import Model
+        from edsl.language_models.model import Model
 
         q = cls.example()
         m = Model("test", canned_response=cls._simulate_answer(q)["answer"])

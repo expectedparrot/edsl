@@ -86,6 +86,13 @@ InferenceServiceLiteral = Literal[
     "perplexity",
 ]
 
+available_models_urls = {
+    "anthropic": "https://docs.anthropic.com/en/docs/about-claude/models",
+    "openai": "https://platform.openai.com/docs/models/gp",
+    "groq": "https://console.groq.com/docs/models",
+    "google": "https://cloud.google.com/vertex-ai/generative-ai/docs/learn/models",
+}
+
 
 service_to_api_keyname = {
     InferenceServiceType.BEDROCK.value: "TBD",

@@ -34,7 +34,7 @@ from edsl.scenarios.FileStore import FileStore
 
 # from edsl.utilities.interface import print_dict_with_rich
 from edsl.surveys.Survey import Survey
-from edsl.language_models.registry import Model
+from edsl.language_models.model import Model
 from edsl.language_models.ModelList import ModelList
 
 from edsl.results.Results import Results
