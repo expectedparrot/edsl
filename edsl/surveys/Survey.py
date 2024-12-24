@@ -175,7 +175,6 @@ class Survey(SurveyExportMixin, Base):
     def draw(self) -> "Survey":
         """Return a new survey with a randomly selected permutation of the options."""
         if self._seed is None:  # only set once
-            print("Setting seed - should only be called once")
             self._seed = hash(self)
             random.seed(self._seed)
 
