@@ -165,7 +165,7 @@ class PromptConstructor:
                 PromptConstructor._extract_quetion_and_entry_type(key)
             )
             d[question_name][entry_type] = value
-        return d
+        return dict(d)
 
     @staticmethod
     def _add_answers(
