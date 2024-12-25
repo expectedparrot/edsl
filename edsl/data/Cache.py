@@ -6,11 +6,9 @@ from __future__ import annotations
 import json
 import os
 import warnings
-from typing import Optional, Union
+from typing import Optional, Union, TYPE_CHECKING
 from edsl.Base import Base
 
-
-# from edsl.utilities.decorators import remove_edsl_version
 from edsl.utilities.remove_edsl_version import remove_edsl_version
 from edsl.exceptions.cache import CacheError
 
@@ -82,10 +80,6 @@ class Cache(Base):
                 raise CacheError("Invalid file extension. Must be .jsonl or .db")
 
         self._perform_checks()
-
-    # def rich_print(sefl):
-    #     pass
-    #     # raise NotImplementedError("This method is not implemented yet.")
 
     def code(sefl):
         pass
@@ -368,12 +362,32 @@ class Cache(Base):
             scenarios.append(s)
         return ScenarioList(scenarios)
 
-    ####################
-    # REMOTE
-    ####################
-    # TODO: Make this work
-    # - Need to decide whether the cache belongs to a user and what can be shared
-    # - I.e., some cache entries? all or nothing?
+    def __floordiv__(self, other: "Cache") -> "Cache":
+        """
+        Return a new Cache containing entries that are in self but not in other.
+        Uses // operator as alternative to subtraction.
+
+        :param other: Another Cache object to compare against
+        :return: A new Cache object containing unique entries
+
+        >>> from edsl.data.CacheEntry import CacheEntry
+        >>> ce1 = CacheEntry.example(randomize = True)
+        >>> ce2 = CacheEntry.example(randomize = True)
+        >>> ce2 = CacheEntry.example(randomize = True)
+        >>> c1 = Cache(data={ce1.key: ce1, ce2.key: ce2})
+        >>> c2 = Cache(data={ce1.key: ce1})
+        >>> c3 = c1 // c2
+        >>> len(c3)
+        1
+        >>> c3.data[ce2.key] == ce2
+        True
+        """
+        if not isinstance(other, Cache):
+            raise CacheError("Can only compare two caches")
+
+        diff_data = {k: v for k, v in self.data.items() if k not in other.data}
+        return Cache(data=diff_data, immediate_write=self.immediate_write)
+
     @classmethod
     def from_url(cls, db_path=None) -> Cache:
         """
@@ -399,9 +413,6 @@ class Cache(Base):
         if self.filename:
             self.write(self.filename)
 
-    ####################
-    # DUNDER / USEFUL
-    ####################
     def __hash__(self):
         """Return the hash of the Cache."""
         from edsl.utilities.utilities import dict_hash
