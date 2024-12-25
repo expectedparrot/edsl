@@ -3,9 +3,13 @@
 File Store
 ==========
 
-`FileStore` is a module for storing and sharing data at Coop. 
-It allows you to post and retrieve files of various types for use in EDSL projects, such as survey data, PDFs, CSVs, docs or images.
-In particular, it can be useful for storing data to be added to questions as `Scenario` objects or traits for `Agent` objects, and for sharing data with collaborators.
+`FileStore` is a module for storing and sharing data files at Coop.
+It allows you to post and retrieve files of various types to use in EDSL surveys, such as survey data, PDFs, CSVs, docs or images.
+It can also be used to create `Scenario` objects for questions or traits for `Agent` objects from data files at Coop.
+When posting files, the `FileStore` module will automatically infer the file type from the extension.
+
+*Note:* Scenarios created from `FileStore` objects can only be added to questions with the `by()` method, not the `loop()` method.
+This is because the `loop()` method inserts the filepath in the question, whereas the `by()` method inserts the file content when the question is run.
 
 The examples below are also available in a `notebook at Coop <https://www.expectedparrot.com/content/1c1d0d70-9730-4a04-a46e-1b677f9ba521>`_.
 
