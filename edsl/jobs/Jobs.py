@@ -45,8 +45,13 @@ if TYPE_CHECKING:
 VisibilityType = Literal["private", "public", "unlisted"]
 
 from dataclasses import dataclass
-from typing import Optional, Union, TypeVar, Callable, ParamSpec, cast
+from typing import Optional, Union, TypeVar, Callable, cast
 from functools import wraps
+
+try:
+    from typing import ParamSpec
+except ImportError:
+    from typing_extensions import ParamSpec
 
 
 @dataclass
@@ -68,8 +73,14 @@ class RunConfig(Base):
     bucket_collection: Optional[BucketCollection] = None
     key_lookup: Optional[KeyLookup] = None
 
-    def to_dict(self):
-        return asdict(self)
+    def to_dict(self, add_edsl_version=False):
+        d = asdict(self)
+        if add_edsl_version:
+            from edsl import __version__
+
+            d["edsl_version"] = __version__
+            d["edsl_class_name"] = "RunConfig"
+        return d
 
     @classmethod
     def from_dict(cls, data: dict) -> "RunConfig":
