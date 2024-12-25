@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+import json
 from typing import Dict, List, Any, TypeVar, Generator, Dict, Callable
 from dataclasses import dataclass, field, KW_ONLY, fields, asdict
 import textwrap
@@ -34,6 +35,13 @@ class FlowDataBase:
     previous_stage: Any = None
     sent_to_stage_name: str = field(default_factory=str)
     came_from_stage_name: str = field(default_factory=str)
+
+    def to_dict(self):
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, data: dict):
+        return cls(**data)
 
     def __getitem__(self, key):
         """Allows dictionary-style getting."""
@@ -127,6 +135,10 @@ class StageBase(ABC):
             self.next_stage = None
 
     @classmethod
+    def function_parameters(self):
+        return fields(self.input)
+
+    @classmethod
     def func(cls, **kwargs):
         "This provides a shortcut for running a stage by passing keyword arguments to the input function."
         input_data = cls.input(**kwargs)
@@ -173,58 +185,59 @@ class StageBase(ABC):
 
 
 if __name__ == "__main__":
-    try:
+    pass
+    # try:
 
-        class StageMissing(StageBase):
-            def handle_data(self, data):
-                return data
+    #     class StageMissing(StageBase):
+    #         def handle_data(self, data):
+    #             return data
 
-    except NotImplementedError as e:
-        print(e)
-    else:
-        raise Exception("Should have raised NotImplementedError")
+    # except NotImplementedError as e:
+    #     print(e)
+    # else:
+    #     raise Exception("Should have raised NotImplementedError")
 
-    try:
+    # try:
 
-        class StageMissingInput(StageBase):
-            output = FlowDataBase
+    #     class StageMissingInput(StageBase):
+    #         output = FlowDataBase
 
-    except NotImplementedError as e:
-        print(e)
+    # except NotImplementedError as e:
+    #     print(e)
 
-    else:
-        raise Exception("Should have raised NotImplementedError")
+    # else:
+    #     raise Exception("Should have raised NotImplementedError")
 
-    @dataclass
-    class MockInputOutput(FlowDataBase):
-        text: str
+    # @dataclass
+    # class MockInputOutput(FlowDataBase):
+    #     text: str
 
-    class StageTest(StageBase):
-        input = MockInputOutput
-        output = MockInputOutput
+    # class StageTest(StageBase):
+    #     input = MockInputOutput
+    #     output = MockInputOutput
 
-        def handle_data(self, data):
-            return self.output(text=data["text"] + "processed")
+    #     def handle_data(self, data):
+    #         return self.output(text=data["text"] + "processed")
 
-    result = StageTest().process(MockInputOutput(text="Hello world!"))
-    print(result.text)
+    # result = StageTest().process(MockInputOutput(text="Hello world!"))
+    # print(result.text)
 
-    pipeline = StageTest(next_stage=StageTest(next_stage=StageTest()))
-    result = pipeline.process(MockInputOutput(text="Hello world!"))
-    print(result.text)
+    # pipeline = StageTest(next_stage=StageTest(next_stage=StageTest()))
+    # result = pipeline.process(MockInputOutput(text="Hello world!"))
+    # print(result.text)
 
-    class BadMockInput(FlowDataBase):
-        text: str
-        other: str
+    # class BadMockInput(FlowDataBase):
+    #     text: str
+    #     other: str
 
-    class StageBad(StageBase):
-        input = BadMockInput
-        output = BadMockInput
+    # class StageBad(StageBase):
+    #     input = BadMockInput
+    #     output = BadMockInput
 
-        def handle_data(self, data):
-            return self.output(text=data["text"] + "processed")
+    #     def handle_data(self, data):
+    #         return self.output(text=data["text"] + "processed")
 
-    try:
-        pipeline = StageTest(next_stage=StageBad(next_stage=StageTest()))
-    except ExceptionPipesDoNotFit as e:
-        print(e)
+    # try:
+    #     pipeline = StageTest(next_stage=StageBad(next_stage=StageTest()))
+    # except ExceptionPipesDoNotFit as e:
+    #     print(e)

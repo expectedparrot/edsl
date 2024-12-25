@@ -1244,6 +1244,7 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         else:
             data = self
         d = {"scenarios": [s.to_dict(add_edsl_version=add_edsl_version) for s in data]}
+
         if add_edsl_version:
             from edsl import __version__
 

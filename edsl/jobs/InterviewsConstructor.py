@@ -37,6 +37,7 @@ class InterviewsConstructor:
                 survey=self.jobs.survey.draw(),
                 agent=agent,
                 scenario=scenario,
+                cache=self.jobs.cache,
                 model=model,
                 skip_retry=self.jobs.skip_retry,
                 raise_validation_errors=self.jobs.raise_validation_errors,

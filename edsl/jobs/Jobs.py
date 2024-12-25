@@ -1,8 +1,8 @@
 # """The Jobs class is a collection of agents, scenarios and models and one survey."""
 from __future__ import annotations
-import warnings
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 import asyncio
+from inspect import signature
 from typing import (
     Literal,
     Optional,
@@ -44,6 +44,48 @@ if TYPE_CHECKING:
 
 VisibilityType = Literal["private", "public", "unlisted"]
 
+from dataclasses import dataclass
+from typing import Optional, Union, TypeVar, Callable, ParamSpec, cast
+from functools import wraps
+
+
+@dataclass
+class RunConfig(Base):
+    n: int = 1
+    progress_bar: bool = False
+    stop_on_exception: bool = False
+    check_api_keys: bool = False
+    verbose: bool = True
+    print_exceptions: bool = True
+    remote_cache_description: Optional[str] = None
+    remote_inference_description: Optional[str] = None
+    remote_inference_results_visibility: Optional[VisibilityType] = "unlisted"
+    skip_retry: bool = False
+    raise_validation_errors: bool = False
+    disable_remote_cache: bool = False
+    disable_remote_inference: bool = False
+    cache: Union["Cache", bool] = None
+    bucket_collection: Optional[BucketCollection] = None
+    key_lookup: Optional[KeyLookup] = None
+
+    def to_dict(self):
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "RunConfig":
+        return cls(**data)
+
+    def code(self):
+        return f"RunConfig(**{self.to_dict()})"
+
+    @classmethod
+    def example(cls) -> "RunConfig":
+        return cls()
+
+
+P = ParamSpec("P")
+T = TypeVar("T")
+
 
 @dataclass
 class LocallyRunningConfig:
@@ -53,29 +95,33 @@ class LocallyRunningConfig:
     key_lookup: Optional[KeyLookup] = None
 
 
-@dataclass
-class RunConfig:
-    n: int
-    progress_bar: bool
-    stop_on_exception: bool
-    cache: Union["Cache", bool]
-    check_api_keys: bool
-    verbose: bool
-    print_exceptions: bool
-    remote_cache_description: Optional[str]
-    remote_inference_description: Optional[str]
-    remote_inference_results_visibility: Optional[VisibilityType]
-    skip_retry: bool
-    raise_validation_errors: bool
-    disable_remote_cache: bool
-    disable_remote_inference: bool
-    bucket_collection: Optional[BucketCollection]
-    key_lookup: Optional[KeyLookup] = None
-
-
 from edsl.jobs.check_survey_scenario_compatibility import (
     CheckSurveyScenarioCompatibility,
 )
+
+
+def with_config(f: Callable[P, T]) -> Callable[P, T]:
+    # Get the RunConfig fields
+    config_params = {
+        name: field.default for name, field in RunConfig.__dataclass_fields__.items()
+    }
+
+    @wraps(f)
+    def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
+        config = RunConfig(**kwargs)
+        return f(*args, config=config)
+
+    # Update the wrapper's signature to include all RunConfig parameters
+    old_sig = signature(f)
+    wrapper.__signature__ = old_sig.replace(
+        parameters=list(old_sig.parameters.values())[:-1]
+        + [
+            old_sig.parameters["config"].replace(default=config_params[name], name=name)
+            for name in config_params
+        ]
+    )
+
+    return cast(Callable[P, T], wrapper)
 
 
 class Jobs(Base):
@@ -105,9 +151,55 @@ class Jobs(Base):
         self.models = models
 
         self.__bucket_collection = None
+        self.cache = None
+        self.key_lookup = None
 
     # these setters and getters are used to ensure that the agents, models, and scenarios
     # are stored as AgentList, ModelList, and ScenarioList objects.
+
+    def using_cache(self, cache: "Cache") -> Jobs:
+        """
+        Add a Cache to the job.
+
+        :param cache: the cache to add
+        """
+        self.cache = cache
+        return self
+
+    def using_bucket_collection(self, bucket_collection: BucketCollection) -> Jobs:
+        """
+        Add a BucketCollection to the job.
+
+        :param bucket_collection: the bucket collection to add
+        """
+        self.__bucket_collection = bucket_collection
+        return self
+
+    def using_key_lookup(self, key_lookup: KeyLookup) -> Jobs:
+        """
+        Add a KeyLookup to the job.
+
+        :param key_lookup: the key lookup to add
+        """
+        self.key_lookup = key_lookup
+        return self
+
+    def using(self, obj: Union[Cache, BucketCollection, KeyLookup]) -> Jobs:
+        """
+        Add a Cache, BucketCollection, or KeyLookup to the job.
+
+        :param obj: the object to add
+        """
+        from edsl.data.Cache import Cache
+        from edsl.language_models.key_management.KeyLookup import KeyLookup
+
+        if isinstance(obj, Cache):
+            self.cache = obj
+        elif isinstance(obj, BucketCollection):
+            self.__bucket_collection = obj
+        elif isinstance(obj, KeyLookup):
+            self.key_lookup = obj
+        return self
 
     @property
     def models(self):
@@ -440,7 +532,10 @@ class Jobs(Base):
     def _config_for_local_running(
         self, run_config: RunConfig
     ) -> "LocallyRunningConfig":
+        """These are the configurations for running the job locally."""
         cache = run_config.cache
+
+        # assert cache.name == "example"
 
         if run_config.cache is None or run_config.cache is True:
             from edsl.data.CacheHandler import CacheHandler
@@ -450,7 +545,7 @@ class Jobs(Base):
         if run_config.cache is False:
             from edsl.data.Cache import Cache
 
-            cache = Cache()
+            cache = Cache(immediate_write=False)
 
         if run_config.bucket_collection is None:
             bucket_collection = self.create_bucket_collection()
@@ -466,6 +561,8 @@ class Jobs(Base):
         self, run_config: RunConfig, run_func: Callable
     ) -> Results:
         locally_running_config = self._config_for_local_running(run_config)
+
+        # assert locally_running_config.cache.name == "example"
 
         from edsl.coop.coop import Coop
 
@@ -486,7 +583,6 @@ class Jobs(Base):
                 "bucket_collection": locally_running_config.bucket_collection,
                 "key_lookup": locally_running_config.key_lookup,
             }
-
             if asyncio.iscoroutinefunction(run_func):
                 results = await run_func(**run_params)
             else:
@@ -494,44 +590,26 @@ class Jobs(Base):
         return results
 
     def _setup_and_check(
-        self,
-        n: int = 1,
-        progress_bar: bool = False,
-        stop_on_exception: bool = False,
-        cache: Union["Cache", bool] = None,
-        check_api_keys: bool = False,
-        verbose: bool = True,
-        print_exceptions: bool = True,
-        remote_cache_description: Optional[str] = None,
-        remote_inference_description: Optional[str] = None,
-        remote_inference_results_visibility: Optional[VisibilityType] = "unlisted",
-        skip_retry: bool = False,
-        raise_validation_errors: bool = False,
-        disable_remote_cache: bool = False,
-        disable_remote_inference: bool = False,
-        bucket_collection: Optional[BucketCollection] = None,
-        key_lookup: Optional[KeyLookup] = None,
+        self, run_config: RunConfig
     ) -> Tuple[RunConfig, Optional[Results]]:
-        parameters = locals()
-        parameters.pop("self")
-        run_config = RunConfig(**parameters)
         self._prepare_to_run(run_config)
         self._check_if_remote_keys_ok(run_config)
 
+        # first try to run the job remotely
         if results := self._remote_results(run_config):
             return run_config, results
 
         self._check_if_local_keys_ok(run_config)
         return run_config, None
 
-    def run(self, **kwargs) -> Results:
+    @with_config
+    def run(self, *, config: RunConfig):
         """
         Runs the Job: conducts Interviews and returns their results.
 
         :param n: How many times to run each interview
         :param progress_bar: Whether to show a progress bar
         :param stop_on_exception: Stops the job if an exception is raised
-        :param cache: A Cache object to store results
         :param check_api_keys: Raises an error if API keys are invalid
         :param verbose: Prints extra messages
         :param remote_cache_description: Specifies a description for this group of entries in the remote cache
@@ -539,16 +617,26 @@ class Jobs(Base):
         :param remote_inference_results_visibility: The initial visibility of the Results object on Coop. This will only be used for remote jobs!
         :param disable_remote_cache: If True, the job will not use remote cache. This only works for local jobs!
         :param disable_remote_inference: If True, the job will not use remote inference
+        :param cache: A Cache object to store results
         :param bucket_collection: A BucketCollection object to track API calls
         :param key_lookup: A KeyLookup object to manage API keys
         """
-        run_config, results = self._setup_and_check(**kwargs)
+
+        if self.cache is not None:
+            config.cache = self.cache
+        if self.__bucket_collection is not None:
+            config.bucket_collection = self.__bucket_collection
+        if self.key_lookup is not None:
+            config.key_lookup = self.key_lookup
+
+        run_config, results = self._setup_and_check(config)
         if results:
             return results
         return asyncio.run(self._execute_with_remote_cache(run_config, self._run_local))
 
-    async def run_async(self, **kwargs) -> "Results":
-        run_config, results = self._setup_and_check(**kwargs)
+    @with_config
+    async def run_async(self, *, config: RunConfig) -> "Results":
+        run_config, results = self._setup_and_check(config)
         if results:
             return results
         return await self._execute_with_remote_cache(run_config, self._run_local_async)

@@ -658,9 +658,6 @@ class Coop(CoopFunctionsMixin):
         self._resolve_server_response(response)
         return response.json()
 
-    ################
-    # Remote Inference
-    ################
     def remote_inference_create(
         self,
         job: Jobs,
@@ -770,6 +767,17 @@ class Coop(CoopFunctionsMixin):
                 "version": data.get("version"),
             }
         )
+
+    def get_running_jobs(self) -> list[str]:
+        """
+        Get a list of currently running job IDs.
+
+        Returns:
+            list[str]: List of running job UUIDs
+        """
+        response = self._send_server_request(uri="jobs/status", method="GET")
+        self._resolve_server_response(response)
+        return response.json().get("running_jobs", [])
 
     def remote_inference_cost(
         self, input: Union[Jobs, Survey], iterations: int = 1
