@@ -173,9 +173,9 @@ class Result(Base, UserDict):
             if question_name in self.question_to_attributes:
                 for dictionary_name in sub_dicts_needing_new_keys:
                     new_key = question_name + "_" + dictionary_name
-                    sub_dicts_needing_new_keys[dictionary_name][
-                        new_key
-                    ] = self.question_to_attributes[question_name][dictionary_name]
+                    sub_dicts_needing_new_keys[dictionary_name][new_key] = (
+                        self.question_to_attributes[question_name][dictionary_name]
+                    )
 
         new_cache_dict = {
             f"{k}_cache_used": v for k, v in self.data["cache_used_dict"].items()
@@ -443,6 +443,112 @@ class Result(Base, UserDict):
             else:
                 raise ValueError(f"Parameter {k} not found in Result object")
         return scoring_function(**params)
+
+    @classmethod
+    def from_interview(
+        cls, interview, extracted_answers, model_response_objects
+    ) -> Result:
+        """Return a Result object from an interview dictionary."""
+
+        def get_question_results(
+            model_response_objects,
+        ) -> dict[str, "EDSLResultObjectInput"]:
+            """Maps the question name to the EDSLResultObjectInput."""
+            question_results = {}
+            for result in model_response_objects:
+                question_results[result.question_name] = result
+            return question_results
+
+        def get_generated_tokens_dict(answer_key_names) -> dict[str, str]:
+            generated_tokens_dict = {
+                k + "_generated_tokens": question_results[k].generated_tokens
+                for k in answer_key_names
+            }
+            return generated_tokens_dict
+
+        def get_comments_dict(answer_key_names) -> dict[str, str]:
+            comments_dict = {
+                k + "_comment": question_results[k].comment for k in answer_key_names
+            }
+            return comments_dict
+
+        def get_question_name_to_prompts(
+            model_response_objects,
+        ) -> dict[str, dict[str, str]]:
+            question_name_to_prompts = dict({})
+            for result in model_response_objects:
+                question_name = result.question_name
+                question_name_to_prompts[question_name] = {
+                    "user_prompt": result.prompts["user_prompt"],
+                    "system_prompt": result.prompts["system_prompt"],
+                }
+            return question_name_to_prompts
+
+        def get_prompt_dictionary(answer_key_names, question_name_to_prompts):
+            prompt_dictionary = {}
+            for answer_key_name in answer_key_names:
+                prompt_dictionary[answer_key_name + "_user_prompt"] = (
+                    question_name_to_prompts[answer_key_name]["user_prompt"]
+                )
+                prompt_dictionary[answer_key_name + "_system_prompt"] = (
+                    question_name_to_prompts[answer_key_name]["system_prompt"]
+                )
+            return prompt_dictionary
+
+        def get_raw_model_results_and_cache_used_dictionary(model_response_objects):
+            raw_model_results_dictionary = {}
+            cache_used_dictionary = {}
+            for result in model_response_objects:
+                question_name = result.question_name
+                raw_model_results_dictionary[question_name + "_raw_model_response"] = (
+                    result.raw_model_response
+                )
+                raw_model_results_dictionary[question_name + "_cost"] = result.cost
+                one_use_buys = (
+                    "NA"
+                    if isinstance(result.cost, str)
+                    or result.cost == 0
+                    or result.cost is None
+                    else 1.0 / result.cost
+                )
+                raw_model_results_dictionary[question_name + "_one_usd_buys"] = (
+                    one_use_buys
+                )
+                cache_used_dictionary[question_name] = result.cache_used
+
+            return raw_model_results_dictionary, cache_used_dictionary
+
+        question_results = get_question_results(model_response_objects)
+        answer_key_names = list(question_results.keys())
+        generated_tokens_dict = get_generated_tokens_dict(answer_key_names)
+        comments_dict = get_comments_dict(answer_key_names)
+        answer_dict = {k: extracted_answers[k] for k in answer_key_names}
+
+        question_name_to_prompts = get_question_name_to_prompts(model_response_objects)
+        prompt_dictionary = get_prompt_dictionary(
+            answer_key_names, question_name_to_prompts
+        )
+        raw_model_results_dictionary, cache_used_dictionary = (
+            get_raw_model_results_and_cache_used_dictionary(model_response_objects)
+        )
+
+        result = cls(
+            agent=interview.agent,
+            scenario=interview.scenario,
+            model=interview.model,
+            iteration=interview.iteration,
+            # Computed objects
+            answer=answer_dict,
+            prompt=prompt_dictionary,
+            raw_model_response=raw_model_results_dictionary,
+            survey=interview.survey,
+            generated_tokens=generated_tokens_dict,
+            comments_dict=comments_dict,
+            cache_used_dict=cache_used_dictionary,
+            indices=interview.indices,
+        )
+        result.interview_hash = interview.initial_hash
+        return result
 
 
 if __name__ == "__main__":
