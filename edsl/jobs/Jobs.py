@@ -63,6 +63,7 @@ class RunningEnvironment:
 
 @dataclass
 class RunConfig(Base):
+    "This is configuration information for running a job."
     n: int = 1
     progress_bar: bool = False
     stop_on_exception: bool = False
@@ -80,6 +81,7 @@ class RunConfig(Base):
     cache: Union["Cache", bool] = None
     bucket_collection: Optional[BucketCollection] = None
     key_lookup: Optional[KeyLookup] = None
+    jobs_runner_status: Optional["JobsRunnerStatus"] = None
 
     def to_dict(self, add_edsl_version=False):
         d = asdict(self)
@@ -120,7 +122,7 @@ from edsl.jobs.check_survey_scenario_compatibility import (
 
 
 def with_config(f: Callable[P, T]) -> Callable[P, T]:
-    # Get the RunConfig fields
+    "This decorator make it so that the run function parameters match the RunConfig dataclass."
     config_params = {
         name: field.default for name, field in RunConfig.__dataclass_fields__.items()
     }
@@ -586,11 +588,9 @@ class Jobs(Base):
         )
 
     async def _execute_with_remote_cache(
-        self, run_config: RunConfig, run_func: Callable
+        self, run_config: RunConfig, run_job_async: bool
     ) -> Results:
         locally_running_config = self._config_for_local_running(run_config)
-
-        # assert locally_running_config.cache.name == "example"
 
         from edsl.coop.coop import Coop
 
@@ -601,6 +601,12 @@ class Jobs(Base):
             remote_cache=locally_running_config.remote_cache,
             remote_cache_description=run_config.remote_cache_description,
         ) as r:
+            running_env = RunningEnvironment(
+                cache=locally_running_config.cache,
+                bucket_collection=locally_running_config.bucket_collection,
+                key_lookup=locally_running_config.key_lookup,
+            )
+            runner = self._prepare_asyncio_runner(running_env)
             run_params = {
                 "n": run_config.n,
                 "progress_bar": run_config.progress_bar,
@@ -608,13 +614,13 @@ class Jobs(Base):
                 "stop_on_exception": run_config.stop_on_exception,
                 "print_exceptions": run_config.print_exceptions,
                 "raise_validation_errors": run_config.raise_validation_errors,
-                "bucket_collection": locally_running_config.bucket_collection,
-                "key_lookup": locally_running_config.key_lookup,
+                # "bucket_collection": locally_running_config.bucket_collection,
+                # "key_lookup": locally_running_config.key_lookup,
             }
-            if asyncio.iscoroutinefunction(run_func):
-                results = await run_func(**run_params)
+            if run_job_async:
+                results = await runner.run_async(**run_params)
             else:
-                results = run_func(**run_params)
+                results = runner.run(**run_params)
         return results
 
     def _setup_and_check(
@@ -637,6 +643,9 @@ class Jobs(Base):
             run_config.bucket_collection = self.running_env.bucket_collection
         if self.running_env.key_lookup is not None:
             run_config.key_lookup = self.running_env.key_lookup
+
+        if self.running_env.bucket_collection is None:
+            self.running_env.bucket_collection = self.create_bucket_collection()
 
     @with_config
     def run(self, *, config: RunConfig):
@@ -662,7 +671,9 @@ class Jobs(Base):
         run_config, results = self._setup_and_check(config)
         if results:
             return results
-        return asyncio.run(self._execute_with_remote_cache(run_config, self._run_local))
+        return asyncio.run(
+            self._execute_with_remote_cache(run_config, run_job_async=False)
+        )
 
     @with_config
     async def run_async(self, *, config: RunConfig) -> "Results":
@@ -672,31 +683,54 @@ class Jobs(Base):
 
         if results:
             return results
-        return await self._execute_with_remote_cache(run_config, self._run_local_async)
+        return await self._execute_with_remote_cache(run_config, run_job_async=True)
 
     async def _run_local_async(
-        self, bucket_collection, key_lookup: Optional[KeyLookup] = None, *args, **kwargs
+        self, running_env: Optional[RunningEnvironment] = None, *args, **kwargs
     ) -> "Results":
         """Run the job locally but asynchronously."""
-        return await self._prepare_asyncio_runner(
-            bucket_collection, key_lookup=key_lookup
-        ).run_async(*args, **kwargs)
+        if running_env is None:
+            import warnings
 
-    def _run_local(
-        self, bucket_collection, key_lookup: Optional[KeyLookup] = None, *args, **kwargs
-    ) -> "Results":
-        """Run the job locally."""
-        return self._prepare_asyncio_runner(bucket_collection, key_lookup).run(
+            warnings.warn(
+                "Calling _run_local_async without the running_env is deprecated and will be removed in a future version.",
+                DeprecationWarning,
+            )
+            running_env = RunningEnvironment(
+                cache=kwargs.get("cache"),
+                bucket_collection=kwargs.get("bucket_collection"),
+                key_lookup=kwargs.get("key_lookup"),
+            )
+        return await self._prepare_asyncio_runner(running_env).run_async(
             *args, **kwargs
         )
 
-    def _prepare_asyncio_runner(
-        self, bucket_collection, key_lookup: Optional[KeyLookup] = None
-    ):
+    def _run_local(
+        self, running_env: Optional[RunningEnvironment] = None, *args, **kwargs
+    ) -> "Results":
+        """Run the job locally."""
+        if running_env is None:
+            import warnings
+
+            warnings.warn(
+                "Calling _run_local_async without the running_env is deprecated and will be removed in a future version.",
+                DeprecationWarning,
+            )
+            running_env = RunningEnvironment(
+                cache=kwargs.get("cache"),
+                bucket_collection=kwargs.get("bucket_collection"),
+                key_lookup=kwargs.get("key_lookup"),
+            )
+        return self._prepare_asyncio_runner(running_env).run(*args, **kwargs)
+
+    def _prepare_asyncio_runner(self, running_env: RunningEnvironment):
         from edsl.jobs.runners.JobsRunnerAsyncio import JobsRunnerAsyncio
 
         return JobsRunnerAsyncio(
-            self, bucket_collection=bucket_collection, key_lookup=key_lookup
+            self,
+            bucket_collection=running_env.bucket_collection,
+            key_lookup=running_env.key_lookup,
+            cache=running_env.cache,
         )
 
     def __repr__(self) -> str:

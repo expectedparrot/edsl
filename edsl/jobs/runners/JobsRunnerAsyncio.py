@@ -54,11 +54,12 @@ class JobsRunnerAsyncio:
         jobs: "Jobs",
         bucket_collection: "BucketCollection",
         key_lookup: Optional[KeyLookup] = None,
-        # cache: Optional[Cache],
+        cache: Optional[Cache] = None,
     ):
         self.jobs = jobs
         self.interviews: List["Interview"] = jobs.interviews()
 
+        self.cache = cache
         self.bucket_collection: "BucketCollection" = bucket_collection
         self.key_lookup = key_lookup
 
@@ -74,7 +75,7 @@ class JobsRunnerAsyncio:
         self,
         n: int = 1,
         stop_on_exception: bool = False,
-        cache: Optional[Cache] = None,
+        # cache: Optional[Cache] = None,
         total_interviews: Optional[List["Interview"]] = None,
         raise_validation_errors: bool = False,
     ) -> AsyncGenerator["Result", None]:
@@ -173,9 +174,9 @@ class JobsRunnerAsyncio:
     ) -> Results:
         """Used for some other modules that have a non-standard way of running interviews."""
         self.jobs_runner_status = JobsRunnerStatus(self, n=n)
-        self.cache = Cache() if cache is None else cache
+        # self.cache = Cache() if cache is None else cache
         data = []
-        async for result in self.run_async_generator(cache=self.cache, n=n):
+        async for result in self.run_async_generator(n=n):  # cache=self.cache,
             data.append(result)
         return Results(survey=self.jobs.survey, data=data)
 
@@ -299,7 +300,7 @@ class JobsRunnerAsyncio:
                 raw_results, key=lambda x: interview_hashes.index(x.interview_hash)
             ),
             task_history=task_history,
-            cache=cache,
+            # cache=cache,
         )
         results.bucket_collection = self.bucket_collection
 
@@ -357,10 +358,10 @@ class JobsRunnerAsyncio:
         n: int = 1,
         stop_on_exception: bool = False,
         progress_bar: bool = False,
-        jobs_runner_status: Optional[Type[JobsRunnerStatusBase]] = None,
-        job_uuid: Optional[UUID] = None,
         print_exceptions: bool = True,
         raise_validation_errors: bool = False,
+        jobs_runner_status: Optional[Type[JobsRunnerStatusBase]] = None,
+        job_uuid: Optional[UUID] = None,
     ) -> "Coroutine":
         """Runs a collection of interviews, handling both async and sync contexts."""
 
@@ -390,7 +391,7 @@ class JobsRunnerAsyncio:
             async for result in self.run_async_generator(
                 n=n,
                 stop_on_exception=stop_on_exception,
-                cache=cache,
+                # cache=cache,
                 raise_validation_errors=raise_validation_errors,
             ):
                 self.results.append(result)
