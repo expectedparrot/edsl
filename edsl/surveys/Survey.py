@@ -964,6 +964,12 @@ class Survey(SurveyExportMixin, Base):
 
         return Jobs(survey=self).run(*args, **kwargs)
 
+    def using(self, obj) -> "Jobs":
+        """Turn the survey into a Job and appends the arguments to the Job."""
+        from edsl.jobs.Jobs import Jobs
+
+        return Jobs(survey=self).using(obj)
+
     def duplicate(self):
         """Duplicate the survey.
 
