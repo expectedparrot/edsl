@@ -220,13 +220,6 @@ Links
    remote_caching
    filestore
 
-.. .. toctree::
-..    :maxdepth: 2
-..    :caption: Importing Data
-..    :hidden:
-
-..    conjure
-
 .. toctree::
    :maxdepth: 2
    :caption: How-to Guides
@@ -242,7 +235,6 @@ Links
    notebooks/data_cleaning.ipynb
    notebooks/yoga_studio_name_survey.ipynb
    notebooks/scenario_from_pdf.ipynb
-   notebooks/image_scenario_example.ipynb
    notebooks/scenario_list_wikipedia.ipynb
    notebooks/scenarios_filestore_example.ipynb
    notebooks/adding_metadata.ipynb
