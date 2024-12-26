@@ -55,6 +55,13 @@ except ImportError:
 
 
 @dataclass
+class RunningEnvironment:
+    cache: Optional[Cache] = None
+    bucket_collection: Optional[BucketCollection] = None
+    key_lookup: Optional[KeyLookup] = None
+
+
+@dataclass
 class RunConfig(Base):
     n: int = 1
     progress_bar: bool = False
@@ -69,6 +76,7 @@ class RunConfig(Base):
     raise_validation_errors: bool = False
     disable_remote_cache: bool = False
     disable_remote_inference: bool = False
+    # primarily set with 'using' methods but still here for backwards compatibility
     cache: Union["Cache", bool] = None
     bucket_collection: Optional[BucketCollection] = None
     key_lookup: Optional[KeyLookup] = None
@@ -161,6 +169,8 @@ class Jobs(Base):
         self.scenarios: ScenarioList = scenarios
         self.models = models
 
+        self.running_env = RunningEnvironment()
+
         self.__bucket_collection = None
         self.cache = None
         self.key_lookup = None
@@ -175,6 +185,7 @@ class Jobs(Base):
         :param cache: the cache to add
         """
         self.cache = cache
+        self.running_env.cache = cache
         return self
 
     def using_bucket_collection(self, bucket_collection: BucketCollection) -> Jobs:
@@ -184,6 +195,7 @@ class Jobs(Base):
         :param bucket_collection: the bucket collection to add
         """
         self.__bucket_collection = bucket_collection
+        self.running_env.bucket_collection = bucket_collection
         return self
 
     def using_key_lookup(self, key_lookup: KeyLookup) -> Jobs:
@@ -193,6 +205,7 @@ class Jobs(Base):
         :param key_lookup: the key lookup to add
         """
         self.key_lookup = key_lookup
+        self.running_env.key_lookup = key_lookup
         return self
 
     def using(self, obj: Union[Cache, BucketCollection, KeyLookup]) -> Jobs:
@@ -205,11 +218,11 @@ class Jobs(Base):
         from edsl.language_models.key_management.KeyLookup import KeyLookup
 
         if isinstance(obj, Cache):
-            self.cache = obj
+            self.using_cache(obj)
         elif isinstance(obj, BucketCollection):
-            self.__bucket_collection = obj
+            self.using_bucket_collection(obj)
         elif isinstance(obj, KeyLookup):
-            self.key_lookup = obj
+            self.using_key_lookup(obj)
         return self
 
     @property
@@ -397,7 +410,11 @@ class Jobs(Base):
             self.replace_missing_objects()
             from edsl.jobs.InterviewsConstructor import InterviewsConstructor
 
-            self._interviews = list(InterviewsConstructor(self).create_interviews())
+            self._interviews = list(
+                InterviewsConstructor(
+                    self, cache=self.running_env.cache
+                ).create_interviews()
+            )
 
         return self._interviews
 
@@ -613,6 +630,14 @@ class Jobs(Base):
         self._check_if_local_keys_ok(run_config)
         return run_config, None
 
+    def _set_config_with_running_env(self, run_config: RunConfig):
+        if self.running_env.cache is not None:
+            run_config.cache = self.running_env.cache
+        if self.running_env.bucket_collection is not None:
+            run_config.bucket_collection = self.running_env.bucket_collection
+        if self.running_env.key_lookup is not None:
+            run_config.key_lookup = self.running_env.key_lookup
+
     @with_config
     def run(self, *, config: RunConfig):
         """
@@ -632,13 +657,7 @@ class Jobs(Base):
         :param bucket_collection: A BucketCollection object to track API calls
         :param key_lookup: A KeyLookup object to manage API keys
         """
-
-        if self.cache is not None:
-            config.cache = self.cache
-        if self.__bucket_collection is not None:
-            config.bucket_collection = self.__bucket_collection
-        if self.key_lookup is not None:
-            config.key_lookup = self.key_lookup
+        self._set_config_with_running_env(config)
 
         run_config, results = self._setup_and_check(config)
         if results:
@@ -647,7 +666,10 @@ class Jobs(Base):
 
     @with_config
     async def run_async(self, *, config: RunConfig) -> "Results":
+        """Runs the Job asynchronously: conducts Interviews and returns their results."""
+        self._set_config_with_running_env(config)
         run_config, results = self._setup_and_check(config)
+
         if results:
             return results
         return await self._execute_with_remote_cache(run_config, self._run_local_async)
@@ -655,7 +677,7 @@ class Jobs(Base):
     async def _run_local_async(
         self, bucket_collection, key_lookup: Optional[KeyLookup] = None, *args, **kwargs
     ) -> "Results":
-        """Run the job locally."""
+        """Run the job locally but asynchronously."""
         return await self._prepare_asyncio_runner(
             bucket_collection, key_lookup=key_lookup
         ).run_async(*args, **kwargs)
@@ -704,10 +726,6 @@ class Jobs(Base):
             * len(self.survey)
         )
         return number_of_questions
-
-    #######################
-    # Serialization methods
-    #######################
 
     def to_dict(self, add_edsl_version=True):
         d = {
@@ -762,9 +780,6 @@ class Jobs(Base):
         """
         return hash(self) == hash(other)
 
-    #######################
-    # Example methods
-    #######################
     @classmethod
     def example(
         cls,

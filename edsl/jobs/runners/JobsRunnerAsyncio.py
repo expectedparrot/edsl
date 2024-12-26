@@ -54,12 +54,15 @@ class JobsRunnerAsyncio:
         jobs: "Jobs",
         bucket_collection: "BucketCollection",
         key_lookup: Optional[KeyLookup] = None,
+        # cache: Optional[Cache],
     ):
         self.jobs = jobs
         self.interviews: List["Interview"] = jobs.interviews()
+
         self.bucket_collection: "BucketCollection" = bucket_collection
         self.key_lookup = key_lookup
 
+        # total_interviews is to deal with the n = ... possibility of running the same interview multiple times
         self.total_interviews: List["Interview"] = []
         self._initialized = threading.Event()
 
@@ -69,9 +72,9 @@ class JobsRunnerAsyncio:
 
     async def run_async_generator(
         self,
-        cache: Cache,
         n: int = 1,
         stop_on_exception: bool = False,
+        cache: Optional[Cache] = None,
         total_interviews: Optional[List["Interview"]] = None,
         raise_validation_errors: bool = False,
     ) -> AsyncGenerator["Result", None]:
@@ -153,6 +156,7 @@ class JobsRunnerAsyncio:
         self, n: int = 1
     ) -> Generator["Interview", None, None]:
         """Populates self.total_interviews with n copies of each interview.
+        It also has to set the cache for each interview.
 
         :param n: how many times to run each interview.
         """

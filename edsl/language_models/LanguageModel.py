@@ -44,6 +44,8 @@ if TYPE_CHECKING:
     from edsl.questions.QuestionBase import QuestionBase
     from edsl.language_models.key_management.KeyLookup import KeyLookup
 
+from edsl.enums import InferenceServiceType
+
 from edsl.utilities.decorators import (
     sync_wrapper,
     jupyter_nb_handler,
@@ -564,6 +566,54 @@ class LanguageModel(
             return m
         else:
             return Model(skip_api_key_check=True)
+
+    def from_cache(self, cache: "Cache") -> LanguageModel:
+
+        from copy import deepcopy
+        from types import MethodType
+        from edsl import Cache
+
+        new_instance = deepcopy(self)
+        print("Cache entries", len(cache))
+        new_instance.cache = Cache(
+            data={k: v for k, v in cache.items() if v.model == self.model}
+        )
+        print("Cache entries with same model", len(new_instance.cache))
+
+        new_instance.user_prompts = [
+            ce.user_prompt for ce in new_instance.cache.values()
+        ]
+        new_instance.system_prompts = [
+            ce.system_prompt for ce in new_instance.cache.values()
+        ]
+
+        async def async_execute_model_call(self, user_prompt: str, system_prompt: str):
+            cache_call_params = {
+                "model": str(self.model),
+                "parameters": self.parameters,
+                "system_prompt": system_prompt,
+                "user_prompt": user_prompt,
+                "iteration": 1,
+            }
+            cached_response, cache_key = cache.fetch(**cache_call_params)
+            response = json.loads(cached_response)
+            cost = 0
+            return ModelResponse(
+                response=response,
+                cache_used=True,
+                cache_key=cache_key,
+                cached_response=cached_response,
+                cost=cost,
+            )
+
+        # Bind the new method to the copied instance
+        setattr(
+            new_instance,
+            "async_execute_model_call",
+            MethodType(async_execute_model_call, new_instance),
+        )
+
+        return new_instance
 
 
 if __name__ == "__main__":
