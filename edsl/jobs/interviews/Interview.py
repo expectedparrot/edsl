@@ -108,6 +108,7 @@ class Interview:
         self.failed_questions = []
 
         self.indices = indices
+        self.initial_hash = hash(self)
 
     @property
     def has_exceptions(self) -> bool:
