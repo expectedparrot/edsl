@@ -31,16 +31,7 @@ from edsl.data_transfer_models import EDSLResultObjectInput
 
 if TYPE_CHECKING:
     from edsl.language_models.key_management.KeyLookup import KeyLookup
-
-
-# class StatusTracker(UserList):
-#     def __init__(self, total_tasks: int):
-#         self.total_tasks = total_tasks
-#         super().__init__()
-
-#     def current_status(self):
-#         return print(f"Completed: {len(self.data)} of {self.total_tasks}", end="\r")
-
+    from edsl.jobs.interviews import Interview
 
 class JobsRunnerAsyncio:
     """A class for running a collection of interviews asynchronously.
@@ -123,10 +114,10 @@ class JobsRunnerAsyncio:
                 # Process completed tasks
                 for task in done:
                     try:
-                        result = await task
+                        result, interview = await task
                         self.jobs_runner_status.add_completed_interview(result)
                         result.order = hash_to_order[result.interview_hash]
-                        yield result
+                        yield result, interview
                     except Exception as e:
                         if self.stop_on_exception:
                             # Cancel remaining tasks
@@ -163,17 +154,20 @@ class JobsRunnerAsyncio:
     ) -> Results:
         """Used for some other modules that have a non-standard way of running interviews."""
         self.jobs_runner_status = JobsRunnerStatus(self, n=n)
-        # self.cache = Cache() if cache is None else cache
         data = []
-        async for result in self.run_async_generator(n=n):  # cache=self.cache,
+        task_history = TaskHistory(include_traceback=False)
+        async for result, interview in self.run_async_generator(
+            n=n
+        ):  # cache=self.cache,
             data.append(result)
-        return Results(survey=self.jobs.survey, data=data)
+            task_history.add_interview(interview)
+        return Results(survey=self.jobs.survey, task_history=task_history, data=data)
 
     def simple_run(self):
         data = asyncio.run(self.run_async())
         return Results(survey=self.jobs.survey, data=data)
 
-    async def _conduct_interview(self, interview: Interview) -> "Result":
+    async def _conduct_interview(self, interview: Interview) -> "Result", "Interview":
         """Conducts an interview and returns the result.
 
         :param interview: the interview to conduct
@@ -198,22 +192,25 @@ class JobsRunnerAsyncio:
                 key_lookup=self.key_lookup,
             )
         )
-        return Result.from_interview(
+        result = Result.from_interview(
             interview=interview,
             extracted_answers=extracted_answers,
             model_response_objects=model_response_objects,
         )
+        return result, interview
 
     @property
     def elapsed_time(self):
         return time.monotonic() - self.start_time
 
-    def sort_results_and_append_task_history(self, raw_results: Results) -> Results:
+    def sort_results_and_append_task_history(
+        self, raw_results: Results, task_history
+    ) -> Results:
         """Sorts the results in the order of the original interviews.
 
         :param raw_results: the raw results to sort.
         """
-        task_history = TaskHistory(self.total_interviews, include_traceback=False)
+        # task_history = TaskHistory(self.total_interviews, include_traceback=False)
 
         results = Results(
             survey=self.jobs.survey,
@@ -318,10 +315,13 @@ class JobsRunnerAsyncio:
 
         stop_event = threading.Event()
 
+        task_history = TaskHistory()
+
         async def get_results() -> None:
             """Conducted the interviews and append to the results list."""
-            async for result in self.run_async_generator():
+            async for result, interview in self.run_async_generator():
                 self.results.append(result)
+                task_history.add_interview(interview)
             self.completed = True
 
         def run_progress_bar(stop_event) -> None:
@@ -359,6 +359,9 @@ class JobsRunnerAsyncio:
             if exception_to_raise:
                 raise exception_to_raise
 
-            results = self.sort_results_and_append_task_history(self.results)
+            # breakpoint()
+            results = self.sort_results_and_append_task_history(
+                self.results, task_history
+            )
             self.handle_results_exceptions(results)
             return results

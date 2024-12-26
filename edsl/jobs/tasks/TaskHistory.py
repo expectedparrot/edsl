@@ -8,7 +8,7 @@ from edsl.Base import RepresentationMixin
 class TaskHistory(RepresentationMixin):
     def __init__(
         self,
-        interviews: List["Interview"],
+        interviews: List["Interview"] = None,
         include_traceback: bool = False,
         max_interviews: int = 10,
     ):
@@ -20,12 +20,27 @@ class TaskHistory(RepresentationMixin):
         >>> _ = TaskHistory.example()
         ...
         """
+        if interviews is None:
+            self.total_interviews = []
+        else:
+            self.total_interviews = interviews
 
-        self.total_interviews = interviews
+        self.include_traceback = include_traceback
+        self._interviews = {
+            index: interview for index, interview in enumerate(self.total_interviews)
+        }
+        self.max_interviews = max_interviews
+
+        # self.total_interviews = interviews
         self.include_traceback = include_traceback
 
-        self._interviews = {index: i for index, i in enumerate(self.total_interviews)}
+        # self._interviews = {index: i for index, i in enumerate(self.total_interviews)}
         self.max_interviews = max_interviews
+
+    def add_interview(self, interview: "Interview"):
+        """Add a single interview to the history"""
+        self.total_interviews.append(interview)
+        self._interviews[len(self._interviews)] = interview
 
     @classmethod
     def example(cls):
