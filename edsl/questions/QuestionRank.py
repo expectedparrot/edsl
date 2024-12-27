@@ -8,7 +8,7 @@ from edsl.questions.descriptors import (
     QuestionOptionsDescriptor,
     NumSelectionsDescriptor,
 )
-from edsl.questions.ResponseValidatorABC import ResponseValidatorABC
+from edsl.questions.response_validator_abc import ResponseValidatorABC
 
 
 def create_response_model(

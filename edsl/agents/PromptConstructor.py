@@ -4,40 +4,56 @@ from functools import cached_property
 
 from edsl.prompts.Prompt import Prompt
 
+from dataclasses import dataclass
+
 from .prompt_helpers import PromptPlan
 from .QuestionTemplateReplacementsBuilder import (
     QuestionTemplateReplacementsBuilder,
 )
-from .QuestionOptionProcessor import QuestionOptionProcessor
+from .question_option_processor import QuestionOptionProcessor
 
 if TYPE_CHECKING:
     from edsl.agents.InvigilatorBase import InvigilatorBase
     from edsl.questions.QuestionBase import QuestionBase
+    from edsl.agents.Agent import Agent
+    from edsl.surveys.Survey import Survey
+    from edsl.language_models.LanguageModel import LanguageModel
+    from edsl.surveys.MemoryPlan import MemoryPlan
+    from edsl.questions.QuestionBase import QuestionBase
+    from edsl.scenarios.Scenario import Scenario
 
 
-class PlaceholderAnswer:
-    """A placeholder answer for when a question is not yet answered."""
+class BasePlaceholder:
+    """Base class for placeholder values when a question is not yet answered."""
 
-    def __init__(self):
-        self.answer = "N/A"
+    def __init__(self, placeholder_type: str = "answer"):
+        self.value = "N/A"
         self.comment = "Will be populated by prior answer"
+        self._type = placeholder_type
 
     def __getitem__(self, index):
         return ""
 
     def __str__(self):
-        return f"<<{self.__class__.__name__}>>"
+        return f"<<{self.__class__.__name__}:{self._type}>>"
 
     def __repr__(self):
-        return f"<<{self.__class__.__name__}>>"
+        return self.__str__()
 
 
-class PlaceholderComment(PlaceholderAnswer):
-    pass
+class PlaceholderAnswer(BasePlaceholder):
+    def __init__(self):
+        super().__init__("answer")
 
 
-class PlaceholderGeneratedTokens(PlaceholderAnswer):
-    pass
+class PlaceholderComment(BasePlaceholder):
+    def __init__(self):
+        super().__init__("comment")
+
+
+class PlaceholderGeneratedTokens(BasePlaceholder):
+    def __init__(self):
+        super().__init__("generated_tokens")
 
 
 class PromptConstructor:
@@ -55,6 +71,8 @@ class PromptConstructor:
         self, invigilator: "InvigilatorBase", prompt_plan: Optional["PromptPlan"] = None
     ):
         self.invigilator = invigilator
+        self.prompt_plan = prompt_plan or PromptPlan()
+
         self.agent = invigilator.agent
         self.question = invigilator.question
         self.scenario = invigilator.scenario
@@ -62,7 +80,6 @@ class PromptConstructor:
         self.model = invigilator.model
         self.current_answers = invigilator.current_answers
         self.memory_plan = invigilator.memory_plan
-        self.prompt_plan = prompt_plan or PromptPlan()
 
     def get_question_options(self, question_data):
         """Get the question options."""
@@ -115,6 +132,8 @@ class PromptConstructor:
         ('q0', 'comment')
         >>> PromptConstructor._extract_quetion_and_entry_type("q0_alternate_generated_tokens")
         ('q0_alternate', 'generated_tokens')
+        >>> PromptConstructor._extract_quetion_and_entry_type("q0_alt_comment")
+        ('q0_alt', 'comment')
         """
         split_list = key_entry.rsplit("_", maxsplit=1)
         if len(split_list) == 1:
@@ -133,24 +152,25 @@ class PromptConstructor:
         return question_name, entry_type
 
     @staticmethod
-    def _augmented_answers_dict(current_answers: dict):
+    def _augmented_answers_dict(current_answers: dict) -> dict:
         """
         >>> PromptConstructor._augmented_answers_dict({"q0": "LOVE IT!", "q0_comment": "I love school!"})
         {'q0': {'answer': 'LOVE IT!', 'comment': 'I love school!'}}
         """
-        d = {}
+        from collections import defaultdict
+
+        d = defaultdict(dict)
         for key, value in current_answers.items():
-            (
-                question_name,
-                entry_type,
-            ) = PromptConstructor._extract_quetion_and_entry_type(key)
-            if question_name not in d:
-                d[question_name] = {}
+            question_name, entry_type = (
+                PromptConstructor._extract_quetion_and_entry_type(key)
+            )
             d[question_name][entry_type] = value
-        return d
+        return dict(d)
 
     @staticmethod
-    def _add_answers(answer_dict: dict, current_answers) -> dict[str, "QuestionBase"]:
+    def _add_answers(
+        answer_dict: dict, current_answers: dict
+    ) -> dict[str, "QuestionBase"]:
         """
         >>> from edsl import QuestionFreeText
         >>> d = {"q0": QuestionFreeText(question_text="Do you like school?", question_name = "q0")}

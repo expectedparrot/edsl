@@ -2,22 +2,30 @@
 
 from __future__ import annotations
 from abc import ABC, abstractmethod
-from typing import Any, Type, Optional, List, Callable, Union, TypedDict
+from typing import Any, Type, Optional, List, Callable, Union, TypedDict, TYPE_CHECKING
 
 from edsl.exceptions.questions import (
     QuestionSerializationError,
 )
 from edsl.questions.descriptors import QuestionNameDescriptor, QuestionTextDescriptor
 
-from edsl.questions.AnswerValidatorMixin import AnswerValidatorMixin
-from edsl.questions.RegisterQuestionsMeta import RegisterQuestionsMeta
+from edsl.questions.answer_validator_mixin import AnswerValidatorMixin
+from edsl.questions.register_questions_meta import RegisterQuestionsMeta
 from edsl.Base import PersistenceMixin, RepresentationMixin
 from edsl.BaseDiff import BaseDiff, BaseDiffCollection
 
 from edsl.questions.SimpleAskMixin import SimpleAskMixin
 from edsl.questions.QuestionBasePromptsMixin import QuestionBasePromptsMixin
-from edsl.questions.QuestionBaseGenMixin import QuestionBaseGenMixin
+from edsl.questions.question_base_gen_mixin import QuestionBaseGenMixin
 from edsl.utilities.remove_edsl_version import remove_edsl_version
+
+if TYPE_CHECKING:
+    from edsl.questions.response_validator_abc import ResponseValidatorABC
+    from edsl.language_models.LanguageModel import LanguageModel
+    from edsl.results.Results import Results
+    from edsl.agents.Agent import Agent
+    from edsl.surveys.Survey import Survey
+    from edsl.jobs.Jobs import Jobs
 
 
 class QuestionBase(
@@ -49,12 +57,16 @@ class QuestionBase(
     _question_presentation = None
 
     @property
-    def response_validator(self) -> "ResponseValidatorBase":
+    def response_validator(self) -> "ResponseValidatorABC":
         """Return the response validator."""
-        from edsl.questions.ResponseValidatorFactory import ResponseValidatorFactory
+        from edsl.questions.response_validator_factory import ResponseValidatorFactory
 
         rvf = ResponseValidatorFactory(self)
         return rvf.response_validator
+
+    def duplicate(self):
+        """Return a duplicate of the question."""
+        return self.from_dict(self.to_dict())
 
     @property
     def fake_data_factory(self):
@@ -159,7 +171,7 @@ class QuestionBase(
 
         return candidate_data
 
-    def to_dict(self, add_edsl_version=True):
+    def to_dict(self, add_edsl_version: bool = True):
         """Convert the question to a dictionary that includes the question type (used in deserialization).
 
         >>> from edsl.questions import QuestionFreeText as Q; Q.example().to_dict(add_edsl_version = False)
@@ -213,9 +225,6 @@ class QuestionBase(
 
         return question_class(**local_data)
 
-    # endregion
-
-    # region: Running methods
     @classmethod
     def _get_test_model(self, canned_response: Optional[str] = None) -> "LanguageModel":
         """Get a test model for the question."""
@@ -243,7 +252,7 @@ class QuestionBase(
         Dataset([{'answer.how_are_you': ["Yo, what's up?"]}])
         """
         if model is None:
-            from edsl.language_models.registry import Model
+            from edsl.language_models.model import Model
 
             model = Model()
         results = (
@@ -262,21 +271,22 @@ class QuestionBase(
 
     def __call__(
         self,
-        just_answer=True,
-        model=None,
-        agent=None,
+        just_answer: bool = True,
+        model: Optional["LanguageModel"] = None,
+        agent: Optional["Agent"] = None,
         disable_remote_cache: bool = False,
         disable_remote_inference: bool = False,
         verbose: bool = False,
         **kwargs,
-    ):
+    ) -> Union[Any, "Results"]:
         """Call the question.
 
 
         >>> from edsl import QuestionFreeText as Q
-        >>> m = Q._get_test_model(canned_response = "Yo, what's up?")
+        >>> from edsl import Model
+        >>> m = Model("test", canned_response = "Yo, what's up?")
         >>> q = Q(question_name = "color", question_text = "What is your favorite color?")
-        >>> q(model = m, disable_remote_cache = True, disable_remote_inference = True)
+        >>> q(model = m, disable_remote_cache = True, disable_remote_inference = True, cache = False)
         "Yo, what's up?"
 
         """
@@ -285,7 +295,6 @@ class QuestionBase(
             model=model,
             agent=agent,
             **kwargs,
-            cache=False,
             verbose=verbose,
             disable_remote_cache=disable_remote_cache,
             disable_remote_inference=disable_remote_inference,
@@ -297,15 +306,12 @@ class QuestionBase(
 
     def run(self, *args, **kwargs) -> "Results":
         """Turn a single question into a survey and runs it."""
-        from edsl.surveys.Survey import Survey
-
-        s = self.to_survey()
-        return s.run(*args, **kwargs)
+        return self.to_survey().run(*args, **kwargs)
 
     async def run_async(
         self,
         just_answer: bool = True,
-        model: Optional["Model"] = None,
+        model: Optional["LanguageModel"] = None,
         agent: Optional["Agent"] = None,
         disable_remote_inference: bool = False,
         **kwargs,
@@ -316,7 +322,7 @@ class QuestionBase(
         >>> from edsl.questions import QuestionFreeText as Q
         >>> m = Q._get_test_model(canned_response = "Blue")
         >>> q = Q(question_name = "color", question_text = "What is your favorite color?")
-        >>> async def test_run_async(): result = await q.run_async(model=m, disable_remote_inference = True); print(result)
+        >>> async def test_run_async(): result = await q.run_async(model=m, disable_remote_inference = True, disable_remote_cache = True); print(result)
         >>> asyncio.run(test_run_async())
         Blue
         """
@@ -420,8 +426,7 @@ class QuestionBase(
         """
         from edsl.surveys.Survey import Survey
 
-        s = Survey([self])
-        return s
+        return Survey([self])
 
     def by(self, *args) -> "Jobs":
         """Turn a single question into a survey and then a Job."""
@@ -464,7 +469,7 @@ class QuestionBase(
 
     @classmethod
     def example_model(cls):
-        from edsl.language_models.registry import Model
+        from edsl.language_models.model import Model
 
         q = cls.example()
         m = Model("test", canned_response=cls._simulate_answer(q)["answer"])

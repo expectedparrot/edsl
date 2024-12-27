@@ -18,8 +18,9 @@ from edsl.jobs.Answers import Answers
 
 
 class AnswerQuestionFunctionConstructor:
-    def __init__(self, interview):
+    def __init__(self, interview, key_lookup):
         self.interview = interview
+        self.key_lookup = key_lookup
         self.had_language_model_no_response_error = False
         self.question_index = self.interview.to_index
 
@@ -74,11 +75,11 @@ class AnswerQuestionFunctionConstructor:
         )
 
         # Get the index of the next question, which could also be the end of the survey
-        next_question: Union[
-            int, EndOfSurvey
-        ] = self.interview.survey.rule_collection.next_question(
-            q_now=current_question_index,
-            answers=answers,
+        next_question: Union[int, EndOfSurvey] = (
+            self.interview.survey.rule_collection.next_question(
+                q_now=current_question_index,
+                answers=answers,
+            )
         )
 
         def cancel_between(start, end):
@@ -123,7 +124,9 @@ class AnswerQuestionFunctionConstructor:
                 reraise=True,
             )
             async def attempt_answer():
-                invigilator = FetchInvigilator(self.interview)(question)
+                invigilator = FetchInvigilator(
+                    self.interview, key_lookup=self.key_lookup
+                )(question)
 
                 if self._skip_this_question(question):
                     return invigilator.get_failed_task_result(
