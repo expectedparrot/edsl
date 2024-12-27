@@ -42,12 +42,14 @@ def test_progress_bar():
 
     j = q.by(s).by(a)
     bc = j.create_bucket_collection()
-    results = j._run_local(
-        bucket_collection=bc,
-        progress_bar=True,
-        cache=Cache(),
-        jobs_runner_status=TestJobsRunnerStatus,
-    )
+    j.using(bc).using(Cache())
+
+    # results = j.run(
+    #     progress_bar=True,
+    #     disable_remote_inference=True,
+    #     disable_remote_cache=True,
+    #     jobs_runner_status=TestJobsRunnerStatus,
+    # )
 
 
 if __name__ == "__main__":

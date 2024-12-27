@@ -13,11 +13,7 @@ if TYPE_CHECKING:
     from edsl.surveys.Survey import Survey
 
 
-class NotApplicable(str):
-    def __new__(cls):
-        instance = super().__new__(cls, "Not Applicable")
-        instance.literal = "Not Applicable"
-        return instance
+NA = "Not Applicable"
 
 
 class InvigilatorAI(InvigilatorBase):
@@ -235,13 +231,13 @@ class InvigilatorHuman(InvigilatorBase):
                 exception_occurred = e
         finally:
             data = {
-                "generated_tokens": NotApplicable(),
+                "generated_tokens": NA,  # NotApplicable(),
                 "question_name": self.question.question_name,
                 "prompts": self.get_prompts(),
-                "cached_response": NotApplicable(),
-                "raw_model_response": NotApplicable(),
-                "cache_used": NotApplicable(),
-                "cache_key": NotApplicable(),
+                "cached_response": NA,
+                "raw_model_response": NA,
+                "cache_used": NA,
+                "cache_key": NA,
                 "answer": answer,
                 "comment": comment,
                 "validated": validated,
@@ -262,10 +258,10 @@ class InvigilatorFunctional(InvigilatorBase):
             generated_tokens=str(answer),
             question_name=self.question.question_name,
             prompts=self.get_prompts(),
-            cached_response=NotApplicable(),
-            raw_model_response=NotApplicable(),
-            cache_used=NotApplicable(),
-            cache_key=NotApplicable(),
+            cached_response=NA,
+            raw_model_response=NA,
+            cache_used=NA,
+            cache_key=NA,
             answer=answer["answer"],
             comment="This is the result of a functional question.",
             validated=True,
