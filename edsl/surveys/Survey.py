@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 import re
+import random
 
 from typing import (
     Any,
@@ -115,6 +116,7 @@ class Survey(SurveyExportMixin, Base):
         rule_collection: Optional["RuleCollection"] = None,
         question_groups: Optional["QuestionGroupType"] = None,
         name: Optional[str] = None,
+        questions_to_randomize: Optional[List[str]] = None,
     ):
         """Create a new survey.
 
@@ -162,6 +164,33 @@ class Survey(SurveyExportMixin, Base):
             import warnings
 
             warnings.warn("name parameter to a survey is deprecated.")
+
+        if questions_to_randomize is not None:
+            self.questions_to_randomize = questions_to_randomize
+        else:
+            self.questions_to_randomize = []
+
+        self._seed = None
+
+    def draw(self) -> "Survey":
+        """Return a new survey with a randomly selected permutation of the options."""
+        if self._seed is None:  # only set once
+            self._seed = hash(self)
+            random.seed(self._seed)
+
+        if len(self.questions_to_randomize) == 0:
+            return self
+
+        new_questions = []
+        for question in self.questions:
+            if question.question_name in self.questions_to_randomize:
+                new_questions.append(question.draw())
+            else:
+                new_questions.append(question.duplicate())
+
+        d = self.to_dict()
+        d["questions"] = [q.to_dict() for q in new_questions]
+        return Survey.from_dict(d)
 
     def _process_raw_questions(self, questions: Optional[List["QuestionType"]]) -> list:
         """Process the raw questions passed to the survey."""
@@ -316,7 +345,9 @@ class Survey(SurveyExportMixin, Base):
         >>> s.to_dict(add_edsl_version = False).keys()
         dict_keys(['questions', 'memory_plan', 'rule_collection', 'question_groups'])
         """
-        return {
+        from edsl import __version__
+
+        d = {
             "questions": [
                 q.to_dict(add_edsl_version=add_edsl_version)
                 for q in self._recombined_questions_and_instructions()
@@ -327,6 +358,13 @@ class Survey(SurveyExportMixin, Base):
             ),
             "question_groups": self.question_groups,
         }
+        if self.questions_to_randomize != []:
+            d["questions_to_randomize"] = self.questions_to_randomize
+
+        if add_edsl_version:
+            d["edsl_version"] = __version__
+            d["edsl_class_name"] = "Survey"
+        return d
 
     @classmethod
     @remove_edsl_version
@@ -370,11 +408,16 @@ class Survey(SurveyExportMixin, Base):
             get_class(q_dict).from_dict(q_dict) for q_dict in data["questions"]
         ]
         memory_plan = MemoryPlan.from_dict(data["memory_plan"])
+        if "questions_to_randomize" in data:
+            questions_to_randomize = data["questions_to_randomize"]
+        else:
+            questions_to_randomize = None
         survey = cls(
             questions=questions,
             memory_plan=memory_plan,
             rule_collection=RuleCollection.from_dict(data["rule_collection"]),
             question_groups=data["question_groups"],
+            questions_to_randomize=questions_to_randomize,
         )
         return survey
 
@@ -870,6 +913,7 @@ class Survey(SurveyExportMixin, Base):
         agent: Optional["Agent"] = None,
         cache: Optional["Cache"] = None,
         disable_remote_inference: bool = False,
+        disable_remote_cache: bool = False,
         **kwargs,
     ):
         """Run the survey with default model, taking the required survey as arguments.
@@ -879,7 +923,7 @@ class Survey(SurveyExportMixin, Base):
         >>> def f(scenario, agent_traits): return "yes" if scenario["period"] == "morning" else "no"
         >>> q = QuestionFunctional(question_name = "q0", func = f)
         >>> s = Survey([q])
-        >>> async def test_run_async(): result = await s.run_async(period="morning", disable_remote_inference = True); print(result.select("answer.q0").first())
+        >>> async def test_run_async(): result = await s.run_async(period="morning", disable_remote_inference = True, disable_remote_cache=True); print(result.select("answer.q0").first())
         >>> asyncio.run(test_run_async())
         yes
         >>> import asyncio
@@ -887,7 +931,7 @@ class Survey(SurveyExportMixin, Base):
         >>> def f(scenario, agent_traits): return "yes" if scenario["period"] == "morning" else "no"
         >>> q = QuestionFunctional(question_name = "q0", func = f)
         >>> s = Survey([q])
-        >>> async def test_run_async(): result = await s.run_async(period="evening", disable_remote_inference = True); print(result.select("answer.q0").first())
+        >>> async def test_run_async(): result = await s.run_async(period="evening", disable_remote_inference = True, disable_remote_cache = True); print(result.select("answer.q0").first())
         >>> asyncio.run(test_run_async())
         no
         """
@@ -900,7 +944,9 @@ class Survey(SurveyExportMixin, Base):
             c = cache
         jobs: "Jobs" = self.get_job(model=model, agent=agent, **kwargs)
         return await jobs.run_async(
-            cache=c, disable_remote_inference=disable_remote_inference
+            cache=c,
+            disable_remote_inference=disable_remote_inference,
+            disable_remote_cache=disable_remote_cache,
         )
 
     def run(self, *args, **kwargs) -> "Results":
@@ -1086,7 +1132,7 @@ class Survey(SurveyExportMixin, Base):
         # questions_string = ", ".join([repr(q) for q in self._questions])
         questions_string = ", ".join([repr(q) for q in self.raw_passed_questions or []])
         # question_names_string = ", ".join([repr(name) for name in self.question_names])
-        return f"Survey(questions=[{questions_string}], memory_plan={self.memory_plan}, rule_collection={self.rule_collection}, question_groups={self.question_groups})"
+        return f"Survey(questions=[{questions_string}], memory_plan={self.memory_plan}, rule_collection={self.rule_collection}, question_groups={self.question_groups}, questions_to_randomize={self.questions_to_randomize})"
 
     def _summary(self) -> dict:
         return {
@@ -1172,7 +1218,7 @@ class Survey(SurveyExportMixin, Base):
 
     def get_job(self, model=None, agent=None, **kwargs):
         if model is None:
-            from edsl.language_models.registry import Model
+            from edsl.language_models.model import Model
 
             model = Model()
 

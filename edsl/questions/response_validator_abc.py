@@ -1,4 +1,3 @@
-import logging
 from abc import ABC, abstractmethod
 from typing import Optional, Any, List, TypedDict
 
@@ -7,17 +6,17 @@ from pydantic import BaseModel, Field, field_validator, ValidationError
 from edsl.exceptions.questions import QuestionAnswerValidationError
 from edsl.questions.ExceptionExplainer import ExceptionExplainer
 
-
-class BaseResponse(BaseModel):
-    answer: Any
-    comment: Optional[str] = None
-    generated_tokens: Optional[str] = None
+from edsl.questions.data_structures import (
+    RawEdslAnswerDict,
+    EdslAnswerDict,
+)
 
 
 class ResponseValidatorABC(ABC):
     required_params: List[str] = []
 
     def __init_subclass__(cls, **kwargs):
+        """This is a metaclass that ensures that all subclasses of ResponseValidatorABC have the required class variables."""
         super().__init_subclass__(**kwargs)
         required_class_vars = ["required_params", "valid_examples", "invalid_examples"]
         for var in required_class_vars:
@@ -52,12 +51,7 @@ class ResponseValidatorABC(ABC):
         if not hasattr(self, "permissive"):
             self.permissive = False
 
-        self.fixes_tried = 0
-
-    class RawEdslAnswerDict(TypedDict):
-        answer: Any
-        comment: Optional[str]
-        generated_tokens: Optional[str]
+        self.fixes_tried = 0  # how many times we've tried to fix the answer
 
     def _preprocess(self, data: RawEdslAnswerDict) -> RawEdslAnswerDict:
         """This is for testing purposes. A question can be given an exception to throw or an answer to always return.
@@ -88,11 +82,6 @@ class ResponseValidatorABC(ABC):
 
     def post_validation_answer_convert(self, data):
         return data
-
-    class EdslAnswerDict(TypedDict):
-        answer: Any
-        comment: Optional[str]
-        generated_tokens: Optional[str]
 
     def validate(
         self,
@@ -136,7 +125,6 @@ class ResponseValidatorABC(ABC):
     def human_explanation(self, e: QuestionAnswerValidationError):
         explanation = ExceptionExplainer(e, model_response=e.data).explain()
         return explanation
-        # return e
 
     def _handle_exception(self, e: Exception, raw_edsl_answer_dict) -> EdslAnswerDict:
         if self.fixes_tried == 0:
