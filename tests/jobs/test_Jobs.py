@@ -9,7 +9,7 @@ from edsl.questions.QuestionFreeText import QuestionFreeText
 from edsl.scenarios.Scenario import Scenario
 from edsl.scenarios.ScenarioList import ScenarioList
 from edsl.surveys.Survey import Survey
-from edsl.language_models.registry import Model
+from edsl.language_models.model import Model
 from edsl.questions.question_registry import (
     Question,
 )  # needed for the eval() of the repr() of the Job
