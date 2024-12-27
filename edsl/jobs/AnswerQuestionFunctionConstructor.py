@@ -218,6 +218,6 @@ class AnswerQuestionFunctionConstructor:
         except RetryError as retry_error:
             original_error = retry_error.last_attempt.exception()
             self._handle_exception(
-                original_error, FetchInvigilator(self.interview)(question), task
+                original_error, self.invigilator_fetcher(question), task
             )
             raise original_error
