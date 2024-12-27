@@ -67,8 +67,6 @@ class CacheHandler:
         if self.test:
             return Cache(data={})
 
-        # if self.CACHE_PATH is not None:
-        #    return self.CACHE_PATH
         from edsl.config import CONFIG
 
         if hasattr(CONFIG, "EDSL_SESSION_CACHE"):

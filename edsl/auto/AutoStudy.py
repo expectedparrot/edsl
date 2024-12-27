@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
 from edsl import Model
 from edsl.auto.StageQuestions import StageQuestions
@@ -11,9 +11,11 @@ from edsl.auto.StagePersonaDimensionValueRanges import (
 from edsl.auto.StageLabelQuestions import StageLabelQuestions
 from edsl.auto.StageGenerateSurvey import StageGenerateSurvey
 
-# from edsl.auto.StageBase import gen_pipeline
-
 from edsl.auto.utilities import agent_generator, create_agents, gen_pipeline
+
+if TYPE_CHECKING:
+    from edsl.surveys.Survey import Survey
+    from edsl.agents.AgentList import AgentList
 
 
 class AutoStudy:
@@ -24,8 +26,10 @@ class AutoStudy:
         model: Optional["Model"] = None,
         survey: Optional["Survey"] = None,
         agent_list: Optional["AgentList"] = None,
-        default_num_agents=11,
+        default_num_agents: int = 11,
     ):
+        """AutoStudy class for generating surveys and agents."""
+
         self.overall_question = overall_question
         self.population = population
         self._survey = survey
@@ -35,6 +39,15 @@ class AutoStudy:
         self._results = None
         self.default_num_agents = default_num_agents
         self.model = model or Model()
+
+    def to_dict(self):
+        return {
+            "overall_question": self.overall_question,
+            "population": self.population,
+            "survey": self.survey.to_dict(),
+            "persona_mapping": self.persona_mapping.to_dict(),
+            "results": self.results.to_dict(),
+        }
 
     @property
     def survey(self):
@@ -111,7 +124,7 @@ class AutoStudy:
 
 
 if __name__ == "__main__":
-    overall_question = "Should online platforms be regulated with respect to selling electric scooters?"
+    overall_question = "I have an open source Python library for working with LLMs. What are some ways we can market this to others?"
     auto_study = AutoStudy(overall_question, population="US Adults")
 
     results = auto_study.results

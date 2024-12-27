@@ -4,8 +4,7 @@ from __future__ import annotations
 import asyncio
 from typing import Any, Type, List, Generator, Optional, Union, TYPE_CHECKING
 import copy
-
-# from edsl.config import CONFIG
+from dataclasses import dataclass
 
 from edsl.jobs.Answers import Answers
 from edsl.jobs.interviews.InterviewStatusLog import InterviewStatusLog
@@ -33,6 +32,14 @@ if TYPE_CHECKING:
     from edsl.language_models.key_management.KeyLookup import KeyLookup
 
 
+@dataclass
+class InterviewRunningConfig:
+    cache: Optional["Cache"] = (None,)
+    skip_retry: bool = (False,)  # COULD BE SET WITH CONFIG
+    raise_validation_errors: bool = (True,)
+    stop_on_exception: bool = (False,)
+
+
 class Interview:
     """
     An 'interview' is one agent answering one survey, with one language model, for a given scenario.
@@ -47,12 +54,11 @@ class Interview:
         survey: Survey,
         scenario: Scenario,
         model: Type["LanguageModel"],
-        debug: Optional[bool] = False,  # DEPRECATE
         iteration: int = 0,
+        indices: dict = None,  # explain?
         cache: Optional["Cache"] = None,
         skip_retry: bool = False,  # COULD BE SET WITH CONFIG
         raise_validation_errors: bool = True,
-        indices: dict = None,  # explain?
     ):
         """Initialize the Interview instance.
 
@@ -60,7 +66,7 @@ class Interview:
         :param survey: the survey being administered to the agent.
         :param scenario: the scenario that populates the survey questions.
         :param model: the language model used to answer the questions.
-        :param debug: if True, run without calls to the language model.
+        # :param debug: if True, run without calls to the language model.
         :param iteration: the iteration number of the interview.
         :param cache: the cache used to store the answers.
 
@@ -83,9 +89,7 @@ class Interview:
         self.survey = copy.deepcopy(survey)  # why do we need to deepcopy the survey?
         self.scenario = scenario
         self.model = model
-        self.debug = debug
         self.iteration = iteration
-        self.cache = cache
 
         self.answers = Answers()  # will get filled in as interview progresses
 
@@ -96,6 +100,13 @@ class Interview:
 
         self.exceptions = InterviewExceptionCollection()
 
+        self.running_config = InterviewRunningConfig(
+            cache=cache,
+            skip_retry=skip_retry,
+            raise_validation_errors=raise_validation_errors,
+        )
+
+        self.cache = cache
         self.skip_retry = skip_retry
         self.raise_validation_errors = raise_validation_errors
 
@@ -108,6 +119,7 @@ class Interview:
         self.failed_questions = []
 
         self.indices = indices
+        self.initial_hash = hash(self)
 
     @property
     def has_exceptions(self) -> bool:
@@ -247,12 +259,10 @@ class Interview:
         ## with dependencies on the questions that must be answered before this one can be answered.
 
         ## 'Invigilators' are used to administer the survey.
-        self.invigilators = [
-            FetchInvigilator(
-                interview=self, current_answers=self.answers, key_lookup=key_lookup
-            )(question)
-            for question in self.survey.questions
-        ]
+        fetcher = FetchInvigilator(
+            interview=self, current_answers=self.answers, key_lookup=key_lookup
+        )
+        self.invigilators = [fetcher(question) for question in self.survey.questions]
         await asyncio.gather(*self.tasks, return_exceptions=not stop_on_exception)
         self.answers.replace_missing_answers_with_none(self.survey)
         valid_results = list(
@@ -262,7 +272,9 @@ class Interview:
 
     @staticmethod
     def _extract_valid_results(
-        tasks, invigilators: List["InvigilatorBase"], exceptions
+        tasks: List["asyncio.Task"],
+        invigilators: List["InvigilatorBase"],
+        exceptions: InterviewExceptionCollection,
     ) -> Generator["Answers", None, None]:
         """Extract the valid results from the list of results.
 
@@ -275,10 +287,7 @@ class Interview:
         """
         assert len(tasks) == len(invigilators)
 
-        for task, invigilator in zip(tasks, invigilators):
-            if not task.done():
-                raise ValueError(f"Task {task.get_name()} is not done.")
-
+        def handle_task(task, invigilator):
             try:
                 result = task.result()
             except asyncio.CancelledError as e:  # task was cancelled
@@ -294,8 +303,13 @@ class Interview:
                     invigilator=invigilator,
                 )
                 exceptions.add(task.get_name(), exception_entry)
+            return result
 
-            yield result
+        for task, invigilator in zip(tasks, invigilators):
+            if not task.done():
+                raise ValueError(f"Task {task.get_name()} is not done.")
+
+            yield handle_task(task, invigilator)
 
     def __repr__(self) -> str:
         """Return a string representation of the Interview instance."""
@@ -323,8 +337,8 @@ class Interview:
             scenario=self.scenario,
             model=self.model,
             iteration=iteration,
-            cache=cache,
-            skip_retry=self.skip_retry,
+            cache=self.running_config.cache,
+            skip_retry=self.running_config.skip_retry,
             indices=self.indices,
         )
 
