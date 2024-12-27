@@ -1193,26 +1193,24 @@ def main():
 
     def example_survey():
         """Return an example survey."""
-        from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
-        from edsl.surveys.Survey import Survey
+        from edsl import QuestionMultipleChoice, QuestionList, QuestionNumerical, Survey
 
         q0 = QuestionMultipleChoice(
-            question_text="Do you like school?",
-            question_options=["yes", "no"],
             question_name="q0",
+            question_text="What is the capital of France?",
+            question_options=["London", "Paris", "Rome", "Boston", "I don't know"]
         )
-        q1 = QuestionMultipleChoice(
-            question_text="Why not?",
-            question_options=["killer bees in cafeteria", "other"],
+        q1 = QuestionList(
             question_name="q1",
+            question_text="Name some cities in France.",
+            max_list_items = 5
         )
-        q2 = QuestionMultipleChoice(
-            question_text="Why?",
-            question_options=["**lack*** of killer bees in cafeteria", "other"],
+        q2 = QuestionNumerical(
             question_name="q2",
+            question_text="What is the population of {{ q0.answer }}?"
         )
         s = Survey(questions=[q0, q1, q2])
-        s = s.add_rule(q0, "q0 == 'yes'", q2)
+        s = s.add_rule(q0, "q0 == 'Paris'", q2)
         return s
 
     s = example_survey()
