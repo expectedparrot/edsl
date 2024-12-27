@@ -10,6 +10,10 @@ from uuid import UUID
 class PersistenceMixin:
     """Mixin for saving and loading objects to and from files."""
 
+    def duplicate(self, add_edsl_version=False):
+        """Return a duplicate of the object."""
+        return self.from_dict(self.to_dict(add_edsl_version=False))
+
     def push(
         self,
         description: Optional[str] = None,
@@ -22,6 +26,30 @@ class PersistenceMixin:
 
         c = Coop(url=expected_parrot_url)
         return c.create(self, description, alias, visibility)
+
+    def to_yaml(self, add_edsl_version=False, filename: str = None) -> Union[str, None]:
+        import yaml
+
+        output = yaml.dump(self.to_dict(add_edsl_version=add_edsl_version))
+        if not filename:
+            return output
+
+        with open(filename, "w") as f:
+            f.write(output)
+
+    @classmethod
+    def from_yaml(cls, yaml_str: Optional[str] = None, filename: Optional[str] = None):
+        if yaml_str is None and filename is not None:
+            with open(filename, "r") as f:
+                yaml_str = f.read()
+                return cls.from_yaml(yaml_str=yaml_str)
+        elif yaml_str and filename is None:
+            import yaml
+
+            d = yaml.load(yaml_str, Loader=yaml.FullLoader)
+            return cls.from_dict(d)
+        else:
+            raise ValueError("Either yaml_str or filename must be provided.")
 
     def create_download_link(self):
         from tempfile import NamedTemporaryFile

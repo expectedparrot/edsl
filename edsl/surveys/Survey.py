@@ -932,7 +932,7 @@ class Survey(SurveyExportMixin, Base):
         >>> q = QuestionFunctional(question_name = "q0", func = f)
         >>> s = Survey([q])
         >>> async def test_run_async(): result = await s.run_async(period="evening", disable_remote_inference = True, disable_remote_cache = True); print(result.select("answer.q0").first())
-        >>> asyncio.run(test_run_async())
+        >>> results = asyncio.run(test_run_async())
         no
         """
         # TODO: temp fix by creating a cache
@@ -942,9 +942,8 @@ class Survey(SurveyExportMixin, Base):
             c = Cache()
         else:
             c = cache
-        jobs: "Jobs" = self.get_job(model=model, agent=agent, **kwargs)
+        jobs: "Jobs" = self.get_job(model=model, agent=agent, **kwargs).using(c)
         return await jobs.run_async(
-            cache=c,
             disable_remote_inference=disable_remote_inference,
             disable_remote_cache=disable_remote_cache,
         )
@@ -963,6 +962,12 @@ class Survey(SurveyExportMixin, Base):
         from edsl.jobs.Jobs import Jobs
 
         return Jobs(survey=self).run(*args, **kwargs)
+
+    def using(self, obj: Union["Cache", "KeyLookup", "BucketCollection"]) -> "Jobs":
+        """Turn the survey into a Job and appends the arguments to the Job."""
+        from edsl.jobs.Jobs import Jobs
+
+        return Jobs(survey=self).using(obj)
 
     def duplicate(self):
         """Duplicate the survey.

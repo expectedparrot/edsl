@@ -20,12 +20,12 @@ def test_serialization():
 
     # get all EDSL classes that you'd like to test
     subclass_registry = RegisterSubclassesMeta.get_registry(
-        exclude_classes=["AgentTraits"]
+        exclude_classes=["AgentTraits", "RunConfig"]
     )
     questions_registry = RegisterQuestionsMeta.get_registered_classes()
     object_registry = ObjectRegistry.get_registry(
         subclass_registry=subclass_registry,
-        exclude_classes=["QuestionBase, AgentTraits"],
+        exclude_classes=["QuestionBase, AgentTraits", "RunConfig"],
     )
     combined_items = itertools.chain(
         subclass_registry.items(),
@@ -77,7 +77,9 @@ def test_serialization_coverage():
     for all EDSL objects.
     """
     combined_items = itertools.chain(
-        RegisterSubclassesMeta.get_registry(exclude_classes=["AgentTraits"]).items(),
+        RegisterSubclassesMeta.get_registry(
+            exclude_classes=["AgentTraits", "RunConfig"]
+        ).items(),
         RegisterQuestionsMeta.get_registered_classes().items(),
         ObjectRegistry.get_registry().items(),
     )

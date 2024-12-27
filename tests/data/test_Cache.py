@@ -148,10 +148,10 @@ def test_caching():
     m = Model("test")
     m.remote = False
     c = Cache()
-    results1 = QuestionFreeText.example().by(m).run(cache=c, check_api_keys=False)
+    results1 = QuestionFreeText.example().by(m).using(c).run(check_api_keys=False)
     # assert not results.select(
     #     "raw_model_response.how_are_you_raw_model_response"
     # ).first()
-    results2 = QuestionFreeText.example().by(m).run(cache=c, check_api_keys=False)
+    results2 = QuestionFreeText.example().by(m).using(c).run(check_api_keys=False)
     assert results1 == results2
     # assert results.select("raw_model_response.how_are_you_raw_model_response").first()

@@ -6,8 +6,9 @@ if TYPE_CHECKING:
 
 
 class InterviewsConstructor:
-    def __init__(self, jobs):
+    def __init__(self, jobs: "Jobs", cache: "Cache"):
         self.jobs = jobs
+        self.cache = cache
 
     def create_interviews(self) -> Generator["Interview", None, None]:
         """
@@ -38,6 +39,7 @@ class InterviewsConstructor:
                 agent=agent,
                 scenario=scenario,
                 model=model,
+                cache=self.cache,
                 skip_retry=self.jobs.skip_retry,
                 raise_validation_errors=self.jobs.raise_validation_errors,
                 indices={

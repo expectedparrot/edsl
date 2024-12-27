@@ -68,6 +68,7 @@ if __name__ == "__main__":
             population="Consumers",
         )
     )
-    StageQuestions.func(
+
+    results = StageQuestions.func(
         overall_question="Why aren't my students studying more?", population="Tech"
     )
