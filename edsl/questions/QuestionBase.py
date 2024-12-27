@@ -308,6 +308,10 @@ class QuestionBase(
         """Turn a single question into a survey and runs it."""
         return self.to_survey().run(*args, **kwargs)
 
+    def using(self, *args, **kwargs) -> "Jobs":
+        """Turn a single question into a survey and then a Job."""
+        return self.to_survey().to_jobs().using(*args, **kwargs)
+
     async def run_async(
         self,
         just_answer: bool = True,
