@@ -41,8 +41,10 @@ types_to_test = [
 # types_to_test = ["rank"]
 # types_to_test = ["likert_five"]
 services_to_test = Model.services()
-services_to_test.remove("ollama")
-services_to_test.remove("test")
+breakpoint()
+if "ollama" in services_to_test:
+    services_to_test.remove("ollama")
+# services_to_test.remove("test")
 # services_to_test = ["azure"]  # , "groq", "bedrock"]
 # types_to_test = ["numerical"]
 for question_type in types_to_test:

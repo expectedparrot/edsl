@@ -12,6 +12,7 @@ from typing import (
     Generator,
     Type,
     TYPE_CHECKING,
+    Tuple,
 )
 from uuid import UUID
 from collections import UserList
@@ -33,6 +34,7 @@ if TYPE_CHECKING:
     from edsl.language_models.key_management.KeyLookup import KeyLookup
     from edsl.jobs.interviews import Interview
 
+
 class JobsRunnerAsyncio:
     """A class for running a collection of interviews asynchronously.
 
@@ -48,40 +50,38 @@ class JobsRunnerAsyncio:
         cache: Optional[Cache] = None,
     ):
         self.jobs = jobs
-        self.interviews: List["Interview"] = jobs.interviews()
+        # self.interviews: List["Interview"] = jobs.interviews()
 
         # These are running environment configuration parameters
         self.cache = cache
         self.bucket_collection: "BucketCollection" = bucket_collection
         self.key_lookup = key_lookup
 
-        # total_interviews is to deal with the n = ... possibility of running the same interview multiple times
-        self.total_interviews: List["Interview"] = []
         self._initialized = threading.Event()
 
         from edsl.config import CONFIG
 
         self.MAX_CONCURRENT = int(CONFIG.get("EDSL_MAX_CONCURRENT_TASKS"))
 
+    @property
+    def interviews(self):
+        "Interviews associated with the job runner; still deprecate"
+        import warnings
+
+        warnings.warn("We are deprecated this!")
+        return self.jobs.interviews()
+
     async def run_async_generator(self) -> AsyncGenerator["Result", None]:
         """Creates and processes tasks asynchronously, yielding results as they complete.
 
         Tasks are created and processed in a streaming fashion rather than building the full list upfront.
         Results are yielded as soon as they are available.
-
-        :param n: how many times to run each interview
-        :param stop_on_exception: Whether to stop the interview if an exception is raised
-        :param total_interviews: A list of interviews to run can be provided instead.
-        :param raise_validation_errors: Whether to raise validation errors
         """
-        # Initialize interviews iterator
-        # interviews_iter = self._expand_interviews()
-        self.total_interviews = list(self._expand_interviews())
-        hash_to_order = {
-            hash(interview): index
-            for index, interview in enumerate(self.total_interviews)
+        total_interviews: List["Interview"] = list(self._expand_interviews())
+        hash_to_order: dict[str, int] = {
+            hash(interview): index for index, interview in enumerate(total_interviews)
         }
-        interviews_iter = iter(self.total_interviews)  # Create fresh iterator
+        interviews_iter = iter(total_interviews)  # Create fresh iterator
 
         self._initialized.set()  # Signal that we're ready
 
@@ -137,11 +137,12 @@ class JobsRunnerAsyncio:
 
     def _expand_interviews(self) -> Generator["Interview", None, None]:
         """Populates self.total_interviews with n copies of each interview.
+
         It also has to set the cache for each interview.
 
         :param n: how many times to run each interview.
         """
-        for interview in self.interviews:
+        for interview in self.jobs.interviews():
             for iteration in range(self.n):
                 if iteration > 0:
                     yield interview.duplicate(iteration=iteration, cache=self.cache)
@@ -167,11 +168,14 @@ class JobsRunnerAsyncio:
         data = asyncio.run(self.run_async())
         return Results(survey=self.jobs.survey, data=data)
 
-    async def _conduct_interview(self, interview: Interview) -> "Result", "Interview":
-        """Conducts an interview and returns the result.
+    async def _conduct_interview(
+        self, interview: "Interview"
+    ) -> Tuple["Result", "Interview"]:
+        """Conducts an interview and returns the result object, along with the associated interview.
+
+        We return the interview because it is not populated with exceptions, if any.
 
         :param interview: the interview to conduct
-
         :return: the result of the interview
 
         'extracted_answers' is a dictionary of the answers to the questions in the interview.
@@ -204,19 +208,18 @@ class JobsRunnerAsyncio:
         return time.monotonic() - self.start_time
 
     def sort_results_and_append_task_history(
-        self, raw_results: Results, task_history
+        self, list_of_result_objects: List["Result"], task_history: TaskHistory
     ) -> Results:
         """Sorts the results in the order of the original interviews.
 
-        :param raw_results: the raw results to sort.
+        :param list_of_result_objects: the raw results to sort.
         """
-        # task_history = TaskHistory(self.total_interviews, include_traceback=False)
 
         results = Results(
             survey=self.jobs.survey,
-            data=sorted(raw_results, key=lambda x: x.order),
+            data=sorted(list_of_result_objects, key=lambda x: x.order),
             task_history=task_history,
-            # cache=cache,
+            cache=self.cache.new_entries_cache(),
         )
         results.bucket_collection = self.bucket_collection
         return results
@@ -229,7 +232,7 @@ class JobsRunnerAsyncio:
             from edsl.config import CONFIG
             from edsl.coop.coop import Coop
 
-            msg = f"Exceptions were raised in {len(results.task_history.indices)} out of {len(self.total_interviews)} interviews.\n"
+            msg = f"Exceptions were raised in {len(results.task_history.indices)} interviews.\n"
 
             if len(results.task_history.indices) > 5:
                 msg += f"Exceptions were raised in the following interviews: {results.task_history.indices}.\n"
@@ -283,7 +286,7 @@ class JobsRunnerAsyncio:
     ) -> "Coroutine":
         """Runs a collection of interviews, handling both async and sync contexts."""
 
-        self.results = []
+        results = []
         self.start_time = time.monotonic()
         self.completed = False
         # self.cache = cache
@@ -304,23 +307,26 @@ class JobsRunnerAsyncio:
         self.raise_validation_errors = raise_validation_errors
         self.job_uuid = job_uuid
 
-        if jobs_runner_status is not None:
-            self.jobs_runner_status = jobs_runner_status(
-                self, n=self.n, endpoint_url=endpoint_url, job_uuid=self.job_uuid
-            )
-        else:
-            self.jobs_runner_status = JobsRunnerStatus(
-                self, n=n, endpoint_url=endpoint_url, job_uuid=job_uuid
-            )
+        def set_up_jobs_runner_status(jobs_runner_status):
+            if jobs_runner_status is not None:
+                return jobs_runner_status(
+                    self, n=self.n, endpoint_url=endpoint_url, job_uuid=self.job_uuid
+                )
+            else:
+                return JobsRunnerStatus(
+                    self, n=n, endpoint_url=endpoint_url, job_uuid=job_uuid
+                )
+
+        self.jobs_runner_status = set_up_jobs_runner_status(jobs_runner_status)
 
         stop_event = threading.Event()
-
         task_history = TaskHistory()
+        list_of_result_objects: List["Result"] = []
 
         async def get_results() -> None:
             """Conducted the interviews and append to the results list."""
             async for result, interview in self.run_async_generator():
-                self.results.append(result)
+                list_of_result_objects.append(result)
                 task_history.add_interview(interview)
             self.completed = True
 
@@ -328,16 +334,21 @@ class JobsRunnerAsyncio:
             """Runs the progress bar in a separate thread."""
             self.jobs_runner_status.update_progress(stop_event)
 
-        if progress_bar and self.jobs_runner_status.has_ep_api_key():
-            self.jobs_runner_status.setup()
-            progress_thread = threading.Thread(
-                target=run_progress_bar, args=(stop_event,)
-            )
-            progress_thread.start()
-        elif progress_bar:
-            warnings.warn(
-                "You need an Expected Parrot API key to view job progress bars."
-            )
+        def set_up_progress_bar(progress_bar: bool, jobs_runner_status):
+            progress_thread = None
+            if progress_bar and jobs_runner_status.has_ep_api_key():
+                jobs_runner_status.setup()
+                progress_thread = threading.Thread(
+                    target=run_progress_bar, args=(stop_event,)
+                )
+                progress_thread.start()
+            elif progress_bar:
+                warnings.warn(
+                    "You need an Expected Parrot API key to view job progress bars."
+                )
+            return progress_thread
+
+        progress_thread = set_up_progress_bar(progress_bar, self.jobs_runner_status)
 
         exception_to_raise = None
         try:
@@ -351,17 +362,15 @@ class JobsRunnerAsyncio:
             stop_event.set()
         finally:
             stop_event.set()
-            if progress_bar and self.jobs_runner_status.has_ep_api_key():
-                # self.jobs_runner_status.stop_event.set()
-                if progress_thread:
-                    progress_thread.join()
+            if progress_thread is not None:
+                progress_thread.join()
 
             if exception_to_raise:
                 raise exception_to_raise
 
             # breakpoint()
-            results = self.sort_results_and_append_task_history(
-                self.results, task_history
+            results: Results = self.sort_results_and_append_task_history(
+                list_of_result_objects, task_history
             )
             self.handle_results_exceptions(results)
             return results
