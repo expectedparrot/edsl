@@ -3,15 +3,18 @@
 Language Models
 ===============
 
-Language models are used to generate agent responses to questions and can be specified when running a survey.
-API keys are required in order to access the available models, and should be stored in your private `.env` file.
+Language models are used to generate agent responses to survey questions and can be specified using the `Model` and `ModelList` classes.
+
+API keys are required in order to access available models, and should be stored in your private `.env` file.
 See the :ref:`api_keys` page for instructions on storing your API keys.
+
+Output for examples shown below can also be viewed in this notebook at Coop.
 
 
 Available services 
 ------------------
 
-We can see all of the available services (model providers) by calling the `services()` method of the `Model` class:
+The following code will return a table of currently available services (model providers):
 
 .. code-block:: python
 
@@ -20,7 +23,7 @@ We can see all of the available services (model providers) by calling the `servi
    Model.services()
 
 
-This will return a list of the services we can choose from:
+Output:
 
 .. list-table::
    :header-rows: 1
@@ -43,7 +46,7 @@ This will return a list of the services we can choose from:
 Available models
 ----------------
 
-We can see all of the available models by calling the `available()` method of the `Model` class:
+The following code will return a table of all the available models for all services:
 
 .. code-block:: python
 
@@ -52,7 +55,35 @@ We can see all of the available models by calling the `available()` method of th
    Model.available()
 
 
-This will return a list of the models we can choose from (not shown below--run the code on yor own to see an up-to-date list).
+This will return a list of the models we can choose from, for all service providers (omitted here for brevity).
+Run the code on yor own to see an up-to-date list.
+
+To see a list of all models for a specific service, pass the service:
+
+.. code-block:: python
+
+   Model.available(service = "google")
+
+
+Output:
+
+.. list-table::
+   :header-rows: 1
+
+   * - Model Name
+     - gemmini-1.0-pro
+     - gemmini-1.0-flash
+     - gemmini-1.5-pro
+     - gemmini-pro
+   * - Service Name
+     - google
+     - google
+     - google
+     - google
+
+
+*Note:* It is important to check that selected models are working as expected before running a survey. 
+We recommend running test questions with any models, agents and scenarios that you plan to use in a survey to validate performance before moving onto larger jobs.
 
 
 Adding a model
@@ -73,17 +104,22 @@ You can then see the model in the list of available models, and search by servic
 
 .. code-block:: python
 
-   Model.available("anthropic")
+   Model.available(service = "anthropic")
+
+
+Output:
 
 
 
 Check models 
 ------------
 
-Check the models for which you have already properly stored API keys by calling the `check_models()` method:
+To check for models where API keys have been stored:
 
 .. code-block:: python
 
+   from edsl import Model
+   
    Model.check_models()
 
 
