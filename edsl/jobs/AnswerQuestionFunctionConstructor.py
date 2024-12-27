@@ -5,6 +5,8 @@ from typing import Union, Type, Callable, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from edsl.questions.QuestionBase import QuestionBase
+    from edsl.jobs.interviews.Interview import Interview
+    from edsl.language_models.key_management.KeyLookup import KeyLookup
 
 from edsl.surveys.base import EndOfSurvey
 from edsl.jobs.tasks.task_status_enum import TaskStatus
@@ -18,10 +20,13 @@ from edsl.jobs.Answers import Answers
 
 
 class AnswerQuestionFunctionConstructor:
-    def __init__(self, interview, key_lookup):
+    """Constructs a function that answers a question and records the answer."""
+
+    def __init__(self, interview: "Interview", key_lookup: "KeyLookup"):
         self.interview = interview
         self.key_lookup = key_lookup
-        self.had_language_model_no_response_error = False
+
+        self.had_language_model_no_response_error: bool = False
         self.question_index = self.interview.to_index
 
         self.skip_function: Callable = (
@@ -36,6 +41,7 @@ class AnswerQuestionFunctionConstructor:
         return self.interview.answers
 
     def _skip_this_question(self, current_question: "QuestionBase") -> bool:
+        """Determine if the current question should be skipped."""
         current_question_index = self.question_index[current_question.question_name]
         combined_answers = self._combined_answers()
         return self.skip_function(current_question_index, combined_answers)
@@ -43,6 +49,8 @@ class AnswerQuestionFunctionConstructor:
     def _handle_exception(
         self, e: Exception, invigilator: "InvigilatorBase", task=None
     ):
+        """Handle an exception that occurred while answering a question."""
+
         from edsl.jobs.interviews.InterviewExceptionEntry import InterviewExceptionEntry
 
         answers = copy.copy(self.answers)  # copy to freeze the answers here for logging
@@ -53,6 +61,7 @@ class AnswerQuestionFunctionConstructor:
         )
         if task:
             task.task_status = TaskStatus.FAILED
+
         self.interview.exceptions.add(
             invigilator.question.question_name, exception_entry
         )
@@ -67,6 +76,7 @@ class AnswerQuestionFunctionConstructor:
             raise e
 
     def _cancel_skipped_questions(self, current_question: "QuestionBase") -> None:
+        """Cancel the tasks for questions that should be skipped."""
         current_question_index: int = self.interview.to_index[
             current_question.question_name
         ]
@@ -83,6 +93,7 @@ class AnswerQuestionFunctionConstructor:
         )
 
         def cancel_between(start, end):
+            """Cancel the tasks for questions between the start and end indices."""
             for i in range(start, end):
                 self.interview.tasks[i].cancel()
 

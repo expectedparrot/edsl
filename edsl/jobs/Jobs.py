@@ -83,7 +83,7 @@ class RunConfig(Base):
     key_lookup: Optional[KeyLookup] = None
     jobs_runner_status: Optional["JobsRunnerStatus"] = None
 
-    def to_dict(self, add_edsl_version=False):
+    def to_dict(self, add_edsl_version=False) -> dict:
         d = asdict(self)
         if add_edsl_version:
             from edsl import __version__
@@ -145,6 +145,30 @@ def with_config(f: Callable[P, T]) -> Callable[P, T]:
     return cast(Callable[P, T], wrapper)
 
 
+# @dataclass
+# class ExperimentComponents:
+#     survey: Survey
+#     agents: AgentList
+#     scenarios: ScenarioList
+#     models: ModelList
+
+#     @property
+#     def models(self):
+#         return self._models
+
+#     @models.setter
+#     def models(self, value):
+#         from edsl.language_models.ModelList import ModelList
+
+#         if value:
+#             if not isinstance(value, ModelList):
+#                 self._models = ModelList(value)
+#             else:
+#                 self._models = value
+#         else:
+#             self._models = ModelList([])
+
+
 class Jobs(Base):
     """
     A collection of agents, scenarios and models and one survey that creates 'interviews'
@@ -169,7 +193,7 @@ class Jobs(Base):
         self.survey = survey
         self.agents: AgentList = agents
         self.scenarios: ScenarioList = scenarios
-        self.models = models
+        self.models: ModelList = models
 
         self.running_env = RunningEnvironment()
 
@@ -179,6 +203,10 @@ class Jobs(Base):
 
     # these setters and getters are used to ensure that the agents, models, and scenarios
     # are stored as AgentList, ModelList, and ScenarioList objects.
+
+    def add_running_env(self, running_env: RunningEnvironment):
+        self.running_env = running_env
+        return self
 
     def using_cache(self, cache: "Cache") -> Jobs:
         """
