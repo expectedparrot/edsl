@@ -68,7 +68,7 @@ class JobsRunnerAsyncio:
         "Interviews associated with the job runner; still deprecate"
         import warnings
 
-        warnings.warn("We are deprecated this!")
+        warnings.warn("We are deprecating this!")
         return self.jobs.interviews()
 
     async def run_async_generator(self) -> AsyncGenerator["Result", None]:
@@ -151,17 +151,24 @@ class JobsRunnerAsyncio:
                     yield interview
 
     async def run_async(
-        self, cache: Optional[Cache] = None, n: int = 1, **kwargs
+        self,
+        cache: Optional[Cache] = None,
+        n: int = 1,
+        stop_on_exception: bool = False,
+        raise_validation_errors: bool = False,
+        **kwargs,
     ) -> Results:
         """Used for some other modules that have a non-standard way of running interviews."""
         self.jobs_runner_status = JobsRunnerStatus(self, n=n)
         data = []
+        self.n = n
+        self.stop_on_exception = stop_on_exception
+        self.raise_validation_errors = raise_validation_errors
         task_history = TaskHistory(include_traceback=False)
-        async for result, interview in self.run_async_generator(
-            n=n
-        ):  # cache=self.cache,
+        async for result, interview in self.run_async_generator():  # cache=self.cache,
             data.append(result)
             task_history.add_interview(interview)
+
         return Results(survey=self.jobs.survey, task_history=task_history, data=data)
 
     def simple_run(self):
