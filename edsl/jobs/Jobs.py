@@ -1,7 +1,18 @@
 # """The Jobs class is a collection of agents, scenarios and models and one survey."""
 from __future__ import annotations
 import warnings
-from typing import Literal, Optional, Union, Sequence, Generator, TYPE_CHECKING
+from dataclasses import dataclass
+import asyncio
+from typing import (
+    Literal,
+    Optional,
+    Union,
+    Sequence,
+    Generator,
+    TYPE_CHECKING,
+    Callable,
+    Tuple,
+)
 
 from edsl.Base import Base
 
@@ -13,6 +24,11 @@ from edsl.utilities.remove_edsl_version import remove_edsl_version
 from edsl.data.RemoteCacheSync import RemoteCacheSync
 from edsl.exceptions.coop import CoopServerResponseError
 
+# from edsl.coop.coop import Coop
+from edsl.jobs.JobsChecks import JobsChecks
+
+# from edsl.jobs.JobsRemoteInferenceHandler import JobsRemoteInferenceHandler
+
 if TYPE_CHECKING:
     from edsl.agents.Agent import Agent
     from edsl.agents.AgentList import AgentList
@@ -23,6 +39,43 @@ if TYPE_CHECKING:
     from edsl.results.Results import Results
     from edsl.results.Dataset import Dataset
     from edsl.language_models.ModelList import ModelList
+    from edsl.data.Cache import Cache
+    from edsl.language_models.key_management.KeyLookup import KeyLookup
+
+VisibilityType = Literal["private", "public", "unlisted"]
+
+
+@dataclass
+class LocallyRunningConfig:
+    cache: "Cache"
+    bucket_collection: BucketCollection
+    remote_cache: bool
+    key_lookup: Optional[KeyLookup] = None
+
+
+@dataclass
+class RunConfig:
+    n: int
+    progress_bar: bool
+    stop_on_exception: bool
+    cache: Union["Cache", bool]
+    check_api_keys: bool
+    verbose: bool
+    print_exceptions: bool
+    remote_cache_description: Optional[str]
+    remote_inference_description: Optional[str]
+    remote_inference_results_visibility: Optional[VisibilityType]
+    skip_retry: bool
+    raise_validation_errors: bool
+    disable_remote_cache: bool
+    disable_remote_inference: bool
+    bucket_collection: Optional[BucketCollection]
+    key_lookup: Optional[KeyLookup] = None
+
+
+from edsl.jobs.check_survey_scenario_compatibility import (
+    CheckSurveyScenarioCompatibility,
+)
 
 
 class Jobs(Base):
@@ -214,7 +267,7 @@ class Jobs(Base):
 
     def replace_missing_objects(self) -> None:
         from edsl.agents.Agent import Agent
-        from edsl.language_models.registry import Model
+        from edsl.language_models.model import Model
         from edsl.scenarios.Scenario import Scenario
 
         self.agents = self.agents or [Agent()]
@@ -319,68 +372,6 @@ class Jobs(Base):
         """
         return set.union(*[question.parameters for question in self.survey.questions])
 
-    def _check_parameters(self, strict=False, warn=False) -> None:
-        """Check if the parameters in the survey and scenarios are consistent.
-
-        >>> from edsl.questions.QuestionFreeText import QuestionFreeText
-        >>> from edsl.surveys.Survey import Survey
-        >>> from edsl.scenarios.Scenario import Scenario
-        >>> q = QuestionFreeText(question_text = "{{poo}}", question_name = "ugly_question")
-        >>> j = Jobs(survey = Survey(questions=[q]))
-        >>> with warnings.catch_warnings(record=True) as w:
-        ...     j._check_parameters(warn = True)
-        ...     assert len(w) == 1
-        ...     assert issubclass(w[-1].category, UserWarning)
-        ...     assert "The following parameters are in the survey but not in the scenarios" in str(w[-1].message)
-
-        >>> q = QuestionFreeText(question_text = "{{poo}}", question_name = "ugly_question")
-        >>> s = Scenario({'plop': "A", 'poo': "B"})
-        >>> j = Jobs(survey = Survey(questions=[q])).by(s)
-        >>> j._check_parameters(strict = True)
-        Traceback (most recent call last):
-        ...
-        ValueError: The following parameters are in the scenarios but not in the survey: {'plop'}
-
-        >>> q = QuestionFreeText(question_text = "Hello", question_name = "ugly_question")
-        >>> s = Scenario({'ugly_question': "B"})
-        >>> j = Jobs(survey = Survey(questions=[q])).by(s)
-        >>> j._check_parameters()
-        Traceback (most recent call last):
-        ...
-        ValueError: The following names are in both the survey question_names and the scenario keys: {'ugly_question'}. This will create issues.
-        """
-        survey_parameters: set = self.survey.parameters
-        scenario_parameters: set = self.scenarios.parameters
-
-        msg0, msg1, msg2 = None, None, None
-
-        # look for key issues
-        if intersection := set(self.scenarios.parameters) & set(
-            self.survey.question_names
-        ):
-            msg0 = f"The following names are in both the survey question_names and the scenario keys: {intersection}. This will create issues."
-
-            raise ValueError(msg0)
-
-        if in_survey_but_not_in_scenarios := survey_parameters - scenario_parameters:
-            msg1 = f"The following parameters are in the survey but not in the scenarios: {in_survey_but_not_in_scenarios}"
-        if in_scenarios_but_not_in_survey := scenario_parameters - survey_parameters:
-            msg2 = f"The following parameters are in the scenarios but not in the survey: {in_scenarios_but_not_in_survey}"
-
-        if msg1 or msg2:
-            message = "\n".join(filter(None, [msg1, msg2]))
-            if strict:
-                raise ValueError(message)
-            else:
-                if warn:
-                    warnings.warn(message)
-
-        if self.scenarios.has_jinja_braces:
-            warnings.warn(
-                "The scenarios have Jinja braces ({{ and }}). Converting to '<<' and '>>'. If you want a different conversion, use the convert_jinja_braces method first to modify the scenario."
-            )
-            self.scenarios = self.scenarios._convert_jinja_braces()
-
     @property
     def skip_retry(self):
         if not hasattr(self, "_skip_retry"):
@@ -411,27 +402,129 @@ class Jobs(Base):
 
         return False
 
-    def run(
+    def _remote_results(
+        self,
+        run_config: RunConfig,
+    ) -> Union["Results", None]:
+        from edsl.jobs.JobsRemoteInferenceHandler import JobsRemoteInferenceHandler
+
+        jh = JobsRemoteInferenceHandler(self, verbose=run_config.verbose)
+        if jh.use_remote_inference(run_config.disable_remote_inference):
+            job_info = jh.create_remote_inference_job(
+                iterations=run_config.n,
+                remote_inference_description=run_config.remote_inference_description,
+                remote_inference_results_visibility=run_config.remote_inference_results_visibility,
+            )
+            results = jh.poll_remote_inference_job(job_info)
+            return results
+        else:
+            return None
+
+    def _prepare_to_run(self, run_config: RunConfig):
+        "This makes sure that the job is ready to run and that keys are in place for a remote job."
+        CheckSurveyScenarioCompatibility(self.survey, self.scenarios).check()
+        self._skip_retry = run_config.skip_retry
+        self._raise_validation_errors = run_config.raise_validation_errors
+        self.verbose = run_config.verbose
+
+    def _check_if_remote_keys_ok(self, run_config: RunConfig):
+        jc = JobsChecks(self)
+        if jc.needs_key_process():
+            jc.key_process()
+
+    def _check_if_local_keys_ok(self, run_config: RunConfig):
+        jc = JobsChecks(self)
+        if run_config.check_api_keys:
+            jc.check_api_keys()
+
+    def _config_for_local_running(
+        self, run_config: RunConfig
+    ) -> "LocallyRunningConfig":
+        cache = run_config.cache
+
+        if run_config.cache is None or run_config.cache is True:
+            from edsl.data.CacheHandler import CacheHandler
+
+            cache = CacheHandler().get_cache()
+
+        if run_config.cache is False:
+            from edsl.data.Cache import Cache
+
+            cache = Cache()
+
+        if run_config.bucket_collection is None:
+            bucket_collection = self.create_bucket_collection()
+        else:
+            bucket_collection = run_config.bucket_collection
+
+        remote_cache = self.use_remote_cache(run_config.disable_remote_cache)
+        return LocallyRunningConfig(
+            cache, bucket_collection, remote_cache, key_lookup=run_config.key_lookup
+        )
+
+    async def _execute_with_remote_cache(
+        self, run_config: RunConfig, run_func: Callable
+    ) -> Results:
+        locally_running_config = self._config_for_local_running(run_config)
+
+        from edsl.coop.coop import Coop
+
+        with RemoteCacheSync(
+            coop=Coop(),
+            cache=locally_running_config.cache,
+            output_func=self._output,
+            remote_cache=locally_running_config.remote_cache,
+            remote_cache_description=run_config.remote_cache_description,
+        ) as r:
+            run_params = {
+                "n": run_config.n,
+                "progress_bar": run_config.progress_bar,
+                "cache": locally_running_config.cache,
+                "stop_on_exception": run_config.stop_on_exception,
+                "print_exceptions": run_config.print_exceptions,
+                "raise_validation_errors": run_config.raise_validation_errors,
+                "bucket_collection": locally_running_config.bucket_collection,
+                "key_lookup": locally_running_config.key_lookup,
+            }
+
+            if asyncio.iscoroutinefunction(run_func):
+                results = await run_func(**run_params)
+            else:
+                results = run_func(**run_params)
+        return results
+
+    def _setup_and_check(
         self,
         n: int = 1,
         progress_bar: bool = False,
         stop_on_exception: bool = False,
         cache: Union["Cache", bool] = None,
         check_api_keys: bool = False,
-        sidecar_model: Optional[LanguageModel] = None,
         verbose: bool = True,
-        print_exceptions=True,
+        print_exceptions: bool = True,
         remote_cache_description: Optional[str] = None,
         remote_inference_description: Optional[str] = None,
-        remote_inference_results_visibility: Optional[
-            Literal["private", "public", "unlisted"]
-        ] = "unlisted",
+        remote_inference_results_visibility: Optional[VisibilityType] = "unlisted",
         skip_retry: bool = False,
         raise_validation_errors: bool = False,
         disable_remote_cache: bool = False,
         disable_remote_inference: bool = False,
         bucket_collection: Optional[BucketCollection] = None,
-    ) -> Results:
+        key_lookup: Optional[KeyLookup] = None,
+    ) -> Tuple[RunConfig, Optional[Results]]:
+        parameters = locals()
+        parameters.pop("self")
+        run_config = RunConfig(**parameters)
+        self._prepare_to_run(run_config)
+        self._check_if_remote_keys_ok(run_config)
+
+        if results := self._remote_results(run_config):
+            return run_config, results
+
+        self._check_if_local_keys_ok(run_config)
+        return run_config, None
+
+    def run(self, **kwargs) -> Results:
         """
         Runs the Job: conducts Interviews and returns their results.
 
@@ -446,119 +539,44 @@ class Jobs(Base):
         :param remote_inference_results_visibility: The initial visibility of the Results object on Coop. This will only be used for remote jobs!
         :param disable_remote_cache: If True, the job will not use remote cache. This only works for local jobs!
         :param disable_remote_inference: If True, the job will not use remote inference
+        :param bucket_collection: A BucketCollection object to track API calls
+        :param key_lookup: A KeyLookup object to manage API keys
         """
-        from edsl.coop.coop import Coop
-        from edsl.jobs.JobsChecks import JobsChecks
-        from edsl.jobs.JobsRemoteInferenceHandler import JobsRemoteInferenceHandler
-
-        self._check_parameters()
-        self._skip_retry = skip_retry
-        self._raise_validation_errors = raise_validation_errors
-        self.verbose = verbose
-
-        jc = JobsChecks(self)
-
-        # check if the user has all the keys they need
-        if jc.needs_key_process():
-            jc.key_process()
-
-        jh = JobsRemoteInferenceHandler(self, verbose=verbose)
-        if jh.use_remote_inference(disable_remote_inference):
-            jh.create_remote_inference_job(
-                iterations=n,
-                remote_inference_description=remote_inference_description,
-                remote_inference_results_visibility=remote_inference_results_visibility,
-            )
-            results = jh.poll_remote_inference_job()
+        run_config, results = self._setup_and_check(**kwargs)
+        if results:
             return results
+        return asyncio.run(self._execute_with_remote_cache(run_config, self._run_local))
 
-        if check_api_keys:
-            jc.check_api_keys()
-
-        # handle cache
-        if cache is None or cache is True:
-            from edsl.data.CacheHandler import CacheHandler
-
-            cache = CacheHandler().get_cache()
-        if cache is False:
-            from edsl.data.Cache import Cache
-
-            cache = Cache()
-
-        if bucket_collection is None:
-            bucket_collection = self.create_bucket_collection()
-
-        remote_cache = self.use_remote_cache(disable_remote_cache)
-        with RemoteCacheSync(
-            coop=Coop(),
-            cache=cache,
-            output_func=self._output,
-            remote_cache=remote_cache,
-            remote_cache_description=remote_cache_description,
-        ) as r:
-            results = self._run_local(
-                n=n,
-                progress_bar=progress_bar,
-                cache=cache,
-                stop_on_exception=stop_on_exception,
-                sidecar_model=sidecar_model,
-                print_exceptions=print_exceptions,
-                raise_validation_errors=raise_validation_errors,
-                bucket_collection=bucket_collection,
-            )
-        return results
-
-    async def run_async(
-        self,
-        cache=None,
-        n=1,
-        disable_remote_inference: bool = False,
-        remote_inference_description: Optional[str] = None,
-        remote_inference_results_visibility: Optional[
-            Literal["private", "public", "unlisted"]
-        ] = "unlisted",
-        bucket_collection: Optional[BucketCollection] = None,
-        **kwargs,
-    ):
-        """Run the job asynchronously, either locally or remotely.
-
-        :param cache: Cache object or boolean
-        :param n: Number of iterations
-        :param disable_remote_inference: If True, forces local execution
-        :param remote_inference_description: Description for remote jobs
-        :param remote_inference_results_visibility: Visibility setting for remote results
-        :param kwargs: Additional arguments passed to local execution
-        :return: Results object
-        """
-        # Check if we should use remote inference
-        from edsl.jobs.JobsRemoteInferenceHandler import JobsRemoteInferenceHandler
-        from edsl.jobs.runners.JobsRunnerAsyncio import JobsRunnerAsyncio
-
-        jh = JobsRemoteInferenceHandler(self, verbose=False)
-        if jh.use_remote_inference(disable_remote_inference):
-            results = await jh.create_and_poll_remote_job(
-                iterations=n,
-                remote_inference_description=remote_inference_description,
-                remote_inference_results_visibility=remote_inference_results_visibility,
-            )
+    async def run_async(self, **kwargs) -> "Results":
+        run_config, results = self._setup_and_check(**kwargs)
+        if results:
             return results
+        return await self._execute_with_remote_cache(run_config, self._run_local_async)
 
-        if bucket_collection is None:
-            bucket_collection = self.create_bucket_collection()
-
-        # If not using remote inference, run locally with async
-        return await JobsRunnerAsyncio(
-            self, bucket_collection=bucket_collection
-        ).run_async(cache=cache, n=n, **kwargs)
-
-    def _run_local(self, bucket_collection, *args, **kwargs):
+    async def _run_local_async(
+        self, bucket_collection, key_lookup: Optional[KeyLookup] = None, *args, **kwargs
+    ) -> "Results":
         """Run the job locally."""
-        from edsl.jobs.runners.JobsRunnerAsyncio import JobsRunnerAsyncio
+        return await self._prepare_asyncio_runner(
+            bucket_collection, key_lookup=key_lookup
+        ).run_async(*args, **kwargs)
 
-        results = JobsRunnerAsyncio(self, bucket_collection=bucket_collection).run(
+    def _run_local(
+        self, bucket_collection, key_lookup: Optional[KeyLookup] = None, *args, **kwargs
+    ) -> "Results":
+        """Run the job locally."""
+        return self._prepare_asyncio_runner(bucket_collection, key_lookup).run(
             *args, **kwargs
         )
-        return results
+
+    def _prepare_asyncio_runner(
+        self, bucket_collection, key_lookup: Optional[KeyLookup] = None
+    ):
+        from edsl.jobs.runners.JobsRunnerAsyncio import JobsRunnerAsyncio
+
+        return JobsRunnerAsyncio(
+            self, bucket_collection=bucket_collection, key_lookup=key_lookup
+        )
 
     def __repr__(self) -> str:
         """Return an eval-able string representation of the Jobs instance."""

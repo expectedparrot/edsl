@@ -32,7 +32,7 @@ class InvigilatorTest(InvigilatorAI):
 
 def test_good_answer_cached():
     cache = Cache()
-    from edsl.language_models.registry import Model
+    from edsl.language_models.model import Model
 
     m = Model("test", canned_response=1)
     results = q.by(m).run(cache=cache)

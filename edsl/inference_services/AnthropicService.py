@@ -11,21 +11,27 @@ class AnthropicService(InferenceServiceABC):
 
     _inference_service_ = "anthropic"
     _env_key_name_ = "ANTHROPIC_API_KEY"
-    key_sequence = ["content", 0, "text"]  # ["content"][0]["text"]
+    key_sequence = ["content", 0, "text"]
     usage_sequence = ["usage"]
     input_token_name = "input_tokens"
     output_token_name = "output_tokens"
     model_exclude_list = []
 
     @classmethod
+    def get_model_list(cls, api_key: str = None):
+
+        import requests
+
+        if api_key is None:
+            api_key = os.environ.get("ANTHROPIC_API_KEY")
+        headers = {"x-api-key": api_key, "anthropic-version": "2023-06-01"}
+        response = requests.get("https://api.anthropic.com/v1/models", headers=headers)
+        model_names = [m["id"] for m in response.json()["data"]]
+        return model_names
+
+    @classmethod
     def available(cls):
-        # TODO - replace with an API call
-        return [
-            "claude-3-5-sonnet-20240620",
-            "claude-3-opus-20240229",
-            "claude-3-sonnet-20240229",
-            "claude-3-haiku-20240307",
-        ]
+        return cls.get_model_list()
 
     @classmethod
     def create_model(
@@ -62,20 +68,36 @@ class AnthropicService(InferenceServiceABC):
                 system_prompt: str = "",
                 files_list: Optional[List["Files"]] = None,
             ) -> dict[str, Any]:
-                """Calls the OpenAI API and returns the API response."""
+                """Calls the Anthropic API and returns the API response."""
 
-                api_key = os.environ.get("ANTHROPIC_API_KEY")
-                client = AsyncAnthropic(api_key=api_key)
+                messages = [
+                    {
+                        "role": "user",
+                        "content": [{"type": "text", "text": user_prompt}],
+                    }
+                ]
+                if files_list:
+                    for file_entry in files_list:
+                        encoded_image = file_entry.base64_string
+                        messages[0]["content"].append(
+                            {
+                                "type": "image",
+                                "source": {
+                                    "type": "base64",
+                                    "media_type": file_entry.mime_type,
+                                    "data": encoded_image,
+                                },
+                            }
+                        )
+                # breakpoint()
+                client = AsyncAnthropic(api_key=self.api_token)
 
                 response = await client.messages.create(
                     model=model_name,
                     max_tokens=self.max_tokens,
                     temperature=self.temperature,
-                    system=system_prompt,
-                    messages=[
-                        #                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_prompt},
-                    ],
+                    system=system_prompt,  # note that the Anthropic API uses "system" parameter rather than put it in the message
+                    messages=messages,
                 )
                 return response.model_dump()
 

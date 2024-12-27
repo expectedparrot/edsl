@@ -1,6 +1,6 @@
 import pytest
 from edsl.exceptions.questions import QuestionAnswerValidationError
-from edsl.questions.AnswerValidatorMixin import AnswerValidatorMixin
+from edsl.questions.answer_validator_mixin import AnswerValidatorMixin
 
 
 class MockQuestion:

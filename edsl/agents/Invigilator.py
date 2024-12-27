@@ -43,6 +43,9 @@ class InvigilatorAI(InvigilatorBase):
         params.update({"iteration": self.iteration, "cache": self.cache})
         params.update({"invigilator": self})
 
+        if self.key_lookup:
+            self.model.set_key_lookup(self.key_lookup)
+
         return await self.model.async_get_response(**params)
 
     def store_response(self, agent_response_dict: AgentResponseDict) -> None:

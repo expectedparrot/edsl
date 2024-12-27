@@ -1,5 +1,5 @@
 import os
-from edsl.language_models.registry import Model
+from edsl.language_models.model import Model
 
 
 def test_application_with_custom_env(set_env_vars):

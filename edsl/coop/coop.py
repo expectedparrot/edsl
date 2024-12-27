@@ -191,7 +191,14 @@ class Coop(CoopFunctionsMixin):
                 )
 
         if response.status_code >= 400:
-            message = response.json().get("detail")
+            try:
+                message = response.json().get("detail")
+            except json.JSONDecodeError:
+                raise CoopServerResponseError(
+                    f"Server returned status code {response.status_code}."
+                    "JSON response could not be decoded.",
+                    "The server response was: " + response.text,
+                )
             # print(response.text)
             if "The API key you provided is invalid" in message and check_api_key:
                 import secrets
