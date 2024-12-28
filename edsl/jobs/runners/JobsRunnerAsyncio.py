@@ -134,13 +134,6 @@ class JobsRunnerAsyncio:
         self.raise_validation_errors = raise_validation_errors
         self.job_uuid = job_uuid
 
-        results = Results(
-            survey=self.jobs.survey,
-            data=[],
-            task_history=TaskHistory(),
-            cache=self.cache.new_entries_cache(),
-        )
-
         def set_up_jobs_runner_status(jobs_runner_status):
             if jobs_runner_status is not None:
                 return jobs_runner_status(
@@ -153,11 +146,7 @@ class JobsRunnerAsyncio:
 
         self.jobs_runner_status = set_up_jobs_runner_status(jobs_runner_status)
 
-        stop_event = threading.Event()
-        task_history = TaskHistory()
-        list_of_result_objects: List["Result"] = []
-
-        async def get_results() -> None:
+        async def get_results(results) -> None:
             """Conducted the interviews and append to the results list."""
             result_generator = AsyncInterviewRunner(
                 self.jobs,
@@ -172,8 +161,7 @@ class JobsRunnerAsyncio:
             async for result, interview in result_generator.run():
                 results.append(result)
                 results.task_history.add_interview(interview)
-                # list_of_result_objects.append(result)
-                # task_history.add_interview(interview)
+
             self.completed = True
 
         def run_progress_bar(stop_event) -> None:
@@ -194,11 +182,18 @@ class JobsRunnerAsyncio:
                 )
             return progress_thread
 
+        results = Results(
+            survey=self.jobs.survey,
+            data=[],
+            task_history=TaskHistory(),
+            cache=self.cache.new_entries_cache(),
+        )
+        stop_event = threading.Event()
         progress_thread = set_up_progress_bar(progress_bar, self.jobs_runner_status)
 
         exception_to_raise = None
         try:
-            await get_results()
+            await get_results(results)
         except KeyboardInterrupt:
             print("Keyboard interrupt received. Stopping gracefully...")
             stop_event.set()
