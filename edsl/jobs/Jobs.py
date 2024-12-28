@@ -145,29 +145,6 @@ def with_config(f: Callable[P, T]) -> Callable[P, T]:
     return cast(Callable[P, T], wrapper)
 
 
-# @dataclass
-# class ExperimentComponents:
-#     survey: Survey
-#     agents: AgentList
-#     scenarios: ScenarioList
-#     models: ModelList
-
-#     @property
-#     def models(self):
-#         return self._models
-
-#     @models.setter
-#     def models(self, value):
-#         from edsl.language_models.ModelList import ModelList
-
-#         if value:
-#             if not isinstance(value, ModelList):
-#                 self._models = ModelList(value)
-#             else:
-#                 self._models = value
-#         else:
-#             self._models = ModelList([])
-
 
 class Jobs(Base):
     """
@@ -420,6 +397,22 @@ class Jobs(Base):
         self.models = self.models or [Model()]
         self.scenarios = self.scenarios or [Scenario()]
 
+    def generate_interviews(self) -> Generator[Interview, None, None]:
+        """
+        Generate interviews.
+
+        Note that this sets the agents, model and scenarios if they have not been set. This is a side effect of the method.
+        This is useful because a user can create a job without setting the agents, models, or scenarios, and the job will still run,
+        with us filling in defaults.
+
+        """
+        from edsl.jobs.InterviewsConstructor import InterviewsConstructor
+
+        self.replace_missing_objects()
+        yield from InterviewsConstructor(
+            self, cache=self.running_env.cache
+        ).create_interviews()
+
     def interviews(self) -> list[Interview]:
         """
         Return a list of :class:`edsl.jobs.interviews.Interview` objects.
@@ -437,14 +430,15 @@ class Jobs(Base):
         if hasattr(self, "_interviews"):
             return self._interviews
         else:
-            self.replace_missing_objects()
-            from edsl.jobs.InterviewsConstructor import InterviewsConstructor
+            self._interviews = list(self.generate_interviews())
+            # self.replace_missing_objects()
+            # from edsl.jobs.InterviewsConstructor import InterviewsConstructor
 
-            self._interviews = list(
-                InterviewsConstructor(
-                    self, cache=self.running_env.cache
-                ).create_interviews()
-            )
+            # self._interviews = list(
+            #     InterviewsConstructor(
+            #         self, cache=self.running_env.cache
+            #     ).create_interviews()
+            # )
 
         return self._interviews
 
