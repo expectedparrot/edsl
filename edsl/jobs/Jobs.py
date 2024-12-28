@@ -718,10 +718,6 @@ class Jobs(Base):
 
         self.replace_missing_objects()
 
-        # breakpoint()
-
-        # self._set_config_with_running_env(parameters)
-
         # try to run remotely first
         results = self._setup_and_check()
 
@@ -779,18 +775,60 @@ class Jobs(Base):
         if config.environment.key_lookup is not None:
             self.run_config.environment.key_lookup = config.environment.key_lookup
 
+        # replace the parameters with the ones from the config
+        self.run_config.parameters = config.parameters
+
+        self.replace_missing_objects()
+
+        # try to run remotely first
+        results = self._setup_and_check()
+
+        if results:
+            return results
+
         if config.environment.bucket_collection is None:
             self.run_config.environment.bucket_collection = (
                 self.create_bucket_collection()
             )
 
-        # self._set_config_with_running_env(parameters)
+        if (
+            self.run_config.environment.cache is None
+            or self.run_config.environment.cache is True
+        ):
+            from edsl.data.CacheHandler import CacheHandler
 
-        results = self._setup_and_check()
+            self.run_config.environment.cache = CacheHandler().get_cache()
 
-        if results:
-            return results
+        if self.run_config.environment.cache is False:
+            from edsl.data.Cache import Cache
+
+            self.run_config.environment.cache = Cache(immediate_write=False)
+
         return await self._execute_with_remote_cache(run_job_async=True)
+        return asyncio.run(self._execute_with_remote_cache(run_job_async=False))
+
+        # if config.environment.cache is not None:
+        #     self.run_config.environment.cache = config.environment.cache
+
+        # if config.environment.bucket_collection is not None:
+        #     self.run_config.environment.bucket_collection = (
+        #         config.environment.bucket_collection
+        #     )
+
+        # if config.environment.key_lookup is not None:
+        #     self.run_config.environment.key_lookup = config.environment.key_lookup
+
+        # if config.environment.bucket_collection is None:
+        #     self.run_config.environment.bucket_collection = (
+        #         self.create_bucket_collection()
+        #     )
+
+        # # self._set_config_with_running_env(parameters)
+
+        # results = self._setup_and_check()
+
+        # if results:
+        #     return results
 
     # async def _run_local_async(
     #     self, running_env: Optional[RunningEnvironment] = None, *args, **kwargs

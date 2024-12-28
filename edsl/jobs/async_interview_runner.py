@@ -16,29 +16,16 @@ class InterviewResult:
     order: int
 
 
+from edsl.jobs.Jobs import RunEnvironment, RunParameters, RunConfig
+
+
 class AsyncInterviewRunner:
     MAX_CONCURRENT = 5
 
-    def __init__(
-        self,
-        jobs: "Jobs",
-        n: int,
-        cache: "Cache",
-        stop_on_exception: bool,
-        bucket_collection: "BucketCollection",
-        raise_validation_errors: bool,
-        key_lookup: "KeyLookup",
-        jobs_runner_status: "JobsRunnerStatus",
-    ):
+    def __init__(self, jobs: "Jobs", run_config: RunConfig):
         self.jobs = jobs
-        self.n = n
-        self.cache = cache
-        self.stop_on_exception = stop_on_exception
+        self.run_config = run_config
         self._initialized = asyncio.Event()
-        self.bucket_collection = bucket_collection
-        self.raise_validation_errors = raise_validation_errors
-        self.key_lookup = key_lookup
-        self.jobs_runner_status = jobs_runner_status
 
     def _expand_interviews(self) -> Generator["Interview", None, None]:
         """Populates self.total_interviews with n copies of each interview.
@@ -48,11 +35,13 @@ class AsyncInterviewRunner:
         :param n: how many times to run each interview.
         """
         for interview in self.jobs.generate_interviews():
-            for iteration in range(self.n):
+            for iteration in range(self.run_config.parameters.n):
                 if iteration > 0:
-                    yield interview.duplicate(iteration=iteration, cache=self.cache)
+                    yield interview.duplicate(
+                        iteration=iteration, cache=self.run_config.environment.cache
+                    )
                 else:
-                    interview.cache = self.cache
+                    interview.cache = self.run_config.environment.cache
                     yield interview
 
     async def _conduct_interview(
@@ -69,20 +58,20 @@ class AsyncInterviewRunner:
         This is not the same as the generated_tokens---it can include substantial cleaning and processing / validation.
         """
         # the model buckets are used to track usage rates
-        model_buckets = self.bucket_collection[interview.model]
+        # model_buckets = self.bucket_collection[interview.model]
+        model_buckets = self.run_config.environment.bucket_collection[interview.model]
 
         # get the results of the interview e.g., {'how_are_you':"Good" 'how_are_you_generated_tokens': "Good"}
         extracted_answers: dict[str, str]
         model_response_objects: List[EDSLResultObjectInput]
 
         extracted_answers, model_response_objects = (
-            await interview.async_conduct_interview(
-                model_buckets=model_buckets,
-                stop_on_exception=self.stop_on_exception,
-                raise_validation_errors=self.raise_validation_errors,
-                key_lookup=self.key_lookup,
-            )
+            await interview.async_conduct_interview(self.run_config)
         )
+        # model_buckets=model_buckets,
+        # stop_on_exception=self.run_config.parameters.stop_on_exception,
+        # raise_validation_errors=self.run_config.parameters.raise_validation_errors,
+        # key_lookup=self.run_config.environment.key_lookup,
         result = Result.from_interview(
             interview=interview,
             extracted_answers=extracted_answers,
@@ -106,11 +95,13 @@ class AsyncInterviewRunner:
         ) -> InterviewResult:
             try:
                 result, interview = await self._conduct_interview(interview)
-                self.jobs_runner_status.add_completed_interview(result)
+                self.run_config.environment.jobs_runner_status.add_completed_interview(
+                    result
+                )
                 result.order = idx
                 return InterviewResult(result, interview, idx)
             except Exception as e:
-                if self.stop_on_exception:
+                if self.run_config.parameters.stop_on_exception:
                     raise
                 # logger.error(f"Task failed with error: {e}")
                 return None
@@ -126,7 +117,8 @@ class AsyncInterviewRunner:
             try:
                 # Wait for all tasks in the chunk to complete
                 results = await asyncio.gather(
-                    *tasks, return_exceptions=not self.stop_on_exception
+                    *tasks,
+                    return_exceptions=not self.run_config.parameters.stop_on_exception
                 )
 
                 # Process successful results
@@ -134,7 +126,7 @@ class AsyncInterviewRunner:
                     yield result.result, result.interview
 
             except Exception as e:
-                if self.stop_on_exception:
+                if self.run_config.parameters.stop_on_exception:
                     raise
                 # logger.error(f"Chunk processing failed with error: {e}")
                 continue
