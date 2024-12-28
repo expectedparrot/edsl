@@ -1,5 +1,6 @@
 # """The Jobs class is a collection of agents, scenarios and models and one survey."""
 from __future__ import annotations
+import warnings
 from dataclasses import dataclass, asdict
 import asyncio
 from inspect import signature
@@ -77,6 +78,7 @@ class RunParameters(Base):
     raise_validation_errors: bool = False
     disable_remote_cache: bool = False
     disable_remote_inference: bool = False
+    job_uuid: Optional[str] = None
 
     def to_dict(self, add_edsl_version=False) -> dict:
         d = asdict(self)
@@ -193,20 +195,14 @@ class Jobs(Base):
         :param models: a list of models
         :param scenarios: a list of scenarios
         """
-        self.survey = survey
-        self.agents: AgentList = agents
-        self.scenarios: ScenarioList = scenarios
-        self.models: ModelList = models
-
         self.run_config = RunConfig(
             environment=RunEnvironment(), parameters=RunParameters()
         )
 
-        # self.running_env = RunningEnvironment()
-
-        # self.__bucket_collection = None
-        # self.cache = None
-        # self.key_lookup = None
+        self.survey = survey
+        self.agents: AgentList = agents
+        self.scenarios: ScenarioList = scenarios
+        self.models: ModelList = models
 
     # these setters and getters are used to ensure that the agents, models, and scenarios
     # are stored as AgentList, ModelList, and ScenarioList objects.
@@ -217,6 +213,13 @@ class Jobs(Base):
 
     @property
     def __bucket_collection(self):
+        return self.run_config.environment.bucket_collection
+
+    @property
+    def bucket_collection(self):
+        warnings.warn(
+            "The bucket_collection attribute is deprecated. Use the bucket_collection property instead."
+        )
         return self.run_config.environment.bucket_collection
 
     @property
@@ -286,6 +289,12 @@ class Jobs(Base):
                 self._models = value
         else:
             self._models = ModelList([])
+
+        # update the bucket collection if it exists
+        if self.run_config.environment.bucket_collection is None:
+            self.run_config.environment.bucket_collection = (
+                self.create_bucket_collection()
+            )
 
     @property
     def agents(self):
@@ -500,7 +509,7 @@ class Jobs(Base):
         >>> bc
         BucketCollection(...)
         """
-        self.replace_missing_objects()  # ensure that all objects are present
+        # self.replace_missing_objects()  # ensure that all objects are present
         return BucketCollection.from_models(self.models)
 
     # @property
@@ -655,23 +664,10 @@ class Jobs(Base):
             remote_cache_description=self.run_config.parameters.remote_cache_description,
         ) as r:
             runner = self._prepare_asyncio_runner()
-            required_params = {
-                "n",
-                "progress_bar",
-                "cache",
-                "stop_on_exception",
-                "print_exceptions",
-                "raise_validation_errors",
-            }
-            run_params = {
-                k: v
-                for k, v in self.run_config.parameters.to_dict().items()
-                if k in required_params
-            }
             if run_job_async:
-                results = await runner.run_async(**run_params)
+                results = await runner.run_async(self.run_config.parameters)
             else:
-                results = runner.run(**run_params)
+                results = runner.run(self.run_config.parameters)
         return results
 
     def _setup_and_check(self) -> Tuple[RunConfig, Optional[Results]]:
@@ -685,17 +681,6 @@ class Jobs(Base):
 
         self._check_if_local_keys_ok()
         return None
-
-    # def _set_config_with_running_env(self, run_config: RunConfig):
-    #     if self.running_env.cache is not None:
-    #         run_config.cache = self.running_env.cache
-    #     if self.running_env.bucket_collection is not None:
-    #         run_config.bucket_collection = self.running_env.bucket_collection
-    #     if self.running_env.key_lookup is not None:
-    #         run_config.key_lookup = self.running_env.key_lookup
-
-    #     if self.running_env.bucket_collection is None:
-    #         self.running_env.bucket_collection = self.create_bucket_collection()
 
     @with_config
     def run(self, *, config: RunConfig) -> "Results":
@@ -728,19 +713,39 @@ class Jobs(Base):
         if config.environment.key_lookup is not None:
             self.run_config.environment.key_lookup = config.environment.key_lookup
 
+        # replace the parameters with the ones from the config
+        self.run_config.parameters = config.parameters
+
+        self.replace_missing_objects()
+
+        # breakpoint()
+
+        # self._set_config_with_running_env(parameters)
+
+        # try to run remotely first
+        results = self._setup_and_check()
+
+        if results:
+            return results
+
         if config.environment.bucket_collection is None:
             self.run_config.environment.bucket_collection = (
                 self.create_bucket_collection()
             )
 
-        # self._set_config_with_running_env(parameters)
+        if (
+            self.run_config.environment.cache is None
+            or self.run_config.environment.cache is True
+        ):
+            from edsl.data.CacheHandler import CacheHandler
 
-        results = self._setup_and_check()
+            self.run_config.environment.cache = CacheHandler().get_cache()
 
-        breakpoint()
+        if self.run_config.environment.cache is False:
+            from edsl.data.Cache import Cache
 
-        if results:
-            return results
+            self.run_config.environment.cache = Cache(immediate_write=False)
+
         return asyncio.run(self._execute_with_remote_cache(run_job_async=False))
 
     @with_config

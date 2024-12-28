@@ -288,9 +288,12 @@ def test_jobs_bucket_creator(valid_job):
 
     bc_to_use = valid_job.create_bucket_collection()
 
-    bc = JobsRunnerAsyncio(
-        jobs=valid_job, bucket_collection=bc_to_use
-    ).bucket_collection
+    from edsl.jobs.Jobs import RunEnvironment
+
+    re = RunEnvironment()
+    re.bucket_collection = bc_to_use
+
+    bc = JobsRunnerAsyncio(jobs=valid_job, environment=re).bucket_collection
     assert bc[valid_job.models[0]].requests_bucket.tokens > 10
     assert bc[valid_job.models[0]].tokens_bucket.tokens > 10
 
