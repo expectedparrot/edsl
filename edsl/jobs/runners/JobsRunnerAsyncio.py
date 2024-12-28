@@ -22,10 +22,6 @@ from edsl.jobs.tasks.TaskHistory import TaskHistory
 from edsl.jobs.buckets.BucketCollection import BucketCollection
 from edsl.utilities.decorators import jupyter_nb_handler
 from edsl.data.Cache import Cache
-from edsl.results.Result import Result
-from edsl.language_models.LanguageModel import LanguageModel
-
-from edsl.data_transfer_models import EDSLResultObjectInput
 
 from edsl.jobs.async_interview_runner import AsyncInterviewRunner
 
