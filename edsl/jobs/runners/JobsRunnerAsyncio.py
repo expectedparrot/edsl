@@ -30,6 +30,7 @@ if TYPE_CHECKING:
     from edsl.jobs.interviews import Interview
 
 from edsl.jobs.Jobs import RunEnvironment
+from edsl.jobs.Jobs import RunParameters
 
 
 class JobsRunnerAsyncio:
@@ -41,10 +42,11 @@ class JobsRunnerAsyncio:
 
     def __init__(self, jobs: "Jobs", environment: RunEnvironment):
         self.jobs = jobs
+        self.environment = environment
 
-        self.cache = environment.cache
-        self.bucket_collection: "BucketCollection" = environment.bucket_collection
-        self.key_lookup = environment.key_lookup
+        # self.cache = environment.cache
+        # self.bucket_collection: "BucketCollection" = environment.bucket_collection
+        # self.key_lookup = environment.key_lookup
 
     @property
     def interviews(self):
@@ -54,31 +56,31 @@ class JobsRunnerAsyncio:
         warnings.warn("We are deprecating this!")
         return self.jobs.interviews()
 
-    async def run_async(
-        self,
-        cache: Optional[Cache] = None,
-        n: int = 1,
-        stop_on_exception: bool = False,
-        raise_validation_errors: bool = False,
-        **kwargs,
-    ) -> Results:
+    @property
+    def bucket_collection(self):
+        import warnings
+
+        warnings.warn("We are deprecating this!")
+        return self.environment.bucket_collection
+
+    async def run_async(self, parameters: RunParameters) -> Results:
         """Used for some other modules that have a non-standard way of running interviews."""
-        self.jobs_runner_status = JobsRunnerStatus(self, n=n)
+
+        self.jobs_runner_status = JobsRunnerStatus(self, n=parameters.n)
         data = []
-        self.n = n
-        self.stop_on_exception = stop_on_exception
-        self.raise_validation_errors = raise_validation_errors
         task_history = TaskHistory(include_traceback=False)
 
         result_generator = AsyncInterviewRunner(
             self.jobs,
-            n=n,
-            cache=cache,
-            stop_on_exception=stop_on_exception,
-            bucket_collection=self.bucket_collection,
-            raise_validation_errors=raise_validation_errors,
-            key_lookup=self.key_lookup,
-            jobs_runner_status=self.jobs_runner_status,
+            # Parameters
+            n=parameters.n,
+            stop_on_exception=parameters.stop_on_exception,
+            raise_validation_errors=parameters.raise_validation_errors,
+            # Environment-reated
+            cache=self.environment.cache,
+            bucket_collection=self.environment.bucket_collection,
+            key_lookup=self.environment.key_lookup,
+            jobs_runner_status=self.environment.jobs_runner_status,
         )
 
         async for result, interview in result_generator.run():
@@ -92,63 +94,48 @@ class JobsRunnerAsyncio:
         return Results(survey=self.jobs.survey, data=data)
 
     @jupyter_nb_handler
-    async def run(
-        self,
-        cache: Union[Cache, False, None] = None,
-        n: int = 1,
-        stop_on_exception: bool = False,
-        progress_bar: bool = False,
-        print_exceptions: bool = True,
-        raise_validation_errors: bool = False,
-        jobs_runner_status: Optional[Type[JobsRunnerStatusBase]] = None,
-        job_uuid: Optional[UUID] = None,
-    ) -> "Coroutine":
+    async def run(self, parameters: RunParameters) -> Results:
         """Runs a collection of interviews, handling both async and sync contexts."""
 
-        # results = []
         self.start_time = time.monotonic()
         self.completed = False
-        # self.cache = cache
-
-        if cache:
-            # raise Exception("The cache parameter is not supported in this version.")
-            warnings.warn("The cache parameter is not supported in this version.")
 
         from edsl.coop import Coop
 
         coop = Coop()
         endpoint_url = coop.get_progress_bar_url()
 
-        self.n = n
-        self.stop_on_exception = stop_on_exception
-        self.progress_bar = progress_bar
-        self.print_exceptions = print_exceptions
-        self.raise_validation_errors = raise_validation_errors
-        self.job_uuid = job_uuid
-
         def set_up_jobs_runner_status(jobs_runner_status):
             if jobs_runner_status is not None:
                 return jobs_runner_status(
-                    self, n=self.n, endpoint_url=endpoint_url, job_uuid=self.job_uuid
+                    self,
+                    n=parameters.n,
+                    endpoint_url=endpoint_url,
+                    job_uuid=parameters.job_uuid,
                 )
             else:
                 return JobsRunnerStatus(
-                    self, n=n, endpoint_url=endpoint_url, job_uuid=job_uuid
+                    self,
+                    n=parameters.n,
+                    endpoint_url=endpoint_url,
+                    job_uuid=parameters.job_uuid,
                 )
 
-        self.jobs_runner_status = set_up_jobs_runner_status(jobs_runner_status)
+        jobs_runner_status = set_up_jobs_runner_status(
+            self.environment.jobs_runner_status
+        )
 
         async def get_results(results) -> None:
             """Conducted the interviews and append to the results list."""
             result_generator = AsyncInterviewRunner(
                 self.jobs,
-                n=n,
-                cache=cache,
-                stop_on_exception=stop_on_exception,
-                bucket_collection=self.bucket_collection,
-                raise_validation_errors=raise_validation_errors,
-                key_lookup=self.key_lookup,
-                jobs_runner_status=self.jobs_runner_status,
+                n=parameters.n,
+                cache=self.environment.cache,
+                stop_on_exception=parameters.stop_on_exception,
+                bucket_collection=self.environment.bucket_collection,
+                raise_validation_errors=parameters.raise_validation_errors,
+                key_lookup=self.environment.key_lookup,
+                jobs_runner_status=jobs_runner_status,
             )
             async for result, interview in result_generator.run():
                 results.append(result)
@@ -178,10 +165,12 @@ class JobsRunnerAsyncio:
             survey=self.jobs.survey,
             data=[],
             task_history=TaskHistory(),
-            cache=self.cache.new_entries_cache(),
+            cache=self.environment.cache.new_entries_cache(),
         )
         stop_event = threading.Event()
-        progress_thread = set_up_progress_bar(progress_bar, self.jobs_runner_status)
+        progress_thread = set_up_progress_bar(
+            parameters.progress_bar, jobs_runner_status
+        )
 
         exception_to_raise = None
         try:
@@ -190,7 +179,7 @@ class JobsRunnerAsyncio:
             print("Keyboard interrupt received. Stopping gracefully...")
             stop_event.set()
         except Exception as e:
-            if self.stop_on_exception:
+            if parameters.stop_on_exception:
                 exception_to_raise = e
             stop_event.set()
         finally:
@@ -201,15 +190,15 @@ class JobsRunnerAsyncio:
             if exception_to_raise:
                 raise exception_to_raise
 
-            results.cache = self.cache.new_entries_cache()
-            results.bucket_collection = self.bucket_collection
-            self.handle_results_exceptions(results)
+            results.cache = self.environment.cache.new_entries_cache()
+            results.bucket_collection = self.environment.bucket_collection
+            self.handle_results_exceptions(results, parameters)
             return results
 
-    def handle_results_exceptions(self, results: Results) -> None:
+    def handle_results_exceptions(self, results: Results, parameters) -> None:
         """Prints exceptions and opens the exception report if necessary."""
 
-        if results.has_unfixed_exceptions and self.print_exceptions:
+        if results.has_unfixed_exceptions and parameters.print_exceptions:
             from edsl.scenarios.FileStore import HTMLFileStore
             from edsl.config import CONFIG
             from edsl.coop.coop import Coop
