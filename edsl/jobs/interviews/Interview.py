@@ -21,6 +21,7 @@ from edsl.jobs.InterviewTaskManager import InterviewTaskManager
 from edsl.jobs.FetchInvigilator import FetchInvigilator
 from edsl.jobs.RequestTokenEstimator import RequestTokenEstimator
 
+
 if TYPE_CHECKING:
     from edsl.agents.Agent import Agent
     from edsl.surveys.Survey import Survey
@@ -210,10 +211,11 @@ class Interview:
 
     async def async_conduct_interview(
         self,
-        model_buckets: Optional[ModelBuckets] = None,
-        stop_on_exception: bool = False,
-        raise_validation_errors: bool = True,
-        key_lookup: Optional[KeyLookup] = None,
+        run_config: Optional["RunConfig"] = None,
+        #     model_buckets: Optional[ModelBuckets] = None,
+        #     stop_on_exception: bool = False,
+        #     raise_validation_errors: bool = True,
+        #     key_lookup: Optional[KeyLookup] = None,
     ) -> tuple["Answers", List[dict[str, Any]]]:
         """
         Conduct an Interview asynchronously.
@@ -240,16 +242,30 @@ class Interview:
         ...
         asyncio.exceptions.CancelledError
         """
-        self.stop_on_exception = stop_on_exception
+        from edsl.jobs.Jobs import RunConfig, RunParameters, RunEnvironment
+
+        if run_config is None:
+            run_config = RunConfig(
+                parameters=RunParameters(),
+                environment=RunEnvironment(),
+            )
+        self.stop_on_exception = run_config.parameters.stop_on_exception
 
         # if no model bucket is passed, create an 'infinity' bucket with no rate limits
+        bucket_collection = run_config.environment.bucket_collection
+
+        if bucket_collection:
+            model_buckets = bucket_collection.get(self.model)
+        else:
+            model_buckets = None
+
         if model_buckets is None or hasattr(self.agent, "answer_question_directly"):
             model_buckets = ModelBuckets.infinity_bucket()
 
         # was "self.tasks" - is that necessary?
         self.tasks = self.task_manager.build_question_tasks(
             answer_func=AnswerQuestionFunctionConstructor(
-                self, key_lookup=key_lookup
+                self, key_lookup=run_config.environment.key_lookup
             )(),
             token_estimator=RequestTokenEstimator(self),
             model_buckets=model_buckets,
@@ -260,10 +276,14 @@ class Interview:
 
         ## 'Invigilators' are used to administer the survey.
         fetcher = FetchInvigilator(
-            interview=self, current_answers=self.answers, key_lookup=key_lookup
+            interview=self,
+            current_answers=self.answers,
+            key_lookup=run_config.environment.key_lookup,
         )
         self.invigilators = [fetcher(question) for question in self.survey.questions]
-        await asyncio.gather(*self.tasks, return_exceptions=not stop_on_exception)
+        await asyncio.gather(
+            *self.tasks, return_exceptions=not run_config.parameters.stop_on_exception
+        )
         self.answers.replace_missing_answers_with_none(self.survey)
         valid_results = list(
             self._extract_valid_results(self.tasks, self.invigilators, self.exceptions)

@@ -29,8 +29,7 @@ if TYPE_CHECKING:
     from edsl.language_models.key_management.KeyLookup import KeyLookup
     from edsl.jobs.interviews import Interview
 
-from edsl.jobs.Jobs import RunEnvironment
-from edsl.jobs.Jobs import RunParameters
+from edsl.jobs.Jobs import RunEnvironment, RunParameters, RunConfig
 
 
 class JobsRunnerAsyncio:
@@ -70,18 +69,8 @@ class JobsRunnerAsyncio:
         data = []
         task_history = TaskHistory(include_traceback=False)
 
-        result_generator = AsyncInterviewRunner(
-            self.jobs,
-            # Parameters
-            n=parameters.n,
-            stop_on_exception=parameters.stop_on_exception,
-            raise_validation_errors=parameters.raise_validation_errors,
-            # Environment-reated
-            cache=self.environment.cache,
-            bucket_collection=self.environment.bucket_collection,
-            key_lookup=self.environment.key_lookup,
-            jobs_runner_status=self.environment.jobs_runner_status,
-        )
+        run_config = RunConfig(parameters=parameters, environment=self.environment)
+        result_generator = AsyncInterviewRunner(self.jobs, run_config)
 
         async for result, interview in result_generator.run():
             data.append(result)
@@ -96,6 +85,8 @@ class JobsRunnerAsyncio:
     @jupyter_nb_handler
     async def run(self, parameters: RunParameters) -> Results:
         """Runs a collection of interviews, handling both async and sync contexts."""
+
+        run_config = RunConfig(parameters=parameters, environment=self.environment)
 
         self.start_time = time.monotonic()
         self.completed = False
@@ -121,22 +112,13 @@ class JobsRunnerAsyncio:
                     job_uuid=parameters.job_uuid,
                 )
 
-        jobs_runner_status = set_up_jobs_runner_status(
+        run_config.environment.jobs_runner_status = set_up_jobs_runner_status(
             self.environment.jobs_runner_status
         )
 
         async def get_results(results) -> None:
             """Conducted the interviews and append to the results list."""
-            result_generator = AsyncInterviewRunner(
-                self.jobs,
-                n=parameters.n,
-                cache=self.environment.cache,
-                stop_on_exception=parameters.stop_on_exception,
-                bucket_collection=self.environment.bucket_collection,
-                raise_validation_errors=parameters.raise_validation_errors,
-                key_lookup=self.environment.key_lookup,
-                jobs_runner_status=jobs_runner_status,
-            )
+            result_generator = AsyncInterviewRunner(self.jobs, run_config)
             async for result, interview in result_generator.run():
                 results.append(result)
                 results.task_history.add_interview(interview)
@@ -169,7 +151,7 @@ class JobsRunnerAsyncio:
         )
         stop_event = threading.Event()
         progress_thread = set_up_progress_bar(
-            parameters.progress_bar, jobs_runner_status
+            parameters.progress_bar, run_config.environment.jobs_runner_status
         )
 
         exception_to_raise = None
