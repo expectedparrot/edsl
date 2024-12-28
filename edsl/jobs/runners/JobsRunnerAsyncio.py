@@ -29,6 +29,8 @@ if TYPE_CHECKING:
     from edsl.language_models.key_management.KeyLookup import KeyLookup
     from edsl.jobs.interviews import Interview
 
+from edsl.jobs.Jobs import RunEnvironment
+
 
 class JobsRunnerAsyncio:
     """A class for running a collection of interviews asynchronously.
@@ -37,18 +39,12 @@ class JobsRunnerAsyncio:
     The Jobs object is a collection of interviews that are to be run.
     """
 
-    def __init__(
-        self,
-        jobs: "Jobs",
-        bucket_collection: "BucketCollection",
-        key_lookup: Optional[KeyLookup] = None,
-        cache: Optional[Cache] = None,
-    ):
+    def __init__(self, jobs: "Jobs", environment: RunEnvironment):
         self.jobs = jobs
 
-        self.cache = cache
-        self.bucket_collection: "BucketCollection" = bucket_collection
-        self.key_lookup = key_lookup
+        self.cache = environment.cache
+        self.bucket_collection: "BucketCollection" = environment.bucket_collection
+        self.key_lookup = environment.key_lookup
 
     @property
     def interviews(self):
