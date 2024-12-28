@@ -276,7 +276,7 @@ class TestSurvey(unittest.TestCase):
 
         assert (
             "".join(["".join(l) for l in color_list.to_list()])
-            == "BlueGreenRedBlueRedGreenBlueRedGreenBlueGreenRedGreenRedBlueGreenBlueRedGreenBlueRedRedBlueGreenBlueRedGreenGreenBlueRed"
+            == "RedBlueGreenBlueGreenRedRedBlueGreenBlueGreenRedRedGreenBlueRedBlueGreenRedGreenBlueRedGreenBlueBlueGreenRedGreenRedBlue"
         )
 
 
