@@ -187,7 +187,7 @@ class Coop(CoopFunctionsMixin):
                 server_version_str=server_edsl_version,
             ):
                 print(
-                    "Please upgrade your EDSL version to access our latest features. To upgrade, open your terminal and run `pip upgrade edsl`"
+                    "Please upgrade your EDSL version to access our latest features. To upgrade, open your terminal and run `pip install --upgrade edsl`"
                 )
 
         if response.status_code >= 400:
