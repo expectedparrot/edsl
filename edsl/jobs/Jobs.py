@@ -662,7 +662,7 @@ class Jobs(Base):
             output_func=self._output,
             remote_cache=use_remote_cache,
             remote_cache_description=self.run_config.parameters.remote_cache_description,
-        ) as r:
+        ):
             runner = self._prepare_asyncio_runner()
             if run_job_async:
                 results = await runner.run_async(self.run_config.parameters)
@@ -804,7 +804,8 @@ class Jobs(Base):
 
             self.run_config.environment.cache = Cache(immediate_write=False)
 
-        return await self._execute_with_remote_cache(run_job_async=True)
+        results = await self._execute_with_remote_cache(run_job_async=True)
+        return results
         return asyncio.run(self._execute_with_remote_cache(run_job_async=False))
 
         # if config.environment.cache is not None:
