@@ -55,15 +55,15 @@ except ImportError:
 
 
 @dataclass
-class RunningEnvironment:
+class RunEnvironment:
     cache: Optional[Cache] = None
     bucket_collection: Optional[BucketCollection] = None
     key_lookup: Optional[KeyLookup] = None
+    jobs_runner_status: Optional["JobsRunnerStatus"] = None
 
 
 @dataclass
-class RunConfig(Base):
-    "This is configuration information for running a job."
+class RunParameters(Base):
     n: int = 1
     progress_bar: bool = False
     stop_on_exception: bool = False
@@ -77,11 +77,6 @@ class RunConfig(Base):
     raise_validation_errors: bool = False
     disable_remote_cache: bool = False
     disable_remote_inference: bool = False
-    # primarily set with 'using' methods but still here for backwards compatibility
-    cache: Union["Cache", bool] = None
-    bucket_collection: Optional[BucketCollection] = None
-    key_lookup: Optional[KeyLookup] = None
-    jobs_runner_status: Optional["JobsRunnerStatus"] = None
 
     def to_dict(self, add_edsl_version=False) -> dict:
         d = asdict(self)
@@ -104,6 +99,24 @@ class RunConfig(Base):
         return cls()
 
 
+@dataclass
+class RunConfig:
+    environment: RunEnvironment
+    parameters: RunParameters
+
+    def add_environment(self, environment: RunEnvironment):
+        self.environment = environment
+
+    def add_bucket_collection(self, bucket_collection: BucketCollection):
+        self.environment.bucket_collection = bucket_collection
+
+    def add_cache(self, cache: Cache):
+        self.environment.cache = cache
+
+    def add_key_lookup(self, key_lookup: KeyLookup):
+        self.environment.key_lookup = key_lookup
+
+
 P = ParamSpec("P")
 T = TypeVar("T")
 
@@ -123,27 +136,40 @@ from edsl.jobs.check_survey_scenario_compatibility import (
 
 def with_config(f: Callable[P, T]) -> Callable[P, T]:
     "This decorator make it so that the run function parameters match the RunConfig dataclass."
-    config_params = {
-        name: field.default for name, field in RunConfig.__dataclass_fields__.items()
+    parameter_fields = {
+        name: field.default
+        for name, field in RunParameters.__dataclass_fields__.items()
     }
+    environment_fields = {
+        name: field.default
+        for name, field in RunEnvironment.__dataclass_fields__.items()
+    }
+    combined = {**parameter_fields, **environment_fields}
 
     @wraps(f)
     def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
-        config = RunConfig(**kwargs)
+        environment = RunEnvironment(
+            **{k: v for k, v in kwargs.items() if k in environment_fields}
+        )
+        parameters = RunParameters(
+            **{k: v for k, v in kwargs.items() if k in parameter_fields}
+        )
+        config = RunConfig(environment=environment, parameters=parameters)
         return f(*args, config=config)
 
     # Update the wrapper's signature to include all RunConfig parameters
-    old_sig = signature(f)
-    wrapper.__signature__ = old_sig.replace(
-        parameters=list(old_sig.parameters.values())[:-1]
-        + [
-            old_sig.parameters["config"].replace(default=config_params[name], name=name)
-            for name in config_params
-        ]
-    )
+    # old_sig = signature(f)
+    # wrapper.__signature__ = old_sig.replace(
+    #     parameters=list(old_sig.parameters.values())[:-1]
+    #     + [
+    #         old_sig.parameters["config"].replace(
+    #             default=parameter_fields[name], name=name
+    #         )
+    #         for name in combined
+    #     ]
+    # )
 
     return cast(Callable[P, T], wrapper)
-
 
 
 class Jobs(Base):
@@ -172,17 +198,33 @@ class Jobs(Base):
         self.scenarios: ScenarioList = scenarios
         self.models: ModelList = models
 
-        self.running_env = RunningEnvironment()
+        self.run_config = RunConfig(
+            environment=RunEnvironment(), parameters=RunParameters()
+        )
 
-        self.__bucket_collection = None
-        self.cache = None
-        self.key_lookup = None
+        # self.running_env = RunningEnvironment()
+
+        # self.__bucket_collection = None
+        # self.cache = None
+        # self.key_lookup = None
 
     # these setters and getters are used to ensure that the agents, models, and scenarios
     # are stored as AgentList, ModelList, and ScenarioList objects.
 
-    def add_running_env(self, running_env: RunningEnvironment):
-        self.running_env = running_env
+    @property
+    def cache(self):
+        return self.run_config.environment.cache
+
+    @property
+    def __bucket_collection(self):
+        return self.run_config.environment.bucket_collection
+
+    @property
+    def key_lookup(self):
+        return self.run_config.environment.key_lookup
+
+    def add_running_env(self, running_env: RunEnvironment):
+        self.run_config.add_environment(running_env)
         return self
 
     def using_cache(self, cache: "Cache") -> Jobs:
@@ -191,8 +233,7 @@ class Jobs(Base):
 
         :param cache: the cache to add
         """
-        self.cache = cache
-        self.running_env.cache = cache
+        self.run_config.add_cache(cache)
         return self
 
     def using_bucket_collection(self, bucket_collection: BucketCollection) -> Jobs:
@@ -201,8 +242,7 @@ class Jobs(Base):
 
         :param bucket_collection: the bucket collection to add
         """
-        self.__bucket_collection = bucket_collection
-        self.running_env.bucket_collection = bucket_collection
+        self.run_config.add_bucket_collection(bucket_collection)
         return self
 
     def using_key_lookup(self, key_lookup: KeyLookup) -> Jobs:
@@ -211,8 +251,7 @@ class Jobs(Base):
 
         :param key_lookup: the key lookup to add
         """
-        self.key_lookup = key_lookup
-        self.running_env.key_lookup = key_lookup
+        self.run_config.add_key_lookup(key_lookup)
         return self
 
     def using(self, obj: Union[Cache, BucketCollection, KeyLookup]) -> Jobs:
@@ -410,7 +449,7 @@ class Jobs(Base):
 
         self.replace_missing_objects()
         yield from InterviewsConstructor(
-            self, cache=self.running_env.cache
+            self, cache=self.run_config.environment.cache
         ).create_interviews()
 
     def interviews(self) -> list[Interview]:
@@ -431,15 +470,6 @@ class Jobs(Base):
             return self._interviews
         else:
             self._interviews = list(self.generate_interviews())
-            # self.replace_missing_objects()
-            # from edsl.jobs.InterviewsConstructor import InterviewsConstructor
-
-            # self._interviews = list(
-            #     InterviewsConstructor(
-            #         self, cache=self.running_env.cache
-            #     ).create_interviews()
-            # )
-
         return self._interviews
 
     @classmethod
@@ -473,12 +503,12 @@ class Jobs(Base):
         self.replace_missing_objects()  # ensure that all objects are present
         return BucketCollection.from_models(self.models)
 
-    @property
-    def bucket_collection(self) -> BucketCollection:
-        """Return the bucket collection. If it does not exist, create it."""
-        if self.__bucket_collection is None:
-            self.__bucket_collection = self.create_bucket_collection()
-        return self.__bucket_collection
+    # @property
+    # def bucket_collection(self) -> BucketCollection:
+    #     """Return the bucket collection. If it does not exist, create it."""
+    #     if self.__bucket_collection is None:
+    #         self.__bucket_collection = self.create_bucket_collection()
+    #     return self.__bucket_collection
 
     def html(self):
         """Return the HTML representations for each scenario"""
@@ -518,22 +548,24 @@ class Jobs(Base):
 
     @property
     def skip_retry(self):
-        if not hasattr(self, "_skip_retry"):
-            return False
-        return self._skip_retry
+        return self.run_config.parameters.skip_retry
+        # if not hasattr(self, "_skip_retry"):
+        #     return False
+        # return self._skip_retry
 
     @property
     def raise_validation_errors(self):
-        if not hasattr(self, "_raise_validation_errors"):
-            return False
-        return self._raise_validation_errors
+        return self.run_config.parameters.raise_validation_errors
+        # if not hasattr(self, "_raise_validation_errors"):
+        #     return False
+        # return self._raise_validation_errors
 
-    def use_remote_cache(self, disable_remote_cache: bool) -> bool:
+    def use_remote_cache(self) -> bool:
         import requests
 
-        if disable_remote_cache:
+        if self.run_config.parameters.disable_remote_cache:
             return False
-        if not disable_remote_cache:
+        if not self.run_config.parameters.disable_remote_cache:
             try:
                 from edsl.coop.coop import Coop
 
@@ -548,96 +580,93 @@ class Jobs(Base):
 
     def _remote_results(
         self,
-        run_config: RunConfig,
     ) -> Union["Results", None]:
         from edsl.jobs.JobsRemoteInferenceHandler import JobsRemoteInferenceHandler
 
-        jh = JobsRemoteInferenceHandler(self, verbose=run_config.verbose)
-        if jh.use_remote_inference(run_config.disable_remote_inference):
+        parameters = self.run_config.parameters
+
+        jh = JobsRemoteInferenceHandler(self, verbose=parameters.verbose)
+        if jh.use_remote_inference(parameters.disable_remote_inference):
             job_info = jh.create_remote_inference_job(
-                iterations=run_config.n,
-                remote_inference_description=run_config.remote_inference_description,
-                remote_inference_results_visibility=run_config.remote_inference_results_visibility,
+                iterations=parameters.n,
+                remote_inference_description=parameters.remote_inference_description,
+                remote_inference_results_visibility=parameters.remote_inference_results_visibility,
             )
             results = jh.poll_remote_inference_job(job_info)
             return results
         else:
             return None
 
-    def _prepare_to_run(self, run_config: RunConfig):
+    def _prepare_to_run(self):
         "This makes sure that the job is ready to run and that keys are in place for a remote job."
         CheckSurveyScenarioCompatibility(self.survey, self.scenarios).check()
-        self._skip_retry = run_config.skip_retry
-        self._raise_validation_errors = run_config.raise_validation_errors
-        self.verbose = run_config.verbose
 
-    def _check_if_remote_keys_ok(self, run_config: RunConfig):
+    def _check_if_remote_keys_ok(self):
         jc = JobsChecks(self)
         if jc.needs_key_process():
             jc.key_process()
 
-    def _check_if_local_keys_ok(self, run_config: RunConfig):
+    def _check_if_local_keys_ok(self):
         jc = JobsChecks(self)
-        if run_config.check_api_keys:
+        if self.run_config.parameters.check_api_keys:
             jc.check_api_keys()
 
-    def _config_for_local_running(
-        self, run_config: RunConfig
-    ) -> "LocallyRunningConfig":
+    def _config_for_local_running(self) -> "LocallyRunningConfig":
         """These are the configurations for running the job locally."""
-        cache = run_config.cache
+        cache = self.run_config.environment.cache
 
-        # assert cache.name == "example"
-
-        if run_config.cache is None or run_config.cache is True:
+        if (
+            self.run_config.environment.cache is None
+            or self.run_config.environment.cache is True
+        ):
             from edsl.data.CacheHandler import CacheHandler
 
             cache = CacheHandler().get_cache()
 
-        if run_config.cache is False:
+        if self.run_config.environment.cache is False:
             from edsl.data.Cache import Cache
 
             cache = Cache(immediate_write=False)
 
-        if run_config.bucket_collection is None:
+        if self.run_config.environment.bucket_collection is None:
             bucket_collection = self.create_bucket_collection()
         else:
-            bucket_collection = run_config.bucket_collection
+            bucket_collection = self.run_config.environment.bucket_collection
 
-        remote_cache = self.use_remote_cache(run_config.disable_remote_cache)
+        use_remote_cache = self.use_remote_cache()
         return LocallyRunningConfig(
-            cache, bucket_collection, remote_cache, key_lookup=run_config.key_lookup
+            cache,
+            bucket_collection,
+            use_remote_cache,
+            key_lookup=self.run_config.environment.key_lookup,
         )
 
-    async def _execute_with_remote_cache(
-        self, run_config: RunConfig, run_job_async: bool
-    ) -> Results:
-        locally_running_config = self._config_for_local_running(run_config)
+    async def _execute_with_remote_cache(self, run_job_async: bool) -> Results:
+
+        use_remote_cache = self.use_remote_cache()
 
         from edsl.coop.coop import Coop
 
         with RemoteCacheSync(
             coop=Coop(),
-            cache=locally_running_config.cache,
+            cache=self.run_config.environment.cache,
             output_func=self._output,
-            remote_cache=locally_running_config.remote_cache,
-            remote_cache_description=run_config.remote_cache_description,
+            remote_cache=use_remote_cache,
+            remote_cache_description=self.run_config.parameters.remote_cache_description,
         ) as r:
-            running_env = RunningEnvironment(
-                cache=locally_running_config.cache,
-                bucket_collection=locally_running_config.bucket_collection,
-                key_lookup=locally_running_config.key_lookup,
-            )
-            runner = self._prepare_asyncio_runner(running_env)
+            runner = self._prepare_asyncio_runner()
+            required_params = {
+                "n",
+                "progress_bar",
+                "cache",
+                "stop_on_exception",
+                "print_exceptions",
+                "raise_validation_errors",
+            }
             run_params = {
-                "n": run_config.n,
-                "progress_bar": run_config.progress_bar,
-                "cache": locally_running_config.cache,
-                "stop_on_exception": run_config.stop_on_exception,
-                "print_exceptions": run_config.print_exceptions,
-                "raise_validation_errors": run_config.raise_validation_errors,
-                # "bucket_collection": locally_running_config.bucket_collection,
-                # "key_lookup": locally_running_config.key_lookup,
+                k: v
+                for k, v in self.run_config.parameters.to_dict().items()
+                if k in required_params
             }
             if run_job_async:
                 results = await runner.run_async(**run_params)
@@ -645,32 +674,31 @@ class Jobs(Base):
                 results = runner.run(**run_params)
         return results
 
-    def _setup_and_check(
-        self, run_config: RunConfig
-    ) -> Tuple[RunConfig, Optional[Results]]:
-        self._prepare_to_run(run_config)
-        self._check_if_remote_keys_ok(run_config)
+    def _setup_and_check(self) -> Tuple[RunConfig, Optional[Results]]:
+
+        self._prepare_to_run()
+        self._check_if_remote_keys_ok()
 
         # first try to run the job remotely
-        if results := self._remote_results(run_config):
-            return run_config, results
+        if results := self._remote_results():
+            return results
 
-        self._check_if_local_keys_ok(run_config)
-        return run_config, None
+        self._check_if_local_keys_ok()
+        return None
 
-    def _set_config_with_running_env(self, run_config: RunConfig):
-        if self.running_env.cache is not None:
-            run_config.cache = self.running_env.cache
-        if self.running_env.bucket_collection is not None:
-            run_config.bucket_collection = self.running_env.bucket_collection
-        if self.running_env.key_lookup is not None:
-            run_config.key_lookup = self.running_env.key_lookup
+    # def _set_config_with_running_env(self, run_config: RunConfig):
+    #     if self.running_env.cache is not None:
+    #         run_config.cache = self.running_env.cache
+    #     if self.running_env.bucket_collection is not None:
+    #         run_config.bucket_collection = self.running_env.bucket_collection
+    #     if self.running_env.key_lookup is not None:
+    #         run_config.key_lookup = self.running_env.key_lookup
 
-        if self.running_env.bucket_collection is None:
-            self.running_env.bucket_collection = self.create_bucket_collection()
+    #     if self.running_env.bucket_collection is None:
+    #         self.running_env.bucket_collection = self.create_bucket_collection()
 
     @with_config
-    def run(self, *, config: RunConfig):
+    def run(self, *, config: RunConfig) -> "Results":
         """
         Runs the Job: conducts Interviews and returns their results.
 
@@ -688,72 +716,119 @@ class Jobs(Base):
         :param bucket_collection: A BucketCollection object to track API calls
         :param key_lookup: A KeyLookup object to manage API keys
         """
-        self._set_config_with_running_env(config)
 
-        run_config, results = self._setup_and_check(config)
+        if config.environment.cache is not None:
+            self.run_config.environment.cache = config.environment.cache
+
+        if config.environment.bucket_collection is not None:
+            self.run_config.environment.bucket_collection = (
+                config.environment.bucket_collection
+            )
+
+        if config.environment.key_lookup is not None:
+            self.run_config.environment.key_lookup = config.environment.key_lookup
+
+        if config.environment.bucket_collection is None:
+            self.run_config.environment.bucket_collection = (
+                self.create_bucket_collection()
+            )
+
+        # self._set_config_with_running_env(parameters)
+
+        results = self._setup_and_check()
+
+        breakpoint()
+
         if results:
             return results
-        return asyncio.run(
-            self._execute_with_remote_cache(run_config, run_job_async=False)
-        )
+        return asyncio.run(self._execute_with_remote_cache(run_job_async=False))
 
     @with_config
     async def run_async(self, *, config: RunConfig) -> "Results":
-        """Runs the Job asynchronously: conducts Interviews and returns their results."""
-        self._set_config_with_running_env(config)
-        run_config, results = self._setup_and_check(config)
+        """
+        Runs the Job: conducts Interviews and returns their results.
+
+        :param n: How many times to run each interview
+        :param progress_bar: Whether to show a progress bar
+        :param stop_on_exception: Stops the job if an exception is raised
+        :param check_api_keys: Raises an error if API keys are invalid
+        :param verbose: Prints extra messages
+        :param remote_cache_description: Specifies a description for this group of entries in the remote cache
+        :param remote_inference_description: Specifies a description for the remote inference job
+        :param remote_inference_results_visibility: The initial visibility of the Results object on Coop. This will only be used for remote jobs!
+        :param disable_remote_cache: If True, the job will not use remote cache. This only works for local jobs!
+        :param disable_remote_inference: If True, the job will not use remote inference
+        :param cache: A Cache object to store results
+        :param bucket_collection: A BucketCollection object to track API calls
+        :param key_lookup: A KeyLookup object to manage API keys
+        """
+
+        if config.environment.cache is not None:
+            self.run_config.environment.cache = config.environment.cache
+
+        if config.environment.bucket_collection is not None:
+            self.run_config.environment.bucket_collection = (
+                config.environment.bucket_collection
+            )
+
+        if config.environment.key_lookup is not None:
+            self.run_config.environment.key_lookup = config.environment.key_lookup
+
+        if config.environment.bucket_collection is None:
+            self.run_config.environment.bucket_collection = (
+                self.create_bucket_collection()
+            )
+
+        # self._set_config_with_running_env(parameters)
+
+        results = self._setup_and_check()
 
         if results:
             return results
-        return await self._execute_with_remote_cache(run_config, run_job_async=True)
+        return await self._execute_with_remote_cache(run_job_async=True)
 
-    async def _run_local_async(
-        self, running_env: Optional[RunningEnvironment] = None, *args, **kwargs
-    ) -> "Results":
-        """Run the job locally but asynchronously."""
-        if running_env is None:
-            import warnings
+    # async def _run_local_async(
+    #     self, running_env: Optional[RunningEnvironment] = None, *args, **kwargs
+    # ) -> "Results":
+    #     """Run the job locally but asynchronously."""
+    #     if running_env is None:
+    #         import warnings
 
-            warnings.warn(
-                "Calling _run_local_async without the running_env is deprecated and will be removed in a future version.",
-                DeprecationWarning,
-            )
-            running_env = RunningEnvironment(
-                cache=kwargs.get("cache"),
-                bucket_collection=kwargs.get("bucket_collection"),
-                key_lookup=kwargs.get("key_lookup"),
-            )
-        return await self._prepare_asyncio_runner(running_env).run_async(
-            *args, **kwargs
-        )
+    #         warnings.warn(
+    #             "Calling _run_local_async without the running_env is deprecated and will be removed in a future version.",
+    #             DeprecationWarning,
+    #         )
+    #         running_env = RunningEnvironment(
+    #             cache=kwargs.get("cache"),
+    #             bucket_collection=kwargs.get("bucket_collection"),
+    #             key_lookup=kwargs.get("key_lookup"),
+    #         )
+    #     return await self._prepare_asyncio_runner().run_async(
+    #         *args, **kwargs
+    #     )
 
-    def _run_local(
-        self, running_env: Optional[RunningEnvironment] = None, *args, **kwargs
-    ) -> "Results":
-        """Run the job locally."""
-        if running_env is None:
-            import warnings
+    # def _run_local(
+    #     self, running_env: Optional[RunningEnvironment] = None, *args, **kwargs
+    # ) -> "Results":
+    #     """Run the job locally."""
+    #     if running_env is None:
+    #         import warnings
 
-            warnings.warn(
-                "Calling _run_local_async without the running_env is deprecated and will be removed in a future version.",
-                DeprecationWarning,
-            )
-            running_env = RunningEnvironment(
-                cache=kwargs.get("cache"),
-                bucket_collection=kwargs.get("bucket_collection"),
-                key_lookup=kwargs.get("key_lookup"),
-            )
-        return self._prepare_asyncio_runner(running_env).run(*args, **kwargs)
+    #         warnings.warn(
+    #             "Calling _run_local_async without the running_env is deprecated and will be removed in a future version.",
+    #             DeprecationWarning,
+    #         )
+    #         running_env = RunningEnvironment(
+    #             cache=kwargs.get("cache"),
+    #             bucket_collection=kwargs.get("bucket_collection"),
+    #             key_lookup=kwargs.get("key_lookup"),
+    #         )
+    #     return self._prepare_asyncio_runner(running_env).run(*args, **kwargs)
 
-    def _prepare_asyncio_runner(self, running_env: RunningEnvironment):
+    def _prepare_asyncio_runner(self):
         from edsl.jobs.runners.JobsRunnerAsyncio import JobsRunnerAsyncio
 
-        return JobsRunnerAsyncio(
-            self,
-            bucket_collection=running_env.bucket_collection,
-            key_lookup=running_env.key_lookup,
-            cache=running_env.cache,
-        )
+        return JobsRunnerAsyncio(self, environment=self.run_config.environment)
 
     def __repr__(self) -> str:
         """Return an eval-able string representation of the Jobs instance."""
