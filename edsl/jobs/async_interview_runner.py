@@ -90,7 +90,7 @@ class AsyncInterviewRunner:
         )
         return result, interview
 
-    async def run_async_generator(
+    async def run(
         self,
     ) -> AsyncGenerator[tuple[Result, Interview], None]:
         """Creates and processes tasks asynchronously, yielding results as they complete.
