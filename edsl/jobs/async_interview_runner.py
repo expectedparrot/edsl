@@ -16,7 +16,7 @@ class InterviewResult:
     order: int
 
 
-from edsl.jobs.Jobs import RunEnvironment, RunParameters, RunConfig
+from edsl.jobs.Jobs import RunConfig
 
 
 class AsyncInterviewRunner:
@@ -59,7 +59,7 @@ class AsyncInterviewRunner:
         """
         # the model buckets are used to track usage rates
         # model_buckets = self.bucket_collection[interview.model]
-        model_buckets = self.run_config.environment.bucket_collection[interview.model]
+        # model_buckets = self.run_config.environment.bucket_collection[interview.model]
 
         # get the results of the interview e.g., {'how_are_you':"Good" 'how_are_you_generated_tokens': "Good"}
         extracted_answers: dict[str, str]
@@ -68,10 +68,6 @@ class AsyncInterviewRunner:
         extracted_answers, model_response_objects = (
             await interview.async_conduct_interview(self.run_config)
         )
-        # model_buckets=model_buckets,
-        # stop_on_exception=self.run_config.parameters.stop_on_exception,
-        # raise_validation_errors=self.run_config.parameters.raise_validation_errors,
-        # key_lookup=self.run_config.environment.key_lookup,
         result = Result.from_interview(
             interview=interview,
             extracted_answers=extracted_answers,
@@ -101,6 +97,7 @@ class AsyncInterviewRunner:
                 result.order = idx
                 return InterviewResult(result, interview, idx)
             except Exception as e:
+                # breakpoint()
                 if self.run_config.parameters.stop_on_exception:
                     raise
                 # logger.error(f"Task failed with error: {e}")

@@ -237,7 +237,10 @@ class Interview:
         >>> i.exceptions
         {'q0': ...
         >>> i = Interview.example()
-        >>> result, _ = asyncio.run(i.async_conduct_interview(stop_on_exception = True))
+        >>> from edsl.jobs.Jobs import RunConfig, RunParameters, RunEnvironment
+        >>> run_config = RunConfig(parameters = RunParameters(), environment = RunEnvironment())
+        >>> run_config.parameters.stop_on_exception = True
+        >>> result, _ = asyncio.run(i.async_conduct_interview(run_config))
         Traceback (most recent call last):
         ...
         asyncio.exceptions.CancelledError

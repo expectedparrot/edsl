@@ -65,7 +65,7 @@ class JobsRunnerAsyncio:
     async def run_async(self, parameters: RunParameters) -> Results:
         """Used for some other modules that have a non-standard way of running interviews."""
 
-        self.jobs_runner_status = JobsRunnerStatus(self, n=parameters.n)
+        self.environment.jobs_runner_status = JobsRunnerStatus(self, n=parameters.n)
         data = []
         task_history = TaskHistory(include_traceback=False)
 
