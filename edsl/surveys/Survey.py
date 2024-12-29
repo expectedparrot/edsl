@@ -938,10 +938,12 @@ class Survey(SurveyExportMixin, Base):
         # TODO: temp fix by creating a cache
         if cache is None:
             from edsl.data import Cache
-
             c = Cache()
         else:
             c = cache
+
+        
+
         jobs: "Jobs" = self.get_job(model=model, agent=agent, **kwargs).using(c)
         return await jobs.run_async(
             disable_remote_inference=disable_remote_inference,
