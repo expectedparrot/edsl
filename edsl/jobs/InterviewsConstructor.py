@@ -40,8 +40,8 @@ class InterviewsConstructor:
                 scenario=scenario,
                 model=model,
                 cache=self.cache,
-                skip_retry=self.jobs.skip_retry,
-                raise_validation_errors=self.jobs.raise_validation_errors,
+                skip_retry=self.jobs.run_config.parameters.skip_retry,
+                raise_validation_errors=self.jobs.run_config.parameters.raise_validation_errors,
                 indices={
                     "agent": agent_index[hash(agent)],
                     "model": model_index[hash(model)],
