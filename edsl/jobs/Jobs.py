@@ -504,6 +504,9 @@ class Jobs(Base):
 
         from edsl.coop.coop import Coop
         from edsl.jobs.runners.JobsRunnerAsyncio import JobsRunnerAsyncio
+        from edsl.data.Cache import Cache
+
+        assert isinstance(self.run_config.environment.cache, Cache)
 
         with RemoteCacheSync(
             coop=Coop(),
@@ -557,15 +560,8 @@ class Jobs(Base):
         self.replace_missing_objects()
 
         # try to run remotely first
-        results = self._setup_and_check()
-
-        if results:
-            return results
-
-        if config.environment.bucket_collection is None:
-            self.run_config.environment.bucket_collection = (
-                self.create_bucket_collection()
-            )
+        self._prepare_to_run()
+        self._check_if_remote_keys_ok()
 
         if (
             self.run_config.environment.cache is None
@@ -579,6 +575,17 @@ class Jobs(Base):
             from edsl.data.Cache import Cache
 
             self.run_config.environment.cache = Cache(immediate_write=False)
+
+        # first try to run the job remotely
+        if results := self._remote_results():
+            return results
+
+        self._check_if_local_keys_ok()
+
+        if config.environment.bucket_collection is None:
+            self.run_config.environment.bucket_collection = (
+                self.create_bucket_collection()
+            )
 
     @with_config
     def run(self, *, config: RunConfig) -> "Results":
