@@ -30,22 +30,6 @@ class JobsRunnerAsyncio:
     def __len__(self):
         return len(self.jobs)
 
-    @property
-    def interviews(self):
-        "Interviews associated with the job runner; still deprecate"
-        import warnings
-
-        raise Exception("We are deprecating this!")
-        warnings.warn("We are deprecating this!")
-        return self.jobs.interviews()
-
-    @property
-    def bucket_collection(self):
-        import warnings
-
-        warnings.warn("We are deprecating this!")
-        return self.environment.bucket_collection
-
     async def run_async(self, parameters: RunParameters) -> Results:
         """Used for some other modules that have a non-standard way of running interviews."""
 
@@ -158,55 +142,10 @@ class JobsRunnerAsyncio:
 
             results.cache = self.environment.cache.new_entries_cache()
             results.bucket_collection = self.environment.bucket_collection
-            self.handle_results_exceptions(results, parameters)
+
+            from edsl.jobs.results_exceptions_handler import ResultsExceptionsHandler
+
+            results_exceptions_handler = ResultsExceptionsHandler(results, parameters)
+
+            results_exceptions_handler.handle_exceptions()
             return results
-
-    def handle_results_exceptions(
-        self, results: Results, parameters: RunParameters
-    ) -> None:
-        """Prints exceptions and opens the exception report if necessary."""
-
-        if results.has_unfixed_exceptions and parameters.print_exceptions:
-            from edsl.scenarios.FileStore import HTMLFileStore
-            from edsl.config import CONFIG
-            from edsl.coop.coop import Coop
-
-            msg = f"Exceptions were raised in {len(results.task_history.indices)} interviews.\n"
-
-            if len(results.task_history.indices) > 5:
-                msg += f"Exceptions were raised in the following interviews: {results.task_history.indices}.\n"
-
-            import sys
-
-            print(msg, file=sys.stderr)
-            from edsl.config import CONFIG
-
-            if CONFIG.get("EDSL_OPEN_EXCEPTION_REPORT_URL") == "True":
-                open_in_browser = True
-            elif CONFIG.get("EDSL_OPEN_EXCEPTION_REPORT_URL") == "False":
-                open_in_browser = False
-            else:
-                raise Exception(
-                    "EDSL_OPEN_EXCEPTION_REPORT_URL", "must be either True or False"
-                )
-
-            filepath = results.task_history.html(
-                cta="Open report to see details.",
-                open_in_browser=open_in_browser,
-                return_link=True,
-            )
-
-            try:
-                coop = Coop()
-                user_edsl_settings = coop.edsl_settings
-                remote_logging = user_edsl_settings["remote_logging"]
-            except Exception as e:
-                print(e)
-                remote_logging = False
-
-            if remote_logging:
-                filestore = HTMLFileStore(filepath)
-                coop_details = filestore.push(description="Error report")
-                print(coop_details)
-
-            print("Also see: https://docs.expectedparrot.com/en/latest/exceptions.html")

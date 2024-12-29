@@ -97,7 +97,7 @@ def test_bucket_collection(create_survey):
 
     results = jobs.run(cache=cache)
 
-    bc = jobs.bucket_collection
+    bc = jobs.run_config.environment.bucket_collection
     bucket_list = list(bc.values())
 
     bucket_list[0].requests_bucket.bucket_type == "requests"
