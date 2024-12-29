@@ -1,5 +1,5 @@
 from collections.abc import AsyncGenerator
-from typing import List, TypeVar, Generator, Tuple
+from typing import List, TypeVar, Generator, Tuple, TYPE_CHECKING
 from dataclasses import dataclass
 import asyncio
 from contextlib import asynccontextmanager
@@ -7,6 +7,9 @@ from edsl.data_transfer_models import EDSLResultObjectInput
 
 from edsl.results.Result import Result
 from edsl.jobs.interviews.Interview import Interview
+
+if TYPE_CHECKING:
+    from edsl.jobs.Jobs import Jobs
 
 
 @dataclass
@@ -16,7 +19,7 @@ class InterviewResult:
     order: int
 
 
-from edsl.jobs.Jobs import RunConfig
+from edsl.jobs.data_structures import RunConfig
 
 
 class AsyncInterviewRunner:

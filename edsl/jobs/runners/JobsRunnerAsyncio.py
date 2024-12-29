@@ -3,33 +3,17 @@ import time
 import asyncio
 import threading
 import warnings
-from typing import (
-    Coroutine,
-    List,
-    Optional,
-    Union,
-    Type,
-    TYPE_CHECKING,
-)
-from uuid import UUID
-from collections import UserList
+from typing import TYPE_CHECKING
 
 from edsl.results.Results import Results
-from edsl.jobs.interviews.Interview import Interview
-from edsl.jobs.runners.JobsRunnerStatus import JobsRunnerStatus, JobsRunnerStatusBase
-
+from edsl.jobs.runners.JobsRunnerStatus import JobsRunnerStatus
 from edsl.jobs.tasks.TaskHistory import TaskHistory
-from edsl.jobs.buckets.BucketCollection import BucketCollection
 from edsl.utilities.decorators import jupyter_nb_handler
-from edsl.data.Cache import Cache
-
 from edsl.jobs.async_interview_runner import AsyncInterviewRunner
+from edsl.jobs.data_structures import RunEnvironment, RunParameters, RunConfig
 
 if TYPE_CHECKING:
-    from edsl.language_models.key_management.KeyLookup import KeyLookup
-    from edsl.jobs.interviews import Interview
-
-from edsl.jobs.Jobs import RunEnvironment, RunParameters, RunConfig
+    from edsl.jobs.Jobs import Jobs
 
 
 class JobsRunnerAsyncio:
@@ -43,15 +27,15 @@ class JobsRunnerAsyncio:
         self.jobs = jobs
         self.environment = environment
 
-        # self.cache = environment.cache
-        # self.bucket_collection: "BucketCollection" = environment.bucket_collection
-        # self.key_lookup = environment.key_lookup
+    def __len__(self):
+        return len(self.jobs)
 
     @property
     def interviews(self):
         "Interviews associated with the job runner; still deprecate"
         import warnings
 
+        raise Exception("We are deprecating this!")
         warnings.warn("We are deprecating this!")
         return self.jobs.interviews()
 
@@ -177,7 +161,9 @@ class JobsRunnerAsyncio:
             self.handle_results_exceptions(results, parameters)
             return results
 
-    def handle_results_exceptions(self, results: Results, parameters) -> None:
+    def handle_results_exceptions(
+        self, results: Results, parameters: RunParameters
+    ) -> None:
         """Prints exceptions and opens the exception report if necessary."""
 
         if results.has_unfixed_exceptions and parameters.print_exceptions:
