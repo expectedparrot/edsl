@@ -61,7 +61,7 @@ class ResultsExceptionsHandler:
             coop = Coop()
             return coop.edsl_settings["remote_logging"]
         except Exception as e:
-            print(e)
+            # print(e)
             return False
 
     def _generate_error_message(self, indices) -> str:
