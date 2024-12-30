@@ -171,6 +171,18 @@ class TestResults(unittest.TestCase):
         r3 = r1 + r2
         assert len(r3) == len(r1) + len(r2)
 
+    def test_to_csv(self):
+        import tempfile
+        import csv
+
+        with tempfile.TemporaryDirectory() as tmpdirname:
+            self.example_results.to_csv(tmpdirname + "/test.csv")
+
+            with open(tmpdirname + "/test.csv") as f:
+                reader = csv.reader(f)
+                rows = list(reader)
+                assert len(rows) == len(self.example_results) + 1
+
 
 if __name__ == "__main__":
     unittest.main()
