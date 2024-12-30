@@ -1,11 +1,11 @@
 """Mixin class for exporting results."""
 
-import base64
-import csv
 import io
 import warnings
 import textwrap
 from typing import Optional, Tuple, Union, List
+
+from edsl.results.file_exports import CSVExport, ExcelExport, JSONLExport, SQLiteExport
 
 
 class DatasetExportMixin:
@@ -164,79 +164,44 @@ class DatasetExportMixin:
             remove_prefix=remove_prefix, pretty_labels=pretty_labels
         )
 
-    def to_jsonl(self, filename: Optional[str] = None) -> "FileStore":
-        """Export the results to a FileStore instance containing JSONL data.
+    def to_jsonl(self, filename: Optional[str] = None) -> Optional["FileStore"]:
+        """Export the results to a FileStore instance containing JSONL data."""
+        exporter = JSONLExport(data=self, filename=filename)
+        return exporter.export()
 
-        Args:
-            filename: Optional filename for the JSONL file (defaults to "results.jsonl")
-
-        Returns:
-            FileStore: Instance containing the JSONL data
-        """
-        if filename is None:
-            filename = "results.jsonl"
-
-        # Write to string buffer
-        output = io.StringIO()
-        for entry in self:
-            key, values = list(entry.items())[0]
-            output.write(f'{{"{key}": {values}}}\n')
-
-        # Get the CSV string and encode to base64
-        jsonl_string = output.getvalue()
-        base64_string = base64.b64encode(jsonl_string.encode()).decode()
-        from edsl.scenarios.FileStore import FileStore
-
-        return FileStore(
-            path=filename,
-            mime_type="application/jsonl",
-            binary=False,
-            suffix="jsonl",
-            base64_string=base64_string,
+    def to_sqlite(
+        self,
+        filename: Optional[str] = None,
+        remove_prefix: bool = False,
+        pretty_labels: Optional[dict] = None,
+        table_name: str = "results",
+        if_exists: str = "replace",
+    ) -> Optional["FileStore"]:
+        """Export the results to a SQLite database file."""
+        exporter = SQLiteExport(
+            data=self,
+            filename=filename,
+            remove_prefix=remove_prefix,
+            pretty_labels=pretty_labels,
+            table_name=table_name,
+            if_exists=if_exists,
         )
+        return exporter.export()
 
     def to_csv(
         self,
         filename: Optional[str] = None,
         remove_prefix: bool = False,
         pretty_labels: Optional[dict] = None,
-    ) -> "FileStore":
-        """Export the results to a FileStore instance containing CSV data.
-
-        Args:
-            filename: Optional filename for the CSV (defaults to "results.csv")
-            remove_prefix: Whether to remove the prefix from column names
-            pretty_labels: Dictionary mapping original column names to pretty labels
-
-        Returns:
-            FileStore: Instance containing the CSV data
-        """
-        if filename is None:
-            filename = "results.csv"
-
-        # Get the tabular data
-        header, rows = self._get_tabular_data(
-            remove_prefix=remove_prefix, pretty_labels=pretty_labels
+    ) -> Optional["FileStore"]:
+        """Export the results to a FileStore instance containing CSV data."""
+        exporter = CSVExport(
+            data=self,
+            filename=filename,
+            remove_prefix=remove_prefix,
+            pretty_labels=pretty_labels,
         )
-
-        # Write to string buffer
-        output = io.StringIO()
-        writer = csv.writer(output)
-        writer.writerow(header)
-        writer.writerows(rows)
-
-        # Get the CSV string and encode to base64
-        csv_string = output.getvalue()
-        base64_string = base64.b64encode(csv_string.encode()).decode()
-        from edsl.scenarios.FileStore import FileStore
-
-        return FileStore(
-            path=filename,
-            mime_type="text/csv",
-            binary=False,
-            suffix="csv",
-            base64_string=base64_string,
-        )
+        return exporter.export()
 
     def to_excel(
         self,
@@ -244,60 +209,16 @@ class DatasetExportMixin:
         remove_prefix: bool = False,
         pretty_labels: Optional[dict] = None,
         sheet_name: Optional[str] = None,
-    ) -> "FileStore":
-        """Export the results to a FileStore instance containing Excel data.
-
-        Args:
-            filename: Optional filename for the Excel file (defaults to "results.xlsx")
-            remove_prefix: Whether to remove the prefix from column names
-            pretty_labels: Dictionary mapping original column names to pretty labels
-            sheet_name: Name of the worksheet (defaults to "Results")
-
-        Returns:
-            FileStore: Instance containing the Excel data
-        """
-        from openpyxl import Workbook
-
-        if filename is None:
-            filename = "results.xlsx"
-        if sheet_name is None:
-            sheet_name = "Results"
-
-        # Get the tabular data
-        header, rows = self._get_tabular_data(
-            remove_prefix=remove_prefix, pretty_labels=pretty_labels
+    ) -> Optional["FileStore"]:
+        """Export the results to a FileStore instance containing Excel data."""
+        exporter = ExcelExport(
+            data=self,
+            filename=filename,
+            remove_prefix=remove_prefix,
+            pretty_labels=pretty_labels,
+            sheet_name=sheet_name,
         )
-
-        # Create Excel workbook in memory
-        wb = Workbook()
-        ws = wb.active
-        ws.title = sheet_name
-
-        # Write header
-        for col, value in enumerate(header, 1):
-            ws.cell(row=1, column=col, value=value)
-
-        # Write data rows
-        for row_idx, row_data in enumerate(rows, 2):
-            for col, value in enumerate(row_data, 1):
-                ws.cell(row=row_idx, column=col, value=value)
-
-        # Save to bytes buffer
-        buffer = io.BytesIO()
-        wb.save(buffer)
-        buffer.seek(0)
-
-        # Convert to base64
-        base64_string = base64.b64encode(buffer.getvalue()).decode()
-        from edsl.scenarios.FileStore import FileStore
-
-        return FileStore(
-            path=filename,
-            mime_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            binary=True,
-            suffix="xlsx",
-            base64_string=base64_string,
-        )
+        return exporter.export()
 
     def _db(self, remove_prefix: bool = True):
         """Create a SQLite database in memory and return the connection.
