@@ -11,6 +11,7 @@ class TaskHistory(RepresentationMixin):
         interviews: List["Interview"] = None,
         include_traceback: bool = False,
         max_interviews: int = 10,
+        interviews_with_exceptions_only: bool = False,
     ):
         """
         The structure of a TaskHistory exception
@@ -20,10 +21,12 @@ class TaskHistory(RepresentationMixin):
         >>> _ = TaskHistory.example()
         ...
         """
-        if interviews is None:
-            self.total_interviews = []
-        else:
-            self.total_interviews = interviews
+        self.interviews_with_exceptions_only = interviews_with_exceptions_only
+        self._interviews = {}
+        self.total_interviews = []
+        if interviews is not None:
+            for interview in interviews:
+                self.add_interview(interview)
 
         self.include_traceback = include_traceback
         self._interviews = {
@@ -39,6 +42,9 @@ class TaskHistory(RepresentationMixin):
 
     def add_interview(self, interview: "Interview"):
         """Add a single interview to the history"""
+        if self.interviews_with_exceptions_only and interview.exceptions == {}:
+            return
+
         self.total_interviews.append(interview)
         self._interviews[len(self._interviews)] = interview
 

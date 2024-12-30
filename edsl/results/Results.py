@@ -9,6 +9,8 @@ import random
 from collections import UserList, defaultdict
 from typing import Optional, Callable, Any, Type, Union, List, TYPE_CHECKING
 
+from bisect import bisect_left
+
 from edsl.Base import Base
 from edsl.exceptions.results import (
     ResultsError,
@@ -135,6 +137,32 @@ class Results(UserList, Mixins, Base):
             "Survey question names": reprlib.repr(self.survey.question_names),
         }
         return d
+
+    def insert(self, item):
+        item_order = getattr(item, "order", None)
+        if item_order is not None:
+            # Get list of orders, putting None at the end
+            orders = [getattr(x, "order", None) for x in self]
+            # Filter to just the non-None orders for bisect
+            sorted_orders = [x for x in orders if x is not None]
+            if sorted_orders:
+                index = bisect_left(sorted_orders, item_order)
+                # Account for any None values before this position
+                index += orders[:index].count(None)
+            else:
+                # If no sorted items yet, insert before any unordered items
+                index = 0
+            self.data.insert(index, item)
+        else:
+            # No order - append to end
+            self.data.append(item)
+
+    def append(self, item):
+        self.insert(item)
+
+    def extend(self, other):
+        for item in other:
+            self.insert(item)
 
     def compute_job_cost(self, include_cached_responses_in_cost: bool = False) -> float:
         """
