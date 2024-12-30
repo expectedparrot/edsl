@@ -3,20 +3,11 @@ from __future__ import annotations
 import os
 import time
 import requests
-import warnings
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-
-from typing import Any, List, DefaultDict, Optional, Dict
 from collections import defaultdict
+from typing import Any, Dict, Optional
 from uuid import UUID
-
-from edsl.jobs.tokens.InterviewTokenUsage import InterviewTokenUsage
-
-InterviewTokenUsageMapping = DefaultDict[str, InterviewTokenUsage]
-
-from edsl.jobs.interviews.InterviewStatistic import InterviewStatistic
-from edsl.jobs.tokens.InterviewTokenUsage import InterviewTokenUsage
 
 
 @dataclass
@@ -28,11 +19,44 @@ class ModelInfo:
     token_usage_info: dict
 
 
-@dataclass
-class ModelTokenUsageStats:
-    token_usage_type: str
-    details: List[dict]
-    cost: str
+class StatisticsTracker:
+    def __init__(self, total_interviews: int, distinct_models: list[str]):
+        self.start_time = time.time()
+        self.total_interviews = total_interviews
+        self.completed_count = 0
+        self.completed_by_model = defaultdict(int)
+        self.distinct_models = distinct_models
+        self.total_exceptions = 0
+        self.unfixed_exceptions = 0
+
+    def add_completed_interview(
+        self, model: str, num_exceptions: int = 0, num_unfixed: int = 0
+    ):
+        self.completed_count += 1
+        self.completed_by_model[model] += 1
+        self.total_exceptions += num_exceptions
+        self.unfixed_exceptions += num_unfixed
+
+    def get_elapsed_time(self) -> float:
+        return time.time() - self.start_time
+
+    def get_average_time_per_interview(self) -> float:
+        return (
+            self.get_elapsed_time() / self.completed_count
+            if self.completed_count > 0
+            else 0
+        )
+
+    def get_throughput(self) -> float:
+        elapsed = self.get_elapsed_time()
+        return self.completed_count / elapsed if elapsed > 0 else 0
+
+    def get_estimated_time_remaining(self) -> float:
+        if self.completed_count == 0:
+            return 0
+        avg_time = self.get_average_time_per_interview()
+        remaining = self.total_interviews - self.completed_count
+        return avg_time * remaining
 
 
 class JobsRunnerStatusBase(ABC):
@@ -46,48 +70,39 @@ class JobsRunnerStatusBase(ABC):
         api_key: str = None,
     ):
         self.jobs_runner = jobs_runner
-
-        # The uuid of the job on Coop
         self.job_uuid = job_uuid
-
         self.base_url = f"{endpoint_url}"
-
-        self.start_time = time.time()
-        self.completed_interviews = []
         self.refresh_rate = refresh_rate
         self.statistics = [
             "elapsed_time",
             "total_interviews_requested",
             "completed_interviews",
-            #            "percent_complete",
             "average_time_per_interview",
-            #            "task_remaining",
             "estimated_time_remaining",
             "exceptions",
             "unfixed_exceptions",
             "throughput",
         ]
-        self.num_total_interviews = n * len(self.jobs_runner.interviews)
+        self.num_total_interviews = n * len(self.jobs_runner)
 
         self.distinct_models = list(
-            set(i.model.model for i in self.jobs_runner.interviews)
+            set(model.model for model in self.jobs_runner.jobs.models)
         )
 
-        self.completed_interview_by_model = defaultdict(list)
+        self.stats_tracker = StatisticsTracker(
+            total_interviews=self.num_total_interviews,
+            distinct_models=self.distinct_models,
+        )
 
         self.api_key = api_key or os.getenv("EXPECTED_PARROT_API_KEY")
 
     @abstractmethod
     def has_ep_api_key(self):
-        """
-        Checks if the user has an Expected Parrot API key.
-        """
+        """Checks if the user has an Expected Parrot API key."""
         pass
 
     def get_status_dict(self) -> Dict[str, Any]:
-        """
-        Converts current status into a JSON-serializable dictionary.
-        """
+        """Converts current status into a JSON-serializable dictionary."""
         # Get all statistics
         stats = {}
         for stat_name in self.statistics:
@@ -95,38 +110,41 @@ class JobsRunnerStatusBase(ABC):
             name, value = list(stat.items())[0]
             stats[name] = value
 
-        # Calculate overall progress
-        total_interviews = len(self.jobs_runner.total_interviews)
-        completed = len(self.completed_interviews)
-
         # Get model-specific progress
         model_progress = {}
+        target_per_model = int(self.num_total_interviews / len(self.distinct_models))
+
         for model in self.distinct_models:
-            completed_for_model = len(self.completed_interview_by_model[model])
-            target_for_model = int(
-                self.num_total_interviews / len(self.distinct_models)
-            )
+            completed = self.stats_tracker.completed_by_model[model]
             model_progress[model] = {
-                "completed": completed_for_model,
-                "total": target_for_model,
+                "completed": completed,
+                "total": target_per_model,
                 "percent": (
-                    (completed_for_model / target_for_model * 100)
-                    if target_for_model > 0
-                    else 0
+                    (completed / target_per_model * 100) if target_per_model > 0 else 0
                 ),
             }
 
         status_dict = {
             "overall_progress": {
-                "completed": completed,
-                "total": total_interviews,
+                "completed": self.stats_tracker.completed_count,
+                "total": self.num_total_interviews,
                 "percent": (
-                    (completed / total_interviews * 100) if total_interviews > 0 else 0
+                    (
+                        self.stats_tracker.completed_count
+                        / self.num_total_interviews
+                        * 100
+                    )
+                    if self.num_total_interviews > 0
+                    else 0
                 ),
             },
             "language_model_progress": model_progress,
             "statistics": stats,
-            "status": "completed" if completed >= total_interviews else "running",
+            "status": (
+                "completed"
+                if self.stats_tracker.completed_count >= self.num_total_interviews
+                else "running"
+            ),
         }
 
         model_queues = {}
@@ -152,98 +170,67 @@ class JobsRunnerStatusBase(ABC):
         status_dict["language_model_queues"] = model_queues
         return status_dict
 
-    @abstractmethod
-    def setup(self):
-        """
-        Conducts any setup that needs to happen prior to sending status updates.
-
-        Ex. For a local job, creates a job in the Coop database.
-        """
-        pass
-
-    @abstractmethod
-    def send_status_update(self):
-        """
-        Updates the current status of the job.
-        """
-        pass
-
     def add_completed_interview(self, result):
-        self.completed_interviews.append(result.interview_hash)
-
-        relevant_model = result.model.model
-        self.completed_interview_by_model[relevant_model].append(result.interview_hash)
+        """Records a completed interview without storing the full interview data."""
+        self.stats_tracker.add_completed_interview(
+            model=result.model.model,
+            num_exceptions=(
+                len(result.exceptions) if hasattr(result, "exceptions") else 0
+            ),
+            num_unfixed=(
+                result.exceptions.num_unfixed() if hasattr(result, "exceptions") else 0
+            ),
+        )
 
     def _compute_statistic(self, stat_name: str):
-        completed_tasks = self.completed_interviews
-        elapsed_time = time.time() - self.start_time
-        interviews = self.jobs_runner.total_interviews
+        """Computes individual statistics based on the stats tracker."""
+        if stat_name == "elapsed_time":
+            value = self.stats_tracker.get_elapsed_time()
+            return {"elapsed_time": (value, 1, "sec.")}
 
-        stat_definitions = {
-            "elapsed_time": lambda: InterviewStatistic(
-                "elapsed_time", value=elapsed_time, digits=1, units="sec."
-            ),
-            "total_interviews_requested": lambda: InterviewStatistic(
-                "total_interviews_requested", value=len(interviews), units=""
-            ),
-            "completed_interviews": lambda: InterviewStatistic(
-                "completed_interviews", value=len(completed_tasks), units=""
-            ),
-            "percent_complete": lambda: InterviewStatistic(
-                "percent_complete",
-                value=(
-                    len(completed_tasks) / len(interviews) * 100
-                    if len(interviews) > 0
-                    else 0
-                ),
-                digits=1,
-                units="%",
-            ),
-            "average_time_per_interview": lambda: InterviewStatistic(
-                "average_time_per_interview",
-                value=elapsed_time / len(completed_tasks) if completed_tasks else 0,
-                digits=2,
-                units="sec.",
-            ),
-            "task_remaining": lambda: InterviewStatistic(
-                "task_remaining", value=len(interviews) - len(completed_tasks), units=""
-            ),
-            "estimated_time_remaining": lambda: InterviewStatistic(
-                "estimated_time_remaining",
-                value=(
-                    (len(interviews) - len(completed_tasks))
-                    * (elapsed_time / len(completed_tasks))
-                    if len(completed_tasks) > 0
-                    else 0
-                ),
-                digits=1,
-                units="sec.",
-            ),
-            "exceptions": lambda: InterviewStatistic(
-                "exceptions",
-                value=sum(len(i.exceptions) for i in interviews),
-                units="",
-            ),
-            "unfixed_exceptions": lambda: InterviewStatistic(
-                "unfixed_exceptions",
-                value=sum(i.exceptions.num_unfixed() for i in interviews),
-                units="",
-            ),
-            "throughput": lambda: InterviewStatistic(
-                "throughput",
-                value=len(completed_tasks) / elapsed_time if elapsed_time > 0 else 0,
-                digits=2,
-                units="interviews/sec.",
-            ),
-        }
-        return stat_definitions[stat_name]()
+        elif stat_name == "total_interviews_requested":
+            return {"total_interviews_requested": (self.num_total_interviews, None, "")}
+
+        elif stat_name == "completed_interviews":
+            return {
+                "completed_interviews": (self.stats_tracker.completed_count, None, "")
+            }
+
+        elif stat_name == "average_time_per_interview":
+            value = self.stats_tracker.get_average_time_per_interview()
+            return {"average_time_per_interview": (value, 2, "sec.")}
+
+        elif stat_name == "estimated_time_remaining":
+            value = self.stats_tracker.get_estimated_time_remaining()
+            return {"estimated_time_remaining": (value, 1, "sec.")}
+
+        elif stat_name == "exceptions":
+            return {"exceptions": (self.stats_tracker.total_exceptions, None, "")}
+
+        elif stat_name == "unfixed_exceptions":
+            return {
+                "unfixed_exceptions": (self.stats_tracker.unfixed_exceptions, None, "")
+            }
+
+        elif stat_name == "throughput":
+            value = self.stats_tracker.get_throughput()
+            return {"throughput": (value, 2, "interviews/sec.")}
 
     def update_progress(self, stop_event):
         while not stop_event.is_set():
             self.send_status_update()
             time.sleep(self.refresh_rate)
-
         self.send_status_update()
+
+    @abstractmethod
+    def setup(self):
+        """Conducts any setup needed prior to sending status updates."""
+        pass
+
+    @abstractmethod
+    def send_status_update(self):
+        """Updates the current status of the job."""
+        pass
 
 
 class JobsRunnerStatus(JobsRunnerStatusBase):
@@ -260,49 +247,35 @@ class JobsRunnerStatus(JobsRunnerStatusBase):
         return f"{self.base_url}/api/v0/local-job/{str(self.job_uuid)}"
 
     def setup(self) -> None:
-        """
-        Creates a local job on Coop if one does not already exist.
-        """
-
-        headers = {"Content-Type": "application/json"}
-
-        if self.api_key:
-            headers["Authorization"] = f"Bearer {self.api_key}"
-        else:
-            headers["Authorization"] = f"Bearer None"
+        """Creates a local job on Coop if one does not already exist."""
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.api_key or 'None'}",
+        }
 
         if self.job_uuid is None:
-            # Create a new local job
             response = requests.post(
                 self.create_url,
                 headers=headers,
                 timeout=1,
             )
-        response.raise_for_status()
-        data = response.json()
-        self.job_uuid = data.get("job_uuid")
+            response.raise_for_status()
+            data = response.json()
+            self.job_uuid = data.get("job_uuid")
 
         print(f"Running with progress bar. View progress at {self.viewing_url}")
 
     def send_status_update(self) -> None:
-        """
-        Sends current status to the web endpoint using the instance's job_uuid.
-        """
+        """Sends current status to the web endpoint using the instance's job_uuid."""
         try:
-            # Get the status dictionary and add the job_id
             status_dict = self.get_status_dict()
-
-            # Make the UUID JSON serializable
             status_dict["job_id"] = str(self.job_uuid)
 
-            headers = {"Content-Type": "application/json"}
+            headers = {
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {self.api_key or 'None'}",
+            }
 
-            if self.api_key:
-                headers["Authorization"] = f"Bearer {self.api_key}"
-            else:
-                headers["Authorization"] = f"Bearer None"
-
-            # Send the update
             response = requests.patch(
                 self.update_url,
                 json=status_dict,
@@ -314,14 +287,8 @@ class JobsRunnerStatus(JobsRunnerStatusBase):
             print(f"Failed to send status update for job {self.job_uuid}: {e}")
 
     def has_ep_api_key(self) -> bool:
-        """
-        Returns True if the user has an Expected Parrot API key. Otherwise, returns False.
-        """
-
-        if self.api_key is not None:
-            return True
-        else:
-            return False
+        """Returns True if the user has an Expected Parrot API key."""
+        return self.api_key is not None
 
 
 if __name__ == "__main__":
