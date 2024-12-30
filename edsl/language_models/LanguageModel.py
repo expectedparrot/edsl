@@ -497,7 +497,10 @@ class LanguageModel(
         >>> m.to_dict()
         {'model': '...', 'parameters': {'temperature': ..., 'max_tokens': ..., 'top_p': ..., 'frequency_penalty': ..., 'presence_penalty': ..., 'logprobs': False, 'top_logprobs': ...}, 'edsl_version': '...', 'edsl_class_name': 'LanguageModel'}
         """
-        d = {"model": self.model, "parameters": self.parameters}
+        d = {
+            "model": self.model,
+            "parameters": self.parameters,
+        }
         if add_edsl_version:
             from edsl import __version__
 

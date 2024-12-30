@@ -925,7 +925,7 @@ class Results(UserList, Mixins, Base):
         n: Optional[int] = None,
         frac: Optional[float] = None,
         with_replacement: bool = True,
-        seed: Optional[str] = "edsl",
+        seed: Optional[str] = None,
     ) -> Results:
         """Sample the results.
 
@@ -940,7 +940,7 @@ class Results(UserList, Mixins, Base):
         >>> len(r.sample(2))
         2
         """
-        if seed != "edsl":
+        if seed:
             random.seed(seed)
 
         if n is None and frac is None:
