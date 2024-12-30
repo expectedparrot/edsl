@@ -38,7 +38,7 @@ class TestBaseModels:
                 "PNGFileStore",
                 "SQLiteFileStore",
                 "AgentTraits",
-                "RunConfig",
+                "RunParameters",
             ]
 
         methods = [

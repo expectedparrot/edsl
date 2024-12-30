@@ -179,6 +179,7 @@ class Coop(CoopFunctionsMixin):
         Check the response from the server and raise errors as appropriate.
         """
         # Get EDSL version from header
+        # breakpoint()
         server_edsl_version = response.headers.get("X-EDSL-Version")
 
         if server_edsl_version:

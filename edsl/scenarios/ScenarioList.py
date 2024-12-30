@@ -840,9 +840,24 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         ScenarioList([Scenario({'name': 'Alice', 'age': 30}), Scenario({'name': 'Bob', 'age': 25})])
         """
         sl = self.duplicate()
+        if len(values) != len(sl):
+            raise ScenarioError(
+                f"Length of values ({len(values)}) does not match length of ScenarioList ({len(sl)})"
+            )
         for i, value in enumerate(values):
             sl[i][name] = value
         return sl
+
+    @classmethod
+    def create_empty_scenario_list(cls, n: int) -> ScenarioList:
+        """Create an empty ScenarioList with n scenarios.
+
+        Example:
+
+        >>> ScenarioList.create_empty_scenario_list(3)
+        ScenarioList([Scenario({}), Scenario({}), Scenario({})])
+        """
+        return ScenarioList([Scenario({}) for _ in range(n)])
 
     def add_value(self, name: str, value: Any) -> ScenarioList:
         """Add a value to all scenarios in a ScenarioList.
@@ -1297,10 +1312,22 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
 
     @classmethod
     def from_nested_dict(cls, data: dict) -> ScenarioList:
-        """Create a `ScenarioList` from a nested dictionary."""
-        s = ScenarioList()
-        for key, value in data.items():
-            s.add_list(key, value)
+        """Create a `ScenarioList` from a nested dictionary.
+
+        >>> data = {"headline": ["Armistice Signed, War Over: Celebrations Erupt Across City"], "date": ["1918-11-11"], "author": ["Jane Smith"]}
+        >>> ScenarioList.from_nested_dict(data)
+        ScenarioList([Scenario({'headline': 'Armistice Signed, War Over: Celebrations Erupt Across City', 'date': '1918-11-11', 'author': 'Jane Smith'})])
+
+        """
+        length_of_first_list = len(next(iter(data.values())))
+        s = ScenarioList.create_empty_scenario_list(n=length_of_first_list)
+
+        if any(len(v) != length_of_first_list for v in data.values()):
+            raise ValueError(
+                "All lists in the dictionary must be of the same length.",
+            )
+        for key, list_of_values in data.items():
+            s = s.add_list(key, list_of_values)
         return s
 
     def code(self) -> str:
