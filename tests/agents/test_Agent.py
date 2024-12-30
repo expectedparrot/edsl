@@ -135,3 +135,23 @@ def test_agent_dyanmic_traits():
 
     a = Agent(dynamic_traits_function=lambda question: {"age": 30})
     assert a.traits == {"age": 30}
+
+
+def test_agent_dynamic_traits_answering():
+    from edsl import Agent
+    from edsl import Model
+    from edsl import QuestionFreeText
+
+    def dynamic_traits_function(question):
+        if question.question_name == "age":
+            return {"age": 10}
+        elif question.question_name == "hair":
+            return {"hair": "brown"}
+
+    a = Agent(dynamic_traits_function=dynamic_traits_function)
+    from edsl import QuestionFreeText
+
+    q = QuestionFreeText(question_name="age", question_text="How old are you?")
+    m = Model("test")
+    results = q.by(a).run(disable_remote_inference=True, disable_remote_cache=True)
+    assert results.select("answer.age").to_list()
