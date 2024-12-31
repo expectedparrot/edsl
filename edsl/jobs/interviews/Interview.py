@@ -6,7 +6,8 @@ from typing import Any, Type, List, Generator, Optional, Union, TYPE_CHECKING
 import copy
 from dataclasses import dataclass
 
-from edsl.jobs.Answers import Answers
+# from edsl.jobs.Answers import Answers
+from edsl.jobs.data_structures import Answers
 from edsl.jobs.interviews.InterviewStatusLog import InterviewStatusLog
 from edsl.jobs.interviews.InterviewStatusDictionary import InterviewStatusDictionary
 from edsl.jobs.interviews.InterviewExceptionCollection import (
