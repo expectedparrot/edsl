@@ -42,6 +42,10 @@ jobs:
         shell: bash
         run: poetry install --with dev
 
+      - name: Run integegation 
+        shell: bash
+        run: poetry run make test-starter-tutorial
+
       - name: Run edsl tests
         shell: bash
         run: poetry run make test
@@ -50,6 +54,3 @@ jobs:
         shell: bash
         run: poetry run make test-doctests
 
-      - name: Run integegation 
-        shell: bash
-        run: poetry run make test-starter-tutorial
