@@ -49,3 +49,7 @@ jobs:
       - name: Run doctests
         shell: bash
         run: poetry run make test-doctests
+
+      - name: Run integegation 
+        shell: bash
+        run: poetry run make test-starter-tutorial
