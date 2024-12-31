@@ -211,6 +211,9 @@ test-notebooks:
 		pytest -v integration/active/test_notebooks.py -k "$(notebook)"; \
 	fi
 
+test-starter-tutorial:
+	@echo "Testing starter tutorial..."
+	pytest -v integration/active/test_notebooks.py -k docs/notebooks/hello_world.ipynb
 
 # .PHONY: test-notebooks	
 # test-notebooks: ## Run the notebooks tests
