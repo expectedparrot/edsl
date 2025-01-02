@@ -38,14 +38,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Clone EDSL project and prepare environment
-        run: |
-          rm -rf edsl
-          git clone https://github.com/expectedparrot/edsl.git
-          cd edsl
-          poetry install
-
       - name: Run make coop-test
         run: |
-          cd edsl
-          poetry run make coop-test
+          cd /home/stefan/expectedparrot/edsl
+          git pull
+          source ./project/bin/activate
+          poetry install
+          make coop-test
