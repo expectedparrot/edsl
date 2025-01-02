@@ -1,0 +1,50 @@
+name: Run Docker Compose on Self-Hosted
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  run-tasks:
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+  build-docker:
+    runs-on: self-hosted
+    needs: run-tasks
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Run Docker Compose
+        run: |
+          cd /Users/user/Desktop/Devzone/coopr
+          sudo docker compose up --build
+
+  run-make-coop-test:
+    runs-on: self-hosted
+    needs: run-tasks
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Clone EDSL project and prepare environment
+        run: |
+          git clone https://github.com/expectedparrot/edsl.git
+          cd edsl
+          poetry install
+
+      - name: Run make coop-test
+        run: |
+          cd edsl
+          poetry run make coop-test
