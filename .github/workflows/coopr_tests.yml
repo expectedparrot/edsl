@@ -30,9 +30,10 @@ jobs:
           cd /home/stefan/expectedparrot/coopr
           git pull
           sudo docker-compose build --no-cache backend && sudo docker-compose up --wait
+
   run-make-coop-test:
     runs-on: self-hosted
-    needs: run-tasks
+    needs: build-docker
 
     steps:
       - name: Checkout repository
