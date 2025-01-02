@@ -27,7 +27,7 @@ jobs:
 
       - name: Run Docker Compose
         run: |
-          cd /Users/user/Desktop/Devzone/coopr
+          cd /home/stefan/expectedparrot/coopr
           sudo docker compose up --build
 
   run-make-coop-test:
@@ -40,6 +40,7 @@ jobs:
 
       - name: Clone EDSL project and prepare environment
         run: |
+          rm -rf edsl
           git clone https://github.com/expectedparrot/edsl.git
           cd edsl
           poetry install
