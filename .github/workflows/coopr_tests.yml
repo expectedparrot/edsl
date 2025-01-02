@@ -28,7 +28,7 @@ jobs:
       - name: Run Docker Compose
         run: |
           cd /home/stefan/expectedparrot/coopr
-          sudo docker compose up --build
+          sudo docker compose up --build --wait
 
   run-make-coop-test:
     runs-on: self-hosted
