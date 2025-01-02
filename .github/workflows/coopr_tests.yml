@@ -28,6 +28,7 @@ jobs:
       - name: Run Docker Compose
         run: |
           cd /home/stefan/expectedparrot/coopr
+          git pull
           sudo docker compose up --build --wait
 
   run-make-coop-test:
