@@ -3,10 +3,10 @@ name: Run Docker Compose on Self-Hosted
 on:
   push:
     branches:
-      - main
+      - test_coopr_github_actions
   pull_request:
     branches:
-      - main
+      - test_coopr_github_actions
   workflow_dispatch:
 
 jobs:
