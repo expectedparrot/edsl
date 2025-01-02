@@ -906,7 +906,7 @@ class Agent(Base):
         {'traits': {'age': 10, 'hair': 'brown', 'height': 5.5}, 'instruction': 'Have fun.', 'edsl_version': '...', 'edsl_class_name': 'Agent'}
         """
         d = {}
-        d["traits"] = copy.deepcopy(self.traits)
+        d["traits"] = copy.deepcopy(dict(self._traits))
         if self.name:
             d["name"] = self.name
         if self.set_instructions:
