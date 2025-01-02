@@ -44,4 +44,4 @@ jobs:
           git pull
           source ./project/bin/activate
           poetry install
-          make coop-test
+          make test-coop
