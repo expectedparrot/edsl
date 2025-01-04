@@ -1,12 +1,18 @@
 name: Run Docker Compose on Self-Hosted
 
 on:
-  push:
-    branches:
-      - test_coopr_github_actions
   pull_request:
     branches:
-      - test_coopr_github_actions
+      - main
+  push:
+    branches-ignore:
+      - main
+    paths-ignore:
+      - '**'
+    tags-ignore:
+      - '**'
+    condition:
+      - "contains(github.event.head_commit.message, 'coopr')"
   workflow_dispatch:
 
 jobs:
