@@ -47,6 +47,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
+      - name: Set current commit
+        id: get_commit
+        run: echo "COMMIT=$(git rev-parse HEAD)" >> $GITHUB_ENV
+
       - name: Checkout EDSL at current commit
         run: |
           cd /home/stefan/expectedparrot/edsl
