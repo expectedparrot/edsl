@@ -28,9 +28,16 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Set current commit
-        id: get_commit
-        run: echo "COMMIT=$(git rev-parse HEAD)" >> $GITHUB_ENV
+      - name: Determine last commit hash
+        id: get_last_commit
+        run: |
+          if [ "${{ github.head_ref }}" != "" ]; then
+            # Pull Request: Get the last commit from the source branch
+            echo "COMMIT=$(git rev-parse ${{ github.event.pull_request.head.sha }})" >> $GITHUB_ENV
+          else
+            # Push: Get the last commit directly
+            echo "COMMIT=$(git rev-parse HEAD)" >> $GITHUB_ENV
+          fi
 
       - name: Update pyproject.toml for EDSL
         run: |
@@ -51,15 +58,22 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Set current commit
-        id: get_commit
-        run: echo "COMMIT=$(git rev-parse HEAD)" >> $GITHUB_ENV
+      - name: Determine last commit hash for EDSL
+        id: get_edsl_commit
+        run: |
+          if [ "${{ github.head_ref }}" != "" ]; then
+            # Pull Request: Get the last commit from the source branch
+            echo "EDSL_COMMIT=$(git rev-parse ${{ github.event.pull_request.head.sha }})" >> $GITHUB_ENV
+          else
+            # Push: Get the last commit directly
+            echo "EDSL_COMMIT=$(git rev-parse HEAD)" >> $GITHUB_ENV
+          fi
 
-      - name: Checkout EDSL at current commit
+      - name: Fetch and checkout last commit in EDSL
         run: |
           cd /home/stefan/expectedparrot/edsl
-          git fetch
-          git checkout $COMMIT
+          git fetch origin
+          git checkout $EDSL_COMMIT || git checkout origin/main  # Fallback to main if commit is unavailable
 
       - name: Run make coop-test
         run: |
