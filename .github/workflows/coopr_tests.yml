@@ -25,10 +25,18 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
+      - name: Set current commit
+        id: get_commit
+        run: echo "COMMIT=$(git rev-parse HEAD)" >> $GITHUB_ENV
+
+      - name: Update pyproject.toml for EDSL
+        run: |
+          cd /home/stefan/expectedparrot/coopr/backend
+          sed -i -E "s|edsl = \{git = \"https://github.com/expectedparrot/edsl.git\", rev = \".*\"\}|edsl = {git = \"https://github.com/expectedparrot/edsl.git\", rev = \"$COMMIT\"}|" pyproject.toml
+
       - name: Run Docker Compose
         run: |
           cd /home/stefan/expectedparrot/coopr
-          git pull
           docker-compose build --no-cache backend && docker-compose up --wait
 
   run-make-coop-test:
@@ -39,10 +47,15 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
+      - name: Checkout EDSL at current commit
+        run: |
+          cd /home/stefan/expectedparrot/edsl
+          git fetch
+          git checkout $COMMIT
+
       - name: Run make coop-test
         run: |
           cd /home/stefan/expectedparrot/edsl
-          git pull
           source ./project/bin/activate
           poetry install
           make test-coop
