@@ -23,7 +23,7 @@ def test_coop_remote_inference_cost():
     coop = Coop(api_key="b")
     job = Jobs.example()
     cost = coop.remote_inference_cost(job)
-    assert cost == {"credits": 0.77, "usd": 0.0076950000000000005}
+    assert cost == {"credits": 0.77, "usd": 0.007670000000000001}
     survey = Survey(
         questions=[
             QuestionMultipleChoice.example(),

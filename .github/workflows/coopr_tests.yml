@@ -1,0 +1,83 @@
+name: Run Docker Compose on Self-Hosted
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - '**'
+
+  workflow_dispatch:
+
+jobs:
+  run-tasks:
+    if: ${{ github.event_name == 'push' && contains(github.event.head_commit.message, 'coopr') || github.event_name == 'pull_request' }}
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+  build-docker:
+    if: ${{ github.event_name == 'push' && contains(github.event.head_commit.message, 'coopr') || github.event_name == 'pull_request' }}
+    runs-on: self-hosted
+    needs: run-tasks
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Determine last commit hash
+        id: get_last_commit
+        run: |
+          if [ "${{ github.head_ref }}" != "" ]; then
+            # Pull Request: Get the last commit from the source branch
+            echo "COMMIT=$(git rev-parse ${{ github.event.pull_request.head.sha }})" >> $GITHUB_ENV
+          else
+            # Push: Get the last commit directly
+            echo "COMMIT=$(git rev-parse HEAD)" >> $GITHUB_ENV
+          fi
+
+      - name: Update pyproject.toml for EDSL
+        run: |
+          cd /home/stefan/expectedparrot/coopr/backend
+          sed -i -E "s|edsl = \{git = \"https://github.com/expectedparrot/edsl.git\", rev = \".*\"\}|edsl = {git = \"https://github.com/expectedparrot/edsl.git\", rev = \"$COMMIT\"}|" pyproject.toml
+
+      - name: Run Docker Compose
+        run: |
+          cd /home/stefan/expectedparrot/coopr
+          docker-compose build --no-cache backend && docker-compose up --wait
+
+  run-make-coop-test:
+    if: ${{ github.event_name == 'push' && contains(github.event.head_commit.message, 'coopr') || github.event_name == 'pull_request' }}
+    runs-on: self-hosted
+    needs: build-docker
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Determine last commit hash for EDSL
+        id: get_edsl_commit
+        run: |
+          if [ "${{ github.head_ref }}" != "" ]; then
+            # Pull Request: Get the last commit from the source branch
+            echo "EDSL_COMMIT=$(git rev-parse ${{ github.event.pull_request.head.sha }})" >> $GITHUB_ENV
+          else
+            # Push: Get the last commit directly
+            echo "EDSL_COMMIT=$(git rev-parse HEAD)" >> $GITHUB_ENV
+          fi
+
+      - name: Fetch and checkout last commit in EDSL
+        run: |
+          cd /home/stefan/expectedparrot/edsl
+          git fetch origin
+          git checkout $EDSL_COMMIT || git checkout origin/main  # Fallback to main if commit is unavailable
+
+      - name: Run make coop-test
+        run: |
+          cd /home/stefan/expectedparrot/edsl
+          source ./project/bin/activate
+          poetry install
+          make test-coop
