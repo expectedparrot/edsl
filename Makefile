@@ -230,6 +230,8 @@ test-integration: ## Run integration tests via pytest **consumes API credits**
 	pytest -v integration/test_models.py
 	pytest -v integration/test_questions.py
 	pytest -v integration/test_runners.py
+test-serialization: ## Run serialization tests
+	pytest -v tests/serialization/test_serialization.py
 
 integration-job-running: # DOES NOT WORK!
 	pytest -v --log-cli-level=INFO integration/test_job_running.py
