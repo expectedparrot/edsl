@@ -78,6 +78,11 @@ clean-all: ## Clean everything (including the venv)
 publish: ## Publish the package to PyPI (requires credentials)
 	@version=$$(grep "^version =" pyproject.toml | head -1 | sed 's/version = "\(.*\)"/\1/'); \
 	echo "You are about to publish EDSL version '$$version' to PyPI."
+ifeq ($(force), yes)
+	echo "Automatically confirming publish for version '$$version'..."
+	poetry build
+	poetry publish
+else
 	@read -p "Are you sure you want to continue? (y/n) " answer; \
 	if [ "$$answer" != "y" ]; then \
 		echo "Publish canceled."; \
@@ -85,6 +90,8 @@ publish: ## Publish the package to PyPI (requires credentials)
 	fi
 	poetry build
 	poetry publish
+endif
+
 
 
 ###############
@@ -177,8 +184,11 @@ test-report: ## Run unit tests and view a test report
 	fi
 
 test-data: ## Create serialization test data for the current EDSL version
-	python scripts/create_serialization_test_data.py
-
+	@if echo "$(ARGS)" | grep -q -- --start_new_version; then \
+		python scripts/create_serialization_test_data.py $(ARGS); \
+	else \
+		python scripts/create_serialization_test_data.py; \
+	fi
 test-doctests: ## Run doctests
 	make clean-test
 	pytest --doctest-modules edsl/inference_services
