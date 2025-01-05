@@ -12,44 +12,20 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Change to project directory
-        run: cd /home/stefan/expectedparrot/edsl
-
-      - name: Checkout to target branch
-        run: git checkout automate_pypi_deploy 
-
-      - name: Pull latest changes
-        run: git pull
-
-      - name: Activate virtual environment
-        run: source ./project/bin/activate
-
-      - name: Bump dev version
-        run: make bump dev
-
-      - name: Run tests for test-data
-        run: make test-data
-
-      - name: Run tests for test-serialization
-        run: make test-serialization
-
-      - name: Publish to PyPI
-        run: make publish
-
-      - name: Bump to patch version
-        run: make bump patch
-
-      - name: Bump dev version again
-        run: make bump dev
-
-      - name: Run test-data with new version flag
-        run: make test-data ARGS=--start_new_version
-
-      - name: Add updated serialization test data
-        run: git add tests/serialization/data/*
-
-      - name: Commit changes
-        run: git commit -m "Update serialization test data after new version bump"
-
-      - name: Push changes
-        run: git push
+      - name: Deploy and Test
+        run: |
+          cd /home/stefan/expectedparrot/edsl
+          git checkout automate_pypi_deploy 
+          git pull
+          source ./project/bin/activate
+          poetry install
+          make bump dev
+          make test-data
+          make test-serialization
+          make publish
+          make bump patch
+          make bump dev
+          make test-data ARGS=--start_new_version
+          git add tests/serialization/data/*
+          git commit -m "Update serialization test data after new version bump"
+          git push
