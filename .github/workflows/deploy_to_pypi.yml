@@ -3,7 +3,7 @@ name: Deploy and Test
 on:
   push:
     branches:
-      - main
+      - automate_pypi_deploy 
 
 jobs:
   deploy:
@@ -15,8 +15,8 @@ jobs:
       - name: Change to project directory
         run: cd /home/stefan/expectedparrot/edsl
 
-      - name: Checkout main branch
-        run: git checkout main
+      - name: Checkout to target branch
+        run: git checkout automate_pypi_deploy 
 
       - name: Pull latest changes
         run: git pull
