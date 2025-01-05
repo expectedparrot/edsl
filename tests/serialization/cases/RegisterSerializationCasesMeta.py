@@ -69,12 +69,12 @@ class ResultsSerializationCases(SerializationBase):
     @staticmethod
     def configure_agents_and_models(s: Survey):
         personas = ["You are a scientist", "You are a chef"]
-        ages = [20, 40, 60]
+        ages = [20, 40]
         agents = [
             Agent(traits={"persona": p, "age": a}) for p, a in zip(personas, ages)
         ]
         # Use multiple models
-        models = [ Model("gpt-4o")]#[Model("gpt-3.5-turbo"), Model("gpt-4o")]
+        models = [Model("gpt-3.5-turbo"), Model("gpt-4o")]
 
         s = s.by(agents).by(models)
         return s
