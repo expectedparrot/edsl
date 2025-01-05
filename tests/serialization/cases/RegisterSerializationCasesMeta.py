@@ -74,7 +74,7 @@ class ResultsSerializationCases(SerializationBase):
             Agent(traits={"persona": p, "age": a}) for p, a in zip(personas, ages)
         ]
         # Use multiple models
-        models = [Model("gpt-3.5-turbo"), Model("gpt-4o")]
+        models = [ Model("gpt-4o")]#[Model("gpt-3.5-turbo"), Model("gpt-4o")]
 
         s = s.by(agents).by(models)
         return s
@@ -96,7 +96,7 @@ class ResultsSerializationCases(SerializationBase):
         # Use example questions for each question class
         questions = [q.example() for q in all_question_types]
         s = Survey(questions=questions)
-        s = self.configure_agents_and_models(s)
+       # s = self.configure_agents_and_models(s)
         result = s.run(
             cache=False, print_exceptions=False, disable_remote_inference=True
         )
@@ -144,7 +144,7 @@ class ResultsSerializationCases(SerializationBase):
             q_multiple_choice_sentiment,
         ]
         s = Survey(questions=questions).by(scenarios)
-        s = self.configure_agents_and_models(s)
+        #s = self.configure_agents_and_models(s)
         result = s.run(
             cache=False, print_exceptions=False, disable_remote_inference=True
         )
@@ -190,7 +190,7 @@ class ResultsSerializationCases(SerializationBase):
         # Use memory
         s = s.set_lagged_memory(2)
         s = s.add_memory_collection(q_birds_tk, [q_color_mc])
-        s = self.configure_agents_and_models(s)
+        #s = self.configure_agents_and_models(s)
         result = s.run(
             cache=False, print_exceptions=False, disable_remote_inference=True
         )
