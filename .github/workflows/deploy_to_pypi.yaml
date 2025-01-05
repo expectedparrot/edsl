@@ -1,0 +1,55 @@
+name: Deploy and Test
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Change to project directory
+        run: cd /home/stefan/expectedparrot/edsl
+
+      - name: Checkout main branch
+        run: git checkout main
+
+      - name: Pull latest changes
+        run: git pull
+
+      - name: Activate virtual environment
+        run: source ./project/bin/activate
+
+      - name: Bump dev version
+        run: make bump dev
+
+      - name: Run tests for test-data
+        run: make test-data
+
+      - name: Run tests for test-serialization
+        run: make test-serialization
+
+      - name: Publish to PyPI
+        run: make publish
+
+      - name: Bump to patch version
+        run: make bump patch
+
+      - name: Bump dev version again
+        run: make bump dev
+
+      - name: Run test-data with new version flag
+        run: make test-data ARGS=--start_new_version
+
+      - name: Add updated serialization test data
+        run: git add tests/serialization/data/*
+
+      - name: Commit changes
+        run: git commit -m "Update serialization test data after new version bump"
+
+      - name: Push changes
+        run: git push
