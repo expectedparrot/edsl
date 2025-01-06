@@ -1,4 +1,4 @@
-name: Run Docker Compose on Self-Hosted
+name: Run coopr - edsl tests
 
 on:
   pull_request:
