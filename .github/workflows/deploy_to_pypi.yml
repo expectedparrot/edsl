@@ -35,5 +35,5 @@ jobs:
           make test-data ARGS=--start_new_version
           git add tests/serialization/data/*
           git add -u
-          git commit -m "Update serialization test data after new version bump "
+          git commit -m "Update serialization test data after new version bump"
           git push
