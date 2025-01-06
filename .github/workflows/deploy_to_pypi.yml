@@ -1,12 +1,13 @@
-name: Deploy and Test
-
 on:
   push:
     branches:
-      - automate_pypi_deploy 
+      - automate_pypi_deploy
 
 jobs:
   deploy:
+    if: >-
+      contains(github.event.head_commit.message, 'deploy') ||
+      contains('Deploy and Test', 'deploy')
     runs-on: self-hosted
     steps:
       - name: Checkout repository
@@ -16,7 +17,7 @@ jobs:
         run: |
           cd /home/stefan/expectedparrot/auto-deploy-to-pypi/edsl
           git fetch
-          git checkout -f automate_pypi_deploy 
+          git checkout -f automate_pypi_deploy
           git pull
           source ./project/bin/activate
           poetry install
@@ -28,5 +29,6 @@ jobs:
           make bump dev
           make test-data ARGS=--start_new_version
           git add tests/serialization/data/*
+          git add -u
           git commit -m "Update serialization test data after new version bump"
           git push
