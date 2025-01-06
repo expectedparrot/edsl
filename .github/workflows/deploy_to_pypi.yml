@@ -14,9 +14,9 @@ jobs:
 
       - name: Deploy and Test
         run: |
-          cd /home/stefan/expectedparrot/edsl
+          cd /home/stefan/expectedparrot/auto-deploy-to-pypi/edsl
           git fetch
-          git checkout automate_pypi_deploy 
+          git checkout -f automate_pypi_deploy 
           source ./project/bin/activate
           poetry install
           make bump dev
