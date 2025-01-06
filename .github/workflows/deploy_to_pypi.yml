@@ -17,6 +17,7 @@ jobs:
           cd /home/stefan/expectedparrot/auto-deploy-to-pypi/edsl
           git fetch
           git checkout -f automate_pypi_deploy 
+          git pull
           source ./project/bin/activate
           poetry install
           make bump dev
