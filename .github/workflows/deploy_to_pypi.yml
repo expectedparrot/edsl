@@ -1,13 +1,18 @@
+name: Deploy to PyPI
 on:
   push:
+    branches:
+      - automate_pypi_deploy
+  pull_request:
     branches:
       - automate_pypi_deploy
 
 jobs:
   deploy:
     if: >-
-      contains(github.event.head_commit.message, 'deploy') ||
-      contains('Deploy and Test', 'deploy')
+      contains(github.event.pull_request.body || '', 'deploy') ||
+      contains(github.event.pull_request.title || '', 'deploy') ||
+      contains(github.event.head_commit.message || '', 'deploy')
     runs-on: self-hosted
     steps:
       - name: Checkout repository
@@ -17,7 +22,7 @@ jobs:
         run: |
           cd /home/stefan/expectedparrot/auto-deploy-to-pypi/edsl
           git fetch
-          git checkout -f automate_pypi_deploy
+          git checkout -f automate_pypi_deploy 
           git pull
           source ./project/bin/activate
           poetry install
