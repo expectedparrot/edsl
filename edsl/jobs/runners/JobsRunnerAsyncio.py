@@ -93,16 +93,16 @@ class JobsRunnerAsyncio:
 
             self.completed = True
 
-        def run_progress_bar(stop_event) -> None:
+        def run_progress_bar(stop_event, jobs_runner_status) -> None:
             """Runs the progress bar in a separate thread."""
-            self.jobs_runner_status.update_progress(stop_event)
+            jobs_runner_status.update_progress(stop_event)
 
         def set_up_progress_bar(progress_bar: bool, jobs_runner_status):
             progress_thread = None
             if progress_bar and jobs_runner_status.has_ep_api_key():
                 jobs_runner_status.setup()
                 progress_thread = threading.Thread(
-                    target=run_progress_bar, args=(stop_event,)
+                    target=run_progress_bar, args=(stop_event, jobs_runner_status)
                 )
                 progress_thread.start()
             elif progress_bar:
