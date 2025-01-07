@@ -212,7 +212,9 @@ Dynamic traits function
 Agents can also be created with a `dynamic_traits_function` parameter. 
 This function can be used to generate traits dynamically based on the question being asked or the scenario in which the question is asked.
 
-For example:
+*Note:* This method is only available with local inference. It does not work with remote inference.
+
+Example:
 
 .. code-block:: python
 
