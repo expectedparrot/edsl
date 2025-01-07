@@ -1,4 +1,4 @@
-name: Run Docker Compose on Self-Hosted
+name: Run coopr - edsl tests
 
 on:
   pull_request:
@@ -39,10 +39,11 @@ jobs:
             echo "COMMIT=$(git rev-parse HEAD)" >> $GITHUB_ENV
           fi
 
-      - name: Update pyproject.toml for EDSL
+      - name: Update pyproject.toml for EDSL target commit
         run: |
           cd /home/stefan/expectedparrot/coopr/backend
           sed -i -E "s|edsl = \{git = \"https://github.com/expectedparrot/edsl.git\", rev = \".*\"\}|edsl = {git = \"https://github.com/expectedparrot/edsl.git\", rev = \"$COMMIT\"}|" pyproject.toml
+          sed -i -E "s|edsl = \{git = \"https://github.com/expectedparrot/edsl.git\",branch = \".*\"\}|edsl = {git = \"https://github.com/expectedparrot/edsl.git\", rev = \"$COMMIT\"}|" pyproject.toml
 
       - name: Run Docker Compose
         run: |

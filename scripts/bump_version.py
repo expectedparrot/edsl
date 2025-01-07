@@ -5,7 +5,6 @@ import toml
 VERSION_PATH = "edsl/__version__.py"
 PYPROJECT_PATH = "pyproject.toml"
 
-
 def get_version_from_file(path):
     try:
         with open(path, "r") as file:
@@ -27,7 +26,6 @@ def get_version_from_file(path):
     print(f"Error: Version not found in {path}.")
     sys.exit(1)
 
-
 def write_version_to_file(path, version):
     try:
         if path.endswith(".py"):
@@ -44,7 +42,6 @@ def write_version_to_file(path, version):
         print(f"Error writing to {path}: {e}")
         sys.exit(1)
 
-
 def get_new_version(version, part):
     major, minor, patch, *dev = re.split(r"[.\-]", version)
     if part == "major":
@@ -58,9 +55,10 @@ def get_new_version(version, part):
     elif part == "dev":
         dev = f".dev{int(dev[0][3:]) + 1 if dev else 1}"
         return f"{major}.{minor}.{patch}{dev}"
+    elif part == "deploy":
+        return f"{major}.{minor}.{patch}"  # Remove the .dev suffix
 
     return f"{major}.{minor}.{patch}"
-
 
 def main(part):
     current_version = get_version_from_file(VERSION_PATH)
@@ -78,13 +76,11 @@ def main(part):
     write_version_to_file(VERSION_PATH, new_version)
     write_version_to_file(PYPROJECT_PATH, new_version)
 
-    print(f"Version bumped from {current_version} to {new_version}")
-
+    print(f"Version updated from {current_version} to {new_version}")
 
 if __name__ == "__main__":
-    print(sys.argv)
-    if len(sys.argv) != 2 or sys.argv[1] not in ["dev", "patch", "minor", "major"]:
-        print("Usage: make bump [dev|patch|minor|major]")
+    if len(sys.argv) != 2 or sys.argv[1] not in ["dev", "patch", "minor", "major", "deploy"]:
+        print("Usage: make bump [dev|patch|minor|major|deploy]")
         sys.exit(1)
 
     main(sys.argv[1])
