@@ -36,3 +36,14 @@ class CsvMethods(FileMethods):
         with tempfile.NamedTemporaryFile(delete=False, suffix=".csv") as f:
             df.to_csv(f.name, index=False)
         return f.name
+
+    def to_pandas(self):
+        """
+        Convert the CSV file to a pandas DataFrame.
+
+        Returns:
+            pandas.DataFrame: The data from the CSV as a DataFrame
+        """
+        import pandas as pd
+
+        return pd.read_csv(self.path)

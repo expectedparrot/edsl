@@ -327,6 +327,38 @@ class FileStore(Scenario):
 
         return ConstructDownloadLink(self).create_link(custom_filename, style)
 
+    def to_pandas(self):
+        """
+        Convert the file content to a pandas DataFrame if supported by the file handler.
+
+        Returns:
+            pandas.DataFrame: The data from the file as a DataFrame
+
+        Raises:
+            AttributeError: If the file type's handler doesn't support pandas conversion
+        """
+        handler = FileMethods.get_handler(self.suffix)
+        if handler and hasattr(handler, "to_pandas"):
+            return handler(self.path).to_pandas()
+        raise AttributeError(
+            f"Converting {self.suffix} files to pandas DataFrame is not supported"
+        )
+
+    def __getattr__(self, name):
+        """
+        Delegate pandas DataFrame methods to the underlying DataFrame if this is a CSV file
+        """
+        if self.suffix == "csv":
+            # Get the pandas DataFrame
+            df = self.to_pandas()
+            # Check if the requested attribute exists in the DataFrame
+            if hasattr(df, name):
+                return getattr(df, name)
+        # If not a CSV or attribute doesn't exist in DataFrame, raise AttributeError
+        raise AttributeError(
+            f"'{self.__class__.__name__}' object has no attribute '{name}'"
+        )
+
 
 class CSVFileStore(FileStore):
     @classmethod
