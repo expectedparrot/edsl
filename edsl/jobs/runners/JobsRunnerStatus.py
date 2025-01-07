@@ -148,7 +148,8 @@ class JobsRunnerStatusBase(ABC):
         }
 
         model_queues = {}
-        for model, bucket in self.jobs_runner.bucket_collection.items():
+        # for model, bucket in self.jobs_runner.bucket_collection.items():
+        for model, bucket in self.jobs_runner.environment.bucket_collection.items():
             model_name = model.model
             model_queues[model_name] = {
                 "language_model_name": model_name,
