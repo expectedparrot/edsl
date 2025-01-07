@@ -48,7 +48,7 @@ jobs:
           make test-serialization
           git add tests/serialization/data/*
           git add -u
-          git commit -m "no-test.Update serialization test data after new dev version bump"
+          git commit -m "no-test.Update serialization test data after new dev version pre-release"
           git push
 
       - name: Deploy new release version to PyPI
@@ -68,5 +68,5 @@ jobs:
           make test-data ARGS=--start_new_version
           git add tests/serialization/data/*
           git add -u
-          git commit -m "no-test.Update serialization test data after new version bump "
+          git commit -m "no-test.Update serialization test data after new version release "
           git push
