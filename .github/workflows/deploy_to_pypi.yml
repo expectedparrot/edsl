@@ -1,0 +1,71 @@
+name: Deploy to PyPI
+
+on:
+  push:
+    branches:
+      - automate_pypi_deploy
+
+jobs:
+  deploy:
+    if: >-
+      contains(github.event.pull_request.body || '', 'deploy dev') ||
+      contains(github.event.pull_request.title || '', 'deploy dev') ||
+      contains(github.event.head_commit.message || '', 'deploy dev') ||
+      contains(github.event.pull_request.body || '', 'deploy release') ||
+      contains(github.event.pull_request.title || '', 'deploy release') ||
+      contains(github.event.head_commit.message || '', 'deploy release')
+    runs-on: self-hosted
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Determine Deployment Type
+        id: determine-deploy-type
+        run: |
+          if echo "${{ github.event.pull_request.body }} ${{ github.event.pull_request.title }} ${{ github.event.head_commit.message }}" | grep -q 'deploy dev'; then
+            echo "::set-output name=deploy_type::dev"
+          elif echo "${{ github.event.pull_request.body }} ${{ github.event.pull_request.title }} ${{ github.event.head_commit.message }}" | grep -q 'deploy release'; then
+            echo "::set-output name=deploy_type::release"
+          else
+            echo "No valid deployment keyword found."
+            exit 1
+          fi
+
+      - name: Deploy dev version to PyPI
+        if: steps.determine-deploy-type.outputs.deploy_type == 'dev'
+        run: |
+          cd /home/stefan/expectedparrot/auto-deploy-to-pypi/edsl
+          git fetch
+          git checkout -f automate_pypi_deploy 
+          git pull
+          source ./project/bin/activate
+          poetry install
+          make bump dev
+          make test-data
+          make test-serialization
+          make publish force=yes
+          git add tests/serialization/data/*
+          git add -u
+          git commit -m "no-test.Update serialization test data after new dev version pre-release"
+          git push
+
+      - name: Deploy new release version to PyPI
+        if: steps.determine-deploy-type.outputs.deploy_type == 'release'
+        run: |
+          cd /home/stefan/expectedparrot/auto-deploy-to-pypi/edsl
+          git fetch
+          git checkout -f automate_pypi_deploy 
+          git pull
+          source ./project/bin/activate
+          poetry install
+          make bump deploy
+          make test-data
+          make test-serialization
+          make publish force=yes
+          make bump patch
+          make bump dev
+          make test-data ARGS=--start_new_version
+          git add tests/serialization/data/*
+          git add -u
+          git commit -m "no-test.Update serialization test data after new version release "
+          git push

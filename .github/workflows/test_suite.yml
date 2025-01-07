@@ -7,6 +7,9 @@ on:
 
 jobs:
   test:
+    if: |
+      !contains(github.event.head_commit.message || '', 'no-test') &&
+      !contains(github.event.pull_request.title || '', 'no-test')
     runs-on: ubuntu-latest
     timeout-minutes: 120    # Changed to 120 minutes
     strategy:
@@ -16,7 +19,7 @@ jobs:
       POETRY_VERSION: "1.7.1"
     steps:
       - uses: actions/checkout@v3
-      
+
       - name: Set up python ${{ matrix.python-version }}
         uses: actions/setup-python@v4
         with:
@@ -24,7 +27,7 @@ jobs:
 
       - name: Install Graphviz
         run: sudo apt-get update && sudo apt-get install -y graphviz
-      
+
       - name: Install Poetry
         uses: snok/install-poetry@v1
         with:
