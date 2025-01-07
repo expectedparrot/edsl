@@ -2,9 +2,7 @@ name: Test Suite
 
 on:
   push:
-    branches-ignore: []
   pull_request:
-    branches-ignore: []
   workflow_dispatch:
 
 jobs:

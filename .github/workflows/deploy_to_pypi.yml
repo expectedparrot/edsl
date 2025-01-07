@@ -32,6 +32,7 @@ jobs:
           else
             echo "No valid deployment keyword found."
             exit 1
+          fi
 
       - name: Deploy dev version to PyPI
         if: steps.determine-deploy-type.outputs.deploy_type == 'dev'
@@ -45,6 +46,7 @@ jobs:
           make bump dev
           make test-data
           make test-serialization
+          make publish force=yes
           git add tests/serialization/data/*
           git add -u
           git commit -m "Update serialization test data after new dev version bump"
@@ -62,6 +64,7 @@ jobs:
           make bump deploy
           make test-data
           make test-serialization
+          make publish force=yes
           make bump patch
           make bump dev
           make test-data ARGS=--start_new_version
