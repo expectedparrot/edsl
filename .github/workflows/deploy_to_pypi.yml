@@ -4,9 +4,6 @@ on:
   push:
     branches:
       - automate_pypi_deploy
-  pull_request:
-    branches:
-      - automate_pypi_deploy
 
 jobs:
   deploy:
