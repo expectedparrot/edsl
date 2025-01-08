@@ -51,4 +51,4 @@ See instructions on [storing API keys](https://docs.expectedparrot.com/en/latest
 
 ## 💡 Contributions, feature requests & bugs
 Interested in contributing? Want us to add a new feature? Found a bug for us to squash? 
-Please send us an email at [info@expectedparrot.com](mailto:info@expectedparrot.com) or message us at our [Discord channel](https://discord.com/invite/mxAYkjfy9m)..
+Please send us an email at [info@expectedparrot.com](mailto:info@expectedparrot.com) or message us at our [Discord channel](https://discord.com/invite/mxAYkjfy9m).
