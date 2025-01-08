@@ -165,7 +165,7 @@ class RemoteCacheSync(AbstractContextManager):
                 description=self.remote_cache_description,
             )
             # self._output("Remote cache updated!")
-        else:
+        # else:
             # self._output("No new entries to add to remote cache.")
 
         self._output(
