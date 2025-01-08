@@ -168,9 +168,9 @@ class RemoteCacheSync(AbstractContextManager):
         # else:
             # self._output("No new entries to add to remote cache.")
 
-        self._output(
+        # self._output(
             # f"There are {len(self.cache.keys()):,} entries in the local cache."
-        )
+        # )
 
 
 if __name__ == "__main__":
