@@ -29,7 +29,11 @@ class QuestionAnswerValidationError(QuestionErrors):
     ):
         self.message = message
         self.pydantic_error = pydantic_error
-        self.data = data
+        # Convert numerical values to strings if necessary
+        if data:
+            self.data = {k: str(v) if isinstance(v, (int, float)) else v for k, v in data.items()}
+        else:
+            self.data = data
         self.model = model
         super().__init__(self.message)
 
