@@ -29,11 +29,7 @@ class QuestionAnswerValidationError(QuestionErrors):
     ):
         self.message = message
         self.pydantic_error = pydantic_error
-        # Convert numerical values to strings if necessary
-        if data:
-            self.data = {k: str(v) if isinstance(v, (int, float)) else v for k, v in data.items()}
-        else:
-            self.data = data
+        self.data = data
         self.model = model
         super().__init__(self.message)
 
@@ -62,13 +58,13 @@ class QuestionAnswerValidationError(QuestionErrors):
                 "What model returned",
                 "pre",
                 "/pre",
-                json.dumps(self.data, indent=2),
+                json.dumps(self.data, indent=2, default=str),
             ),
             "validating_model": (
                 "Pydantic model for answers",
                 "pre",
                 "/pre",
-                json.dumps(self.model.model_json_schema(), indent=2),
+                json.dumps(self.model.model_json_schema(), indent=2, default=str),
             ),
             "error_message": (
                 "Error message Pydantic returned",
