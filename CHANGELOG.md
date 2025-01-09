@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.1.39] - TBD
+## [0.1.39] - 2025-01-08
 ### Added
 - Question type `QuestionMatrix`. Details: https://docs.expectedparrot.com/en/latest/questions.html#questionmatrix-class
 
