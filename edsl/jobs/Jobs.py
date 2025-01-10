@@ -503,7 +503,7 @@ class Jobs(Base):
     async def _execute_with_remote_cache(self, run_job_async: bool) -> Results:
         logger = logging.getLogger(__name__)
         use_remote_cache = self.use_remote_cache()
-        
+
         if use_remote_cache:
             logger.info("Remote cache enabled")
         else:
@@ -554,14 +554,16 @@ class Jobs(Base):
         "Shared code for run and run_async"
         logger = logging.getLogger(__name__)
         logger.info(f"Initializing job with {self.num_interviews} interviews")
-        
+
         if config.environment.cache is not None:
             logger.debug("Using provided cache")
             self.run_config.environment.cache = config.environment.cache
 
         if config.environment.bucket_collection is not None:
             logger.debug("Using provided bucket collection")
-            self.run_config.environment.bucket_collection = config.environment.bucket_collection
+            self.run_config.environment.bucket_collection = (
+                config.environment.bucket_collection
+            )
 
         if config.environment.key_lookup is not None:
             logger.debug("Using provided key lookup")
@@ -577,14 +579,19 @@ class Jobs(Base):
         self._prepare_to_run()
         self._check_if_remote_keys_ok()
 
-        if self.run_config.environment.cache is None or self.run_config.environment.cache is True:
+        if (
+            self.run_config.environment.cache is None
+            or self.run_config.environment.cache is True
+        ):
             logger.debug("Initializing default cache")
             from edsl.data.CacheHandler import CacheHandler
+
             self.run_config.environment.cache = CacheHandler().get_cache()
 
         if self.run_config.environment.cache is False:
             logger.debug("Initializing cache with immediate_write=False")
             from edsl.data.Cache import Cache
+
             self.run_config.environment.cache = Cache(immediate_write=False)
 
         # first try to run the job remotely
@@ -597,7 +604,9 @@ class Jobs(Base):
 
         if config.environment.bucket_collection is None:
             logger.debug("Creating new bucket collection")
-            self.run_config.environment.bucket_collection = self.create_bucket_collection()
+            self.run_config.environment.bucket_collection = (
+                self.create_bucket_collection()
+            )
 
     @with_config
     def run(self, *, config: RunConfig) -> "Results":
