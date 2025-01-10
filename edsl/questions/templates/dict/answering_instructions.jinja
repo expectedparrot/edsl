@@ -1,0 +1,15 @@
+Please respond with a dictionary using the following keys: {{ answer_keys }}
+
+{% if value_descriptions %}
+Here are descriptions of the values to provide: {{ value_descriptions }}
+{% endif %}
+
+{% if value_types %}
+The values should be formatted in the following types: {{ value_types }}
+{% endif %}
+
+If you do not have a value for a given key, use "null".
+
+{% if include_comment %}
+After the answer, you can put a comment explaining your response on the next line.
+{% endif %} 
