@@ -500,6 +500,7 @@ class LanguageModel(
         d = {
             "model": self.model,
             "parameters": self.parameters,
+            "inference_service": self._inference_service_,
         }
         if add_edsl_version:
             from edsl import __version__
