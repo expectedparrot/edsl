@@ -1,6 +1,26 @@
 # Changelog
 
-## [0.1.39] - TBD
+## [0.1.39] - 2025-01-08
+### Added
+- Question type `QuestionMatrix`. Details: https://docs.expectedparrot.com/en/latest/questions.html#questionmatrix-class
+
+- A `join()` method for objects. Examples:
+
+- `FileStore` method `create_link()` embeds a file in the HTML of a notebook and generates a download link for it. Examples: https://docs.expectedparrot.com/en/latest/filestore.html
+
+### Changed
+- Exceptions report is displayed as a clickable link.
+
+- Improvements to table display of results returned by `select()` method.
+
+- Improvements to status messages displayed in a table log when a job is running.
+
+- `Model.available()` now uses Coop by default (all models available with remote inference are returned). If remote inference is not activated then only models available locally are returned (based on stored personal API keys).
+
+### Fixed
+- Progress bar shows total interviews instead of total unique interviews (iterations may be >1).
+
+
 
 ## [0.1.38] - 2024-11-26
 ### Added

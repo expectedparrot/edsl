@@ -74,7 +74,7 @@ jobs:
         run: |
           cd /home/stefan/expectedparrot/edsl
           git fetch origin
-          git checkout $EDSL_COMMIT || git checkout origin/main  # Fallback to main if commit is unavailable
+          git checkout -f $EDSL_COMMIT || git checkout -f origin/main  # Fallback to main if commit is unavailable
 
       - name: Run make coop-test
         run: |

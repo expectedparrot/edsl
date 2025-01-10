@@ -50,7 +50,7 @@ def extract_json(text, expected_keys, verbose=False):
 
 def dict_to_pydantic_model(input_dict: Dict[str, Any]) -> Any:
     field_definitions = {
-        key: (str, Field(default=str(value))) for key, value in input_dict.items()
+        key: (type(value), Field(default=value)) for key, value in input_dict.items()
     }
 
     DynamicModel = create_model("DynamicModel", **field_definitions)
