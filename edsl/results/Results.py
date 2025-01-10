@@ -170,12 +170,12 @@ class Results(UserList, Mixins, Base):
         """
         total_cost = 0
         for result in self:
-            for key in result.raw_model_response:
+            for key in result["raw_model_response"]:
                 if key.endswith("_cost"):
-                    result_cost = result.raw_model_response[key]
+                    result_cost = result["raw_model_response"][key]
 
                     question_name = key.removesuffix("_cost")
-                    cache_used = result.cache_used_dict[question_name]
+                    cache_used = result["cache_used_dict"][question_name]
 
                     if isinstance(result_cost, (int, float)):
                         if include_cached_responses_in_cost:
