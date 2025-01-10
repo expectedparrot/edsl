@@ -244,7 +244,7 @@ class LanguageModel(
 
         >>> m = LanguageModel.example()
         >>> hash(m)
-        1811901442659237949
+        325654563661254408
         """
         from edsl.utilities.utilities import dict_hash
 
@@ -495,7 +495,7 @@ class LanguageModel(
 
         >>> m = LanguageModel.example()
         >>> m.to_dict()
-        {'model': '...', 'parameters': {'temperature': ..., 'max_tokens': ..., 'top_p': ..., 'frequency_penalty': ..., 'presence_penalty': ..., 'logprobs': False, 'top_logprobs': ...}, 'edsl_version': '...', 'edsl_class_name': 'LanguageModel'}
+        {'model': '...', 'parameters': {'temperature': ..., 'max_tokens': ..., 'top_p': ..., 'frequency_penalty': ..., 'presence_penalty': ..., 'logprobs': False, 'top_logprobs': ...}, 'inference_service': 'openai', 'edsl_version': '...', 'edsl_class_name': 'LanguageModel'}
         """
         d = {
             "model": self.model,
