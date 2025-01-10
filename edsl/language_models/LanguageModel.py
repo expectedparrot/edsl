@@ -512,7 +512,10 @@ class LanguageModel(
     @classmethod
     @remove_edsl_version
     def from_dict(cls, data: dict) -> Type[LanguageModel]:
-        """Convert dictionary to a LanguageModel child instance."""
+        """Convert dictionary to a LanguageModel child instance.
+
+        NB: This method does not use the stores inference_service but rather just fetches a model class based on the name.
+        """
         from edsl.language_models.model import get_model_class
 
         model_class = get_model_class(data["model"])
