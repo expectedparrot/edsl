@@ -583,6 +583,7 @@ class Coop(CoopFunctionsMixin):
             uri="api/v0/remote-cache/get-diff",
             method="POST",
             payload={"keys": client_cacheentry_keys},
+            timeout=40,
         )
         self._resolve_server_response(response)
         response_json = response.json()
