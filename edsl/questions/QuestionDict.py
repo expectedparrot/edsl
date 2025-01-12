@@ -252,7 +252,7 @@ class QuestionDict(QuestionBase):
         }
 
     @classmethod
-    def from_dict(cls, data: dict) -> QuestionDict:
+    def from_dict(cls, data: dict) -> 'QuestionDict':  # Use string annotation to avoid forward ref
         """Recreate from a dictionary."""
         return cls(
             question_name=data["question_name"],
@@ -266,13 +266,13 @@ class QuestionDict(QuestionBase):
 
     @classmethod
     @inject_exception
-    def example(cls) -> QuestionDict:
+    def example(cls) -> 'QuestionDict':  # Use string annotation to avoid forward ref
         """Return an example question."""
         return cls(
             question_name="example",
             question_text="Please provide a simple recipe for hot chocolate.",
-            answer_keys=["title", "ingredients", "num_ingredients", "instructions"],  # Fixed typo
-            value_types=["str", "list[str]", "int", "str"],  # Specified list[str] instead of just list
+            answer_keys=["title", "ingredients", "num_ingredients", "instructions"],
+            value_types=["str", "list[str]", "int", "str"],
             value_descriptions=[
                 "The title of the recipe.",
                 "A list of ingredients.",
