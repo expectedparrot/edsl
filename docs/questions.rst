@@ -81,6 +81,7 @@ For example, in a dictionary question where the respondent must provide the name
 
 
 `value_types` - *Optional* parameter of `dict` questions to specify the types of the values that the respondent must provide for each key.
+Permissible types are `str`, `int`, `float`, `list` and their string representations (e.g., `"str"`, `"int"`, `"float"`, `"list"`).
 For example, in a dictionary question where the respondent must provide the names of their favorite colors and the number of times they have worn each color in the past week, and the values must be a string and an integer, respectively:
 
 .. code-block:: python
