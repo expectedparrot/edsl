@@ -23,7 +23,7 @@ def create_dict_response(
 ):
     """Create a response model for dict questions."""
     class DictResponse(BaseModel):
-        answer: Dict[str, Union[int, str, float, List[Union[int, str, float]]]]
+        answer: Dict[str, Any]  # More permissive type annotation
         comment: Optional[str] = None
 
         @field_validator("answer")
@@ -32,13 +32,51 @@ def create_dict_response(
             missing_keys = set(answer_keys) - set(v.keys())
             if missing_keys:
                 raise ValueError(f"Missing required keys: {missing_keys}")
+                
             # Validate value types if not permissive
             if not permissive and value_types:
-                for key, expected_type in zip(answer_keys, value_types):
-                    if key in v and not isinstance(v[key], eval(expected_type)):
-                        raise ValueError(
-                            f"Key '{key}' has value of type {type(v[key]).__name__}, expected {expected_type}"
-                        )
+                for key, type_str in zip(answer_keys, value_types):
+                    if key not in v:
+                        continue
+                        
+                    value = v[key]
+                    type_str = type_str.lower()  # Normalize to lowercase
+                    
+                    # Handle list types
+                    if type_str.startswith(('list[', 'list')):
+                        if not isinstance(value, list):
+                            raise ValueError(f"Key '{key}' should be a list, got {type(value).__name__}")
+                            
+                        # If it's a parameterized list, check element types
+                        if '[' in type_str:
+                            element_type = type_str[type_str.index('[') + 1:type_str.rindex(']')]
+                            expected_type = {
+                                'str': str,
+                                'int': int,
+                                'float': float,
+                                'list': list
+                            }.get(element_type.lower())
+                            
+                            if expected_type:
+                                for i, elem in enumerate(value):
+                                    if not isinstance(elem, expected_type):
+                                        raise ValueError(
+                                            f"List element at index {i} for key '{key}' "
+                                            f"has type {type(elem).__name__}, expected {element_type}"
+                                        )
+                    else:
+                        # Handle basic types
+                        expected_type = {
+                            'str': str,
+                            'int': int,
+                            'float': float,
+                            'list': list,
+                        }.get(type_str)
+                        
+                        if expected_type and not isinstance(value, expected_type):
+                            raise ValueError(
+                                f"Key '{key}' has value of type {type(value).__name__}, expected {type_str}"
+                            )
             return v
 
     return DictResponse
@@ -49,8 +87,17 @@ class DictResponseValidator(ResponseValidatorABC):
 
     valid_examples = [
         (
-            {"answer": {"name": "Hot Chocolate", "num_ingredients": 5}},
-            {"answer_keys": ["name", "num_ingredients"], "value_types": ["str", "int"]},
+            {
+                "answer": {
+                    "name": "Hot Chocolate",
+                    "num_ingredients": 5,
+                    "ingredients": ["milk", "cocoa", "sugar"]
+                }
+            },
+            {
+                "answer_keys": ["name", "num_ingredients", "ingredients"],
+                "value_types": ["str", "int", "list[str]"]
+            },
         )
     ]
     invalid_examples = [
@@ -58,6 +105,11 @@ class DictResponseValidator(ResponseValidatorABC):
             {"answer": {"name": 123}},  # Name should be a string
             {"answer_keys": ["name"], "value_types": ["str"]},
             "Key 'name' has value of type int, expected str",
+        ),
+        (
+            {"answer": {"ingredients": "milk"}},  # Should be a list
+            {"answer_keys": ["ingredients"], "value_types": ["list"]},
+            "Key 'ingredients' should be a list, got str",
         )
     ]
 
@@ -120,20 +172,53 @@ class QuestionDict(QuestionBase):
         """Convert all value_types to string representations, including type hints."""
         if not value_types:
             return None
+
+        def normalize_type(t) -> str:
+            # If it's already a string, normalize it
+            if isinstance(t, str):
+                t = t.lower()
+                # Handle list types
+                if t.startswith(('list[', 'list')):
+                    if '[' in t:
+                        # Normalize the inner type
+                        inner_type = t[t.index('[') + 1:t.rindex(']')].strip().lower()
+                        return f"list[{inner_type}]"
+                    return "list"
+                return t
+
+            # If it's list type
+            if t is list:
+                return "list"
+
+            # If it's a basic type
+            if hasattr(t, "__name__"):
+                return t.__name__.lower()
+            
+            # If it's a typing.List
+            str_rep = str(t).lower()
+            if str_rep.startswith(('list[', 'list')):
+                return str_rep.replace('typing.', '')
+
+            # Handle generic types
+            if hasattr(t, "__origin__"):
+                origin = t.__origin__.__name__.lower()
+                args = [
+                    arg.__name__.lower() if hasattr(arg, "__name__") else str(arg).lower()
+                    for arg in t.__args__
+                ]
+                return f"{origin}[{', '.join(args)}]"
+
+            raise QuestionCreationValidationError(
+                f"Invalid type in value_types: {t}. Must be a type or string."
+            )
+
         normalized = []
         for t in value_types:
-            if isinstance(t, str):
-                normalized.append(t)
-            elif hasattr(t, "__name__"):  # Standard types like `str` or `int`
-                normalized.append(t.__name__)
-            elif hasattr(t, "__origin__"):  # Handle generics like `list[str]`
-                origin = t.__origin__.__name__
-                args = ", ".join(arg.__name__ if hasattr(arg, "__name__") else str(arg) for arg in t.__args__)
-                normalized.append(f"{origin}[{args}]")
-            else:
-                raise QuestionCreationValidationError(
-                    f"Invalid type in value_types: {t}. Must be a type or string."
-                )
+            try:
+                normalized.append(normalize_type(t))
+            except Exception as e:
+                raise QuestionCreationValidationError(f"Error normalizing type {t}: {str(e)}")
+        
         return normalized
 
     def _render_template(self, template_name: str) -> str:
@@ -185,13 +270,14 @@ class QuestionDict(QuestionBase):
         """Return an example question."""
         return cls(
             question_name="example",
-            question_text="Please provide a description of your favorite book.",
-            answer_keys=["title", "author", "year"],
-            value_types=["str", "str", "int"],
+            question_text="Please provide a simple recipe for hot chocolate.",
+            answer_keys=["title", "ingredients", "num_ingredients", "instructions"],  # Fixed typo
+            value_types=["str", "list[str]", "int", "str"],  # Specified list[str] instead of just list
             value_descriptions=[
-                "The title of the book.",
-                "The author of the book.",
-                "The year it was published.",
+                "The title of the recipe.",
+                "A list of ingredients.",
+                "The number of ingredients.",
+                "The instructions for making the recipe."
             ],
         )
 
