@@ -9,7 +9,7 @@ valid_question = {
     "question_text": "Please provide a recipe for basic hot chocolate.",
     "answer_keys": ["recipe_name", "ingredients", "num_ingredients"],
     "value_types": [str, str, list[str], int],
-    "value_description": ["The name of the recipe.", "List of ingredients.", "The number of ingredients."],
+    "value_descriptions": ["The name of the recipe.", "List of ingredients.", "The number of ingredients."],
 }
 
 
