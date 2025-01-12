@@ -1,11 +1,1 @@
 {{question_text}}
-
-{% for key in answer_keys %}
-{{ loop.index0 }}: {{key}}
-{% endfor %}
-
-Provide a value for each key.
-{% if required %}
-All keys require a value.
-If you do not have a value for a key, provide "None"
-{% endif %} 

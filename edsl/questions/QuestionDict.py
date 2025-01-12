@@ -1,41 +1,45 @@
 from __future__ import annotations
-from typing import Union, Optional, Dict, List, Any
+from typing import Union, Optional, Dict, List, Any, Type
+from pydantic import BaseModel, Field, field_validator
+from jinja2 import Environment, FileSystemLoader, TemplateNotFound
+from pathlib import Path
 
-from pydantic import BaseModel, Field, validator
-from jinja2 import Template
-import random
 from edsl.questions.QuestionBase import QuestionBase
 from edsl.questions.descriptors import (
-    QuestionOptionsDescriptor,
-    OptionLabelDescriptor,
+    AnswerKeysDescriptor,
+    ValueTypesDescriptor,
+    ValueDescriptionsDescriptor,
     QuestionTextDescriptor,
 )
 from edsl.questions.response_validator_abc import ResponseValidatorABC
+from edsl.exceptions.questions import QuestionCreationValidationError
 from edsl.questions.decorators import inject_exception
-from edsl.exceptions.questions import (
-    QuestionAnswerValidationError,
-    QuestionCreationValidationError,
-)
 
 
-
-def create_dict_response(answer_keys: List[str], permissive: bool = False):
-    """Create a response model for dict questions, handling types according to permissiveness."""
-
+def create_dict_response(
+    answer_keys: List[str],
+    value_types: Optional[List[str]] = None,
+    permissive: bool = False,
+):
+    """Create a response model for dict questions."""
     class DictResponse(BaseModel):
         answer: Dict[str, Union[int, str, float, List[Union[int, str, float]]]]
         comment: Optional[str] = None
-        generated_tokens: Optional[Any] = None
 
-        @validator('answer', pre=True, each_item=False)
-        def validate_answer(cls, value, values, **kwargs):
-            # Example validation logic
-            for key, item in value.items():
-                if key == 'num_ingredients' and not isinstance(item, int):
-                    raise TypeError(f"Expected integer for 'num_ingredients', got {type(item).__name__}")
-                if isinstance(item, List) and not all(isinstance(x, (int, str)) for x in item):
-                    raise TypeError(f"All items in list for key '{key}' must be either int or str")
-            return value
+        @field_validator("answer")
+        def validate_answer(cls, v, values, **kwargs):
+            # Ensure all keys exist
+            missing_keys = set(answer_keys) - set(v.keys())
+            if missing_keys:
+                raise ValueError(f"Missing required keys: {missing_keys}")
+            # Validate value types if not permissive
+            if not permissive and value_types:
+                for key, expected_type in zip(answer_keys, value_types):
+                    if key in v and not isinstance(v[key], eval(expected_type)):
+                        raise ValueError(
+                            f"Key '{key}' has value of type {type(v[key]).__name__}, expected {expected_type}"
+                        )
+            return v
 
     return DictResponse
 
@@ -45,65 +49,25 @@ class DictResponseValidator(ResponseValidatorABC):
 
     valid_examples = [
         (
-            {"answer": {"Item1": 1, "Item2": 2}},
-            {
-                "answer_keys": ["Item1", "Item2"]
-            },
+            {"answer": {"name": "Hot Chocolate", "num_ingredients": 5}},
+            {"answer_keys": ["name", "num_ingredients"], "value_types": ["str", "int"]},
         )
     ]
-
     invalid_examples = [
         (
-            {"answer": {"Item1": 1}},
-            {
-                "answer_keys": ["Item1", "Item2"]
-            },
-            "Missing required keys: {'Item2'}",
+            {"answer": {"name": 123}},  # Name should be a string
+            {"answer_keys": ["name"], "value_types": ["str"]},
+            "Key 'name' has value of type int, expected str",
         )
     ]
-
-    def fix(self, response, verbose=False):
-        if verbose:
-            print(f"Fixing dict response: {response}")
-
-        # If we have generated tokens, try to parse them
-        if "generated_tokens" in response:
-            try:
-                import json
-
-                fixed = json.loads(response["generated_tokens"])
-                if isinstance(fixed, dict):
-                    # Map numeric keys to answer_keys
-                    mapped_answer = {}
-                    for idx, item in enumerate(self.answer_keys):
-                        if str(idx) in fixed:
-                            mapped_answer[item] = fixed[str(idx)]
-                    if (
-                        mapped_answer
-                    ):  # Only return if we successfully mapped some answers
-                        return {"answer": mapped_answer}
-            except:
-                pass
-
-        # If answer uses numeric keys, map them to answer_keys
-        if "answer" in response and isinstance(response["answer"], dict):
-            if all(str(key).isdigit() for key in response["answer"].keys()):
-                mapped_answer = {}
-                for idx, item in enumerate(self.question_items):
-                    if str(idx) in response["answer"]:
-                        mapped_answer[item] = response["answer"][str(idx)]
-                if mapped_answer:  # Only update if we successfully mapped some answers
-                    response["answer"] = mapped_answer
-
-        return response
 
 
 class QuestionDict(QuestionBase):
-    """A question that prompts a model to format a response as a dictionary using specified keys."""
-
     question_type = "dict"
     question_text: str = QuestionTextDescriptor()
-    answer_keys: List[Union[int, str, float]] = QuestionOptionsDescriptor()
+    answer_keys: List[str] = AnswerKeysDescriptor()
+    value_types: Optional[List[str]] = ValueTypesDescriptor()
+    value_descriptions: Optional[List[str]] = ValueDescriptionsDescriptor()
 
     _response_model = None
     response_validator_class = DictResponseValidator
@@ -112,83 +76,126 @@ class QuestionDict(QuestionBase):
         self,
         question_name: str,
         question_text: str,
-        answer_keys: List[Union[int, str, float]],
-        value_types: Optional[List[type]] = None,
+        answer_keys: List[str],
+        value_types: Optional[List[Union[str, type]]] = None,
         value_descriptions: Optional[List[str]] = None,
         include_comment: bool = True,
-        answering_instructions: Optional[str] = None,
         question_presentation: Optional[str] = None,
+        answering_instructions: Optional[str] = None,
         permissive: bool = False,
     ):
-        """Initialize a new QuestionDict.
-
-        :param question_name: The name of the question.
-        :param question_text: The text of the question.
-        :param answer_keys: List of keys for the answer dictionary.
-        :param value_types: Optional list of types for each value.
-        :param value_descriptions: Optional list of descriptions for each value.
-        :param include_comment: Whether to include a comment field.
-        :param answering_instructions: Optional custom instructions.
-        :param question_presentation: Optional custom presentation.
-        :param permissive: Whether to strictly validate responses.
-        """
         self.question_name = question_name
-
-        try:
-            self.question_text = question_text
-        except Exception as e:
-            raise QuestionCreationValidationError(
-                "question_text cannot be empty or too short!"
-            ) from e
-
+        self.question_text = question_text
         self.answer_keys = answer_keys
-
-        self.value_types = value_types or [str] * len(answer_keys)
-        self.value_descriptions = value_descriptions or [""] * len(answer_keys)
+        self.value_types = self._normalize_value_types(value_types)
+        self.value_descriptions = value_descriptions
         self.include_comment = include_comment
-        self.answering_instructions = answering_instructions
-        self.question_presentation = question_presentation
+        self.question_presentation = question_presentation or self._render_template(
+            "question_presentation.jinja"
+        )
+        self.answering_instructions = answering_instructions or self._render_template(
+            "answering_instructions.jinja"
+        )
         self.permissive = permissive
 
-    def create_response_model(self):
-        return create_dict_response(
-            self.answer_keys, self.permissive
+        # Validation
+        if self.value_types and len(self.value_types) != len(self.answer_keys):
+            raise QuestionCreationValidationError(
+                "Length of value_types must match length of answer_keys."
+            )
+        if self.value_descriptions and len(self.value_descriptions) != len(self.answer_keys):
+            raise QuestionCreationValidationError(
+                "Length of value_descriptions must match length of answer_keys."
+            )
+
+        # Response model generation
+        self._response_model = create_dict_response(
+            answer_keys=self.answer_keys,
+            value_types=self.value_types,
+            permissive=self.permissive,
         )
 
-    @property
-    def question_html_content(self) -> str:
-        """Generate HTML representation of the dict question."""
-        # TBD
+    @staticmethod
+    def _normalize_value_types(value_types: Optional[List[Union[str, type]]]) -> Optional[List[str]]:
+        """Convert all value_types to string representations, including type hints."""
+        if not value_types:
+            return None
+        normalized = []
+        for t in value_types:
+            if isinstance(t, str):
+                normalized.append(t)
+            elif hasattr(t, "__name__"):  # Standard types like `str` or `int`
+                normalized.append(t.__name__)
+            elif hasattr(t, "__origin__"):  # Handle generics like `list[str]`
+                origin = t.__origin__.__name__
+                args = ", ".join(arg.__name__ if hasattr(arg, "__name__") else str(arg) for arg in t.__args__)
+                normalized.append(f"{origin}[{args}]")
+            else:
+                raise QuestionCreationValidationError(
+                    f"Invalid type in value_types: {t}. Must be a type or string."
+                )
+        return normalized
 
+    def _render_template(self, template_name: str) -> str:
+        """Render a template using Jinja."""
+        try:
+            template_dir = Path(__file__).parent / "templates" / "dict"
+            env = Environment(loader=FileSystemLoader(template_dir))
+            template = env.get_template(template_name)
+            return template.render(
+                question_name=self.question_name,
+                question_text=self.question_text,
+                answer_keys=self.answer_keys,
+                value_types=self.value_types,
+                value_descriptions=self.value_descriptions,
+                include_comment=self.include_comment,
+            )
+        except TemplateNotFound:
+            return f"Template {template_name} not found in {template_dir}."
+
+    def to_dict(self, add_edsl_version: bool = True) -> dict:
+        """Serialize to JSON-compatible dictionary."""
+        return {
+            "question_type": self.question_type,
+            "question_name": self.question_name,
+            "question_text": self.question_text,
+            "answer_keys": self.answer_keys,
+            "value_types": self.value_types or [],
+            "value_descriptions": self.value_descriptions or [],
+            "include_comment": self.include_comment,
+            "permissive": self.permissive,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> QuestionDict:
+        """Recreate from a dictionary."""
+        return cls(
+            question_name=data["question_name"],
+            question_text=data["question_text"],
+            answer_keys=data["answer_keys"],
+            value_types=data.get("value_types"),
+            value_descriptions=data.get("value_descriptions"),
+            include_comment=data.get("include_comment", True),
+            permissive=data.get("permissive", False),
+        )
 
     @classmethod
     @inject_exception
     def example(cls) -> QuestionDict:
-        """Return an example dict question."""
+        """Return an example question."""
         return cls(
-            question_name="recipe",
-            question_text="""
-            Please provide a recipe for basic hot chocolate.
-            """,
-            answer_keys=[
-                "recipe_name",
-                "ingredients",
-                "num_ingredients"
-            ],
-            value_types=[str, str, List[str], int],
+            question_name="example",
+            question_text="Please provide a description of your favorite book.",
+            answer_keys=["title", "author", "year"],
+            value_types=["str", "str", "int"],
             value_descriptions=[
-                "The name of the recipe.",
-                "List of ingredients.",
-                "The number of ingredients."
-            ]
+                "The title of the book.",
+                "The author of the book.",
+                "The year it was published.",
+            ],
         )
-
-    def _simulate_answer(self) -> dict:
-        """Simulate a random valid answer."""
-        # TBD
 
 
 if __name__ == "__main__":
-    import doctest
-
-    doctest.testmod(optionflags=doctest.ELLIPSIS)
+    q = QuestionDict.example()
+    print(q.to_dict())
