@@ -213,12 +213,12 @@ Links
    :hidden:
 
    coop
-   survey_builder
+   filestore
    notebooks
    colab_notebooks
    remote_inference
    remote_caching
-   filestore
+   survey_builder
 
 .. toctree::
    :maxdepth: 2
