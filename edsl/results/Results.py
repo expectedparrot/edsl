@@ -139,6 +139,16 @@ class Results(UserList, Mixins, Base):
         }
         return d
 
+    def _cache_keys(self):
+        cache_keys = []
+        for result in self:
+            cache_keys.extend(list(result["cache_keys"].values()))
+        return cache_keys
+
+    def relevant_cache(self, cache: Cache) -> Cache:
+        cache_keys = self._cache_keys()
+        return cache.subset(cache_keys)
+
     def insert(self, item):
         item_order = getattr(item, "order", None)
         if item_order is not None:
