@@ -110,24 +110,7 @@ def test_QuestionDict_example():
 def test_QuestionDict_simulation():
     """Test answer simulation."""
     q = QuestionDict(**valid_question)
-
-    class MockResponse(BaseModel):
-        answer: dict = {
-            "recipe_name": "Mock Recipe",
-            "ingredients": ["ingredient1", "ingredient2"],
-            "num_ingredients": 2
-        }
-        comment: str | None = None
-
-    # Override the response model with our mock
-    q._response_model = MockResponse
-    simulated = MockResponse(
-        answer={
-            "recipe_name": "Mock Recipe",
-            "ingredients": ["ingredient1", "ingredient2"],
-            "num_ingredients": 2
-        }
-    ).dict()
+    simulated = q._simulate_answer()
 
     # Check structure
     assert isinstance(simulated, dict)
