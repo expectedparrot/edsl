@@ -139,7 +139,7 @@ class AnswerQuestionFunctionConstructor:
         *,
         question: "QuestionBase",
         task=None,
-    ) -> "AgentResponseDict":
+    ) -> "EDSLResultObjectInput":
 
         from tenacity import (
             retry,

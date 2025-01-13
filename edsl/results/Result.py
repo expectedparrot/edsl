@@ -56,6 +56,7 @@ class Result(Base, UserDict):
         comments_dict: Optional[dict] = None,
         cache_used_dict: Optional[dict[QuestionName, bool]] = None,
         indices: Optional[dict] = None,
+        cache_keys: Optional[dict[QuestionName, str]] = None,
     ):
         """Initialize a Result object.
 
@@ -90,6 +91,7 @@ class Result(Base, UserDict):
             "generated_tokens": generated_tokens or {},
             "comments_dict": comments_dict or {},
             "cache_used_dict": cache_used_dict or {},
+            "cache_keys": cache_keys or {},
         }
         super().__init__(**data)
         self.indices = indices
@@ -163,6 +165,7 @@ class Result(Base, UserDict):
 
     def _construct_sub_dicts(self) -> dict[str, dict]:
         """Construct a dictionary of sub-dictionaries for the Result object."""
+
         sub_dicts_needing_new_keys = {
             "question_text": {},
             "question_options": {},
@@ -181,6 +184,8 @@ class Result(Base, UserDict):
             f"{k}_cache_used": v for k, v in self.data["cache_used_dict"].items()
         }
 
+        cache_keys = {f"{k}_cache_key": v for k, v in self.data["cache_keys"].items()}
+
         d = {
             **self._create_agent_sub_dict(self.data["agent"]),
             **self._create_model_sub_dict(self.data["model"]),
@@ -195,11 +200,13 @@ class Result(Base, UserDict):
             "question_options": sub_dicts_needing_new_keys["question_options"],
             "question_type": sub_dicts_needing_new_keys["question_type"],
             "cache_used": new_cache_dict,
+            "cache_keys": cache_keys,
         }
         if hasattr(self, "indices") and self.indices is not None:
             d["agent"].update({"agent_index": self.indices["agent"]})
             d["scenario"].update({"scenario_index": self.indices["scenario"]})
             d["model"].update({"model_index": self.indices["model"]})
+
         return d
 
     @property
@@ -406,6 +413,7 @@ class Result(Base, UserDict):
             generated_tokens=json_dict.get("generated_tokens", {}),
             comments_dict=json_dict.get("comments_dict", {}),
             cache_used_dict=json_dict.get("cache_used_dict", {}),
+            cache_keys=json_dict.get("cache_keys", {}),
         )
         return result
 
@@ -458,6 +466,12 @@ class Result(Base, UserDict):
             for result in model_response_objects:
                 question_results[result.question_name] = result
             return question_results
+
+        def get_cache_keys(model_response_objects) -> dict[str, bool]:
+            cache_keys = {}
+            for result in model_response_objects:
+                cache_keys[result.question_name] = result.cache_key
+            return cache_keys
 
         def get_generated_tokens_dict(answer_key_names) -> dict[str, str]:
             generated_tokens_dict = {
@@ -523,6 +537,7 @@ class Result(Base, UserDict):
         generated_tokens_dict = get_generated_tokens_dict(answer_key_names)
         comments_dict = get_comments_dict(answer_key_names)
         answer_dict = {k: extracted_answers[k] for k in answer_key_names}
+        cache_keys = get_cache_keys(model_response_objects)
 
         question_name_to_prompts = get_question_name_to_prompts(model_response_objects)
         prompt_dictionary = get_prompt_dictionary(
@@ -546,6 +561,7 @@ class Result(Base, UserDict):
             comments_dict=comments_dict,
             cache_used_dict=cache_used_dictionary,
             indices=interview.indices,
+            cache_keys=cache_keys,
         )
         result.interview_hash = interview.initial_hash
         return result
