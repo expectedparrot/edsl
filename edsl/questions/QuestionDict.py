@@ -16,72 +16,6 @@ from edsl.exceptions.questions import QuestionCreationValidationError
 from edsl.questions.decorators import inject_exception
 
 
-def create_dict_response(
-    answer_keys: List[str],
-    value_types: Optional[List[str]] = None,
-    permissive: bool = False,
-):
-    """Create a response model for dict questions."""
-    class DictResponse(BaseModel):
-        answer: Dict[str, Any]  # More permissive type annotation
-        comment: Optional[str] = None
-
-        @field_validator("answer")
-        def validate_answer(cls, v, values, **kwargs):
-            # Ensure all keys exist
-            missing_keys = set(answer_keys) - set(v.keys())
-            if missing_keys:
-                raise ValueError(f"Missing required keys: {missing_keys}")
-                
-            # Validate value types if not permissive
-            if not permissive and value_types:
-                for key, type_str in zip(answer_keys, value_types):
-                    if key not in v:
-                        continue
-                        
-                    value = v[key]
-                    type_str = type_str.lower()  # Normalize to lowercase
-                    
-                    # Handle list types
-                    if type_str.startswith(('list[', 'list')):
-                        if not isinstance(value, list):
-                            raise ValueError(f"Key '{key}' should be a list, got {type(value).__name__}")
-                            
-                        # If it's a parameterized list, check element types
-                        if '[' in type_str:
-                            element_type = type_str[type_str.index('[') + 1:type_str.rindex(']')]
-                            expected_type = {
-                                'str': str,
-                                'int': int,
-                                'float': float,
-                                'list': list
-                            }.get(element_type.lower())
-                            
-                            if expected_type:
-                                for i, elem in enumerate(value):
-                                    if not isinstance(elem, expected_type):
-                                        raise ValueError(
-                                            f"List element at index {i} for key '{key}' "
-                                            f"has type {type(elem).__name__}, expected {element_type}"
-                                        )
-                    else:
-                        # Handle basic types
-                        expected_type = {
-                            'str': str,
-                            'int': int,
-                            'float': float,
-                            'list': list,
-                        }.get(type_str)
-                        
-                        if expected_type and not isinstance(value, expected_type):
-                            raise ValueError(
-                                f"Key '{key}' has value of type {type(value).__name__}, expected {type_str}"
-                            )
-            return v
-
-    return DictResponse
-
-
 class DictResponseValidator(ResponseValidatorABC):
     required_params = ["answer_keys", "permissive"]
 
@@ -124,6 +58,121 @@ class QuestionDict(QuestionBase):
     _response_model = None
     response_validator_class = DictResponseValidator
 
+    def _get_default_answer(self) -> Dict[str, Any]:
+        """Get default answer based on types."""
+        answer = {}
+        if not self.value_types:
+            return {
+                "title": "Sample Recipe",
+                "ingredients": ["ingredient1", "ingredient2"],
+                "num_ingredients": 2,
+                "instructions": "Sample instructions"
+            }
+
+        for key, type_str in zip(self.answer_keys, self.value_types):
+            if type_str.startswith(('list[', 'list')):
+                if '[' in type_str:
+                    element_type = type_str[type_str.index('[') + 1:type_str.rindex(']')].lower()
+                    if element_type == 'str':
+                        answer[key] = ["sample_string"]
+                    elif element_type == 'int':
+                        answer[key] = [1]
+                    elif element_type == 'float':
+                        answer[key] = [1.0]
+                    else:
+                        answer[key] = []
+                else:
+                    answer[key] = []
+            else:
+                if type_str == 'str':
+                    answer[key] = "sample_string"
+                elif type_str == 'int':
+                    answer[key] = 1
+                elif type_str == 'float':
+                    answer[key] = 1.0
+                else:
+                    answer[key] = None
+                    
+        return answer
+
+    def create_response_model(
+        self,
+    ) -> Type[BaseModel]:
+        """Create a response model for dict questions."""
+        default_answer = self._get_default_answer()
+        
+        class DictResponse(BaseModel):
+            answer: Dict[str, Any] = Field(
+                default_factory=lambda: default_answer.copy()
+            )
+            comment: Optional[str] = None
+            
+            @field_validator("answer")
+            def validate_answer(cls, v, values, **kwargs):
+                # Ensure all keys exist
+                missing_keys = set(self.answer_keys) - set(v.keys())
+                if missing_keys:
+                    raise ValueError(f"Missing required keys: {missing_keys}")
+                    
+                # Validate value types if not permissive
+                if not self.permissive and self.value_types:
+                    for key, type_str in zip(self.answer_keys, self.value_types):
+                        if key not in v:
+                            continue
+                            
+                        value = v[key]
+                        type_str = type_str.lower()  # Normalize to lowercase
+                        
+                        # Handle list types
+                        if type_str.startswith(('list[', 'list')):
+                            if not isinstance(value, list):
+                                raise ValueError(f"Key '{key}' should be a list, got {type(value).__name__}")
+                                
+                            # If it's a parameterized list, check element types
+                            if '[' in type_str:
+                                element_type = type_str[type_str.index('[') + 1:type_str.rindex(']')]
+                                element_type = element_type.lower().strip()
+                                
+                                for i, elem in enumerate(value):
+                                    expected_type = {
+                                        'str': str,
+                                        'int': int,
+                                        'float': float,
+                                        'list': list
+                                    }.get(element_type)
+                                    
+                                    if expected_type and not isinstance(elem, expected_type):
+                                        raise ValueError(
+                                            f"List element at index {i} for key '{key}' "
+                                            f"has type {type(elem).__name__}, expected {element_type}"
+                                        )
+                        else:
+                            # Handle basic types
+                            expected_type = {
+                                'str': str,
+                                'int': int,
+                                'float': float,
+                                'list': list,
+                            }.get(type_str)
+                            
+                            if expected_type and not isinstance(value, expected_type):
+                                raise ValueError(
+                                    f"Key '{key}' has value of type {type(value).__name__}, expected {type_str}"
+                                )
+                return v
+
+            model_config = {
+                "json_schema_extra": {
+                    "examples": [{
+                        "answer": default_answer,
+                        "comment": None
+                    }]
+                }
+            }
+
+        DictResponse.__name__ = "DictResponse"
+        return DictResponse
+
     def __init__(
         self,
         question_name: str,
@@ -160,13 +209,6 @@ class QuestionDict(QuestionBase):
                 "Length of value_descriptions must match length of answer_keys."
             )
 
-        # Response model generation
-        self._response_model = create_dict_response(
-            answer_keys=self.answer_keys,
-            value_types=self.value_types,
-            permissive=self.permissive,
-        )
-
     @staticmethod
     def _normalize_value_types(value_types: Optional[List[Union[str, type]]]) -> Optional[List[str]]:
         """Convert all value_types to string representations, including type hints."""
@@ -174,7 +216,12 @@ class QuestionDict(QuestionBase):
             return None
 
         def normalize_type(t) -> str:
-            # If it's already a string, normalize it
+            # Handle string representations of List
+            t_str = str(t)
+            if t_str == 'List':
+                return 'list'
+                
+            # Handle string inputs
             if isinstance(t, str):
                 t = t.lower()
                 # Handle list types
@@ -186,6 +233,10 @@ class QuestionDict(QuestionBase):
                     return "list"
                 return t
 
+            # Handle List the same as list
+            if t_str == "<class 'List'>":
+                return "list"
+
             # If it's list type
             if t is list:
                 return "list"
@@ -195,9 +246,8 @@ class QuestionDict(QuestionBase):
                 return t.__name__.lower()
             
             # If it's a typing.List
-            str_rep = str(t).lower()
-            if str_rep.startswith(('list[', 'list')):
-                return str_rep.replace('typing.', '')
+            if t_str.startswith(('list[', 'list')):
+                return t_str.replace('typing.', '').lower()
 
             # Handle generic types
             if hasattr(t, "__origin__"):
@@ -252,7 +302,7 @@ class QuestionDict(QuestionBase):
         }
 
     @classmethod
-    def from_dict(cls, data: dict) -> 'QuestionDict':  # Use string annotation to avoid forward ref
+    def from_dict(cls, data: dict) -> 'QuestionDict':
         """Recreate from a dictionary."""
         return cls(
             question_name=data["question_name"],
@@ -266,7 +316,7 @@ class QuestionDict(QuestionBase):
 
     @classmethod
     @inject_exception
-    def example(cls) -> 'QuestionDict':  # Use string annotation to avoid forward ref
+    def example(cls) -> 'QuestionDict':
         """Return an example question."""
         return cls(
             question_name="example",
@@ -281,6 +331,12 @@ class QuestionDict(QuestionBase):
             ],
         )
 
+    def _simulate_answer(self) -> dict:
+            """Simulate an answer for the question."""
+            return {
+                "answer": self._get_default_answer(),
+                "comment": None
+            }
 
 if __name__ == "__main__":
     q = QuestionDict.example()
