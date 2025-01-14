@@ -499,7 +499,6 @@ class Jobs(Base):
             jc.check_api_keys()
 
     async def _execute_with_remote_cache(self, run_job_async: bool) -> Results:
-
         use_remote_cache = self.use_remote_cache()
 
         from edsl.coop.coop import Coop
@@ -523,7 +522,6 @@ class Jobs(Base):
         return results
 
     def _setup_and_check(self) -> Tuple[RunConfig, Optional[Results]]:
-
         self._prepare_to_run()
         self._check_if_remote_keys_ok()
 
@@ -545,6 +543,10 @@ class Jobs(Base):
         "Shared code for run and run_async"
         if config.environment.cache is not None:
             self.run_config.environment.cache = config.environment.cache
+        if config.environment.jobs_runner_status is not None:
+            self.run_config.environment.jobs_runner_status = (
+                config.environment.jobs_runner_status
+            )
 
         if config.environment.bucket_collection is not None:
             self.run_config.environment.bucket_collection = (
