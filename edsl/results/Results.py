@@ -110,6 +110,7 @@ class Results(UserList, Mixins, Base):
         :param created_columns: A list of strings that are created columns.
         :param job_uuid: A string representing the job UUID.
         :param total_results: An integer representing the total number of results.
+        :cache: A Cache object.
         """
         super().__init__(data)
         from edsl.data.Cache import Cache
@@ -360,7 +361,7 @@ class Results(UserList, Mixins, Base):
         self,
         sort: bool = False,
         add_edsl_version: bool = False,
-        include_cache: bool = False,
+        include_cache: bool = True,
         include_task_history: bool = False,
         include_cache_info: bool = True,
     ) -> dict[str, Any]:
