@@ -7,15 +7,17 @@
 ### Changed
 - Previously, results of jobs run remotely were automatically synced to your local cache. Now, results are only added to the cache where the job is being run, local or remote.
 
+- Improvements to web-based progress bar for remote jobs.
+
 ### Fixed
-- Occasional timeout issue should be fixed by modifications to caching.
+- Occasional timeout issue should be fixed by modifications to caching noted above.
 
 
 ## [0.1.39] - 2025-01-08
 ### Added
 - Question type `QuestionMatrix`. Details: https://docs.expectedparrot.com/en/latest/questions.html#questionmatrix-class
 
-- A `join()` method for objects. Examples:
+- A `join()` method for objects. 
 
 - `FileStore` method `create_link()` embeds a file in the HTML of a notebook and generates a download link for it. Examples: https://docs.expectedparrot.com/en/latest/filestore.html
 
@@ -30,7 +32,6 @@
 
 ### Fixed
 - Progress bar shows total interviews instead of total unique interviews (iterations may be >1).
-
 
 
 ## [0.1.38] - 2024-11-26
