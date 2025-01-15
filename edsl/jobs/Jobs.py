@@ -507,18 +507,18 @@ class Jobs(Base):
 
         assert isinstance(self.run_config.environment.cache, Cache)
 
-        with RemoteCacheSync(
-            coop=Coop(),
-            cache=self.run_config.environment.cache,
-            output_func=self._output,
-            remote_cache=use_remote_cache,
-            remote_cache_description=self.run_config.parameters.remote_cache_description,
-        ):
-            runner = JobsRunnerAsyncio(self, environment=self.run_config.environment)
-            if run_job_async:
-                results = await runner.run_async(self.run_config.parameters)
-            else:
-                results = runner.run(self.run_config.parameters)
+        # with RemoteCacheSync(
+        #     coop=Coop(),
+        #     cache=self.run_config.environment.cache,
+        #     output_func=self._output,
+        #     remote_cache=use_remote_cache,
+        #     remote_cache_description=self.run_config.parameters.remote_cache_description,
+        # ):
+        runner = JobsRunnerAsyncio(self, environment=self.run_config.environment)
+        if run_job_async:
+            results = await runner.run_async(self.run_config.parameters)
+        else:
+            results = runner.run(self.run_config.parameters)
         return results
 
     def _setup_and_check(self) -> Tuple[RunConfig, Optional[Results]]:
