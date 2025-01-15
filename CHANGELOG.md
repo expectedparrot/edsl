@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.1.40] - TBD
+### Added
+- Question type `QuestionDict` returns a response as a dictionary with specified keys and (optionally) specified value types and descriptions. Details: https://docs.expectedparrot.com/en/latest/questions.html#questiodict-class
+
+### Changed
+- Previously, results of jobs run remotely were automatically synced to your local cache. Now, results are only added to the cache where the job is being run, local or remote.
+
+### Fixed
+- Occasional timeout issue should be fixed by modifications to caching.
+
+
 ## [0.1.39] - 2025-01-08
 ### Added
 - Question type `QuestionMatrix`. Details: https://docs.expectedparrot.com/en/latest/questions.html#questionmatrix-class
