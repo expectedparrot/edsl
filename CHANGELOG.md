@@ -47,7 +47,7 @@
 
 ## [0.1.37] - 2024-11-14
 ### Added
-- EDSL auth token: It will automatically retrieve your EXPECTED_PARROT_API_KEY and write it to your *.env* file. *How it works:* If you try to run a survey remotely without storing your EXPECTED_PARROT_API_KEY, you will see a message with a Coop login link that will automatically write your key to your *.env* file when you click on the link and log in. 
+- EDSL Authentication Token:  If you attempt to run a survey remotely without having stored your EXPECTED_PARROT_API_KEY, a message will appear providing a Coop login link. Clicking this link and logging in will automatically store your key in your *.env* file.
 
 ### Changed
 - The `AgentList` method `from_csv()` now allows you to (optionally) automatically specify the `name` parameters for agents by including a column "name" in the CSV. Other columns are (still) passed as agent `traits`. See an example: https://docs.expectedparrot.com/en/latest/agents.html#from-a-csv-file
