@@ -2,6 +2,7 @@
 
 ## [0.1.40] - TBD
 ### Added
+<<<<<<< HEAD
 - Question type `QuestionDict` returns a response as a dictionary with specified keys and (optionally) specified value types and descriptions. Details: https://docs.expectedparrot.com/en/latest/questions.html#questiodict-class
 
 ### Changed
@@ -11,6 +12,9 @@
 
 ### Fixed
 - Occasional timeout issue should be fixed by modifications to caching noted above.
+=======
+- Question type `QuestionDict`. Details: https://docs.expectedparrot.com/en/latest/questions.html#questiodict-class
+>>>>>>> 4c3c79a05961a0dcf2819c5ef31680c2293d4f57
 
 
 ## [0.1.39] - 2025-01-08
