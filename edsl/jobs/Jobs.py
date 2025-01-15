@@ -537,7 +537,7 @@ class Jobs(Base):
         if self.run_config.parameters.n is None:
             return len(self)
         else:
-            len(self) * self.run_config.parameters.n
+            return len(self) * self.run_config.parameters.n
 
     def _run(self, config: RunConfig):
         "Shared code for run and run_async"
@@ -648,20 +648,19 @@ class Jobs(Base):
         }
 
     def __len__(self) -> int:
-        """Return the maximum number of questions that will be asked while running this job.
-        Note that this is the maximum number of questions, not the actual number of questions that will be asked, as some questions may be skipped.
+        """Return the number of interviews that will be conducted for one iteration of this job.
+        An interview is the result of one survey, taken by one agent, with one model, with one scenario.
 
         >>> from edsl.jobs import Jobs
         >>> len(Jobs.example())
-        8
+        4
         """
-        number_of_questions = (
+        number_of_interviews = (
             len(self.agents or [1])
             * len(self.scenarios or [1])
             * len(self.models or [1])
-            * len(self.survey)
         )
-        return number_of_questions
+        return number_of_interviews
 
     def to_dict(self, add_edsl_version=True):
         d = {
@@ -812,9 +811,9 @@ def main():
     from edsl.data.Cache import Cache
 
     job = Jobs.example()
-    len(job) == 8
+    len(job) == 4
     results = job.run(cache=Cache())
-    len(results) == 8
+    len(results) == 4
     results
 
 
