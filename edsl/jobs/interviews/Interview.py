@@ -213,10 +213,6 @@ class Interview:
     async def async_conduct_interview(
         self,
         run_config: Optional["RunConfig"] = None,
-        #     model_buckets: Optional[ModelBuckets] = None,
-        #     stop_on_exception: bool = False,
-        #     raise_validation_errors: bool = True,
-        #     key_lookup: Optional[KeyLookup] = None,
     ) -> tuple["Answers", List[dict[str, Any]]]:
         """
         Conduct an Interview asynchronously.
@@ -313,7 +309,7 @@ class Interview:
 
         def handle_task(task, invigilator):
             try:
-                result = task.result()
+                result: Answers = task.result()
             except asyncio.CancelledError as e:  # task was cancelled
                 result = invigilator.get_failed_task_result(
                     failure_reason="Task was cancelled."

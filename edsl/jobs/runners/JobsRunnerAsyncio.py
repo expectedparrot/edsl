@@ -44,7 +44,16 @@ class JobsRunnerAsyncio:
             data.append(result)
             task_history.add_interview(interview)
 
-        return Results(survey=self.jobs.survey, task_history=task_history, data=data)
+        results = Results(survey=self.jobs.survey, task_history=task_history, data=data)
+
+        relevant_cache = results.relevant_cache(self.environment.cache)
+
+        return Results(
+            survey=self.jobs.survey,
+            task_history=task_history,
+            data=data,
+            cache=relevant_cache,
+        )
 
     def simple_run(self):
         data = asyncio.run(self.run_async())
@@ -115,8 +124,9 @@ class JobsRunnerAsyncio:
             survey=self.jobs.survey,
             data=[],
             task_history=TaskHistory(),
-            cache=self.environment.cache.new_entries_cache(),
+            #           cache=self.environment.cache.new_entries_cache(),
         )
+
         stop_event = threading.Event()
         progress_thread = set_up_progress_bar(
             parameters.progress_bar, run_config.environment.jobs_runner_status
@@ -140,7 +150,9 @@ class JobsRunnerAsyncio:
             if exception_to_raise:
                 raise exception_to_raise
 
-            results.cache = self.environment.cache.new_entries_cache()
+            relevant_cache = results.relevant_cache(self.environment.cache)
+            results.cache = relevant_cache
+            # breakpoint()
             results.bucket_collection = self.environment.bucket_collection
 
             from edsl.jobs.results_exceptions_handler import ResultsExceptionsHandler
