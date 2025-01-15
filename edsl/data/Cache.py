@@ -535,6 +535,13 @@ class Cache(Base):
         """
         return html
 
+    def subset(self, keys: list[str]) -> Cache:
+        """
+        Return a subset of the Cache with the specified keys.
+        """
+        new_data = {k: v for k, v in self.data.items() if k in keys}
+        return Cache(data=new_data)
+
     def view(self) -> None:
         """View the Cache in a new browser tab."""
         import tempfile

@@ -90,6 +90,7 @@ class Results(UserList, Mixins, Base):
         "comment",
         "generated_tokens",
         "cache_used",
+        "cache_keys",
     ]
 
     def __init__(
@@ -109,6 +110,7 @@ class Results(UserList, Mixins, Base):
         :param created_columns: A list of strings that are created columns.
         :param job_uuid: A string representing the job UUID.
         :param total_results: An integer representing the total number of results.
+        :cache: A Cache object.
         """
         super().__init__(data)
         from edsl.data.Cache import Cache
@@ -137,6 +139,16 @@ class Results(UserList, Mixins, Base):
             "Survey question names": reprlib.repr(self.survey.question_names),
         }
         return d
+
+    def _cache_keys(self):
+        cache_keys = []
+        for result in self:
+            cache_keys.extend(list(result["cache_keys"].values()))
+        return cache_keys
+
+    def relevant_cache(self, cache: Cache) -> Cache:
+        cache_keys = self._cache_keys()
+        return cache.subset(cache_keys)
 
     def insert(self, item):
         item_order = getattr(item, "order", None)
@@ -170,12 +182,12 @@ class Results(UserList, Mixins, Base):
         """
         total_cost = 0
         for result in self:
-            for key in result.raw_model_response:
+            for key in result["raw_model_response"]:
                 if key.endswith("_cost"):
-                    result_cost = result.raw_model_response[key]
+                    result_cost = result["raw_model_response"][key]
 
                     question_name = key.removesuffix("_cost")
-                    cache_used = result.cache_used_dict[question_name]
+                    cache_used = result["cache_used_dict"][question_name]
 
                     if isinstance(result_cost, (int, float)):
                         if include_cached_responses_in_cost:
@@ -349,7 +361,7 @@ class Results(UserList, Mixins, Base):
         self,
         sort: bool = False,
         add_edsl_version: bool = False,
-        include_cache: bool = False,
+        include_cache: bool = True,
         include_task_history: bool = False,
         include_cache_info: bool = True,
     ) -> dict[str, Any]:
