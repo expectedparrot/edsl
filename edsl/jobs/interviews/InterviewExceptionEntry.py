@@ -1,5 +1,6 @@
 import traceback
 import datetime
+from edsl.agents.InvigilatorBase import InvigilatorBase
 
 
 class InterviewExceptionEntry:
@@ -9,7 +10,7 @@ class InterviewExceptionEntry:
         self,
         *,
         exception: Exception,
-        invigilator: "Invigilator",
+        invigilator: "InvigilatorBase",
         traceback_format="text",
         answers=None,
     ):
@@ -19,6 +20,8 @@ class InterviewExceptionEntry:
         self.invigilator = invigilator
         self.traceback_format = traceback_format
         self.answers = answers
+
+        # breakpoint()
 
     @property
     def question_type(self):
@@ -163,12 +166,16 @@ class InterviewExceptionEntry:
         >>> entry = InterviewExceptionEntry.example()
         >>> _ = entry.to_dict()
         """
-        return {
+        invigilator = (
+            self.invigilator.to_dict() if self.invigilator is not None else None
+        )
+        d = {
             "exception": self.serialize_exception(self.exception),
             "time": self.time,
             "traceback": self.traceback,
-            "invigilator": self.invigilator.to_dict(),
+            "invigilator": invigilator,
         }
+        return d
 
     @classmethod
     def from_dict(cls, data: dict) -> "InterviewExceptionEntry":
@@ -176,7 +183,10 @@ class InterviewExceptionEntry:
         from edsl.agents.Invigilator import InvigilatorAI
 
         exception = cls.deserialize_exception(data["exception"])
-        invigilator = InvigilatorAI.from_dict(data["invigilator"])
+        if data["invigilator"] is None:
+            invigilator = None
+        else:
+            invigilator = InvigilatorAI.from_dict(data["invigilator"])
         return cls(exception=exception, invigilator=invigilator)
 
 
