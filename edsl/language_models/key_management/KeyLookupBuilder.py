@@ -36,7 +36,7 @@ class KeyLookupBuilder:
 
     >>> builder = KeyLookupBuilder(fetch_order=("config", "env"))
     >>> builder.DEFAULT_RPM
-    10
+    100
     >>> builder.DEFAULT_TPM
     2000000
     >>> builder.fetch_order
