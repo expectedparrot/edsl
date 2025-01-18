@@ -54,7 +54,7 @@ class KeyLookupBuilder:
     ('openai', 'rpm')
     """
 
-    DEFAULT_RPM = 10
+    DEFAULT_RPM = 100
     DEFAULT_TPM = 2000000
 
     def __init__(self, fetch_order: Optional[tuple[str]] = None):
