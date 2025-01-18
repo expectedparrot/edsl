@@ -36,7 +36,7 @@ class KeyLookupBuilder:
 
     >>> builder = KeyLookupBuilder(fetch_order=("config", "env"))
     >>> builder.DEFAULT_RPM
-    10
+    100
     >>> builder.DEFAULT_TPM
     2000000
     >>> builder.fetch_order
@@ -58,8 +58,8 @@ class KeyLookupBuilder:
     # DEFAULT_TPM = 2000000
     from edsl.config import CONFIG
 
-    DEFAULT_RPM = CONFIG.get("EDSL_SERVICE_RPM_BASELINE")
-    DEFAULT_TPM = CONFIG.get("EDSL_SERVICE_TPM_BASELINE")
+    DEFAULT_RPM = int(CONFIG.get("EDSL_SERVICE_RPM_BASELINE"))
+    DEFAULT_TPM = int(CONFIG.get("EDSL_SERVICE_TPM_BASELINE"))
 
     def __init__(self, fetch_order: Optional[tuple[str]] = None):
         if fetch_order is None:
