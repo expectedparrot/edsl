@@ -228,6 +228,7 @@ Links
    notebooks/edsl_intro.ipynb
    notebooks/estimating_costs.ipynb
    notebooks/piping_comments.ipynb
+   notebooks/looping_and_piping.ipynb
    notebooks/answering_instructions.ipynb
    notebooks/image_scenario_example.ipynb
    notebooks/analyze_customer_call.ipynb
