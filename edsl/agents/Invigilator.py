@@ -48,13 +48,14 @@ class InvigilatorAI(InvigilatorBase):
         """Store the response in the invigilator, in case it is needed later because of validation failure."""
         self.raw_model_response = agent_response_dict.model_outputs.response
         self.generated_tokens = agent_response_dict.edsl_dict.generated_tokens
+        self.cache_key = agent_response_dict.model_outputs.cache_key
 
-    async def async_answer_question(self) -> AgentResponseDict:
+    async def async_answer_question(self) -> EDSLResultObjectInput:
         """Answer a question using the AI model.
 
         >>> i = InvigilatorAI.example()
         """
-        agent_response_dict = await self.async_get_agent_response()
+        agent_response_dict: AgentResponseDict = await self.async_get_agent_response()
         self.store_response(agent_response_dict)
         return self._extract_edsl_result_entry_and_validate(agent_response_dict)
 

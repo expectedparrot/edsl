@@ -137,8 +137,8 @@ def test_default_limits():
 
     result = builder.get_language_model_input("test")
 
-    assert result.rpm == builder.DEFAULT_RPM
-    assert result.tpm == builder.DEFAULT_TPM
+    assert float(result.rpm) == float(builder.DEFAULT_RPM)
+    assert float(result.tpm) == float(builder.DEFAULT_TPM)
 
 
 def test_build_method():

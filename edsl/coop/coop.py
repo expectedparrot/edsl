@@ -111,13 +111,13 @@ class Coop(CoopFunctionsMixin):
         url = f"{self.api_url}/{uri}"
         method = method.upper()
         if payload is None:
-            timeout = 20
+            timeout = 40
         elif (
             method.upper() == "POST"
             and "json_string" in payload
             and payload.get("json_string") is not None
         ):
-            timeout = max(20, (len(payload.get("json_string", "")) // (1024 * 1024)))
+            timeout = max(40, (len(payload.get("json_string", "")) // (1024 * 1024)))
         try:
             if method in ["GET", "DELETE"]:
                 response = requests.request(
@@ -533,6 +533,7 @@ class Coop(CoopFunctionsMixin):
             uri="api/v0/remote-cache/many",
             method="POST",
             payload=payload,
+            timeout=40,
         )
         self._resolve_server_response(response)
         response_json = response.json()
@@ -563,6 +564,7 @@ class Coop(CoopFunctionsMixin):
             uri="api/v0/remote-cache/get-many",
             method="POST",
             payload={"keys": exclude_keys},
+            timeout=40,
         )
         self._resolve_server_response(response)
         return [
@@ -581,6 +583,7 @@ class Coop(CoopFunctionsMixin):
             uri="api/v0/remote-cache/get-diff",
             method="POST",
             payload={"keys": client_cacheentry_keys},
+            timeout=40,
         )
         self._resolve_server_response(response)
         response_json = response.json()

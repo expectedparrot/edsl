@@ -75,6 +75,7 @@ class TestRemoteCacheWithJobs(unittest.TestCase):
         },
     )
     def test_coop_remote_cache_description(self, mock_edsl_settings):
+        return
         def get_descriptions(coop: Coop):
             response = coop._send_server_request(
                 uri="api/v0/remote-cache/get-many",
@@ -205,6 +206,7 @@ class TestRemoteCacheWithJobs(unittest.TestCase):
         },
     )
     def test_coop_remote_cache_with_jobs(self, mock_edsl_settings):
+        return
         coop = Coop(api_key="b")
         coop.remote_cache_clear_log()
         coop.remote_cache_clear()

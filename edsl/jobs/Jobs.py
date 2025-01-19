@@ -499,7 +499,6 @@ class Jobs(Base):
             jc.check_api_keys()
 
     async def _execute_with_remote_cache(self, run_job_async: bool) -> Results:
-
         use_remote_cache = self.use_remote_cache()
 
         from edsl.coop.coop import Coop
@@ -508,22 +507,21 @@ class Jobs(Base):
 
         assert isinstance(self.run_config.environment.cache, Cache)
 
-        with RemoteCacheSync(
-            coop=Coop(),
-            cache=self.run_config.environment.cache,
-            output_func=self._output,
-            remote_cache=use_remote_cache,
-            remote_cache_description=self.run_config.parameters.remote_cache_description,
-        ):
-            runner = JobsRunnerAsyncio(self, environment=self.run_config.environment)
-            if run_job_async:
-                results = await runner.run_async(self.run_config.parameters)
-            else:
-                results = runner.run(self.run_config.parameters)
+        # with RemoteCacheSync(
+        #     coop=Coop(),
+        #     cache=self.run_config.environment.cache,
+        #     output_func=self._output,
+        #     remote_cache=use_remote_cache,
+        #     remote_cache_description=self.run_config.parameters.remote_cache_description,
+        # ):
+        runner = JobsRunnerAsyncio(self, environment=self.run_config.environment)
+        if run_job_async:
+            results = await runner.run_async(self.run_config.parameters)
+        else:
+            results = runner.run(self.run_config.parameters)
         return results
 
     def _setup_and_check(self) -> Tuple[RunConfig, Optional[Results]]:
-
         self._prepare_to_run()
         self._check_if_remote_keys_ok()
 
@@ -539,12 +537,16 @@ class Jobs(Base):
         if self.run_config.parameters.n is None:
             return len(self)
         else:
-            len(self) * self.run_config.parameters.n
+            return len(self) * self.run_config.parameters.n
 
     def _run(self, config: RunConfig):
         "Shared code for run and run_async"
         if config.environment.cache is not None:
             self.run_config.environment.cache = config.environment.cache
+        if config.environment.jobs_runner_status is not None:
+            self.run_config.environment.jobs_runner_status = (
+                config.environment.jobs_runner_status
+            )
 
         if config.environment.bucket_collection is not None:
             self.run_config.environment.bucket_collection = (
@@ -646,20 +648,19 @@ class Jobs(Base):
         }
 
     def __len__(self) -> int:
-        """Return the maximum number of questions that will be asked while running this job.
-        Note that this is the maximum number of questions, not the actual number of questions that will be asked, as some questions may be skipped.
+        """Return the number of interviews that will be conducted for one iteration of this job.
+        An interview is the result of one survey, taken by one agent, with one model, with one scenario.
 
         >>> from edsl.jobs import Jobs
         >>> len(Jobs.example())
-        8
+        4
         """
-        number_of_questions = (
+        number_of_interviews = (
             len(self.agents or [1])
             * len(self.scenarios or [1])
             * len(self.models or [1])
-            * len(self.survey)
         )
-        return number_of_questions
+        return number_of_interviews
 
     def to_dict(self, add_edsl_version=True):
         d = {
@@ -810,9 +811,9 @@ def main():
     from edsl.data.Cache import Cache
 
     job = Jobs.example()
-    len(job) == 8
+    len(job) == 4
     results = job.run(cache=Cache())
-    len(results) == 8
+    len(results) == 4
     results
 
 
