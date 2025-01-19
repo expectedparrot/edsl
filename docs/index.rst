@@ -248,6 +248,7 @@ Links
    notebooks/batching_results.ipynb
    notebooks/research_methods.ipynb
    notebooks/agent_fatigue.ipynb
+   notebooks/model_test_report.ipynb
 
 .. toctree::
    :maxdepth: 2
