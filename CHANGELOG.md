@@ -1,15 +1,23 @@
 # Changelog
 
-## [0.1.40] - TBD
+## [0.1.40] - 2025-01-15
 ### Added
-- Question type `QuestionDict`. Details: https://docs.expectedparrot.com/en/latest/questions.html#questiodict-class
+- Question type `QuestionDict` returns a response as a dictionary with specified keys and (optionally) specified value types and descriptions. Details: https://docs.expectedparrot.com/en/latest/questions.html#questiodict-class
+
+### Changed
+- Previously, results of jobs run remotely were automatically synced to your local cache. Now, results are only added to the cache where the job is being run, local or remote.
+
+- Improvements to web-based progress bar for remote jobs.
+
+### Fixed
+- Occasional timeout issue should be fixed by modifications to caching noted above.
 
 
 ## [0.1.39] - 2025-01-08
 ### Added
 - Question type `QuestionMatrix`. Details: https://docs.expectedparrot.com/en/latest/questions.html#questionmatrix-class
 
-- A `join()` method for objects. Examples:
+- A `join()` method for objects. 
 
 - `FileStore` method `create_link()` embeds a file in the HTML of a notebook and generates a download link for it. Examples: https://docs.expectedparrot.com/en/latest/filestore.html
 
@@ -26,7 +34,6 @@
 - Progress bar shows total interviews instead of total unique interviews (iterations may be >1).
 
 
-
 ## [0.1.38] - 2024-11-26
 ### Added
 - `Results` are now automatically displayed in a scrollable table when you call `select()` on them. You can also call `table().long()` to display results in a long-view table. This replaces the need to call `print(format="rich")`. See examples in the starter tutorial.
@@ -40,25 +47,7 @@
 
 ## [0.1.37] - 2024-11-14
 ### Added
-- EDSL auth token: It will automatically retrieve your EXPECTED_PARROT_API_KEY and write it to your *.env* file. *How it works:* If you try to run a survey remotely without storing your EXPECTED_PARROT_API_KEY, you will see a message with a Coop login link that will automatically write your key to your *.env* file when you click on the link and log in. Example message:
-```
-You're missing some of the API keys needed to run this job:
-     🔑 OPENAI_API_KEY
-
-You can either add the missing keys to your .env file, or use remote inference.
-Remote inference allows you to run jobs on our server.
-
-🚀 To use remote inference, sign up at the following link:
-    https://www.expectedparrot.com/login?edsl_auth_token=gVSxKvDcuB1x6d_dqa7xrA
-
-Once you log in, we will automatically retrieve your Expected Parrot API key and continue your job remotely.
-⠇ Waiting for login. Last checked: 2024-11-13 11:36:44 AM
-```
-
-Once you have logged in you will see a confirmation message:
-```
-✨ API key retrieved and written to .env file. 
-```
+- EDSL Authentication Token:  If you attempt to run a survey remotely without having stored your EXPECTED_PARROT_API_KEY, a message will appear providing a Coop login link. Clicking this link and logging in will automatically store your key in your *.env* file.
 
 ### Changed
 - The `AgentList` method `from_csv()` now allows you to (optionally) automatically specify the `name` parameters for agents by including a column "name" in the CSV. Other columns are (still) passed as agent `traits`. See an example: https://docs.expectedparrot.com/en/latest/agents.html#from-a-csv-file
