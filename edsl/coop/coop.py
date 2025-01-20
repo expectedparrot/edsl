@@ -894,6 +894,38 @@ class Coop(CoopFunctionsMixin):
         data = response.json()
         return ServiceToModelsMapping(data)
 
+    def fetch_working_models(self) -> list[dict]:
+        """
+        Fetch a list of working models from Coop.
+
+        Example output:
+
+        [
+            {
+                "service": "openai",
+                "model": "gpt-4o",
+                "works_with_text": True,
+                "works_with_images": True,
+                "usd_per_1M_input_tokens": 2.5,
+                "usd_per_1M_output_tokens": 10.0,
+            }
+        ]
+        """
+        response = self._send_server_request(uri="api/v0/working-models", method="GET")
+        self._resolve_server_response(response)
+        data = response.json()
+        return [
+            {
+                "service": record.get("service"),
+                "model": record.get("model"),
+                "works_with_text": record.get("works_with_text"),
+                "works_with_images": record.get("works_with_images"),
+                "usd_per_1M_input_tokens": record.get("input_price_per_1M_tokens"),
+                "usd_per_1M_output_tokens": record.get("output_price_per_1M_tokens"),
+            }
+            for record in data
+        ]
+
     def fetch_rate_limit_config_vars(self) -> dict:
         """
         Fetch a dict of rate limit config vars from Coop.
