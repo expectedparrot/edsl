@@ -66,9 +66,9 @@ class ResultsExceptionsHandler:
 
     def _generate_error_message(self, indices) -> str:
         """Generate appropriate error message based on number of exceptions."""
-        msg = f"Exceptions were raised in {len(indices)} interviews.\n"
-        if len(indices) > 5:
-            msg += f"Exceptions were raised in the following interviews: {indices}.\n"
+        msg = f"Exceptions were raised." # in {len(indices)} interviews.\n"
+        # if len(indices) > 5:
+        #     msg += f"Exceptions were raised in the following interviews: {indices}.\n"
         return msg
 
     def handle_exceptions(self) -> None:
@@ -84,7 +84,7 @@ class ResultsExceptionsHandler:
 
         # Generate HTML report
         filepath = self.results.task_history.html(
-            cta="Open report to see details.",
+            cta="Click to open the Error Report for details on exceptions.",
             open_in_browser=self.open_in_browser,
             return_link=True,
         )
