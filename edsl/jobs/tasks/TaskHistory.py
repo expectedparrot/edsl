@@ -265,8 +265,26 @@ class TaskHistory(RepresentationMixin):
         return js
 
     @property
+    def exceptions_table(self) -> dict:
+        """Return a dictionary of exceptions organized by type, service, model, and question name."""
+        exceptions_table = {}
+        for interview in self.total_interviews:
+            for question_name, exceptions in interview.exceptions.items():
+                for exception in exceptions:
+                    key = (
+                        exception.exception.__class__.__name__,  # Exception type
+                        interview.model._inference_service_,    # Service
+                        interview.model.model,                  # Model
+                        question_name                           # Question name
+                    )
+                    if key not in exceptions_table:
+                        exceptions_table[key] = 0
+                    exceptions_table[key] += 1
+        return exceptions_table
+    
+    @property
     def exceptions_by_type(self) -> dict:
-        """Return a dictionary of exceptions by type."""
+        """Return a dictionary of exceptions tallied by type."""
         exceptions_by_type = {}
         for interview in self.total_interviews:
             for question_name, exceptions in interview.exceptions.items():
@@ -324,6 +342,27 @@ class TaskHistory(RepresentationMixin):
         }
         return sorted_exceptions_by_question_name
 
+    # @property
+    # def exceptions_by_model(self) -> dict:
+    #     """Return a dictionary of exceptions tallied by model and question name."""
+    #     exceptions_by_model = {}
+    #     for interview in self.total_interviews:
+    #         model = interview.model.model
+    #         service = interview.model._inference_service_
+    #         if (service, model) not in exceptions_by_model:
+    #             exceptions_by_model[(service, model)] = 0
+    #         if interview.exceptions != {}:
+    #             exceptions_by_model[(service, model)] += len(interview.exceptions)
+
+    #     # sort the exceptions by model
+    #     sorted_exceptions_by_model = {
+    #         k: v
+    #         for k, v in sorted(
+    #             exceptions_by_model.items(), key=lambda item: item[1], reverse=True
+    #         )
+    #     }
+    #     return sorted_exceptions_by_model
+
     @property
     def exceptions_by_model(self) -> dict:
         """Return a dictionary of exceptions tallied by model and question name."""
@@ -331,19 +370,12 @@ class TaskHistory(RepresentationMixin):
         for interview in self.total_interviews:
             model = interview.model.model
             service = interview.model._inference_service_
-            if (service, model) not in exceptions_by_model:
-                exceptions_by_model[(service, model)] = 0
-            if interview.exceptions != {}:
-                exceptions_by_model[(service, model)] += len(interview.exceptions)
-
-        # sort the exceptions by model
-        sorted_exceptions_by_model = {
-            k: v
-            for k, v in sorted(
-                exceptions_by_model.items(), key=lambda item: item[1], reverse=True
-            )
-        }
-        return sorted_exceptions_by_model
+            for question_name, exceptions in interview.exceptions.items():
+                key = (service, model, question_name)
+                if key not in exceptions_by_model:
+                    exceptions_by_model[key] = 0
+                exceptions_by_model[key] += len(exceptions)
+        return exceptions_by_model
 
     def generate_html_report(self, css: Optional[str], include_plot=False):
         if include_plot:
@@ -372,6 +404,7 @@ class TaskHistory(RepresentationMixin):
             javascript=self.javascript(),
             num_exceptions=len(self.exceptions),
             performance_plot_html=performance_plot_html,
+            exceptions_table=self.exceptions_table,
             exceptions_by_type=self.exceptions_by_type,
             exceptions_by_question_name=self.exceptions_by_question_name,
             exceptions_by_model=self.exceptions_by_model,
