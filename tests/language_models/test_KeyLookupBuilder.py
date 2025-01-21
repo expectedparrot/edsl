@@ -100,7 +100,9 @@ def test_get_language_model_input(builder):
         ]
     }
     builder.limit_data = {
-        "test": LimitEntry(service="test", rpm=10, tpm=2000000, source="env")
+        "test": LimitEntry(
+            service="test", rpm=10, tpm=2000000, rpm_source="env", tpm_source="env"
+        )
     }
     builder.id_data = {
         "test": APIIDEntry(

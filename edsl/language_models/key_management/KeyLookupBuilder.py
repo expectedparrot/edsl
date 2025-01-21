@@ -62,6 +62,7 @@ class KeyLookupBuilder:
     DEFAULT_TPM = int(CONFIG.get("EDSL_SERVICE_TPM_BASELINE"))
 
     def __init__(self, fetch_order: Optional[tuple[str]] = None):
+        # Fetch order goes from lowest priority to highest priority
         if fetch_order is None:
             self.fetch_order = ("config", "env")
         else:
@@ -131,7 +132,8 @@ class KeyLookupBuilder:
                 service=service,
                 rpm=self.DEFAULT_RPM,
                 tpm=self.DEFAULT_TPM,
-                source="default",
+                rpm_source="default",
+                tpm_source="default",
             )
 
         if limit_entry.rpm is None:
@@ -145,7 +147,8 @@ class KeyLookupBuilder:
             tpm=int(limit_entry.tpm),
             api_id=api_id,
             token_source=api_key_entry.source,
-            limit_source=limit_entry.source,
+            rpm_source=limit_entry.rpm_source,
+            tpm_source=limit_entry.tpm_source,
             id_source=id_source,
         )
 
@@ -187,7 +190,7 @@ class KeyLookupBuilder:
                 d[k] = (v, source)
         return d
 
-    def _entry_type(self, key, value) -> str:
+    def _entry_type(self, key: str) -> str:
         """Determine the type of entry from a key.
 
         >>> builder = KeyLookupBuilder()
@@ -243,11 +246,13 @@ class KeyLookupBuilder:
         service, limit_type = self.extract_service(key)
         if service in self.limit_data:
             setattr(self.limit_data[service], limit_type.lower(), value)
+            setattr(self.limit_data[service], f"{limit_type}_source", source)
         else:
             new_limit_entry = LimitEntry(
-                service=service, rpm=None, tpm=None, source=source
+                service=service, rpm=None, tpm=None, rpm_source=None, tpm_source=None
             )
             setattr(new_limit_entry, limit_type.lower(), value)
+            setattr(new_limit_entry, f"{limit_type}_source", source)
             self.limit_data[service] = new_limit_entry
 
     def _add_api_key(self, key: str, value: str, source: str) -> None:
@@ -265,13 +270,17 @@ class KeyLookupBuilder:
         else:
             self.key_data[service].append(new_entry)
 
+    def update_from_dict(self, d: dict) -> None:
+        """Update data from a dictionary of key-value pairs."""
+        for key, value_pair in d.items():
+            value, source = value_pair
+            if self._entry_type(key) == "limit":
+                self._add_limit(key, value, source)
+            elif self._entry_type(key) == "api_key":
+                self._add_api_key(key, value, source)
+            elif self._entry_type(key) == "api_id":
+                self._add_id(key, value, source)
+
     def process_key_value_pairs(self) -> None:
         """Process all key-value pairs from the configured sources."""
-        for key, value_pair in self.get_key_value_pairs().items():
-            value, source = value_pair
-            if (entry_type := self._entry_type(key, value)) == "limit":
-                self._add_limit(key, value, source)
-            elif entry_type == "api_key":
-                self._add_api_key(key, value, source)
-            elif entry_type == "api_id":
-                self._add_id(key, value, source)
+        self.update_from_dict(self.get_key_value_pairs())

@@ -40,18 +40,23 @@ class LimitEntry:
     60
     >>> limit.tpm
     100000
-    >>> limit.source
+    >>> limit.rpm_source
     'config'
+    >>> limit.tpm_source
+    'env'
     """
 
     service: str
     rpm: int
     tpm: int
-    source: Optional[str] = None
+    rpm_source: Optional[str] = None
+    tpm_source: Optional[str] = None
 
     @classmethod
     def example(cls):
-        return LimitEntry(service="openai", rpm=60, tpm=100000, source="config")
+        return LimitEntry(
+            service="openai", rpm=60, tpm=100000, rpm_source="config", tpm_source="env"
+        )
 
 
 @dataclass
@@ -108,7 +113,8 @@ class LanguageModelInput:
     tpm: int
     api_id: Optional[str] = None
     token_source: Optional[str] = None
-    limit_source: Optional[str] = None
+    rpm_source: Optional[str] = None
+    tpm_source: Optional[str] = None
     id_source: Optional[str] = None
 
     def to_dict(self):
