@@ -194,13 +194,13 @@ class KeyLookupBuilder:
         """Determine the type of entry from a key.
 
         >>> builder = KeyLookupBuilder()
-        >>> builder._entry_type("EDSL_SERVICE_RPM_OPENAI", "60")
+        >>> builder._entry_type("EDSL_SERVICE_RPM_OPENAI")
         'limit'
-        >>> builder._entry_type("OPENAI_API_KEY", "sk-1234")
+        >>> builder._entry_type("OPENAI_API_KEY")
         'api_key'
-        >>> builder._entry_type("AWS_ACCESS_KEY_ID", "AKIA1234")
+        >>> builder._entry_type("AWS_ACCESS_KEY_ID")
         'api_id'
-        >>> builder._entry_type("UNKNOWN_KEY", "value")
+        >>> builder._entry_type("UNKNOWN_KEY")
         'unknown'
         """
         if key.startswith("EDSL_SERVICE_"):
