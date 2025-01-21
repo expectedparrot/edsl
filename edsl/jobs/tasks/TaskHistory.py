@@ -419,11 +419,10 @@ class TaskHistory(RepresentationMixin):
         filename: Optional[str] = None,
         return_link=False,
         css=None,
-        cta="Open Report in New Tab",
+        cta="\nClick to open the report in a new tab\n",
         open_in_browser=False,
     ):
         """Return an HTML report."""
-
         from IPython.display import display, HTML
         import tempfile
         import os
@@ -452,7 +451,7 @@ class TaskHistory(RepresentationMixin):
             html_link = f'<a href="{html_url}" target="_blank">{cta}</a>'
             display(HTML(html_link))
             escaped_output = html.escape(output)
-            iframe = f""""
+            iframe = f"""
             <iframe srcdoc="{ escaped_output }" style="width: 800px; height: 600px;"></iframe>
             """
             display(HTML(iframe))

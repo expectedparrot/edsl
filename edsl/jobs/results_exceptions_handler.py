@@ -66,9 +66,7 @@ class ResultsExceptionsHandler:
 
     def _generate_error_message(self, indices) -> str:
         """Generate appropriate error message based on number of exceptions."""
-        msg = f"Exceptions were raised. Please see the Exceptions Report ^ for details.\n" # in {len(indices)} interviews.\n"
-        # if len(indices) > 5:
-        #     msg += f"Exceptions were raised in the following interviews: {indices}.\n"
+        msg = f"Exceptions were raised.\n" 
         return msg
 
     def handle_exceptions(self) -> None:
@@ -84,7 +82,6 @@ class ResultsExceptionsHandler:
 
         # Generate HTML report
         filepath = self.results.task_history.html(
-            cta="Please see the Exceptions Report for details.",
             open_in_browser=self.open_in_browser,
             return_link=True,
         )
@@ -92,7 +89,5 @@ class ResultsExceptionsHandler:
         # Handle remote logging if enabled
         if self.remote_logging:
             filestore = HTMLFileStore(filepath)
-            coop_details = filestore.push(description="Error report")
+            coop_details = filestore.push(description="Exceptions Report")
             print(coop_details)
-
-        print("Also see: https://docs.expectedparrot.com/en/latest/exceptions.html")
