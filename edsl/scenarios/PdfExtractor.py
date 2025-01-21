@@ -2,14 +2,11 @@ import os
 
 
 class PdfExtractor:
-    def __init__(self, pdf_path: str, parent_object: object):
+    def __init__(self, pdf_path: str):
         self.pdf_path = pdf_path
-        self.constructor = parent_object.__class__
+        #self.constructor = parent_object.__class__
 
-    def get_object(self) -> object:
-        return self.constructor(self._get_pdf_dict())
-
-    def _get_pdf_dict(self) -> dict:
+    def get_pdf_dict(self) -> dict:
         # Ensure the file exists
         import fitz
 
