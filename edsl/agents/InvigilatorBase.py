@@ -135,6 +135,7 @@ class InvigilatorBase(ABC):
         d["additional_prompt_data"] = data["additional_prompt_data"]
 
         d = cls(**d)
+        return d
 
     def __repr__(self) -> str:
         """Return a string representation of the Invigilator.
