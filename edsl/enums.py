@@ -66,6 +66,7 @@ class InferenceServiceType(EnumWithChecks):
     MISTRAL = "mistral"
     TOGETHER = "together"
     PERPLEXITY = "perplexity"
+    DEEPSEEK = "deepseek"
 
 
 # unavoidable violation of the DRY principle but it is necessary
@@ -84,6 +85,7 @@ InferenceServiceLiteral = Literal[
     "mistral",
     "together",
     "perplexity",
+    "deepseek",
 ]
 
 available_models_urls = {
