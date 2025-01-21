@@ -55,7 +55,7 @@ def test_invalid_fetch_order():
 )
 def test_entry_type_detection(builder, key, expected_type):
     """Test correct detection of entry types"""
-    entry_type = builder._entry_type(key, "dummy-value")
+    entry_type = builder._entry_type(key)
     assert entry_type == expected_type
 
 
