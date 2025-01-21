@@ -61,7 +61,13 @@ class KeyLookupBuilder:
     DEFAULT_RPM = int(CONFIG.get("EDSL_SERVICE_RPM_BASELINE"))
     DEFAULT_TPM = int(CONFIG.get("EDSL_SERVICE_TPM_BASELINE"))
 
-    def __init__(self, fetch_order: Optional[tuple[str]] = None):
+    def __init__(
+        self,
+        fetch_order: Optional[tuple[str]] = None,
+        coop: Optional["Coop"] = None,
+    ):
+        from edsl.coop import Coop
+
         # Fetch order goes from lowest priority to highest priority
         if fetch_order is None:
             self.fetch_order = ("config", "env")
@@ -70,6 +76,11 @@ class KeyLookupBuilder:
 
         if not isinstance(self.fetch_order, tuple):
             raise ValueError("fetch_order must be a tuple")
+
+        if coop is None:
+            self.coop = Coop()
+        else:
+            self.coop = coop
 
         self.limit_data = {}
         self.key_data = {}
@@ -159,10 +170,7 @@ class KeyLookupBuilder:
         return dict(list(os.environ.items()))
 
     def _coop_key_value_pairs(self):
-        from edsl.coop import Coop
-
-        c = Coop()
-        return dict(list(c.fetch_rate_limit_config_vars().items()))
+        return dict(list(self.coop.fetch_rate_limit_config_vars().items()))
 
     def _config_key_value_pairs(self):
         from edsl.config import CONFIG
