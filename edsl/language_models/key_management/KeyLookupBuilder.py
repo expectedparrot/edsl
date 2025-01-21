@@ -180,7 +180,7 @@ class KeyLookupBuilder:
     @staticmethod
     def extract_service(key: str) -> str:
         """Extract the service and limit type from the key"""
-        limit_type, service_raw = key.replace("EDSL_SERVICE_", "").split("_")
+        limit_type, service_raw = key.replace("EDSL_SERVICE_", "").split("_", 1)
         return service_raw.lower(), limit_type.lower()
 
     def get_key_value_pairs(self) -> dict:
