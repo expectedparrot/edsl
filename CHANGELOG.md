@@ -1,11 +1,19 @@
 # Changelog
 
+## [0.1.42] - TBD
+### Added
+
+### Changed
+- Formatting improvements to the Exceptions Report.
+
+## [0.1.41] - 2025-01-
+
 ## [0.1.40] - 2025-01-15
 ### Added
 - Question type `QuestionDict` returns a response as a dictionary with specified keys and (optionally) specified value types and descriptions. Details: https://docs.expectedparrot.com/en/latest/questions.html#questiodict-class
 
 ### Changed
-- Previously, results of jobs run remotely were automatically synced to your local cache. Now, results are only added to the cache where the job is being run, local or remote.
+- Previously, results of jobs run remotely were automatically synced to your local cache. Now, results are only added to the cache where the job is being run, local or remote. Results now include the following fields for the cache associated with the results: `cache_keys.<question_name>_cache_key` and `cache_used.<question_name>_cache_used`
 
 - Improvements to web-based progress bar for remote jobs.
 
