@@ -78,7 +78,6 @@ class Result(Base, UserDict):
         self.question_to_attributes = (
             question_to_attributes or self._create_question_to_attributes(survey)
         )
-
         data = {
             "agent": agent,
             "scenario": scenario,
@@ -87,7 +86,7 @@ class Result(Base, UserDict):
             "answer": answer,
             "prompt": prompt or {},
             "raw_model_response": raw_model_response or {},
-            "question_to_attributes": question_to_attributes,
+            "question_to_attributes": self.question_to_attributes,
             "generated_tokens": generated_tokens or {},
             "comments_dict": comments_dict or {},
             "cache_used_dict": cache_used_dict or {},
