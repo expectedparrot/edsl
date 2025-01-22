@@ -34,11 +34,15 @@ class LanguageModelNotFound(LanguageModelExceptions):
         msg = dedent(
             f"""\
             Model {model_name} not found.
-            To create an instance, you can do: 
-            >>> m = Model('gpt-4-1106-preview', temperature=0.5, ...)
+            To create an instance of this model, pass the model name to a `Model` object.
+            You can optionally pass additional parameters to the model, e.g.: 
+            >>> m = Model('gpt-4-1106-preview', temperature=0.5)
             
-            To get the default model, you can leave out the model name. 
-            To see the available models, you can do:
+            To use the default model, simply run your job without specifying a model.
+            To check the default model, run the following code:
+            >>> Model()
+
+            To see information about all available models, run the following code:
             >>> Model.available()
 
             See https://docs.expectedparrot.com/en/latest/language_models.html#available-models for more details.

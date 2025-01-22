@@ -562,7 +562,6 @@ class LanguageModel(
         >>> m = LanguageModel.example(test_model = True, canned_response = "WOWZA!", throw_exception = True)
         >>> r = q.by(m).run(cache = False, disable_remote_cache = True, disable_remote_inference = True, print_exceptions = True)
         Exception report saved to ...
-        Also see: ...
         """
         from edsl.language_models.model import Model
 
