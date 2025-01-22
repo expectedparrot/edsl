@@ -1183,31 +1183,32 @@ class Survey(SurveyExportMixin, Base):
 
         >>> s = Survey.example()
         >>> [q.question_text for q in s.questions]
-        ['Do you like school?', 'Why not?', 'Why?']
+        ['What is the capital of France?', 'In what year was {{ q0.answer }} founded?', 'Why?']
         """
-        from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
+        from edsl import QuestionMultipleChoice, QuestionList, QuestionNumerical, QuestionYesNo
 
         addition = "" if not randomize else str(uuid4())
         q0 = QuestionMultipleChoice(
-            question_text=f"Do you like school?{addition}",
-            question_options=["yes", "no"],
             question_name="q0",
+            question_text=f"What is the capital of France?{addition}",
+            question_options=["London", "Paris", "Rome", "Boston"]
         )
-        q1 = QuestionMultipleChoice(
-            question_text="Why not?",
-            question_options=["killer bees in cafeteria", "other"],
+        q1 = QuestionList(
             question_name="q1",
+            question_text="Name some cities in France.",
+            max_list_items = 5
         )
-        q2 = QuestionMultipleChoice(
-            question_text="Why?",
-            question_options=["**lack*** of killer bees in cafeteria", "other"],
+        q2 = QuestionNumerical(
             question_name="q2",
+            question_text="What is the population of {{ q0.answer }}?"
         )
         if params:
-            q3 = QuestionMultipleChoice(
-                question_text="To the question '{{ q0.question_text}}', you said '{{ q0.answer }}'. Do you still feel this way?",
-                question_options=["yes", "no"],
+            q3 = QuestionYesNo(
                 question_name="q3",
+                question_text="""
+                In answer to the question '{{ q0.question_text}}' you responsed '{{ q0.answer }}'. 
+                Are you confidant in your response?
+                """
             )
             s = cls(questions=[q0, q1, q2, q3])
             return s
