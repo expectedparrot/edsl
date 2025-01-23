@@ -1,4 +1,4 @@
-from jinja2 import Environment, meta
+from jinja2 import Environment, meta, TemplateSyntaxError
 from typing import Any, Set, TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -29,7 +29,12 @@ class QuestionTemplateReplacementsBuilder:
         Set[str]: A set of variable names found in the template
         """
         env = Environment()
-        ast = env.parse(template_str)
+        try:
+            ast = env.parse(template_str)
+        except TemplateSyntaxError:
+            print(f"Error parsing template: {template_str}")
+            raise
+
         return meta.find_undeclared_variables(ast)
 
     @staticmethod
