@@ -78,7 +78,6 @@ class Result(Base, UserDict):
         self.question_to_attributes = (
             question_to_attributes or self._create_question_to_attributes(survey)
         )
-
         data = {
             "agent": agent,
             "scenario": scenario,
@@ -87,7 +86,7 @@ class Result(Base, UserDict):
             "answer": answer,
             "prompt": prompt or {},
             "raw_model_response": raw_model_response or {},
-            "question_to_attributes": question_to_attributes,
+            "question_to_attributes": self.question_to_attributes,
             "generated_tokens": generated_tokens or {},
             "comments_dict": comments_dict or {},
             "cache_used_dict": cache_used_dict or {},
@@ -367,6 +366,10 @@ class Result(Base, UserDict):
                         else prompt_obj.to_dict()
                     )
                 d[key] = new_prompt_dict
+            
+        if self.indices is not None:
+            d["indices"] = self.indices
+
         if add_edsl_version:
             from edsl import __version__
 
@@ -416,6 +419,7 @@ class Result(Base, UserDict):
             comments_dict=json_dict.get("comments_dict", {}),
             cache_used_dict=json_dict.get("cache_used_dict", {}),
             cache_keys=json_dict.get("cache_keys", {}),
+            indices = json_dict.get("indices", None)
         )
         return result
 

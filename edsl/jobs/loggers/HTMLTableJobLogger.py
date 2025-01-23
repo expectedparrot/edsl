@@ -9,7 +9,8 @@ from edsl.jobs.jobs_status_enums import JobsStatus
 class HTMLTableJobLogger(JobLogger):
     def __init__(self, verbose=True, theme="auto", **kwargs):
         super().__init__(verbose=verbose)
-        self.display_handle = display(HTML(""), display_id=True)
+        self.display_handle = display(HTML(""), display_id=True) if verbose else None
+        #self.display_handle = display(HTML(""), display_id=True)
         self.current_message = None
         self.log_id = str(uuid.uuid4())
         self.is_expanded = True
@@ -22,6 +23,9 @@ class HTMLTableJobLogger(JobLogger):
 
     def _init_css(self):
         """Initialize the CSS styles with enhanced theme support"""
+        if not self.verbose:
+            return None
+        
         css = """
         <style>
             /* Base theme variables */
@@ -217,6 +221,7 @@ class HTMLTableJobLogger(JobLogger):
             }});
         </script>
         """
+        
 
         display(HTML(css + init_script))
 
