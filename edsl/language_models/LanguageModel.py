@@ -244,7 +244,7 @@ class LanguageModel(
 
         >>> m = LanguageModel.example()
         >>> hash(m)
-        1811901442659237949
+        325654563661254408
         """
         from edsl.utilities.utilities import dict_hash
 
@@ -495,11 +495,12 @@ class LanguageModel(
 
         >>> m = LanguageModel.example()
         >>> m.to_dict()
-        {'model': '...', 'parameters': {'temperature': ..., 'max_tokens': ..., 'top_p': ..., 'frequency_penalty': ..., 'presence_penalty': ..., 'logprobs': False, 'top_logprobs': ...}, 'edsl_version': '...', 'edsl_class_name': 'LanguageModel'}
+        {'model': '...', 'parameters': {'temperature': ..., 'max_tokens': ..., 'top_p': ..., 'frequency_penalty': ..., 'presence_penalty': ..., 'logprobs': False, 'top_logprobs': ...}, 'inference_service': 'openai', 'edsl_version': '...', 'edsl_class_name': 'LanguageModel'}
         """
         d = {
             "model": self.model,
             "parameters": self.parameters,
+            "inference_service": self._inference_service_,
         }
         if add_edsl_version:
             from edsl import __version__
@@ -511,7 +512,10 @@ class LanguageModel(
     @classmethod
     @remove_edsl_version
     def from_dict(cls, data: dict) -> Type[LanguageModel]:
-        """Convert dictionary to a LanguageModel child instance."""
+        """Convert dictionary to a LanguageModel child instance.
+
+        NB: This method does not use the stores inference_service but rather just fetches a model class based on the name.
+        """
         from edsl.language_models.model import get_model_class
 
         model_class = get_model_class(data["model"])
@@ -558,7 +562,6 @@ class LanguageModel(
         >>> m = LanguageModel.example(test_model = True, canned_response = "WOWZA!", throw_exception = True)
         >>> r = q.by(m).run(cache = False, disable_remote_cache = True, disable_remote_inference = True, print_exceptions = True)
         Exception report saved to ...
-        Also see: ...
         """
         from edsl.language_models.model import Model
 

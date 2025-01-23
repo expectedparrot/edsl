@@ -521,16 +521,18 @@ class Jobs(Base):
             results = runner.run(self.run_config.parameters)
         return results
 
-    def _setup_and_check(self) -> Tuple[RunConfig, Optional[Results]]:
-        self._prepare_to_run()
-        self._check_if_remote_keys_ok()
+    # def _setup_and_check(self) -> Tuple[RunConfig, Optional[Results]]:
+    #     self._prepare_to_run()
+    #     self._check_if_remote_keys_ok()
 
-        # first try to run the job remotely
-        if results := self._remote_results():
-            return results
+    #     # first try to run the job remotely
+    #     results = self._remote_results()
+    #     #breakpoint()
+    #     if results is not None:
+    #         return results
 
-        self._check_if_local_keys_ok()
-        return None
+    #     self._check_if_local_keys_ok()
+    #     return None
 
     @property
     def num_interviews(self):
@@ -539,7 +541,7 @@ class Jobs(Base):
         else:
             return len(self) * self.run_config.parameters.n
 
-    def _run(self, config: RunConfig):
+    def _run(self, config: RunConfig) -> Union[None, "Results"]:
         "Shared code for run and run_async"
         if config.environment.cache is not None:
             self.run_config.environment.cache = config.environment.cache
@@ -581,13 +583,15 @@ class Jobs(Base):
         # first try to run the job remotely
         if results := self._remote_results():
             return results
-
+                
         self._check_if_local_keys_ok()
 
         if config.environment.bucket_collection is None:
             self.run_config.environment.bucket_collection = (
                 self.create_bucket_collection()
             )
+
+        return None
 
     @with_config
     def run(self, *, config: RunConfig) -> "Results":
@@ -608,7 +612,10 @@ class Jobs(Base):
         :param bucket_collection: A BucketCollection object to track API calls
         :param key_lookup: A KeyLookup object to manage API keys
         """
-        self._run(config)
+        potentially_completed_results = self._run(config)
+        
+        if potentially_completed_results is not None:
+            return potentially_completed_results
 
         return asyncio.run(self._execute_with_remote_cache(run_job_async=False))
 

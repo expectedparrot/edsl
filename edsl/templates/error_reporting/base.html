@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Exception Details</title>
+    <title>Exceptions Report</title>
     <style>
     {{ css }}
     </style>
@@ -15,9 +15,7 @@
 </head>
 <body>
     {% include 'overview.html' %}
-    {% include 'exceptions_by_type.html' %}
-    {% include 'exceptions_by_model.html' %}
-    {% include 'exceptions_by_question_name.html' %}
+    {% include 'exceptions_table.html' %}
     {% include 'interviews.html' %}
     {% include 'performance_plot.html' %}
 </body>
