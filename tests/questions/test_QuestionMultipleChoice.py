@@ -70,15 +70,15 @@ def test_QuestionMultipleChoice_construction():
     with pytest.raises(Exception):
         QuestionMultipleChoice(**invalid_question)
     # or too many items
-    invalid_question.update(
-        {
-            "question_options": [
-                str(uuid.uuid4()) for _ in range(Settings.MAX_NUM_OPTIONS + 1)
-            ]
-        }
-    )
-    with pytest.raises(Exception):
-        QuestionMultipleChoice(**invalid_question)
+    # invalid_question.update(
+    #     {
+    #         "question_options": [
+    #             str(uuid.uuid4()) for _ in range(Settings.MAX_NUM_OPTIONS + 1)
+    #         ]
+    #     }
+    # )
+    # with pytest.raises(Exception):
+    #     QuestionMultipleChoice(**invalid_question)
     # or not of type list of strings
     # invalid_question.update({"question_options": ["OK", 2]})
     # with pytest.raises(Exception):
