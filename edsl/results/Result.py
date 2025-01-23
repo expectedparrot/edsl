@@ -154,7 +154,9 @@ class Result(Base, UserDict):
     @staticmethod
     def _create_model_sub_dict(model) -> dict:
         return {
-            "model": model.parameters | {"model": model.model},
+            "model": model.parameters
+            | {"model": model.model}
+            | {"inference_service": model._inference_service_},
         }
 
     @staticmethod
