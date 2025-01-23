@@ -3,18 +3,27 @@
 Language Models
 ===============
 
-Language models are used to generate agent responses to survey questions and can be specified using the `Model` and `ModelList` classes.
+Language models are used to generate agents' responses to survey questions and can be specified using the `Model` and `ModelList` classes.
 
-API keys are required in order to access available models, and should be stored in your private `.env` file.
-See the :ref:`api_keys` page for instructions on storing your API keys.
+EDSL works with a variety of different popular inference service providers, including Anthropic, Google, OpenAI and others.
+Current information about available models can be found at the Expected Parrot model pricing page: https://www.expectedparrot.com/getting-started/coop-pricing.
+We also recommend checking providers' websites for the most up-to-date information on available models.
+It is important to check that the models you want to use are available and working as expected before running a survey.
+If you need assistance checking whether a model is working, please send a message to info@expectedparrot.com or post a message at our `Discord channel <https://discord.com/invite/mxAYkjfy9m>`_.
 
-Output for examples shown below can also be viewed in this notebook at Coop.
+
+API keys 
+--------
+
+In order to use a model, you need to have an API key for the relevant service provider.
+EDSL allows you to choose whether to provide your own API keys for models or use an Expected Parrot API key to access all available models at once.
+See the :ref:`api_keys` page for instructions on storing API keys.
 
 
 Available services 
 ------------------
 
-The following code will return a table of currently available services (model providers):
+The following code will return a table of currently available inference services (model providers) together with an indicator whether a local key is currently stored for each service:
 
 .. code-block:: python
 
@@ -32,6 +41,7 @@ Output:
    * - openai
    * - anthropic
    * - deep_infra
+   * - deepseek
    * - google
    * - groq
    * - bedrock
@@ -46,7 +56,7 @@ Output:
 Available models
 ----------------
 
-The following code will return a table of all the available models for all services:
+The following code will return a table of all the available models for all services (output omitted here for brevity):
 
 .. code-block:: python
 
@@ -55,10 +65,7 @@ The following code will return a table of all the available models for all servi
    Model.available()
 
 
-This will return a list of the models we can choose from, for all service providers (omitted here for brevity).
-Run the code on yor own to see an up-to-date list.
-
-To see a list of all models for a specific service, pass the service:
+To see a list of all models for a specific service, pass the service name as an argument:
 
 .. code-block:: python
 
@@ -82,10 +89,6 @@ Output:
      - google
 
 
-*Note:* It is important to check that selected models are working as expected before running a survey. 
-We recommend running test questions with any models, agents and scenarios that you plan to use in a survey to validate performance before moving onto larger jobs.
-
-
 Adding a model
 --------------
 
@@ -96,25 +99,40 @@ If you do not see a publicly available model that you want to work with, please 
 
    from edsl import Model
 
-   Model.add_model(service_name = "anthropic", model_name = "new_model")
+   Model.add_model(service_name = "google", model_name = "new_model")
 
 
-This will add the model `new_model` to the `anthropic` service.
+This will add the model `new_model` to the `google` service.
 You can then see the model in the list of available models, and search by service name:
 
 .. code-block:: python
 
-   Model.available(service = "anthropic")
+   Model.available(service = "google")
 
 
 Output:
 
+.. list-table::
+   :header-rows: 1
+
+   * - Model Name
+     - gemmini-1.0-pro
+     - gemmini-1.0-flash
+     - gemmini-1.5-pro
+     - gemmini-pro
+     - new_model
+   * - Service Name
+     - google
+     - google
+     - google
+     - google
+     - google
 
 
 Check models 
 ------------
 
-To check for models where API keys have been stored:
+The following code checks for models where API keys have been stored locally:
 
 .. code-block:: python
 
@@ -142,23 +160,17 @@ Specifying a model
 
 We specify a model to use with a survey by creating a `Model` object and passing it the name of an available model.
 We can optionally set other model parameters as well (temperature, etc.). 
-For example, the following code creates a `Model` object for Claude 3.5 Sonnet with default model parameters:
+For example, the following code creates a `Model` object for `gpt-4o` with default model parameters:
 
 .. code-block:: python
 
    from edsl import Model
 
-   model = Model('gpt-4o')
+   m = Model('gpt-4o')
+   m
 
 
-We can see that the object consists of a model name and a dictionary of parameters:
-
-.. code-block:: python
-
-   model
-
-
-This will show the default parameters of the model:
+Output: 
 
 .. list-table::
    :header-rows: 1
@@ -181,21 +193,95 @@ This will show the default parameters of the model:
      - False
    * - parameters:top_logprobs
      - 3
+   * - inference_service
+     - openai
+
+
+We can see that the object consists of a model name and a dictionary of the default parameters of the model, together with the name of the inference service (some models are made provided by multiple services).
+
+
+Creating a list of models
+-------------------------
+
+We can create a list of models by passing a list of model names to the `ModelList` class.
+For example, the following code creates a `ModelList` object for `gpt-4o` and `gemini-pro`:
+
+.. code-block:: python
+
+   from edsl import Model, ModelList
+
+   ml = ModelList([Model('gpt-4o'), Model('gemini-pro')])
+
+
+We can also create a model list from a list of model names:
+
+.. code-block:: python
+
+   from edsl import Model, ModelList
+
+   model_names = ['gpt-4o', 'gemini-pro']
+
+   ml = ModelList.from_names(model_names)
+
+   ml
+
+
+Output:
+
+.. list-table::
+   :header-rows: 1
+
+   * - topP	
+     - topK	
+     - presence_penalty	
+     - top_logprobs	
+     - top_p	
+     - max_tokens	
+     - maxOutputTokens	
+     - temperature	
+     - model	
+     - stopSequences	
+     - logprobs	
+     - frequency_penalty
+   * - nan	
+     - nan	
+     - 0.000000	
+     - 3.000000	
+     - 1.000000	
+     - 1000.000000	
+     - nan	
+     - 0.500000	
+     - gpt-4o	
+     - nan	
+     - False	
+     - 0.000000
+   * - 1.000000	
+     - 1.000000	
+     - nan	
+     - nan	
+     - nan	
+     - nan	
+     - 2048.000000	
+     - 0.500000	
+     - gemini-pro	
+     - []	
+     - nan	
+     - nan
 
 
 Running a survey with models
 ----------------------------
 
-Similar to how we specify :ref:`agents` and :ref:`scenarios` in running a survey, we specify the models to use by adding them to a survey with the `by()` method when the survey is run.
+Similar to how we specify :ref:`agents` and :ref:`scenarios` to use with a survey, we specify the models to use by adding them to a survey with the `by()` method when the survey is run.
 We can pass either a single `Model` object or a list of models to the `by()` method. 
 If multiple models are to be used they are passed as a list or as a `ModelList` object.
-For example, the following code specifies that a survey be run with each of GPT 4 and Gemini Pro:
+For example, the following code specifies that a survey will be run with each of `gpt-4o` and `gemini-1.5-flash`:
 
 .. code-block:: python
 
    from edsl import Model, Survey
 
-   models = [Model('gpt-4o'), Model('gemini-pro')]
+   models = [Model('gpt-4o'), Model('gemini-1.5-flash')]
 
    survey = Survey.example()
 
@@ -208,7 +294,7 @@ This code uses `ModelList` instead of a list of `Model` objects:
 
    from edsl import Model, ModelList, Survey
 
-   models = ModelList(Model(m) for m in ['gpt-4o', 'gemini-pro'])
+   models = ModelList(Model(m) for m in ['gpt-4o', 'gemini-1.5-flash'])
 
    survey = Survey.example()
 
@@ -222,10 +308,12 @@ The following commands are equivalent:
 
 .. code-block:: python
 
+   # add code for creating survey, scenarios, agents, models here ...
+
    results = survey.by(scenarios).by(agents).by(models).run()
 
+   # this is equivalent:
    results = survey.by(models).by(agents).by(scenarios).run()
-
 
 
 Default model
@@ -242,152 +330,11 @@ For example, the following code runs the example survey with the default model (
    results = Survey.example().run()
 
 
-Inspecting model details in results
------------------------------------
-
-If a survey has been run, we can inspect the models that were used by calling the `models` method on the `Results` object.
-For example, we can verify the default model when running a survey without specifying a model:
+We can verify the model that was used:
 
 .. code-block:: python
 
-   from edsl import Survey
-
-   survey = Survey.example()
-
-   results = survey.run()
-
-   results.models
-
-
-This will return the following information about the default model that was used (note the default model may have changed since this page was last updated):
-
-.. list-table::
-  :header-rows: 1
-
-  * - model
-    - temperature
-    - max_tokens
-    - top_p
-    - frequency_penalty
-    - presence_penalty
-    - logprobs
-    - top_logprobs
-  * - gpt-4o
-    - 0.5
-    - 1000
-    - 1
-    - 0
-    - 0
-    - False
-    - 3
-    
-
-To learn more about all the components of a `Results` object, please see the :ref:`results` section.
-
-
-Printing model attributes
--------------------------
-
-If multiple models were used to generate results, we can print the attributes in a table.
-For example, the following code prints a table of the model names and temperatures for some results:
-
-.. code-block:: python
-
-   from edsl import Survey, ModelList, Model
-
-   models = ModelList(
-      Model(m) for m in ['gpt-4o', 'gemini-1.5-pro']
-   )
-
-   survey = Survey.example()
-
-   results = survey.by(models).run()
-
-   results.select("model", "temperature") # This is equivalent to: results.select("model.model", "model.temperature")
-
-
-Output:
-
-.. list-table::
-  :header-rows: 1
-
-  * - model.model
-    - model.temperature
-  * - gpt-4o
-    - 0.5
-  * - gemini-1.5-pro
-    - 0.5
-
-
-We can also print model attributes together with other components of results.
-We can see a list of all components by calling the `columns` method on the results:
-
-.. code-block:: python
-
-   results.columns
-
-
-Output:
-
-.. list-table::
-  :header-rows: 1
-
-  * - 0
-  * - agent.agent_instruction
-  * - agent.agent_name
-  * - answer.q0
-  * - answer.q1
-  * - answer.q2
-  * - comment.q0_comment
-  * - comment.q1_comment
-  * - comment.q2_comment
-  * - generated_tokens.q0_generated_tokens
-  * - generated_tokens.q1_generated_tokens
-  * - generated_tokens.q2_generated_tokens
-  * - iteration.iteration
-  * - model.frequency_penalty
-  * - model.logprobs
-  * - model.maxOutputTokens
-  * - model.max_tokens
-  * - model.model
-  * - model.presence_penalty
-  * - model.stopSequences
-  * - model.temperature
-  * - model.topK
-  * - model.topP
-  * - model.top_logprobs
-  * - model.top_p
-  * - prompt.q0_system_prompt
-  * - prompt.q0_user_prompt
-  * - prompt.q1_system_prompt
-  * - prompt.q1_user_prompt
-  * - prompt.q2_system_prompt
-  * - prompt.q2_user_prompt
-  * - question_options.q0_question_options
-  * - question_options.q1_question_options
-  * - question_options.q2_question_options
-  * - question_text.q0_question_text
-  * - question_text.q1_question_text
-  * - question_text.q2_question_text
-  * - question_type.q0_question_type
-  * - question_type.q1_question_type
-  * - question_type.q2_question_type
-  * - raw_model_response.q0_cost
-  * - raw_model_response.q0_one_usd_buys
-  * - raw_model_response.q0_raw_model_response
-  * - raw_model_response.q1_cost
-  * - raw_model_response.q1_one_usd_buys
-  * - raw_model_response.q1_raw_model_response
-  * - raw_model_response.q2_cost
-  * - raw_model_response.q2_one_usd_buys
-  * - raw_model_response.q2_raw_model_response
-
-
-The following code will display a table of the model names together with the simulated answers:
-
-.. code-block:: python
-
-   results.select("model", "answer.*")
+   results.select("model.model") # selecting only the model name
 
 
 Output:
@@ -395,21 +342,32 @@ Output:
 .. list-table::
    :header-rows: 1
 
-   * - model.model
-     - answer.q0
-     - answer.q1
-     - answer.q2
+   * - model
    * - gpt-4o
-     - no
-     - killer bees in cafeteria
-     -
-   * - gemini-1.5-pro
-     - yes
-     - 
-     - other
 
 
-To learn more about methods of inspecting and printing results, please see the :ref:`results` section.
+Inspecting model parameters
+---------------------------
+
+We can also inspect parameters of the models that were used by calling the `models` method on the `Results` object.
+For example, we can verify the default model when running a survey without specifying a model:
+
+.. code-block:: python
+
+   from edsl import Survey, Model, ModelList
+
+   m = ModelList.from_names(["gpt-4o", "gemini-1.5-flash"])
+
+   survey = Survey.example()
+
+   results = survey.by(m).run()
+
+   results.models
+
+
+This will return the same information as the `ModelList` created above.
+
+To learn more about all the components of a `Results` object, please see the :ref:`results` section.
 
 
 ModelList class
