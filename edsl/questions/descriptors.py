@@ -302,10 +302,10 @@ class QuestionOptionsDescriptor(BaseDescriptor):
             raise QuestionCreationValidationError(
                 f"Question options must be a list (got {value})."
             )
-        if len(value) > Settings.MAX_NUM_OPTIONS:
-            raise QuestionCreationValidationError(
-                f"Too many question options (got {value})."
-            )
+        # if len(value) > Settings.MAX_NUM_OPTIONS:
+        #     raise QuestionCreationValidationError(
+        #         f"Too many question options (got {value})."
+        #     )
         if len(value) < Settings.MIN_NUM_OPTIONS:
             raise QuestionCreationValidationError(
                 f"Too few question options (got {value})."
