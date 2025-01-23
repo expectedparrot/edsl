@@ -301,7 +301,7 @@ class Survey(SurveyExportMixin, Base):
 
         >>> s = Survey.example()
         >>> s._get_question_by_name("q0")
-        Question('multiple_choice', question_name = \"""q0\""", question_text = \"""What is the capital of France?\""", question_options = ['London', 'Paris', 'Rome', 'Boston'])
+        Question('multiple_choice', question_name = \"""q0\""", question_text = \"""Do you like school?\""", question_options = ['yes', 'no'])
         """
         if question_name not in self.question_name_to_index:
             raise SurveyError(f"Question name {question_name} not found in survey.")
@@ -470,7 +470,7 @@ class Survey(SurveyExportMixin, Base):
     def parameters_by_question(self):
         """Return a dictionary of parameters by question in the survey.
         >>> from edsl import QuestionFreeText
-        >>> q = QuestionFreeText(question_name = "example", question_text = "What is the capital of {{ country }}?")
+        >>> q = QuestionFreeText(question_name = "example", question_text = "What is the capital of {{ country}}?")
         >>> s = Survey([q])
         >>> s.parameters_by_question
         {'example': {'country'}}
@@ -745,7 +745,7 @@ class Survey(SurveyExportMixin, Base):
 
         >>> s = Survey.example()
         >>> s.show_rules()
-        Dataset([{'current_q': [0, 1, 2]}, {'expression': ['True', 'True', 'True']}, {'next_q': [1, 2, 3]}, {'priority': [-1, -1, -1]}, {'before_rule': [False, False, False]}])
+        Dataset([{'current_q': [0, 0, 1, 2]}, {'expression': ['True', "q0 == 'yes'", 'True', 'True']}, {'next_q': [1, 2, 2, 3]}, {'priority': [-1, 0, -1, -1]}, {'before_rule': [False, False, False, False]}])
         """
         return self.rule_collection.show_rules()
 
@@ -1047,21 +1047,23 @@ class Survey(SurveyExportMixin, Base):
         >>> s.show_rules()
         Dataset([{'current_q': [0, 0, 1, 2]}, {'expression': ['True', "q0 == 'yes'", 'True', 'True']}, {'next_q': [1, 2, 2, 3]}, {'priority': [-1, 0, -1, -1]}, {'before_rule': [False, False, False, False]}])
 
-        Here is the path through the survey if the answer to q0 is not 'Paris' (e.g., is instead 'Boston'):
+        Note that q0 has a rule that if the answer is 'yes', the next question is q2. If the answer is 'no', the next question is q1.
+
+        Here is the path through the survey if the answer to q0 is 'yes':
 
         >>> i = s.gen_path_through_survey()
         >>> next(i)
-        Question('multiple_choice', question_name = \"""q0\""", question_text = \"""What is the capital of France?\""", question_options = ['London', 'Paris', 'Rome', 'Boston'])
-        >>> i.send({"q0": "Boston"})
-        Question('list', question_name = \"""q1\""", question_text = \"""Name some cities in France.\""")
+        Question('multiple_choice', question_name = \"""q0\""", question_text = \"""Do you like school?\""", question_options = ['yes', 'no'])
+        >>> i.send({"q0": "yes"})
+        Question('multiple_choice', question_name = \"""q2\""", question_text = \"""Why?\""", question_options = ['**lack*** of killer bees in cafeteria', 'other'])
 
-        And here is the path through the survey if the answer to q0 is 'Paris':
+        And here is the path through the survey if the answer to q0 is 'no':
 
         >>> i2 = s.gen_path_through_survey()
         >>> next(i2)
-        Question('multiple_choice', question_name = \"""q0\""", question_text = \"""What is the capital of France?\""", question_options = ['London', 'Paris', 'Rome', 'Boston'])
-        >>> i2.send({"q0": "Paris"})
-        Question('numerical', question_name = \"""q2\""", question_text = \"""What is the population of Paris?\""")
+        Question('multiple_choice', question_name = \"""q0\""", question_text = \"""Do you like school?\""", question_options = ['yes', 'no'])
+        >>> i2.send({"q0": "no"})
+        Question('multiple_choice', question_name = \"""q1\""", question_text = \"""Why not?\""", question_options = ['killer bees in cafeteria', 'other'])
 
 
         """
@@ -1114,7 +1116,7 @@ class Survey(SurveyExportMixin, Base):
 
         >>> s = Survey.example()
         >>> s[0]
-        Question('multiple_choice', question_name = \"""q0\""", question_text = \"""What is the capital of France?\""", question_options = ['London', 'Paris', 'Rome', 'Boston'])
+        Question('multiple_choice', question_name = \"""q0\""", question_text = \"""Do you like school?\""", question_options = ['yes', 'no'])
 
         """
         if isinstance(index, int):
@@ -1162,7 +1164,7 @@ class Survey(SurveyExportMixin, Base):
 
         >>> s = Survey.example()
         >>> s.codebook()
-        {'q0': 'What is the capital of France?', 'q1': 'Name some cities in France.', 'q2': 'What is the population of {{ q0.answer }}?'}
+        {'q0': 'Do you like school?', 'q1': 'Why not?', 'q2': 'Why?'}
         """
         codebook = {}
         for question in self._questions:
@@ -1181,32 +1183,31 @@ class Survey(SurveyExportMixin, Base):
 
         >>> s = Survey.example()
         >>> [q.question_text for q in s.questions]
-        ['What is the capital of France?', 'Name some cities in France.', 'What is the population of {{ q0.answer }}?']
+        ['Do you like school?', 'Why not?', 'Why?']
         """
-        from edsl import QuestionMultipleChoice, QuestionList, QuestionNumerical, QuestionYesNo
+        from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
 
         addition = "" if not randomize else str(uuid4())
         q0 = QuestionMultipleChoice(
+            question_text=f"Do you like school?{addition}",
+            question_options=["yes", "no"],
             question_name="q0",
-            question_text=f"What is the capital of France?{addition}",
-            question_options=["London", "Paris", "Rome", "Boston"]
         )
-        q1 = QuestionList(
+        q1 = QuestionMultipleChoice(
+            question_text="Why not?",
+            question_options=["killer bees in cafeteria", "other"],
             question_name="q1",
-            question_text="Name some cities in France.",
-            max_list_items = 5
         )
-        q2 = QuestionNumerical(
+        q2 = QuestionMultipleChoice(
+            question_text="Why?",
+            question_options=["**lack*** of killer bees in cafeteria", "other"],
             question_name="q2",
-            question_text="What is the population of {{ q0.answer }}?"
         )
         if params:
-            q3 = QuestionYesNo(
+            q3 = QuestionMultipleChoice(
+                question_text="To the question '{{ q0.question_text}}', you said '{{ q0.answer }}'. Do you still feel this way?",
+                question_options=["yes", "no"],
                 question_name="q3",
-                question_text="""
-                In answer to the question '{{ q0.question_text}}' you responsed '{{ q0.answer }}'. 
-                Are you confidant in your response?
-                """
             )
             s = cls(questions=[q0, q1, q2, q3])
             return s
@@ -1223,7 +1224,7 @@ class Survey(SurveyExportMixin, Base):
             return s
 
         s = cls(questions=[q0, q1, q2])
-        s = s.add_skip_rule(q1, "q0 == 'Paris'")
+        s = s.add_rule(q0, "q0 == 'yes'", q2)
         return s
 
     def get_job(self, model=None, agent=None, **kwargs):
