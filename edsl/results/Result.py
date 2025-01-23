@@ -364,6 +364,10 @@ class Result(Base, UserDict):
                         else prompt_obj.to_dict()
                     )
                 d[key] = new_prompt_dict
+            
+        if self.indices is not None:
+            d["indices"] = self.indices
+
         if add_edsl_version:
             from edsl import __version__
 
@@ -413,6 +417,7 @@ class Result(Base, UserDict):
             comments_dict=json_dict.get("comments_dict", {}),
             cache_used_dict=json_dict.get("cache_used_dict", {}),
             cache_keys=json_dict.get("cache_keys", {}),
+            indices = json_dict.get("indices", None)
         )
         return result
 
