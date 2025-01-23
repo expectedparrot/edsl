@@ -32,7 +32,7 @@ class JobsInfo:
     pretty_names = {
         "job_uuid": "Job UUID",
         "progress_bar_url": "Progress Bar URL",
-        "error_report_url": "Error Report URL",
+        "error_report_url": "Exceptions Report URL",
         "results_uuid": "Results UUID",
         "results_url": "Results URL",
     }

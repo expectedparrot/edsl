@@ -1,42 +1,66 @@
+<style>
+    td {
+        padding: 0 10px; /* This applies the padding uniformly to all td elements */
+    }
+    .toggle-btn {
+        background-color: #4CAF50;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        text-align: center;
+        text-decoration: none;
+        display: inline-block;
+        font-size: 16px;
+        margin: 4px 2px;
+        cursor: pointer;
+        border-radius: 8px;
+        white-space: nowrap;
+    }
+    .toggle-btn span.collapse {
+        display: none;
+    }
+    .exception-content {
+        max-width: 100%; /* Adjust this value based on your layout */
+        overflow-x: auto; /* Enables horizontal scrolling */
+    }
+</style>
+
 <div class="question">question_name: {{ question }}</div>
-
-
-<h2>Exception details</h2>
 
 {% for exception_message in exceptions %}
 <div class="exception-detail">
-        <div class="exception-header">
+    <div class="exception-header">
         <span class="exception-exception">Exception: {{ exception_message.name }}</span>
-        <button class="toggle-btn">▼</button>
-        </div>
-        <div class="exception-content">
+        <button id="toggleBtn" class="toggle-btn" onclick="toggleButton(this)" aria-expanded="false">
+            <span class="expand"> ▼ </span>
+        </button>             
+    </div>
+    <div class="exception-content">
         <table border="1">
-            <tr>
-                <th>Key</th>
-                <th>Value</th>
-            </tr>
             <tr>
                 <td>Interview ID (index in results)</td>
                 <td>{{ index }}</td>
             </tr>
             <tr>
-                <td>Question name (question_name)</td>
+                <td>Question name</td>
                 <td>{{ question }}</td>
             </tr>
- 
             <tr>
-                <td>Question type (question_type)</td>
+                <td>Question type</td>
                 <td>{{ exception_message.question_type }}</td>
             </tr>
- 
             <tr>
                 <td>Human-readable question</td>
                 <td>{{ interview.survey._get_question_by_name(question).html(
                     scenario = interview.scenario, 
                     agent = interview.agent,
-                    answers = exception_message.answers) 
-                
+                    answers = exception_message.answers
+                    ) 
                 }}</td>
+            </tr>
+            <tr>
+                <td>User Prompt</td>
+                <td><pre>{{ exception_message.rendered_prompts['user_prompt'] }}</pre></td>
             </tr>
             <tr>
                 <td>Scenario</td>
@@ -47,24 +71,20 @@
                 <td>{{ interview.agent.__repr__() }}</td>
             </tr>
             <tr>
-                <td>Model name</td>
-                <td>{{ interview.model.model }}</td>
+                <td>System Prompt</td>
+                <td><pre>{{ exception_message.rendered_prompts['system_prompt'] }}</pre></td>
             </tr>
             <tr>
                 <td>Inference service</td>
                 <td>{{ interview.model._inference_service_ }}</td>
             </tr>
             <tr>
+                <td>Model name</td>
+                <td>{{ interview.model.model }}</td>
+            </tr>
+            <tr>
                 <td>Model parameters</td>
                 <td>{{ interview.model.__repr__() }}</td>
-            </tr>
-            <tr>
-                <td>User Prompt</td>
-                <td><pre>{{ exception_message.rendered_prompts['user_prompt'] }}</pre></td>
-            </tr>
-            <tr>
-                <td>System Prompt</td>
-                <td><pre>{{ exception_message.rendered_prompts['system_prompt'] }}</pre></td>
             </tr>
             <tr>
                 <td>Raw model response</td>
@@ -77,7 +97,7 @@
                 </td>
             </tr>
             <tr>
-            <td>Code to (likely) reproduce the error</td>
+            <td>Code likely to reproduce the error</td>
             <td>
                 <textarea id="codeToCopy" rows="10" cols="90">{{ exception_message.code_to_reproduce }}</textarea>
                 <button onclick="copyCode()">Copy</button>
@@ -85,32 +105,26 @@
             </tr>
 
         </table>
-
-        
-            {% if exception_message.exception.__class__.__name__ == 'QuestionAnswerValidationError' %}        
-            <h3>Answer validation details</h3>
-            <table border="1">
-                <tr>
-                    <th>Field</th>
-                    <th>Value</th>
-                </tr>
-                {% for field, (explanation, open_tag, close_tag, value) in exception_message.exception.to_html_dict().items() %}
-                
-                <tr>
-                    <td>{{ field }}: ({{ explanation }})</td>
-                    <td><{{open_tag}}> {{ value | escape }} <{{close_tag}}></td>
-                </tr>
-                {% endfor %}
-            </table>
-        {% endif %}
-
-            <div class="exception-time">Time: {{ exception_message.time }}</div>          
-            <div class="exception-traceback">Traceback: 
-                <text>
-                <pre>{{ exception_message.traceback }}</pre>
-                </text>
-            </div>
+    
+        {% if exception_message.exception.__class__.__name__ == 'QuestionAnswerValidationError' %}        
+        <h3>Answer validation details</h3>
+        <table border="1">
+            {% for field, (open_tag, close_tag, value) in exception_message.exception.to_html_dict().items() %}
+            <tr>
+                <td>{{ field }}</td>
+                <td><{{ open_tag }}> {{ value | escape }} <{{ close_tag }}></td>
+            </tr>
+            {% endfor %}
+        </table>
+    {% endif %}
+        <br><br>
+        <div class="exception-time">Time: {{ exception_message.time }}</div>          
+        <div class="exception-traceback">Traceback: 
+            <text>
+            <pre>{{ exception_message.traceback }}</pre>
+            </text>
         </div>
     </div>
+</div>
 
 {% endfor %}
