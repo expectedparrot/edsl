@@ -647,7 +647,7 @@ class Results(UserList, Mixins, Base):
 
         >>> r = Results.example()
         >>> r.model_keys
-        ['frequency_penalty', 'logprobs', 'max_tokens', 'model', 'model_index', 'presence_penalty', 'temperature', 'top_logprobs', 'top_p']
+        ['frequency_penalty', 'inference_service', 'logprobs', 'max_tokens', 'model', 'model_index', 'presence_penalty', 'temperature', 'top_logprobs', 'top_p']
         """
         return sorted(self._data_type_to_keys["model"])
 
