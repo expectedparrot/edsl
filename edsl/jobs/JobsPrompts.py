@@ -12,6 +12,7 @@ if TYPE_CHECKING:
     # from edsl.surveys.Survey import Survey
 
 from edsl.jobs.FetchInvigilator import FetchInvigilator
+from edsl.data.CacheEntry import CacheEntry
 
 
 class JobsPrompts:
@@ -47,7 +48,7 @@ class JobsPrompts:
         agent_indices = []
         models = []
         costs = []
-
+        cache_keys = []
         for interview_index, interview in enumerate(interviews):
             invigilators = [
                 FetchInvigilator(interview)(question)
@@ -76,6 +77,14 @@ class JobsPrompts:
                 )
                 costs.append(prompt_cost["cost_usd"])
 
+                cache_key = CacheEntry.gen_key(
+                    model=invigilator.model.model,
+                    parameters=invigilator.model.parameters,
+                    system_prompt=system_prompt,
+                    user_prompt=user_prompt,
+                    iteration=0,  # TODO how to handle when there are multiple iterations?
+                )
+                cache_keys.append(cache_key)
         d = Dataset(
             [
                 {"user_prompt": user_prompts},
@@ -86,6 +95,7 @@ class JobsPrompts:
                 {"agent_index": agent_indices},
                 {"model": models},
                 {"estimated_cost": costs},
+                {"cache_key": cache_keys},
             ]
         )
         return d
