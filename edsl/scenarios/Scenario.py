@@ -358,7 +358,8 @@ class Scenario(Base, UserDict, ScenarioHtmlMixin):
     def from_pdf(cls, pdf_path: str):
         from edsl.scenarios.PdfExtractor import PdfExtractor
 
-        return PdfExtractor(pdf_path, cls).get_object()
+        extractor = PdfExtractor(pdf_path)
+        return Scenario(extractor.get_pdf_dict())
 
     @classmethod
     def from_docx(cls, docx_path: str) -> "Scenario":
