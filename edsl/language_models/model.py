@@ -234,6 +234,55 @@ class Model(metaclass=Meta):
             print("\n")
 
     @classmethod
+    def check_working_models(
+        cls,
+        service: Optional[str] = None,
+        works_with_text: Optional[bool] = None,
+        works_with_images: Optional[bool] = None,
+    ) -> list[dict]:
+        from edsl.coop import Coop
+
+        c = Coop()
+        working_models = c.fetch_working_models()
+
+        if service is not None:
+            working_models = [m for m in working_models if m["service"] == service]
+        if works_with_text is not None:
+            working_models = [
+                m for m in working_models if m["works_with_text"] == works_with_text
+            ]
+        if works_with_images is not None:
+            working_models = [
+                m for m in working_models if m["works_with_images"] == works_with_images
+            ]
+
+        if len(working_models) == 0:
+            return []
+
+        else:
+            return PrettyList(
+                [
+                    [
+                        m["service"],
+                        m["model"],
+                        m["works_with_text"],
+                        m["works_with_images"],
+                        m["usd_per_1M_input_tokens"],
+                        m["usd_per_1M_output_tokens"],
+                    ]
+                    for m in working_models
+                ],
+                columns=[
+                    "Service",
+                    "Model",
+                    "Works with text",
+                    "Works with images",
+                    "Price per 1M input tokens (USD)",
+                    "Price per 1M output tokens (USD)",
+                ],
+            )
+
+    @classmethod
     def example(cls, randomize: bool = False) -> "Model":
         """
         Returns an example Model instance.

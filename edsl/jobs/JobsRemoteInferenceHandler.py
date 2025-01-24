@@ -219,6 +219,7 @@ class JobsRemoteInferenceHandler:
         job_info.logger.add_info("results_uuid", results_uuid)
         results = object_fetcher(results_uuid, expected_object_type="results")
         results_url = remote_job_data.get("results_url")
+        job_info.logger.add_info("results_url", results_url)
         job_info.logger.update(
             f"Job completed and Results stored on Coop: {results_url}",
             status=JobsStatus.COMPLETED,
