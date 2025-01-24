@@ -279,7 +279,17 @@ class KeyLookupBuilder:
             self.key_data[service].append(new_entry)
 
     def update_from_dict(self, d: dict) -> None:
-        """Update data from a dictionary of key-value pairs."""
+        """
+        Update data from a dictionary of key-value pairs.
+        Each key is a key name, and each value is a tuple of (value, source).
+
+        >>> builder = KeyLookupBuilder()
+        >>> builder.update_from_dict({"OPENAI_API_KEY": ("sk-1234", "custodial_keys")})
+        >>> 'sk-1234' == builder.key_data["openai"][-1].value
+        True
+        >>> 'custodial_keys' == builder.key_data["openai"][-1].source
+        True
+        """
         for key, value_pair in d.items():
             value, source = value_pair
             if self._entry_type(key) == "limit":
