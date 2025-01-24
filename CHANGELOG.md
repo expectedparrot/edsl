@@ -1,13 +1,24 @@
 # Changelog
 
+## [0.1.42] - TBD
+### Added
+### Changed
+### Fixed
+
+
+## [0.1.41] - 2025-01-19
+### Changed
+- Modified default RPM to avoid timeout issues.
+
+
 ## [0.1.40] - 2025-01-15
 ### Added
 - Question type `QuestionDict` returns a response as a dictionary with specified keys and (optionally) specified value types and descriptions. Details: https://docs.expectedparrot.com/en/latest/questions.html#questiodict-class
 
 ### Changed
-- Previously, results of jobs run remotely were automatically synced to your local cache. Now, results are only added to the cache where the job is being run, local or remote.
+- Results of jobs run remotely are no longer automatically synced to your local cache. Now, a new cache for results is automatically generated and attached to a results object; you can access it by calling `results.cache`. Results now also include the following fields for the associated cache: `cache_keys.<question_name>_cache_key` (the unique identifier for a cache entry) and `cache_used.<question_name>_cache_used` (an indicator whether the default cache was used to provide the response--this is either your local cache or remote cache, or a cache that was passed to the `run` method, if used instead of local or remote).
 
-- Improvements to web-based progress bar for remote jobs.
+- Improvements to the web-based progress bar for remote jobs.
 
 ### Fixed
 - Occasional timeout issue should be fixed by modifications to caching noted above.

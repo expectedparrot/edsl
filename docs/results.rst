@@ -4,250 +4,259 @@ Results
 =======
 
 A `Results` object represents the outcome of running a `Survey`. 
-It contains a list of individual `Result` objects, where each `Result` corresponds to a response to the survey for a unique combination of `Agent`, `Model`, and `Scenario` object used in the survey.
+It contains a list of individual `Result` objects, where each `Result` corresponds to a response to the survey for a unique combination of `Agent`, `Model`, and `Scenario` objects used with the survey.
 
-For example, if a survey is administered to 2 agents and 2 language models without any scenarios, the `Results` will contain 4 `Result` objects (one for each combination of agent and model). 
-If the survey includes parameterized questions with 2 scenarios, the `Results` will expand to include 8 `Result` objects (accounting for all combinations of agents, models, and scenarios).
+For example, if a survey (of one more more questions) is administered to 2 agents and 2 language models (without any scenarios for the questions), the `Results` will contain 4 `Result` objects: one for each combination of agent and model used with the survey. 
+If the survey questions are parameterized with 2 scenarios, the `Results` will expand to include 8 `Result` objects, accounting for all combinations of agents, models, and scenarios.
 
 
 Generating results 
-^^^^^^^^^^^^^^^^^^
+------------------
 
 A `Results` object is not typically instantiated directly, but is returned by calling the `run()` method of a `Survey` after any agents, language models and scenarios are added to it. 
 
 In order to demonstrate how to access and interact with results, we use the following code to generate results for a simple survey.
-Note that specifying agent traits, scenarios (question parameter values) and language models is optional, and we include those steps here for illustrative purposes.
-(See the :ref:`agents`, :ref:`scenarios` and :ref:`models` sections for more details on these components.)
+Note that specifying agent traits, scenarios (question parameter values) and language models is optional, and we include those steps here for illustration purposes.
+See the :ref:`agents`, :ref:`scenarios` and :ref:`models` sections for more details on these components.
 
 **Note:** You must store API keys for language models in order to generate results. 
-Please see the :ref:`api_keys` section for instructions on activating :ref:`remote_inference` from your :ref:`coop` account or storing your own API keys from service providers.
+Please see the :ref:`api_keys` section for instructions on activating :ref:`remote_inference` or storing your own API keys for inference service providers.
 
 To construct a survey we start by creating questions:
 
 .. code-block:: python
 
-   from edsl import QuestionLinearScale, QuestionMultipleChoice
+  from edsl import QuestionLinearScale, QuestionMultipleChoice
 
-   q1 = QuestionLinearScale(
-      question_name = "important",
-      question_text = "On a scale from 1 to 5, how important to you is {{ topic }}?",
-      question_options = [0, 1, 2, 3, 4, 5],
-      option_labels = {0:"Not at all important", 5:"Very important"}
-   )
+  q1 = QuestionLinearScale(
+    question_name = "important",
+    question_text = "On a scale from 1 to 5, how important to you is {{ topic }}?",
+    question_options = [0, 1, 2, 3, 4, 5],
+    option_labels = {0:"Not at all important", 5:"Very important"}
+  )
 
-   q2 = QuestionMultipleChoice(
-      question_name = "read",
-      question_text = "Have you read any books about {{ topic }}?",
-      question_options = ["Yes", "No", "I do not know"]
-   )
+  q2 = QuestionMultipleChoice(
+    question_name = "read",
+    question_text = "Have you read any books about {{ topic }}?",
+    question_options = ["Yes", "No", "I do not know"]
+  )
 
 
 We combine them in a survey to administer them together:
 
 .. code-block:: python
 
-   from edsl import Survey
+  from edsl import Survey
 
-   survey = Survey([q1, q2])
+  survey = Survey([q1, q2])
 
 
 We have parameterized our questions, so we can use them with different scenarios: 
 
 .. code-block:: python
 
-   from edsl import ScenarioList
+  from edsl import ScenarioList
 
-   scenarios = ScenarioList.from_list("topic", ["climate change", "house prices"])
+  scenarios = ScenarioList.from_list("topic", ["climate change", "house prices"])
 
 
 We can optionally create agents with personas or other relevant traits to answer the survey:
 
 .. code-block:: python
 
-   from edsl import AgentList, Agent
+  from edsl import AgentList, Agent
 
-   agents = AgentList(
-      Agent(traits = {"persona": p}) for p in ["student", "celebrity"]
-   )
+  agents = AgentList(
+    Agent(traits = {"persona": p}) for p in ["student", "celebrity"]
+  )
 
 
 We can specify the language models that we want to use to generate responses:
 
 .. code-block:: python
 
-   from edsl import ModelList, Model
+  from edsl import ModelList, Model
 
-   models = ModelList(
-      Model(m) for m in ["gemini-1.5-flash", "gpt-4o"]
-   )
+  models = ModelList(
+    Model(m) for m in ["gemini-1.5-flash", "gpt-4o"]
+  )
 
 
 Finally, we generate results by adding the scenarios, agents and models to the survey and calling the `run()` method:
 
 .. code-block:: python
 
-   results = survey.by(scenarios).by(agents).by(models).run()
+  results = survey.by(scenarios).by(agents).by(models).run()
 
 
 For more details on each of the above steps, please see the :ref:`agents`, :ref:`scenarios` and :ref:`models` sections of the docs.
 
 
 Result objects 
-^^^^^^^^^^^^^^
+--------------
 
 We can check the number of `Result` objects created by inspecting the length of the `Results`:
 
 .. code-block:: python
 
-   len(results)
+  len(results)
 
 This will count 2 (scenarios) x 2 (agents) x 2 (models) = 8 `Result` objects:
 
 .. code-block:: text
 
-   8
+  8
 
 
 Generating multiple results
-^^^^^^^^^^^^^^^^^^^^^^^^^^^
+---------------------------
 
 If we want to generate multiple results for a survey--i.e., more than 1 result for each combination of `Agent`, `Model` and `Scenario` objects used--we can pass the desired number of iterations when calling the `run()` method.
 For example, the following code will generate 3 results for our survey (n=3):
 
 .. code-block:: python
 
-   results = survey.by(scenarios).by(agents).by(models).run(n=3)
+  results = survey.by(scenarios).by(agents).by(models).run(n=3)
 
 
 We can verify that the number of `Result` objects created is now 24 = 3 iterations x 2 scenarios x 2 agents x 2 models:
 
 .. code-block:: python
 
-   len(results)
+  len(results)
 
 .. code-block:: text
 
-   24
+  24
 
 
 We can readily inspect a result:
 
 .. code-block:: python
 
-   results[0]
+  results[0]
 
 
 Output:
 
 .. list-table::
-   :header-rows: 1
+  :header-rows: 1
 
-   * - key
-     - value
-   * - agent:traits
-     - {'persona': 'student'}
-   * - scenario:topic
-     - climate change
-   * - model:model
-     - gemini-1.5-flash
-   * - model:parameters
-     - {'temperature': 0.5, 'topP': 1, 'topK': 1, 'maxOutputTokens': 2048, 'stopSequences': []}
-   * - iteration
-     - 0
-   * - answer:important
-     - 5
-   * - answer:read
-     - Yes
-   * - prompt:important_user_prompt
-     - {'text': 'On a scale from 1 to 5, how important to you is climate change?\n\n0 : Not at all important\n\n1 : \n\n2 : \n\n3 : \n\n4 : \n\n5 : Very important\n\nOnly 1 option may be selected.\n\nRespond only with the code corresponding to one of the options. E.g., "1" or "5" by itself.\n\nAfter the answer, you can put a comment explaining why you chose that option on the next line.', 'class_name': 'Prompt'}
-   * - prompt:important_system_prompt
-     - {'text': "You are answering questions as if you were a human. Do not break character. Your traits: {'persona': 'student'}", 'class_name': 'Prompt'}
-   * - prompt:read_user_prompt
-     - {'text': '\nHave you read any books about climate change?\n\n    \nYes\n    \nNo\n    \nI do not know\n    \n\nOnly 1 option may be selected.\n\nRespond only with a string corresponding to one of the options.\n\n\nAfter the answer, you can put a comment explaining why you chose that option on the next line.', 'class_name': 'Prompt'}
-   * - prompt:read_system_prompt
-     - {'text': "You are answering questions as if you were a human. Do not break character. Your traits: {'persona': 'student'}", 'class_name': 'Prompt'}
-   * - raw_model_response:important_raw_model_response
-     - {'candidates': [{'content': {'parts': [{'text': "5\n\nIt's, like, a huge deal.  The future of the planet is at stake, and that affects everything – from the environment to the economy to social justice.  It's something I worry about a lot.\n"}], 'role': 'model'}, 'finish_reason': 1, 'safety_ratings': [{'category': 8, 'probability': 1, 'blocked': False}, {'category': 10, 'probability': 1, 'blocked': False}, {'category': 7, 'probability': 1, 'blocked': False}, {'category': 9, 'probability': 1, 'blocked': False}], 'avg_logprobs': -0.12477729758437799, 'token_count': 0, 'grounding_attributions': []}], 'usage_metadata': {'prompt_token_count': 129, 'candidates_token_count': 49, 'total_token_count': 178, 'cached_content_token_count': 0}}
-   * - raw_model_response:important_cost
-     - 1.78e-12
-   * - raw_model_response:important_one_usd_buys
-     - 561797752808.9888
-   * - raw_model_response:read_raw_model_response
-     - {'candidates': [{'content': {'parts': [{'text': "Yes\n\nI've read a few articles and some chapters from textbooks for my environmental science class, which covered climate change extensively.  It's not exactly the same as reading a whole book dedicated to the subject, but I've definitely learned about it.\n"}], 'role': 'model'}, 'finish_reason': 1, 'safety_ratings': [{'category': 8, 'probability': 1, 'blocked': False}, {'category': 10, 'probability': 1, 'blocked': False}, {'category': 7, 'probability': 1, 'blocked': False}, {'category': 9, 'probability': 1, 'blocked': False}], 'avg_logprobs': -0.14903209827564382, 'token_count': 0, 'grounding_attributions': []}], 'usage_metadata': {'prompt_token_count': 96, 'candidates_token_count': 54, 'total_token_count': 150, 'cached_content_token_count': 0}}
-   * - raw_model_response:read_cost
-     - 1.5e-12
-   * - raw_model_response:read_one_usd_buys
-     - 666666666666.6666
-   * - question_to_attributes:important
-     - {'question_text': 'On a scale from 1 to 5, how important to you is {{ topic }}?', 'question_type': 'linear_scale', 'question_options': [0, 1, 2, 3, 4, 5]}
-   * - question_to_attributes:read
-     - {'question_text': 'Have you read any books about {{ topic }}?', 'question_type': 'multiple_choice', 'question_options': ['Yes', 'No', 'I do not know']}
-   * - generated_tokens:important_generated_tokens
-     - 5
-
-       It's, like, a huge deal.  The future of the planet is at stake, and that affects everything – from the environment to the economy to social justice.  It's something I worry about a lot.
-   * - generated_tokens:read_generated_tokens
-     - Yes
-
-       I've read a few articles and some chapters from textbooks for my environmental science class, which covered climate change extensively.  It's not exactly the same as reading a whole book dedicated to the subject, but I've definitely learned about it.
-   * - comments_dict:important_comment
-     - It's, like, a huge deal.  The future of the planet is at stake, and that affects everything – from the environment to the economy to social justice.  It's something I worry about a lot.
-   * - comments_dict:read_comment
-     - I've read a few articles and some chapters from textbooks for my environmental science class, which covered climate change extensively.  It's not exactly the same as reading a whole book dedicated to the subject, but I've definitely learned about it.
+  * - key
+    - value
+  * - agent:traits
+    - {'persona': 'student'}
+  * - scenario:topic
+    - climate change
+  * - model:model
+    - gemini-1.5-flash
+  * - model:parameters
+    - {'temperature': 0.5, 'topP': 1, 'topK': 1, 'maxOutputTokens': 2048, 'stopSequences': []}
+  * - iteration
+    - 0
+  * - answer:important
+    - 5
+  * - answer:read
+    - Yes
+  * - prompt:important_user_prompt
+    - {'text': 'On a scale from 1 to 5, how important to you is climate change?\n\n0 : Not at all important\n\n1 : \n\n2 : \n\n3 : \n\n4 : \n\n5 : Very important\n\nOnly 1 option may be selected.\n\nRespond only with the code corresponding to one of the options. E.g., "1" or "5" by itself.\n\nAfter the answer, you can put a comment explaining why you chose that option on the next line.', 'class_name': 'Prompt'}
+  * - prompt:important_system_prompt
+    - {'text': "You are answering questions as if you were a human. Do not break character. Your traits: {'persona': 'student'}", 'class_name': 'Prompt'}
+  * - prompt:read_user_prompt
+    - {'text': '\nHave you read any books about climate change?\n\n    \nYes\n    \nNo\n    \nI do not know\n    \n\nOnly 1 option may be selected.\n\nRespond only with a string corresponding to one of the options.\n\n\nAfter the answer, you can put a comment explaining why you chose that option on the next line.', 'class_name': 'Prompt'}
+  * - prompt:read_system_prompt
+    - {'text': "You are answering questions as if you were a human. Do not break character. Your traits: {'persona': 'student'}", 'class_name': 'Prompt'}
+  * - raw_model_response:important_raw_model_response
+    - {'candidates': [{'content': {'parts': [{'text': "5\n\nIt's, like, a huge deal. The future of the planet is at stake, you know? We're talking about everything from extreme weather to rising sea levels – it affects everyone, and it's something we all need to be seriously concerned about.\n"}], 'role': 'model'}, 'finish_reason': 1, 'safety_ratings': [{'category': 8, 'probability': 1, 'blocked': False}, {'category': 10, 'probability': 1, 'blocked': False}, {'category': 7, 'probability': 1, 'blocked': False}, {'category': 9, 'probability': 1, 'blocked': False}], 'avg_logprobs': -0.19062816490561274, 'token_count': 0, 'grounding_attributions': []}], 'usage_metadata': {'prompt_token_count': 129, 'candidates_token_count': 59, 'total_token_count': 188, 'cached_content_token_count': 0}}
+  * - raw_model_response:important_cost
+    - 0.000027
+  * - raw_model_response:important_one_usd_buys
+    - 36529.685735
+  * - raw_model_response:read_raw_model_response
+    - {'candidates': [{'content': {'parts': [{'text': "Yes\n\nI've read a few articles and some chapters from textbooks for my environmental science class, which touched upon climate change. It's not exactly the same as reading a whole book dedicated to the topic, but it counts, right?\n"}], 'role': 'model'}, 'finish_reason': 1, 'safety_ratings': [{'category': 8, 'probability': 1, 'blocked': False}, {'category': 10, 'probability': 1, 'blocked': False}, {'category': 7, 'probability': 1, 'blocked': False}, {'category': 9, 'probability': 1, 'blocked': False}], 'avg_logprobs': -0.13118227790383732, 'token_count': 0, 'grounding_attributions': []}], 'usage_metadata': {'prompt_token_count': 96, 'candidates_token_count': 51, 'total_token_count': 147, 'cached_content_token_count': 0}}
+  * - raw_model_response:read_cost
+    - 0.000022
+  * - raw_model_response:read_one_usd_buys
+    - 44444.451200
+  * - question_to_attributes:important
+    - {'question_text': 'On a scale from 1 to 5, how important to you is {{ topic }}?', 'question_type': 'linear_scale', 'question_options': [0, 1, 2, 3, 4, 5]}
+  * - question_to_attributes:read
+    - {'question_text': 'Have you read any books about {{ topic }}?', 'question_type': 'multiple_choice', 'question_options': ['Yes', 'No', 'I do not know']}
+  * - generated_tokens:important_generated_tokens
+    - 5 It's, like, a huge deal. The future of the planet is at stake, you know? We're talking about everything from extreme weather to rising sea levels – it affects everyone, and it's something we all need to be seriously concerned about.
+  * - generated_tokens:read_generated_tokens
+    - Yes I've read a few articles and some chapters from textbooks for my environmental science class, which touched upon climate change. It's not exactly the same as reading a whole book dedicated to the topic, but it counts, right?
+  * - comments_dict:important_comment
+    - It's, like, a huge deal. The future of the planet is at stake, you know? We're talking about everything from extreme weather to rising sea levels – it affects everyone, and it's something we all need to be seriously concerned about.
+  * - comments_dict:read_comment
+    - I've read a few articles and some chapters from textbooks for my environmental science class, which touched upon climate change. It's not exactly the same as reading a whole book dedicated to the topic, but it counts, right?
+  * - cache_keys:important	
+    - 98d6961d0529335b74f2363ba9b7a8de
+  * - cache_keys:read	
+    - 12af825953d89c1f776bd3af40e37cfb
 
 
 Results fields
-^^^^^^^^^^^^^^
+--------------
 
 Results contain fields that can be accessed and analyzed individually or collectively.
 We can see a list of these fields by calling the `columns` method:
 
 .. code-block:: python
 
-   results.columns
+  results.columns
 
 
 The following list will be returned for the results generated by the above code:
 
 .. list-table::
-   :header-rows: 1
+  :header-rows: 1
 
-   * - 0
-     - agent.agent_instruction                        
-     - agent.agent_name                               
-     - agent.persona                                  
-     - answer.important                               
-     - answer.read                                    
-     - comment.important_comment                      
-     - comment.read_comment                           
-     - generated_tokens.important_generated_tokens    
-     - generated_tokens.read_generated_tokens         
-     - iteration.iteration                            
-     - model.frequency_penalty                        
-     - model.logprobs                                 
-     - model.max_tokens                               
-     - model.model                                    
-     - model.presence_penalty                         
-     - model.temperature                              
-     - model.top_logprobs                             
-     - model.top_p                                    
-     - prompt.important_system_prompt                 
-     - prompt.important_user_prompt                   
-     - prompt.read_system_prompt                      
-     - prompt.read_user_prompt                        
-     - question_options.important_question_options    
-     - question_options.read_question_options         
-     - question_text.important_question_text          
-     - question_text.read_question_text               
-     - question_type.important_question_type          
-     - question_type.read_question_type               
-     - raw_model_response.important_cost              
-     - raw_model_response.important_one_usd_buys      
-     - raw_model_response.important_raw_model_response
-     - raw_model_response.read_cost                   
-     - raw_model_response.read_one_usd_buys           
-     - raw_model_response.read_raw_model_response     
-     - scenario.topic                                 
+  * - 0
+    - agent.agent_instruction                        
+    - agent.agent_name                               
+    - agent.persona                                  
+    - answer.important                               
+    - answer.read 
+    - cache_keys.important_cache_key                               
+    - cache_keys.read_cache_key
+    - cache_keys.important_cache_used                               
+    - cache_keys.read_cache_used                                     
+    - comment.important_comment                      
+    - comment.read_comment                           
+    - generated_tokens.important_generated_tokens    
+    - generated_tokens.read_generated_tokens         
+    - iteration.iteration                            
+    - model.frequency_penalty                        
+    - model.logprobs  
+    - model.maxOutputTokens                               
+    - model.max_tokens                               
+    - model.model                                    
+    - model.presence_penalty  
+    - model.stopSequences                       
+    - model.temperature
+    - model.topK     
+    - model.topP                         
+    - model.top_logprobs                             
+    - model.top_p                                    
+    - prompt.important_system_prompt                 
+    - prompt.important_user_prompt                   
+    - prompt.read_system_prompt                      
+    - prompt.read_user_prompt                        
+    - question_options.important_question_options    
+    - question_options.read_question_options         
+    - question_text.important_question_text          
+    - question_text.read_question_text               
+    - question_type.important_question_type          
+    - question_type.read_question_type               
+    - raw_model_response.important_cost              
+    - raw_model_response.important_one_usd_buys      
+    - raw_model_response.important_raw_model_response
+    - raw_model_response.read_cost                   
+    - raw_model_response.read_one_usd_buys           
+    - raw_model_response.read_raw_model_response   
+    - scenario.scenario_index  
+    - scenario.topic                                 
 
 
 The columns include information about each *agent*, *model* and corresponding *prompts* used to simulate the *answer* to each *question* and *scenario* in the survey, together with each *raw model response*.
@@ -263,6 +272,13 @@ If the survey was run multiple times (`run(n=<integer>)`) then the `iteration.it
 
 * **answer.important**: Agent responses to the linear scale `important` question.
 * **answer.read**: Agent responses to the multiple choice `read` question.
+
+*Cache* information:
+
+* **cache_keys.important_cache_key**: The cache key for the `important` question.
+* **cache_keys.important_cache_used**: Whether the existing cache was used for the `important` question.
+* **cache_keys.read_cache_key**: The cache key for the `read` question.
+* **cache_keys.read_cache_used**: Whether the existing cache was used for the `read` question.
 
 *Comment* information:
 
@@ -288,13 +304,19 @@ Each of `model` columns is a modifiable parameter of the models used to generate
 
 * **model.frequency_penalty**: The frequency penalty for the model.
 * **model.logprobs**: The logprobs for the model.
+* **model.maxOutputTokens**: The maximum number of output tokens for the model.
 * **model.max_tokens**: The maximum number of tokens for the model.
 * **model.model**: The name of the model used.
 * **model.presence_penalty**: The presence penalty for the model.
+* **model.stopSequences**: The stop sequences for the model.
 * **model.temperature**: The temperature for the model.
+* **model.topK**: The top k for the model.
+* **model.topP**: The top p for the model.
 * **model.top_logprobs**: The top logprobs for the model.
 * **model.top_p**: The top p for the model.
 * **model.use_cache**: Whether the model uses cache.
+
+*Note:* Some of the above fields are particular to specific models, and may have different names (e.g., `top_p` vs. `topP`).
 
 *Prompt* information:
 
@@ -326,11 +348,12 @@ Note that the cost of a result for a question is specific to the components (sce
 
 *Scenario* information:
 
+* **scenario.scenario_index**: The index of the scenario.
 * **scenario.topic**: The values provided for the "topic" scenario for the questions.
 
 
 Creating tables by selecting/dropping and printing
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+--------------------------------------------------
 
 Each of these columns can be accessed directly by calling the `select()` method and passing the column names.
 Alternatively, we can specify the columns to exclude by calling the `drop()` method.
@@ -341,237 +364,237 @@ For example, the following code will print a table showing the answers for `read
 
 .. code-block:: python
 
-   results = survey.by(scenarios).by(agents).by(models).run() # Running the survey once
-   results.select("model", "persona", "topic", "read", "important")
+  results = survey.by(scenarios).by(agents).by(models).run() # Running the survey once
+  results.select("model", "persona", "topic", "read", "important")
 
 
 A table with the selected columns will be printed:
 
 .. list-table::
-   :header-rows: 1
+  :header-rows: 1
 
-   * - model.model
-     - agent.persona
-     - scenario.topic
-     - answer.read
-     - answer.important
-   * - gemini-1.5-flash
-     - student
-     - climate change
-     - Yes
-     - 5
-   * - gpt-4o
-     - student
-     - climate change
-     - Yes
-     - 5
-   * - gemini-1.5-flash
-     - student
-     - house prices
-     - No
-     - 1
-   * - gpt-4o
-     - student
-     - house prices
-     - No
-     - 3
-   * - gemini-1.5-flash
-     - celebrity
-     - climate change
-     - Yes
-     - 5
-   * - gpt-4o
-     - celebrity
-     - climate change
-     - Yes
-     - 5
-   * - gemini-1.5-flash
-     - celebrity
-     - house prices
-     - Yes
-     - 3
-   * - gpt-4o
-     - celebrity
-     - house prices
-     - No
-     - 3
+  * - model.model
+    - agent.persona
+    - scenario.topic
+    - answer.read
+    - answer.important
+  * - gemini-1.5-flash
+    - student
+    - climate change
+    - Yes
+    - 5
+  * - gpt-4o
+    - student
+    - climate change
+    - Yes
+    - 5
+  * - gemini-1.5-flash
+    - student
+    - house prices
+    - No
+    - 1
+  * - gpt-4o
+    - student
+    - house prices
+    - No
+    - 3
+  * - gemini-1.5-flash
+    - celebrity
+    - climate change
+    - Yes
+    - 5
+  * - gpt-4o
+    - celebrity
+    - climate change
+    - Yes
+    - 5
+  * - gemini-1.5-flash
+    - celebrity
+    - house prices
+    - Yes
+    - 3
+  * - gpt-4o
+    - celebrity
+    - house prices
+    - No
+    - 3
 
 
 Sorting results
-^^^^^^^^^^^^^^^
+---------------
 
 We can sort the columns by calling the `sort_by` method and passing it the column names to sort by:
 
 .. code-block:: python
 
-   (
-      results
-      .sort_by("model", "persona", reverse=False)
-      .select("model", "persona", "topic", "read", "important")
-   )
+  (
+    results
+    .sort_by("model", "persona", reverse=False)
+    .select("model", "persona", "topic", "read", "important")
+  )
 
 
 The following table will be printed:
 
 .. list-table::
-   :header-rows: 1
+  :header-rows: 1
 
-   * - model.model
-     - agent.persona
-     - scenario.topic
-     - answer.read
-     - answer.important
-   * - gemini-1.5-flash
-     - celebrity
-     - climate change
-     - Yes
-     - 5
-   * - gemini-1.5-flash
-     - celebrity
-     - house prices
-     - Yes
-     - 3
-   * - gemini-1.5-flash
-     - student
-     - climate change
-     - Yes
-     - 5
-   * - gemini-1.5-flash
-     - student
-     - house prices
-     - No
-     - 1
-   * - gpt-4o
-     - celebrity
-     - climate change
-     - Yes
-     - 5
-   * - gpt-4o
-     - celebrity
-     - house prices
-     - No
-     - 3
-   * - gpt-4o
-     - student
-     - climate change
-     - Yes
-     - 5
-   * - gpt-4o
-     - student
-     - house prices
-     - No
-     - 3
+  * - model.model
+    - agent.persona
+    - scenario.topic
+    - answer.read
+    - answer.important
+  * - gemini-1.5-flash
+    - celebrity
+    - climate change
+    - Yes
+    - 5
+  * - gemini-1.5-flash
+    - celebrity
+    - house prices
+    - Yes
+    - 3
+  * - gemini-1.5-flash
+    - student
+    - climate change
+    - Yes
+    - 5
+  * - gemini-1.5-flash
+    - student
+    - house prices
+    - No
+    - 1
+  * - gpt-4o
+    - celebrity
+    - climate change
+    - Yes
+    - 5
+  * - gpt-4o
+    - celebrity
+    - house prices
+    - No
+    - 3
+  * - gpt-4o
+    - student
+    - climate change
+    - Yes
+    - 5
+  * - gpt-4o
+    - student
+    - house prices
+    - No
+    - 3
 
 
 Labeling results
-^^^^^^^^^^^^^^^^
+----------------
 
 We can also add some table labels by passing a dictionary to the `pretty_labels` argument of the `print` method
 (note that we need to include the column prefixes when specifying the table labels, as shown below):
 
 .. code-block:: python
 
-   (
-      results
-      .sort_by("model", "persona", reverse=True)
-      .select("model", "persona", "topic", "read", "important")
-      .print(pretty_labels={
-         "model.model": "LLM", 
-         "agent.persona": "Agent", 
-         "scenario.topic": "Topic", 
-         "answer.read": q2.question_text,
-         "answer.important": q1.question_text
-         }, format="rich")
-   )
+  (
+    results
+    .sort_by("model", "persona", reverse=True)
+    .select("model", "persona", "topic", "read", "important")
+    .print(pretty_labels={
+        "model.model": "LLM", 
+        "agent.persona": "Agent", 
+        "scenario.topic": "Topic", 
+        "answer.read": q2.question_text,
+        "answer.important": q1.question_text
+        }, format="rich")
+  )
 
 
 The following table will be printed:
 
 .. list-table::
-   :header-rows: 1
+  :header-rows: 1
 
-   * - LLM
-     - Agent
-     - Topic
-     - Have you read any books about {{ topic }}?
-     - On a scale from 1 to 5, how important to you is {{ topic }}?
-   * - gpt-4o
-     - student
-     - climate change
-     - Yes
-     - 5
-   * - gpt-4o
-     - student
-     - house prices
-     - No
-     - 3
-   * - gpt-4o
-     - celebrity
-     - climate change
-     - Yes
-     - 5
-   * - gpt-4o
-     - celebrity
-     - house prices
-     - No
-     - 3
-   * - gemini-1.5-flash
-     - student
-     - climate change
-     - Yes
-     - 5
-   * - gemini-1.5-flash
-     - student
-     - house prices
-     - No
-     - 1
-   * - gemini-1.5-flash
-     - celebrity
-     - climate change
-     - Yes
-     - 5
-   * - gemini-1.5-flash
-     - celebrity
-     - house prices
-     - Yes
-     - 3
+  * - LLM
+    - Agent
+    - Topic
+    - Have you read any books about {{ topic }}?
+    - On a scale from 1 to 5, how important to you is {{ topic }}?
+  * - gpt-4o
+    - student
+    - climate change
+    - Yes
+    - 5
+  * - gpt-4o
+    - student
+    - house prices
+    - No
+    - 3
+  * - gpt-4o
+    - celebrity
+    - climate change
+    - Yes
+    - 5
+  * - gpt-4o
+    - celebrity
+    - house prices
+    - No
+    - 3
+  * - gemini-1.5-flash
+    - student
+    - climate change
+    - Yes
+    - 5
+  * - gemini-1.5-flash
+    - student
+    - house prices
+    - No
+    - 1
+  * - gemini-1.5-flash
+    - celebrity
+    - climate change
+    - Yes
+    - 5
+  * - gemini-1.5-flash
+    - celebrity
+    - house prices
+    - Yes
+    - 3
 
 
 Filtering results
-^^^^^^^^^^^^^^^^^
+-----------------
 
 Results can be filtered by using the `filter` method and passing it a logical expression identifying the results that should be selected.
 For example, the following code will filter results where the answer to `important` is "5" and then just print the `topic` and `important_comment` columns:
 
 .. code-block:: python
 
-   (
-      results
-      .filter("important == 5")
-      .select("topic", "important", "important_comment")
-   )
+  (
+    results
+    .filter("important == 5")
+    .select("topic", "important", "important_comment")
+  )
 
 
 This will return an abbreviated table:
 
 .. list-table::
-   :header-rows: 1
+  :header-rows: 1
 
-   * - scenario.topic
-     - answer.important
-     - comment.important_comment
-   * - climate change
-     - 5
-     - It's, like, a huge deal. The future of the planet is at stake, and that affects everything – from the environment to the economy to social justice. It's something I worry about a lot.
-   * - climate change
-     - 5
-     - As a student, I'm really concerned about climate change because it affects our future and the planet we'll inherit. It's crucial to understand and address it to ensure a sustainable world for generations to come.
-   * - climate change
-     - 5
-     - It's a huge issue, you know? We only have one planet, and if we don't take care of it, what kind of world are we leaving for future generations? It's not just about polar bears; it's about everything. It's my responsibility, as someone with a platform, to speak out about it.
-   * - climate change
-     - 5
-     - Climate change is a critical issue that affects everyone globally, and as a public figure, I believe it's important to use my platform to raise awareness and advocate for sustainable practices.
+  * - scenario.topic
+    - answer.important
+    - comment.important_comment
+  * - climate change
+    - 5
+    - It's, like, a huge deal. The future of the planet is at stake, and that affects everything – from the environment to the economy to social justice. It's something I worry about a lot.
+  * - climate change
+    - 5
+    - As a student, I'm really concerned about climate change because it affects our future and the planet we'll inherit. It's crucial to understand and address it to ensure a sustainable world for generations to come.
+  * - climate change
+    - 5
+    - It's a huge issue, you know? We only have one planet, and if we don't take care of it, what kind of world are we leaving for future generations? It's not just about polar bears; it's about everything. It's my responsibility, as someone with a platform, to speak out about it.
+  * - climate change
+    - 5
+    - Climate change is a critical issue that affects everyone globally, and as a public figure, I believe it's important to use my platform to raise awareness and advocate for sustainable practices.
 
 
 **Note:** The `filter` method allows us to pass the unique short names of the columns (without the prefixes) when specifying the logical expression.
@@ -579,221 +602,221 @@ However, because the `model.model` column name is also a prefix, we need to incl
 
 .. code-block:: python
 
-   (
-      results
-      .filter("model.model == 'gpt-4o'")
-      .select("model", "persona", "topic", "read", "important")
-   )
+  (
+    results
+    .filter("model.model == 'gpt-4o'")
+    .select("model", "persona", "topic", "read", "important")
+  )
 
 
 This will return a table of results where the model is "gpt-4o":
 
 .. list-table::
-   :header-rows: 1
+  :header-rows: 1
 
-   * - model.model
-     - agent.persona
-     - scenario.topic
-     - answer.read
-     - answer.important
-   * - gpt-4o
-     - student
-     - climate change
-     - Yes
-     - 5
-   * - gpt-4o
-     - student
-     - house prices
-     - No
-     - 3
-   * - gpt-4o
-     - celebrity
-     - climate change
-     - Yes
-     - 5
-   * - gpt-4o
-     - celebrity
-     - house prices
-     - No
-     - 3
+  * - model.model
+    - agent.persona
+    - scenario.topic
+    - answer.read
+    - answer.important
+  * - gpt-4o
+    - student
+    - climate change
+    - Yes
+    - 5
+  * - gpt-4o
+    - student
+    - house prices
+    - No
+    - 3
+  * - gpt-4o
+    - celebrity
+    - climate change
+    - Yes
+    - 5
+  * - gpt-4o
+    - celebrity
+    - house prices
+    - No
+    - 3
 
 
 Limiting results
-^^^^^^^^^^^^^^^^
+----------------
 
 We can select and print a limited number of results by passing the desired number of `max_rows` to the `print()` method.
 This can be useful for quickly checking the first few results:
 
 .. code-block:: python
 
-   (
-      results
-      .select("model", "persona", "topic", "read", "important")
-      .print(max_rows=4, format="rich")
-   )
+  (
+    results
+    .select("model", "persona", "topic", "read", "important")
+    .print(max_rows=4, format="rich")
+  )
 
 
 This will return a table of the selected components of the first 4 results:
 
 .. list-table::
-   :header-rows: 1
+  :header-rows: 1
 
-   * - model.model
-     - agent.persona
-     - scenario.topic
-     - answer.read
-     - answer.important
-   * - gemini-1.5-flash
-     - student
-     - climate change
-     - Yes
-     - 5
-   * - gpt-4o
-     - student
-     - climate change
-     - Yes
-     - 5
-   * - gemini-1.5-flash
-     - student
-     - house prices
-     - No
-     - 1
-   * - gpt-4o
-     - student
-     - house prices
-     - No
-     - 3
+  * - model.model
+    - agent.persona
+    - scenario.topic
+    - answer.read
+    - answer.important
+  * - gemini-1.5-flash
+    - student
+    - climate change
+    - Yes
+    - 5
+  * - gpt-4o
+    - student
+    - climate change
+    - Yes
+    - 5
+  * - gemini-1.5-flash
+    - student
+    - house prices
+    - No
+    - 1
+  * - gpt-4o
+    - student
+    - house prices
+    - No
+    - 3
 
 
 Sampling results
-^^^^^^^^^^^^^^^^
+----------------
 
 We can select a sample of `n` results by passing the desired number of random results to the `sample()` method.
 This can be useful for checking a random subset of the results with different parameters:
 
 .. code-block:: python
 
-   sample_results = results.sample(2)
+  sample_results = results.sample(2)
 
-   (
-      sample_results
-      .sort_by("model")
-      .select("model", "persona", "topic", "read", "important")
-   )
+  (
+    sample_results
+    .sort_by("model")
+    .select("model", "persona", "topic", "read", "important")
+  )
 
 
 This will return a table of the specified number of randomly selected results:
 
 .. list-table::
-   :header-rows: 1
+  :header-rows: 1
 
-   * - model.model
-     - agent.persona
-     - scenario.topic
-     - answer.read
-     - answer.important
-   * - gpt-4o
-     - celebrity
-     - house prices
-     - No
-     - 3
-   * - gpt-4o
-     - celebrity
-     - climate change
-     - Yes
-     - 5
+  * - model.model
+    - agent.persona
+    - scenario.topic
+    - answer.read
+    - answer.important
+  * - gpt-4o
+    - celebrity
+    - house prices
+    - No
+    - 3
+  * - gpt-4o
+    - celebrity
+    - climate change
+    - Yes
+    - 5
 
 
 Shuffling results
-^^^^^^^^^^^^^^^^^
+-----------------
 
 We can shuffle results by calling the `shuffle()` method.
 This can be useful for quickly checking the first few results:
 
 .. code-block:: python
 
-   shuffle_results = results.shuffle()
+  shuffle_results = results.shuffle()
 
-   (
-      shuffle_results
-      .select("model", "persona", "topic", "read", "important")
-   )
+  (
+    shuffle_results
+    .select("model", "persona", "topic", "read", "important")
+  )
 
 
 This will return a table of shuffled results:
 
 .. list-table::
-   :header-rows: 1
+  :header-rows: 1
 
-   * - model.model
-     - agent.persona
-     - scenario.topic
-     - answer.read
-     - answer.important
-   * - gemini-1.5-flash
-     - celebrity
-     - climate change
-     - Yes
-     - 5
-   * - gpt-4o
-     - student
-     - house prices
-     - No
-     - 3
-   * - gemini-1.5-flash
-     - celebrity
-     - house prices
-     - Yes
-     - 3
-   * - gemini-1.5-flash
-     - student
-     - house prices
-     - No
-     - 1
-   * - gpt-4o
-     - celebrity
-     - house prices
-     - No
-     - 3
-   * - gpt-4o
-     - celebrity
-     - climate change
-     - Yes
-     - 5
-   * - gpt-4o
-     - student
-     - climate change
-     - Yes
-     - 5
-   * - gemini-1.5-flash
-     - student
-     - climate change
-     - Yes
-     - 5
+  * - model.model
+    - agent.persona
+    - scenario.topic
+    - answer.read
+    - answer.important
+  * - gemini-1.5-flash
+    - celebrity
+    - climate change
+    - Yes
+    - 5
+  * - gpt-4o
+    - student
+    - house prices
+    - No
+    - 3
+  * - gemini-1.5-flash
+    - celebrity
+    - house prices
+    - Yes
+    - 3
+  * - gemini-1.5-flash
+    - student
+    - house prices
+    - No
+    - 1
+  * - gpt-4o
+    - celebrity
+    - house prices
+    - No
+    - 3
+  * - gpt-4o
+    - celebrity
+    - climate change
+    - Yes
+    - 5
+  * - gpt-4o
+    - student
+    - climate change
+    - Yes
+    - 5
+  * - gemini-1.5-flash
+    - student
+    - climate change
+    - Yes
+    - 5
 
 
 Adding results
-^^^^^^^^^^^^^^
+--------------
 
 We can add results together straightforwardly by using the `+` operator:
 
 .. code-block:: python
 
-   add_results = results + results
+  add_results = results + results
 
 
 We can see that the results have doubled:
 
 .. code-block:: text
 
-   len(add_results)
+  len(add_results)
 
 
 This will return the number of results:
 
 .. code-block:: text
 
-   16
+  16
 
    
 Interacting via SQL
@@ -806,75 +829,75 @@ For example, the following code will return a table showing the `model`, `person
 
 .. code-block:: python
 
-   results.sql("select model, persona, read, important from self limit 4")
+  results.sql("select model, persona, read, important from self limit 4")
 
 
 This following table will be displayed
 
 .. list-table::
-   :header-rows: 1
+  :header-rows: 1
 
-   * - model
-     - persona
-     - read
-     - important
-   * - gemini-1.5-flash
-     - student
-     - Yes
-     - 5
-   * - gpt-4o
-     - student
-     - Yes
-     - 5
-   * - gemini-1.5-flash
-     - student
-     - No
-     - 1
-   * - gpt-4o
-     - student
-     - No
-     - 3
+  * - model
+    - persona
+    - read
+    - important
+  * - gemini-1.5-flash
+    - student
+    - Yes
+    - 5
+  * - gpt-4o
+    - student
+    - Yes
+    - 5
+  * - gemini-1.5-flash
+    - student
+    - No
+    - 1
+  * - gpt-4o
+    - student
+    - No
+    - 3
 
 
 Dataframes
-^^^^^^^^^^
+----------
 
 We can also export results to other formats.
 The `to_pandas` method will turn our results into a Pandas dataframe:
 
 .. code-block:: python
 
-   results.to_pandas()
+  results.to_pandas()
 
 
 For example, here we use it to create a dataframe consisting of the models, personas and the answers to the `important` question:
 
 .. code-block:: python
 
-   results.to_pandas()[["model.model", "agent.persona", "answer.important"]]
+  results.to_pandas()[["model.model", "agent.persona", "answer.important"]]
 
 
 
 Exporting to CSV or JSON
-^^^^^^^^^^^^^^^^^^^^^^^^
+------------------------
 
 The `to_csv` method will write the results to a CSV file:
 
 .. code-block:: python
 
-   results.to_pandas().to_csv("results.csv")
+  results.to_pandas().to_csv("results.csv")
 
 
 The `to_json` method will write the results to a JSON file:
 
 .. code-block:: python
 
-   results.to_pandas().to_json("results.json")
+  results.to_pandas().to_json("results.json")
 
 
 
 Exceptions
-^^^^^^^^^^
+----------
 
 If any exceptions are raised when the survey is run a detailed exceptions report is generated and can be opened in your browser.
 See the :ref:`exceptions` section for more information on exceptions.

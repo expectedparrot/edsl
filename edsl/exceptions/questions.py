@@ -16,7 +16,8 @@ class QuestionErrors(Exception):
 class QuestionAnswerValidationError(QuestionErrors):
     documentation = "https://docs.expectedparrot.com/en/latest/exceptions.html"
 
-    explanation = """This when the answer coming from the Language Model does not conform to the expectation for that question type.
+    explanation = """
+    This can occur when the answer coming from the Language Model does not conform to the expectations for the question type.
     For example, if the question is a multiple choice question, the answer should be drawn from the list of options provided.
     """
 
@@ -52,28 +53,24 @@ class QuestionAnswerValidationError(QuestionErrors):
 
     def to_html_dict(self):
         return {
-            "error_type": ("Name of the exception", "p", "/p", self.__class__.__name__),
-            "explaination": ("Explanation", "p", "/p", self.explanation),
-            "edsl answer": (
-                "What model returned",
+            "Exception type": ("p", "/p", self.__class__.__name__),
+            "Explanation": ("p", "/p", self.explanation),
+            "EDSL response": (
                 "pre",
                 "/pre",
                 json.dumps(self.data, indent=2),
             ),
-            "validating_model": (
-                "Pydantic model for answers",
+            "Validating model": (
                 "pre",
                 "/pre",
                 json.dumps(self.model.model_json_schema(), indent=2),
             ),
-            "error_message": (
-                "Error message Pydantic returned",
+            "Error message": (
                 "p",
                 "/p",
                 self.message,
             ),
-            "documentation_url": (
-                "URL to EDSL docs",
+            "Documentation": (
                 f"a href='{self.documentation}'",
                 "/a",
                 self.documentation,
