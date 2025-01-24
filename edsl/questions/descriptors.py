@@ -302,10 +302,10 @@ class QuestionOptionsDescriptor(BaseDescriptor):
             raise QuestionCreationValidationError(
                 f"Question options must be a list (got {value})."
             )
-        if len(value) > Settings.MAX_NUM_OPTIONS:
-            raise QuestionCreationValidationError(
-                f"Too many question options (got {value})."
-            )
+        # if len(value) > Settings.MAX_NUM_OPTIONS:
+        #     raise QuestionCreationValidationError(
+        #         f"Too many question options (got {value})."
+        #     )
         if len(value) < Settings.MIN_NUM_OPTIONS:
             raise QuestionCreationValidationError(
                 f"Too few question options (got {value})."
@@ -408,7 +408,7 @@ class QuestionTextDescriptor(BaseDescriptor):
             # Automatically replace single braces with double braces
             # This is here because if the user is using an f-string, the double brace will get converted to a single brace.
             # This undoes that.
-            value = re.sub(r"\{([^\{\}]+)\}", r"{{\1}}", value)
+            # value = re.sub(r"\{([^\{\}]+)\}", r"{{\1}}", value)
             return value
 
         # iterate through all doubles braces and check if they are valid python identifiers

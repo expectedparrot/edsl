@@ -60,7 +60,7 @@ class ModelList(Base, UserList):
 
         sl = ScenarioList()
         for model in self:
-            d = {"model": model.model}
+            d = {"model": model.model, "inference_service": model._inference_service_}
             d.update(model.parameters)
             sl.append(Scenario(d))
         return sl

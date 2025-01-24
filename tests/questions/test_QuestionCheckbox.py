@@ -86,15 +86,15 @@ def test_QuestionCheckBox_construction():
     with pytest.raises(Exception):
         QuestionCheckBox(**invalid_question)
     # or has too many items
-    invalid_question.update(
-        {
-            "question_options": [
-                str(uuid.uuid4()) for _ in range(Settings.MAX_NUM_OPTIONS + 1)
-            ]
-        }
-    )
-    with pytest.raises(Exception):
-        QuestionCheckBox(**invalid_question)
+    # invalid_question.update(
+    #     {
+    #         "question_options": [
+    #             str(uuid.uuid4()) for _ in range(Settings.MAX_NUM_OPTIONS + 1)
+    #         ]
+    #     }
+    # )
+    # with pytest.raises(Exception):
+    #     QuestionCheckBox(**invalid_question)
     # or not of type list of strings
     invalid_question.update({"question_options": [1, 2]})
     with pytest.raises(Exception):
