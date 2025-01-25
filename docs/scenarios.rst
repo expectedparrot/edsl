@@ -14,18 +14,23 @@ Scenarios allow you create variations and versions of questions efficiently.
 For example, we could create a question `"How much do you enjoy {{ activity }}?"` and use scenarios to replace the parameter `activity` with `running` or `reading` or other activities.
 Similarly, we could create a question `"What do you see in this image? {{ image }}"` and use scenarios to replace the parameter `image` with different images.
 
-Adding scenarios to a question (or multiple questions in a survey) causes it to be administered multiple times, once for each scenario, with the parameter(s) replaced by the value(s) in the scenario.
-This allows us to administer multiple versions of a question together, either asynchronously (by default) or according to :ref:`surveys` rules that we can specify (e.g., skip/stop logic), without having to create each version of a question manually.
+
+How it works
+^^^^^^^^^^^^
+
+Adding scenarios to a question--or to multiple questions at once in a survey--causes it to be administered multiple times, once for each scenario, with the parameter(s) replaced by the value(s) in the scenario.
+This allows us to administer multiple versions of a question together, either asynchronously (by default) or according to `survey rules <https://docs.expectedparrot.com/en/latest/surveys.html#key-methods>`_ that we can specify (e.g., skip/stop logic), without having to create each version of a question manually.
 
 
 Metadata
 ^^^^^^^^
 
-Scenarios are also a convenient way to keep track of metadata or other information relating to survey questions that is important to an analysis of the results.
-For example, say we are using scenarios to parameterize questions with pieces of `{{ content }}` from a dataset.
-In scenarios for the `content` parameter, we could also include metadata about the source of the content, such as the `{{ author }}`, `{{ publication_date }}`, or `{{ source }}`.
-This will automatically create columns for the additional data in the survey results without passing them to the question texts (if there is no corresponding parameter in the question texts).
-This allows us to analyze the responses in the context of the metadata without needing to match up the data with the metadata post-survey.
+Scenarios are also a convenient way to keep track of metadata or other information relating to a survey that is important to an analysis of the results.
+For example, say we are using scenarios to parameterize question texts with pieces of `{{ content }}` from a dataset.
+In the scenarios that we create for the `content` parameter we could also include key/value pairs for metadata about the content, such as the `{{ author }}`, `{{ publication_date }}`, or `{{ source }}`.
+This will automatically include the data in the survey results but without requiring us to also parameterize the question texts those fields.
+This allows us to analyze the responses in the context of the metadata and avoid having to match up the data with the metadata post-survey.
+Please see more details on this feature in `examples below <https://docs.expectedparrot.com/en/latest/scenarios.html#adding-metadata>`_.
 
 
 Constructing a Scenario
@@ -74,46 +79,39 @@ This will return:
 ScenarioList 
 ^^^^^^^^^^^^
 
-If multiple values will be used, we can create a list of `Scenario` objects:
+If multiple values will be used with a question or survey, we can create a list of `Scenario` objects that will be passed to the question or survey together.
+For example, here we create a list of scenarios and inspect them:
 
 .. code-block:: python
 
   from edsl import Scenario
 
   scenarios = [Scenario({"activity": a}) for a in ["running", "reading"]]
-
-
-We can inspect the scenarios:
-
-.. code-block:: python
-
   scenarios 
 
 
-This will return:
+Output:
 
 .. code-block:: python
 
   [Scenario({'activity': 'running'}), Scenario({'activity': 'reading'})]
 
 
-We can also create a `ScenarioList` object to store multiple scenarios:
+Alternatively, we can create a `ScenarioList` object.
+A list of scenarios is used in the same way as a `ScenarioList`; the difference is that a `ScenarioList` is a class that can be used to create a list of scenarios from a variety of data sources, such as a list, dictionary, a Wikipedia table or a PDF.
+These special methods are discussed below.
+
+For example, here we create a `ScenarioList` for the same list as above:
 
 .. code-block:: python
 
-  from edsl import ScenarioList
-
-  scenariolist = ScenarioList([Scenario({"activity": a}) for a in ["running", "reading"]])
-
-
-We can inspect it:
-
-.. code-block:: python
-
+  from edsl import Scenario, ScenarioList
+    
+  scenariolist = ScenarioList(Scenario({"activity": a}) for a in ["running", "reading"])
   scenariolist
 
 
-This will return:
+Output:
 
 .. list-table::
   :header-rows: 1
@@ -123,96 +121,53 @@ This will return:
   * - reading   
 
 
-We can also create a `ScenarioList` from a list of values for a key.
-The following code will generate the same scenario list as above:
+Special methods for creating scenarios
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Special methods are available for creating a `Scenario` or `ScenarioList` from various data source types:
+
+* The constructor method `from_pdf()` can be used to create a single scenario for a PDF or a scenario list where each page of a PDF is stored as an individual scenario.
+
+* The constructor methods `from_list()`, `from_csv`, `from_nested_dict()` and `from_wikipedia_table()` will create a scenario list from a list, CSV, nested dictionary or Wikipedia table.
+
+For example, the following code will create the same scenario list as above:
 
 .. code-block:: python
+
+  from edsl import ScenarioList
 
   scenariolist = ScenarioList.from_list("activity", ["running", "reading"])
 
 
-A list of scenarios is used in the same way as a `ScenarioList`.
-The difference is that a `ScenarioList` is a class that can be used to create a list of scenarios from a variety of data sources, such as a list, dictionary, or a Wikipedia table (see examples below).
+Examples for each of these methods is provided below, and in `this notebook <https://www.expectedparrot.com/content/44de0963-31b9-4944-a9bf-508c7a07d757>`_.
 
 
-Using f-strings with scenarios
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-It is possible to use scenarios and f-strings together in a question.
-An f-string must be evaluated when a question is constructed, whereas a scenario is evaluated when a question is run.
-
-For example, here we use an f-string to create different versions of a question that also takes a parameter `{{ activity }}`, together with a list of scenarios to replace the parameter when the questions are run.
-We optionally include the f-string in the question name as well as the question text in order to simultaneously create unique identifiers for the questions, which are needed in order to pass the questions that are created to a `Survey`.
-Then we use the `show_prompts()` method to examine the user prompts that are created when the scenarios are added to the questions:
-
-.. code-block:: python
-
-  from edsl import QuestionFreeText, ScenarioList, Scenario, Survey
-
-  questions = []
-  sentiments = ["enjoy", "hate", "love"]
-
-  for sentiment in sentiments:
-    q = QuestionFreeText(
-        question_name = f"{ sentiment }_activity",
-        question_text = f"How much do you { sentiment } {{ activity }}?"
-    )
-    questions.append(q)
-
-  scenarios = ScenarioList(
-    Scenario({"activity": activity}) for activity in ["running", "reading"]
-  )
-
-  survey = Survey(questions = questions)
-  survey.by(scenarios).show_prompts()
-
-
-This will print the questions created with the f-string with the scenarios added (not that the system prompts are blank because we have not created any agents):
-
-.. list-table::
-  :header-rows: 1
-
-  * - user_prompt
-    - system_prompt
-  * - How much do you enjoy running?
-    - 
-  * - How much do you hate running?
-    - 
-  * - How much do you love running?
-    - 
-  * - How much do you enjoy reading?
-    - 
-  * - How much do you hate reading?
-    - 
-  * - How much do you love reading? 
-    - 
-    
-
-To learn more about prompts, please see the :ref:`prompts` section.
-
-
-Using a Scenario
+Using a scenario
 ----------------
 
-We use a scenario (or scenariolist) by adding it to a question (or a survey of questions), either when constructing the question or else when running it.
+We use a `Scenario` or `ScenarioList` by adding it to a question or survey of questions, either when we are constructing questions or when running them.
+The most common situation is to add a scenario to a question when running it.
+This is done by passing the `Scenario` or `ScenarioList` object to the `by()` method or a question or survey and then chaining the `run()` method.
 
-We use the `by()` method to add a scenario to a question when running it:
+For example, here we call the `by()` method on the example question created above and pass a scenario list at the same time that we run it:
 
 .. code-block:: python
 
   from edsl import QuestionMultipleChoice, Scenario, Agent
 
   q = QuestionMultipleChoice(
-      question_name = "enjoy",
-      question_text = "How much do you enjoy {{ activity }}?",
-      question_options = ["Not at all", "Somewhat", "Very much"]
+    question_name = "enjoy",
+    question_text = "How much do you enjoy {{ activity }}?",
+    question_options = ["Not at all", "Somewhat", "Very much"]
   )
 
-  s = Scenario({"activity": "running"})
+  s = ScenarioList(Scenario({"activity":a}) for a in ["running", "sleeping"])
 
   a = Agent(traits = {"persona":"You are a human."})
 
-  results = q.by(s).by(a).run()
+  m = Model("gemini-1.5-flash")
+
+  results = q.by(s).by(a).by(m).run()
 
 
 We can check the results to verify that the scenario has been used correctly:
@@ -231,14 +186,17 @@ This will print a table of the selected components of the results:
     - answer.enjoy
   * - running 
     - Somewhat
+  * - sleeping
+    - Very much
 
 
 Looping  
--------
+^^^^^^^
 
-We use the `loop()` method to add a scenario to a question when constructing it, passing it a `ScenarioList`. 
-This creates a list containing a new question for each scenario that was passed.
-Note that we can optionally include the scenario key in the question name as well; otherwise a unique identifies is automatically added to each question name.
+We use the `loop()` method to add scenarios to a question when constructing the question.
+This method takes a `ScenarioList` and returns a list of new questions for each scenario that was passed.
+We can optionally include the scenario key in the question name as well as the question text.
+This allows us to control the question names when the new questions are created; otherwise a number is automatically added to the original question name in order to ensure uniqueness.
 
 For example: 
 
@@ -247,14 +205,14 @@ For example:
   from edsl import QuestionMultipleChoice, ScenarioList, Scenario
 
   q = QuestionMultipleChoice(
-      question_name = "enjoy_{{ activity }}",
-      question_text = "How much do you enjoy {{ activity }}?",
-      question_options = ["Not at all", "Somewhat", "Very much"]
+    question_name = "enjoy_{{ activity }}",
+    question_text = "How much do you enjoy {{ activity }}?",
+    question_options = ["Not at all", "Somewhat", "Very much"]
   )
 
-  sl = ScenarioList(
-      Scenario({"activity": a}) for a in ["running", "reading"]
-  )
+  activities = ["running", "reading"]
+
+  sl = ScenarioList.from_list("activity", activities)
 
   questions = q.loop(sl)
 
@@ -289,7 +247,8 @@ We can pass the questions to a survey and run it:
   results.select("answer.*")
 
 
-This will print a table of the response for each question (note that "activity" is no longer in a separate scenario field):
+This will print a table of the response for each question.
+Note that "activity" is no longer in a separate scenario field; instead, there is a single column for each question that was constructed with the scenarios:
 
 .. list-table::
   :header-rows: 1
@@ -307,15 +266,15 @@ Instead, use the `by()` method to add these types of scenarios when running a su
 Multiple parameters
 -------------------
 
-We can also create a `Scenario` for multiple parameters:
+We can also create a `Scenario` for multiple parameters at once:
 
 .. code-block:: python
 
   from edsl import QuestionFreeText
 
   q = QuestionFreeText(
-      question_name = "counting",
-      question_text = "How many {{ unit }} are in a {{ distance }}?",
+    question_name = "counting",
+    question_text = "How many {{ unit }} are in a {{ distance }}?",
   )
 
   scenario = Scenario({"unit": "inches", "distance": "mile"})
@@ -505,13 +464,14 @@ Say we have some results from a survey where we asked agents to choose a random 
   from edsl import QuestionNumerical, Agent
 
   q_random = QuestionNumerical(
-      question_name = "random",
-      question_text = "Choose a random number between 1 and 1000."
+    question_name = "random",
+    question_text = "Choose a random number between 1 and 1000."
   )
 
   agents = [Agent({"persona":p}) for p in ["Child", "Magician", "Olympic breakdancer"]]
 
   results = q_random.by(agents).run()
+
   results.select("persona", "random")
 
 
@@ -535,7 +495,6 @@ We can use the `to_scenario_list()` method turn components of the results into a
 .. code-block:: python
 
   scenarios = results.select("persona", "random").to_scenario_list() # excluding other columns of the results
-
   scenarios 
 
 
@@ -559,12 +518,14 @@ PDFs as textual scenarios
 
 The `ScenarioList` method `from_pdf('path/to/pdf')` is a convenient way to extract information from large files.
 It allows you to read in a PDF and automatically create a list of textual scenarios for the pages of the file.
-Each scenario has the following keys: `filename`, `page`, `text` which can be used as a parameter in a question (or stored as metadat), and renamed as desired.
+Each scenario has the following keys which can be used as parameters in a question or stored as metadata, and renamed as desired: `filename`, `page`, `text`.
 
-*How it works:* Add a placeholder `{{ text }}` to a question text to use the text of a PDF page as a parameter in the question.
-When you run the survey with the PDF scenarios, the text of each page will be inserted into the question text in place of the placeholder.
+If you prefer to create a single `Scenario` for the entire PDF file, you can use the `Scenario.from_pdf('path/to/pdf')` method instead.
 
-Example usage:
+To use this method with either object, we start by adding a placeholder `{{ text }}` to a question text where the text of a PDF or PDF page will be inserted.
+When the question or survey is run with the PDF scenario or scenario list, the text of the PDF or individual pages will be inserted into the question text at the placeholder.
+
+For example, this code can be used to insert the text of each page of a PDF in a survey of question:
 
 .. code-block:: python
 
@@ -572,18 +533,18 @@ Example usage:
 
   # Create a survey of questions parameterized by the {{ text }} of the PDF pages:
   q1 = QuestionFreeText(
-      question_name = "themes",
-      question_text = "Identify the key themes mentioned on this page: {{ text }}",
+    question_name = "themes",
+    question_text = "Identify the key themes mentioned on this page: {{ text }}",
   )
 
   q2 = QuestionFreeText(
-      question_name = "idea",
-      question_text = "Identify the most important idea on this page: {{ text }}",
+    question_name = "idea",
+    question_text = "Identify the most important idea on this page: {{ text }}",
   )
 
   survey = Survey([q1, q2])
 
-  scenarios = ScenarioList.from_pdf("path/to/pdf_file.pdf")
+  scenarios = ScenarioList.from_pdf("path/to/pdf_file.pdf") # modify the filepath
 
   # Run the survey with the pages of the PDF as scenarios:
   results = survey.by(scenarios).run()
@@ -592,21 +553,24 @@ Example usage:
   results.select("page", "text", "answer.*")
 
 
-See a demo notebook of this method in the notebooks section of the docs index: "Extracting information from PDFs".
+Examples of this method can be viewed in a `demo notebook <https://docs.expectedparrot.com/en/latest/notebooks/scenario_from_pdf.html>`_.
 
 
 Image scenarios
 ^^^^^^^^^^^^^^^
 
 A `Scenario` can be generated from an image by passing the filepath as the value.
+This is done by using the `FileStore` module to store the image and then passing the `FileStore` object to a `Scenario`.
 
 Example usage:
 
 .. code-block:: python
 
-  from edsl import Scenario
+  from edsl import Scenario, FileStore
 
-  s = Scenario("logo":"logo.png") # Replace with your own local file
+  fs = FileStore("parrot_logo.png") # modify filepath 
+
+  s = Scenario({"image":fs}) 
 
 
 We can add the key to questions as we do scenarios from other data sources:
@@ -615,23 +579,23 @@ We can add the key to questions as we do scenarios from other data sources:
 
   from edsl import Model, QuestionFreeText, QuestionList, Survey
 
-  m = Model("gpt-4o") 
+  m = Model("gemini-1.5-flash") # we need to use a vision model
   
   q1 = QuestionFreeText(
-      question_name = "identify",
-      question_text = "What animal is in this picture: {{ logo }}" 
+    question_name = "identify",
+    question_text = "What animal is in this picture: {{ image }}" 
   )
 
   q2 = QuestionList(
-      question_name = "colors",
-      question_text = "What colors do you see in this picture: {{ logo }}"
+    question_name = "colors",
+    question_text = "What colors do you see in this picture: {{ image }}"
   )
 
   survey = Survey([q1, q2])
 
   results = survey.by(s).run()
 
-  results.select("logo", "identify", "colors")
+  results.select("identify", "colors")
 
 
 Output using the Expected Parrot logo:
@@ -641,14 +605,15 @@ Output using the Expected Parrot logo:
 
   * - answer.identify 
     - answer.colors  
-  * - The image shows a large letter "E" followed by a pair of square brackets containing an illustration of a parrot. The parrot is green with a yellow beak and some red and blue coloring on its body. This combination suggests the mathematical notation for the expected value, often denoted as "E" followed by a random variable in brackets, commonly used in probability and statistics.
-    - ['gray', 'green', 'orange', 'pink', 'blue', 'black']
+  * - The animal in the picture is a parrot.
+    - ['gray', 'green', 'yellow', 'pink', 'blue', 'black']
 
 
-See an example of this method in the notebooks section of the docs index: `Using images in a survey <https://docs.expectedparrot.com/en/latest/notebooks/image_scenario_example.html>`_.
+See a `demo notebook <https://docs.expectedparrot.com/en/latest/notebooks/image_scenario_example.html>`_ using of this method in the documentation page.
 
 *Note:* You must use a vision model in order to run questions with images.
-It is recommended to test that a model can reliably identify each image before running a survey with image scenarios.
+We recommend testing whether a model can reliably identify your images before running a survey with them.
+You can also check the `model pricing page <https://www.expectedparrot.com/getting-started/coop-pricing>`_ to see available models' performance with test questions, including images.
 
 
 Creating a scenario list from a list
@@ -681,48 +646,17 @@ This will return:
 Creating a scenario list from a dictionary
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The `Scenario` method `from_dict()` creates a scenario for a dictionary that is passed to it.
-
 The `ScenarioList` method `from_nested_dict()` creates a list of scenarios for a specified key and nested dictionary.
 
 Example usage:
-
-.. code-block:: python
-
-  # Example dictionary
-  d = {"item": ["color", "food", "animal"]}
-
-
-  from edsl import Scenario
-
-  scenario = Scenario.from_dict(d)
-
-  scenario
-
-
-This will return a single scenario for the list of items in the dict:
-
-.. list-table::
-  :header-rows: 1
-
-  * - key
-    - value  
-  * - item:0
-    - color
-  * - item:1
-    - food
-  * - item:2 
-    - animal
-
-
-If we instead want to create a scenario for each item in the list individually:
 
 .. code-block:: python 
 
   from edsl import ScenarioList
 
-  scenariolist = ScenarioList.from_nested_dict(d)
+  d = {"item": ["color", "food", "animal"]}
 
+  scenariolist = ScenarioList.from_nested_dict(d)
   scenariolist
 
 
@@ -749,7 +683,6 @@ Example usage:
   from edsl import ScenarioList
 
   scenarios = ScenarioList.from_wikipedia("https://en.wikipedia.org/wiki/1990s_in_film", 3)
-
   scenarios
 
 
@@ -1037,16 +970,16 @@ The scenarios can be used to ask questions about the data in the table:
   from edsl import QuestionList
 
   q_leads = QuestionList(
-      question_name = "leads",
-      question_text = "Who are the lead actors or actresses in {{ Title }}?"
+    question_name = "leads",
+    question_text = "Who are the lead actors or actresses in {{ Title }}?"
   )
 
   results = q_leads.by(scenarios).run()
 
   (
-      results
-      .sort_by("Title")
-      .select("Title", "leads")
+    results
+    .sort_by("Title")
+    .select("Title", "leads")
   )
 
 
@@ -1159,7 +1092,6 @@ Output:
      - Helen Hunt, Bill Paxton
 
 
-
 Creating a scenario list from a CSV
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -1183,8 +1115,7 @@ We can create a list of scenarios from the CSV file:
 
   from edsl import ScenarioList
 
-  scenariolist = ScenarioList.from_csv("<filepath>.csv")
-
+  scenariolist = ScenarioList.from_csv("path/to/file.csv") # update filepath
   scenariolist
 
 
@@ -1234,10 +1165,9 @@ We can create a list of scenarios from the CSV file:
 
   from edsl import ScenarioList
 
-  scenariolist = ScenarioList.from_csv("<filepath>.csv")
+  scenariolist = ScenarioList.from_csv("path/to/file.csv") # update filepath
 
   scenariolist = scenariolist.give_valid_names()
-
   scenariolist
 
 
@@ -1273,7 +1203,6 @@ We can then use the `give_valid_names()` method to convert the keys to valid ide
 .. code-block:: python
 
   scenariolist.give_valid_names()
-
   scenariolist
 
 
@@ -1323,7 +1252,6 @@ For example, say we have a scenario list for the above CSV file:
   from edsl import ScenarioList
 
   scenariolist = ScenarioList.from_csv("<filepath>.csv")
-
   scenariolist
 
 
@@ -1332,7 +1260,6 @@ We can call the unpivot the scenario list:
 .. code-block:: python
 
   scenariolist.unpivot(id_vars = ["user"], value_vars = ["source", "date", "message"])
-
   scenariolist
 
 
@@ -1390,7 +1317,6 @@ We can call the `pivot()` method to reverse the unpivot operation:
 .. code-block:: python
 
   scenariolist.pivot(id_vars = ["user"], var_name="variable", value_name="value")
-
   scenariolist
 
 
@@ -1477,24 +1403,24 @@ Here we use scenarios to conduct the task:
 
   # Create a question with that takes a parameter
   q1 = QuestionMultipleChoice(
-      question_name = "topic",
-      question_text = "What is the topic of this message: {{ message }}?",
-      question_options = ["Safety", "Product support", "Billing", "Login issue", "Other"]
+    question_name = "topic",
+    question_text = "What is the topic of this message: {{ message }}?",
+    question_options = ["Safety", "Product support", "Billing", "Login issue", "Other"]
   )
 
   q2 = QuestionMultipleChoice(
-      question_name = "safety",
-      question_text = "Does this message mention a safety issue? {{ message }}?",
-      question_options = ["Yes", "No", "Unclear"]
+    question_name = "safety",
+    question_text = "Does this message mention a safety issue? {{ message }}?",
+    question_options = ["Yes", "No", "Unclear"]
   )
 
   # Create a list of scenarios for the parameter
   messages = [
-      "I can't log in...", 
-      "I need help with my bill...", 
-      "I have a safety concern...", 
-      "I need help with a product..."
-      ]
+    "I can't log in...", 
+    "I need help with my bill...", 
+    "I have a safety concern...", 
+    "I need help with a product..."
+  ]
   scenarios = [Scenario({"message": message}) for message in messages]
 
   # Create a survey with the question
@@ -1547,23 +1473,23 @@ Note that the question texts are unchanged:
 
   # Create a question with a parameter
   q1 = QuestionMultipleChoice(
-      question_name = "topic",
-      question_text = "What is the topic of this message: {{ message }}?",
-      question_options = ["Safety", "Product support", "Billing", "Login issue", "Other"]
+    question_name = "topic",
+    question_text = "What is the topic of this message: {{ message }}?",
+    question_options = ["Safety", "Product support", "Billing", "Login issue", "Other"]
   )
 
   q2 = QuestionMultipleChoice(
-      question_name = "safety",
-      question_text = "Does this message mention a safety issue? {{ message }}?",
-      question_options = ["Yes", "No", "Unclear"]
+    question_name = "safety",
+    question_text = "Does this message mention a safety issue? {{ message }}?",
+    question_options = ["Yes", "No", "Unclear"]
   )
 
   # Create scenarios for the sets of parameters
   user_messages = [
-      {"message": "I can't log in...", "user": "Alice", "source": "Customer support", "date": "2022-01-01"}, 
-      {"message": "I need help with my bill...", "user": "Bob", "source": "Phone", "date": "2022-01-02"}, 
-      {"message": "I have a safety concern...", "user": "Charlie", "source": "Email", "date": "2022-01-03"}, 
-      {"message": "I need help with a product...", "user": "David", "source": "Chat", "date": "2022-01-04"}
+    {"message": "I can't log in...", "user": "Alice", "source": "Customer support", "date": "2022-01-01"}, 
+    {"message": "I need help with my bill...", "user": "Bob", "source": "Phone", "date": "2022-01-02"}, 
+    {"message": "I have a safety concern...", "user": "Charlie", "source": "Email", "date": "2022-01-03"}, 
+    {"message": "I need help with a product...", "user": "David", "source": "Chat", "date": "2022-01-04"}
   ]
 
   scenarios = ScenarioList(
@@ -1663,6 +1589,62 @@ This will return:
      - 2
      - 4aec42eda32b7f32bde8be6a6bc11125
 
+
+Using f-strings with scenarios
+------------------------------
+
+It is possible to use scenarios and f-strings together in a question.
+An f-string must be evaluated when a question is constructed, whereas a scenario is either evaluated when a question is run (using the `by` method) or when a question is constructed (using the `loop` method).
+
+For example, here we use an f-string to create different versions of a question that also takes a parameter `{{ activity }}`, together with a list of scenarios to replace the parameter when the question is run.
+We optionally include the f-string in the question name in addition to the question text in order to control the unique identifiers for the questions, which are needed in order to pass the questions that are created to a `Survey`.
+(If you do not include the f-string in the question name, a number is automatically appended to each question name to ensure uniqueness.)
+Then we use the `show_prompts()` method to examine the user prompts that are created when the scenarios are added to the questions:
+
+.. code-block:: python
+
+  from edsl import QuestionFreeText, ScenarioList, Scenario, Survey
+
+  questions = []
+  sentiments = ["enjoy", "hate", "love"]
+  activities = ["running", "reading"]
+
+  for sentiment in sentiments:
+    q = QuestionFreeText(
+      question_name = f"{ sentiment }_activity",
+      question_text = f"How much do you { sentiment } {{ activity }}?"
+    )
+    questions.append(q)
+
+  scenarios = ScenarioList.from_list("activity", activities)
+
+  survey = Survey(questions = questions)
+  survey.by(scenarios).show_prompts()
+
+
+The `show_prompts` method will return the questions created with the f-string with the scenarios added.
+(Note that the system prompts are blank because we have not created any agents.)
+
+.. list-table::
+  :header-rows: 1
+
+  * - user_prompt
+    - system_prompt
+  * - How much do you enjoy running?
+    - 
+  * - How much do you hate running?
+    - 
+  * - How much do you love running?
+    - 
+  * - How much do you enjoy reading?
+    - 
+  * - How much do you hate reading?
+    - 
+  * - How much do you love reading? 
+    - 
+    
+
+To learn more about user and system prompts, please see the :ref:`prompts` section.
 
 
 Scenario class

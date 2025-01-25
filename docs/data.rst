@@ -110,12 +110,10 @@ The results object also includes columns of information about the cache for the 
 
   results.columns 
 
+
 Output:
 
-.. code-block:: python
-
 .. list-table::
-  :header-rows: 1
 
   * - agent.agent_index
   * - agent.agent_instruction
@@ -169,8 +167,6 @@ For example, here we run a new question and confirm that the default cache was n
 
 
 Output:
-
-.. code-block:: python
 
 .. list-table::
   :header-rows: 1

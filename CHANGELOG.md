@@ -1,10 +1,23 @@
 # Changelog
 
-## [0.1.42] - TBD
+## [0.1.43] - TBD
 ### Added
 ### Changed
 ### Fixed
 
+
+## [0.1.42] - 2025-01-24
+### Added
+- DeepSeek models
+
+- The name of the inference service is now included in the `Model` parameters and `Results` objects. This can be useful when the same model is provided by multiple services.
+
+- The model pricing page at Coop shows daily test results for available models: https://www.expectedparrot.com/home/pricing
+
+### Changed
+- Default size limits on question texts have been removed.
+
+### Fixed
 
 ## [0.1.41] - 2025-01-19
 ### Changed
