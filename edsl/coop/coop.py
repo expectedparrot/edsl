@@ -220,15 +220,15 @@ class Coop(CoopFunctionsMixin):
 
                 print("\n✨ API key retrieved.")
 
-                if stored_in_user_space := self.ep_key_handler.ask_to_store(api_key):
-                    pass
-                else:
-                    path_to_env = write_api_key_to_env(api_key)
-                    print(
-                        "\n✨ API key retrieved and written to .env file at the following path:"
-                    )
-                    print(f"    {path_to_env}")
-                    print("Rerun your code to try again with a valid API key.")
+                # if stored_in_user_space := self.ep_key_handler.ask_to_store(api_key):
+                #     pass
+                # else:
+                path_to_env = write_api_key_to_env(api_key)
+                print(
+                    "\n✨ API key retrieved and written to .env file at the following path:"
+                )
+                print(f"    {path_to_env}")
+                print("Rerun your code to try again with a valid API key.")
                 return
 
             elif "Authorization" in message:
