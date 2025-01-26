@@ -549,6 +549,7 @@ class Coop(CoopFunctionsMixin):
     def remote_cache_get(
         self,
         exclude_keys: Optional[list[str]] = None,
+        select_keys: Optional[list[str]] = None,
     ) -> list[CacheEntry]:
         """
         Get all remote cache entries.
@@ -560,10 +561,12 @@ class Coop(CoopFunctionsMixin):
         """
         if exclude_keys is None:
             exclude_keys = []
+        if select_keys is None:
+            select_keys = []
         response = self._send_server_request(
             uri="api/v0/remote-cache/get-many",
             method="POST",
-            payload={"keys": exclude_keys},
+            payload={"keys": exclude_keys, "selected_keys": select_keys},
             timeout=40,
         )
         self._resolve_server_response(response)
