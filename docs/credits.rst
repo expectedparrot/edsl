@@ -3,19 +3,17 @@
 Credits
 =======
 
-Credits are required in order to `run your surveys remotely <https://docs.expectedparrot.com/en/latest/remote_inference.html>`_ at the Expected Parrot server and to access certain other special features of Coop.
-They are available for purchase at your `Coop account <https://www.expectedparrot.com/login>`_ (details below).
-Credits are *not* required in order to run your surveys locally on your own machine (by storing your own :ref:`api_keys` for service providers), or to `post and share content at the Coop <https://www.expectedparrot.com/content/explore>`_ that you have created.
+Credits are required in order to run surveys with available models using your Expected Parrot API key.
+They can be purchased at your `Coop account <https://www.expectedparrot.com/login>`_ (details below).
+Credits are deducted from your balance to cover the costs of API calls to language model service providers, which are based on token rates set by providers.
+Details on token prices for available models can be viewed at the `model pricing page <https://www.expectedparrot.com/getting-started/coop-pricing>`_.
 
-When you use remote inference, credits are deducted from your balance to cover the costs of API calls to language model service providers, which are based on token rates set by providers.
-A list of token rates for different models available with remote inference can be found on the `Pricing <https://www.expectedparrot.com/getting-started/coop-pricing>`_ page.
+*Note:* Credits are *not* required to run surveys with your own keys from service providers, 
+or to `post and share content at Coop <https://www.expectedparrot.com/content/explore>`_.
+
 Details on how credits are consumed are provided below. 
 Credits must be purchased in advance and are consumed when surveys are run. 
 If you do not have enough credits to run a survey, you will be prompted to purchase more credits.
-
-*Note: We are adding new features for storing your own API keys for service providers at your Coop account in order to use them with remote inference.*
-*This page will be updated with details.* 
-*If you are interested in testing these and other new features, please send us a message at info@expectedparrot.com and we will activate beta features and add credits to your Coop account!*
 
 
 Free credits
@@ -46,14 +44,14 @@ To purchase credits, navigate to the `Credits <https://www.expectedparrot.com/ho
 
 *Note:*
 Payments are processed by Stripe. 
-You may be charged payment processing feeds when purchasing credits.
+You may be charged payment processing fees when purchasing credits.
 
 
 Using credits
 -------------
 
 When you run a survey with remote inference, the number of credits consumed (and deducted from your balance) is displayed at the `remote inference page <https://www.expectedparrot.com/home/remote-inference>`_ of your Coop account.
-This number is equal to the sum of the cost in credit of each response in the results.
+This number is equal to the sum of the cost in credits of each response in the results.
 
 The cost in credits of a response is calculated as follows:
 
@@ -61,6 +59,8 @@ The cost in credits of a response is calculated as follows:
 - The number of output tokens is multiplied by the output token rate set by the language model service provider.
 - The total cost in USD is converted to credits (1 USD = 100 credits).
 - The total cost in credits is rounded up to the nearest 1/100th of a credit.
+
+(If you use your own keys from service providers, no credits are consumed.)
 
 
 Example calculation
@@ -198,7 +198,7 @@ We can also navigate to the results page and select the same columns of the resu
 Token rates 
 -----------
 
-Model token rates used to calculate costs can be viewed at the `Pricing <https://www.expectedparrot.com/getting-started/coop-pricing>`_ page.
+Model token rates used to calculate costs can be viewed at the `model pricing page <https://www.expectedparrot.com/getting-started/coop-pricing>`_.
 This page is regularly updated to reflect the latest prices published by service providers.
 
 
@@ -300,7 +300,7 @@ Total job costs are estimated by performing the following calculation for each s
 
 3. Apply the token rates for the model and inference service.
 
-    * Find the model and inference service for the question in the `Pricing <https://www.expectedparrot.com/getting-started/coop-pricing>`_ page:
+    * Find the model and inference service for the question in the `model pricing page <https://www.expectedparrot.com/getting-started/coop-pricing>`_:
 
         Total cost in USD = (input tokens * input token rate) + (output tokens * output token rate)
 
