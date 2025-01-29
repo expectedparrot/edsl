@@ -155,6 +155,8 @@ class ScenarioListPdfMixin:
         :param pdf_path: Path to the PDF file.
         :param image_format: Format of the output images (default is 'jpeg').
         :return: ScenarioList instance containing the Scenario instances.
+
+        The scenario list has keys "filepath", "page", "content".
         """
         import tempfile
         from pdf2image import convert_from_path
@@ -171,7 +173,13 @@ class ScenarioListPdfMixin:
                 image_path = os.path.join(output_folder, f"page_{i+1}.{image_format}")
                 image.save(image_path, image_format.upper())
 
-                scenario = Scenario._from_filepath_image(image_path)
+                # scenario = Scenario._from_filepath_image(image_path)
+                from edsl import FileStore
+                scenario = Scenario({
+                    "filepath":image_path,
+                    "page":i,
+                    "content":FileStore(image_path)
+                    })
                 scenarios.append(scenario)
 
             # print(f"Saved {len(images)} pages as images in {output_folder}")
