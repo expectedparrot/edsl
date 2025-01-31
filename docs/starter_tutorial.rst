@@ -121,56 +121,29 @@ These models are hosted by various service providers, such as Anthropic, Azure, 
 In order to run a survey, you need to provide API keys for the service providers of models that you want to use.
 There are two methods for providing API keys to EDSL:
 
-
-Remote inference
-^^^^^^^^^^^^^^^^
-
-This method allows you to use a single API key from Expected Parrot to access all available language models at once, and to run your surveys remotely at the Expected Parrot server.
-It is convenient for quickly accessing a wide range of models without needing to create accounts and set up individual API keys with service providers.
-It also allows you to automatically store your survey data on the Expected Parrot server to access it anywhere and share it with other users.
-
-To use remote inference:
-
-1. Create or log in to your Coop account: https://www.expectedparrot.com/login
-2. Navigate to your `Settings <https://www.expectedparrot.com/settings>`_ page. Copy your Expected Parrot API key and activate remote inference.
-3. Create a file named *.env* in your working directory and add the following code to it (replace 'your_key_here' with your actual key):
-
-.. code-block:: text 
-
-  EXPECTED_PARROT_API_KEY = 'your_key_here'
+* Use an Expected Parrot API key to access all available models
+* Provide your own API keys from service providers
 
 
-*Note:* If you try to run a survey without storing a required API key, you will be provided a link to activate remote inference and automatically store your Expected Parrot API key in a *.env* file for you.
+Create an account
+^^^^^^^^^^^^^^^^^
+
+The easiest way to manage your keys is from your Expected Parrot account.
+`Create an account <https://www.expectedparrot.com/login>`_ with an email address and then navigate to your `Settings <https://www.expectedparrot.com/home/api>`_ page to view your Expected Parrot API key. 
+You will also see options for activating remote inference and caching; this allows your surveys to be run and your results to be stored remotely at the Expected Parrot server instead of your own machine.
 
 
-Local inference
-^^^^^^^^^^^^^^^
+Managing keys
+^^^^^^^^^^^^^
 
-This method allows you to run EDSL on your own machine with your own API keys for service providers.
-To use this method, you will need to create accounts with service providers and obtain API keys from them.
-You can still use an Expected Parrot API key to post and share content at the Expected Parrot server, but you will need to do this manually.
+If you want to use your own keys to run surveys, navigate to your `Keys <https://www.expectedparrot.com/home/keys>`_ page and use the options to add keys and optionally share access to them with other users. 
+You can specify which keys to use at any time, and check the current priority of your keys. Your Expected Parrot API key is used by default.
 
-To use local inference:
+Please see `instructions <https://www.expectedparrot.com/getting-started/edsl-api-keys>`_ for alternative methods of storing your own API keys.
 
-1. Create accounts with service providers and obtain API keys from them.
-2. Create a file named *.env* in your working directory and add the following code to it (replace 'your_key_here' with your actual keys):
+*Note:* If you try to run a survey without storing a required API key, you will be provided a link to activate remote inference and use your Expected Parrot API key.
 
-.. code-block:: text 
-
-  EXPECTED_PARROT_API_KEY = 'your_key_here'
-
-  ANTHROPIC_API_KEY = 'your_key_here'
-  DEEP_INFRA_API_KEY = 'your_key_here'
-  GOOGLE_API_KEY = 'your_key_here'
-  GROQ_API_KEY = 'your_key_here'
-  MISTRAL_API_KEY = 'your_key_here'
-  OPENAI_API_KEY = 'your_key_here'
-  REPLICATE_API_KEY = 'your_key_here'
-
-
-*Note:* Your API keys should be treated like passwords and deleted from notebooks or content that you share with others. 
-
-Now that we have installed EDSL and set up API keys, we can start using it to create surveys and analyze results.
+After installing EDSL and storing API keys you are ready to run some examples!
 
 
 Example: Running a simple question
@@ -1073,4 +1046,4 @@ To post a notebook:
   notebook.push(description="Starter Tutorial", visibility="public")
 
 
-You can view and download a notebook for this tutorial `at the Coop <https://www.expectedparrot.com/content/26d569e1-8356-45b7-9786-471dda1710ce>`_.
+You can view and download a notebook for this tutorial `at the Coop <https://www.expectedparrot.com/content/179b3a78-2505-4568-acd9-c09d18953288>`_.
