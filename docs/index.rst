@@ -9,7 +9,7 @@ This page provides documentation for **Expected Parrot Domain-Specific Language 
 and **Coop**, a platform for creating, storing and sharing AI-based research projects.
 
 * EDSL is available to download at `PyPI <https://pypi.org/project/edsl/>`_ and `GitHub <https://github.com/expectedparrot/edsl>`_.
-* Create a `Coop account <https://www.expectedparrot.com/login>`_ to access special features, free storage and collaboration tools. Learn more about `how it works <https://docs.expectedparrot.com/en/latest/coop.html>`_ and start `exploring <https://www.expectedparrot.com/content/explore>`_.
+* Create a `Coop account <https://www.expectedparrot.com/login>`_ easily manage API key for LLMs, run surveys on the Expected Parrot server and access special features, free storage and collaboration tools. Learn more about `how it works <https://docs.expectedparrot.com/en/latest/coop.html>`_ and start `exploring <https://www.expectedparrot.com/content/explore>`_.
 
 
 Key features 
@@ -18,14 +18,14 @@ Key features
 Simplified access to hundreds of models
    A single API key lets you conduct research with many popular models at once. `Learn more <https://docs.expectedparrot.com/en/latest/remote_inference.html>`_.
 
-Collaboration made easy
+Collaboration features
    Use `Coop <https://www.expectedparrot.com/content/explore>`_ to create, store and share your research projects seamlessly.
 
 Data integrations
    Easily import, analyze and extend many types of data. `Learn more <https://docs.expectedparrot.com/en/latest/scenarios.html>`_.
 
 Hybrid human-AI surveys
-   Collect responses from both humans and AI. `Learn more <https://docs.expectedparrot.com/en/latest/survey_builder.html>`_.
+   Collect and combine responses from humans and AI. `Learn more <https://docs.expectedparrot.com/en/latest/survey_builder.html>`_.
 
 Built-in analysis tools
    Readily visualize, analyze and compare responses. `Learn more <https://docs.expectedparrot.com/en/latest/results.html>`_.
@@ -61,18 +61,37 @@ For more on EDSL's key features and use cases, visit the :ref:`overview` section
 Getting started 
 ---------------
 
-1. **Install EDSL.** See :ref:`installation` instructions.
+To use EDSL, you need to install the package and choose how to access language models.
+Please see the links in the steps below for more details:
 
-2. **Create a Coop account.** `Sign up / login <https://www.expectedparrot.com/login>`_ to access special features, free storage and collaboration tools.
-
-3. Choose how to access language models: 
+1. **Install EDSL.** 
    
-   * **Remote inference:** Use your Expected Parrot API key to access all available language models at the Expected Parrot server. See instructions on activating :ref:`remote_inference` and purchasing `credits <https://docs.expectedparrot.com/en/latest/credits.html>`_.
-   * **Local inference:** Use your own API keys for language models to access them on your own machine. See instructions on storing :ref:`api_keys`.
+   Run the following command to install the package:
+
+   .. code:: 
+
+      pip show edsl
 
 
-Explore examples and use cases in our :ref:`starter_tutorial`, how-to guides and notebooks listed in the menu.
-See `tips <https://docs.expectedparrot.com/en/latest/checklist.html>`_ on using EDSL effectively.
+   See :ref:`installation` instructions for more details.
+
+2. **Create a Coop account.** 
+
+   `Create an account <https://www.expectedparrot.com/login>`_ to access the Expected Parrot server, free storage and special features and collaboration tools.
+
+3. **Manage API keys for language models**
+
+   Your account comes with a key that allows you to run surveys with all available models at the Expected Parrot server.
+   You can also use and share your own keys from service providers.
+
+   Navigate to the `Keys <https://www.expectedparrot.com/home/keys>`_ page of your account to manage your keys.
+   See :ref:`api_keys` instructions for more details and other options.
+
+4. **Run a survey.** 
+
+   Download the :ref:`starter_tutorial` to create a survey and run it.
+   See examples for many use cases and `tips <https://docs.expectedparrot.com/en/latest/checklist.html>`_ on using EDSL effectively in the documentation.
+
 
 Join our `Discord channel <https://discord.com/invite/mxAYkjfy9m>`_ to ask questions and chat with other users!
 

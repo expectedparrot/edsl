@@ -3,12 +3,11 @@
 Remote Inference
 ================
 
-Remote inference allows you to use a single API key to run surveys with any available language models at the Expected Parrot server, instead of obtaining your own :ref:`api_keys` for models to access on your own machine.
+Remote inference allows you to run surveys at the Expected Parrot server instead of your own machine.
 
-You can also automatically save survey results and API calls on the Expected Parrot server by activating :ref:`remote_caching`.
+You can also automatically save survey results and API calls at the Expected Parrot server by activating :ref:`remote_caching`.
 
-*Note: You must have a Coop account and purchase credits in order to use remote inference. 
-Credits will be deducted from your balance based on tokens used and prices set by service providers.
+*Note:* You must have a Coop account in order to use remote inference.
 By using remote inference you agree to terms of use of service providers, which Expected Parrot may accept on your behalf and enforce in accordance with its own terms of use: https://www.expectedparrot.com/terms.*
 
 
@@ -17,10 +16,10 @@ Activating remote inference
 
 1. Log into your `Coop account <https://www.expectedparrot.com/login>`_. 
 
-2. Navigate to `API Settings <a href="https://www.expectedparrot.com/home/api>`_. Toggle on the slider for *Remote inference* and copy your API key.
+2. Navigate to your `Settings <a href="https://www.expectedparrot.com/home/settings>`_ page and toggle on the slider for *Remote inference*.
 
-.. image:: static/api_settings_key_remote_inference.png
-  :alt: Toggle on remote inference and copy your Expected Parrot API key
+.. image:: static/settings.png
+  :alt: Toggle on remote inference
   :align: center
   :width: 100%
   
@@ -30,14 +29,11 @@ Activating remote inference
   <br>
   
 
-3. Add the following line to your `.env` file in your `edsl` working directory (replace `your_api_key_here` with your actual API key):
+Your Expected Parrot API key is automatically stored at your `Keys <https://www.expectedparrot.com/home/keys>`_ page.
+If you are managing your keys in a local `.env` file instead, copy your key to the file.
+See instructions on managing keys in the :ref:`api_keys` section.
 
-.. code-block:: python
-
-  EXPECTED_PARROT_API_KEY='your_api_key_here'
-
-
-You can regenerate your key (and update your `.env` file) at any time.
+You can regenerate your key at any time.
 
 
 Using remote inference
@@ -140,7 +136,7 @@ Output:
 
 .. code-block:: text
 
-  {'credits': 0.24, 'usd': 0.00231}
+  {'credits': 0.19, 'usd': 0.0018625}
 
 
 Details on these methods can be found in the :ref:`credits` section.
