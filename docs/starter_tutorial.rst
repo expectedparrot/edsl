@@ -143,6 +143,17 @@ Please see `instructions <https://www.expectedparrot.com/getting-started/edsl-ap
 
 *Note:* If you try to run a survey without storing a required API key, you will be provided a link to activate remote inference and use your Expected Parrot API key.
 
+
+Credits & tokens
+^^^^^^^^^^^^^^^^
+
+Running surveys with language models requires tokens.
+If you are using your own API keys, service providers will bill you directly.
+If you are using your Expected Parrot API key to access models, you will need to purchase credits to cover token costs.
+Please see the model pricing page for details on available models and their current prices.
+
+*Note:* Your account comes with 100 free credits. You can purchase more credits at any time at your `Credits <https://www.expectedparrot.com/home/purchases>`_ page.
+
 After installing EDSL and storing API keys you are ready to run some examples!
 
 
