@@ -28,7 +28,7 @@ Learn more about how :ref:`coop` works in the EDSL documentation.
 
 .. note::
 
-  You can also view and download the contents of this tutorial in a `notebook at Coop <https://www.expectedparrot.com/content/26d569e1-8356-45b7-9786-471dda1710ce>`_
+  You can also view and download the contents of this tutorial in a `notebook at Coop <https://www.expectedparrot.com/content/179b3a78-2505-4568-acd9-c09d18953288>`_
 
 
 **Further reading** 
