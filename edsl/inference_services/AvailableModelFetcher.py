@@ -136,7 +136,10 @@ class AvailableModelFetcher:
         if not service_models:
             import warnings
 
-            warnings.warn(f"No models found for service {service_name}")
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")  # Ignores the warning
+                warnings.warn(f"No models found for service {service_name}")
+
             return [], service_name
 
         models_list = AvailableModels(

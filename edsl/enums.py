@@ -62,7 +62,7 @@ class InferenceServiceType(EnumWithChecks):
     ANTHROPIC = "anthropic"
     GROQ = "groq"
     AZURE = "azure"
-    # OLLAMA = "ollama"
+    OLLAMA = "ollama"
     MISTRAL = "mistral"
     TOGETHER = "together"
     PERPLEXITY = "perplexity"
@@ -97,7 +97,6 @@ available_models_urls = {
 
 
 service_to_api_keyname = {
-    InferenceServiceType.BEDROCK.value: "TBD",
     InferenceServiceType.DEEP_INFRA.value: "DEEP_INFRA_API_KEY",
     InferenceServiceType.REPLICATE.value: "TBD",
     InferenceServiceType.OPENAI.value: "OPENAI_API_KEY",
@@ -109,7 +108,7 @@ service_to_api_keyname = {
     InferenceServiceType.MISTRAL.value: "MISTRAL_API_KEY",
     InferenceServiceType.TOGETHER.value: "TOGETHER_API_KEY",
     InferenceServiceType.PERPLEXITY.value: "PERPLEXITY_API_KEY",
-    InferenceServiceType.DEEPSEEK.value: "DEEPSEEK_API_KEY",
+    InferenceServiceType.DEEPSEEK.value: "DEEPSEEK_API_KEY"
 }
 
 
