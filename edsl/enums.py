@@ -62,7 +62,7 @@ class InferenceServiceType(EnumWithChecks):
     ANTHROPIC = "anthropic"
     GROQ = "groq"
     AZURE = "azure"
-    OLLAMA = "ollama"
+    # OLLAMA = "ollama"
     MISTRAL = "mistral"
     TOGETHER = "together"
     PERPLEXITY = "perplexity"
