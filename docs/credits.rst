@@ -29,10 +29,10 @@ Send an email to *info@expectedparrot.com* to request additional free credits.
 Purchasing credits
 ------------------
 
-To purchase credits, navigate to the `Credits <https://www.expectedparrot.com/home/purchases>`_ page of your Coop account and enter the number of credits that you would like to purchase
+To purchase credits, navigate to the `Credits <https://www.expectedparrot.com/home/credits>`_ page of your Coop account and enter the number of credits that you would like to purchase
 (1 USD buys 100 credits, and the minimum purchase amount is 1 USD):
 
-.. image:: static/credits_page.png
+.. image:: static/credits.png
    :alt: Purchase credits
    :align: center
 

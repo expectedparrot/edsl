@@ -36,19 +36,61 @@ This method provides a secure way to store your keys and the most flexibility in
 
 Start by navigating to the `Keys <http://www.expectedparrot.com/home/keys>`_ page of your account and adding any of your own keys that you want to use:
 
+.. image:: static/my_keys.png
+  :alt: View stored keys
+  :align: center
+  :width: 50%
+  
+
+.. image:: static/add_key.png
+  :alt: Add a key
+  :align: center
+  :width: 50%
+  
+
+.. raw:: html
+
+  <br>
+
 
 If you want other users to have access to your keys you can add their usernames and set limits on their use. 
 This will allow them to make API calls using your keys without sharing the keys directly:
+
+.. image:: static/share_key.png
+  :alt: View stored keys
+  :align: center
+  :width: 50%
+  
+
+.. image:: static/key_priority.png
+  :alt: View key priority
+  :align: center
+  :width: 50%
+  
+
+.. raw:: html
+
+  <br>
 
 
 You can edit your keys and sharing permissions at any time.
 
 To turn off remote inference and caching (to run surveys on your computer instead of the Expected Parrot server), navigate to the Settings page of your account and toggle off the relevant options:
 
+.. image:: static/settings.png
+  :alt: Toggle on remote inference
+  :align: center
+  :width: 100%
+  
 
+.. raw:: html
+
+  <br>
+
+  
 When remote inference is turned off you must provide your own keys for any models that you use with your surveys.
 
-Learn more about how :ref:`remote_inference` and :ref:`remote_cache` work.
+Learn more about how :ref:`remote_inference` and :ref:`remote_caching` work.
 
 
 Store keys in a local file

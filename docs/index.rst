@@ -85,11 +85,11 @@ Please see the links in the steps below for more details:
    You can also use and share your own keys from service providers.
 
    Navigate to the `Keys <https://www.expectedparrot.com/home/keys>`_ page of your account to manage your keys.
-   See :ref:`api_keys` instructions for more details and other options.
+   See :ref:`api_keys` instructions for more details and options.
 
 4. **Run a survey.** 
 
-   Download the :ref:`starter_tutorial` to create a survey and run it.
+   Read the :ref:`starter_tutorial` and `download a notebook <https://www.expectedparrot.com/content/179b3a78-2505-4568-acd9-c09d18953288>`_ to create a survey and run it.
    See examples for many use cases and `tips <https://docs.expectedparrot.com/en/latest/checklist.html>`_ on using EDSL effectively in the documentation.
 
 
