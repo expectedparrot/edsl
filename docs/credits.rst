@@ -39,7 +39,7 @@ To purchase credits, navigate to the `Credits <https://www.expectedparrot.com/ho
 
 .. html::
 
-    <br><br>
+    <br>
 
 
 *Note:*

@@ -184,16 +184,16 @@ When a late cancellation has occurred, the credits deduction will be reflected i
 Using remote inference with remote caching
 ------------------------------------------
 
-When remote caching and remote inference are both turned on, your remote jobs will use your remote cache entries when applicable.
+When remote caching and remote inference are both activate, your remote jobs will use your remote cache entries (existing results will be retrieved).
 
-.. image:: static/coop_toggle_remote_cache_and_inference.png
-  :alt: Remote cache and remote inference toggles on the Coop web app
-  :align: center
-  :width: 300px
+.. .. image:: static/coop_toggle_remote_cache_and_inference.png
+..   :alt: Remote cache and remote inference toggles on the Coop web app
+..   :align: center
+..   :width: 300px
 
-.. raw:: html
+.. .. raw:: html
 
-  <br>
+..   <br>
 
 
 Here we rerun the survey from above:
