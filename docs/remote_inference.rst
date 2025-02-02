@@ -235,7 +235,7 @@ If the remote cache has been used for a particular job, the details will also sh
 .. image:: static/remote_cache_entry_new.png
   :alt: An entry in the job history log on the Coop web app. It shows that 1 new entry was added to the remote cache during this job.
   :align: center
-  :width: 300px
+  :width: 650px
 
 .. raw:: html
 
