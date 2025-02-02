@@ -54,31 +54,13 @@ Start by navigating to the `Keys <http://www.expectedparrot.com/home/keys>`_ pag
 
 
 If you want other users to have access to your keys you can add their usernames and set limits on their use. 
-This will allow them to make API calls using your keys without sharing the keys directly:
-
-.. image:: static/share_key.png
-  :alt: View stored keys
-  :align: center
-  :width: 50%
-  
-
-.. image:: static/key_priority.png
-  :alt: View key priority
-  :align: center
-  :width: 50%
-  
-
-.. raw:: html
-
-  <br>
-
-
+This will allow them to make API calls using your keys without sharing the keys directly.
 You can edit your keys and sharing permissions at any time.
 
-To turn off remote inference and caching (to run surveys on your computer instead of the Expected Parrot server), navigate to the Settings page of your account and toggle off the relevant options:
+To deactivate remote inference and caching (to run surveys on your computer instead of the Expected Parrot server), navigate to the Settings page of your account and toggle off the relevant options:
 
 .. image:: static/settings.png
-  :alt: Toggle on remote inference
+  :alt: Toggle on/off remote inference
   :align: center
   :width: 100%
   
@@ -87,8 +69,8 @@ To turn off remote inference and caching (to run surveys on your computer instea
 
   <br>
 
-  
-When remote inference is turned off you must provide your own keys for any models that you use with your surveys.
+
+When remote inference is deactivated you must provide your own keys for any models that you use with your surveys.
 
 Learn more about how :ref:`remote_inference` and :ref:`remote_caching` work.
 

@@ -115,9 +115,9 @@ To update your installation of EDSL to the latest version at PyPI, run the follo
 Accessing Language Models
 -------------------------
 
-The next step is to decide how you want to access language models for running surveys.
+The next step is to decide how you want to access language models.
 EDSL works with many popular language models that you can choose from to generate responses to your surveys.
-These models are hosted by various service providers, such as Anthropic, Azure, Bedrock, Deep Infra, Google, Groq, Mistral, OpenAI, Replicate and Together.
+These models are hosted by various service providers, such as Anthropic, Azure, Bedrock, Deep Infra, DeepSeek, Google, Groq, Mistral, OpenAI, Replicate and Together.
 In order to run a survey, you need to provide API keys for the service providers of models that you want to use.
 There are two methods for providing API keys to EDSL:
 
@@ -125,21 +125,24 @@ There are two methods for providing API keys to EDSL:
 * Provide your own API keys from service providers
 
 
-Create an account
-^^^^^^^^^^^^^^^^^
-
-The easiest way to manage your keys is from your Expected Parrot account.
-`Create an account <https://www.expectedparrot.com/login>`_ with an email address and then navigate to your `Settings <https://www.expectedparrot.com/home/api>`_ page to view your Expected Parrot API key. 
-You will also see options for activating remote inference and caching; this allows your surveys to be run and your results to be stored remotely at the Expected Parrot server instead of your own machine.
-
-
 Managing keys
 ^^^^^^^^^^^^^
 
-If you want to use your own keys to run surveys, navigate to your `Keys <https://www.expectedparrot.com/home/keys>`_ page and use the options to add keys and optionally share access to them with other users. 
-You can specify which keys to use at any time, and check the current priority of your keys. Your Expected Parrot API key is used by default.
+The easiest way to manage your keys is from your Expected Parrot account.
+`Create an account <https://www.expectedparrot.com/login>`_ with an email address and then navigate to your `Keys <https://www.expectedparrot.com/home/keys>`_ page to find options for adding and sharing your keys:
 
-Please see `instructions <https://www.expectedparrot.com/getting-started/edsl-api-keys>`_ for alternative methods of storing your own API keys.
+.. image:: static/my_keys.png
+  :alt: View stored keys
+  :align: center
+  :width: 75%
+  
+
+Your Expected Parrot API key is automatically available to use by default whenever remote inference is activated.
+This key allows you to access the Expected Parrot server and run surveys with all available models.
+The key can be viewed at your `Settings <https://www.expectedparrot.com/home/api>`_ page where you can also find options for activating remote inference and caching.
+Activating these options allows you to run your surveys and store results at the Expected Parrot server instead of your own machine, using whichever keys you have prioritized.
+
+Please see the :ref:`api-keys` section for more details on methods of storing and managing keys.
 
 *Note:* If you try to run a survey without storing a required API key, you will be provided a link to activate remote inference and use your Expected Parrot API key.
 
