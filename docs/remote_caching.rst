@@ -4,9 +4,10 @@ Remote Caching
 ===============
 
 Remote caching allows you to store responses from language models at the Expected Parrot server.
+It is typically activated together with :ref:`remote_inference`, which allows you to automatically run surveys at the Expected Parrot server.
 
-*Note:* You must have a Coop account in order to use remote inference.
-By using remote inference you agree to terms of use of service providers, which Expected Parrot may accept on your behalf and enforce in accordance with its own terms of use: https://www.expectedparrot.com/terms.*
+*Note:* You must have a Coop account in order to use remote inference and caching.
+By using remote inference you agree to terms of use of service providers, which Expected Parrot may accept on your behalf and enforce in accordance with its own terms of use: https://www.expectedparrot.com/terms.
 
 
 Activating remote caching
@@ -64,7 +65,7 @@ Remote cache logs
 We can inspect `Coop remote cache logs <https://www.expectedparrot.com/home/remote-cache>`_ to verify that our results were cached successfully.
 The logs will show that we have 2 remote cache entries:
 
-.. image:: static/coop_remote_cache_logs_1.png
+.. image:: static/remote_cache_logs_new.png
   :alt: Logs showing 2 remote cache entries on the Coop web app
   :align: center
   :width: 650px
@@ -74,9 +75,19 @@ The logs will show that we have 2 remote cache entries:
   <br>
 
 
-We can inspect the details of individual entries by clicking on **View entries**.
+We can view the details of individual entries by clicking on **View all**, and then inspect each entry individually:
 
-.. image:: static/coop_remote_cache_entries_1.png
+.. image:: static/remote_cache_entries_1_new.png
+  :alt: Page displaying the code for a remote cache entry on the Coop web app
+  :align: center
+  :width: 650px
+
+.. raw:: html
+
+  <br>
+
+
+.. image:: static/remote_cache_entries_2_new.png
   :alt: Page displaying the code for a remote cache entry on the Coop web app
   :align: center
   :width: 650px

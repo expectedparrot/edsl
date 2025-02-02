@@ -76,7 +76,7 @@ Viewing the results
 Navigate to the `Remote inference <https://www.expectedparrot.com/home/remote-inference>`_ page of your Coop account to view the status of your job and the results.
 Once your job has finished, it will appear with a status of *Completed*:
 
-.. image:: static/coop_remote_inference_job_completed.png
+.. image:: static/remote_inference_job_completed_new.png
   :alt: Remote inference page on the Coop web app. There is one job shown, and it has a status of "Completed."
   :align: center
   :width: 650px
@@ -89,7 +89,7 @@ Once your job has finished, it will appear with a status of *Completed*:
 You can then select **View** to access the results of the job.
 Your results are provided as an EDSL object for you to view, pull and share with others:
 
-.. image:: static/coop_remote_inference_results.png
+.. image:: static/remote_inference_results_new.png
   :alt: Remote inference results page on the Coop web app. There is one result shown.
   :align: center
   :width: 650px
@@ -220,8 +220,8 @@ When remote caching and remote inference are both activated your results will be
 
 We can see that the remote cache has an entry for the job that we ran:
 
-.. image:: static/coop_remote_cache.png
-  :alt: Remote cache logs on the Coop web app. There is one log that reads, "Add 1 new cache entry from remote inference job."
+.. image:: static/remote_cache_history_new.png
+  :alt: Remote cache entry on the Coop web app.
   :align: center
   :width: 650px
 
@@ -232,7 +232,7 @@ We can see that the remote cache has an entry for the job that we ran:
 
 If the remote cache has been used for a particular job, the details will also show up in job history:
 
-.. image:: static/coop_remote_cache_history.png
+.. image:: static/remote_cache_entry_new.png
   :alt: An entry in the job history log on the Coop web app. It shows that 1 new entry was added to the remote cache during this job.
   :align: center
   :width: 300px
