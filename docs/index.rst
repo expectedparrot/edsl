@@ -64,7 +64,7 @@ Getting started
 To use EDSL, you need to install the package and choose how to access language models.
 Please see the links in the steps below for more details:
 
-1. **Install EDSL.** 
+1. **Install EDSL** 
    
    Run the following command to install the package:
 
@@ -75,7 +75,7 @@ Please see the links in the steps below for more details:
 
    See :ref:`installation` instructions for more details.
 
-2. **Create a Coop account.** 
+2. **Create a Coop account** 
 
    `Create an account <https://www.expectedparrot.com/login>`_ to access the Expected Parrot server, free storage and special features and collaboration tools.
 
@@ -197,6 +197,7 @@ Links
    :caption: Getting Started
    :hidden:
 
+   getting_started
    starter_tutorial
    installation
    api_keys
