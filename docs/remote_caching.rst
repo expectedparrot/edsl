@@ -3,36 +3,29 @@
 Remote Caching
 ===============
 
-Remote caching allows you to store responses from language models at the Expected Parrot server.
-It is typically activated together with :ref:`remote_inference`, which allows you to automatically run surveys at the Expected Parrot server.
+Remote caching allows you to store responses from language models at the Expected Parrot server, and retrieve responses to questions that have already been run.
+It is automatically activated when remote inference is activated.
+
+
+How it works 
+------------
+
+By default, whenever :ref:`remote_inference` is used to run a survey, a universal remote cache is made available for retrieving responses.
+Survey results will draw from responses already stored in the universal remote cache for questions that have been run before, and any new responses will be added to it.
+The universal remote cache is available to all users and is automatically updated whenever a survey is run with remote inference.
+
+If you do not want your results to draw from responses in the universal remote cache, you can pass `remote_cache=False` or a different `Cache` object to use instead to the `run()` method. 
+Any new responses are automatically added to the cache that is passed, as well as the universal remote cache.
 
 *Note:* You must have a Coop account in order to use remote inference and caching.
-By using remote inference you agree to terms of use of service providers, which Expected Parrot may accept on your behalf and enforce in accordance with its own terms of use: https://www.expectedparrot.com/terms.
+By using remote inference you agree to terms of use of service providers, which Expected Parrot may accept on your behalf and enforce in accordance with our `terms of use <https://www.expectedparrot.com/terms>`_.
 
 
 Activating remote caching
 -------------------------
 
-1. Log into your `Coop account <https://www.expectedparrot.com/login>`_.
-
-2. Navigate to your `Settings <a href="https://www.expectedparrot.com/home/settings>`_ page and toggle on the slider for *Remote caching*.
-
-.. image:: static/settings.png
-  :alt: Toggle on remote inference
-  :align: center
-  :width: 100%
-  
-
-.. raw:: html
-
-  <br>
-
-
-Your Expected Parrot API key is automatically stored at your `Keys <https://www.expectedparrot.com/home/keys>`_ page.
-If you are managing your keys in a local `.env` file instead, copy your key to the file.
-See instructions on managing keys in the :ref:`api_keys` section.
-
-You can regenerate your key at any time.
+Remote caching is automatically activated when remote inference is activated.
+See instructions on activating remote inference at the :ref:`remote_inference` section.
 
 
 Using remote caching

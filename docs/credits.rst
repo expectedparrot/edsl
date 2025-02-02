@@ -8,18 +8,19 @@ They can be purchased at your `Coop account <https://www.expectedparrot.com/logi
 Credits are deducted from your balance to cover the costs of API calls to language model service providers, which are based on token rates set by providers.
 Details on token prices for available models can be viewed at the `model pricing page <https://www.expectedparrot.com/getting-started/coop-pricing>`_.
 
-*Note:* Credits are *not* required to run surveys with your own keys from service providers, 
-or to `post and share content at Coop <https://www.expectedparrot.com/content/explore>`_.
-
 Details on how credits are consumed are provided below. 
 Credits must be purchased in advance and are consumed when surveys are run. 
 If you do not have enough credits to run a survey, you will be prompted to purchase more credits.
+
+*Note:* Credits are *not* required to run surveys with your own keys from service providers, or to `post and share content at Coop <https://www.expectedparrot.com/content/explore>`_.
+When you run a survey using your own keys, cost estimates are provided based on the prices listed in the `model pricing page <https://www.expectedparrot.com/getting-started/coop-pricing>`_.
+Your actual charges from service providers may vary based on the terms of your accounts with service providers.
 
 
 Free credits
 ------------
 
-Your Coop account comes with a balance of 100 free credits that you can use to run surveys with remote inference.
+Your Coop account comes with a balance of 100 free credits that you can use to run surveys with your Expected Parrot API key.
 
 *Are you using EDSL for a research project?*
 
@@ -29,8 +30,8 @@ Send an email to *info@expectedparrot.com* to request additional free credits.
 Purchasing credits
 ------------------
 
-To purchase credits, navigate to the `Credits <https://www.expectedparrot.com/home/credits>`_ page of your Coop account and enter the number of credits that you would like to purchase
-(1 USD buys 100 credits, and the minimum purchase amount is 1 USD):
+To purchase credits, navigate to the `Credits <https://www.expectedparrot.com/home/credits>`_ page of your account and enter the number of credits that you would like to purchase
+(1 USD buys 100 credits; the minimum purchase amount is 1 USD):
 
 .. image:: static/credits.png
    :alt: Purchase credits
@@ -50,7 +51,7 @@ You may be charged payment processing fees when purchasing credits.
 Using credits
 -------------
 
-When you run a survey with remote inference, the number of credits consumed (and deducted from your balance) is displayed at the `remote inference page <https://www.expectedparrot.com/home/remote-inference>`_ of your Coop account.
+When you run a survey with your Expected Parrot API key, the number of credits consumed (and deducted from your balance) is displayed at the `Remote inference <https://www.expectedparrot.com/home/remote-inference>`_ page of your account.
 This number is equal to the sum of the cost in credits of each response in the results.
 
 The cost in credits of a response is calculated as follows:
@@ -200,6 +201,7 @@ Token rates
 
 Model token rates used to calculate costs can be viewed at the `model pricing page <https://www.expectedparrot.com/getting-started/coop-pricing>`_.
 This page is regularly updated to reflect the latest prices published by service providers.
+If you notice a discrepancy with a listed price, please submit a report using the form at that page.
 
 
 Estimating job costs
