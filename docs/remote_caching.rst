@@ -5,12 +5,13 @@ Remote Caching
 
 Remote caching allows you to store responses from language models at the Expected Parrot server, and retrieve responses to questions that have already been run.
 It is automatically activated when remote inference is activated.
+The logs of your remote surveys and results are also automatically stored at the Expected Parrot server, and can be viewed and managed from your Coop account.
 
 
 How it works 
 ------------
 
-By default, whenever :ref:`remote_inference` is used to run a survey, a universal remote cache is made available for retrieving responses.
+By default, whenever you activate :ref:`remote_inference` to run a survey at the Expected Parrot server, a universal remote cache is made available for retrieving responses.
 Survey results will draw from responses already stored in the universal remote cache for questions that have been run before, and any new responses will be added to it.
 The universal remote cache is available to all users and is automatically updated whenever a survey is run with remote inference.
 
@@ -31,15 +32,13 @@ See instructions on activating remote inference at the :ref:`remote_inference` s
 Using remote caching
 --------------------
 
-When remote caching is on, the results of any question or survey that you run will be stored automatically on the Expected Parrot server.
+With remote caching, the results of any questions that you run remotely can be accessed and interacted with from your workspace or the Coop web app.
+
 
 You can use remote caching by passing a `Cache` object to the `run` method of a survey.
 
 
-Example 
-^^^^^^^
-
-Here we import the `Cache` module in order to pass a `Cache()` object when we call the `run` method on a survey.
+For example, here we import the `Cache` module in order to pass a `Cache()` object when we call the `run` method on a survey.
 Note that we use an empty in-memory cache for demonstration purposes; the code can also be used with an existing local cache. 
 See :ref:`caching` for more details on caching results locally.
 
