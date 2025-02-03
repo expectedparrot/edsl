@@ -5,33 +5,23 @@ Remote Inference
 
 Remote inference allows you to run surveys at the Expected Parrot server instead of your own machine and to use :ref:`remote_caching` to store survey results and logs.
 
-*Note: You must have a Coop account in order to use remote inference and caching.
-By using remote inference you agree to terms of use of service providers, which Expected Parrot may accept on your behalf and enforce in accordance with our `terms of use <https://www.expectedparrot.com/terms>`_.*
+*Note: You must have an account in order to use remote inference and caching.
+By using remote inference you agree to terms of use of service providers, which Expected Parrot may accept on your behalf and enforce in accordance with our terms of use.*
 
 
 How it works 
 ------------
 
 When remote inference is activated, calling the `run()` method on a survey will send it to the Expected Parrot server.
-Survey results and job details (job history, costs, etc.) are automatically stored remotely at the server and are accessible from your workspace or at your `Remote inference <https://www.expectedparrot.com/home/remote-inference>`_ page.
-By default, a universal remote cache is available to retrieve responses to any questions that have already been run, by you or other users.
-See the :ref:`remote_caching` section for details on the universal remote cache and methods for drawing fresh responses and using other caches.
-
-
-Managing keys & credits 
------------------------
-
-You can use remote inference with your own keys for language models or your Expected Parrot API key.
-Running surveys with your Expected Parrot API key requires credits to cover API calls to service providers.
-You can check your balance and purchase credits at the `Credits <https://www.expectedparrot.com/home/credits>`_ page of your account.
-Running surveys with your own keys does not consume credits.
-Learn more about purchasing credits and calculating costs at the :ref:`credits` section.
+Survey results and job details (history, costs, etc.) are automatically stored at the server and accessible from your workspace or at the `Remote inference <https://www.expectedparrot.com/home/remote-inference>`_ page of your account.
+By default, a universal remote cache is used to retrieve responses to any questions that have already been run, either by you or other users.
+See the :ref:`remote_caching` section for details on the universal remote cache and methods for drawing fresh responses and working with remote caches.
 
 
 Activating remote inference
 ---------------------------
 
-Log into your `Coop account <https://www.expectedparrot.com/login>`_ and navigate to your `Settings <a href="https://www.expectedparrot.com/home/settings>`_ page.
+`Log into your account <https://www.expectedparrot.com/login>`_ and navigate to your `Settings <a href="https://www.expectedparrot.com/home/settings>`_ page.
 Toggle on the slider for *Remote inference*:
 
 .. image:: static/settings.png
@@ -45,11 +35,19 @@ Toggle on the slider for *Remote inference*:
   <br>
   
 
-Your Expected Parrot API key is automatically stored at your `Keys <https://www.expectedparrot.com/home/keys>`_ page where you can find features for adding other keys, sharing them with other users and prioritizing them for use with your surveys.
-If you are managing your keys in a local `.env` file instead, copy your key to the file.
-See instructions and options for managing keys in the :ref:`api_keys` section.
+Managing keys & credits 
+-----------------------
 
-You can regenerate your key at any time.
+You can use remote inference to run surveys with your own keys for language models or your Expected Parrot API key.
+Your Expected Parrot API key can be viewed (and reset) at the `Settings <https://www.expectedparrot.com/home/settings>`_ page of your account (where you activate remote inference).
+It is automatically stored at your `Keys <https://www.expectedparrot.com/home/keys>`_ page where you can select options for adding keys, sharing them with other users and prioritizing them for use with your surveys.
+
+Running surveys with your Expected Parrot API key requires credits to cover API calls to service providers.
+Your account comes with free credits for getting started; you can check your balance and purchase additional credits at the `Credits <https://www.expectedparrot.com/home/credits>`_ page of your account.
+Running surveys with your own keys does *not* consume credits.
+Learn more about purchasing credits and calculating costs at the :ref:`credits` section.
+
+See instructions and additional options for managing keys in the :ref:`api_keys` section.
 
 
 Using remote inference
@@ -58,8 +56,8 @@ Using remote inference
 When remote inference is activated, calling the `run()` method will send a survey to the Expected Parrot server.
 You can access results and all information about the job (history, costs, etc.) from your workspace or your `Remote inference <https://www.expectedparrot.com/home/remote-inference>`_ page.
 
-For example, here we run a simple survey with remote inference activated and inspect the job information at the Coop web app.
-Note that we optionally pass a `remote_inference_description` to identify the job and a visibility setting `remote_inference_visibility` ("private" or "public"; the default setting for all objects is "unlisted") (these parameters can be edited at any time):
+For example, here we run a simple survey with remote inference activated and inspect the job information that is automatically posted.
+We optionally pass description and visibility parameters (these can be edited at any time):
 
 .. code-block:: python
 
@@ -118,9 +116,9 @@ When you run a job using your Expected Parrot API key you are charged credits ba
 (When you run a job using your own keys you are charged directly by service providers based on the terms of your accounts.)
 
 Before running a job, you can estimate the cost of the job by calling the `estimate_job_cost()` method on the `Job` object (a survey combined with a model).
-This will return information about the estimated total cost, input tokens, output tokens, and per-model costs:
+This will return information about the estimated total cost, input tokens, output tokens and per-model costs:
 
-For example, here we estimate the cost of running the example survey with a model:
+For example, here we estimate the cost of running a simple survey with a model:
 
 .. code-block:: python
 
