@@ -156,7 +156,7 @@ class InvigilatorAI(InvigilatorBase):
                         self.question.question_options = new_question_options
 
                 question_with_validators = self.question.render(
-                    self.scenario | prior_answers_dict
+                    self.scenario | prior_answers_dict | {'agent':self.agent.traits}
                 )
                 question_with_validators.use_code = self.question.use_code
             else:
