@@ -148,7 +148,7 @@ class ScenarioListPdfMixin:
             return False
 
     @classmethod
-    def _from_pdf_to_image(cls, pdf_path, image_format="jpeg"):
+    def from_pdf_to_image(cls, pdf_path, image_format="jpeg"):
         """
         Convert each page of a PDF into an image and create Scenario instances.
 
@@ -173,7 +173,6 @@ class ScenarioListPdfMixin:
                 image_path = os.path.join(output_folder, f"page_{i+1}.{image_format}")
                 image.save(image_path, image_format.upper())
 
-                # scenario = Scenario._from_filepath_image(image_path)
                 from edsl import FileStore
                 scenario = Scenario({
                     "filepath":image_path,
@@ -182,7 +181,6 @@ class ScenarioListPdfMixin:
                     })
                 scenarios.append(scenario)
 
-            # print(f"Saved {len(images)} pages as images in {output_folder}")
             return cls(scenarios)
 
     @staticmethod
