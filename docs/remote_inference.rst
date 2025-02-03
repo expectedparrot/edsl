@@ -3,27 +3,29 @@
 Remote Inference
 ================
 
-Remote inference allows you to run surveys at the Expected Parrot server instead of your own machine.
+Remote inference allows you to run surveys at the Expected Parrot server instead of your own machine and to use :ref:`remote_caching` to store survey results and logs.
+
+*Note: You must have a Coop account in order to use remote inference and caching.
+By using remote inference you agree to terms of use of service providers, which Expected Parrot may accept on your behalf and enforce in accordance with our `terms of use <https://www.expectedparrot.com/terms>`_.*
 
 
 How it works 
 ------------
 
 When remote inference is activated, calling the `run()` method on a survey will send it to the Expected Parrot server.
-Survey results and job details (job history, costs, etc.) are automatically stored remotely at the server and are accessible from your workspace or at the Coop web app.
-By default, if any questions have been run remotely before, the responses are retrieved from the universal remote cache instead of running the questions again.
-Any new responses are automatically added to the universal remote cache and become available to you and other users to retrieve in the future.
-If you want fresh responses you can turn off remote caching for a particular job by passing `remote_cache=False` or a `Cache` object to the `run()` method.
-Learn more about remote caching features at the :ref:`remote_cache` section.
+Survey results and job details (job history, costs, etc.) are automatically stored remotely at the server and are accessible from your workspace or at your `Remote inference <https://www.expectedparrot.com/home/remote-inference>`_ page.
+By default, a universal remote cache is available to retrieve responses to any questions that have already been run, by you or other users.
+See the :ref:`remote_caching` section for details on the universal remote cache and methods for drawing fresh responses and using other caches.
+
+
+Managing keys & credits 
+-----------------------
 
 You can use remote inference with your own keys for language models or your Expected Parrot API key.
-Running surveys with your Expected Parrot API keys requires credits to cover API calls to service providers.
+Running surveys with your Expected Parrot API key requires credits to cover API calls to service providers.
 You can check your balance and purchase credits at the `Credits <https://www.expectedparrot.com/home/credits>`_ page of your account.
-You do not need to purchase credits to run jobs with your own keys.
+Running surveys with your own keys does not consume credits.
 Learn more about purchasing credits and calculating costs at the :ref:`credits` section.
-
-*Note:* You must have a Coop account in order to use remote inference and caching.
-By using remote inference you agree to terms of use of service providers, which Expected Parrot may accept on your behalf and enforce in accordance with our `terms of use <https://www.expectedparrot.com/terms>`_.
 
 
 Activating remote inference
@@ -43,9 +45,9 @@ Toggle on the slider for *Remote inference*:
   <br>
   
 
-Your Expected Parrot API key is automatically stored at your `Keys <https://www.expectedparrot.com/home/keys>`_ page.
+Your Expected Parrot API key is automatically stored at your `Keys <https://www.expectedparrot.com/home/keys>`_ page where you can find features for adding other keys, sharing them with other users and prioritizing them for use with your surveys.
 If you are managing your keys in a local `.env` file instead, copy your key to the file.
-See instructions on managing keys in the :ref:`api_keys` section.
+See instructions and options for managing keys in the :ref:`api_keys` section.
 
 You can regenerate your key at any time.
 
@@ -53,11 +55,11 @@ You can regenerate your key at any time.
 Using remote inference
 ----------------------
 
-With remote inference activated, calling the `run()` method will send a survey to the Expected Parrot server and allow you to access results and all information about it (job history, costs, etc.) from your workspace or the Coop web app.
-You can optionally pass a `remote_inference_description` to identify the job at Coop and a visibility setting `remote_inference_visibility` ("private" or "public"; the default setting for all objects is "unlisted").
-These can be edited at any time from your workspace or at the Coop web app.
+When remote inference is activated, calling the `run()` method will send a survey to the Expected Parrot server.
+You can access results and all information about the job (history, costs, etc.) from your workspace or your `Remote inference <https://www.expectedparrot.com/home/remote-inference>`_ page.
 
-For example, here we run a simple survey with remote inference activated, and pass a description and visibility to readily identify the job at Coop:
+For example, here we run a simple survey with remote inference activated and inspect the job information at the Coop web app.
+Note that we optionally pass a `remote_inference_description` to identify the job and a visibility setting `remote_inference_visibility` ("private" or "public"; the default setting for all objects is "unlisted") (these parameters can be edited at any time):
 
 .. code-block:: python
 
@@ -72,43 +74,37 @@ For example, here we run a simple survey with remote inference activated, and pa
 
   survey = Survey(questions = [q])
 
-  results = survey.by(m).run(remote_inference_description="Example survey", remote_inference_visibility="public")
+  results = survey.by(m).run(
+    remote_inference_description = "Example survey", # optional
+    remote_inference_visibility = "public" # optional
+    )
 
 
 Output (details will be unique to your job):
 
 .. code-block:: text
 
-  ✓ Current Status: Job completed and Results stored on Coop: http://localhost:1234/content/cfc51a12-63fe-41cf-b441-66d78ba47fb0
+  ✓ Current Status: Job completed and Results stored on Coop: http://www.expectedparrot.com/content/cfc51a12-63fe-41cf-b441-66d78ba47fb0
 
 
-Results are automatically stored at the Expected Parrot server.
-You can access them from your workspace or at the `Remote cache <https://www.expectedparrot.com/home/remote-cache>`_ page of your account.
+When the job has finished, it will appear with a status of *Completed*:
 
-
-Viewing jobs & results
-----------------------
-
-Navigate to the `Remote inference <https://www.expectedparrot.com/home/remote-inference>`_ page of your account to view the status of your job and the results.
-Once your job has finished, it will appear with a status of *Completed*:
-
-.. image:: static/remote_inference_job_completed_new.png
+.. image:: static/remote_inference_job_completed.png
   :alt: Remote inference page on the Coop web app. There is one job shown, and it has a status of "Completed."
   :align: center
-  :width: 650px
+  :width: 100%
 
 .. raw:: html
 
   <br>
 
 
-You can then select **View all** to access the results of the job.
-The results are provided as an EDSL object for you to view, pull and share with others:
+We can select **View all** to access the results of the job:
 
 .. image:: static/remote_inference_results_new.png
   :alt: Remote inference results page on the Coop web app. There is one result shown.
   :align: center
-  :width: 650px
+  :width: 100%
 
 .. raw:: html
 
@@ -128,11 +124,18 @@ For example, here we estimate the cost of running the example survey with a mode
 
 .. code-block:: python
 
-  from edsl import Survey, Model
+  from edsl import Model, QuestionFreeText, Survey
 
-  survey = Survey.example()
-  model = Model("gpt-4o")
-  job = survey.by(model)
+  m = Model("gemini-1.5-flash")
+
+  q = QuestionFreeText(
+    question_name = "prime",
+    question_text = "Is 2 a prime number?"
+  )
+
+  survey = Survey(questions = [q])
+
+  job = survey.by(m)
 
   estimated_job_cost = job.estimate_job_cost()
   estimated_job_cost 
@@ -142,17 +145,17 @@ Output:
 
 .. code-block:: text
 
-  {'estimated_total_cost': 0.0018625,
-   'estimated_total_input_tokens': 185,
-   'estimated_total_output_tokens': 140,
-   'model_costs': [{'inference_service': 'openai',
-     'model': 'gpt-4o',
-     'estimated_cost': 0.0018625,
-     'estimated_input_tokens': 185,
-     'estimated_output_tokens': 140}]}
+  {'estimated_total_cost_usd': 1.575e-06,
+  'estimated_total_input_tokens': 5,
+  'estimated_total_output_tokens': 4,
+  'model_costs': [{'inference_service': 'google',
+    'model': 'gemini-1.5-flash',
+    'estimated_cost_usd': 1.575e-06,
+    'estimated_input_tokens': 5,
+    'estimated_output_tokens': 4}]}
 
 
-You can also estimate the cost in credits to run the job remotely by passing the job to the `remote_inference_cost()` method of a `Coop` client object:
+We can also estimate the cost in credits to run the job remotely by passing the job to the `remote_inference_cost()` method of a `Coop` client object:
 
 .. code-block:: python
 
@@ -168,7 +171,7 @@ Output:
 
 .. code-block:: text
 
-  {'credits': 0.19, 'usd': 0.0018625}
+  {'credits': 0.01, 'usd': 1.575e-06}
 
 
 Details on these methods can be found in the :ref:`credits` section.
@@ -188,70 +191,22 @@ Job history
 You can click on any job to view its history. 
 When a job fails, the job history logs will describe the error that caused the failure.
 
-.. .. image:: static/coop_remote_inference_history_failed.png
-..   :alt: A screenshot of job history logs on the Coop web app. The job has failed due to insufficient funds.
-..   :align: center
-..   :width: 350px
-
-.. .. raw:: html
-
-..   <br>
-
-
-Job history can also provide important information about cancellation. 
-When you cancel a job, one of two things must be true:
-
-1. **The job hasn't started running yet.** No credits will be deducted from your balance.
-2. **The job has started running.** Credits will be deducted.
-
-When a late cancellation has occurred, the credits deduction will be reflected in your job history.
-
-.. .. image:: static/coop_remote_inference_history_cancelled.png
-..   :alt: A screenshot of job history logs on the Coop web app. The job has been cancelled late, and 2 credits have been deducted from the user's balance.
-..   :align: center
-..   :width: 300px
-
-.. .. raw:: html
-
-..   <br>
-
-
-Using remote cache with remote inference
-----------------------------------------
-
-When remote caching is used with remote inference, existing results are retrieved when identical questions are rerun.
-If you do not specify a cache to use with a survey or turn remote caching off, the universal remote cache is made available for retrieving existing responses by default.
-You can turn off remote caching for a particular job by passing `remote_cache=False` or a `Cache` object to the `run()` method to use instead.
-New responses are automatically added to the universal remote cache regardless of whether you specify a cache to use for retrieving responses.
-
-
-Inspecting your remote cache
-----------------------------
-
-You can view your remote cache history at the `Remote cache <https://www.expectedparrot.com/home/remote-cache>`_ page of your account.
-
-For example, we can see that the remote cache has an entry for the job that we ran above:
-
-.. image:: static/remote_cache_history_new.png
-  :alt: Remote cache entry on the Coop web app.
+.. image:: static/coop_remote_inference_history_failed.png
+  :alt: A screenshot of job history logs on the Coop web app. The job has failed due to insufficient funds.
   :align: center
-  :width: 650px
+  :width: 100%
 
 .. raw:: html
 
   <br>
 
 
-The details are available in the job history:
+When you prioritize keys, the job history will show which key was used to run the job:
 
-.. image:: static/remote_cache_entry_new.png
-  :alt: An entry in the job history log on the Coop web app. It shows that 1 new entry was added to the remote cache during this job.
+.. image:: static/coop_remote_inference_history_key.png
+  :alt: A screenshot of job history logs on the Coop web app. The job has been run using a key that has been prioritized.
   :align: center
-  :width: 650px
-
-.. raw:: html
-
-  <br><br>
+  :width: 100%
 
 
 
