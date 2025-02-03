@@ -114,6 +114,7 @@ class QuestionBaseGenMixin:
                         .render(strings_only_replacement_dict)
                     )
                 except Exception as e:
+                    #breakpoint()
                     import warnings
 
                     warnings.warn("Failed to render string: " + value)
