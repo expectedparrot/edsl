@@ -8,106 +8,97 @@ Please see links to sections below for more details on each step.
 1. Installation
 ---------------
    
-   Run the following command to install the EDSL package:
+Run the following command to install the EDSL package:
 
-   .. code:: 
+.. code:: 
 
-      pip show edsl
+   pip show edsl
 
 
-   If you have previously installed EDSL, you can update it with the following command:
+If you have previously installed EDSL, you can update it with the following command:
 
-   .. code:: 
+.. code:: 
 
-      pip install --upgrade edsl
-   
+   pip install --upgrade edsl
 
-   See :ref:`installation` instructions for more details and troubleshooting tips. 
-   If you are using EDSL with Google Colab, see the :ref:`colab_setup` section for special instructions.
+
+See :ref:`installation` instructions for more details and troubleshooting tips. 
+If you are using EDSL with Google Colab, see the :ref:`colab_setup` section for special instructions.
 
 
 2. Create an account
-------------------------
+--------------------
 
-   `Sign up <https://www.expectedparrot.com/login>`_ with an email address to create an account.
-   Your account lets you access the Expected Parrot server where you can run surveys, use remote caching and share projects with other users.
-   It comes with free storage and credits for running surveys, and special features and collaboration tools.
+`Log in / Sign up <https://www.expectedparrot.com/login>`_ with an email address.
+Your account lets you access the Expected Parrot server to run surveys, use remote caching and collaborate with other users.
+Enjoy free storage and credits for running surveys, and special features and tools.
 
-   See the `Coop <https://docs.expectedparrot.com/en/latest/coop.html>`_ section for more details on using the Expected Parrot platform to create and share projects, and the :ref:`remote_inference` and :ref:`remote_caching` sections for more details on account features for running surveys and storing results at the Expected Parrot server.
+See the `Coop <https://docs.expectedparrot.com/en/latest/coop.html>`_ section for more details on using the Expected Parrot platform to create and share projects, and the :ref:`remote_inference` and :ref:`remote_caching` sections for more details on account features for running surveys and storing results at the Expected Parrot server.
 
 
 3. Manage API keys for language models
 --------------------------------------
 
-   EDSL works with hundreds of language models of popular service providers, includ Anthropic, Azure, Bedrock, DeepInfra, DeepSeek, Google, Mistral, OpenAI, Perplexity and Together.
-   Your account comes with an Expected Parrot API key that lets you run surveys with all available models at the Expected Parrot server and access a free universal cache of stored responses.
- 
-   If you have your own keys from service providers you can add them to your `Keys <https://www.expectedparrot.com/home/keys>`_ page and select options for sharing them with other users and prioritizing them to use with your surveys:
+EDSL works with hundreds of language models of popular service providers, including Anthropic, Azure, Bedrock, DeepInfra, DeepSeek, Google, Mistral, OpenAI, Perplexity and Together.
+Your account comes with an **Expected Parrot API key** that lets you run surveys with all available models at the Expected Parrot server and access a free universal cache of stored responses.
 
-   .. image:: static/ep_key.png
-   :alt: View stored keys
-   :align: center
-   :width: 50%
-   
+If you have your own keys from service providers you can add them to your `Keys <https://www.expectedparrot.com/home/keys>`_ page and choose whether to provide access to other users and prioritizing them to use with your surveys:
 
-   .. raw:: html
-
-   <br>
-
-
-   .. image:: static/add_key.png
-   :alt: View stored keys
-   :align: center
-   :width: 50%
-
-
-   .. raw:: html
-
-   <br>
-
-
-   .. image:: static/ep_key.png
+.. image:: static/ep_key.png
    :alt: View stored keys
    :align: center
    :width: 100%
-   
+   :class: bordered-image
 
-   .. raw:: html
+
+.. raw:: html
+
+   <br>  
+
+
+.. image:: static/add_key.png
+   :alt: View stored keys
+   :width: 100%
+   :class: bordered-image
+
+
+.. raw:: html
 
    <br>
 
 
-   Using your own keys does not require credits; service providers will bill you directly for your usage.
-   See the :ref:`api_keys` section for more details and options for managing keys.
+
+Using your own keys does not require credits; service providers will bill you directly for your usage.
+See the :ref:`api_keys` section for more details and options for managing keys.
 
 
 4. Choose where to run surveys
 ------------------------------
 
-   You can use EDSL to run surveys locally on your own machine or remotely at the Expected Parrot server.
-   To activate remote inference and caching for your surveys and results, navigate to the `Settings <https://www.expectedparrot.com/home/settings>`_ page of your account and toggle on *remote inference*:
+You can use EDSL to run surveys locally on your own machine or remotely at the Expected Parrot server.
+To activate remote inference and caching for your surveys and results, navigate to the `Settings <https://www.expectedparrot.com/home/settings>`_ page of your account and toggle on *remote inference*:
 
-   .. image:: static/settings.png
+.. image:: static/update_image.png
    :alt: Toggle on remote inference
    :align: center
    :width: 100%
-   
 
-   .. raw:: html
+
+.. raw:: html
 
    <br>
 
 
-   To run surveys locally you must provide your own keys from service providers.
+To run surveys locally you must provide your own keys from service providers.
 
-   See the :ref:`remote_inference` and :ref:`remote_caching` sections for details on using remote inference and caching.
+See the :ref:`remote_inference` and :ref:`remote_caching` sections for details on using remote inference and caching.
 
 
 5. Run a survey
 ---------------
 
-   Read the :ref:`starter_tutorial` and `download a notebook <https://www.expectedparrot.com/content/179b3a78-2505-4568-acd9-c09d18953288>`_ to create a survey and run it.
-   See examples for many other use cases and `tips <https://docs.expectedparrot.com/en/latest/checklist.html>`_ on using EDSL effectively in the documentation.
+Read the :ref:`starter_tutorial` and `download a notebook <https://www.expectedparrot.com/content/179b3a78-2505-4568-acd9-c09d18953288>`_ to create a survey and run it.
+See examples for many other use cases and `tips <https://docs.expectedparrot.com/en/latest/checklist.html>`_ on using EDSL effectively in the documentation.
 
 
 

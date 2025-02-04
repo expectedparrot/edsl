@@ -24,7 +24,7 @@ Activating remote inference
 `Log into your account <https://www.expectedparrot.com/login>`_ and navigate to your `Settings <a href="https://www.expectedparrot.com/home/settings>`_ page.
 Toggle on the slider for *Remote inference*:
 
-.. image:: static/settings.png
+.. image:: static/update_image.png
   :alt: Toggle on remote inference
   :align: center
   :width: 100%
@@ -87,7 +87,7 @@ Output (details will be unique to your job):
 
 When the job has finished, it will appear with a status of *Completed*:
 
-.. image:: static/remote_inference_job_completed.png
+.. image:: static/update_image.png
   :alt: Remote inference page on the Coop web app. There is one job shown, and it has a status of "Completed."
   :align: center
   :width: 100%
@@ -189,7 +189,7 @@ Job history
 You can click on any job to view its history. 
 When a job fails, the job history logs will describe the error that caused the failure.
 
-.. image:: static/coop_remote_inference_history_failed.png
+.. image:: static/update_image.png
   :alt: A screenshot of job history logs on the Coop web app. The job has failed due to insufficient funds.
   :align: center
   :width: 100%
@@ -201,7 +201,7 @@ When a job fails, the job history logs will describe the error that caused the f
 
 When you prioritize keys, the job history will show which key was used to run the job:
 
-.. image:: static/coop_remote_inference_history_key.png
+.. image:: static/update_image.png
   :alt: A screenshot of job history logs on the Coop web app. The job has been run using a key that has been prioritized.
   :align: center
   :width: 100%
