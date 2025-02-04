@@ -48,7 +48,7 @@ If you have your own keys from service providers you can add them to your `Keys 
    :alt: View stored keys
    :align: center
    :width: 100%
-   :class: bordered-image
+   :border: 1px solid #ccc
 
 
 .. raw:: html
@@ -59,7 +59,6 @@ If you have your own keys from service providers you can add them to your `Keys 
 .. image:: static/add_key.png
    :alt: View stored keys
    :width: 100%
-   :class: bordered-image
 
 
 .. raw:: html
