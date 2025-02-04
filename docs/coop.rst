@@ -3,17 +3,18 @@
 Coop
 ====
 
-`Coop <https://www.expectedparrot.com/content/explore>`_ is a platform for creating, storing and sharing AI-based research. 
-It is fully integrated with EDSL, allowing you to post, download and update objects directly from your workspace or at the Coop web app.
+`Coop <https://www.expectedparrot.com/content/explore>`_ is a free platform for creating, storing and sharing AI-based research. 
+It is fully integrated with EDSL, allowing you to post, store and retrieve any objects that you've created with EDSL, together with data, notebooks and other project content. 
+You can also explore public content and collaborate on projects privately with other users.
 
-Coop also provides access to special features for running EDSL surveys and storing results remotely at the Expected Parrot server.
+Your Coop account also provides access to features for running EDSL surveys and storing results remotely at the Expected Parrot server.
 Learn more about these features in the :ref:`remote_inference` and :ref:`remote_caching` sections of the documentation.
 
 
 .. image:: static/coop_content2.png
   :alt: Coop content
   :align: center
-  :width: 80%
+  :width: 100%
   
 
 .. raw:: html
@@ -29,57 +30,61 @@ How it works
 * Post content at the Coop web app (surveys, agents, results, notebooks, etc.) 
 * Choose the visibility of your content: *public*, *private* or *unlisted*
 * Update, download, delete, store and share content and projects
-
-Then activate :ref:`remote_inference` to run surveys on the Expected Parrot server.
-This allows you to avoid needing to manage your own API keys for language models.
-You can also activate :ref:`remote_caching` to automatically store survey results on the Expected Parrot server and access them from anywhere. 
+* Explore public content and copy code to modify or rerun it
+* Activate :ref:`remote_inference` and :ref:`remote_caching` features for running surveys and storing results at the Expected Parrot server (see those sections for more details)
 
 
 Getting started
 ---------------
 
 | **1. Create an account**
-| Create a `Coop account <a href="https://www.expectedparrot.com/login>`_. 
+| Navigate to the `Log in / Sign up <a href="https://www.expectedparrot.com/login>`_ page to create an account with an email address. 
+| Your account comes with an **Expected Parrot API key** that allows you to do several things:
+| * Post and share content at Coop
+| * Run surveys at the Expected Parrot server 
+| * Use any available models with your surveys 
+| * Use remote caching features and a universal remote cache
 
-| **2. Store your Expected Parrot API key**
-| Navigate to the `API Settings <a href="https://www.expectedparrot.com/home/api>`_ page of your account and copy your Expected Parrot API key. Then add the following line to your `.env` file in your `edsl` working directory:
+| * You can inspect your key and reset it at any time at your `Settings <https://www.expectedparrot.com/home/settings>`_ page:
+  .. image:: static/settings.png
+    :alt: Remote inference settings and Expected Parrot API key
+    :align: center
+    :width: 100%
 
-.. code-block:: python
 
-  EXPECTED_PARROT_API_KEY='your_api_key_here'
+  .. raw:: html
+    
+    <br><br>
 
 
-This will save your Expected Parrot API key as an environment variable that EDSL can access.
-You can regenerate your key (and update your `.env` file) at any time.
+| **2. Store your Expected Parrot API keys**
+| When remote inference is activated, your survey jobs and results are automatically stored at the Expected Parrot server and accessible at the `Remote inference <https://www.expectedparrot.com/home/remote-inference>`_ page of your account.
+| You can also post any EDSL objects to Coop from your workspace, such as `Surveys`, `Agents` and `Notebooks`.
+| To do this, you first need to create a file named `.env` in your EDSL working directory and store your key in it using the following format:
 
-| **3. Choose how to access language models**
-| Decide how you want to use models: 
+  .. code-block:: python
 
-| *Choose from any available models at the Expected Parrot server:*
-| Activate :ref:`remote_inference` at the API Settings page of your Coop account.
+    EXPECTED_PARROT_API_KEY = 'your_key_here'
 
-*or*
 
-| *Use models your own:*
-| Store your own :ref:`api_keys` for language models.
-
-| **4. Create EDSL objects and notebooks**
-| Create notebooks and other objects in EDSL: `Agent`, `Question`, `Survey`, `Job`, `Results`, `Cache`, etc. See sections of the documentation for different object types for more information about creating objects in EDSL.
-
-| **5. Post content to the Coop**
-| Post objects to the Coop using the `edsl.coop` module and methods. See below for details and examples for uploading, downloading, updating and deleting content on the Coop.
-
-| **6. Choose the visibility of your content**
-| You can set the visibility of an object when you post it to the Coop or update it later. There are 3 options:
+| **3. Post objects to Coop**
+| Post objects to the Coop using the `edsl.coop` module and methods. 
+| You can set the visibility status of an object when you post it to the Coop or update it later. There are 3 status options:
 
 * `public`: Visible to everyone 
 * `private`: Visible to logged in users that you have granted access
 * `unlisted`: Visible to anyone with the link but not listed in search results (default)
 
-See below for details on setting and changing the visibility of an object.
+See below for details on setting and changing the visibility of an object, and examples of methods for uploading, downloading, updating and deleting content at Coop.
 
-| **7. Explore content**
-| `Search other content at the Coop <https://www.expectedparrot.com/content/explore>`_. Copy code and examples to modify or rerun them.
+| **4. Explore content**
+| Navigate to your `Coop content <https://www.expectedparrot.com/content>`_ page to see content that you have uploaded.
+| Search other for other users' public content at the `Explore <https://www.expectedparrot.com/content/explore>`_ tab, and copy code and examples to modify or rerun at your workspace:
+
+.. image:: static/coop_explore.png
+  :alt: Explore public content on Coop
+  :align: center
+  :width: 100%
 
 
 Methods 
@@ -88,12 +93,12 @@ Methods
 Uploading
 ^^^^^^^^^
 
-There are 2 methods for uploading/posting an object to the Coop:
+There are 2 methods for uploading/posting an object to Coop:
 
 1. Calling the `push()` method on the object directly
 2. Calling the `create()` method on a `Coop` client object and passing it the object
 
-You can optionally pass a `description` and/or `visibility` parameter at the same time: `public`, `private` or `unlisted` (default). 
+You can optionally pass a `description` and a `visibility` status at the same time: `public`, `private` or `unlisted` (default). 
 These can be changed at any time.
 
 **Direct method**
@@ -349,9 +354,9 @@ This will return the object (the example free text question that replaced the ex
 .. code-block:: text
 
   {
-      "question_name": "how_are_you",
-      "question_text": "How are you?",
-      "question_type": "free_text"
+    "question_name": "how_are_you",
+    "question_text": "How are you?",
+    "question_type": "free_text"
   }
 
 
