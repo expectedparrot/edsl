@@ -11,7 +11,7 @@ Your Coop account also provides access to features for running EDSL surveys and 
 Learn more about these features in the :ref:`remote_inference` and :ref:`remote_caching` sections of the documentation.
 
 
-.. image:: static/coop_content2.png
+.. image:: static/update_image.png
   :alt: Coop content
   :align: center
   :width: 100%
@@ -38,29 +38,33 @@ Getting started
 ---------------
 
 | **1. Create an account**
-| Navigate to the `Log in / Sign up <a href="https://www.expectedparrot.com/login>`_ page to create an account with an email address. 
+
+| `Sign up <a href="https://www.expectedparrot.com/login>`_ with an email address. 
+
 | Your account comes with an **Expected Parrot API key** that allows you to do several things:
 | * Post and share content at Coop
 | * Run surveys at the Expected Parrot server 
 | * Use any available models with your surveys 
 | * Use remote caching features and a universal remote cache
 
-| * You can inspect your key and reset it at any time at your `Settings <https://www.expectedparrot.com/home/settings>`_ page:
-  .. image:: static/settings.png
-    :alt: Remote inference settings and Expected Parrot API key
-    :align: center
-    :width: 100%
+| You can inspect your key and reset it at any time at your `Settings <https://www.expectedparrot.com/home/settings>`_ page:
+
+.. image:: static/settings.png
+  :alt: Remote inference settings and Expected Parrot API key
+  :align: center
+  :width: 100%
 
 
-  .. raw:: html
-    
-    <br><br>
+.. raw:: html
+  
+  <br><br>
 
 
 | **2. Store your Expected Parrot API keys**
+
 | When remote inference is activated, your survey jobs and results are automatically stored at the Expected Parrot server and accessible at the `Remote inference <https://www.expectedparrot.com/home/remote-inference>`_ page of your account.
-| You can also post any EDSL objects to Coop from your workspace, such as `Surveys`, `Agents` and `Notebooks`.
-| To do this, you first need to create a file named `.env` in your EDSL working directory and store your key in it using the following format:
+
+| You can also post objects to Coop from your workspace, such as `Surveys`, `Agents` and `Notebooks`. To do this, you first need to create a file named `.env` in your EDSL working directory and store your key in it using the following format:
 
   .. code-block:: python
 
@@ -68,8 +72,8 @@ Getting started
 
 
 | **3. Post objects to Coop**
-| Post objects to the Coop using the `edsl.coop` module and methods. 
-| You can set the visibility status of an object when you post it to the Coop or update it later. There are 3 status options:
+
+| Post objects to the Coop using the `edsl.coop` module and methods. You can set the visibility status of an object when you post it to the Coop or update it later. There are 3 status options:
 
 * `public`: Visible to everyone 
 * `private`: Visible to logged in users that you have granted access
@@ -78,13 +82,18 @@ Getting started
 See below for details on setting and changing the visibility of an object, and examples of methods for uploading, downloading, updating and deleting content at Coop.
 
 | **4. Explore content**
-| Navigate to your `Coop content <https://www.expectedparrot.com/content>`_ page to see content that you have uploaded.
-| Search other for other users' public content at the `Explore <https://www.expectedparrot.com/content/explore>`_ tab, and copy code and examples to modify or rerun at your workspace:
 
-.. image:: static/coop_explore.png
+| Navigate to your `Coop content <https://www.expectedparrot.com/content>`_ page to see content that you have uploaded. Search other for other users' public content at the `Explore <https://www.expectedparrot.com/content/explore>`_ tab, and copy code and examples to modify or rerun at your workspace:
+
+.. image:: static/update_image.png
   :alt: Explore public content on Coop
   :align: center
   :width: 100%
+
+
+.. raw:: html
+  
+  <br><br>
 
 
 Methods 
@@ -195,16 +204,16 @@ For each `patch()` method, pass the `uuid` of the object and the parameter(s) th
 
 You can manually update the `description` or `visibility` of an object at the Coop web app:
 
-Navigate to the **Explore** page and select an object: https://www.expectedparrot.com/content/explore
+Navigate to the `Explore <https://www.expectedparrot.com/content/explore>`_ page and select an object:
 
-.. image:: static/coop_content.png
+.. image:: static/update_image.png
   :alt: Select an object on the Coop
   :align: center
-  :width: 500px
+  :width: 100%
 
 
 .. raw:: html
-
+  
   <br><br>
 
 
@@ -213,11 +222,11 @@ Go to the object's page (double-click on the object):
 .. image:: static/coop_object_page_view.png
   :alt: Open the object's page
   :align: center
-  :width: 500px
+  :width: 100%
 
 
 .. raw:: html
-
+  
   <br><br>
 
 
@@ -226,22 +235,22 @@ Select the option to change the **visibility** of the object (*public*, *private
 .. image:: static/coop_object_page_view_visibility.png
   :alt: Change the visibility of an object on the Coop
   :align: center
-  :width: 500px
+  :width: 100%
 
 
 .. raw:: html
-
+  
   <br><br>
 
 
 .. image:: static/coop_object_page_view_edit.png
   :alt: Edit an object on the Coop
   :align: center
-  :width: 500px
+  :width: 100%
 
 
 .. raw:: html
-
+  
   <br><br>
 
 
@@ -304,7 +313,7 @@ There are a variety of methods for replicating or downloading an object at the C
 
 The Coop web app provides copyable code for downloading or reconstructing an object that has been posted:
 
-* Navigate to **Explore** and select an object: https://www.expectedparrot.com/content/explore 
+* Navigate to the `Explore <https://www.expectedparrot.com/content/explore>`_ page and select an object 
 * Go to the object's page 
 * Select the option to **Download** the object 
 
@@ -315,22 +324,22 @@ OR
 .. image:: static/coop_object_page_view_code_pull.png
   :alt: Get code for pulling or reconstructing an object on the Coop
   :align: center
-  :width: 500px
+  :width: 100%
 
 
 .. raw:: html
-
+  
   <br><br>
 
 
 .. image:: static/coop_object_page_view_code_raw.png
   :alt: Get code for reconstructing an object on the Coop
   :align: center
-  :width: 500px
+  :width: 100%
 
 
 .. raw:: html
-
+  
   <br><br>
 
 
@@ -389,18 +398,18 @@ There are 3 methods for deleting an object from the Coop:
 
 You can manually delete objects at the Coop web app:
 
-* Navigate to **Explore** and select an object: https://www.expectedparrot.com/content/explore (see image above for *Uploading* content)
+* Navigate to `Explore <https://www.expectedparrot.com/content/explore>`_ and select an object (see image above for *Uploading* content)
 * Go to the object's page (double-click on the object) 
 * Select the option to **delete** the object:
 
 .. image:: static/coop_object_page_view_delete.png
   :alt: Delete an object on the Coop
   :align: center
-  :width: 500px
+  :width: 100%
 
 
 .. raw:: html
-
+  
   <br><br>
 
 
