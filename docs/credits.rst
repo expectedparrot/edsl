@@ -159,7 +159,7 @@ The total cost of the response is calculated based on the token rates set by Goo
 This translates to a total of 0.06 credits consumed for the survey.
 We can see this number of credits consumed at the remote inference page of our Coop account:
 
-.. image:: static/update_image.png
+.. image:: static/home-remote-inference-job-history.png
   :alt: Coop remote inference jobs page
   :align: center
   
@@ -171,7 +171,7 @@ We can see this number of credits consumed at the remote inference page of our C
 
 We can also navigate to the results page and select the same columns of the results to display:
 
-.. image:: static/update_image.png
+.. image:: static/coop-content-results-tokens.png
   :alt: Coop remote inference jobs page
   :align: center
   
