@@ -22,9 +22,8 @@ Free credits
 
 Your Coop account comes with a balance of 100 free credits that you can use to run surveys with your Expected Parrot API key.
 
-*Are you using EDSL for a research project?*
-
-Send an email to *info@expectedparrot.com* to request additional free credits.
+| **Are you using EDSL for a research project?**
+| Send an email to *info@expectedparrot.com* to request additional free credits.
 
 
 Purchasing credits
@@ -33,7 +32,7 @@ Purchasing credits
 To purchase credits, navigate to the `Credits <https://www.expectedparrot.com/home/credits>`_ page of your account and enter the number of credits that you would like to purchase
 (1 USD buys 100 credits; the minimum purchase amount is 1 USD):
 
-.. image:: static/update_image.png
+.. image:: static/home-credits.png
    :alt: Purchase credits
    :align: center
 
@@ -97,7 +96,7 @@ For example, here we run a question with two models and inspect the raw model re
         question_text = "What are the colors of a rainbow?"
     )
 
-    m = ModelList(Model(m) for m in ["claude-3-5-sonnet-20240620", "gpt-4o"])
+    m = ModelList(Model(m) for m in ["gemini-1.5-flash", "gpt-4o"])
 
     results = q.by(m).run()
 
@@ -111,66 +110,53 @@ Output:
 
    * - model.model
      - raw_model_response.rainbow_cost
-     - raw_model_response.rainbow_one_usd_buys
      - raw_model_response.rainbow_raw_model_response
-   * - gpt-4o
-     - 0.00049
-     - 2040.8163265306123
-     - {'id': 'chatcmpl-APzmU9EKGX4tHk9K685CDJf...', 
-        'choices': [{'finish_reason': 'stop', 'index': 0, 'logprobs': None, 
-        'message': {'content': 'A rainbow consists of seven colors, which are typically listed in the following order: red, orange, yellow, green, blue, indigo, and violet. These colors can be remembered using the acronym "ROYGBIV."',
-        'refusal': None, 'role': 'assistant', 'audio': None, 'function_call': None, 'tool_calls': None}}],
-        'created': 1730759050, 'model': 'gpt-4o-2024-08-06', 'object': 'chat.completion', 
-        'service_tier': None, 'system_fingerprint': 'fp_159d8341cc', 
-        'usage': {'completion_tokens': 45, 'prompt_tokens': 16, 'total_tokens': 61, 
-        'completion_tokens_details': {'audio_tokens': None, 'reasoning_tokens': 0, 
-        'accepted_prediction_tokens': 0, 'rejected_prediction_tokens': 0}, 
-        'prompt_tokens_details': {'audio_tokens': None, 'cached_tokens': 0}}}
-   * - claude-3-5-sonnet-20240620
-     - 0.0030179850540744415
-     - 331.34690267930466
-     - {'id': 'msg_01NpHrKNg3AqnNSBRyEV4kwy', 
-        'content': [{'text': 'The colors of a rainbow are typically described as having seven distinct hues, often remembered by the mnemonic device "ROY G. BIV." These colors are, in order:\n\n1. Red\n2. Orange\n3. Yellow\n4. Green\n5. Blue\n6. Indigo\n7. Violet\n\nIt\'s worth noting that:\n\n1. In reality, a rainbow is a continuous spectrum of colors, and these seven colors are somewhat arbitrarily divided.\n\n2. Some people consider indigo to be a subset of blue and don\'t always include it as a separate color, reducing the count to six main colors.\n\n3. The colors can vary slightly in appearance depending on atmospheric conditions and the observer\'s perspective.\n\n4. Beyond the visible spectrum, rainbows also contain ultraviolet light (beyond violet) and infrared light (beyond red), which are not visible to the human eye.',
-        'type': 'text'}], 'model': 'claude-3-5-sonnet-20240620', 'role': 'assistant', 
-        'stop_reason': 'end_turn', 'stop_sequence': None, 'type': 'message', 
-        'usage': {'input_tokens': 16, 'output_tokens': 198}}
+     - raw_model_response.rainbow_one_usd_buys
+   * - gemini-1.5-flash
+     - 0.000011	
+     - {'candidates': [{'content': {'parts': [{'text': 'The colors of a rainbow are red, orange, yellow, green, blue, indigo, and violet. Often remembered with the acronym ROY G. BIV.\n'}], 'role': 'model'}, 'finish_reason': 1, 'safety_ratings': [{'category': 8, 'probability': 1, 'blocked': False}, {'category': 10, 'probability': 1, 'blocked': False}, {'category': 7, 'probability': 1, 'blocked': False}, {'category': 9, 'probability': 1, 'blocked': False}], 'avg_logprobs': -0.11304287349476534, 'token_count': 0, 'grounding_attributions': []}], 'usage_metadata': {'prompt_token_count': 8, 'candidates_token_count': 34, 'total_token_count': 42, 'cached_content_token_count': 0}, 'model_version': 'gemini-1.5-flash'}	
+     - 92592.610340
+   * - gpt-4o	
+     - 0.000427	
+     - {'id': 'chatcmpl-AxJrk2lTOqjkBEYLy1L61WxCJzedM', 'choices': [{'finish_reason': 'stop', 'index': 0, 'logprobs': None, 'message': {'content': 'The colors of a rainbow, in order, are red, orange, yellow, green, blue, indigo, and violet. These are often remembered by the acronym ROYGBIV.', 'refusal': None, 'role': 'assistant', 'audio': None, 'function_call': None, 'tool_calls': None}}], 'created': 1738701080, 'model': 'gpt-4o-2024-08-06', 'object': 'chat.completion', 'service_tier': 'default', 'system_fingerprint': 'fp_50cad350e4', 'usage': {'completion_tokens': 39, 'prompt_tokens': 15, 'total_tokens': 54, 'completion_tokens_details': {'accepted_prediction_tokens': 0, 'audio_tokens': 0, 'reasoning_tokens': 0, 'rejected_prediction_tokens': 0}, 'prompt_tokens_details': {'audio_tokens': 0, 'cached_tokens': 0}}}	
+     - 2339.181287
 
 
 In the raw model response information for the response from *gpt-4o*, we can see values for `completion_tokens` (output tokens) and `prompt_tokens` (input tokens):
 
 .. code-block:: text
 
-    'completion_tokens': 45, 
-    'prompt_tokens': 16
+    'completion_tokens': 39, 
+    'prompt_tokens': 15 
 
 
 The total cost of the response is calculated based on the token rates set by the OpenAI (at the time of writing, USD 2.50 per 1M tokens for input and USD 10.00 per 1M tokens for output):
 
 .. code-block:: text
 
-    (16 * USD 2.50/1,000,000) + (45 * USD 10.00/1,000,000) 
-    = USD 0.00049 
-    = 0.05 credits
+    (15 * USD 2.50/1,000,000) + (39 * USD 10.00/1,000,000) 
+    = USD 0.0004275 
+    = 0.05 credits (rounded up to the nearest 1/100th credit)
 
 
-In the raw model response information for the response from *claude-3-5-sonnet-20240620*, we can see values for `input_tokens` and `output_tokens`:
-
-.. code-block:: text
-
-    'input_tokens': 16, 
-    'output_tokens': 198
-
-
-The total cost of the response is calculated based on the token rates set by Anthropic (at the time of writing, USD 3.00 per 1M tokens for input and USD 15.00 per 1M tokens for output):
+In the raw model response information for the response from *gemini-1.5-flash*, we can see values for `prompt_token_count` and `candidates_token_count` (input tokens and output tokens, respectively):
 
 .. code-block:: text
 
-    (16 * USD 3.00/1,000,000) + (198 * USD 15.00/1,000,000) 
-    = USD 0.0030179850540744415 
-    = 0.31 credits
+    'prompt_token_count': 8, 
+    'candidates_token_count': 34
 
 
-This translates to a total of 0.36 credits consumed for the survey.
+The total cost of the response is calculated based on the token rates set by Google (at the time of writing, USD 0.08 per 1M tokens for input and USD 0.30 per 1M tokens for output):
+
+.. code-block:: text
+
+    (8 * USD 0.08/1,000,000) + (34 * USD 0.30/1,000,000) 
+    = USD 0.00001084
+    = 0.01 credits (rounded up to the nearest 1/100th credit)
+
+
+This translates to a total of 0.06 credits consumed for the survey.
 We can see this number of credits consumed at the remote inference page of our Coop account:
 
 .. image:: static/update_image.png
@@ -211,11 +197,11 @@ Before running a survey, you can estimate the tokens and costs (in USD and credi
 
 * Call the `estimate_job_cost()` method on the `Job` object (a survey combined with one or more models).
 
-    This will return the total estimated cost in USD, the total estimated input and output tokens, and estimated costs and tokens for each inference service and model used. 
+This will return the total estimated cost in USD, the total estimated input and output tokens, and estimated costs and tokens for each inference service and model used. 
 
 * Call the `remote_inference_cost()` method on a `Coop` client object and pass it the job.
 
-    This will return the estimated cost in credits and USD. (Credits are required to run surveys remotely.)
+This will return the estimated cost in credits and USD. (Credits are required to run surveys remotely.)
 
 
 Example
