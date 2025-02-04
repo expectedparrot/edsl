@@ -22,32 +22,49 @@ Please see links to sections below for more details on each step.
       pip install --upgrade edsl
    
 
-   See :ref:`installation` instructions for information. 
+   See :ref:`installation` instructions for more details and troubleshooting tips. 
    If you are using EDSL with Google Colab, see the :ref:`colab_setup` section for special instructions.
 
 
-2. Create a Coop account
+2. Create an account
 ------------------------
 
-   `Creating an account <https://www.expectedparrot.com/login>`_ allows you to access the Expected Parrot server to create and share projects, and run surveys with any available models.
-   Your account comes with free storage and credits for running surveys, and special features and collaboration tools.
+   `Sign up <https://www.expectedparrot.com/login>`_ with an email address to create an account.
+   Your account lets you access the Expected Parrot server where you can run surveys, use remote caching and share projects with other users.
+   It comes with free storage and credits for running surveys, and special features and collaboration tools.
 
-   Navigate to the `Sign up / Login <https://www.expectedparrot.com/login>`_ page to create an account with an email address.
-   See the :ref:`coop` section for more details on using Coop to create and share projects.
+   See the `Coop <https://docs.expectedparrot.com/en/latest/coop.html>`_ section for more details on using the Expected Parrot platform to create and share projects, and the :ref:`remote_inference` and :ref:`remote_caching` sections for more details on account features for running surveys and storing results at the Expected Parrot server.
 
 
 3. Manage API keys for language models
 --------------------------------------
 
-   EDSL works with hundreds of language models from popular service providers (Anthropic, Azure, Bedrock, DeepSeek, Google, Mistral, OpenAI, Together, etc.).
-   You can use ESDL with any available models by providing your own API keys from service providers or by using an Expected Parrot API key to access all of them at once.
-   See the `model pricing page <https://www.expectedparrot.com/getting-started/coop-pricing>`_ for details on current available models and prices.
-   Your account comes with 100 free credits for running surveys with your Expected Parrot API key.
-   You can purchase additional credits at the `Credits <https://www.expectedparrot.com/home/credits>`_ page of your account.
-   (Using your own keys does not require credits; service providers will bill you directly for your usage.)
+   EDSL works with hundreds of language models of popular service providers, includ Anthropic, Azure, Bedrock, DeepInfra, DeepSeek, Google, Mistral, OpenAI, Perplexity and Together.
+   Your account comes with an Expected Parrot API key that lets you run surveys with all available models at the Expected Parrot server and access a free universal cache of stored responses.
+ 
+   If you have your own keys from service providers you can add them to your `Keys <https://www.expectedparrot.com/home/keys>`_ page and select options for sharing them with other users and prioritizing them to use with your surveys:
+
+   .. image:: static/ep_key.png
+   :alt: View stored keys
+   :align: center
+   :width: 50%
    
-   To store your own keys, navigate to the `Keys <https://www.expectedparrot.com/home/keys>`_ page of your account and choose options for adding and prioritizing keys.
-   You can also share keys with other users and manage their access:
+
+   .. raw:: html
+
+   <br>
+
+
+   .. image:: static/add_key.png
+   :alt: View stored keys
+   :align: center
+   :width: 50%
+
+
+   .. raw:: html
+
+   <br>
+
 
    .. image:: static/ep_key.png
    :alt: View stored keys
@@ -60,6 +77,7 @@ Please see links to sections below for more details on each step.
    <br>
 
 
+   Using your own keys does not require credits; service providers will bill you directly for your usage.
    See the :ref:`api_keys` section for more details and options for managing keys.
 
 
@@ -67,8 +85,7 @@ Please see links to sections below for more details on each step.
 ------------------------------
 
    You can use EDSL to run surveys locally on your own machine or remotely at the Expected Parrot server.
-   To activate remote inference and caching for your surveys and results, navigate to the `Settings <https://www.expectedparrot.com/home/settings>`_ page of your account and toggle on the relevant options.
-   Your Expected Parrot API key is automatically stored at your `Keys <https://www.expectedparrot.com/home/keys>`_ page and is used by default to run surveys at the Expected Parrot server unless you have prioritized other keys:
+   To activate remote inference and caching for your surveys and results, navigate to the `Settings <https://www.expectedparrot.com/home/settings>`_ page of your account and toggle on *remote inference*:
 
    .. image:: static/settings.png
    :alt: Toggle on remote inference

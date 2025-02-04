@@ -6,7 +6,7 @@ Remote Caching
 *Some of these features are still in development. Please check back for updates or send a message to info@expectedparrot.com to request early access!*
 
 Remote caching allows you to store responses from language models at the Expected Parrot server, and retrieve responses to questions that have already been run.
-It is automatically activated when :ref:`remote_inference` is activated.
+It is automatically activated with :ref:`remote_inference`.
 The logs of your remote surveys and results are also automatically stored at the Expected Parrot server, and can be viewed and managed at the `Remote cache <https://www.expectedparrot.com/home/remote-cache>`_ page of your account.
 
 *Note: You must have an account in order to use remote inference and caching.
