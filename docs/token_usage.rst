@@ -38,10 +38,10 @@ This metric typically tracks usage for billing purposes.
 Default token limits
 --------------------
 
-You can inspect and modify the default token limits for a model at the `Keys <https://www.expectedparrot.com/home/keys>`_ page of your account:
+You can inspect and modify token limits for a model at the `Keys <https://www.expectedparrot.com/home/keys>`_ page of your account:
 
-.. image:: static/update_image.png
-   :alt: Key page model view showing default token limits
+.. image:: static/home-keys-token-rates.png
+   :alt: Key page view for setting model token rates
    :align: center
    :width: 100%
 
@@ -254,10 +254,10 @@ This is done by passing a boolean parameter `use_code = True` to a `Question` wh
   from edsl import QuestionMultipleChoice
 
   q = QuestionMultipleChoice(
-      question_name = "income_pref_coded", 
-      question_text = "Which of the following is more important to you: ", 
-      question_options = ["Financial stability", "Moving up the income ladder"], 
-      use_code = True
+    question_name = "income_pref_coded", 
+    question_text = "Which of the following is more important to you: ", 
+    question_options = ["Financial stability", "Moving up the income ladder"], 
+    use_code = True
   )
 
 
