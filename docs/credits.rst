@@ -33,7 +33,7 @@ Purchasing credits
 To purchase credits, navigate to the `Credits <https://www.expectedparrot.com/home/credits>`_ page of your account and enter the number of credits that you would like to purchase
 (1 USD buys 100 credits; the minimum purchase amount is 1 USD):
 
-.. image:: static/credits.png
+.. image:: static/update_image.png
    :alt: Purchase credits
    :align: center
 
@@ -173,7 +173,7 @@ The total cost of the response is calculated based on the token rates set by Ant
 This translates to a total of 0.36 credits consumed for the survey.
 We can see this number of credits consumed at the remote inference page of our Coop account:
 
-.. image:: static/remote_inference_job_details.png
+.. image:: static/update_image.png
   :alt: Coop remote inference jobs page
   :align: center
   
@@ -185,7 +185,7 @@ We can see this number of credits consumed at the remote inference page of our C
 
 We can also navigate to the results page and select the same columns of the results to display:
 
-.. image:: static/remote_inference_job_list.png
+.. image:: static/update_image.png
   :alt: Coop remote inference jobs page
   :align: center
   
