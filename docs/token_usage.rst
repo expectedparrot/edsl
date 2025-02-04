@@ -6,9 +6,10 @@ Token usage
 EDSL comes with a variety of features for monitoring token usage.
 These include:
 
-* A method for setting the requests per minute (RPM) and tokens per minute (TPM) for a model that you are using.
+* Options for setting requests per minute (RPM) and tokens per minute (TPM) for models at your account.
+* Methods for setting RPM and TPM from your workspace.
 * Methods for turning off default prompt features to reduce token usage. 
-* Features for calculating next token probabilities.
+* Methods for calculating next token probabilities.
 
 
 Token limits 
@@ -22,26 +23,42 @@ When running a big job in EDSL, you may encounter token limits, which can be man
 
 RPM: Requests Per Minute
 ^^^^^^^^^^^^^^^^^^^^^^^^
+
 RPM stands for Requests Per Minute, which measures the number of API requests that a user can make to a language model within a minute. 
 This is a metric for managing the load and traffic that a model can handle.
 
 
 TPM: Tokens Per Minute
 ^^^^^^^^^^^^^^^^^^^^^^
+
 TPM stands for Tokens Per Minute, which is a metric for tracking the volume of tokens processed by a language model within a minute. 
 This metric typically tracks usage for billing purposes. 
 
 
 Default token limits
 --------------------
-Here we inspect the default language model and its parameters, including the token limits:
+
+You can inspect and modify the default token limits for a model at the `Keys <https://www.expectedparrot.com/home/keys>`_ page of your account:
+
+.. image:: static/update_image.png
+   :alt: Key page model view showing default token limits
+   :align: center
+   :width: 100%
+
+
+.. raw:: html
+
+  <br>
+
+
+Here we use methods for inspecting the default language model and its parameters from your workspace, including the token limits:
 
 .. code-block:: python
 
-    from edsl import Model
+  from edsl import Model
 
-    model = Model() 
-    model
+  model = Model() 
+  model
 
 
 This will show the following information:
@@ -74,14 +91,14 @@ We can also inspect the RPM and TPM for the model:
 
 .. code-block:: python
 
-    [model.rpm, model.tpm]
+  [model.rpm, model.tpm]
 
 
 This will show the following information:
 
 .. code-block:: python
 
-    [100, 2000000]
+  [100, 2000000]
 
 
 Modifying token limits
@@ -91,38 +108,38 @@ We can reset the default RPM and TPM and then check the new values:
 
 .. code-block:: python
 
-    model = Model()
+  model = Model()
 
-    model.rpm=10
-    model.tpm=10
+  model.rpm=10
+  model.tpm=10
 
-    [model.rpm, model.tpm]
+  [model.rpm, model.tpm]
 
 
 This will show the following information:
 
 .. code-block:: python
 
-    [10, 10]
+  [10, 10]
 
 
 Here we change it again:
 
 .. code-block:: python
 
-    model = Model()
+  model = Model()
 
-    model.rpm=100
-    model.tpm=1000
+  model.rpm=100
+  model.tpm=1000
 
-    [model.rpm, model.tpm]
+  [model.rpm, model.tpm]
 
 
 Output:
 
 .. code-block:: python
 
-    [100, 1000]
+  [100, 1000]
 
 
 Please note that the token limits are subject to the constraints of the model and the API key associated with the model.
@@ -150,36 +167,36 @@ For example, here we compare a question with comments left on and turned off:
 
 .. code-block:: python
 
-    from edsl import QuestionNumerical, Survey, ScenarioList
+  from edsl import QuestionNumerical, Survey, ScenarioList
 
-    q1 = QuestionNumerical(
-        question_name = "sum",
-        question_text = "What is the sum of {{ number_1 }} and {{ number_2 }}?"
-    )
+  q1 = QuestionNumerical(
+    question_name = "sum",
+    question_text = "What is the sum of {{ number_1 }} and {{ number_2 }}?"
+  )
 
-    q2 = QuestionNumerical(
-        question_name = "sum_silent",
-        question_text = "What is the sum of {{ number_1 }} and {{ number_2 }}?",
-        include_comment = False
-    )
+  q2 = QuestionNumerical(
+    question_name = "sum_silent",
+    question_text = "What is the sum of {{ number_1 }} and {{ number_2 }}?",
+    include_comment = False
+  )
 
-    survey = Survey([q1, q2])
+  survey = Survey([q1, q2])
 
-    some_numbers = {
-        "number_1": [0,1,2,3,4],
-        "number_2": [5,4,3,2,1]
-    }
+  some_numbers = {
+    "number_1": [0,1,2,3,4],
+    "number_2": [5,4,3,2,1]
+  }
 
-    s = ScenarioList.from_nested_dict(some_numbers)
+  s = ScenarioList.from_nested_dict(some_numbers)
 
-    results = survey.by(s).run()
+  results = survey.by(s).run()
 
 
 We can check the responses and confirm that the `comment` field for the `sum_silent` question is `None`:
 
 .. code-block:: python 
 
-    results.select("number_1", "number_2", "sum", "sum_comment", "sum_silent", "sum_silent_comment")
+  results.select("number_1", "number_2", "sum", "sum_comment", "sum_silent", "sum_silent_comment")
 
 
 Output:
@@ -234,14 +251,14 @@ This is done by passing a boolean parameter `use_code = True` to a `Question` wh
 
 .. code-block:: python 
 
-    from edsl import QuestionMultipleChoice
+  from edsl import QuestionMultipleChoice
 
-    q = QuestionMultipleChoice(
-        question_name = "income_pref_coded", 
-        question_text = "Which of the following is more important to you: ", 
-        question_options = ["Financial stability", "Moving up the income ladder"], 
-        use_code = True
-    )
+  q = QuestionMultipleChoice(
+      question_name = "income_pref_coded", 
+      question_text = "Which of the following is more important to you: ", 
+      question_options = ["Financial stability", "Moving up the income ladder"], 
+      use_code = True
+  )
 
 
 We can inspect the difference in the question prompt that is created by creating an identical question without the parameter and comparing the job prompts.
@@ -249,29 +266,29 @@ Here we also pass the parameter `include_comment = False`:
 
 .. code-block:: python 
 
-    from edsl import QuestionMultipleChoice, Survey, Agent, Model
+  from edsl import QuestionMultipleChoice, Survey, Agent, Model
 
-    q1 = QuestionMultipleChoice(
-        question_name = "income_pref", 
-        question_text = "Which of the following is more important to you: ", 
-        question_options = ["Financial stability", "Moving up the income ladder"]
-    )
+  q1 = QuestionMultipleChoice(
+    question_name = "income_pref", 
+    question_text = "Which of the following is more important to you: ", 
+    question_options = ["Financial stability", "Moving up the income ladder"]
+  )
 
-    q2 = QuestionMultipleChoice(
-        question_name = "income_pref_coded", 
-        question_text = "Which of the following is more important to you: ", 
-        question_options = ["Financial stability", "Moving up the income ladder"], 
-        use_code = True,
-        include_comment = False
-    )
+  q2 = QuestionMultipleChoice(
+    question_name = "income_pref_coded", 
+    question_text = "Which of the following is more important to you: ", 
+    question_options = ["Financial stability", "Moving up the income ladder"], 
+    use_code = True,
+    include_comment = False
+  )
 
-    survey = Survey([q1, q2])
+  survey = Survey([q1, q2])
 
-    # Construct a job with the survey and the default model
-    job = survey.by(Model())
+  # Construct a job with the survey and the default model
+  job = survey.by(Model())
 
-    # Inspect the question prompts
-    job.prompts().select("question_index", "user_prompt")
+  # Inspect the question prompts
+  job.prompts().select("question_index", "user_prompt")
 
 
 Output:
@@ -310,15 +327,15 @@ The prompts can also be inspected after the survey is run:
 
 .. code-block:: python
 
-    results = survey.by(Model()).run()
+  results = survey.by(Model()).run()
 
-    (
-        results
-        .select(
-            "income_pref_user_prompt", "income_pref_generated_tokens",
-            "income_pref_coded_user_prompt", "income_pref_coded_generated_tokens"
-        )
+  (
+    results
+    .select(
+      "income_pref_user_prompt", "income_pref_generated_tokens",
+      "income_pref_coded_user_prompt", "income_pref_coded_generated_tokens"
     )
+  )
 
 
 Output:
@@ -371,101 +388,101 @@ For example:
 
 .. code-block:: python 
 
-    from edsl import QuestionMultipleChoice, Agent, Model
+  from edsl import QuestionMultipleChoice, Agent, Model
 
-    m = Model("gpt-4o", temperature = 1, logprobs = True)
+  m = Model("gpt-4o", temperature = 1, logprobs = True)
 
-    a = Agent(traits = {"persona":"financial advisor"})
+  a = Agent(traits = {"persona":"financial advisor"})
 
-    q = QuestionMultipleChoice(
-        question_name = "income_pref_coded", 
-        question_text = "Which of the following is more important to you: ", 
-        question_options = ["Financial stability", "Moving up the income ladder"], 
-        use_code = True,
-        include_comment = False
-    )
+  q = QuestionMultipleChoice(
+    question_name = "income_pref_coded", 
+    question_text = "Which of the following is more important to you: ", 
+    question_options = ["Financial stability", "Moving up the income ladder"], 
+    use_code = True,
+    include_comment = False
+  )
 
-    results = q.by(a).by(m).run()
+  results = q.by(a).by(m).run()
 
-    example = results.select("raw_model_response.income_pref_coded_raw_model_response").to_list()[0]  
+  example = results.select("raw_model_response.income_pref_coded_raw_model_response").to_list()[0]  
 
-    example
+  example
 
 
 Output:
 
 .. code-block:: text 
 
-    {'id': 'chatcmpl-AcgR7Wy6MMDqoorytBlzS2lzpwQAA',
-    'choices': [{'finish_reason': 'stop',
-    'index': 0,
-    'logprobs': {'content': [{'token': '0',
-        'bytes': [48],
-        'logprob': -0.00019960667,
-        'top_logprobs': [{'token': '0',
-            'bytes': [48],
-            'logprob': -0.00019960667},
-        {'token': '1', 'bytes': [49], 'logprob': -9.000199},
-        {'token': 'As', 'bytes': [65, 115], 'logprob': -10.875199}]}],
-        'refusal': None},
-    'message': {'content': '0',
-        'refusal': None,
-        'role': 'assistant',
-        'audio': None,
-        'function_call': None,
-        'tool_calls': None}}],
-    'created': 1733782953,
-    'model': 'gpt-4o-2024-08-06',
-    'object': 'chat.completion',
-    'service_tier': None,
-    'system_fingerprint': 'fp_9d50cd990b',
-    'usage': {'completion_tokens': 1,
-    'prompt_tokens': 82,
-    'total_tokens': 83,
-    'completion_tokens_details': {'accepted_prediction_tokens': 0,
-    'audio_tokens': 0,
-    'reasoning_tokens': 0,
-    'rejected_prediction_tokens': 0},
-    'prompt_tokens_details': {'audio_tokens': 0, 'cached_tokens': 0}}}
+  {'id': 'chatcmpl-AcgR7Wy6MMDqoorytBlzS2lzpwQAA',
+  'choices': [{'finish_reason': 'stop',
+  'index': 0,
+  'logprobs': {'content': [{'token': '0',
+      'bytes': [48],
+      'logprob': -0.00019960667,
+      'top_logprobs': [{'token': '0',
+          'bytes': [48],
+          'logprob': -0.00019960667},
+      {'token': '1', 'bytes': [49], 'logprob': -9.000199},
+      {'token': 'As', 'bytes': [65, 115], 'logprob': -10.875199}]}],
+      'refusal': None},
+  'message': {'content': '0',
+      'refusal': None,
+      'role': 'assistant',
+      'audio': None,
+      'function_call': None,
+      'tool_calls': None}}],
+  'created': 1733782953,
+  'model': 'gpt-4o-2024-08-06',
+  'object': 'chat.completion',
+  'service_tier': None,
+  'system_fingerprint': 'fp_9d50cd990b',
+  'usage': {'completion_tokens': 1,
+  'prompt_tokens': 82,
+  'total_tokens': 83,
+  'completion_tokens_details': {'accepted_prediction_tokens': 0,
+  'audio_tokens': 0,
+  'reasoning_tokens': 0,
+  'rejected_prediction_tokens': 0},
+  'prompt_tokens_details': {'audio_tokens': 0, 'cached_tokens': 0}}}
 
 
 We can use the information to calculate next token probabilities:
 
 .. code-block:: python 
         
-    next_token_probs = example['choices'][0]['logprobs']['content'][0]['top_logprobs']
-    next_token_probs
+  next_token_probs = example['choices'][0]['logprobs']['content'][0]['top_logprobs']
+  next_token_probs
 
 
 Output:
 
 .. code-block:: text 
 
-    [{'token': '0', 'bytes': [48], 'logprob': -0.00019960667},
-    {'token': '1', 'bytes': [49], 'logprob': -9.000199},
-    {'token': 'As', 'bytes': [65, 115], 'logprob': -10.875199}]
+  [{'token': '0', 'bytes': [48], 'logprob': -0.00019960667},
+  {'token': '1', 'bytes': [49], 'logprob': -9.000199},
+  {'token': 'As', 'bytes': [65, 115], 'logprob': -10.875199}]
 
 
 Translating the information:
 
 .. code-block:: python 
 
-    import math
+  import math
 
-    # Specifying the codes for the answer options and non-responses:
-    options = {'0': "Financial stability", '1':"Moving up the income ladder"}
+  # Specifying the codes for the answer options and non-responses:
+  options = {'0': "Financial stability", '1':"Moving up the income ladder"}
 
-    for token_info in next_token_probs:
-        option = options.get(token_info['token'], None)
-        if option:
-            p = math.exp(token_info['logprob'])
-        
-            print(f"Probability of selecting '{option}' was {p:.3f}")
+  for token_info in next_token_probs:
+    option = options.get(token_info['token'], None)
+    if option:
+      p = math.exp(token_info['logprob'])
+  
+      print(f"Probability of selecting '{option}' was {p:.3f}")
 
 
 Output:
 
 .. code-block:: text 
 
-    Probability of selecting 'Financial stability' was 0.992
-    Probability of selecting 'Moving up the income ladder' was 0.008
+  Probability of selecting 'Financial stability' was 0.992
+  Probability of selecting 'Moving up the income ladder' was 0.008
