@@ -1,7 +1,7 @@
 .. _api_keys:
 
-API Keys
-========
+Managing Keys
+=============
 
 API keys are required to access the services of large language models.
 To use EDSL with language models you can either provide your own keys from service providers (Anthropic, Google, OpenAI, etc.) or use an Expected Parrot API key to access all available models at the Expected Parrot server. 
@@ -17,8 +17,8 @@ The instructions below explain how to store and select keys to use when running 
 If you are using EDSL in a Colab notebook, please see `special instructions <https://docs.expectedparrot.com/en/latest/colab_setup.html>`_ on storing API keys as "secrets" (:ref:`colab_setup`).
 
 
-Managing API keys
------------------
+Methods
+-------
 
 There are three methods for storing and managing keys (details on each below):
 
@@ -64,7 +64,7 @@ You can edit your keys and sharing permissions at any time.
 
 To deactivate remote inference and caching (to run surveys on your computer instead of the Expected Parrot server), navigate to the `Settings <http://www.expectedparrot.com/home/settings>`_ page of your account and toggle off the relevant options:
 
-.. image:: static/settings.png
+.. image:: static/update_image.png
   :alt: Toggle on/off remote inference
   :align: center
   :width: 100%

@@ -64,7 +64,7 @@ The universal remote cache offers the following features:
 
   * **Visibility & cost calculations:** You can check the availability of responses to your survey questions in the universal remote cache by passing a parameter `run(dry_run=True)`. This will return information about existing responses before you run the survey. If you want to check the availability of responses in another cache, you can pass that cache together with the dry run parameter, e.g., `run(cache=my_cache_object, dry_run=True)`. Note that the universal remote cache is not directly searchable.
 
-*Note:** The universal remote cache is not available for local inference (surveys run on your own machine).
+*Note:* The universal remote cache is not available for local inference (surveys run on your own machine).
 
 
 Activating remote caching
@@ -102,7 +102,7 @@ For example, here we run a survey with remote caching activated, and pass a desc
 
 We can see the job has been added:
 
-.. image:: static/remote_cache.png
+.. image:: static/update_image.png
   :alt: Page displaying a remote cache at the Coop web app
   :align: center
   :width: 100%
@@ -115,7 +115,7 @@ We can see the job has been added:
 
 The logs show that we have a new remote cache entry:
 
-.. image:: static/remote_cache_logs.png
+.. image:: static/update_image.png
   :alt: Logs showing 1 remote cache entry at the Coop web app
   :align: center
   :width: 100%
@@ -128,7 +128,7 @@ The logs show that we have a new remote cache entry:
 
 We can view the details of entries by clicking on **View all**, and then inspect each entry individually:
 
-.. image:: static/remote_cache_entry_new.png
+.. image:: static/update_image.png
   :alt: Page displaying the code for a remote cache entry on the Coop web app
   :align: center
   :width: 100%
@@ -140,7 +140,7 @@ We can view the details of entries by clicking on **View all**, and then inspect
 
 We can also construct a new cache from the entry:
 
-.. image:: static/remote_cache_construct.png
+.. image:: static/update_image.png
   :alt: Image showing cache constructed from a remote cache entry at the Coop web app
   :align: center
   :width: 100%

@@ -198,11 +198,12 @@ Links
    :hidden:
 
    getting_started
-   starter_tutorial
    installation
    api_keys
+   remote_inference
+   remote_caching
+   starter_tutorial
    colab_setup
-   credits
 
 .. toctree::
    :maxdepth: 2
@@ -233,11 +234,10 @@ Links
    :hidden:
 
    coop
+   credits
    filestore
    notebooks
    colab_notebooks
-   remote_inference
-   remote_caching
    survey_builder
 
 .. toctree::
