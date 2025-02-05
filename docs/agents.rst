@@ -4,13 +4,13 @@ Agents
 ======
 
 `Agent` objects are used to simulate survey responses for target audiences. 
-They are created with specified traits, such as personas and relevant attributes for a survey, that are used together with language models to generate answers to questions. 
+They can be created with specified traits, such as personas and relevant attributes for a survey, that are used together with language models to generate answers to questions. 
 
 
 Constructing an Agent
 ---------------------
 
-An `Agent` is created by passing a dictionary of `traits` for a language model to reference in answering questions. 
+An `Agent` is created by passing a dictionary of `traits` for a model to reference in answering questions. 
 Traits can be anything that might be relevant to the questions the agent will be asked, and constructed with single values or textual narratives.
 
 For example:
@@ -48,6 +48,19 @@ We can optionally give an agent a name when it is constructed:
 
 If a name is not passed when the agent is created, an `agent_name` field is automatically added to the `Results` that are generated when a survey is run with the agent.
 This field is a unique identifier for the agent and can be used to filter or group results by agent.
+It is *not* used in the prompts for generating responses.
+If you want to use a name in the prompts for generating responses, you can pass it as a trait:
+
+.. code-block:: python
+
+    agent = Agent(
+        traits = {
+            "first_name": "Ada",
+            "persona": "You are an expert in machine learning.",
+            "age": 45,
+            "home_state": "Massachusetts"
+        })
+
 
 Note that trying to create two agents with the same name or trying to use a key "name" in the `traits` will raise an error.
 
@@ -56,7 +69,7 @@ Agent lists
 -----------
 
 Agents can be created collectively and administered a survey together. 
-This is useful for comparing responses across agents.
+This is useful for comparing responses for multiple agents.
 
 For example, here we create an a list of agents as an `AgentList` with different combinations of traits: 
 
@@ -78,14 +91,19 @@ Example code for running a survey with the agents:
 
 .. code-block:: python
 
-    from edsl import Survey
+    from edsl import QuestionFreeText, Survey
 
-    survey = Survey.example()
+    q = QuestionFreeText(
+        question_name = "favorite_food",
+        question_text = "What is your favorite food?"
+    )
+
+    survey = Survey(questions = [q])
 
     results = survey.by(agents).run()
 
 
-This will generate a `Results` object that contains a `Result` for each agent's responses to the survey questions.
+This will generate a `Results` object that contains a `Result` for each agent's responses to the survey question.
 Learn more about working with results in the :ref:`results` section.
 
 
