@@ -24,7 +24,7 @@ Activating remote inference
 `Log into your account <https://www.expectedparrot.com/login>`_ and navigate to your `Settings <a href="https://www.expectedparrot.com/home/settings>`_ page.
 Toggle on the slider for *Remote inference*:
 
-.. image:: static/update_image.png
+.. image:: static/home-settings.png
   :alt: Toggle on remote inference
   :align: center
   :width: 100%
@@ -40,7 +40,19 @@ Managing keys & credits
 
 You can use remote inference to run surveys with your own keys for language models or your Expected Parrot API key.
 Your Expected Parrot API key can be viewed (and reset) at the `Settings <https://www.expectedparrot.com/home/settings>`_ page of your account (where you activate remote inference).
-It is automatically stored at your `Keys <https://www.expectedparrot.com/home/keys>`_ page where you can select options for adding keys, sharing them with other users and prioritizing them for use with your surveys.
+It is automatically stored at your `Keys <https://www.expectedparrot.com/home/keys>`_ page where you can select options for adding keys, sharing them with other users and prioritizing them for use with your surveys:
+
+
+.. image:: static/home-keys.png
+  :alt: Toggle on remote inference
+  :align: center
+  :width: 100%
+  
+
+.. raw:: html
+
+  <br>
+
 
 Running surveys with your Expected Parrot API key requires credits to cover API calls to service providers.
 Your account comes with free credits for getting started; you can check your balance and purchase additional credits at the `Credits <https://www.expectedparrot.com/home/credits>`_ page of your account.

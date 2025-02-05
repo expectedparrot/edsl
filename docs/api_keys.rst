@@ -36,7 +36,7 @@ This method provides a secure way to store your keys and the most flexibility in
 
 Start by navigating to the `Keys <http://www.expectedparrot.com/home/keys>`_ page of your account and adding any of your own keys that you want to use:
 
-.. image:: static/ep_key.png
+.. image:: static/home-keys.png
   :alt: View stored keys
   :align: center
   :width: 100%
@@ -47,7 +47,7 @@ Start by navigating to the `Keys <http://www.expectedparrot.com/home/keys>`_ pag
   <br>
 
 
-.. image:: static/add_key.png
+.. image:: static/home-keys-add-key.png
   :alt: Add a key
   :align: center
   :width: 100%
@@ -64,7 +64,7 @@ You can edit your keys and sharing permissions at any time.
 
 To deactivate remote inference and caching (to run surveys on your computer instead of the Expected Parrot server), navigate to the `Settings <http://www.expectedparrot.com/home/settings>`_ page of your account and toggle off the relevant options:
 
-.. image:: static/update_image.png
+.. image:: static/home-settings.png
   :alt: Toggle on/off remote inference
   :align: center
   :width: 100%
