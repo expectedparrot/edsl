@@ -48,7 +48,6 @@ If you have your own keys from service providers you can add them to your `Keys 
    :alt: Keys page view showing stored keys
    :align: center
    :width: 100%
-   :border: 1px solid 
 
 
 .. raw:: html

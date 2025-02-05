@@ -184,7 +184,7 @@ Output:
   {'credits': 0.01, 'usd': 1.575e-06}
 
 
-Details on these methods can be found in the :ref:`credits` section.
+Details on these methods can be found in the `credits <https://docs.expectedparrot.com/en/latest/credits.html>`_ section.
 
 After running a job, you can view the actual cost in your job history or by calling the `remote_inference_cost()` method and passing it the job UUID
 (this is distinct from the results UUID, and can be found in your job history page).
