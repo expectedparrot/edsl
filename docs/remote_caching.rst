@@ -48,21 +48,21 @@ Features of the universal remote cache
 
 The universal remote cache offers the following features:
 
-  * **Free access:** The universal remote cache is free to use and available to all users, regardless of whether you are running surveys remotely with your own keys or an Expected Parrot API key.
+* **Free access:** The universal remote cache is free to use and available to all users, regardless of whether you are running surveys remotely with your own keys or an Expected Parrot API key.
 
-  * **Free storage & retrieval:** There is no limit on the number of responses that you can add to the universal remote cache or retrieve from it.
+* **Free storage & retrieval:** There is no limit on the number of responses that you can add to the universal remote cache or retrieve from it.
 
-  * **Automatic updates:** The universal remote cache is automatically updated whenever a survey is run remotely.
+* **Automatic updates:** The universal remote cache is automatically updated whenever a survey is run remotely.
 
-  * **Multiple responses:** If a fresh response is generated for a question that is different from a response already stored in the universal remote cache, the new response is added with an incremental identifier (`n=2`, etc.).
+* **Multiple responses:** If a fresh response is generated for a question that is different from a response already stored in the universal remote cache, the new response is added with an incremental identifier (`n=2`, etc.).
 
-  * **No deletions:** You cannot delete entries in the universal remote cache.
+* **No deletions:** You cannot delete entries in the universal remote cache.
 
-  * **No manual additions:** You cannot manually add entries to the universal remote cache. The only way to add responses is by running a survey remotely at the Expected Parrot server.
+* **No manual additions:** You cannot manually add entries to the universal remote cache. The only way to add responses is by running a survey remotely at the Expected Parrot server.
 
-  * **Sharing & reproducibility:** A new cache is automatically attached to each results object, which can be posted and shared with other users at the Coop. You can also construct new caches from your remote cache entries at your `Remote cache <https://www.expectedparrot.com/home/remote-cache>`_ page.
+* **Sharing & reproducibility:** A new cache is automatically attached to each results object, which can be posted and shared with other users at the Coop. You can also construct new caches from your remote cache entries at your `Remote cache <https://www.expectedparrot.com/home/remote-cache>`_ page.
 
-  * **Visibility & cost calculations:** You can check the availability of responses to your survey questions in the universal remote cache by passing a parameter `run(dry_run=True)`. This will return information about existing responses before you run the survey. If you want to check the availability of responses in another cache, you can pass that cache together with the dry run parameter, e.g., `run(cache=my_cache_object, dry_run=True)`. Note that the universal remote cache is not directly searchable.
+* **Visibility & cost calculations:** You can check the availability of responses to your survey questions in the universal remote cache by passing a parameter `run(dry_run=True)`. This will return information about existing responses before you run the survey. If you want to check the availability of responses in another cache, you can pass that cache together with the dry run parameter, e.g., `run(cache=my_cache_object, dry_run=True)`. Note that the universal remote cache is not directly searchable.
 
 *Note:* The universal remote cache is not available for local inference (surveys run on your own machine).
 
@@ -86,23 +86,26 @@ For example, here we run a survey with remote caching activated, and pass a desc
 
 .. code-block:: python
 
-  from edsl import QuestionFreeText, Survey, Model 
+  from edsl import Model, QuestionFreeText, Survey
 
   m = Model("gemini-1.5-flash")
 
   q = QuestionFreeText(
-    question_name = "example",
-    question_text = "How do you feel today?"
+    question_name = "prime",
+    question_text = "Is 2 a prime number?"
   )
 
-  survey = Survey(questions=[q])
+  survey = Survey(questions = [q])
 
-  results = survey.by(m).run(remote_inference_description="Example survey", remote_inference_visibility="public")
+  results = survey.by(m).run(
+    remote_inference_description = "Example survey", # optional
+    remote_inference_visibility = "public" # optional
+    )
 
 
 We can see the job has been added:
 
-.. image:: static/update_image.png
+.. image:: static/home-remote-cache-logs.png
   :alt: Page displaying a remote cache at the Coop web app
   :align: center
   :width: 100%
@@ -115,7 +118,7 @@ We can see the job has been added:
 
 The logs show that we have a new remote cache entry:
 
-.. image:: static/update_image.png
+.. image:: static/home-remote-cache-entries-.png
   :alt: Logs showing 1 remote cache entry at the Coop web app
   :align: center
   :width: 100%
@@ -126,9 +129,9 @@ The logs show that we have a new remote cache entry:
   <br>
 
 
-We can view the details of entries by clicking on **View all**, and then inspect each entry individually:
+We can view the details of each entry individually:
 
-.. image:: static/update_image.png
+.. image:: static/home-remote-cache-entry-details.png
   :alt: Page displaying the code for a remote cache entry on the Coop web app
   :align: center
   :width: 100%
@@ -138,30 +141,27 @@ We can view the details of entries by clicking on **View all**, and then inspect
   <br>
 
 
-We can also construct a new cache from the entry:
+We can also construct a new cache from any existing entries (*this feature is still in development!*).
 
-.. image:: static/update_image.png
-  :alt: Image showing cache constructed from a remote cache entry at the Coop web app
-  :align: center
-  :width: 100%
+.. .. image:: static/update_image.png
+..   :alt: Page displaying the code for a remote cache entry on the Coop web app
+..   :align: center
+..   :width: 100%
 
+.. .. raw:: html
 
-.. raw:: html
+..   <br>
 
-  <br>
+.. This can also done at your workspace.
+.. Here we create a new cache using the same entry by passing the hash of the entry to a new `Cache()` object:
 
+.. .. code-block:: python
 
-This can also done at your workspace.
-Here we create a new cache using the same entry by passing the hash of the entry to a new `Cache()` object:
+..   from edsl import Cache 
 
-.. code-block:: python
+..   my_cache = Cache() # you can also use an existing cache object
 
-  from edsl import Cache 
-
-  my_cache = Cache() # you can also use an existing cache object
-
-  my_cache.add_entries([1738584721]) # update list with the hashes for cache entries that you want to include
-
+..   my_cache.add_entries([1738584721]) # update list with the hashes for cache entries that you want to include
 
 
 Reproducing results 
@@ -175,7 +175,7 @@ For example, here we inspect the cache for the survey that we ran above:
 
 .. code-block:: python
 
-  result.cache 
+  results.cache 
 
 
 Output:
@@ -192,18 +192,19 @@ Output:
      - timestamp	
      - cache_key
    * - gemini-1.5-flash	
-     - {'temperature': 0.5, 'topP': 1, 'topK': 1, 'maxOutputTokens': 2048, 'stopSequences': []}	
-     - nan	
-     - How do you feel today?	
-     - {"candidates": [{"content": {"parts": [{"text": "As a large language model, I don't experience emotions or feelings in the same way humans do. I don't have a \"good day\" or a \"bad day.\" I'm functioning as designed and ready to assist you.\n"}], "role": "model"}, "finish_reason": 1, "safety_ratings": [{"category": 8, "probability": 1, "blocked": false}, {"category": 10, "probability": 1, "blocked": false}, {"category": 7, "probability": 1, "blocked": false}, {"category": 9, "probability": 1, "blocked": false}], "avg_logprobs": -0.05492463478675255, "token_count": 0, "grounding_attributions": []}], "usage_metadata": {"prompt_token_count": 7, "candidates_token_count": 52, "total_token_count": 59, "cached_content_token_count": 0}, "model_version": "gemini-1.5-flash"}	
+     - {'temperature': 0.5, 'topP': 1, 'topK': 1, 'maxOutputTokens': 2048, 'stopSequences': []}
+     - nan
+     - Is 2 a prime number?
+     -	{"candidates": [{"content": {"parts": [{"text": "Yes, 2 is a prime number. It's the only even prime number.\n"}], "role": "model"}, "finish_reason": 1, "safety_ratings": [{"category": 8, "probability": 1, "blocked": false}, {"category": 10, "probability": 1, "blocked": false}, {"category": 7, "probability": 1, "blocked": false}, {"category": 9, "probability": 1, "blocked": false}], "avg_logprobs": -0.0006228652317076921, "token_count": 0, "grounding_attributions": []}], "usage_metadata": {"prompt_token_count": 7, "candidates_token_count": 20, "total_token_count": 27, "cached_content_token_count": 0}, "model_version": "gemini-1.5-flash"}	
      - 0	
-     - 1738584721	
-     - 9a084d0440f07590f1820be8dfa11736
-
+     - 1738759640	
+     - b939c0cf262061c7aedbbbfedc540689
 
 
 Checking availability of responses
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+*The methods shown below are still in development!*
 
 We can check the availability of cached responses for survey questions by using `run(dry_run=True)`.
 This will return information about existing responses without running the survey. 
@@ -213,27 +214,27 @@ For example, here we check for cached responses to a survey that includes the qu
 
 .. code-block:: python
 
-  from edsl import QuestionFreeText, Survey, Model 
+  from edsl import Model, QuestionFreeText, QuestionList, Survey
 
   m = Model("gemini-1.5-flash")
 
   q1 = QuestionFreeText(
-    question_name = "today", # renaming the question does not impact the cache
-    question_text = "How do you feel today?"
+    question_name = "prime", # renaming a question does not impact the cache
+    question_text = "Is 2 a prime number?"
   )
 
-  q2 = QuestionFreeText(
-    question_name = "yesterday",
-    question_text = "How did you feel yesterday?"
+  q2 = QuestionList(
+    question_name = "factors",
+    question_text = "What are the factors of 100?"
   )
 
-  survey = Survey(questions=[q1, q2])
+  survey = Survey(questions = [q1, q2])
 
   survey.by(m).run(dry_run=True) 
 
 
 We can see that a response to the first question is available in the universal remote cache; the information is identical to the response that was generated and cached above (the `cached` indicator is `true` and the `estimated_cost_usd` is 0.0).
-We can also see that the second question does not have a response available in the universal remote cache; there is an `estimated_cost_usd` to run it but no existing response (`cached` is `false`, and `output`, `iteration`, `timestamp` and `cache_key` are `nan`):
+We can also see that the second question does not have a response available in the universal remote cache; there is an `estimated_cost_usd` to run it and no existing response (`cached` is `false`):
 
 .. list-table::
    :header-rows: 1
@@ -252,22 +253,22 @@ We can also see that the second question does not have a response available in t
      - gemini-1.5-flash	
      - {'temperature': 0.5, 'topP': 1, 'topK': 1, 'maxOutputTokens': 2048, 'stopSequences': []}	
      - nan	
-     - How do you feel today?	
-     - {"candidates": [{"content": {"parts": [{"text": "As a large language model, I don't experience emotions or feelings in the same way humans do. I don't have a \"good day\" or a \"bad day.\" I'm functioning as designed and ready to assist you.\n"}], "role": "model"}, "finish_reason": 1, "safety_ratings": [{"category": 8, "probability": 1, "blocked": false}, {"category": 10, "probability": 1, "blocked": false}, {"category": 7, "probability": 1, "blocked": false}, {"category": 9, "probability": 1, "blocked": false}], "avg_logprobs": -0.05492463478675255, "token_count": 0, "grounding_attributions": []}], "usage_metadata": {"prompt_token_count": 7, "candidates_token_count": 52, "total_token_count": 59, "cached_content_token_count": 0}, "model_version": "gemini-1.5-flash"}	
+     - Is 2 a prime number?
+     - {"candidates": [{"content": {"parts": [{"text": "Yes, 2 is a prime number. It's the only even prime number.\n"}], "role": "model"}, "finish_reason": 1, "safety_ratings": [{"category": 8, "probability": 1, "blocked": false}, {"category": 10, "probability": 1, "blocked": false}, {"category": 7, "probability": 1, "blocked": false}, {"category": 9, "probability": 1, "blocked": false}], "avg_logprobs": -0.0006228652317076921, "token_count": 0, "grounding_attributions": []}], "usage_metadata": {"prompt_token_count": 7, "candidates_token_count": 20, "total_token_count": 27, "cached_content_token_count": 0}, "model_version": "gemini-1.5-flash"}	
      - 0	
-     - 1738584721	
-     - 9a084d0440f07590f1820be8dfa11736
+     - 1738759640	
+     - b939c0cf262061c7aedbbbfedc540689
      - 0.0
    * - false 
      - gemini-1.5-flash	
      - {'temperature': 0.5, 'topP': 1, 'topK': 1, 'maxOutputTokens': 2048, 'stopSequences': []}	
      - nan	
-     - How did you feel yesterday?	
-     - nan	
+     - What are the factors of 100? Return your answers on one line, in a comma-separated list of your responses, with square brackets and each answer in quotes E.g., ["A", "B", "C"] After the answers, you can put a comment explaining your choice on the next line.	
+     - {"candidates": [{"content": {"parts": [{"text": "[\"1\", \"2\", \"4\", \"5\", \"10\", \"20\", \"25\", \"50\", \"100\"]\n# These are all the numbers that divide evenly into 100.\n"}], "role": "model"}, "finish_reason": 1, "safety_ratings": [{"category": 8, "probability": 1, "blocked": false}, {"category": 10, "probability": 1, "blocked": false}, {"category": 7, "probability": 1, "blocked": false}, {"category": 9, "probability": 1, "blocked": false}], "avg_logprobs": -0.005307064056396484, "token_count": 0, "grounding_attributions": []}], "usage_metadata": {"prompt_token_count": 67, "candidates_token_count": 50, "total_token_count": 117, "cached_content_token_count": 0}, "model_version": "gemini-1.5-flash"}	
      - 0	
-     - nan	
-     - nan
-     - 1.95e-06
+     - 1738766395	
+     - 00b1e0ccff32a044b2b585f3e463dd8e
+     - 1.9575e-05
 
 
 The estimated cost to run the second question can also be estimated using the `estimate_job_cost()` method:
@@ -284,18 +285,18 @@ Output:
 
 .. code-block:: text
 
-  {'estimated_total_cost_usd': 1.95e-06,
-  'estimated_total_input_tokens': 6,
-  'estimated_total_output_tokens': 5,
+  {'estimated_total_cost_usd': 1.9575e-05,
+  'estimated_total_input_tokens': 65,
+  'estimated_total_output_tokens': 49,
   'model_costs': [{'inference_service': 'google',
     'model': 'gemini-1.5-flash',
-    'estimated_cost_usd': 1.95e-06,
-    'estimated_input_tokens': 6,
-    'estimated_output_tokens': 5}]}
+    'estimated_cost_usd': 1.9575e-05,
+    'estimated_input_tokens': 65,
+    'estimated_output_tokens': 49}]}
 
 
 If we also pass a `Cache()` object to the `run` method, the dry run will check the response in that cache instead of the universal remote cache.
-For example, here we create and pass an empty cache object to demonstrate that there is no response available in the cache:
+For example, here we create and pass an empty cache object to demonstrate that there is no response available in the cache for either question:
 
 .. code-block:: python
 
@@ -321,26 +322,26 @@ Output:
      - timestamp	
      - cache_key
      - estimated_cost_usd
-   * - false 
+   * - true 
      - gemini-1.5-flash	
      - {'temperature': 0.5, 'topP': 1, 'topK': 1, 'maxOutputTokens': 2048, 'stopSequences': []}	
      - nan	
-     - How do you feel today?	
-     - nan	
+     - Is 2 a prime number?
+     - {"candidates": [{"content": {"parts": [{"text": "Yes, 2 is a prime number. It's the only even prime number.\n"}], "role": "model"}, "finish_reason": 1, "safety_ratings": [{"category": 8, "probability": 1, "blocked": false}, {"category": 10, "probability": 1, "blocked": false}, {"category": 7, "probability": 1, "blocked": false}, {"category": 9, "probability": 1, "blocked": false}], "avg_logprobs": -0.0006228652317076921, "token_count": 0, "grounding_attributions": []}], "usage_metadata": {"prompt_token_count": 7, "candidates_token_count": 20, "total_token_count": 27, "cached_content_token_count": 0}, "model_version": "gemini-1.5-flash"}	
      - 0	
-     - nan	
-     - nan
+     - 1738759640	
+     - b939c0cf262061c7aedbbbfedc540689
      - 1.575e-06
    * - false 
      - gemini-1.5-flash	
      - {'temperature': 0.5, 'topP': 1, 'topK': 1, 'maxOutputTokens': 2048, 'stopSequences': []}	
      - nan	
-     - How did you feel yesterday?	
-     - nan	
+     - What are the factors of 100? Return your answers on one line, in a comma-separated list of your responses, with square brackets and each answer in quotes E.g., ["A", "B", "C"] After the answers, you can put a comment explaining your choice on the next line.	
+     - {"candidates": [{"content": {"parts": [{"text": "[\"1\", \"2\", \"4\", \"5\", \"10\", \"20\", \"25\", \"50\", \"100\"]\n# These are all the numbers that divide evenly into 100.\n"}], "role": "model"}, "finish_reason": 1, "safety_ratings": [{"category": 8, "probability": 1, "blocked": false}, {"category": 10, "probability": 1, "blocked": false}, {"category": 7, "probability": 1, "blocked": false}, {"category": 9, "probability": 1, "blocked": false}], "avg_logprobs": -0.005307064056396484, "token_count": 0, "grounding_attributions": []}], "usage_metadata": {"prompt_token_count": 67, "candidates_token_count": 50, "total_token_count": 117, "cached_content_token_count": 0}, "model_version": "gemini-1.5-flash"}	
      - 0	
-     - nan	
-     - nan
-     - 1.95e-06
+     - 1738766395	
+     - 00b1e0ccff32a044b2b585f3e463dd8e
+     - 1.9575e-05
 
 
 See :ref:`caching` for more details on caching results locally.
