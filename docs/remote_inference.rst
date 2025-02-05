@@ -99,7 +99,17 @@ Output (details will be unique to your job):
 
 When the job has finished, it will appear with a status of *Completed*:
 
-.. image:: static/update_image.png
+.. image:: static/home-remote-inference-job-running.png
+  :alt: Remote inference page on the Coop web app. There is one job shown, and it has a status of "Running."
+  :align: center
+  :width: 100%
+
+.. raw:: html
+
+  <br>
+
+
+.. image:: static/home-remote-inference-job-completed.png
   :alt: Remote inference page on the Coop web app. There is one job shown, and it has a status of "Completed."
   :align: center
   :width: 100%
@@ -109,9 +119,19 @@ When the job has finished, it will appear with a status of *Completed*:
   <br>
 
 
-We can select **View all** to access the results of the job:
+We can view the results of the job:
 
-.. image:: static/remote_inference_results_new.png
+.. image:: static/coop-content-results.png
+  :alt: Remote inference results page on the Coop web app. There is one result shown.
+  :align: center
+  :width: 100%
+
+.. raw:: html
+
+  <br>
+
+
+.. image:: static/coop-content-results-view.png
   :alt: Remote inference results page on the Coop web app. There is one result shown.
   :align: center
   :width: 100%
@@ -200,20 +220,9 @@ Job history
 
 You can click on any job to view its history. 
 When a job fails, the job history logs will describe the error that caused the failure.
+The job history also shows which key was used to run each job (your own key, a key that has been share with you or your Expected Parrot API key):
 
-.. image:: static/update_image.png
-  :alt: A screenshot of job history logs on the Coop web app. The job has failed due to insufficient funds.
-  :align: center
-  :width: 100%
-
-.. raw:: html
-
-  <br>
-
-
-When you prioritize keys, the job history will show which key was used to run the job:
-
-.. image:: static/update_image.png
+.. image:: static/home-remote-cache-job-history-details.png
   :alt: A screenshot of job history logs on the Coop web app. The job has been run using a key that has been prioritized.
   :align: center
   :width: 100%
