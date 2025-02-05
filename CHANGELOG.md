@@ -2,8 +2,11 @@
 
 ## [0.1.43] - TBD
 ### Added
+- Method `ScenarioList._from_pdf_to_image(<filename>)` generates a scenario for each page of a pdf converted into a jpeg (to use as an image instead of converting to text).
+
 ### Changed
 ### Fixed
+- A bug preventing iterations on remote inference.
 
 
 ## [0.1.42] - 2025-01-24
