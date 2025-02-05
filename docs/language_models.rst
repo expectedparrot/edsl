@@ -6,8 +6,9 @@ Language Models
 Language models are used to generate agents' responses to survey questions and can be specified using the `Model` and `ModelList` classes.
 
 EDSL works with a variety of different popular inference service providers, including Anthropic, Google, OpenAI and others.
-Current information about available models can be found at the Expected Parrot model pricing page: https://www.expectedparrot.com/getting-started/coop-pricing.
-We also recommend checking providers' websites for the most up-to-date information on available models.
+Current information about available models can be found at the `model pricing page <https://www.expectedparrot.com/getting-started/coop-pricing>`_.
+
+We also recommend checking providers' websites for the most up-to-date information on models and terms of use.
 It is important to check that the models you want to use are available and working as expected before running a survey.
 If you need assistance checking whether a model is working, please send a message to info@expectedparrot.com or post a message at our `Discord channel <https://discord.com/invite/mxAYkjfy9m>`_.
 
@@ -78,14 +79,14 @@ Output:
    :header-rows: 1
 
    * - Model Name
-     - gemmini-1.0-pro
-     - gemmini-1.0-flash
-     - gemmini-1.5-pro
-     - gemmini-pro
-   * - Service Name
+     - Service Name
+   * - gemmini-1.0-pro
      - google
+   * - gemmini-1.0-flash
      - google
+   * - gemmini-1.5-pro
      - google
+   * - gemmini-pro
      - google
 
 
@@ -116,16 +117,16 @@ Output:
    :header-rows: 1
 
    * - Model Name
-     - gemmini-1.0-pro
-     - gemmini-1.0-flash
-     - gemmini-1.5-pro
-     - gemmini-pro
-     - new_model
-   * - Service Name
+     - Service Name
+   * - gemmini-1.0-pro
      - google
+   * - gemmini-1.0-flash
      - google
+   * - gemmini-1.5-pro
      - google
+   * - gemmini-pro
      - google
+   * - new_model
      - google
 
 
