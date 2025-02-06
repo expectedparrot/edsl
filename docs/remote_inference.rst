@@ -14,8 +14,10 @@ How it works
 
 When remote inference is activated, calling the `run()` method on a survey will send it to the Expected Parrot server.
 Survey results and job details (history, costs, etc.) are automatically stored at the server and accessible from your workspace or at the `Remote inference <https://www.expectedparrot.com/home/remote-inference>`_ page of your account.
-By default, a universal remote cache is used to retrieve responses to any questions that have already been run, either by you or other users.
-See the :ref:`remote_caching` section for details on the universal remote cache and methods for drawing fresh responses and working with remote caches.
+
+By default, a remote cache is used to retrieve responses to any questions that have already been run.
+You can choose whether to use it or another other cache, or to draw fresh responses to questions.
+See the :ref:`remote_caching` section for details.
 
 
 Activating remote inference
@@ -38,28 +40,28 @@ Toggle on the slider for *Remote inference*:
 Managing keys & credits 
 -----------------------
 
-You can use remote inference to run surveys with your own keys for language models or your Expected Parrot API key.
-Your Expected Parrot API key can be viewed (and reset) at the `Settings <https://www.expectedparrot.com/home/settings>`_ page of your account (where you activate remote inference).
-It is automatically stored at your `Keys <https://www.expectedparrot.com/home/keys>`_ page where you can select options for adding keys, sharing them with other users and prioritizing them for use with your surveys:
+An Expected Parrot API key is required to use remote inference.
+This key can be viewed (and reset) at the `Settings <https://www.expectedparrot.com/home/settings>`_ page of your account (where you activate remote inference).
 
+See the :ref:`api_keys` section for instructions on storing and managing keys.
 
-.. image:: static/home-keys.png
-  :alt: Toggle on remote inference
-  :align: center
-  :width: 100%
+.. It is automatically stored at your `Keys <https://www.expectedparrot.com/home/keys>`_ page where you can select options for adding keys, sharing them with other users and prioritizing them for use with your surveys:
+
+.. .. image:: static/home-keys.png
+..   :alt: Toggle on remote inference
+..   :align: center
+..   :width: 100%
   
 
-.. raw:: html
+.. .. raw:: html
 
-  <br>
+..   <br>
 
 
 Running surveys with your Expected Parrot API key requires credits to cover API calls to service providers.
 Your account comes with free credits for getting started; you can check your balance and purchase additional credits at the `Credits <https://www.expectedparrot.com/home/credits>`_ page of your account.
 Running surveys with your own keys does *not* consume credits.
 Learn more about purchasing credits and calculating costs at the :ref:`credits` section.
-
-See instructions and additional options for managing keys in the :ref:`api_keys` section.
 
 
 Using remote inference
