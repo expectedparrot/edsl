@@ -268,6 +268,7 @@ class DatasetExportMixin:
         transpose: bool = None,
         transpose_by: str = None,
         remove_prefix: bool = True,
+        shape: str = "wide",
     ) -> Union["pd.DataFrame", str]:
         """Execute a SQL query and return the results as a DataFrame.
 
@@ -285,10 +286,17 @@ class DatasetExportMixin:
         Returns:
             DataFrame, CSV string, list, or LaTeX string depending on parameters
 
+       Examples:
+           >>> from edsl import Results
+           >>> r = Results.example(); 
+           >>> len(r.sql("SELECT * FROM self", shape = "wide"))
+           4
+           >>> len(r.sql("SELECT * FROM self", shape = "long"))
+           172
         """
         import pandas as pd
 
-        conn = self._db(remove_prefix=remove_prefix)
+        conn = self._db(remove_prefix=remove_prefix, shape=shape)
         df = pd.read_sql_query(query, conn)
 
         # Transpose the DataFrame if transpose is True
