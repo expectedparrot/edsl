@@ -40,8 +40,9 @@ class ResultsGGMixin:
 
         if shape == "long":
             df = self.sql(sql, shape="long")
+            raise NotImplementedError("Long format not yet supported")
         elif shape == "wide":
-            df = self.sql(sql, shape="wide", remove_prefix=remove_prefix)
+            df = self.sql(sql, remove_prefix=remove_prefix)
 
         # Convert DataFrame to CSV format
         csv_data = df.to_csv(index=False)

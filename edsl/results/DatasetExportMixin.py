@@ -7,7 +7,6 @@ from typing import Optional, Tuple, Union, List
 
 from edsl.results.file_exports import CSVExport, ExcelExport, JSONLExport, SQLiteExport
 
-
 class DatasetExportMixin:
     """Mixin class for exporting Dataset objects."""
 
@@ -220,23 +219,41 @@ class DatasetExportMixin:
         )
         return exporter.export()
 
-    def _db(self, remove_prefix: bool = True):
+    def _db(self, remove_prefix: bool = True, shape: str = "wide") -> "sqlalchemy.engine.Engine":
         """Create a SQLite database in memory and return the connection.
 
         Args:
-            shape: The shape of the data in the database (wide or long)
             remove_prefix: Whether to remove the prefix from the column names
+            shape: The shape of the data in the database ("wide" or "long")
 
         Returns:
             A database connection
+        >>> from sqlalchemy import text
+        >>> from edsl import Results 
+        >>> engine = Results.example()._db()
+        >>> len(engine.execute(text("SELECT * FROM self")).fetchall())
+        4
+        >>> engine = Results.example()._db(shape = "long")
+        >>> len(engine.execute(text("SELECT * FROM self")).fetchall())
+        172
         """
-        from sqlalchemy import create_engine
+        from sqlalchemy import create_engine, text
 
         engine = create_engine("sqlite:///:memory:")
         if remove_prefix:
             df = self.remove_prefix().to_pandas(lists_as_strings=True)
         else:
             df = self.to_pandas(lists_as_strings=True)
+
+        if shape == "long":
+            # Melt the dataframe to convert it to long format
+            df = df.melt(
+                var_name='variable', 
+                value_name='value'
+            )
+            # Add a row number column for reference
+            df.insert(0, 'row_number', range(1, len(df) + 1))
+
         df.to_sql(
             "self",
             engine,
