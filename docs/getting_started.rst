@@ -44,7 +44,7 @@ Your account comes with an **Expected Parrot API key** that lets you run surveys
 
 There are several ways to manage keys for language models:
 
-* Manage keys at your Coop account (*this method is in development)
+* Manage keys at your Coop account (*this method is in development*)
 
 * Store keys in a `.env` file on your computer (*recommended*)
 
