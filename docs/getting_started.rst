@@ -39,57 +39,65 @@ See the `Coop <https://docs.expectedparrot.com/en/latest/coop.html>`_ section fo
 3. Manage API keys for language models
 --------------------------------------
 
-EDSL works with hundreds of language models of popular service providers, including Anthropic, Azure, Bedrock, DeepInfra, DeepSeek, Google, Mistral, OpenAI, Perplexity and Together.
-Your account comes with an **Expected Parrot API key** that lets you run surveys with all available models at the Expected Parrot server and access a free universal cache of stored responses.
+EDSL works with many language models from popular service providers, including Anthropic, Azure, Bedrock, DeepInfra, DeepSeek, Google, Mistral, OpenAI, Perplexity and Together.
+Your account comes with an **Expected Parrot API key** that lets you run surveys with all available models at the Expected Parrot server and use remote caching for responses.
 
-If you have your own keys from service providers you can add them to your `Keys <https://www.expectedparrot.com/home/keys>`_ page and choose whether to provide access to other users and prioritizing them to use with your surveys:
+There are several ways to manage keys for language models:
 
-.. image:: static/home-keys.png
-   :alt: Keys page view showing stored keys
-   :align: center
-   :width: 100%
+* Manage keys at your Coop account (*this method is in development*)
 
+* Store keys in a `.env` file on your computer (*recommended*)
 
-.. raw:: html
-
-   <br>  
+* Store keys directly in your EDSL code (*not recommended for security reasons*)
 
 
-.. image:: static/home-keys-add-key.png
-   :alt: Keys page view for adding a key
-   :width: 100%
+.. If you have your own keys from service providers you can add them to your `Keys <https://www.expectedparrot.com/home/keys>`_ page and choose whether to provide access to other users and prioritizing them to use with your surveys:
+
+.. .. image:: static/home-keys.png
+..    :alt: Keys page view showing stored keys
+..    :align: center
+..    :width: 100%
 
 
-.. raw:: html
+.. .. raw:: html
 
-   <br>
+..    <br>  
 
 
+.. .. image:: static/home-keys-add-key.png
+..    :alt: Keys page view for adding a key
+..    :width: 100%
 
-Using your own keys does not require credits; service providers will bill you directly for your usage.
-See the :ref:`api_keys` section for more details and options for managing keys.
+
+.. .. raw:: html
+
+..    <br>
+
+
+See the :ref:`api_keys` section for details on these methods.
 
 
 4. Choose where to run surveys
 ------------------------------
 
 You can use EDSL to run surveys locally on your own machine or remotely at the Expected Parrot server.
-To activate remote inference and caching for your surveys and results, navigate to the `Settings <https://www.expectedparrot.com/home/settings>`_ page of your account and toggle on *remote inference*:
+To activate remote inference, navigate to the `Settings <https://www.expectedparrot.com/home/settings>`_ page of your account and toggle on *remote inference*.
 
-.. image:: static/home-settings.png
-   :alt: Toggle on remote inference
-   :align: center
-   :width: 100%
+.. .. image:: static/home-settings.png
+..    :alt: Toggle on remote inference
+..    :align: center
+..    :width: 100%
 
 
-.. raw:: html
+.. .. raw:: html
 
-   <br>
+..    <br>
 
+
+See the :ref:`remote_inference` and :ref:`remote_caching` sections for details on using remote inference and caching in your workflows.
 
 To run surveys locally you must provide your own keys from service providers.
-
-See the :ref:`remote_inference` and :ref:`remote_caching` sections for details on using remote inference and caching.
+See the :ref:`api_keys` section for instructions on storing keys.
 
 
 5. Run a survey
