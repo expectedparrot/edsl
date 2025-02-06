@@ -240,7 +240,7 @@ class DatasetExportMixin:
         from sqlalchemy import create_engine, text
 
         engine = create_engine("sqlite:///:memory:")
-        if remove_prefix:
+        if remove_prefix and shape == "wide":
             df = self.remove_prefix().to_pandas(lists_as_strings=True)
         else:
             df = self.to_pandas(lists_as_strings=True)
@@ -248,11 +248,15 @@ class DatasetExportMixin:
         if shape == "long":
             # Melt the dataframe to convert it to long format
             df = df.melt(
-                var_name='variable', 
+                var_name='key', 
                 value_name='value'
             )
             # Add a row number column for reference
             df.insert(0, 'row_number', range(1, len(df) + 1))
+            
+            # Split the key into data_type and key
+            df['data_type'] = df['key'].apply(lambda x: x.split('.')[0] if '.' in x else None)
+            df['key'] = df['key'].apply(lambda x: '.'.join(x.split('.')[1:]) if '.' in x else x)
 
         df.to_sql(
             "self",
