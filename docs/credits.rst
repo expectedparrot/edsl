@@ -3,27 +3,26 @@
 Credits
 =======
 
-Credits are required in order to run surveys with available models using your Expected Parrot API key.
-They can be purchased at your `Coop account <https://www.expectedparrot.com/login>`_ (details below).
-Credits are deducted from your balance to cover the costs of API calls to language model service providers, which are based on token rates set by providers.
-Details on token prices for available models can be viewed at the `model pricing page <https://www.expectedparrot.com/getting-started/coop-pricing>`_.
+Credits are required in order to run surveys with models using your Expected Parrot API key.
+They can be purchased at your Coop account (see details below).
+Credits are deducted to cover API call costs, which depend on token rates set by language model service providers.
+You can view pricing for available models at the `model pricing page <https://www.expectedparrot.com/getting-started/coop-pricing>`_.
 
-Details on how credits are consumed are provided below. 
 Credits must be purchased in advance and are consumed when surveys are run. 
-If you do not have enough credits to run a survey, you will be prompted to purchase more credits.
+If your balance is insufficient, you will be prompted to purchase more credits.
+Details on credit consumption are provided below.
 
-*Note:* Credits are *not* required to run surveys with your own keys from service providers, or to `post and share content at Coop <https://www.expectedparrot.com/content/explore>`_.
-When you run a survey using your own keys, cost estimates are provided based on the prices listed in the `model pricing page <https://www.expectedparrot.com/getting-started/coop-pricing>`_.
-Your actual charges from service providers may vary based on the terms of your accounts with service providers.
+*Note:* Credits are *not* required to run surveys with your own keys from service providers or to post and share content at `Coop <https://www.expectedparrot.com/content/explore>`_.
+When using your own keys, cost estimates are based on the prices listed in the `model pricing page <https://www.expectedparrot.com/getting-started/coop-pricing>`_, but your actual charges may vary depending on your service providers' terms.
 
 
 Free credits
 ------------
 
-Your Coop account comes with a balance of 100 free credits that you can use to run surveys with your Expected Parrot API key.
+Your Coop account comes free credits that you can use to run surveys with your Expected Parrot API key.
 
 | **Are you using EDSL for a research project?**
-| Send an email to *info@expectedparrot.com* to request additional free credits.
+| Send an email to *info@expectedparrot.com* to request additional free credits!
 
 
 Purchasing credits
