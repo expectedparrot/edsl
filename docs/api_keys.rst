@@ -11,7 +11,7 @@ In addition to providing access to all available models, your Expected Parrot AP
 `Learn more <http://www.expectedparrot.com/getting-started/coop-how-it-works>`_ about using Coop to collaborate on research.
 
 This page shows how to store and select keys to use when running surveys on your own computer (*local inference*) or at the Expected Parrot server (*remote inference*).
-For instructions on using your Expected Parrot API key only for accessing Coop, see the :ref:`coop` section of the documentation.
+For instructions on using your Expected Parrot API key only for accessing Coop, see the `Coop <https://docs.expectedparrot.com/en/latest/coop.html>`_ section of the documentation.
 
 **Special note for Colab users**:
 If you are using EDSL in a Colab notebook, please see `special instructions <https://docs.expectedparrot.com/en/latest/colab_setup.html>`_ on storing API keys as "secrets" (:ref:`colab_setup`).
@@ -20,18 +20,13 @@ If you are using EDSL in a Colab notebook, please see `special instructions <htt
 Methods
 -------
 
-There are three methods for storing and managing keys (details on each below):
-
-1. Manage your keys at the `Keys <http://www.expectedparrot.com/home/keys>`_ page of your account. (*Recommended.*)
-*Note:* This feature is currently in development. For now, use the `.env` method below.
-
-2. Store your keys in a `.env` file in your EDSL working directory. (*Required for local inference.*)
-
-3. Include keys directly in your code. (*Not recommended for security reasons.*)
+There are three methods for storing and managing keys (details on each below).
 
 
 1. Manage keys from your account (recommended)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+*Note: This feature is in development. For now, please use method 2. below.*
 
 This method provides a secure way to store your keys and the most flexibility in choosing how to use them.
 
@@ -39,7 +34,8 @@ Start by navigating to the `Keys <http://www.expectedparrot.com/home/keys>`_ pag
 Your Expected Parrot API key is stored automatically at this page.
 
 
-**Using your Expected Parrot API key**:
+Using your Expected Parrot API key
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 To use your key to run surveys at the Expected Parrot server, navigate to the `Settings <http://www.expectedparrot.com/home/settings>`_ page of your account and activate remote inference and caching:
 
@@ -55,15 +51,17 @@ To use your key to run surveys at the Expected Parrot server, navigate to the `S
 
 
 When remote inference is activated, your surveys will run at the Expected Parrot server using your Expected Parrot API key and/or any of your own keys that you have added; see details below on adding keys.
-When remote inference is deactivated you must provide your own keys for models and store them in a `.env` file on your computer; see the next method below.
+When remote inference is deactivated you must provide your own keys for models and store them in on your computer; see method 2. below.
 Learn more about how :ref:`remote_inference` and :ref:`remote_caching` work.
 
-If you *only* want to use your key to post and share content at Coop you will need to store it on your computer. See the `Coop <https://docs.expectedparrot.com/en/latest/coop.html>`_ section for details and the next method below.
+If you *only* want to use your key to post and share content at Coop you will need to store it on your computer. See the `Coop <https://docs.expectedparrot.com/en/latest/coop.html>`_ section for details and method 2. below.
 
 
-**Adding keys**:
+Adding keys
+^^^^^^^^^^^
 
-Use the **Add key** button to enter details of any of your own keys that you want to use to run surveys at the Expected Parrot server (this is optional):
+*This is optional.* 
+Use the **Add key** button to enter details of any of your own keys that you want to use to run surveys at the Expected Parrot server:
 
 .. image:: static/home-keys.png
   :alt: View stored keys
@@ -89,7 +87,7 @@ Use the **Add key** button to enter details of any of your own keys that you wan
 
 Review the current prioritization of your keys at the **Key priority** section of the page.
 
-If you want other users to have access to your keys, click the **Share** button to share access and set limits on usage. 
+If you want other users to have access to one of your keys, click the **Share** button to add them and set limits on usage. 
 This allows other users to make API calls using your keys without sharing the keys directly.
 
 You can also click the **Edit** button to modify the RPM and TPM rate limits for any of your keys.
@@ -99,7 +97,7 @@ You can edit your sharing permissions, disable or delete your keys at any time.
 Store keys in a local file
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-This method allows you to store keys in a private file on your computer and make them available for any surveys that you run.
+This method allows you to store keys in a private file on your computer and make them available for any surveys that you run, locally or remotely.
 
 To use this method:
 
@@ -111,7 +109,7 @@ To use this method:
 
 .. code-block:: python
 
-  EXPECTED_PARROT_API_KEY = 'your_key_here' # this key is required for remote inference and caching and interacting with Coop
+  EXPECTED_PARROT_API_KEY = 'your_key_here' # this key is required for remote inference and caching, and interacting with Coop
 
   ANTHROPIC_API_KEY = 'your_key_here'
   DEEP_INFRA_API_KEY = 'your_key_here'
