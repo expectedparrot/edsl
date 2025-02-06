@@ -12,6 +12,7 @@ Links to providers' websites can be found at the Coop model pricing page.
 If you need assistance checking whether a model is working or to report a missing model or price, please send a message to info@expectedparrot.com or post a message on `Discord <https://discord.com/invite/mxAYkjfy9m>`_.
 
 This page provides examples of methods for specifying models for surveys using the `Model` and `ModelList` classes.
+
 .. A `notebook of code examples <>`_ is also available at Coop.
 
 
@@ -134,10 +135,10 @@ For example, the following code creates a `Model` object for `gpt-4o` with defau
 
 .. code-block:: python
 
-   from edsl import Model
+  from edsl import Model
 
-   m = Model("gpt-4o")
-   m
+  m = Model("gpt-4o")
+  m
 
 
 Output: 
@@ -174,10 +175,10 @@ Here we also specify the temperature when creating the `Model` object:
 
 .. code-block:: python
 
-   from edsl import Model
+  from edsl import Model
 
-   m = Model("gpt-4o", temperature = 1.0)
-   m
+  m = Model("gpt-4o", temperature = 1.0)
+  m
 
 
 Output: 
@@ -217,31 +218,31 @@ For example, the following code creates a `Model` for each of `gpt-4o` and `gemi
 
 .. code-block:: python
 
-   from edsl import Model, ModelList
+  from edsl import Model, ModelList
 
-   ml = ModelList([Model("gpt-4o"), Model("gemini-1.5-flash")])
+  ml = ModelList([Model("gpt-4o"), Model("gemini-1.5-flash")])
 
 
 This code is equivalent to the following:
 
 .. code-block:: python
 
-   from edsl import Model, ModelList
+  from edsl import Model, ModelList
 
-   ml = ModelList(Model(model) for model in ["gpt-4o", "gemini-1.5-flash"])
+  ml = ModelList(Model(model) for model in ["gpt-4o", "gemini-1.5-flash"])
 
 
 We can also use a special method to pass a list of names instead:
 
 .. code-block:: python
 
-   from edsl import Model, ModelList
+  from edsl import Model, ModelList
 
-   model_names = ['gpt-4o', 'gemini-1.5-flash']
+  model_names = ['gpt-4o', 'gemini-1.5-flash']
 
-   ml = ModelList.from_names(model_names)
+  ml = ModelList.from_names(model_names)
 
-   ml
+  ml
 
 
 Output:
@@ -427,7 +428,6 @@ If you do not see a model that you want to work with or are unable to instantiat
 
 
 .. Output:
-
 
 
 
