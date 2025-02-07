@@ -583,12 +583,20 @@ class Jobs(Base):
         # first try to run the job remotely
         if results := self._remote_results():
             return results
-                
+
         self._check_if_local_keys_ok()
 
         if config.environment.bucket_collection is None:
             self.run_config.environment.bucket_collection = (
                 self.create_bucket_collection()
+            )
+
+        if (
+            self.run_config.environment.key_lookup is not None
+            and self.run_config.environment.bucket_collection is not None
+        ):
+            self.run_config.environment.bucket_collection.update_from_key_lookup(
+                self.run_config.environment.key_lookup
             )
 
         return None
@@ -613,7 +621,7 @@ class Jobs(Base):
         :param key_lookup: A KeyLookup object to manage API keys
         """
         potentially_completed_results = self._run(config)
-        
+
         if potentially_completed_results is not None:
             return potentially_completed_results
 
