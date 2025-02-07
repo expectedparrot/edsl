@@ -85,17 +85,17 @@ Output (this list will vary based on the models that have been used when the cod
 
    * - Model Name
      - Service Name
-   * - gemmini-pro
+   * - gemini-pro
      - google
-   * - gemmini-1.0-pro
+   * - gemini-1.0-pro
      - google
-   * - gemmini-1.0-flash
+   * - gemini-1.0-flash
      - google
-   * - gemmini-1.0-flash-8b
+   * - gemini-1.0-flash-8b
      - google
-   * - gemmini-1.5-pro
+   * - gemini-1.5-pro
      - google
-   * - gemmini-2.0-flash
+   * - gemini-2.0-flash
      - google
 
 
