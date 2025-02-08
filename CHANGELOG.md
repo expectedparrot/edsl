@@ -8,9 +8,10 @@
 
 - (*In progress*) Parameter `run(background=True)` can be used to run a remote survey in the background so that you can continue working in your workspace. You will automatically get an email notification when the job is completed. You can check the status of the job at any time by attempting to return the results as usual, e.g., `results.columns`. 
 
-- Method `ScenarioList._from_pdf_to_image(<filename>)` generates a scenario for each page of a pdf converted into a jpeg (to use as an image instead of converting to text). Companion method `Scenario.from_pdf_to_image(<filename>)` generates a key/value for each page within the same scenario object to allow you to use multiple images at the same time. See a [notebook of examples](https://www.expectedparrot.com/content/ea777fab-9cb1-4738-8fa3-bbdef20ed60d).
+- Method `ScenarioList.from_pdf_to_image(<filename>)` generates a scenario for each page of a pdf converted into a jpeg (to use as an image instead of converting to text). Companion method `Scenario.from_pdf_to_image(<filename>)` generates a key/value for each page within the same scenario object to allow you to use multiple images at the same time. See a [notebook of examples](https://www.expectedparrot.com/content/ea777fab-9cb1-4738-8fa3-bbdef20ed60d).
 
 ### Changed
+
 ### Fixed
 - A bug preventing iterations on remote inference.
 
