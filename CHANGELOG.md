@@ -1,8 +1,14 @@
 # Changelog
 
-## [0.1.43] - TBD
+## [0.1.43] - TBD 
 ### Added
-- Method `ScenarioList._from_pdf_to_image(<filename>)` generates a scenario for each page of a pdf converted into a jpeg (to use as an image instead of converting to text).
+- (*In progress*) A universal remote cache is available for retrieving responses that have been previously run by any user (i.e., if you run a question that you or another user have run before, you will retrieve that response at no cost to you). It is available for all jobs run remotely by default, and new responses for any remote jobs are automatically added to it. If you want to draw fresh responses you can use `run(fresh_cache=True)` or `run(cache=Cache()`. If you want to draw responses from a different cache you can use `run(cache=<my_cache>)` (insert your own cache object). If you draw a fresh response for a question that has already been run, the new response is also added to the universal remote cache with an index (`n=2`, etc.). Universal remote cache is not available for jobs run locally. See the [remote cache](https://docs.expectedparrot.com/en/latest/remote_caching.html) section for more details.
+
+- (*In progress*) You can now use your own keys from service providers to run jobs remotely and store them at the [Keys](https://www.expectedparrot.com/home/keys) page of your [Coop account](https://www.expectedparrot.com/login) (in lieu of your `.env` file). You can also grant access to other users (without sharing the keys directly), set limits on their usage and set RPM/TPM limits.
+
+- (*In progress*) Parameter `run(background=True)` can be used to run a remote survey in the background so that you can continue working in your workspace. You will automatically get an email notification when the job is completed. You can check the status of the job at any time by attempting to return the results as usual, e.g., `results.columns`. 
+
+- Method `ScenarioList._from_pdf_to_image(<filename>)` generates a scenario for each page of a pdf converted into a jpeg (to use as an image instead of converting to text). Companion method `Scenario.from_pdf_to_image(<filename>)` generates a key/value for each page within the same scenario object to allow you to use multiple images at the same time. See a [notebook of examples](https://www.expectedparrot.com/content/ea777fab-9cb1-4738-8fa3-bbdef20ed60d).
 
 ### Changed
 ### Fixed
@@ -11,11 +17,11 @@
 
 ## [0.1.42] - 2025-01-24
 ### Added
-- DeepSeek models
+- DeepSeek models, e.g., `Model("deepseek-reasoner")`.
 
 - The name of the inference service is now included in the `Model` parameters and `Results` objects. This can be useful when the same model is provided by multiple services.
 
-- The model pricing page at Coop shows daily test results for available models: https://www.expectedparrot.com/home/pricing
+- The model pricing page at Coop shows daily test results for available models: https://www.expectedparrot.com/home/pricing. The same information can also be returned by calling the method `Model.check_working_models()`. Check the models for a particular service provider by passing the name of the service: `Model.check_working_models(service="google")`.
 
 ### Changed
 - Default size limits on question texts have been removed.
