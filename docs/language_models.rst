@@ -6,6 +6,7 @@ Language Models
 Language models are used to generate responses to survey questions.
 EDSL works with many models from a variety of popular inference service providers, including Anthropic, Azure, Bedrock, Deep Infra, DeepSeek, Google, Mistral, OpenAI, Perplexity and Together.
 Current model pricing and performance information can be found at the Coop `model pricing page <https://www.expectedparrot.com/getting-started/coop-pricing>`_.
+The same information can also be retrieved at your workspace by running the `Model.check_working_models()` method (see example code below).
 
 We also recommend checking providers' websites for the most up-to-date information on models and service providers' terms of use.
 Links to providers' websites can be found at the Coop model pricing page.
@@ -97,6 +98,30 @@ Output (this list will vary based on the models that have been used when the cod
      - google
    * - gemini-2.0-flash
      - google
+
+
+
+Check working models 
+--------------------
+
+You can check current performance and pricing for models by running the following code:
+
+.. code-block:: python
+
+  from edsl import Model
+
+  Model.check_working_models()
+
+
+This will return the same information available at the `model pricing page <https://www.expectedparrot.com/getting-started/coop-pricing>`_: *Service, Model, Works with text, Works with images, Price per 1M input tokens (USD), Price per 1M output tokens (USD)*.
+It can also be used to check a particular service provider (output omitted here for brevity):
+
+.. code-block:: python
+
+  from edsl import Model
+
+  Model.check_working_models(service = "google")
+
 
 
 .. Check models 
