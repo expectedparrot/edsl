@@ -386,21 +386,21 @@ This will return:
     - color
     - shape
   * - apple 
-    - 
-    - 
-    -
-  * - 
+    - nan
+    - nan
+    - nan
+  * - nan
     - water
-    -
-    -
-  * - 
-    - 
+    - nan
+    - nan
+  * - nan
+    - nan
+    - nan
     - red
-    -
-  * - 
-    -
-    -
-    - circle 
+  * - nan
+    - nan
+    - circle
+    - nan 
 
 
 We can create a cross product of `ScenarioList` objects (combine the scenarios in each list with each other):
@@ -427,21 +427,21 @@ This will return:
     - color
     - shape
   * - apple 
-    - 
+    - nan
+    - nan
     - red
-    -
   * - apple
-    - 
-    - 
+    - nan
     - circle
-  * - 
+    - nan
+  * - nan
+    - water
+    - nan
     - red
-    - water
-    -
-  * - 
-    - 
+  * - nan
     - water
     - circle
+    - nan
 
 
 Creating scenarios from a dataset
