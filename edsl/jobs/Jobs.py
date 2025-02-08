@@ -38,6 +38,7 @@ if TYPE_CHECKING:
     from edsl.language_models.ModelList import ModelList
     from edsl.data.Cache import Cache
     from edsl.language_models.key_management.KeyLookup import KeyLookup
+    from edsl.jobs.JobsRemoteInferenceHandler import JobsRemoteInferenceHandler
 
 VisibilityType = Literal["private", "public", "unlisted"]
 
@@ -465,22 +466,44 @@ class Jobs(Base):
 
         return False
 
-    def _remote_results(
-        self,
+    def _start_remote_inference_job(
+        self, job_handler: Optional[JobsRemoteInferenceHandler] = None
     ) -> Union["Results", None]:
-        from edsl.jobs.JobsRemoteInferenceHandler import JobsRemoteInferenceHandler
 
-        jh = JobsRemoteInferenceHandler(
-            self, verbose=self.run_config.parameters.verbose
-        )
-        if jh.use_remote_inference(self.run_config.parameters.disable_remote_inference):
-            job_info = jh.create_remote_inference_job(
+        if job_handler is None:
+            job_handler = self._create_remote_inference_handler()
+            
+        job_info = job_handler.create_remote_inference_job(
                 iterations=self.run_config.parameters.n,
                 remote_inference_description=self.run_config.parameters.remote_inference_description,
                 remote_inference_results_visibility=self.run_config.parameters.remote_inference_results_visibility,
-            )
-            results = jh.poll_remote_inference_job(job_info)
-            return results
+        )
+        return job_info
+    
+    def _create_remote_inference_handler(self) -> JobsRemoteInferenceHandler:
+
+        from edsl.jobs.JobsRemoteInferenceHandler import JobsRemoteInferenceHandler
+        
+        return JobsRemoteInferenceHandler(
+            self, verbose=self.run_config.parameters.verbose
+        )
+        
+    def _remote_results(
+        self,
+        background: bool = True,
+    ) -> Union["Results", None]:
+        from edsl.jobs.JobsRemoteInferenceHandler import JobsRemoteInferenceHandler
+
+        jh = self._create_remote_inference_handler()
+        if jh.use_remote_inference(self.run_config.parameters.disable_remote_inference):
+            job_info = self._start_remote_inference_job(jh)
+            if background:
+                from edsl.results.Results import Results 
+                results = Results.from_job_info(job_info)
+                return results
+            else:
+                results = jh.poll_remote_inference_job(job_info)
+                return results
         else:
             return None
 
@@ -507,32 +530,12 @@ class Jobs(Base):
 
         assert isinstance(self.run_config.environment.cache, Cache)
 
-        # with RemoteCacheSync(
-        #     coop=Coop(),
-        #     cache=self.run_config.environment.cache,
-        #     output_func=self._output,
-        #     remote_cache=use_remote_cache,
-        #     remote_cache_description=self.run_config.parameters.remote_cache_description,
-        # ):
         runner = JobsRunnerAsyncio(self, environment=self.run_config.environment)
         if run_job_async:
             results = await runner.run_async(self.run_config.parameters)
         else:
             results = runner.run(self.run_config.parameters)
         return results
-
-    # def _setup_and_check(self) -> Tuple[RunConfig, Optional[Results]]:
-    #     self._prepare_to_run()
-    #     self._check_if_remote_keys_ok()
-
-    #     # first try to run the job remotely
-    #     results = self._remote_results()
-    #     #breakpoint()
-    #     if results is not None:
-    #         return results
-
-    #     self._check_if_local_keys_ok()
-    #     return None
 
     @property
     def num_interviews(self):
@@ -563,7 +566,6 @@ class Jobs(Base):
 
         self.replace_missing_objects()
 
-        # try to run remotely first
         self._prepare_to_run()
         self._check_if_remote_keys_ok()
 
@@ -581,9 +583,9 @@ class Jobs(Base):
             self.run_config.environment.cache = Cache(immediate_write=False)
 
         # first try to run the job remotely
-        if results := self._remote_results():
+        if (results := self._remote_results()) is not None:
             return results
-
+        
         self._check_if_local_keys_ok()
 
         if config.environment.bucket_collection is None:
