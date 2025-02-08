@@ -1286,10 +1286,6 @@ class Results(UserList, Mixins, Base):
         Args:
             job_info: RemoteJobInfo object containing the job_uuid and other remote job details
         
-        Example:
-        >>> job_info = remote_handler.create_remote_inference_job()
-        >>> r = Results()
-        >>> r.fetch_remote(job_info)  # Updates r with remote data if available
         """
         #print("Calling fetch_remote")
         try:
