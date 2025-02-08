@@ -43,9 +43,9 @@ To use a scenario, we start by creating a question that takes a parameter in dou
   from edsl import QuestionMultipleChoice
 
   q = QuestionMultipleChoice(
-      question_name = "enjoy",
-      question_text = "How much do you enjoy {{ activity }}?",
-      question_options = ["Not at all", "Somewhat", "Very much"]
+    question_name = "enjoy",
+    question_text = "How much do you enjoy {{ activity }}?",
+    question_options = ["Not at all", "Somewhat", "Very much"]
   )
 
 
@@ -153,7 +153,7 @@ For example, here we call the `by()` method on the example question created abov
 
 .. code-block:: python
 
-  from edsl import QuestionMultipleChoice, Scenario, Agent
+  from edsl import QuestionMultipleChoice, Scenario, ScenarioList, Agent, Model
 
   q = QuestionMultipleChoice(
     question_name = "enjoy",
@@ -202,7 +202,7 @@ For example:
 
 .. code-block:: python
 
-  from edsl import QuestionMultipleChoice, ScenarioList, Scenario
+  from edsl import QuestionMultipleChoice, ScenarioList
 
   q = QuestionMultipleChoice(
     question_name = "enjoy_{{ activity }}",
@@ -270,7 +270,7 @@ We can also create a `Scenario` for multiple parameters at once:
 
 .. code-block:: python
 
-  from edsl import QuestionFreeText
+  from edsl import QuestionFreeText, Scenario
 
   q = QuestionFreeText(
     question_name = "counting",
@@ -366,7 +366,7 @@ We can also combine `ScenarioList` objects:
 
 .. code-block:: python
 
-  from edsl import ScenarioList
+  from edsl import Scenario, ScenarioList
 
   scenariolist1 = ScenarioList([Scenario({"food": "apple"}), Scenario({"drink": "water"})])
   scenariolist2 = ScenarioList([Scenario({"color": "red"}), Scenario({"shape": "circle"})])
@@ -407,7 +407,7 @@ We can create a cross product of `ScenarioList` objects (combine the scenarios i
 
 .. code-block:: python
 
-  from edsl import ScenarioList
+  from edsl import Scenario, ScenarioList
 
   scenariolist1 = ScenarioList([Scenario({"food": "apple"}), Scenario({"drink": "water"})])
   scenariolist2 = ScenarioList([Scenario({"color": "red"}), Scenario({"shape": "circle"})])
@@ -461,14 +461,14 @@ Say we have some results from a survey where we asked agents to choose a random 
 
 .. code-block:: python
 
-  from edsl import QuestionNumerical, Agent
+  from edsl import QuestionNumerical, Agent, AgentList
 
   q_random = QuestionNumerical(
     question_name = "random",
     question_text = "Choose a random number between 1 and 1000."
   )
 
-  agents = [Agent({"persona":p}) for p in ["Child", "Magician", "Olympic breakdancer"]]
+  agents = AgentList(Agent({"persona":p}) for p in ["Child", "Magician", "Olympic breakdancer"])
 
   results = q_random.by(agents).run()
 
@@ -1356,7 +1356,7 @@ Example usage:
 
 .. code-block:: python
 
-  from edsl import ScenarioList
+  from edsl import Scenario, ScenarioList
 
   def avg_sum(a, b):
       return {'avg_a': sum(a) / len(a), 'sum_b': sum(b)}
@@ -1399,7 +1399,7 @@ Here we use scenarios to conduct the task:
 
 .. code-block:: python
 
-  from edsl import QuestionMultipleChoice, Survey, Scenario
+  from edsl import QuestionMultipleChoice, Survey, Scenario, ScenarioList
 
   # Create a question with that takes a parameter
   q1 = QuestionMultipleChoice(
@@ -1421,7 +1421,8 @@ Here we use scenarios to conduct the task:
     "I have a safety concern...", 
     "I need help with a product..."
   ]
-  scenarios = [Scenario({"message": message}) for message in messages]
+
+  scenarios = ScenarioList(Scenario({"message": message}) for message in messages)
 
   # Create a survey with the question
   survey = Survey(questions = [q1, q2])
@@ -1469,7 +1470,7 @@ Note that the question texts are unchanged:
 
 .. code-block:: python
 
-  from edsl import QuestionMultipleChoice, Survey, ScenarioList, Scenario
+  from edsl import QuestionMultipleChoice, Survey, Scenario, ScenarioList
 
   # Create a question with a parameter
   q1 = QuestionMultipleChoice(
@@ -1564,10 +1565,10 @@ Example usage:
   text_scenario = Scenario({"my_text": my_haiku})
 
   word_chunks_scenariolist = text_scenario.chunk(
-      "my_text", 
-      num_words = 5, # use num_words or num_lines but not both
-      include_original = True, # optional 
-      hash_original = True # optional
+    "my_text", 
+    num_words = 5, # use num_words or num_lines but not both
+    include_original = True, # optional 
+    hash_original = True # optional
   )
   word_chunks_scenariolist
 
@@ -1603,7 +1604,7 @@ Then we use the `show_prompts()` method to examine the user prompts that are cre
 
 .. code-block:: python
 
-  from edsl import QuestionFreeText, ScenarioList, Scenario, Survey
+  from edsl import QuestionFreeText, Scenario, ScenarioList, Survey
 
   questions = []
   sentiments = ["enjoy", "hate", "love"]
