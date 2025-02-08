@@ -38,6 +38,66 @@ from edsl.results.ResultsGGMixin import ResultsGGMixin
 from edsl.results.results_fetch_mixin import ResultsFetchMixin
 from edsl.utilities.remove_edsl_version import remove_edsl_version
 
+def ensure_fetched(method):
+    """A decorator that checks if remote data is loaded, and if not, attempts to fetch it."""
+    def wrapper(self, *args, **kwargs):
+        if not self._fetched:
+            # If not fetched, try fetching now.
+            # (If you know you have job info stored in self.job_info)
+            self.fetch_remote(self.job_info)
+        return method(self, *args, **kwargs)
+    return wrapper
+
+def ensure_ready(method):
+    """
+    Decorator for Results methods.
+    
+    This decorator:
+      1. Checks if self.completed is True. If so, it executes the method.
+      2. Otherwise, attempts to fetch remote data using:
+             self.fetch_remote(self.job_info)
+      3. After fetching, if self.completed is still False, it prints a message and returns
+         a NotReadyObject initialized with the method name.
+    
+    Usage:
+        @ensure_ready
+        def table(self, ...):
+            ...
+    """
+    from functools import wraps
+
+    @wraps(method)
+    def wrapper(self, *args, **kwargs):
+        if self.completed:
+            return method(self, *args, **kwargs)
+        # Try to fetch the remote data if not completed.
+        try:
+            if hasattr(self, "job_info"):
+                self.fetch_remote(self.job_info)
+        except Exception as e:
+            print(f"Error during fetch_remote in {method.__name__}: {e}")
+        # Check again after fetching.
+        if not self.completed:
+            #print(f"Results not ready to call {method.__name__}.")
+            return NotReadyObject(method.__name__)
+        return method(self, *args, **kwargs)
+
+    return wrapper
+
+class NotReadyObject:
+    """A placeholder object that prints a message when any attribute is accessed."""
+    def __init__(self, name: str):
+        self.name = name
+        #print(f"Not ready to call {name}")
+
+    def __repr__(self):
+        return f"Results not ready to call {self.name}."
+
+    def __getattr__(self, _):
+        return self
+    
+    def __call__(self, *args, **kwargs):
+        return self
 
 class Mixins(
     ResultsExportMixin,
@@ -93,6 +153,16 @@ class Results(UserList, Mixins, Base):
         "cache_keys",
     ]
 
+    @classmethod
+    def from_job_info(cls, job_info: dict) -> Results:
+        """
+        Instantiate a `Results` object from a job info dictionary.
+        """
+        results = cls()
+        results.completed = False
+        results.job_info = job_info
+        return results
+
     def __init__(
         self,
         survey: Optional[Survey] = None,
@@ -112,6 +182,8 @@ class Results(UserList, Mixins, Base):
         :param total_results: An integer representing the total number of results.
         :cache: A Cache object.
         """
+        self.completed = True
+        self._fetching = False
         super().__init__(data)
         from edsl.data.Cache import Cache
         from edsl.jobs.tasks.TaskHistory import TaskHistory
@@ -315,10 +387,22 @@ class Results(UserList, Mixins, Base):
             data=self.data + other.data,
             created_columns=self.created_columns,
         )
-
+    
+    def _repr_html_(self):
+        if not self.completed:
+            if hasattr(self, "job_info"):
+                self.fetch_remote(self.job_info)
+            
+            if not self.completed:
+                return f"Results not ready to call"
+        
+        return super()._repr_html_()    
+    
     def __repr__(self) -> str:
-        return f"Results(data = {self.data}, survey = {repr(self.survey)}, created_columns = {self.created_columns})"
-
+        if not self.completed:
+            return "Results(..waiting on remote job to complete...)"
+        return f"Results({len(self)} observations)"
+        
     def table(
         self,
         *fields,
@@ -732,6 +816,7 @@ class Results(UserList, Mixins, Base):
 
         return self.recode(column, recode_function=f, new_var_name=new_var_name)
 
+    @ensure_ready
     def recode(
         self, column: str, recode_function: Optional[Callable], new_var_name=None
     ) -> Results:
@@ -760,6 +845,7 @@ class Results(UserList, Mixins, Base):
             created_columns=self.created_columns + [new_var_name],
         )
 
+    @ensure_ready
     def add_column(self, column_name: str, values: list) -> Results:
         """Adds columns to Results
 
@@ -780,6 +866,7 @@ class Results(UserList, Mixins, Base):
             created_columns=self.created_columns + [column_name],
         )
 
+    @ensure_ready
     def add_columns_from_dict(self, columns: List[dict]) -> Results:
         """Adds columns to Results from a list of dictionaries.
 
@@ -829,6 +916,7 @@ class Results(UserList, Mixins, Base):
         evaluator.functions.update(int=int, float=float)
         return evaluator
 
+    @ensure_ready
     def mutate(
         self, new_var_string: str, functions_dict: Optional[dict] = None
     ) -> Results:
@@ -879,6 +967,7 @@ class Results(UserList, Mixins, Base):
             created_columns=self.created_columns + [var_name],
         )
 
+    @ensure_ready
     def add_column(self, column_name: str, values: list) -> Results:
         """Adds columns to Results
 
@@ -899,6 +988,7 @@ class Results(UserList, Mixins, Base):
             created_columns=self.created_columns + [column_name],
         )
 
+    @ensure_ready
     def rename(self, old_name: str, new_name: str) -> Results:
         """Rename an answer column in a Results object.
 
@@ -916,6 +1006,7 @@ class Results(UserList, Mixins, Base):
 
         return self
 
+    @ensure_ready
     def shuffle(self, seed: Optional[str] = "edsl") -> Results:
         """Shuffle the results.
 
@@ -932,6 +1023,7 @@ class Results(UserList, Mixins, Base):
         random.shuffle(new_data)
         return Results(survey=self.survey, data=new_data, created_columns=None)
 
+    @ensure_ready
     def sample(
         self,
         n: Optional[int] = None,
@@ -971,6 +1063,7 @@ class Results(UserList, Mixins, Base):
 
         return Results(survey=self.survey, data=new_data, created_columns=None)
 
+    @ensure_ready
     def select(self, *columns: Union[str, list[str]]) -> Results:
         """
         Select data from the results and format it.
@@ -1004,6 +1097,7 @@ class Results(UserList, Mixins, Base):
         )
         return selector.select(*columns)
 
+    @ensure_ready
     def sort_by(self, *columns: str, reverse: bool = False) -> Results:
         """Sort the results by one or more columns."""
         import warnings
@@ -1019,6 +1113,7 @@ class Results(UserList, Mixins, Base):
             return column.split(".")
         return self._key_to_data_type[column], column
 
+    @ensure_ready
     def order_by(self, *columns: str, reverse: bool = False) -> Results:
         """Sort the results by one or more columns.
 
@@ -1055,6 +1150,7 @@ class Results(UserList, Mixins, Base):
         new_data = sorted(self.data, key=sort_key, reverse=reverse)
         return Results(survey=self.survey, data=new_data, created_columns=None)
 
+    @ensure_ready
     def filter(self, expression: str) -> Results:
         """
         Filter based on the given expression and returns the filtered `Results`.
@@ -1178,6 +1274,59 @@ class Results(UserList, Mixins, Base):
         [1, 1, 0, 0]
         """
         return [r.score(f) for r in self.data]
+    
+
+    def fetch_remote(self, job_info: "RemoteJobInfo") -> None:
+        """
+        Fetches the remote Results object using the provided RemoteJobInfo and updates this instance with the remote data.
+        
+        This is useful when you have a Results object that was created locally but want to sync it with 
+        the latest data from the remote server.
+        
+        Args:
+            job_info: RemoteJobInfo object containing the job_uuid and other remote job details
+        
+        Example:
+        >>> job_info = remote_handler.create_remote_inference_job()
+        >>> r = Results()
+        >>> r.fetch_remote(job_info)  # Updates r with remote data if available
+        """
+        #print("Calling fetch_remote")
+        try:
+            from edsl.coop.coop import Coop
+            from edsl.jobs.JobsRemoteInferenceHandler import JobsRemoteInferenceHandler
+            
+            # Get the remote job data
+            remote_job_data = JobsRemoteInferenceHandler.check_status(job_info.job_uuid)
+            
+            if remote_job_data.get("status") not in ["completed", "failed"]:
+                return False
+                #            
+            results_uuid = remote_job_data.get("results_uuid")
+            if not results_uuid:
+                raise ResultsError("No results_uuid found in remote job data")
+            
+            # Fetch the remote Results object
+            coop = Coop()
+            remote_results = coop.get(results_uuid, expected_object_type="results")
+            
+            # Update this instance with remote data
+            self.data = remote_results.data
+            self.survey = remote_results.survey
+            self.created_columns = remote_results.created_columns
+            self.cache = remote_results.cache
+            self.task_history = remote_results.task_history
+            self.completed = True
+            
+            # Set job_uuid and results_uuid from remote data
+            self.job_uuid = job_info.job_uuid
+            if hasattr(remote_results, 'results_uuid'):
+                self.results_uuid = remote_results.results_uuid
+
+            return True
+
+        except Exception as e:
+            raise ResultsError(f"Failed to fetch remote results: {str(e)}")
 
 
 def main():  # pragma: no cover

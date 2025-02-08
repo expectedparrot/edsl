@@ -228,6 +228,40 @@ class JobsRemoteInferenceHandler:
         results.results_uuid = results_uuid
         return results
 
+    def _attempt_fetch_job(
+        self,
+        job_info: RemoteJobInfo,
+        remote_job_data_fetcher: Callable,
+        object_fetcher: Callable,
+    ) -> Union[None, "Results", Literal["continue"]]:
+        """Makes one attempt to fetch and process a remote job's status and results."""
+        remote_job_data = remote_job_data_fetcher(job_info.job_uuid)
+        status = remote_job_data.get("status")
+
+        if status == "cancelled":
+            self._handle_cancelled_job(job_info)
+            return None
+
+        elif status == "failed" or status == "completed":
+            if status == "failed":
+                self._handle_failed_job(job_info, remote_job_data)
+
+            results_uuid = remote_job_data.get("results_uuid")
+            if results_uuid:
+                results = self._fetch_results_and_log(
+                    job_info=job_info,
+                    results_uuid=results_uuid,
+                    remote_job_data=remote_job_data,
+                    object_fetcher=object_fetcher,
+                )
+                return results
+            else:
+                return None
+
+        else:
+            self._sleep_for_a_bit(job_info, status)
+            return "continue"
+
     def poll_remote_inference_job(
         self,
         job_info: RemoteJobInfo,
@@ -242,31 +276,13 @@ class JobsRemoteInferenceHandler:
 
         job_in_queue = True
         while job_in_queue:
-            remote_job_data = remote_job_data_fetcher(job_info.job_uuid)
-            status = remote_job_data.get("status")
-
-            if status == "cancelled":
-                self._handle_cancelled_job(job_info)
-                return None
-
-            elif status == "failed" or status == "completed":
-                if status == "failed":
-                    self._handle_failed_job(job_info, remote_job_data)
-
-                results_uuid = remote_job_data.get("results_uuid")
-                if results_uuid:
-                    results = self._fetch_results_and_log(
-                        job_info=job_info,
-                        results_uuid=results_uuid,
-                        remote_job_data=remote_job_data,
-                        object_fetcher=object_fetcher,
-                    )
-                    return results
-                else:
-                    return None
-
-            else:
-                self._sleep_for_a_bit(job_info, status)
+            result = self._attempt_fetch_job(
+                job_info,
+                remote_job_data_fetcher,
+                object_fetcher
+            )
+            if result != "continue":
+                return result
 
     async def create_and_poll_remote_job(
         self,
