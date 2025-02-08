@@ -52,17 +52,9 @@ def ensure_ready(method):
     """
     Decorator for Results methods.
     
-    This decorator:
-      1. Checks if self.completed is True. If so, it executes the method.
-      2. Otherwise, attempts to fetch remote data using:
-             self.fetch_remote(self.job_info)
-      3. After fetching, if self.completed is still False, it prints a message and returns
-         a NotReadyObject initialized with the method name.
-    
-    Usage:
-        @ensure_ready
-        def table(self, ...):
-            ...
+    If the Results object is not ready, for most methods we return a NotReadyObject.
+    However, for __repr__ (and other methods that need to return a string), we return
+    the string representation of NotReadyObject.
     """
     from functools import wraps
 
@@ -70,16 +62,18 @@ def ensure_ready(method):
     def wrapper(self, *args, **kwargs):
         if self.completed:
             return method(self, *args, **kwargs)
-        # Try to fetch the remote data if not completed.
+        # Attempt to fetch remote data
         try:
             if hasattr(self, "job_info"):
                 self.fetch_remote(self.job_info)
         except Exception as e:
             print(f"Error during fetch_remote in {method.__name__}: {e}")
-        # Check again after fetching.
         if not self.completed:
-            #print(f"Results not ready to call {method.__name__}.")
-            return NotReadyObject(method.__name__)
+            not_ready = NotReadyObject(method.__name__)
+            # For __repr__, ensure we return a string
+            if method.__name__ == "__repr__":
+                return not_ready.__repr__()
+            return not_ready
         return method(self, *args, **kwargs)
 
     return wrapper
@@ -91,7 +85,7 @@ class NotReadyObject:
         #print(f"Not ready to call {name}")
 
     def __repr__(self):
-        return f"Results not ready to call {self.name}."
+        return f"Results not ready."
 
     def __getattr__(self, _):
         return self
@@ -398,11 +392,10 @@ class Results(UserList, Mixins, Base):
         
         return super()._repr_html_()    
     
+    @ensure_ready
     def __repr__(self) -> str:
-        if not self.completed:
-            return "Results(..waiting on remote job to complete...)"
-        return f"Results({len(self)} observations)"
-        
+        return f"Results(data = {self.data}, survey = {repr(self.survey)}, created_columns = {self.created_columns})"
+
     def table(
         self,
         *fields,
