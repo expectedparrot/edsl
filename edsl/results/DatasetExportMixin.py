@@ -7,7 +7,6 @@ from typing import Optional, Tuple, Union, List
 
 from edsl.results.file_exports import CSVExport, ExcelExport, JSONLExport, SQLiteExport
 
-
 class DatasetExportMixin:
     """Mixin class for exporting Dataset objects."""
 
@@ -220,23 +219,45 @@ class DatasetExportMixin:
         )
         return exporter.export()
 
-    def _db(self, remove_prefix: bool = True):
+    def _db(self, remove_prefix: bool = True, shape: str = "wide") -> "sqlalchemy.engine.Engine":
         """Create a SQLite database in memory and return the connection.
 
         Args:
-            shape: The shape of the data in the database (wide or long)
             remove_prefix: Whether to remove the prefix from the column names
+            shape: The shape of the data in the database ("wide" or "long")
 
         Returns:
             A database connection
+        >>> from sqlalchemy import text
+        >>> from edsl import Results 
+        >>> engine = Results.example()._db()
+        >>> len(engine.execute(text("SELECT * FROM self")).fetchall())
+        4
+        >>> engine = Results.example()._db(shape = "long")
+        >>> len(engine.execute(text("SELECT * FROM self")).fetchall())
+        172
         """
-        from sqlalchemy import create_engine
+        from sqlalchemy import create_engine, text
 
         engine = create_engine("sqlite:///:memory:")
-        if remove_prefix:
+        if remove_prefix and shape == "wide":
             df = self.remove_prefix().to_pandas(lists_as_strings=True)
         else:
             df = self.to_pandas(lists_as_strings=True)
+
+        if shape == "long":
+            # Melt the dataframe to convert it to long format
+            df = df.melt(
+                var_name='key', 
+                value_name='value'
+            )
+            # Add a row number column for reference
+            df.insert(0, 'row_number', range(1, len(df) + 1))
+            
+            # Split the key into data_type and key
+            df['data_type'] = df['key'].apply(lambda x: x.split('.')[0] if '.' in x else None)
+            df['key'] = df['key'].apply(lambda x: '.'.join(x.split('.')[1:]) if '.' in x else x)
+
         df.to_sql(
             "self",
             engine,
@@ -251,6 +272,7 @@ class DatasetExportMixin:
         transpose: bool = None,
         transpose_by: str = None,
         remove_prefix: bool = True,
+        shape: str = "wide",
     ) -> Union["pd.DataFrame", str]:
         """Execute a SQL query and return the results as a DataFrame.
 
@@ -268,10 +290,17 @@ class DatasetExportMixin:
         Returns:
             DataFrame, CSV string, list, or LaTeX string depending on parameters
 
+       Examples:
+           >>> from edsl import Results
+           >>> r = Results.example(); 
+           >>> len(r.sql("SELECT * FROM self", shape = "wide"))
+           4
+           >>> len(r.sql("SELECT * FROM self", shape = "long"))
+           172
         """
         import pandas as pd
 
-        conn = self._db(remove_prefix=remove_prefix)
+        conn = self._db(remove_prefix=remove_prefix, shape=shape)
         df = pd.read_sql_query(query, conn)
 
         # Transpose the DataFrame if transpose is True
