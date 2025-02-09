@@ -408,7 +408,13 @@ class Jobs(Base):
         >>> bc
         BucketCollection(...)
         """
-        return BucketCollection.from_models(self.models)
+        bc = BucketCollection.from_models(self.models)
+        
+        if self.run_config.environment.key_lookup is not None:
+            bc.update_from_key_lookup(
+                self.run_config.environment.key_lookup
+            )
+        return bc
 
     def html(self):
         """Return the HTML representations for each scenario"""
