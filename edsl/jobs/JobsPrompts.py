@@ -1,3 +1,5 @@
+import time
+import logging
 from typing import List, TYPE_CHECKING
 
 from edsl.results.Dataset import Dataset
@@ -14,6 +16,7 @@ if TYPE_CHECKING:
 from edsl.jobs.FetchInvigilator import FetchInvigilator
 from edsl.data.CacheEntry import CacheEntry
 
+logger = logging.getLogger(__name__)
 
 class JobsPrompts:
     def __init__(self, jobs: "Jobs"):
@@ -22,6 +25,8 @@ class JobsPrompts:
         self.scenarios = jobs.scenarios
         self.survey = jobs.survey
         self._price_lookup = None
+        self._agent_lookup = {agent: idx for idx, agent in enumerate(self.agents)}
+        self._scenario_lookup = {scenario: idx for idx, scenario in enumerate(self.scenarios)}
 
     @property
     def price_lookup(self):
@@ -49,25 +54,53 @@ class JobsPrompts:
         models = []
         costs = []
         cache_keys = []
+        
         for interview_index, interview in enumerate(interviews):
+            logger.info(f"Processing interview {interview_index} of {len(interviews)}")
+            interview_start = time.time()
+            
+            # Fetch invigilators timing
+            invig_start = time.time()
             invigilators = [
                 FetchInvigilator(interview)(question)
                 for question in interview.survey.questions
             ]
+            invig_end = time.time()
+            logger.debug(f"Time taken to fetch invigilators: {invig_end - invig_start:.4f}s")
+            
+            # Process prompts timing
+            prompts_start = time.time()
             for _, invigilator in enumerate(invigilators):
+                # Get prompts timing
+                get_prompts_start = time.time()
                 prompts = invigilator.get_prompts()
+                get_prompts_end = time.time()
+                logger.debug(f"Time taken to get prompts: {get_prompts_end - get_prompts_start:.4f}s")
+                
                 user_prompt = prompts["user_prompt"]
                 system_prompt = prompts["system_prompt"]
                 user_prompts.append(user_prompt)
                 system_prompts.append(system_prompt)
-                agent_index = self.agents.index(invigilator.agent)
+                
+                # Index lookups timing
+                index_start = time.time()
+                agent_index = self._agent_lookup[invigilator.agent]
                 agent_indices.append(agent_index)
                 interview_indices.append(interview_index)
-                scenario_index = self.scenarios.index(invigilator.scenario)
+                scenario_index = self._scenario_lookup[invigilator.scenario]
                 scenario_indices.append(scenario_index)
+                index_end = time.time()
+                logger.debug(f"Time taken for index lookups: {index_end - index_start:.4f}s")
+                
+                # Model and question name assignment timing
+                assign_start = time.time()
                 models.append(invigilator.model.model)
                 question_names.append(invigilator.question.question_name)
+                assign_end = time.time()
+                logger.debug(f"Time taken for assignments: {assign_end - assign_start:.4f}s")
 
+                # Cost estimation timing
+                cost_start = time.time()
                 prompt_cost = self.estimate_prompt_cost(
                     system_prompt=system_prompt,
                     user_prompt=user_prompt,
@@ -75,16 +108,34 @@ class JobsPrompts:
                     inference_service=invigilator.model._inference_service_,
                     model=invigilator.model.model,
                 )
+                cost_end = time.time()
+                logger.debug(f"Time taken to estimate prompt cost: {cost_end - cost_start:.4f}s")
                 costs.append(prompt_cost["cost_usd"])
 
+                # Cache key generation timing
+                cache_key_gen_start = time.time()
                 cache_key = CacheEntry.gen_key(
                     model=invigilator.model.model,
                     parameters=invigilator.model.parameters,
                     system_prompt=system_prompt,
                     user_prompt=user_prompt,
-                    iteration=0,  # TODO how to handle when there are multiple iterations?
+                    iteration=0,
                 )
+                cache_key_gen_end = time.time()
                 cache_keys.append(cache_key)
+                logger.debug(f"Time taken to generate cache key: {cache_key_gen_end - cache_key_gen_start:.4f}s")
+                logger.debug("-" * 50)  # Separator between iterations
+
+            prompts_end = time.time()
+            logger.info(f"Time taken to process prompts: {prompts_end - prompts_start:.4f}s")
+            
+            interview_end = time.time()
+            logger.info(f"Overall time taken for interview: {interview_end - interview_start:.4f}s")
+            logger.info("Time breakdown:")
+            logger.info(f"  Invigilators: {invig_end - invig_start:.4f}s")
+            logger.info(f"  Prompts processing: {prompts_end - prompts_start:.4f}s")
+            logger.info(f"  Other overhead: {(interview_end - interview_start) - ((invig_end - invig_start) + (prompts_end - prompts_start)):.4f}s")
+
         d = Dataset(
             [
                 {"user_prompt": user_prompts},
