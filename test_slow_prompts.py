@@ -5,8 +5,9 @@ print("Number of questions: ", len(s.questions))
 sl = ScenarioList.pull('5a578ef9-7d56-4fb9-8b61-3af9190f93a9')
 print("Number of scenarios: ", len(sl)) 
 
-N = 2
-job = s.by(sl.shuffle()[:N])
+#N = 1000
+#job = s.by(sl.shuffle()[:N])
+#job = s.by(sl)
 job = s.by(sl)
 
 print("Number of interviews: ", len(job))

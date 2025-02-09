@@ -30,6 +30,29 @@ def _find_template_variables(template: str) -> list[str]:
     ast = _env.parse(template)
     return list(meta.find_undeclared_variables(ast))
 
+def _make_hashable(value):
+    """Convert unhashable types to hashable ones."""
+    if isinstance(value, list):
+        return tuple(_make_hashable(item) for item in value)
+    if isinstance(value, dict):
+        return frozenset((k, _make_hashable(v)) for k, v in value.items())
+    return value
+
+@lru_cache(maxsize=1024)
+def _cached_render(text: str, frozen_replacements: frozenset) -> str:
+    """Cached version of template rendering with frozen replacements."""
+    # Print cache info on every call
+    cache_info = _cached_render.cache_info()
+    print(f"\t\t\t\t\t Cache status - hits: {cache_info.hits}, misses: {cache_info.misses}, current size: {cache_info.currsize}")
+    
+    # Convert back to dict with original types for rendering
+    replacements = {k: v for k, v in frozen_replacements}
+    
+    template = _compile_template(text)
+    result = template.render(replacements)
+    
+    return result
+
 class Prompt(PersistenceMixin, RepresentationMixin):
     """Class for creating a prompt to be used in a survey."""
 
@@ -242,24 +265,13 @@ class Prompt(PersistenceMixin, RepresentationMixin):
             return text
      
         try:
-            # Log template info
-            vars_start = time.time()
             variables = _find_template_variables(text)
             
             if not variables: # if there are no variables, return the text
                 return text
             
-            print(f"\t\t\t\t\t Variables: {variables}")
-            vars_end = time.time()
-            print(f"\t\t\t\t\t Time to find template variables: {vars_end - vars_start}")
-            print(f"\t\t\t\t\t Number of template variables: {len(variables)}")
-            print(f"\t\t\t\t\t Template length: {len(text)}")
-            
-            # Compile template
-            compile_start = time.time()
-            template = _compile_template(text)
-            compile_end = time.time()
-            print(f"\t\t\t\t\t Time to compile template: {compile_end - compile_start}")
+            # Combine all replacements
+            all_replacements = {**primary_replacement, **additional_replacements}
             
             previous_text = None
             current_text = text
@@ -267,25 +279,15 @@ class Prompt(PersistenceMixin, RepresentationMixin):
             
             for _ in range(MAX_NESTING):
                 iteration += 1
-                render_start = time.time()
-                rendered_text = template.render(
-                    primary_replacement, **additional_replacements
-                )
-                render_end = time.time()
-                print(f"\t\t\t\t\t Time for render iteration {iteration}: {render_end - render_start}")
-                print(f"\t\t\t\t\t Rendered text length: {len(rendered_text)}")
+                
+                template = _compile_template(current_text)
+                rendered_text = template.render(all_replacements)
                 
                 if rendered_text == current_text:
-                    print(f"\t\t\t\t\t Total iterations needed: {iteration}")
                     return rendered_text
                     
                 previous_text = current_text
                 current_text = rendered_text
-                
-                recompile_start = time.time()
-                template = _compile_template(current_text)
-                recompile_end = time.time()
-                print(f"\t\t\t\t\t Time to recompile template: {recompile_end - recompile_start}")
 
             raise TemplateRenderError(
                 "Too much nesting - you created an infinite loop here, pal"
@@ -340,6 +342,58 @@ class Prompt(PersistenceMixin, RepresentationMixin):
         """Return an example of the prompt."""
         return cls(cls.default_instructions)
 
+    def get_prompts(self) -> Dict[str, Any]:
+        """Get the prompts for the question."""
+        start = time.time()
+        
+        # Build all the components
+        instr_start = time.time()
+        agent_instructions = self.agent_instructions_prompt
+        instr_end = time.time()
+        logger.debug(f"Time taken for agent instructions: {instr_end - instr_start:.4f}s")
+        
+        persona_start = time.time()
+        agent_persona = self.agent_persona_prompt
+        persona_end = time.time()
+        logger.debug(f"Time taken for agent persona: {persona_end - persona_start:.4f}s")
+        
+        q_instr_start = time.time()
+        question_instructions = self.question_instructions_prompt
+        q_instr_end = time.time()
+        logger.debug(f"Time taken for question instructions: {q_instr_end - q_instr_start:.4f}s")
+        
+        memory_start = time.time()
+        prior_question_memory = self.prior_question_memory_prompt
+        memory_end = time.time()
+        logger.debug(f"Time taken for prior question memory: {memory_end - memory_start:.4f}s")
+
+        # Get components dict
+        components = {
+            "agent_instructions": agent_instructions.text,
+            "agent_persona": agent_persona.text,
+            "question_instructions": question_instructions.text,
+            "prior_question_memory": prior_question_memory.text,
+        }
+
+        # Use PromptPlan's get_prompts method
+        plan_start = time.time()
+        prompts = self.prompt_plan.get_prompts(**components)
+        plan_end = time.time()
+        logger.debug(f"Time taken for prompt processing: {plan_end - plan_start:.4f}s")
+        
+        # Handle file keys if present
+        if hasattr(self, 'question_file_keys') and self.question_file_keys:
+            files_start = time.time()
+            files_list = []
+            for key in self.question_file_keys:
+                files_list.append(self.scenario[key])
+            prompts["files_list"] = files_list
+            files_end = time.time()
+            logger.debug(f"Time taken for file key processing: {files_end - files_start:.4f}s")
+        
+        end = time.time()
+        logger.debug(f"Total time in get_prompts: {end - start:.4f}s")
+        return prompts
 
 if __name__ == "__main__":
     print("Running doctests...")

@@ -4,6 +4,7 @@ from functools import cached_property
 from multiprocessing import Pool, freeze_support, get_context
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 import time
+import logging
 
 from edsl.prompts.Prompt import Prompt
 
@@ -25,6 +26,7 @@ if TYPE_CHECKING:
     from edsl.questions.QuestionBase import QuestionBase
     from edsl.scenarios.Scenario import Scenario
 
+logger = logging.getLogger(__name__)
 
 class BasePlaceholder:
     """Base class for placeholder values when a question is not yet answered."""
@@ -253,22 +255,22 @@ class PromptConstructor:
         instr_start = time.time()
         agent_instructions = self.agent_instructions_prompt
         instr_end = time.time()
-        print(f"\t\t Time for agent instructions: {instr_end - instr_start}")
+        logger.debug(f"Time taken for agent instructions: {instr_end - instr_start:.4f}s")
         
         persona_start = time.time()
         agent_persona = self.agent_persona_prompt
         persona_end = time.time()
-        print(f"\t\t Time for agent persona: {persona_end - persona_start}")
+        logger.debug(f"Time taken for agent persona: {persona_end - persona_start:.4f}s")
         
         q_instr_start = time.time()
         question_instructions = self.question_instructions_prompt
         q_instr_end = time.time()
-        print(f"\t\t Time for question instructions: {q_instr_end - q_instr_start}")
+        logger.debug(f"Time taken for question instructions: {q_instr_end - q_instr_start:.4f}s")
         
         memory_start = time.time()
         prior_question_memory = self.prior_question_memory_prompt
         memory_end = time.time()
-        print(f"\t\t Time for prior question memory: {memory_end - memory_start}")
+        logger.debug(f"Time taken for prior question memory: {memory_end - memory_start:.4f}s")
 
         # Get components dict
         components = {
@@ -314,7 +316,7 @@ class PromptConstructor:
             prompts = self.prompt_plan.get_prompts(**components)
 
         plan_end = time.time()
-        print(f"\t\t Time for prompt processing ({parallel or 'sequential'}): {plan_end - plan_start}")
+        logger.debug(f"Time taken for prompt processing: {plan_end - plan_start:.4f}s")
         
         # Handle file keys if present
         if hasattr(self, 'question_file_keys') and self.question_file_keys:
@@ -324,10 +326,10 @@ class PromptConstructor:
                 files_list.append(self.scenario[key])
             prompts["files_list"] = files_list
             files_end = time.time()
-            print(f"\t\t Time for file key processing: {files_end - files_start}")
+            logger.debug(f"Time taken for file key processing: {files_end - files_start:.4f}s")
         
         end = time.time()
-        print(f"\t\t Total time in get_prompts: {end - start}")
+        logger.debug(f"Total time in get_prompts: {end - start:.4f}s")
         return prompts
 
 

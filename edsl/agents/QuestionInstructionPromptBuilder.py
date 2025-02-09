@@ -1,5 +1,6 @@
 from typing import Dict, List, Set
 from warnings import warn
+import logging
 from edsl.prompts.Prompt import Prompt
 
 from edsl.agents.QuestionTemplateReplacementsBuilder import (
@@ -31,34 +32,34 @@ class QuestionInstructionPromptBuilder:
         base_start = time.time()
         base_prompt = self._create_base_prompt()
         base_end = time.time()
-        print(f"\t\t\t Time for base prompt: {base_end - base_start}")
+        logging.debug(f"Time for base prompt: {base_end - base_start}")
         
         # Enrich with options
         enrich_start = time.time()
         enriched_prompt = self._enrich_with_question_options(base_prompt)
         enrich_end = time.time()
-        print(f"\t\t\t Time for enriching with options: {enrich_end - enrich_start}")
+        logging.debug(f"Time for enriching with options: {enrich_end - enrich_start}")
         
         # Render prompt
         render_start = time.time()
         rendered_prompt = self._render_prompt(enriched_prompt)
         render_end = time.time()
-        print(f"\t\t\t Time for rendering prompt: {render_end - render_start}")
+        logging.debug(f"Time for rendering prompt: {render_end - render_start}")
         
         # Validate template variables
         validate_start = time.time()
         self._validate_template_variables(rendered_prompt)
         validate_end = time.time()
-        print(f"\t\t\t Time for template validation: {validate_end - validate_start}")
+        logging.debug(f"Time for template validation: {validate_end - validate_start}")
         
         # Append survey instructions
         append_start = time.time()
         final_prompt = self._append_survey_instructions(rendered_prompt)
         append_end = time.time()
-        print(f"\t\t\t Time for appending survey instructions: {append_end - append_start}")
+        logging.debug(f"Time for appending survey instructions: {append_end - append_start}")
         
         end = time.time()
-        print(f"\t\t\t Total time in build_question_instructions: {end - start}")
+        logging.debug(f"Total time in build_question_instructions: {end - start}")
         
         return final_prompt
 
@@ -94,12 +95,12 @@ class QuestionInstructionPromptBuilder:
                 self.prompt_constructor
             ).get_question_options(question_data=prompt_data["data"])
             processor_end = time.time()
-            print(f"\t\t\t\t Time to process question options: {processor_end - processor_start}")
+            logging.debug(f"Time to process question options: {processor_end - processor_start}")
             
             prompt_data["data"]["question_options"] = question_options
             
         end = time.time()
-        print(f"\t\t\t\t Total time in _enrich_with_question_options: {end - start}")
+        logging.debug(f"Total time in _enrich_with_question_options: {end - start}")
         
         return prompt_data
 
@@ -122,16 +123,16 @@ class QuestionInstructionPromptBuilder:
             prompt_data["data"]
         )
         dict_end = time.time()
-        print(f"\t\t\t\t Time to build replacement dict: {dict_end - dict_start}")
+        logging.debug(f"Time to build replacement dict: {dict_end - dict_start}")
         
         # Render with dict
         render_start = time.time()
         result = prompt_data["prompt"].render(replacement_dict)
         render_end = time.time()
-        print(f"\t\t\t\t Time to render with dict: {render_end - render_start}")
+        logging.debug(f"Time to render with dict: {render_end - render_start}")
         
         end = time.time()
-        print(f"\t\t\t\t Total time in _render_prompt: {end - start}")
+        logging.debug(f"Total time in _render_prompt: {end - start}")
         
         return result
 
@@ -161,9 +162,7 @@ class QuestionInstructionPromptBuilder:
         """
         for question_name in self.survey.question_names:
             if question_name in undefined_vars:
-                print(
-                    f"Question name found in undefined_template_variables: {question_name}"
-                )
+                logging.warning(f"Question name found in undefined_template_variables: {question_name}")
 
     def _append_survey_instructions(self, rendered_prompt: Prompt) -> Prompt:
         """Appends any relevant survey instructions to the rendered prompt.
