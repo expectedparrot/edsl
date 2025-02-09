@@ -96,6 +96,36 @@ class BucketCollection(UserDict):
         else:
             self[model] = self.services_to_buckets[self.models_to_services[model.model]]
 
+    def update_from_key_lookup(self, key_lookup: "KeyLookup") -> None:
+        """Updates the bucket collection rates based on model RPM/TPM from KeyLookup"""
+
+        for model_name, service in self.models_to_services.items():
+            if service in key_lookup and not self.infinity_buckets:
+
+                if key_lookup[service].rpm is not None:
+                    new_rps = key_lookup[service].rpm / 60.0
+                    new_requests_bucket = TokenBucket(
+                        bucket_name=service,
+                        bucket_type="requests",
+                        capacity=new_rps,
+                        refill_rate=new_rps,
+                        remote_url=self.remote_url,
+                    )
+                    self.services_to_buckets[service].requests_bucket = (
+                        new_requests_bucket
+                    )
+
+                if key_lookup[service].tpm is not None:
+                    new_tps = key_lookup[service].tpm / 60.0
+                    new_tokens_bucket = TokenBucket(
+                        bucket_name=service,
+                        bucket_type="tokens",
+                        capacity=new_tps,
+                        refill_rate=new_tps,
+                        remote_url=self.remote_url,
+                    )
+                    self.services_to_buckets[service].tokens_bucket = new_tokens_bucket
+
     def visualize(self) -> dict:
         """Visualize the token and request buckets for each model."""
         plots = {}
