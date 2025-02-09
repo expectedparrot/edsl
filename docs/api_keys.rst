@@ -1,61 +1,139 @@
 .. _api_keys:
 
-API Keys
-========
+Managing Keys
+=============
 
-API keys are required to access the services of large language models (LLMs) such as OpenAI's GPTs, Google's Gemini, Anthropic's Claude, Llama 2, Groq and others.
+API keys are required to access the services of large language models.
+To use EDSL with models you can either provide your own keys from service providers (Anthropic, Azure, Bedrock, Deep Infra, DeepSeek, Google, Groq, Mistral, OpenAI, Perplexity, Together, etc.) or use an Expected Parrot API key to access all available models at the Expected Parrot server. 
+See the `model pricing page <http://www.expectedparrot.com/getting-started/coop-pricing>`_ for details on current available models and prices.
 
-To run EDSL surveys with LLMs you can either provide your own API keys (for *local inference*) or use an Expected Parrot API key to access all available models at once at the Expected Parrot server (*remote inference*).
-See more details on these methods below.
+In addition to providing access to all available models, your Expected Parrot API key also allows you to post and share content at `Coop <https://www.expectedparrot.com/content/explore>`_: a free platform for AI-based research that is fully integrated with EDSL. 
+`Learn more <http://www.expectedparrot.com/getting-started/coop-how-it-works>`_ about using Coop to collaborate on research.
+
+This page shows how to store and select keys to use when running surveys on your own computer (*local inference*) or at the Expected Parrot server (*remote inference*).
+For instructions on using your Expected Parrot API key only for accessing Coop, see the `Coop <https://docs.expectedparrot.com/en/latest/coop.html>`_ section of the documentation.
+
+**Special note for Colab users**:
+If you are using EDSL in a Colab notebook, please see `special instructions <https://docs.expectedparrot.com/en/latest/colab_setup.html>`_ on storing API keys as "secrets" (:ref:`colab_setup`).
 
 
-Special note for Colab users
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Methods
+-------
 
-If you are using EDSL in a Colab notebook, please see `special instructions <https://docs.expectedparrot.com/en/latest/colab_setup.html>`_ on optionally storing API keys as "secrets" in lieu of using an `.env` file as described below (:ref:`colab_setup`).
+There are three methods for storing and managing keys (details on each below).
 
 
-Storing API keys
-----------------
+1. Manage keys from your account (recommended)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-EDSL provides two methods for storing API keys:
+*Note: This feature is in development. For now, please use method 2. below.*
 
-**1. Using a .env file (recommended)**
+This method provides a secure way to store your keys and the most flexibility in choosing how to use them.
 
-Create a file named `.env` in your EDSL working directory and populate it with your API keys using the template below.
-Replace `your_key_here` with your actual API key for each service that you plan to use (you do not need to include keys for services that you do not plan to use):
+Start by navigating to the `Keys <http://www.expectedparrot.com/home/keys>`_ page of your account.
+Your Expected Parrot API key is stored automatically at this page.
+
+
+Using your Expected Parrot API key
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+To use your key to run surveys at the Expected Parrot server, navigate to the `Settings <http://www.expectedparrot.com/home/settings>`_ page of your account and activate remote inference and caching:
+
+.. image:: static/home-settings.png
+  :alt: Toggle on/off remote inference
+  :align: center
+  :width: 100%
+  
+
+.. raw:: html
+
+  <br>
+
+
+When remote inference is activated, your surveys will run at the Expected Parrot server using your Expected Parrot API key and/or any of your own keys that you have added; see details below on adding keys.
+When remote inference is deactivated you must provide your own keys for models and store them in on your computer; see method 2. below.
+Learn more about how :ref:`remote_inference` and :ref:`remote_caching` work.
+
+If you *only* want to use your key to post and share content at Coop you will need to store it on your computer. See the `Coop <https://docs.expectedparrot.com/en/latest/coop.html>`_ section for details and method 2. below.
+
+
+Adding keys
+^^^^^^^^^^^
+
+*This is optional.* 
+Use the **Add key** button to enter details of any of your own keys that you want to use to run surveys at the Expected Parrot server:
+
+.. image:: static/home-keys.png
+  :alt: View stored keys
+  :align: center
+  :width: 100%
+  
+
+.. raw:: html
+
+  <br>
+
+
+.. image:: static/home-keys-add-key.png
+  :alt: Add a key
+  :align: center
+  :width: 100%
+  
+
+.. raw:: html
+
+  <br>
+
+
+Review the current prioritization of your keys at the **Key priority** section of the page.
+
+If you want other users to have access to one of your keys, click the **Share** button to add them and set limits on usage. 
+This allows other users to make API calls using your keys without sharing the keys directly.
+
+You can also click the **Edit** button to modify the RPM and TPM rate limits for any of your keys.
+You can edit your sharing permissions, disable or delete your keys at any time.
+
+
+Store keys in a local file
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+This method allows you to store keys in a private file on your computer and make them available for any surveys that you run, locally or remotely.
+
+To use this method:
+
+1. Navigate to your EDSL working directory (replace with your actual path): `$ cd /path/to/edsl`
+
+2. Create a file named `.env`
+
+3. Open the file and populate it with your keys in the following format (skip any keys that you do not have or do not want to use):
 
 .. code-block:: python
 
-  # for remote inference
-  EXPECTED_PARROT_API_KEY='your_key_here' 
+  EXPECTED_PARROT_API_KEY = 'your_key_here' # this key is required for remote inference and caching, and interacting with Coop
 
-  # for local inference
-  ANTHROPIC_API_KEY='your_key_here'
-  DEEP_INFRA_API_KEY='your_key_here'
-  GOOGLE_API_KEY='your_key_here'
-  GROQ_API_KEY='your_key_here'
-  MISTRAL_API_KEY='your_key_here'
-  OPENAI_API_KEY='your_key_here'
-  REPLICATE_API_KEY='your_key_here'
+  ANTHROPIC_API_KEY = 'your_key_here'
+  DEEP_INFRA_API_KEY = 'your_key_here'
+  DEEPSEEK_API_KEY = 'your_key_here'
+  GOOGLE_API_KEY = 'your_key_here'
+  GROQ_API_KEY = 'your_key_here'
+  MISTRAL_API_KEY = 'your_key_here'
+  OPENAI_API_KEY = 'your_key_here'
+  PERPLEXITY_API_KEY = 'your_key_here'
+  TOGETHER_API_KEY = 'your_key_here'
 
+Your Expected Parrot API key can be found at the `Settings <http://www.expectedparrot.com/home/settings>`_ page of your account, where you can reset it at any time. 
+This key allows you to access all available models at once and run surveys remotely at the Expected Parrot server. 
+It also allows you to post content to Coop, and to interact with other content that is public or shared with you.
 
-AWS Bedrock requires multiple keys:
-
-.. code-block:: python
-
-  AWS_ACCESS_KEY_ID='your_key_here'
-  AWS_SECRET_ACCESS_KEY='your_key_here'
-  AZURE_ENDPOINT_URL_AND_KEY='your_key_here'
+See instructions above for de/activating remote inference and caching and `how Coop works <https://docs.expectedparrot.com/en/latest/coop.html>`_.
 
 
-Using a `.env file` allows you to store your keys once and avoid repeatedly entering them each time that you start a session with EDSL.
+Setting API keys in your Python code
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+This method is not recommended for security reasons. If you include your keys in your code, they can be seen by anyone who has access to it. This is especially risky if you are sharing your code with others or if you are using a version control system like Git.
 
-**2. Setting API keys in your Python code**
-
-Alternatively, you can directly set your API keys in your Python script before importing any EDSL objects using the template below.
-This method stores the keys in your system's memory only for the duration of the session:
+To use this method, store any keys that you want to use as strings in your code in the following format:
 
 .. code-block:: python
 
@@ -72,42 +150,7 @@ This method stores the keys in your system's memory only for the duration of the
   os.environ['REPLICATE_API_KEY'] = 'your_key_here'
 
 
-Remember, if you restart your session, you will need to re-enter your API keys.
-It is also important to remove your API keys from your code before sharing it with others.
-
-
-Remote inference 
-----------------
-
-This method allows you to purchase :ref:`credits` to run EDSL surveys at the Expected Parrot server instead of your local machine, and avoid managing your own API keys for different service providers.
-
-To use remote inference you must activate it at your `Coop <https://www.expectedparrot.com/home/api>`_ account and store your Expected Parrot API key in a file named `.env` in your EDSL working directory.
-Your `.env` file should include the following line (replace `your_key_here` with your actual Expected Parrot API key from your Coop account):
-
-.. code-block:: python
-
-  EXPECTED_PARROT_API_KEY='your_key_here'
-
-
-If you do not already have a file named `.env` in your working directory, you can create one and add the line above by running the following code:
-
-.. code-block:: python
-
-  with open(".env", "w") as f:
-    f.write("EXPECTED_PARROT_API_KEY='your_key_here'")
-
-
-If you attempt to run a survey without any API keys stored, you will receive a message with a link to log into Coop and automatically activate remote inference and store your Expected Parrot API key for you.
-
-Please see the :ref:`remote_inference` section for more details on how to use remote inference with EDSL, and the :ref:`credits` section for information on purchasing credits and calculating costs.
-
-
-Local inference 
----------------
-
-You can access LLMs with EDSL on your own machine by providing your own API keys for LLMs.
-
-To use local inference, ensure that your accounts with service providers have available funds and that you have access to the models that you want to use with EDSL.
+Note that your keys will not persist across sessions and you will need to provide your keys each time you start a new session.
 
 
 Caution
@@ -115,6 +158,24 @@ Caution
 
 Treat your API keys as sensitive information, akin to passwords. 
 Never share them publicly or upload files containing your API keys to public repositories.
+
+
+Remote inference 
+----------------
+
+Your Expected Parrot API key allows you to run surveys at the Expected Parrot server (*remote inference*) instead of your own machine (*local inference*).
+Learn more about how it works at the :ref:`remote_inference` section of the documentation.
+
+To de/activate remote inference, navigate to the `Settings <http://www.expectedparrot.com/home/settings>`_ page of your account and select the relevant options.
+When remote inference is deactivated you must have your own keys stored in an `.env` file on your computer.
+
+
+Credits 
+-------
+
+When you use your Expected Parrot API key to access models your account is charged for the costs of API calls to models.
+(When you use your own keys, service providers will bill you directly.)
+Please see the `model pricing page <http://www.expectedparrot.com/getting-started/coop-pricing>`_ for information on available models and prices and the :ref:`credits` section for information on purchasing credits and calculating costs.
 
 
 Troubleshooting

@@ -3,27 +3,31 @@
 Language Models
 ===============
 
-Language models are used to generate agents' responses to survey questions and can be specified using the `Model` and `ModelList` classes.
+Language models are used to generate responses to survey questions.
+EDSL works with many models from a variety of popular inference service providers, including Anthropic, Azure, Bedrock, Deep Infra, DeepSeek, Google, Mistral, OpenAI, Perplexity and Together.
+Current model pricing and performance information can be found at the Coop `model pricing page <https://www.expectedparrot.com/getting-started/coop-pricing>`_.
 
-EDSL works with a variety of different popular inference service providers, including Anthropic, Google, OpenAI and others.
-Current information about available models can be found at the Expected Parrot model pricing page: https://www.expectedparrot.com/getting-started/coop-pricing.
-We also recommend checking providers' websites for the most up-to-date information on available models.
-It is important to check that the models you want to use are available and working as expected before running a survey.
-If you need assistance checking whether a model is working, please send a message to info@expectedparrot.com or post a message at our `Discord channel <https://discord.com/invite/mxAYkjfy9m>`_.
+We also recommend checking providers' websites for the most up-to-date information on models and service providers' terms of use.
+Links to providers' websites can be found at the Coop model pricing page.
+If you need assistance checking whether a model is working or to report a missing model or price, please send a message to info@expectedparrot.com or post a message on `Discord <https://discord.com/invite/mxAYkjfy9m>`_.
+
+This page provides examples of methods for specifying models for surveys using the `Model` and `ModelList` classes.
+
+.. A `notebook of code examples <>`_ is also available at Coop.
 
 
 API keys 
 --------
 
 In order to use a model, you need to have an API key for the relevant service provider.
-EDSL allows you to choose whether to provide your own API keys for models or use an Expected Parrot API key to access all available models at once.
-See the :ref:`api_keys` page for instructions on storing API keys.
+EDSL allows you to choose whether to provide your own keys from service providers or use an Expected Parrot API key to access all available models at once.
+See the :ref:`api_keys` page for instructions on storing and prioritizing keys.
 
 
 Available services 
 ------------------
 
-The following code will return a table of currently available inference services (model providers) together with an indicator whether a local key is currently stored for each service:
+The following code will return a table of inference service providers:
 
 .. code-block:: python
 
@@ -38,25 +42,27 @@ Output:
    :header-rows: 1
 
    * - Service Name
-   * - openai
    * - anthropic
+   * - azure
+   * - bedrock
    * - deep_infra
    * - deepseek
    * - google
    * - groq
-   * - bedrock
-   * - azure
-   * - ollama
-   * - test
-   * - together
-   * - perplexity
    * - mistral
+   * - ollama
+   * - openai
+   * - perplexity
+   * - together
 
 
 Available models
 ----------------
 
-The following code will return a table of all the available models for all services (output omitted here for brevity):
+The following code will return a table of models for all service providers that have been used with EDSL (output omitted here for brevity).
+
+This list should be used together with the `model pricing page <https://www.expectedparrot.com/getting-started/coop-pricing>`_ to check current model performance with test survey questions.
+We also recommend running your own test questions with any models that you want to use before running a large survey.
 
 .. code-block:: python
 
@@ -72,102 +78,67 @@ To see a list of all models for a specific service, pass the service name as an 
    Model.available(service = "google")
 
 
-Output:
+Output (this list will vary based on the models that have been used when the code is run):
 
 .. list-table::
    :header-rows: 1
 
    * - Model Name
-     - gemmini-1.0-pro
-     - gemmini-1.0-flash
-     - gemmini-1.5-pro
-     - gemmini-pro
-   * - Service Name
+     - Service Name
+   * - gemmini-pro
      - google
+   * - gemmini-1.0-pro
      - google
+   * - gemmini-1.0-flash
      - google
+   * - gemmini-1.0-flash-8b
      - google
-
-
-Adding a model
---------------
-
-Newly available models for these services are added automatically.
-If you do not see a publicly available model that you want to work with, please send us a feature request to add it or add it yourself by calling the `add_model()` method:
-
-.. code-block:: python
-
-   from edsl import Model
-
-   Model.add_model(service_name = "google", model_name = "new_model")
-
-
-This will add the model `new_model` to the `google` service.
-You can then see the model in the list of available models, and search by service name:
-
-.. code-block:: python
-
-   Model.available(service = "google")
-
-
-Output:
-
-.. list-table::
-   :header-rows: 1
-
-   * - Model Name
-     - gemmini-1.0-pro
-     - gemmini-1.0-flash
-     - gemmini-1.5-pro
-     - gemmini-pro
-     - new_model
-   * - Service Name
+   * - gemmini-1.5-pro
      - google
-     - google
-     - google
-     - google
+   * - gemmini-2.0-flash
      - google
 
 
-Check models 
-------------
+.. Check models 
+.. ------------
 
-The following code checks for models where API keys have been stored locally:
+.. The following code checks for models where API keys have been stored locally:
 
-.. code-block:: python
+.. .. code-block:: python
 
-   from edsl import Model
+..    from edsl import Model
    
-   Model.check_models()
+..    Model.check_models()
 
 
-This will return a list of the available models and a confirmation message whether a valid key exists.
-The output will look like this (note that the keys are not shown):
+.. This will return a list of the available models and a confirmation message whether a valid key exists.
+.. The output will look like this (note that the keys are not shown):
 
-.. code-block:: text
+.. .. code-block:: text
 
-   Checking all available models...
+..    Checking all available models...
 
-   Now checking: <model name>
-   OK!
+..    Now checking: <model name>
+..    OK!
 
 
-Etc.
+.. Etc.
 
 
 Specifying a model
 ------------------
 
-We specify a model to use with a survey by creating a `Model` object and passing it the name of an available model.
-We can optionally set other model parameters as well (temperature, etc.). 
-For example, the following code creates a `Model` object for `gpt-4o` with default model parameters:
+To specify a model to use with a survey, create a `Model` object and pass it the name of the model.
+You can optionally set other model parameters at the same time (temperature, etc.). 
+
+For example, the following code creates a `Model` object for `gpt-4o` with default model parameters that we can inspect:
 
 .. code-block:: python
 
-   from edsl import Model
+  from edsl import Model
 
-   m = Model('gpt-4o')
-   m
+  m = Model("gpt-4o")
+  m
 
 
 Output: 
@@ -197,33 +168,81 @@ Output:
      - openai
 
 
-We can see that the object consists of a model name and a dictionary of the default parameters of the model, together with the name of the inference service (some models are made provided by multiple services).
+We can see that the object consists of a model name and a dictionary of the default parameters of the model, together with the name of the inference service (some models are provided by multiple services).
+
+Here we also specify the temperature when creating the `Model` object:
+
+
+.. code-block:: python
+
+  from edsl import Model
+
+  m = Model("gpt-4o", temperature = 1.0)
+  m
+
+
+Output: 
+
+.. list-table::
+   :header-rows: 1
+
+   * - key
+     - value 
+   * - model
+     - gpt-4o
+   * - parameters:temperature
+     - 1.0
+   * - parameters:max_tokens
+     - 1000
+   * - parameters:top_p
+     - 1
+   * - parameters:frequency_penalty
+     - 0
+   * - parameters:presence_penalty
+     - 0
+   * - parameters:logprobs
+     - False
+   * - parameters:top_logprobs
+     - 3
+   * - inference_service
+     - openai
+
 
 
 Creating a list of models
 -------------------------
 
-We can create a list of models by passing a list of model names to the `ModelList` class.
-For example, the following code creates a `ModelList` object for `gpt-4o` and `gemini-pro`:
+To create a list of models at once, pass a list of model names to a `ModelList` object.
+
+For example, the following code creates a `Model` for each of `gpt-4o` and `gemini-pro`:
 
 .. code-block:: python
 
-   from edsl import Model, ModelList
+  from edsl import Model, ModelList
 
-   ml = ModelList([Model('gpt-4o'), Model('gemini-pro')])
+  ml = ModelList([Model("gpt-4o"), Model("gemini-1.5-flash")])
 
 
-We can also create a model list from a list of model names:
+This code is equivalent to the following:
 
 .. code-block:: python
 
-   from edsl import Model, ModelList
+  from edsl import Model, ModelList
 
-   model_names = ['gpt-4o', 'gemini-pro']
+  ml = ModelList(Model(model) for model in ["gpt-4o", "gemini-1.5-flash"])
 
-   ml = ModelList.from_names(model_names)
 
-   ml
+We can also use a special method to pass a list of names instead:
+
+.. code-block:: python
+
+  from edsl import Model, ModelList
+
+  model_names = ['gpt-4o', 'gemini-1.5-flash']
+
+  ml = ModelList.from_names(model_names)
+
+  ml
 
 
 Output:
@@ -231,42 +250,45 @@ Output:
 .. list-table::
    :header-rows: 1
 
-   * - topP	
-     - topK	
+   * - topK	
      - presence_penalty	
      - top_logprobs	
-     - top_p	
-     - max_tokens	
-     - maxOutputTokens	
+     - topP	
      - temperature	
-     - model	
      - stopSequences	
+     - maxOutputTokens	
      - logprobs	
-     - frequency_penalty
+     - max_tokens	
+     - frequency_penalty	
+     - model	
+     - top_p	
+     - inference_service
    * - nan	
-     - nan	
      - 0.000000	
      - 3.000000	
-     - 1.000000	
-     - 1000.000000	
      - nan	
      - 0.500000	
-     - gpt-4o	
+     - nan	
      - nan	
      - False	
-     - 0.000000
-   * - 1.000000	
+     - 1000.000000	
+     - 0.000000	
+     - gpt-4o	
      - 1.000000	
+     - openai
+   * - 1.000000	
      - nan	
      - nan	
-     - nan	
-     - nan	
-     - 2048.000000	
+     - 1.000000	
      - 0.500000	
-     - gemini-pro	
      - []	
+     - 2048.000000	
      - nan	
-     - nan
+     - nan	
+     - nan	
+     - gemini-1.5-flash	
+     - nan	
+     - google
 
 
 Running a survey with models
@@ -275,30 +297,41 @@ Running a survey with models
 Similar to how we specify :ref:`agents` and :ref:`scenarios` to use with a survey, we specify the models to use by adding them to a survey with the `by()` method when the survey is run.
 We can pass either a single `Model` object or a list of models to the `by()` method. 
 If multiple models are to be used they are passed as a list or as a `ModelList` object.
+
 For example, the following code specifies that a survey will be run with each of `gpt-4o` and `gemini-1.5-flash`:
 
 .. code-block:: python
 
-   from edsl import Model, Survey
+   from edsl import Model, QuestionFreeText, Survey
 
-   models = [Model('gpt-4o'), Model('gemini-1.5-flash')]
+   m = [Model("gpt-4o"), Model("gemini-1.5-flash")]
 
-   survey = Survey.example()
+   q = QuestionFreeText(
+      question_name = "example",
+      question_text = "What is the capital of France?"
+   )
 
-   results = survey.by(models).run()
+   survey = Survey(questions = [q])
+
+   results = survey.by(m).run()
 
 
 This code uses `ModelList` instead of a list of `Model` objects:
 
 .. code-block:: python
 
-   from edsl import Model, ModelList, Survey
+   from edsl import Model, ModelList, QuestionFreeText, Survey
 
-   models = ModelList(Model(m) for m in ['gpt-4o', 'gemini-1.5-flash'])
+   ml = ModelList(Model(model) for model in ["gpt-4o", "gemini-1.5-flash"])
 
-   survey = Survey.example()
+   q = QuestionFreeText(
+      question_name = "example",
+      question_text = "What is the capital of France?"
+   )
 
-   results = survey.by(models).run()
+   survey = Survey(questions = [q])
+
+   results = survey.by(ml).run()
 
 
 This will generate a result for each question in the survey with each model.
@@ -321,13 +354,15 @@ Default model
 
 If no model is specified, a survey is automatically run with the default model. 
 Run `Model()` to check the current default model.
-For example, the following code runs the example survey with the default model (and no agents or scenarios) without needing to import the `Model` class:
+
+For example, the following code runs the above survey with the default model (and no agents or scenarios) without needing to import the `Model` class:
 
 .. code-block:: python
 
-   from edsl import Survey
+   results = survey.run() # using the survey from above
 
-   results = Survey.example().run()
+   # this is equivalent
+   results = survey.by(Model()).run()
 
 
 We can verify the model that was used:
@@ -349,25 +384,51 @@ Output:
 Inspecting model parameters
 ---------------------------
 
-We can also inspect parameters of the models that were used by calling the `models` method on the `Results` object.
+We can also inspect parameters of the models that were used by calling the `models` of the `Results` object.
+
 For example, we can verify the default model when running a survey without specifying a model:
 
 .. code-block:: python
 
-   from edsl import Survey, Model, ModelList
-
-   m = ModelList.from_names(["gpt-4o", "gemini-1.5-flash"])
-
-   survey = Survey.example()
-
-   results = survey.by(m).run()
-
-   results.models
+   results.models # using the results from above
 
 
-This will return the same information as the `ModelList` created above.
+This will return the same information as running `results.select("model.model")` in the example above.
 
 To learn more about all the components of a `Results` object, please see the :ref:`results` section.
+
+
+Troubleshooting
+---------------
+
+Newly released models of service providers are automatically made available to use with your surveys whenever possible (not all service providers facilitate this).
+
+If you do not see a model that you want to work with or are unable to instantiate it using the standard method, please send us a request to add it to *info@expectedparrot.com*.
+
+
+.. Adding a model
+.. --------------
+
+.. You can add a model yourself by calling the `add_model()` method:
+
+
+.. .. code-block:: python
+
+..    from edsl import Model
+
+..    Model.add_model(service_name = "google", model_name = "new_model")
+
+
+.. This will add the model `new_model` to the `google` service.
+.. You can then see the model in the list of available models, and search by service name:
+
+.. .. code-block:: python
+
+..    Model.available(service = "google")
+
+
+.. Output:
+
 
 
 ModelList class
