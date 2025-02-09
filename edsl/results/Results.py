@@ -1335,13 +1335,6 @@ class Results(UserList, Mixins, Base):
         
         Returns:
             self: The updated Results instance
-            
-        Example:
-            >>> results = job.run(background=True)  # Start job in background
-            >>> results.fetch()  # Wait for completion and get results
-            Results(...)
-            >>> results.fetch(polling_interval=5.0)  # Poll every 5 seconds
-            Results(...)
         """
         if not hasattr(self, "job_info"):
             raise ResultsError("No job info available - this Results object wasn't created from a remote job")
