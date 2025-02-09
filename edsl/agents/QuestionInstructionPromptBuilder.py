@@ -23,12 +23,44 @@ class QuestionInstructionPromptBuilder:
         Returns:
             Prompt: The fully rendered question instructions
         """
+        import time
+        
+        start = time.time()
+        
+        # Create base prompt
+        base_start = time.time()
         base_prompt = self._create_base_prompt()
+        base_end = time.time()
+        print(f"\t\t\t Time for base prompt: {base_end - base_start}")
+        
+        # Enrich with options
+        enrich_start = time.time()
         enriched_prompt = self._enrich_with_question_options(base_prompt)
+        enrich_end = time.time()
+        print(f"\t\t\t Time for enriching with options: {enrich_end - enrich_start}")
+        
+        # Render prompt
+        render_start = time.time()
         rendered_prompt = self._render_prompt(enriched_prompt)
+        render_end = time.time()
+        print(f"\t\t\t Time for rendering prompt: {render_end - render_start}")
+        
+        # Validate template variables
+        validate_start = time.time()
         self._validate_template_variables(rendered_prompt)
-
-        return self._append_survey_instructions(rendered_prompt)
+        validate_end = time.time()
+        print(f"\t\t\t Time for template validation: {validate_end - validate_start}")
+        
+        # Append survey instructions
+        append_start = time.time()
+        final_prompt = self._append_survey_instructions(rendered_prompt)
+        append_end = time.time()
+        print(f"\t\t\t Time for appending survey instructions: {append_end - append_start}")
+        
+        end = time.time()
+        print(f"\t\t\t Total time in build_question_instructions: {end - start}")
+        
+        return final_prompt
 
     def _create_base_prompt(self) -> Dict:
         """Creates the initial prompt with basic question data.
@@ -50,14 +82,25 @@ class QuestionInstructionPromptBuilder:
         Returns:
             Dict: Enriched prompt data
         """
+        import time
+        
+        start = time.time()
+        
         if "question_options" in prompt_data["data"]:
             from edsl.agents.question_option_processor import QuestionOptionProcessor
-
+            
+            processor_start = time.time()
             question_options = QuestionOptionProcessor(
                 self.prompt_constructor
             ).get_question_options(question_data=prompt_data["data"])
-
+            processor_end = time.time()
+            print(f"\t\t\t\t Time to process question options: {processor_end - processor_start}")
+            
             prompt_data["data"]["question_options"] = question_options
+            
+        end = time.time()
+        print(f"\t\t\t\t Total time in _enrich_with_question_options: {end - start}")
+        
         return prompt_data
 
     def _render_prompt(self, prompt_data: Dict) -> Prompt:
@@ -69,11 +112,28 @@ class QuestionInstructionPromptBuilder:
         Returns:
             Prompt: Rendered instructions
         """
-
+        import time
+        
+        start = time.time()
+        
+        # Build replacement dict
+        dict_start = time.time()
         replacement_dict = QTRB(self.prompt_constructor).build_replacement_dict(
             prompt_data["data"]
         )
-        return prompt_data["prompt"].render(replacement_dict)
+        dict_end = time.time()
+        print(f"\t\t\t\t Time to build replacement dict: {dict_end - dict_start}")
+        
+        # Render with dict
+        render_start = time.time()
+        result = prompt_data["prompt"].render(replacement_dict)
+        render_end = time.time()
+        print(f"\t\t\t\t Time to render with dict: {render_end - render_start}")
+        
+        end = time.time()
+        print(f"\t\t\t\t Total time in _render_prompt: {end - start}")
+        
+        return result
 
     def _validate_template_variables(self, rendered_prompt: Prompt) -> None:
         """Validates that all template variables have been properly replaced.
