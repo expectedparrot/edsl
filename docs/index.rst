@@ -8,8 +8,8 @@ Expected Parrot delivers powerful tools for conducting research with human and a
 This page provides documentation for **Expected Parrot Domain-Specific Language (EDSL)**, a Python package for performing research with AI agents and language models,
 and **Coop**, a platform for creating, storing and sharing AI-based research projects.
 
-* EDSL is available to download at `PyPI <https://pypi.org/project/edsl/>`_ and `GitHub <https://github.com/expectedparrot/edsl>`_.
-* Create a `Coop account <https://www.expectedparrot.com/login>`_ easily manage API key for LLMs, run surveys on the Expected Parrot server and access special features, free storage and collaboration tools. Learn more about `how it works <https://docs.expectedparrot.com/en/latest/coop.html>`_ and start `exploring <https://www.expectedparrot.com/content/explore>`_.
+* EDSL is available to download from `PyPI <https://pypi.org/project/edsl/>`_ (run `pip install edsl`). The source code is available at `GitHub <https://github.com/expectedparrot/edsl>`_.
+* `Create an account <https://www.expectedparrot.com/login>`_ to post and share content, run surveys and store results at the Expected Parrot survey. Learn more about `how it works <https://docs.expectedparrot.com/en/latest/coop.html>`_ and start `exploring <https://www.expectedparrot.com/content/explore>`_.
 
 
 Key features 
@@ -84,8 +84,7 @@ Please see the links in the steps below for more details:
    Your account comes with a key that allows you to run surveys with all available models at the Expected Parrot server.
    You can also use and share your own keys from service providers.
 
-   Navigate to the `Keys <https://www.expectedparrot.com/home/keys>`_ page of your account to manage your keys.
-   See :ref:`api_keys` instructions for more details and options.
+   See instructions on :ref:`api_keys` for details and options.
 
 4. **Run a survey.** 
 

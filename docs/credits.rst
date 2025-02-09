@@ -19,7 +19,7 @@ When using your own keys, cost estimates are based on the prices listed in the `
 Free credits
 ------------
 
-Your Coop account comes free credits that you can use to run surveys with your Expected Parrot API key.
+Your Coop account comes with free credits that you can use to run surveys with your Expected Parrot API key.
 
 | **Are you using EDSL for a research project?**
 | Send an email to *info@expectedparrot.com* to request additional free credits!

@@ -34,8 +34,7 @@ Start by navigating to the `Keys <http://www.expectedparrot.com/home/keys>`_ pag
 Your Expected Parrot API key is stored automatically at this page.
 
 
-Using your Expected Parrot API key
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+**Using your Expected Parrot API key**
 
 To use your key to run surveys at the Expected Parrot server, navigate to the `Settings <http://www.expectedparrot.com/home/settings>`_ page of your account and activate remote inference and caching:
 
@@ -57,8 +56,7 @@ Learn more about how :ref:`remote_inference` and :ref:`remote_caching` work.
 If you *only* want to use your key to post and share content at Coop you will need to store it on your computer. See the `Coop <https://docs.expectedparrot.com/en/latest/coop.html>`_ section for details and method 2. below.
 
 
-Adding keys
-^^^^^^^^^^^
+**Adding keys**
 
 *This is optional.* 
 Use the **Add key** button to enter details of any of your own keys that you want to use to run surveys at the Expected Parrot server:
@@ -94,8 +92,8 @@ You can also click the **Edit** button to modify the RPM and TPM rate limits for
 You can edit your sharing permissions, disable or delete your keys at any time.
 
 
-Store keys in a local file
-^^^^^^^^^^^^^^^^^^^^^^^^^^
+2. Store keys in a local file
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 This method allows you to store keys in a private file on your computer and make them available for any surveys that you run, locally or remotely.
 
@@ -128,8 +126,8 @@ It also allows you to post content to Coop, and to interact with other content t
 See instructions above for de/activating remote inference and caching and `how Coop works <https://docs.expectedparrot.com/en/latest/coop.html>`_.
 
 
-Setting API keys in your Python code
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+3. Setting API keys in your Python code
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 This method is not recommended for security reasons. If you include your keys in your code, they can be seen by anyone who has access to it. This is especially risky if you are sharing your code with others or if you are using a version control system like Git.
 
