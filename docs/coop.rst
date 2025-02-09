@@ -5,7 +5,18 @@ Coop
 
 `Coop <https://www.expectedparrot.com/content/explore>`_ is a free platform for creating, storing and sharing AI-based research. 
 It is fully integrated with EDSL, allowing you to post, store and retrieve any objects that you've created with EDSL, together with data, notebooks and other project content. 
-You can also explore public content and collaborate on projects privately with other users.
+You can also explore public content and collaborate on projects privately with other users:
+
+.. image:: static/coop-my-content.png
+  :alt: View your content at the Coop
+  :align: center
+  :width: 100%
+
+
+.. raw:: html
+
+  <br><br>
+
 
 Your Coop account also provides access to features for running EDSL surveys and storing results remotely at the Expected Parrot server.
 Learn more about these features in the :ref:`remote_inference` and :ref:`remote_caching` sections of the documentation.
@@ -18,12 +29,13 @@ Getting started
 ^^^^^^^^^^^^^^^^^^^^
 
 `Sign up <a href="https://www.expectedparrot.com/login>`_ with an email address. 
+
 Your account comes with an **Expected Parrot API key** that allows you to:
 
 * Post and share content at Coop
 * Run surveys at the Expected Parrot server 
 * Use any available models with your surveys 
-* Use remote caching features and a universal remote cache
+* Use remote caching for your responses
 
 You can inspect your key and reset it at any time at your `Settings <https://www.expectedparrot.com/home/settings>`_ page:
 
