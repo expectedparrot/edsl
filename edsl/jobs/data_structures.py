@@ -32,6 +32,7 @@ class RunParameters(Base):
     remote_inference_results_visibility: Optional[VisibilityType] = "unlisted"
     skip_retry: bool = False
     raise_validation_errors: bool = False
+    background: bool = False
     disable_remote_cache: bool = False
     disable_remote_inference: bool = False
     job_uuid: Optional[str] = None

@@ -496,13 +496,16 @@ class Jobs(Base):
         
     def _remote_results(
         self,
-        background: bool = True,
+        config: RunConfig,
     ) -> Union["Results", None]:
         from edsl.jobs.JobsRemoteInferenceHandler import JobsRemoteInferenceHandler
+        from edsl.jobs.JobsRemoteInferenceHandler import RemoteJobInfo
+
+        background = config.parameters.background
 
         jh = self._create_remote_inference_handler()
         if jh.use_remote_inference(self.run_config.parameters.disable_remote_inference):
-            job_info = self._start_remote_inference_job(jh)
+            job_info: RemoteJobInfo = self._start_remote_inference_job(jh)
             if background:
                 from edsl.results.Results import Results 
                 results = Results.from_job_info(job_info)
@@ -589,7 +592,7 @@ class Jobs(Base):
             self.run_config.environment.cache = Cache(immediate_write=False)
 
         # first try to run the job remotely
-        if (results := self._remote_results()) is not None:
+        if (results := self._remote_results(config)) is not None:
             return results
         
         self._check_if_local_keys_ok()

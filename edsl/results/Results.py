@@ -71,7 +71,7 @@ def ensure_ready(method):
         if not self.completed:
             not_ready = NotReadyObject(method.__name__)
             # For __repr__, ensure we return a string
-            if method.__name__ == "__repr__":
+            if method.__name__ == "__repr__" or method.__name__ == "__str__":
                 return not_ready.__repr__()
             return not_ready
         return method(self, *args, **kwargs)
@@ -390,7 +390,11 @@ class Results(UserList, Mixins, Base):
             if not self.completed:
                 return f"Results not ready to call"
         
-        return super()._repr_html_()    
+        return super()._repr_html_()
+
+    # @ensure_ready
+    # def __str__(self):
+    #     super().__str__()    
     
     @ensure_ready
     def __repr__(self) -> str:
@@ -1245,6 +1249,7 @@ class Results(UserList, Mixins, Base):
         """Display an object as a table."""
         pass
 
+    @ensure_ready
     def __str__(self):
         data = self.to_dict()["data"]
         return json.dumps(data, indent=4)
