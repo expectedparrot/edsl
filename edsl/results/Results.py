@@ -69,7 +69,7 @@ def ensure_ready(method):
         except Exception as e:
             print(f"Error during fetch_remote in {method.__name__}: {e}")
         if not self.completed:
-            not_ready = NotReadyObject(method.__name__)
+            not_ready = NotReadyObject(name = method.__name__, job_info = self.job_info)
             # For __repr__, ensure we return a string
             if method.__name__ == "__repr__" or method.__name__ == "__str__":
                 return not_ready.__repr__()
@@ -80,12 +80,16 @@ def ensure_ready(method):
 
 class NotReadyObject:
     """A placeholder object that prints a message when any attribute is accessed."""
-    def __init__(self, name: str):
+    def __init__(self, name: str, job_info: RemoteJobInfo):
         self.name = name
+        self.job_info = job_info
         #print(f"Not ready to call {name}")
 
     def __repr__(self):
-        return f"Results not ready."
+        message = f"""Results not ready - job still running on server."""
+        for key, value in self.job_info.creation_data.items():
+            message += f"\n{key}: {value}"
+        return message
 
     def __getattr__(self, _):
         return self
@@ -1319,6 +1323,44 @@ class Results(UserList, Mixins, Base):
 
             return True
 
+        except Exception as e:
+            raise ResultsError(f"Failed to fetch remote results: {str(e)}")
+
+    def fetch(self, polling_interval: float = 1.0) -> Results:
+        """
+        Polls the server for job completion and updates this Results instance with the completed data.
+        
+        Args:
+            polling_interval: Number of seconds to wait between polling attempts (default: 1.0)
+        
+        Returns:
+            self: The updated Results instance
+            
+        Example:
+            >>> results = job.run(background=True)  # Start job in background
+            >>> results.fetch()  # Wait for completion and get results
+            Results(...)
+            >>> results.fetch(polling_interval=5.0)  # Poll every 5 seconds
+            Results(...)
+        """
+        if not hasattr(self, "job_info"):
+            raise ResultsError("No job info available - this Results object wasn't created from a remote job")
+        
+        from edsl.jobs.JobsRemoteInferenceHandler import JobsRemoteInferenceHandler
+        
+        try:
+            # Get the remote job data
+            remote_job_data = JobsRemoteInferenceHandler.check_status(self.job_info.job_uuid)
+            
+            while remote_job_data.get("status") not in ["completed", "failed"]:
+                import time
+                time.sleep(polling_interval)
+                remote_job_data = JobsRemoteInferenceHandler.check_status(self.job_info.job_uuid)
+                
+            # Once complete, fetch the full results
+            self.fetch_remote(self.job_info)
+            return self
+            
         except Exception as e:
             raise ResultsError(f"Failed to fetch remote results: {str(e)}")
 
