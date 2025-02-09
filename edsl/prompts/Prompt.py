@@ -10,6 +10,25 @@ from edsl.Base import PersistenceMixin, RepresentationMixin
 
 MAX_NESTING = 100
 
+from jinja2 import Environment, meta, TemplateSyntaxError, Undefined
+from functools import lru_cache
+
+class PreserveUndefined(Undefined):
+    def __str__(self):
+        return "{{ " + str(self._undefined_name) + " }}"
+
+# Create environment once at module level
+_env = Environment(undefined=PreserveUndefined)
+
+@lru_cache(maxsize=1024)
+def _compile_template(text: str):
+    return _env.from_string(text)
+
+@lru_cache(maxsize=1024)
+def _find_template_variables(template: str) -> list[str]:
+    """Find and return the template variables."""
+    ast = _env.parse(template)
+    return list(meta.find_undeclared_variables(ast))
 
 class Prompt(PersistenceMixin, RepresentationMixin):
     """Class for creating a prompt to be used in a survey."""
@@ -145,33 +164,8 @@ class Prompt(PersistenceMixin, RepresentationMixin):
         return f'Prompt(text="""{self.text}""")'
 
     def template_variables(self) -> list[str]:
-        """Return the the variables in the template.
-
-        Example:
-
-        >>> p = Prompt("Hello, {{person}}")
-        >>> p.template_variables()
-        ['person']
-
-        """
-        return self._template_variables(self.text)
-
-    @staticmethod
-    def _template_variables(template: str) -> list[str]:
-        """Find and return the template variables.
-
-        :param template: The template to find the variables in.
-
-        """
-        from jinja2 import Environment, meta, Undefined
-
-        class PreserveUndefined(Undefined):
-            def __str__(self):
-                return "{{ " + str(self._undefined_name) + " }}"
-
-        env = Environment(undefined=PreserveUndefined)
-        ast = env.parse(template)
-        return list(meta.find_undeclared_variables(ast))
+        """Return the variables in the template."""
+        return _find_template_variables(self.text)
 
     def undefined_template_variables(self, replacement_dict: dict):
         """Return the variables in the template that are not in the replacement_dict.
@@ -239,45 +233,60 @@ class Prompt(PersistenceMixin, RepresentationMixin):
             return self
 
     @staticmethod
-    def _render(
-        text: str, primary_replacement, **additional_replacements
-    ) -> "PromptBase":
-        """Render the template text with variables replaced from the provided named dictionaries.
-
-        :param text: The text to render.
-        :param primary_replacement: The primary replacement dictionary.
-        :param additional_replacements: Additional replacement dictionaries.
-
-        Allows for nested variable resolution up to a specified maximum nesting depth.
-
-        Example:
-
-        >>> codebook = {"age": "Age"}
-        >>> p = Prompt("You are an agent named {{ name }}. {{ codebook['age']}}: {{ age }}")
-        >>> p.render({"name": "John", "age": 44}, codebook=codebook)
-        Prompt(text=\"""You are an agent named John. Age: 44\""")
-        """
-        from jinja2 import Environment, meta, TemplateSyntaxError, Undefined
-
-        class PreserveUndefined(Undefined):
-            def __str__(self):
-                return "{{ " + str(self._undefined_name) + " }}"
-
-        env = Environment(undefined=PreserveUndefined)
+    def _render(text: str, primary_replacement, **additional_replacements) -> "PromptBase":
+        """Render the template text with variables replaced."""
+        import time
+        
+        # if there are no replacements, return the text
+        if not primary_replacement and not additional_replacements:
+            return text
+     
         try:
+            # Log template info
+            vars_start = time.time()
+            variables = _find_template_variables(text)
+            
+            if not variables: # if there are no variables, return the text
+                return text
+            
+            print(f"\t\t\t\t\t Variables: {variables}")
+            vars_end = time.time()
+            print(f"\t\t\t\t\t Time to find template variables: {vars_end - vars_start}")
+            print(f"\t\t\t\t\t Number of template variables: {len(variables)}")
+            print(f"\t\t\t\t\t Template length: {len(text)}")
+            
+            # Compile template
+            compile_start = time.time()
+            template = _compile_template(text)
+            compile_end = time.time()
+            print(f"\t\t\t\t\t Time to compile template: {compile_end - compile_start}")
+            
             previous_text = None
+            current_text = text
+            iteration = 0
+            
             for _ in range(MAX_NESTING):
-                # breakpoint()
-                rendered_text = env.from_string(text).render(
+                iteration += 1
+                render_start = time.time()
+                rendered_text = template.render(
                     primary_replacement, **additional_replacements
                 )
-                if rendered_text == previous_text:
-                    # No more changes, so return the rendered text
+                render_end = time.time()
+                print(f"\t\t\t\t\t Time for render iteration {iteration}: {render_end - render_start}")
+                print(f"\t\t\t\t\t Rendered text length: {len(rendered_text)}")
+                
+                if rendered_text == current_text:
+                    print(f"\t\t\t\t\t Total iterations needed: {iteration}")
                     return rendered_text
-                previous_text = text
-                text = rendered_text
+                    
+                previous_text = current_text
+                current_text = rendered_text
+                
+                recompile_start = time.time()
+                template = _compile_template(current_text)
+                recompile_end = time.time()
+                print(f"\t\t\t\t\t Time to recompile template: {recompile_end - recompile_start}")
 
-            # If the loop exits without returning, it indicates too much nesting
             raise TemplateRenderError(
                 "Too much nesting - you created an infinite loop here, pal"
             )

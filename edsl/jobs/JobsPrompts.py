@@ -1,3 +1,5 @@
+import time
+
 from typing import List, TYPE_CHECKING
 
 from edsl.results.Dataset import Dataset
@@ -50,24 +52,51 @@ class JobsPrompts:
         costs = []
         cache_keys = []
         for interview_index, interview in enumerate(interviews):
+            print(f"Processing interview {interview_index} of {len(interviews)}")
+            interview_start = time.time()
+            
+            # Fetch invigilators timing
+            invig_start = time.time()
             invigilators = [
                 FetchInvigilator(interview)(question)
                 for question in interview.survey.questions
             ]
+            invig_end = time.time()
+            print(f"Time taken to fetch invigilators: {invig_end - invig_start}")
+            
+            # Process prompts timing
+            prompts_start = time.time()
             for _, invigilator in enumerate(invigilators):
+                # Get prompts timing
+                get_prompts_start = time.time()
                 prompts = invigilator.get_prompts()
+                get_prompts_end = time.time()
+                print(f"\t Time taken to get prompts: {get_prompts_end - get_prompts_start}")
+                
                 user_prompt = prompts["user_prompt"]
                 system_prompt = prompts["system_prompt"]
                 user_prompts.append(user_prompt)
                 system_prompts.append(system_prompt)
+                
+                # Index lookups timing
+                index_start = time.time()
                 agent_index = self.agents.index(invigilator.agent)
                 agent_indices.append(agent_index)
                 interview_indices.append(interview_index)
                 scenario_index = self.scenarios.index(invigilator.scenario)
                 scenario_indices.append(scenario_index)
+                index_end = time.time()
+                print(f"\t Time taken for index lookups: {index_end - index_start}")
+                
+                # Model and question name assignment timing
+                assign_start = time.time()
                 models.append(invigilator.model.model)
                 question_names.append(invigilator.question.question_name)
+                assign_end = time.time()
+                print(f"\t Time taken for assignments: {assign_end - assign_start}")
 
+                # Cost estimation timing
+                cost_start = time.time()
                 prompt_cost = self.estimate_prompt_cost(
                     system_prompt=system_prompt,
                     user_prompt=user_prompt,
@@ -75,16 +104,33 @@ class JobsPrompts:
                     inference_service=invigilator.model._inference_service_,
                     model=invigilator.model.model,
                 )
+                cost_end = time.time()
+                print(f"\t Time taken to estimate prompt cost: {cost_end - cost_start}")
                 costs.append(prompt_cost["cost_usd"])
 
+                # Cache key generation timing
+                cache_key_gen_start = time.time()
                 cache_key = CacheEntry.gen_key(
                     model=invigilator.model.model,
                     parameters=invigilator.model.parameters,
                     system_prompt=system_prompt,
                     user_prompt=user_prompt,
-                    iteration=0,  # TODO how to handle when there are multiple iterations?
+                    iteration=0,
                 )
+                cache_key_gen_end = time.time()
                 cache_keys.append(cache_key)
+                print(f"\t Time taken to generate cache key: {cache_key_gen_end - cache_key_gen_start}")
+                print("-" * 50)  # Add separator between iterations for readability
+
+            prompts_end = time.time()
+            print(f"Time taken to process prompts: {prompts_end - prompts_start}")
+            
+            interview_end = time.time()
+            print(f"Overall time taken for interview: {interview_end - interview_start}")
+            print(f"Time breakdown:")
+            print(f"\t Invigilators: {invig_end - invig_start}")
+            print(f"\t Prompts processing: {prompts_end - prompts_start}")
+            print(f"\t Other overhead: {(interview_end - interview_start) - ((invig_end - invig_start) + (prompts_end - prompts_start))}")
         d = Dataset(
             [
                 {"user_prompt": user_prompts},

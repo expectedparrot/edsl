@@ -1,6 +1,9 @@
 from __future__ import annotations
-from typing import Dict, Any, Optional, Set, Union, TYPE_CHECKING
+from typing import Dict, Any, Optional, Set, Union, TYPE_CHECKING, Literal
 from functools import cached_property
+from multiprocessing import Pool, freeze_support, get_context
+from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
+import time
 
 from edsl.prompts.Prompt import Prompt
 
@@ -242,31 +245,97 @@ class PromptConstructor:
             question_name, self.current_answers
         )
 
-    def get_prompts(self) -> Dict[str, Prompt]:
-        """Get both prompts for the LLM call.
+    def get_prompts(self, parallel: Literal["thread", "process", None] = None) -> Dict[str, Any]:
+        """Get the prompts for the question."""
+        start = time.time()
+        
+        # Build all the components
+        instr_start = time.time()
+        agent_instructions = self.agent_instructions_prompt
+        instr_end = time.time()
+        print(f"\t\t Time for agent instructions: {instr_end - instr_start}")
+        
+        persona_start = time.time()
+        agent_persona = self.agent_persona_prompt
+        persona_end = time.time()
+        print(f"\t\t Time for agent persona: {persona_end - persona_start}")
+        
+        q_instr_start = time.time()
+        question_instructions = self.question_instructions_prompt
+        q_instr_end = time.time()
+        print(f"\t\t Time for question instructions: {q_instr_end - q_instr_start}")
+        
+        memory_start = time.time()
+        prior_question_memory = self.prior_question_memory_prompt
+        memory_end = time.time()
+        print(f"\t\t Time for prior question memory: {memory_end - memory_start}")
 
-        >>> from edsl import QuestionFreeText
-        >>> from edsl.agents.InvigilatorBase import InvigilatorBase
-        >>> q = QuestionFreeText(question_text="How are you today?", question_name="q_new")
-        >>> i = InvigilatorBase.example(question = q)
-        >>> i.get_prompts()
-        {'user_prompt': ..., 'system_prompt': ...}
-        """
-        prompts = self.prompt_plan.get_prompts(
-            agent_instructions=self.agent_instructions_prompt,
-            agent_persona=self.agent_persona_prompt,
-            question_instructions=Prompt(self.question_instructions_prompt),
-            prior_question_memory=self.prior_question_memory_prompt,
-        )
-        if self.question_file_keys:
+        # Get components dict
+        components = {
+            "agent_instructions": agent_instructions.text,
+            "agent_persona": agent_persona.text,
+            "question_instructions": question_instructions.text,
+            "prior_question_memory": prior_question_memory.text,
+        }
+
+        # Use PromptPlan's get_prompts method
+        plan_start = time.time()
+        
+        # Get arranged components first
+        arranged = self.prompt_plan.arrange_components(**components)
+        
+        if parallel == "process":
+            ctx = get_context('fork')
+            with ctx.Pool() as pool:
+                results = pool.map(_process_prompt, [
+                    (arranged["user_prompt"], {}),
+                    (arranged["system_prompt"], {})
+                ])
+                prompts = {
+                    "user_prompt": results[0],
+                    "system_prompt": results[1]
+                }
+            
+        elif parallel == "thread":
+            with ThreadPoolExecutor() as executor:
+                user_prompt_list = arranged["user_prompt"]
+                system_prompt_list = arranged["system_prompt"]
+                
+                # Process both prompt lists in parallel
+                rendered_user = executor.submit(_process_prompt, (user_prompt_list, {}))
+                rendered_system = executor.submit(_process_prompt, (system_prompt_list, {}))
+                
+                prompts = {
+                    "user_prompt": rendered_user.result(),
+                    "system_prompt": rendered_system.result()
+                }
+                
+        else:  # sequential processing
+            prompts = self.prompt_plan.get_prompts(**components)
+
+        plan_end = time.time()
+        print(f"\t\t Time for prompt processing ({parallel or 'sequential'}): {plan_end - plan_start}")
+        
+        # Handle file keys if present
+        if hasattr(self, 'question_file_keys') and self.question_file_keys:
+            files_start = time.time()
             files_list = []
             for key in self.question_file_keys:
                 files_list.append(self.scenario[key])
             prompts["files_list"] = files_list
+            files_end = time.time()
+            print(f"\t\t Time for file key processing: {files_end - files_start}")
+        
+        end = time.time()
+        print(f"\t\t Total time in get_prompts: {end - start}")
         return prompts
 
 
-if __name__ == "__main__":
-    import doctest
+def _process_prompt(args):
+    """Helper function to process a single prompt list with its replacements."""
+    prompt_list, replacements = args
+    return prompt_list.reduce()
 
-    doctest.testmod(optionflags=doctest.ELLIPSIS)
+
+if __name__ == '__main__':
+    freeze_support()
