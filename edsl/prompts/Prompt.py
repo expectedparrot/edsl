@@ -10,6 +10,48 @@ from edsl.Base import PersistenceMixin, RepresentationMixin
 
 MAX_NESTING = 100
 
+from jinja2 import Environment, meta, TemplateSyntaxError, Undefined
+from functools import lru_cache
+
+class PreserveUndefined(Undefined):
+    def __str__(self):
+        return "{{ " + str(self._undefined_name) + " }}"
+
+# Create environment once at module level
+_env = Environment(undefined=PreserveUndefined)
+
+@lru_cache(maxsize=1024)
+def _compile_template(text: str):
+    return _env.from_string(text)
+
+@lru_cache(maxsize=1024)
+def _find_template_variables(template: str) -> list[str]:
+    """Find and return the template variables."""
+    ast = _env.parse(template)
+    return list(meta.find_undeclared_variables(ast))
+
+def _make_hashable(value):
+    """Convert unhashable types to hashable ones."""
+    if isinstance(value, list):
+        return tuple(_make_hashable(item) for item in value)
+    if isinstance(value, dict):
+        return frozenset((k, _make_hashable(v)) for k, v in value.items())
+    return value
+
+@lru_cache(maxsize=1024)
+def _cached_render(text: str, frozen_replacements: frozenset) -> str:
+    """Cached version of template rendering with frozen replacements."""
+    # Print cache info on every call
+    cache_info = _cached_render.cache_info()
+    print(f"\t\t\t\t\t Cache status - hits: {cache_info.hits}, misses: {cache_info.misses}, current size: {cache_info.currsize}")
+    
+    # Convert back to dict with original types for rendering
+    replacements = {k: v for k, v in frozen_replacements}
+    
+    template = _compile_template(text)
+    result = template.render(replacements)
+    
+    return result
 
 class Prompt(PersistenceMixin, RepresentationMixin):
     """Class for creating a prompt to be used in a survey."""
@@ -145,33 +187,8 @@ class Prompt(PersistenceMixin, RepresentationMixin):
         return f'Prompt(text="""{self.text}""")'
 
     def template_variables(self) -> list[str]:
-        """Return the the variables in the template.
-
-        Example:
-
-        >>> p = Prompt("Hello, {{person}}")
-        >>> p.template_variables()
-        ['person']
-
-        """
-        return self._template_variables(self.text)
-
-    @staticmethod
-    def _template_variables(template: str) -> list[str]:
-        """Find and return the template variables.
-
-        :param template: The template to find the variables in.
-
-        """
-        from jinja2 import Environment, meta, Undefined
-
-        class PreserveUndefined(Undefined):
-            def __str__(self):
-                return "{{ " + str(self._undefined_name) + " }}"
-
-        env = Environment(undefined=PreserveUndefined)
-        ast = env.parse(template)
-        return list(meta.find_undeclared_variables(ast))
+        """Return the variables in the template."""
+        return _find_template_variables(self.text)
 
     def undefined_template_variables(self, replacement_dict: dict):
         """Return the variables in the template that are not in the replacement_dict.
@@ -239,45 +256,39 @@ class Prompt(PersistenceMixin, RepresentationMixin):
             return self
 
     @staticmethod
-    def _render(
-        text: str, primary_replacement, **additional_replacements
-    ) -> "PromptBase":
-        """Render the template text with variables replaced from the provided named dictionaries.
-
-        :param text: The text to render.
-        :param primary_replacement: The primary replacement dictionary.
-        :param additional_replacements: Additional replacement dictionaries.
-
-        Allows for nested variable resolution up to a specified maximum nesting depth.
-
-        Example:
-
-        >>> codebook = {"age": "Age"}
-        >>> p = Prompt("You are an agent named {{ name }}. {{ codebook['age']}}: {{ age }}")
-        >>> p.render({"name": "John", "age": 44}, codebook=codebook)
-        Prompt(text=\"""You are an agent named John. Age: 44\""")
-        """
-        from jinja2 import Environment, meta, TemplateSyntaxError, Undefined
-
-        class PreserveUndefined(Undefined):
-            def __str__(self):
-                return "{{ " + str(self._undefined_name) + " }}"
-
-        env = Environment(undefined=PreserveUndefined)
+    def _render(text: str, primary_replacement, **additional_replacements) -> "PromptBase":
+        """Render the template text with variables replaced."""
+        import time
+        
+        # if there are no replacements, return the text
+        if not primary_replacement and not additional_replacements:
+            return text
+     
         try:
+            variables = _find_template_variables(text)
+            
+            if not variables: # if there are no variables, return the text
+                return text
+            
+            # Combine all replacements
+            all_replacements = {**primary_replacement, **additional_replacements}
+            
             previous_text = None
+            current_text = text
+            iteration = 0
+            
             for _ in range(MAX_NESTING):
-                # breakpoint()
-                rendered_text = env.from_string(text).render(
-                    primary_replacement, **additional_replacements
-                )
-                if rendered_text == previous_text:
-                    # No more changes, so return the rendered text
+                iteration += 1
+                
+                template = _compile_template(current_text)
+                rendered_text = template.render(all_replacements)
+                
+                if rendered_text == current_text:
                     return rendered_text
-                previous_text = text
-                text = rendered_text
+                    
+                previous_text = current_text
+                current_text = rendered_text
 
-            # If the loop exits without returning, it indicates too much nesting
             raise TemplateRenderError(
                 "Too much nesting - you created an infinite loop here, pal"
             )
@@ -331,6 +342,58 @@ class Prompt(PersistenceMixin, RepresentationMixin):
         """Return an example of the prompt."""
         return cls(cls.default_instructions)
 
+    def get_prompts(self) -> Dict[str, Any]:
+        """Get the prompts for the question."""
+        start = time.time()
+        
+        # Build all the components
+        instr_start = time.time()
+        agent_instructions = self.agent_instructions_prompt
+        instr_end = time.time()
+        logger.debug(f"Time taken for agent instructions: {instr_end - instr_start:.4f}s")
+        
+        persona_start = time.time()
+        agent_persona = self.agent_persona_prompt
+        persona_end = time.time()
+        logger.debug(f"Time taken for agent persona: {persona_end - persona_start:.4f}s")
+        
+        q_instr_start = time.time()
+        question_instructions = self.question_instructions_prompt
+        q_instr_end = time.time()
+        logger.debug(f"Time taken for question instructions: {q_instr_end - q_instr_start:.4f}s")
+        
+        memory_start = time.time()
+        prior_question_memory = self.prior_question_memory_prompt
+        memory_end = time.time()
+        logger.debug(f"Time taken for prior question memory: {memory_end - memory_start:.4f}s")
+
+        # Get components dict
+        components = {
+            "agent_instructions": agent_instructions.text,
+            "agent_persona": agent_persona.text,
+            "question_instructions": question_instructions.text,
+            "prior_question_memory": prior_question_memory.text,
+        }
+
+        # Use PromptPlan's get_prompts method
+        plan_start = time.time()
+        prompts = self.prompt_plan.get_prompts(**components)
+        plan_end = time.time()
+        logger.debug(f"Time taken for prompt processing: {plan_end - plan_start:.4f}s")
+        
+        # Handle file keys if present
+        if hasattr(self, 'question_file_keys') and self.question_file_keys:
+            files_start = time.time()
+            files_list = []
+            for key in self.question_file_keys:
+                files_list.append(self.scenario[key])
+            prompts["files_list"] = files_list
+            files_end = time.time()
+            logger.debug(f"Time taken for file key processing: {files_end - files_start:.4f}s")
+        
+        end = time.time()
+        logger.debug(f"Total time in get_prompts: {end - start:.4f}s")
+        return prompts
 
 if __name__ == "__main__":
     print("Running doctests...")

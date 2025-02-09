@@ -124,6 +124,6 @@ class PromptPlan:
         """Get both prompts for the LLM call."""
         prompts = self.arrange_components(**kwargs)
         return {
-            "user_prompt": prompts["user_prompt"].reduce(),
-            "system_prompt": prompts["system_prompt"].reduce(),
+            "user_prompt": Prompt("".join(str(p) for p in prompts["user_prompt"])),
+            "system_prompt": Prompt("".join(str(p) for p in prompts["system_prompt"])),
         }
