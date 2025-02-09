@@ -10,6 +10,8 @@
 
 - Method `ScenarioList.from_pdf_to_image(<filename>)` generates a scenario for each page of a pdf converted into a jpeg (to use as an image instead of converting to text). Companion method `Scenario.from_pdf_to_image(<filename>)` generates a key/value for each page within the same scenario object to allow you to use multiple images at the same time. See a [notebook of examples](https://www.expectedparrot.com/content/ea777fab-9cb1-4738-8fa3-bbdef20ed60d).
 
+- `QuestionMultipleChoice` takes an optional parameter `option_labels` which is a list of descriptions for the (required) `question_options`. This can be useful if you want to keep answer options short but include longer descriptions. It is an alternative to passing `use_code` (available for all answer types) which returns the number of the option instead of the question option itself.
+
 ### Changed
 
 ### Fixed
