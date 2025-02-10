@@ -519,7 +519,7 @@ If remote inference is activated, we can optionally run the survey in the backgr
 
 .. code-block:: python
 
-  results = survey.by(agents).by(models).run()
+  results = survey.by(agents).by(models).run(background=True)
 
 
 This will return a link to the progress bar page (as usual), which you can check at any time.
