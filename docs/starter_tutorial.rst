@@ -512,6 +512,35 @@ Example output:
      - Ah, my favorite place for reading has to be the deck of a ship, with the vast ocean stretching out endlessly before me. There's something about the gentle rocking of the waves and the salty sea breeze that makes any book come alive. I love settling into a sturdy deck chair, perhaps with a mug of strong coffee or a tot of rum by my side, and losing myself in a tale while the sun sets on the horizon, painting the sky with colors that even the best of stories can't quite capture. The sound of the water lapping against the hull provides a soothing background, making it the perfect spot to dive into a good book.
 
 
+Running a survey in the background 
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+If remote inference is activated, we can optionally run the survey in the background and continue working (or not) while waiting for results to be generated:
+
+.. code-block:: python
+
+  results = survey.by(agents).by(models).run(background=True)
+
+
+This will return a link to the progress bar page (as usual), which you can check at any time.
+You can also check the status of the job by running:
+
+.. code-block:: python
+
+  results.fetch()
+
+
+This will return either a status update or the results.
+Once the job is completed, you can call the results as usual, e.g.:
+
+.. code-block:: python
+
+  results.columns # to view a list of all columns
+
+  results.select("answer.*") # to view all answers
+
+
+
 Example: Adding context to questions
 ------------------------------------
 

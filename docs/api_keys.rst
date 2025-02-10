@@ -26,8 +26,6 @@ There are three methods for storing and managing keys (details on each below).
 1. Manage keys from your account (recommended)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-*Note: This feature is in development. For now, please use method 2. below.*
-
 This method provides a secure way to store your keys and the most flexibility in choosing how to use them.
 
 Start by navigating to the `Keys <http://www.expectedparrot.com/home/keys>`_ page of your account.
