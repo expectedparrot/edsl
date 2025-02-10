@@ -249,7 +249,28 @@ class QuestionNameDescriptor(BaseDescriptor):
 
 
 class QuestionOptionsDescriptor(BaseDescriptor):
-    """Validate that `question_options` is a list, does not exceed the min/max lengths, and has unique items."""
+    """Validate that `question_options` is a list, does not exceed the min/max lengths, and has unique items.
+
+    >>> import warnings
+    >>> q_class = QuestionOptionsDescriptor.example()
+    >>> with warnings.catch_warnings(record=True) as w:
+    ...     _ = q_class(["a ", "b", "c"])  # Has trailing space
+    ...     assert len(w) == 1
+    ...     assert "trailing whitespace" in str(w[0].message)
+
+    >>> _ = q_class(["a", "b", "c", "d", "d"])
+    Traceback (most recent call last):
+    ...
+    edsl.exceptions.questions.QuestionCreationValidationError: Question options must be unique (got ['a', 'b', 'c', 'd', 'd']).
+
+    We allow dynamic question options, which are strings of the form '{{ question_options }}'.
+
+    >>> _ = q_class("{{dynamic_options}}")
+    >>> _ = q_class("dynamic_options")
+    Traceback (most recent call last):
+    ...
+    edsl.exceptions.questions.QuestionCreationValidationError: ...
+    """
 
     @classmethod
     def example(cls):
@@ -273,23 +294,7 @@ class QuestionOptionsDescriptor(BaseDescriptor):
         self.q_budget = q_budget
 
     def validate(self, value: Any, instance) -> None:
-        """Validate the question options.
-
-        >>> q_class = QuestionOptionsDescriptor.example()
-        >>> _ = q_class(["a", "b", "c"])
-        >>> _ = q_class(["a", "b", "c", "d", "d"])
-        Traceback (most recent call last):
-        ...
-        edsl.exceptions.questions.QuestionCreationValidationError: Question options must be unique (got ['a', 'b', 'c', 'd', 'd']).
-
-        We allow dynamic question options, which are strings of the form '{{ question_options }}'.
-
-        >>> _ = q_class("{{dynamic_options}}")
-        >>> _ = q_class("dynamic_options")
-        Traceback (most recent call last):
-        ...
-        edsl.exceptions.questions.QuestionCreationValidationError: ...
-        """
+        """Validate the question options."""
         if isinstance(value, str):
             # Check if the string is a dynamic question option
             if "{{" in value and "}}" in value:
@@ -341,6 +346,15 @@ class QuestionOptionsDescriptor(BaseDescriptor):
             ):
                 raise QuestionCreationValidationError(
                     f"All question options must be at least 1 character long but less than {Settings.MAX_OPTION_LENGTH} characters long (got {value})."
+                )
+
+            # Check for trailing whitespace in string options
+            if any(isinstance(x, str) and (x != x.strip()) for x in value):
+                import warnings
+
+                warnings.warn(
+                    "Some question options contain trailing whitespace. This may cause unexpected behavior.",
+                    UserWarning,
                 )
 
         if hasattr(instance, "min_selections") and instance.min_selections != None:
