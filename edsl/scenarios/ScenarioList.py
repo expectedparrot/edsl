@@ -1135,7 +1135,7 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         return cls(observations)
 
     @classmethod
-    def from_google_sheet(cls, url: str, sheet_name: str = None) -> ScenarioList:
+    def from_google_sheet(cls, url: str, sheet_name: str = None, column_names: Optional[List[str]]= None) -> ScenarioList:
         """Create a ScenarioList from a Google Sheet.
 
         This method downloads the Google Sheet as an Excel file, saves it to a temporary file,
@@ -1145,6 +1145,8 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
             url (str): The URL to the Google Sheet.
             sheet_name (str, optional): The name of the sheet to load. If None, the method will behave
                                         the same as from_excel regarding multiple sheets.
+            column_names (List[str], optional): If provided, use these names for the columns instead
+                                              of the default column names from the sheet.
 
         Returns:
             ScenarioList: An instance of the ScenarioList class.
@@ -1172,8 +1174,25 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
             temp_file.write(response.content)
             temp_filename = temp_file.name
 
-        # Call the from_excel class method with the temporary file
-        return cls.from_excel(temp_filename, sheet_name=sheet_name)
+        # First create the ScenarioList with default column names
+        scenario_list = cls.from_excel(temp_filename, sheet_name=sheet_name)
+
+        # If column_names is provided, create a new ScenarioList with the specified names
+        if column_names is not None:
+            if len(column_names) != len(scenario_list[0].keys()):
+                raise ValueError(
+                    f"Number of provided column names ({len(column_names)}) "
+                    f"does not match number of columns in sheet ({len(scenario_list[0].keys())})"
+                )
+            
+            # Create a codebook mapping original keys to new names
+            original_keys = list(scenario_list[0].keys())
+            codebook = dict(zip(original_keys, column_names))
+            
+            # Return new ScenarioList with renamed columns
+            return scenario_list.rename(codebook)
+        else:
+            return scenario_list
 
     @classmethod
     def from_delimited_file(

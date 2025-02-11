@@ -55,7 +55,7 @@ def test_invalid_fetch_order():
 )
 def test_entry_type_detection(builder, key, expected_type):
     """Test correct detection of entry types"""
-    entry_type = builder._entry_type(key, "dummy-value")
+    entry_type = builder._entry_type(key)
     assert entry_type == expected_type
 
 
@@ -100,7 +100,9 @@ def test_get_language_model_input(builder):
         ]
     }
     builder.limit_data = {
-        "test": LimitEntry(service="test", rpm=10, tpm=2000000, source="env")
+        "test": LimitEntry(
+            service="test", rpm=10, tpm=2000000, rpm_source="env", tpm_source="env"
+        )
     }
     builder.id_data = {
         "test": APIIDEntry(
@@ -158,6 +160,31 @@ def test_build_method():
     assert "test" in result
     assert isinstance(result["test"], LanguageModelInput)
     assert "test" in result  # Default test service should always be present
+
+
+def test_update_from_dict(mock_env_vars):
+    """Test fetching key-value pairs from environment"""
+    with patch.dict("os.environ", mock_env_vars, clear=True):
+        builder = KeyLookupBuilder(fetch_order=("env",))
+
+        assert builder.key_data["openai"][-1].value == "test-openai-key"
+        assert builder.key_data["openai"][-1].source == "env"
+
+        assert builder.limit_data["openai"].rpm == "20"
+        assert builder.limit_data["openai"].rpm_source == "env"
+
+        builder.update_from_dict(
+            {
+                "OPENAI_API_KEY": ("sk-1234", "custodial_keys"),
+                "EDSL_SERVICE_RPM_OPENAI": ("40", "custodial_keys"),
+            }
+        )
+
+        assert builder.key_data["openai"][-1].value == "sk-1234"
+        assert builder.key_data["openai"][-1].source == "custodial_keys"
+
+        assert builder.limit_data["openai"].rpm == "40"
+        assert builder.limit_data["openai"].rpm_source == "custodial_keys"
 
 
 def test_duplicate_id_handling():

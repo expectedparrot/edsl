@@ -28,7 +28,7 @@ Learn more about how :ref:`coop` works in the EDSL documentation.
 
 .. note::
 
-  You can also view and download the contents of this tutorial in a `notebook at Coop <https://www.expectedparrot.com/content/26d569e1-8356-45b7-9786-471dda1710ce>`_
+  You can also view and download the contents of this tutorial in a `notebook at Coop <https://www.expectedparrot.com/content/179b3a78-2505-4568-acd9-c09d18953288>`_
 
 
 **Further reading** 
@@ -115,62 +115,49 @@ To update your installation of EDSL to the latest version at PyPI, run the follo
 Accessing Language Models
 -------------------------
 
-The next step is to decide how you want to access language models for running surveys.
+The next step is to decide how you want to access language models.
 EDSL works with many popular language models that you can choose from to generate responses to your surveys.
-These models are hosted by various service providers, such as Anthropic, Azure, Bedrock, Deep Infra, Google, Groq, Mistral, OpenAI, Replicate and Together.
+These models are hosted by various service providers, such as Anthropic, Azure, Bedrock, Deep Infra, DeepSeek, Google, Groq, Mistral, OpenAI, Replicate and Together.
 In order to run a survey, you need to provide API keys for the service providers of models that you want to use.
 There are two methods for providing API keys to EDSL:
 
+* Use an Expected Parrot API key to access all available models
+* Provide your own API keys from service providers
 
-Remote inference
+
+Managing keys
+^^^^^^^^^^^^^
+
+The easiest way to manage your keys is from your Expected Parrot account.
+`Create an account <https://www.expectedparrot.com/login>`_ with an email address and then navigate to your `Keys <https://www.expectedparrot.com/home/keys>`_ page to find options for adding and sharing your keys:
+
+.. image:: static/my_keys.png
+  :alt: View stored keys
+  :align: center
+  :width: 75%
+  
+
+Your Expected Parrot API key is automatically available to use by default whenever remote inference is activated.
+This key allows you to access the Expected Parrot server and run surveys with all available models.
+The key can be viewed at your `Settings <https://www.expectedparrot.com/home/api>`_ page where you can also find options for activating remote inference and caching.
+Activating these options allows you to run your surveys and store results at the Expected Parrot server instead of your own machine, using whichever keys you have prioritized.
+
+Please see the :ref:`api-keys` section for more details on methods of storing and managing keys.
+
+*Note:* If you try to run a survey without storing a required API key, you will be provided a link to activate remote inference and use your Expected Parrot API key.
+
+
+Credits & tokens
 ^^^^^^^^^^^^^^^^
 
-This method allows you to use a single API key from Expected Parrot to access all available language models at once, and to run your surveys remotely at the Expected Parrot server.
-It is convenient for quickly accessing a wide range of models without needing to create accounts and set up individual API keys with service providers.
-It also allows you to automatically store your survey data on the Expected Parrot server to access it anywhere and share it with other users.
+Running surveys with language models requires tokens.
+If you are using your own API keys, service providers will bill you directly.
+If you are using your Expected Parrot API key to access models, you will need to purchase credits to cover token costs.
+Please see the model pricing page for details on available models and their current prices.
 
-To use remote inference:
+*Note:* Your account comes with 100 free credits. You can purchase more credits at any time at your `Credits <https://www.expectedparrot.com/home/purchases>`_ page.
 
-1. Create or log in to your Coop account: https://www.expectedparrot.com/login
-2. Navigate to your `Settings <https://www.expectedparrot.com/settings>`_ page. Copy your Expected Parrot API key and activate remote inference.
-3. Create a file named *.env* in your working directory and add the following code to it (replace 'your_key_here' with your actual key):
-
-.. code-block:: text 
-
-  EXPECTED_PARROT_API_KEY = 'your_key_here'
-
-
-*Note:* If you try to run a survey without storing a required API key, you will be provided a link to activate remote inference and automatically store your Expected Parrot API key in a *.env* file for you.
-
-
-Local inference
-^^^^^^^^^^^^^^^
-
-This method allows you to run EDSL on your own machine with your own API keys for service providers.
-To use this method, you will need to create accounts with service providers and obtain API keys from them.
-You can still use an Expected Parrot API key to post and share content at the Expected Parrot server, but you will need to do this manually.
-
-To use local inference:
-
-1. Create accounts with service providers and obtain API keys from them.
-2. Create a file named *.env* in your working directory and add the following code to it (replace 'your_key_here' with your actual keys):
-
-.. code-block:: text 
-
-  EXPECTED_PARROT_API_KEY = 'your_key_here'
-
-  ANTHROPIC_API_KEY = 'your_key_here'
-  DEEP_INFRA_API_KEY = 'your_key_here'
-  GOOGLE_API_KEY = 'your_key_here'
-  GROQ_API_KEY = 'your_key_here'
-  MISTRAL_API_KEY = 'your_key_here'
-  OPENAI_API_KEY = 'your_key_here'
-  REPLICATE_API_KEY = 'your_key_here'
-
-
-*Note:* Your API keys should be treated like passwords and deleted from notebooks or content that you share with others. 
-
-Now that we have installed EDSL and set up API keys, we can start using it to create surveys and analyze results.
+After installing EDSL and storing API keys you are ready to run some examples!
 
 
 Example: Running a simple question
@@ -523,6 +510,35 @@ Example output:
      - sailor
      - 3
      - Ah, my favorite place for reading has to be the deck of a ship, with the vast ocean stretching out endlessly before me. There's something about the gentle rocking of the waves and the salty sea breeze that makes any book come alive. I love settling into a sturdy deck chair, perhaps with a mug of strong coffee or a tot of rum by my side, and losing myself in a tale while the sun sets on the horizon, painting the sky with colors that even the best of stories can't quite capture. The sound of the water lapping against the hull provides a soothing background, making it the perfect spot to dive into a good book.
+
+
+Running a survey in the background 
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+If remote inference is activated, we can optionally run the survey in the background and continue working (or not) while waiting for results to be generated:
+
+.. code-block:: python
+
+  results = survey.by(agents).by(models).run(background=True)
+
+
+This will return a link to the progress bar page (as usual), which you can check at any time.
+You can also check the status of the job by running:
+
+.. code-block:: python
+
+  results.fetch()
+
+
+This will return either a status update or the results.
+Once the job is completed, you can call the results as usual, e.g.:
+
+.. code-block:: python
+
+  results.columns # to view a list of all columns
+
+  results.select("answer.*") # to view all answers
+
 
 
 Example: Adding context to questions
@@ -1073,4 +1089,4 @@ To post a notebook:
   notebook.push(description="Starter Tutorial", visibility="public")
 
 
-You can view and download a notebook for this tutorial `at the Coop <https://www.expectedparrot.com/content/26d569e1-8356-45b7-9786-471dda1710ce>`_.
+You can view and download a notebook for this tutorial `at the Coop <https://www.expectedparrot.com/content/179b3a78-2505-4568-acd9-c09d18953288>`_.
