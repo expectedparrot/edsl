@@ -1326,7 +1326,7 @@ class Results(UserList, Mixins, Base):
         except Exception as e:
             raise ResultsError(f"Failed to fetch remote results: {str(e)}")
 
-    def fetch(self, polling_interval: float = 1.0) -> Results:
+    def fetch(self, polling_interval: [float, int] = 1.0) -> Results:
         """
         Polls the server for job completion and updates this Results instance with the completed data.
         
@@ -1346,6 +1346,7 @@ class Results(UserList, Mixins, Base):
             remote_job_data = JobsRemoteInferenceHandler.check_status(self.job_info.job_uuid)
             
             while remote_job_data.get("status") not in ["completed", "failed"]:
+                print("Waiting for remote job to complete...")
                 import time
                 time.sleep(polling_interval)
                 remote_job_data = JobsRemoteInferenceHandler.check_status(self.job_info.job_uuid)
