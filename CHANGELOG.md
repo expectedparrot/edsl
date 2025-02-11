@@ -10,12 +10,18 @@
 
 - Method `ScenarioList.from_pdf_to_image(<filename>)` generates a scenario for each page of a pdf converted into a jpeg (to use as an image instead of converting to text). Companion method `Scenario.from_pdf_to_image(<filename>)` generates a key/value for each page within the same scenario object to allow you to use multiple images at the same time. See a [notebook of examples](https://www.expectedparrot.com/content/ea777fab-9cb1-4738-8fa3-bbdef20ed60d).
 
+- You can now pull an object from Coop using its alias. Alias routes were previously of the form expectedparrot.com/<owner_username>/<alias>, They are now of the form expectedparrot.com/content/<owner_username>/<alias>.
+
+- You can now see Mermaid diagrams and inline math in Coop notebooks.
+
 ### Changed
 
 ### Fixed
-- Updated connection for Anthropic models.
+- Improved methods and moved tasks to background to prevent some timeout errors.
 
-- A bug preventing iterations on remote inference.
+- Upgrated connection for Anthropic models.
+
+- Fixed a bug preventing iterations on remote inference.
 
 
 ## [0.1.42] - 2025-01-24
