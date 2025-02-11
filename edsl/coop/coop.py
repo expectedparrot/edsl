@@ -14,7 +14,11 @@ from edsl.data.CacheEntry import CacheEntry
 from edsl.jobs.Jobs import Jobs
 from edsl.surveys.Survey import Survey
 
-from edsl.exceptions.coop import CoopNoUUIDError, CoopServerResponseError
+from edsl.exceptions.coop import (
+    CoopInvalidURLError,
+    CoopNoUUIDError,
+    CoopServerResponseError,
+)
 from edsl.coop.utils import (
     EDSLObject,
     ObjectRegistry,
@@ -285,17 +289,46 @@ class Coop(CoopFunctionsMixin):
         if value is None:
             return "null"
 
-    def _resolve_uuid(
+    def _resolve_uuid_or_alias(
         self, uuid: Union[str, UUID] = None, url: str = None
-    ) -> Union[str, UUID]:
+    ) -> tuple[Optional[str], Optional[str], Optional[str]]:
         """
-        Resolve the uuid from a uuid or a url.
+        Resolve the uuid or alias information from a uuid or a url.
+        Returns a tuple of (uuid, owner_username, alias)
+        - For content/<uuid> URLs: returns (uuid, None, None)
+        - For content/<username>/<alias> URLs: returns (None, username, alias)
         """
         if not url and not uuid:
             raise CoopNoUUIDError("No uuid or url provided for the object.")
+
         if not uuid and url:
-            uuid = url.split("/")[-1]
-        return uuid
+            parts = (
+                url.replace("http://", "")
+                .replace("https://", "")
+                .rstrip("/")
+                .split("/")
+            )
+
+            # Remove domain
+            parts = parts[1:]
+
+            if len(parts) < 2 or parts[0] != "content":
+                raise CoopInvalidURLError(
+                    f"Invalid URL format. The URL must end with /content/<uuid> or /content/<username>/<alias>: {url}"
+                )
+
+            if len(parts) == 2:
+                obj_uuid = parts[1]
+                return obj_uuid, None, None
+            elif len(parts) == 3:
+                username, alias = parts[1], parts[2]
+                return None, username, alias
+            else:
+                raise CoopInvalidURLError(
+                    f"Invalid URL format. The URL must end with /content/<uuid> or /content/<username>/<alias>: {url}"
+                )
+
+        return str(uuid), None, None
 
     @property
     def edsl_settings(self) -> dict:
@@ -361,22 +394,31 @@ class Coop(CoopFunctionsMixin):
         expected_object_type: Optional[ObjectType] = None,
     ) -> EDSLObject:
         """
-        Retrieve an EDSL object by its uuid or its url.
+        Retrieve an EDSL object by its uuid/url or by owner username and alias.
         - If the object's visibility is private, the user must be the owner.
         - Optionally, check if the retrieved object is of a certain type.
 
         :param uuid: the uuid of the object either in str or UUID format.
-        :param url: the url of the object.
+        :param url: the url of the object (can be content/uuid or content/username/alias format).
         :param expected_object_type: the expected type of the object.
 
         :return: the object instance.
         """
-        uuid = self._resolve_uuid(uuid, url)
-        response = self._send_server_request(
-            uri=f"api/v0/object",
-            method="GET",
-            params={"uuid": uuid},
-        )
+        obj_uuid, owner_username, alias = self._resolve_uuid_or_alias(uuid, url)
+
+        if obj_uuid:
+            response = self._send_server_request(
+                uri=f"api/v0/object",
+                method="GET",
+                params={"uuid": obj_uuid},
+            )
+        else:
+            response = self._send_server_request(
+                uri=f"api/v0/object/alias",
+                method="GET",
+                params={"owner_username": owner_username, "alias": alias},
+            )
+
         self._resolve_server_response(response)
         json_string = response.json().get("json_string")
         object_type = response.json().get("object_type")
@@ -414,12 +456,13 @@ class Coop(CoopFunctionsMixin):
         """
         Delete an object from the server.
         """
-        uuid = self._resolve_uuid(uuid, url)
+        obj_uuid, _, _ = self._resolve_uuid_or_alias(uuid, url)
         response = self._send_server_request(
             uri=f"api/v0/object",
             method="DELETE",
-            params={"uuid": uuid},
+            params={"uuid": obj_uuid},
         )
+
         self._resolve_server_response(response)
         return response.json()
 
@@ -438,11 +481,11 @@ class Coop(CoopFunctionsMixin):
         """
         if description is None and visibility is None and value is None:
             raise Exception("Nothing to patch.")
-        uuid = self._resolve_uuid(uuid, url)
+        obj_uuid, _, _ = self._resolve_uuid_or_alias(uuid, url)
         response = self._send_server_request(
             uri=f"api/v0/object",
             method="PATCH",
-            params={"uuid": uuid},
+            params={"uuid": obj_uuid},
             payload={
                 "description": description,
                 "alias": alias,
@@ -549,6 +592,7 @@ class Coop(CoopFunctionsMixin):
     def remote_cache_get(
         self,
         exclude_keys: Optional[list[str]] = None,
+        select_keys: Optional[list[str]] = None,
     ) -> list[CacheEntry]:
         """
         Get all remote cache entries.
@@ -560,10 +604,12 @@ class Coop(CoopFunctionsMixin):
         """
         if exclude_keys is None:
             exclude_keys = []
+        if select_keys is None:
+            select_keys = []
         response = self._send_server_request(
             uri="api/v0/remote-cache/get-many",
             method="POST",
-            payload={"keys": exclude_keys},
+            payload={"keys": exclude_keys, "selected_keys": select_keys},
             timeout=40,
         )
         self._resolve_server_response(response)

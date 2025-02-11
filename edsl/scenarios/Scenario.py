@@ -362,6 +362,39 @@ class Scenario(Base, UserDict, ScenarioHtmlMixin):
         return Scenario(extractor.get_pdf_dict())
 
     @classmethod
+    def from_pdf_to_image(cls, pdf_path, image_format="jpeg"):
+        """
+        Convert each page of a PDF into an image and create key/value for it.
+
+        :param pdf_path: Path to the PDF file.
+        :param image_format: Format of the output images (default is 'jpeg').
+        :return: ScenarioList instance containing the Scenario instances.
+
+        The scenario has a key "filepath" and one or more keys "page_{i}" for each page.
+        """
+        import tempfile
+        from pdf2image import convert_from_path
+        from edsl.scenarios import Scenario
+
+        with tempfile.TemporaryDirectory() as output_folder:
+            # Convert PDF to images
+            images = convert_from_path(pdf_path)
+
+            scenario_dict = {"filepath":pdf_path}
+
+            # Save each page as an image and create Scenario instances
+            for i, image in enumerate(images):
+                image_path = os.path.join(output_folder, f"page_{i}.{image_format}")
+                image.save(image_path, image_format.upper())
+
+                from edsl import FileStore
+                scenario_dict[f"page_{i}"] = FileStore(image_path)
+
+            scenario = Scenario(scenario_dict)
+
+            return cls(scenario)
+
+    @classmethod
     def from_docx(cls, docx_path: str) -> "Scenario":
         """Creates a scenario from the text of a docx file.
 

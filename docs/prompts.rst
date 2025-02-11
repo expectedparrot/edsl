@@ -216,6 +216,35 @@ Agents can also be constructed with an optional unique `name` parameter which do
 The name is stored in the `agent_name` column that is automatically added to the results.
 The default agent name in results is "Agent" followed by the agent's index in the agent list (e.g. "Agent_0", "Agent_1", etc.).
 
+If you want to reference a name for an agent, you can do so by creating a trait for it.
+You can then use the trait name in a question prompt to reference the agent's name.
+
+For example:
+
+.. code-block:: python
+
+   from edsl import Agent, QuestionFreeText 
+
+   a = Agent(traits = {"first_name": "John"})
+
+   q = QuestionFreeText(
+      question_name = "exmaple",
+      question_text = "What is your last name, {{ agent.first_name }}?"
+   )
+
+   job = q.by(a)
+   job.prompts().select("user_prompt")
+
+
+Output:
+
+.. list-table::
+   :header-rows: 1
+
+   * - user_prompt
+   * - What is your last name, John?
+
+
 Learn more about designing :ref:`agents` and accessing columns in :ref:`results`.
 
 
