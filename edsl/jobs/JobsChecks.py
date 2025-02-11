@@ -134,22 +134,22 @@ class JobsChecks:
 
         edsl_auth_token = secrets.token_urlsafe(16)
 
-        print("You're missing some of the API keys needed to run this job:")
+        print("API keys are required to run surveys with language models. The following keys are needed to run this survey: ")
         for api_key in missing_api_keys:
             print(f"     🔑 {api_key}")
         print(
-            "\nYou can either add the missing keys to your .env file, or use remote inference."
+            "\nYou can provide your own keys or use an Expected Parrot key to access all available models."
         )
-        print("Remote inference allows you to run jobs on our server.")
+        print("Please see the documentation page to learn about options for managing keys: https://doc.expectedparrot.com/en/latest/api_keys.html")
 
         coop = Coop()
         coop._display_login_url(
             edsl_auth_token=edsl_auth_token,
-            link_description="\n🚀 To use remote inference, sign up at the following link:",
+            link_description="\n➡️ Click the link below to create an account and get an Expected Parrot key:\n",
         )
 
         print(
-            "\nOnce you log in, we will automatically retrieve your Expected Parrot API key and continue your job remotely."
+            "\nOnce you log in, your key will be stored on your computer and your survey will start running at the Expected Parrot server."
         )
 
         api_key = coop._poll_for_api_key(edsl_auth_token)
@@ -159,7 +159,7 @@ class JobsChecks:
             return
 
         path_to_env = write_api_key_to_env(api_key)
-        print("\n✨ API key retrieved and written to .env file at the following path:")
+        print("\n✨ Your key has been stored at the following path: ")
         print(f"    {path_to_env}")
 
         # Retrieve API key so we can continue running the job
