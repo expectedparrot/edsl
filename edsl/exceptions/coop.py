@@ -2,6 +2,10 @@ class CoopErrors(Exception):
     pass
 
 
+class CoopInvalidURLError(CoopErrors):
+    pass
+
+
 class CoopNoUUIDError(CoopErrors):
     pass
 
