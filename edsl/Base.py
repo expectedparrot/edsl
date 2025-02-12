@@ -64,17 +64,26 @@ class PersistenceMixin:
     @classmethod
     def pull(
         cls,
-        uuid: Optional[Union[str, UUID]] = None,
-        url: Optional[str] = None,
-        expected_parrot_url: Optional[str] = None,
+        url_or_uuid: Optional[Union[str, UUID]] = None,
+        #expected_parrot_url: Optional[str] = None,
     ):
-        """Pull the object from coop."""
+        """Pull the object from coop.
+        
+        Args:
+            url_or_uuid: Either a UUID string or a URL pointing to the object
+            expected_parrot_url: Optional URL for the Parrot server
+        """
         from edsl.coop import Coop
         from edsl.coop.utils import ObjectRegistry
 
         object_type = ObjectRegistry.get_object_type_by_edsl_class(cls)
-        coop = Coop(url=expected_parrot_url)
-        return coop.get(uuid, url, object_type)
+        coop = Coop()
+
+        # Determine if input is URL or UUID
+        if url_or_uuid and ("http://" in str(url_or_uuid) or "https://" in str(url_or_uuid)):
+            return coop.get(url=url_or_uuid, expected_object_type=object_type)
+        else:
+            return coop.get(uuid=url_or_uuid, expected_object_type=object_type)
 
     @classmethod
     def delete(cls, uuid: Optional[Union[str, UUID]] = None, url: Optional[str] = None):

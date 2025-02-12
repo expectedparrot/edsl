@@ -518,7 +518,9 @@ class LanguageModel(
         """
         from edsl.language_models.model import get_model_class
 
-        model_class = get_model_class(data["model"])
+        #breakpoint()
+
+        model_class = get_model_class(data["model"], service_name = data["inference_service"])
         return model_class(**data)
 
     def __repr__(self) -> str:
