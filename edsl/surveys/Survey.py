@@ -942,11 +942,10 @@ class Survey(SurveyExportMixin, Base):
         # TODO: temp fix by creating a cache
         if cache is None:
             from edsl.data import Cache
+
             c = Cache()
         else:
             c = cache
-
-        
 
         jobs: "Jobs" = self.get_job(model=model, agent=agent, **kwargs).using(c)
         return await jobs.run_async(
@@ -1244,6 +1243,28 @@ class Survey(SurveyExportMixin, Base):
 
         return self.by(s).by(agent).by(model)
 
+    ###################
+    # COOP METHODS
+    ###################
+    def humanize(
+        self,
+        project_name: str,
+        survey_description: Optional[str] = None,
+        survey_alias: Optional[str] = None,
+        survey_visibility: Optional["VisibilityType"] = "unlisted",
+    ):
+        """
+        Create a survey object on Coop.
+        Then, create a project on Coop so you can share the survey with humans.
+        """
+        from edsl.coop import Coop
+
+        c = Coop()
+        project_details = c.create_project(
+            self, project_name, survey_description, survey_alias, survey_visibility
+        )
+        return project_details
+
 
 def main():
     """Run the example survey."""
@@ -1255,16 +1276,16 @@ def main():
         q0 = QuestionMultipleChoice(
             question_name="q0",
             question_text="What is the capital of France?",
-            question_options=["London", "Paris", "Rome", "Boston", "I don't know"]
+            question_options=["London", "Paris", "Rome", "Boston", "I don't know"],
         )
         q1 = QuestionList(
             question_name="q1",
             question_text="Name some cities in France.",
-            max_list_items = 5
+            max_list_items=5,
         )
         q2 = QuestionNumerical(
             question_name="q2",
-            question_text="What is the population of {{ q0.answer }}?"
+            question_text="What is the population of {{ q0.answer }}?",
         )
         s = Survey(questions=[q0, q1, q2])
         s = s.add_rule(q0, "q0 == 'Paris'", q2)
