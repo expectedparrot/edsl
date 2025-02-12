@@ -140,7 +140,7 @@ class JobsChecks:
         print(
             "\nYou can provide your own keys or use an Expected Parrot key to access all available models."
         )
-        print("Please see the documentation page to learn about options for managing keys: https://doc.expectedparrot.com/en/latest/api_keys.html")
+        print("Please see the documentation page to learn about options for managing keys: https://docs.expectedparrot.com/en/latest/api_keys.html")
 
         coop = Coop()
         coop._display_login_url(
