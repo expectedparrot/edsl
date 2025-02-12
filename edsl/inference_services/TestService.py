@@ -28,6 +28,7 @@ class TestService(InferenceServiceABC):
     model_exclude_list = []
     input_token_name = "prompt_tokens"
     output_token_name = "completion_tokens"
+    available_models_url = None
 
     @classmethod
     def available(cls) -> list[str]:
