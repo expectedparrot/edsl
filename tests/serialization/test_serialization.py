@@ -60,14 +60,17 @@ def test_serialization():
             print(f"- Testing {class_name}")
             try:
                 cls = next(c for c in classes if c["class_name"] == class_name)
+                print(cls)
             except StopIteration:
-                pass
+                print(f"Class {class_name} not found in classes")
+                continue
                 # raise ValueError(f"Class {class_name} not found in classes")
             try:
                 cls["class"].from_dict
             except:
                 raise ValueError(f"Class {class_name} does not have from_dict method")
             try:
+                print(cls["class"])
                 _ = cls["class"].from_dict(item["dict"])
             except Exception as e:
                 print("The data is:", item["dict"])
