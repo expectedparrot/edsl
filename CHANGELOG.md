@@ -2,7 +2,12 @@
 
 ## [0.1.44] - TBD
 ### Added
+- (*In progress*) `Survey` method `humanize()` will create a web-based version of your survey to share with humans. Responses are automatically added to a `Results` object that you can access at your account, where you can also run the survey with agents from the Survey Builder interface.  
+
 - (*In progress*) A universal remote cache is automatically available for retrieving responses that have been previously run by any user at the Expected Parrot server (i.e., if you run a question that you or anyone else has run before, you will retrieve that response at no cost to you). It is available for all jobs run remotely by default, and new responses for any remote jobs are automatically added to it. If you want to draw fresh responses you can use `run(fresh_cache=True)` or `run(cache=Cache()`. If you want to draw responses from a different cache you can use `run(cache=<my_cache>)` (insert your own cache object). If you draw a fresh response for a question that has already been run, the new response is also added to the universal remote cache with an index (`n=2`, etc.). Universal remote cache is not available for jobs run locally. See the [remote cache](https://docs.expectedparrot.com/en/latest/remote_caching.html) section for more details.
+
+### Changed
+### Fixed
 
 ## [0.1.43] - 2025-02-11 
 ### Added
@@ -15,8 +20,6 @@
 - You can now pull an object from Coop using its alias. Alias routes were previously of the form expectedparrot.com/<owner_username>/<alias>, They are now of the form expectedparrot.com/content/<owner_username>/<alias>.
 
 - You can now see Mermaid diagrams and inline math in Coop notebooks.
-
-### Changed
 
 ### Fixed
 - Improved methods and moved tasks to background to prevent some timeout errors.
@@ -37,7 +40,6 @@
 ### Changed
 - Default size limits on question texts have been removed.
 
-### Fixed
 
 ## [0.1.41] - 2025-01-19
 ### Changed
