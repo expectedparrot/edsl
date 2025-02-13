@@ -71,8 +71,7 @@ def test_serialization():
                 _ = cls["class"].from_dict(item["dict"])
             except Exception as e:
                 print("The data is:", item["dict"])
-                # raise ValueError(f"Error in class {class_name}: {e}")
-                pass
+                raise ValueError(f"Error in class {class_name}: {e}")
 
 
 def test_serialization_coverage():
@@ -126,3 +125,8 @@ def test_serialization_coverage():
     assert (
         len(classes_not_covered) == 0
     ), f"No serialization data for the following classes: {classes_not_covered}"
+
+
+if __name__ == "__main__":
+    test_serialization()
+    test_serialization_coverage()
