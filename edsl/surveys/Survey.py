@@ -1248,14 +1248,15 @@ class Survey(SurveyExportMixin, Base):
     ###################
     def humanize(
         self,
-        project_name: str,
+        project_name: str = "Project",
         survey_description: Optional[str] = None,
         survey_alias: Optional[str] = None,
         survey_visibility: Optional["VisibilityType"] = "unlisted",
-    ):
+    ) -> dict:
         """
-        Create a survey object on Coop.
-        Then, create a project on Coop so you can share the survey with humans.
+        Send the survey to Coop.
+
+        Then, create a project on Coop so you can share the survey with human respondents.
         """
         from edsl.coop import Coop
 
