@@ -518,9 +518,11 @@ class LanguageModel(
         """
         from edsl.language_models.model import get_model_class
 
-        #breakpoint()
+        # breakpoint()
 
-        model_class = get_model_class(data["model"], service_name = data["inference_service"])
+        model_class = get_model_class(
+            data["model"], service_name=data.get("inference_service", None)
+        )
         return model_class(**data)
 
     def __repr__(self) -> str:
@@ -576,7 +578,6 @@ class LanguageModel(
             return Model(skip_api_key_check=True)
 
     def from_cache(self, cache: "Cache") -> LanguageModel:
-
         from copy import deepcopy
         from types import MethodType
         from edsl import Cache
