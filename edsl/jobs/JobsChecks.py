@@ -24,14 +24,14 @@ class JobsChecks:
 
     def get_missing_api_keys(self) -> set:
         """
-        Returns a list of the api keys that a user needs to run this job, but does not currently have in their .env file.
+        Returns a list of the API keys that a user needs to run this job, but does not currently have in their .env file.
         """
         missing_api_keys = set()
 
         from edsl.language_models.model import Model
         from edsl.enums import service_to_api_keyname
 
-        for model in self.jobs.models + [Model()]:
+        for model in self.jobs.models: # + [Model()]:
             if not model.has_valid_api_key():
                 key_name = service_to_api_keyname.get(
                     model._inference_service_, "NOT FOUND"
