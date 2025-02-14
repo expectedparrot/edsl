@@ -1,6 +1,6 @@
 import textwrap
 from random import random
-from typing import Optional, TYPE_CHECKING, List
+from typing import Optional, TYPE_CHECKING, List, Callable
 
 from edsl.utilities.PrettyList import PrettyList
 from edsl.config import CONFIG
@@ -11,17 +11,21 @@ from edsl.inference_services.InferenceServicesCollection import (
 from edsl.inference_services.data_structures import AvailableModels
 from edsl.inference_services.InferenceServiceABC import InferenceServiceABC
 from edsl.enums import InferenceServiceLiteral
+from edsl.exceptions.inference_services import InferenceServiceError
 
 if TYPE_CHECKING:
     from edsl.results.Dataset import Dataset
 
 
-def get_model_class(model_name, registry: Optional[InferenceServicesCollection] = None):
+def get_model_class(model_name, registry: Optional[InferenceServicesCollection] = None, service_name: Optional[InferenceServiceLiteral] = None):
     from edsl.inference_services.registry import default
 
     registry = registry or default
-    factory = registry.create_model_factory(model_name)
-    return factory
+    try:
+        factory = registry.create_model_factory(model_name, service_name=service_name)
+        return factory
+    except (InferenceServiceError, Exception) as e:
+        return Model._handle_model_error(model_name, e)
 
 
 class Meta(type):
@@ -58,6 +62,33 @@ class Model(metaclass=Meta):
         """Set a new registry"""
         cls._registry = registry
 
+    @classmethod
+    def _handle_model_error(cls, model_name: str, error: Exception):
+        """Handle errors from model creation and execution with notebook-aware behavior."""
+        if isinstance(error, InferenceServiceError):
+            services = [s._inference_service_ for s in cls.get_registry().services]
+            message = (
+                f"Model '{model_name}' not found in any services.\n"
+                "It is likely that our registry is just out of date.\n"
+                "Simply adding the service name to your model call should fix this.\n"
+                f"Available services are: {services}\n"
+                f"To specify a model with a service, use:\n"
+                f'Model("{model_name}", service_name="<service_name>")'
+            )
+        else:
+            message = f"An error occurred: {str(error)}"
+
+        # Check if we're in a notebook environment
+        try:
+            get_ipython()
+            print(message)
+            return None
+        except NameError:
+            # Not in a notebook, raise the exception
+            if isinstance(error, InferenceServiceError):
+                raise InferenceServiceError(message)
+            raise error
+
     def __new__(
         cls,
         model_name: Optional[str] = None,
@@ -69,9 +100,7 @@ class Model(metaclass=Meta):
         "Instantiate a new language model."
         # Map index to the respective subclass
         if model_name is None:
-            model_name = (
-                cls.default_model
-            )  # when model_name is None, use the default model, set in the config file
+            model_name = cls.default_model
 
         if registry is not None:
             cls.set_registry(registry)
@@ -79,10 +108,13 @@ class Model(metaclass=Meta):
         if isinstance(model_name, int):  # can refer to a model by index
             model_name = cls.available(name_only=True)[model_name]
 
-        factory = cls.get_registry().create_model_factory(
-            model_name, service_name=service_name
-        )
-        return factory(*args, **kwargs)
+        try:
+            factory = cls.get_registry().create_model_factory(
+                model_name, service_name=service_name
+            )
+            return factory(*args, **kwargs)
+        except (InferenceServiceError, Exception) as e:
+            return cls._handle_model_error(model_name, e)
 
     @classmethod
     def add_model(cls, service_name, model_name) -> None:

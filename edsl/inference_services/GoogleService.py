@@ -39,6 +39,8 @@ class GoogleService(InferenceServiceABC):
 
     model_exclude_list = []
 
+    available_models_url = 'https://cloud.google.com/vertex-ai/generative-ai/docs/learn/models'
+
     @classmethod
     def get_model_list(cls):
         model_list = []

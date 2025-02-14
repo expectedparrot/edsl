@@ -60,19 +60,21 @@ def test_serialization():
             print(f"- Testing {class_name}")
             try:
                 cls = next(c for c in classes if c["class_name"] == class_name)
+                print(cls)
             except StopIteration:
-                pass
+                print(f"Class {class_name} not found in classes")
+                continue
                 # raise ValueError(f"Class {class_name} not found in classes")
             try:
                 cls["class"].from_dict
             except:
                 raise ValueError(f"Class {class_name} does not have from_dict method")
             try:
+                print(cls["class"])
                 _ = cls["class"].from_dict(item["dict"])
             except Exception as e:
                 print("The data is:", item["dict"])
-                # raise ValueError(f"Error in class {class_name}: {e}")
-                pass
+                raise ValueError(f"Error in class {class_name}: {e}")
 
 
 def test_serialization_coverage():
@@ -126,3 +128,8 @@ def test_serialization_coverage():
     assert (
         len(classes_not_covered) == 0
     ), f"No serialization data for the following classes: {classes_not_covered}"
+
+
+if __name__ == "__main__":
+    test_serialization()
+    test_serialization_coverage()
