@@ -31,7 +31,7 @@ class JobsChecks:
         from edsl.language_models.model import Model
         from edsl.enums import service_to_api_keyname
 
-        for model in self.jobs.models + [Model()]:
+        for model in self.jobs.models: # + [Model()]:
             if not model.has_valid_api_key():
                 key_name = service_to_api_keyname.get(
                     model._inference_service_, "NOT FOUND"

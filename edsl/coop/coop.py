@@ -338,7 +338,7 @@ class Coop(CoopFunctionsMixin):
 
         try:
             response = self._send_server_request(
-                uri="api/v0/edsl-settings", method="GET", timeout=5
+                uri="api/v0/edsl-settings", method="GET", timeout=20
             )
             self._resolve_server_response(response, check_api_key=False)
             return response.json()
