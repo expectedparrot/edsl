@@ -87,7 +87,6 @@ class OpenAIService(InferenceServiceABC):
         if api_key is None:
             api_key = os.getenv(cls._env_key_name_)
         raw_list = cls.sync_client(api_key).models.list()
-        print("raw list", raw_list)
         if hasattr(raw_list, "data"):
             return raw_list.data
         else:
@@ -95,7 +94,6 @@ class OpenAIService(InferenceServiceABC):
 
     @classmethod
     def available(cls, api_token=None) -> List[str]:
-        print("here")
         if api_token is None:
             api_token = os.getenv(cls._env_key_name_)
         if not cls._models_list_cache:
