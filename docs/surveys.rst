@@ -8,7 +8,8 @@ Survey questions can be administered asynchronously (by default), or according t
 
 Surveys can be used to collect data, generate content or perform other tasks.
 The results of a survey are stored in a `Results` object, which can be used to analyze the responses and other components of the survey.
-Learn more about built-in methods for working with `Results` objects in the :ref:`results` section.
+By default, the results object also has a cache of the responses that can be reused, which are also added to your local cache or the remote cache if you are running a survey remotely.
+Learn more about built-in methods for working with `Results` objects in the :ref:`results` section and caching responses in the sections on :ref:`data` and :ref:`remote_caching`.
 
 
 Key steps 
@@ -48,7 +49,8 @@ The `show_prompts()`, `show_rules()` and `show_flow()` methods can be used to an
 
 When you run a survey you can choose to run it remotely at the Expected Parrot server or locally on your own machine. 
 See :ref:`remote_inference` for more information. 
-When you run a job remotely you automatically have access to a universal remote cache of stored responses.
+
+*New feature in progress:* When you run a job remotely you automatically have access to a universal remote cache of stored responses.
 Learn more about it in the :ref:`remote_caching` section. 
 
 You can also choose to run a remote survey in the background by passing the `background=True` parameter to the `run()` method.
@@ -191,10 +193,11 @@ Optional parameters
 There are optional parameters that can be passed to the `run()` method, including:
 
 * `n` - The number of responses to generate for each question (default is 1). Example: `run(n=5)` will administer the same exact question (and scenario, if any) to an agent and model 5 times.
-* `show_progress_bar` - A boolean value to show a progress bar while running the survey (default is False). Example: `run(show_progress_bar=True)`.
-* `cache` - A boolean value to cache the results of the survey (default is False). Example: `run(cache=False)`.
+* `cache` - A boolean value to cache the results of the survey. The default is True; the cache for the survey is automatically added to the `Results` object that is generated. Example: `run(cache=False)` will generate fresh responses.
 * `disable_remote_inference` - A boolean value to indicate whether to run the survey locally while remote inference is activated (default is False). Example: `run(disable_remote_inference=True)`.
 * `remote_inference_results_visibility` - A string value to indicate the visibility of the results on the Expected Parrot server, when a survey is being run remotely. Possible values are "public", "unlisted" or "private" (default is "unlisted"). Visibility can also be modified at the Coop web app. Example: `run(remote_inference_results_visibility="public")`.
+
+*Note:* The optional parameter `show_progress_bar=True` has been deprecated, as you now automatically get a link to a progress bar page when you run a survey.
 
 
 Survey rules & logic
