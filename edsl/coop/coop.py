@@ -4,10 +4,8 @@ import requests
 
 from typing import Any, Optional, Union, Literal, TypedDict
 from uuid import UUID
-from collections import UserDict, defaultdict
 
 import edsl
-from pathlib import Path
 
 from edsl.config import CONFIG
 from edsl.data.CacheEntry import CacheEntry
@@ -340,7 +338,7 @@ class Coop(CoopFunctionsMixin):
 
         try:
             response = self._send_server_request(
-                uri="api/v0/edsl-settings", method="GET", timeout=5
+                uri="api/v0/edsl-settings", method="GET", timeout=20
             )
             self._resolve_server_response(response, check_api_key=False)
             return response.json()
@@ -864,6 +862,40 @@ class Coop(CoopFunctionsMixin):
         return {
             "credits": response_json.get("cost_in_credits"),
             "usd": response_json.get("cost_in_usd"),
+        }
+
+    ################
+    # PROJECTS
+    ################
+    def create_project(
+        self,
+        survey: Survey,
+        project_name: str,
+        survey_description: Optional[str] = None,
+        survey_alias: Optional[str] = None,
+        survey_visibility: Optional[VisibilityType] = "unlisted",
+    ):
+        """
+        Create a survey object on Coop, then create a project from the survey.
+        """
+        survey_details = self.create(
+            object=survey,
+            description=survey_description,
+            alias=survey_alias,
+            visibility=survey_visibility,
+        )
+        survey_uuid = survey_details.get("uuid")
+        response = self._send_server_request(
+            uri=f"api/v0/projects/create-from-survey",
+            method="POST",
+            payload={"project_name": project_name, "survey_uuid": str(survey_uuid)},
+        )
+        self._resolve_server_response(response)
+        response_json = response.json()
+        return {
+            "name": response_json.get("project_name"),
+            "uuid": response_json.get("uuid"),
+            "url": f"{self.url}/home/projects/{response_json.get('uuid')}",
         }
 
     ################

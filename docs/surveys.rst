@@ -8,7 +8,8 @@ Survey questions can be administered asynchronously (by default), or according t
 
 Surveys can be used to collect data, generate content or perform other tasks.
 The results of a survey are stored in a `Results` object, which can be used to analyze the responses and other components of the survey.
-Learn more about built-in methods for working with `Results` objects in the :ref:`results` section.
+By default, the results object also has a cache of the responses that can be reused, which are also added to your local cache or the remote cache if you are running a survey remotely.
+Learn more about built-in methods for working with `Results` objects in the :ref:`results` section and caching responses in the sections on :ref:`data` and :ref:`remote_caching`.
 
 
 Key steps 
@@ -29,7 +30,7 @@ Results can be analyzed and visualized using `built-in methods <https://docs.exp
 Key methods 
 -----------
 
-A survey is administered by calling the `run()` method on the `Survey` object, after adding any agents, scenarios and models with the `by()` method, and any rules or memory with the appropriate methods (see detailed examples of each below):
+A survey is administered by calling the `run()` method on the `Survey` object, after adding any agents, scenarios and models with the `by()` method, and any rules or memory with the appropriate methods (see examples of each below):
 
 * `add_skip_rule()` - Skip a question based on a conditional expression (e.g., based on a response to another question).
 * `add_stop_rule()` - End the survey based on a conditional expression.
@@ -39,38 +40,32 @@ A survey is administered by calling the `run()` method on the `Survey` object, a
 * `add_targeted_memory()` - Include a memory of a particular question/answer at another question in the survey.
 * `add_memory_collection()` - Include memories of a set of prior questions/answers at another question in the survey.
 
+Before running a survey, you can also estimate the cost of running it with the `estimate_job_cost()` method of a `Job` object (a survey combined with one or more models).
+The `show_prompts()`, `show_rules()` and `show_flow()` methods can be used to analyze the structure of a survey and the rules that have been applied to it:
+
+* `show_prompts()` - Display the user and system prompts for each question in a survey. This is a companion method to the `prompts()` method of a `Job` object, which returns a dataset containing the prompts together with information about each question, scenario, agent, model and estimated cost.
+* `show_rules()` - Display a table of the conditional rules that have been applied to a survey.
+* `show_flow()` - Display a graphic of the flow of a survey, showing the order of questions and any rules that have been applied.
+
+When you run a survey you can choose to run it remotely at the Expected Parrot server or locally on your own machine. 
+See :ref:`remote_inference` for more information. 
+
+*New feature in progress:* When you run a job remotely you automatically have access to a universal remote cache of stored responses.
+Learn more about it in the :ref:`remote_caching` section. 
+
+You can also choose to run a remote survey in the background by passing the `background=True` parameter to the `run()` method.
+This allows you to continue working (or stop working) while your job completes.
+You can check progress at the progress bar page or by calling the `fetch()` method at any time.
+
 
 Piping
 ^^^^^^
 
-You can also pipe individual components of questions into other questions, such as inserting the answer to a question in the question text of another question.
+You can pipe individual components of questions into other questions, such as inserting the answer to a question in the question text of another question.
 This is done by using the `{{ question_name.answer }}` syntax in the text of a question, and is useful for creating dynamic surveys that reference prior answers.
 
 Note that this method is different from memory rules, which automatically inlude the full context of a specified question at a new question in the survey:
 *"Before the question you are now answering, you already answered the following question(s): Question: <question_text> Answer: <answer>"*.
-See examples below.
-
-
-Flow
-^^^^
-
-The `show_flow()` method displays the flow of a survey, showing the order of questions and any rules that have been applied.
-See example below.
-
-
-Rules 
-^^^^^
-
-The `show_rules()` method displays a table of the conditional rules that have been applied to a survey, and the questions they apply to.
-See examples below.
-
-
-Prompts
-^^^^^^^
-
-The `show_prompts()` method displays the user and system prompts for each question in a survey.
-This is a companion method to the `prompts()` method of a `Job` object, which returns a dataset containing the prompts together with information about each question, scenario, agent, model and estimated cost.
-(A `Job` is created by adding a `Model` to a `Survey` or `Question`.)
 See examples below.
 
 
@@ -173,6 +168,24 @@ for example:
 If remote inference is turned off, the survey will be run locally and results will be added to your local cache only.
 Learn more about :ref:`data` and :ref:`remote_caching`.
 
+If you are running a survey remotely, you can also choose to run it in the background by passing the `background=True` parameter to the `run()` method:
+
+.. code-block:: python
+
+   results = survey.by(agent).by(model).run(background=True)
+
+
+This allows you to continue working (or stop working) while your job completes.
+You can check progress at any time at the progress bar page or by calling the `fetch()` method, which checks for the results every 1.0 seconds by default or a specified interval:
+
+.. code-block:: python
+
+   results = survey.by(agent).by(model).run(background=True)
+
+   # check progress every 5 seconds
+   results.fetch(polling_interval = 5.0)
+
+
 
 Optional parameters
 ^^^^^^^^^^^^^^^^^^^
@@ -180,10 +193,11 @@ Optional parameters
 There are optional parameters that can be passed to the `run()` method, including:
 
 * `n` - The number of responses to generate for each question (default is 1). Example: `run(n=5)` will administer the same exact question (and scenario, if any) to an agent and model 5 times.
-* `show_progress_bar` - A boolean value to show a progress bar while running the survey (default is False). Example: `run(show_progress_bar=True)`.
-* `cache` - A boolean value to cache the results of the survey (default is False). Example: `run(cache=False)`.
+* `cache` - A boolean value to cache the results of the survey. The default is True; the cache for the survey is automatically added to the `Results` object that is generated. Example: `run(cache=False)` will generate fresh responses.
 * `disable_remote_inference` - A boolean value to indicate whether to run the survey locally while remote inference is activated (default is False). Example: `run(disable_remote_inference=True)`.
 * `remote_inference_results_visibility` - A string value to indicate the visibility of the results on the Expected Parrot server, when a survey is being run remotely. Possible values are "public", "unlisted" or "private" (default is "unlisted"). Visibility can also be modified at the Coop web app. Example: `run(remote_inference_results_visibility="public")`.
+
+*Note:* The optional parameter `show_progress_bar=True` has been deprecated, as you now automatically get a link to a progress bar page when you run a survey.
 
 
 Survey rules & logic

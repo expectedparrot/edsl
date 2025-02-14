@@ -291,10 +291,10 @@ Total job costs are estimated by performing the following calculation for each s
 
         Total cost in USD = (input tokens * input token rate) + (output tokens * output token rate)
 
-    * If a model and inference service are not found, use the following fallback token rates (for a low-cost OpenAI model) (you will see a warning message that actual model rates were not found):
+    * If a model and inference service are not found, use the following fallback token rates (you will see a warning message that actual model rates were not found):
 
-        * USD 0.60 per 1M input tokens
-        * USD 0.15 per 1M ouput tokens
+        * USD 1.00 per 1M input tokens
+        * USD 1.00 per 1M ouput tokens
 
 4. Convert the total cost in USD to credits.
 
