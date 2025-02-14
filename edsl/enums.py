@@ -111,6 +111,7 @@ service_to_api_keyname = {
     InferenceServiceType.TOGETHER.value: "TOGETHER_API_KEY",
     InferenceServiceType.PERPLEXITY.value: "PERPLEXITY_API_KEY",
     InferenceServiceType.DEEPSEEK.value: "DEEPSEEK_API_KEY",
+    InferenceServiceType.GROQ.value: "XAI_API_KEY",
 }
 
 
