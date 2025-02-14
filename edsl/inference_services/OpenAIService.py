@@ -84,6 +84,7 @@ class OpenAIService(InferenceServiceABC):
 
     @classmethod
     def get_model_list(cls, api_key=None):
+        # breakpoint()
         if api_key is None:
             api_key = os.getenv(cls._env_key_name_)
         raw_list = cls.sync_client(api_key).models.list()
