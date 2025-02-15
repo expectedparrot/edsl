@@ -127,17 +127,17 @@ class PromptConstructor:
         )
 
     @staticmethod
-    def _extract_quetion_and_entry_type(key_entry) -> tuple[str, str]:
+    def _extract_question_and_entry_type(key_entry) -> tuple[str, str]:
         """
         Extracts the question name and type for the current answer dictionary key entry.
 
-        >>> PromptConstructor._extract_quetion_and_entry_type("q0")
+        >>> PromptConstructor._extract_question_and_entry_type("q0")
         ('q0', 'answer')
-        >>> PromptConstructor._extract_quetion_and_entry_type("q0_comment")
+        >>> PromptConstructor._extract_question_and_entry_type("q0_comment")
         ('q0', 'comment')
-        >>> PromptConstructor._extract_quetion_and_entry_type("q0_alternate_generated_tokens")
+        >>> PromptConstructor._extract_question_and_entry_type("q0_alternate_generated_tokens")
         ('q0_alternate', 'generated_tokens')
-        >>> PromptConstructor._extract_quetion_and_entry_type("q0_alt_comment")
+        >>> PromptConstructor._extract_question_and_entry_type("q0_alt_comment")
         ('q0_alt', 'comment')
         """
         split_list = key_entry.rsplit("_", maxsplit=1)
@@ -167,7 +167,7 @@ class PromptConstructor:
         d = defaultdict(dict)
         for key, value in current_answers.items():
             question_name, entry_type = (
-                PromptConstructor._extract_quetion_and_entry_type(key)
+                PromptConstructor._extract_question_and_entry_type(key)
             )
             d[question_name][entry_type] = value
         return dict(d)
