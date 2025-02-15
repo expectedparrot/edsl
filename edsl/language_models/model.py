@@ -127,7 +127,7 @@ class Model(metaclass=Meta):
         >>> Model.service_classes()
         [...]
         """
-        return [r for r in cls.services(name_only=True)]
+        return [r for r in cls.services()]
 
     @classmethod
     def services(cls) -> List[str]:
@@ -135,7 +135,7 @@ class Model(metaclass=Meta):
         return PrettyList(
             sorted(
                 [
-                    r._inference_service_
+                    [r._inference_service_]
                     for r in cls.get_registry().services
                     if r._inference_service_.lower() != "test"
                 ]
