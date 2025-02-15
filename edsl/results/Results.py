@@ -1107,11 +1107,6 @@ class Results(UserList, Mixins, Base):
 
         :param keep: List of columns to keep unchanged.
         :param flatten: List of columns to expand.
-
-        Example:
-        >>> results = QuestionDict.example().run()
-        >>> df_expanded = results.expand(keep=["model"], flatten=["example"])
-        >>> df_expanded
         """
 
         import pandas as pd
