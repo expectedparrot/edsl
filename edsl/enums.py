@@ -87,7 +87,7 @@ InferenceServiceLiteral = Literal[
     "together",
     "perplexity",
     "deepseek",
-    "grok",
+    "xai",
 ]
 
 available_models_urls = {
