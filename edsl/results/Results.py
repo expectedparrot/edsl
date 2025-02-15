@@ -1099,6 +1099,56 @@ class Results(UserList, Mixins, Base):
         return selector.select(*columns)
 
     @ensure_ready
+    def expand(self, keep: list[str], flatten: list[str]) -> DataFrame:
+        """
+        Takes selected columns of a Results object and returns a dataframe consisting of
+        - "keep" columns that are unchanged and 
+        - "flatten" columns that are expanded dictionaries.
+
+        :param keep: List of columns to keep unchanged.
+        :param flatten: List of columns to expand.
+
+        Example:
+        >>> results = QuestionDict.example().run()
+        >>> df_expanded = results.expand(keep=["model"], flatten=["example"])
+        >>> df_expanded
+        """
+
+        import pandas as pd
+        import ast
+        from edsl.results.Result import Result  # Ensure Result is explicitly imported
+
+        if not isinstance(keep, list) or not keep:
+            raise ValueError("You must provide a non-empty list of columns to keep.")
+
+        if not isinstance(flatten, list) or not flatten:
+            raise ValueError("You must provide a non-empty list of columns to flatten.")
+
+        # Extract base column names for selection
+        all_columns = keep + flatten
+        selected_df = self.select(*all_columns).to_pandas(remove_prefix=True)
+
+        # Validate columns exist in DataFrame before expansion
+        missing_cols = [col.split(".", 1)[-1] for col in keep if col.split(".", 1)[-1] not in selected_df.columns]
+        if missing_cols:
+            raise KeyError(f"Columns not found in Results: {missing_cols}")
+
+        # Expand dictionary columns
+        for col in flatten:
+            base_col = col.split(".", 1)[-1]  # Extract actual column name
+            if base_col in selected_df.columns:
+                # Convert stringified dictionaries to actual dictionaries if necessary
+                selected_df[base_col] = selected_df[base_col].apply(
+                    lambda x: ast.literal_eval(x) if isinstance(x, str) and x.startswith("{") else x
+                )
+                # Normalize dictionary columns
+                expanded_df = pd.json_normalize(selected_df[base_col])
+                expanded_df.columns = [f"{base_col}.{sub_col}" for sub_col in expanded_df.columns]  # Prefix new columns
+                selected_df = selected_df.drop(columns=[base_col]).join(expanded_df)
+
+        return selected_df
+
+    @ensure_ready
     def sort_by(self, *columns: str, reverse: bool = False) -> Results:
         """Sort the results by one or more columns."""
         import warnings
