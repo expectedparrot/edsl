@@ -1138,7 +1138,7 @@ class Results(UserList, Mixins, Base):
                 )
                 # Normalize dictionary columns
                 expanded_df = pd.json_normalize(selected_df[base_col])
-                expanded_df.columns = [f"{base_col}.{sub_col}" for sub_col in expanded_df.columns]  # Prefix new columns
+                expanded_df.columns = [f"{base_col}_{sub_col}" for sub_col in expanded_df.columns]  # Prefix new columns
                 selected_df = selected_df.drop(columns=[base_col]).join(expanded_df)
 
         return selected_df

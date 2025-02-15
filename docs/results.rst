@@ -818,7 +818,55 @@ This will return the number of results:
 
   16
 
-   
+
+Flattening / expanding results
+------------------------------
+
+We can flatten dictionary fields of results by calling the `expand()` method.
+This method will expand the dictionary fields into separate columns, with the keys of the dictionary as the column names.
+It takes required parameters `keep` and `flatten` which are lists of the names of columns to keep as is and to flatten.
+It is intended to be a helpful method for working with responses to `QuestionDict` questions, but can be used with any dictionary fields.
+
+For example:
+
+.. code-block:: python
+
+   from edsl import QuestionDict, Model
+
+   q = QuestionDict(
+      question_name = "recipe",
+      question_text = "Please draft an easy recipe for hot chocolate.",
+      answer_keys = ["title", "ingedients", "num_ingredients", "instructions"],
+      value_types = [str, list, int, list], # optional
+      value_descriptions = ["Title of the recipe", "List of ingredients", "Number of ingredients", "Instructions"] # optional
+   )
+
+  m = Model("gemini-1.5-flash")
+
+  results = q.by(m).run()
+
+  results.expand(
+    keep=["model"],
+    flatten=["recipe"]
+  )
+
+This will return a table of the specified columns:
+
+.. list-table::
+  :header-rows: 1
+
+  * - model
+    - recipe_title
+    - recipe_ingedients
+    - recipe_num_ingredients
+    - recipe_instructions
+  * - gemini-1.5-flash
+    - Hot Chocolate
+    - ['milk', 'cocoa powder', 'sugar', 'vanilla extract']
+    - 4
+    - ['In a saucepan, heat milk over medium heat. Add cocoa powder and sugar, stirring until dissolved. Remove from heat and stir in vanilla extract. Serve hot.']
+
+
 Interacting via SQL
 ^^^^^^^^^^^^^^^^^^^
 

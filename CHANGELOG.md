@@ -2,6 +2,8 @@
 
 ## [0.1.45] - TBD
 ### Added
+- `Results` method `expand()` allows you to flatten columns of results that are dictionaries (e.g., the response to a `QuestionDict` question). It takes required parameters `keep` and `flatten` which are lists of the names of columns and returns a dataframe. Example: https://www.expectedparrot.com/content/37dbfcc7-a1f1-46d7-ae9a-b45d90fd84d2
+
 - (*In progress*) A universal remote cache is automatically available for retrieving responses that have been previously run by any user at the Expected Parrot server (i.e., if you run a question that you or anyone else has run before, you will retrieve that response at no cost to you). It is available for all jobs run remotely by default, and new responses for any remote jobs are automatically added to it. If you want to draw fresh responses you can use `run(fresh_cache=True)` or `run(cache=Cache()`. If you want to draw responses from a different cache you can use `run(cache=<my_cache>)` (insert your own cache object). If you draw a fresh response for a question that has already been run, the new response is also added to the universal remote cache with an index (`n=2`, etc.). Universal remote cache is not available for jobs run locally. See the [remote cache](https://docs.expectedparrot.com/en/latest/remote_caching.html) section for more details.
 
 
@@ -9,7 +11,7 @@
 ### Added
 - Grok models are now available. If you have your own key, you can add it to your Keys page at your Coop account or add `XAI_API_KEY=<your_key_here>` to your `.env` file.
 
-- `Survey` method `humanize()` will create a web-based version of your survey to share with humans. Responses are automatically added to a `Results` object that you can access at your account. *This feature is live but in development.*  
+- `Survey` method `humanize()` creates a web-based version of your survey to share with humans, with URLs for an admin view page and respondent survey page. *This feature is live but in development.*  
 
 
 ## [0.1.43] - 2025-02-11 

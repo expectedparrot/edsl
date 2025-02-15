@@ -994,6 +994,9 @@ An example can also be created using the `example` method:
    QuestionDict.example()
 
 
+See also the `Results` section for details on a method `expand()` that can be used to flatten a `QuestionDict` response in a dataframe.
+
+
 .. automodule:: edsl.questions.QuestionDict
    :members:
    :undoc-members:
