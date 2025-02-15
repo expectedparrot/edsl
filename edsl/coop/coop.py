@@ -870,7 +870,7 @@ class Coop(CoopFunctionsMixin):
     def create_project(
         self,
         survey: Survey,
-        project_name: str,
+        project_name: str = "Project",
         survey_description: Optional[str] = None,
         survey_alias: Optional[str] = None,
         survey_visibility: Optional[VisibilityType] = "unlisted",
@@ -895,7 +895,8 @@ class Coop(CoopFunctionsMixin):
         return {
             "name": response_json.get("project_name"),
             "uuid": response_json.get("uuid"),
-            "url": f"{self.url}/home/projects/{response_json.get('uuid')}",
+            "admin_url": f"{self.url}/home/projects/{response_json.get('uuid')}",
+            "respondent_url": f"{self.url}/respond/{response_json.get('uuid')}",
         }
 
     ################
