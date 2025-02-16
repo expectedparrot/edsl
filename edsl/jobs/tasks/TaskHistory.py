@@ -419,7 +419,7 @@ class TaskHistory(RepresentationMixin):
         filename: Optional[str] = None,
         return_link=False,
         css=None,
-        cta="\nClick to open the report in a new tab\n",
+        cta="\nClick to open the report in a new tab\n\n",
         open_in_browser=False,
     ):
         """Return an HTML report."""
