@@ -87,6 +87,7 @@ class InvigilatorBase(ABC):
             "iteration",
             "additional_prompt_data",
             "survey",
+            "raw_model_response",
         ]
         if include_cache:
             attributes.append("cache")
@@ -135,6 +136,7 @@ class InvigilatorBase(ABC):
         d["additional_prompt_data"] = data["additional_prompt_data"]
 
         d = cls(**d)
+        d.raw_model_response = data.get("raw_model_response")
         return d
 
     def __repr__(self) -> str:
