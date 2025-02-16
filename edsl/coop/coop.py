@@ -714,6 +714,7 @@ class Coop(CoopFunctionsMixin):
         visibility: Optional[VisibilityType] = "unlisted",
         initial_results_visibility: Optional[VisibilityType] = "unlisted",
         iterations: Optional[int] = 1,
+        fresh: Optional[bool] = False,
     ) -> RemoteInferenceCreationInfo:
         """
         Send a remote inference job to the server.
@@ -742,6 +743,7 @@ class Coop(CoopFunctionsMixin):
                 "visibility": visibility,
                 "version": self._edsl_version,
                 "initial_results_visibility": initial_results_visibility,
+                "fresh": fresh,
             },
         )
         self._resolve_server_response(response)
