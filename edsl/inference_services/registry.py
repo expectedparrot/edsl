@@ -14,6 +14,7 @@ from edsl.inference_services.TestService import TestService
 from edsl.inference_services.TogetherAIService import TogetherAIService
 from edsl.inference_services.PerplexityService import PerplexityService
 from edsl.inference_services.DeepSeekService import DeepSeekService
+from edsl.inference_services.XAIService import XAIService
 
 try:
     from edsl.inference_services.MistralAIService import MistralAIService
@@ -35,6 +36,7 @@ services = [
     TogetherAIService,
     PerplexityService,
     DeepSeekService,
+    XAIService,
 ]
 
 if mistral_available:
