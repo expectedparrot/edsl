@@ -409,11 +409,9 @@ class Jobs(Base):
         BucketCollection(...)
         """
         bc = BucketCollection.from_models(self.models)
-        
+
         if self.run_config.environment.key_lookup is not None:
-            bc.update_from_key_lookup(
-                self.run_config.environment.key_lookup
-            )
+            bc.update_from_key_lookup(self.run_config.environment.key_lookup)
         return bc
 
     def html(self):
@@ -475,25 +473,24 @@ class Jobs(Base):
     def _start_remote_inference_job(
         self, job_handler: Optional[JobsRemoteInferenceHandler] = None
     ) -> Union["Results", None]:
-
         if job_handler is None:
             job_handler = self._create_remote_inference_handler()
-            
+
         job_info = job_handler.create_remote_inference_job(
-                iterations=self.run_config.parameters.n,
-                remote_inference_description=self.run_config.parameters.remote_inference_description,
-                remote_inference_results_visibility=self.run_config.parameters.remote_inference_results_visibility,
+            iterations=self.run_config.parameters.n,
+            remote_inference_description=self.run_config.parameters.remote_inference_description,
+            remote_inference_results_visibility=self.run_config.parameters.remote_inference_results_visibility,
+            fresh=self.run_config.parameters.fresh,
         )
         return job_info
-    
-    def _create_remote_inference_handler(self) -> JobsRemoteInferenceHandler:
 
+    def _create_remote_inference_handler(self) -> JobsRemoteInferenceHandler:
         from edsl.jobs.JobsRemoteInferenceHandler import JobsRemoteInferenceHandler
-        
+
         return JobsRemoteInferenceHandler(
             self, verbose=self.run_config.parameters.verbose
         )
-        
+
     def _remote_results(
         self,
         config: RunConfig,
@@ -507,7 +504,8 @@ class Jobs(Base):
         if jh.use_remote_inference(self.run_config.parameters.disable_remote_inference):
             job_info: RemoteJobInfo = self._start_remote_inference_job(jh)
             if background:
-                from edsl.results.Results import Results 
+                from edsl.results.Results import Results
+
                 results = Results.from_job_info(job_info)
                 return results
             else:
@@ -594,7 +592,7 @@ class Jobs(Base):
         # first try to run the job remotely
         if (results := self._remote_results(config)) is not None:
             return results
-        
+
         self._check_if_local_keys_ok()
 
         if config.environment.bucket_collection is None:
