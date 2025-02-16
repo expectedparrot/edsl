@@ -432,6 +432,24 @@ class QuestionBase(
 
         return Survey([self])
 
+    def humanize(
+        self,
+        project_name: str = "Project",
+        survey_description: Optional[str] = None,
+        survey_alias: Optional[str] = None,
+        survey_visibility: Optional["VisibilityType"] = "unlisted",
+    ) -> dict:
+        """
+        Turn a single question into a survey and send the survey to Coop.
+
+        Then, create a project on Coop so you can share the survey with human respondents.
+        """
+        s = self.to_survey()
+        project_details = s.humanize(
+            project_name, survey_description, survey_alias, survey_visibility
+        )
+        return project_details
+
     def by(self, *args) -> "Jobs":
         """Turn a single question into a survey and then a Job."""
         from edsl.surveys.Survey import Survey

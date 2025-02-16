@@ -17,6 +17,8 @@ class AnthropicService(InferenceServiceABC):
     output_token_name = "output_tokens"
     model_exclude_list = []
 
+    available_models_url = 'https://docs.anthropic.com/en/docs/about-claude/models'
+
     @classmethod
     def get_model_list(cls, api_key: str = None):
 
