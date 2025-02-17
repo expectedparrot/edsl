@@ -29,6 +29,12 @@ class FileStore(Scenario):
         if path is None and "filename" in kwargs:
             path = kwargs["filename"]
 
+        # Check if path is a URL and handle download
+        if path and (path.startswith('http://') or path.startswith('https://')):
+            temp_filestore = self.from_url(path, mime_type=mime_type)
+            path = temp_filestore._path
+            mime_type = temp_filestore.mime_type
+
         self._path = path  # Store the original path privately
         self._temp_path = None  # Track any generated temporary file
 
