@@ -1359,35 +1359,33 @@ class Results(UserList, Mixins, Base):
             raise ResultsError(f"Failed to fetch remote results: {str(e)}")
 
 
-    def spot_issues(self, questions: List[str] = None) -> Results:
-        """Run a question to spot issues with original questions, returning a new Results object.
-
-        :param questions: A list of the names of questions to be reviewed. If None, all questions are used.
+    def spot_issues(self) -> Results:
+        """Run a survey to spot issues and suggest improvements for prompts that had no model response, returning a new Results object.
+        Future version: Allow user to optionally pass a list of questions to review, regardless of whether they had a null model response.
         """
         from edsl.questions import QuestionFreeText, QuestionDict
         from edsl.surveys import Survey
         from edsl.scenarios import Scenario, ScenarioList
+        import pandas as pd
 
-        results = None
-        sl = ScenarioList()
+        df = self.select("agent.*", "scenario.*", "answer.*", "raw_model_response.*", "prompt.*").to_pandas()
+        scenario_list = []
 
-        if questions is None:
-            questions = self.question_names
+        for _, row in df.iterrows():
+            for col in df.columns:
+                if col.endswith("_raw_model_response") and pd.isna(row[col]):
+                    q = col.split("_raw_model_response")[0].replace("raw_model_response.", "")
 
-        for q in questions:
-            q_prompts = (
-                "User prompt: " 
-                + self.select(f"prompt.{q}_user_prompt").first().to_dict()["text"] 
-                + "\nSystem prompt: "
-                + self.select(f"prompt.{q}_system_prompt").first().to_dict()["text"]
-            )
+                    s = Scenario({
+                        "original_question": q,
+                        "original_agent_index": row["agent.agent_index"],
+                        "original_scenario_index": row["scenario.scenario_index"],
+                        "original_prompts": f"User prompt: {row[f'prompt.{q}_user_prompt']}\nSystem prompt: {row[f'prompt.{q}_system_prompt']}"
+                    })
+                    
+                    scenario_list.append(s)
 
-            s = Scenario({
-                "original_question": q, 
-                "original_prompts": q_prompts
-            })
-
-            sl.append(s)
+        sl = ScenarioList(set(scenario_list))
 
         q1 = QuestionFreeText(
             question_name = "issues",
