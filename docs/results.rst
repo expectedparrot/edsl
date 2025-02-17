@@ -819,11 +819,11 @@ This will return the number of results:
   16
 
 
-Flattening / expanding results
-------------------------------
+Unnesting results
+-----------------
 
-We can flatten dictionary fields of results by calling the `expand()` method.
-This method will expand the dictionary fields into separate columns, with the keys of the dictionary as the column names.
+We can unnest dictionary fields of results by calling the `unnest()` method.
+This method will flatten a dictionary answer into separate columns and add them to the results as new columns.
 It takes required parameters `keep` and `flatten` which are lists of the names of columns to keep as is and to flatten.
 It is intended to be a helpful method for working with responses to `QuestionDict` questions, but can be used with any dictionary fields.
 
@@ -845,7 +845,7 @@ For example:
 
   results = q.by(m).run()
 
-  results.expand(
+  results.unnest(
     keep=["model"],
     flatten=["recipe"]
   )
