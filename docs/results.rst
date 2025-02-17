@@ -902,6 +902,7 @@ If any of your results are missing model responses, you can use the `spot_issues
 This method runs a meta-survey of (2) questions for any prompts that generated a bad or null response, and then returns the results of the meta-survey.
 
 The first question in the survey is a `QuestionFreeText` question which prompts the model to describe the likely issues with the prompts:
+
 .. code-block:: text
 
   The following prompts generated a bad or null response: '{{ original_prompts }}' 
@@ -909,6 +910,7 @@ The first question in the survey is a `QuestionFreeText` question which prompts 
 
 
 The second question in the survey is a `QuestionDict` question which prompts the model to return a dictionary consisting of revised user and system prompts:
+
 .. code-block:: text
 
   The following prompts generated a bad or null response: '{{ original_prompts }}' 
@@ -922,9 +924,10 @@ Example usage:
 
 .. code-block:: python
 
+  # Returns a Results object with the results of the meta-survey
   results.spot_issues(models=["gpt-4o"])
 
-  # Returns a Results object with the results of the meta-survey
+  # You can inspect the metadata for your original prompts together with the results of the meta-survey
   results.select(
     "original_question", # The name of the question that generated a bad or null response
     "original_agent_index", # The index of the agent that generated a bad or null response
@@ -935,7 +938,7 @@ Example usage:
   )
 
 
-See an [example of the method](https://www.expectedparrot.com/content/385734e7-7767-4464-9ebd-0b009dd2e15f).
+See an `example of the method <https://www.expectedparrot.com/content/385734e7-7767-4464-9ebd-0b009dd2e15f>`_.
 
 
 Exceptions
