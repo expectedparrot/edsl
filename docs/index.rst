@@ -284,6 +284,7 @@ Links
    notebooks/nps_survey.ipynb
    notebooks/data_labeling_agent.ipynb
    notebooks/scenariolist_unpivot.ipynb
+   notebooks/results_dict_unnest.ipynb
    notebooks/random_numbers.ipynb
    notebooks/testing_training_data.ipynb
    notebooks/evaluating_job_posts.ipynb
