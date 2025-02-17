@@ -40,6 +40,9 @@ class Meta(type):
         To get the default model, you can leave out the model name. 
         To see the available models, you can do:
         >>> Model.available()
+
+        Or to see the models for a specific service, you can do:
+        >>> Model.available(service='openai')
         """
         )
 
@@ -97,7 +100,10 @@ class Model(metaclass=Meta):
         *args,
         **kwargs,
     ):
-        "Instantiate a new language model."
+        """Instantiate a new language model.
+        >>> Model()
+        Model(...)
+        """
         # Map index to the respective subclass
         if model_name is None:
             model_name = cls.default_model
@@ -131,7 +137,11 @@ class Model(metaclass=Meta):
 
     @classmethod
     def services(cls, name_only: bool = False) -> List[str]:
-        """Returns a list of services excluding 'test', sorted alphabetically."""
+        """Returns a list of services excluding 'test', sorted alphabetically.
+        
+        >>> Model.services()
+        [...]
+        """
         return PrettyList(
             sorted(
                 [
@@ -192,6 +202,13 @@ class Model(metaclass=Meta):
         name_only: bool = False,
         service: Optional[str] = None,
     ):
+        """Get available models
+        
+        >>> Model.available()
+        [...]
+        >>> Model.available(service='openai')
+        [...]
+        """
         # if search_term is None and service is None:
         #     print("Getting available models...")
         #     print("You have local keys for the following services:")
@@ -313,6 +330,9 @@ class Model(metaclass=Meta):
         """
         Returns an example Model instance.
 
+        >>> Model.example()
+        Model(...)
+
         :param randomize: If True, the temperature is set to a random decimal between 0 and 1.
         """
         temperature = 0.5 if not randomize else round(random(), 2)
@@ -325,7 +345,7 @@ if __name__ == "__main__":
 
     doctest.testmod(optionflags=doctest.ELLIPSIS)
 
-    available = Model.available()
-    m = Model("gpt-4-1106-preview")
-    results = m.execute_model_call("Hello world")
-    print(results)
+    # available = Model.available()
+    # m = Model("gpt-4-1106-preview")
+    # results = m.execute_model_call("Hello world")
+    # print(results)
