@@ -872,7 +872,7 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         for scenario in sl:
             scenario[name] = value
         return sl
-
+    
     def rename(self, replacement_dict: dict) -> ScenarioList:
         """Rename the fields in the scenarios.
 
@@ -885,12 +885,34 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         ScenarioList([Scenario({'first_name': 'Alice', 'years': 30}), Scenario({'first_name': 'Bob', 'years': 25})])
 
         """
-
         new_list = ScenarioList([])
         for obj in self:
             new_obj = obj.rename(replacement_dict)
             new_list.append(new_obj)
         return new_list
+
+    def replace_names(self, new_names: list) -> ScenarioList:
+        """Replace the field names in the scenarios with a new list of names.
+
+        :param new_names: A list of new field names to use.
+
+        Example:
+
+        >>> s = ScenarioList([Scenario({'name': 'Alice', 'age': 30}), Scenario({'name': 'Bob', 'age': 25})])
+        >>> s.replace_names(['first_name', 'years'])
+        ScenarioList([Scenario({'first_name': 'Alice', 'years': 30}), Scenario({'first_name': 'Bob', 'years': 25})])
+        """
+        if not self:
+            return ScenarioList([])
+            
+        if len(new_names) != len(self[0].keys()):
+            raise ScenarioError(
+                f"Length of new names ({len(new_names)}) does not match number of fields ({len(self[0].keys())})"
+            )
+
+        old_names = list(self[0].keys())
+        replacement_dict = dict(zip(old_names, new_names))
+        return self.rename(replacement_dict)
 
     ## NEEDS TO BE FIXED
     # def new_column_names(self, new_names: List[str]) -> ScenarioList:
