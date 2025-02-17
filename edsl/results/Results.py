@@ -1359,13 +1359,14 @@ class Results(UserList, Mixins, Base):
             raise ResultsError(f"Failed to fetch remote results: {str(e)}")
 
 
-    def spot_issues(self) -> Results:
+    def spot_issues(self, models = ModelList([Model()])) -> Results:
         """Run a survey to spot issues and suggest improvements for prompts that had no model response, returning a new Results object.
         Future version: Allow user to optionally pass a list of questions to review, regardless of whether they had a null model response.
         """
         from edsl.questions import QuestionFreeText, QuestionDict
         from edsl.surveys import Survey
         from edsl.scenarios import Scenario, ScenarioList
+        from edsl.language_models import Model, ModelList
         import pandas as pd
 
         df = self.select("agent.*", "scenario.*", "answer.*", "raw_model_response.*", "prompt.*").to_pandas()
@@ -1407,7 +1408,10 @@ class Results(UserList, Mixins, Base):
 
         survey = Survey(questions = [q1, q2])
 
-        results = survey.by(sl).run() # use the default model
+        if models:
+            results = survey.by(sl).by(models).run()
+        else:
+            results = survey.by(sl).run() # use the default model
 
         return results
 
