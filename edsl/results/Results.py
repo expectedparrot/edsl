@@ -1099,37 +1099,30 @@ class Results(UserList, Mixins, Base):
         return selector.select(*columns)
 
     @ensure_ready
-    def expand(self, keep: list[str], flatten: list[str]) -> DataFrame:
+    def unnest(self, columns: list[str]) -> Results:
         """
-        Takes selected columns of a Results object and returns a dataframe consisting of
-        - "keep" columns that are unchanged and 
-        - "flatten" columns that are expanded dictionaries.
-
-        :param keep: List of columns to keep unchanged.
-        :param flatten: List of columns to expand.
+        Flattens specified dictioanry columns of a Results object and returns a new Results object that includes columns for the unnested key/value pairs.
+        
+        :param columns: List of columns to unnest.
         """
 
         import pandas as pd
         import ast
         from edsl.results.Result import Result  # Ensure Result is explicitly imported
 
-        if not isinstance(keep, list) or not keep:
-            raise ValueError("You must provide a non-empty list of columns to keep.")
-
-        if not isinstance(flatten, list) or not flatten:
-            raise ValueError("You must provide a non-empty list of columns to flatten.")
+        if not isinstance(columns, list) or not columns:
+            raise ValueError("You must provide a non-empty list of columns to unnest.")
 
         # Extract base column names for selection
-        all_columns = keep + flatten
-        selected_df = self.select(*all_columns).to_pandas(remove_prefix=True)
+        selected_df = self.select(*columns).to_pandas(remove_prefix=True)
 
-        # Validate columns exist in DataFrame before expansion
-        missing_cols = [col.split(".", 1)[-1] for col in keep if col.split(".", 1)[-1] not in selected_df.columns]
+        # Validate columns exist before expansion
+        missing_cols = [col.split(".", 1)[-1] for col in columns if col.split(".", 1)[-1] not in selected_df.columns]
         if missing_cols:
             raise KeyError(f"Columns not found in Results: {missing_cols}")
 
-        # Expand dictionary columns
-        for col in flatten:
+        # Unnest dictionary columns
+        for col in columns:
             base_col = col.split(".", 1)[-1]  # Extract actual column name
             if base_col in selected_df.columns:
                 # Convert stringified dictionaries to actual dictionaries if necessary
@@ -1139,9 +1132,10 @@ class Results(UserList, Mixins, Base):
                 # Normalize dictionary columns
                 expanded_df = pd.json_normalize(selected_df[base_col])
                 expanded_df.columns = [f"{base_col}_{sub_col}" for sub_col in expanded_df.columns]  # Prefix new columns
-                selected_df = selected_df.drop(columns=[base_col]).join(expanded_df)
+        
+        results = self.add_columns_from_dict(expanded_df.to_dict(orient="records"))
 
-        return selected_df
+        return results
 
     @ensure_ready
     def sort_by(self, *columns: str, reverse: bool = False) -> Results:

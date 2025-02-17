@@ -823,48 +823,54 @@ Unnesting results
 -----------------
 
 We can unnest dictionary fields of results by calling the `unnest()` method.
-This method will flatten a dictionary answer into separate columns and add them to the results as new columns.
-It takes required parameters `keep` and `flatten` which are lists of the names of columns to keep as is and to flatten.
+This method will flatten a dictionary column and add the key/value pairs as new columns of the results object.
+It takes a required parameter `columns` which is a list of the names of columns to unnest.
 It is intended to be a helpful method for working with responses to `QuestionDict` questions, but can be used with any dictionary fields.
 
 For example:
 
 .. code-block:: python
 
-   from edsl import QuestionDict, Model
+  from edsl import QuestionDict, Model
 
-   q = QuestionDict(
-      question_name = "recipe",
-      question_text = "Please draft an easy recipe for hot chocolate.",
-      answer_keys = ["title", "ingedients", "num_ingredients", "instructions"],
-      value_types = [str, list, int, list], # optional
-      value_descriptions = ["Title of the recipe", "List of ingredients", "Number of ingredients", "Instructions"] # optional
-   )
+  q = QuestionDict(
+    question_name = "recipe",
+    question_text = "Please draft an easy recipe for hot chocolate.",
+    answer_keys = ["title", "ingedients", "num_ingredients", "instructions"],
+    value_types = [str, list, int, list], # optional
+    value_descriptions = ["Title of the recipe", "List of ingredients", "Number of ingredients", "Instructions"] # optional
+  )
 
   m = Model("gemini-1.5-flash")
 
   results = q.by(m).run()
 
-  results.unnest(
-    keep=["model"],
-    flatten=["recipe"]
+  new_results = results.unnest(columns=["recipe"])
+
+  new_results.select(
+    "recipe", # original answer, the rest are new columns
+    "recipe_title", 
+    "recipe_ingedients", 
+    "recipe_num_ingredients", 
+    "recipe_instructions"
   )
 
-This will return a table of the specified columns:
+
+Output:
 
 .. list-table::
   :header-rows: 1
 
-  * - model
+  * - recipe
     - recipe_title
     - recipe_ingedients
     - recipe_num_ingredients
     - recipe_instructions
-  * - gemini-1.5-flash
-    - Hot Chocolate
-    - ['milk', 'cocoa powder', 'sugar', 'vanilla extract']
+  * - {'title': 'Easy Hot Chocolate', 'ingedients': ['2 cups milk (dairy or non-dairy)', '2 tablespoons unsweetened cocoa powder', '2 tablespoons sugar (or to taste)', '1/4 teaspoon vanilla extract (optional)'], 'num_ingredients': 4, 'instructions': ['In a small saucepan, whisk together the cocoa powder and sugar.', 'Gradually whisk in the milk until smooth.', 'Heat over medium heat, stirring constantly, until the mixture is hot and steaming. Do not boil.', 'Remove from heat and stir in the vanilla extract (if using).', 'Pour into a mug and enjoy!']}
+    - Easy Hot Chocolate
+    - [['2 cups milk (dairy or non-dairy)', '2 tablespoons unsweetened cocoa powder', '2 tablespoons sugar (or to taste)', '1/4 teaspoon vanilla extract (optional)']
     - 4
-    - ['In a saucepan, heat milk over medium heat. Add cocoa powder and sugar, stirring until dissolved. Remove from heat and stir in vanilla extract. Serve hot.']
+    - ['In a small saucepan, whisk together the cocoa powder and sugar.', 'Gradually whisk in the milk until smooth.', 'Heat over medium heat, stirring constantly, until the mixture is hot and steaming. Do not boil.', 'Remove from heat and stir in the vanilla extract (if using).', 'Pour into a mug and enjoy!']
 
 
 Interacting via SQL
