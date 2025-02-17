@@ -130,7 +130,7 @@ class Model(metaclass=Meta):
         return [r for r in cls.services()]
 
     @classmethod
-    def services(cls) -> List[str]:
+    def services(cls, name_only: bool = False) -> List[str]:
         """Returns a list of services excluding 'test', sorted alphabetically."""
         return PrettyList(
             sorted(
@@ -202,10 +202,11 @@ class Model(metaclass=Meta):
         #     return None
 
         if service is not None:
-            if service not in cls.services(name_only=True):
+            known_services = [x[0] for x in cls.services(name_only=True)]
+            if service not in known_services:
                 raise ValueError(
                     f"Service {service} not found in available services.",
-                    f"Available services are: {cls.services()}",
+                    f"Available services are: {known_services}",
                 )
 
         full_list = cls.get_registry().available(service=service)
