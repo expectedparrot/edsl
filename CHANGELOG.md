@@ -2,6 +2,8 @@
 
 ## [0.1.45] - TBD
 ### Added
+- (*In progress*) `Results` method `spot_issues()` runs a survey to spot issues and suggest revised versions of any prompts that did not generate responses in your original survey (i.e., any user/system prompts where your results show a null answer and raw model response). You can optionally pass a list of models to use to run the meta-survey instead of the default model. See details on the meta-questions that are used and how it works: https://www.expectedparrot.com/content/385734e7-7767-4464-9ebd-0b009dd2e15f. We plan to make this a free feature of surveys run remotely.
+
 - (*In progress*) A universal remote cache is automatically available for retrieving responses that have been previously run by any user at the Expected Parrot server (i.e., if you run a question that you or anyone else has run before, you will retrieve that response at no cost to you). It is available for all jobs run remotely by default, and new responses for any remote jobs are automatically added to it. If you want to draw fresh responses you can use `run(fresh_cache=True)` or `run(cache=Cache()`. If you want to draw responses from a different cache you can use `run(cache=<my_cache>)` (insert your own cache object). If you draw a fresh response for a question that has already been run, the new response is also added to the universal remote cache with an index (`n=2`, etc.). Universal remote cache is not available for jobs run locally. See the [remote cache](https://docs.expectedparrot.com/en/latest/remote_caching.html) section for more details.
 
 
