@@ -1359,6 +1359,61 @@ class Results(UserList, Mixins, Base):
             raise ResultsError(f"Failed to fetch remote results: {str(e)}")
 
 
+    def spot_issues(self, questions: List[str] = None) -> Results:
+        """Run a question to spot issues with original questions, returning a new Results object.
+
+        :param questions: A list of the names of questions to be reviewed. If None, all questions are used.
+        """
+        from edsl.questions import QuestionFreeText, QuestionDict
+        from edsl.surveys import Survey
+        from edsl.scenarios import Scenario, ScenarioList
+
+        results = None
+        sl = ScenarioList()
+
+        if questions is None:
+            questions = self.question_names
+
+        for q in questions:
+            q_prompts = (
+                "User prompt: " 
+                + self.select(f"prompt.{q}_user_prompt").first().to_dict()["text"] 
+                + "\nSystem prompt: "
+                + self.select(f"prompt.{q}_system_prompt").first().to_dict()["text"]
+            )
+
+            s = Scenario({
+                "original_question": q, 
+                "original_prompts": q_prompts
+            })
+
+            sl.append(s)
+
+        q1 = QuestionFreeText(
+            question_name = "issues",
+            question_text = """
+            The following prompts generated a bad or null response: '{{ original_prompts }}'
+            What do you think was the likely issue(s)?
+            """
+        )
+
+        q2 = QuestionDict(
+            question_name = "revised",
+            question_text = """
+            The following prompts generated a bad or null response: '{{ original_prompts }}'
+            You identified the issue(s) as '{{ issues.answer }}'.
+            Please revise the prompts to address the issue(s).
+            """,
+            answer_keys = ["revised_user_prompt", "revised_system_prompt"]
+        )
+
+        survey = Survey(questions = [q1, q2])
+
+        results = survey.by(sl).run() # use the default model
+
+        return results
+
+
 def main():  # pragma: no cover
     """Call the OpenAI API credits."""
     from edsl.results.Results import Results
