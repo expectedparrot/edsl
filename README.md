@@ -7,17 +7,18 @@ The Expected Parrot Domain-Specific Language (EDSL) package makes it easy to con
 
 ## Getting started
 - [PyPI](https://pypi.org/project/edsl/): `pip install edsl`
+- [GitHub](https://github.com/expectedparrot/edsl)
 - [Documentation](https://docs.expectedparrot.com)
 - [Starter tutorial](https://docs.expectedparrot.com/en/latest/starter_tutorial.html) 
 
 ## Requirements
-- EDSL is compatible with Python 3.9 - 3.12.
+- Python 3.9 - 3.12
 - API keys for language models. You can use your own keys or an Expected Parrot key that provides access to all available models.
 See instructions on [managing keys](https://docs.expectedparrot.com/en/latest/api_keys.html) and [model pricing and performance](https://www.expectedparrot.com/getting-started/coop-pricing) information.
 
 ## Coop
 An integrated platform for running experiments, sharing workflows and launching hybrid human/AI surveys.
-- [Login](https://www.expectedparrot.com/login)
+- [Login/Signup](https://www.expectedparrot.com/login)
 - [Explore](https://www.expectedparrot.com/content/explore)
 
 ## Community
@@ -38,19 +39,13 @@ from edsl import QuestionMultipleChoice, Agent, Model
 
 # Construct a question
 q = QuestionMultipleChoice(
-  question_name = "research",
-  question_text = "What is the worst part of conducting research?",
-  question_options = [
-    "Securing funding",
-    "Finding reliable data sources",
-    "Publishing in reputable journals",
-    "Balancing research with other responsibilities",
-    "Dealing with peer review feedback"
-  ]
+    question_name = "color",
+    question_text = "What is your favorite primary color?",
+    question_options = ["Red", "Yellow", "Blue"]
 )
 
-# Create an agent
-a = Agent(traits = {"persona":"You are a researcher."})
+# Design an agent
+a = Agent(traits = {"persona":"You are a botanist."})
 
 # Select a model
 m = Model("gemini-1.5-flash")
@@ -59,14 +54,13 @@ m = Model("gemini-1.5-flash")
 results = q.by(a).by(m).run()
 
 # Inspect the results
-results.select("research")
+results.select("color")
 ```
 
 Output:
-```python
-┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃ answer.research                                ┃
-┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
-│ Balancing research with other responsibilities │
-└──────────────────━━━━━━━━━━━━━━━━━━━━━━━───────┘
-```
+| answer.color  | comment.color_comment                                                            |
+|--------------|---------------------------------------------------------------------------------|
+| Blue         | It's the color of so many beautiful flowers, from forget-me-nots to hydrangeas.<br>Plus, it reminds me of a clear, cool spring day, perfect for exploring the wild. |
+
+
+[See results at Coop](https://www.expectedparrot.com/content/85583c1a-b407-4695-80eb-fd89b55cccd2)
