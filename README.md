@@ -59,7 +59,7 @@ results.select("color")
 
 Output:
 | answer.color  | comment.color_comment                                                            |
-|--------------|---------------------------------------------------------------------------------|
+|:------------- |:--------------------------------------------------------------------------------|
 | Blue         | It's the color of so many beautiful flowers, from forget-me-nots to hydrangeas.<br>Plus, it reminds me of a clear, cool spring day, perfect for exploring the wild. |
 
 
