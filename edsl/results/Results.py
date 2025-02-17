@@ -1359,7 +1359,7 @@ class Results(UserList, Mixins, Base):
             raise ResultsError(f"Failed to fetch remote results: {str(e)}")
 
 
-    def spot_issues(self, models: Optional(ModelList) = ModelList([Model()])) -> Results:
+    def spot_issues(self, models: Optional[ModelList] = None) -> Results:
         """Run a survey to spot issues and suggest improvements for prompts that had no model response, returning a new Results object.
         Future version: Allow user to optionally pass a list of questions to review, regardless of whether they had a null model response.
         """
@@ -1408,7 +1408,7 @@ class Results(UserList, Mixins, Base):
 
         survey = Survey(questions = [q1, q2])
 
-        if models not None:
+        if models is not None:
             if not isinstance(models, ModelList):
                 raise ResultsError("models must be a ModelList")
             results = survey.by(sl).by(models).run()
