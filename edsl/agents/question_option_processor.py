@@ -8,8 +8,16 @@ class QuestionOptionProcessor:
     These can be provided directly, as a template string, or fetched from prior answers or the scenario.
     """
 
-    def __init__(self, prompt_constructor):
-        self.prompt_constructor = prompt_constructor
+    @classmethod
+    def from_prompt_constructor(cls, prompt_constructor):
+        scenario = prompt_constructor.scenario
+        prior_answers_dict = prompt_constructor.prior_answers_dict()
+
+        return cls(scenario, prior_answers_dict)
+
+    def __init__(self, scenario, prior_answers_dict):
+        self.scenario = scenario 
+        self.prior_answers_dict = prior_answers_dict
 
     @staticmethod
     def _get_default_options() -> list:
@@ -151,14 +159,14 @@ class QuestionOptionProcessor:
 
         # Try getting options from scenario
         scenario_options = self._get_options_from_scenario(
-            self.prompt_constructor.scenario, option_key
+            self.scenario, option_key
         )
         if scenario_options:
             return scenario_options
 
         # Try getting options from prior answers
         prior_answer_options = self._get_options_from_prior_answers(
-            self.prompt_constructor.prior_answers_dict(), option_key
+            self.prior_answers_dict, option_key
         )
         if prior_answer_options:
             return prior_answer_options
