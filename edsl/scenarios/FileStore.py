@@ -29,6 +29,12 @@ class FileStore(Scenario):
         if path is None and "filename" in kwargs:
             path = kwargs["filename"]
 
+        # Check if path is a URL and handle download
+        if path and (path.startswith('http://') or path.startswith('https://')):
+            temp_filestore = self.from_url(path, mime_type=mime_type)
+            path = temp_filestore._path
+            mime_type = temp_filestore.mime_type
+
         self._path = path  # Store the original path privately
         self._temp_path = None  # Track any generated temporary file
 
@@ -138,6 +144,10 @@ class FileStore(Scenario):
                 base64_encoded_data = base64.b64encode(binary_data)
                 self.binary = True
         # Convert the base64 bytes to a string
+        except FileNotFoundError:
+            print(f"File not found: {file_path}")
+            print("Current working directory:", os.getcwd())
+            raise
         base64_string = base64_encoded_data.decode("utf-8")
 
         return base64_string
