@@ -34,7 +34,7 @@ if TYPE_CHECKING:
     from simpleeval import EvalWithCompoundTypes
 
 from edsl.results.ResultsExportMixin import ResultsExportMixin
-from edsl.results.ResultsGGMixin import ResultsGGMixin
+from edsl.results.ResultsGGMixin import GGPlotMethod
 from edsl.results.results_fetch_mixin import ResultsFetchMixin
 from edsl.utilities.remove_edsl_version import remove_edsl_version
 
@@ -100,7 +100,7 @@ class NotReadyObject:
 class Mixins(
     ResultsExportMixin,
     ResultsFetchMixin,
-    ResultsGGMixin,
+#    ResultsGGMixin,
 ):
     def long(self):
         return self.table().long()
@@ -150,6 +150,19 @@ class Results(UserList, Mixins, Base):
         "cache_used",
         "cache_keys",
     ]
+
+    def ggplot2(
+        self,
+        ggplot_code: str,
+        shape="wide",
+        sql: str = None,
+        remove_prefix: bool = True,
+        debug: bool = False,
+        height=4,
+        width=6,
+        factor_orders: Optional[dict] = None,
+    ):
+        return GGPlotMethod(self).ggplot2(ggplot_code, shape, sql, remove_prefix, debug, height, width, factor_orders)
 
     @classmethod
     def from_job_info(cls, job_info: dict) -> Results:
