@@ -1480,7 +1480,7 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
 
         >>> s = ScenarioList([Scenario({'text': 'The quick brown fox jumps over the lazy dog.'})])
         >>> s.chunk('text', num_words=3)
-        ScenarioList([Scenario({'text': 'The quick brown', 'text_chunk': 0}), Scenario({'text': 'fox jumps over', 'text_chunk': 1}), Scenario({'text': 'the lazy dog.', 'text_chunk': 2})])
+        ScenarioList([Scenario({'text': 'The quick brown', 'text_chunk': 0, 'text_char_count': 15, 'text_word_count': 3}), Scenario({'text': 'fox jumps over', 'text_chunk': 1, 'text_char_count': 14, 'text_word_count': 3}), Scenario({'text': 'the lazy dog.', 'text_chunk': 2, 'text_char_count': 13, 'text_word_count': 3})])
         """
         new_scenarios = []
         for scenario in self:
