@@ -37,7 +37,11 @@ class DocxMethods(FileMethods):
             print("DOCX file was not found.")
 
     def view_notebook(self):
-        import mammoth
+        try:
+            import mammoth
+        except ImportError:
+            print("mammoth is not installed. Please install it using 'pip install mammoth'.")
+            return
         from IPython.display import HTML, display
 
         with open(self.path, "rb") as docx_file:
