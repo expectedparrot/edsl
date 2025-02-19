@@ -85,6 +85,9 @@ class QuestionBase(
         >>> Q.example()._simulate_answer()
         {'answer': '...', 'generated_tokens': ...}
         """
+        if self.question_type == "free_text":
+            return {"answer": "Hello, how are you?", 'generated_tokens': "Hello, how are you?"}
+        
         simulated_answer = self.fake_data_factory.build().dict()
         if human_readable and hasattr(self, "question_options") and self.use_code:
             simulated_answer["answer"] = [
