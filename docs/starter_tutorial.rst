@@ -131,20 +131,20 @@ Managing keys
 The easiest way to manage your keys is from your Expected Parrot account.
 `Create an account <https://www.expectedparrot.com/login>`_ with an email address and then navigate to your `Keys <https://www.expectedparrot.com/home/keys>`_ page to find options for adding and sharing your keys:
 
-.. image:: static/my_keys.png
+.. image:: static/home-keys.png
   :alt: View stored keys
   :align: center
   :width: 75%
   
 
-Your Expected Parrot API key is automatically available to use by default whenever remote inference is activated.
+Your Expected Parrot key is automatically available to use by default whenever remote inference is activated.
 This key allows you to access the Expected Parrot server and run surveys with all available models.
 The key can be viewed at your `Settings <https://www.expectedparrot.com/home/api>`_ page where you can also find options for activating remote inference and caching.
 Activating these options allows you to run your surveys and store results at the Expected Parrot server instead of your own machine, using whichever keys you have prioritized.
 
-Please see the :ref:`api-keys` section for more details on methods of storing and managing keys.
+Please see the :ref:`api_keys` section for more details on methods of storing and managing keys.
 
-*Note:* If you try to run a survey without storing a required API key, you will be provided a link to activate remote inference and use your Expected Parrot API key.
+*Note:* If you try to run a survey without storing a required API key, you will be provided a link to activate remote inference and use your Expected Parrot key.
 
 
 Credits & tokens
@@ -155,7 +155,7 @@ If you are using your own API keys, service providers will bill you directly.
 If you are using your Expected Parrot API key to access models, you will need to purchase credits to cover token costs.
 Please see the model pricing page for details on available models and their current prices.
 
-*Note:* Your account comes with 100 free credits. You can purchase more credits at any time at your `Credits <https://www.expectedparrot.com/home/purchases>`_ page.
+*Note:* Your account comes with 2,500 free credits ($25 worth of API calls). You can purchase more credits at any time at your `Credits <https://www.expectedparrot.com/home/purchases>`_ page.
 
 After installing EDSL and storing API keys you are ready to run some examples!
 

@@ -1,11 +1,25 @@
 from collections import UserList
 from edsl.results.Dataset import Dataset
 
+class Markkdown:
+
+    def __init__(self, text: str):
+        self.text = text
+
+    def __str__(self):
+        return self.text
+    
+    def _repr_markdown_(self):
+        return self.text
 
 class PrettyList(UserList):
     def __init__(self, data=None, columns=None):
         super().__init__(data)
         self.columns = columns
+
+    def to_markdown(self):
+        text = "".join([str(row) for row in self])
+        return Markkdown(text)
 
     def _repr_html_(self):
         if isinstance(self[0], list) or isinstance(self[0], tuple):
