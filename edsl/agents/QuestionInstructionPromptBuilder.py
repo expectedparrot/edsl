@@ -11,12 +11,20 @@ from edsl.agents.QuestionTemplateReplacementsBuilder import (
 class QuestionInstructionPromptBuilder:
     """Handles the construction and rendering of question instructions."""
 
-    def __init__(self, prompt_constructor: "PromptConstructor"):
-        self.prompt_constructor = prompt_constructor
+    @classmethod
+    def from_prompt_constructor(cls, prompt_constructor: "PromptConstructor"):
+        
+        model = prompt_constructor.model
+        survey = prompt_constructor.survey
+        question = prompt_constructor.question
+        return cls(prompt_constructor, model, survey, question)
 
-        self.model = self.prompt_constructor.model
-        self.survey = self.prompt_constructor.survey
-        self.question = self.prompt_constructor.question
+    def __init__(self, prompt_constructor: "PromptConstructor", model, survey, question):
+        self.prompt_constructor = prompt_constructor
+        self.model = model
+        self.survey = survey
+        self.question = question
+
 
     def build(self) -> Prompt:
         """Builds the complete question instructions prompt with all necessary components.
@@ -91,9 +99,10 @@ class QuestionInstructionPromptBuilder:
             from edsl.agents.question_option_processor import QuestionOptionProcessor
             
             processor_start = time.time()
-            question_options = QuestionOptionProcessor(
-                self.prompt_constructor
-            ).get_question_options(question_data=prompt_data["data"])
+            question_options = (QuestionOptionProcessor
+                                .from_prompt_constructor(self.prompt_constructor)
+                                .get_question_options(question_data=prompt_data["data"])
+            )
             processor_end = time.time()
             logging.debug(f"Time to process question options: {processor_end - processor_start}")
             
