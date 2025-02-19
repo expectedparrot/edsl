@@ -144,6 +144,10 @@ class FileStore(Scenario):
                 base64_encoded_data = base64.b64encode(binary_data)
                 self.binary = True
         # Convert the base64 bytes to a string
+        except FileNotFoundError:
+            print(f"File not found: {file_path}")
+            print("Current working directory:", os.getcwd())
+            raise
         base64_string = base64_encoded_data.decode("utf-8")
 
         return base64_string

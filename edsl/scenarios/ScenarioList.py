@@ -957,6 +957,8 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
             entry = {
                 "line_no": line_no + 1,  # Using 1-based index for line numbers
                 "text": text,
+                "num_words": len(text.split()),
+                "num_chars": len(text),
                 "line_before": non_blank_lines[index - 1][1] if index > 0 else None,
                 "line_after": (
                     non_blank_lines[index + 1][1]
@@ -1478,7 +1480,7 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
 
         >>> s = ScenarioList([Scenario({'text': 'The quick brown fox jumps over the lazy dog.'})])
         >>> s.chunk('text', num_words=3)
-        ScenarioList([Scenario({'text': 'The quick brown', 'text_chunk': 0}), Scenario({'text': 'fox jumps over', 'text_chunk': 1}), Scenario({'text': 'the lazy dog.', 'text_chunk': 2})])
+        ScenarioList([Scenario({'text': 'The quick brown', 'text_chunk': 0, 'text_char_count': 15, 'text_word_count': 3}), Scenario({'text': 'fox jumps over', 'text_chunk': 1, 'text_char_count': 14, 'text_word_count': 3}), Scenario({'text': 'the lazy dog.', 'text_chunk': 2, 'text_char_count': 13, 'text_word_count': 3})])
         """
         new_scenarios = []
         for scenario in self:
