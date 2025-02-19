@@ -15,6 +15,7 @@ from edsl.Base import PersistenceMixin, HashingMixin
 
 from edsl.results.smart_objects import FirstObject
 
+from edsl.results.ResultsGGMixin import GGPlotMethod
 
 class Dataset(UserList, ResultsExportMixin, PersistenceMixin, HashingMixin):
     """A class to represent a dataset of observations."""
@@ -25,6 +26,20 @@ class Dataset(UserList, ResultsExportMixin, PersistenceMixin, HashingMixin):
         """Initialize the dataset with the given data."""
         super().__init__(data)
         self.print_parameters = print_parameters
+
+
+    def ggplot2(
+        self,
+        ggplot_code: str,
+        shape="wide",
+        sql: str = None,
+        remove_prefix: bool = True,
+        debug: bool = False,
+        height=4,
+        width=6,
+        factor_orders: Optional[dict] = None,
+    ):
+        return GGPlotMethod(self).ggplot2(ggplot_code, shape, sql, remove_prefix, debug, height, width, factor_orders)
 
     def __len__(self) -> int:
         """Return the number of observations in the dataset.
