@@ -117,13 +117,12 @@ def test_QuestionFreeText_answers():
 
 def test_test_QuestionFreeText_extras():
     """Test QuestionFreeText extra functionalities."""
+    #pass
     q = QuestionFreeText(**valid_question)
-    # instructions
-    # _simulate_answer
     simulated_answer = q._simulate_answer()
     assert isinstance(simulated_answer, dict)
     assert "answer" in simulated_answer
     assert isinstance(simulated_answer["answer"], str)
     assert len(simulated_answer["answer"]) <= Settings.MAX_ANSWER_LENGTH
     assert len(simulated_answer["answer"]) > 0
-    # form elements
+    
