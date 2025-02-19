@@ -85,6 +85,8 @@ class DocumentChunker:
             new_scenario = copy.deepcopy(self.scenario)
             new_scenario[field] = chunk
             new_scenario[field + "_chunk"] = i
+            new_scenario[field + "_char_count"] = len(chunk)
+            new_scenario[field + "_word_count"] = len(chunk.split())
             if include_original:
                 if hash_original:
                     new_scenario[field + "_original"] = hashlib.md5(
