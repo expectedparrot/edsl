@@ -15,6 +15,7 @@ from edsl.Base import PersistenceMixin, HashingMixin
 
 from edsl.results.smart_objects import FirstObject
 
+from edsl.results.ResultsGGMixin import GGPlotMethod
 
 class Dataset(UserList, ResultsExportMixin, PersistenceMixin, HashingMixin):
     """A class to represent a dataset of observations."""
@@ -25,6 +26,20 @@ class Dataset(UserList, ResultsExportMixin, PersistenceMixin, HashingMixin):
         """Initialize the dataset with the given data."""
         super().__init__(data)
         self.print_parameters = print_parameters
+
+
+    def ggplot2(
+        self,
+        ggplot_code: str,
+        shape="wide",
+        sql: str = None,
+        remove_prefix: bool = True,
+        debug: bool = False,
+        height=4,
+        width=6,
+        factor_orders: Optional[dict] = None,
+    ):
+        return GGPlotMethod(self).ggplot2(ggplot_code, shape, sql, remove_prefix, debug, height, width, factor_orders)
 
     def __len__(self) -> int:
         """Return the number of observations in the dataset.
@@ -579,6 +594,56 @@ class Dataset(UserList, ResultsExportMixin, PersistenceMixin, HashingMixin):
     def from_pandas_dataframe(cls, df):
         result = cls([{col: df[col].tolist()} for col in df.columns])
         return result
+
+    def to_docx(self, output_file: str, title: str = None) -> None:
+        """
+        Convert the dataset to a Word document.
+        
+        Args:
+            output_file (str): Path to save the Word document
+            title (str, optional): Title for the document
+        """
+        from docx import Document
+        from docx.shared import Inches
+        from docx.enum.text import WD_ALIGN_PARAGRAPH
+
+        # Create document
+        doc = Document()
+        
+        # Add title if provided
+        if title:
+            title_heading = doc.add_heading(title, level=1)
+            title_heading.alignment = WD_ALIGN_PARAGRAPH.CENTER
+
+        # Get headers and data
+        headers, data = self._tabular()
+        
+        # Create table
+        table = doc.add_table(rows=len(data) + 1, cols=len(headers))
+        table.style = 'Table Grid'
+        
+        # Add headers
+        for j, header in enumerate(headers):
+            cell = table.cell(0, j)
+            cell.text = str(header)
+        
+        # Add data
+        for i, row in enumerate(data):
+            for j, cell_content in enumerate(row):
+                cell = table.cell(i + 1, j)
+                cell.text = str(cell_content) if cell_content is not None else ""
+        
+        # Adjust column widths
+        for column in table.columns:
+            max_width = 0
+            for cell in column.cells:
+                text_width = len(str(cell.text))
+                max_width = max(max_width, text_width)
+            for cell in column.cells:
+                cell.width = Inches(min(max_width * 0.1 + 0.5, 6))
+        
+        # Save the document
+        doc.save(output_file)
 
 
 if __name__ == "__main__":
