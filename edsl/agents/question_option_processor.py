@@ -15,7 +15,7 @@ class QuestionOptionProcessor:
 
         return cls(scenario, prior_answers_dict)
 
-    def __init__(self, scenario, prior_answers_dict):
+    def __init__(self, scenario: 'Scenario', prior_answers_dict: dict):
         self.scenario = scenario 
         self.prior_answers_dict = prior_answers_dict
 
@@ -117,7 +117,8 @@ class QuestionOptionProcessor:
         >>> mpc = MockPromptConstructor()
         >>> from edsl import Scenario
         >>> mpc.scenario = Scenario({"options": ["Option 1", "Option 2"]})
-        >>> processor = QuestionOptionProcessor(mpc)
+        >>> mpc.prior_answers_dict = lambda: {'q0': 'q0'}
+        >>> processor = QuestionOptionProcessor.from_prompt_constructor(mpc)
 
         The basic case where options are directly provided:
 
@@ -138,7 +139,7 @@ class QuestionOptionProcessor:
         >>> q0 = MockQuestion()
         >>> q0.answer = ["Option 1", "Option 2"]
         >>> mpc.prior_answers_dict = lambda: {'q0': q0}
-        >>> processor = QuestionOptionProcessor(mpc)
+        >>> processor = QuestionOptionProcessor.from_prompt_constructor(mpc)
         >>> question_data = {"question_options": "{{ q0 }}"}
         >>> processor.get_question_options(question_data)
         ['Option 1', 'Option 2']

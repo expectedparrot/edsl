@@ -7,16 +7,26 @@ if TYPE_CHECKING:
 
 
 class QuestionTemplateReplacementsBuilder:
+
+    @classmethod
+    def from_prompt_constructor(cls, prompt_constructor: "PromptConstructor"):
+        return cls(prompt_constructor)
+
     def __init__(self, prompt_constructor: "PromptConstructor"):
-        self.prompt_constructor = prompt_constructor
+        #self.prompt_constructor = prompt_constructor
+
+        self.scenario = prompt_constructor.scenario
+        self.question = prompt_constructor.question
+        self.prior_answers_dict = prompt_constructor.prior_answers_dict()
+        self.agent = prompt_constructor.agent
 
     def question_file_keys(self):
-        question_text = self.prompt_constructor.question.question_text
-        file_keys = self._find_file_keys(self.prompt_constructor.scenario)
+        question_text = self.question.question_text
+        file_keys = self._find_file_keys(self.scenario)
         return self._extract_file_keys_from_question_text(question_text, file_keys)
 
     def scenario_file_keys(self):
-        return self._find_file_keys(self.prompt_constructor.scenario)
+        return self._find_file_keys(self.scenario)
 
     def get_jinja2_variables(template_str: str) -> Set[str]:
         """
@@ -95,7 +105,7 @@ class QuestionTemplateReplacementsBuilder:
         # Scenario items excluding file keys
         scenario_items = {
             k: v
-            for k, v in self.prompt_constructor.scenario.items()
+            for k, v in self.scenario.items()
             if k not in self.scenario_file_keys()
         }
         return {**file_refs, **scenario_items}
@@ -123,10 +133,12 @@ class QuestionTemplateReplacementsBuilder:
         rpl = {}
         rpl["scenario"] = self._scenario_replacements()
         rpl["question"] = self._question_data_replacements(
-            self.prompt_constructor.question, question_data
+            self.question, question_data
         )
-        rpl["prior_answers"] = self.prompt_constructor.prior_answers_dict()
-        rpl["agent"] = {"agent": self.prompt_constructor.agent}
+        #rpl["prior_answers"] = self.prompt_constructor.prior_answers_dict()
+        rpl["prior_answers"] = self.prior_answers_dict
+        #rpl["agent"] = {"agent": self.prompt_constructor.agent}
+        rpl["agent"] = {"agent": self.agent}
 
         # Combine all dictionaries using dict.update() for clarity
         replacement_dict = {}
