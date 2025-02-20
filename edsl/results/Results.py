@@ -1290,6 +1290,13 @@ class Results(UserList, Mixins, Base):
         """
         return [r.score(f) for r in self.data]
     
+    def score_with_answer_key(self, answer_key: dict) -> list:
+        """Score the results using an answer key.
+
+        :param answer_key: A dictionary that maps answer values to scores.
+        """
+        return [r.score_with_answer_key(answer_key) for r in self.data]
+    
 
     def fetch_remote(self, job_info: "RemoteJobInfo") -> None:
         """
