@@ -25,6 +25,9 @@ class QuestionInstructionPromptBuilder:
         self.survey = survey
         self.question = question
 
+        self.scenario = prompt_constructor.scenario
+        self.prior_answers_dict = prompt_constructor.prior_answers_dict()
+
 
     def build(self) -> Prompt:
         """Builds the complete question instructions prompt with all necessary components.
@@ -99,8 +102,8 @@ class QuestionInstructionPromptBuilder:
             from edsl.agents.question_option_processor import QuestionOptionProcessor
             
             processor_start = time.time()
-            question_options = (QuestionOptionProcessor
-                                .from_prompt_constructor(self.prompt_constructor)
+
+            question_options = (QuestionOptionProcessor(self.scenario, self.prior_answers_dict)
                                 .get_question_options(question_data=prompt_data["data"])
             )
             processor_end = time.time()
@@ -128,7 +131,7 @@ class QuestionInstructionPromptBuilder:
         
         # Build replacement dict
         dict_start = time.time()
-        replacement_dict = QTRB(self.prompt_constructor).build_replacement_dict(
+        replacement_dict = QTRB.from_prompt_constructor(self.prompt_constructor).build_replacement_dict(
             prompt_data["data"]
         )
         dict_end = time.time()
