@@ -285,7 +285,7 @@ class Jobs(Base):
         >>> Jobs.example().prompts()
         Dataset(...)
         """
-        return JobsPrompts(self).prompts()
+        return JobsPrompts(self).prompts(iterations=iterations)
 
     def show_prompts(self, all: bool = False) -> None:
         """Print the prompts."""
