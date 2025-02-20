@@ -8,8 +8,7 @@ The Expected Parrot Domain-Specific Language (EDSL) package makes it easy to con
 
 ## Features 
 
-**Declarative design**
-
+**Declarative design**: 
 Declared <a href="https://docs.expectedparrot.con/en/latest/questions.html" target="_blank" rel="noopener noreferrer">question types</a> ensure consistent results without requiring a JSON schema:
 
 ```python
@@ -32,8 +31,7 @@ results.select("example")
 
 <a href="https://www.expectedparrot.com/content/2a848a0e-f9de-46bc-98d0-a13b9a1caf11" target="_blank" rel="noopener noreferrer">View results</a>.
 
-**Parameterized prompts**
-
+**Parameterized prompts**: 
 Easily parameterize and control prompts with "<a href="https://docs.expectedparrot.com/en/latest/scenarios.html" target="_blank" rel="noopener noreferrer">scenarios</a>" of data automatically imported from many sources (CSV, PDF, PNG, etc.):
 
 ```python
@@ -60,9 +58,7 @@ results.select("activity", "example")
 
 <a href="https://www.expectedparrot.com/content/7bb9ec2e-827b-4867-ac02-33163df1a1d1" target="_blank" rel="noopener noreferrer">View results</a>.
 
-**Design AI agent personas to answer questions**
-
-
+**Design AI agent personas to answer questions**: 
 ```python
 from edsl import Agent, AgentList, QuestionList
 
@@ -86,8 +82,7 @@ results.select("persona", "example")
 
 <a href="https://www.expectedparrot.com/content/b639a2d7-4ae6-48fe-8b9e-58350fab93de" target="_blank" rel="noopener noreferrer">View results</a>.
 
-**Simplified access to LLMs**
-
+**Simplified access to LLMs**: 
 Choose whether to use your own keys for LLMs, or access all <a href="https://www.expectedparrot.com/getting-started/coop-pricing" target="_blank" rel="noopener noreferrer">available models</a> with an Expected Parrot API key. Run surveys with many models at once and compare responses at a convenient inferface:
 
 ```python
@@ -112,8 +107,7 @@ results.select("model", "example")
 
 <a href="https://www.expectedparrot.com/content/044465f0-b87f-430d-a3b9-4fd3b8560299" target="_blank" rel="noopener noreferrer">View results</a>.
 
-**Piping & skip-logic** 
-
+**Piping & skip-logic**: 
 Build rich data labeling flows with features for piping answers and adding survey logic such as skip and stop rules:
 ```python
 from edsl import QuestionMultipleChoice, QuestionFreeText, Survey
@@ -142,20 +136,16 @@ results.select("color", "flower")
 
 <a href="https://www.expectedparrot.com/content/b8afe09d-49bf-4c05-b753-d7b0ae782eb3" target="_blank" rel="noopener noreferrer">View results</a>.
 
-**Caching**
-
+**Caching**: 
 API calls to LLMs are cached automatically, allowing you to retrieve responses to questions that have already been run and reproduce experiments at no cost. Learn more about how the <a href="https://docs.expectedparrot.com/en/latest/remote_caching.html" target="_blank" rel="noopener noreferrer">universal remote cache</a> works.
 
-**Flexibility**
-
+**Flexibility**: 
 Choose whether to run surveys on your own computer or at the Expected Parrot server.
 
-**Tools for collaboration**
-
+**Tools for collaboration**: 
 Easily share workflows and projects privately or publicly at Coop: an integrated platform for AI-based research. Your account comes with free credits for running surveys, and lets you securely share keys, track expenses and usage for your team.
 
-**Built-in tools for analyis**
-
+**Built-in tools for analyis**: 
 Analyze results as specified datasets from your account or workspace. Easily import data to use with your surveys and export results.
 
 ## Getting started
