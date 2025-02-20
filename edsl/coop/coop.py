@@ -900,6 +900,41 @@ class Coop(CoopFunctionsMixin):
         }
 
     ################
+    # TEST QUESTIONS
+    ################
+    def create_test_question(self, json_string: str) -> dict:
+        """
+        Create a test question on Coop.
+        """
+        response = self._send_server_request(
+            uri="api/v0/test-questions",
+            method="POST",
+            payload={"json_string": json_string},
+        )
+        self._resolve_server_response(response)
+        response_json = response.json()
+        return {
+            "uuid": response_json.get("uuid"),
+            "url": f"{self.url}/test-questions/{response_json.get('uuid')}",
+        }
+
+    def patch_test_question(self, uuid: str, json_string: str) -> dict:
+        """
+        Patch a test question on Coop.
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/test-questions/{uuid}",
+            method="PATCH",
+            payload={"json_string": json_string},
+        )
+        self._resolve_server_response(response)
+        response_json = response.json()
+        return {
+            "uuid": response_json.get("uuid"),
+            "url": f"{self.url}/test-questions/{response_json.get('uuid')}",
+        }
+
+    ################
     # DUNDER METHODS
     ################
     def __repr__(self):
@@ -1037,19 +1072,21 @@ class Coop(CoopFunctionsMixin):
         if console.is_terminal:
             # Running in a standard terminal, show the full URL
             if link_description:
-                rich_print("{link_description}\n[#38bdf8][link={url}]{url}[/link][/#38bdf8]")
+                rich_print(
+                    "{link_description}\n[#38bdf8][link={url}]{url}[/link][/#38bdf8]"
+                )
             else:
                 rich_print(f"[#38bdf8][link={url}]{url}[/link][/#38bdf8]")
         else:
             # Running in an interactive environment (e.g., Jupyter Notebook), hide the URL
             if link_description:
-                rich_print(f"{link_description}\n[#38bdf8][link={url}][underline]Log in and automatically store key[/underline][/link][/#38bdf8]")
+                rich_print(
+                    f"{link_description}\n[#38bdf8][link={url}][underline]Log in and automatically store key[/underline][/link][/#38bdf8]"
+                )
             else:
-                rich_print(f"[#38bdf8][link={url}][underline]Log in and automatically store key[/underline][/link][/#38bdf8]")
-
-
-
-
+                rich_print(
+                    f"[#38bdf8][link={url}][underline]Log in and automatically store key[/underline][/link][/#38bdf8]"
+                )
 
     def _get_api_key(self, edsl_auth_token: str):
         """
