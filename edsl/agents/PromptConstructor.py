@@ -200,7 +200,7 @@ class PromptConstructor:
         """Extracts the file keys from the question text.
         It checks if the variables in the question text are in the scenario file keys.
         """
-        return QuestionTemplateReplacementsBuilder(self).question_file_keys()
+        return QuestionTemplateReplacementsBuilder.from_prompt_constructor(self).question_file_keys()
 
     @cached_property
     def question_instructions_prompt(self) -> Prompt:
