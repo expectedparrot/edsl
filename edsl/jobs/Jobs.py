@@ -277,7 +277,7 @@ class Jobs(Base):
 
         return JobsComponentConstructor(self).by(*args)
 
-    def prompts(self) -> "Dataset":
+    def prompts(self, iterations=1) -> "Dataset":
         """Return a Dataset of prompts that will be used.
 
 
