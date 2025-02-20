@@ -9,7 +9,7 @@ The Expected Parrot Domain-Specific Language (EDSL) package makes it easy to con
 ## Features 
 
 **Declarative design**: 
-Diverse specified <a href="https://docs.expectedparrot.con/en/latest/questions.html" target="_blank" rel="noopener noreferrer">question types</a> ensure consistent results without requiring a JSON schema (<a href="https://www.expectedparrot.com/content/2a848a0e-f9de-46bc-98d0-a13b9a1caf11" target="_blank" rel="noopener noreferrer">view at Coop</a>):
+Specified <a href="https://docs.expectedparrot.con/en/latest/questions.html" target="_blank" rel="noopener noreferrer">question types</a> ensure consistent results without requiring a JSON schema (<a href="https://www.expectedparrot.com/content/2a848a0e-f9de-46bc-98d0-a13b9a1caf11" target="_blank" rel="noopener noreferrer">view at Coop</a>):
 
 ```python
 from edsl import QuestionMultipleChoice
@@ -59,7 +59,7 @@ results.select("activity", "example")
 <br>
 
 **Design AI agent personas to answer questions**: 
-Construct agents with relevant traits to respond to your surveys (<a href="https://www.expectedparrot.com/content/b639a2d7-4ae6-48fe-8b9e-58350fab93de" target="_blank" rel="noopener noreferrer">view at Coop</a>)
+Construct agents with relevant traits to provide diverse responses to your surveys (<a href="https://www.expectedparrot.com/content/b639a2d7-4ae6-48fe-8b9e-58350fab93de" target="_blank" rel="noopener noreferrer">view at Coop</a>)
 
 ```python
 from edsl import Agent, AgentList, QuestionList
