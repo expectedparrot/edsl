@@ -24,10 +24,11 @@ results = q.run()
 
 results.select("example")
 ```
-
+<div style="margin-left: 40px;">
 | answer.example  |
 |-----------------|
 | Good            |
+</div>
 
 <a href="https://www.expectedparrot.com/content/2a848a0e-f9de-46bc-98d0-a13b9a1caf11" target="_blank" rel="noopener noreferrer">View results</a>.
 
