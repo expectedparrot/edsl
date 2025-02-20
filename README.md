@@ -9,7 +9,7 @@ The Expected Parrot Domain-Specific Language (EDSL) package makes it easy to con
 ## Features 
 
 **Declarative design**: 
-Declared <a href="https://docs.expectedparrot.con/en/latest/questions.html" target="_blank" rel="noopener noreferrer">question types</a> ensure consistent results without requiring a JSON schema:
+Diverse specified <a href="https://docs.expectedparrot.con/en/latest/questions.html" target="_blank" rel="noopener noreferrer">question types</a> ensure consistent results without requiring a JSON schema (<a href="https://www.expectedparrot.com/content/2a848a0e-f9de-46bc-98d0-a13b9a1caf11" target="_blank" rel="noopener noreferrer">view at Coop</a>):
 
 ```python
 from edsl import QuestionMultipleChoice
@@ -29,11 +29,8 @@ results.select("example")
 > |-----------------|
 > | Good            |
 
-
-<a href="https://www.expectedparrot.com/content/2a848a0e-f9de-46bc-98d0-a13b9a1caf11" target="_blank" rel="noopener noreferrer">View results</a>.
-
 **Parameterized prompts**: 
-Easily parameterize and control prompts with "<a href="https://docs.expectedparrot.com/en/latest/scenarios.html" target="_blank" rel="noopener noreferrer">scenarios</a>" of data automatically imported from many sources (CSV, PDF, PNG, etc.):
+Easily parameterize and control prompts with "<a href="https://docs.expectedparrot.com/en/latest/scenarios.html" target="_blank" rel="noopener noreferrer">scenarios</a>" of data automatically imported from many sources (CSV, PDF, PNG, etc.)(<a href="https://www.expectedparrot.com/content/7bb9ec2e-827b-4867-ac02-33163df1a1d1" target="_blank" rel="noopener noreferrer">view at Coop</a>):
 
 ```python
 from edsl import ScenarioList, QuestionLinearScale
@@ -52,14 +49,15 @@ results = q.by(sl).run()
 results.select("activity", "example")
 ```
 
-| scenario.activity  | answer.example  |
-|--------------------|-----------------|
-| Coding             | 5               |
-| Sleeping           | 5               |
+> | scenario.activity  | answer.example  |
+> |--------------------|-----------------|
+> | Coding             | 5               |
+> | Sleeping           | 5               |
 
-<a href="https://www.expectedparrot.com/content/7bb9ec2e-827b-4867-ac02-33163df1a1d1" target="_blank" rel="noopener noreferrer">View results</a>.
 
 **Design AI agent personas to answer questions**: 
+Construct agents with relevant traits to respond to your surveys (<a href="https://www.expectedparrot.com/content/b639a2d7-4ae6-48fe-8b9e-58350fab93de" target="_blank" rel="noopener noreferrer">view at Coop</a>)
+
 ```python
 from edsl import Agent, AgentList, QuestionList
 
@@ -76,15 +74,13 @@ results = q.by(al).run()
 results.select("persona", "example")
 ```
 
-| agent.persona  | answer.example                              |
-|----------------|---------------------------------------------|
-| botanist       | ['Green', 'Earthy Brown', 'Sunset Orange']  |
-| detective      | ['Gray', 'Black', 'Navy Blye']              |
-
-<a href="https://www.expectedparrot.com/content/b639a2d7-4ae6-48fe-8b9e-58350fab93de" target="_blank" rel="noopener noreferrer">View results</a>.
+> | agent.persona  | answer.example                              |
+> |----------------|---------------------------------------------|
+> | botanist       | ['Green', 'Earthy Brown', 'Sunset Orange']  |
+> | detective      | ['Gray', 'Black', 'Navy Blye']              |
 
 **Simplified access to LLMs**: 
-Choose whether to use your own keys for LLMs, or access all <a href="https://www.expectedparrot.com/getting-started/coop-pricing" target="_blank" rel="noopener noreferrer">available models</a> with an Expected Parrot API key. Run surveys with many models at once and compare responses at a convenient inferface:
+Choose whether to use your own keys for LLMs, or access all <a href="https://www.expectedparrot.com/getting-started/coop-pricing" target="_blank" rel="noopener noreferrer">available models</a> with an Expected Parrot API key. Run surveys with many models at once and compare responses at a convenient inferface (<a href="https://www.expectedparrot.com/content/044465f0-b87f-430d-a3b9-4fd3b8560299" target="_blank" rel="noopener noreferrer">view at Coop</a>)
 
 ```python
 from edsl import Model, ModelList, QuestionFreeText
@@ -101,12 +97,10 @@ results = q.by(ml).run()
 results.select("model", "example")
 ```
 
-| model.model        | answer.example                                                                                  |
-|--------------------|-------------------------------------------------------------------------------------------------|
-| gpt-4o             | When using large language models (LLMs) to answer surveys, my top tip is to ensure that the ... |
-| gemini-1.5-flash   | My top tip for using LLMs to answer surveys is to **treat the LLM as a sophisticated brainst... |
-
-<a href="https://www.expectedparrot.com/content/044465f0-b87f-430d-a3b9-4fd3b8560299" target="_blank" rel="noopener noreferrer">View results</a>.
+> | model.model        | answer.example                                                                                  |
+> |--------------------|-------------------------------------------------------------------------------------------------|
+> | gpt-4o             | When using large language models (LLMs) to answer surveys, my top tip is to ensure that the ... |
+> | gemini-1.5-flash   | My top tip for using LLMs to answer surveys is to **treat the LLM as a sophisticated brainst... |
 
 **Piping & skip-logic**: 
 Build rich data labeling flows with features for piping answers and adding survey logic such as skip and stop rules:
@@ -131,9 +125,9 @@ results = survey.run()
 results.select("color", "flower")
 ```
 
-| answer.color  | answer.flower                                                                     |
-|---------------|-----------------------------------------------------------------------------------|
-| blue          | A commonly known blue flower is the bluebell. Another example is the cornflower.  |
+> | answer.color  | answer.flower                                                                     |
+> |---------------|-----------------------------------------------------------------------------------|
+> | blue          | A commonly known blue flower is the bluebell. Another example is the cornflower.  |
 
 <a href="https://www.expectedparrot.com/content/b8afe09d-49bf-4c05-b753-d7b0ae782eb3" target="_blank" rel="noopener noreferrer">View results</a>.
 
