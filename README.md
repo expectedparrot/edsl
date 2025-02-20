@@ -29,7 +29,7 @@ results.select("example")
 > |-----------------|
 > | Good            |
 
-<br><br>
+<br>
 
 **Parameterized prompts**: 
 Easily parameterize and control prompts with "<a href="https://docs.expectedparrot.com/en/latest/scenarios.html" target="_blank" rel="noopener noreferrer">scenarios</a>" of data automatically imported from many sources (CSV, PDF, PNG, etc.)(<a href="https://www.expectedparrot.com/content/7bb9ec2e-827b-4867-ac02-33163df1a1d1" target="_blank" rel="noopener noreferrer">view at Coop</a>):
@@ -56,6 +56,7 @@ results.select("activity", "example")
 > | Coding             | 5               |
 > | Sleeping           | 5               |
 
+<br>
 
 **Design AI agent personas to answer questions**: 
 Construct agents with relevant traits to respond to your surveys (<a href="https://www.expectedparrot.com/content/b639a2d7-4ae6-48fe-8b9e-58350fab93de" target="_blank" rel="noopener noreferrer">view at Coop</a>)
@@ -81,6 +82,8 @@ results.select("persona", "example")
 > | botanist       | ['Green', 'Earthy Brown', 'Sunset Orange']  |
 > | detective      | ['Gray', 'Black', 'Navy Blye']              |
 
+<br>
+
 **Simplified access to LLMs**: 
 Choose whether to use your own keys for LLMs, or access all <a href="https://www.expectedparrot.com/getting-started/coop-pricing" target="_blank" rel="noopener noreferrer">available models</a> with an Expected Parrot API key. Run surveys with many models at once and compare responses at a convenient inferface (<a href="https://www.expectedparrot.com/content/044465f0-b87f-430d-a3b9-4fd3b8560299" target="_blank" rel="noopener noreferrer">view at Coop</a>)
 
@@ -104,8 +107,11 @@ results.select("model", "example")
 > | gpt-4o             | When using large language models (LLMs) to answer surveys, my top tip is to ensure that the ... |
 > | gemini-1.5-flash   | My top tip for using LLMs to answer surveys is to **treat the LLM as a sophisticated brainst... |
 
+<br>
+
 **Piping & skip-logic**: 
-Build rich data labeling flows with features for piping answers and adding survey logic such as skip and stop rules:
+Build rich data labeling flows with features for piping answers and adding survey logic such as skip and stop rules (<a href="https://www.expectedparrot.com/content/b8afe09d-49bf-4c05-b753-d7b0ae782eb3" target="_blank" rel="noopener noreferrer">view at Coop</a>):
+
 ```python
 from edsl import QuestionMultipleChoice, QuestionFreeText, Survey
 
@@ -131,7 +137,7 @@ results.select("color", "flower")
 > |---------------|-----------------------------------------------------------------------------------|
 > | blue          | A commonly known blue flower is the bluebell. Another example is the cornflower.  |
 
-<a href="https://www.expectedparrot.com/content/b8afe09d-49bf-4c05-b753-d7b0ae782eb3" target="_blank" rel="noopener noreferrer">View results</a>.
+<br>
 
 **Caching**: 
 API calls to LLMs are cached automatically, allowing you to retrieve responses to questions that have already been run and reproduce experiments at no cost. Learn more about how the <a href="https://docs.expectedparrot.com/en/latest/remote_caching.html" target="_blank" rel="noopener noreferrer">universal remote cache</a> works.
