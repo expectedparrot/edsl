@@ -88,7 +88,7 @@ class PromptConstructor:
 
     def get_question_options(self, question_data):
         """Get the question options."""
-        return QuestionOptionProcessor(self).get_question_options(question_data)
+        return QuestionOptionProcessor.from_prompt_constructor(self).get_question_options(question_data)
 
     @cached_property
     def agent_instructions_prompt(self) -> Prompt:
@@ -200,7 +200,7 @@ class PromptConstructor:
         """Extracts the file keys from the question text.
         It checks if the variables in the question text are in the scenario file keys.
         """
-        return QuestionTemplateReplacementsBuilder(self).question_file_keys()
+        return QuestionTemplateReplacementsBuilder.from_prompt_constructor(self).question_file_keys()
 
     @cached_property
     def question_instructions_prompt(self) -> Prompt:
@@ -219,7 +219,7 @@ class PromptConstructor:
             QuestionInstructionPromptBuilder,
         )
 
-        return QuestionInstructionPromptBuilder(self).build()
+        return QuestionInstructionPromptBuilder.from_prompt_constructor(self).build()
 
     @cached_property
     def prior_question_memory_prompt(self) -> Prompt:
