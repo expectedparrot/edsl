@@ -360,6 +360,11 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         ScenarioList([Scenario({'a': 1, 'b': 3}), Scenario({'a': 1, 'b': 4}), Scenario({'a': 2, 'b': 3}), Scenario({'a': 2, 'b': 4})])
         """
         from itertools import product
+        from edsl import Scenario
+        if isinstance(other, Scenario):
+            other = ScenarioList([other])
+        elif not isinstance(other, ScenarioList):
+            raise TypeError(f"Cannot multiply ScenarioList with {type(other)}")
 
         new_sl = []
         for s1, s2 in list(product(self, other)):
