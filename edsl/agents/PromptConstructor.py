@@ -71,24 +71,49 @@ class PromptConstructor:
     - The question instructions - "You are being asked the following question: Do you like school? The options are 0: yes 1: no Return a valid JSON formatted like this, selecting only the number of the option: {"answer": <put answer code here>, "comment": "<put explanation here>"} Only 1 option may be selected."
     - The memory prompt - "Before the question you are now answering, you already answered the following question(s): Question: Do you like school? Answer: Prior answer"
     """
+    @classmethod
+    def from_invigilator(
+        cls,
+        invigilator: "InvigilatorBase",
+        prompt_plan: Optional["PromptPlan"] = None
+    ) -> "PromptConstructor":
+        return cls(
+            agent=invigilator.agent,
+            question=invigilator.question,
+            scenario=invigilator.scenario,
+            survey=invigilator.survey,
+            model=invigilator.model,
+            current_answers=invigilator.current_answers,
+            memory_plan=invigilator.memory_plan,
+            prompt_plan=prompt_plan
+        )
 
     def __init__(
-        self, invigilator: "InvigilatorBase", prompt_plan: Optional["PromptPlan"] = None
+        self,
+        agent: "Agent",
+        question: "QuestionBase",
+        scenario: "Scenario",
+        survey: "Survey",
+        model: "LanguageModel",
+        current_answers: dict,
+        memory_plan: "MemoryPlan",
+        prompt_plan: Optional["PromptPlan"] = None
     ):
-        self.invigilator = invigilator
+        self.agent = agent
+        self.question = question
+        self.scenario = scenario
+        self.survey = survey
+        self.model = model
+        self.current_answers = current_answers
+        self.memory_plan = memory_plan
         self.prompt_plan = prompt_plan or PromptPlan()
-
-        self.agent = invigilator.agent
-        self.question = invigilator.question
-        self.scenario = invigilator.scenario
-        self.survey = invigilator.survey
-        self.model = invigilator.model
-        self.current_answers = invigilator.current_answers
-        self.memory_plan = invigilator.memory_plan
 
     def get_question_options(self, question_data):
         """Get the question options."""
-        return QuestionOptionProcessor.from_prompt_constructor(self).get_question_options(question_data)
+        return (QuestionOptionProcessor
+                .from_prompt_constructor(self)
+                .get_question_options(question_data)
+        )
 
     @cached_property
     def agent_instructions_prompt(self) -> Prompt:
