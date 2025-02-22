@@ -518,7 +518,6 @@ class LanguageModel(
         """
         from edsl.language_models.model import get_model_class
 
-        # breakpoint()
 
         model_class = get_model_class(
             data["model"], service_name=data.get("inference_service", None)
