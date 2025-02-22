@@ -8,8 +8,12 @@ import tempfile
 class SurveyFlowVisualization:
     """A mixin for visualizing the flow of a survey with parameter visualization."""
 
-    def __init__(self, survey: "Survey"):
+    def __init__(self, survey: "Survey", scenario: Optional["Scenario"] = None, agent: Optional["Agent"] = None):
         self.survey = survey
+        self.scenario = scenario or {}
+        self.agent = agent
+        #from edsl import Scenario
+        #self.scenario = Scenario({'hello': 'world'})
 
     def show_flow(self, filename: Optional[str] = None):
         """Create an image showing the flow of users through the survey and question parameters."""
@@ -39,7 +43,14 @@ class SurveyFlowVisualization:
 
             if hasattr(question, "detailed_parameters"):
                 for param in question.detailed_parameters:
-                    if "." in param:
+                    if "agent." in param:
+                        # Handle agent trait references
+                        trait_name = param.replace("agent.", "")
+                        params_and_refs.add(param)
+                        if param not in param_to_questions:
+                            param_to_questions[param] = []
+                        param_to_questions[param].append(index)
+                    elif "." in param:
                         source_q, ref_type = param.split(".", 1)
                         if ref_type not in reference_types:
                             reference_types[ref_type] = set()
@@ -55,11 +66,16 @@ class SurveyFlowVisualization:
             color = reference_colors.get(ref_type, reference_colors['default'])
             for source_q_name, target_q_index in references:
                 # Find the source question index by name
-                source_q_index = next(
-                    i
-                    for i, q in enumerate(self.survey.questions)
-                    if q.question_name == source_q_name
-                )
+                try:
+                    source_q_index = next(
+                        i
+                        for i, q in enumerate(self.survey.questions)
+                        if q.question_name == source_q_name
+                    )
+                except StopIteration:
+                    print(f"Source question {source_q_name} not found in survey.")
+                    continue
+                
                 ref_edge = pydot.Edge(
                     f"Q{source_q_index}",
                     f"Q{target_q_index}",
@@ -74,14 +90,29 @@ class SurveyFlowVisualization:
         # Create parameter nodes and connect them to questions
         for param in params_and_refs:
             param_node_name = f"param_{param}"
-            param_node = pydot.Node(
-                param_node_name,
-                label=f"{{{{ {param} }}}}",
-                shape="box",
-                style="filled",
-                fillcolor="lightgrey",
-                fontsize="10",
-            )
+            node_attrs = {
+                "label": f"{{{{ {param} }}}}",
+                "shape": "box",
+                "style": "filled",
+                "fillcolor": "lightgrey",
+                "fontsize": "10",
+            }
+            
+            # Special handling for agent traits
+            if param.startswith("agent."):
+                node_attrs.update({
+                    "fillcolor": "lightblue",
+                    "label": f"Agent Trait\n{{{{ {param} }}}}"
+                })
+            # Check if parameter exists in scenario
+            elif self.scenario and param in self.scenario:
+                node_attrs.update({
+                    "color": "red",
+                    "penwidth": "2.0",
+                    "label": f"Scenario\n{{{{ {param} }}}}"
+                })
+            
+            param_node = pydot.Node(param_node_name, **node_attrs)
             graph.add_node(param_node)
 
             # Connect this parameter to all questions that use it
