@@ -187,6 +187,57 @@ class QuestionBasePromptsMixin:
         from edsl.prompts import Prompt
 
         return Prompt(self.question_presentation) + Prompt(self.answering_instructions)
+    
+
+    def detailed_parameters(self) -> set[tuple[str, ...]]:
+        params_by_key = {}
+        for key, value in self.data.items():
+            if isinstance(value, str):
+                params_by_key[key] = self.extract_parameters(value)
+        return params_by_key
+
+    @staticmethod
+    def extract_parameters(txt: str) -> set[tuple[str, ...]]:
+        """Return all parameters of the question as tuples representing their full paths.
+        
+        For example, if the template contains:
+        "What is your name, {{ nickname }}, based on {{ q0.answer }}?"
+        This will return a set with:
+        {('nickname',), ('q0', 'answer')}
+        """
+        from jinja2 import Environment, nodes
+
+        env = Environment()
+        #txt = self._all_text()
+        ast = env.parse(txt)
+        
+        variables = set()
+        processed_nodes = set()  # Keep track of nodes we've processed
+        
+        def visit_node(node, path=()):
+            if id(node) in processed_nodes:
+                return
+            processed_nodes.add(id(node))
+            
+            if isinstance(node, nodes.Name):
+                # Only add the name if we're not in the middle of building a longer path
+                if not path:
+                    variables.add((node.name,))
+                else:
+                    variables.add((node.name,) + path)
+            elif isinstance(node, nodes.Getattr):
+                # Build path from bottom up
+                new_path = (node.attr,) + path
+                visit_node(node.node, new_path)
+        
+        for node in ast.find_all((nodes.Name, nodes.Getattr)):
+            visit_node(node)
+
+        return variables
+    
+    @property
+    def detailed_parameters(self):
+        return [".".join(p) for p in self.extract_parameters(self._all_text())]
 
     @property
     def parameters(self) -> set[str]:
@@ -219,3 +270,33 @@ class QuestionBasePromptsMixin:
                 return self.new_default_instructions
             else:
                 return self.applicable_prompts(model)[0]()
+
+    @staticmethod
+    def sequence_in_dict(d: dict, path: tuple[str, ...]) -> tuple[bool, any]:
+        """Check if a sequence of nested keys exists in a dictionary and return the value.
+        
+        Args:
+            d: The dictionary to check
+            path: Tuple of keys representing the nested path
+            
+        Returns:
+            tuple[bool, any]: (True, value) if the path exists, (False, None) otherwise
+            
+        Example:
+            >>> d = {'a': {'b': {'c': 1}}}
+            >>> sequence_in_dict(d, ('a', 'b', 'c'))
+            (True, 1)
+            >>> sequence_in_dict(d, ('a', 'b', 'd'))
+            (False, None)
+            >>> sequence_in_dict(d, ('x',))
+            (False, None)
+        """
+        try:
+            current = d
+            for key in path:
+                current = current.get(key)
+                if current is None:
+                    return (False, None)
+            return (True, current)
+        except (AttributeError, TypeError):
+            return (False, None)

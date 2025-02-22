@@ -18,29 +18,58 @@ class SurveyFlowVisualization:
 
         graph = pydot.Dot(graph_type="digraph")
 
-        # First collect all unique parameters and answer references
+        # First collect all unique parameters and different types of references
         params_and_refs = set()
         param_to_questions = {}  # Keep track of which questions use each parameter
-        answer_refs = set()  # Track answer references between questions
+        reference_types = {}  # Dictionary to store different types of references
+        reference_colors = {
+            'answer': 'purple',
+            'question_text': 'red',
+            'question_options': 'orange',
+            'comment': 'blue',
+            'default': "grey"
+        }
 
         # First pass: collect parameters and their question associations
         for index, question in enumerate(self.survey.questions):
-            # Add the main question node
             question_node = pydot.Node(
                 f"Q{index}", label=f"{question.question_name}", shape="ellipse"
             )
             graph.add_node(question_node)
 
-            if hasattr(question, "parameters"):
-                for param in question.parameters:
-                    # Check if this is an answer reference (contains '.answer')
-                    if ".answer" in param:
-                        answer_refs.add((param.split(".")[0], index))
+            if hasattr(question, "detailed_parameters"):
+                for param in question.detailed_parameters:
+                    if "." in param:
+                        source_q, ref_type = param.split(".", 1)
+                        if ref_type not in reference_types:
+                            reference_types[ref_type] = set()
+                        reference_types[ref_type].add((source_q, index))
                     else:
                         params_and_refs.add(param)
                         if param not in param_to_questions:
                             param_to_questions[param] = []
                         param_to_questions[param].append(index)
+
+        # Add edges for all reference types
+        for ref_type, references in reference_types.items():
+            color = reference_colors.get(ref_type, reference_colors['default'])
+            for source_q_name, target_q_index in references:
+                # Find the source question index by name
+                source_q_index = next(
+                    i
+                    for i, q in enumerate(self.survey.questions)
+                    if q.question_name == source_q_name
+                )
+                ref_edge = pydot.Edge(
+                    f"Q{source_q_index}",
+                    f"Q{target_q_index}",
+                    style="dashed",
+                    color=color,
+                    label=f".{ref_type}",
+                    fontcolor=color,
+                    fontname="Courier",
+                )
+                graph.add_edge(ref_edge)
 
         # Create parameter nodes and connect them to questions
         for param in params_and_refs:
@@ -65,23 +94,6 @@ class SurveyFlowVisualization:
                     arrowsize="0.5",
                 )
                 graph.add_edge(param_edge)
-
-        # Add edges for answer references
-        for source_q_name, target_q_index in answer_refs:
-            # Find the source question index by name
-            source_q_index = next(
-                i
-                for i, q in enumerate(self.survey.questions)
-                if q.question_name == source_q_name
-            )
-            ref_edge = pydot.Edge(
-                f"Q{source_q_index}",
-                f"Q{target_q_index}",
-                style="dashed",
-                color="purple",
-                label="answer reference",
-            )
-            graph.add_edge(ref_edge)
 
         # Add an "EndOfSurvey" node
         graph.add_node(
@@ -133,6 +145,7 @@ class SurveyFlowVisualization:
                     fontcolor=color,
                     tailport="n",
                     headport="n",
+                    fontname="Courier",
                 )
             else:
                 edge = pydot.Edge(
@@ -141,6 +154,7 @@ class SurveyFlowVisualization:
                     label=edge_label,
                     color=color,
                     fontcolor=color,
+                    fontname="Courier"
                 )
 
             graph.add_edge(edge)

@@ -108,7 +108,7 @@ class PromptConstructor:
         self.memory_plan = memory_plan
         self.prompt_plan = prompt_plan or PromptPlan()
 
-    def get_question_options(self, question_data):
+    def get_question_options(self, question_data: dict) -> list[str]:
         """Get the question options."""
         return (QuestionOptionProcessor
                 .from_prompt_constructor(self)
@@ -223,6 +223,7 @@ class PromptConstructor:
     @cached_property
     def question_file_keys(self) -> list:
         """Extracts the file keys from the question text.
+        
         It checks if the variables in the question text are in the scenario file keys.
         """
         return QuestionTemplateReplacementsBuilder.from_prompt_constructor(self).question_file_keys()
@@ -312,30 +313,32 @@ class PromptConstructor:
         arranged = self.prompt_plan.arrange_components(**components)
         
         if parallel == "process":
-            ctx = get_context('fork')
-            with ctx.Pool() as pool:
-                results = pool.map(_process_prompt, [
-                    (arranged["user_prompt"], {}),
-                    (arranged["system_prompt"], {})
-                ])
-                prompts = {
-                    "user_prompt": results[0],
-                    "system_prompt": results[1]
-                }
+            pass
+            # ctx = get_context('fork')
+            # with ctx.Pool() as pool:
+            #     results = pool.map(_process_prompt, [
+            #         (arranged["user_prompt"], {}),
+            #         (arranged["system_prompt"], {})
+            #     ])
+            #     prompts = {
+            #         "user_prompt": results[0],
+            #         "system_prompt": results[1]
+            #     }
             
         elif parallel == "thread":
-            with ThreadPoolExecutor() as executor:
-                user_prompt_list = arranged["user_prompt"]
-                system_prompt_list = arranged["system_prompt"]
+            pass
+            # with ThreadPoolExecutor() as executor:
+            #     user_prompt_list = arranged["user_prompt"]
+            #     system_prompt_list = arranged["system_prompt"]
                 
-                # Process both prompt lists in parallel
-                rendered_user = executor.submit(_process_prompt, (user_prompt_list, {}))
-                rendered_system = executor.submit(_process_prompt, (system_prompt_list, {}))
+            #     # Process both prompt lists in parallel
+            #     rendered_user = executor.submit(_process_prompt, (user_prompt_list, {}))
+            #     rendered_system = executor.submit(_process_prompt, (system_prompt_list, {}))
                 
-                prompts = {
-                    "user_prompt": rendered_user.result(),
-                    "system_prompt": rendered_system.result()
-                }
+            #     prompts = {
+            #         "user_prompt": rendered_user.result(),
+            #         "system_prompt": rendered_system.result()
+            #     }
                 
         else:  # sequential processing
             prompts = self.prompt_plan.get_prompts(**components)
