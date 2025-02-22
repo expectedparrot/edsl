@@ -133,7 +133,7 @@ class JobsPrompts:
                         parameters=invigilator.model.parameters,
                         system_prompt=system_prompt,
                         user_prompt=user_prompt,
-                        iteration=0,
+                        iteration=iteration,
                     )
                     cache_keys.append(cache_key)
 
