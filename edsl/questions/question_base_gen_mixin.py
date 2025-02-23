@@ -85,48 +85,101 @@ class QuestionBaseGenMixin:
         lp = LoopProcessor(self)
         return lp.process_templates(scenario_list)
 
+    class MaxTemplateNestingExceeded(Exception):
+        """Raised when template rendering exceeds maximum allowed nesting level."""
+        pass
+
     def render(self, replacement_dict: dict) -> "QuestionBase":
         """Render the question components as jinja2 templates with the replacement dictionary.
-
-        :param replacement_dict: The dictionary of values to replace in the question components.
-
+        Handles nested template variables by recursively rendering until all variables are resolved.
+        
+        Raises:
+            MaxTemplateNestingExceeded: If template nesting exceeds MAX_NESTING levels
+        
         >>> from edsl.questions.QuestionFreeText import QuestionFreeText
         >>> q = QuestionFreeText(question_name = "color", question_text = "What is your favorite {{ thing }}?")
         >>> q.render({"thing": "color"})
         Question('free_text', question_name = \"""color\""", question_text = \"""What is your favorite color?\""")
 
+        >>> from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
+        >>> q = QuestionMultipleChoice(question_name = "color", question_text = "What is your favorite {{ thing }}?", question_options = ["red", "blue", "green"])
+        >>> from edsl.scenarios.Scenario import Scenario
+        >>> q.render(Scenario({"thing": "color"})).data
+        {'question_name': 'color', 'question_text': 'What is your favorite color?', 'question_options': ['red', 'blue', 'green']}
+
+        >>> from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
+        >>> q = QuestionMultipleChoice(question_name = "color", question_text = "What is your favorite {{ thing }}?", question_options = ["red", "blue", "green"])
+        >>> q.render({"thing": 1}).data
+        {'question_name': 'color', 'question_text': 'What is your favorite 1?', 'question_options': ['red', 'blue', 'green']}
+
+
+        >>> from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
+        >>> from edsl.scenarios.Scenario import Scenario
+        >>> q = QuestionMultipleChoice(question_name = "color", question_text = "What is your favorite {{ thing }}?", question_options = ["red", "blue", "green"])
+        >>> q.render(Scenario({"thing": "color of {{ object }}", "object":"water"})).data
+        {'question_name': 'color', 'question_text': 'What is your favorite color of water?', 'question_options': ['red', 'blue', 'green']}
+
+        
+        >>> from edsl.questions.QuestionFreeText import QuestionFreeText
+        >>> q = QuestionFreeText(question_name = "infinite", question_text = "This has {{ a }}")
+        >>> q.render({"a": "{{ b }}", "b": "{{ a }}"}) # doctest: +IGNORE_EXCEPTION_DETAIL
+        Traceback (most recent call last):
+            ...
+        edsl.questions.question_base_gen_mixin.QuestionBaseGenMixin.MaxTemplateNestingExceeded:...
         """
-        from jinja2 import Environment
+        from jinja2 import Environment, meta
         from edsl.scenarios.Scenario import Scenario
 
+        MAX_NESTING = 10  # Maximum allowed nesting levels
+        
         strings_only_replacement_dict = {
             k: v for k, v in replacement_dict.items() if not isinstance(v, Scenario)
         }
 
+        def _has_unrendered_variables(template_str: str, env: Environment) -> bool:
+            """Check if the template string has any unrendered variables."""
+            if not isinstance(template_str, str):
+                return False
+            ast = env.parse(template_str)
+            return bool(meta.find_undeclared_variables(ast))
+
         def render_string(value: str) -> str:
             if value is None or not isinstance(value, str):
                 return value
-            else:
-                try:
-                    return (
-                        Environment()
-                        .from_string(value)
-                        .render(strings_only_replacement_dict)
-                    )
-                except Exception as e:
-                    #breakpoint()
-                    import warnings
-
-                    warnings.warn("Failed to render string: " + value)
-                    # breakpoint()
-                    return value
+            
+            try:
+                env = Environment()
+                result = value
+                nesting_count = 0
+                
+                while _has_unrendered_variables(result, env):
+                    if nesting_count >= MAX_NESTING:
+                        raise self.MaxTemplateNestingExceeded(
+                            f"Template rendering exceeded {MAX_NESTING} levels of nesting. "
+                            f"Current value: {result}"
+                        )
+                    
+                    template = env.from_string(result)
+                    new_result = template.render(strings_only_replacement_dict)
+                    if new_result == result:  # Break if no changes made
+                        break
+                    result = new_result
+                    nesting_count += 1
+                
+                return result
+            except self.MaxTemplateNestingExceeded:
+                raise
+            except Exception as e:
+                import warnings
+                warnings.warn("Failed to render string: " + value)
+                return value
 
         return self.apply_function(render_string)
 
     def apply_function(
         self, func: Callable, exclude_components: List[str] = None
     ) -> QuestionBase:
-        """Apply a function to the question parts
+        """Apply a function to the question parts, excluding certain components.
 
         :param func: The function to apply to the question parts.
         :param exclude_components: The components to exclude from the function application.
@@ -166,4 +219,4 @@ class QuestionBaseGenMixin:
 if __name__ == "__main__":
     import doctest
 
-    doctest.testmod()
+    doctest.testmod(optionflags=doctest.ELLIPSIS)

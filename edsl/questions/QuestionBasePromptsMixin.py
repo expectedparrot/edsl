@@ -189,7 +189,19 @@ class QuestionBasePromptsMixin:
         return Prompt(self.question_presentation) + Prompt(self.answering_instructions)
     
 
-    def detailed_parameters(self) -> set[tuple[str, ...]]:
+    def detailed_parameters_by_key(self) -> dict[str, set[tuple[str, ...]]]:
+        """
+        Return a dictionary of parameters by key.
+
+        >>> from edsl import QuestionMultipleChoice
+        >>> QuestionMultipleChoice.example().detailed_parameters_by_key()
+        {'question_name': set(), 'question_text': set()}
+
+        >>> from edsl import QuestionFreeText
+        >>> q = QuestionFreeText(question_name = "example", question_text = "What is your name, {{ nickname }}, based on {{ q0.answer }}?")
+        >>> q.detailed_parameters_by_key()
+        {'question_name': set(), 'question_text': {('q0', 'answer'), ('nickname',)}}
+        """
         params_by_key = {}
         for key, value in self.data.items():
             if isinstance(value, str):
@@ -200,10 +212,13 @@ class QuestionBasePromptsMixin:
     def extract_parameters(txt: str) -> set[tuple[str, ...]]:
         """Return all parameters of the question as tuples representing their full paths.
         
-        For example, if the template contains:
-        "What is your name, {{ nickname }}, based on {{ q0.answer }}?"
-        This will return a set with:
-        {('nickname',), ('q0', 'answer')}
+        :param txt: The text to extract parameters from.
+        :return: A set of tuples representing the parameters.
+
+        >>> from edsl.questions import QuestionMultipleChoice
+        >>> d = QuestionMultipleChoice.example().extract_parameters("What is your name, {{ nickname }}, based on {{ q0.answer }}?")
+        >>> d =={('nickname',), ('q0', 'answer')}
+        True
         """
         from jinja2 import Environment, nodes
 
@@ -283,6 +298,7 @@ class QuestionBasePromptsMixin:
             tuple[bool, any]: (True, value) if the path exists, (False, None) otherwise
             
         Example:
+            >>> sequence_in_dict = QuestionBasePromptsMixin.sequence_in_dict
             >>> d = {'a': {'b': {'c': 1}}}
             >>> sequence_in_dict(d, ('a', 'b', 'c'))
             (True, 1)
@@ -300,3 +316,8 @@ class QuestionBasePromptsMixin:
             return (True, current)
         except (AttributeError, TypeError):
             return (False, None)
+
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod()
