@@ -9,7 +9,11 @@ if TYPE_CHECKING:
 
 
 class QuestionBaseGenMixin:
-    """Mixin for QuestionBase."""
+    """Mixin for QuestionBase.
+    
+    This mostly has functions that are used to generate new questions from existing ones.
+    
+    """
 
     def copy(self) -> QuestionBase:
         """Return a deep copy of the question.
@@ -175,10 +179,17 @@ class QuestionBaseGenMixin:
                 return value
 
         return self.apply_function(render_string)
-
+      
     def apply_function(
-        self, func: Callable, exclude_components: List[str] = None
+        self, func: Callable, exclude_components: Optional[List[str]] = None
     ) -> QuestionBase:
+        from edsl.questions.QuestionBase import QuestionBase
+        d = self._apply_function_dict(func, exclude_components)
+        return QuestionBase.from_dict(d)
+
+    def _apply_function_dict(
+        self, func: Callable, exclude_components: Optional[List[str]] = None
+    ) -> dict:
         """Apply a function to the question parts, excluding certain components.
 
         :param func: The function to apply to the question parts.
@@ -194,7 +205,6 @@ class QuestionBaseGenMixin:
         Question('free_text', question_name = \"""COLOR\""", question_text = \"""WHAT IS YOUR FAVORITE COLOR?\""")
 
         """
-        from edsl.questions.QuestionBase import QuestionBase
 
         if exclude_components is None:
             exclude_components = ["question_name", "question_type"]
@@ -213,7 +223,7 @@ class QuestionBaseGenMixin:
                 d[key] = value
                 continue
             d[key] = func(value)
-        return QuestionBase.from_dict(d)
+        return d
 
 
 if __name__ == "__main__":
