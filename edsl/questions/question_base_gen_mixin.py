@@ -1,7 +1,7 @@
 from __future__ import annotations
 import copy
 import itertools
-from typing import Optional, List, Callable, Type, TYPE_CHECKING
+from typing import Optional, List, Callable, Type, TYPE_CHECKING, Union
 
 if TYPE_CHECKING:
     from edsl.questions.QuestionBase import QuestionBase
@@ -93,7 +93,7 @@ class QuestionBaseGenMixin:
         """Raised when template rendering exceeds maximum allowed nesting level."""
         pass
 
-    def render(self, replacement_dict: dict) -> "QuestionBase":
+    def render(self, replacement_dict: dict, return_dict: bool = False) -> Union["QuestionBase", dict]:
         """Render the question components as jinja2 templates with the replacement dictionary.
         Handles nested template variables by recursively rendering until all variables are resolved.
         
@@ -177,8 +177,10 @@ class QuestionBaseGenMixin:
                 import warnings
                 warnings.warn("Failed to render string: " + value)
                 return value
-
-        return self.apply_function(render_string)
+        if return_dict:
+            return self._apply_function_dict(render_string)
+        else:
+            return self.apply_function(render_string)
       
     def apply_function(
         self, func: Callable, exclude_components: Optional[List[str]] = None

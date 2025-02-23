@@ -199,8 +199,9 @@ class QuestionBasePromptsMixin:
 
         >>> from edsl import QuestionFreeText
         >>> q = QuestionFreeText(question_name = "example", question_text = "What is your name, {{ nickname }}, based on {{ q0.answer }}?")
-        >>> q.detailed_parameters_by_key()
-        {'question_name': set(), 'question_text': {('q0', 'answer'), ('nickname',)}}
+        >>> r = q.detailed_parameters_by_key()
+        >>> r == {'question_name': set(), 'question_text': {('q0', 'answer'), ('nickname',)}}
+        True
         """
         params_by_key = {}
         for key, value in self.data.items():
