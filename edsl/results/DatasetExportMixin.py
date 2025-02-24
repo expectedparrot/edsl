@@ -7,6 +7,7 @@ from typing import Optional, Tuple, Union, List
 
 from edsl.results.file_exports import CSVExport, ExcelExport, JSONLExport, SQLiteExport
 
+
 class DatasetExportMixin:
     """Mixin class for exporting Dataset objects."""
 
@@ -219,7 +220,9 @@ class DatasetExportMixin:
         )
         return exporter.export()
 
-    def _db(self, remove_prefix: bool = True, shape: str = "wide") -> "sqlalchemy.engine.Engine":
+    def _db(
+        self, remove_prefix: bool = True, shape: str = "wide"
+    ) -> "sqlalchemy.engine.Engine":
         """Create a SQLite database in memory and return the connection.
 
         Args:
@@ -229,7 +232,7 @@ class DatasetExportMixin:
         Returns:
             A database connection
         >>> from sqlalchemy import text
-        >>> from edsl import Results 
+        >>> from edsl import Results
         >>> engine = Results.example()._db()
         >>> len(engine.execute(text("SELECT * FROM self")).fetchall())
         4
@@ -247,16 +250,17 @@ class DatasetExportMixin:
 
         if shape == "long":
             # Melt the dataframe to convert it to long format
-            df = df.melt(
-                var_name='key', 
-                value_name='value'
-            )
+            df = df.melt(var_name="key", value_name="value")
             # Add a row number column for reference
-            df.insert(0, 'row_number', range(1, len(df) + 1))
-            
+            df.insert(0, "row_number", range(1, len(df) + 1))
+
             # Split the key into data_type and key
-            df['data_type'] = df['key'].apply(lambda x: x.split('.')[0] if '.' in x else None)
-            df['key'] = df['key'].apply(lambda x: '.'.join(x.split('.')[1:]) if '.' in x else x)
+            df["data_type"] = df["key"].apply(
+                lambda x: x.split(".")[0] if "." in x else None
+            )
+            df["key"] = df["key"].apply(
+                lambda x: ".".join(x.split(".")[1:]) if "." in x else x
+            )
 
         df.to_sql(
             "self",
@@ -276,27 +280,27 @@ class DatasetExportMixin:
     ) -> Union["pd.DataFrame", str]:
         """Execute a SQL query and return the results as a DataFrame.
 
-        Args:
-            query: The SQL query to execute
-            shape: The shape of the data in the database (wide or long)
-            remove_prefix: Whether to remove the prefix from the column names
-            transpose: Whether to transpose the DataFrame
-            transpose_by: The column to use as the index when transposing
-            csv: Whether to return the DataFrame as a CSV string
-            to_list: Whether to return the results as a list
-            to_latex: Whether to return the results as LaTeX
-            filename: Optional filename to save the results to
+         Args:
+             query: The SQL query to execute
+             shape: The shape of the data in the database (wide or long)
+             remove_prefix: Whether to remove the prefix from the column names
+             transpose: Whether to transpose the DataFrame
+             transpose_by: The column to use as the index when transposing
+             csv: Whether to return the DataFrame as a CSV string
+             to_list: Whether to return the results as a list
+             to_latex: Whether to return the results as LaTeX
+             filename: Optional filename to save the results to
 
-        Returns:
-            DataFrame, CSV string, list, or LaTeX string depending on parameters
+         Returns:
+             DataFrame, CSV string, list, or LaTeX string depending on parameters
 
-       Examples:
-           >>> from edsl import Results
-           >>> r = Results.example(); 
-           >>> len(r.sql("SELECT * FROM self", shape = "wide"))
-           4
-           >>> len(r.sql("SELECT * FROM self", shape = "long"))
-           172
+        Examples:
+            >>> from edsl import Results
+            >>> r = Results.example();
+            >>> len(r.sql("SELECT * FROM self", shape = "wide"))
+            4
+            >>> len(r.sql("SELECT * FROM self", shape = "long"))
+            172
         """
         import pandas as pd
 
@@ -615,6 +619,98 @@ class DatasetExportMixin:
             keys.remove("count")
             keys.append("count")
             return sl.reorder_keys(keys).to_dataset()
+
+    def flatten(self, field: str) -> "Dataset":
+        """Flatten a field containing dictionaries into separate columns.
+
+        Args:
+            field: The field containing dictionaries to flatten
+
+        Returns:
+            A new Dataset with the flattened columns while preserving original columns
+
+        Examples:
+            >>> from edsl.results.Dataset import Dataset
+            >>> d = Dataset([{'data': [{'a': 1, 'b': 2}, {'a': 3, 'b': 4}]}])
+            >>> d.flatten('data')
+            Dataset([{'data': [{'a': 1, 'b': 2}, {'a': 3, 'b': 4}]}, {'data.a': [1, 3]}, {'data.b': [2, 4]}])
+
+            >>> d = Dataset([{'data': [{'a': 1}, {'b': 2}], 'other': ['x', 'y']}])
+            >>> d.flatten('data')
+            Dataset([{'data': [{'a': 1}, {'b': 2}]}, {'other': ['x', 'y']}, {'data.a': [1, None]}, {'data.b': [None, 2]}])
+        """
+        if field not in self.relevant_columns():
+            raise ValueError(f"Field '{field}' not found in dataset")
+
+        # Start with all existing columns
+        new_data = list(self.data)
+
+        # Get the dictionary values from the field
+        dict_values = self._key_to_value(field)
+
+        # Get all unique keys across all dictionaries
+        all_keys = set()
+        for d in dict_values:
+            if not isinstance(d, dict):
+                raise ValueError(f"Field '{field}' contains non-dictionary values")
+            all_keys.update(d.keys())
+
+        # Create new columns for each key
+        for key in sorted(all_keys):
+            column_name = f"{field}.{key}"
+            values = [d.get(key) for d in dict_values]
+            new_data.append({column_name: values})
+
+        from edsl.results.Dataset import Dataset
+
+        return Dataset(new_data)
+
+    def unpack(self, prefix: Optional[str] = None) -> "Dataset":
+        """Unpack list columns into separate columns with numeric suffixes.
+
+        Args:
+            prefix: Optional prefix to filter which columns to unpack. If None, unpacks all list columns.
+
+        Returns:
+            A new Dataset with unpacked columns
+
+        Examples:
+            >>> from edsl.results.Dataset import Dataset
+            >>> d = Dataset([{'data': [[1, 2, 3], [4, 5, 6]]}])
+            >>> d.unpack()
+            Dataset([{'data_1': [1, 4]}, {'data_2': [2, 5]}, {'data_3': [3, 6]}])
+
+            >>> d = Dataset([{'a': [[1, 2], [3, 4]], 'b': ['x', 'y']}])
+            >>> d.unpack('a')
+            Dataset([{'a_1': [1, 3]}, {'a_2': [2, 4]}, {'b': ['x', 'y']}])
+        """
+        new_data = []
+
+        for entry in self:
+            key, values = list(entry.items())[0]
+            if prefix and not key.startswith(prefix):
+                new_data.append({key: values})
+                continue
+
+            # Check if any value in the column is a list
+            if not any(isinstance(v, list) for v in values):
+                new_data.append({key: values})
+                continue
+
+            # Get the maximum length of lists
+            max_len = max(len(v) if isinstance(v, list) else 1 for v in values)
+
+            # Create new columns for each index
+            for i in range(max_len):
+                new_key = f"{key}_{i+1}"
+                new_values = [
+                    v[i] if isinstance(v, list) and i < len(v) else None for v in values
+                ]
+                new_data.append({new_key: new_values})
+
+        from edsl.results.Dataset import Dataset
+
+        return Dataset(new_data)
 
 
 if __name__ == "__main__":
