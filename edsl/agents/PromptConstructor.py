@@ -71,24 +71,49 @@ class PromptConstructor:
     - The question instructions - "You are being asked the following question: Do you like school? The options are 0: yes 1: no Return a valid JSON formatted like this, selecting only the number of the option: {"answer": <put answer code here>, "comment": "<put explanation here>"} Only 1 option may be selected."
     - The memory prompt - "Before the question you are now answering, you already answered the following question(s): Question: Do you like school? Answer: Prior answer"
     """
+    @classmethod
+    def from_invigilator(
+        cls,
+        invigilator: "InvigilatorBase",
+        prompt_plan: Optional["PromptPlan"] = None
+    ) -> "PromptConstructor":
+        return cls(
+            agent=invigilator.agent,
+            question=invigilator.question,
+            scenario=invigilator.scenario,
+            survey=invigilator.survey,
+            model=invigilator.model,
+            current_answers=invigilator.current_answers,
+            memory_plan=invigilator.memory_plan,
+            prompt_plan=prompt_plan
+        )
 
     def __init__(
-        self, invigilator: "InvigilatorBase", prompt_plan: Optional["PromptPlan"] = None
+        self,
+        agent: "Agent",
+        question: "QuestionBase",
+        scenario: "Scenario",
+        survey: "Survey",
+        model: "LanguageModel",
+        current_answers: dict,
+        memory_plan: "MemoryPlan",
+        prompt_plan: Optional["PromptPlan"] = None
     ):
-        self.invigilator = invigilator
+        self.agent = agent
+        self.question = question
+        self.scenario = scenario
+        self.survey = survey
+        self.model = model
+        self.current_answers = current_answers
+        self.memory_plan = memory_plan
         self.prompt_plan = prompt_plan or PromptPlan()
 
-        self.agent = invigilator.agent
-        self.question = invigilator.question
-        self.scenario = invigilator.scenario
-        self.survey = invigilator.survey
-        self.model = invigilator.model
-        self.current_answers = invigilator.current_answers
-        self.memory_plan = invigilator.memory_plan
-
-    def get_question_options(self, question_data):
+    def get_question_options(self, question_data: dict) -> list[str]:
         """Get the question options."""
-        return QuestionOptionProcessor.from_prompt_constructor(self).get_question_options(question_data)
+        return (QuestionOptionProcessor
+                .from_prompt_constructor(self)
+                .get_question_options(question_data)
+        )
 
     @cached_property
     def agent_instructions_prompt(self) -> Prompt:
@@ -198,6 +223,7 @@ class PromptConstructor:
     @cached_property
     def question_file_keys(self) -> list:
         """Extracts the file keys from the question text.
+        
         It checks if the variables in the question text are in the scenario file keys.
         """
         return QuestionTemplateReplacementsBuilder.from_prompt_constructor(self).question_file_keys()
@@ -287,30 +313,32 @@ class PromptConstructor:
         arranged = self.prompt_plan.arrange_components(**components)
         
         if parallel == "process":
-            ctx = get_context('fork')
-            with ctx.Pool() as pool:
-                results = pool.map(_process_prompt, [
-                    (arranged["user_prompt"], {}),
-                    (arranged["system_prompt"], {})
-                ])
-                prompts = {
-                    "user_prompt": results[0],
-                    "system_prompt": results[1]
-                }
+            pass
+            # ctx = get_context('fork')
+            # with ctx.Pool() as pool:
+            #     results = pool.map(_process_prompt, [
+            #         (arranged["user_prompt"], {}),
+            #         (arranged["system_prompt"], {})
+            #     ])
+            #     prompts = {
+            #         "user_prompt": results[0],
+            #         "system_prompt": results[1]
+            #     }
             
         elif parallel == "thread":
-            with ThreadPoolExecutor() as executor:
-                user_prompt_list = arranged["user_prompt"]
-                system_prompt_list = arranged["system_prompt"]
+            pass
+            # with ThreadPoolExecutor() as executor:
+            #     user_prompt_list = arranged["user_prompt"]
+            #     system_prompt_list = arranged["system_prompt"]
                 
-                # Process both prompt lists in parallel
-                rendered_user = executor.submit(_process_prompt, (user_prompt_list, {}))
-                rendered_system = executor.submit(_process_prompt, (system_prompt_list, {}))
+            #     # Process both prompt lists in parallel
+            #     rendered_user = executor.submit(_process_prompt, (user_prompt_list, {}))
+            #     rendered_system = executor.submit(_process_prompt, (system_prompt_list, {}))
                 
-                prompts = {
-                    "user_prompt": rendered_user.result(),
-                    "system_prompt": rendered_system.result()
-                }
+            #     prompts = {
+            #         "user_prompt": rendered_user.result(),
+            #         "system_prompt": rendered_system.result()
+            #     }
                 
         else:  # sequential processing
             prompts = self.prompt_plan.get_prompts(**components)

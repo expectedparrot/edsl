@@ -19,7 +19,7 @@ class QuestionInstructionPromptBuilder:
         question = prompt_constructor.question
         return cls(prompt_constructor, model, survey, question)
 
-    def __init__(self, prompt_constructor: "PromptConstructor", model, survey, question):
+    def __init__(self, prompt_constructor: "PromptConstructor", model:"Model", survey:"Survey", question:"QuestionBase"):
         self.prompt_constructor = prompt_constructor
         self.model = model
         self.survey = survey
