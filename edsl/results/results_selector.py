@@ -130,10 +130,11 @@ class Selector:
         return [parsed_data_type]
 
     def _fetch_data(self, to_fetch: Dict[str, List[str]]) -> List[Dict[str, Any]]:
+        from copy import deepcopy
         new_data = []
         for data_type, keys in to_fetch.items():
             for key in keys:
-                entries = self._fetch_list(data_type, key)
+                entries = deepcopy(self._fetch_list(data_type, key))
                 new_data.append({f"{data_type}.{key}": entries})
 
         return [d for key in self.items_in_order for d in new_data if key in d]

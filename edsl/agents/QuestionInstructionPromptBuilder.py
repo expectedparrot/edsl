@@ -9,7 +9,15 @@ from edsl.agents.QuestionTemplateReplacementsBuilder import (
 
 
 class QuestionInstructionPromptBuilder:
-    """Handles the construction and rendering of question instructions."""
+    """Handles the construction and rendering of question instructions.
+    
+    
+    # For humanize display 
+    # 1. Take the question data 
+    # 2. Figure out the question options 
+    # 3. Replace all the values in the question_data values w/ the replacement data
+    # 4. Return the question_data 
+    """
 
     @classmethod
     def from_prompt_constructor(cls, prompt_constructor: "PromptConstructor"):
@@ -38,7 +46,7 @@ class QuestionInstructionPromptBuilder:
             Prompt: The fully rendered question instructions to be send to the Language Model
 
         >>> from edsl import QuestionMultipleChoice
-        >>> from edsl import Survey
+        >>> from edsl import Survey, Scenario
         >>> q = Survey.example().questions[0]
         >>> from edsl import Model
         >>> class FakePromptConstructor:
@@ -48,13 +56,13 @@ class QuestionInstructionPromptBuilder:
         ...         self.agent = agent
         ...         self.model = Model('test')
         ...         self.survey = Survey.example()
-        ...     scenario = {"file1": "file1"}
+        ...     scenario = Scenario({"file1": "file1"})
         ...     question = q
         ...     agent = "agent"
         ...     def prior_answers_dict(self):
         ...         return {'q0': 'q0'}
         >>> mpc = FakePromptConstructor(
-        ...     scenario={"file1": "file1"},
+        ...     scenario=Scenario({"file1": "file1"}),
         ...     question=q,
         ...     agent="agent"
         ... )

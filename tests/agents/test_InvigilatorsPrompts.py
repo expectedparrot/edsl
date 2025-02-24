@@ -53,6 +53,7 @@ def test_invigilator_ai_no_trait_template(mock_model, mock_question):
     #     question_type=mock_question.question_type,
     #     model=mock_model.model,
     # )
+    from edsl.scenarios.Scenario import Scenario
 
     a = Agent(
         instruction="You are a happy-go lucky agent.",
@@ -64,7 +65,7 @@ def test_invigilator_ai_no_trait_template(mock_model, mock_question):
     i = InvigilatorAI(
         agent=a,
         question=mock_question,
-        scenario={},
+        scenario=Scenario({}),
         model=mock_model,
         survey=Survey.example(),
         memory_plan=None,
@@ -81,11 +82,12 @@ def test_invigilator_ai_with_trait_template(mock_model, mock_question):
         codebook={"feeling": "Feelings right now", "age": "Age in years"},
         traits_presentation_template="You are feeling {{ feeling }}.",
     )
+    from edsl.scenarios.Scenario import Scenario
 
     i = InvigilatorAI(
         agent=a,
         question=mock_question,
-        scenario={},
+        scenario=Scenario({}),
         survey=Survey.example(),
         model=mock_model,
         memory_plan=None,
@@ -105,11 +107,11 @@ def test_invigilator_ai_with_incomplete_trait_template(mock_model, mock_question
         codebook={"feeling": "Feelings right now", "age": "Age in years"},
         traits_presentation_template="You are feeling {{ feeling }}. You eat lots of {{ food }}.",
     )
-
+    from edsl.scenarios.Scenario import Scenario
     i = InvigilatorAI(
         agent=a,
         question=mock_question,
-        scenario={},
+        scenario=Scenario({}),
         model=mock_model,
         survey=Survey.example(),
         memory_plan=None,
