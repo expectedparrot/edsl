@@ -136,7 +136,7 @@ class QuestionBaseGenMixin:
         qop = QuestionOptionProcessor(scenario, prior_answers_dict)
         return qop.get_question_options(self.data)
 
-    def render(self, replacement_dict: dict, return_dict: bool = False) -> Union["QuestionBase", dict]:
+    def render(self, replacement_dict: dict, return_dict: bool = False, question_data: Optional[dict] = None) -> Union["QuestionBase", dict]:
         """Render the question components as jinja2 templates with the replacement dictionary.
         Handles nested template variables by recursively rendering until all variables are resolved.
         
@@ -221,20 +221,23 @@ class QuestionBaseGenMixin:
                 warnings.warn("Failed to render string: " + value)
                 return value
         if return_dict:
-            return self._apply_function_dict(render_string)
+            return self._apply_function_dict(render_string, question_data=question_data)
         else:
-            return self.apply_function(render_string)
+            return self.apply_function(render_string, question_data=question_data)
       
     def apply_function(
-        self, func: Callable, exclude_components: Optional[List[str]] = None
+        self, func: Callable, 
+        exclude_components: Optional[List[str]] = None,
+        question_data: Optional[dict] = None
     ) -> QuestionBase:
         from edsl.questions.QuestionBase import QuestionBase
-        d = self._apply_function_dict(func, exclude_components)
+        d = self._apply_function_dict(func, exclude_components, question_data)
         return QuestionBase.from_dict(d)
 
     def _apply_function_dict(
         self, func: Callable, 
-        exclude_components: Optional[List[str]] = None
+        exclude_components: Optional[List[str]] = None, 
+        question_data: Optional[dict] = None
     ) -> dict:
         """Apply a function to the question parts, excluding certain components.
 
@@ -255,21 +258,23 @@ class QuestionBaseGenMixin:
         if exclude_components is None:
             exclude_components = ["question_name", "question_type"]
 
-        d = copy.deepcopy(self.to_dict(add_edsl_version=False))
-        for key, value in d.items():
+        if question_data is None:
+            question_data = copy.deepcopy(self.to_dict(add_edsl_version=False))
+            
+        for key, value in question_data.items():
             if key in exclude_components:
                 continue
             if isinstance(value, dict):
                 for k, v in value.items():
                     value[k] = func(v)
-                d[key] = value
+                question_data[key] = value
                 continue
             if isinstance(value, list):
                 value = [func(v) for v in value]
-                d[key] = value
+                question_data[key] = value
                 continue
-            d[key] = func(value)
-        return d
+            question_data[key] = func(value)
+        return question_data
 
 
 if __name__ == "__main__":
