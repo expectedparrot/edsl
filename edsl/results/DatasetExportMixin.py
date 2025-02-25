@@ -620,97 +620,118 @@ class DatasetExportMixin:
             keys.append("count")
             return sl.reorder_keys(keys).to_dataset()
 
-    def flatten(self, field: str) -> "Dataset":
-        """Flatten a field containing dictionaries into separate columns.
-
-        Args:
-            field: The field containing dictionaries to flatten
-
-        Returns:
-            A new Dataset with the flattened columns while preserving original columns
-
-        Examples:
-            >>> from edsl.results.Dataset import Dataset
-            >>> d = Dataset([{'data': [{'a': 1, 'b': 2}, {'a': 3, 'b': 4}]}])
-            >>> d.flatten('data')
-            Dataset([{'data': [{'a': 1, 'b': 2}, {'a': 3, 'b': 4}]}, {'data.a': [1, 3]}, {'data.b': [2, 4]}])
-
-            >>> d = Dataset([{'data': [{'a': 1}, {'b': 2}], 'other': ['x', 'y']}])
-            >>> d.flatten('data')
-            Dataset([{'data': [{'a': 1}, {'b': 2}]}, {'other': ['x', 'y']}, {'data.a': [1, None]}, {'data.b': [None, 2]}])
+    def flatten(self, field, keep_original=False):
         """
-        if field not in self.relevant_columns():
-            raise ValueError(f"Field '{field}' not found in dataset")
-
-        # Start with all existing columns
-        new_data = list(self.data)
-
-        # Get the dictionary values from the field
-        dict_values = self._key_to_value(field)
-
-        # Get all unique keys across all dictionaries
-        all_keys = set()
-        for d in dict_values:
-            if not isinstance(d, dict):
-                raise ValueError(f"Field '{field}' contains non-dictionary values")
-            all_keys.update(d.keys())
-
-        # Create new columns for each key
-        for key in sorted(all_keys):
-            column_name = f"{field}.{key}"
-            values = [d.get(key) for d in dict_values]
-            new_data.append({column_name: values})
-
-        from edsl.results.Dataset import Dataset
-
-        return Dataset(new_data)
-
-    def unpack(self, prefix: Optional[str] = None) -> "Dataset":
-        """Unpack list columns into separate columns with numeric suffixes.
-
+        Flatten a field containing a list of dictionaries into separate fields.
+        
+        For example, if a dataset contains:
+        [{'data': [{'a': 1}, {'b': 2}], 'other': ['x', 'y']}]
+        
+        After d.flatten('data'), it should become:
+        [{'other': ['x', 'y'], 'data.a': [1, None], 'data.b': [None, 2]}]
+        
         Args:
-            prefix: Optional prefix to filter which columns to unpack. If None, unpacks all list columns.
+            field: The field to flatten
+            keep_original: If True, keeps the original field in the dataset
+        
+        Returns:
+            A new dataset with the flattened fields
+        """
+        # Create a copy of the dataset
+        result = self.copy()
+        
+        # Get all unique keys from the dictionaries in the field
+        keys = set()
+        for example in self:
+            if field in example and isinstance(example[field], list):
+                for item in example[field]:
+                    if isinstance(item, dict):
+                        keys.update(item.keys())
+        
+        # Create new fields for each key
+        for key in keys:
+            new_field = f"{field}.{key}"
+            result = result.map(lambda example: {
+                **example,
+                new_field: [item.get(key) if isinstance(item, dict) else None 
+                            for item in example.get(field, [])]
+            })
+        
+        # Remove the original field if keep_original is False
+        if not keep_original:
+            result = result.map(lambda example: {k: v for k, v in example.items() if k != field})
+        
+        return result
 
+    def unpack_list(self, field: str, new_names: Optional[List[str]] = None, keep_original: bool = False) -> "Dataset":
+        """Unpack list columns into separate columns with provided names or numeric suffixes.
+        
+        For example, if a dataset contains:
+        [{'data': [[1, 2, 3], [4, 5, 6]], 'other': ['x', 'y']}]
+        
+        After d.unpack_list('data'), it should become:
+        [{'other': ['x', 'y'], 'data_1': [1, 4], 'data_2': [2, 5], 'data_3': [3, 6]}]
+        
+        Args:
+            field: The field containing lists to unpack
+            new_names: Optional list of names for the unpacked fields. If None, uses numeric suffixes.
+            keep_original: If True, keeps the original field in the dataset
+        
         Returns:
             A new Dataset with unpacked columns
-
+        
         Examples:
             >>> from edsl.results.Dataset import Dataset
             >>> d = Dataset([{'data': [[1, 2, 3], [4, 5, 6]]}])
-            >>> d.unpack()
+            >>> d.unpack_list('data')
             Dataset([{'data_1': [1, 4]}, {'data_2': [2, 5]}, {'data_3': [3, 6]}])
-
-            >>> d = Dataset([{'a': [[1, 2], [3, 4]], 'b': ['x', 'y']}])
-            >>> d.unpack('a')
-            Dataset([{'a_1': [1, 3]}, {'a_2': [2, 4]}, {'b': ['x', 'y']}])
+            
+            >>> d.unpack_list('data', new_names=['first', 'second', 'third'])
+            Dataset([{'first': [1, 4]}, {'second': [2, 5]}, {'third': [3, 6]}])
         """
-        new_data = []
-
-        for entry in self:
-            key, values = list(entry.items())[0]
-            if prefix and not key.startswith(prefix):
-                new_data.append({key: values})
-                continue
-
-            # Check if any value in the column is a list
-            if not any(isinstance(v, list) for v in values):
-                new_data.append({key: values})
-                continue
-
-            # Get the maximum length of lists
-            max_len = max(len(v) if isinstance(v, list) else 1 for v in values)
-
-            # Create new columns for each index
-            for i in range(max_len):
-                new_key = f"{key}_{i+1}"
-                new_values = [
-                    v[i] if isinstance(v, list) and i < len(v) else None for v in values
-                ]
-                new_data.append({new_key: new_values})
-
         from edsl.results.Dataset import Dataset
-
-        return Dataset(new_data)
+        
+        # Create a copy of the dataset
+        result = Dataset(self.data.copy())
+        
+        # Find the field in the dataset
+        field_index = None
+        for i, entry in enumerate(result.data):
+            if field in entry:
+                field_index = i
+                break
+        
+        if field_index is None:
+            raise ValueError(f"Field '{field}' not found in dataset")
+        
+        field_data = result.data[field_index][field]
+        
+        # Check if values are lists
+        if not all(isinstance(v, list) for v in field_data):
+            raise ValueError(f"Field '{field}' does not contain lists in all entries")
+        
+        # Get the maximum length of lists
+        max_len = max(len(v) for v in field_data)
+        
+        # Create new fields for each index
+        for i in range(max_len):
+            if new_names and i < len(new_names):
+                new_field = new_names[i]
+            else:
+                new_field = f"{field}_{i+1}"
+            
+            # Extract the i-th element from each list
+            new_values = []
+            for item in field_data:
+                new_values.append(item[i] if i < len(item) else None)
+            
+            result.data.append({new_field: new_values})
+        
+        # Remove the original field if keep_original is False
+        if not keep_original:
+            result.data.pop(field_index)
+        
+        return result
 
 
 if __name__ == "__main__":
