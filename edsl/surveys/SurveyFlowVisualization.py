@@ -20,7 +20,9 @@ class SurveyFlowVisualization:
         # Create a graph object
         import pydot
 
-        graph = pydot.Dot(graph_type="digraph")
+        FONT_SIZE = "10"
+
+        graph = pydot.Dot(graph_type="digraph", fontsize=FONT_SIZE)
 
         # First collect all unique parameters and different types of references
         params_and_refs = set()
@@ -37,7 +39,7 @@ class SurveyFlowVisualization:
         # First pass: collect parameters and their question associations
         for index, question in enumerate(self.survey.questions):
             question_node = pydot.Node(
-                f"Q{index}", label=f"{question.question_name}", shape="ellipse"
+                f"Q{index}", label=f"{question.question_name}", shape="ellipse", fontsize=FONT_SIZE
             )
             graph.add_node(question_node)
 
@@ -84,6 +86,7 @@ class SurveyFlowVisualization:
                     label=f".{ref_type}",
                     fontcolor=color,
                     fontname="Courier",
+                    fontsize=FONT_SIZE
                 )
                 graph.add_edge(ref_edge)
 
@@ -95,20 +98,19 @@ class SurveyFlowVisualization:
                 "shape": "box",
                 "style": "filled",
                 "fillcolor": "lightgrey",
-                "fontsize": "10",
+                "fontsize": FONT_SIZE,
             }
             
             # Special handling for agent traits
             if param.startswith("agent."):
                 node_attrs.update({
-                    "fillcolor": "lightblue",
+                    "fillcolor": "lightpink",
                     "label": f"Agent Trait\n{{{{ {param} }}}}"
                 })
             # Check if parameter exists in scenario
             elif self.scenario and param in self.scenario:
                 node_attrs.update({
-                    "color": "red",
-                    "penwidth": "2.0",
+                    "fillcolor": "lightgreen",
                     "label": f"Scenario\n{{{{ {param} }}}}"
                 })
             
@@ -121,22 +123,22 @@ class SurveyFlowVisualization:
                     param_node_name,
                     f"Q{q_index}",
                     style="dotted",
-                    color="grey",
                     arrowsize="0.5",
+                    fontsize=FONT_SIZE,
                 )
                 graph.add_edge(param_edge)
 
         # Add an "EndOfSurvey" node
         graph.add_node(
-            pydot.Node("EndOfSurvey", label="End of Survey", shape="rectangle")
+            pydot.Node("EndOfSurvey", label="End of Survey", shape="rectangle", fontsize=FONT_SIZE, style="filled", fillcolor="lightgrey")
         )
 
         # Add edges for normal flow through the survey
         num_questions = len(self.survey.questions)
         for index in range(num_questions - 1):
-            graph.add_edge(pydot.Edge(f"Q{index}", f"Q{index+1}"))
+            graph.add_edge(pydot.Edge(f"Q{index}", f"Q{index+1}", fontsize=FONT_SIZE))
 
-        graph.add_edge(pydot.Edge(f"Q{num_questions-1}", "EndOfSurvey"))
+        graph.add_edge(pydot.Edge(f"Q{num_questions-1}", "EndOfSurvey", fontsize=FONT_SIZE))
 
         relevant_rules = [
             rule
@@ -152,7 +154,7 @@ class SurveyFlowVisualization:
             "purple",
             "brown",
             "cyan",
-            "green",
+            "darkgreen",
         ]
         rule_colors = {
             rule: colors[i % len(colors)] for i, rule in enumerate(relevant_rules)
@@ -177,6 +179,7 @@ class SurveyFlowVisualization:
                     tailport="n",
                     headport="n",
                     fontname="Courier",
+                    fontsize=FONT_SIZE,
                 )
             else:
                 edge = pydot.Edge(
@@ -185,7 +188,8 @@ class SurveyFlowVisualization:
                     label=edge_label,
                     color=color,
                     fontcolor=color,
-                    fontname="Courier"
+                    fontname="Courier",
+                    fontsize=FONT_SIZE,
                 )
 
             graph.add_edge(edge)
@@ -201,9 +205,8 @@ class SurveyFlowVisualization:
             except FileNotFoundError:
                 print(
                     """File not found. Most likely it's because you don't have graphviz installed. Please install it and try again.
-                        It's 
+                        On Ubuntu, you can install it by running:
                         $ sudo apt-get install graphviz 
-                        on Ubuntu.
                     """
                 )
             from edsl.utilities.is_notebook import is_notebook
