@@ -2,7 +2,7 @@ import pytest
 from edsl.language_models.PriceManager import PriceManager
 
 
-class TestPriceManager(PriceManager):
+class MockPriceManager(PriceManager):
     def refresh_prices(self) -> None:
         """
         Override refresh_prices to use test data instead of calling Coop.fetch_prices().
@@ -53,7 +53,7 @@ class TestPriceManager(PriceManager):
 
 @pytest.fixture
 def price_manager():
-    return TestPriceManager()
+    return MockPriceManager()
 
 
 def test_price_retrieval(price_manager):
