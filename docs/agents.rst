@@ -6,6 +6,14 @@ Agents
 `Agent` objects are used to simulate survey responses for target audiences. 
 They can be created with specified traits, such as personas and relevant attributes for a survey, that are used together with language models to generate answers to questions. 
 
+Agents can be created individually or as a list of agents, and can be updated after they are created.
+They can be used with any question type, and can be used to generate responses for a single question or a survey of multiple questions.
+
+Agent information is presented to a model in a system prompt; it is delivered together with a user prompt of information about a given question.
+In the examples below we show how to access these prompts to inspect them before running a survey and in the results that are generated for a survey.
+Note, however, that certain models do not take system prompts (e.g., OpenAI's o1). 
+When using a model that does not take a system prompt, agent information should be included in the user prompt.
+
 
 Constructing an Agent
 ---------------------
@@ -60,6 +68,32 @@ If you want to use a name in the prompts for generating responses, you can pass 
             "age": 45,
             "home_state": "Massachusetts"
         })
+
+
+We can see how the agent information is presented to a model by inspecting the system prompt that is generated when we use an agent with a question:
+
+.. code-block:: python
+
+    from edsl import QuestionFreeText
+
+    q = QuestionFreeText(
+        question_name = "favorite_food",
+        question_text = "What is your favorite food?"
+    )
+
+    job = q.by(agent) # using the agent created above
+    job.prompts().select("user_prompt", "system_prompt")
+
+
+Output:
+
+.. list-table::
+   :header-rows: 1
+
+   * - user_prompt
+     - system_prompt
+   * - What is your favorite food?
+     - ou are answering questions as if you were a human. Do not break character. Your traits: {'first_name': 'Ada', 'persona': 'You are an expert in machine learning.', 'age': 45, 'home_state': 'Massachusetts'}
 
 
 Note that trying to create two agents with the same name or trying to use a key "name" in the `traits` will raise an error.
