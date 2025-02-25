@@ -3,6 +3,13 @@ from edsl.language_models.PriceManager import PriceManager
 
 
 class MockPriceManager(PriceManager):
+    _instance = None  # Separate MockPriceManager from parent class
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super(PriceManager, cls).__new__(cls)
+        return cls._instance
+
     def refresh_prices(self) -> None:
         """
         Override refresh_prices to use test data instead of calling Coop.fetch_prices().
