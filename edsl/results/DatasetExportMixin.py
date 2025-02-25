@@ -83,7 +83,8 @@ class DatasetExportMixin:
             else:
                 if len(values) != _num_observations:
                     raise ValueError(
-                        "The number of observations is not consistent across columns."
+                        f"The number of observations is not consistent across columns. "
+                        f"Column '{key}' has {len(values)} observations, but previous columns had {_num_observations} observations."
                     )
 
         return _num_observations
@@ -623,114 +624,153 @@ class DatasetExportMixin:
     def flatten(self, field, keep_original=False):
         """
         Flatten a field containing a list of dictionaries into separate fields.
-        
+
         For example, if a dataset contains:
         [{'data': [{'a': 1}, {'b': 2}], 'other': ['x', 'y']}]
-        
+
         After d.flatten('data'), it should become:
         [{'other': ['x', 'y'], 'data.a': [1, None], 'data.b': [None, 2]}]
-        
+
         Args:
             field: The field to flatten
             keep_original: If True, keeps the original field in the dataset
-        
+
         Returns:
             A new dataset with the flattened fields
         """
-        # Create a copy of the dataset
-        result = self.copy()
-        
-        # Get all unique keys from the dictionaries in the field
-        keys = set()
-        for example in self:
-            if field in example and isinstance(example[field], list):
-                for item in example[field]:
-                    if isinstance(item, dict):
-                        keys.update(item.keys())
-        
-        # Create new fields for each key
-        for key in keys:
-            new_field = f"{field}.{key}"
-            result = result.map(lambda example: {
-                **example,
-                new_field: [item.get(key) if isinstance(item, dict) else None 
-                            for item in example.get(field, [])]
-            })
-        
-        # Remove the original field if keep_original is False
-        if not keep_original:
-            result = result.map(lambda example: {k: v for k, v in example.items() if k != field})
-        
-        return result
+        from edsl.results.Dataset import Dataset
 
-    def unpack_list(self, field: str, new_names: Optional[List[str]] = None, keep_original: bool = False) -> "Dataset":
+        # Ensure the dataset isn't empty
+        if not self.data:
+            return self.copy()
+
+        # Get the number of observations
+        num_observations = self.num_observations()
+
+        # Find the column to flatten
+        field_entry = None
+        for entry in self.data:
+            if field in entry:
+                field_entry = entry
+                break
+
+        if field_entry is None:
+            warnings.warn(
+                f"Field '{field}' not found in dataset, returning original dataset"
+            )
+            return self.copy()
+
+        # Create new dictionary for flattened data
+        flattened_data = []
+
+        # Copy all existing columns except the one we're flattening (if keep_original is False)
+        for entry in self.data:
+            col_name = next(iter(entry.keys()))
+            if col_name != field or keep_original:
+                flattened_data.append(entry.copy())
+
+        # Get field data and make sure it's valid
+        field_values = field_entry[field]
+        if not all(isinstance(item, dict) for item in field_values if item is not None):
+            warnings.warn(
+                f"Field '{field}' contains non-dictionary values that cannot be flattened"
+            )
+            return self.copy()
+
+        # Collect all unique keys across all dictionaries
+        all_keys = set()
+        for item in field_values:
+            if isinstance(item, dict):
+                all_keys.update(item.keys())
+
+        # Create new columns for each key
+        for key in sorted(all_keys):  # Sort for consistent output
+            new_values = []
+            for i in range(num_observations):
+                value = None
+                if i < len(field_values) and isinstance(field_values[i], dict):
+                    value = field_values[i].get(key, None)
+                new_values.append(value)
+
+            # Add this as a new column
+            flattened_data.append({f"{field}.{key}": new_values})
+
+        # Return a new Dataset with the flattened data
+        return Dataset(flattened_data)
+
+    def unpack_list(
+        self,
+        field: str,
+        new_names: Optional[List[str]] = None,
+        keep_original: bool = True,
+    ) -> "Dataset":
         """Unpack list columns into separate columns with provided names or numeric suffixes.
-        
+
         For example, if a dataset contains:
         [{'data': [[1, 2, 3], [4, 5, 6]], 'other': ['x', 'y']}]
-        
+
         After d.unpack_list('data'), it should become:
         [{'other': ['x', 'y'], 'data_1': [1, 4], 'data_2': [2, 5], 'data_3': [3, 6]}]
-        
+
         Args:
             field: The field containing lists to unpack
             new_names: Optional list of names for the unpacked fields. If None, uses numeric suffixes.
             keep_original: If True, keeps the original field in the dataset
-        
+
         Returns:
             A new Dataset with unpacked columns
-        
+
         Examples:
             >>> from edsl.results.Dataset import Dataset
             >>> d = Dataset([{'data': [[1, 2, 3], [4, 5, 6]]}])
             >>> d.unpack_list('data')
-            Dataset([{'data_1': [1, 4]}, {'data_2': [2, 5]}, {'data_3': [3, 6]}])
-            
+            Dataset([{'data': [[1, 2, 3], [4, 5, 6]]}, {'data_1': [1, 4]}, {'data_2': [2, 5]}, {'data_3': [3, 6]}])
+
             >>> d.unpack_list('data', new_names=['first', 'second', 'third'])
-            Dataset([{'first': [1, 4]}, {'second': [2, 5]}, {'third': [3, 6]}])
+            Dataset([{'data': [[1, 2, 3], [4, 5, 6]]}, {'first': [1, 4]}, {'second': [2, 5]}, {'third': [3, 6]}])
         """
         from edsl.results.Dataset import Dataset
-        
+
         # Create a copy of the dataset
         result = Dataset(self.data.copy())
-        
+
         # Find the field in the dataset
         field_index = None
         for i, entry in enumerate(result.data):
             if field in entry:
                 field_index = i
                 break
-        
+
         if field_index is None:
             raise ValueError(f"Field '{field}' not found in dataset")
-        
+
         field_data = result.data[field_index][field]
-        
+
         # Check if values are lists
         if not all(isinstance(v, list) for v in field_data):
             raise ValueError(f"Field '{field}' does not contain lists in all entries")
-        
+
         # Get the maximum length of lists
         max_len = max(len(v) for v in field_data)
-        
+
         # Create new fields for each index
         for i in range(max_len):
             if new_names and i < len(new_names):
                 new_field = new_names[i]
             else:
                 new_field = f"{field}_{i+1}"
-            
+
             # Extract the i-th element from each list
             new_values = []
             for item in field_data:
                 new_values.append(item[i] if i < len(item) else None)
-            
+
             result.data.append({new_field: new_values})
-        
+
         # Remove the original field if keep_original is False
         if not keep_original:
             result.data.pop(field_index)
-        
+
         return result
 
 
