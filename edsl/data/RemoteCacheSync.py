@@ -100,7 +100,7 @@ class RemoteCacheSync(AbstractContextManager):
 
     def _get_cache_difference(self) -> CacheDifference:
         """Retrieves differences between local and remote caches."""
-        diff = self.coop.remote_cache_get_diff(self.cache.keys())
+        diff = self.coop.legacy_remote_cache_get_diff(self.cache.keys())
         return CacheDifference(
             client_missing_entries=diff.get("client_missing_cacheentries", []),
             server_missing_keys=diff.get("server_missing_cacheentry_keys", []),
