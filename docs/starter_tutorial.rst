@@ -286,11 +286,6 @@ Here we create a simple multiple choice question:
 
 We can administer it to a language model by calling the `run()` method on it.
 
-When the job begins running a link to a Progress Report will appear.
-If there are any exceptions a link to an Exceptions Report will also appear.
-If remote inference is activated, a link to the Results page will appear when the job is completed.
-
-
 .. code-block:: python
 
   results = q.run()
@@ -353,6 +348,15 @@ Output:
    * - raw_model_response.smallest_prime_cost
    * - raw_model_response.smallest_prime_one_usd_buys
    * - raw_model_response.smallest_prime_raw_model_response
+
+
+
+*Note:* 
+If we are running the job locally we can pass `run(progress_bar=True)` to view a Progress Report.
+Any exceptions will appear in the console.
+
+If remote inference is activated, a link to a Progress Report will appear automatically, as well as a link to an Exceptions Report if there are any.
+When the job is completed, a link to the Results page will also appear.
 
 
 Example: Conducting a survey with agents and models
