@@ -184,6 +184,8 @@ class PromptConstructor:
     @staticmethod
     def _augmented_answers_dict(current_answers: dict) -> dict:
         """
+        The augmented answers dict is a dictionary of dictionaries, where the key is the question name and the value is a dictionary of the entry type and the value.
+
         >>> PromptConstructor._augmented_answers_dict({"q0": "LOVE IT!", "q0_comment": "I love school!"})
         {'q0': {'answer': 'LOVE IT!', 'comment': 'I love school!'}}
         """
@@ -199,9 +201,14 @@ class PromptConstructor:
 
     @staticmethod
     def _add_answers(
-        answer_dict: dict, current_answers: dict
+        question_names_to_questions: dict, current_answers: dict
     ) -> dict[str, "QuestionBase"]:
         """
+        The augmented answers dict is a dictionary of dictionaries, where the key is the question name and the value is a dictionary of the entry type and the value.
+        The augmented answers dict is created by the _augmented_answers_dict method.
+
+        The question_names_to_questions is a dictionary of questions, where the key is the question name and the value is the question object.
+
         >>> from edsl import QuestionFreeText
         >>> d = {"q0": QuestionFreeText(question_text="Do you like school?", question_name = "q0")}
         >>> current_answers = {"q0": "LOVE IT!"}
@@ -210,15 +217,15 @@ class PromptConstructor:
         """
         augmented_answers = PromptConstructor._augmented_answers_dict(current_answers)
 
-        for question in answer_dict:
+        for question in question_names_to_questions:
             if question in augmented_answers:
                 for entry_type, value in augmented_answers[question].items():
-                    setattr(answer_dict[question], entry_type, value)
+                    setattr(question_names_to_questions[question], entry_type, value)
             else:
-                answer_dict[question].answer = PlaceholderAnswer()
-                answer_dict[question].comment = PlaceholderComment()
-                answer_dict[question].generated_tokens = PlaceholderGeneratedTokens()
-        return answer_dict
+                question_names_to_questions[question].answer = PlaceholderAnswer()
+                question_names_to_questions[question].comment = PlaceholderComment()
+                question_names_to_questions[question].generated_tokens = PlaceholderGeneratedTokens()
+        return question_names_to_questions
 
     @cached_property
     def question_file_keys(self) -> list:

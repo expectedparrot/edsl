@@ -64,6 +64,28 @@ class Scenario(Base, UserDict, ScenarioHtmlMixin):
         self.data = data if data is not None else {}
         self.name = name
 
+    def _find_file_keys(self) -> list[str]:
+        """Find the file keys in the scenario.
+        
+        >>> from edsl import Scenario
+        >>> from edsl.scenarios.FileStore import FileStore
+        >>> import tempfile
+        >>> with tempfile.NamedTemporaryFile() as f:
+        ...     _ = f.write(b"Hello, world!")
+        ...     _ = f.seek(0)
+        ...     fs = FileStore(f.name)
+        ...     scenario = Scenario({"fs_file": fs, 'a': 1})
+        ...     scenario._find_file_keys()
+        ['fs_file']
+        """
+        from edsl.scenarios.FileStore import FileStore
+
+        file_keys = []
+        for key, value in self.items():
+            if isinstance(value, FileStore):
+                file_keys.append(key)
+        return file_keys
+
     def __mul__(self, scenario_list_or_scenario: Union["ScenarioList", "Scenario"]) -> "ScenarioList":
         from edsl.scenarios.ScenarioList import ScenarioList
         if isinstance(scenario_list_or_scenario, ScenarioList):

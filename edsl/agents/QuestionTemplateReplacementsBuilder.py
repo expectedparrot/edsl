@@ -31,26 +31,32 @@ class QuestionTemplateReplacementsBuilder:
         self.prior_answers_dict = prior_answers_dict
         self.agent = agent
 
-    def question_file_keys(self):
+    def extract_question_file_keys(self):
         """
+        Extracts the file keys from the question text.
+
+        These are keys from Scenario object that are associated with FileStore objects.
+
         >>> from edsl import QuestionMultipleChoice, Scenario
         >>> q = QuestionMultipleChoice(question_text="Do you like school?", question_name = "q0", question_options = ["yes", "no"])
-        >>> qtrb = QuestionTemplateReplacementsBuilder(scenario = {"file1": "file1"}, question = q, prior_answers_dict = {'q0': 'q0'}, agent = "agent")
-        >>> qtrb.question_file_keys()
+        >>> qtrb = QuestionTemplateReplacementsBuilder(scenario = Scenario({"file1": "file1"}), question = q, prior_answers_dict = {'q0': 'q0'}, agent = "agent")
+        >>> qtrb.extract_question_file_keys()
         []
         >>> from edsl import FileStore
         >>> fs = FileStore.example()
         >>> q = QuestionMultipleChoice(question_text="What do you think of this file: {{ file1 }}", question_name = "q0", question_options = ["good", "bad"])
         >>> qtrb = QuestionTemplateReplacementsBuilder(scenario = Scenario({"file1": fs}), question = q, prior_answers_dict = {'q0': 'q0'}, agent = "agent")
-        >>> qtrb.question_file_keys()
+        >>> qtrb.extract_question_file_keys()
         ['file1']
         """
-        question_text = self.question.question_text
-        file_keys = self._find_file_keys(self.scenario)
-        return self._extract_file_keys_from_question_text(question_text, file_keys)
+        #question_text = self.question.question_text
+        #file_keys = self._find_file_keys(self.scenario)
+        #file_keys = self.scenario._find_file_keys()
+        #return self._extract_file_keys_from_question_text(question_text, file_keys)
+        return self.question._file_keys(self.scenario)
 
     def scenario_file_keys(self):
-        return self._find_file_keys(self.scenario)
+        return self.scenario._find_file_keys()
 
     def get_jinja2_variables(template_str: str) -> Set[str]:
         """
@@ -71,56 +77,32 @@ class QuestionTemplateReplacementsBuilder:
 
         return meta.find_undeclared_variables(ast)
 
-    @staticmethod
-    def _find_file_keys(scenario: "Scenario") -> list:
-        """We need to find all the keys in the scenario that refer to FileStore objects.
-        These will be used to append to the prompt a list of files that are part of the scenario.
+    # @staticmethod
+    # def _extract_file_keys_from_question_text(
+    #     question_text: str, scenario_file_keys: list
+    # ) -> list:
+    #     """
+    #     Extracts the file keys from a question text.
 
-        >>> from edsl import Scenario
-        >>> from edsl.scenarios.FileStore import FileStore
-        >>> import tempfile
-        >>> with tempfile.NamedTemporaryFile() as f:
-        ...     _ = f.write(b"Hello, world!")
-        ...     _ = f.seek(0)
-        ...     fs = FileStore(f.name)
-        ...     scenario = Scenario({"fs_file": fs, 'a': 1})
-        ...     QuestionTemplateReplacementsBuilder._find_file_keys(scenario)
-        ['fs_file']
-        """
-        from edsl.scenarios.FileStore import FileStore
-
-        file_entries = []
-        for key, value in scenario.items():
-            if isinstance(value, FileStore):
-                file_entries.append(key)
-        return file_entries
-
-    @staticmethod
-    def _extract_file_keys_from_question_text(
-        question_text: str, scenario_file_keys: list
-    ) -> list:
-        """
-        Extracts the file keys from a question text.
-
-        >>> from edsl import Scenario
-        >>> from edsl.scenarios.FileStore import FileStore
-        >>> import tempfile
-        >>> with tempfile.NamedTemporaryFile() as f:
-        ...     _ = f.write(b"Hello, world!")
-        ...     _ = f.seek(0)
-        ...     fs = FileStore(f.name)
-        ...     scenario = Scenario({"fs_file": fs, 'a': 1})
-        ...     QuestionTemplateReplacementsBuilder._extract_file_keys_from_question_text("{{ fs_file }}", ['fs_file'])
-        ['fs_file']
-        """
-        variables = QuestionTemplateReplacementsBuilder.get_jinja2_variables(
-            question_text
-        )
-        question_file_keys = []
-        for var in variables:
-            if var in scenario_file_keys:
-                question_file_keys.append(var)
-        return question_file_keys
+    #     >>> from edsl import Scenario
+    #     >>> from edsl.scenarios.FileStore import FileStore
+    #     >>> import tempfile
+    #     >>> with tempfile.NamedTemporaryFile() as f:
+    #     ...     _ = f.write(b"Hello, world!")
+    #     ...     _ = f.seek(0)
+    #     ...     fs = FileStore(f.name)
+    #     ...     scenario = Scenario({"fs_file": fs, 'a': 1})
+    #     ...     QuestionTemplateReplacementsBuilder._extract_file_keys_from_question_text("{{ fs_file }}", ['fs_file'])
+    #     ['fs_file']
+    #     """
+    #     variables = QuestionTemplateReplacementsBuilder.get_jinja2_variables(
+    #         question_text
+    #     )
+    #     question_file_keys = []
+    #     for var in variables:
+    #         if var in scenario_file_keys:
+    #             question_file_keys.append(var)
+    #     return question_file_keys
 
     def _scenario_replacements(
         self, replacement_string: str = "<see file {key}>"
@@ -160,8 +142,8 @@ class QuestionTemplateReplacementsBuilder:
 
         >>> from edsl import QuestionMultipleChoice, Scenario
         >>> q = QuestionMultipleChoice(question_text="Do you like school?", question_name = "q0", question_options = ["yes", "no"])
-        >>> qtrb = QuestionTemplateReplacementsBuilder(scenario = {"file1": "file1"}, question = q, prior_answers_dict = {'q0': 'q0'}, agent = "agent")
-        >>> qtrb.question_file_keys()
+        >>> qtrb = QuestionTemplateReplacementsBuilder(scenario = Scenario({"file1": "file1"}), question = q, prior_answers_dict = {'q0': 'q0'}, agent = "agent")
+        >>> qtrb.extract_question_file_keys()
         []
         >>> from edsl import FileStore
         >>> fs = FileStore.example()
@@ -187,6 +169,14 @@ class QuestionTemplateReplacementsBuilder:
             replacement_dict.update(r)
 
         return replacement_dict
+    
+    def final_question_data(self):
+        question_data = self.question.data.copy()
+        replacement_dict = self.build_replacement_dict(question_data)
+        for key, value in replacement_dict.items():
+            question_data[key] = value
+        return question_data
+
 
 
 if __name__ == "__main__":

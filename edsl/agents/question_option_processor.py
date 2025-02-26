@@ -9,7 +9,7 @@ class QuestionOptionProcessor:
     """
 
     @classmethod
-    def from_prompt_constructor(cls, prompt_constructor):
+    def from_prompt_constructor(cls, prompt_constructor: "PromptConstructor"):
         scenario = prompt_constructor.scenario
         prior_answers_dict = prompt_constructor.prior_answers_dict()
 

@@ -2,6 +2,7 @@ from __future__ import annotations
 import copy
 import itertools
 from typing import Optional, List, Callable, Type, TYPE_CHECKING, Union
+from jinja2 import Environment, meta
 
 if TYPE_CHECKING:
     from edsl.questions.QuestionBase import QuestionBase
@@ -15,6 +16,43 @@ class QuestionBaseGenMixin:
     
     """
 
+    @staticmethod
+    def get_jinja2_variables(template_str: str) -> Set[str]:
+        """
+        Extracts all variable names from a Jinja2 template using Jinja2's built-in parsing.
+
+        Args:
+        template_str (str): The Jinja2 template string
+
+        Returns:
+        Set[str]: A set of variable names found in the template
+        """
+        env = Environment()
+        try:
+            ast = env.parse(template_str)
+        except TemplateSyntaxError:
+            print(f"Error parsing template: {template_str}")
+            raise
+
+        return meta.find_undeclared_variables(ast)
+
+
+    def _variables(self) -> dict:
+        """Extract the variables from the question."""
+        d = {}
+        for key, value in self.data.items():
+            if isinstance(value, str):
+                d[key] = self.get_jinja2_variables(value)
+        return d
+    
+    def _file_keys(self, scenario: "Scenario") -> list[str]:
+        """Extract the file keys from the question."""
+        file_keys = scenario._find_file_keys()
+        question_text_variables = self._variables()['question_text']
+        return [key for key in question_text_variables if key in file_keys]
+
+    #     """Extract the file keys from the question."""
+        
     def copy(self) -> QuestionBase:
         """Return a deep copy of the question.
 
@@ -93,7 +131,12 @@ class QuestionBaseGenMixin:
         """Raised when template rendering exceeds maximum allowed nesting level."""
         pass
 
-    def render(self, replacement_dict: dict, return_dict: bool = False) -> Union["QuestionBase", dict]:
+    def _extract_question_options(self, scenario: Scenario, prior_answers_dict: dict):
+        from edsl.agents.question_option_processor import QuestionOptionProcessor
+        qop = QuestionOptionProcessor(scenario, prior_answers_dict)
+        return qop.get_question_options(self.data)
+
+    def render(self, replacement_dict: dict, return_dict: bool = False, question_data: Optional[dict] = None) -> Union["QuestionBase", dict]:
         """Render the question components as jinja2 templates with the replacement dictionary.
         Handles nested template variables by recursively rendering until all variables are resolved.
         
@@ -178,19 +221,23 @@ class QuestionBaseGenMixin:
                 warnings.warn("Failed to render string: " + value)
                 return value
         if return_dict:
-            return self._apply_function_dict(render_string)
+            return self._apply_function_dict(render_string, question_data=question_data)
         else:
-            return self.apply_function(render_string)
+            return self.apply_function(render_string, question_data=question_data)
       
     def apply_function(
-        self, func: Callable, exclude_components: Optional[List[str]] = None
+        self, func: Callable, 
+        exclude_components: Optional[List[str]] = None,
+        question_data: Optional[dict] = None
     ) -> QuestionBase:
         from edsl.questions.QuestionBase import QuestionBase
-        d = self._apply_function_dict(func, exclude_components)
+        d = self._apply_function_dict(func, exclude_components, question_data)
         return QuestionBase.from_dict(d)
 
     def _apply_function_dict(
-        self, func: Callable, exclude_components: Optional[List[str]] = None
+        self, func: Callable, 
+        exclude_components: Optional[List[str]] = None, 
+        question_data: Optional[dict] = None
     ) -> dict:
         """Apply a function to the question parts, excluding certain components.
 
@@ -211,21 +258,23 @@ class QuestionBaseGenMixin:
         if exclude_components is None:
             exclude_components = ["question_name", "question_type"]
 
-        d = copy.deepcopy(self.to_dict(add_edsl_version=False))
-        for key, value in d.items():
+        if question_data is None:
+            question_data = copy.deepcopy(self.to_dict(add_edsl_version=False))
+            
+        for key, value in question_data.items():
             if key in exclude_components:
                 continue
             if isinstance(value, dict):
                 for k, v in value.items():
                     value[k] = func(v)
-                d[key] = value
+                question_data[key] = value
                 continue
             if isinstance(value, list):
                 value = [func(v) for v in value]
-                d[key] = value
+                question_data[key] = value
                 continue
-            d[key] = func(value)
-        return d
+            question_data[key] = func(value)
+        return question_data
 
 
 if __name__ == "__main__":
