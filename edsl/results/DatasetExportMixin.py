@@ -542,6 +542,116 @@ class DatasetExportMixin:
 
         if return_link:
             return filename
+        
+    def report(self, *fields: Optional[str], top_n: Optional[int] = None, 
+               header_fields: Optional[List[str]] = None, divider: bool = True,
+               return_string: bool = False) -> Optional[str]:
+        """Takes the fields in order and returns a report of the results by iterating through rows.
+        The row number is printed as # Observation: <row number>
+        The name of the field is used as markdown header at level "##" 
+        The content of that field is then printed. 
+        Then the next field and so on. 
+        Once that row is done, a new line is printed and the next row is shown.
+        If in a jupyter notebook, the report is displayed as markdown.
+        
+        Args:
+            *fields: The fields to include in the report. If none provided, all fields are used.
+            top_n: Optional limit on the number of observations to include.
+            header_fields: Optional list of fields to include in the main header instead of as sections.
+            divider: If True, adds a horizontal rule between observations for better visual separation.
+            return_string: If True, returns the markdown string. If False (default in notebooks),
+                          only displays the markdown without returning.
+            
+        Returns:
+            A string containing the markdown report if return_string is True, otherwise None.
+            
+        Examples:
+            >>> from edsl.results import Results
+            >>> r = Results.example()
+            >>> report = r.select('how_feeling', 'how_feeling_yesterday').report(return_string=True)
+            >>> "# Observation: 1" in report
+            True
+            >>> "## answer.how_feeling" in report
+            True
+            >>> report = r.select('how_feeling').report(header_fields=['answer.how_feeling'], return_string=True)
+            >>> "# Observation: 1 (`how_feeling`: OK)" in report
+            True
+        """
+        from edsl.utilities.utilities import is_notebook
+        
+        # If no fields specified, use all columns
+        if not fields:
+            fields = self.relevant_columns()
+        
+        # Initialize header_fields if not provided
+        if header_fields is None:
+            header_fields = []
+        
+        # Validate all fields
+        all_fields = list(fields) + [f for f in header_fields if f not in fields]
+        for field in all_fields:
+            if field not in self.relevant_columns():
+                raise ValueError(f"Field '{field}' not found in dataset")
+        
+        # Get data for each field
+        field_data = {}
+        for field in all_fields:
+            for entry in self:
+                if field in entry:
+                    field_data[field] = entry[field]
+                    break
+        
+        # Number of observations to process
+        num_obs = self.num_observations()
+        if top_n is not None:
+            num_obs = min(num_obs, top_n)
+        
+        # Build the report
+        report_lines = []
+        for i in range(num_obs):
+            # Create header with observation number and any header fields
+            header = f"# Observation: {i+1}"
+            if header_fields:
+                header_parts = []
+                for field in header_fields:
+                    value = field_data[field][i]
+                    # Get the field name without prefix for cleaner display
+                    display_name = field.split('.')[-1] if '.' in field else field
+                    # Format with backticks for monospace
+                    header_parts.append(f"`{display_name}`: {value}")
+                if header_parts:
+                    header += f" ({', '.join(header_parts)})"
+            report_lines.append(header)
+            
+            # Add the remaining fields
+            for field in fields:
+                if field not in header_fields:
+                    report_lines.append(f"## {field}")
+                    value = field_data[field][i]
+                    if isinstance(value, list) or isinstance(value, dict):
+                        import json
+                        report_lines.append(f"```\n{json.dumps(value, indent=2)}\n```")
+                    else:
+                        report_lines.append(str(value))
+            
+            # Add divider between observations if requested
+            if divider and i < num_obs - 1:
+                report_lines.append("\n---\n")
+            else:
+                report_lines.append("")  # Empty line between observations
+        
+        report_text = "\n".join(report_lines)
+        
+        # In notebooks, display as markdown and optionally return
+        is_nb = is_notebook()
+        if is_nb:
+            from IPython.display import Markdown, display
+            display(Markdown(report_text))
+        
+        # Return the string if requested or if not in a notebook
+        if return_string or not is_nb:
+            return report_text
+        return None
 
     def tally(
         self, *fields: Optional[str], top_n: Optional[int] = None, output="Dataset"
