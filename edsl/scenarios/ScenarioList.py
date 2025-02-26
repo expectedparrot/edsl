@@ -1024,8 +1024,49 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         ScenarioList([Scenario({'name': 'Alice', 'age': 30, 'location': 'New York'}), Scenario({'name': 'Bob', 'age': 25, 'location': 'Los Angeles'})])
         """
         return cls([Scenario(row) for row in df.to_dict(orient="records")])
+    
 
     @classmethod
+    def from_dta(cls, filepath: str, include_metadata: bool = True) -> ScenarioList:
+        """Create a ScenarioList from a Stata file.
+        
+        Args:
+            filepath (str): Path to the Stata (.dta) file
+            include_metadata (bool): If True, extract and preserve variable labels and value labels
+                                    as additional metadata in the ScenarioList
+        
+        Returns:
+            ScenarioList: A ScenarioList containing the data from the Stata file
+        """
+        import pandas as pd
+        
+        # Read the Stata file with pandas
+        df = pd.read_stata(filepath)
+        
+        # Create the basic ScenarioList
+        scenario_list = cls.from_pandas(df)
+        
+        # Extract and preserve metadata if requested
+        if include_metadata:
+            # Get variable labels (if any)
+            variable_labels = {}
+            if hasattr(df, 'variable_labels') and df.variable_labels:
+                variable_labels = df.variable_labels
+            
+            # Get value labels (if any)
+            value_labels = {}
+            if hasattr(df, 'value_labels') and df.value_labels:
+                value_labels = df.value_labels
+            
+            # Store the metadata in the ScenarioList's codebook
+            if variable_labels or value_labels:
+                scenario_list.codebook = {
+                    'variable_labels': variable_labels,
+                    'value_labels': value_labels
+                }
+        
+        return scenario_list
+
     def from_wikipedia(cls, url: str, table_index: int = 0):
         """
         Extracts a table from a Wikipedia page.
