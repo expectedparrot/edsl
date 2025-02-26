@@ -504,88 +504,88 @@ class Coop(CoopFunctionsMixin):
     ################
     # Remote Cache
     ################
-    def remote_cache_create(
-        self,
-        cache_entry: CacheEntry,
-        visibility: VisibilityType = "private",
-        description: Optional[str] = None,
-    ) -> dict:
-        """
-        Create a single remote cache entry.
-        If an entry with the same key already exists in the database, update it instead.
+    # def remote_cache_create(
+    #     self,
+    #     cache_entry: CacheEntry,
+    #     visibility: VisibilityType = "private",
+    #     description: Optional[str] = None,
+    # ) -> dict:
+    #     """
+    #     Create a single remote cache entry.
+    #     If an entry with the same key already exists in the database, update it instead.
 
-        :param cache_entry: The cache entry to send to the server.
-        :param visibility: The visibility of the cache entry.
-        :param optional description: A description for this entry in the remote cache.
+    #     :param cache_entry: The cache entry to send to the server.
+    #     :param visibility: The visibility of the cache entry.
+    #     :param optional description: A description for this entry in the remote cache.
 
-        >>> entry = CacheEntry.example()
-        >>> coop.remote_cache_create(cache_entry=entry)
-        {'status': 'success', 'created_entry_count': 1, 'updated_entry_count': 0}
-        """
-        response = self._send_server_request(
-            uri="api/v0/remote-cache",
-            method="POST",
-            payload={
-                "json_string": json.dumps(cache_entry.to_dict()),
-                "version": self._edsl_version,
-                "visibility": visibility,
-                "description": description,
-            },
-        )
-        self._resolve_server_response(response)
-        response_json = response.json()
-        created_entry_count = response_json.get("created_entry_count", 0)
-        if created_entry_count > 0:
-            self.remote_cache_create_log(
-                response,
-                description="Upload new cache entries to server",
-                cache_entry_count=created_entry_count,
-            )
-        return response.json()
+    #     >>> entry = CacheEntry.example()
+    #     >>> coop.remote_cache_create(cache_entry=entry)
+    #     {'status': 'success', 'created_entry_count': 1, 'updated_entry_count': 0}
+    #     """
+    #     response = self._send_server_request(
+    #         uri="api/v0/remote-cache",
+    #         method="POST",
+    #         payload={
+    #             "json_string": json.dumps(cache_entry.to_dict()),
+    #             "version": self._edsl_version,
+    #             "visibility": visibility,
+    #             "description": description,
+    #         },
+    #     )
+    #     self._resolve_server_response(response)
+    #     response_json = response.json()
+    #     created_entry_count = response_json.get("created_entry_count", 0)
+    #     if created_entry_count > 0:
+    #         self.remote_cache_create_log(
+    #             response,
+    #             description="Upload new cache entries to server",
+    #             cache_entry_count=created_entry_count,
+    #         )
+    #     return response.json()
 
-    def remote_cache_create_many(
-        self,
-        cache_entries: list[CacheEntry],
-        visibility: VisibilityType = "private",
-        description: Optional[str] = None,
-    ) -> dict:
-        """
-        Create many remote cache entries.
-        If an entry with the same key already exists in the database, update it instead.
+    # def remote_cache_create_many(
+    #     self,
+    #     cache_entries: list[CacheEntry],
+    #     visibility: VisibilityType = "private",
+    #     description: Optional[str] = None,
+    # ) -> dict:
+    #     """
+    #     Create many remote cache entries.
+    #     If an entry with the same key already exists in the database, update it instead.
 
-        :param cache_entries: The list of cache entries to send to the server.
-        :param visibility: The visibility of the cache entries.
-        :param optional description: A description for these entries in the remote cache.
+    #     :param cache_entries: The list of cache entries to send to the server.
+    #     :param visibility: The visibility of the cache entries.
+    #     :param optional description: A description for these entries in the remote cache.
 
-        >>> entries = [CacheEntry.example(randomize=True) for _ in range(10)]
-        >>> coop.remote_cache_create_many(cache_entries=entries)
-        {'status': 'success', 'created_entry_count': 10, 'updated_entry_count': 0}
-        """
-        payload = [
-            {
-                "json_string": json.dumps(c.to_dict()),
-                "version": self._edsl_version,
-                "visibility": visibility,
-                "description": description,
-            }
-            for c in cache_entries
-        ]
-        response = self._send_server_request(
-            uri="api/v0/remote-cache/many",
-            method="POST",
-            payload=payload,
-            timeout=40,
-        )
-        self._resolve_server_response(response)
-        response_json = response.json()
-        created_entry_count = response_json.get("created_entry_count", 0)
-        if created_entry_count > 0:
-            self.remote_cache_create_log(
-                response,
-                description="Upload new cache entries to server",
-                cache_entry_count=created_entry_count,
-            )
-        return response.json()
+    #     >>> entries = [CacheEntry.example(randomize=True) for _ in range(10)]
+    #     >>> coop.remote_cache_create_many(cache_entries=entries)
+    #     {'status': 'success', 'created_entry_count': 10, 'updated_entry_count': 0}
+    #     """
+    #     payload = [
+    #         {
+    #             "json_string": json.dumps(c.to_dict()),
+    #             "version": self._edsl_version,
+    #             "visibility": visibility,
+    #             "description": description,
+    #         }
+    #         for c in cache_entries
+    #     ]
+    #     response = self._send_server_request(
+    #         uri="api/v0/remote-cache/many",
+    #         method="POST",
+    #         payload=payload,
+    #         timeout=40,
+    #     )
+    #     self._resolve_server_response(response)
+    #     response_json = response.json()
+    #     created_entry_count = response_json.get("created_entry_count", 0)
+    #     if created_entry_count > 0:
+    #         self.remote_cache_create_log(
+    #             response,
+    #             description="Upload new cache entries to server",
+    #             cache_entry_count=created_entry_count,
+    #         )
+    #     return response.json()
 
     def remote_cache_get(
         self,
@@ -1039,19 +1039,21 @@ class Coop(CoopFunctionsMixin):
         if console.is_terminal:
             # Running in a standard terminal, show the full URL
             if link_description:
-                rich_print("{link_description}\n[#38bdf8][link={url}]{url}[/link][/#38bdf8]")
+                rich_print(
+                    "{link_description}\n[#38bdf8][link={url}]{url}[/link][/#38bdf8]"
+                )
             else:
                 rich_print(f"[#38bdf8][link={url}]{url}[/link][/#38bdf8]")
         else:
             # Running in an interactive environment (e.g., Jupyter Notebook), hide the URL
             if link_description:
-                rich_print(f"{link_description}\n[#38bdf8][link={url}][underline]Log in and automatically store key[/underline][/link][/#38bdf8]")
+                rich_print(
+                    f"{link_description}\n[#38bdf8][link={url}][underline]Log in and automatically store key[/underline][/link][/#38bdf8]"
+                )
             else:
-                rich_print(f"[#38bdf8][link={url}][underline]Log in and automatically store key[/underline][/link][/#38bdf8]")
-
-
-
-
+                rich_print(
+                    f"[#38bdf8][link={url}][underline]Log in and automatically store key[/underline][/link][/#38bdf8]"
+                )
 
     def _get_api_key(self, edsl_auth_token: str):
         """
@@ -1211,10 +1213,10 @@ def main():
     # create one remote cache entry
     cache_entry = CacheEntry.example()
     cache_entry.to_dict()
-    coop.remote_cache_create(cache_entry)
+    # coop.remote_cache_create(cache_entry)
     # create many remote cache entries
     cache_entries = [CacheEntry.example(randomize=True) for _ in range(10)]
-    coop.remote_cache_create_many(cache_entries)
+    # coop.remote_cache_create_many(cache_entries)
     # get all remote cache entries
     coop.remote_cache_get()
     coop.remote_cache_get(exclude_keys=[])
