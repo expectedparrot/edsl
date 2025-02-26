@@ -595,6 +595,7 @@ class Coop(CoopFunctionsMixin):
         """
         Get all remote cache entries.
 
+        :param optional select_keys: Only return CacheEntry objects with these keys.
         :param optional exclude_keys: Exclude CacheEntry objects with these keys.
 
         >>> coop.remote_cache_get()
@@ -607,7 +608,37 @@ class Coop(CoopFunctionsMixin):
         response = self._send_server_request(
             uri="api/v0/remote-cache/get-many",
             method="POST",
-            payload={"keys": exclude_keys, "selected_keys": select_keys},
+            payload={"exclude_keys": exclude_keys, "selected_keys": select_keys},
+            timeout=40,
+        )
+        self._resolve_server_response(response)
+        return [
+            CacheEntry.from_dict(json.loads(v.get("json_string")))
+            for v in response.json()
+        ]
+
+    def legacy_remote_cache_get(
+        self,
+        exclude_keys: Optional[list[str]] = None,
+        select_keys: Optional[list[str]] = None,
+    ) -> list[CacheEntry]:
+        """
+        Get all remote cache entries.
+
+        :param optional select_keys: Only return CacheEntry objects with these keys.
+        :param optional exclude_keys: Exclude CacheEntry objects with these keys.
+
+        >>> coop.legacy_remote_cache_get()
+        [CacheEntry(...), CacheEntry(...), ...]
+        """
+        if exclude_keys is None:
+            exclude_keys = []
+        if select_keys is None:
+            select_keys = []
+        response = self._send_server_request(
+            uri="api/v0/remote-cache/legacy/get-many",
+            method="POST",
+            payload={"exclude_keys": exclude_keys, "selected_keys": select_keys},
             timeout=40,
         )
         self._resolve_server_response(response)
