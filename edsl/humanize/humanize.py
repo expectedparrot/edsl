@@ -21,7 +21,7 @@ class Humanize:
         agent: "Agent",
     ):
         self.scenario = scenario
-        self.question = question.copy()
+        self.question = question.copy() # make a copy so it can be modified
         self.prior_answers_dict = prior_answers_dict
         self.agent = agent
 
@@ -29,8 +29,11 @@ class Humanize:
 
         self.extracted_question_options = self.question._extract_question_options(self.scenario, self.prior_answers_dict)
 
-    def _deal_with_question_options(self):
-        # deals with question_options="{{ options}}" case 
+    def _deal_with_question_options(self) -> None:
+        """This is supposed to deal with cases where the question_option is a jinja2 template string.
+        
+        It modifies the question options. 
+        """
         if self.extracted_question_options != self.data.get("question_options"):
             self.question.question_options = self.extracted_question_options  # replace the question options with the extracted question options
         else:
@@ -48,6 +51,11 @@ class Humanize:
 
     @property
     def replacements_dict(self) -> dict:
+        """This is the dictionary that will be used to render the question.
+        
+        TODO: This will also need agent traits. 
+        
+        """
         return {**self.prior_answers_dict, **self.scenario, **self._file_store_html_snippets()}
 
     def humanized_data(self) -> dict: 
@@ -101,6 +109,9 @@ if __name__ == "__main__":
     humanize = Humanize(q, s, {}, agent)
     from edsl import Question
     q = Question(**humanize.humanized_data())
+
+    snippets = humanize._file_store_html_snippets()
+    print(snippets)
 
     
 
