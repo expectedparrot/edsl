@@ -647,7 +647,7 @@ class Coop(CoopFunctionsMixin):
             for v in response.json()
         ]
 
-    def remote_cache_get_diff(
+    def legacy_remote_cache_get_diff(
         self,
         client_cacheentry_keys: list[str],
     ) -> dict:
@@ -655,7 +655,7 @@ class Coop(CoopFunctionsMixin):
         Get the difference between local and remote cache entries for a user.
         """
         response = self._send_server_request(
-            uri="api/v0/remote-cache/get-diff",
+            uri="api/v0/remote-cache/legacy/get-diff",
             method="POST",
             payload={"keys": client_cacheentry_keys},
             timeout=40,
@@ -673,38 +673,38 @@ class Coop(CoopFunctionsMixin):
         }
         downloaded_entry_count = len(response_dict["client_missing_cacheentries"])
         if downloaded_entry_count > 0:
-            self.remote_cache_create_log(
+            self.legacy_remote_cache_create_log(
                 response,
                 description="Download missing cache entries to client",
                 cache_entry_count=downloaded_entry_count,
             )
         return response_dict
 
-    def remote_cache_clear(self) -> dict:
+    def legacy_remote_cache_clear(self) -> dict:
         """
         Clear all remote cache entries.
 
         >>> entries = [CacheEntry.example(randomize=True) for _ in range(10)]
-        >>> coop.remote_cache_create_many(cache_entries=entries)
-        >>> coop.remote_cache_clear()
+        >>> coop.legacy_remote_cache_create_many(cache_entries=entries)
+        >>> coop.legacy_remote_cache_clear()
         {'status': 'success', 'deleted_entry_count': 10}
         """
         response = self._send_server_request(
-            uri="api/v0/remote-cache/delete-all",
+            uri="api/v0/remote-cache/legacy/delete-all",
             method="DELETE",
         )
         self._resolve_server_response(response)
         response_json = response.json()
         deleted_entry_count = response_json.get("deleted_entry_count", 0)
         if deleted_entry_count > 0:
-            self.remote_cache_create_log(
+            self.legacy_remote_cache_create_log(
                 response,
                 description="Clear cache entries",
                 cache_entry_count=deleted_entry_count,
             )
         return response.json()
 
-    def remote_cache_create_log(
+    def legacy_remote_cache_create_log(
         self, response: requests.Response, description: str, cache_entry_count: int
     ) -> Union[dict, None]:
         """
@@ -713,7 +713,7 @@ class Coop(CoopFunctionsMixin):
         """
         if 200 <= response.status_code < 300:
             log_response = self._send_server_request(
-                uri="api/v0/remote-cache-log",
+                uri="api/v0/remote-cache-log/legacy",
                 method="POST",
                 payload={
                     "description": description,
@@ -723,15 +723,15 @@ class Coop(CoopFunctionsMixin):
             self._resolve_server_response(log_response)
             return response.json()
 
-    def remote_cache_clear_log(self) -> dict:
+    def legacy_remote_cache_clear_log(self) -> dict:
         """
         Clear all remote cache log entries.
 
-        >>> coop.remote_cache_clear_log()
+        >>> coop.legacy_remote_cache_clear_log()
         {'status': 'success'}
         """
         response = self._send_server_request(
-            uri="api/v0/remote-cache-log/delete-all",
+            uri="api/v0/remote-cache-log/legacy/delete-all",
             method="DELETE",
         )
         self._resolve_server_response(response)
@@ -1239,8 +1239,8 @@ def main():
     # C. Remote Cache
     ##############
     # clear
-    coop.remote_cache_clear()
-    assert coop.remote_cache_get() == []
+    coop.legacy_remote_cache_clear()
+    assert coop.legacy_remote_cache_get() == []
     # create one remote cache entry
     cache_entry = CacheEntry.example()
     cache_entry.to_dict()
@@ -1249,14 +1249,14 @@ def main():
     cache_entries = [CacheEntry.example(randomize=True) for _ in range(10)]
     # coop.remote_cache_create_many(cache_entries)
     # get all remote cache entries
-    coop.remote_cache_get()
-    coop.remote_cache_get(exclude_keys=[])
-    coop.remote_cache_get(exclude_keys=["a"])
+    coop.legacy_remote_cache_get()
+    coop.legacy_remote_cache_get(exclude_keys=[])
+    coop.legacy_remote_cache_get(exclude_keys=["a"])
     exclude_keys = [cache_entry.key for cache_entry in cache_entries]
-    coop.remote_cache_get(exclude_keys)
+    coop.legacy_remote_cache_get(exclude_keys)
     # clear
-    coop.remote_cache_clear()
-    coop.remote_cache_get()
+    coop.legacy_remote_cache_clear()
+    coop.legacy_remote_cache_get()
 
     ##############
     # D. Remote Inference
