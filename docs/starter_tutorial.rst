@@ -285,7 +285,11 @@ Here we create a simple multiple choice question:
 
 
 We can administer it to a language model by calling the `run()` method on it.
-(*Note:* if remote inference has been activated, information about the job and results will be stored on the Expected Parrot server and URLs will be displayed automatically.)
+
+When the job begins running a link to a Progress Report will appear.
+If there are any exceptions a link to an Exceptions Report will also appear.
+If remote inference is activated, a link to the Results page will appear when the job is completed.
+
 
 .. code-block:: python
 
