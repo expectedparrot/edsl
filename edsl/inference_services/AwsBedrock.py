@@ -110,8 +110,7 @@ class AwsBedrockService(InferenceServiceABC):
                     )
                     return response
                 except (ClientError, Exception) as e:
-                    print(e)
-                    return {"error": str(e)}
+                    return {"message": str(e)}
 
         LLM.__name__ = model_class_name
 
