@@ -156,33 +156,12 @@ Note that the agent and model can be added in either order, so long as each type
    results = survey.by(agent).by(model).run()
 
 
-Job status inforamtion 
+Job status information 
 ----------------------
+
 When you run a survey, you will see information in the console about the status of the job.
-
-
-Progress report 
-^^^^^^^^^^^^^^^
-
-You can view a Progress Report while a job is running.
-If remote inference is activated, a link to a Progress Report will appear automatically.
-If you are running a survey locally, you can pass `run(progress_bar=True)` to view a report.
-
-
-Exceptions Report 
-^^^^^^^^^^^^^^^^^
-
-You can view details of any exceptions that are generated in an Exceptions Report, including the questions that generated exceptions together with error messages and tracebacks.
-If remote inference is activated, a link to an Exceptions Report will appear automatically.
-If you are running a survey locally, the report details will appear in your workspace.
-
-
-Results and caching
-^^^^^^^^^^^^^^^^^^^
-
-When a survey is run, the results are stored in a `Results` object, which can be used to analyze the responses and other components of the survey.
-The results object also has a cache of the responses that can be reused, which are also added to your local cache or the remote cache if you are running a survey remotely.
-The results object is returned by the `run()` method and can be used to analyze the responses and other components of the survey.
+When the job completes, you can access the `Results` object that is generated in your workspace.
+If you are running a survey remotely, you will also see a link to the results at Coop.
 
 For example, if we ran the survey above remotely we would see a link to the results in the console:
 
@@ -191,13 +170,27 @@ For example, if we ran the survey above remotely we would see a link to the resu
    Results: https://www.expectedparrot.com/content/4cfcf0c6-6aff-4447-90cb-cd9e01111a28.  
 
 
-Learn more about :ref:`data` and :ref:`remote_caching`.
+
+Progress report 
+^^^^^^^^^^^^^^^
+
+While a job is running you can view updates in a Progress Report.
+If remote inference is activated, a link to a Progress Report will appear automatically.
+If you are running a survey locally, you can pass `run(progress_bar=True)` to view a report locally.
+
+
+Exceptions Report 
+^^^^^^^^^^^^^^^^^
+
+If any exceptions are generated you can view details about them in an Exceptions Report, which includes informatoin about the questions, agents, scenarios and models that generated exceptions together with error messages and tracebacks.
+If remote inference is activated, a link to an Exceptions Report will appear automatically.
+If you are running a survey locally, the report details will appear in your console.
 
 
 Running jobs in the background 
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-If you are running a survey remotely, you can also choose to run it in the background by passing the `background=True` parameter to the `run()` method:
+If you are running a survey remotely, you can choose to run it in the background by passing the `background=True` parameter to the `run()` method:
 
 .. code-block:: python
 
