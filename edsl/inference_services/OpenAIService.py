@@ -231,7 +231,10 @@ class OpenAIService(InferenceServiceABC):
                 try:
                     response = await client.chat.completions.create(**params)
                 except Exception as e:
-                    print(e)
+                    #breakpoint()
+                    #print(e)
+                    #raise e
+                    return {'message': str(e)}
                 return response.model_dump()
 
         LLM.__name__ = "LanguageModel"
