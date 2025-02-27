@@ -1,6 +1,12 @@
 # Changelog
 
-## [0.1.45] - TBD
+
+## [0.1.46] - TBD
+### Added
+- (*In progress*) A universal remote cache is available for retrieving responses to any questions that have been run at the Expected Parrot server. If you re-run a question that anyone has run before, you can retrieve that response at no cost to you. This cache is available for all jobs run remotely by default, and new responses are automatically added to it. If you want to draw fresh responses you can use `run(fresh=True)`. If you draw a fresh response for a question that has already been run, the new response is also added to the URC with an iteration index. The URC is not available for jobs run locally. See the [remote cache](https://docs.expectedparrot.com/en/latest/remote_caching.html) section for more details.
+
+
+## [0.1.45] - 2025-02-27
 ### Added
 - `ScenarioList` method `from_dta()` creates a scenario list from a Stata file.
 
@@ -9,8 +15,6 @@
 - `Results` method `report()` generates a report of selected columns in markdown by iterating through the rows, presented as observations. You can optionally pass headers, a divider and a limit on the number of observations to include. It can be useful if you want to display some sample part of larger results in a working notebook you are sharing. [See example](https://docs.expectedparrot.com/en/latest/results.html#generating-a-report).
 
 - `Survey` method `show_flow()` can now also be called on a `Jobs` object, and will show any scenarios and/or agent traits that that you have added to questions. [See examples](https://docs.expectedparrot.com/en/latest/docs/surveys.html#show-flow).
-
-- (*In progress*) A universal remote cache is available for retrieving responses to any questions that have been run at the Expected Parrot server. If you re-run a question that anyone has run before, you can retrieve that response at no cost to you. This cache is available for all jobs run remotely by default, and new responses are automatically added to it. If you want to draw fresh responses you can use `run(fresh=True)`. If you draw a fresh response for a question that has already been run, the new response is also added to the URC with an iteration index. The URC is not available for jobs run locally. See the [remote cache](https://docs.expectedparrot.com/en/latest/remote_caching.html) section for more details.
 
 
 ## [0.1.44] - 2025-02-14
