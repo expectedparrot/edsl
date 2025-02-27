@@ -90,6 +90,22 @@ The universal remote cache offers the following features:
 *Note:* The universal remote cache is not available for local inference (surveys run on your own machine).
 
 
+Frequently asked questions
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+* **Is the universal remote cache queryable?** No.
+
+* **Can I see which user generated a stored response in the universal remote cache?** No.
+
+* **Are my legacy remote cache entries in the universal remote cache?** No. Your legacy remote cache is only available to you. If you want your stored responses to be added to the universal remote cache you need to rerun the prompts to regenerate them. 
+
+* **How can I add my legacy remote cache entries to the universal remote cache?** You can request credits for rerunning your surveys to add responses to the universal remote cache.
+
+* **Can I access the universal remote cache when I run a survey locally?** The universal remote cache is only available when running a survey remotely. However, you can pull or download your Cache entries to use them locally at any time (responses that you generated or retrieved from the universal remote cache when working remotely).
+
+* **What happens if I delete my account?** All of your account information is deleted. Any remote cache entries that you generated will remain in the universal remote cache but information about your account will be deleted.
+
+
 Using your remote cache
 -----------------------
 
