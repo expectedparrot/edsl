@@ -11,7 +11,7 @@ Please see links to sections below for more details on each step.
 `Create an account <https://www.expectedparrot.com/login>`_ to get access to the Expected Parrot server where you can run surveys with any available models and post and share content with other users.
 Your account also provides access to a remote cache of stored responses and comes with $25 in credits for making API calls to any available models.
 
-See the `Coop <https://docs.expectedparrot.com/en/latest/coop.html>`_ section for more details on using the Expected Parrot platform to create and share projects, and the :ref:`remote_inference` and :ref:`remote_caching` sections for more details on account features for running surveys and storing results at the Expected Parrot server.
+.. See the `Coop <https://docs.expectedparrot.com/en/latest/coop.html>`_ section for more details on using the Expected Parrot platform to create and share projects, and the :ref:`remote_inference` and :ref:`remote_caching` sections for more details on account features for running surveys and storing results at the Expected Parrot server.
 
 
 2. Installation
