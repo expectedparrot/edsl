@@ -101,7 +101,15 @@ Frequently asked questions
 
 * **How can I add my legacy remote cache entries to the universal remote cache?** You can request credits for rerunning your surveys to add responses to the universal remote cache.
 
+* **Why can't I add my local cache entries to the URC?** The purpose of the URC is to provide a canonical, verified collection of responses to allow researchers to be confident in results and easily reproduce them at no cost. By only allowing responses generated at the Expected Parrot server we can verify the results that are reproduced.
+
 * **Can I access the universal remote cache when I run a survey locally?** The universal remote cache is only available when running a survey remotely. However, you can pull or download your Cache entries to use them locally at any time (responses that you generated or retrieved from the universal remote cache when working remotely).
+
+* **How do I add new or fresh responses to the universal remote cache?** This happens automatically whenever you are running surveys remotely.
+
+* **Can I delete a response in the universal remote cache that I generated?**  No.
+
+* **What if I want to run a survey remotely but I do not want my responses added to the universal remote cache?** This is not allowed. Any new or fresh responses generated at the Expected Parrot server are automatically added to the universal remote cache. If you do not want to add responses to the universal remote cache you must run your surveys locally.
 
 * **What happens if I delete my account?** All of your account information is deleted. Any remote cache entries that you generated will remain in the universal remote cache but information about your account will be deleted.
 
