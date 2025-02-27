@@ -394,7 +394,6 @@ class LanguageModel(
             from edsl.config import CONFIG
 
             TIMEOUT = float(CONFIG.get("EDSL_API_TIMEOUT"))
-
             response = await asyncio.wait_for(f(**params), timeout=TIMEOUT)
             new_cache_key = cache.store(
                 **cache_call_params, response=response
@@ -517,7 +516,6 @@ class LanguageModel(
         NB: This method does not use the stores inference_service but rather just fetches a model class based on the name.
         """
         from edsl.language_models.model import get_model_class
-
 
         model_class = get_model_class(
             data["model"], service_name=data.get("inference_service", None)
