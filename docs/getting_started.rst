@@ -5,16 +5,7 @@ To use EDSL, you need to install the package and choose how to access language m
 Please see links to sections below for more details on each step.
 
 
-1. Create an account
---------------------
-
-`Create an account <https://www.expectedparrot.com/login>`_ to get access to the Expected Parrot server where you can run surveys with any available models and post and share content with other users.
-Your account also provides access to a remote cache of stored responses and comes with $25 in credits for making API calls to any available models.
-
-.. See the `Coop <https://docs.expectedparrot.com/en/latest/coop.html>`_ section for more details on using the Expected Parrot platform to create and share projects, and the :ref:`remote_inference` and :ref:`remote_caching` sections for more details on account features for running surveys and storing results at the Expected Parrot server.
-
-
-2. Installation
+1. Installation
 ---------------
    
 Run the following command to install the EDSL package:
@@ -31,8 +22,17 @@ If you have previously installed EDSL, you can update it with the following comm
    pip install --upgrade edsl
 
 
+You can also access the source code at `GitHub <https://github.com/expectedparrot/edsl>`_. If you are using EDSL with Google Colab, see the :ref:`colab_setup` section for special instructions.
+
 See :ref:`installation` instructions for more details and troubleshooting tips. 
-If you are using EDSL with Google Colab, see the :ref:`colab_setup` section for special instructions.
+
+
+2. Create an account
+--------------------
+
+`Sign up <https://www.expectedparrot.com/login>`_ for a free account with your email address.
+This allows you to run surveys at the Expected Parrot server and collaborate with other users at Coop.
+Your account comes with $25 in credits for running surveys with any available models.
 
 
 3. Choose where to run surveys
@@ -52,7 +52,8 @@ To activate remote inference, navigate to the `Settings <https://www.expectedpar
    <br>
 
 
-See the :ref:`remote_inference` and :ref:`remote_caching` sections for details on using remote inference and caching in your workflows.
+This allows you to use remote caching features and automatically store all your survey results.
+See the :ref:`remote_inference` and :ref:`remote_caching` sections for details.
 
 To run surveys locally you must provide your own keys from service providers.
 See the next step below for details.

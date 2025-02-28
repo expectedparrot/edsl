@@ -22,8 +22,11 @@ If you use the EDSL package in your research or projects, please use the followi
     }
 
 
-Citations
----------
+| *Simulating the Survey of Professional Forecasters*
+| Anne Lundgaard Hansen, John J. Horton, Sophia Kazinnik, Daniela Puzzello, Ali Zarifhonarvar
+| February 2025
+| https://papers.ssrn.com/sol3/papers.cfm?abstract_id=5066286
+
 
 | *Generative AI for Economic Research: LLMs Learn to Collaborate and Reason*
 | Anton Korinek
