@@ -52,6 +52,9 @@ Integrate human and AI data
 Analyze survey data
    Analyze survey data with built-in methods. Simulate follow-up interviews with respondents. See `examples <https://docs.expectedparrot.com/en/latest/notebooks/analyze_evaluations.html>`_.
 
+Compare model performance 
+   Compare the performance of different language models on the same task. See `examples <https://docs.expectedparrot.com/en/latest/notebooks/models_scoring_models.html>`_.
+   
 Social science research
    Explore hypotheses, gather qualitative or quantitative data and generate new data using AI. 
 
