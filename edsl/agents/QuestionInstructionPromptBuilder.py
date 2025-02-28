@@ -1,7 +1,15 @@
-from typing import Dict, List, Set, Any, Union
+from typing import Dict, List, Set, Any, Union, TYPE_CHECKING
 from warnings import warn
 import logging
 from edsl.prompts.Prompt import Prompt
+
+if TYPE_CHECKING:
+    from edsl.agents.PromptConstructor import PromptConstructor
+    from edsl import Model
+    from edsl import Survey
+    from edsl.questions.QuestionBase import QuestionBase
+    from edsl import Scenario
+    from edsl import Agent
 
 from edsl.agents.QuestionTemplateReplacementsBuilder import (
     QuestionTemplateReplacementsBuilder as QTRB,
@@ -18,18 +26,21 @@ class QuestionInstructionPromptBuilder:
         survey = prompt_constructor.survey
         question = prompt_constructor.question
         scenario = prompt_constructor.scenario
-        return cls(prompt_constructor, model, survey, question, scenario)
+        prior_answers_dict = prompt_constructor.prior_answers_dict()
+        agent = prompt_constructor.agent
+        return cls(prompt_constructor, model, survey, question, scenario, prior_answers_dict, agent)
 
-    def __init__(self, prompt_constructor: "PromptConstructor", model:"Model", survey:"Survey", question:"QuestionBase", scenario:"Scenario"):
-        self.prompt_constructor = prompt_constructor
+    def __init__(self, prompt_constructor: "PromptConstructor", model:"Model", survey:"Survey", question:"QuestionBase", scenario:"Scenario", prior_answers_dict:Dict[str, Any], agent:"Agent"):
+        #self.prompt_constructor = prompt_constructor
+
+        self.qtrb = QTRB(scenario, question, prior_answers_dict, agent)
+
         self.model = model
         self.survey = survey
         self.question = question
-
+        self.agent = agent
         self.scenario = scenario
-        self.prior_answers_dict = prompt_constructor.prior_answers_dict()
-
-        self.qtrb = QTRB.from_prompt_constructor(self.prompt_constructor)
+        self.prior_answers_dict = prior_answers_dict
 
 
     def build(self) -> Prompt:
