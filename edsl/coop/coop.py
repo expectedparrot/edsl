@@ -589,26 +589,52 @@ class Coop(CoopFunctionsMixin):
 
     def remote_cache_get(
         self,
-        exclude_keys: Optional[list[str]] = None,
+        job_uuid: Optional[str | UUID] = None,
+    ) -> list[CacheEntry]:
+        """
+        Get all remote cache entries.
+
+        :param optional select_keys: Only return CacheEntry objects with these keys.
+
+        >>> coop.remote_cache_get(job_uuid="...")
+        [CacheEntry(...), CacheEntry(...), ...]
+        """
+        if job_uuid is None:
+            raise ValueError("Must provide a job_uuid.")
+        response = self._send_server_request(
+            uri="api/v0/remote-cache/get-many-by-job",
+            method="POST",
+            payload={
+                "job_uuid": str(job_uuid),
+            },
+            timeout=40,
+        )
+        self._resolve_server_response(response)
+        return [
+            CacheEntry.from_dict(json.loads(v.get("json_string")))
+            for v in response.json()
+        ]
+
+    def remote_cache_get_by_key(
+        self,
         select_keys: Optional[list[str]] = None,
     ) -> list[CacheEntry]:
         """
         Get all remote cache entries.
 
         :param optional select_keys: Only return CacheEntry objects with these keys.
-        :param optional exclude_keys: Exclude CacheEntry objects with these keys.
 
-        >>> coop.remote_cache_get()
+        >>> coop.remote_cache_get_by_key(selected_keys=["..."])
         [CacheEntry(...), CacheEntry(...), ...]
         """
-        if exclude_keys is None:
-            exclude_keys = []
-        if select_keys is None:
-            select_keys = []
+        if select_keys is None or len(select_keys) == 0:
+            raise ValueError("Must provide a non-empty list of select_keys.")
         response = self._send_server_request(
-            uri="api/v0/remote-cache/get-many",
+            uri="api/v0/remote-cache/get-many-by-key",
             method="POST",
-            payload={"exclude_keys": exclude_keys, "selected_keys": select_keys},
+            payload={
+                "selected_keys": select_keys,
+            },
             timeout=40,
         )
         self._resolve_server_response(response)
