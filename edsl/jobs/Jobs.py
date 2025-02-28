@@ -364,6 +364,15 @@ class Jobs(Base):
             self, cache=self.run_config.environment.cache
         ).create_interviews()
 
+    def show_flow(self, filename: Optional[str] = None) -> None:
+        """Show the flow of the survey."""
+        from edsl.surveys.SurveyFlowVisualization import SurveyFlowVisualization
+        if self.scenarios: 
+            scenario = self.scenarios[0]
+        else:
+            scenario = None
+        SurveyFlowVisualization(self.survey, scenario=scenario, agent=None).show_flow(filename=filename)
+
     def interviews(self) -> list[Interview]:
         """
         Return a list of :class:`edsl.jobs.interviews.Interview` objects.

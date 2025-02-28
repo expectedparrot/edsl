@@ -45,7 +45,7 @@ The `show_prompts()`, `show_rules()` and `show_flow()` methods can be used to an
 
 * `show_prompts()` - Display the user and system prompts for each question in a survey. This is a companion method to the `prompts()` method of a `Job` object, which returns a dataset containing the prompts together with information about each question, scenario, agent, model and estimated cost.
 * `show_rules()` - Display a table of the conditional rules that have been applied to a survey.
-* `show_flow()` - Display a graphic of the flow of a survey, showing the order of questions and any rules that have been applied.
+* `show_flow()` - Display a graphic of the flow of a survey, showing the order of questions and any rules that have been applied, and any scenarios and/or agent information that has been added.
 
 When you run a survey you can choose to run it remotely at the Expected Parrot server or locally on your own machine. 
 See :ref:`remote_inference` for more information. 
@@ -156,19 +156,41 @@ Note that the agent and model can be added in either order, so long as each type
    results = survey.by(agent).by(model).run()
 
 
-If remote inference is turned on, the survey will be run on the Expected Parrot server and information about accessing the results at your Coop account will be displayed.
-for example:
+Job status information 
+----------------------
+
+When you run a survey, you will see information in the console about the status of the job.
+When the job completes, you can access the `Results` object that is generated in your workspace.
+If you are running a survey remotely, you will also see a link to the results at Coop.
+
+For example, if we ran the survey above remotely we would see a link to the results in the console:
 
 .. code-block:: text
 
-   Job sent to server. (Job uuid=025d9fdc-efd9-4ca7-ac7a-f5ab28755f4d).
-   Job completed and Results stored on Coop: https://www.expectedparrot.com/content/4cfcf0c6-6aff-4447-90cb-cd9e01111a28.  
+   Results: https://www.expectedparrot.com/content/4cfcf0c6-6aff-4447-90cb-cd9e01111a28.  
 
 
-If remote inference is turned off, the survey will be run locally and results will be added to your local cache only.
-Learn more about :ref:`data` and :ref:`remote_caching`.
 
-If you are running a survey remotely, you can also choose to run it in the background by passing the `background=True` parameter to the `run()` method:
+Progress report 
+^^^^^^^^^^^^^^^
+
+While a job is running you can view updates in a Progress Report.
+If remote inference is activated, a link to a Progress Report will appear automatically.
+If you are running a survey locally, you can pass `run(progress_bar=True)` to view a report locally.
+
+
+Exceptions Report 
+^^^^^^^^^^^^^^^^^
+
+If any exceptions are generated you can view details about them in an Exceptions Report, which includes informatoin about the questions, agents, scenarios and models that generated exceptions together with error messages and tracebacks.
+If remote inference is activated, a link to an Exceptions Report will appear automatically.
+If you are running a survey locally, the report details will appear in your console.
+
+
+Running jobs in the background 
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+If you are running a survey remotely, you can choose to run it in the background by passing the `background=True` parameter to the `run()` method:
 
 .. code-block:: python
 
@@ -197,7 +219,9 @@ There are optional parameters that can be passed to the `run()` method, includin
 * `disable_remote_inference` - A boolean value to indicate whether to run the survey locally while remote inference is activated (default is False). Example: `run(disable_remote_inference=True)`.
 * `remote_inference_results_visibility` - A string value to indicate the visibility of the results on the Expected Parrot server, when a survey is being run remotely. Possible values are "public", "unlisted" or "private" (default is "unlisted"). Visibility can also be modified at the Coop web app. Example: `run(remote_inference_results_visibility="public")`.
 
-*Note:* The optional parameter `show_progress_bar=True` has been deprecated, as you now automatically get a link to a progress bar page when you run a survey.
+* `progress_bar=True` - This parameter can be used to view a Progress Report locally. A link to a Progress Report will automatically be provided when you run a survey remotely.
+* `background=True` - This parameter can be used to run a survey in the background, allowing you to continue working (or stop working) while your job completes. 
+* `polling_interval` - This parameter can be used to specify the interval (in seconds) at which to check for results when running a survey in the background. The default is 1.0 seconds. Example: `run(polling_interval=5.0)` will check for results every 5 seconds.
 
 
 Survey rules & logic
@@ -256,23 +280,6 @@ This will print the answers, showing "None" for a skipped question (your own res
      - 0
 
 
-Show flow
-^^^^^^^^^
-
-We can call the `show_flow()` method to display a graphic of the flow of the survey, and verify how the skip rule was applied:
-
-.. code-block:: python
-
-   survey.show_flow()
-
-
-Output:
-
-.. image:: static/survey_show_flow.png
-   :alt: Survey Flow Diagram
-   :align: left
-
-
 Stop rules
 ^^^^^^^^^^
 
@@ -311,7 +318,6 @@ Output:
      - None
 
 
-
 Other rules
 ^^^^^^^^^^^
 
@@ -347,6 +353,82 @@ We can see that both q2 and q3 were skipped but q4 was administered (and the res
      - None
      - None
      - 0
+
+
+Show flow
+^^^^^^^^^
+
+We can call the `show_flow()` method to display a graphic of the flow of the survey, and verify how any rules were applied.
+For example, here we show the flow of the survey above with the skip rule applied:
+
+.. code-block:: python
+
+   survey = Survey(questions = [q1, q2, q3, q4])
+
+   survey = survey.add_skip_rule(q2, "consume_local_news == 'Never'")
+
+   survey.show_flow()
+
+
+Output:
+
+.. image:: static/show_flow.png
+   :alt: Survey Flow Diagram with Skip Rule
+   :width: 75%
+
+
+If we add agent or scenario details to the survey questions, the flow diagram will also show this information.
+Here we modify the survey questions from above to include an agent trait:
+
+.. code-block:: python
+
+   from edsl import QuestionMultipleChoice, QuestionCheckBox, QuestionLinearScale, QuestionNumerical, Survey, Agent
+
+   agent = Agent(traits = {
+      "nickname": "Robin",
+      "persona": "You are a teenager who hates reading."
+   })
+
+   # Adding the nickname to the question texts
+   q1 = QuestionMultipleChoice(
+      question_name = "consume_local_news",
+      question_text = "Hey {{ agent.nickname }}, how often do you consume local news?",
+      question_options = ["Daily", "Weekly", "Monthly", "Never"]
+   )
+
+   q2 = QuestionCheckBox(
+      question_name = "sources",
+      question_text = "{{ agent.nickname }}, what are your most common sources of local news? (Select all that apply)",
+      question_options = ["Television", "Newspaper", "Online news websites", "Social Media", "Radio", "Other"]
+   )
+
+   q3 = QuestionLinearScale(
+      question_name = "rate_coverage",
+      question_text = "{{ agent.nickname }}, on a scale of 1 to 10, how would you rate the quality of local news coverage in your area?",
+      question_options = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+      option_labels = {1: "Very poor", 10: "Excellent"}
+   )
+
+   q4 = QuestionNumerical(
+      question_name = "minutes_reading",
+      question_text = "{{ agent.nickname }}, on average, how many minutes do you spend consuming local news each day?",
+      min_value = 0, # optional
+      max_value = 1440 # optional
+   )
+
+   survey = Survey(questions = [q1, q2, q3, q4]).add_stop_rule(q1, "consume_local_news == 'Never'")
+
+   job = survey.by(agent)
+
+   job.show_flow()
+
+
+Output:
+
+.. image:: static/show_flow_agent.png
+   :alt: Survey Flow Diagram with Agent Information
+   :width: 75%
+
 
 
 Conditional expressions

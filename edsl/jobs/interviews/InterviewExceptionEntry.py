@@ -166,6 +166,9 @@ class InterviewExceptionEntry:
         >>> entry = InterviewExceptionEntry.example()
         >>> _ = entry.to_dict()
         """
+        import json
+        from edsl.exceptions.questions import QuestionAnswerValidationError
+
         invigilator = (
             self.invigilator.to_dict() if self.invigilator is not None else None
         )
@@ -174,7 +177,16 @@ class InterviewExceptionEntry:
             "time": self.time,
             "traceback": self.traceback,
             "invigilator": invigilator,
+            "additional_data": {},
         }
+
+        if isinstance(self.exception, QuestionAnswerValidationError):
+            d["additional_data"]["edsl_response"] = json.dumps(self.exception.data)
+            d["additional_data"]["validating_model"] = json.dumps(
+                self.exception.model.model_json_schema()
+            )
+            d["additional_data"]["error_message"] = str(self.exception.message)
+
         return d
 
     @classmethod
