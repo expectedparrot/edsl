@@ -100,7 +100,7 @@ class RemoteCacheSync(AbstractContextManager):
 
     def _get_cache_difference(self) -> CacheDifference:
         """Retrieves differences between local and remote caches."""
-        diff = self.coop.remote_cache_get_diff(self.cache.keys())
+        diff = self.coop.legacy_remote_cache_get_diff(self.cache.keys())
         return CacheDifference(
             client_missing_entries=diff.get("client_missing_cacheentries", []),
             server_missing_keys=diff.get("server_missing_cacheentry_keys", []),
@@ -112,7 +112,7 @@ class RemoteCacheSync(AbstractContextManager):
         missing_count = len(diff.client_missing_entries)
 
         if missing_count == 0:
-        #     self._output("No new entries to add to local cache.")
+            #     self._output("No new entries to add to local cache.")
             return
 
         # self._output(
@@ -154,22 +154,23 @@ class RemoteCacheSync(AbstractContextManager):
         upload_count = len(entries_to_upload)
 
         if upload_count > 0:
+            pass
             # self._output(
             #     f"Updating remote cache with {upload_count:,} new "
             #     f"{'entry' if upload_count == 1 else 'entries'}..."
             # )
 
-            self.coop.remote_cache_create_many(
-                entries_to_upload,
-                visibility="private",
-                description=self.remote_cache_description,
-            )
+            # self.coop.remote_cache_create_many(
+            #     entries_to_upload,
+            #     visibility="private",
+            #     description=self.remote_cache_description,
+            # )
             # self._output("Remote cache updated!")
         # else:
-            # self._output("No new entries to add to remote cache.")
+        # self._output("No new entries to add to remote cache.")
 
         # self._output(
-            # f"There are {len(self.cache.keys()):,} entries in the local cache."
+        # f"There are {len(self.cache.keys()):,} entries in the local cache."
         # )
 
 
