@@ -280,64 +280,37 @@ class PromptConstructor:
         start = time.time()
         
         # Build all the components
-        instr_start = time.time()
         agent_instructions = self.agent_instructions_prompt
-        instr_end = time.time()
-        logger.debug(f"Time taken for agent instructions: {instr_end - instr_start:.4f}s")
-        
-        persona_start = time.time()
         agent_persona = self.agent_persona_prompt
-        persona_end = time.time()
-        logger.debug(f"Time taken for agent persona: {persona_end - persona_start:.4f}s")
-        
-        q_instr_start = time.time()
         question_instructions = self.question_instructions_prompt
-        q_instr_end = time.time()
-        logger.debug(f"Time taken for question instructions: {q_instr_end - q_instr_start:.4f}s")
-        
-        memory_start = time.time()
         prior_question_memory = self.prior_question_memory_prompt
-        memory_end = time.time()
-        logger.debug(f"Time taken for prior question memory: {memory_end - memory_start:.4f}s")
-
+        
         # Get components dict
         components = {
             "agent_instructions": agent_instructions.text,
             "agent_persona": agent_persona.text,
             "question_instructions": question_instructions.text,
             "prior_question_memory": prior_question_memory.text,
-        }
-
-        # Use PromptPlan's get_prompts method
-        plan_start = time.time()
-        
+        }        
         # Get arranged components first
         arranged = self.prompt_plan.arrange_components(**components)
         
         prompts = self.prompt_plan.get_prompts(**components)
-
-        plan_end = time.time()
-        logger.debug(f"Time taken for prompt processing: {plan_end - plan_start:.4f}s")
         
         # Handle file keys if present
         if hasattr(self, 'question_file_keys') and self.question_file_keys:
-            files_start = time.time()
             files_list = []
             for key in self.question_file_keys:
                 files_list.append(self.scenario[key])
             prompts["files_list"] = files_list
-            files_end = time.time()
-            logger.debug(f"Time taken for file key processing: {files_end - files_start:.4f}s")
         
-        end = time.time()
-        logger.debug(f"Total time in get_prompts: {end - start:.4f}s")
         return prompts
 
 
-def _process_prompt(args):
-    """Helper function to process a single prompt list with its replacements."""
-    prompt_list, replacements = args
-    return prompt_list.reduce()
+# def _process_prompt(args):
+#     """Helper function to process a single prompt list with its replacements."""
+#     prompt_list, replacements = args
+#     return prompt_list.reduce()
 
 
 if __name__ == '__main__':
