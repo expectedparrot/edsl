@@ -36,6 +36,9 @@ class RunParameters(Base):
     disable_remote_cache: bool = False
     disable_remote_inference: bool = False
     job_uuid: Optional[str] = None
+    fresh: Optional[
+        bool
+    ] = False  # if True, will not use cache and will save new results to cache
 
     def to_dict(self, add_edsl_version=False) -> dict:
         d = asdict(self)
