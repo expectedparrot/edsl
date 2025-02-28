@@ -17,15 +17,16 @@ class QuestionInstructionPromptBuilder:
         model = prompt_constructor.model
         survey = prompt_constructor.survey
         question = prompt_constructor.question
-        return cls(prompt_constructor, model, survey, question)
+        scenario = prompt_constructor.scenario
+        return cls(prompt_constructor, model, survey, question, scenario)
 
-    def __init__(self, prompt_constructor: "PromptConstructor", model:"Model", survey:"Survey", question:"QuestionBase"):
+    def __init__(self, prompt_constructor: "PromptConstructor", model:"Model", survey:"Survey", question:"QuestionBase", scenario:"Scenario"):
         self.prompt_constructor = prompt_constructor
         self.model = model
         self.survey = survey
         self.question = question
 
-        self.scenario = prompt_constructor.scenario
+        self.scenario = scenario
         self.prior_answers_dict = prompt_constructor.prior_answers_dict()
 
         self.qtrb = QTRB.from_prompt_constructor(self.prompt_constructor)
