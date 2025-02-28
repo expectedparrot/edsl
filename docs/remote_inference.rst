@@ -3,7 +3,7 @@
 Remote Inference
 ================
 
-Remote inference allows you to run surveys at the Expected Parrot server instead of your own machine and to use :ref:`remote_caching` to store survey results and logs.
+Remote inference allows you to run surveys at the Expected Parrot server instead of locally on your own machine, and to use :ref:`remote_caching` to store survey results and logs at your Coop account.
 
 *Note: You must have a Coop account in order to use remote inference and caching.
 By using remote inference you agree to any terms of use of service providers, which Expected Parrot may accept on your behalf and enforce in accordance with our terms of use.*

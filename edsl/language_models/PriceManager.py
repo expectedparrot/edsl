@@ -30,19 +30,22 @@ class PriceManager:
         except Exception as e:
             print(f"Error fetching prices: {str(e)}")
 
-    def get_price(self, inference_service: str, model: str) -> Optional[Dict]:
+    def get_price(self, inference_service: str, model: str) -> Dict:
         """
         Get the price information for a specific service and model combination.
+        If no specific price is found, returns a fallback price.
 
         Args:
             inference_service (str): The name of the inference service
             model (str): The model identifier
 
         Returns:
-            Optional[Dict]: Price information if found, None otherwise
+            Dict: Price information (either actual or fallback prices)
         """
         key = (inference_service, model)
-        return self._price_lookup.get(key)
+        return self._price_lookup.get(key) or self._get_fallback_price(
+            inference_service
+        )
 
     def get_all_prices(self) -> Dict[Tuple[str, str], Dict]:
         """
@@ -52,6 +55,45 @@ class PriceManager:
             Dict[Tuple[str, str], Dict]: The complete price lookup dictionary
         """
         return self._price_lookup.copy()
+
+    def _get_fallback_price(self, inference_service: str) -> Dict:
+        """
+        Get fallback prices for a service.
+        - First fallback: The highest input and output prices for that service from the price lookup.
+        - Second fallback: $1.00 per million tokens (for both input and output).
+
+        Args:
+            inference_service (str): The inference service name
+
+        Returns:
+            Dict: Price information
+        """
+        service_prices = [
+            prices
+            for (service, _), prices in self._price_lookup.items()
+            if service == inference_service
+        ]
+
+        input_tokens_per_usd = [
+            float(p["input"]["one_usd_buys"]) for p in service_prices if "input" in p
+        ]
+        if input_tokens_per_usd:
+            min_input_tokens = min(input_tokens_per_usd)
+        else:
+            min_input_tokens = 1_000_000
+
+        output_tokens_per_usd = [
+            float(p["output"]["one_usd_buys"]) for p in service_prices if "output" in p
+        ]
+        if output_tokens_per_usd:
+            min_output_tokens = min(output_tokens_per_usd)
+        else:
+            min_output_tokens = 1_000_000
+
+        return {
+            "input": {"one_usd_buys": min_input_tokens},
+            "output": {"one_usd_buys": min_output_tokens},
+        }
 
     def calculate_cost(
         self,
@@ -75,8 +117,6 @@ class PriceManager:
             Union[float, str]: Total cost if calculation successful, error message string if not
         """
         relevant_prices = self.get_price(inference_service, model)
-        if relevant_prices is None:
-            return f"Could not find price for model {model} in the price lookup."
 
         # Extract token counts
         try:

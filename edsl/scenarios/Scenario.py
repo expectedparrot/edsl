@@ -64,6 +64,15 @@ class Scenario(Base, UserDict, ScenarioHtmlMixin):
         self.data = data if data is not None else {}
         self.name = name
 
+    def __mul__(self, scenario_list_or_scenario: Union["ScenarioList", "Scenario"]) -> "ScenarioList":
+        from edsl.scenarios.ScenarioList import ScenarioList
+        if isinstance(scenario_list_or_scenario, ScenarioList):
+            return scenario_list_or_scenario * self
+        elif isinstance(scenario_list_or_scenario, Scenario):
+            return ScenarioList([self]) * scenario_list_or_scenario
+        else:
+            raise TypeError(f"Cannot multiply Scenario with {type(scenario_list_or_scenario)}")
+
     def replicate(self, n: int) -> "ScenarioList":
         """Replicate a scenario n times to return a ScenarioList.
 
@@ -356,11 +365,18 @@ class Scenario(Base, UserDict, ScenarioHtmlMixin):
 
     @classmethod
     def from_pdf(cls, pdf_path: str):
-        from edsl.scenarios.PdfExtractor import PdfExtractor
-
-        extractor = PdfExtractor(pdf_path)
-        return Scenario(extractor.get_pdf_dict())
-
+        """Create a Scenario from a PDF file."""
+        try:
+            from edsl.scenarios.PdfExtractor import PdfExtractor
+            extractor = PdfExtractor(pdf_path)
+            return Scenario(extractor.get_pdf_dict())
+        except ImportError as e:
+            raise ImportError(
+                f"Could not extract text from PDF: {str(e)}. "
+                "PDF extraction requires the PyMuPDF library. "
+                "Install it with: pip install pymupdf"
+            )
+        
     @classmethod
     def from_pdf_to_image(cls, pdf_path, image_format="jpeg"):
         """

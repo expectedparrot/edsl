@@ -3,10 +3,12 @@
 Remote Caching
 ==============
 
-*Some of these features are still in development. Please check back for updates or send a message to info@expectedparrot.com to request early access!*
+*The universal remote cache is still in development. 
+This page will be updated and users will be notified via email when it is live.
+For now, your legacy remote cache is still available. 
+Please see below for details on how it works.*
 
 Remote caching allows you to store responses from language models at the Expected Parrot server, and retrieve responses to questions that have already been run.
-It is automatically activated with :ref:`remote_inference`.
 The logs of your remote surveys and results are also automatically stored at the Expected Parrot server, and can be viewed and managed at the `Cache <https://www.expectedparrot.com/home/remote-cache>`_ page of your account.
 
 If you want to use your local cache or another cache that is not part of the universal remote cache, you must use local inference (run your surveys locally).
@@ -18,26 +20,50 @@ By using remote inference you agree to any terms of use of service providers, wh
 How it works 
 ------------
 
+Activating remote caching
+-------------------------
+
+Remote caching is automatically activated when remote inference is activated.
+See instructions on activating remote inference at the :ref:`remote_inference` section.
+
 Whenever you run a survey remotely at the Expected Parrot server, your results are also cached at the server.
 You can access them at your `Cache <https://www.expectedparrot.com/home/remote-cache>`_ page or from your workspace (see examples of methods below).
 
 
-Universal remote cache 
-^^^^^^^^^^^^^^^^^^^^^^
+Legacy remote cache
+-------------------
 
-By default, your survey results will draw from a universal remote cache of responses to questions that have been run before, by you or other users.
-If your survey includes a question that has been run before, the response is retrieved from the universal remote cache.
-If a new response is generated, it is automatically added to the universal remote cache. 
-The universal remote cache is automatically updated whenever a survey is run remotely.
-It is free to use and available to all users.
-See more details about features below.
+Your legacy remote cache is a private resource that is available to you at your Coop account.
+It contains responses to questions that you have run at the Expected Parrot server and is accessible at the `Cache <https://www.expectedparrot.com/home/remote-cache>`_ page of your account.
+
+By default, when you run a survey at the Expected Parrot server your survey results will draw from your legacy remote cache.
+If your survey includes a question that has been run before, the stored response is retrieved from your legacy remote cache and included in your results, at no cost to you.
+If a question has not been run before, a new response is generated and included in your results and the legacy remote cache.
+If you want to draw fresh responses (i.e., you do not want to draw any responses from your legacy remote cache), you can pass a parameter `fresh=True` to the `run()` method.
+
+*Note: Your legacy remote cache is not available for local inference (surveys run on your own machine). 
+When the universal remote cache is live, your legacy remote cache will remain available at your account for 30 days. 
+After 30 days your cache entries will be removed and emailed to you. 
+If you would like to have your legacy remote cache entries available in the universal remote cache, please contact us for free credits for rerunning your surveys to regenerate the responses and add them to the universal remote cache.*
+
+
+Universal remote cache 
+----------------------
+
+*This feature is in progress. This page will be updated and users will be notified when it is live.*
+
+The universal remote cache is a shared resource that is available to all users.
+It contains responses to all questions that have been run at the Expected Parrot server.
+By default, when you run a survey at the Expectecd Parrot server your survey results will draw from the universal remote cache.
+If your survey includes a question that has been run before, the stored response is retrieved from the universal remote cache and included in your results, at no cost to you.
+If a question has not been run before, a new response is generated and included in your results and added to the universal remote cache.
 
 
 Fresh responses 
 ^^^^^^^^^^^^^^^
 
-If you want to draw fresh responses (i.e., you do not want to draw any responses from responses in the universal remote cache), you can pass a parameter `try_cache=False` to the `run()` method. 
-Your results object will still have a cache automatically attached to it, and the universal cache will still be updated with any new responses that are generated.
+If you want to draw all fresh responses, you can pass a parameter `fresh=True` to the `run()` method. 
+Your results object will still have a cache automatically attached to it, and the universal remote cache will still be updated with any new responses that are generated.
 
 
 Features of the universal remote cache 
@@ -45,41 +71,56 @@ Features of the universal remote cache
 
 The universal remote cache offers the following features:
 
-* **Free access:** The universal remote cache is free to use and available to all users, regardless of whether you are running surveys remotely with your own keys or an Expected Parrot API key.
+* **Free access:** It is free to use and available to all users, regardless of whether you are running surveys remotely with your own keys for language models or an Expected Parrot API key.
 
 * **Free storage & retrieval:** There is no limit on the number of responses that you can add to the universal remote cache or retrieve from it.
 
-* **Automatic updates:** The universal remote cache is automatically updated whenever a survey is run remotely.
+* **Automatic updates:** It is automatically updated whenever a survey is run remotely.
 
-* **Multiple responses:** If a fresh response is generated for a question that is different from a response already stored in the universal remote cache, the new response is added with an incremental identifier (`n=2`, etc.).
+* **Multiple responses:** If a fresh response is generated for a question that is different from a response already stored in the universal remote cache, the new response is added with an iteration index.
 
-* **No deletions:** You cannot delete entries in the universal remote cache.
+* **No deletions:** You cannot delete entries from the universal remote cache.
 
-* **No manual additions:** You cannot manually add entries to the universal remote cache. The only way to add responses is by running a survey remotely at the Expected Parrot server.
+* **No manual additions:** You cannot manually add entries. The only way to add responses to the universal remote cache is by running a survey remotely at the Expected Parrot server.
 
-* **Sharing & reproducibility:** A new cache is automatically attached to each results object, which can be posted and shared with other users at the Coop. You can also construct new caches from your remote cache entries at your `Jobs <https://www.expectedparrot.com/home/remote-cache>`_ page.
+* **Sharing & reproducibility:** A new cache is automatically attached to each results object, which can be posted and shared with other users at the Coop. 
 
-* **Privacy:** The universal remote cache is not queryable. You must run a survey to retrieve responses from it.
+* **Privacy:** It is not queryable. You must run a survey to retrieve responses from the universal remote cache.
 
 *Note:* The universal remote cache is not available for local inference (surveys run on your own machine).
 
 
-Activating remote caching
--------------------------
+Frequently asked questions
+^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Remote caching is automatically activated when remote inference is activated.
-See instructions on activating remote inference at the :ref:`remote_inference` section.
+* **Is the universal remote cache queryable?** No.
+
+* **Can I see which user generated a stored response in the universal remote cache?** No.
+
+* **Are my legacy remote cache entries in the universal remote cache?** No. Your legacy remote cache is only available to you. If you want your stored responses to be added to the universal remote cache you need to rerun the prompts to regenerate them. 
+
+* **How can I add my legacy remote cache entries to the universal remote cache?** You can request credits for rerunning your surveys to add responses to the universal remote cache.
+
+* **Why can't I add my local cache entries to the URC?** The purpose of the URC is to provide a canonical, verified collection of responses to allow researchers to be confident in results and easily reproduce them at no cost. By only allowing responses generated at the Expected Parrot server we can verify the results that are reproduced.
+
+* **Can I access the universal remote cache when I run a survey locally?** The universal remote cache is only available when running a survey remotely. However, you can pull or download your Cache entries to use them locally at any time (responses that you generated or retrieved from the universal remote cache when working remotely).
+
+* **How do I add new or fresh responses to the universal remote cache?** This happens automatically whenever you are running surveys remotely.
+
+* **Can I delete a response in the universal remote cache that I generated?**  No.
+
+* **What if I want to run a survey remotely but I do not want my responses added to the universal remote cache?** This is not allowed. Any new or fresh responses generated at the Expected Parrot server are automatically added to the universal remote cache. If you do not want to add responses to the universal remote cache you must run your surveys locally.
+
+* **What happens if I delete my account?** All of your account information is deleted. Any remote cache entries that you generated will remain in the universal remote cache but information about your account will be deleted.
 
 
 Using your remote cache
 -----------------------
 
 You can view and search all of your remote cache entries and logs at your `Cache <https://www.expectedparrot.com/home/remote-cache>`_ page.
-These entries include all of the responses to questions that you have run remotely, generated or retrieved from the universal remote cache, and all the logs of your remote surveys. 
-You can search and delete entries at this page, and also construct new caches consisting of any of the entries.
-(Deleting entries at this page does not impact the universal remote cache.)
+These entries include all of the responses to questions that you have run remotely and generated or retrieved from the universal remote cache, and all the logs of your remote surveys. 
 
-For example, here we run a survey with remote caching activated, and pass a description to readily identify the job at the remote inference and remote cache pages:
+For example, here we run a survey with remote caching activated, and pass a description to readily identify the job at Coop:
 
 .. code-block:: python
 
@@ -124,8 +165,6 @@ We can view the details of each cache entry:
 
   <br>
 
-
-We can also construct a new cache from any existing entries (*this feature is still in development!*).
 
 
 Reproducing results 

@@ -179,15 +179,18 @@ class AzureAIService(InferenceServiceABC):
                         api_version=api_version,
                         api_key=api_key,
                     )
-                    response = await client.chat.completions.create(
-                        model=model_name,
-                        messages=[
-                            {
-                                "role": "user",
-                                "content": user_prompt,  # Your question can go here
-                            },
-                        ],
-                    )
+                    try:
+                        response = await client.chat.completions.create(
+                            model=model_name,
+                            messages=[
+                                {
+                                    "role": "user",
+                                    "content": user_prompt,  # Your question can go here
+                                },
+                            ],
+                        )
+                    except Exception as e:
+                        return {"message": str(e)}
                     return response.model_dump()
 
             # @staticmethod
