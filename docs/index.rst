@@ -279,6 +279,7 @@ Links
    notebooks/summarizing_transcripts.ipynb
    notebooks/analyze_evaluations.ipynb
    notebooks/concept_induction.ipynb
+   notebooks/models_scoring_models.ipynb
    notebooks/conduct_interview.ipynb
    notebooks/qualitative_research.ipynb
    notebooks/nps_survey.ipynb
