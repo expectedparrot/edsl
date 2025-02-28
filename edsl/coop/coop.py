@@ -589,7 +589,7 @@ class Coop(CoopFunctionsMixin):
 
     def remote_cache_get(
         self,
-        job_uuid: Optional[str | UUID] = None,
+        job_uuid: Optional[Union[str, UUID]] = None,
     ) -> list[CacheEntry]:
         """
         Get all remote cache entries.
