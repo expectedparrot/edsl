@@ -140,13 +140,11 @@ class PersistenceMixin:
             if obj is None:
                 # Called as a class method
                 def wrapper(*args, **kwargs):
-                    print(f"Class method call detected. Class: {objtype}")
                     return self.func(objtype, *args, **kwargs)
                 return wrapper
             else:
                 # Called as an instance method
                 def wrapper(*args, **kwargs):
-                    print(f"Instance method call detected. Instance: {obj}")
                     return self.func(obj, *args, **kwargs)
                 return wrapper
     
@@ -173,8 +171,6 @@ class PersistenceMixin:
         - `value`: changes the value of the object on Coop (required for class method)
         - `visibility`: changes the visibility of the object on Coop
         """
-        print(f"patch called with self_or_cls type: {type(self_or_cls)}")
-        print(f"Is self_or_cls a type? {isinstance(self_or_cls, type)}")
         
         # Check if this is being called as a class method
         if isinstance(self_or_cls, type):
@@ -190,7 +186,6 @@ class PersistenceMixin:
             # This is an instance method call
             instance = self_or_cls
             cls_type = instance.__class__
-            print(f"Instance class: {cls_type}")
             
             # Use the instance as the value if not explicitly provided
             if value is None:
