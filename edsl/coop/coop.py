@@ -453,12 +453,23 @@ class Coop(CoopFunctionsMixin):
     def delete(self, uuid: Union[str, UUID] = None, url: str = None) -> dict:
         """
         Delete an object from the server.
+
+        :param uuid: The UUID of the object to delete
+        :param url: The URL of the object (can be content/uuid or content/username/alias format)
         """
-        obj_uuid, _, _ = self._resolve_uuid_or_alias(uuid, url)
+        obj_uuid, owner_username, alias = self._resolve_uuid_or_alias(uuid, url)
+
+        if obj_uuid:
+            uri = "api/v0/object"
+            params = {"uuid": obj_uuid}
+        else:
+            uri = "api/v0/object/alias"
+            params = {"owner_username": owner_username, "alias": alias}
+
         response = self._send_server_request(
-            uri=f"api/v0/object",
+            uri=uri,
             method="DELETE",
-            params={"uuid": obj_uuid},
+            params=params,
         )
 
         self._resolve_server_response(response)
@@ -475,15 +486,35 @@ class Coop(CoopFunctionsMixin):
     ) -> dict:
         """
         Change the attributes of an uploaded object
-        - Only supports visibility for now
+
+        :param uuid: The UUID of the object to patch
+        :param url: The URL of the object (can be content/uuid or content/username/alias format)
+        :param description: Optional new description
+        :param alias: Optional new alias
+        :param value: Optional new object value
+        :param visibility: Optional new visibility setting
         """
-        if description is None and visibility is None and value is None:
+        if (
+            description is None
+            and visibility is None
+            and value is None
+            and alias is None
+        ):
             raise Exception("Nothing to patch.")
-        obj_uuid, _, _ = self._resolve_uuid_or_alias(uuid, url)
+
+        obj_uuid, owner_username, obj_alias = self._resolve_uuid_or_alias(uuid, url)
+
+        if obj_uuid:
+            uri = "api/v0/object"
+            params = {"uuid": obj_uuid}
+        else:
+            uri = "api/v0/object/alias"
+            params = {"owner_username": owner_username, "alias": obj_alias}
+
         response = self._send_server_request(
-            uri=f"api/v0/object",
+            uri=uri,
             method="PATCH",
-            params={"uuid": obj_uuid},
+            params=params,
             payload={
                 "description": description,
                 "alias": alias,
