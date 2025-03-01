@@ -380,6 +380,39 @@ class FileStore(Scenario):
             f"'{self.__class__.__name__}' object has no attribute '{name}'"
         )
 
+    def html_snippet(self, width: str = "100%", height: str = "500px", file_path_root: Optional[str] = None, **kwargs) -> str:
+        """
+        Returns an HTML string with an <object> tag for embedding the file in a web page.
+        
+        Args:
+            width (str): Width of the object element. Default is "100%".
+            height (str): Height of the object element. Default is "500px".
+            file_path_root (Optional[str]): If provided, uses this as the root path instead of self.path.
+                The filename will be appended to this root.
+            **kwargs: Additional HTML attributes to add to the object tag.
+        
+        Returns:
+            str: HTML string with an <object> tag.
+        """
+        # Determine the file path to use
+        if file_path_root is not None:
+            # Use the provided root with the original filename
+            filename = os.path.basename(self.path)
+            file_path = os.path.join(file_path_root, filename)
+        else:
+            # Use the default path
+            file_path = self.path
+        
+        # Create attributes string from kwargs
+        extra_attrs = " ".join([f'{k}="{v}"' for k, v in kwargs.items()])
+        
+        # Create the HTML object tag
+        html = f'<object data="{file_path}" type="{self.mime_type}" width="{width}" height="{height}" {extra_attrs}>'
+        html += f'<p>Unable to display: <a href="{file_path}">Download {os.path.basename(file_path)}</a></p>'
+        html += '</object>'
+        
+        return html
+
 
 class CSVFileStore(FileStore):
     @classmethod
