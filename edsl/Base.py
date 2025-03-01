@@ -65,10 +65,10 @@ class PersistenceMixin:
     def pull(
         cls,
         url_or_uuid: Optional[Union[str, UUID]] = None,
-        #expected_parrot_url: Optional[str] = None,
+        # expected_parrot_url: Optional[str] = None,
     ):
         """Pull the object from coop.
-        
+
         Args:
             url_or_uuid: Either a UUID string or a URL pointing to the object
             expected_parrot_url: Optional URL for the Parrot server
@@ -80,7 +80,11 @@ class PersistenceMixin:
         coop = Coop()
 
         # Determine if input is URL or UUID
-        if url_or_uuid and ("http://" in str(url_or_uuid) or "https://" in str(url_or_uuid)):
+        if "www" in url_or_uuid:
+            url_or_uuid = url_or_uuid.replace("www", "api")
+        if url_or_uuid and (
+            "http://" in str(url_or_uuid) or "https://" in str(url_or_uuid)
+        ):
             return coop.get(url=url_or_uuid, expected_object_type=object_type)
         else:
             return coop.get(uuid=url_or_uuid, expected_object_type=object_type)

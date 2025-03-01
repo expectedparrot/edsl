@@ -32,6 +32,9 @@ jobs:
       - name: Update pyproject.toml for EDSL target commit
         run: |
           cd /home/stefan/expectedparrot/coopr/backend
+          git checkout -f main
+          git fetch origin
+          git pull
           sed -i -E "s|edsl = \{git = \"https://github.com/expectedparrot/edsl.git\", rev = \".*\"\}|edsl = {git = \"https://github.com/expectedparrot/edsl.git\", rev = \"$COMMIT\"}|" pyproject.toml
           sed -i -E "s|edsl = \{git = \"https://github.com/expectedparrot/edsl.git\",branch = \".*\"\}|edsl = {git = \"https://github.com/expectedparrot/edsl.git\", rev = \"$COMMIT\"}|" pyproject.toml
 
