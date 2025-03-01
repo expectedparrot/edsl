@@ -109,11 +109,18 @@ To use this method:
   PERPLEXITY_API_KEY = 'your_key_here'
   TOGETHER_API_KEY = 'your_key_here'
   XAI_API_KEY = 'your_key_here'
+  
+  AWS_ACCESS_KEY_ID = 'your_key_here'
+  AWS_SECRET_ACCESS_KEY = 'your_key_here'
+  
+  AZURE_ENDPOINT_URL_AND_KEY = https://model_1_link:api_key_1,https://model_2_link:api_key_2
 
 
 Your Expected Parrot key can be found at the `Settings <http://www.expectedparrot.com/home/settings>`_ page of your account, where you can reset it at any time. 
 This key allows you to access all available models at once and use :ref:`remote-inference` to run surveys at the Expected Parrot server. 
 It also allows you to post content to Coop, and to interact with other content that is public or shared with you.
+
+If you are using Azure or Bedrock, see a notebook of examples for setting up your keys `here <https://docs.expectedparrot.com/en/latest/edsl_with_cloud_providers.html>`_.
 
 
 3. Set keys in your code
@@ -141,6 +148,11 @@ To use this method, store any keys that you want to use as strings in your code 
   os.environ['REPLICATE_API_KEY'] = 'your_key_here'
   os.environ['TOGETHER_API_KEY'] = 'your_key_here'
   os.environ['XAI_API_KEY'] = 'your_key_here'
+
+  os.environ['AWS_ACCESS_KEY_ID'] = 'your_key_here'
+  os.environ['AWS_SECRET_ACCESS_KEY'] = 'your_key_here'
+  
+  os.environ['AZURE_ENDPOINT_URL_AND_KEY'] = https://model_1_link:api_key_1,https://model_2_link:api_key_2
 
 
 Note that your keys will not persist across sessions and you will need to provide your keys each time you start a new session.
