@@ -262,6 +262,8 @@ class Interview:
         if model_buckets is None or hasattr(self.agent, "answer_question_directly"):
             model_buckets = ModelBuckets.infinity_bucket()
 
+        self.skip_flags = {q.question_name: False for q in self.survey.questions}
+
         # was "self.tasks" - is that necessary?
         self.tasks = self.task_manager.build_question_tasks(
             answer_func=AnswerQuestionFunctionConstructor(
@@ -310,6 +312,10 @@ class Interview:
         def handle_task(task, invigilator):
             try:
                 result: Answers = task.result()
+                if result == "skipped":
+                    result = invigilator.get_failed_task_result(
+                        failure_reason="Task was skipped."
+                    )
             except asyncio.CancelledError as e:  # task was cancelled
                 result = invigilator.get_failed_task_result(
                     failure_reason="Task was cancelled."
