@@ -272,6 +272,7 @@ Links
    notebooks/agent_fatigue.ipynb
    notebooks/model_test_report.ipynb
    notebooks/run_background.ipynb
+   notebooks/edsl_with_cloud_providers.ipynb
 
 .. toctree::
    :maxdepth: 2
