@@ -368,7 +368,9 @@ class Coop(CoopFunctionsMixin):
                 "json_string": json.dumps(
                     object.to_dict(),
                     default=self._json_handle_none,
-                ),
+                )
+                if object_type != "scenario"
+                else "",
                 "object_type": object_type,
                 "visibility": visibility,
                 "version": self._edsl_version,
@@ -376,6 +378,23 @@ class Coop(CoopFunctionsMixin):
         )
         self._resolve_server_response(response)
         response_json = response.json()
+
+        if object_type == "scenario":
+            json_data = json.dumps(
+                object.to_dict(),
+                default=self._json_handle_none,
+            )
+            headers = {"Content-Type": "application/json"}
+            if response_json.get("upload_signed_url"):
+                signed_url = response_json.get("upload_signed_url")
+            else:
+                raise Exception("No signed url provided received")
+
+            print("uploading the filestore")
+            response = requests.put(
+                signed_url, data=json_data.encode(), headers=headers
+            )
+
         return {
             "description": response_json.get("description"),
             "object_type": object_type,
@@ -383,6 +402,7 @@ class Coop(CoopFunctionsMixin):
             "uuid": response_json.get("uuid"),
             "version": self._edsl_version,
             "visibility": response_json.get("visibility"),
+            "upload_signed_url": response_json.get("upload_signed_url", None),
         }
 
     def get(
