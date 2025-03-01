@@ -69,7 +69,7 @@ class AvailableModelFetcher:
 
         Returns a list of [model, service_name, index] entries.
         """
-        if service == "azure":
+        if service == "azure" or service == "bedrock":
             force_refresh = True  # Azure models are listed inside the .env AZURE_ENDPOINT_URL_AND_KEY variable
 
         if service:  # they passed a specific service
