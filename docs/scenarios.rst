@@ -444,6 +444,158 @@ This will return:
     - nan
 
 
+Concatenating scenarios
+-----------------------
+
+There are several `ScenarioList` methods for concatenating scenarios.
+
+The method `concatenate()` can be used to concatenate specified fields into a single string field; the default separator is a semicolon:
+
+.. code-block:: python
+
+  from edsl import Scenario, ScenarioList
+
+  sl = ScenarioList([
+    Scenario({"a":1, "b":2, "c":3}),
+    Scenario({"a":4, "b":5, "c":6})
+  ])
+
+  slc = sl.concatenate(["a", "b"])
+
+  slc
+
+
+This will return:
+
+.. list-table::
+  :header-rows: 1
+
+  * - c
+    - concat_a_b
+  * - 3
+    - 1;2
+  * - 6
+    - 4;5
+
+
+We can specify a different separator:
+
+.. code-block:: python
+
+  slc = sl.concatenate(["a", "b"], separator = " ")
+
+  slc
+
+
+This will return:
+
+.. list-table::
+  :header-rows: 1
+
+  * - c
+    - concat_a_b
+  * - 3
+    - 1,2
+  * - 6
+    - 4,5
+
+
+The method `concatenate_to_list()` can be used to concatenate specified fields into a single list field:
+
+.. code-block:: python
+
+  from edsl import Scenario, ScenarioList
+
+  sl = ScenarioList([
+    Scenario({"a":1, "b":2, "c":3}),
+    Scenario({"a":4, "b":5, "c":6})
+  ])
+
+  slc = sl.concatenate_to_list(["a", "b"])
+
+  slc
+
+
+This will return:
+
+.. list-table::
+  :header-rows: 1
+
+  * - c
+    - concat_a_b
+  * - 3
+    - [1,2]
+  * - 6
+    - [4,5]
+
+
+The method `concatenate_to_set()` can be used to concatenate specified fields into a single set field:
+
+.. code-block:: python
+
+  from edsl import Scenario, ScenarioList
+
+  sl = ScenarioList([
+    Scenario({"a":1, "b":2, "c":3}),
+    Scenario({"a":4, "b":5, "c":6})
+  ])
+
+  slc = sl.concatenate_to_list(["a", "b"])
+
+  slc
+
+
+This will return:
+
+.. list-table::
+  :header-rows: 1
+
+  * - c
+    - concat_a_b
+  * - 3
+    - {1,2}
+  * - 6
+    - {4,5}
+
+
+The method `collapse()` can be used to collapse a scenario list by grouping on all fields except a specified field:
+
+.. code-block:: python
+
+  from edsl import ScenarioList
+
+  s = ScenarioList([
+    Scenario({'category': 'fruit', 'color': 'red', 'item': 'apple'}),
+    Scenario({'category': 'fruit', 'color': 'yellow', 'item': 'banana'}),
+    Scenario({'category': 'fruit', 'color': 'red', 'item': 'cherry'}),
+    Scenario({'category': 'vegetable', 'color': 'green', 'item': 'spinach'})
+  ])
+
+  s.collapse('item')
+
+
+This will return:
+
+.. list-table::
+  :header-rows: 1
+
+  * - category
+    - color
+    - item
+  * - fruit
+    - red
+    - ['apple', 'cherry']
+  * - fruit
+    - yellow
+    - ['banana']
+  * - vegetable
+    - green
+    - ['spinach']
+    
+
+The method `from_sqlite()` can be used to create a scenario list from a SQLite database. It takes a `filepath` to the database file and optional parameters `table` and `sql_query`.
+
+
 Creating scenarios from a dataset
 ---------------------------------
 
