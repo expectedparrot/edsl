@@ -1,17 +1,22 @@
 # Changelog
 
-## [0.1.46] - TBD
+## [0.1.46] - 2025-03-01
 ### Added
+- A universal remote cache (URC) is available for retrieving responses to any questions that have been run at the Expected Parrot server. If you re-run a question that anyone has run before, you can retrieve that response at no cost to you. This cache is available for all jobs run remotely by default, and new responses are automatically added to it. If you want to draw fresh responses you can use `run(fresh=True)`. If you draw a fresh response for a question that has already been run, the new response is also added to the URC with an iteration index. The URC is not available for jobs run locally. See the [remote cache](https://docs.expectedparrot.com/en/latest/remote_caching.html) section for details and FAQ.
+
 - `ScenarioList` methods for concatenating and collapsing scenarios in a scenario list:
+
 * `concatenate()` can be used to concatenate specified fields into a single string field
+
 * `concatenate_to_list()` can be used to concatenate specified fields into a single list field 
+
 * `concatenate_to_set()` can be used to concatenate specified fields into a single set field 
+
 * `collapse()` can be used to collapse a scenario list by grouping on all fields except a specified field
+
 See [examples](https://docs.expectedparrot.com/en/latest/scenarios.html#combining-scenarios).
 
 - `ScenarioList` method `from_sqlite()` can be used to create a scenario list from a SQLite database.
-
-- (*In progress*) A universal remote cache is available for retrieving responses to any questions that have been run at the Expected Parrot server. If you re-run a question that anyone has run before, you can retrieve that response at no cost to you. This cache is available for all jobs run remotely by default, and new responses are automatically added to it. If you want to draw fresh responses you can use `run(fresh=True)`. If you draw a fresh response for a question that has already been run, the new response is also added to the URC with an iteration index. The URC is not available for jobs run locally. See the [remote cache](https://docs.expectedparrot.com/en/latest/remote_caching.html) section for details.
 
 
 ## [0.1.45] - 2025-02-27
