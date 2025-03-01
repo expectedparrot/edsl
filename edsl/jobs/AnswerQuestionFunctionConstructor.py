@@ -1,12 +1,13 @@
 import copy
 import asyncio
 
-from typing import Union, Type, Callable, TYPE_CHECKING
+from typing import Union, Type, Callable, TYPE_CHECKING, Tuple
 
 if TYPE_CHECKING:
     from edsl.questions.QuestionBase import QuestionBase
     from edsl.jobs.interviews.Interview import Interview
     from edsl.language_models.key_management.KeyLookup import KeyLookup
+    from edsl.agents.InvigilatorBase import InvigilatorBase
 
 from edsl.surveys.base import EndOfSurvey
 from edsl.jobs.tasks.task_status_enum import TaskStatus
@@ -28,6 +29,20 @@ class RetryConfig:
 
 
 class SkipHandler:
+    """Handles skipping questions.
+    
+    Skipping occurs when a question is skipped by the skip rule. 
+
+    >>> from edsl.jobs.interviews.Interview import Interview
+    >>> from edsl.jobs.AnswerQuestionFunctionConstructor import SkipHandler
+    >>> i = Interview.example()
+    >>> i.answers = {'q0': 'yes'}
+    >>> sh = SkipHandler(i)
+    >>> sh.should_skip(i.survey.questions[0])
+    False
+    >>> sh.should_skip(i.survey.questions[1])
+    True
+    """
 
     def __init__(self, interview: "Interview"):
         self.interview = interview
@@ -37,52 +52,70 @@ class SkipHandler:
             self.interview.survey.rule_collection.skip_question_before_running
         )
 
-    def should_skip(self, current_question: "QuestionBase") -> bool:
-        """Determine if the current question should be skipped."""
-        current_question_index = self.question_index[current_question.question_name]
-        combined_answers = (
-            self.interview.answers
-            | self.interview.scenario
-            | self.interview.agent["traits"]
-        )
-        return self.skip_function(current_question_index, combined_answers)
+    def _current_interview_state(self) -> dict:
+        return {
+            "answers": self.interview.answers,
+            "scenario": self.interview.scenario,
+            "agent_traits": self.interview.agent["traits"],
+        }
 
-    def cancel_skipped_questions(self, current_question: "QuestionBase") -> None:
-        """Cancel the tasks for questions that should be skipped."""
+    def should_skip(self, current_question: "QuestionBase") -> bool:
+        """Determine if the current question should be skipped.
+        
+        I *think* this is to handle skip-logic where you get a to a question and then learn if you 
+        should skip it. It is not for normal flow control.
+        """
+        current_question_index = self.question_index[current_question.question_name]
+        current_state = self._current_interview_state()
+        return self.skip_function(current_question_index, current_state)
+    
+    def _cancel_between(self, start: int, end: int) -> None:
+        """Cancel the tasks for questions between the start and end indices."""
+        for i in range(start, end):
+            self.interview.skip_flags[self.interview.survey.questions[i].question_name] = True
+
+    def _get_current_and_next_question_indices(self, current_question: "QuestionBase") -> Tuple[int, int]:
+        """Get the indices of the current and next question."""
         current_question_index: int = self.interview.to_index[
             current_question.question_name
         ]
-        answers = (
-            self.interview.answers
-            | self.interview.scenario
-            | self.interview.agent["traits"]
+        next_question = self.interview.survey.rule_collection.next_question(
+            q_now=current_question_index,
+            answers=self._current_interview_state(),
         )
-
-        # Get the index of the next question, which could also be the end of the survey
-        next_question: Union[int, EndOfSurvey] = (
-            self.interview.survey.rule_collection.next_question(
-                q_now=current_question_index,
-                answers=answers,
-            )
-        )
+        next_question_index: int = next_question.next_q
+        return current_question_index, next_question_index
 
 
-        def cancel_between(start, end):
-            """Cancel the tasks for questions between the start and end indices."""
-            for i in range(start, end):
-                #print(f"Cancelling task {i}")
-                #self.interview.tasks[i].cancel()
-                #self.interview.tasks[i].set_result("skipped")
-                self.interview.skip_flags[self.interview.survey.questions[i].question_name] = True
+    def cancel_skipped_questions(self, current_question: "QuestionBase") -> None:
+        """Cancel the tasks for questions that should be skipped."""
+        # current_question_index: int = self.interview.to_index[
+        #     current_question.question_name
+        # ]
+        
+        # current_state = self._current_interview_state()
 
-        if (next_question_index := next_question.next_q) == EndOfSurvey:
-            cancel_between(
-                current_question_index + 1, len(self.interview.survey.questions)
+        # # Get the index of the next question, which could also be the end of the survey
+        # next_question: Union[int, EndOfSurvey] = (
+        #     self.interview.survey.rule_collection.next_question(
+        #         q_now=current_question_index,
+        #         answers=current_state,
+        #     )
+        # )
+        current_question_index, next_question_index = self._get_current_and_next_question_indices(current_question)
+
+        if next_question_index == EndOfSurvey:
+            # If the next question is the end of the survey, cancel all tasks after the current question
+            self._cancel_between(
+                start=current_question_index + 1, 
+                end=len(self.interview.survey.questions)
             )
             return
 
         if next_question_index > (current_question_index + 1):
-            cancel_between(current_question_index + 1, next_question_index)
+            # If the next question is after the current question, cancel all tasks between the current question and the next question
+            self._cancel_between(start=current_question_index + 1, 
+                                 end=next_question_index)
 
         
 
@@ -232,3 +265,8 @@ class AnswerQuestionFunctionConstructor:
                 original_error, self.invigilator_fetcher(question), task
             )
             raise original_error
+
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod()
