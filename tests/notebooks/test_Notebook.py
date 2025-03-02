@@ -76,6 +76,7 @@ def test_notebook_creation_from_data_invalid():
 
 def test_notebook_creation_from_path_valid():
     """Tests that a notebook can be created from a filepath."""
+    from edsl import Notebook
 
     notebook = Notebook("docs/notebooks/starter_tutorial.ipynb")
     assert notebook.data["nbformat"] == 4

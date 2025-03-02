@@ -28,7 +28,7 @@ Learn more about how :ref:`coop` works in the EDSL documentation.
 
 .. note::
 
-  You can also view and download the contents of this tutorial in a `notebook at Coop <https://www.expectedparrot.com/content/179b3a78-2505-4568-acd9-c09d18953288>`_
+  You can also view and download the contents of this tutorial in a `notebook at Coop <https://www.expectedparrot.com/content/RobinHorton/starter-tutorial-notebook>`_
 
 
 **Further reading** 
@@ -1097,4 +1097,4 @@ To post a notebook:
   notebook.push(description="Starter Tutorial", visibility="public")
 
 
-You can view and download a notebook for this tutorial `at the Coop <https://www.expectedparrot.com/content/179b3a78-2505-4568-acd9-c09d18953288>`_.
+You can view and download a notebook for this tutorial `at the Coop <https://www.expectedparrot.com/content/RobinHorton/starter-tutorial-notebook>`_.
