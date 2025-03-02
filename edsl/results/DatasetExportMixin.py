@@ -735,11 +735,14 @@ class DatasetExportMixin:
         """
         Flatten a field containing a list of dictionaries into separate fields.
 
-        For example, if a dataset contains:
-        [{'data': [{'a': 1}, {'b': 2}], 'other': ['x', 'y']}]
+        >>> from edsl.results.Dataset import Dataset
+        >>> Dataset([{'a': [{'a': 1, 'b': 2}]}, {'c': [5] }]).flatten('a')
+        Dataset([{'c': [5]}, {'a.a': [1]}, {'a.b': [2]}])
 
-        After d.flatten('data'), it should become:
-        [{'other': ['x', 'y'], 'data.a': [1, None], 'data.b': [None, 2]}]
+
+        >>> Dataset([{'answer.example': [{'a': 1, 'b': 2}]}, {'c': [5] }]).flatten('answer.example')
+        Dataset([{'c': [5]}, {'answer.example.a': [1]}, {'answer.example.b': [2]}])
+
 
         Args:
             field: The field to flatten
@@ -753,6 +756,24 @@ class DatasetExportMixin:
         # Ensure the dataset isn't empty
         if not self.data:
             return self.copy()
+        
+        # Find all columns that contain the field
+        matching_entries = []
+        for entry in self.data:
+            col_name = next(iter(entry.keys()))
+            if field == col_name or (
+                '.' in col_name and 
+                (col_name.endswith('.' + field) or col_name.startswith(field + '.'))
+            ):
+                matching_entries.append(entry)
+        
+        # Check if the field is ambiguous
+        if len(matching_entries) > 1:
+            matching_cols = [next(iter(entry.keys())) for entry in matching_entries]
+            raise ValueError(
+                f"Ambiguous field name '{field}'. It matches multiple columns: {matching_cols}. "
+                f"Please specify the full column name to flatten."
+            )
 
         # Get the number of observations
         num_observations = self.num_observations()
