@@ -119,6 +119,19 @@ class Jobs(Base):
         :param agents: a list of agents
         :param models: a list of models
         :param scenarios: a list of scenarios
+
+
+        >>> from edsl.surveys.Survey import Survey
+        >>> from edsl.questions.QuestionFreeText import QuestionFreeText
+        >>> q = QuestionFreeText(question_name="name", question_text="What is your name?")
+        >>> s = Survey(questions=[q])
+        >>> j = Jobs(survey = s)
+        >>> q = QuestionFreeText(question_name="{{ bad_name }}", question_text="What is your name?")
+        >>> s = Survey(questions=[q])
+        >>> j = Jobs(survey = s)
+        Traceback (most recent call last):
+        ...
+        ValueError: At least some question names are not valid: ['{{ bad_name }}']
         """
         self.run_config = RunConfig(
             environment=RunEnvironment(), parameters=RunParameters()
@@ -128,6 +141,13 @@ class Jobs(Base):
         self.agents: AgentList = agents
         self.scenarios: ScenarioList = scenarios
         self.models: ModelList = models
+
+        try:
+            assert self.survey.question_names_valid()
+        except Exception as e:
+            invalid_question_names = [q.question_name for q in self.survey.questions if not q.is_valid_question_name()]
+            raise ValueError(f"At least some question names are not valid: {invalid_question_names}")
+        
 
     def add_running_env(self, running_env: RunEnvironment):
         self.run_config.add_environment(running_env)
