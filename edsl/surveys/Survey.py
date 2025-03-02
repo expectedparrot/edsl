@@ -740,7 +740,7 @@ class Survey(SurveyExportMixin, Base):
 
         >>> s = Survey.example()
         >>> s.show_rules()
-        Dataset([{'current_q': [0, 0, 1, 2]}, {'expression': ['True', "q0 == 'yes'", 'True', 'True']}, {'next_q': [1, 2, 2, 3]}, {'priority': [-1, 0, -1, -1]}, {'before_rule': [False, False, False, False]}])
+        Dataset([{'current_q': [0, 0, 1, 2]}, {'expression': ['True', "{{ q0.answer }}== 'yes'", 'True', 'True']}, {'next_q': [1, 2, 2, 3]}, {'priority': [-1, 0, -1, -1]}, {'before_rule': [False, False, False, False]}])
         """
         return self.rule_collection.show_rules()
 
@@ -757,16 +757,16 @@ class Survey(SurveyExportMixin, Base):
 
         Here, answering "yes" to q0 ends the survey:
 
-        >>> s = Survey.example().add_stop_rule("q0", "q0 == 'yes'")
-        >>> s.next_question("q0", {"q0": "yes"})
+        >>> s = Survey.example().add_stop_rule("q0", "{{ q0.answer }} == 'yes'")
+        >>> s.next_question("q0", {"q0.answer": "yes"})
         EndOfSurvey
 
         By comparison, answering "no" to q0 does not end the survey:
 
-        >>> s.next_question("q0", {"q0": "no"}).question_name
+        >>> s.next_question("q0", {"q0.answer": "no"}).question_name
         'q1'
 
-        >>> s.add_stop_rule("q0", "q1 <> 'yes'")
+        >>> s.add_stop_rule("q0", "{{ q1.answer }} <> 'yes'")
         Traceback (most recent call last):
         ...
         edsl.exceptions.surveys.SurveyCreationError: The expression contains '<>', which is not allowed. You probably mean '!='.
@@ -778,7 +778,7 @@ class Survey(SurveyExportMixin, Base):
         """Remove all non-default rules from the survey.
 
         >>> Survey.example().show_rules()
-        Dataset([{'current_q': [0, 0, 1, 2]}, {'expression': ['True', "q0 == 'yes'", 'True', 'True']}, {'next_q': [1, 2, 2, 3]}, {'priority': [-1, 0, -1, -1]}, {'before_rule': [False, False, False, False]}])
+        Dataset([{'current_q': [0, 0, 1, 2]}, {'expression': ['True', "{{ q0.answer }}== 'yes'", 'True', 'True']}, {'next_q': [1, 2, 2, 3]}, {'priority': [-1, 0, -1, -1]}, {'before_rule': [False, False, False, False]}])
         >>> Survey.example().clear_non_default_rules().show_rules()
         Dataset([{'current_q': [0, 1, 2]}, {'expression': ['True', 'True', 'True']}, {'next_q': [1, 2, 3]}, {'priority': [-1, -1, -1]}, {'before_rule': [False, False, False]}])
         """
@@ -832,8 +832,8 @@ class Survey(SurveyExportMixin, Base):
 
         This adds a rule that if the answer to q0 is 'yes', the next question is q2 (as opposed to q1)
 
-        >>> s = Survey.example().add_rule("q0", "{{ q0 }} == 'yes'", "q2")
-        >>> s.next_question("q0", {"q0": "yes"}).question_name
+        >>> s = Survey.example().add_rule("q0", "{{ q0.answer }} == 'yes'", "q2")
+        >>> s.next_question("q0", {"q0.answer": "yes"}).question_name
         'q2'
 
         """
@@ -999,9 +999,9 @@ class Survey(SurveyExportMixin, Base):
         - If the next question is the last question in the survey, an EndOfSurvey object is returned.
 
         >>> s = Survey.example()
-        >>> s.next_question("q0", {"q0": "yes"}).question_name
+        >>> s.next_question("q0", {"q0.answer": "yes"}).question_name
         'q2'
-        >>> s.next_question("q0", {"q0": "no"}).question_name
+        >>> s.next_question("q0", {"q0.answer": "no"}).question_name
         'q1'
 
         """
@@ -1039,7 +1039,7 @@ class Survey(SurveyExportMixin, Base):
 
         >>> s = Survey.example()
         >>> s.show_rules()
-        Dataset([{'current_q': [0, 0, 1, 2]}, {'expression': ['True', "q0 == 'yes'", 'True', 'True']}, {'next_q': [1, 2, 2, 3]}, {'priority': [-1, 0, -1, -1]}, {'before_rule': [False, False, False, False]}])
+        Dataset([{'current_q': [0, 0, 1, 2]}, {'expression': ['True', "{{ q0.answer }}== 'yes'", 'True', 'True']}, {'next_q': [1, 2, 2, 3]}, {'priority': [-1, 0, -1, -1]}, {'before_rule': [False, False, False, False]}])
 
         Note that q0 has a rule that if the answer is 'yes', the next question is q2. If the answer is 'no', the next question is q1.
 
@@ -1048,7 +1048,7 @@ class Survey(SurveyExportMixin, Base):
         >>> i = s.gen_path_through_survey()
         >>> next(i)
         Question('multiple_choice', question_name = \"""q0\""", question_text = \"""Do you like school?\""", question_options = ['yes', 'no'])
-        >>> i.send({"q0": "yes"})
+        >>> i.send({"q0.answer": "yes"})
         Question('multiple_choice', question_name = \"""q2\""", question_text = \"""Why?\""", question_options = ['**lack*** of killer bees in cafeteria', 'other'])
 
         And here is the path through the survey if the answer to q0 is 'no':
@@ -1056,7 +1056,7 @@ class Survey(SurveyExportMixin, Base):
         >>> i2 = s.gen_path_through_survey()
         >>> next(i2)
         Question('multiple_choice', question_name = \"""q0\""", question_text = \"""Do you like school?\""", question_options = ['yes', 'no'])
-        >>> i2.send({"q0": "no"})
+        >>> i2.send({"q0.answer": "no"})
         Question('multiple_choice', question_name = \"""q1\""", question_text = \"""Why not?\""", question_options = ['killer bees in cafeteria', 'other'])
 
 
@@ -1218,7 +1218,7 @@ class Survey(SurveyExportMixin, Base):
             return s
 
         s = cls(questions=[q0, q1, q2])
-        s = s.add_rule(q0, "q0 == 'yes'", q2)
+        s = s.add_rule(q0, "{{ q0.answer }}== 'yes'", q2)
         return s
 
     def get_job(self, model=None, agent=None, **kwargs):

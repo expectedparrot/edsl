@@ -153,7 +153,7 @@ class Rule:
 
         >>> r = Rule.example()
         >>> r.to_dict()
-        {'current_q': 1, 'expression': "q1 == 'yes'", 'next_q': 2, 'priority': 0, 'question_name_to_index': {'q1': 1}, 'before_rule': False}
+        {'current_q': 1, 'expression': "{{ q1.answer }} == 'yes'", 'next_q': 2, 'priority': 0, 'question_name_to_index': {'q1': 1}, 'before_rule': False}
         """
         return {
             "current_q": self.current_q,
@@ -234,24 +234,18 @@ class Rule:
         If the expression cannot be evaluated, it raises a CannotEvaluate exception.
 
         >>> r = Rule.example()
-        >>> r.evaluate({'q1' : 'yes'})
+        >>> r.evaluate({'q1.answer' : 'yes'})
         True
-        >>> r.evaluate({'q1' : 'no'})
+        >>> r.evaluate({'q1.answer' : 'no'})
         False
 
         >>> r = Rule.example(jinja2=True)
-        >>> r.evaluate({'q1' : 'yes'})
+        >>> r.evaluate({'q1.answer' : 'yes'})
         True
 
         >>> r = Rule.example(jinja2=True)
-        >>> r.evaluate({'q1' : 'This is q1'})
+        >>> r.evaluate({'q1.answer' : 'This is q1'})
         False
-
-        >>> r = Rule.example(jinja2=False, bad = True)
-        >>> r.evaluate({'q1' : 'yes'})
-        Traceback (most recent call last):
-        ...
-        edsl.exceptions.surveys.SurveyRuleCannotEvaluateError...
         """
         from jinja2 import Template
 
@@ -262,7 +256,12 @@ class Rule:
 
             if "{{" in expression and "}}" in expression:
                 template_expression = Template(self.expression)
-                to_evaluate = template_expression.render(current_info)
+                from collections import defaultdict
+                jinja_dict = defaultdict(dict)
+                for key, value in current_info.items():
+                    key_type, key_name = key.split(".")
+                    jinja_dict[key_type][key_name] = value
+                to_evaluate = template_expression.render(jinja_dict)
             else:
                 # import warnings
                 # import textwrap
@@ -300,16 +299,16 @@ class Rule:
     def example(cls, jinja2=False, bad=False):
         if jinja2:
             # a rule written in jinja2 style with {{ }}
-            expression = "{{ q1 }} == 'yes'"
+            expression = "{{ q1.answer }} == 'yes'"
         else:
-            expression = "q1 == 'yes'"
+            expression = "{{ q1.answer }} == 'yes'"
 
         if bad and jinja2:
             # a rule written in jinja2 style with {{ }} but with a 'bad' expression
             expression = "{{ q1 }} == 'This is q1'"
 
         if bad and not jinja2:
-            expression = "q1 == 'This is q1'"
+            expression = "{{ q1.answer }} == 'This is q1'"
 
         r = Rule(
             current_q=1,
