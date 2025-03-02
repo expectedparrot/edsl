@@ -175,6 +175,10 @@ class Survey(SurveyExportMixin, Base):
         # Cache the InstructionCollection
         self._cached_instruction_collection = None
 
+    def question_names_valid(self) -> bool:
+        """Check if the question names are valid."""
+        return all(q.is_valid_question_name() for q in self.questions)
+
     def draw(self) -> "Survey":
         """Return a new survey with a randomly selected permutation of the options."""
         if self._seed is None:  # only set once
