@@ -1156,6 +1156,7 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         
         return scenario_list
 
+    @classmethod
     def from_wikipedia(cls, url: str, table_index: int = 0):
         """
         Extracts a table from a Wikipedia page.
