@@ -439,6 +439,10 @@ class Coop(CoopFunctionsMixin):
 
         self._resolve_server_response(response)
         json_string = response.json().get("json_string")
+        if "load_from:" in json_string[0:12]:
+            load_link = json_string.split("load_from:")[1]
+            object_data = requests.get(load_link)
+            json_string = object_data.text
         object_type = response.json().get("object_type")
         if expected_object_type and object_type != expected_object_type:
             raise Exception(f"Expected {expected_object_type=} but got {object_type=}")
