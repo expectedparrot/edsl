@@ -140,7 +140,6 @@ class RuleCollection(UserList):
         >>> rule_collection.add_rule(r)
         >>> rule_collection.skip_question_before_running(1, {})
         False
-
         """
         for rule in self.applicable_rules(q_now, before_rule=True):
             if rule.evaluate(answers):

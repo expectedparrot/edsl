@@ -153,7 +153,7 @@ class Interview:
 
         >>> i = Interview.example()
         >>> hash(i)
-        767745459362662063
+        1670837906923478736
         """
         d = {
             "agent": self.agent.to_dict(add_edsl_version=add_edsl_version),
