@@ -315,7 +315,7 @@ Note that we do not include the `scenario.` prefix when using sceanrios for ques
   q = QuestionMultipleChoice(
     question_name = "capital_of_france",
     question_text = "What is the capital of France?", 
-    question_options = "{{ question_options }}"
+    question_options = "{{ scenario.question_options }}"
   )
 
   s = Scenario({'question_options': ['Paris', 'London', 'Berlin', 'Madrid']})
