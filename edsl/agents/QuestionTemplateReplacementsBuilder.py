@@ -107,6 +107,14 @@ class QuestionTemplateReplacementsBuilder:
     def _scenario_replacements(
         self, replacement_string: str = "<see file {key}>"
     ) -> dict[str, Any]:
+        """
+        >>> from edsl import Scenario
+        >>> from edsl import QuestionFreeText; 
+        >>> q = QuestionFreeText(question_text = "How are you {{ scenario.friend }}?", question_name = "test")
+        >>> s = Scenario({'friend':'john'}) 
+        >>> q.by(s).prompts().select('user_prompt')
+        Dataset([{'user_prompt': [Prompt(text=\"""How are you john?\""")]}])
+        """
         # File references dictionary
         file_refs = {
             key: replacement_string.format(key=key) for key in self.scenario_file_keys()
@@ -116,7 +124,9 @@ class QuestionTemplateReplacementsBuilder:
         scenario_items = {
             k: v for k, v in self.scenario.items() if k not in self.scenario_file_keys()
         }
-        return {**file_refs, **scenario_items}
+        scenario_items_with_prefix = {'scenario': scenario_items}
+        
+        return {**file_refs, **scenario_items, **scenario_items_with_prefix}
 
     @staticmethod
     def _question_data_replacements(
@@ -151,7 +161,7 @@ class QuestionTemplateReplacementsBuilder:
         >>> q = QuestionMultipleChoice(question_text="What do you think of this file: {{ file1 }}, {{ first_name}}", question_name = "q0", question_options = ["good", "bad"])
         >>> qtrb = QuestionTemplateReplacementsBuilder(scenario = s, question = q, prior_answers_dict = {'q0': 'q0'}, agent = "agent")
         >>> qtrb.build_replacement_dict(q.data)
-        {'file1': '<see file file1>', 'first_name': 'John', 'use_code': False, 'include_comment': True, 'question_name': 'q0', 'question_text': 'What do you think of this file: {{ file1 }}, {{ first_name}}', 'question_options': ['good', 'bad'], 'q0': 'q0', 'agent': 'agent'}
+        {'file1': '<see file file1>', 'first_name': 'John', 'scenario': {'first_name': 'John'}, 'use_code': False, 'include_comment': True, 'question_name': 'q0', 'question_text': 'What do you think of this file: {{ file1 }}, {{ first_name}}', 'question_options': ['good', 'bad'], 'q0': 'q0', 'agent': 'agent'}
 
 
         """

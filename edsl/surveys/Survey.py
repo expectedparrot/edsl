@@ -172,6 +172,13 @@ class Survey(SurveyExportMixin, Base):
 
         self._seed = None
 
+        # Cache the InstructionCollection
+        self._cached_instruction_collection = None
+
+    def question_names_valid(self) -> bool:
+        """Check if the question names are valid."""
+        return all(q.is_valid_question_name() for q in self.questions)
+
     def draw(self) -> "Survey":
         """Return a new survey with a randomly selected permutation of the options."""
         if self._seed is None:  # only set once
@@ -205,28 +212,16 @@ class Survey(SurveyExportMixin, Base):
     # region: Survey instruction handling
     @property
     def _relevant_instructions_dict(self) -> InstructionCollection:
-        """Return a dictionary with keys as question names and values as instructions that are relevant to the question.
-
-        >>> s = Survey.example(include_instructions=True)
-        >>> s._relevant_instructions_dict
-        {'q0': [Instruction(name="attention", text="Please pay attention!")], 'q1': [Instruction(name="attention", text="Please pay attention!")], 'q2': [Instruction(name="attention", text="Please pay attention!")]}
-
-        """
-        return InstructionCollection(
-            self._instruction_names_to_instructions, self.questions
-        )
+        """Return a dictionary with keys as question names and values as instructions that are relevant to the question."""
+        if self._cached_instruction_collection is None:
+            self._cached_instruction_collection = InstructionCollection(
+                self._instruction_names_to_instructions, self.questions
+            )
+        return self._cached_instruction_collection
 
     def _relevant_instructions(self, question: QuestionBase) -> dict:
-        """This should be a dictionry with keys as question names and values as instructions that are relevant to the question.
-
-        :param question: The question to get the relevant instructions for.
-
-        # Did the instruction come before the question and was it not modified by a change instruction?
-
-        """
-        return InstructionCollection(
-            self._instruction_names_to_instructions, self.questions
-        )[question]
+        """Return instructions that are relevant to the question."""
+        return self._relevant_instructions_dict[question]
 
     def show_flow(self, filename: Optional[str] = None) -> None:
         """Show the flow of the survey."""

@@ -6,14 +6,14 @@ Credits
 Credits are required in order to run surveys with models using your Expected Parrot API key.
 They can be purchased at your Coop account (see details below).
 Credits are deducted to cover API call costs, which depend on token rates set by language model service providers.
-You can view pricing for available models at the `model pricing page <https://www.expectedparrot.com/getting-started/coop-pricing>`_.
+You can view current pricing for available models at the `model pricing page <https://www.expectedparrot.com/getting-started/coop-pricing>`_.
 
 Credits must be purchased in advance and are consumed when surveys are run. 
 If your balance is insufficient, you will be prompted to purchase more credits.
 Details on credit consumption are provided below.
 
 *Note:* Credits are *not* required to run surveys with your own keys from service providers or to post and share content at `Coop <https://www.expectedparrot.com/content/explore>`_.
-When using your own keys, cost estimates are based on the prices listed in the `model pricing page <https://www.expectedparrot.com/getting-started/coop-pricing>`_, but your actual charges may vary depending on your service providers' terms.
+When using your own keys, cost estimates are based on the prices listed in the `model pricing page <https://www.expectedparrot.com/getting-started/coop-pricing>`_, but your actual charges may vary depending on service providers' terms.
 
 
 Free credits
@@ -49,7 +49,7 @@ You may be charged payment processing fees when purchasing credits.
 Using credits
 -------------
 
-When you run a survey with your Expected Parrot API key, the number of credits consumed (and deducted from your balance) is displayed at the `Remote inference <https://www.expectedparrot.com/home/remote-inference>`_ page of your account.
+When you run a survey with your Expected Parrot API key, the number of credits consumed (and deducted from your balance) is displayed at the `Jobs <https://www.expectedparrot.com/home/remote-inference>`_ page of your account.
 This number is equal to the sum of the cost in credits of each response in the results.
 
 The cost in credits of a response is calculated as follows:

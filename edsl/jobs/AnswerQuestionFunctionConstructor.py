@@ -66,10 +66,14 @@ class SkipHandler:
             )
         )
 
+
         def cancel_between(start, end):
             """Cancel the tasks for questions between the start and end indices."""
             for i in range(start, end):
-                self.interview.tasks[i].cancel()
+                #print(f"Cancelling task {i}")
+                #self.interview.tasks[i].cancel()
+                #self.interview.tasks[i].set_result("skipped")
+                self.interview.skip_flags[self.interview.survey.questions[i].question_name] = True
 
         if (next_question_index := next_question.next_q) == EndOfSurvey:
             cancel_between(
@@ -79,6 +83,8 @@ class SkipHandler:
 
         if next_question_index > (current_question_index + 1):
             cancel_between(current_question_index + 1, next_question_index)
+
+        
 
 
 class AnswerQuestionFunctionConstructor:
@@ -160,6 +166,11 @@ class AnswerQuestionFunctionConstructor:
         )
         async def attempt_answer():
             invigilator = self.invigilator_fetcher(question)
+
+            if self.interview.skip_flags.get(question.question_name, False):
+                return invigilator.get_failed_task_result(
+                    failure_reason="Question skipped."
+                )
 
             if self.skip_handler.should_skip(question):
                 return invigilator.get_failed_task_result(

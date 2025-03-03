@@ -387,11 +387,18 @@ class Scenario(Base, UserDict, ScenarioHtmlMixin):
 
     @classmethod
     def from_pdf(cls, pdf_path: str):
-        from edsl.scenarios.PdfExtractor import PdfExtractor
-
-        extractor = PdfExtractor(pdf_path)
-        return Scenario(extractor.get_pdf_dict())
-
+        """Create a Scenario from a PDF file."""
+        try:
+            from edsl.scenarios.PdfExtractor import PdfExtractor
+            extractor = PdfExtractor(pdf_path)
+            return Scenario(extractor.get_pdf_dict())
+        except ImportError as e:
+            raise ImportError(
+                f"Could not extract text from PDF: {str(e)}. "
+                "PDF extraction requires the PyMuPDF library. "
+                "Install it with: pip install pymupdf"
+            )
+        
     @classmethod
     def from_pdf_to_image(cls, pdf_path, image_format="jpeg"):
         """

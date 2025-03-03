@@ -1,20 +1,16 @@
 from __future__ import annotations
 from typing import Dict, Any, Optional, Set, Union, TYPE_CHECKING, Literal
 from functools import cached_property
-from multiprocessing import Pool, freeze_support, get_context
-from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 import time
 import logging
 
 from edsl.prompts.Prompt import Prompt
 
-from dataclasses import dataclass
-
-from .prompt_helpers import PromptPlan
-from .QuestionTemplateReplacementsBuilder import (
+from edsl.agents.prompt_helpers import PromptPlan
+from edsl.agents.QuestionTemplateReplacementsBuilder import (
     QuestionTemplateReplacementsBuilder,
 )
-from .question_option_processor import QuestionOptionProcessor
+from edsl.agents.question_option_processor import QuestionOptionProcessor
 
 if TYPE_CHECKING:
     from edsl.agents.InvigilatorBase import InvigilatorBase
@@ -146,23 +142,29 @@ class PromptConstructor:
         return self.agent.prompt()
 
     def prior_answers_dict(self) -> dict[str, "QuestionBase"]:
-        """This is a dictionary of prior answers, if they exist."""
+        """This is a dictionary of prior answers, if they exist.
+        
+        >>> from edsl.agents.InvigilatorBase import InvigilatorBase
+        >>> i = InvigilatorBase.example()
+        >>> i.prompt_constructor.prior_answers_dict()
+        {'q0': ..., 'q1': ...}
+        """
         return self._add_answers(
             self.survey.question_names_to_questions(), self.current_answers
         )
 
     @staticmethod
-    def _extract_quetion_and_entry_type(key_entry) -> tuple[str, str]:
+    def _extract_question_and_entry_type(key_entry) -> tuple[str, str]:
         """
         Extracts the question name and type for the current answer dictionary key entry.
 
-        >>> PromptConstructor._extract_quetion_and_entry_type("q0")
+        >>> PromptConstructor._extract_question_and_entry_type("q0")
         ('q0', 'answer')
-        >>> PromptConstructor._extract_quetion_and_entry_type("q0_comment")
+        >>> PromptConstructor._extract_question_and_entry_type("q0_comment")
         ('q0', 'comment')
-        >>> PromptConstructor._extract_quetion_and_entry_type("q0_alternate_generated_tokens")
+        >>> PromptConstructor._extract_question_and_entry_type("q0_alternate_generated_tokens")
         ('q0_alternate', 'generated_tokens')
-        >>> PromptConstructor._extract_quetion_and_entry_type("q0_alt_comment")
+        >>> PromptConstructor._extract_question_and_entry_type("q0_alt_comment")
         ('q0_alt', 'comment')
         """
         split_list = key_entry.rsplit("_", maxsplit=1)
@@ -194,7 +196,7 @@ class PromptConstructor:
         d = defaultdict(dict)
         for key, value in current_answers.items():
             question_name, entry_type = (
-                PromptConstructor._extract_quetion_and_entry_type(key)
+                PromptConstructor._extract_question_and_entry_type(key)
             )
             d[question_name][entry_type] = value
         return dict(d)
@@ -280,99 +282,44 @@ class PromptConstructor:
             question_name, self.current_answers
         )
 
-    def get_prompts(self, parallel: Literal["thread", "process", None] = None) -> Dict[str, Any]:
+    def get_prompts(self) -> Dict[str, Any]:
         """Get the prompts for the question."""
         start = time.time()
         
         # Build all the components
-        instr_start = time.time()
         agent_instructions = self.agent_instructions_prompt
-        instr_end = time.time()
-        logger.debug(f"Time taken for agent instructions: {instr_end - instr_start:.4f}s")
-        
-        persona_start = time.time()
         agent_persona = self.agent_persona_prompt
-        persona_end = time.time()
-        logger.debug(f"Time taken for agent persona: {persona_end - persona_start:.4f}s")
-        
-        q_instr_start = time.time()
         question_instructions = self.question_instructions_prompt
-        q_instr_end = time.time()
-        logger.debug(f"Time taken for question instructions: {q_instr_end - q_instr_start:.4f}s")
-        
-        memory_start = time.time()
         prior_question_memory = self.prior_question_memory_prompt
-        memory_end = time.time()
-        logger.debug(f"Time taken for prior question memory: {memory_end - memory_start:.4f}s")
-
+        
         # Get components dict
         components = {
             "agent_instructions": agent_instructions.text,
             "agent_persona": agent_persona.text,
             "question_instructions": question_instructions.text,
             "prior_question_memory": prior_question_memory.text,
-        }
-
-        # Use PromptPlan's get_prompts method
-        plan_start = time.time()
-        
+        }        
         # Get arranged components first
         arranged = self.prompt_plan.arrange_components(**components)
         
-        if parallel == "process":
-            pass
-            # ctx = get_context('fork')
-            # with ctx.Pool() as pool:
-            #     results = pool.map(_process_prompt, [
-            #         (arranged["user_prompt"], {}),
-            #         (arranged["system_prompt"], {})
-            #     ])
-            #     prompts = {
-            #         "user_prompt": results[0],
-            #         "system_prompt": results[1]
-            #     }
-            
-        elif parallel == "thread":
-            pass
-            # with ThreadPoolExecutor() as executor:
-            #     user_prompt_list = arranged["user_prompt"]
-            #     system_prompt_list = arranged["system_prompt"]
-                
-            #     # Process both prompt lists in parallel
-            #     rendered_user = executor.submit(_process_prompt, (user_prompt_list, {}))
-            #     rendered_system = executor.submit(_process_prompt, (system_prompt_list, {}))
-                
-            #     prompts = {
-            #         "user_prompt": rendered_user.result(),
-            #         "system_prompt": rendered_system.result()
-            #     }
-                
-        else:  # sequential processing
-            prompts = self.prompt_plan.get_prompts(**components)
-
-        plan_end = time.time()
-        logger.debug(f"Time taken for prompt processing: {plan_end - plan_start:.4f}s")
+        prompts = self.prompt_plan.get_prompts(**components)
         
         # Handle file keys if present
         if hasattr(self, 'question_file_keys') and self.question_file_keys:
-            files_start = time.time()
             files_list = []
             for key in self.question_file_keys:
                 files_list.append(self.scenario[key])
             prompts["files_list"] = files_list
-            files_end = time.time()
-            logger.debug(f"Time taken for file key processing: {files_end - files_start:.4f}s")
         
-        end = time.time()
-        logger.debug(f"Total time in get_prompts: {end - start:.4f}s")
         return prompts
 
 
-def _process_prompt(args):
-    """Helper function to process a single prompt list with its replacements."""
-    prompt_list, replacements = args
-    return prompt_list.reduce()
+# def _process_prompt(args):
+#     """Helper function to process a single prompt list with its replacements."""
+#     prompt_list, replacements = args
+#     return prompt_list.reduce()
 
 
 if __name__ == '__main__':
-    freeze_support()
+    import doctest
+    doctest.testmod(optionflags=doctest.ELLIPSIS)

@@ -183,6 +183,8 @@ class QuestionBaseGenMixin:
             k: v for k, v in replacement_dict.items() if not isinstance(v, Scenario)
         }
 
+        strings_only_replacement_dict['scenario'] = strings_only_replacement_dict
+
         def _has_unrendered_variables(template_str: str, env: Environment) -> bool:
             """Check if the template string has any unrendered variables."""
             if not isinstance(template_str, str):

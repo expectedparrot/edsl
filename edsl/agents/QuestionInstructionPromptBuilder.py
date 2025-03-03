@@ -1,7 +1,15 @@
-from typing import Dict, List, Set, Any, Union
+from typing import Dict, List, Set, Any, Union, TYPE_CHECKING
 from warnings import warn
 import logging
 from edsl.prompts.Prompt import Prompt
+
+if TYPE_CHECKING:
+    from edsl.agents.PromptConstructor import PromptConstructor
+    from edsl import Model
+    from edsl import Survey
+    from edsl.questions.QuestionBase import QuestionBase
+    from edsl import Scenario
+    from edsl import Agent
 
 from edsl.agents.QuestionTemplateReplacementsBuilder import (
     QuestionTemplateReplacementsBuilder as QTRB,
@@ -21,23 +29,42 @@ class QuestionInstructionPromptBuilder:
 
     @classmethod
     def from_prompt_constructor(cls, prompt_constructor: "PromptConstructor"):
-        
+
         model = prompt_constructor.model
         survey = prompt_constructor.survey
         question = prompt_constructor.question
-        return cls(prompt_constructor, model, survey, question)
+        scenario = prompt_constructor.scenario
+        prior_answers_dict = prompt_constructor.prior_answers_dict()
+        agent = prompt_constructor.agent
+        return cls(
+            prompt_constructor,
+            model,
+            survey,
+            question,
+            scenario,
+            prior_answers_dict,
+            agent,
+        )
 
-    def __init__(self, prompt_constructor: "PromptConstructor", model:"Model", survey:"Survey", question:"QuestionBase"):
-        self.prompt_constructor = prompt_constructor
+    def __init__(
+        self,
+        prompt_constructor: "PromptConstructor",
+        model: "Model",
+        survey: "Survey",
+        question: "QuestionBase",
+        scenario: "Scenario",
+        prior_answers_dict: Dict[str, Any],
+        agent: "Agent",
+    ):
+
+        self.qtrb = QTRB(scenario, question, prior_answers_dict, agent)
+
         self.model = model
         self.survey = survey
         self.question = question
-
-        self.scenario = prompt_constructor.scenario
-        self.prior_answers_dict = prompt_constructor.prior_answers_dict()
-
-        self.qtrb = QTRB.from_prompt_constructor(self.prompt_constructor)
-
+        self.agent = agent
+        self.scenario = scenario
+        self.prior_answers_dict = prior_answers_dict
 
     def build(self) -> Prompt:
         """Builds the complete question instructions prompt with all necessary components.
@@ -86,19 +113,23 @@ class QuestionInstructionPromptBuilder:
         """
         # Create base prompt
         base_prompt = self._create_base_prompt()
-        
+
         # Enrich with options
-        enriched_prompt = self._enrich_with_question_options(prompt_data=base_prompt, scenario=self.scenario, prior_answers_dict=self.prior_answers_dict)
-        
+        enriched_prompt = self._enrich_with_question_options(
+            prompt_data=base_prompt,
+            scenario=self.scenario,
+            prior_answers_dict=self.prior_answers_dict,
+        )
+
         # Render prompt
         rendered_prompt = self._render_prompt(enriched_prompt)
-        
+
         # Validate template variables
         self._validate_template_variables(rendered_prompt)
-        
+
         # Append survey instructions
         final_prompt = self._append_survey_instructions(rendered_prompt)
-        
+
         return final_prompt
 
     def _create_base_prompt(self) -> Dict[str, Union[Prompt, Dict[str, Any]]]:
@@ -119,7 +150,9 @@ class QuestionInstructionPromptBuilder:
         }
 
     @staticmethod
-    def _process_question_options(question_data: Dict, scenario: 'Scenario', prior_answers_dict: Dict) -> Dict:
+    def _process_question_options(
+        question_data: Dict, scenario: "Scenario", prior_answers_dict: Dict
+    ) -> Dict:
         """Processes and replaces question options in the question data if they exist.
 
         The question_options could be intended to be replaced with data from a scenario or prior answers.
@@ -140,16 +173,18 @@ class QuestionInstructionPromptBuilder:
         """
         if "question_options" in question_data:
             from edsl.agents.question_option_processor import QuestionOptionProcessor
-            
-            question_options = (QuestionOptionProcessor(scenario, prior_answers_dict)
-                                .get_question_options(question_data=question_data)
-            )
+
+            question_options = QuestionOptionProcessor(
+                scenario, prior_answers_dict
+            ).get_question_options(question_data=question_data)
             question_data["question_options"] = question_options
-            
+
         return question_data
 
     @staticmethod
-    def _enrich_with_question_options(prompt_data: Dict, scenario: 'Scenario', prior_answers_dict: Dict) -> Dict:
+    def _enrich_with_question_options(
+        prompt_data: Dict, scenario: "Scenario", prior_answers_dict: Dict
+    ) -> Dict:
         """Enriches the prompt data with processed question options if they exist.
 
         Args:
@@ -160,8 +195,10 @@ class QuestionInstructionPromptBuilder:
         Returns:
             Dict: Enriched prompt data
         """
-        prompt_data["data"] = QuestionInstructionPromptBuilder._process_question_options(
-            prompt_data["data"], scenario, prior_answers_dict
+        prompt_data["data"] = (
+            QuestionInstructionPromptBuilder._process_question_options(
+                prompt_data["data"], scenario, prior_answers_dict
+            )
         )
         return prompt_data
 
@@ -175,10 +212,8 @@ class QuestionInstructionPromptBuilder:
             Prompt: Rendered instructions
         """
         # Build replacement dict
-        replacement_dict = self.qtrb.build_replacement_dict(
-            prompt_data["data"]
-        )
-        
+        replacement_dict = self.qtrb.build_replacement_dict(prompt_data["data"])
+
         # Render with dict
         return prompt_data["prompt"].render(replacement_dict)
 
@@ -208,7 +243,9 @@ class QuestionInstructionPromptBuilder:
         """
         for question_name in self.survey.question_names:
             if question_name in undefined_vars:
-                logging.warning(f"Question name found in undefined_template_variables: {question_name}")
+                logging.warning(
+                    f"Question name found in undefined_template_variables: {question_name}"
+                )
 
     def _append_survey_instructions(self, rendered_prompt: Prompt) -> Prompt:
         """Appends any relevant survey instructions to the rendered prompt.
@@ -235,4 +272,5 @@ class QuestionInstructionPromptBuilder:
 
 if __name__ == "__main__":
     import doctest
+
     doctest.testmod()

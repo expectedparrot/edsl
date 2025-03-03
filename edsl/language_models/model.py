@@ -17,7 +17,11 @@ if TYPE_CHECKING:
     from edsl.results.Dataset import Dataset
 
 
-def get_model_class(model_name, registry: Optional[InferenceServicesCollection] = None, service_name: Optional[InferenceServiceLiteral] = None):
+def get_model_class(
+    model_name,
+    registry: Optional[InferenceServicesCollection] = None,
+    service_name: Optional[InferenceServiceLiteral] = None,
+):
     from edsl.inference_services.registry import default
 
     registry = registry or default
@@ -138,7 +142,7 @@ class Model(metaclass=Meta):
     @classmethod
     def services(cls, name_only: bool = False) -> List[str]:
         """Returns a list of services excluding 'test', sorted alphabetically.
-        
+
         >>> Model.services()
         [...]
         """
@@ -201,9 +205,10 @@ class Model(metaclass=Meta):
         search_term: str = None,
         name_only: bool = False,
         service: Optional[str] = None,
+        force_refresh: bool = False,
     ):
         """Get available models
-        
+
         >>> Model.available()
         [...]
         >>> Model.available(service='openai')
@@ -226,7 +231,9 @@ class Model(metaclass=Meta):
                     f"Available services are: {known_services}",
                 )
 
-        full_list = cls.get_registry().available(service=service)
+        full_list = cls.get_registry().available(
+            service=service, force_refresh=force_refresh
+        )
 
         if search_term is None:
             if name_only:

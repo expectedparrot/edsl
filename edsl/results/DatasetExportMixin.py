@@ -505,8 +505,9 @@ class DatasetExportMixin:
 
         from edsl.utilities.PrettyList import PrettyList
 
-        return PrettyList(list_to_return)
-
+        #return PrettyList(list_to_return)
+        return list_to_return
+    
     def html(
         self,
         filename: Optional[str] = None,
@@ -735,11 +736,14 @@ class DatasetExportMixin:
         """
         Flatten a field containing a list of dictionaries into separate fields.
 
-        For example, if a dataset contains:
-        [{'data': [{'a': 1}, {'b': 2}], 'other': ['x', 'y']}]
+        >>> from edsl.results.Dataset import Dataset
+        >>> Dataset([{'a': [{'a': 1, 'b': 2}]}, {'c': [5] }]).flatten('a')
+        Dataset([{'c': [5]}, {'a.a': [1]}, {'a.b': [2]}])
 
-        After d.flatten('data'), it should become:
-        [{'other': ['x', 'y'], 'data.a': [1, None], 'data.b': [None, 2]}]
+
+        >>> Dataset([{'answer.example': [{'a': 1, 'b': 2}]}, {'c': [5] }]).flatten('answer.example')
+        Dataset([{'c': [5]}, {'answer.example.a': [1]}, {'answer.example.b': [2]}])
+
 
         Args:
             field: The field to flatten
@@ -753,6 +757,24 @@ class DatasetExportMixin:
         # Ensure the dataset isn't empty
         if not self.data:
             return self.copy()
+        
+        # Find all columns that contain the field
+        matching_entries = []
+        for entry in self.data:
+            col_name = next(iter(entry.keys()))
+            if field == col_name or (
+                '.' in col_name and 
+                (col_name.endswith('.' + field) or col_name.startswith(field + '.'))
+            ):
+                matching_entries.append(entry)
+        
+        # Check if the field is ambiguous
+        if len(matching_entries) > 1:
+            matching_cols = [next(iter(entry.keys())) for entry in matching_entries]
+            raise ValueError(
+                f"Ambiguous field name '{field}'. It matches multiple columns: {matching_cols}. "
+                f"Please specify the full column name to flatten."
+            )
 
         # Get the number of observations
         num_observations = self.num_observations()
@@ -882,6 +904,102 @@ class DatasetExportMixin:
             result.data.pop(field_index)
 
         return result
+    
+    def drop(self, field_name):
+        """
+        Returns a new Dataset with the specified field removed.
+        
+        Args:
+            field_name (str): The name of the field to remove.
+            
+        Returns:
+            Dataset: A new Dataset instance without the specified field.
+            
+        Raises:
+            KeyError: If the field_name doesn't exist in the dataset.
+            
+        Examples:
+            >>> from edsl.results.Dataset import Dataset
+            >>> d = Dataset([{'a': [1, 2, 3]}, {'b': [4, 5, 6]}])
+            >>> d.drop('a')
+            Dataset([{'b': [4, 5, 6]}])
+            
+            >>> d.drop('c')
+            Traceback (most recent call last):
+            ...
+            KeyError: "Field 'c' not found in dataset"
+        """
+        from edsl.results.Dataset import Dataset
+        
+        # Check if field exists in the dataset
+        if field_name not in self.relevant_columns():
+            raise KeyError(f"Field '{field_name}' not found in dataset")
+        
+        # Create a new dataset without the specified field
+        new_data = [entry for entry in self.data if field_name not in entry]
+        return Dataset(new_data)
+
+    def remove_prefix(self):
+        """Returns a new Dataset with the prefix removed from all column names.
+        
+        The prefix is defined as everything before the first dot (.) in the column name.
+        If removing prefixes would result in duplicate column names, an exception is raised.
+        
+        Returns:
+            Dataset: A new Dataset with prefixes removed from column names
+            
+        Raises:
+            ValueError: If removing prefixes would result in duplicate column names
+            
+        Examples:
+            >>> from edsl.results import Results
+            >>> r = Results.example()
+            >>> r.select('how_feeling', 'how_feeling_yesterday').relevant_columns()
+            ['answer.how_feeling', 'answer.how_feeling_yesterday']
+            >>> r.select('how_feeling', 'how_feeling_yesterday').remove_prefix().relevant_columns()
+            ['how_feeling', 'how_feeling_yesterday']
+            
+            >>> from edsl.results.Dataset import Dataset
+            >>> d = Dataset([{'a.x': [1, 2, 3]}, {'b.x': [4, 5, 6]}])
+            >>> d.remove_prefix()
+            Traceback (most recent call last):
+            ...
+            ValueError: Removing prefixes would result in duplicate column names: ['x']
+        """
+        from edsl.results.Dataset import Dataset
+        
+        # Get all column names
+        columns = self.relevant_columns()
+        
+        # Extract the unprefixed names
+        unprefixed = {}
+        duplicates = set()
+        
+        for col in columns:
+            if '.' in col:
+                unprefixed_name = col.split('.', 1)[1]
+                if unprefixed_name in unprefixed:
+                    duplicates.add(unprefixed_name)
+                unprefixed[unprefixed_name] = col
+            else:
+                # For columns without a prefix, keep them as is
+                unprefixed[col] = col
+        
+        # Check for duplicates
+        if duplicates:
+            raise ValueError(f"Removing prefixes would result in duplicate column names: {sorted(list(duplicates))}")
+        
+        # Create a new dataset with unprefixed column names
+        new_data = []
+        for entry in self.data:
+            key, values = list(entry.items())[0]
+            if '.' in key:
+                new_key = key.split('.', 1)[1]
+            else:
+                new_key = key
+            new_data.append({new_key: values})
+        
+        return Dataset(new_data)
 
 
 if __name__ == "__main__":

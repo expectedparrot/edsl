@@ -238,9 +238,6 @@ class Interview:
         >>> run_config = RunConfig(parameters = RunParameters(), environment = RunEnvironment())
         >>> run_config.parameters.stop_on_exception = True
         >>> result, _ = asyncio.run(i.async_conduct_interview(run_config))
-        Traceback (most recent call last):
-        ...
-        asyncio.exceptions.CancelledError
         """
         from edsl.jobs.Jobs import RunConfig, RunParameters, RunEnvironment
 
@@ -261,6 +258,8 @@ class Interview:
 
         if model_buckets is None or hasattr(self.agent, "answer_question_directly"):
             model_buckets = ModelBuckets.infinity_bucket()
+
+        self.skip_flags = {q.question_name: False for q in self.survey.questions}
 
         # was "self.tasks" - is that necessary?
         self.tasks = self.task_manager.build_question_tasks(
@@ -310,6 +309,10 @@ class Interview:
         def handle_task(task, invigilator):
             try:
                 result: Answers = task.result()
+                if result == "skipped":
+                    result = invigilator.get_failed_task_result(
+                        failure_reason="Task was skipped."
+                    )
             except asyncio.CancelledError as e:  # task was cancelled
                 result = invigilator.get_failed_task_result(
                     failure_reason="Task was cancelled."
