@@ -18,6 +18,7 @@ from edsl.questions.SimpleAskMixin import SimpleAskMixin
 from edsl.questions.QuestionBasePromptsMixin import QuestionBasePromptsMixin
 from edsl.questions.question_base_gen_mixin import QuestionBaseGenMixin
 from edsl.utilities.remove_edsl_version import remove_edsl_version
+from edsl.utilities.utilities import is_valid_variable_name
 
 if TYPE_CHECKING:
     from edsl.questions.response_validator_abc import ResponseValidatorABC
@@ -55,6 +56,10 @@ class QuestionBase(
 
     _answering_instructions = None
     _question_presentation = None
+
+    def is_valid_question_name(self) -> bool:
+        """Check if the question name is valid."""
+        return is_valid_variable_name(self.question_name)
 
     @property
     def response_validator(self) -> "ResponseValidatorABC":
