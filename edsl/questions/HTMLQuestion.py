@@ -5,6 +5,13 @@ from edsl.prompts.Prompt import Prompt
 class HTMLQuestion:
     def __init__(self, question):
         self.question = question
+        self.html_content = None
+
+    def _repr_html_(self):
+        from IPython.display import display, HTML
+        return self.html_content
+
+    #scenario, agent, answers, include_question_name
 
     def html(
         self,
@@ -12,9 +19,6 @@ class HTMLQuestion:
         agent: Optional[dict] = {},
         answers: Optional[dict] = None,
         include_question_name: bool = False,
-        height: Optional[int] = None,
-        width: Optional[int] = None,
-        iframe=False,
     ):
         """Return the question in HTML format."""
         from jinja2 import Template
@@ -86,18 +90,6 @@ class HTMLQuestion:
             )
         rendered_html = base_template.render(**params)
 
-        if iframe:
-            import html
-            from IPython.display import display, HTML
+        self.html_content = rendered_html
+        return self
 
-            height = height or 200
-            width = width or 600
-            escaped_output = html.escape(rendered_html)
-            # escaped_output = rendered_html
-            iframe = f""""
-            <iframe srcdoc="{ escaped_output }" style="width: {width}px; height: {height}px;"></iframe>
-            """
-            display(HTML(iframe))
-            return None
-
-        return rendered_html
