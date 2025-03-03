@@ -1379,6 +1379,65 @@ class Results(UserList, Mixins, Base):
             raise ResultsError(f"Failed to fetch remote results: {str(e)}")
 
 
+    def spot_issues(self, models: Optional[ModelList] = None) -> Results:
+        """Run a survey to spot issues and suggest improvements for prompts that had no model response, returning a new Results object.
+        Future version: Allow user to optionally pass a list of questions to review, regardless of whether they had a null model response.
+        """
+        from edsl.questions import QuestionFreeText, QuestionDict
+        from edsl.surveys import Survey
+        from edsl.scenarios import Scenario, ScenarioList
+        from edsl.language_models import Model, ModelList
+        import pandas as pd
+
+        df = self.select("agent.*", "scenario.*", "answer.*", "raw_model_response.*", "prompt.*").to_pandas()
+        scenario_list = []
+
+        for _, row in df.iterrows():
+            for col in df.columns:
+                if col.endswith("_raw_model_response") and pd.isna(row[col]):
+                    q = col.split("_raw_model_response")[0].replace("raw_model_response.", "")
+
+                    s = Scenario({
+                        "original_question": q,
+                        "original_agent_index": row["agent.agent_index"],
+                        "original_scenario_index": row["scenario.scenario_index"],
+                        "original_prompts": f"User prompt: {row[f'prompt.{q}_user_prompt']}\nSystem prompt: {row[f'prompt.{q}_system_prompt']}"
+                    })
+                    
+                    scenario_list.append(s)
+
+        sl = ScenarioList(set(scenario_list))
+
+        q1 = QuestionFreeText(
+            question_name = "issues",
+            question_text = """
+            The following prompts generated a bad or null response: '{{ original_prompts }}'
+            What do you think was the likely issue(s)?
+            """
+        )
+
+        q2 = QuestionDict(
+            question_name = "revised",
+            question_text = """
+            The following prompts generated a bad or null response: '{{ original_prompts }}'
+            You identified the issue(s) as '{{ issues.answer }}'.
+            Please revise the prompts to address the issue(s).
+            """,
+            answer_keys = ["revised_user_prompt", "revised_system_prompt"]
+        )
+
+        survey = Survey(questions = [q1, q2])
+
+        if models is not None:
+            if not isinstance(models, ModelList):
+                raise ResultsError("models must be a ModelList")
+            results = survey.by(sl).by(models).run()
+        else:
+            results = survey.by(sl).run() # use the default model
+
+        return results
+
+
 def main():  # pragma: no cover
     """Call the OpenAI API credits."""
     from edsl.results.Results import Results
