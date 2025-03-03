@@ -52,6 +52,9 @@ Integrate human and AI data
 Analyze survey data
    Analyze survey data with built-in methods. Simulate follow-up interviews with respondents. See `examples <https://docs.expectedparrot.com/en/latest/notebooks/analyze_evaluations.html>`_.
 
+Compare model performance 
+   Compare the performance of different language models on the same task. See `examples <https://docs.expectedparrot.com/en/latest/notebooks/models_scoring_models.html>`_.
+   
 Social science research
    Explore hypotheses, gather qualitative or quantitative data and generate new data using AI. 
 
@@ -258,6 +261,7 @@ Links
    notebooks/yoga_studio_name_survey.ipynb
    notebooks/scenario_from_pdf.ipynb
    notebooks/scenario_list_wikipedia.ipynb
+   notebooks/filestore_examples_new.ipynb
    notebooks/scenarios_filestore_example.ipynb
    notebooks/adding_metadata.ipynb
    notebooks/question_loop_scenarios.ipynb
@@ -269,6 +273,7 @@ Links
    notebooks/agent_fatigue.ipynb
    notebooks/model_test_report.ipynb
    notebooks/run_background.ipynb
+   notebooks/edsl_with_cloud_providers.ipynb
 
 .. toctree::
    :maxdepth: 2
@@ -279,6 +284,7 @@ Links
    notebooks/summarizing_transcripts.ipynb
    notebooks/analyze_evaluations.ipynb
    notebooks/concept_induction.ipynb
+   notebooks/models_scoring_models.ipynb
    notebooks/conduct_interview.ipynb
    notebooks/qualitative_research.ipynb
    notebooks/nps_survey.ipynb

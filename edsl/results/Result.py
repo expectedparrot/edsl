@@ -439,6 +439,33 @@ class Result(Base, UserDict):
         from edsl.results.Results import Results
 
         return Results.example()[0]
+    
+    def score_with_answer_key(self, answer_key: dict) -> Union[int, float]:
+        """Score the result using an answer key.
+
+        :param answer_key: A dictionary that maps question_names to answers
+
+        >>> Result.example()['answer']
+        {'how_feeling': 'OK', 'how_feeling_yesterday': 'Great'}
+
+        >>> answer_key = {'how_feeling': 'OK', 'how_feeling_yesterday': 'Great'}
+        >>> Result.example().score_with_answer_key(answer_key)
+        {'correct': 2, 'incorrect': 0, 'missing': 0}
+        >>> answer_key = {'how_feeling': 'OK', 'how_feeling_yesterday': ['Great', 'Good']}
+        >>> Result.example().score_with_answer_key(answer_key)
+        {'correct': 2, 'incorrect': 0, 'missing': 0}
+        """
+        final_scores = {'correct': 0, 'incorrect': 0, 'missing': 0}
+        for question_name, answer in self.answer.items():
+            if question_name in answer_key:
+                if answer == answer_key[question_name] or answer in answer_key[question_name]:
+                    final_scores['correct'] += 1
+                else:
+                    final_scores['incorrect'] += 1
+            else:
+                final_scores['missing'] += 1
+
+        return final_scores
 
     def score(self, scoring_function: Callable) -> Union[int, float]:
         """Score the result using a passed-in scoring function.

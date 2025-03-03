@@ -4,19 +4,53 @@ from typing import Any, Set, TYPE_CHECKING
 if TYPE_CHECKING:
     from edsl.agents.PromptConstructor import PromptConstructor
     from edsl.scenarios.Scenario import Scenario
+    from edsl.questions.QuestionBase import QuestionBase
+    from edsl.agents.Agent import Agent
 
 
 class QuestionTemplateReplacementsBuilder:
-    def __init__(self, prompt_constructor: "PromptConstructor"):
-        self.prompt_constructor = prompt_constructor
+
+    @classmethod
+    def from_prompt_constructor(cls, prompt_constructor: "PromptConstructor"):
+        scenario = prompt_constructor.scenario
+        question = prompt_constructor.question
+        prior_answers_dict = prompt_constructor.prior_answers_dict()
+        agent = prompt_constructor.agent
+
+        return cls(scenario, question, prior_answers_dict, agent)
+
+    def __init__(
+        self,
+        scenario: "Scenario",
+        question: "QuestionBase",
+        prior_answers_dict: dict,
+        agent: "Agent",
+    ):
+        self.scenario = scenario
+        self.question = question
+        self.prior_answers_dict = prior_answers_dict
+        self.agent = agent
 
     def question_file_keys(self):
-        question_text = self.prompt_constructor.question.question_text
-        file_keys = self._find_file_keys(self.prompt_constructor.scenario)
+        """
+        >>> from edsl import QuestionMultipleChoice, Scenario
+        >>> q = QuestionMultipleChoice(question_text="Do you like school?", question_name = "q0", question_options = ["yes", "no"])
+        >>> qtrb = QuestionTemplateReplacementsBuilder(scenario = {"file1": "file1"}, question = q, prior_answers_dict = {'q0': 'q0'}, agent = "agent")
+        >>> qtrb.question_file_keys()
+        []
+        >>> from edsl import FileStore
+        >>> fs = FileStore.example()
+        >>> q = QuestionMultipleChoice(question_text="What do you think of this file: {{ file1 }}", question_name = "q0", question_options = ["good", "bad"])
+        >>> qtrb = QuestionTemplateReplacementsBuilder(scenario = Scenario({"file1": fs}), question = q, prior_answers_dict = {'q0': 'q0'}, agent = "agent")
+        >>> qtrb.question_file_keys()
+        ['file1']
+        """
+        question_text = self.question.question_text
+        file_keys = self._find_file_keys(self.scenario)
         return self._extract_file_keys_from_question_text(question_text, file_keys)
 
     def scenario_file_keys(self):
-        return self._find_file_keys(self.prompt_constructor.scenario)
+        return self._find_file_keys(self.scenario)
 
     def get_jinja2_variables(template_str: str) -> Set[str]:
         """
@@ -88,17 +122,29 @@ class QuestionTemplateReplacementsBuilder:
                 question_file_keys.append(var)
         return question_file_keys
 
-    def _scenario_replacements(self) -> dict[str, Any]:
+    def _scenario_replacements(
+        self, replacement_string: str = "<see file {key}>"
+    ) -> dict[str, Any]:
+        """
+        >>> from edsl import Scenario
+        >>> from edsl import QuestionFreeText; 
+        >>> q = QuestionFreeText(question_text = "How are you {{ scenario.friend }}?", question_name = "test")
+        >>> s = Scenario({'friend':'john'}) 
+        >>> q.by(s).prompts().select('user_prompt')
+        Dataset([{'user_prompt': [Prompt(text=\"""How are you john?\""")]}])
+        """
         # File references dictionary
-        file_refs = {key: f"<see file {key}>" for key in self.scenario_file_keys()}
+        file_refs = {
+            key: replacement_string.format(key=key) for key in self.scenario_file_keys()
+        }
 
         # Scenario items excluding file keys
         scenario_items = {
-            k: v
-            for k, v in self.prompt_constructor.scenario.items()
-            if k not in self.scenario_file_keys()
+            k: v for k, v in self.scenario.items() if k not in self.scenario_file_keys()
         }
-        return {**file_refs, **scenario_items}
+        scenario_items_with_prefix = {'scenario': scenario_items}
+        
+        return {**file_refs, **scenario_items, **scenario_items_with_prefix}
 
     @staticmethod
     def _question_data_replacements(
@@ -119,14 +165,31 @@ class QuestionTemplateReplacementsBuilder:
         return {**question_settings, **question_data}
 
     def build_replacement_dict(self, question_data: dict) -> dict[str, Any]:
-        """Builds a dictionary of replacement values for rendering a prompt by combining multiple data sources."""
+        """Builds a dictionary of replacement values for rendering a prompt by combining multiple data sources.
+
+
+        >>> from edsl import QuestionMultipleChoice, Scenario
+        >>> q = QuestionMultipleChoice(question_text="Do you like school?", question_name = "q0", question_options = ["yes", "no"])
+        >>> qtrb = QuestionTemplateReplacementsBuilder(scenario = {"file1": "file1"}, question = q, prior_answers_dict = {'q0': 'q0'}, agent = "agent")
+        >>> qtrb.question_file_keys()
+        []
+        >>> from edsl import FileStore
+        >>> fs = FileStore.example()
+        >>> s = Scenario({"file1": fs, "first_name": "John"})
+        >>> q = QuestionMultipleChoice(question_text="What do you think of this file: {{ file1 }}, {{ first_name}}", question_name = "q0", question_options = ["good", "bad"])
+        >>> qtrb = QuestionTemplateReplacementsBuilder(scenario = s, question = q, prior_answers_dict = {'q0': 'q0'}, agent = "agent")
+        >>> qtrb.build_replacement_dict(q.data)
+        {'file1': '<see file file1>', 'first_name': 'John', 'scenario': {'first_name': 'John'}, 'use_code': False, 'include_comment': True, 'question_name': 'q0', 'question_text': 'What do you think of this file: {{ file1 }}, {{ first_name}}', 'question_options': ['good', 'bad'], 'q0': 'q0', 'agent': 'agent'}
+
+
+        """
         rpl = {}
         rpl["scenario"] = self._scenario_replacements()
-        rpl["question"] = self._question_data_replacements(
-            self.prompt_constructor.question, question_data
-        )
-        rpl["prior_answers"] = self.prompt_constructor.prior_answers_dict()
-        rpl["agent"] = {"agent": self.prompt_constructor.agent}
+        rpl["question"] = self._question_data_replacements(self.question, question_data)
+        # rpl["prior_answers"] = self.prompt_constructor.prior_answers_dict()
+        rpl["prior_answers"] = self.prior_answers_dict
+        # rpl["agent"] = {"agent": self.prompt_constructor.agent}
+        rpl["agent"] = {"agent": self.agent}
 
         # Combine all dictionaries using dict.update() for clarity
         replacement_dict = {}

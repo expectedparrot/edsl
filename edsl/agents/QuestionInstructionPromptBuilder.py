@@ -1,7 +1,15 @@
-from typing import Dict, List, Set
+from typing import Dict, List, Set, Any, Union, TYPE_CHECKING
 from warnings import warn
 import logging
 from edsl.prompts.Prompt import Prompt
+
+if TYPE_CHECKING:
+    from edsl.agents.PromptConstructor import PromptConstructor
+    from edsl import Model
+    from edsl import Survey
+    from edsl.questions.QuestionBase import QuestionBase
+    from edsl import Scenario
+    from edsl import Agent
 
 from edsl.agents.QuestionTemplateReplacementsBuilder import (
     QuestionTemplateReplacementsBuilder as QTRB,
@@ -11,97 +19,179 @@ from edsl.agents.QuestionTemplateReplacementsBuilder import (
 class QuestionInstructionPromptBuilder:
     """Handles the construction and rendering of question instructions."""
 
-    def __init__(self, prompt_constructor: "PromptConstructor"):
-        self.prompt_constructor = prompt_constructor
+    @classmethod
+    def from_prompt_constructor(cls, prompt_constructor: "PromptConstructor"):
 
-        self.model = self.prompt_constructor.model
-        self.survey = self.prompt_constructor.survey
-        self.question = self.prompt_constructor.question
+        model = prompt_constructor.model
+        survey = prompt_constructor.survey
+        question = prompt_constructor.question
+        scenario = prompt_constructor.scenario
+        prior_answers_dict = prompt_constructor.prior_answers_dict()
+        agent = prompt_constructor.agent
+        return cls(
+            prompt_constructor,
+            model,
+            survey,
+            question,
+            scenario,
+            prior_answers_dict,
+            agent,
+        )
+
+    def __init__(
+        self,
+        prompt_constructor: "PromptConstructor",
+        model: "Model",
+        survey: "Survey",
+        question: "QuestionBase",
+        scenario: "Scenario",
+        prior_answers_dict: Dict[str, Any],
+        agent: "Agent",
+    ):
+
+        self.qtrb = QTRB(scenario, question, prior_answers_dict, agent)
+
+        self.model = model
+        self.survey = survey
+        self.question = question
+        self.agent = agent
+        self.scenario = scenario
+        self.prior_answers_dict = prior_answers_dict
 
     def build(self) -> Prompt:
         """Builds the complete question instructions prompt with all necessary components.
 
         Returns:
-            Prompt: The fully rendered question instructions
+            Prompt: The fully rendered question instructions to be send to the Language Model
+
+        >>> from edsl import QuestionMultipleChoice
+        >>> from edsl import Survey
+        >>> q = Survey.example().questions[0]
+        >>> from edsl import Model
+        >>> class FakePromptConstructor:
+        ...     def __init__(self, scenario, question, agent):
+        ...         self.scenario = scenario
+        ...         self.question = question
+        ...         self.agent = agent
+        ...         self.model = Model('test')
+        ...         self.survey = Survey.example()
+        ...     scenario = {"file1": "file1"}
+        ...     question = q
+        ...     agent = "agent"
+        ...     def prior_answers_dict(self):
+        ...         return {'q0': 'q0'}
+        >>> mpc = FakePromptConstructor(
+        ...     scenario={"file1": "file1"},
+        ...     question=q,
+        ...     agent="agent"
+        ... )
+        >>> qipb = QuestionInstructionPromptBuilder.from_prompt_constructor(mpc)
+        >>> qipb.build()
+        Prompt(text=\"""
+        Do you like school?
+        <BLANKLINE>
+        <BLANKLINE>
+        yes
+        <BLANKLINE>
+        no
+        <BLANKLINE>
+        <BLANKLINE>
+        Only 1 option may be selected.
+        <BLANKLINE>
+        Respond only with a string corresponding to one of the options.
+        <BLANKLINE>
+        <BLANKLINE>
+        After the answer, you can put a comment explaining why you chose that option on the next line.\""")
         """
-        import time
-        
-        start = time.time()
-        
         # Create base prompt
-        base_start = time.time()
         base_prompt = self._create_base_prompt()
-        base_end = time.time()
-        logging.debug(f"Time for base prompt: {base_end - base_start}")
-        
+
         # Enrich with options
-        enrich_start = time.time()
-        enriched_prompt = self._enrich_with_question_options(base_prompt)
-        enrich_end = time.time()
-        logging.debug(f"Time for enriching with options: {enrich_end - enrich_start}")
-        
+        enriched_prompt = self._enrich_with_question_options(
+            prompt_data=base_prompt,
+            scenario=self.scenario,
+            prior_answers_dict=self.prior_answers_dict,
+        )
+
         # Render prompt
-        render_start = time.time()
         rendered_prompt = self._render_prompt(enriched_prompt)
-        render_end = time.time()
-        logging.debug(f"Time for rendering prompt: {render_end - render_start}")
-        
+
         # Validate template variables
-        validate_start = time.time()
         self._validate_template_variables(rendered_prompt)
-        validate_end = time.time()
-        logging.debug(f"Time for template validation: {validate_end - validate_start}")
-        
+
         # Append survey instructions
-        append_start = time.time()
         final_prompt = self._append_survey_instructions(rendered_prompt)
-        append_end = time.time()
-        logging.debug(f"Time for appending survey instructions: {append_end - append_start}")
-        
-        end = time.time()
-        logging.debug(f"Total time in build_question_instructions: {end - start}")
-        
+
         return final_prompt
 
-    def _create_base_prompt(self) -> Dict:
+    def _create_base_prompt(self) -> Dict[str, Union[Prompt, Dict[str, Any]]]:
         """Creates the initial prompt with basic question data.
 
+        The data are, e.g., the question name, question text, question options, etc.
+
+        >>> from edsl import QuestionMultipleChoice
+        >>> QuestionMultipleChoice.example().data.copy()
+        {'question_name': 'how_feeling', 'question_text': 'How are you?', 'question_options': ['Good', 'Great', 'OK', 'Bad'], 'include_comment': False}
+
         Returns:
-            Dict: Base question data
+            Dict[str, Union[Prompt, Dict[str, Any]]]: Base question data with prompt and data fields
         """
         return {
             "prompt": Prompt(self.question.get_instructions(model=self.model.model)),
             "data": self.question.data.copy(),
         }
 
-    def _enrich_with_question_options(self, prompt_data: Dict) -> Dict:
-        """Enriches the prompt data with question options if they exist.
+    @staticmethod
+    def _process_question_options(
+        question_data: Dict, scenario: "Scenario", prior_answers_dict: Dict
+    ) -> Dict:
+        """Processes and replaces question options in the question data if they exist.
+
+        The question_options could be intended to be replaced with data from a scenario or prior answers.
+
+        >>> question_data = {'question_name': 'q0', 'question_text': 'Do you like school?', 'question_options': '{{ options }}'}
+        >>> scenario = {"options": ["yes", "no"]}
+        >>> prior_answers_dict = {}
+        >>> QuestionInstructionPromptBuilder._process_question_options(question_data, scenario, prior_answers_dict)
+        {'question_name': 'q0', 'question_text': 'Do you like school?', 'question_options': ['yes', 'no']}
+
+        Args:
+            question_data: Dictionary containing question data
+            scenario: Scenario object
+            prior_answers_dict: Dictionary of prior answers
+
+        Returns:
+            Dict: Question data with processed question options
+        """
+        if "question_options" in question_data:
+            from edsl.agents.question_option_processor import QuestionOptionProcessor
+
+            question_options = QuestionOptionProcessor(
+                scenario, prior_answers_dict
+            ).get_question_options(question_data=question_data)
+            question_data["question_options"] = question_options
+
+        return question_data
+
+    @staticmethod
+    def _enrich_with_question_options(
+        prompt_data: Dict, scenario: "Scenario", prior_answers_dict: Dict
+    ) -> Dict:
+        """Enriches the prompt data with processed question options if they exist.
 
         Args:
             prompt_data: Dictionary containing prompt and question data
+            scenario: Scenario object
+            prior_answers_dict: Dictionary of prior answers
 
         Returns:
             Dict: Enriched prompt data
         """
-        import time
-        
-        start = time.time()
-        
-        if "question_options" in prompt_data["data"]:
-            from edsl.agents.question_option_processor import QuestionOptionProcessor
-            
-            processor_start = time.time()
-            question_options = QuestionOptionProcessor(
-                self.prompt_constructor
-            ).get_question_options(question_data=prompt_data["data"])
-            processor_end = time.time()
-            logging.debug(f"Time to process question options: {processor_end - processor_start}")
-            
-            prompt_data["data"]["question_options"] = question_options
-            
-        end = time.time()
-        logging.debug(f"Total time in _enrich_with_question_options: {end - start}")
-        
+        prompt_data["data"] = (
+            QuestionInstructionPromptBuilder._process_question_options(
+                prompt_data["data"], scenario, prior_answers_dict
+            )
+        )
         return prompt_data
 
     def _render_prompt(self, prompt_data: Dict) -> Prompt:
@@ -113,28 +203,11 @@ class QuestionInstructionPromptBuilder:
         Returns:
             Prompt: Rendered instructions
         """
-        import time
-        
-        start = time.time()
-        
         # Build replacement dict
-        dict_start = time.time()
-        replacement_dict = QTRB(self.prompt_constructor).build_replacement_dict(
-            prompt_data["data"]
-        )
-        dict_end = time.time()
-        logging.debug(f"Time to build replacement dict: {dict_end - dict_start}")
-        
+        replacement_dict = self.qtrb.build_replacement_dict(prompt_data["data"])
+
         # Render with dict
-        render_start = time.time()
-        result = prompt_data["prompt"].render(replacement_dict)
-        render_end = time.time()
-        logging.debug(f"Time to render with dict: {render_end - render_start}")
-        
-        end = time.time()
-        logging.debug(f"Total time in _render_prompt: {end - start}")
-        
-        return result
+        return prompt_data["prompt"].render(replacement_dict)
 
     def _validate_template_variables(self, rendered_prompt: Prompt) -> None:
         """Validates that all template variables have been properly replaced.
@@ -162,7 +235,9 @@ class QuestionInstructionPromptBuilder:
         """
         for question_name in self.survey.question_names:
             if question_name in undefined_vars:
-                logging.warning(f"Question name found in undefined_template_variables: {question_name}")
+                logging.warning(
+                    f"Question name found in undefined_template_variables: {question_name}"
+                )
 
     def _append_survey_instructions(self, rendered_prompt: Prompt) -> Prompt:
         """Appends any relevant survey instructions to the rendered prompt.
@@ -185,3 +260,9 @@ class QuestionInstructionPromptBuilder:
             preamble += instruction.text
 
         return preamble + rendered_prompt
+
+
+if __name__ == "__main__":
+    import doctest
+
+    doctest.testmod()

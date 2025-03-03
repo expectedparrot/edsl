@@ -152,7 +152,8 @@ class PerplexityService(OpenAIService):
                 try:
                     response = await client.chat.completions.create(**params)
                 except Exception as e:
-                    print(e, flush=True)
+                    return {"message": str(e)}
+
                 return response.model_dump()
 
         LLM.__name__ = "LanguageModel"

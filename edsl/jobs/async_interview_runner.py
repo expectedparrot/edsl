@@ -7,6 +7,8 @@ from edsl.data_transfer_models import EDSLResultObjectInput
 
 from edsl.results.Result import Result
 from edsl.jobs.interviews.Interview import Interview
+from edsl.config import Config
+config = Config()
 
 if TYPE_CHECKING:
     from edsl.jobs.Jobs import Jobs
@@ -23,7 +25,7 @@ from edsl.jobs.data_structures import RunConfig
 
 
 class AsyncInterviewRunner:
-    MAX_CONCURRENT = 5
+    MAX_CONCURRENT = int(config.EDSL_MAX_CONCURRENT_TASKS)
 
     def __init__(self, jobs: "Jobs", run_config: RunConfig):
         self.jobs = jobs

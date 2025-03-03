@@ -18,6 +18,7 @@ from edsl.questions.SimpleAskMixin import SimpleAskMixin
 from edsl.questions.QuestionBasePromptsMixin import QuestionBasePromptsMixin
 from edsl.questions.question_base_gen_mixin import QuestionBaseGenMixin
 from edsl.utilities.remove_edsl_version import remove_edsl_version
+from edsl.utilities.utilities import is_valid_variable_name
 
 if TYPE_CHECKING:
     from edsl.questions.response_validator_abc import ResponseValidatorABC
@@ -56,6 +57,10 @@ class QuestionBase(
     _answering_instructions = None
     _question_presentation = None
 
+    def is_valid_question_name(self) -> bool:
+        """Check if the question name is valid."""
+        return is_valid_variable_name(self.question_name)
+
     @property
     def response_validator(self) -> "ResponseValidatorABC":
         """Return the response validator."""
@@ -85,6 +90,9 @@ class QuestionBase(
         >>> Q.example()._simulate_answer()
         {'answer': '...', 'generated_tokens': ...}
         """
+        if self.question_type == "free_text":
+            return {"answer": "Hello, how are you?", 'generated_tokens': "Hello, how are you?"}
+        
         simulated_answer = self.fake_data_factory.build().dict()
         if human_readable and hasattr(self, "question_options") and self.use_code:
             simulated_answer["answer"] = [

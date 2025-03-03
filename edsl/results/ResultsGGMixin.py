@@ -75,7 +75,11 @@ class GGPlot:
                     
         return self._svg_data
 
-class ResultsGGMixin:
+class GGPlotMethod:
+
+    def __init__(self, results: 'Results'):
+        self.results = results
+    
     """Mixin class for ggplot2 plotting."""
 
     def ggplot2(
@@ -106,9 +110,9 @@ class ResultsGGMixin:
             sql = "select * from self"
 
         if shape == "long":
-            df = self.sql(sql, shape="long")
+            df = self.results.sql(sql, shape="long")
         elif shape == "wide":
-            df = self.sql(sql, remove_prefix=remove_prefix)
+            df = self.results.sql(sql, remove_prefix=remove_prefix)
 
         # Convert DataFrame to CSV format
         csv_data = df.to_csv().text

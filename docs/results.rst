@@ -196,11 +196,11 @@ Output:
     - 12af825953d89c1f776bd3af40e37cfb
 
 
-Results fields
---------------
+Results components
+------------------
 
-Results contain fields that can be accessed and analyzed individually or collectively.
-We can see a list of these fields by calling the `columns` method:
+Results contain components that can be accessed and analyzed individually or collectively.
+We can see a list of these components by calling the `columns` method:
 
 .. code-block:: python
 
@@ -354,6 +354,7 @@ Note that the cost of a result for a question is specific to the components (sce
 
 Creating tables by selecting columns
 ------------------------------------
+
 
 Each of these columns can be accessed directly by calling the `select()` method and passing the column names.
 Alternatively, we can specify the columns to exclude by calling the `drop()` method.
@@ -819,10 +820,114 @@ This will return the number of results:
   16
 
    
-Interacting via SQL
-^^^^^^^^^^^^^^^^^^^
 
-We can interact with the results via SQL using the `sql` method.
+Flattening results
+------------------
+
+If a field of results contains dictionaries we can flatten them into separate fields by calling the `flatten()` method. 
+This method takes a list of the fields to flatten and a boolean indicator whether to preserve the original fields in the new `Results` object that is returned.
+
+For example:
+
+.. code-block:: python
+
+ from edsl import QuestionDict, Model
+
+  m = Model("gemini-1.5-flash")
+
+  q = QuestionDict(
+    question_name = "recipe",
+    question_text = "Please provide a simple recipe for hot chocolate.",
+    answer_keys = ["title", "ingredients", "instructions"]
+  )
+
+  r = q.by(m).run()
+
+  r.select("model", "recipe").flatten(field="answer.recipe", keep_original=True)
+
+
+This will return a table of the flattened results:
+
+.. list-table::
+  :header-rows: 1
+
+  * - model.model
+    - answer.recipe
+    - answer.recipe.title
+    - answer.recipe.ingredients
+    - answer.recipe.instructions
+  * - gemini-1.5-flash
+    - {'title': 'Simple Hot Chocolate', 'ingredients': ['1 cup milk (dairy or non-dairy)', '1 tablespoon unsweetened cocoa powder', '1-2 tablespoons sugar (or to taste)', 'Pinch of salt'], 'instructions': ['Combine milk, cocoa powder, sugar, and salt in a small saucepan.', 'Heat over medium heat, stirring constantly, until the mixture is smooth and heated through.', 'Do not boil.', 'Pour into a mug and enjoy!']}
+    - Simple Hot Chocolate 
+    - ['1 cup milk (dairy or non-dairy)', '1 tablespoon unsweetened cocoa powder', '1-2 tablespoons sugar (or to taste)', 'Pinch of salt']
+    - ['Combine milk, cocoa powder, sugar, and salt in a small saucepan.', 'Heat over medium heat, stirring constantly, until the mixture is smooth and heated through.', 'Do not boil.', 'Pour into a mug and enjoy!']
+
+
+
+Generating a report
+-------------------
+
+We can create a report of the results by calling the `report()` method and passing the columns to be included (all columns are included by default).
+This generates a report in markdown by iterating through the rows, presented as observations. 
+You can optionally pass headers, a divider and a limit on the number of observations to include. 
+It can be useful if you want to display some sample part of larger results in a working notebook you are sharing.
+
+For example, the following code will generate a report of the first 4 results:
+
+.. code-block:: python
+
+  from edsl import QuestionFreeText, ScenarioList, Model
+
+  m = Model("gemini-1.5-flash")
+
+  s = ScenarioList.from_list("language", ["German", "Dutch", "French", "English"])
+
+  q = QuestionFreeText(
+      question_name = "poem",
+      question_text = "Please write me a short poem about winter in {{ language }}."
+  )
+
+  r = q.by(s).by(m).run()
+
+  r.select("model", "poem", "language").report(top_n=2, divider=False, return_string=True)
+
+
+This will return a report of the first 2 results:
+
+.. code-block:: text
+
+  Observation: 1
+
+  model.model
+  gemini-1.5-flash
+
+  answer.poem
+  Der Schnee fällt leis', ein weicher Flor, Die Welt in Weiß, ein Zauberchor. Die Bäume stehn, in Stille gehüllt, Der Winterwind, sein Lied erfüllt.
+
+  (Translation: The snow falls softly, a gentle veil, / The world in white, a magic choir. / The trees stand, wrapped in silence, / The winter wind, its song fulfilled.)
+
+  scenario.language
+  German
+
+  Observation: 2
+  model.model
+  gemini-1.5-flash
+
+  answer.poem
+  De winter komt, de dagen kort, De sneeuw valt zacht, een wit decor. De bomen staan, kaal en stil, Een ijzige wind, een koude tril.
+
+  (Translation: Winter comes, the days are short, / The snow falls softly, a white décor. / The trees stand, bare and still, / An icy wind, a cold shiver.)
+
+  scenario.language
+  Dutch
+
+  "# Observation: 1\n## model.model\ngemini-1.5-flash\n## answer.poem\nDer Schnee fällt leis', ein weicher Flor,\nDie Welt in Weiß, ein Zauberchor.\nDie Bäume stehn, in Stille gehüllt,\nDer Winterwind, sein Lied erfüllt.\n\n(Translation: The snow falls softly, a gentle veil, / The world in white, a magic choir. / The trees stand, wrapped in silence, / The winter wind, its song fulfilled.)\n## scenario.language\nGerman\n\n---\n\n# Observation: 2\n## model.model\ngemini-1.5-flash\n## answer.poem\nDe winter komt, de dagen kort,\nDe sneeuw valt zacht, een wit decor.\nDe bomen staan, kaal en stil,\nEen ijzige wind, een koude tril.\n\n(Translation: Winter comes, the days are short, / The snow falls softly, a white décor. / The trees stand, bare and still, / An icy wind, a cold shiver.)\n## scenario.language\nDutch\n"
+
+
+Accessing results with SQL
+--------------------------
+
+We can interact with results via SQL using the `sql` method.
 This is done by passing a SQL query and a `shape` ("long" or "wide") for the resulting table, where the table name in the query is "self".
 
 For example, the following code will return a table showing the `model`, `persona`, `read` and `important` columns for the first 4 results:
