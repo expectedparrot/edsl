@@ -95,31 +95,8 @@ Uploading a notebook to Coop
 
 A notebook can be posted to Coop in the same ways as other EDSL objects: by calling the `push()` method on the object or calling the `create` method on a `Coop` object and passing it the notebook.
 
-Here we create a `Notebook` object and use the `push()` method to post it to Coop:
-
-.. code-block:: python
-
-    from edsl import Notebook
-
-    notebook = Notebook("demo_notebook.ipynb")
-
-    notebook.push()
-
-
-This will return a message with information about the object that was posted, and you will be able to view your notebook at Coop: `Content  <https://www.expectedparrot.com/home/content/explore>`_:
-
-.. code-block:: text
-
-    {'description': None,
-    'object_type': 'notebook',
-    'url': 'https://www.expectedparrot.com/content/115bb5d1-2dcf-4440-ade4-d886b804f51a',
-    'uuid': '115bb5d1-2dcf-4440-ade4-d886b804f51a',
-    'version': '0.1.47.dev1',
-    'visibility': 'unlisted'}
-
-
-We can see that the notebook has at an unlisted (non-searchable) URL with no description.
-We can also set the `description`, the `alias` for the Coop URL and the `visibility` setting by passing the arguments to the `push()` method:
+Here we create a `Notebook` object and use the `push()` method to post it to Coop.
+You can optionally pass a `description`, a convenient `alias` for the Coop URL and a `visibility` setting (*public*, *private* or *unlisted* by default) to the `push()` method:
 
 .. code-block:: python
 
@@ -131,18 +108,19 @@ We can also set the `description`, the `alias` for the Coop URL and the `visibil
         description = "This is a demo notebook", 
         alias = "demo-notebook",
         visibility = "public"
-    ) # add description and make it public
+    ) 
 
 
 These can also be modified at Coop later on.
-We can see that the notebook has been reposted publicly with a description:
+We can see that the notebook has been posted publicly with a description and an alias URL (you can retrieve and refer to the object by either the UUID or URL):
 
 .. code-block:: text
 
     {'description': 'This is a demo notebook',
     'object_type': 'notebook',
-    'url': 'https://www.expectedparrot.com/content/a1ae7705-31cd-4e05-a04b-5004fd4640ba',
-    'uuid': 'a1ae7705-31cd-4e05-a04b-5004fd4640ba',
+    'url': 'https://www.expectedparrot.com/content/121e2904-e09e-4859-80d5-dc98cb8c537a',
+    'alias_url': 'https://www.expectedparrot.com/content/RobinHorton/demo-notebook',
+    'uuid': '121e2904-e09e-4859-80d5-dc98cb8c537a',
     'version': '0.1.47.dev1',
     'visibility': 'public'}
 
@@ -160,6 +138,7 @@ Here we alternatively use the `Coop` client object to post the notebook:
     coop.create(notebook, description="This is a demo notebook", visibility="public")
 
 
+(Note that we cannot reuse the alias unless we delete the object.)
 This will return a message with information about the object that was posted, and you will be able to view your notebook at the Coop: `Content  <https://www.expectedparrot.com/home/content>`_.
 
 
