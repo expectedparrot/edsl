@@ -11,8 +11,8 @@ Purpose
 -------
 
 Scenarios allow you create variations and versions of questions efficiently.
-For example, we could create a question `"How much do you enjoy {{ activity }}?"` and use scenarios to replace the parameter `activity` with `running` or `reading` or other activities.
-Similarly, we could create a question `"What do you see in this image? {{ image }}"` and use scenarios to replace the parameter `image` with different images.
+For example, we could create a question `"How much do you enjoy {{ scenario.activity }}?"` and use scenarios to replace the parameter `activity` with `running` or `reading` or other activities.
+Similarly, we could create a question `"What do you see in this image? {{ scenario.image }}"` and use scenarios to replace the parameter `image` with different images.
 
 
 How it works
@@ -26,7 +26,7 @@ Metadata
 ^^^^^^^^
 
 Scenarios are also a convenient way to keep track of metadata or other information relating to a survey that is important to an analysis of the results.
-For example, say we are using scenarios to parameterize question texts with pieces of `{{ content }}` from a dataset.
+For example, say we are using scenarios to parameterize question texts with pieces of `{{ scenario.content }}` from a dataset.
 In the scenarios that we create for the `content` parameter we could also include key/value pairs for metadata about the content, such as the `{{ author }}`, `{{ publication_date }}`, or `{{ source }}`.
 This will automatically include the data in the survey results but without requiring us to also parameterize the question texts those fields.
 This allows us to analyze the responses in the context of the metadata and avoid having to match up the data with the metadata post-survey.
@@ -44,7 +44,7 @@ To use a scenario, we start by creating a question that takes a parameter in dou
 
   q = QuestionMultipleChoice(
     question_name = "enjoy",
-    question_text = "How much do you enjoy {{ activity }}?",
+    question_text = "How much do you enjoy {{ scenario.activity }}?",
     question_options = ["Not at all", "Somewhat", "Very much"]
   )
 
@@ -157,7 +157,7 @@ For example, here we call the `by()` method on the example question created abov
 
   q = QuestionMultipleChoice(
     question_name = "enjoy",
-    question_text = "How much do you enjoy {{ activity }}?",
+    question_text = "How much do you enjoy {{ scenario.activity }}?",
     question_options = ["Not at all", "Somewhat", "Very much"]
   )
 
@@ -197,6 +197,7 @@ We use the `loop()` method to add scenarios to a question when constructing the 
 This method takes a `ScenarioList` and returns a list of new questions for each scenario that was passed.
 We can optionally include the scenario key in the question name as well as the question text.
 This allows us to control the question names when the new questions are created; otherwise a number is automatically added to the original question name in order to ensure uniqueness.
+Note that we do not include the `scenario.` prefix when looping.
 
 For example: 
 
@@ -274,7 +275,7 @@ We can also create a `Scenario` for multiple parameters at once:
 
   q = QuestionFreeText(
     question_name = "counting",
-    question_text = "How many {{ unit }} are in a {{ distance }}?",
+    question_text = "How many {{ scenario.unit }} are in a {{ scenario.distance }}?",
   )
 
   scenario = Scenario({"unit": "inches", "distance": "mile"})
@@ -304,16 +305,17 @@ Scenarios for question options
 ------------------------------
 
 In the above examples we created scenarios in the `question_text`.
-We can also create a `Scenario` for `question_options`, e.g., in a multiple choice, checkbox, linear scale or other question type that requires them:
+We can also create a `Scenario` for `question_options`, e.g., in a multiple choice, checkbox, linear scale or other question type that requires them.
+Note that we do not include the `scenario.` prefix when using sceanrios for question options.
 
 .. code-block:: python
 
   from edsl import QuestionMultipleChoice, Scenario
 
   q = QuestionMultipleChoice(
-      question_name = "capital_of_france",
-      question_text = "What is the capital of France?", 
-      question_options = "{{ question_options }}"
+    question_name = "capital_of_france",
+    question_text = "What is the capital of France?", 
+    question_options = "{{ question_options }}"
   )
 
   s = Scenario({'question_options': ['Paris', 'London', 'Berlin', 'Madrid']})
@@ -686,12 +688,12 @@ For example, this code can be used to insert the text of each page of a PDF in a
   # Create a survey of questions parameterized by the {{ text }} of the PDF pages:
   q1 = QuestionFreeText(
     question_name = "themes",
-    question_text = "Identify the key themes mentioned on this page: {{ text }}",
+    question_text = "Identify the key themes mentioned on this page: {{ scenario.text }}",
   )
 
   q2 = QuestionFreeText(
     question_name = "idea",
-    question_text = "Identify the most important idea on this page: {{ text }}",
+    question_text = "Identify the most important idea on this page: {{ scenario.text }}",
   )
 
   survey = Survey([q1, q2])
@@ -735,12 +737,12 @@ We can add the key to questions as we do scenarios from other data sources:
   
   q1 = QuestionFreeText(
     question_name = "identify",
-    question_text = "What animal is in this picture: {{ image }}" 
+    question_text = "What animal is in this picture: {{ scenario.image }}" 
   )
 
   q2 = QuestionList(
     question_name = "colors",
-    question_text = "What colors do you see in this picture: {{ image }}"
+    question_text = "What colors do you see in this picture: {{ scenario.image }}"
   )
 
   survey = Survey([q1, q2])
@@ -1123,7 +1125,7 @@ The scenarios can be used to ask questions about the data in the table:
 
   q_leads = QuestionList(
     question_name = "leads",
-    question_text = "Who are the lead actors or actresses in {{ Title }}?"
+    question_text = "Who are the lead actors or actresses in {{ scenario.Title }}?"
   )
 
   results = q_leads.by(scenarios).run()
@@ -1511,13 +1513,13 @@ Example usage:
   from edsl import Scenario, ScenarioList
 
   def avg_sum(a, b):
-      return {'avg_a': sum(a) / len(a), 'sum_b': sum(b)}
+    return {'avg_a': sum(a) / len(a), 'sum_b': sum(b)}
 
   scenariolist = ScenarioList([
-      Scenario({'group': 'A', 'year': 2020, 'a': 10, 'b': 20}),
-      Scenario({'group': 'A', 'year': 2021, 'a': 15, 'b': 25}),
-      Scenario({'group': 'B', 'year': 2020, 'a': 12, 'b': 22}),
-      Scenario({'group': 'B', 'year': 2021, 'a': 17, 'b': 27})
+    Scenario({'group': 'A', 'year': 2020, 'a': 10, 'b': 20}),
+    Scenario({'group': 'A', 'year': 2021, 'a': 15, 'b': 25}),
+    Scenario({'group': 'B', 'year': 2020, 'a': 12, 'b': 22}),
+    Scenario({'group': 'B', 'year': 2021, 'a': 17, 'b': 27})
   ])
 
   scenariolist.group_by(id_vars=['group'], variables=['a', 'b'], func=avg_sum)
@@ -1556,13 +1558,13 @@ Here we use scenarios to conduct the task:
   # Create a question with that takes a parameter
   q1 = QuestionMultipleChoice(
     question_name = "topic",
-    question_text = "What is the topic of this message: {{ message }}?",
+    question_text = "What is the topic of this message: {{ scenario.message }}?",
     question_options = ["Safety", "Product support", "Billing", "Login issue", "Other"]
   )
 
   q2 = QuestionMultipleChoice(
     question_name = "safety",
-    question_text = "Does this message mention a safety issue? {{ message }}?",
+    question_text = "Does this message mention a safety issue? {{ scenario.message }}?",
     question_options = ["Yes", "No", "Unclear"]
   )
 
@@ -1627,13 +1629,13 @@ Note that the question texts are unchanged:
   # Create a question with a parameter
   q1 = QuestionMultipleChoice(
     question_name = "topic",
-    question_text = "What is the topic of this message: {{ message }}?",
+    question_text = "What is the topic of this message: {{ scenario.message }}?",
     question_options = ["Safety", "Product support", "Billing", "Login issue", "Other"]
   )
 
   q2 = QuestionMultipleChoice(
     question_name = "safety",
-    question_text = "Does this message mention a safety issue? {{ message }}?",
+    question_text = "Does this message mention a safety issue? {{ scenario.message }}?",
     question_options = ["Yes", "No", "Unclear"]
   )
 
@@ -1765,7 +1767,7 @@ Then we use the `show_prompts()` method to examine the user prompts that are cre
   for sentiment in sentiments:
     q = QuestionFreeText(
       question_name = f"{ sentiment }_activity",
-      question_text = f"How much do you { sentiment } {{ activity }}?"
+      question_text = f"How much do you { sentiment } {{ scenario.activity }}?"
     )
     questions.append(q)
 
