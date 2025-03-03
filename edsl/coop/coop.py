@@ -348,6 +348,15 @@ class Coop(CoopFunctionsMixin):
     ################
     # Objects
     ################
+    def get_alias_url(self, owner_username: str, alias: str) -> str | None:
+        """
+        Get the URL of an object by its owner username and alias.
+        """
+        if owner_username and alias:
+            return f"{self.url}/content/{owner_username}/{alias}"
+        else:
+            return None
+
     def create(
         self,
         object: EDSLObject,
@@ -376,10 +385,15 @@ class Coop(CoopFunctionsMixin):
         )
         self._resolve_server_response(response)
         response_json = response.json()
+
+        owner_username = response_json.get("owner_username")
+        object_alias = response_json.get("alias")
+
         return {
             "description": response_json.get("description"),
             "object_type": object_type,
             "url": f"{self.url}/content/{response_json.get('uuid')}",
+            "alias_url": self.get_alias_url(owner_username, object_alias),
             "uuid": response_json.get("uuid"),
             "version": self._edsl_version,
             "visibility": response_json.get("visibility"),
@@ -445,6 +459,9 @@ class Coop(CoopFunctionsMixin):
                 "description": o.get("description"),
                 "visibility": o.get("visibility"),
                 "url": f"{self.url}/content/{o.get('uuid')}",
+                "alias_url": self.get_alias_url(
+                    o.get("owner_username"), o.get("alias")
+                ),
             }
             for o in response.json()
         ]
