@@ -504,12 +504,12 @@ class Study:
             )
 
     @classmethod
-    def pull(cls, uuid: Optional[Union[str, UUID]] = None, url: Optional[str] = None):
+    def pull(cls, url_or_uuid: Union[str, UUID]):
         """Pull the object from coop."""
         from edsl.coop import Coop
 
         coop = Coop()
-        return coop.get(uuid, url, "study")
+        return coop.get(url_or_uuid, "study")
 
     def __repr__(self):
         return f"""Study(name = "{self.name}", description = "{self.description}", objects = {self.objects}, cache = {self.cache}, filename = "{self.filename}", coop = {self.coop}, use_study_cache = {self.use_study_cache}, overwrite_on_change = {self.overwrite_on_change})"""

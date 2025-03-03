@@ -29,9 +29,9 @@ def coop_object_api_workflows(object_type, object_examples):
     for object, visibility in object_examples:
         response = coop.create(object, visibility=visibility)
         assert (
-            coop.get(uuid=response.get("uuid")) == object
+            coop.get(response.get("uuid")) == object
         ), f"Expected object to be the same as the one created. "
-        # assert coop.get(url=response.get("url")) == object
+        # assert coop.get(response.get("url")) == object
         responses.append(response)
 
     # 3. Test visibility with different clients
@@ -39,10 +39,10 @@ def coop_object_api_workflows(object_type, object_examples):
     for i, response in enumerate(responses):
         object, visibility = object_examples[i]
         if visibility != "private":
-            assert coop2.get(uuid=response.get("uuid")) == object
+            assert coop2.get(response.get("uuid")) == object
         else:
             with pytest.raises(Exception):
-                coop2.get(uuid=response.get("uuid"))
+                coop2.get(response.get("uuid"))
 
     # 4. Test changing visibility
     for i, response in enumerate(responses):
@@ -52,7 +52,7 @@ def coop_object_api_workflows(object_type, object_examples):
         else:
             change_to_visibility = "private"
         response = coop.patch(
-            uuid=response.get("uuid"),
+            response.get("uuid"),
             visibility=change_to_visibility,
         )
         assert response.get("status") == "success"

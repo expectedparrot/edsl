@@ -60,26 +60,25 @@ class Question(metaclass=Meta):
         return q.example()
 
     @classmethod
-    def pull(cls, uuid: Optional[Union[str, UUID]] = None, url: Optional[str] = None):
+    def pull(cls, url_or_uuid: Union[str, UUID]):
         """Pull the object from coop."""
         from edsl.coop import Coop
 
         coop = Coop()
-        return coop.get(uuid, url, "question")
+        return coop.get(url_or_uuid, "question")
 
     @classmethod
-    def delete(cls, uuid: Optional[Union[str, UUID]] = None, url: Optional[str] = None):
+    def delete(cls, url_or_uuid: Union[str, UUID]):
         """Delete the object from coop."""
         from edsl.coop import Coop
 
         coop = Coop()
-        return coop.delete(uuid, url)
+        return coop.delete(url_or_uuid)
 
     @classmethod
     def patch(
         cls,
-        uuid: Optional[Union[str, UUID]] = None,
-        url: Optional[str] = None,
+        url_or_uuid: Union[str, UUID],
         description: Optional[str] = None,
         value: Optional[Any] = None,
         visibility: Optional[str] = None,
@@ -88,7 +87,7 @@ class Question(metaclass=Meta):
         from edsl.coop import Coop
 
         coop = Coop()
-        return coop.patch(uuid, url, description, value, visibility)
+        return coop.patch(url_or_uuid, description, value, visibility)
 
     @classmethod
     def list_question_types(cls):
