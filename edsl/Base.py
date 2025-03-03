@@ -61,11 +61,18 @@ class PersistenceMixin:
             fs = FileStore(path=f.name)
         return fs.create_link()
 
+    @staticmethod
+    def _is_url(url_or_uuid: Union[str, UUID]) -> bool:
+        return "http://" in str(url_or_uuid) or "https://" in str(url_or_uuid)
+    
+    @staticmethod
+    def _replace_www_with_api(url_or_uuid: Union[str, UUID]) -> str:
+        return url_or_uuid.replace("www", "api")
+
     @classmethod
     def pull(
         cls,
         url_or_uuid: Optional[Union[str, UUID]] = None,
-        # expected_parrot_url: Optional[str] = None,
     ):
         """Pull the object from coop.
 
@@ -79,36 +86,36 @@ class PersistenceMixin:
         object_type = ObjectRegistry.get_object_type_by_edsl_class(cls)
         coop = Coop()
 
-        # Determine if input is URL or UUID
-        if "www" in url_or_uuid:
-            url_or_uuid = url_or_uuid.replace("www", "api")
-        if url_or_uuid and (
-            "http://" in str(url_or_uuid) or "https://" in str(url_or_uuid)
-        ):
+        url_or_uuid = cls._replace_www_with_api(url_or_uuid)
+
+        if cls._is_url(url_or_uuid):
             return coop.get(url=url_or_uuid, expected_object_type=object_type)
         else:
             return coop.get(uuid=url_or_uuid, expected_object_type=object_type)
-
+    
     @classmethod
-    def delete(cls, uuid: Optional[Union[str, UUID]] = None, url: Optional[str] = None):
+    def delete(cls, id_or_url: Union[str, UUID]) -> None:
         """Delete the object from coop."""
         from edsl.coop import Coop
 
         coop = Coop()
-        return coop.delete(uuid, url)
 
+        id_or_url = self._replace_www_with_api(id_or_url)
+        if self._is_url(id_or_url):
+            return coop.delete(url=id_or_url)
+        else:
+            return coop.delete(uuid=id_or_url)
+    
     @classmethod
-    def patch(
+    def patch_cls(
         cls,
-        uuid: Optional[Union[str, UUID]] = None,
-        url: Optional[str] = None,
+        id_or_url: Union[str, UUID],
         description: Optional[str] = None,
-        alias: Optional[str] = None,
         value: Optional[Any] = None,
         visibility: Optional[str] = None,
     ):
         """
-        Patch an uploaded objects attributes.
+        Patch an uploaded object's attributes (class method version).
         - `description` changes the description of the object on Coop
         - `value` changes the value of the object on Coop. **has to be an EDSL object**
         - `visibility` changes the visibility of the object on Coop
@@ -116,7 +123,82 @@ class PersistenceMixin:
         from edsl.coop import Coop
 
         coop = Coop()
-        return coop.patch(uuid, url, description, alias, value, visibility)
+
+        id_or_url = cls._replace_www_with_api(id_or_url)
+        if cls._is_url(id_or_url):
+            return coop.patch(url=id_or_url, description=description, value=value, visibility=visibility)
+        else:
+            return coop.patch(uuid=id_or_url, description=description, value=value, visibility=visibility)
+
+    class ClassOrInstanceMethod:
+        """Descriptor that allows a method to be called as both a class method and an instance method."""
+        
+        def __init__(self, func):
+            self.func = func
+            
+        def __get__(self, obj, objtype=None):
+            if obj is None:
+                # Called as a class method
+                def wrapper(*args, **kwargs):
+                    return self.func(objtype, *args, **kwargs)
+                return wrapper
+            else:
+                # Called as an instance method
+                def wrapper(*args, **kwargs):
+                    return self.func(obj, *args, **kwargs)
+                return wrapper
+    
+    @ClassOrInstanceMethod
+    def patch(
+        self_or_cls,
+        id_or_url: Union[str, UUID],
+        description: Optional[str] = None,
+        value: Optional[Any] = None,
+        visibility: Optional[str] = None,
+    ):
+        """
+        Patch an uploaded object's attributes.
+        
+        When called as a class method:
+        - Requires explicit `value` parameter
+        
+        When called as an instance method:
+        - Uses the instance itself as the `value` parameter
+        
+        Parameters:
+        - `id_or_url`: ID or URL of the object to patch
+        - `description`: changes the description of the object on Coop
+        - `value`: changes the value of the object on Coop (required for class method)
+        - `visibility`: changes the visibility of the object on Coop
+        """
+        
+        # Check if this is being called as a class method
+        if isinstance(self_or_cls, type):
+            # This is a class method call
+            cls = self_or_cls
+            return cls.patch_cls(
+                id_or_url=id_or_url,
+                description=description,
+                value=value,
+                visibility=visibility
+            )
+        else:
+            # This is an instance method call
+            instance = self_or_cls
+            cls_type = instance.__class__
+            
+            # Use the instance as the value if not explicitly provided
+            if value is None:
+                value = instance
+            else:
+                pass
+            
+            return cls_type.patch_cls(
+                id_or_url=id_or_url,
+                description=description,
+                value=value,
+                visibility=visibility
+            )
 
     @classmethod
     def search(cls, query):
