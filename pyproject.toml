@@ -83,3 +83,6 @@ sphinx-rtd-theme = "^2.0.0"
 toml = "^0.10.2"
 toml-sort = "^0.23.1"
 uvicorn = "^0.30.6"
+
+[tool.poetry.extras]
+screenshots = ["playwright"]
