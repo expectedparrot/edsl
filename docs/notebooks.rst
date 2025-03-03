@@ -4,7 +4,7 @@ Notebooks
 =========
 
 The `Notebook` object allows you to share your notebooks and scripts (*.ipynb* and *.py* files) by uploading them to Coop.
-You can also view and pull notebooks that other users have uploaded and shared publicly or privately with you.
+You can also view and pull notebooks that other users have shared publicly or privately with you.
 
 Examples of methods below are also viewable in `this notebook at the Coop <https://www.expectedparrot.com/content/ffa113f4-4f2a-407b-8fc6-27bdf5e69d2f>`_.
 
