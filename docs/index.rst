@@ -261,6 +261,7 @@ Links
    notebooks/yoga_studio_name_survey.ipynb
    notebooks/scenario_from_pdf.ipynb
    notebooks/scenario_list_wikipedia.ipynb
+   notebooks/filestore_examples_new.ipynb
    notebooks/scenarios_filestore_example.ipynb
    notebooks/adding_metadata.ipynb
    notebooks/question_loop_scenarios.ipynb

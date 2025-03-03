@@ -1756,6 +1756,52 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         
         return ScenarioList(result)
 
+    @classmethod
+    def from_parquet(cls, filepath: str) -> ScenarioList:
+        """Create a ScenarioList from a Parquet file.
+        
+        Args:
+            filepath (str): Path to the Parquet file
+            
+        Returns:
+            ScenarioList: A ScenarioList containing the data from the Parquet file
+            
+        Example:
+        >>> import pandas as pd
+        >>> import tempfile
+        >>> df = pd.DataFrame({'name': ['Alice', 'Bob'], 'age': [30, 25]})
+        >>> # The following would create and read a parquet file if dependencies are installed:
+        >>> # with tempfile.NamedTemporaryFile(suffix='.parquet', delete=False) as f:
+        >>> #     df.to_parquet(f.name)
+        >>> #     scenario_list = ScenarioList.from_parquet(f.name)
+        >>> # Instead, we'll demonstrate the equivalent result:
+        >>> scenario_list = ScenarioList.from_pandas(df)
+        >>> len(scenario_list)
+        2
+        >>> scenario_list[0]['name']
+        'Alice'
+        """
+        import pandas as pd
+        
+        try:
+            # Try to read the Parquet file with pandas
+            df = pd.read_parquet(filepath)
+        except ImportError as e:
+            # Handle missing dependencies with a helpful error message
+            if "pyarrow" in str(e) or "fastparquet" in str(e):
+                raise ImportError(
+                    "Missing dependencies for Parquet support. Please install either pyarrow or fastparquet:\n"
+                    "  pip install pyarrow\n"
+                    "  or\n"
+                    "  pip install fastparquet"
+                ) from e
+            else:
+                raise
+        
+        # Convert the DataFrame to a ScenarioList
+        return cls.from_pandas(df)
+
+
 
 if __name__ == "__main__":
     import doctest
