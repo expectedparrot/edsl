@@ -1673,6 +1673,135 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         
         return ScenarioList(result)
 
+    def create_comparisons(
+        self, 
+        bidirectional: bool = False, 
+        num_options: int = 2,
+        option_prefix: str = "option_",
+        use_alphabet: bool = False
+    ) -> ScenarioList:
+        """Create a new ScenarioList with comparisons between scenarios.
+        
+        Each scenario in the result contains multiple original scenarios as dictionaries,
+        allowing for side-by-side comparison.
+        
+        Args:
+            bidirectional (bool): If True, include both (A,B) and (B,A) comparisons.
+                If False, only include (A,B) where A comes before B in the original list.
+            num_options (int): Number of scenarios to include in each comparison.
+                Default is 2 for pairwise comparisons.
+            option_prefix (str): Prefix for the keys in the resulting scenarios.
+                Default is "option_", resulting in keys like "option_1", "option_2", etc.
+                Ignored if use_alphabet is True.
+            use_alphabet (bool): If True, use letters as keys (A, B, C, etc.) instead of
+                the option_prefix with numbers.
+        
+        Returns:
+            ScenarioList: A new ScenarioList where each scenario contains multiple original
+                scenarios as dictionaries.
+        
+        Example:
+            >>> s = ScenarioList([
+            ...     Scenario({'id': 1, 'text': 'Option A'}),
+            ...     Scenario({'id': 2, 'text': 'Option B'}),
+            ...     Scenario({'id': 3, 'text': 'Option C'})
+            ... ])
+            >>> s.create_comparisons(use_alphabet=True)
+            ScenarioList([Scenario({'A': {'id': 1, 'text': 'Option A'}, 'B': {'id': 2, 'text': 'Option B'}}), Scenario({'A': {'id': 1, 'text': 'Option A'}, 'B': {'id': 3, 'text': 'Option C'}}), Scenario({'A': {'id': 2, 'text': 'Option B'}, 'B': {'id': 3, 'text': 'Option C'}})])
+            >>> s.create_comparisons(num_options=3, use_alphabet=True)
+            ScenarioList([Scenario({'A': {'id': 1, 'text': 'Option A'}, 'B': {'id': 2, 'text': 'Option B'}, 'C': {'id': 3, 'text': 'Option C'}})])
+        """
+        from itertools import combinations, permutations
+        import string
+        
+        if num_options < 2:
+            raise ValueError("num_options must be at least 2")
+        
+        if num_options > len(self):
+            raise ValueError(f"num_options ({num_options}) cannot exceed the number of scenarios ({len(self)})")
+        
+        if use_alphabet and num_options > 26:
+            raise ValueError("When using alphabet labels, num_options cannot exceed 26 (the number of letters in the English alphabet)")
+        
+        # Convert each scenario to a dictionary
+        scenario_dicts = [scenario.to_dict(add_edsl_version=False) for scenario in self]
+        
+        # Generate combinations or permutations based on bidirectional flag
+        if bidirectional:
+            # For bidirectional, use permutations to get all ordered arrangements
+            if num_options == 2:
+                # For pairwise, we can use permutations with r=2
+                scenario_groups = permutations(scenario_dicts, 2)
+            else:
+                # For more than 2 options with bidirectional=True, 
+                # we need all permutations of the specified size
+                scenario_groups = permutations(scenario_dicts, num_options)
+        else:
+            # For unidirectional, use combinations to get unordered groups
+            scenario_groups = combinations(scenario_dicts, num_options)
+        
+        # Create new scenarios with the combinations
+        result = []
+        for group in scenario_groups:
+            new_scenario = {}
+            for i, scenario_dict in enumerate(group):
+                if use_alphabet:
+                    # Use uppercase letters (A, B, C, etc.)
+                    key = string.ascii_uppercase[i]
+                else:
+                    # Use the option prefix with numbers (option_1, option_2, etc.)
+                    key = f"{option_prefix}{i+1}"
+                new_scenario[key] = scenario_dict
+            result.append(Scenario(new_scenario))
+        
+        return ScenarioList(result)
+
+    @classmethod
+    def from_parquet(cls, filepath: str) -> ScenarioList:
+        """Create a ScenarioList from a Parquet file.
+        
+        Args:
+            filepath (str): Path to the Parquet file
+            
+        Returns:
+            ScenarioList: A ScenarioList containing the data from the Parquet file
+            
+        Example:
+        >>> import pandas as pd
+        >>> import tempfile
+        >>> df = pd.DataFrame({'name': ['Alice', 'Bob'], 'age': [30, 25]})
+        >>> # The following would create and read a parquet file if dependencies are installed:
+        >>> # with tempfile.NamedTemporaryFile(suffix='.parquet', delete=False) as f:
+        >>> #     df.to_parquet(f.name)
+        >>> #     scenario_list = ScenarioList.from_parquet(f.name)
+        >>> # Instead, we'll demonstrate the equivalent result:
+        >>> scenario_list = ScenarioList.from_pandas(df)
+        >>> len(scenario_list)
+        2
+        >>> scenario_list[0]['name']
+        'Alice'
+        """
+        import pandas as pd
+        
+        try:
+            # Try to read the Parquet file with pandas
+            df = pd.read_parquet(filepath)
+        except ImportError as e:
+            # Handle missing dependencies with a helpful error message
+            if "pyarrow" in str(e) or "fastparquet" in str(e):
+                raise ImportError(
+                    "Missing dependencies for Parquet support. Please install either pyarrow or fastparquet:\n"
+                    "  pip install pyarrow\n"
+                    "  or\n"
+                    "  pip install fastparquet"
+                ) from e
+            else:
+                raise
+        
+        # Convert the DataFrame to a ScenarioList
+        return cls.from_pandas(df)
+
+
 
 if __name__ == "__main__":
     import doctest
