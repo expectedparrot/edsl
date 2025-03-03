@@ -352,8 +352,9 @@ Note that the cost of a result for a question is specific to the components (sce
 * **scenario.topic**: The values provided for the "topic" scenario for the questions.
 
 
-Creating tables 
----------------
+Creating tables by selecting columns
+------------------------------------
+
 
 Each of these columns can be accessed directly by calling the `select()` method and passing the column names.
 Alternatively, we can specify the columns to exclude by calling the `drop()` method.
@@ -998,6 +999,51 @@ The `to_json` method will write the results to a JSON file:
 
   results.to_pandas().to_json("results.json")
 
+
+Revising prompts to improve results
+-----------------------------------
+
+If any of your results are missing model responses, you can use the `spot_issues()` method to help identify the issues and then revise the prompts to improve the results.
+This method runs a meta-survey of (2) questions for any prompts that generated a bad or null response, and then returns the results of the meta-survey.
+
+The first question in the survey is a `QuestionFreeText` question which prompts the model to describe the likely issues with the prompts:
+
+.. code-block:: text
+
+  The following prompts generated a bad or null response: '{{ original_prompts }}' 
+  What do you think was the likely issue(s)?
+
+
+The second question in the survey is a `QuestionDict` question which prompts the model to return a dictionary consisting of revised user and system prompts:
+
+.. code-block:: text
+
+  The following prompts generated a bad or null response: '{{ original_prompts }}' 
+  You identified the issue(s) as '{{ issues.answer }}'. 
+  Please revise the prompts to address the issue(s).
+
+
+You can optionally pass a list of models to use with the meta-survey, instead of the default model.
+
+Example usage:
+
+.. code-block:: python
+
+  # Returns a Results object with the results of the meta-survey
+  results.spot_issues(models=["gpt-4o"])
+
+  # You can inspect the metadata for your original prompts together with the results of the meta-survey
+  results.select(
+    "original_question", # The name of the question that generated a bad or null response
+    "original_agent_index", # The index of the agent that generated a bad or null response
+    "original_scenario_index", # The index of the scenario that generated a bad or null response
+    "original_prompts", # The original prompts that generated a bad or null response
+    "answer.issues", # Free text description of potential issues in the original prompts
+    "answer.revised" # A dictionary of revised user and system prompts
+  )
+
+
+See an `example of the method <https://www.expectedparrot.com/content/385734e7-7767-4464-9ebd-0b009dd2e15f>`_.
 
 
 Exceptions
