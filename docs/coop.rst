@@ -136,7 +136,7 @@ We can see that the object is `unlisted` by default:
   'visibility': 'unlisted'}
 
 
-Here we post the same object with a description and visibility:
+Here we post the same object with a `description`, a convenient `alias` for the Coop URL and a `visibility` setting (*public*, *private* or *unlisted* by default):
 
 .. code-block:: python
 
@@ -147,7 +147,7 @@ Here we post the same object with a description and visibility:
     question_text = "How are you today?"
   )
 
-  q.push(description="This is an example question", visibility="public")
+  q.push(description="This is an example question", alias = "my-example-question", visibility="public")
 
 
 We can see the description and visibility status that we specified in the information that is returned:
@@ -156,9 +156,9 @@ We can see the description and visibility status that we specified in the inform
 
   {'description': 'This is an example question',
   'object_type': 'question',
-  'url': 'https://www.expectedparrot.com/content/438e9107-522e-44f2-92e3-925e18da93d1',
-  'uuid': '438e9107-522e-44f2-92e3-925e18da93d1',
-  'version': '0.1.43.dev1',
+  'url': 'https://www.expectedparrot.com/content/65a66d68-6f9e-4b86-8280-b053da53d645',
+  'uuid': '65a66d68-6f9e-4b86-8280-b053da53d645',
+  'version': '0.1.47.dev1',
   'visibility': 'public'}
 
 
@@ -189,7 +189,7 @@ Here we include a description and visibility status:
     question_text = "How are you today?"
   )
   c = Coop()
-  c.create(object=q, description="This is an example question", visibility="public")
+  c.create(object=q, description="This is an example question", alias = "another-example-question", visibility="public")
 
 
 This will return the same information about the object as the direct method shown above (with a unique `uuid` and URL for viewing the object at the Coop web app).
