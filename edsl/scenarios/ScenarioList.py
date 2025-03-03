@@ -360,6 +360,11 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         ScenarioList([Scenario({'a': 1, 'b': 3}), Scenario({'a': 1, 'b': 4}), Scenario({'a': 2, 'b': 3}), Scenario({'a': 2, 'b': 4})])
         """
         from itertools import product
+        from edsl import Scenario
+        if isinstance(other, Scenario):
+            other = ScenarioList([other])
+        elif not isinstance(other, ScenarioList):
+            raise TypeError(f"Cannot multiply ScenarioList with {type(other)}")
 
         new_sl = []
         for s1, s2 in list(product(self, other)):
@@ -431,8 +436,51 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
                 new_scenarios.append(new_scenario)
         return ScenarioList(new_scenarios)
 
+    def _concatenate(self, fields: List[str], output_type: str = "string", separator: str = ";") -> ScenarioList:
+        """Private method to handle concatenation logic for different output types.
+        
+        :param fields: The fields to concatenate.
+        :param output_type: The type of output ("string", "list", or "set").
+        :param separator: The separator to use for string concatenation.
+        
+        Returns:
+            ScenarioList: A new ScenarioList with concatenated fields.
+        """
+        # Check if fields is a string and raise an exception
+        if isinstance(fields, str):
+            raise ScenarioError(
+                f"The 'fields' parameter must be a list of field names, not a string. Got '{fields}'."
+            )
+            
+        new_scenarios = []
+        for scenario in self:
+            new_scenario = scenario.copy()
+            values = []
+            for field in fields:
+                if field in new_scenario:
+                    values.append(new_scenario[field])
+                    del new_scenario[field]
+
+            new_field_name = f"concat_{'_'.join(fields)}"
+            
+            if output_type == "string":
+                # Convert all values to strings and join with separator
+                new_scenario[new_field_name] = separator.join(str(v) for v in values)
+            elif output_type == "list":
+                # Keep as a list
+                new_scenario[new_field_name] = values
+            elif output_type == "set":
+                # Convert to a set (removes duplicates)
+                new_scenario[new_field_name] = set(values)
+            else:
+                raise ValueError(f"Invalid output_type: {output_type}. Must be 'string', 'list', or 'set'.")
+                
+            new_scenarios.append(new_scenario)
+
+        return ScenarioList(new_scenarios)
+
     def concatenate(self, fields: List[str], separator: str = ";") -> ScenarioList:
-        """Concatenate specified fields into a single field.
+        """Concatenate specified fields into a single string field.
 
         :param fields: The fields to concatenate.
         :param separator: The separator to use.
@@ -445,20 +493,40 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
             >>> s.concatenate(['a', 'b', 'c'])
             ScenarioList([Scenario({'concat_a_b_c': '1;2;3'}), Scenario({'concat_a_b_c': '4;5;6'})])
         """
-        new_scenarios = []
-        for scenario in self:
-            new_scenario = scenario.copy()
-            concat_values = []
-            for field in fields:
-                if field in new_scenario:
-                    concat_values.append(str(new_scenario[field]))
-                    del new_scenario[field]
+        return self._concatenate(fields, output_type="string", separator=separator)
 
-            new_field_name = f"concat_{'_'.join(fields)}"
-            new_scenario[new_field_name] = separator.join(concat_values)
-            new_scenarios.append(new_scenario)
+    def concatenate_to_list(self, fields: List[str]) -> ScenarioList:
+        """Concatenate specified fields into a single list field.
 
-        return ScenarioList(new_scenarios)
+        :param fields: The fields to concatenate.
+
+        Returns:
+            ScenarioList: A new ScenarioList with fields concatenated into a list.
+
+        Example:
+            >>> s = ScenarioList([Scenario({'a': 1, 'b': 2, 'c': 3}), Scenario({'a': 4, 'b': 5, 'c': 6})])
+            >>> s.concatenate_to_list(['a', 'b', 'c'])
+            ScenarioList([Scenario({'concat_a_b_c': [1, 2, 3]}), Scenario({'concat_a_b_c': [4, 5, 6]})])
+        """
+        return self._concatenate(fields, output_type="list")
+
+    def concatenate_to_set(self, fields: List[str]) -> ScenarioList:
+        """Concatenate specified fields into a single set field.
+
+        :param fields: The fields to concatenate.
+
+        Returns:
+            ScenarioList: A new ScenarioList with fields concatenated into a set.
+
+        Example:
+            >>> s = ScenarioList([Scenario({'a': 1, 'b': 2, 'c': 3}), Scenario({'a': 4, 'b': 5, 'c': 6})])
+            >>> s.concatenate_to_set(['a', 'b', 'c'])
+            ScenarioList([Scenario({'concat_a_b_c': {1, 2, 3}}), Scenario({'concat_a_b_c': {4, 5, 6}})])
+            >>> s = ScenarioList([Scenario({'a': 1, 'b': 1, 'c': 3})])
+            >>> s.concatenate_to_set(['a', 'b', 'c'])
+            ScenarioList([Scenario({'concat_a_b_c': {1, 3}})])
+        """
+        return self._concatenate(fields, output_type="set")
 
     def unpack_dict(
         self, field: str, prefix: Optional[str] = None, drop_field: bool = False
@@ -872,7 +940,7 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         for scenario in sl:
             scenario[name] = value
         return sl
-
+    
     def rename(self, replacement_dict: dict) -> ScenarioList:
         """Rename the fields in the scenarios.
 
@@ -885,12 +953,34 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         ScenarioList([Scenario({'first_name': 'Alice', 'years': 30}), Scenario({'first_name': 'Bob', 'years': 25})])
 
         """
-
         new_list = ScenarioList([])
         for obj in self:
             new_obj = obj.rename(replacement_dict)
             new_list.append(new_obj)
         return new_list
+
+    def replace_names(self, new_names: list) -> ScenarioList:
+        """Replace the field names in the scenarios with a new list of names.
+
+        :param new_names: A list of new field names to use.
+
+        Example:
+
+        >>> s = ScenarioList([Scenario({'name': 'Alice', 'age': 30}), Scenario({'name': 'Bob', 'age': 25})])
+        >>> s.replace_names(['first_name', 'years'])
+        ScenarioList([Scenario({'first_name': 'Alice', 'years': 30}), Scenario({'first_name': 'Bob', 'years': 25})])
+        """
+        if not self:
+            return ScenarioList([])
+            
+        if len(new_names) != len(self[0].keys()):
+            raise ScenarioError(
+                f"Length of new names ({len(new_names)}) does not match number of fields ({len(self[0].keys())})"
+            )
+
+        old_names = list(self[0].keys())
+        replacement_dict = dict(zip(old_names, new_names))
+        return self.rename(replacement_dict)
 
     ## NEEDS TO BE FIXED
     # def new_column_names(self, new_names: List[str]) -> ScenarioList:
@@ -910,16 +1000,42 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
     #     return new_list
 
     @classmethod
-    def from_sqlite(cls, filepath: str, table: str):
-        """Create a ScenarioList from a SQLite database."""
+    def from_sqlite(cls, filepath: str, table: Optional[str] = None, sql_query: Optional[str] = None):
+        """Create a ScenarioList from a SQLite database.
+        
+        Args:
+            filepath (str): Path to the SQLite database file
+            table (Optional[str]): Name of table to query. If None, sql_query must be provided.
+            sql_query (Optional[str]): SQL query to execute. Used if table is None.
+            
+        Returns:
+            ScenarioList: List of scenarios created from database rows
+            
+        Raises:
+            ValueError: If both table and sql_query are None
+            sqlite3.Error: If there is an error executing the database query
+        """
         import sqlite3
 
-        with sqlite3.connect(filepath) as conn:
-            cursor = conn.cursor()
-            cursor.execute(f"SELECT * FROM {table}")
-            columns = [description[0] for description in cursor.description]
-            data = cursor.fetchall()
-        return cls([Scenario(dict(zip(columns, row))) for row in data])
+        if table is None and sql_query is None:
+            raise ValueError("Either table or sql_query must be provided")
+
+        try:
+            with sqlite3.connect(filepath) as conn:
+                cursor = conn.cursor()
+                
+                if table is not None:
+                    cursor.execute(f"SELECT * FROM {table}")
+                else:
+                    cursor.execute(sql_query)
+                    
+                columns = [description[0] for description in cursor.description]
+                data = cursor.fetchall()
+                
+            return cls([Scenario(dict(zip(columns, row))) for row in data])
+            
+        except sqlite3.Error as e:
+            raise sqlite3.Error(f"Database error occurred: {str(e)}")
 
     @classmethod
     def from_latex(cls, tex_file_path: str):
@@ -935,6 +1051,8 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
             entry = {
                 "line_no": line_no + 1,  # Using 1-based index for line numbers
                 "text": text,
+                "num_words": len(text.split()),
+                "num_chars": len(text),
                 "line_before": non_blank_lines[index - 1][1] if index > 0 else None,
                 "line_after": (
                     non_blank_lines[index + 1][1]
@@ -995,6 +1113,48 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         ScenarioList([Scenario({'name': 'Alice', 'age': 30, 'location': 'New York'}), Scenario({'name': 'Bob', 'age': 25, 'location': 'Los Angeles'})])
         """
         return cls([Scenario(row) for row in df.to_dict(orient="records")])
+    
+
+    @classmethod
+    def from_dta(cls, filepath: str, include_metadata: bool = True) -> ScenarioList:
+        """Create a ScenarioList from a Stata file.
+        
+        Args:
+            filepath (str): Path to the Stata (.dta) file
+            include_metadata (bool): If True, extract and preserve variable labels and value labels
+                                    as additional metadata in the ScenarioList
+        
+        Returns:
+            ScenarioList: A ScenarioList containing the data from the Stata file
+        """
+        import pandas as pd
+        
+        # Read the Stata file with pandas
+        df = pd.read_stata(filepath)
+        
+        # Create the basic ScenarioList
+        scenario_list = cls.from_pandas(df)
+        
+        # Extract and preserve metadata if requested
+        if include_metadata:
+            # Get variable labels (if any)
+            variable_labels = {}
+            if hasattr(df, 'variable_labels') and df.variable_labels:
+                variable_labels = df.variable_labels
+            
+            # Get value labels (if any)
+            value_labels = {}
+            if hasattr(df, 'value_labels') and df.value_labels:
+                value_labels = df.value_labels
+            
+            # Store the metadata in the ScenarioList's codebook
+            if variable_labels or value_labels:
+                scenario_list.codebook = {
+                    'variable_labels': variable_labels,
+                    'value_labels': value_labels
+                }
+        
+        return scenario_list
 
     @classmethod
     def from_wikipedia(cls, url: str, table_index: int = 0):
@@ -1456,7 +1616,7 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
 
         >>> s = ScenarioList([Scenario({'text': 'The quick brown fox jumps over the lazy dog.'})])
         >>> s.chunk('text', num_words=3)
-        ScenarioList([Scenario({'text': 'The quick brown', 'text_chunk': 0}), Scenario({'text': 'fox jumps over', 'text_chunk': 1}), Scenario({'text': 'the lazy dog.', 'text_chunk': 2})])
+        ScenarioList([Scenario({'text': 'The quick brown', 'text_chunk': 0, 'text_char_count': 15, 'text_word_count': 3}), Scenario({'text': 'fox jumps over', 'text_chunk': 1, 'text_char_count': 14, 'text_word_count': 3}), Scenario({'text': 'the lazy dog.', 'text_chunk': 2, 'text_char_count': 13, 'text_word_count': 3})])
         """
         new_scenarios = []
         for scenario in self:
@@ -1469,6 +1629,94 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
             )
             new_scenarios.extend(replacement_scenarios)
         return ScenarioList(new_scenarios)
+
+    def collapse(self, field: str) -> ScenarioList:
+        """Collapse a ScenarioList by grouping on all fields except the specified one,
+        collecting the values of the specified field into a list.
+
+        Args:
+            field: The field to collapse (whose values will be collected into lists)
+
+        Returns:
+            ScenarioList: A new ScenarioList with the specified field collapsed into lists
+
+        Example:
+        >>> s = ScenarioList([
+        ...     Scenario({'category': 'fruit', 'color': 'red', 'item': 'apple'}),
+        ...     Scenario({'category': 'fruit', 'color': 'yellow', 'item': 'banana'}),
+        ...     Scenario({'category': 'fruit', 'color': 'red', 'item': 'cherry'}),
+        ...     Scenario({'category': 'vegetable', 'color': 'green', 'item': 'spinach'})
+        ... ])
+        >>> s.collapse('item')
+        ScenarioList([Scenario({'category': 'fruit', 'color': 'red', 'item': ['apple', 'cherry']}), Scenario({'category': 'fruit', 'color': 'yellow', 'item': ['banana']}), Scenario({'category': 'vegetable', 'color': 'green', 'item': ['spinach']})])
+        """
+        if not self:
+            return ScenarioList([])
+        
+        # Determine all fields except the one to collapse
+        id_vars = [key for key in self[0].keys() if key != field]
+        
+        # Group the scenarios
+        grouped = defaultdict(list)
+        for scenario in self:
+            # Create a tuple of the values of all fields except the one to collapse
+            key = tuple(scenario[id_var] for id_var in id_vars)
+            # Add the value of the field to collapse to the list for this key
+            grouped[key].append(scenario[field])
+        
+        # Create a new ScenarioList with the collapsed field
+        result = []
+        for key, values in grouped.items():
+            new_scenario = dict(zip(id_vars, key))
+            new_scenario[field] = values
+            result.append(Scenario(new_scenario))
+        
+        return ScenarioList(result)
+
+    @classmethod
+    def from_parquet(cls, filepath: str) -> ScenarioList:
+        """Create a ScenarioList from a Parquet file.
+        
+        Args:
+            filepath (str): Path to the Parquet file
+            
+        Returns:
+            ScenarioList: A ScenarioList containing the data from the Parquet file
+            
+        Example:
+        >>> import pandas as pd
+        >>> import tempfile
+        >>> df = pd.DataFrame({'name': ['Alice', 'Bob'], 'age': [30, 25]})
+        >>> # The following would create and read a parquet file if dependencies are installed:
+        >>> # with tempfile.NamedTemporaryFile(suffix='.parquet', delete=False) as f:
+        >>> #     df.to_parquet(f.name)
+        >>> #     scenario_list = ScenarioList.from_parquet(f.name)
+        >>> # Instead, we'll demonstrate the equivalent result:
+        >>> scenario_list = ScenarioList.from_pandas(df)
+        >>> len(scenario_list)
+        2
+        >>> scenario_list[0]['name']
+        'Alice'
+        """
+        import pandas as pd
+        
+        try:
+            # Try to read the Parquet file with pandas
+            df = pd.read_parquet(filepath)
+        except ImportError as e:
+            # Handle missing dependencies with a helpful error message
+            if "pyarrow" in str(e) or "fastparquet" in str(e):
+                raise ImportError(
+                    "Missing dependencies for Parquet support. Please install either pyarrow or fastparquet:\n"
+                    "  pip install pyarrow\n"
+                    "  or\n"
+                    "  pip install fastparquet"
+                ) from e
+            else:
+                raise
+        
+        # Convert the DataFrame to a ScenarioList
+        return cls.from_pandas(df)
 
 
 if __name__ == "__main__":

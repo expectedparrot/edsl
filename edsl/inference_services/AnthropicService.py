@@ -17,11 +17,10 @@ class AnthropicService(InferenceServiceABC):
     output_token_name = "output_tokens"
     model_exclude_list = []
 
-    available_models_url = 'https://docs.anthropic.com/en/docs/about-claude/models'
+    available_models_url = "https://docs.anthropic.com/en/docs/about-claude/models"
 
     @classmethod
     def get_model_list(cls, api_key: str = None):
-
         import requests
 
         if api_key is None:
@@ -94,13 +93,16 @@ class AnthropicService(InferenceServiceABC):
                 # breakpoint()
                 client = AsyncAnthropic(api_key=self.api_token)
 
-                response = await client.messages.create(
-                    model=model_name,
-                    max_tokens=self.max_tokens,
-                    temperature=self.temperature,
-                    system=system_prompt,  # note that the Anthropic API uses "system" parameter rather than put it in the message
-                    messages=messages,
-                )
+                try:
+                    response = await client.messages.create(
+                        model=model_name,
+                        max_tokens=self.max_tokens,
+                        temperature=self.temperature,
+                        system=system_prompt,  # note that the Anthropic API uses "system" parameter rather than put it in the message
+                        messages=messages,
+                    )
+                except Exception as e:
+                    return {"message": str(e)}
                 return response.model_dump()
 
         LLM.__name__ = model_class_name

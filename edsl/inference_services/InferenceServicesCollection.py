@@ -104,8 +104,9 @@ class InferenceServicesCollection:
     def available(
         self,
         service: Optional[str] = None,
+        force_refresh: bool = False,
     ) -> List[Tuple[str, str, int]]:
-        return self.availability_fetcher.available(service)
+        return self.availability_fetcher.available(service, force_refresh=force_refresh)
 
     def reset_cache(self) -> None:
         self.availability_fetcher.reset_cache()
@@ -120,7 +121,6 @@ class InferenceServicesCollection:
     def create_model_factory(
         self, model_name: str, service_name: Optional[InferenceServiceLiteral] = None
     ) -> "LanguageModel":
-
         if service_name is None:  # we try to find the right service
             service = self.resolver.resolve_model(model_name, service_name)
         else:  # if they passed a service, we'll use that

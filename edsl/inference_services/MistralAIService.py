@@ -111,8 +111,7 @@ class MistralAIService(InferenceServiceABC):
                         ],
                     )
                 except Exception as e:
-                    raise LanguageModelBadResponseError(f"Error with Mistral API: {e}")
-
+                    return {"message": str(e)}
                 return res.model_dump()
 
         LLM.__name__ = model_class_name

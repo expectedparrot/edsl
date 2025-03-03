@@ -74,7 +74,7 @@ class InvigilatorBase(ABC):
     @property
     def prompt_constructor(self) -> PromptConstructor:
         """Return the prompt constructor."""
-        return PromptConstructor(self, prompt_plan=self.prompt_plan)
+        return PromptConstructor.from_invigilator(self, prompt_plan=self.prompt_plan)
 
     def to_dict(self, include_cache=False) -> Dict[str, Any]:
         attributes = [

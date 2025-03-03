@@ -379,8 +379,10 @@ class LanguageModel(
         cached_response, cache_key = cache.fetch(**cache_call_params)
 
         if cache_used := cached_response is not None:
+ #           print("cache used")
             response = json.loads(cached_response)
         else:
+#            print("cache not used")
             f = (
                 self.remote_async_execute_model_call
                 if hasattr(self, "remote") and self.remote
@@ -394,14 +396,16 @@ class LanguageModel(
             from edsl.config import CONFIG
 
             TIMEOUT = float(CONFIG.get("EDSL_API_TIMEOUT"))
-
             response = await asyncio.wait_for(f(**params), timeout=TIMEOUT)
             new_cache_key = cache.store(
                 **cache_call_params, response=response
             )  # store the response in the cache
             assert new_cache_key == cache_key  # should be the same
 
+        #breakpoint()
+
         cost = self.cost(response)
+        #breakpoint()
         return ModelResponse(
             response=response,
             cache_used=cache_used,
@@ -466,6 +470,7 @@ class LanguageModel(
             model_outputs=model_outputs,
             edsl_dict=edsl_dict,
         )
+        #breakpoint()
         return agent_response_dict
 
     get_response = sync_wrapper(async_get_response)
@@ -517,8 +522,6 @@ class LanguageModel(
         NB: This method does not use the stores inference_service but rather just fetches a model class based on the name.
         """
         from edsl.language_models.model import get_model_class
-
-        # breakpoint()
 
         model_class = get_model_class(
             data["model"], service_name=data.get("inference_service", None)

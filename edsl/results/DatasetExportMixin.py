@@ -7,6 +7,7 @@ from typing import Optional, Tuple, Union, List
 
 from edsl.results.file_exports import CSVExport, ExcelExport, JSONLExport, SQLiteExport
 
+
 class DatasetExportMixin:
     """Mixin class for exporting Dataset objects."""
 
@@ -82,7 +83,8 @@ class DatasetExportMixin:
             else:
                 if len(values) != _num_observations:
                     raise ValueError(
-                        "The number of observations is not consistent across columns."
+                        f"The number of observations is not consistent across columns. "
+                        f"Column '{key}' has {len(values)} observations, but previous columns had {_num_observations} observations."
                     )
 
         return _num_observations
@@ -219,7 +221,9 @@ class DatasetExportMixin:
         )
         return exporter.export()
 
-    def _db(self, remove_prefix: bool = True, shape: str = "wide") -> "sqlalchemy.engine.Engine":
+    def _db(
+        self, remove_prefix: bool = True, shape: str = "wide"
+    ) -> "sqlalchemy.engine.Engine":
         """Create a SQLite database in memory and return the connection.
 
         Args:
@@ -229,7 +233,7 @@ class DatasetExportMixin:
         Returns:
             A database connection
         >>> from sqlalchemy import text
-        >>> from edsl import Results 
+        >>> from edsl import Results
         >>> engine = Results.example()._db()
         >>> len(engine.execute(text("SELECT * FROM self")).fetchall())
         4
@@ -247,16 +251,17 @@ class DatasetExportMixin:
 
         if shape == "long":
             # Melt the dataframe to convert it to long format
-            df = df.melt(
-                var_name='key', 
-                value_name='value'
-            )
+            df = df.melt(var_name="key", value_name="value")
             # Add a row number column for reference
-            df.insert(0, 'row_number', range(1, len(df) + 1))
-            
+            df.insert(0, "row_number", range(1, len(df) + 1))
+
             # Split the key into data_type and key
-            df['data_type'] = df['key'].apply(lambda x: x.split('.')[0] if '.' in x else None)
-            df['key'] = df['key'].apply(lambda x: '.'.join(x.split('.')[1:]) if '.' in x else x)
+            df["data_type"] = df["key"].apply(
+                lambda x: x.split(".")[0] if "." in x else None
+            )
+            df["key"] = df["key"].apply(
+                lambda x: ".".join(x.split(".")[1:]) if "." in x else x
+            )
 
         df.to_sql(
             "self",
@@ -276,27 +281,27 @@ class DatasetExportMixin:
     ) -> Union["pd.DataFrame", str]:
         """Execute a SQL query and return the results as a DataFrame.
 
-        Args:
-            query: The SQL query to execute
-            shape: The shape of the data in the database (wide or long)
-            remove_prefix: Whether to remove the prefix from the column names
-            transpose: Whether to transpose the DataFrame
-            transpose_by: The column to use as the index when transposing
-            csv: Whether to return the DataFrame as a CSV string
-            to_list: Whether to return the results as a list
-            to_latex: Whether to return the results as LaTeX
-            filename: Optional filename to save the results to
+         Args:
+             query: The SQL query to execute
+             shape: The shape of the data in the database (wide or long)
+             remove_prefix: Whether to remove the prefix from the column names
+             transpose: Whether to transpose the DataFrame
+             transpose_by: The column to use as the index when transposing
+             csv: Whether to return the DataFrame as a CSV string
+             to_list: Whether to return the results as a list
+             to_latex: Whether to return the results as LaTeX
+             filename: Optional filename to save the results to
 
-        Returns:
-            DataFrame, CSV string, list, or LaTeX string depending on parameters
+         Returns:
+             DataFrame, CSV string, list, or LaTeX string depending on parameters
 
-       Examples:
-           >>> from edsl import Results
-           >>> r = Results.example(); 
-           >>> len(r.sql("SELECT * FROM self", shape = "wide"))
-           4
-           >>> len(r.sql("SELECT * FROM self", shape = "long"))
-           172
+        Examples:
+            >>> from edsl import Results
+            >>> r = Results.example();
+            >>> len(r.sql("SELECT * FROM self", shape = "wide"))
+            4
+            >>> len(r.sql("SELECT * FROM self", shape = "long"))
+            172
         """
         import pandas as pd
 
@@ -500,8 +505,9 @@ class DatasetExportMixin:
 
         from edsl.utilities.PrettyList import PrettyList
 
-        return PrettyList(list_to_return)
-
+        #return PrettyList(list_to_return)
+        return list_to_return
+    
     def html(
         self,
         filename: Optional[str] = None,
@@ -538,6 +544,116 @@ class DatasetExportMixin:
 
         if return_link:
             return filename
+        
+    def report(self, *fields: Optional[str], top_n: Optional[int] = None, 
+               header_fields: Optional[List[str]] = None, divider: bool = True,
+               return_string: bool = False) -> Optional[str]:
+        """Takes the fields in order and returns a report of the results by iterating through rows.
+        The row number is printed as # Observation: <row number>
+        The name of the field is used as markdown header at level "##" 
+        The content of that field is then printed. 
+        Then the next field and so on. 
+        Once that row is done, a new line is printed and the next row is shown.
+        If in a jupyter notebook, the report is displayed as markdown.
+        
+        Args:
+            *fields: The fields to include in the report. If none provided, all fields are used.
+            top_n: Optional limit on the number of observations to include.
+            header_fields: Optional list of fields to include in the main header instead of as sections.
+            divider: If True, adds a horizontal rule between observations for better visual separation.
+            return_string: If True, returns the markdown string. If False (default in notebooks),
+                          only displays the markdown without returning.
+            
+        Returns:
+            A string containing the markdown report if return_string is True, otherwise None.
+            
+        Examples:
+            >>> from edsl.results import Results
+            >>> r = Results.example()
+            >>> report = r.select('how_feeling', 'how_feeling_yesterday').report(return_string=True)
+            >>> "# Observation: 1" in report
+            True
+            >>> "## answer.how_feeling" in report
+            True
+            >>> report = r.select('how_feeling').report(header_fields=['answer.how_feeling'], return_string=True)
+            >>> "# Observation: 1 (`how_feeling`: OK)" in report
+            True
+        """
+        from edsl.utilities.utilities import is_notebook
+        
+        # If no fields specified, use all columns
+        if not fields:
+            fields = self.relevant_columns()
+        
+        # Initialize header_fields if not provided
+        if header_fields is None:
+            header_fields = []
+        
+        # Validate all fields
+        all_fields = list(fields) + [f for f in header_fields if f not in fields]
+        for field in all_fields:
+            if field not in self.relevant_columns():
+                raise ValueError(f"Field '{field}' not found in dataset")
+        
+        # Get data for each field
+        field_data = {}
+        for field in all_fields:
+            for entry in self:
+                if field in entry:
+                    field_data[field] = entry[field]
+                    break
+        
+        # Number of observations to process
+        num_obs = self.num_observations()
+        if top_n is not None:
+            num_obs = min(num_obs, top_n)
+        
+        # Build the report
+        report_lines = []
+        for i in range(num_obs):
+            # Create header with observation number and any header fields
+            header = f"# Observation: {i+1}"
+            if header_fields:
+                header_parts = []
+                for field in header_fields:
+                    value = field_data[field][i]
+                    # Get the field name without prefix for cleaner display
+                    display_name = field.split('.')[-1] if '.' in field else field
+                    # Format with backticks for monospace
+                    header_parts.append(f"`{display_name}`: {value}")
+                if header_parts:
+                    header += f" ({', '.join(header_parts)})"
+            report_lines.append(header)
+            
+            # Add the remaining fields
+            for field in fields:
+                if field not in header_fields:
+                    report_lines.append(f"## {field}")
+                    value = field_data[field][i]
+                    if isinstance(value, list) or isinstance(value, dict):
+                        import json
+                        report_lines.append(f"```\n{json.dumps(value, indent=2)}\n```")
+                    else:
+                        report_lines.append(str(value))
+            
+            # Add divider between observations if requested
+            if divider and i < num_obs - 1:
+                report_lines.append("\n---\n")
+            else:
+                report_lines.append("")  # Empty line between observations
+        
+        report_text = "\n".join(report_lines)
+        
+        # In notebooks, display as markdown and optionally return
+        is_nb = is_notebook()
+        if is_nb:
+            from IPython.display import Markdown, display
+            display(Markdown(report_text))
+        
+        # Return the string if requested or if not in a notebook
+        if return_string or not is_nb:
+            return report_text
+        return None
 
     def tally(
         self, *fields: Optional[str], top_n: Optional[int] = None, output="Dataset"
@@ -615,6 +731,275 @@ class DatasetExportMixin:
             keys.remove("count")
             keys.append("count")
             return sl.reorder_keys(keys).to_dataset()
+
+    def flatten(self, field, keep_original=False):
+        """
+        Flatten a field containing a list of dictionaries into separate fields.
+
+        >>> from edsl.results.Dataset import Dataset
+        >>> Dataset([{'a': [{'a': 1, 'b': 2}]}, {'c': [5] }]).flatten('a')
+        Dataset([{'c': [5]}, {'a.a': [1]}, {'a.b': [2]}])
+
+
+        >>> Dataset([{'answer.example': [{'a': 1, 'b': 2}]}, {'c': [5] }]).flatten('answer.example')
+        Dataset([{'c': [5]}, {'answer.example.a': [1]}, {'answer.example.b': [2]}])
+
+
+        Args:
+            field: The field to flatten
+            keep_original: If True, keeps the original field in the dataset
+
+        Returns:
+            A new dataset with the flattened fields
+        """
+        from edsl.results.Dataset import Dataset
+
+        # Ensure the dataset isn't empty
+        if not self.data:
+            return self.copy()
+        
+        # Find all columns that contain the field
+        matching_entries = []
+        for entry in self.data:
+            col_name = next(iter(entry.keys()))
+            if field == col_name or (
+                '.' in col_name and 
+                (col_name.endswith('.' + field) or col_name.startswith(field + '.'))
+            ):
+                matching_entries.append(entry)
+        
+        # Check if the field is ambiguous
+        if len(matching_entries) > 1:
+            matching_cols = [next(iter(entry.keys())) for entry in matching_entries]
+            raise ValueError(
+                f"Ambiguous field name '{field}'. It matches multiple columns: {matching_cols}. "
+                f"Please specify the full column name to flatten."
+            )
+
+        # Get the number of observations
+        num_observations = self.num_observations()
+
+        # Find the column to flatten
+        field_entry = None
+        for entry in self.data:
+            if field in entry:
+                field_entry = entry
+                break
+
+        if field_entry is None:
+            warnings.warn(
+                f"Field '{field}' not found in dataset, returning original dataset"
+            )
+            return self.copy()
+
+        # Create new dictionary for flattened data
+        flattened_data = []
+
+        # Copy all existing columns except the one we're flattening (if keep_original is False)
+        for entry in self.data:
+            col_name = next(iter(entry.keys()))
+            if col_name != field or keep_original:
+                flattened_data.append(entry.copy())
+
+        # Get field data and make sure it's valid
+        field_values = field_entry[field]
+        if not all(isinstance(item, dict) for item in field_values if item is not None):
+            warnings.warn(
+                f"Field '{field}' contains non-dictionary values that cannot be flattened"
+            )
+            return self.copy()
+
+        # Collect all unique keys across all dictionaries
+        all_keys = set()
+        for item in field_values:
+            if isinstance(item, dict):
+                all_keys.update(item.keys())
+
+        # Create new columns for each key
+        for key in sorted(all_keys):  # Sort for consistent output
+            new_values = []
+            for i in range(num_observations):
+                value = None
+                if i < len(field_values) and isinstance(field_values[i], dict):
+                    value = field_values[i].get(key, None)
+                new_values.append(value)
+
+            # Add this as a new column
+            flattened_data.append({f"{field}.{key}": new_values})
+
+        # Return a new Dataset with the flattened data
+        return Dataset(flattened_data)
+
+    def unpack_list(
+        self,
+        field: str,
+        new_names: Optional[List[str]] = None,
+        keep_original: bool = True,
+    ) -> "Dataset":
+        """Unpack list columns into separate columns with provided names or numeric suffixes.
+
+        For example, if a dataset contains:
+        [{'data': [[1, 2, 3], [4, 5, 6]], 'other': ['x', 'y']}]
+
+        After d.unpack_list('data'), it should become:
+        [{'other': ['x', 'y'], 'data_1': [1, 4], 'data_2': [2, 5], 'data_3': [3, 6]}]
+
+        Args:
+            field: The field containing lists to unpack
+            new_names: Optional list of names for the unpacked fields. If None, uses numeric suffixes.
+            keep_original: If True, keeps the original field in the dataset
+
+        Returns:
+            A new Dataset with unpacked columns
+
+        Examples:
+            >>> from edsl.results.Dataset import Dataset
+            >>> d = Dataset([{'data': [[1, 2, 3], [4, 5, 6]]}])
+            >>> d.unpack_list('data')
+            Dataset([{'data': [[1, 2, 3], [4, 5, 6]]}, {'data_1': [1, 4]}, {'data_2': [2, 5]}, {'data_3': [3, 6]}])
+
+            >>> d.unpack_list('data', new_names=['first', 'second', 'third'])
+            Dataset([{'data': [[1, 2, 3], [4, 5, 6]]}, {'first': [1, 4]}, {'second': [2, 5]}, {'third': [3, 6]}])
+        """
+        from edsl.results.Dataset import Dataset
+
+        # Create a copy of the dataset
+        result = Dataset(self.data.copy())
+
+        # Find the field in the dataset
+        field_index = None
+        for i, entry in enumerate(result.data):
+            if field in entry:
+                field_index = i
+                break
+
+        if field_index is None:
+            raise ValueError(f"Field '{field}' not found in dataset")
+
+        field_data = result.data[field_index][field]
+
+        # Check if values are lists
+        if not all(isinstance(v, list) for v in field_data):
+            raise ValueError(f"Field '{field}' does not contain lists in all entries")
+
+        # Get the maximum length of lists
+        max_len = max(len(v) for v in field_data)
+
+        # Create new fields for each index
+        for i in range(max_len):
+            if new_names and i < len(new_names):
+                new_field = new_names[i]
+            else:
+                new_field = f"{field}_{i+1}"
+
+            # Extract the i-th element from each list
+            new_values = []
+            for item in field_data:
+                new_values.append(item[i] if i < len(item) else None)
+
+            result.data.append({new_field: new_values})
+
+        # Remove the original field if keep_original is False
+        if not keep_original:
+            result.data.pop(field_index)
+
+        return result
+    
+    def drop(self, field_name):
+        """
+        Returns a new Dataset with the specified field removed.
+        
+        Args:
+            field_name (str): The name of the field to remove.
+            
+        Returns:
+            Dataset: A new Dataset instance without the specified field.
+            
+        Raises:
+            KeyError: If the field_name doesn't exist in the dataset.
+            
+        Examples:
+            >>> from edsl.results.Dataset import Dataset
+            >>> d = Dataset([{'a': [1, 2, 3]}, {'b': [4, 5, 6]}])
+            >>> d.drop('a')
+            Dataset([{'b': [4, 5, 6]}])
+            
+            >>> d.drop('c')
+            Traceback (most recent call last):
+            ...
+            KeyError: "Field 'c' not found in dataset"
+        """
+        from edsl.results.Dataset import Dataset
+        
+        # Check if field exists in the dataset
+        if field_name not in self.relevant_columns():
+            raise KeyError(f"Field '{field_name}' not found in dataset")
+        
+        # Create a new dataset without the specified field
+        new_data = [entry for entry in self.data if field_name not in entry]
+        return Dataset(new_data)
+
+    def remove_prefix(self):
+        """Returns a new Dataset with the prefix removed from all column names.
+        
+        The prefix is defined as everything before the first dot (.) in the column name.
+        If removing prefixes would result in duplicate column names, an exception is raised.
+        
+        Returns:
+            Dataset: A new Dataset with prefixes removed from column names
+            
+        Raises:
+            ValueError: If removing prefixes would result in duplicate column names
+            
+        Examples:
+            >>> from edsl.results import Results
+            >>> r = Results.example()
+            >>> r.select('how_feeling', 'how_feeling_yesterday').relevant_columns()
+            ['answer.how_feeling', 'answer.how_feeling_yesterday']
+            >>> r.select('how_feeling', 'how_feeling_yesterday').remove_prefix().relevant_columns()
+            ['how_feeling', 'how_feeling_yesterday']
+            
+            >>> from edsl.results.Dataset import Dataset
+            >>> d = Dataset([{'a.x': [1, 2, 3]}, {'b.x': [4, 5, 6]}])
+            >>> d.remove_prefix()
+            Traceback (most recent call last):
+            ...
+            ValueError: Removing prefixes would result in duplicate column names: ['x']
+        """
+        from edsl.results.Dataset import Dataset
+        
+        # Get all column names
+        columns = self.relevant_columns()
+        
+        # Extract the unprefixed names
+        unprefixed = {}
+        duplicates = set()
+        
+        for col in columns:
+            if '.' in col:
+                unprefixed_name = col.split('.', 1)[1]
+                if unprefixed_name in unprefixed:
+                    duplicates.add(unprefixed_name)
+                unprefixed[unprefixed_name] = col
+            else:
+                # For columns without a prefix, keep them as is
+                unprefixed[col] = col
+        
+        # Check for duplicates
+        if duplicates:
+            raise ValueError(f"Removing prefixes would result in duplicate column names: {sorted(list(duplicates))}")
+        
+        # Create a new dataset with unprefixed column names
+        new_data = []
+        for entry in self.data:
+            key, values = list(entry.items())[0]
+            if '.' in key:
+                new_key = key.split('.', 1)[1]
+            else:
+                new_key = key
+            new_data.append({new_key: values})
+        
+        return Dataset(new_data)
 
 
 if __name__ == "__main__":

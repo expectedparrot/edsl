@@ -24,7 +24,7 @@ from edsl.jobs.JobsRemoteInferenceLogger import JobLogger
 class RemoteJobConstants:
     """Constants for remote job handling."""
 
-    REMOTE_JOB_POLL_INTERVAL = 1
+    REMOTE_JOB_POLL_INTERVAL = 4
     REMOTE_JOB_VERBOSE = False
     DISCORD_URL = "https://discord.com/invite/mxAYkjfy9m"
 
@@ -88,8 +88,8 @@ class JobsRemoteInferenceHandler:
         iterations: int = 1,
         remote_inference_description: Optional[str] = None,
         remote_inference_results_visibility: Optional[VisibilityType] = "unlisted",
+        fresh: Optional[bool] = False,
     ) -> RemoteJobInfo:
-
         from edsl.config import CONFIG
         from edsl.coop.coop import Coop
 
@@ -106,6 +106,7 @@ class JobsRemoteInferenceHandler:
             status="queued",
             iterations=iterations,
             initial_results_visibility=remote_inference_results_visibility,
+            fresh=fresh,
         )
         logger.update(
             "Your survey is running at the Expected Parrot server...",
@@ -277,9 +278,7 @@ class JobsRemoteInferenceHandler:
         job_in_queue = True
         while job_in_queue:
             result = self._attempt_fetch_job(
-                job_info,
-                remote_job_data_fetcher,
-                object_fetcher
+                job_info, remote_job_data_fetcher, object_fetcher
             )
             if result != "continue":
                 return result

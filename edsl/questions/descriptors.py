@@ -2,6 +2,7 @@
 
 from abc import ABC, abstractmethod
 import re
+import textwrap
 from typing import Any, Callable, List, Optional
 from edsl.exceptions.questions import (
     QuestionCreationValidationError,
@@ -404,6 +405,9 @@ class QuestionTextDescriptor(BaseDescriptor):
             raise Exception("Question is too short!")
         if not isinstance(value, str):
             raise Exception("Question must be a string!")
+        
+        #value = textwrap.dedent(value).strip()
+
         if contains_single_braced_substring(value):
             import warnings
 

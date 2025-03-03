@@ -64,6 +64,15 @@ class Scenario(Base, UserDict, ScenarioHtmlMixin):
         self.data = data if data is not None else {}
         self.name = name
 
+    def __mul__(self, scenario_list_or_scenario: Union["ScenarioList", "Scenario"]) -> "ScenarioList":
+        from edsl.scenarios.ScenarioList import ScenarioList
+        if isinstance(scenario_list_or_scenario, ScenarioList):
+            return scenario_list_or_scenario * self
+        elif isinstance(scenario_list_or_scenario, Scenario):
+            return ScenarioList([self]) * scenario_list_or_scenario
+        else:
+            raise TypeError(f"Cannot multiply Scenario with {type(scenario_list_or_scenario)}")
+
     def replicate(self, n: int) -> "ScenarioList":
         """Replicate a scenario n times to return a ScenarioList.
 
@@ -356,11 +365,18 @@ class Scenario(Base, UserDict, ScenarioHtmlMixin):
 
     @classmethod
     def from_pdf(cls, pdf_path: str):
-        from edsl.scenarios.PdfExtractor import PdfExtractor
-
-        extractor = PdfExtractor(pdf_path)
-        return Scenario(extractor.get_pdf_dict())
-
+        """Create a Scenario from a PDF file."""
+        try:
+            from edsl.scenarios.PdfExtractor import PdfExtractor
+            extractor = PdfExtractor(pdf_path)
+            return Scenario(extractor.get_pdf_dict())
+        except ImportError as e:
+            raise ImportError(
+                f"Could not extract text from PDF: {str(e)}. "
+                "PDF extraction requires the PyMuPDF library. "
+                "Install it with: pip install pymupdf"
+            )
+        
     @classmethod
     def from_pdf_to_image(cls, pdf_path, image_format="jpeg"):
         """
@@ -442,18 +458,18 @@ class Scenario(Base, UserDict, ScenarioHtmlMixin):
 
         >>> s = Scenario({"text": "This is a test.\\nThis is a test.\\n\\nThis is a test."})
         >>> s.chunk("text", num_lines = 1)
-        ScenarioList([Scenario({'text': 'This is a test.', 'text_chunk': 0}), Scenario({'text': 'This is a test.', 'text_chunk': 1}), Scenario({'text': '', 'text_chunk': 2}), Scenario({'text': 'This is a test.', 'text_chunk': 3})])
+        ScenarioList([Scenario({'text': 'This is a test.', 'text_chunk': 0, 'text_char_count': 15, 'text_word_count': 4}), Scenario({'text': 'This is a test.', 'text_chunk': 1, 'text_char_count': 15, 'text_word_count': 4}), Scenario({'text': '', 'text_chunk': 2, 'text_char_count': 0, 'text_word_count': 0}), Scenario({'text': 'This is a test.', 'text_chunk': 3, 'text_char_count': 15, 'text_word_count': 4})])
 
         >>> s.chunk("text", num_words = 2)
-        ScenarioList([Scenario({'text': 'This is', 'text_chunk': 0}), Scenario({'text': 'a test.', 'text_chunk': 1}), Scenario({'text': 'This is', 'text_chunk': 2}), Scenario({'text': 'a test.', 'text_chunk': 3}), Scenario({'text': 'This is', 'text_chunk': 4}), Scenario({'text': 'a test.', 'text_chunk': 5})])
+        ScenarioList([Scenario({'text': 'This is', 'text_chunk': 0, 'text_char_count': 7, 'text_word_count': 2}), Scenario({'text': 'a test.', 'text_chunk': 1, 'text_char_count': 7, 'text_word_count': 2}), Scenario({'text': 'This is', 'text_chunk': 2, 'text_char_count': 7, 'text_word_count': 2}), Scenario({'text': 'a test.', 'text_chunk': 3, 'text_char_count': 7, 'text_word_count': 2}), Scenario({'text': 'This is', 'text_chunk': 4, 'text_char_count': 7, 'text_word_count': 2}), Scenario({'text': 'a test.', 'text_chunk': 5, 'text_char_count': 7, 'text_word_count': 2})])
 
         >>> s = Scenario({"text": "Hello World"})
         >>> s.chunk("text", num_words = 1, include_original = True)
-        ScenarioList([Scenario({'text': 'Hello', 'text_chunk': 0, 'text_original': 'Hello World'}), Scenario({'text': 'World', 'text_chunk': 1, 'text_original': 'Hello World'})])
+        ScenarioList([Scenario({'text': 'Hello', 'text_chunk': 0, 'text_char_count': 5, 'text_word_count': 1, 'text_original': 'Hello World'}), Scenario({'text': 'World', 'text_chunk': 1, 'text_char_count': 5, 'text_word_count': 1, 'text_original': 'Hello World'})])
 
         >>> s = Scenario({"text": "Hello World"})
         >>> s.chunk("text", num_words = 1, include_original = True, hash_original = True)
-        ScenarioList([Scenario({'text': 'Hello', 'text_chunk': 0, 'text_original': 'b10a8db164e0754105b7a99be72e3fe5'}), Scenario({'text': 'World', 'text_chunk': 1, 'text_original': 'b10a8db164e0754105b7a99be72e3fe5'})])
+        ScenarioList([Scenario({'text': 'Hello', 'text_chunk': 0, 'text_char_count': 5, 'text_word_count': 1, 'text_original': 'b10a8db164e0754105b7a99be72e3fe5'}), Scenario({'text': 'World', 'text_chunk': 1, 'text_char_count': 5, 'text_word_count': 1, 'text_original': 'b10a8db164e0754105b7a99be72e3fe5'})])
 
         >>> s.chunk("text")
         Traceback (most recent call last):

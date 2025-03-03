@@ -39,7 +39,7 @@ Your account comes with an **Expected Parrot API key** that allows you to:
 
 You can inspect your key and reset it at any time at your `Settings <https://www.expectedparrot.com/home/settings>`_ page:
 
-.. image:: static/settings.png
+.. image:: static/home-settings.png
   :alt: Remote inference settings and Expected Parrot API key
   :align: center
   :width: 100%
@@ -77,7 +77,7 @@ See below for details on setting and changing the visibility of an object, and e
 4. Explore content
 ^^^^^^^^^^^^^^^^^^
 
-Navigate to your `Coop content <https://www.expectedparrot.com/content>`_ page to see content that you have uploaded:
+Navigate to your `Content <https://www.expectedparrot.com/content>`_ page to see content that you have uploaded:
 
 .. image:: static/coop-my-content.png
   :alt: View your content at the Coop
@@ -440,9 +440,9 @@ Feature requests
 If you have a feature request for the Coop, please let us know! 
 There are several ways to do this:
 
-- `Create an issue on GitHub <https://docs.expectedparrot.com/en/latest/contributing.html#suggesting-enhancements>`_
-- Post a message on Discord: https://discord.com/invite/mxAYkjfy9m
-- Send an email: info@expectedparrot.com
+- Create an issue at `GitHub <https://docs.expectedparrot.com/en/latest/contributing.html#suggesting-enhancements>`_
+- Post a message at `Discord <https://discord.com/invite/mxAYkjfy9m>`_
+- Send us an email: info@expectedparrot.com
 
 
 

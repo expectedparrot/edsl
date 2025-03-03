@@ -119,6 +119,19 @@ class Jobs(Base):
         :param agents: a list of agents
         :param models: a list of models
         :param scenarios: a list of scenarios
+
+
+        >>> from edsl.surveys.Survey import Survey
+        >>> from edsl.questions.QuestionFreeText import QuestionFreeText
+        >>> q = QuestionFreeText(question_name="name", question_text="What is your name?")
+        >>> s = Survey(questions=[q])
+        >>> j = Jobs(survey = s)
+        >>> q = QuestionFreeText(question_name="{{ bad_name }}", question_text="What is your name?")
+        >>> s = Survey(questions=[q])
+        >>> j = Jobs(survey = s)
+        Traceback (most recent call last):
+        ...
+        ValueError: At least some question names are not valid: ['{{ bad_name }}']
         """
         self.run_config = RunConfig(
             environment=RunEnvironment(), parameters=RunParameters()
@@ -128,6 +141,13 @@ class Jobs(Base):
         self.agents: AgentList = agents
         self.scenarios: ScenarioList = scenarios
         self.models: ModelList = models
+
+        try:
+            assert self.survey.question_names_valid()
+        except Exception as e:
+            invalid_question_names = [q.question_name for q in self.survey.questions if not q.is_valid_question_name()]
+            raise ValueError(f"At least some question names are not valid: {invalid_question_names}")
+        
 
     def add_running_env(self, running_env: RunEnvironment):
         self.run_config.add_environment(running_env)
@@ -277,7 +297,7 @@ class Jobs(Base):
 
         return JobsComponentConstructor(self).by(*args)
 
-    def prompts(self) -> "Dataset":
+    def prompts(self, iterations=1) -> "Dataset":
         """Return a Dataset of prompts that will be used.
 
 
@@ -285,7 +305,7 @@ class Jobs(Base):
         >>> Jobs.example().prompts()
         Dataset(...)
         """
-        return JobsPrompts(self).prompts()
+        return JobsPrompts(self).prompts(iterations=iterations)
 
     def show_prompts(self, all: bool = False) -> None:
         """Print the prompts."""
@@ -364,6 +384,15 @@ class Jobs(Base):
             self, cache=self.run_config.environment.cache
         ).create_interviews()
 
+    def show_flow(self, filename: Optional[str] = None) -> None:
+        """Show the flow of the survey."""
+        from edsl.surveys.SurveyFlowVisualization import SurveyFlowVisualization
+        if self.scenarios: 
+            scenario = self.scenarios[0]
+        else:
+            scenario = None
+        SurveyFlowVisualization(self.survey, scenario=scenario, agent=None).show_flow(filename=filename)
+
     def interviews(self) -> list[Interview]:
         """
         Return a list of :class:`edsl.jobs.interviews.Interview` objects.
@@ -409,11 +438,9 @@ class Jobs(Base):
         BucketCollection(...)
         """
         bc = BucketCollection.from_models(self.models)
-        
+
         if self.run_config.environment.key_lookup is not None:
-            bc.update_from_key_lookup(
-                self.run_config.environment.key_lookup
-            )
+            bc.update_from_key_lookup(self.run_config.environment.key_lookup)
         return bc
 
     def html(self):
@@ -475,25 +502,24 @@ class Jobs(Base):
     def _start_remote_inference_job(
         self, job_handler: Optional[JobsRemoteInferenceHandler] = None
     ) -> Union["Results", None]:
-
         if job_handler is None:
             job_handler = self._create_remote_inference_handler()
-            
+
         job_info = job_handler.create_remote_inference_job(
-                iterations=self.run_config.parameters.n,
-                remote_inference_description=self.run_config.parameters.remote_inference_description,
-                remote_inference_results_visibility=self.run_config.parameters.remote_inference_results_visibility,
+            iterations=self.run_config.parameters.n,
+            remote_inference_description=self.run_config.parameters.remote_inference_description,
+            remote_inference_results_visibility=self.run_config.parameters.remote_inference_results_visibility,
+            fresh=self.run_config.parameters.fresh,
         )
         return job_info
-    
-    def _create_remote_inference_handler(self) -> JobsRemoteInferenceHandler:
 
+    def _create_remote_inference_handler(self) -> JobsRemoteInferenceHandler:
         from edsl.jobs.JobsRemoteInferenceHandler import JobsRemoteInferenceHandler
-        
+
         return JobsRemoteInferenceHandler(
             self, verbose=self.run_config.parameters.verbose
         )
-        
+
     def _remote_results(
         self,
         config: RunConfig,
@@ -507,7 +533,8 @@ class Jobs(Base):
         if jh.use_remote_inference(self.run_config.parameters.disable_remote_inference):
             job_info: RemoteJobInfo = self._start_remote_inference_job(jh)
             if background:
-                from edsl.results.Results import Results 
+                from edsl.results.Results import Results
+
                 results = Results.from_job_info(job_info)
                 return results
             else:
@@ -594,7 +621,7 @@ class Jobs(Base):
         # first try to run the job remotely
         if (results := self._remote_results(config)) is not None:
             return results
-        
+
         self._check_if_local_keys_ok()
 
         if config.environment.bucket_collection is None:

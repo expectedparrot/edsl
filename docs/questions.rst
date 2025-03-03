@@ -886,6 +886,25 @@ An example can also created using the `example` method:
    QuestionMultipleChoice.example()
 
 
+Note: Question options can be strings of any length, but if they are long or complex, it may be useful to add the `use_code` parameter to the question.
+This will add an instruction to the `user_prompt` for the model to provide the code number of the question option that it selects as its answer (i.e., 0, 1, 2, etc.) instead of the value of the option.
+This can be useful when the question options are long or complex, or include formatting that a model may make errors in reproducing to provide an answer, resulting in a validation error that may be avoidable by returning the code number of the option instead.
+The code is then translated back to the option value in the survey results.
+
+For example, in a multiple choice question where the agent is instructed to select a programming language we can add the `use_code` parameter and then inspect how the user prompt is modified to include *"Respond only with the code corresponding to one of the options."*
+
+.. code-block:: python
+
+   from edsl import QuestionMultipleChoice
+
+   q = QuestionMultipleChoice(
+      question_name = "programming_language",
+      question_text = "Which programming language do you prefer?",
+      question_options = ["Python", "Java", "C++", "JavaScript"],
+      use_code = True # optional
+   )
+
+
 .. automodule:: edsl.questions.QuestionMultipleChoice
    :members:
    :undoc-members:

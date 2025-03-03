@@ -39,7 +39,9 @@ class GoogleService(InferenceServiceABC):
 
     model_exclude_list = []
 
-    available_models_url = 'https://cloud.google.com/vertex-ai/generative-ai/docs/learn/models'
+    available_models_url = (
+        "https://cloud.google.com/vertex-ai/generative-ai/docs/learn/models"
+    )
 
     @classmethod
     def get_model_list(cls):
@@ -132,9 +134,12 @@ class GoogleService(InferenceServiceABC):
                     )
                     combined_prompt.append(gen_ai_file)
 
-                response = await self.generative_model.generate_content_async(
-                    combined_prompt, generation_config=generation_config
-                )
+                try:
+                    response = await self.generative_model.generate_content_async(
+                        combined_prompt, generation_config=generation_config
+                    )
+                except Exception as e:
+                    return {"message": str(e)}
                 return response.to_dict()
 
         LLM.__name__ = model_name
