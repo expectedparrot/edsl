@@ -6,8 +6,6 @@ Notebooks
 The `Notebook` object allows you to share your notebooks and scripts (*.ipynb* and *.py* files) by uploading them to Coop.
 You can also view and pull notebooks that other users have shared publicly or privately with you.
 
-Examples of methods below are also viewable in a `notebook at Coop <https://www.expectedparrot.com/content/RobinHorton/example-notebook>`_.
-
 
 Special note for Colab users
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -153,10 +151,10 @@ Here we update the `description` of a notebook that we have already posted:
 
     from edsl import Notebook
 
-    notebook = Notebook.pull("a1ae7705-31cd-4e05-a04b-5004fd4640ba")
+    notebook = Notebook.pull("https://www.expectedparrot.com/content/RobinHorton/demo-notebook")
 
     notebook.patch(
-        uuid = "a1ae7705-31cd-4e05-a04b-5004fd4640ba", 
+        "https://www.expectedparrot.com/content/RobinHorton/demo-notebook", 
         description = "This is an updated demo notebook"
         )
 
@@ -170,7 +168,7 @@ Here we alternatively use the `Coop` client object:
     c = Coop()  
 
     c.patch(
-        uuid="a1ae7705-31cd-4e05-a04b-5004fd4640ba",
+        "121e2904-e09e-4859-80d5-dc98cb8c537a",
         description = "This is an updated demo notebook"
         )  
 
@@ -182,7 +180,7 @@ Here we update the contents of the notebook itself by passing the `value` argume
     notebook = Notebook("demo_notebook.ipynb") # resaving the notebook
 
     notebook.patch(
-        uuid = "a1ae7705-31cd-4e05-a04b-5004fd4640ba", 
+        "121e2904-e09e-4859-80d5-dc98cb8c537a", 
         value = notebook
         )
 
@@ -199,7 +197,7 @@ You can also use the `to_file()` method to save the notebook to a file:
 
     from edsl import Notebook
 
-    notebook = Notebook.pull("a1ae7705-31cd-4e05-a04b-5004fd4640ba")
+    notebook = Notebook.pull("121e2904-e09e-4859-80d5-dc98cb8c537a",)
 
     notebook.to_file("new_demo_notebook.ipynb")
 
@@ -219,4 +217,4 @@ Here we delete a notebook using the `Notebook` object:
 
     from edsl import Notebook
 
-    Notebook.delete(uuid = "a1ae7705-31cd-4e05-a04b-5004fd4640ba")
+    Notebook.delete(uuid = "121e2904-e09e-4859-80d5-dc98cb8c537a",)
