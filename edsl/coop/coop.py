@@ -348,7 +348,7 @@ class Coop(CoopFunctionsMixin):
     ################
     # Objects
     ################
-    def get_alias_url(self, owner_username: str, alias: str) -> str | None:
+    def get_alias_url(self, owner_username: str, alias: str) -> Union[str, None]:
         """
         Get the URL of an object by its owner username and alias.
         """
