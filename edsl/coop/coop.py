@@ -297,8 +297,8 @@ class Coop(CoopFunctionsMixin):
         """
         Resolve the uuid or alias information from a uuid or a url.
         Returns a tuple of (uuid, owner_username, alias)
-        - For content/<uuid> URLs: returns (uuid, None, None)
-        - For content/<username>/<alias> URLs: returns (None, username, alias)
+        - For content/uuid URLs: returns (uuid, None, None)
+        - For content/username/alias URLs: returns (None, username, alias)
         """
         if not url_or_uuid:
             raise CoopNoUUIDError("No uuid or url provided for the object.")
@@ -416,9 +416,9 @@ class Coop(CoopFunctionsMixin):
         - If the object's visibility is private, the user must be the owner.
         - Optionally, check if the retrieved object is of a certain type.
 
-        :param uuid: the uuid of the object either in str or UUID format.
-        :param url: the url of the object (can be content/uuid or content/username/alias format).
-        :param expected_object_type: the expected type of the object.
+        :param url_or_uuid: The UUID or URL of the object.
+            URLs can be in the form content/uuid or content/username/alias.
+        :param expected_object_type: The expected type of the object.
 
         :return: the object instance.
         """
@@ -477,8 +477,8 @@ class Coop(CoopFunctionsMixin):
         """
         Delete an object from the server.
 
-        :param uuid: The UUID of the object to delete
-        :param url: The URL of the object (can be content/uuid or content/username/alias format)
+        :param url_or_uuid: The UUID or URL of the object.
+            URLs can be in the form content/uuid or content/username/alias.
         """
         obj_uuid, owner_username, alias = self._resolve_uuid_or_alias(url_or_uuid)
 
@@ -509,8 +509,8 @@ class Coop(CoopFunctionsMixin):
         """
         Change the attributes of an uploaded object
 
-        :param uuid: The UUID of the object to patch
-        :param url: The URL of the object (can be content/uuid or content/username/alias format)
+        :param url_or_uuid: The UUID or URL of the object.
+            URLs can be in the form content/uuid or content/username/alias.
         :param description: Optional new description
         :param alias: Optional new alias
         :param value: Optional new object value
