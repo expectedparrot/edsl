@@ -482,15 +482,10 @@ class QuestionBase(
         agent: Optional[dict] = {},
         answers: Optional[dict] = None,
         include_question_name: bool = False,
-        height: Optional[int] = None,
-        width: Optional[int] = None,
-        iframe=False,
     ):
         from edsl.questions.HTMLQuestion import HTMLQuestion
 
-        return HTMLQuestion(self).html(
-            scenario, agent, answers, include_question_name, height, width, iframe
-        )
+        return HTMLQuestion(self).html(scenario, agent, answers, include_question_name)
 
     @classmethod
     def example_model(cls):
