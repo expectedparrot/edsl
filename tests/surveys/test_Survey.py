@@ -123,7 +123,7 @@ class TestSurvey(unittest.TestCase):
         d.add_direct_question_answering_method(answer_question_directly)
 
         survey = q1.add_question(q2).add_stop_rule(
-            "snow_shoveling", "snow_shoveling == 'No'"
+            "snow_shoveling", "snow_shoveling.answer == 'No'"
         )
         dag = survey.dag()
         # breakpoint()

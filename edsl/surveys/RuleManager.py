@@ -4,7 +4,7 @@ if TYPE_CHECKING:
     from edsl.questions.QuestionBase import QuestionBase
 
 from edsl.surveys.Rule import Rule
-from .base import RulePriority, EndOfSurvey
+from edsl.surveys.base import RulePriority, EndOfSurvey
 from edsl.exceptions.surveys import SurveyError, SurveyCreationError
 
 
@@ -141,16 +141,16 @@ class RuleManager:
         Here, answering "yes" to q0 ends the survey:
 
         >>> from edsl import Survey
-        >>> s = Survey.example().add_stop_rule("q0", "q0 == 'yes'")
-        >>> s.next_question("q0", {"q0": "yes"})
+        >>> s = Survey.example().add_stop_rule("q0", "{{ q0.answer }} == 'yes'")
+        >>> s.next_question("q0", {"q0.answer": "yes"})
         EndOfSurvey
 
         By comparison, answering "no" to q0 does not end the survey:
 
-        >>> s.next_question("q0", {"q0": "no"}).question_name
+        >>> s.next_question("q0", {"q0.answer": "no"}).question_name
         'q1'
 
-        >>> s.add_stop_rule("q0", "q1 <> 'yes'")
+        >>> s.add_stop_rule("q0", "{{ q1.answer }} <> 'yes'")
         Traceback (most recent call last):
         ...
         edsl.exceptions.surveys.SurveyCreationError: The expression contains '<>', which is not allowed. You probably mean '!='.
@@ -170,3 +170,9 @@ class RuleManager:
             )
         self.survey.add_rule(question, expression, EndOfSurvey)
         return self.survey
+
+
+if __name__ == "__main__":
+    import doctest
+
+    doctest.testmod(optionflags=doctest.ELLIPSIS)
