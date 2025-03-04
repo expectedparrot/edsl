@@ -65,6 +65,7 @@ def test_CacheEntry_to_dict():
     assert entry_dict["output"] == entry.output
     assert entry_dict["iteration"] == entry.iteration
     assert entry_dict["timestamp"] == entry.timestamp
+    assert entry_dict["service"] == entry.service
 
 
 def test_CacheEntry_from_dict():
@@ -78,5 +79,5 @@ def test_CacheEntry_from_dict():
 
 def test_CacheEntry_repr():
     entry = CacheEntry.example()
-    expected_repr = f"CacheEntry(model={repr(entry.model)}, parameters={entry.parameters}, system_prompt={repr(entry.system_prompt)}, user_prompt={repr(entry.user_prompt)}, output={repr(entry.output)}, iteration={entry.iteration}, timestamp={entry.timestamp})"
+    expected_repr = f"CacheEntry(model={repr(entry.model)}, parameters={entry.parameters}, system_prompt={repr(entry.system_prompt)}, user_prompt={repr(entry.user_prompt)}, output={repr(entry.output)}, iteration={entry.iteration}, timestamp={entry.timestamp}, service={repr(entry.service)})"
     assert repr(entry) == expected_repr

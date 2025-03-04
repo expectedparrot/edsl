@@ -379,10 +379,10 @@ class LanguageModel(
         cached_response, cache_key = cache.fetch(**cache_call_params)
 
         if cache_used := cached_response is not None:
- #           print("cache used")
+            #           print("cache used")
             response = json.loads(cached_response)
         else:
-#            print("cache not used")
+            #            print("cache not used")
             f = (
                 self.remote_async_execute_model_call
                 if hasattr(self, "remote") and self.remote
@@ -398,14 +398,14 @@ class LanguageModel(
             TIMEOUT = float(CONFIG.get("EDSL_API_TIMEOUT"))
             response = await asyncio.wait_for(f(**params), timeout=TIMEOUT)
             new_cache_key = cache.store(
-                **cache_call_params, response=response
+                **cache_call_params, response=response, service=self._inference_service_
             )  # store the response in the cache
             assert new_cache_key == cache_key  # should be the same
 
-        #breakpoint()
+        # breakpoint()
 
         cost = self.cost(response)
-        #breakpoint()
+        # breakpoint()
         return ModelResponse(
             response=response,
             cache_used=cache_used,
@@ -470,7 +470,7 @@ class LanguageModel(
             model_outputs=model_outputs,
             edsl_dict=edsl_dict,
         )
-        #breakpoint()
+        # breakpoint()
         return agent_response_dict
 
     get_response = sync_wrapper(async_get_response)
