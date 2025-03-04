@@ -149,8 +149,8 @@ class CacheEntry(RepresentationMixin):
             f"user_prompt={repr(self.user_prompt)}, "
             f"output={repr(self.output)}, "
             f"iteration={self.iteration}, "
-            f"timestamp={self.timestamp})"
-            f"service={repr(self.service)}, "
+            f"timestamp={self.timestamp}, "
+            f"service={repr(self.service)})"
         )
 
     @classmethod
