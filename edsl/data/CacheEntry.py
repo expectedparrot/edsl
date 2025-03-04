@@ -16,7 +16,7 @@ class CacheEntry(RepresentationMixin):
     """
 
     key_fields = ["model", "parameters", "system_prompt", "user_prompt", "iteration"]
-    all_fields = key_fields + ["timestamp", "output"]
+    all_fields = key_fields + ["timestamp", "output", "service"]
 
     def __init__(
         self,
@@ -28,6 +28,7 @@ class CacheEntry(RepresentationMixin):
         iteration: Optional[int] = None,
         output: str,
         timestamp: Optional[int] = None,
+        service: Optional[str] = None,
     ):
         self.model = model
         self.parameters = parameters
@@ -35,6 +36,7 @@ class CacheEntry(RepresentationMixin):
         self.user_prompt = user_prompt
         self.output = output
         self.iteration = iteration or 0
+        self.service = service
         self.timestamp = timestamp or int(
             datetime.datetime.now(datetime.timezone.utc).timestamp()
         )
@@ -59,6 +61,8 @@ class CacheEntry(RepresentationMixin):
         # TODO: should probably be float
         if not isinstance(self.timestamp, int):
             raise TypeError(f"`timestamp` should be an integer")
+        if self.service is not None and not isinstance(self.service, str):
+            raise TypeError("`service` should be either a string or None")
 
     @classmethod
     def gen_key(
@@ -94,6 +98,7 @@ class CacheEntry(RepresentationMixin):
             "output": self.output,
             "iteration": self.iteration,
             "timestamp": self.timestamp,
+            "service": self.service,
         }
         # if add_edsl_version:
         #     from edsl import __version__
@@ -139,6 +144,7 @@ class CacheEntry(RepresentationMixin):
         """
         return (
             f"CacheEntry(model={repr(self.model)}, "
+            f"service={repr(self.service)}, "
             f"parameters={self.parameters}, "
             f"system_prompt={repr(self.system_prompt)}, "
             f"user_prompt={repr(self.user_prompt)}, "
@@ -164,6 +170,7 @@ class CacheEntry(RepresentationMixin):
             output="The fox says 'hello'",
             iteration=1,
             timestamp=int(datetime.datetime.now(datetime.timezone.utc).timestamp()),
+            service="openai",
         )
 
     @classmethod
