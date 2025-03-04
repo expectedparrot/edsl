@@ -1067,12 +1067,15 @@ The `Coop <https://www.expectedparrot.com/content/explore>`_ is a platform for c
 It is fully integrated with EDSL and accessible from your workspace or Coop account page.
 Learn more about `creating an account <https://www.expectedparrot.com/login>`_ and `using the Coop <https://docs.expectedparrot.com/en/latest/coop.html>`_.
 
-We can post any EDSL object to the Coop by call the `push` method on it, optionally passing a `description` and `visibility` status:
+We can post any EDSL object to the Coop by call the `push` method on it, optionally passing a `description`, a convenient `alias` for the Coop URL that is created and a `visibility` status (*public*, *private* or *unlisted* by default):
 
 .. code-block:: python 
 
-  results.push(description = "Starter tutorial sample survey results", visibility="public")
-
+  results.push(
+    description = "Starter tutorial sample survey results", 
+    alias = "starter-tutorial-example-survey-results", 
+    visibility = "public"
+  )
 
 Example output (UUIDs will be unique to objects):
 
@@ -1080,9 +1083,9 @@ Example output (UUIDs will be unique to objects):
 
   {'description': 'Starter tutorial sample survey results',
   'object_type': 'results',
-  'url': 'https://www.expectedparrot.com/content/4ec94be1-2a1a-42bb-a463-9f171341ac30',
-  'uuid': '4ec94be1-2a1a-42bb-a463-9f171341ac30',
-  'version': '0.1.38.dev1',
+  'url': 'https://www.expectedparrot.com/content/9c8ba866-2be3-4ad6-9d2f-8160a06b2cf7',
+  'uuid': '9c8ba866-2be3-4ad6-9d2f-8160a06b2cf7',
+  'version': '0.1.47.dev1',
   'visibility': 'public'}
 
 
@@ -1094,7 +1097,7 @@ To post a notebook:
 
   notebook = Notebook(path="filename.ipynb")
 
-  notebook.push(description="Starter Tutorial", visibility="public")
+  notebook.push(description="Starter Tutorial", alias = "example-notebook-new-alias", visibility="public")
 
 
 You can view and download a notebook for this tutorial `at the Coop <https://www.expectedparrot.com/content/RobinHorton/starter-tutorial-notebook>`_.

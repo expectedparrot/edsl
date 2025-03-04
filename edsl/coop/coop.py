@@ -287,19 +287,25 @@ class Coop(CoopFunctionsMixin):
         if value is None:
             return "null"
 
+    @staticmethod
+    def _is_url(url_or_uuid: Union[str, UUID]) -> bool:
+        return "http://" in str(url_or_uuid) or "https://" in str(url_or_uuid)
+
     def _resolve_uuid_or_alias(
-        self, uuid: Union[str, UUID] = None, url: str = None
+        self, url_or_uuid: Union[str, UUID]
     ) -> tuple[Optional[str], Optional[str], Optional[str]]:
         """
         Resolve the uuid or alias information from a uuid or a url.
         Returns a tuple of (uuid, owner_username, alias)
-        - For content/<uuid> URLs: returns (uuid, None, None)
-        - For content/<username>/<alias> URLs: returns (None, username, alias)
+        - For content/uuid URLs: returns (uuid, None, None)
+        - For content/username/alias URLs: returns (None, username, alias)
         """
-        if not url and not uuid:
+        if not url_or_uuid:
             raise CoopNoUUIDError("No uuid or url provided for the object.")
 
-        if not uuid and url:
+        if self._is_url(url_or_uuid):
+            url = str(url_or_uuid)
+
             parts = (
                 url.replace("http://", "")
                 .replace("https://", "")
@@ -326,7 +332,8 @@ class Coop(CoopFunctionsMixin):
                     f"Invalid URL format. The URL must end with /content/<uuid> or /content/<username>/<alias>: {url}"
                 )
 
-        return str(uuid), None, None
+        uuid = str(url_or_uuid)
+        return uuid, None, None
 
     @property
     def edsl_settings(self) -> dict:
@@ -348,6 +355,15 @@ class Coop(CoopFunctionsMixin):
     ################
     # Objects
     ################
+    def _get_alias_url(self, owner_username: str, alias: str) -> Union[str, None]:
+        """
+        Get the URL of an object by its owner username and alias.
+        """
+        if owner_username and alias:
+            return f"{self.url}/content/{owner_username}/{alias}"
+        else:
+            return None
+
     def create(
         self,
         object: EDSLObject,
@@ -376,10 +392,15 @@ class Coop(CoopFunctionsMixin):
         )
         self._resolve_server_response(response)
         response_json = response.json()
+
+        owner_username = response_json.get("owner_username")
+        object_alias = response_json.get("alias")
+
         return {
             "description": response_json.get("description"),
             "object_type": object_type,
             "url": f"{self.url}/content/{response_json.get('uuid')}",
+            "alias_url": self._get_alias_url(owner_username, object_alias),
             "uuid": response_json.get("uuid"),
             "version": self._edsl_version,
             "visibility": response_json.get("visibility"),
@@ -387,8 +408,7 @@ class Coop(CoopFunctionsMixin):
 
     def get(
         self,
-        uuid: Union[str, UUID] = None,
-        url: str = None,
+        url_or_uuid: Union[str, UUID],
         expected_object_type: Optional[ObjectType] = None,
     ) -> EDSLObject:
         """
@@ -396,13 +416,13 @@ class Coop(CoopFunctionsMixin):
         - If the object's visibility is private, the user must be the owner.
         - Optionally, check if the retrieved object is of a certain type.
 
-        :param uuid: the uuid of the object either in str or UUID format.
-        :param url: the url of the object (can be content/uuid or content/username/alias format).
-        :param expected_object_type: the expected type of the object.
+        :param url_or_uuid: The UUID or URL of the object.
+            URLs can be in the form content/uuid or content/username/alias.
+        :param expected_object_type: The expected type of the object.
 
         :return: the object instance.
         """
-        obj_uuid, owner_username, alias = self._resolve_uuid_or_alias(uuid, url)
+        obj_uuid, owner_username, alias = self._resolve_uuid_or_alias(url_or_uuid)
 
         if obj_uuid:
             response = self._send_server_request(
@@ -445,19 +465,22 @@ class Coop(CoopFunctionsMixin):
                 "description": o.get("description"),
                 "visibility": o.get("visibility"),
                 "url": f"{self.url}/content/{o.get('uuid')}",
+                "alias_url": self._get_alias_url(
+                    o.get("owner_username"), o.get("alias")
+                ),
             }
             for o in response.json()
         ]
         return objects
 
-    def delete(self, uuid: Union[str, UUID] = None, url: str = None) -> dict:
+    def delete(self, url_or_uuid: Union[str, UUID]) -> dict:
         """
         Delete an object from the server.
 
-        :param uuid: The UUID of the object to delete
-        :param url: The URL of the object (can be content/uuid or content/username/alias format)
+        :param url_or_uuid: The UUID or URL of the object.
+            URLs can be in the form content/uuid or content/username/alias.
         """
-        obj_uuid, owner_username, alias = self._resolve_uuid_or_alias(uuid, url)
+        obj_uuid, owner_username, alias = self._resolve_uuid_or_alias(url_or_uuid)
 
         if obj_uuid:
             uri = "api/v0/object"
@@ -477,8 +500,7 @@ class Coop(CoopFunctionsMixin):
 
     def patch(
         self,
-        uuid: Union[str, UUID] = None,
-        url: str = None,
+        url_or_uuid: Union[str, UUID],
         description: Optional[str] = None,
         alias: Optional[str] = None,
         value: Optional[EDSLObject] = None,
@@ -487,8 +509,8 @@ class Coop(CoopFunctionsMixin):
         """
         Change the attributes of an uploaded object
 
-        :param uuid: The UUID of the object to patch
-        :param url: The URL of the object (can be content/uuid or content/username/alias format)
+        :param url_or_uuid: The UUID or URL of the object.
+            URLs can be in the form content/uuid or content/username/alias.
         :param description: Optional new description
         :param alias: Optional new alias
         :param value: Optional new object value
@@ -502,7 +524,7 @@ class Coop(CoopFunctionsMixin):
         ):
             raise Exception("Nothing to patch.")
 
-        obj_uuid, owner_username, obj_alias = self._resolve_uuid_or_alias(uuid, url)
+        obj_uuid, owner_username, obj_alias = self._resolve_uuid_or_alias(url_or_uuid)
 
         if obj_uuid:
             uri = "api/v0/object"
@@ -1218,27 +1240,25 @@ def main():
     ##############
     # .. create and manipulate an object through the Coop client
     response = coop.create(QuestionMultipleChoice.example())
-    coop.get(uuid=response.get("uuid"))
-    coop.get(uuid=response.get("uuid"), expected_object_type="question")
-    coop.get(url=response.get("url"))
+    coop.get(response.get("uuid"))
+    coop.get(response.get("uuid"), expected_object_type="question")
+    coop.get(response.get("url"))
     coop.create(QuestionMultipleChoice.example())
     coop.get_all("question")
-    coop.patch(uuid=response.get("uuid"), visibility="private")
-    coop.patch(uuid=response.get("uuid"), description="hey")
-    coop.patch(uuid=response.get("uuid"), value=QuestionFreeText.example())
-    # coop.patch(uuid=response.get("uuid"), value=Survey.example()) - should throw error
-    coop.get(uuid=response.get("uuid"))
-    coop.delete(uuid=response.get("uuid"))
+    coop.patch(response.get("uuid"), visibility="private")
+    coop.patch(response.get("uuid"), description="hey")
+    coop.patch(response.get("uuid"), value=QuestionFreeText.example())
+    # coop.patch(response.get("uuid"), value=Survey.example()) - should throw error
+    coop.get(response.get("uuid"))
+    coop.delete(response.get("uuid"))
 
     # .. create and manipulate an object through the class
     response = QuestionMultipleChoice.example().push()
-    QuestionMultipleChoice.pull(uuid=response.get("uuid"))
-    QuestionMultipleChoice.pull(url=response.get("url"))
-    QuestionMultipleChoice.patch(uuid=response.get("uuid"), visibility="private")
-    QuestionMultipleChoice.patch(uuid=response.get("uuid"), description="hey")
-    QuestionMultipleChoice.patch(
-        uuid=response.get("uuid"), value=QuestionFreeText.example()
-    )
+    QuestionMultipleChoice.pull(response.get("uuid"))
+    QuestionMultipleChoice.pull(response.get("url"))
+    QuestionMultipleChoice.patch(response.get("uuid"), visibility="private")
+    QuestionMultipleChoice.patch(response.get("uuid"), description="hey")
+    QuestionMultipleChoice.patch(response.get("uuid"), value=QuestionFreeText.example())
     QuestionMultipleChoice.pull(response.get("uuid"))
     QuestionMultipleChoice.delete(response.get("uuid"))
 
@@ -1261,7 +1281,7 @@ def main():
         # 1. Delete existing objects
         existing_objects = coop.get_all(object_type)
         for item in existing_objects:
-            coop.delete(uuid=item.get("uuid"))
+            coop.delete(item.get("uuid"))
         # 2. Create new objects
         example = cls.example()
         response_1 = coop.create(example)
@@ -1275,21 +1295,21 @@ def main():
         assert len(objects) == 4
         # 4. Try to retrieve an item that does not exist
         try:
-            coop.get(uuid=uuid4())
+            coop.get(uuid4())
         except Exception as e:
             print(e)
         # 5. Try to retrieve all test objects by their uuids
         for response in [response_1, response_2, response_3, response_4]:
-            coop.get(uuid=response.get("uuid"))
+            coop.get(response.get("uuid"))
         # 6. Change visibility of all objects
         for item in objects:
-            coop.patch(uuid=item.get("uuid"), visibility="private")
+            coop.patch(item.get("uuid"), visibility="private")
         # 6. Change description of all objects
         for item in objects:
-            coop.patch(uuid=item.get("uuid"), description="hey")
+            coop.patch(item.get("uuid"), description="hey")
         # 7. Delete all objects
         for item in objects:
-            coop.delete(uuid=item.get("uuid"))
+            coop.delete(item.get("uuid"))
         assert len(coop.get_all(object_type)) == 0
 
     ##############
@@ -1322,4 +1342,4 @@ def main():
     coop.remote_inference_cost(job)
     job_coop_object = coop.remote_inference_create(job)
     job_coop_results = coop.remote_inference_get(job_coop_object.get("uuid"))
-    coop.get(uuid=job_coop_results.get("results_uuid"))
+    coop.get(job_coop_results.get("results_uuid"))
