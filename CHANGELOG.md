@@ -2,6 +2,11 @@
 
 ## [0.1.47] - TBD
 ### Added
+- `Results` method `spot_issues()` runs a survey to spot issues and suggest revised versions of any prompts that did not generate responses in your original survey (i.e., any user/system prompts where your results show a null answer and raw model response). You can optionally pass a list of models to use to run the meta-survey instead of the default model. See details on the meta-questions that are used and how it works: https://www.expectedparrot.com/content/RobinHorton/spot-issues-notebook. 
+
+- When you post an object to Coop with the `push()` method you can optionally pass a `description`, a convenient `alias` for the Coop URL that is created and a `visiblity` setting (*public*, *private* or *unlisted* by default). An alias Coop URL is now displayed in the object details that are returned when the object is created. You can then use the `alias_url` to retrieve or modify the object in lieu of the `uuid`. See examples in the [Coop section](https://docs.expectedparrot.com/en/latest/coop.html).
+
+- `Scenario` objects can be reference with the `scenario.` prefix, e.g., "Do you enjoy {{ scenario.activity }}?" (previously "Do you enjoy {{ activity }}?") to standardize syntax with other objects, e.g., when referencing `agent.` fields in the same way, or when piping `answer.` and `question.` fields. 
 
 
 ## [0.1.46] - 2025-03-01
@@ -35,6 +40,7 @@ See [examples](https://docs.expectedparrot.com/en/latest/scenarios.html#combinin
 - `Results` method `report()` generates a report of selected columns in markdown by iterating through the rows, presented as observations. You can optionally pass headers, a divider and a limit on the number of observations to include. It can be useful if you want to display some sample part of larger results in a working notebook you are sharing. [See example](https://docs.expectedparrot.com/en/latest/results.html#generating-a-report).
 
 - `Survey` method `show_flow()` can now also be called on a `Jobs` object, and will show any scenarios and/or agent traits that that you have added to questions. [See examples](https://docs.expectedparrot.com/en/latest/docs/surveys.html#show-flow).
+
 
 
 ## [0.1.44] - 2025-02-14

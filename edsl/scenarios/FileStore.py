@@ -11,6 +11,9 @@ from edsl.utilities.remove_edsl_version import remove_edsl_version
 from edsl.scenarios.file_methods import FileMethods
 from typing import Union
 from uuid import UUID
+import time
+from typing import Dict, Any, IO, Optional, List, Union, Literal
+
 
 class FileStore(Scenario):
     __documentation__ = "https://docs.expectedparrot.com/en/latest/filestore.html"
@@ -30,7 +33,7 @@ class FileStore(Scenario):
             path = kwargs["filename"]
 
         # Check if path is a URL and handle download
-        if path and (path.startswith('http://') or path.startswith('https://')):
+        if path and (path.startswith("http://") or path.startswith("https://")):
             temp_filestore = self.from_url(path, mime_type=mime_type)
             path = temp_filestore._path
             mime_type = temp_filestore.mime_type
@@ -90,6 +93,102 @@ class FileStore(Scenario):
             return cls(file_methods_class().example())
         else:
             print(f"Example for {example_type} is not supported.")
+
+    @classmethod
+    async def _async_screenshot(
+        cls,
+        url: str,
+        full_page: bool = True,
+        wait_until: Literal[
+            "load", "domcontentloaded", "networkidle", "commit"
+        ] = "networkidle",
+        download_path: Optional[str] = None,
+    ) -> "FileStore":
+        """Async version of screenshot functionality"""
+        try:
+            from playwright.async_api import async_playwright
+        except ImportError:
+            raise ImportError(
+                "Screenshot functionality requires additional dependencies.\n"
+                "Install them with: pip install 'edsl[screenshot]'"
+            )
+
+        if download_path is None:
+            download_path = os.path.join(
+                os.getcwd(), f"screenshot_{int(time.time())}.png"
+            )
+
+        async with async_playwright() as p:
+            browser = await p.chromium.launch()
+            page = await browser.new_page()
+            await page.goto(url, wait_until=wait_until)
+            await page.screenshot(path=download_path, full_page=full_page)
+            await browser.close()
+
+        return cls(download_path, mime_type="image/png")
+
+    @classmethod
+    def from_url_screenshot(cls, url: str, **kwargs) -> "FileStore":
+        """Synchronous wrapper for screenshot functionality"""
+        import asyncio
+
+        try:
+            # Try using get_event_loop first (works in regular Python)
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            # If we're in IPython/Jupyter, create a new loop
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+
+        try:
+            return loop.run_until_complete(cls._async_screenshot(url, **kwargs))
+        finally:
+            if not loop.is_running():
+                loop.close()
+
+    @classmethod
+    def batch_screenshots(cls, urls: List[str], **kwargs) -> "ScenarioList":
+        """
+        Take screenshots of multiple URLs concurrently.
+        Args:
+            urls: List of URLs to screenshot
+            **kwargs: Additional arguments passed to screenshot function (full_page, wait_until, etc.)
+        Returns:
+            ScenarioList containing FileStore objects with their corresponding URLs
+        """
+        from edsl import ScenarioList
+
+        try:
+            # Try using get_event_loop first (works in regular Python)
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            # If we're in IPython/Jupyter, create a new loop
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+
+        # Create tasks for all screenshots
+        tasks = [cls._async_screenshot(url, **kwargs) for url in urls]
+
+        try:
+            # Run all screenshots concurrently
+            results = loop.run_until_complete(
+                asyncio.gather(*tasks, return_exceptions=True)
+            )
+
+            # Filter out any errors and log them
+            successful_results = []
+            for url, result in zip(urls, results):
+                if isinstance(result, Exception):
+                    print(f"Failed to screenshot {url}: {result}")
+                else:
+                    successful_results.append(
+                        Scenario({"url": url, "screenshot": result})
+                    )
+
+            return ScenarioList(successful_results)
+        finally:
+            if not loop.is_running():
+                loop.close()
 
     @property
     def size(self) -> int:
@@ -273,12 +372,11 @@ class FileStore(Scenario):
         # raise TypeError("No text method found for this file type.")
 
     def push(
-        self, 
-        description: Optional[str] = None, 
+        self,
+        description: Optional[str] = None,
         alias: Optional[str] = None,
         visibility: Optional[str] = "unlisted",
         expected_parrot_url: Optional[str] = None,
-
     ) -> dict:
         """
         Push the object to Coop.
@@ -288,18 +386,23 @@ class FileStore(Scenario):
         scenario_version = Scenario.from_dict(self.to_dict())
         if description is None:
             description = "File: " + self.path
-        info = scenario_version.push(description=description, visibility=visibility, expected_parrot_url=expected_parrot_url, alias=alias)
+        info = scenario_version.push(
+            description=description,
+            visibility=visibility,
+            expected_parrot_url=expected_parrot_url,
+            alias=alias,
+        )
         return info
 
     @classmethod
     def pull(cls, url_or_uuid: Union[str, UUID]) -> "FileStore":
         """
         Pull a FileStore object from Coop.
-        
+
         Args:
             url_or_uuid: Either a UUID string or a URL pointing to the object
             expected_parrot_url: Optional URL for the Parrot server
-        
+
         Returns:
             FileStore: The pulled FileStore object
         """
