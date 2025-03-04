@@ -36,10 +36,10 @@ class CacheEntry(RepresentationMixin):
         self.user_prompt = user_prompt
         self.output = output
         self.iteration = iteration or 0
-        self.service = service
         self.timestamp = timestamp or int(
             datetime.datetime.now(datetime.timezone.utc).timestamp()
         )
+        self.service = service
         self._check_types()
 
     def _check_types(self):
@@ -191,6 +191,7 @@ class CacheEntry(RepresentationMixin):
         input = cls.example().to_dict()
         _ = input.pop("timestamp")
         _ = input.pop("output")
+        _ = input.pop("service")
         return input
 
     @classmethod
