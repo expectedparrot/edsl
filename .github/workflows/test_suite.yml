@@ -15,6 +15,7 @@ jobs:
     strategy:
       matrix:
         python-version: ["3.12", "3.11", "3.10", "3.9"]
+    environment: Test Suite        
     env:
       POETRY_VERSION: "1.7.1"
     steps:
@@ -49,6 +50,8 @@ jobs:
         if: matrix.python-version == '3.9'
         shell: bash
         run: poetry run make test-starter-tutorial
+        env:
+          EXPECTED_PARROT_API_KEY: ${{ secrets.EXPECTED_PARROT_API_KEY }}
 
       - name: Run edsl tests
         shell: bash
