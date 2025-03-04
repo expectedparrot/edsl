@@ -2,6 +2,52 @@ from jinja2 import Environment, meta
 from typing import List, Optional, Union
 
 
+def extract_template_variables(ast) -> List[Union[str, tuple]]:
+    """
+    Extract variable expressions from a Jinja2 AST.
+    
+    Args:
+        ast: Jinja2 AST
+        
+    Returns:
+        List[Union[str, tuple]]: List of variable names or tuples for dotted paths
+    """
+    from jinja2 import nodes
+    from jinja2.visitor import NodeVisitor
+    
+    variables = []
+    
+    class VariableVisitor(NodeVisitor):
+        def visit_Name(self, node):
+            variables.append(node.name)
+        
+        def visit_Getattr(self, node):
+            # For dotted access like scenario.question_options
+            parts = []
+            current = node
+            
+            # Handle the leaf attribute
+            parts.append(node.attr)
+            
+            # Walk up the chain to collect all parts
+            while isinstance(current.node, nodes.Getattr):
+                current = current.node
+                parts.append(current.attr)
+            
+            # Add the root name
+            if isinstance(current.node, nodes.Name):
+                parts.append(current.node.name)
+            
+            # Reverse to get the correct order
+            parts.reverse()
+            variables.append(tuple(parts))
+    
+    visitor = VariableVisitor()
+    visitor.visit(ast)
+    
+    return variables
+
+
 class QuestionOptionProcessor:
     """
     Class that manages the processing of question options.
@@ -16,7 +62,11 @@ class QuestionOptionProcessor:
         return cls(scenario, prior_answers_dict)
 
     def __init__(self, scenario: 'Scenario', prior_answers_dict: dict):
-        self.scenario = scenario 
+        # This handles cases where the question has {{ scenario.key }} - eventually 
+        # we might not allow 'naked' scenario keys w/o the scenario prefix
+        #new_scenario = scenario.copy()
+        #new_scenario.update({'scenario': new_scenario})
+        self.scenario = scenario
         self.prior_answers_dict = prior_answers_dict
 
     @staticmethod
@@ -25,18 +75,23 @@ class QuestionOptionProcessor:
         return [f"<< Option {i} - Placeholder >>" for i in range(1, 4)]
 
     @staticmethod
-    def _parse_template_variable(template_str: str) -> str:
+    def _parse_template_variable(template_str: str) -> Union[str, tuple]:
         """
         Extract the variable name from a template string.
+        If the variable contains dots (e.g., scenario.question_options), 
+        returns a tuple of the path components.
 
         Args:
             template_str (str): Jinja template string
 
         Returns:
-            str: Name of the first undefined variable in the template
+            Union[str, tuple]: Name of the first undefined variable in the template,
+                              or a tuple of path components if the variable contains dots
 
         >>> QuestionOptionProcessor._parse_template_variable("Here are some {{ options }}")
         'options'
+        >>> QuestionOptionProcessor._parse_template_variable("Here are some {{ scenario.question_options }}")
+        ('scenario', 'question_options')
         >>> QuestionOptionProcessor._parse_template_variable("Here are some {{ options }} and {{ other }}")
         Traceback (most recent call last):
         ...
@@ -48,11 +103,13 @@ class QuestionOptionProcessor:
         """
         env = Environment()
         parsed_content = env.parse(template_str)
-        undeclared_variables = list(meta.find_undeclared_variables(parsed_content))
+        undeclared_variables = extract_template_variables(parsed_content)
+        
         if not undeclared_variables:
             raise ValueError("No variables found in template string")
         if len(undeclared_variables) > 1:
             raise ValueError("Multiple variables found in template string")
+        
         return undeclared_variables[0]
 
     @staticmethod
@@ -156,21 +213,39 @@ class QuestionOptionProcessor:
             return options_entry if options_entry else self._get_default_options()
 
         # Parse template to get variable name
-        option_key = self._parse_template_variable(options_entry)
+        raw_option_key = self._parse_template_variable(options_entry)
 
-        # Try getting options from scenario
-        scenario_options = self._get_options_from_scenario(
-            self.scenario, option_key
-        )
-        if scenario_options:
-            return scenario_options
+        source_type = None
 
-        # Try getting options from prior answers
-        prior_answer_options = self._get_options_from_prior_answers(
-            self.prior_answers_dict, option_key
-        )
-        if prior_answer_options:
-            return prior_answer_options
+        if isinstance(raw_option_key, tuple):
+            if raw_option_key[0] == 'scenario':
+                source_type = 'scenario'
+                option_key = raw_option_key[-1]
+            else:
+                source_type = 'prior_answers'
+                option_key = raw_option_key[0]
+                #breakpoint()
+        else:
+            option_key = raw_option_key
+
+        #breakpoint()
+
+        if source_type == 'scenario':
+            # Try getting options from scenario
+            scenario_options = self._get_options_from_scenario(
+                self.scenario, option_key
+            )
+            if scenario_options:
+                return scenario_options
+            
+        if source_type == 'prior_answers':
+
+            # Try getting options from prior answers
+            prior_answer_options = self._get_options_from_prior_answers(
+                self.prior_answers_dict, option_key
+            )
+            if prior_answer_options:
+                return prior_answer_options
 
         return self._get_default_options()
 
