@@ -18,15 +18,6 @@ def execute_notebook(notebook_path):
     Execute a Jupyter notebook and either returns True if successful or raises an exception.
     Skips cells tagged with 'skip-execution'.
     """
-
-    print("Testing to see if the key is here")
-    if os.getenv("EXPECTED_PARROT_API_KEY") is None:
-        print("No key found, skipping notebook execution")
-        return
-    else:
-        print("Key found, executing notebook")
-        print(len(os.getenv("EXPECTED_PARROT_API_KEY")))
-
     with open(notebook_path) as f:
         nb = nbformat.read(f, as_version=4)
         ep = SkipTaggedCells(timeout=600, kernel_name="python3")
