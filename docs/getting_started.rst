@@ -15,6 +15,13 @@ Run the following command to install the EDSL package:
    pip show edsl
 
 
+You can also use `uv` for a faster installation:
+
+.. code:: 
+
+   !pip install uv && uv pip install edsl
+   
+   
 If you have previously installed EDSL, you can update it with the following command:
 
 .. code:: 

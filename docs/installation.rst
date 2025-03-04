@@ -31,6 +31,13 @@ Open your terminal and verify that you have not previously installed EDSL by run
     pip show edsl
 
 
+You can also use `uv` for a faster installation:
+
+.. code:: 
+
+    !pip install uv && uv pip install edsl
+
+
 If EDSL is already installed, you will see the following output, including the actual version number:
 
 .. code:: 
