@@ -479,9 +479,18 @@ class Coop(CoopFunctionsMixin):
             params={"type": object_type},
         )
         self._resolve_server_response(response)
-        objects = [
-            {
-                "object": edsl_class.from_dict(json.loads(o.get("json_string"))),
+        objects = []
+        for o in response.json():
+            json_string = o.get("json_string")
+            ## check if load from bucket needed.
+            if "load_from:" in json_string[0:12]:
+                load_link = json_string.split("load_from:")[1]
+                object_data = requests.get(load_link)
+                json_string = object_data.text
+
+            json_string = json.loads(json_string)
+            object = {
+                "object": edsl_class.from_dict(json_string),
                 "uuid": o.get("uuid"),
                 "version": o.get("version"),
                 "description": o.get("description"),
@@ -491,8 +500,8 @@ class Coop(CoopFunctionsMixin):
                     o.get("owner_username"), o.get("alias")
                 ),
             }
-            for o in response.json()
-        ]
+            objects.append(object)
+
         return objects
 
     def delete(self, url_or_uuid: Union[str, UUID]) -> dict:
