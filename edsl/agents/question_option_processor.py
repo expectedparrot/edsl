@@ -185,7 +185,7 @@ class QuestionOptionProcessor:
 
         The case where options are provided as a template string:
 
-        >>> question_data = {"question_options": "{{ options }}"}
+        >>> question_data = {"question_options": "{{ scenario.options }}"}
         >>> processor.get_question_options(question_data)
         ['Option 1', 'Option 2']
 
@@ -197,7 +197,7 @@ class QuestionOptionProcessor:
         >>> q0.answer = ["Option 1", "Option 2"]
         >>> mpc.prior_answers_dict = lambda: {'q0': q0}
         >>> processor = QuestionOptionProcessor.from_prompt_constructor(mpc)
-        >>> question_data = {"question_options": "{{ q0 }}"}
+        >>> question_data = {"question_options": "{{ q0.answer }}"}
         >>> processor.get_question_options(question_data)
         ['Option 1', 'Option 2']
 
