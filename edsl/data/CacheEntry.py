@@ -144,13 +144,13 @@ class CacheEntry(RepresentationMixin):
         """
         return (
             f"CacheEntry(model={repr(self.model)}, "
-            f"service={repr(self.service)}, "
             f"parameters={self.parameters}, "
             f"system_prompt={repr(self.system_prompt)}, "
             f"user_prompt={repr(self.user_prompt)}, "
             f"output={repr(self.output)}, "
             f"iteration={self.iteration}, "
             f"timestamp={self.timestamp})"
+            f"service={repr(self.service)}, "
         )
 
     @classmethod
