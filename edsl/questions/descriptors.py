@@ -430,11 +430,11 @@ class QuestionTextDescriptor(BaseDescriptor):
             return value
 
         # iterate through all doubles braces and check if they are valid python identifiers
-        for match in re.finditer(r"\{\{([^\{\}]+)\}\}", value):
-            if " " in match.group(1).strip():
-                raise QuestionCreationValidationError(
-                    f"Question text contains an invalid identifier: '{match.group(1)}'"
-                )
+        # for match in re.finditer(r"\{\{([^\{\}]+)\}\}", value):
+        #     if " " in match.group(1).strip():
+        #         raise QuestionCreationValidationError(
+        #             f"Question text contains an invalid identifier: '{match.group(1)}'"
+        #         )
 
         return None
 
