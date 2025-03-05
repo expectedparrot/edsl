@@ -55,7 +55,7 @@ def test_option_expansion_from_current_answers():
     q1 = QuestionMultipleChoice(
         question_text="Here is a question",
         question_name="example_question",
-        question_options="{{ age_levels }}",
+        question_options="{{ age_levels.answer }}",
     )
     i = InvigilatorBase.example(question=q1, survey=Survey([q0, q1]))
     i.current_answers = {"age_levels": ["10-20", "20-30"]}
@@ -68,7 +68,7 @@ def test_option_expansion_from_scenario():
     q = QuestionMultipleChoice(
         question_text="Here is a question",
         question_name="example_question",
-        question_options="{{ age_levels }}",
+        question_options="{{ scenario.age_levels }}",
     )
     from edsl.agents.InvigilatorBase import InvigilatorBase
 
