@@ -12,6 +12,7 @@ from edsl.scenarios.file_methods import FileMethods
 from typing import Union
 from uuid import UUID
 
+
 class FileStore(Scenario):
     __documentation__ = "https://docs.expectedparrot.com/en/latest/filestore.html"
 
@@ -30,7 +31,7 @@ class FileStore(Scenario):
             path = kwargs["filename"]
 
         # Check if path is a URL and handle download
-        if path and (path.startswith('http://') or path.startswith('https://')):
+        if path and (path.startswith("http://") or path.startswith("https://")):
             temp_filestore = self.from_url(path, mime_type=mime_type)
             path = temp_filestore._path
             mime_type = temp_filestore.mime_type
@@ -273,12 +274,11 @@ class FileStore(Scenario):
         # raise TypeError("No text method found for this file type.")
 
     def push(
-        self, 
-        description: Optional[str] = None, 
+        self,
+        description: Optional[str] = None,
         alias: Optional[str] = None,
         visibility: Optional[str] = "unlisted",
         expected_parrot_url: Optional[str] = None,
-
     ) -> dict:
         """
         Push the object to Coop.
@@ -286,20 +286,26 @@ class FileStore(Scenario):
         :param visibility: The visibility of the object to push.
         """
         scenario_version = Scenario.from_dict(self.to_dict())
+
         if description is None:
             description = "File: " + self.path
-        info = scenario_version.push(description=description, visibility=visibility, expected_parrot_url=expected_parrot_url, alias=alias)
+        info = scenario_version.push(
+            description=description,
+            visibility=visibility,
+            expected_parrot_url=expected_parrot_url,
+            alias=alias,
+        )
         return info
 
     @classmethod
     def pull(cls, url_or_uuid: Union[str, UUID]) -> "FileStore":
         """
         Pull a FileStore object from Coop.
-        
+
         Args:
             url_or_uuid: Either a UUID string or a URL pointing to the object
             expected_parrot_url: Optional URL for the Parrot server
-        
+
         Returns:
             FileStore: The pulled FileStore object
         """
