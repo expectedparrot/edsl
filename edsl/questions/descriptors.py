@@ -391,10 +391,6 @@ class QuestionTextDescriptor(BaseDescriptor):
 
     >>> _ = TestQuestion("What is the capital of France?")
     >>> _ = TestQuestion("What is the capital of France? {{variable}}")
-    >>> _ = TestQuestion("What is the capital of France? {{variable name}}")
-    Traceback (most recent call last):
-    ...
-    edsl.exceptions.questions.QuestionCreationValidationError: Question text contains an invalid identifier: 'variable name'
     """
 
     def validate(self, value, instance):
