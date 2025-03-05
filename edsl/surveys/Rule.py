@@ -58,18 +58,10 @@ class QuestionIndex:
 
 
 class Rule:
-    """The Rule class defines a "rule" for determining the next question presented to an agent."""
+    """The Rule class defines a "rule" for determining the next question present."""
 
     current_q = QuestionIndex()
     next_q = QuestionIndex()
-
-    # Not implemented but nice to have:
-    # We could potentially use the question pydantic models to check for rule conflicts, as
-    # they define the potential trees through a survey.
-
-    # We could also use the AST to check for conflicts by inspecting the types of a rule.
-    # For example, if we know the answer to a question is a string, we could check that
-    # the expression only contains string comparisons.
 
     def __init__(
         self,
@@ -144,6 +136,16 @@ class Rule:
                     "A rule refers to a future question, the answer to which would not be available here."
                 )
                 raise SurveyRuleRefersToFutureStateError
+            
+        if (referenced_questions := self._prior_question_is_in_expression()) and not self._is_jinja2_expression():            #raise ValueError("This uses the old syntax!")
+            import warnings
+            old_expression = self.expression
+            for q in referenced_questions:
+                if q + ".answer" in self.expression:
+                    self.expression = self.expression.replace(q + ".answer", f"{{{{ {q}.answer }}}}")
+                else:
+                    self.expression = self.expression.replace(q, f"{{{{ {q}.answer }}}}")
+            warnings.warn(f"This uses the old syntax! Converting to Jinja2 style with {{ }}.\nOld expression: {old_expression}\nNew expression: {self.expression}")
 
     def _checks(self):
         pass
@@ -153,7 +155,7 @@ class Rule:
 
         >>> r = Rule.example()
         >>> r.to_dict()
-        {'current_q': 1, 'expression': "q1 == 'yes'", 'next_q': 2, 'priority': 0, 'question_name_to_index': {'q1': 1}, 'before_rule': False}
+        {'current_q': 1, 'expression': "{{ q1.answer }} == 'yes'", 'next_q': 2, 'priority': 0, 'question_name_to_index': {'q1': 1}, 'before_rule': False}
         """
         return {
             "current_q": self.current_q,
@@ -225,6 +227,14 @@ class Rule:
                 replacement = str(value)
             d[var] = replacement
         return d
+    
+    def _prior_question_is_in_expression(self) -> set:
+        """Check if the expression contains a reference to a prior question."""
+        return {q for q in self.question_name_to_index.keys() if q in self.expression}
+    
+    def _is_jinja2_expression(self):
+        """Check if the expression is a Jinja2 expression."""
+        return "{{" in self.expression and "}}" in self.expression
 
     def evaluate(self, current_info_env: dict[int, Any]):
         """Compute the value of the expression, given a dictionary of known questions answers.
@@ -234,24 +244,26 @@ class Rule:
         If the expression cannot be evaluated, it raises a CannotEvaluate exception.
 
         >>> r = Rule.example()
-        >>> r.evaluate({'q1' : 'yes'})
+        >>> r.evaluate({'q1.answer' : 'yes'})
         True
-        >>> r.evaluate({'q1' : 'no'})
+        >>> r.evaluate({'q1.answer' : 'no'})
         False
 
         >>> r = Rule.example(jinja2=True)
-        >>> r.evaluate({'q1' : 'yes'})
+        >>> r.evaluate({'q1.answer' : 'yes'})
         True
 
         >>> r = Rule.example(jinja2=True)
-        >>> r.evaluate({'q1' : 'This is q1'})
+        >>> r.evaluate({'q1.answer' : 'This is q1'})
         False
 
-        >>> r = Rule.example(jinja2=False, bad = True)
-        >>> r.evaluate({'q1' : 'yes'})
-        Traceback (most recent call last):
-        ...
-        edsl.exceptions.surveys.SurveyRuleCannotEvaluateError...
+        >>> import warnings
+        >>> with warnings.catch_warnings(record=True) as w:
+        ...     expression = "q1 == 'yes'"
+        ...     r = Rule(current_q=1, expression=expression, next_q=2, question_name_to_index={"q1": 1}, priority=0)
+        ...     result = r.evaluate({'q1.answer' : 'yes'})
+        ...     assert len(w) == 1  # Verify warning was issued
+        ...     assert result == True
         """
         from jinja2 import Template
 
@@ -262,8 +274,14 @@ class Rule:
 
             if "{{" in expression and "}}" in expression:
                 template_expression = Template(self.expression)
-                to_evaluate = template_expression.render(current_info)
+                from collections import defaultdict
+                jinja_dict = defaultdict(dict)
+                for key, value in current_info.items():
+                    key_type, key_name = key.split(".")
+                    jinja_dict[key_type][key_name] = value
+                to_evaluate = template_expression.render(jinja_dict)
             else:
+                #breakpoint()
                 # import warnings
                 # import textwrap
                 # warnings.warn(textwrap.dedent("""\
@@ -300,16 +318,16 @@ class Rule:
     def example(cls, jinja2=False, bad=False):
         if jinja2:
             # a rule written in jinja2 style with {{ }}
-            expression = "{{ q1 }} == 'yes'"
+            expression = "{{ q1.answer }} == 'yes'"
         else:
-            expression = "q1 == 'yes'"
+            expression = "{{ q1.answer }} == 'yes'"
 
         if bad and jinja2:
             # a rule written in jinja2 style with {{ }} but with a 'bad' expression
             expression = "{{ q1 }} == 'This is q1'"
 
         if bad and not jinja2:
-            expression = "q1 == 'This is q1'"
+            expression = "{{ q1.answer }} == 'This is q1'"
 
         r = Rule(
             current_q=1,

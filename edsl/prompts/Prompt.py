@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import Any, List, Union, Dict, Optional
 from pathlib import Path
-
+import time
 # from jinja2 import Undefined
 
 
@@ -17,17 +17,36 @@ class PreserveUndefined(Undefined):
     def __str__(self):
         return "{{ " + str(self._undefined_name) + " }}"
 
-# Create environment once at module level
-_env = Environment(undefined=PreserveUndefined)
+class TemplateVars:
+    """Stores variables set during template rendering."""
+    def __init__(self):
+        self.data = {}
+    
+    def set(self, name, value):
+        """Store a variable with its name and value,
+        returning an empty string for direct use in the template.
+        """
+        self.data[name] = value
+        return ""
+    
+    def get(self, name, default=None):
+        """Retrieve a stored variable."""
+        return self.data.get(name, default)
+    
+    def get_all(self) -> Dict[str, Any]:
+        """Return all captured variables."""
+        return self.data
+
+def make_env() -> Environment:
+    """Create a fresh Jinja environment each time,
+    so we don't mix captured variables across multiple renders.
+    """
+    return Environment(undefined=PreserveUndefined)
 
 @lru_cache(maxsize=1024)
-def _compile_template(text: str):
-    return _env.from_string(text)
-
-@lru_cache(maxsize=1024)
-def _find_template_variables(template: str) -> list[str]:
-    """Find and return the template variables."""
-    ast = _env.parse(template)
+def _find_template_variables(template_text: str) -> List[str]:
+    env = make_env()
+    ast = env.parse(template_text)
     return list(meta.find_undeclared_variables(ast))
 
 def _make_hashable(value):
@@ -81,9 +100,10 @@ class Prompt(PersistenceMixin, RepresentationMixin):
             # make it idempotent w/ a prompt
             text = text.text
         self._text = text
+        self.captured_variables = {}
 
     @classmethod
-    def from_txt(cls, filename: str) -> PromptBase:
+    def from_txt(cls, filename: str) -> 'PromptBase':
         """Create a `Prompt` from text.
 
         :param text: The text of the prompt.
@@ -227,8 +247,9 @@ class Prompt(PersistenceMixin, RepresentationMixin):
         """
         return len(self.template_variables()) > 0
 
-    def render(self, primary_replacement: dict, **additional_replacements) -> str:
-        """Render the prompt with the replacements.
+    def render(self, primary_replacement: dict, **additional_replacements) -> "Prompt":
+        """
+        Render the prompt with the replacements.
 
         :param primary_replacement: The primary replacement dictionary.
         :param additional_replacements: Additional replacement dictionaries.
@@ -245,57 +266,65 @@ class Prompt(PersistenceMixin, RepresentationMixin):
 
         >>> p.render({"person": "Mr. {{last_name}}"})
         Prompt(text=\"""Hello, Mr. {{ last_name }}\""")
+
+        >>> p = Prompt("The sum is {% set x = 2 + 3 %}{{ vars.set('x', x) }}{{x}}")
+        >>> result = p.render({})
+        >>> print(result.captured_variables)
+        {'x': 5}
+        >>> result.captured_variables['x']
+        5
         """
         try:
-            new_text = self._render(
-                self.text, primary_replacement, **additional_replacements
+            template_vars = TemplateVars()
+            new_text, captured_vars = self._render(
+                self.text, primary_replacement, template_vars, **additional_replacements
             )
-            return self.__class__(text=new_text)
+            result = Prompt(text=new_text)
+            result.captured_variables = captured_vars
+            return result
         except Exception as e:
             print(f"Error rendering prompt: {e}")
             return self
 
     @staticmethod
-    def _render(text: str, primary_replacement, **additional_replacements) -> "PromptBase":
-        """Render the template text with variables replaced."""
-        import time
-        
-        # if there are no replacements, return the text
-        if not primary_replacement and not additional_replacements:
-            return text
-     
-        try:
-            variables = _find_template_variables(text)
-            
-            if not variables: # if there are no variables, return the text
-                return text
-            
-            # Combine all replacements
-            all_replacements = {**primary_replacement, **additional_replacements}
-            
-            previous_text = None
-            current_text = text
-            iteration = 0
-            
-            for _ in range(MAX_NESTING):
-                iteration += 1
-                
-                template = _compile_template(current_text)
-                rendered_text = template.render(all_replacements)
-                
-                if rendered_text == current_text:
-                    return rendered_text
-                    
-                previous_text = current_text
-                current_text = rendered_text
+    def _render(
+        text: str,
+        primary_replacement: dict,
+        template_vars: TemplateVars,
+        **additional_replacements
+    ) -> tuple[str, Dict[str, Any]]:
+        """
+        Render the template text with variables replaced.
+        Returns (rendered_text, captured_variables).
+        """
+        # Combine replacements.
+        all_replacements = {**primary_replacement, **additional_replacements}
 
-            raise TemplateRenderError(
-                "Too much nesting - you created an infinite loop here, pal"
-            )
-        except TemplateSyntaxError as e:
-            raise TemplateRenderError(
-                f"Template syntax error: {e}. Bad template: {text}"
-            )
+        # If no replacements and no Jinja variables, just return the text.
+        if not all_replacements and not _find_template_variables(text):
+            return text, template_vars.get_all()
+
+        env = make_env()
+        # Provide access to the 'vars' object inside the template.
+        env.globals['vars'] = template_vars
+
+        previous_text = None
+        current_text = text
+
+        for _ in range(MAX_NESTING):
+            template = env.from_string(current_text)
+            rendered_text = template.render(**all_replacements)
+
+            if rendered_text == current_text:
+                # No more changes, return final text with captured variables.
+                return rendered_text, template_vars.get_all()
+
+            previous_text = current_text
+            current_text = rendered_text
+
+        raise TemplateRenderError(
+            "Too much nesting - you created an infinite loop here, pal"
+        )
 
     def to_dict(self, add_edsl_version=False) -> dict[str, Any]:
         """Return the `Prompt` as a dictionary.
@@ -343,7 +372,8 @@ class Prompt(PersistenceMixin, RepresentationMixin):
         return cls(cls.default_instructions)
 
     def get_prompts(self) -> Dict[str, Any]:
-        """Get the prompts for the question."""
+        """Get the prompts for the question.        
+        """
         start = time.time()
         
         # Build all the components
@@ -396,20 +426,6 @@ class Prompt(PersistenceMixin, RepresentationMixin):
         return prompts
 
 if __name__ == "__main__":
-    print("Running doctests...")
     import doctest
-
     doctest.testmod()
 
-# from edsl.prompts.library.question_multiple_choice import *
-# from edsl.prompts.library.agent_instructions import *
-# from edsl.prompts.library.agent_persona import *
-
-# from edsl.prompts.library.question_budget import *
-# from edsl.prompts.library.question_checkbox import *
-# from edsl.prompts.library.question_freetext import *
-# from edsl.prompts.library.question_linear_scale import *
-# from edsl.prompts.library.question_numerical import *
-# from edsl.prompts.library.question_rank import *
-# from edsl.prompts.library.question_extract import *
-# from edsl.prompts.library.question_list import *

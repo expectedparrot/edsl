@@ -47,7 +47,12 @@ class SurveyFlowVisualization:
                 for param in question.detailed_parameters:
                     if "agent." in param:
                         # Handle agent trait references
-                        trait_name = param.replace("agent.", "")
+                        #trait_name = param.replace("agent.", "")
+                        params_and_refs.add(param)
+                        if param not in param_to_questions:
+                            param_to_questions[param] = []
+                        param_to_questions[param].append(index)
+                    if "scenario." in param:
                         params_and_refs.add(param)
                         if param not in param_to_questions:
                             param_to_questions[param] = []
@@ -108,7 +113,7 @@ class SurveyFlowVisualization:
                     "label": f"Agent Trait\n{{{{ {param} }}}}"
                 })
             # Check if parameter exists in scenario
-            elif self.scenario and param in self.scenario:
+            elif self.scenario and param.startswith("scenario."):
                 node_attrs.update({
                     "fillcolor": "lightgreen",
                     "label": f"Scenario\n{{{{ {param} }}}}"
@@ -207,6 +212,10 @@ class SurveyFlowVisualization:
                     """File not found. Most likely it's because you don't have graphviz installed. Please install it and try again.
                         On Ubuntu, you can install it by running:
                         $ sudo apt-get install graphviz 
+                        On Mac, you can install it by running:
+                        $ brew install graphviz
+                        On Windows, you can install it by running:
+                        $ choco install graphviz
                     """
                 )
             from edsl.utilities.is_notebook import is_notebook
