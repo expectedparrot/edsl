@@ -311,16 +311,46 @@ class Scenario(Base, UserDict, ScenarioHtmlMixin):
         return self.select(list_of_keys)
 
     @classmethod
-    def from_url(cls, url: str, field_name: Optional[str] = "text") -> "Scenario":
-        """Creates a scenario from a URL.
+    def from_url(cls, url: str, field_name: Optional[str] = "text", testing:bool = False) -> "Scenario":
+        """Creates a scenario from a URL. Will use BeautifulSoup if available for better parsing,
+        otherwise falls back to basic requests.
 
         :param url: The URL to create the scenario from.
         :param field_name: The field name to use for the text.
+        :param testing: If True, uses simple requests method instead of BeautifulSoup
 
         """
         import requests
 
-        text = requests.get(url).text
+        if testing:
+            # Use simple requests method for testing
+            response = requests.get(url)
+            text = response.text
+        else:
+            try:
+                from bs4 import BeautifulSoup
+                from fake_useragent import UserAgent
+                
+                # Configure request headers to appear more like a regular browser
+                ua = UserAgent()
+                headers = {
+                    'User-Agent': ua.random,
+                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                    'Accept-Language': 'en-US,en;q=0.5'
+                }
+
+                response = requests.get(url, headers=headers)
+                soup = BeautifulSoup(response.content, 'html.parser')
+                
+                # Get text content while preserving some structure
+                text = ' '.join([p.get_text(strip=True) for p in soup.find_all(['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'])])
+
+            except ImportError:
+                # Fallback to basic requests if BeautifulSoup/fake_useragent not available
+                print("BeautifulSoup/fake_useragent not available. Falling back to basic requests.")
+                response = requests.get(url)
+                text = response.text
+
         return cls({"url": url, field_name: text})
 
     @classmethod
