@@ -108,18 +108,6 @@ class RuleCollection(UserList):
 
     def show_rules(self) -> None:
         """Print the rules in a table.
-
-
-        .. code-block:: python
-
-        rule_collection = RuleCollection.example()
-        rule_collection.show_rules()
-        ┏━━━━━━━━━━━┳━━━━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━━━┓
-        ┃ current_q ┃ expression  ┃ next_q ┃ priority ┃ before_rule ┃
-        ┡━━━━━━━━━━━╇━━━━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━━━┩
-        │ 1         │ q1 == 'yes' │ 3      │ 1        │ False       │
-        │ 1         │ q1 == 'no'  │ 2      │ 1        │ False       │
-        └───────────┴─────────────┴────────┴──────────┴─────────────┘
         """
         return self.to_dataset()
 
@@ -156,7 +144,7 @@ class RuleCollection(UserList):
 
         >>> rule_collection = RuleCollection.example()
         >>> rule_collection.applicable_rules(1)
-        [Rule(current_q=1, expression="q1 == 'yes'", next_q=3, priority=1, question_name_to_index={'q1': 1, 'q2': 2, 'q3': 3, 'q4': 4}, before_rule=False), Rule(current_q=1, expression="q1 == 'no'", next_q=2, priority=1, question_name_to_index={'q1': 1, 'q2': 2, 'q3': 3, 'q4': 4}, before_rule=False)]
+        [Rule(current_q=1, expression="{{ q1.answer }} == 'yes'", next_q=3, priority=1, question_name_to_index={'q1': 1, 'q2': 2, 'q3': 3, 'q4': 4}, before_rule=False), Rule(current_q=1, expression="{{ q1.answer }} == 'no'", next_q=2, priority=1, question_name_to_index={'q1': 1, 'q2': 2, 'q3': 3, 'q4': 4}, before_rule=False)]
 
         The default is that the rule is applied after the question is asked.
         If we want to see the rules that apply before the question is asked, we can set before_rule=True.
@@ -188,7 +176,7 @@ class RuleCollection(UserList):
         :param answers: The answers to the survey questions so far, including the current question.
 
         >>> rule_collection = RuleCollection.example()
-        >>> rule_collection.next_question(1, {'q1': 'yes'})
+        >>> rule_collection.next_question(1, {'q1.answer': 'yes'})
         NextQuestion(next_q=3, num_rules_found=2, expressions_evaluating_to_true=1, priority=1)
 
         """
@@ -360,14 +348,14 @@ class RuleCollection(UserList):
             rules=[
                 Rule(
                     current_q=1,
-                    expression="q1 == 'yes'",
+                    expression="{{ q1.answer }} == 'yes'",
                     next_q=3,
                     priority=1,
                     question_name_to_index=qn2i,
                 ),
                 Rule(
                     current_q=1,
-                    expression="q1 == 'no'",
+                    expression="{{ q1.answer }} == 'no'",
                     next_q=2,
                     priority=1,
                     question_name_to_index=qn2i,
@@ -378,7 +366,4 @@ class RuleCollection(UserList):
 
 if __name__ == "__main__":
     import doctest
-
     doctest.testmod(optionflags=doctest.ELLIPSIS)
-
-    print(RuleCollection.example()._repr_html_())

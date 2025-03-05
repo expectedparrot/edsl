@@ -35,7 +35,7 @@ class TestSurvey(unittest.TestCase):
         s = self.gen_survey()
         q1, q2, q3 = s._questions
         s.add_rule(q1, "like_school == 'no'", q3)
-        self.assertEqual(q3, s.next_question("like_school", {"like_school": "no"}))
+        self.assertEqual(q3, s.next_question("like_school", {"like_school.answer": "no"}))
 
     def test_skip_question(self):
         survey = self.gen_survey()
