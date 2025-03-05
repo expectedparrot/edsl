@@ -406,7 +406,6 @@ class Coop(CoopFunctionsMixin):
             else:
                 raise Exception("No signed url provided received")
 
-            print("uploading the filestore")
             response = requests.put(
                 signed_url, data=json_data.encode(), headers=headers
             )
