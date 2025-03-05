@@ -959,6 +959,8 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
             new_list.append(new_obj)
         return new_list
 
+    
+
     def replace_names(self, new_names: list) -> ScenarioList:
         """Replace the field names in the scenarios with a new list of names.
 
@@ -1800,6 +1802,36 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         
         # Convert the DataFrame to a ScenarioList
         return cls.from_pandas(df)
+
+    def replace_values(self, replacements):
+        """
+        Create new scenarios with values replaced according to the provided replacement dictionary.
+        
+        Args:
+            replacements (dict): Dictionary of values to replace {old_value: new_value}
+        
+        Returns:
+            ScenarioList: A new ScenarioList with replaced values
+        
+        Examples:
+            >>> scenarios = ScenarioList([
+            ...     Scenario({'a': 'nan', 'b': 1}),
+            ...     Scenario({'a': 2, 'b': 'nan'})
+            ... ])
+            >>> replaced = scenarios.replace_values({'nan': None})
+            >>> print(replaced)
+            ScenarioList([Scenario({'a': None, 'b': 1}), Scenario({'a': 2, 'b': None})])
+            >>> # Original scenarios remain unchanged
+            >>> print(scenarios)
+            ScenarioList([Scenario({'a': 'nan', 'b': 1}), Scenario({'a': 2, 'b': 'nan'})])
+        """
+        new_scenarios = []
+        for scenario in self:
+            new_scenario = {}
+            for key, value in scenario.items():
+                new_scenario[key] = replacements.get(value, value)
+            new_scenarios.append(Scenario(new_scenario))
+        return ScenarioList(new_scenarios)
 
 
 
