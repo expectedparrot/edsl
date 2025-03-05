@@ -384,7 +384,9 @@ class Coop(CoopFunctionsMixin):
                 "json_string": json.dumps(
                     object.to_dict(),
                     default=self._json_handle_none,
-                ),
+                )
+                if object_type != "scenario"
+                else "",
                 "object_type": object_type,
                 "visibility": visibility,
                 "version": self._edsl_version,
@@ -393,6 +395,20 @@ class Coop(CoopFunctionsMixin):
         self._resolve_server_response(response)
         response_json = response.json()
 
+        if object_type == "scenario":
+            json_data = json.dumps(
+                object.to_dict(),
+                default=self._json_handle_none,
+            )
+            headers = {"Content-Type": "application/json"}
+            if response_json.get("upload_signed_url"):
+                signed_url = response_json.get("upload_signed_url")
+            else:
+                raise Exception("No signed url provided received")
+
+            response = requests.put(
+                signed_url, data=json_data.encode(), headers=headers
+            )
         owner_username = response_json.get("owner_username")
         object_alias = response_json.get("alias")
 
@@ -404,6 +420,7 @@ class Coop(CoopFunctionsMixin):
             "uuid": response_json.get("uuid"),
             "version": self._edsl_version,
             "visibility": response_json.get("visibility"),
+            "upload_signed_url": response_json.get("upload_signed_url", None),
         }
 
     def get(
@@ -439,6 +456,10 @@ class Coop(CoopFunctionsMixin):
 
         self._resolve_server_response(response)
         json_string = response.json().get("json_string")
+        if "load_from:" in json_string[0:12]:
+            load_link = json_string.split("load_from:")[1]
+            object_data = requests.get(load_link)
+            json_string = object_data.text
         object_type = response.json().get("object_type")
         if expected_object_type and object_type != expected_object_type:
             raise Exception(f"Expected {expected_object_type=} but got {object_type=}")
@@ -457,9 +478,18 @@ class Coop(CoopFunctionsMixin):
             params={"type": object_type},
         )
         self._resolve_server_response(response)
-        objects = [
-            {
-                "object": edsl_class.from_dict(json.loads(o.get("json_string"))),
+        objects = []
+        for o in response.json():
+            json_string = o.get("json_string")
+            ## check if load from bucket needed.
+            if "load_from:" in json_string[0:12]:
+                load_link = json_string.split("load_from:")[1]
+                object_data = requests.get(load_link)
+                json_string = object_data.text
+
+            json_string = json.loads(json_string)
+            object = {
+                "object": edsl_class.from_dict(json_string),
                 "uuid": o.get("uuid"),
                 "version": o.get("version"),
                 "description": o.get("description"),
@@ -469,8 +499,8 @@ class Coop(CoopFunctionsMixin):
                     o.get("owner_username"), o.get("alias")
                 ),
             }
-            for o in response.json()
-        ]
+            objects.append(object)
+
         return objects
 
     def delete(self, url_or_uuid: Union[str, UUID]) -> dict:
