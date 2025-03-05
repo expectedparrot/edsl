@@ -15,6 +15,7 @@ import time
 from typing import Dict, Any, IO, Optional, List, Union, Literal
 
 
+
 class FileStore(Scenario):
     __documentation__ = "https://docs.expectedparrot.com/en/latest/filestore.html"
 
@@ -384,6 +385,7 @@ class FileStore(Scenario):
         :param visibility: The visibility of the object to push.
         """
         scenario_version = Scenario.from_dict(self.to_dict())
+
         if description is None:
             description = "File: " + self.path
         info = scenario_version.push(
