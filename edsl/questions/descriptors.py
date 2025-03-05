@@ -404,21 +404,21 @@ class QuestionTextDescriptor(BaseDescriptor):
         
         #value = textwrap.dedent(value).strip()
 
-        if contains_single_braced_substring(value):
-            import warnings
+        # if contains_single_braced_substring(value):
+        #     import warnings
 
-            # # warnings.warn(
-            # #     f"WARNING: Question text contains a single-braced substring: If you intended to parameterize the question with a Scenario this should be changed to a double-braced substring, e.g. {{variable}}.\nSee details on constructing Scenarios in the docs: https://docs.expectedparrot.com/en/latest/scenarios.html",
-            # #     UserWarning,
-            # # )
-            warnings.warn(
-                "WARNING: Question text contains a single-braced substring. "
-                "If you intended to parameterize the question with a Scenario, this will "
-                "be changed to a double-braced substring, e.g. {{variable}}.\n"
-                "See details on constructing Scenarios in the docs: "
-                "https://docs.expectedparrot.com/en/latest/scenarios.html",
-                UserWarning,
-            )
+        #     # # warnings.warn(
+        #     # #     f"WARNING: Question text contains a single-braced substring: If you intended to parameterize the question with a Scenario this should be changed to a double-braced substring, e.g. {{variable}}.\nSee details on constructing Scenarios in the docs: https://docs.expectedparrot.com/en/latest/scenarios.html",
+        #     # #     UserWarning,
+        #     # # )
+        #     warnings.warn(
+        #         "WARNING: Question text contains a single-braced substring. "
+        #         "If you intended to parameterize the question with a Scenario, this will "
+        #         "be changed to a double-braced substring, e.g. {{variable}}.\n"
+        #         "See details on constructing Scenarios in the docs: "
+        #         "https://docs.expectedparrot.com/en/latest/scenarios.html",
+        #         UserWarning,
+        #     )
             # Automatically replace single braces with double braces
             # This is here because if the user is using an f-string, the double brace will get converted to a single brace.
             # This undoes that.
