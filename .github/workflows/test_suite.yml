@@ -50,8 +50,8 @@ jobs:
         shell: bash
         run: poetry run make test-starter-tutorial
         env:
-          EXPECTED_PARROT_API_KEY: ${{ secrets.INTEGRATION_TEST_EXPECTED_PARROT_API_KEY }}
-
+          EXPECTED_PARROT_API_KEY: ${{ secrets.INTEGRATION_TEST_EXPECTED_PARROT_API_KEY_CHICK }}
+          EXPECTED_PARROT_URL: "https://chick.expectedparrot.com"
       - name: Run edsl tests
         shell: bash
         run: poetry run make test
