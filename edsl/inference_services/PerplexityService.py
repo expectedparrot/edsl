@@ -29,9 +29,12 @@ class PerplexityService(OpenAIService):
     @classmethod
     def available(cls) -> List[str]:
         return [
-            "llama-3.1-sonar-huge-128k-online",
-            "llama-3.1-sonar-large-128k-online",
-            "llama-3.1-sonar-small-128k-online",
+            "sonar-deep-research",
+            "sonar-reasoning-pro",
+            "sonar-reasoning",
+            "sonar-pro",
+            "sonar",
+            "r1-1776",
         ]
 
     @classmethod
@@ -65,10 +68,10 @@ class PerplexityService(OpenAIService):
             }
 
             def sync_client(self):
-                return cls.sync_client()
+                return cls.sync_client(api_key=self.api_token)
 
             def async_client(self):
-                return cls.async_client()
+                return cls.async_client(api_key=self.api_token)
 
             @classmethod
             def available(cls) -> list[str]:
@@ -149,6 +152,7 @@ class PerplexityService(OpenAIService):
                     # "logprobs": self.logprobs,
                     # "top_logprobs": self.top_logprobs if self.logprobs else None,
                 }
+                print("calling the model", flush=True)
                 try:
                     response = await client.chat.completions.create(**params)
                 except Exception as e:
