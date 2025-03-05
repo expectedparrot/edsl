@@ -173,6 +173,7 @@ class Cache(Base):
         user_prompt: str,
         response: dict,
         iteration: int,
+        service: str,
     ) -> str:
         """
         Add a new key-value pair to the cache.
@@ -204,6 +205,7 @@ class Cache(Base):
             user_prompt=user_prompt,
             output=json.dumps(response),
             iteration=iteration,
+            service=service,
         )
         key = entry.key
         self.new_entries[key] = entry
