@@ -1,19 +1,14 @@
-import asyncio
-from enum import Enum
 from typing import Literal, List, Type, DefaultDict
-from collections import UserDict, defaultdict
+from collections import UserDict
 
-from edsl.jobs.interviews.InterviewStatusDictionary import InterviewStatusDictionary
 from edsl.jobs.tokens.InterviewTokenUsage import InterviewTokenUsage
-from edsl.enums import pricing, TokenPricing
-from edsl.jobs.tasks.task_status_enum import TaskStatus
 
 InterviewTokenUsageMapping = DefaultDict[str, InterviewTokenUsage]
 
 
 class InterviewStatistic(UserDict):
     @staticmethod
-    def _format_number(number, digits=0, units=""):
+    def _format_number(number, digits=0, units="") -> str:
         """Format a number.
 
         :param number: the number to format
@@ -31,7 +26,7 @@ class InterviewStatistic(UserDict):
             return f"{number:,.{digits}f}" + " " + units
 
     @property
-    def _pretty_name(self):
+    def _pretty_name(self) -> str:
         """Return a pretty name for the statistic.
 
         Example usage:
@@ -61,3 +56,8 @@ class InterviewStatistic(UserDict):
         )
 
         self.raw: dict = {self.name: self.value}
+
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod()
