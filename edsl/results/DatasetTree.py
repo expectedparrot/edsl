@@ -187,8 +187,8 @@ class Tree:
                 content_html = "".join(content)
 
                 if node.children:
-                    # Node with children
-                    html.append(f'<details {"open" if level < 1 else ""}>')
+                    # Node with children - removed the "open" condition to keep all nodes closed by default
+                    html.append("<details>")
                     html.append(f"<summary>{content_html}</summary>")
                     for child in node.children.values():
                         html.append(node_to_html(child, level + 1, print_keys))

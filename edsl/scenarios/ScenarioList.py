@@ -1632,7 +1632,7 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
             new_scenarios.extend(replacement_scenarios)
         return ScenarioList(new_scenarios)
 
-    def collapse(self, field: str) -> ScenarioList:
+    def collapse(self, field: str, separator: Optional[str] = None) -> ScenarioList:
         """Collapse a ScenarioList by grouping on all fields except the specified one,
         collecting the values of the specified field into a list.
 
@@ -1670,7 +1670,10 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         result = []
         for key, values in grouped.items():
             new_scenario = dict(zip(id_vars, key))
-            new_scenario[field] = values
+            if separator:
+                new_scenario[field] = separator.join(values)
+            else:
+                new_scenario[field] = values
             result.append(Scenario(new_scenario))
         
         return ScenarioList(result)
@@ -1803,7 +1806,7 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         # Convert the DataFrame to a ScenarioList
         return cls.from_pandas(df)
 
-    def replace_values(self, replacements):
+    def replace_values(self, replacements:dict) -> "ScenarioList":
         """
         Create new scenarios with values replaced according to the provided replacement dictionary.
         
@@ -1829,7 +1832,10 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         for scenario in self:
             new_scenario = {}
             for key, value in scenario.items():
-                new_scenario[key] = replacements.get(value, value)
+                if str(value) in replacements:
+                    new_scenario[key] = replacements[str(value)]
+                else:
+                    new_scenario[key] = value
             new_scenarios.append(Scenario(new_scenario))
         return ScenarioList(new_scenarios)
 
