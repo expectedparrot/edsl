@@ -120,14 +120,19 @@ class LoopProcessor:
 
             >>> p._render_template("{{item.price}}", {"item": {"price": 9.99}})
             '9.99'
+
+            >>> p._render_template("{{item.missing}}", {"item": {"price": 9.99}})
+            '{{ item.missing }}'
         """
 
         class PreserveUndefined(Undefined):
             def __str__(self):
+                # Preserve the full dotted path for undefined variables
                 return f"{{{{ {self._undefined_name} }}}}"
 
             def __getattr__(self, name):
-                return ""
+                # Return a new instance with the updated path
+                return PreserveUndefined(name=f"{self._undefined_name}.{name}")
 
         # Create environment that keeps undefined variables
         template_env = Environment(undefined=PreserveUndefined)
