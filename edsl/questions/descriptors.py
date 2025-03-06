@@ -391,10 +391,6 @@ class QuestionTextDescriptor(BaseDescriptor):
 
     >>> _ = TestQuestion("What is the capital of France?")
     >>> _ = TestQuestion("What is the capital of France? {{variable}}")
-    >>> _ = TestQuestion("What is the capital of France? {{variable name}}")
-    Traceback (most recent call last):
-    ...
-    edsl.exceptions.questions.QuestionCreationValidationError: Question text contains an invalid identifier: 'variable name'
     """
 
     def validate(self, value, instance):
@@ -408,21 +404,21 @@ class QuestionTextDescriptor(BaseDescriptor):
         
         #value = textwrap.dedent(value).strip()
 
-        if contains_single_braced_substring(value):
-            import warnings
+        # if contains_single_braced_substring(value):
+        #     import warnings
 
-            # # warnings.warn(
-            # #     f"WARNING: Question text contains a single-braced substring: If you intended to parameterize the question with a Scenario this should be changed to a double-braced substring, e.g. {{variable}}.\nSee details on constructing Scenarios in the docs: https://docs.expectedparrot.com/en/latest/scenarios.html",
-            # #     UserWarning,
-            # # )
-            warnings.warn(
-                "WARNING: Question text contains a single-braced substring. "
-                "If you intended to parameterize the question with a Scenario, this will "
-                "be changed to a double-braced substring, e.g. {{variable}}.\n"
-                "See details on constructing Scenarios in the docs: "
-                "https://docs.expectedparrot.com/en/latest/scenarios.html",
-                UserWarning,
-            )
+        #     # # warnings.warn(
+        #     # #     f"WARNING: Question text contains a single-braced substring: If you intended to parameterize the question with a Scenario this should be changed to a double-braced substring, e.g. {{variable}}.\nSee details on constructing Scenarios in the docs: https://docs.expectedparrot.com/en/latest/scenarios.html",
+        #     # #     UserWarning,
+        #     # # )
+        #     warnings.warn(
+        #         "WARNING: Question text contains a single-braced substring. "
+        #         "If you intended to parameterize the question with a Scenario, this will "
+        #         "be changed to a double-braced substring, e.g. {{variable}}.\n"
+        #         "See details on constructing Scenarios in the docs: "
+        #         "https://docs.expectedparrot.com/en/latest/scenarios.html",
+        #         UserWarning,
+        #     )
             # Automatically replace single braces with double braces
             # This is here because if the user is using an f-string, the double brace will get converted to a single brace.
             # This undoes that.
@@ -430,11 +426,11 @@ class QuestionTextDescriptor(BaseDescriptor):
             return value
 
         # iterate through all doubles braces and check if they are valid python identifiers
-        for match in re.finditer(r"\{\{([^\{\}]+)\}\}", value):
-            if " " in match.group(1).strip():
-                raise QuestionCreationValidationError(
-                    f"Question text contains an invalid identifier: '{match.group(1)}'"
-                )
+        # for match in re.finditer(r"\{\{([^\{\}]+)\}\}", value):
+        #     if " " in match.group(1).strip():
+        #         raise QuestionCreationValidationError(
+        #             f"Question text contains an invalid identifier: '{match.group(1)}'"
+        #         )
 
         return None
 

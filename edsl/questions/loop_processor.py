@@ -46,8 +46,11 @@ class LoopProcessor:
         """
         processed = {}
 
+        extended_scenario = scenario.copy()
+        extended_scenario.update({'scenario': scenario})
+
         for key, value in [(k, v) for k, v in data.items() if v is not None]:
-            processed[key] = self._process_value(key, value, scenario)
+            processed[key] = self._process_value(key, value, extended_scenario)
 
         return processed
 

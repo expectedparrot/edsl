@@ -149,7 +149,7 @@ class QuestionInstructionPromptBuilder:
 
         The question_options could be intended to be replaced with data from a scenario or prior answers.
 
-        >>> question_data = {'question_name': 'q0', 'question_text': 'Do you like school?', 'question_options': '{{ options }}'}
+        >>> question_data = {'question_name': 'q0', 'question_text': 'Do you like school?', 'question_options': '{{ scenario.options }}'}
         >>> scenario = {"options": ["yes", "no"]}
         >>> prior_answers_dict = {}
         >>> QuestionInstructionPromptBuilder._process_question_options(question_data, scenario, prior_answers_dict)

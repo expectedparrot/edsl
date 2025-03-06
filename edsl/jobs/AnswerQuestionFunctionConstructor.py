@@ -1,7 +1,7 @@
 import copy
 import asyncio
 
-from typing import Union, Type, Callable, TYPE_CHECKING
+from typing import Union, Type, Callable, TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from edsl.questions.QuestionBase import QuestionBase
@@ -46,17 +46,45 @@ class SkipHandler:
             | self.interview.agent["traits"]
         )
         return self.skip_function(current_question_index, combined_answers)
+    
+    def _current_info_env(self) -> dict[str, Any]:
+        """
+        - The current answers are "generated_tokens" and "comment" 
+        - The scenario should have "scenario." added to the keys
+        - The agent traits should have "agent." added to the keys
+        """
+        # Process answers dictionary
+        processed_answers = {}
+        for key, value in self.interview.answers.items():
+            if key.endswith("_generated_tokens"):
+                base_name = key.replace("_generated_tokens", "")
+                processed_answers[f"{base_name}.generated_tokens"] = value
+            elif key.endswith("_comment"):
+                base_name = key.replace("_comment", "")
+                processed_answers[f"{base_name}.comment"] = value
+            else:
+                # Regular answer
+                processed_answers[f"{key}.answer"] = value
+
+        # Process scenario dictionary
+        processed_scenario = {f"scenario.{k}": v for k, v in self.interview.scenario.items()}
+
+        # Process agent traits
+        processed_agent = {f"agent.{k}": v for k, v in self.interview.agent["traits"].items()}
+
+        return processed_answers | processed_scenario | processed_agent
 
     def cancel_skipped_questions(self, current_question: "QuestionBase") -> None:
         """Cancel the tasks for questions that should be skipped."""
         current_question_index: int = self.interview.to_index[
             current_question.question_name
         ]
-        answers = (
-            self.interview.answers
-            | self.interview.scenario
-            | self.interview.agent["traits"]
-        )
+        answers = self._current_info_env()
+        # answers = (
+        #     self.interview.answers
+        #     | self.interview.scenario
+        #     | self.interview.agent["traits"]
+        # )
 
         # Get the index of the next question, which could also be the end of the survey
         next_question: Union[int, EndOfSurvey] = (
