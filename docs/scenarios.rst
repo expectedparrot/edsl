@@ -27,7 +27,7 @@ Metadata
 
 Scenarios are also a convenient way to keep track of metadata or other information relating to a survey that is important to an analysis of the results.
 For example, say we are using scenarios to parameterize question texts with pieces of `{{ scenario.content }}` from a dataset.
-In the scenarios that we create for the `content` parameter we could also include key/value pairs for metadata about the content, such as the `{{ author }}`, `{{ publication_date }}`, or `{{ source }}`.
+In the scenarios that we create for the `content` parameter we could also include key/value pairs for metadata about the content, such as the `{{ scenario.author }}`, `{{ scenario.publication_date }}`, or `{{ scenario.source }}`.
 This will automatically include the data in the survey results but without requiring us to also parameterize the question texts those fields.
 This allows us to analyze the responses in the context of the metadata and avoid having to match up the data with the metadata post-survey.
 Please see more details on this feature in `examples below <https://docs.expectedparrot.com/en/latest/scenarios.html#adding-metadata>`_.
@@ -206,8 +206,8 @@ For example:
   from edsl import QuestionMultipleChoice, ScenarioList
 
   q = QuestionMultipleChoice(
-    question_name = "enjoy_{{ activity }}",
-    question_text = "How much do you enjoy {{ activity }}?",
+    question_name = "enjoy_{{ scenario.activity }}",
+    question_text = "How much do you enjoy {{ scenario.activity }}?",
     question_options = ["Not at all", "Somewhat", "Very much"]
   )
 
@@ -676,7 +676,7 @@ Each scenario has the following keys which can be used as parameters in a questi
 
 If you prefer to create a single `Scenario` for the entire PDF file, you can use the `Scenario.from_pdf('path/to/pdf')` method instead.
 
-To use this method with either object, we start by adding a placeholder `{{ text }}` to a question text where the text of a PDF or PDF page will be inserted.
+To use this method with either object, we start by adding a placeholder `{{ scenario.text }}` to a question text where the text of a PDF or PDF page will be inserted.
 When the question or survey is run with the PDF scenario or scenario list, the text of the PDF or individual pages will be inserted into the question text at the placeholder.
 
 For example, this code can be used to insert the text of each page of a PDF in a survey of question:
@@ -1547,7 +1547,7 @@ Data labeling tasks
 Scenarios are particularly useful for conducting data labeling or data coding tasks, where the task can be designed as a survey of questions about each piece of data in a dataset.
 
 For example, say we have a dataset of text messages that we want to sort by topic.
-We can perform this task by using a language model to answer questions such as `"What is the primary topic of this message: {{ message }}?"` or `"Does this message mention a safety issue? {{ message }}"`, where each text message is inserted in the `message` placeholder of the question text.
+We can perform this task by using a language model to answer questions such as `"What is the primary topic of this message: {{ scenario.message }}?"` or `"Does this message mention a safety issue? {{ scenario.message }}"`, where each text message is inserted in the `message` placeholder of the question text.
 
 Here we use scenarios to conduct the task:
 
@@ -1751,7 +1751,7 @@ Using f-strings with scenarios
 It is possible to use scenarios and f-strings together in a question.
 An f-string must be evaluated when a question is constructed, whereas a scenario is either evaluated when a question is run (using the `by` method) or when a question is constructed (using the `loop` method).
 
-For example, here we use an f-string to create different versions of a question that also takes a parameter `{{ activity }}`, together with a list of scenarios to replace the parameter when the question is run.
+For example, here we use an f-string to create different versions of a question that also takes a parameter `{{ scenario.activity }}`, together with a list of scenarios to replace the parameter when the question is run.
 We optionally include the f-string in the question name in addition to the question text in order to control the unique identifiers for the questions, which are needed in order to pass the questions that are created to a `Survey`.
 (If you do not include the f-string in the question name, a number is automatically appended to each question name to ensure uniqueness.)
 Then we use the `show_prompts()` method to examine the user prompts that are created when the scenarios are added to the questions:
