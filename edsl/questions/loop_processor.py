@@ -1,5 +1,5 @@
 from typing import List, Any, Dict, Union
-from jinja2 import Environment
+from jinja2 import Environment, Undefined
 from edsl.questions.QuestionBase import QuestionBase
 from edsl import ScenarioList
 
@@ -7,7 +7,7 @@ from edsl import ScenarioList
 class LoopProcessor:
     def __init__(self, question: QuestionBase):
         self.question = question
-        self.env = Environment()
+        self.env = Environment(undefined=Undefined)
 
     def process_templates(self, scenario_list: ScenarioList) -> List[QuestionBase]:
         """Process templates for each scenario and return list of modified questions.
@@ -47,7 +47,7 @@ class LoopProcessor:
         processed = {}
 
         extended_scenario = scenario.copy()
-        extended_scenario.update({'scenario': scenario})
+        extended_scenario.update({"scenario": scenario})
 
         for key, value in [(k, v) for k, v in data.items() if v is not None]:
             processed[key] = self._process_value(key, value, extended_scenario)
@@ -99,9 +99,47 @@ class LoopProcessor:
             scenario: Current scenario
 
         Returns:
-            Rendered template string
+            Rendered template string, preserving any unmatched template variables
+
+        Examples:
+            >>> from edsl.questions.QuestionBase import QuestionBase
+            >>> q = QuestionBase()
+            >>> q.question_text = "test"
+            >>> p = LoopProcessor(q)
+            >>> p._render_template("Hello {{name}}!", {"name": "World"})
+            'Hello World!'
+
+            >>> p._render_template("{{a}} and {{b}}", {"b": 6})
+            '{{ a }} and 6'
+
+            >>> p._render_template("{{x}} + {{y}} = {{z}}", {"x": 2, "y": 3})
+            '2 + 3 = {{ z }}'
+
+            >>> p._render_template("No variables here", {})
+            'No variables here'
+
+            >>> p._render_template("{{item.price}}", {"item": {"price": 9.99}})
+            '9.99'
         """
-        return self.env.from_string(template).render(scenario)
+
+        class PreserveUndefined(Undefined):
+            def __str__(self):
+                return f"{{{{ {self._undefined_name} }}}}"
+
+            def __getattr__(self, name):
+                return ""
+
+        # Create environment that keeps undefined variables
+        template_env = Environment(undefined=PreserveUndefined)
+
+        # Create the template
+        jinja_template = template_env.from_string(template)
+
+        try:
+            return jinja_template.render(scenario)
+        except:
+            # If rendering fails, return the original template
+            return template
 
     def _process_list(self, items: List[Any], scenario: Dict[str, Any]) -> List[Any]:
         """Process all items in a list.
@@ -138,15 +176,7 @@ class LoopProcessor:
         }
 
 
-# Usage example:
-"""
-from edsl import QuestionFreeText, ScenarioList
+if __name__ == "__main__":
+    import doctest
 
-question = QuestionFreeText(
-    question_text="What are your thoughts on: {{subject}}?",
-    question_name="base_{{subject}}"
-)
-processor = TemplateProcessor(question)
-scenarios = ScenarioList.from_list("subject", ["Math", "Economics", "Chemistry"])
-processed_questions = processor.process_templates(scenarios)
-"""
+    doctest.testmod()
