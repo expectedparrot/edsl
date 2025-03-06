@@ -58,6 +58,8 @@ class QuestionInstructionPromptBuilder:
         self.scenario = scenario
         self.prior_answers_dict = prior_answers_dict
 
+        self.captured_variables = {}
+
     def build(self) -> Prompt:
         """Builds the complete question instructions prompt with all necessary components.
 
@@ -207,7 +209,11 @@ class QuestionInstructionPromptBuilder:
         replacement_dict = self.qtrb.build_replacement_dict(prompt_data["data"])
 
         # Render with dict
-        return prompt_data["prompt"].render(replacement_dict)
+        rendered_prompt =prompt_data["prompt"].render(replacement_dict)
+        if rendered_prompt.captured_variables:
+            self.captured_variables.update(rendered_prompt.captured_variables)
+            #print(f"Captured variables in QIPB: {self.captured_variables}")
+        return rendered_prompt
 
     def _validate_template_variables(self, rendered_prompt: Prompt) -> None:
         """Validates that all template variables have been properly replaced.
