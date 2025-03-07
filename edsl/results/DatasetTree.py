@@ -136,9 +136,6 @@ class Tree:
             suffix="docx",
             base64_string=base64_string,
         )
-        # doc.save(filename)
-        # from edsl.utilities.utilities import file_notice
-        # file_notice(filename)
 
     def _repr_html_(self):
         """Returns an interactive HTML representation of the tree with collapsible sections."""
@@ -187,8 +184,8 @@ class Tree:
                 content_html = "".join(content)
 
                 if node.children:
-                    # Node with children
-                    html.append(f'<details {"open" if level < 1 else ""}>')
+                    # Node with children - removed the "open" condition to keep all nodes closed by default
+                    html.append("<details>")
                     html.append(f"<summary>{content_html}</summary>")
                     for child in node.children.values():
                         html.append(node_to_html(child, level + 1, print_keys))
@@ -207,40 +204,6 @@ class Tree:
         tree_html = node_to_html(self.root)
         return f"{styles}{tree_html}</div>"
 
-    # def _repr_html_(self):
-    #     """Returns an HTML representation of the tree, following the same logic as print_tree."""
-    #     styles = """
-    #     <style>
-    #         .tree-container {
-    #             font-family: monospace;
-    #             white-space: pre;
-    #             margin: 10px;
-    #         }
-    #     </style>
-    #     """
-
-    #     def node_to_html(node, level=0, print_keys=False):
-    #         if node is None:
-    #             node = self.root
-    #             if node is None:
-    #                 return "Tree has not been constructed yet."
-
-    #         html = []
-    #         if node.value is not None:
-    #             indent = "&nbsp;" * 2 * level  # Using &nbsp; for HTML spaces
-    #             if print_keys and node.key is not None:
-    #                 html.append(f"{indent}{node.key}: {node.value}<br>")
-    #             else:
-    #                 html.append(f"{indent}{node.value}<br>")
-
-    #         for child in node.children.values():
-    #             html.append(node_to_html(child, level + 1, print_keys))
-
-    #         return "".join(html)
-
-    #     tree_html = node_to_html(self.root)
-    #     return f'<div class="tree-container">{tree_html}</div>{styles}'
-
     def _add_to_docx(self, doc, node: TreeNode, level: int):
         if node.value is not None:
             if level == 0:
@@ -256,40 +219,158 @@ class Tree:
         for child in node.children.values():
             self._add_to_docx(doc, child, level + 1)
 
+    def to_dict(self, node: Optional[TreeNode] = None) -> tuple[dict, list[str]]:
+        """Converts the tree structure into a nested dictionary and returns the schema.
+        
+        Args:
+            node: The current node being processed. Defaults to the root node.
+            
+        Returns:
+            A tuple of (nested_dict, schema) where:
+                - nested_dict: The hierarchical data structure
+                - schema: List of keys in order of hierarchy
+            
+        Examples:
+            >>> tree = Tree.example()
+            >>> result, schema = tree.to_dict()
+            >>> print(schema)  # Shows the hierarchy of the data
+            ['continent', 'country', 'city', 'population']
+            >>> # Access a leaf node value (note: numbers are converted to strings)
+            >>> print(result['North America']['US']['New York']['8419000'] is None)
+            True
+            >>> # Verify the structure is correct
+            >>> print(sorted(result['North America'].keys()))
+            ['Canada', 'US']
+        """
+        if node is None:
+            node = self.root
+            if node is None:
+                return {}, []
 
-# Example usage (commented out)
-"""
-from edsl.results.Dataset import Dataset
+        result = {}
+        for value, child in node.children.items():
+            if child.children:
+                nested_dict, _ = self.to_dict(child)  # Always unpack tuple, ignore schema except at root
+                result[value] = nested_dict
+            else:
+                result[value] = None
 
-data = Dataset(
-    [
-        {"continent": ["North America", "Asia", "Europe", "North America", "Asia"]},
-        {"country": ["US", "China", "France", "Canada", "Japan"]},
-        {"city": ["New York", "Beijing", "Paris", "Toronto", "Tokyo"]},
-        {"population": [8419000, 21540000, 2161000, 2930000, 13960000]},
-    ]
-)
+        # Only return the schema with the root call
+        if node == self.root:
+            return result, self.node_order if self.node_order else []
+        return result, []  # Return empty schema for non-root nodes
 
-tree = Tree(data)
+    @classmethod
+    def example(cls) -> "Tree":
+        """Creates an example Tree instance with geographic data.
+        
+        Returns:
+            Tree: A sample tree with continent/country/city/population data
+        
+        Examples:
+            >>> tree = Tree.example()
+            >>> result, schema = tree.to_dict()
+            >>> print(schema)
+            ['continent', 'country', 'city', 'population']
+            >>> # Verify the structure is correct
+            >>> print(sorted(result['North America'].keys()))
+            ['Canada', 'US']
+        """
+        from edsl.results.Dataset import Dataset
+        
+        data = Dataset([
+            {"continent": ["North America", "Asia", "Europe", "North America", "Asia"]},
+            {"country": ["US", "China", "France", "Canada", "Japan"]},
+            {"city": ["New York", "Beijing", "Paris", "Toronto", "Tokyo"]},
+            {"population": ["8419000", "21540000", "2161000", "2930000", "13960000"]},  # Convert to strings
+        ])
+        
+        node_order = ["continent", "country", "city", "population"]
+        tree = cls(data, node_order=node_order)  # Explicitly pass node_order
+        return tree
 
-try:
-    tree.construct_tree(["continent", "country", "city", "population"])
-    print("Tree without key names:")
-    tree.print_tree()
-    print("\nTree with key names:")
-    tree.print_tree(print_keys=True)
-except ValueError as e:
-    print(f"Error: {e}")
+    @staticmethod
+    def _adjust_markdown_levels(text: str, base_level: int) -> str:
+        """Adjusts markdown heading levels by adding or removing '#' characters.
+        
+        Args:
+            text: The markdown text to adjust
+            base_level: The level to adjust headings to (e.g., 2 means h2)
+            
+        Returns:
+            Adjusted markdown text with updated heading levels
+            
+        Examples:
+            >>> text = "# Title\\n## Subtitle\\nContent"
+            >>> print(Tree._adjust_markdown_levels(text, 2))
+            ## Title
+            ### Subtitle
+            Content
+        """
+        lines = []
+        for line in text.split('\n'):
+            if line.strip().startswith('#'):
+                # Count leading '#' characters
+                heading_level = len(line) - len(line.lstrip('#'))
+                # Adjust the heading level by adding base_level - 1
+                new_level = heading_level + (base_level - 1)
+                # Replace the original heading markers with the new level
+                lines.append('#' * new_level + line[heading_level:])
+            else:
+                lines.append(line)
+        return '\n'.join(lines)
 
-# Demonstrating validation
-try:
-    tree.construct_tree(["continent", "country", "invalid_key"])
-except ValueError as e:
-    print(f"\nValidation Error: {e}")
+    def report(self, node: Optional[TreeNode] = None, level: int = 1, render: bool = True) -> str:
+        """Generates a markdown document representing the tree structure.
+        
+        Args:
+            node: The current node being processed. Defaults to the root node.
+            level: Current heading level (h1-h6). Defaults to 1.
+            render: Whether to render the markdown in notebooks. Defaults to True.
+            
+        Returns:
+            A string containing the markdown document, or renders markdown in notebooks.            
+        """
+        from edsl.utilities.utilities import is_notebook
+        from IPython.display import Markdown, display
+        
+        if node is None:
+            node = self.root
+            if node is None:
+                return "Tree has not been constructed yet."
 
-tree = Tree(data)
-tree.construct_tree(["continent", "country", "city", "population"])
-tree.print_tree(print_keys=True)
-tree.to_docx("tree_structure.docx")
-print("DocX file 'tree_structure.docx' has been created.")
-"""
+        lines = []
+        
+        # Process current node
+        if node != self.root:  # Skip the root node as it has no value
+            if isinstance(node.value, str) and node.value.startswith('#'):
+                # If the value is markdown, adjust its heading levels
+                adjusted_markdown = self._adjust_markdown_levels(node.value, level)
+                lines.append(adjusted_markdown)
+            elif node.children:  # Non-leaf nodes get headings
+                # Ensure we don't exceed h6
+                heading_level = min(level, 6)
+                lines.append(f"{'#' * heading_level} {node.key.title()}: {node.value}")
+            else:  # Leaf nodes get regular text
+                lines.append(f"{node.key.title()}: {node.value}")
+        
+        # Process children in sorted order for consistent output
+        for value in sorted(node.children.keys()):
+            child = node.children[value]
+            lines.append(self.report(child, level + 1, render=False))  # Don't render recursive calls
+        
+        markdown_text = "\n".join(lines)
+        
+        # Only attempt to render at the top level call
+        if node == self.root and render and is_notebook():
+            display(Markdown(markdown_text))
+            return ""  # Return empty string since we've displayed the content
+        
+        return markdown_text
+
+
+if __name__ == "__main__":
+    #tree = Tree.example()
+    #print(tree.to_dict())
+    import doctest 
+    doctest.testmod()

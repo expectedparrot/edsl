@@ -49,6 +49,40 @@ class DictResponseValidator(ResponseValidatorABC):
 
 
 class QuestionDict(QuestionBase):
+    """ A QuestionDict allows you to create questions that expect dictionary responses with specific keys and value types.
+
+    Documenation: https://docs.expectedparrot.com/en/latest/questions.html#questiondict
+    
+    Parameters
+    ----------
+    question_name : str
+        Unique identifier for the question
+    question_text : str
+        The actual question text presented to users
+    answer_keys : List[str]
+        Keys that must be provided in the answer dictionary
+    value_types : Optional[List[Union[str, type]]]
+        Expected data types for each answer key
+    value_descriptions : Optional[List[str]]
+        Human-readable descriptions for each answer key
+    include_comment : bool
+        Whether to allow additional comments with the answer
+    question_presentation : Optional[str]
+        Alternative way to present the question
+    answering_instructions : Optional[str]
+        Additional instructions for answering
+    permissive : bool
+        If True, allows additional keys not specified in answer_keys
+
+    Examples
+    --------
+    >>> q = QuestionDict(
+    ...     question_name="tweet",
+    ...     question_text="Draft a tweet.",
+    ...     answer_keys=["text", "characters"],
+    ...     value_descriptions=["The text of the tweet", "The number of characters in the tweet"]
+    ... )
+    """
     question_type = "dict"
     question_text: str = QuestionTextDescriptor()
     answer_keys: List[str] = AnswerKeysDescriptor()
