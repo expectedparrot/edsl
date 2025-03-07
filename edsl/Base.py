@@ -13,6 +13,11 @@ class PersistenceMixin:
     def duplicate(self, add_edsl_version=False):
         """Return a duplicate of the object."""
         return self.from_dict(self.to_dict(add_edsl_version=False))
+    
+    @classmethod
+    def help(cls):
+        """Return the help for the class."""
+        print(cls.__doc__)
 
     def push(
         self,
@@ -344,44 +349,44 @@ class RepresentationMixin:
         console = Console(record=True)
         console.print(table)
 
-    def help(obj):
-        """
-        Extract all public instance methods and their docstrings from a class instance.
+    # def help(obj):
+    #     """
+    #     Extract all public instance methods and their docstrings from a class instance.
 
-        Args:
-            obj: The instance to inspect
+    #     Args:
+    #         obj: The instance to inspect
 
-        Returns:
-            dict: A dictionary where keys are method names and values are their docstrings
-        """
-        import inspect
+    #     Returns:
+    #         dict: A dictionary where keys are method names and values are their docstrings
+    #     """
+    #     import inspect
 
-        if inspect.isclass(obj):
-            raise TypeError("Please provide a class instance, not a class")
+    #     if inspect.isclass(obj):
+    #         raise TypeError("Please provide a class instance, not a class")
 
-        methods = {}
+    #     methods = {}
 
-        # Get all members of the instance
-        for name, member in inspect.getmembers(obj):
-            # Skip private and special methods (those starting with underscore)
-            if name.startswith("_"):
-                continue
+    #     # Get all members of the instance
+    #     for name, member in inspect.getmembers(obj):
+    #         # Skip private and special methods (those starting with underscore)
+    #         if name.startswith("_"):
+    #             continue
 
-            # Check if it's specifically an instance method
-            if inspect.ismethod(member):
-                # Get the docstring (or empty string if none exists)
-                docstring = inspect.getdoc(member) or ""
-                methods[name] = docstring
+    #         # Check if it's specifically an instance method
+    #         if inspect.ismethod(member):
+    #             # Get the docstring (or empty string if none exists)
+    #             docstring = inspect.getdoc(member) or ""
+    #             methods[name] = docstring
 
-        from edsl.results.Dataset import Dataset
+    #     from edsl.results.Dataset import Dataset
 
-        d = Dataset(
-            [
-                {"method": list(methods.keys())},
-                {"documentation": list(methods.values())},
-            ]
-        )
-        return d
+    #     d = Dataset(
+    #         [
+    #             {"method": list(methods.keys())},
+    #             {"documentation": list(methods.values())},
+    #         ]
+    #     )
+    #     return d
 
     def _repr_html_(self):
         from edsl.results.TableDisplay import TableDisplay
@@ -433,6 +438,7 @@ class Base(
     metaclass=RegisterSubclassesMeta,
 ):
     """Base class for all classes in the package."""
+
 
     def keys(self):
         """Return the keys of the object."""

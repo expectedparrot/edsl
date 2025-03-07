@@ -153,5 +153,5 @@ def test_agent_dynamic_traits_answering():
 
     q = QuestionFreeText(question_name="age", question_text="How old are you?")
     m = Model("test")
-    results = q.by(a).run(disable_remote_inference=True, disable_remote_cache=True)
+    results = q.by(m).by(a).run(disable_remote_inference=True, disable_remote_cache=True, stop_on_exception=True)
     assert results.select("answer.age").to_list()
