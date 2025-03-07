@@ -329,29 +329,7 @@ class Tree:
             render: Whether to render the markdown in notebooks. Defaults to True.
             
         Returns:
-            A string containing the markdown document, or renders markdown in notebooks.
-            
-        Examples:
-            >>> tree = Tree.example()
-            >>> print(tree.report(render=False))  # Use render=False for doctest
-            # Continent: North America
-            ## Country: US
-            ### City: New York
-            Population: 8419000
-            ## Country: Canada
-            ### City: Toronto
-            Population: 2930000
-            # Continent: Asia
-            ## Country: China
-            ### City: Beijing
-            Population: 21540000
-            ## Country: Japan
-            ### City: Tokyo
-            Population: 13960000
-            # Continent: Europe
-            ## Country: France
-            ### City: Paris
-            Population: 2161000
+            A string containing the markdown document, or renders markdown in notebooks.            
         """
         from edsl.utilities.utilities import is_notebook
         from IPython.display import Markdown, display
