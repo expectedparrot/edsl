@@ -226,6 +226,10 @@ class FileStore(Scenario):
 
         link = ConstructDownloadLink(self).html_create_link(self.path, style=None)
         return f"{parent_html}<br>{link}"
+    
+    def download_link(self):
+        from edsl.scenarios.ConstructDownloadLink import ConstructDownloadLink
+        return ConstructDownloadLink(self).html_create_link(self.path, style=None)
 
     def encode_file_to_base64_string(self, file_path: str):
         try:

@@ -3,9 +3,12 @@
 import io
 import warnings
 import textwrap
-from typing import Optional, Tuple, Union, List
+from typing import Optional, Tuple, Union, List, TYPE_CHECKING
 
 from edsl.results.file_exports import CSVExport, ExcelExport, JSONLExport, SQLiteExport
+
+if TYPE_CHECKING:
+    from docx import Document
 
 
 class DatasetExportMixin:
@@ -634,7 +637,7 @@ class DatasetExportMixin:
         
         return "\n".join(report_lines)
 
-    def _report_docx(self, field_data, num_obs, fields, header_fields) -> "docx.Document":
+    def _report_docx(self, field_data, num_obs, fields, header_fields) -> "Document":
         """Generates a Word document report from the prepared data.
         
         Args:
@@ -799,8 +802,13 @@ class DatasetExportMixin:
         for value in values:
             if isinstance(value, list):
                 value = tuple(value)
-
-        tally = dict(Counter(values))
+        try:
+            tally = dict(Counter(values))
+        except TypeError:
+            tally = dict(Counter([str(v) for v in values]))
+        except Exception as e:
+            raise ValueError(f"Error tallying values: {e}")
+        
         sorted_tally = dict(sorted(tally.items(), key=lambda item: -item[1]))
         if top_n is not None:
             sorted_tally = dict(list(sorted_tally.items())[:top_n])
