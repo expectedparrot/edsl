@@ -136,9 +136,6 @@ class Tree:
             suffix="docx",
             base64_string=base64_string,
         )
-        # doc.save(filename)
-        # from edsl.utilities.utilities import file_notice
-        # file_notice(filename)
 
     def _repr_html_(self):
         """Returns an interactive HTML representation of the tree with collapsible sections."""
@@ -207,40 +204,6 @@ class Tree:
         tree_html = node_to_html(self.root)
         return f"{styles}{tree_html}</div>"
 
-    # def _repr_html_(self):
-    #     """Returns an HTML representation of the tree, following the same logic as print_tree."""
-    #     styles = """
-    #     <style>
-    #         .tree-container {
-    #             font-family: monospace;
-    #             white-space: pre;
-    #             margin: 10px;
-    #         }
-    #     </style>
-    #     """
-
-    #     def node_to_html(node, level=0, print_keys=False):
-    #         if node is None:
-    #             node = self.root
-    #             if node is None:
-    #                 return "Tree has not been constructed yet."
-
-    #         html = []
-    #         if node.value is not None:
-    #             indent = "&nbsp;" * 2 * level  # Using &nbsp; for HTML spaces
-    #             if print_keys and node.key is not None:
-    #                 html.append(f"{indent}{node.key}: {node.value}<br>")
-    #             else:
-    #                 html.append(f"{indent}{node.value}<br>")
-
-    #         for child in node.children.values():
-    #             html.append(node_to_html(child, level + 1, print_keys))
-
-    #         return "".join(html)
-
-    #     tree_html = node_to_html(self.root)
-    #     return f'<div class="tree-container">{tree_html}</div>{styles}'
-
     def _add_to_docx(self, doc, node: TreeNode, level: int):
         if node.value is not None:
             if level == 0:
@@ -256,40 +219,56 @@ class Tree:
         for child in node.children.values():
             self._add_to_docx(doc, child, level + 1)
 
+    def to_dict(self, node: Optional[TreeNode] = None) -> dict:
+        """Converts the tree structure into a nested dictionary.
+        
+        Args:
+            node: The current node being processed. Defaults to the root node.
+            
+        Returns:
+            A nested dictionary representing the tree structure.
+        """
+        if node is None:
+            node = self.root
+            if node is None:
+                return {}
 
-# Example usage (commented out)
-"""
-from edsl.results.Dataset import Dataset
+        result = {}
+        for value, child in node.children.items():
+            if child.children:
+                result[value] = self.to_dict(child)
+            else:
+                result[value] = None  # or {} if you prefer empty dict for leaf nodes
+        return result
 
-data = Dataset(
-    [
-        {"continent": ["North America", "Asia", "Europe", "North America", "Asia"]},
-        {"country": ["US", "China", "France", "Canada", "Japan"]},
-        {"city": ["New York", "Beijing", "Paris", "Toronto", "Tokyo"]},
-        {"population": [8419000, 21540000, 2161000, 2930000, 13960000]},
-    ]
-)
+    @classmethod
+    def example(cls) -> "Tree":
+        """Creates an example Tree instance with geographic data.
+        
+        Returns:
+            Tree: A sample tree with continent/country/city/population data
+        
+        Examples:
+            >>> tree = Tree.example()     
+            >>> tree.to_dict()
+            {'North America': {'US': {'New York': {8419000: None}}, 'Canada': {'Toronto': {2930000: None}}}, 'Asia': {'China': {'Beijing': {21540000: None}}, 'Japan': {'Tokyo': {13960000: None}}}, 'Europe': {'France': {'Paris': {2161000: None}}}}
+        """
+        from edsl.results.Dataset import Dataset
+        
+        data = Dataset([
+            {"continent": ["North America", "Asia", "Europe", "North America", "Asia"]},
+            {"country": ["US", "China", "France", "Canada", "Japan"]},
+            {"city": ["New York", "Beijing", "Paris", "Toronto", "Tokyo"]},
+            {"population": [8419000, 21540000, 2161000, 2930000, 13960000]},
+        ])
+        
+        tree = cls(data)
+        tree.construct_tree(["continent", "country", "city", "population"])
+        return tree
 
-tree = Tree(data)
 
-try:
-    tree.construct_tree(["continent", "country", "city", "population"])
-    print("Tree without key names:")
-    tree.print_tree()
-    print("\nTree with key names:")
-    tree.print_tree(print_keys=True)
-except ValueError as e:
-    print(f"Error: {e}")
-
-# Demonstrating validation
-try:
-    tree.construct_tree(["continent", "country", "invalid_key"])
-except ValueError as e:
-    print(f"\nValidation Error: {e}")
-
-tree = Tree(data)
-tree.construct_tree(["continent", "country", "city", "population"])
-tree.print_tree(print_keys=True)
-tree.to_docx("tree_structure.docx")
-print("DocX file 'tree_structure.docx' has been created.")
-"""
+if __name__ == "__main__":
+    #tree = Tree.example()
+    #print(tree.to_dict())
+    import doctest 
+    doctest.testmod()

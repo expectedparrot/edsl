@@ -436,12 +436,14 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
                 new_scenarios.append(new_scenario)
         return ScenarioList(new_scenarios)
 
-    def _concatenate(self, fields: List[str], output_type: str = "string", separator: str = ";") -> ScenarioList:
+    def _concatenate(self, fields: List[str], output_type: str = "string", separator: str = ";", new_field_name: Optional[str] = None) -> ScenarioList:
         """Private method to handle concatenation logic for different output types.
         
         :param fields: The fields to concatenate.
         :param output_type: The type of output ("string", "list", or "set").
         :param separator: The separator to use for string concatenation.
+        :param new_field_name: Optional custom name for the concatenated field.
+                             If None, defaults to "concat_field1_field2_..."
         
         Returns:
             ScenarioList: A new ScenarioList with concatenated fields.
@@ -461,17 +463,17 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
                     values.append(new_scenario[field])
                     del new_scenario[field]
 
-            new_field_name = f"concat_{'_'.join(fields)}"
+            field_name = new_field_name if new_field_name is not None else f"concat_{'_'.join(fields)}"
             
             if output_type == "string":
                 # Convert all values to strings and join with separator
-                new_scenario[new_field_name] = separator.join(str(v) for v in values)
+                new_scenario[field_name] = separator.join(str(v) for v in values)
             elif output_type == "list":
                 # Keep as a list
-                new_scenario[new_field_name] = values
+                new_scenario[field_name] = values
             elif output_type == "set":
                 # Convert to a set (removes duplicates)
-                new_scenario[new_field_name] = set(values)
+                new_scenario[field_name] = set(values)
             else:
                 raise ValueError(f"Invalid output_type: {output_type}. Must be 'string', 'list', or 'set'.")
                 
@@ -479,11 +481,12 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
 
         return ScenarioList(new_scenarios)
 
-    def concatenate(self, fields: List[str], separator: str = ";") -> ScenarioList:
+    def concatenate(self, fields: List[str], separator: str = ";", new_field_name: Optional[str] = None) -> ScenarioList:
         """Concatenate specified fields into a single string field.
 
         :param fields: The fields to concatenate.
         :param separator: The separator to use.
+        :param new_field_name: Optional custom name for the concatenated field.
 
         Returns:
             ScenarioList: A new ScenarioList with concatenated fields.
@@ -492,13 +495,16 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
             >>> s = ScenarioList([Scenario({'a': 1, 'b': 2, 'c': 3}), Scenario({'a': 4, 'b': 5, 'c': 6})])
             >>> s.concatenate(['a', 'b', 'c'])
             ScenarioList([Scenario({'concat_a_b_c': '1;2;3'}), Scenario({'concat_a_b_c': '4;5;6'})])
+            >>> s.concatenate(['a', 'b', 'c'], new_field_name='combined')
+            ScenarioList([Scenario({'combined': '1;2;3'}), Scenario({'combined': '4;5;6'})])
         """
-        return self._concatenate(fields, output_type="string", separator=separator)
+        return self._concatenate(fields, output_type="string", separator=separator, new_field_name=new_field_name)
 
-    def concatenate_to_list(self, fields: List[str]) -> ScenarioList:
+    def concatenate_to_list(self, fields: List[str], new_field_name: Optional[str] = None) -> ScenarioList:
         """Concatenate specified fields into a single list field.
 
         :param fields: The fields to concatenate.
+        :param new_field_name: Optional custom name for the concatenated field.
 
         Returns:
             ScenarioList: A new ScenarioList with fields concatenated into a list.
@@ -507,13 +513,16 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
             >>> s = ScenarioList([Scenario({'a': 1, 'b': 2, 'c': 3}), Scenario({'a': 4, 'b': 5, 'c': 6})])
             >>> s.concatenate_to_list(['a', 'b', 'c'])
             ScenarioList([Scenario({'concat_a_b_c': [1, 2, 3]}), Scenario({'concat_a_b_c': [4, 5, 6]})])
+            >>> s.concatenate_to_list(['a', 'b', 'c'], new_field_name='values')
+            ScenarioList([Scenario({'values': [1, 2, 3]}), Scenario({'values': [4, 5, 6]})])
         """
-        return self._concatenate(fields, output_type="list")
+        return self._concatenate(fields, output_type="list", new_field_name=new_field_name)
 
-    def concatenate_to_set(self, fields: List[str]) -> ScenarioList:
+    def concatenate_to_set(self, fields: List[str], new_field_name: Optional[str] = None) -> ScenarioList:
         """Concatenate specified fields into a single set field.
 
         :param fields: The fields to concatenate.
+        :param new_field_name: Optional custom name for the concatenated field.
 
         Returns:
             ScenarioList: A new ScenarioList with fields concatenated into a set.
@@ -522,11 +531,10 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
             >>> s = ScenarioList([Scenario({'a': 1, 'b': 2, 'c': 3}), Scenario({'a': 4, 'b': 5, 'c': 6})])
             >>> s.concatenate_to_set(['a', 'b', 'c'])
             ScenarioList([Scenario({'concat_a_b_c': {1, 2, 3}}), Scenario({'concat_a_b_c': {4, 5, 6}})])
-            >>> s = ScenarioList([Scenario({'a': 1, 'b': 1, 'c': 3})])
-            >>> s.concatenate_to_set(['a', 'b', 'c'])
-            ScenarioList([Scenario({'concat_a_b_c': {1, 3}})])
+            >>> s.concatenate_to_set(['a', 'b', 'c'], new_field_name='unique_values')
+            ScenarioList([Scenario({'unique_values': {1, 2, 3}}), Scenario({'unique_values': {4, 5, 6}})])
         """
-        return self._concatenate(fields, output_type="set")
+        return self._concatenate(fields, output_type="set", new_field_name=new_field_name)
 
     def unpack_dict(
         self, field: str, prefix: Optional[str] = None, drop_field: bool = False
@@ -1233,12 +1241,18 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
 
     @classmethod
     def from_excel(
-        cls, filename: str, sheet_name: Optional[str] = None
+        cls, filename: str, sheet_name: Optional[str] = None, skip_rows: Optional[List[int]] = None, use_codebook: bool = False
     ) -> ScenarioList:
         """Create a ScenarioList from an Excel file.
 
         If the Excel file contains multiple sheets and no sheet_name is provided,
         the method will print the available sheets and require the user to specify one.
+
+        Args:
+            filename (str): Path to the Excel file
+            sheet_name (Optional[str]): Name of the sheet to load. If None and multiple sheets exist,
+                                      will raise an error listing available sheets.
+            skip_rows (Optional[List[int]]): List of row indices to skip (0-based). If None, all rows are included.
 
         Example:
 
@@ -1247,28 +1261,31 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         >>> import pandas as pd
         >>> with tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx') as f:
         ...     df1 = pd.DataFrame({
-        ...         'name': ['Alice', 'Bob'],
-        ...         'age': [30, 25],
-        ...         'location': ['New York', 'Los Angeles']
+        ...         'name': ['Alice', 'Bob', 'Charlie'],
+        ...         'age': [30, 25, 35],
+        ...         'location': ['New York', 'Los Angeles', 'Chicago']
         ...     })
         ...     df2 = pd.DataFrame({
-        ...         'name': ['Charlie', 'David'],
-        ...         'age': [35, 40],
-        ...         'location': ['Chicago', 'Boston']
+        ...         'name': ['David', 'Eve'],
+        ...         'age': [40, 45],
+        ...         'location': ['Boston', 'Seattle']
         ...     })
         ...     with pd.ExcelWriter(f.name) as writer:
         ...         df1.to_excel(writer, sheet_name='Sheet1', index=False)
         ...         df2.to_excel(writer, sheet_name='Sheet2', index=False)
         ...     temp_filename = f.name
+        >>> # Load all rows
         >>> scenario_list = ScenarioList.from_excel(temp_filename, sheet_name='Sheet1')
+        >>> len(scenario_list)
+        3
+        >>> # Skip the second row (index 1)
+        >>> scenario_list = ScenarioList.from_excel(temp_filename, sheet_name='Sheet1', skip_rows=[1])
         >>> len(scenario_list)
         2
         >>> scenario_list[0]['name']
         'Alice'
-        >>> scenario_list = ScenarioList.from_excel(temp_filename)  # Should raise an error and list sheets
-        Traceback (most recent call last):
-        ...
-        ValueError: Please provide a sheet name to load data from.
+        >>> scenario_list[1]['name']
+        'Charlie'
         """
         from edsl.scenarios.Scenario import Scenario
         import pandas as pd
@@ -1290,11 +1307,28 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         # Load the specified or determined sheet
         df = pd.read_excel(filename, sheet_name=sheet_name)
 
+        # Skip specified rows if any
+        if skip_rows:
+            df = df.drop(skip_rows)
+            # Reset index to ensure continuous indexing
+            df = df.reset_index(drop=True)
+
+        if use_codebook:
+            codebook = {f"col_{i}": col for i, col in enumerate(df.columns)}
+            koobedoc = {col:f"col_{i}" for i, col in enumerate(df.columns)}
+
         observations = []
         for _, row in df.iterrows():
-            observations.append(Scenario(row.to_dict()))
+            if use_codebook:
+                observations.append(Scenario({koobedoc.get(k):v for k,v in row.to_dict().items()}))
+            else:
+                observations.append(Scenario(row.to_dict()))
 
-        return cls(observations)
+
+        if use_codebook:    
+            return cls(observations, codebook=codebook)
+        else:
+            return cls(observations)
 
     @classmethod
     def from_google_sheet(cls, url: str, sheet_name: str = None, column_names: Optional[List[str]]= None) -> ScenarioList:
@@ -1632,12 +1666,14 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
             new_scenarios.extend(replacement_scenarios)
         return ScenarioList(new_scenarios)
 
-    def collapse(self, field: str, separator: Optional[str] = None) -> ScenarioList:
+    def collapse(self, field: str, separator: Optional[str] = None, add_count: bool = False) -> ScenarioList:
         """Collapse a ScenarioList by grouping on all fields except the specified one,
         collecting the values of the specified field into a list.
 
         Args:
             field: The field to collapse (whose values will be collected into lists)
+            separator: Optional string to join the values with instead of keeping as a list
+            add_count: If True, adds a field showing the number of collapsed rows
 
         Returns:
             ScenarioList: A new ScenarioList with the specified field collapsed into lists
@@ -1645,12 +1681,11 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         Example:
         >>> s = ScenarioList([
         ...     Scenario({'category': 'fruit', 'color': 'red', 'item': 'apple'}),
-        ...     Scenario({'category': 'fruit', 'color': 'yellow', 'item': 'banana'}),
         ...     Scenario({'category': 'fruit', 'color': 'red', 'item': 'cherry'}),
         ...     Scenario({'category': 'vegetable', 'color': 'green', 'item': 'spinach'})
         ... ])
-        >>> s.collapse('item')
-        ScenarioList([Scenario({'category': 'fruit', 'color': 'red', 'item': ['apple', 'cherry']}), Scenario({'category': 'fruit', 'color': 'yellow', 'item': ['banana']}), Scenario({'category': 'vegetable', 'color': 'green', 'item': ['spinach']})])
+        >>> s.collapse('item', add_count=True)
+        ScenarioList([Scenario({'category': 'fruit', 'color': 'red', 'item': ['apple', 'cherry'], 'num_collapsed_rows': 2}), Scenario({'category': 'vegetable', 'color': 'green', 'item': ['spinach'], 'num_collapsed_rows': 1})])
         """
         if not self:
             return ScenarioList([])
@@ -1674,6 +1709,8 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
                 new_scenario[field] = separator.join(values)
             else:
                 new_scenario[field] = values
+            if add_count:
+                new_scenario['num_collapsed_rows'] = len(values)
             result.append(Scenario(new_scenario))
         
         return ScenarioList(result)
