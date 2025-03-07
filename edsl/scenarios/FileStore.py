@@ -15,7 +15,6 @@ import time
 from typing import Dict, Any, IO, Optional, List, Union, Literal
 
 
-
 class FileStore(Scenario):
     __documentation__ = "https://docs.expectedparrot.com/en/latest/filestore.html"
 
@@ -342,7 +341,7 @@ class FileStore(Scenario):
         # Create a named temporary file
         mode = "wb" if self.binary else "w"
         temp_file = tempfile.NamedTemporaryFile(
-            delete=False, suffix="." + suffix, mode=mode
+            delete=False, suffix="." + suffix, encoding="utf-8", mode=mode
         )
 
         if self.binary:
