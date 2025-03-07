@@ -3,7 +3,6 @@ import io
 import csv
 import base64
 from typing import Optional, Union, Tuple, List, Any, Dict
-from openpyxl import Workbook
 
 from edsl.scenarios.FileStore import FileStore
 
@@ -121,6 +120,8 @@ class ExcelExport(TabularExport):
         self.sheet_name = sheet_name or "Results"
 
     def format_data(self) -> bytes:
+        from openpyxl import Workbook
+
         wb = Workbook()
         ws = wb.active
         ws.title = self.sheet_name

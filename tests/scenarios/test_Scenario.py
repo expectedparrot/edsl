@@ -46,7 +46,7 @@ class TestScenario(unittest.TestCase):
         url = "http://example.com"
         
         # Act
-        scenario = Scenario.from_url(url, field_name="content")
+        scenario = Scenario.from_url(url, field_name="content", testing=True)
 
         # Assert
         self.assertEqual(scenario["url"], url)

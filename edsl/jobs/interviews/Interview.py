@@ -2,25 +2,27 @@
 
 from __future__ import annotations
 import asyncio
-from typing import Any, Type, List, Generator, Optional, Union, TYPE_CHECKING
+from typing import Any, Type, List, Generator, Optional, TYPE_CHECKING
 import copy
 from dataclasses import dataclass
 
 # from edsl.jobs.Answers import Answers
-from edsl.jobs.data_structures import Answers
-from edsl.jobs.interviews.InterviewStatusLog import InterviewStatusLog
-from edsl.jobs.interviews.InterviewStatusDictionary import InterviewStatusDictionary
-from edsl.jobs.interviews.InterviewExceptionCollection import (
-    InterviewExceptionCollection,
-)
-from edsl.jobs.interviews.InterviewExceptionEntry import InterviewExceptionEntry
-from edsl.jobs.buckets.ModelBuckets import ModelBuckets
-from edsl.jobs.AnswerQuestionFunctionConstructor import (
+from ..data_structures import Answers
+from ..buckets.ModelBuckets import ModelBuckets
+from ..AnswerQuestionFunctionConstructor import (
     AnswerQuestionFunctionConstructor,
 )
-from edsl.jobs.InterviewTaskManager import InterviewTaskManager
-from edsl.jobs.FetchInvigilator import FetchInvigilator
-from edsl.jobs.RequestTokenEstimator import RequestTokenEstimator
+from ..InterviewTaskManager import InterviewTaskManager
+from ..FetchInvigilator import FetchInvigilator
+from ..RequestTokenEstimator import RequestTokenEstimator
+
+
+from .InterviewStatusLog import InterviewStatusLog
+from .InterviewStatusDictionary import InterviewStatusDictionary
+from .InterviewExceptionCollection import (
+    InterviewExceptionCollection,
+)
+from .InterviewExceptionEntry import InterviewExceptionEntry
 
 
 if TYPE_CHECKING:
@@ -36,6 +38,7 @@ if TYPE_CHECKING:
 
 @dataclass
 class InterviewRunningConfig:
+    """Configuration for an interview."""
     cache: Optional["Cache"] = (None,)
     skip_retry: bool = (False,)  # COULD BE SET WITH CONFIG
     raise_validation_errors: bool = (True,)
@@ -68,9 +71,11 @@ class Interview:
         :param survey: the survey being administered to the agent.
         :param scenario: the scenario that populates the survey questions.
         :param model: the language model used to answer the questions.
-        # :param debug: if True, run without calls to the language model.
         :param iteration: the iteration number of the interview.
+        :param indices: the indices of the questions in the survey.
         :param cache: the cache used to store the answers.
+        :param skip_retry: if True, skip the retry of the interview.
+        :param raise_validation_errors: if True, raise validation errors.
 
         >>> i = Interview.example()
         >>> i.task_manager.task_creators
@@ -108,9 +113,10 @@ class Interview:
             raise_validation_errors=raise_validation_errors,
         )
 
-        self.cache = cache
-        self.skip_retry = skip_retry
-        self.raise_validation_errors = raise_validation_errors
+        # Possibly not needed?
+        # self.cache = cache
+        # self.skip_retry = skip_retry
+        # self.raise_validation_errors = raise_validation_errors
 
         # dictionary mapping question names to their index in the survey.
         self.to_index = {
@@ -123,6 +129,32 @@ class Interview:
         self.indices = indices
         self.initial_hash = hash(self)
 
+    @property
+    def cache(self) -> 'Cache':
+        """Return the cache used for the interview."""
+        return self.running_config.cache
+        
+    @cache.setter
+    def cache(self, value: 'Cache') -> None:
+        """Set the cache used for the interview."""
+        self.running_config.cache = value
+    
+    @property
+    def skip_retry(self) -> bool:
+        """Return the skip retry flag."""
+        return self.running_config.skip_retry
+    
+    @property
+    def raise_validation_errors(self) -> bool:
+        """Return the raise validation errors flag."""
+        #raise ValueError("Raise validation errors is not used in the Interview class.")
+        return self.running_config.raise_validation_errors
+    
+    # @property
+    # def running_config(self) -> InterviewRunningConfig:
+    #     """Return the running configuration for the interview."""
+    #     return self.running_config
+    
     @property
     def has_exceptions(self) -> bool:
         """Return True if there are exceptions."""
@@ -144,7 +176,6 @@ class Interview:
     @property
     def interview_status(self) -> InterviewStatusDictionary:
         """Return a dictionary mapping task status codes to counts."""
-        # return self.task_creators.interview_status
         return self.task_manager.interview_status
 
     def to_dict(self, include_exceptions=True, add_edsl_version=True) -> dict[str, Any]:

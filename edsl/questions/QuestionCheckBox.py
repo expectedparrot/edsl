@@ -1,6 +1,6 @@
 from __future__ import annotations
 import random
-from typing import Any, Optional, Union
+from typing import Any, Optional, Union, TYPE_CHECKING
 
 from jinja2 import Template
 
@@ -14,7 +14,11 @@ from edsl.questions.decorators import inject_exception
 
 from pydantic import field_validator
 from edsl.questions.response_validator_abc import ResponseValidatorABC
-from edsl.questions.data_structures import BaseResponse
+
+if TYPE_CHECKING:
+    from edsl.questions.data_structures import (
+        BaseResponse,
+    )
 
 from edsl.exceptions.questions import QuestionAnswerValidationError
 
@@ -164,7 +168,7 @@ class CheckBoxResponseValidator(ResponseValidatorABC):
                 print(f"Proposed solution {proposed_data} is invalid. Error: {e}")
             return response
 
-    def custom_validate(self, response) -> BaseResponse:
+    def custom_validate(self, response) -> 'BaseResponse':
         if response.answer is None:
             raise QuestionAnswerValidationError("Answer is missing.")
         return response.dict()

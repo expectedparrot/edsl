@@ -3,9 +3,12 @@
 import io
 import warnings
 import textwrap
-from typing import Optional, Tuple, Union, List
+from typing import Optional, Tuple, Union, List, TYPE_CHECKING
 
 from edsl.results.file_exports import CSVExport, ExcelExport, JSONLExport, SQLiteExport
+
+if TYPE_CHECKING:
+    from docx import Document
 
 
 class DatasetExportMixin:
@@ -545,42 +548,18 @@ class DatasetExportMixin:
         if return_link:
             return filename
         
-    def report(self, *fields: Optional[str], top_n: Optional[int] = None, 
-               header_fields: Optional[List[str]] = None, divider: bool = True,
-               return_string: bool = False) -> Optional[str]:
-        """Takes the fields in order and returns a report of the results by iterating through rows.
-        The row number is printed as # Observation: <row number>
-        The name of the field is used as markdown header at level "##" 
-        The content of that field is then printed. 
-        Then the next field and so on. 
-        Once that row is done, a new line is printed and the next row is shown.
-        If in a jupyter notebook, the report is displayed as markdown.
+    def _prepare_report_data(self, *fields: Optional[str], top_n: Optional[int] = None, 
+                            header_fields: Optional[List[str]] = None) -> tuple:
+        """Prepares data for report generation in various formats.
         
         Args:
             *fields: The fields to include in the report. If none provided, all fields are used.
             top_n: Optional limit on the number of observations to include.
             header_fields: Optional list of fields to include in the main header instead of as sections.
-            divider: If True, adds a horizontal rule between observations for better visual separation.
-            return_string: If True, returns the markdown string. If False (default in notebooks),
-                          only displays the markdown without returning.
             
         Returns:
-            A string containing the markdown report if return_string is True, otherwise None.
-            
-        Examples:
-            >>> from edsl.results import Results
-            >>> r = Results.example()
-            >>> report = r.select('how_feeling', 'how_feeling_yesterday').report(return_string=True)
-            >>> "# Observation: 1" in report
-            True
-            >>> "## answer.how_feeling" in report
-            True
-            >>> report = r.select('how_feeling').report(header_fields=['answer.how_feeling'], return_string=True)
-            >>> "# Observation: 1 (`how_feeling`: OK)" in report
-            True
+            A tuple containing (field_data, num_obs, fields, header_fields)
         """
-        from edsl.utilities.utilities import is_notebook
-        
         # If no fields specified, use all columns
         if not fields:
             fields = self.relevant_columns()
@@ -607,8 +586,22 @@ class DatasetExportMixin:
         num_obs = self.num_observations()
         if top_n is not None:
             num_obs = min(num_obs, top_n)
+            
+        return field_data, num_obs, fields, header_fields
+
+    def _report_markdown(self, field_data, num_obs, fields, header_fields, divider: bool = True) -> str:
+        """Generates a markdown report from the prepared data.
         
-        # Build the report
+        Args:
+            field_data: Dictionary mapping field names to their values
+            num_obs: Number of observations to include
+            fields: Fields to include as sections
+            header_fields: Fields to include in the observation header
+            divider: If True, adds a horizontal rule between observations
+            
+        Returns:
+            A string containing the markdown report
+        """
         report_lines = []
         for i in range(num_obs):
             # Create header with observation number and any header fields
@@ -642,18 +635,132 @@ class DatasetExportMixin:
             else:
                 report_lines.append("")  # Empty line between observations
         
-        report_text = "\n".join(report_lines)
+        return "\n".join(report_lines)
+
+    def _report_docx(self, field_data, num_obs, fields, header_fields) -> "Document":
+        """Generates a Word document report from the prepared data.
         
-        # In notebooks, display as markdown and optionally return
-        is_nb = is_notebook()
-        if is_nb:
-            from IPython.display import Markdown, display
-            display(Markdown(report_text))
+        Args:
+            field_data: Dictionary mapping field names to their values
+            num_obs: Number of observations to include
+            fields: Fields to include as sections
+            header_fields: Fields to include in the observation header
+            
+        Returns:
+            A docx.Document object containing the report
+        """
+        try:
+            from docx import Document
+            from docx.shared import Pt
+            import json
+        except ImportError:
+            raise ImportError("The python-docx package is required for DOCX export. Install it with 'pip install python-docx'.")
         
-        # Return the string if requested or if not in a notebook
-        if return_string or not is_nb:
+        doc = Document()
+        
+        for i in range(num_obs):
+            # Create header with observation number and any header fields
+            header_text = f"Observation: {i+1}"
+            if header_fields:
+                header_parts = []
+                for field in header_fields:
+                    value = field_data[field][i]
+                    # Get the field name without prefix for cleaner display
+                    display_name = field.split('.')[-1] if '.' in field else field
+                    header_parts.append(f"{display_name}: {value}")
+                if header_parts:
+                    header_text += f" ({', '.join(header_parts)})"
+            
+            heading = doc.add_heading(header_text, level=1)
+            
+            # Add the remaining fields
+            for field in fields:
+                if field not in header_fields:
+                    doc.add_heading(field, level=2)
+                    value = field_data[field][i]
+                    
+                    if isinstance(value, (list, dict)):
+                        # Format structured data with indentation
+                        formatted_value = json.dumps(value, indent=2)
+                        p = doc.add_paragraph()
+                        p.add_run(formatted_value).font.name = 'Courier New'
+                        p.add_run().font.size = Pt(10)
+                    else:
+                        doc.add_paragraph(str(value))
+            
+            # Add page break between observations except for the last one
+            if i < num_obs - 1:
+                doc.add_page_break()
+        
+        return doc
+        
+    def report(self, *fields: Optional[str], top_n: Optional[int] = None, 
+               header_fields: Optional[List[str]] = None, divider: bool = True,
+               return_string: bool = False, format: str = "markdown",
+               filename: Optional[str] = None) -> Optional[Union[str, "docx.Document"]]:
+        """Generates a report of the results by iterating through rows.
+        
+        Args:
+            *fields: The fields to include in the report. If none provided, all fields are used.
+            top_n: Optional limit on the number of observations to include.
+            header_fields: Optional list of fields to include in the main header instead of as sections.
+            divider: If True, adds a horizontal rule between observations (markdown only).
+            return_string: If True, returns the markdown string. If False (default in notebooks),
+                          only displays the markdown without returning.
+            format: Output format - either "markdown" or "docx".
+            filename: If provided and format is "docx", saves the document to this file.
+            
+        Returns:
+            Depending on format and return_string:
+            - For markdown: A string if return_string is True, otherwise None (displays in notebook)
+            - For docx: A docx.Document object, or None if filename is provided (saves to file)
+            
+        Examples:
+            >>> from edsl.results import Results
+            >>> r = Results.example()
+            >>> report = r.select('how_feeling').report(return_string=True)
+            >>> "# Observation: 1" in report
+            True
+            >>> doc = r.select('how_feeling').report(format="docx")
+            >>> isinstance(doc, object)
+            True
+        """
+        from edsl.utilities.utilities import is_notebook
+        
+        # Prepare the data for the report
+        field_data, num_obs, fields, header_fields = self._prepare_report_data(
+            *fields, top_n=top_n, header_fields=header_fields
+        )
+        
+        # Generate the report in the requested format
+        if format.lower() == "markdown":
+            report_text = self._report_markdown(
+                field_data, num_obs, fields, header_fields, divider
+            )
+            
+            # In notebooks, display as markdown
+            is_nb = is_notebook()
+            if is_nb and not return_string:
+                from IPython.display import Markdown, display
+                display(Markdown(report_text))
+                return None
+            
+            # Return the string if requested or if not in a notebook
             return report_text
-        return None
+            
+        elif format.lower() == "docx":
+            doc = self._report_docx(field_data, num_obs, fields, header_fields)
+            
+            # Save to file if filename is provided
+            if filename:
+                doc.save(filename)
+                print(f"Report saved to {filename}")
+                return None
+                
+            return doc
+            
+        else:
+            raise ValueError(f"Unsupported format: {format}. Use 'markdown' or 'docx'.")
 
     def tally(
         self, *fields: Optional[str], top_n: Optional[int] = None, output="Dataset"
@@ -695,8 +802,13 @@ class DatasetExportMixin:
         for value in values:
             if isinstance(value, list):
                 value = tuple(value)
-
-        tally = dict(Counter(values))
+        try:
+            tally = dict(Counter(values))
+        except TypeError:
+            tally = dict(Counter([str(v) for v in values]))
+        except Exception as e:
+            raise ValueError(f"Error tallying values: {e}")
+        
         sorted_tally = dict(sorted(tally.items(), key=lambda item: -item[1]))
         if top_n is not None:
             sorted_tally = dict(list(sorted_tally.items())[:top_n])

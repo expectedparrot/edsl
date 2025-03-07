@@ -15,7 +15,6 @@ import time
 from typing import Dict, Any, IO, Optional, List, Union, Literal
 
 
-
 class FileStore(Scenario):
     __documentation__ = "https://docs.expectedparrot.com/en/latest/filestore.html"
 
@@ -226,6 +225,10 @@ class FileStore(Scenario):
 
         link = ConstructDownloadLink(self).html_create_link(self.path, style=None)
         return f"{parent_html}<br>{link}"
+    
+    def download_link(self):
+        from edsl.scenarios.ConstructDownloadLink import ConstructDownloadLink
+        return ConstructDownloadLink(self).html_create_link(self.path, style=None)
 
     def encode_file_to_base64_string(self, file_path: str):
         try:
@@ -342,7 +345,7 @@ class FileStore(Scenario):
         # Create a named temporary file
         mode = "wb" if self.binary else "w"
         temp_file = tempfile.NamedTemporaryFile(
-            delete=False, suffix="." + suffix, mode=mode
+            delete=False, suffix="." + suffix, encoding="utf-8", mode=mode
         )
 
         if self.binary:
