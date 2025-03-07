@@ -59,7 +59,7 @@ class PlaceholderGeneratedTokens(BasePlaceholder):
 
 class PromptConstructor:
     """
-    This class constructs the prompts for the language model.
+    This class constructs the prompts---user and system---for the language model.
 
     The pieces of a prompt are:
     - The agent instructions - "You are answering questions as if you were a human. Do not break character."
@@ -103,6 +103,8 @@ class PromptConstructor:
         self.current_answers = current_answers
         self.memory_plan = memory_plan
         self.prompt_plan = prompt_plan or PromptPlan()
+
+        self.captured_variables = {}
 
     def get_question_options(self, question_data: dict) -> list[str]:
         """Get the question options."""
@@ -186,6 +188,8 @@ class PromptConstructor:
     @staticmethod
     def _augmented_answers_dict(current_answers: dict) -> dict:
         """
+        Creates a nested dictionary of the current answers to question dictionaries; those question dictionaries have the answer, comment, and generated_tokens as keys.
+
         >>> PromptConstructor._augmented_answers_dict({"q0": "LOVE IT!", "q0_comment": "I love school!"})
         {'q0': {'answer': 'LOVE IT!', 'comment': 'I love school!'}}
         """
@@ -204,6 +208,8 @@ class PromptConstructor:
         answer_dict: dict, current_answers: dict
     ) -> dict[str, "QuestionBase"]:
         """
+        Adds the current answers to the answer dictionary.
+
         >>> from edsl import QuestionFreeText
         >>> d = {"q0": QuestionFreeText(question_text="Do you like school?", question_name = "q0")}
         >>> current_answers = {"q0": "LOVE IT!"}
@@ -246,9 +252,13 @@ class PromptConstructor:
         from edsl.agents.QuestionInstructionPromptBuilder import (
             QuestionInstructionPromptBuilder,
         )
-
-        return QuestionInstructionPromptBuilder.from_prompt_constructor(self).build()
-
+        qipb = QuestionInstructionPromptBuilder.from_prompt_constructor(self)
+        prompt = qipb.build()
+        if prompt.captured_variables:
+            self.captured_variables.update(prompt.captured_variables)
+            
+        return prompt
+    
     @cached_property
     def prior_question_memory_prompt(self) -> Prompt:
         memory_prompt = Prompt(text="")
@@ -293,7 +303,7 @@ class PromptConstructor:
             "prior_question_memory": prior_question_memory.text,
         }        
         # Get arranged components first
-        arranged = self.prompt_plan.arrange_components(**components)
+        #arranged = self.prompt_plan.arrange_components(**components)
         
         prompts = self.prompt_plan.get_prompts(**components)
         
@@ -303,14 +313,12 @@ class PromptConstructor:
             for key in self.question_file_keys:
                 files_list.append(self.scenario[key])
             prompts["files_list"] = files_list
-        
+    
         return prompts
-
-
-# def _process_prompt(args):
-#     """Helper function to process a single prompt list with its replacements."""
-#     prompt_list, replacements = args
-#     return prompt_list.reduce()
+    
+    def get_captured_variables(self) -> dict:
+        """Get the captured variables."""
+        return self.captured_variables
 
 
 if __name__ == '__main__':

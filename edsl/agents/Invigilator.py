@@ -23,6 +23,10 @@ class InvigilatorAI(InvigilatorBase):
     def get_prompts(self) -> Dict[PromptType, "Prompt"]:
         """Return the prompts used."""
         return self.prompt_constructor.get_prompts()
+    
+    def get_captured_variables(self) -> dict:
+        """Get the captured variables."""
+        return self.prompt_constructor.get_captured_variables()
 
     async def async_get_agent_response(self) -> AgentResponseDict:
         prompts = self.get_prompts()
@@ -249,7 +253,7 @@ class InvigilatorHuman(InvigilatorBase):
 
 
 class InvigilatorFunctional(InvigilatorBase):
-    """A Invigilator for when the question has a answer_question_directly function."""
+    """A Invigilator for when the question has an answer_question_directly function."""
 
     async def async_answer_question(self, iteration: int = 0) -> AgentResponseDict:
         """Return the answer to the question."""

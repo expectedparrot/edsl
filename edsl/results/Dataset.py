@@ -105,6 +105,12 @@ class Dataset(UserList, ResultsExportMixin, PersistenceMixin, HashingMixin):
 
     def filter(self, expression):
         return self.to_scenario_list().filter(expression).to_dataset()
+    
+    def mutate(self, new_var_string: str, functions_dict: Optional[dict[str, Callable]] = None) -> "Dataset":
+        return self.to_scenario_list().mutate(new_var_string, functions_dict).to_dataset()
+    
+    def collapse(self, field:str, separator: Optional[str] = None) -> "Dataset":
+        return self.to_scenario_list().collapse(field, separator).to_dataset()
 
     def long(self, exclude_fields: list[str] = None) -> Dataset:
         headers, data = self._tabular()
@@ -491,8 +497,10 @@ class Dataset(UserList, ResultsExportMixin, PersistenceMixin, HashingMixin):
 
         >>> d = Dataset([{'a':[1,2,3,4]}, {'b':[4,3,2,1]}])
         >>> d.tree()
-        Tree(Dataset({'a': [1, 2, 3, 4], 'b': [4, 3, 2, 1]}))
+        Tree(Dataset({'a': [1, 2, 3, 4], 'b': [4, 3, 2, 1]}), node_order=['a', 'b'])
         """
+        if node_order is None:
+            node_order = self.keys()
         return Tree(self, node_order=node_order)
 
     def table(
