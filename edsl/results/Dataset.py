@@ -497,7 +497,7 @@ class Dataset(UserList, ResultsExportMixin, PersistenceMixin, HashingMixin):
 
         >>> d = Dataset([{'a':[1,2,3,4]}, {'b':[4,3,2,1]}])
         >>> d.tree()
-        Tree(Dataset({'a': [1, 2, 3, 4], 'b': [4, 3, 2, 1]}))
+        Tree(Dataset({'a': [1, 2, 3, 4], 'b': [4, 3, 2, 1]}), node_order=['a', 'b'])
         """
         if node_order is None:
             node_order = self.keys()
