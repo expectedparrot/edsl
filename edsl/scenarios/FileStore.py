@@ -343,10 +343,15 @@ class FileStore(Scenario):
             file_like_object = self.base64_to_text_file(self.base64_string)
 
         # Create a named temporary file
-        mode = "wb" if self.binary else "w"
-        temp_file = tempfile.NamedTemporaryFile(
-            delete=False, suffix="." + suffix, encoding="utf-8", mode=mode
-        )
+        # We need different parameters for binary vs text mode
+        if self.binary:
+            temp_file = tempfile.NamedTemporaryFile(
+                delete=False, suffix="." + suffix, mode="wb"
+            )
+        else:
+            temp_file = tempfile.NamedTemporaryFile(
+                delete=False, suffix="." + suffix, encoding="utf-8", mode="w"
+            )
 
         if self.binary:
             temp_file.write(file_like_object.read())
