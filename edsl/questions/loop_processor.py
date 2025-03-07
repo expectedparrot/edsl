@@ -124,27 +124,36 @@ class LoopProcessor:
             >>> p._render_template("{{item.missing}}", {"item": {"price": 9.99}})
             '{{ item.missing }}'
         """
-
-        class PreserveUndefined(Undefined):
-            def __str__(self):
-                # Preserve the full dotted path for undefined variables
-                return f"{{{{ {self._undefined_name} }}}}"
-
-            def __getattr__(self, name):
-                # Return a new instance with the updated path
-                return PreserveUndefined(name=f"{self._undefined_name}.{name}")
-
-        # Create environment that keeps undefined variables
-        template_env = Environment(undefined=PreserveUndefined)
-
-        # Create the template
-        jinja_template = template_env.from_string(template)
-
-        try:
-            return jinja_template.render(scenario)
-        except:
-            # If rendering fails, return the original template
-            return template
+        import re
+        
+        # Regular expression to find Jinja2 variables in the template
+        pattern = r'(?P<open>\{\{\s*)(?P<var>[a-zA-Z0-9_.]+)(?P<close>\s*\}\})'
+        
+        def replace_var(match):
+            var_name = match.group('var')
+            open_brace = match.group('open')
+            close_brace = match.group('close')
+            
+            # Try to evaluate the variable in the context
+            try:
+                # Handle nested attributes (like item.price)
+                parts = var_name.split('.')
+                value = scenario
+                for part in parts:
+                    if part in value:
+                        value = value[part]
+                    else:
+                        # If any part doesn't exist, return the original with spacing
+                        return f"{{ {var_name} }}".replace("{", "{{").replace("}", "}}")
+                # Return the rendered value if successful
+                return str(value)
+            except (KeyError, TypeError):
+                # Return the original variable name with the expected spacing
+                return f"{{ {var_name} }}".replace("{", "{{").replace("}", "}}")
+                
+        # Replace all variables in the template
+        result = re.sub(pattern, replace_var, template)
+        return result
 
     def _process_list(self, items: List[Any], scenario: Dict[str, Any]) -> List[Any]:
         """Process all items in a list.
