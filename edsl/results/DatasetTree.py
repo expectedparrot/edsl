@@ -219,27 +219,46 @@ class Tree:
         for child in node.children.values():
             self._add_to_docx(doc, child, level + 1)
 
-    def to_dict(self, node: Optional[TreeNode] = None) -> dict:
-        """Converts the tree structure into a nested dictionary.
+    def to_dict(self, node: Optional[TreeNode] = None) -> tuple[dict, list[str]]:
+        """Converts the tree structure into a nested dictionary and returns the schema.
         
         Args:
             node: The current node being processed. Defaults to the root node.
             
         Returns:
-            A nested dictionary representing the tree structure.
+            A tuple of (nested_dict, schema) where:
+                - nested_dict: The hierarchical data structure
+                - schema: List of keys in order of hierarchy
+            
+        Examples:
+            >>> tree = Tree.example()
+            >>> result, schema = tree.to_dict()
+            >>> print(schema)  # Shows the hierarchy of the data
+            ['continent', 'country', 'city', 'population']
+            >>> # Access a leaf node value (note: numbers are converted to strings)
+            >>> print(result['North America']['US']['New York']['8419000'] is None)
+            True
+            >>> # Verify the structure is correct
+            >>> print(sorted(result['North America'].keys()))
+            ['Canada', 'US']
         """
         if node is None:
             node = self.root
             if node is None:
-                return {}
+                return {}, []
 
         result = {}
         for value, child in node.children.items():
             if child.children:
-                result[value] = self.to_dict(child)
+                nested_dict, _ = self.to_dict(child)  # Always unpack tuple, ignore schema except at root
+                result[value] = nested_dict
             else:
-                result[value] = None  # or {} if you prefer empty dict for leaf nodes
-        return result
+                result[value] = None
+
+        # Only return the schema with the root call
+        if node == self.root:
+            return result, self.node_order if self.node_order else []
+        return result, []  # Return empty schema for non-root nodes
 
     @classmethod
     def example(cls) -> "Tree":
@@ -249,9 +268,13 @@ class Tree:
             Tree: A sample tree with continent/country/city/population data
         
         Examples:
-            >>> tree = Tree.example()     
-            >>> tree.to_dict()
-            {'North America': {'US': {'New York': {8419000: None}}, 'Canada': {'Toronto': {2930000: None}}}, 'Asia': {'China': {'Beijing': {21540000: None}}, 'Japan': {'Tokyo': {13960000: None}}}, 'Europe': {'France': {'Paris': {2161000: None}}}}
+            >>> tree = Tree.example()
+            >>> result, schema = tree.to_dict()
+            >>> print(schema)
+            ['continent', 'country', 'city', 'population']
+            >>> # Verify the structure is correct
+            >>> print(sorted(result['North America'].keys()))
+            ['Canada', 'US']
         """
         from edsl.results.Dataset import Dataset
         
@@ -259,12 +282,113 @@ class Tree:
             {"continent": ["North America", "Asia", "Europe", "North America", "Asia"]},
             {"country": ["US", "China", "France", "Canada", "Japan"]},
             {"city": ["New York", "Beijing", "Paris", "Toronto", "Tokyo"]},
-            {"population": [8419000, 21540000, 2161000, 2930000, 13960000]},
+            {"population": ["8419000", "21540000", "2161000", "2930000", "13960000"]},  # Convert to strings
         ])
         
-        tree = cls(data)
-        tree.construct_tree(["continent", "country", "city", "population"])
+        node_order = ["continent", "country", "city", "population"]
+        tree = cls(data, node_order=node_order)  # Explicitly pass node_order
         return tree
+
+    @staticmethod
+    def _adjust_markdown_levels(text: str, base_level: int) -> str:
+        """Adjusts markdown heading levels by adding or removing '#' characters.
+        
+        Args:
+            text: The markdown text to adjust
+            base_level: The level to adjust headings to (e.g., 2 means h2)
+            
+        Returns:
+            Adjusted markdown text with updated heading levels
+            
+        Examples:
+            >>> text = "# Title\\n## Subtitle\\nContent"
+            >>> print(Tree._adjust_markdown_levels(text, 2))
+            ## Title
+            ### Subtitle
+            Content
+        """
+        lines = []
+        for line in text.split('\n'):
+            if line.strip().startswith('#'):
+                # Count leading '#' characters
+                heading_level = len(line) - len(line.lstrip('#'))
+                # Adjust the heading level by adding base_level - 1
+                new_level = heading_level + (base_level - 1)
+                # Replace the original heading markers with the new level
+                lines.append('#' * new_level + line[heading_level:])
+            else:
+                lines.append(line)
+        return '\n'.join(lines)
+
+    def report(self, node: Optional[TreeNode] = None, level: int = 1, render: bool = True) -> str:
+        """Generates a markdown document representing the tree structure.
+        
+        Args:
+            node: The current node being processed. Defaults to the root node.
+            level: Current heading level (h1-h6). Defaults to 1.
+            render: Whether to render the markdown in notebooks. Defaults to True.
+            
+        Returns:
+            A string containing the markdown document, or renders markdown in notebooks.
+            
+        Examples:
+            >>> tree = Tree.example()
+            >>> print(tree.report(render=False))  # Use render=False for doctest
+            # Continent: North America
+            ## Country: US
+            ### City: New York
+            Population: 8419000
+            ## Country: Canada
+            ### City: Toronto
+            Population: 2930000
+            # Continent: Asia
+            ## Country: China
+            ### City: Beijing
+            Population: 21540000
+            ## Country: Japan
+            ### City: Tokyo
+            Population: 13960000
+            # Continent: Europe
+            ## Country: France
+            ### City: Paris
+            Population: 2161000
+        """
+        from edsl.utilities.utilities import is_notebook
+        from IPython.display import Markdown, display
+        
+        if node is None:
+            node = self.root
+            if node is None:
+                return "Tree has not been constructed yet."
+
+        lines = []
+        
+        # Process current node
+        if node != self.root:  # Skip the root node as it has no value
+            if isinstance(node.value, str) and node.value.startswith('#'):
+                # If the value is markdown, adjust its heading levels
+                adjusted_markdown = self._adjust_markdown_levels(node.value, level)
+                lines.append(adjusted_markdown)
+            elif node.children:  # Non-leaf nodes get headings
+                # Ensure we don't exceed h6
+                heading_level = min(level, 6)
+                lines.append(f"{'#' * heading_level} {node.key.title()}: {node.value}")
+            else:  # Leaf nodes get regular text
+                lines.append(f"{node.key.title()}: {node.value}")
+        
+        # Process children in sorted order for consistent output
+        for value in sorted(node.children.keys()):
+            child = node.children[value]
+            lines.append(self.report(child, level + 1, render=False))  # Don't render recursive calls
+        
+        markdown_text = "\n".join(lines)
+        
+        # Only attempt to render at the top level call
+        if node == self.root and render and is_notebook():
+            display(Markdown(markdown_text))
+            return ""  # Return empty string since we've displayed the content
+        
+        return markdown_text
 
 
 if __name__ == "__main__":
