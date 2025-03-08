@@ -1,7 +1,13 @@
 """A survey has a memory plan that specifies what the agent should remember when answering a question."""
 
+from typing import TYPE_CHECKING
 from collections import UserDict, defaultdict
 from typing import Optional
+
+if TYPE_CHECKING:
+    from edsl.surveys import Survey
+    from edsl.prompts.Prompt import Prompt
+    from edsl.surveys.DAG import DAG
 
 # from edsl.surveys.Memory import Memory
 # from edsl.prompts.Prompt import Prompt
@@ -123,7 +129,7 @@ class MemoryPlan(UserDict):
         self._check_valid_question_name(focal_question)
         self._check_valid_question_name(prior_question)
         self._check_order(focal_question, prior_question)
-        from edsl.surveys.Memory import Memory
+        from .memory import Memory
 
         if focal_question not in self:
             memory = Memory()
@@ -163,7 +169,7 @@ class MemoryPlan(UserDict):
     @classmethod
     def from_dict(cls, data) -> "MemoryPlan":
         """Deserialize a memory plan from a dictionary."""
-        from edsl.surveys.Memory import Memory
+        from .memory import Memory
 
         newdata = {}
         for question_name, memory in data["data"].items():
@@ -205,7 +211,7 @@ class MemoryPlan(UserDict):
     @classmethod
     def example(cls):
         """Return an example memory plan."""
-        from edsl import Survey
+        from edsl.surveys import Survey
 
         mp = cls(survey=Survey.example())
         mp.add_single_memory("q1", "q0")

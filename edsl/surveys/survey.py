@@ -45,16 +45,15 @@ from .instructions.ChangeInstruction import ChangeInstruction
 
 from .base import EndOfSurvey
 from .descriptors import QuestionsDescriptor
-from .MemoryPlan import MemoryPlan
+from .memory import MemoryPlan
 from .SurveyExportMixin import SurveyExportMixin
 from .SurveyFlowVisualization import SurveyFlowVisualization
 from .instructions.InstructionHandler import InstructionHandler
-from .EditSurvey import EditSurvey
+from .edit_survey import EditSurvey
 from .Simulator import Simulator
-from .MemoryManagement import MemoryManagement
+from .memory import MemoryManagement
 
-from .rules.rule_manager import RuleManager
-from .rules.rule_collection import RuleCollection
+from .rules import RuleManager, RuleCollection
 
 class PseudoIndices(UserDict):
     """A dictionary of pseudo-indices for the survey.

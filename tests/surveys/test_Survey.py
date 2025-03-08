@@ -68,7 +68,7 @@ class TestSurvey(unittest.TestCase):
             survey.add_targeted_memory("favorite_subject", "like_school")
 
     def test_full_memory(self):
-        from edsl.surveys.Memory import Memory
+        from edsl.surveys.memory import Memory
 
         survey = self.gen_survey()
         survey.set_full_memory_mode()

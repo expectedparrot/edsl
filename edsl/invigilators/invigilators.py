@@ -22,7 +22,7 @@ if TYPE_CHECKING:
     from edsl.data.Cache import Cache
     from edsl.questions.QuestionBase import QuestionBase
     from edsl.scenarios import Scenario
-    from edsl.surveys.MemoryPlan import MemoryPlan
+    from edsl.surveys.memory import MemoryPlan
     from edsl.language_models.LanguageModel import LanguageModel
     from edsl.surveys import Survey
     from edsl.agents import Agent
@@ -120,13 +120,13 @@ class InvigilatorBase(ABC):
 
     @classmethod
     def from_dict(cls, data) -> "InvigilatorBase":
-        from edsl.agents import Agent
-        from edsl.questions import QuestionBase
-        from edsl.scenarios import Scenario
-        from edsl.surveys.MemoryPlan import MemoryPlan
-        from edsl.language_models.LanguageModel import LanguageModel
-        from edsl.surveys import Survey
-        from edsl.data.Cache import Cache
+        from ..agents import Agent
+        from ..questions import QuestionBase
+        from ..scenarios import Scenario
+        from ..surveys.memory import MemoryPlan
+        from ..language_models.LanguageModel import LanguageModel
+        from ..surveys import Survey
+        from ..data.Cache import Cache
 
         attributes_to_classes = {
             "agent": Agent,
@@ -227,7 +227,7 @@ class InvigilatorBase(ABC):
         """
         from edsl.agents import Agent
         from edsl.scenarios import Scenario
-        from edsl.surveys.MemoryPlan import MemoryPlan
+        from edsl.surveys.memory import MemoryPlan
         from edsl.language_models.model import Model
         from edsl.surveys import Survey
 
