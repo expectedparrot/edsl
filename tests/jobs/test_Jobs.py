@@ -43,8 +43,8 @@ def valid_job():
 def test_jobs_simple_stuf(valid_job):
     # simple stuff
     # assert valid_job.survey.name == "Test Survey"
-    from edsl.surveys.RuleCollection import RuleCollection
-    from edsl.surveys.Rule import Rule
+    from edsl.surveys.rules import RuleCollection
+    from edsl.surveys.rules import Rule
 
     assert valid_job.agents[0].traits == {"trait1": "value1"}
     # assert valid_job.models[0].model == "gpt-4-1106-preview"

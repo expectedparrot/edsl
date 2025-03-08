@@ -29,12 +29,11 @@ from edsl.exceptions.surveys import SurveyError
 
 from edsl.exceptions.surveys import (
     SurveyRuleCannotEvaluateError,
-    SurveyRuleCollectionHasNoRulesAtNodeError,
     SurveyRuleRefersToFutureStateError,
-    SurveyRuleReferenceInRuleToUnknownQuestionError,
     SurveyRuleSendsYouBackwardsError,
     SurveyRuleSkipLogicSyntaxError,
 )
+
 from edsl.surveys.base import EndOfSurvey
 from edsl.utilities.ast_utilities import extract_variable_names
 from edsl.utilities.remove_edsl_version import remove_edsl_version
@@ -106,8 +105,6 @@ class Rule:
                 f"The expression {self.expression} is not valid Python syntax."
             )
 
-        # get the names of the variables in the expression
-        # e.g., q1 == 'yes' -> ['q1']
         extracted_question_names = extract_variable_names(self.ast_tree)
 
         # make sure all the variables in the expression are known questions
@@ -115,11 +112,6 @@ class Rule:
             assert all([q in question_name_to_index for q in extracted_question_names])
         except AssertionError:
             pass
-            # import warnings
-            # warnings.warn(f"There is an extracted field in the expression that is not a known question. It could be a scenario variable. That's fine! But it also could be a typo or mistake.")
-            # print(f"Question name to index: {question_name_to_index}")
-            # print(f"Extracted question names: {extracted_question_names}")
-            # raise SurveyRuleReferenceInRuleToUnknownQuestionError
 
         # get the indices of the questions mentioned in the expression
         self.named_questions_by_index = [
@@ -281,13 +273,6 @@ class Rule:
                     jinja_dict[key_type][key_name] = value
                 to_evaluate = template_expression.render(jinja_dict)
             else:
-                #breakpoint()
-                # import warnings
-                # import textwrap
-                # warnings.warn(textwrap.dedent("""\
-                # The expression is not a Jinja2 template with {{ }}. This is not recommended.
-                # You can re-write your expression say "q1 == 'yes'" as "{{ q1 }} == 'yes'".
-                # """))
                 to_evaluate = expression
                 for var, value in current_info.items():
                     to_evaluate = to_evaluate.replace(var, value)
