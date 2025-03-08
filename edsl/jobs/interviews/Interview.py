@@ -6,17 +6,17 @@ from typing import Any, Type, List, Generator, Optional, TYPE_CHECKING
 import copy
 from dataclasses import dataclass
 
-# from jobs
+# from jobs module 
 from ..data_structures import Answers
 from ..buckets.ModelBuckets import ModelBuckets
-from ..AnswerQuestionFunctionConstructor import (
+from ..FetchInvigilator import FetchInvigilator
+
+# from interviews module 
+from .AnswerQuestionFunctionConstructor import (
     AnswerQuestionFunctionConstructor,
 )
-from ..InterviewTaskManager import InterviewTaskManager
-from ..FetchInvigilator import FetchInvigilator
-from ..RequestTokenEstimator import RequestTokenEstimator
-
-
+from .InterviewTaskManager import InterviewTaskManager
+from .RequestTokenEstimator import RequestTokenEstimator
 from .InterviewStatusLog import InterviewStatusLog
 from .InterviewStatusDictionary import InterviewStatusDictionary
 from .InterviewExceptionCollection import (
