@@ -4,9 +4,9 @@ from __future__ import annotations
 import json
 from typing import Dict, List, Optional, Union
 from uuid import uuid4
-from edsl.Base import Base
-from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
 
+from edsl.base import Base
+from edsl.utilities.decorators import remove_edsl_version
 
 class Notebook(Base):
     """
@@ -251,13 +251,12 @@ class Notebook(Base):
 
         :param filename: Name of the output folder and main tex file (without extension)
         """
-        from edsl.notebooks.NotebookToLaTeX import NotebookToLaTeX
+        from .NotebookToLaTeX import NotebookToLaTeX
 
         NotebookToLaTeX(self).convert(filename)
 
 
 if __name__ == "__main__":
     from edsl import Notebook
-
     notebook = Notebook.example()
     assert notebook == notebook.from_dict(notebook.to_dict())

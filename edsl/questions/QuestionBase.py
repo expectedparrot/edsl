@@ -1,17 +1,16 @@
 """This module contains the Question class, which is the base class for all questions in EDSL."""
 
 from __future__ import annotations
-from abc import ABC, abstractmethod
+from abc import ABC
 from typing import Any, Type, Optional, List, Callable, Union, TypedDict, TYPE_CHECKING
 
 from edsl.exceptions.questions import (
     QuestionSerializationError,
 )
-from edsl.questions.descriptors import QuestionNameDescriptor, QuestionTextDescriptor
-
-from edsl.questions.answer_validator_mixin import AnswerValidatorMixin
-from edsl.questions.register_questions_meta import RegisterQuestionsMeta
-from edsl.Base import PersistenceMixin, RepresentationMixin
+from .descriptors import QuestionNameDescriptor, QuestionTextDescriptor
+from .answer_validator_mixin import AnswerValidatorMixin
+from .register_questions_meta import RegisterQuestionsMeta
+from edsl.base import PersistenceMixin, RepresentationMixin
 from edsl.BaseDiff import BaseDiff, BaseDiffCollection
 
 from edsl.questions.SimpleAskMixin import SimpleAskMixin

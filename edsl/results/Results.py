@@ -11,7 +11,7 @@ from typing import Optional, Callable, Any, Type, Union, List, TYPE_CHECKING
 
 from bisect import bisect_left
 
-from edsl.Base import Base
+from edsl.base import Base
 from edsl.exceptions.results import (
     ResultsError,
     ResultsBadMutationstringError,

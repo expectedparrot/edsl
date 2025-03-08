@@ -2,16 +2,15 @@ from __future__ import annotations
 from typing import Any, List, Union, Dict, Optional
 from pathlib import Path
 import time
-# from jinja2 import Undefined
+from functools import lru_cache
 
 
 from edsl.exceptions.prompts import TemplateRenderError
-from edsl.Base import PersistenceMixin, RepresentationMixin
+from edsl.base import PersistenceMixin, RepresentationMixin
 
 MAX_NESTING = 100
 
 from jinja2 import Environment, meta, TemplateSyntaxError, Undefined
-from functools import lru_cache
 
 class PreserveUndefined(Undefined):
     def __str__(self):
@@ -353,18 +352,6 @@ class Prompt(PersistenceMixin, RepresentationMixin):
         # class_name = data["class_name"]
         return Prompt(text=data["text"])
 
-    # def rich_print(self):
-    #     """Display an object as a table."""
-    #     table = Table(title="Prompt")
-    #     table.add_column("Attribute", style="bold")
-    #     table.add_column("Value")
-
-    #     to_display = self.__dict__.copy()
-    #     for attr_name, attr_value in to_display.items():
-    #         table.add_row(attr_name, repr(attr_value))
-    #     table.add_row("Component type", str(self.component_type))
-    #     table.add_row("Model", str(getattr(self, "model", "Not specified")))
-    #     return table
 
     @classmethod
     def example(cls):

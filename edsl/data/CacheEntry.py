@@ -5,10 +5,7 @@ import hashlib
 from typing import Optional
 from uuid import uuid4
 
-from edsl.utilities.decorators import remove_edsl_version
-
-from edsl.Base import RepresentationMixin
-
+from edsl.base import RepresentationMixin
 
 class CacheEntry(RepresentationMixin):
     """

@@ -8,8 +8,7 @@ from edsl.language_models.key_management.KeyLookup import KeyLookup
 from edsl.jobs.runners.JobsRunnerStatus import JobsRunnerStatus
 
 VisibilityType = Literal["private", "public", "unlisted"]
-from edsl.Base import Base
-
+from edsl.base import Base
 
 @dataclass
 class RunEnvironment:

@@ -35,17 +35,17 @@ from simpleeval import EvalWithCompoundTypes, NameNotDefined  # type: ignore
 
 from tabulate import tabulate_formats
 
-from edsl.Base import Base
+from edsl.base import Base
 from edsl.utilities.remove_edsl_version import remove_edsl_version
-
-from edsl.scenarios.Scenario import Scenario
-from edsl.scenarios.ScenarioListPdfMixin import ScenarioListPdfMixin
-from edsl.scenarios.ScenarioListExportMixin import ScenarioListExportMixin
 from edsl.utilities.naming_utilities import sanitize_string
 from edsl.utilities.is_valid_variable_name import is_valid_variable_name
 from edsl.exceptions.scenarios import ScenarioError
 
-from edsl.scenarios.directory_scanner import DirectoryScanner
+from .Scenario import Scenario
+from .ScenarioListPdfMixin import ScenarioListPdfMixin
+from .ScenarioListExportMixin import ScenarioListExportMixin
+from .directory_scanner import DirectoryScanner
+
 
 
 class ScenarioListMixin(ScenarioListPdfMixin, ScenarioListExportMixin):

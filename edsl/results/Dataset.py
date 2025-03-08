@@ -7,15 +7,13 @@ import random
 from collections import UserList
 from typing import Any, Union, Optional
 
-from edsl.results.ResultsExportMixin import ResultsExportMixin
-from edsl.results.DatasetTree import Tree
-from edsl.results.TableDisplay import TableDisplay
-from edsl.Base import PersistenceMixin, HashingMixin
+from edsl.base import PersistenceMixin, HashingMixin
 
-
-from edsl.results.smart_objects import FirstObject
-
-from edsl.results.ResultsGGMixin import GGPlotMethod
+from .ResultsExportMixin import ResultsExportMixin
+from .DatasetTree import Tree
+from .TableDisplay import TableDisplay
+from .smart_objects import FirstObject
+from .ResultsGGMixin import GGPlotMethod
 
 class Dataset(UserList, ResultsExportMixin, PersistenceMixin, HashingMixin):
     """A class to represent a dataset of observations."""

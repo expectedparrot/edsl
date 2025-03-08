@@ -1,8 +1,9 @@
 from typing import List, Optional
 from io import BytesIO
 import base64
-from edsl.jobs.tasks.task_status_enum import TaskStatus
-from edsl.Base import RepresentationMixin
+
+from .task_status_enum import TaskStatus
+from edsl.base import RepresentationMixin
 
 
 class TaskHistory(RepresentationMixin):
@@ -34,10 +35,8 @@ class TaskHistory(RepresentationMixin):
         }
         self.max_interviews = max_interviews
 
-        # self.total_interviews = interviews
         self.include_traceback = include_traceback
 
-        # self._interviews = {index: i for index, i in enumerate(self.total_interviews)}
         self.max_interviews = max_interviews
 
     def add_interview(self, interview: "Interview"):
@@ -341,27 +340,6 @@ class TaskHistory(RepresentationMixin):
             )
         }
         return sorted_exceptions_by_question_name
-
-    # @property
-    # def exceptions_by_model(self) -> dict:
-    #     """Return a dictionary of exceptions tallied by model and question name."""
-    #     exceptions_by_model = {}
-    #     for interview in self.total_interviews:
-    #         model = interview.model.model
-    #         service = interview.model._inference_service_
-    #         if (service, model) not in exceptions_by_model:
-    #             exceptions_by_model[(service, model)] = 0
-    #         if interview.exceptions != {}:
-    #             exceptions_by_model[(service, model)] += len(interview.exceptions)
-
-    #     # sort the exceptions by model
-    #     sorted_exceptions_by_model = {
-    #         k: v
-    #         for k, v in sorted(
-    #             exceptions_by_model.items(), key=lambda item: item[1], reverse=True
-    #         )
-    #     }
-    #     return sorted_exceptions_by_model
 
     @property
     def exceptions_by_model(self) -> dict:

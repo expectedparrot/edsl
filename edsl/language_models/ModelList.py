@@ -1,10 +1,10 @@
 from typing import Optional, List, TYPE_CHECKING
 from collections import UserList
 
-from edsl.Base import Base
+from edsl.base import Base
 from edsl.language_models.model import Model
 
-#
+
 from edsl.utilities.remove_edsl_version import remove_edsl_version
 from edsl.utilities.is_valid_variable_name import is_valid_variable_name
 
