@@ -191,6 +191,8 @@ class QuestionRank(QuestionBase):
         self, answer_codes, scenario: Scenario = None
     ) -> list[str]:
         """Translate the answer code to the actual answer."""
+        from jinja2 import Template
+        
         scenario = scenario or Scenario()
         translated_options = [
             Template(option).render(scenario) for option in self.question_options

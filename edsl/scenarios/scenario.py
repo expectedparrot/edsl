@@ -219,7 +219,7 @@ class Scenario(Base, UserDict, ScenarioHtmlMixin):
         {'food': 'wood chips'}
 
         """
-        from edsl.scenarios.FileStore import FileStore
+        from edsl.scenarios import FileStore
 
         d = self.data.copy()
         for key, value in d.items():
@@ -365,7 +365,7 @@ class Scenario(Base, UserDict, ScenarioHtmlMixin):
         Scenario({'file': FileStore(path='...', ...)})
 
         """
-        from edsl.scenarios.FileStore import FileStore
+        from edsl.scenarios import FileStore
 
         fs = FileStore(file_path)
         return cls({field_name: fs})
@@ -432,7 +432,7 @@ class Scenario(Base, UserDict, ScenarioHtmlMixin):
                 image_path = os.path.join(output_folder, f"page_{i}.{image_format}")
                 image.save(image_path, image_format.upper())
 
-                from edsl import FileStore
+                from edsl.scenarios import FileStore
                 scenario_dict[f"page_{i}"] = FileStore(image_path)
 
             scenario = Scenario(scenario_dict)
@@ -526,7 +526,7 @@ class Scenario(Base, UserDict, ScenarioHtmlMixin):
         >>> Scenario.from_dict({"food": "wood chips"})
         Scenario({'food': 'wood chips'})
         """
-        from edsl.scenarios.FileStore import FileStore
+        from edsl.scenarios import FileStore
 
         for key, value in d.items():
             # TODO: we should check this better if its a FileStore + add remote security check against path traversal

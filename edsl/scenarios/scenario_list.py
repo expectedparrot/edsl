@@ -1287,7 +1287,7 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         >>> scenario_list[1]['name']
         'Charlie'
         """
-        from edsl.scenarios.Scenario import Scenario
+        from edsl.scenarios import Scenario
         import pandas as pd
 
         # Get all sheets
@@ -1396,7 +1396,7 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
     ) -> ScenarioList:
         """Create a ScenarioList from a delimited file (CSV/TSV) or URL."""
         import requests
-        from edsl.scenarios.Scenario import Scenario
+        from edsl.scenarios import Scenario
         from urllib.parse import urlparse
         from urllib.parse import ParseResult
 
@@ -1521,7 +1521,7 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
     @remove_edsl_version
     def from_dict(cls, data) -> ScenarioList:
         """Create a `ScenarioList` from a dictionary."""
-        from edsl.scenarios.Scenario import Scenario
+        from edsl.scenarios import Scenario
 
         return cls([Scenario.from_dict(s) for s in data["scenarios"]])
 

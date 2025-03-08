@@ -35,8 +35,7 @@ if TYPE_CHECKING:
     from edsl.agents import Agent
     from edsl.agents import AgentList
     from edsl.language_models.LanguageModel import LanguageModel
-    from edsl.scenarios.Scenario import Scenario
-    from edsl.scenarios.ScenarioList import ScenarioList
+    from edsl.scenarios.Scenario import Scenario, ScenarioList
     from edsl.surveys.Survey import Survey
     from edsl.results.Results import Results
     from edsl.results.Dataset import Dataset
@@ -241,7 +240,7 @@ class Jobs(Base):
 
     @scenarios.setter
     def scenarios(self, value):
-        from edsl.scenarios.ScenarioList import ScenarioList
+        from edsl.scenarios import ScenarioList
         from edsl.results.Dataset import Dataset
 
         if value:
@@ -362,7 +361,7 @@ class Jobs(Base):
     def replace_missing_objects(self) -> None:
         from edsl.agents import Agent
         from edsl.language_models.model import Model
-        from edsl.scenarios.Scenario import Scenario
+        from edsl.scenarios import Scenario
 
         self.agents = self.agents or [Agent()]
         self.models = self.models or [Model()]
@@ -746,7 +745,7 @@ class Jobs(Base):
         from edsl.surveys.Survey import Survey
         from edsl.agents import Agent
         from edsl.language_models.LanguageModel import LanguageModel
-        from edsl.scenarios.Scenario import Scenario
+        from edsl.scenarios import Scenario
 
         return cls(
             survey=Survey.from_dict(data["survey"]),
@@ -786,7 +785,7 @@ class Jobs(Base):
         from uuid import uuid4
         from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
         from edsl.agents import Agent
-        from edsl.scenarios.Scenario import Scenario
+        from edsl.scenarios import Scenario
 
         addition = "" if not randomize else str(uuid4())
 
@@ -833,7 +832,7 @@ class Jobs(Base):
             question_name="how_feeling_yesterday",
         )
         from edsl.surveys.Survey import Survey
-        from edsl.scenarios.ScenarioList import ScenarioList
+        from edsl.scenarios import ScenarioList
 
         base_survey = Survey(questions=[q1, q2])
 

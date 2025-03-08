@@ -7,14 +7,7 @@ from io import StringIO, BytesIO
 from unittest.mock import patch, MagicMock
 from edsl.scenarios import Scenario
 
-from edsl.scenarios.FileStore import (
-    FileStore,
-    CSVFileStore,
-    PDFFileStore,
-    PNGFileStore,
-    SQLiteFileStore,
-    HTMLFileStore,
-)
+from edsl.scenarios import FileStore
 
 from edsl.scenarios.file_methods import FileMethods
 
