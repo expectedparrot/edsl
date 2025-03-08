@@ -8,7 +8,7 @@ import pytest
 from edsl.surveys.Memory import Memory
 from edsl.language_models.LanguageModel import LanguageModel
 from edsl.enums import InferenceServiceType
-from edsl.surveys.Survey import Survey
+from edsl.surveys import Survey
 from edsl.questions import QuestionFreeText
 from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
 from edsl.questions.derived.QuestionYesNo import QuestionYesNo

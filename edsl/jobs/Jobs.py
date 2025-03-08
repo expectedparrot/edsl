@@ -744,7 +744,7 @@ class Jobs(Base):
     @remove_edsl_version
     def from_dict(cls, data: dict) -> Jobs:
         """Creates a Jobs instance from a dictionary."""
-        from edsl.surveys.Survey import Survey
+        from edsl.surveys import Survey
         from edsl.agents import Agent
         from edsl.language_models.LanguageModel import LanguageModel
         from edsl.scenarios import Scenario
@@ -833,7 +833,7 @@ class Jobs(Base):
             question_options=["Good", "Great", "OK", "Terrible"],
             question_name="how_feeling_yesterday",
         )
-        from edsl.surveys.Survey import Survey
+        from edsl.surveys import Survey
         from edsl.scenarios import ScenarioList
 
         base_survey = Survey(questions=[q1, q2])

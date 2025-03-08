@@ -436,7 +436,7 @@ class QuestionBase(
         >>> Q.example().to_survey().questions[0].question_name
         'how_are_you'
         """
-        from edsl.surveys.Survey import Survey
+        from edsl.surveys import Survey
 
         return Survey([self])
 
@@ -460,7 +460,7 @@ class QuestionBase(
 
     def by(self, *args) -> "Jobs":
         """Turn a single question into a survey and then a Job."""
-        from edsl.surveys.Survey import Survey
+        from edsl.surveys import Survey
 
         s = Survey([self])
         return s.by(*args)
