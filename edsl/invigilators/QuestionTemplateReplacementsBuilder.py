@@ -1,11 +1,11 @@
 from jinja2 import Environment, meta, TemplateSyntaxError
 from typing import Any, Set, TYPE_CHECKING
+from edsl.agents import Agent
 
 if TYPE_CHECKING:
     from edsl.agents.PromptConstructor import PromptConstructor
     from edsl.scenarios.Scenario import Scenario
     from edsl.questions.QuestionBase import QuestionBase
-    from edsl.agents.Agent import Agent
 
 
 class QuestionTemplateReplacementsBuilder:

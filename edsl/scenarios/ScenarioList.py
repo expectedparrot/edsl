@@ -1608,7 +1608,7 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         AgentList([Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5}), Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5})])
         """
         from edsl.agents.AgentList import AgentList
-        from edsl.agents.Agent import Agent
+        from edsl.agents import Agent
         import warnings
 
         agents = []

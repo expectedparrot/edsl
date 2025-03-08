@@ -1,4 +1,5 @@
 from typing import Callable
+from edsl.agents import Agent
 
 
 class Simulator:

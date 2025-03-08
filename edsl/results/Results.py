@@ -692,7 +692,7 @@ class Results(UserList, Mixins, Base):
         >>> r.agents
         AgentList([Agent(traits = {'status': 'Joyful'}), Agent(traits = {'status': 'Joyful'}), Agent(traits = {'status': 'Sad'}), Agent(traits = {'status': 'Sad'})])
         """
-        from edsl.agents.AgentList import AgentList
+        from edsl.agents import AgentList
 
         return AgentList([r.agent for r in self.data])
 

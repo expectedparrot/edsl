@@ -6,9 +6,10 @@ from typing import Any, Type, Callable, Optional, TYPE_CHECKING, Union
 
 from edsl.base import Base
 from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
+from edsl.agents import Agent
 
 if TYPE_CHECKING:
-    from edsl.agents.Agent import Agent
+    from edsl.agents import Agent
     from edsl.scenarios.Scenario import Scenario
     from edsl.language_models.LanguageModel import LanguageModel
     from edsl.prompts.Prompt import Prompt
@@ -393,7 +394,7 @@ class Result(Base, UserDict):
     def from_dict(self, json_dict: dict) -> Result:
         """Return a Result object from a dictionary representation."""
 
-        from edsl.agents.Agent import Agent
+        from edsl.agents import Agent
         from edsl.scenarios.Scenario import Scenario
         from edsl.language_models.LanguageModel import LanguageModel
         from edsl.prompts.Prompt import Prompt

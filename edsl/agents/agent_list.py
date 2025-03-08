@@ -17,6 +17,7 @@ from edsl.exceptions.agents import AgentListError
 from edsl.utilities.is_notebook import is_notebook
 from edsl.results.ResultsExportMixin import ResultsExportMixin
 import logging
+from edsl.agents import Agent
 
 logger = logging.getLogger(__name__)
 
