@@ -12,7 +12,7 @@ if TYPE_CHECKING:
     from edsl.scenarios import Scenario
     from edsl.surveys.MemoryPlan import MemoryPlan
     from edsl.language_models.LanguageModel import LanguageModel
-    from edsl.surveys.Survey import Survey
+    from edsl.surveys import Survey
     from edsl.agents import Agent
     from edsl.language_models.key_management.KeyLookup import KeyLookup
 
@@ -111,7 +111,7 @@ class InvigilatorBase(ABC):
         from edsl.scenarios import Scenario
         from edsl.surveys.MemoryPlan import MemoryPlan
         from edsl.language_models.LanguageModel import LanguageModel
-        from edsl.surveys.Survey import Survey
+        from edsl.surveys import Survey
         from edsl.data.Cache import Cache
 
         attributes_to_classes = {
@@ -215,7 +215,7 @@ class InvigilatorBase(ABC):
         from edsl.scenarios import Scenario
         from edsl.surveys.MemoryPlan import MemoryPlan
         from edsl.language_models.model import Model
-        from edsl.surveys.Survey import Survey
+        from edsl.surveys import Survey
 
         model = Model("test", canned_response="SPAM!")
 

@@ -1,10 +1,10 @@
 import asyncio
 from typing import Any, Optional, List
 from edsl.enums import InferenceServiceType
+from edsl.surveys import Survey
 
 
 def create_survey(num_questions: int, chained: bool = True, take_scenario=False):
-    from edsl.surveys.Survey import Survey
     from edsl.questions.QuestionFreeText import QuestionFreeText
 
     survey = Survey()

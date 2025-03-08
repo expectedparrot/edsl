@@ -22,7 +22,7 @@ A = TypeVar("A", bound="Agent")
 
 if TYPE_CHECKING:
     from edsl.data.Cache import Cache
-    from edsl.surveys.Survey import Survey
+    from edsl.surveys import Survey
     from edsl.scenarios import Scenario
     from edsl.language_models import LanguageModel
     from edsl.surveys.MemoryPlan import MemoryPlan

@@ -14,6 +14,7 @@ from .DatasetTree import Tree
 from .TableDisplay import TableDisplay
 from .smart_objects import FirstObject
 from .ResultsGGMixin import GGPlotMethod
+from edsl.surveys import Survey
 
 class Dataset(UserList, ResultsExportMixin, PersistenceMixin, HashingMixin):
     """A class to represent a dataset of observations."""

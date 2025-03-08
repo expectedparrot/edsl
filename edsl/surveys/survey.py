@@ -1,8 +1,10 @@
-"""A Survey is collection of questions that can be administered to an Agent."""
+"""A Survey is collection of questions that can be administered to an Agent or a Human"""
 
 from __future__ import annotations
 import re
 import random
+from collections import UserDict
+from uuid import uuid4
 
 from typing import (
     Any,
@@ -14,49 +16,17 @@ from typing import (
     Callable,
     TYPE_CHECKING,
 )
-from uuid import uuid4
 from edsl.base import Base
 from edsl.exceptions.surveys import SurveyCreationError, SurveyHasNoRulesError
 from edsl.exceptions.surveys import SurveyError
-from collections import UserDict
 
 from edsl.agents import Agent
 from edsl.scenarios import Scenario
 
-class PseudoIndices(UserDict):
-    @property
-    def max_pseudo_index(self) -> float:
-        """Return the maximum pseudo index in the survey.
-        >>> Survey.example()._pseudo_indices.max_pseudo_index
-        2
-        """
-        if len(self) == 0:
-            return -1
-        return max(self.values())
-
-    @property
-    def last_item_was_instruction(self) -> bool:
-        """Return whether the last item added to the survey was an instruction.
-
-        This is used to determine the pseudo-index of the next item added to the survey.
-
-        Example:
-
-        >>> s = Survey.example()
-        >>> s._pseudo_indices.last_item_was_instruction
-        False
-        >>> from edsl.surveys.instructions.Instruction import Instruction
-        >>> s = s.add_instruction(Instruction(text="Pay attention to the following questions.", name="intro"))
-        >>> s._pseudo_indices.last_item_was_instruction
-        True
-        """
-        return isinstance(self.max_pseudo_index, float)
-
-
 if TYPE_CHECKING:
     from edsl.questions.QuestionBase import QuestionBase
-    from edsl.agents.Agent import Agent
-    from edsl.surveys.DAG import DAG
+    from edsl.agents import Agent
+    from .DAG import DAG
     from edsl.language_models.LanguageModel import LanguageModel
     from edsl.data.Cache import Cache
 
@@ -87,6 +57,41 @@ from .EditSurvey import EditSurvey
 from .Simulator import Simulator
 from .MemoryManagement import MemoryManagement
 from .RuleManager import RuleManager
+
+
+class PseudoIndices(UserDict):
+    """A dictionary of pseudo-indices for the survey.
+
+    This is used to deal with Instructions and ChangeInstructions in the survey which are not questions.
+    """
+    @property
+    def max_pseudo_index(self) -> float:
+        """Return the maximum pseudo index in the survey.
+        >>> Survey.example()._pseudo_indices.max_pseudo_index
+        2
+        """
+        if len(self) == 0:
+            return -1
+        return max(self.values())
+
+    @property
+    def last_item_was_instruction(self) -> bool:
+        """Return whether the last item added to the survey was an instruction.
+
+        This is used to determine the pseudo-index of the next item added to the survey.
+
+        Example:
+
+        >>> s = Survey.example()
+        >>> s._pseudo_indices.last_item_was_instruction
+        False
+        >>> from edsl.surveys.instructions.Instruction import Instruction
+        >>> s = s.add_instruction(Instruction(text="Pay attention to the following questions.", name="intro"))
+        >>> s._pseudo_indices.last_item_was_instruction
+        True
+        """
+        return isinstance(self.max_pseudo_index, float)
+
 
 class Survey(SurveyExportMixin, Base):
     """A collection of questions that supports skip logic."""
@@ -209,7 +214,6 @@ class Survey(SurveyExportMixin, Base):
         self._pseudo_indices = PseudoIndices(components.pseudo_indices)
         return components.true_questions
 
-    # region: Survey instruction handling
     @property
     def _relevant_instructions_dict(self) -> InstructionCollection:
         """Return a dictionary with keys as question names and values as instructions that are relevant to the question."""
@@ -245,7 +249,6 @@ class Survey(SurveyExportMixin, Base):
         """
         return EditSurvey(self).add_instruction(instruction)
 
-    # endregion
     @classmethod
     def random_survey(cls):
         return Simulator.random_survey()
@@ -254,9 +257,6 @@ class Survey(SurveyExportMixin, Base):
         """Simulate the survey and return the answers."""
         return Simulator(self).simulate()
 
-    # endregion
-
-    # region: Access methods
     def _get_question_index(
         self, q: Union[QuestionBase, str, EndOfSurvey.__class__]
     ) -> Union[int, EndOfSurvey.__class__]:
@@ -289,8 +289,7 @@ class Survey(SurveyExportMixin, Base):
             return self.question_name_to_index[question_name]
 
     def _get_question_by_name(self, question_name: str) -> QuestionBase:
-        """
-        Return the question object given the question name.
+        """Return the question object given the question name.
 
         :param question_name: The name of the question to get.
 
@@ -330,9 +329,6 @@ class Survey(SurveyExportMixin, Base):
         """
         return {q.question_name: i for i, q in enumerate(self.questions)}
 
-    # endregion
-
-    # region: serialization methods
     def to_dict(self, add_edsl_version=True) -> dict[str, Any]:
         """Serialize the Survey object to a dictionary.
 
@@ -420,9 +416,6 @@ class Survey(SurveyExportMixin, Base):
         )
         return survey
 
-    # endregion
-
-    # region: Survey template parameters
     @property
     def scenario_attributes(self) -> list[str]:
         """Return a list of attributes that admissible Scenarios should have.
@@ -472,11 +465,6 @@ class Survey(SurveyExportMixin, Base):
         """
         return {q.question_name: q.parameters for q in self.questions}
 
-    # endregion
-
-    # region: Survey construction
-
-    # region: Adding questions and combining surveys
     def __add__(self, other: Survey) -> Survey:
         """Combine two surveys.
 
@@ -570,9 +558,6 @@ class Survey(SurveyExportMixin, Base):
             questions_and_instructions, key=lambda x: self._pseudo_indices[x.name]
         )
 
-    # endregion
-
-    # region: Memory plan methods
     def set_full_memory_mode(self) -> Survey:
         """Add instructions to a survey that the agent should remember all of the answers to the questions in the survey.
 
@@ -647,7 +632,6 @@ class Survey(SurveyExportMixin, Base):
             focal_question, prior_questions
         )
 
-    # region: Question groups
     def add_question_group(
         self,
         start_question: Union[QuestionBase, str],
@@ -732,9 +716,6 @@ class Survey(SurveyExportMixin, Base):
         self.question_groups[group_name] = (start_index, end_index)
         return self
 
-    # endregion
-
-    # region: Survey rules
     def show_rules(self) -> None:
         """Print out the rules in the survey.
 
@@ -841,9 +822,6 @@ class Survey(SurveyExportMixin, Base):
             question, expression, next_question, before_rule=before_rule
         )
 
-    # endregion
-
-    # region: Forward methods
     def by(self, *args: Union["Agent", "Scenario", "LanguageModel"]) -> "Jobs":
         """Add Agents, Scenarios, and LanguageModels to a survey and returns a runnable Jobs object.
 
@@ -873,9 +851,6 @@ class Survey(SurveyExportMixin, Base):
         """Show the prompts for the survey."""
         return self.to_jobs().show_prompts()
 
-    # endregion
-
-    # region: Running the survey
 
     def __call__(
         self,
@@ -982,7 +957,6 @@ class Survey(SurveyExportMixin, Base):
         """
         return Survey.from_dict(self.to_dict())
 
-    # region: Survey flow
     def next_question(
         self,
         current_question: Optional[Union[str, QuestionBase]] = None,
@@ -1070,11 +1044,9 @@ class Survey(SurveyExportMixin, Base):
         while not question == EndOfSurvey:
             answer = yield question
             self.answers.update(answer)
-            # print(f"Answers: {self.answers}")
             ## TODO: This should also include survey and agent attributes
             question = self.next_question(question, self.answers)
 
-    # endregion
 
     def dag(self, textify: bool = False) -> DAG:
         """Return the DAG of the survey, which reflects both skip-logic and memory.
@@ -1118,19 +1090,6 @@ class Survey(SurveyExportMixin, Base):
         elif isinstance(index, str):
             return getattr(self, index)
 
-    # def _diff(self, other):
-    #     """Used for debugging. Print out the differences between two surveys."""
-    #     from rich import print
-
-    #     for key, value in self.to_dict().items():
-    #         if value != other.to_dict()[key]:
-    #             print(f"Key: {key}")
-    #             print("\n")
-    #             print(f"Self: {value}")
-    #             print("\n")
-    #             print(f"Other: {other.to_dict()[key]}")
-    #             print("\n\n")
-
     def __repr__(self) -> str:
         """Return a string representation of the survey."""
 
@@ -1150,8 +1109,6 @@ class Survey(SurveyExportMixin, Base):
 
     def table(self, *fields, tablefmt=None) -> Table:
         return self.to_scenario_list().to_dataset().table(*fields, tablefmt=tablefmt)
-
-    # endregion
 
     def codebook(self) -> dict[str, str]:
         """Create a codebook for the survey, mapping question names to question text.
@@ -1227,12 +1184,12 @@ class Survey(SurveyExportMixin, Base):
 
             model = Model()
 
-        from edsl.scenarios.Scenario import Scenario
+        from edsl.scenarios import Scenario
 
         s = Scenario(kwargs)
 
         if not agent:
-            from edsl.agents.Agent import Agent
+            from edsl.agents import Agent
 
             agent = Agent()
 

@@ -23,7 +23,7 @@ from edsl.exceptions.results import (
 )
 
 if TYPE_CHECKING:
-    from edsl.surveys.Survey import Survey
+    from edsl.surveys import Survey
     from edsl.data.Cache import Cache
     from edsl.agents import AgentList
     from edsl.language_models.model import Model
@@ -575,7 +575,7 @@ class Results(UserList, Mixins, Base):
         >>> r == r2
         True
         """
-        from edsl.surveys.Survey import Survey
+        from edsl.surveys import Survey
         from edsl.data.Cache import Cache
         from edsl.results.Result import Result
         from edsl.jobs.tasks.TaskHistory import TaskHistory

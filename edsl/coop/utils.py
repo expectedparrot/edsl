@@ -7,7 +7,7 @@ from edsl.language_models.ModelList import ModelList
 from edsl.notebooks.Notebook import Notebook
 from edsl.results.Results import Results
 from edsl.scenarios import Scenario, ScenarioList
-from edsl.surveys.Survey import Survey
+from edsl.surveys import Survey
 from edsl.study.Study import Study
 
 from edsl.language_models.LanguageModel import LanguageModel

@@ -14,7 +14,7 @@ from edsl.data.CacheEntry import CacheEntry
 
 if TYPE_CHECKING:
     from edsl.jobs.Jobs import Jobs
-    from edsl.surveys.Survey import Survey
+    from edsl.surveys import Survey
 
 from edsl.exceptions.coop import (
     CoopInvalidURLError,
@@ -986,7 +986,7 @@ class Coop(CoopFunctionsMixin):
         {'credits': 0.77, 'usd': 0.0076950000000000005}
         """
         from edsl.jobs.Jobs import Jobs
-        from edsl.surveys.Survey import Survey
+        from edsl.surveys import Survey
 
         if isinstance(input, Jobs):
             job = input

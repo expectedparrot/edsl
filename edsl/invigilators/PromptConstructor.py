@@ -12,12 +12,12 @@ from .QuestionTemplateReplacementsBuilder import (
 )
 from .question_option_processor import QuestionOptionProcessor
 from edsl.scenarios import Scenario
+from edsl.surveys import Survey
 
 if TYPE_CHECKING:
     from .invigilators import InvigilatorBase
     from edsl.questions.QuestionBase import QuestionBase
     from edsl.agents import Agent
-    from edsl.surveys.Survey import Survey
     from edsl.language_models.LanguageModel import LanguageModel
     from edsl.surveys.MemoryPlan import MemoryPlan
     from edsl.questions.QuestionBase import QuestionBase

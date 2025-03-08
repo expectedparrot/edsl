@@ -27,7 +27,7 @@ if TYPE_CHECKING:
     from urllib.parse import ParseResult
     from edsl.results.Dataset import Dataset
     from edsl.jobs.Jobs import Jobs
-    from edsl.surveys.Survey import Survey
+    from edsl.surveys import Survey
     from edsl.questions.QuestionBase import QuestionBase
 
 
@@ -1494,7 +1494,7 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         >>> isinstance(ScenarioList.example().to(Survey.example()), Jobs)
         True
         """
-        from edsl.surveys.Survey import Survey
+        from edsl.surveys import Survey
         from edsl.questions.QuestionBase import QuestionBase
         from edsl.jobs.Jobs import Jobs
 
