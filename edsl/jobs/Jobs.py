@@ -22,6 +22,8 @@ from edsl.exceptions.coop import CoopServerResponseError
 
 from .buckets.BucketCollection import BucketCollection
 from .jobs_pricing_estimation import JobsPrompts
+from .remote_inference import JobsRemoteInferenceHandler
+
 from .jobs_checks import JobsChecks
 from .interviews.Interview import Interview
 from .data_structures import RunEnvironment, RunParameters, RunConfig
@@ -38,7 +40,6 @@ if TYPE_CHECKING:
     from edsl.language_models.ModelList import ModelList
     from edsl.data.Cache import Cache
     from edsl.language_models.key_management.KeyLookup import KeyLookup
-    from edsl.jobs.JobsRemoteInferenceHandler import JobsRemoteInferenceHandler
 
 VisibilityType = Literal["private", "public", "unlisted"]
 
@@ -509,9 +510,7 @@ class Jobs(Base):
         )
         return job_info
 
-    def _create_remote_inference_handler(self) -> JobsRemoteInferenceHandler:
-        from edsl.jobs.JobsRemoteInferenceHandler import JobsRemoteInferenceHandler
-
+    def _create_remote_inference_handler(self) -> 'JobsRemoteInferenceHandler':
         return JobsRemoteInferenceHandler(
             self, verbose=self.run_config.parameters.verbose
         )
@@ -520,8 +519,7 @@ class Jobs(Base):
         self,
         config: RunConfig,
     ) -> Union["Results", None]:
-        from edsl.jobs.JobsRemoteInferenceHandler import JobsRemoteInferenceHandler
-        from edsl.jobs.JobsRemoteInferenceHandler import RemoteJobInfo
+        from .remote_inference import RemoteJobInfo
 
         background = config.parameters.background
 

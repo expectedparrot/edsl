@@ -2,15 +2,19 @@ import aiohttp
 import json
 import requests
 
-from typing import Any, Optional, Union, Literal, TypedDict
+from typing import Any, Optional, Union, Literal, TypedDict, TYPE_CHECKING
 from uuid import UUID
 
 import edsl
 
 from edsl.config import CONFIG
 from edsl.data.CacheEntry import CacheEntry
-from edsl.jobs.Jobs import Jobs
-from edsl.surveys.Survey import Survey
+#from edsl.jobs.Jobs import Jobs
+#from edsl.surveys.Survey import Survey
+
+if TYPE_CHECKING:
+    from edsl.jobs.Jobs import Jobs
+    from edsl.surveys.Survey import Survey
 
 from edsl.exceptions.coop import (
     CoopInvalidURLError,
@@ -27,7 +31,6 @@ from edsl.coop.utils import (
 
 from edsl.coop.CoopFunctionsMixin import CoopFunctionsMixin
 from edsl.coop.ExpectedParrotKeyHandler import ExpectedParrotKeyHandler
-
 from edsl.inference_services.data_structures import ServiceToModelsMapping
 
 
@@ -848,7 +851,7 @@ class Coop(CoopFunctionsMixin):
 
     def remote_inference_create(
         self,
-        job: Jobs,
+        job: 'Jobs',
         description: Optional[str] = None,
         status: RemoteJobStatus = "queued",
         visibility: Optional[VisibilityType] = "unlisted",
@@ -865,6 +868,7 @@ class Coop(CoopFunctionsMixin):
         :param visibility: The visibility of the cache entry.
         :param iterations: The number of times to run each interview.
 
+        >>> from edsl.jobs.Jobs import Jobs
         >>> job = Jobs.example()
         >>> coop.remote_inference_create(job=job, description="My job")
         {'uuid': '9f8484ee-b407-40e4-9652-4133a7236c9c', 'description': 'My job', 'status': 'queued', 'iterations': None, 'visibility': 'unlisted', 'version': '0.1.38.dev1'}
@@ -970,7 +974,7 @@ class Coop(CoopFunctionsMixin):
         return response.json().get("running_jobs", [])
 
     def remote_inference_cost(
-        self, input: Union[Jobs, Survey], iterations: int = 1
+        self, input: Union['Jobs', 'Survey'], iterations: int = 1
     ) -> int:
         """
         Get the cost of a remote inference job.
@@ -981,6 +985,9 @@ class Coop(CoopFunctionsMixin):
         >>> coop.remote_inference_cost(input=job)
         {'credits': 0.77, 'usd': 0.0076950000000000005}
         """
+        from edsl.jobs.Jobs import Jobs
+        from edsl.surveys.Survey import Survey
+
         if isinstance(input, Jobs):
             job = input
         elif isinstance(input, Survey):
@@ -1011,7 +1018,7 @@ class Coop(CoopFunctionsMixin):
     ################
     def create_project(
         self,
-        survey: Survey,
+        survey: 'Survey',
         project_name: str = "Project",
         survey_description: Optional[str] = None,
         survey_alias: Optional[str] = None,
