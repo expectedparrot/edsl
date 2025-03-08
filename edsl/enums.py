@@ -135,7 +135,15 @@ class TokenPricing:
             and self.prompt_token_price == other.prompt_token_price
             and self.completion_token_price == other.completion_token_price
         )
-
+    
+    @classmethod
+    def example(cls) -> "TokenPricing":
+        """Return an example TokenPricing object."""
+        return cls(
+            model_name="fake_model",
+            prompt_token_price_per_k=0.01,
+            completion_token_price_per_k=0.03,
+        )
 
 pricing = {
     "dbrx-instruct": TokenPricing(
