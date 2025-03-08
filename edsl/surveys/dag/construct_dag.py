@@ -1,5 +1,5 @@
-from edsl.surveys.base import EndOfSurvey
-from edsl.surveys.DAG import DAG
+from ..base import EndOfSurvey
+from . import DAG
 from edsl.exceptions.surveys import SurveyError
 
 
