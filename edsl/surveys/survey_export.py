@@ -1,4 +1,4 @@
-"""A mixin class for exporting surveys to different formats."""
+"""A class for exporting surveys to different formats."""
 
 from typing import Union, Optional
 
@@ -24,8 +24,12 @@ def open_docx(file_path):
         subprocess.call(("xdg-open", file_path))
 
 
-class SurveyExportMixin:
-    """A mixin class for exporting surveys to different formats."""
+class SurveyExport:
+    """A class for exporting surveys to different formats."""
+
+    def __init__(self, survey):
+        """Initialize with a Survey object."""
+        self.survey = survey
 
     def css(self):
         from edsl.surveys.SurveyCSS import SurveyCSS
@@ -36,7 +40,7 @@ class SurveyExportMixin:
         """Return the description of the survey."""
         from edsl import QuestionFreeText
 
-        question_texts = "\n".join([q.question_text for q in self._questions])
+        question_texts = "\n".join([q.question_text for q in self.survey._questions])
         q = QuestionFreeText(
             question_name="description",
             question_text=f"""A survey was conducted with the following questions: 
@@ -58,7 +62,7 @@ class SurveyExportMixin:
         doc = Document()
         doc.add_heading("EDSL Survey")
         doc.add_paragraph(f"\n")
-        for index, question in enumerate(self._questions):
+        for index, question in enumerate(self.survey._questions):
             h = doc.add_paragraph()  # Add question as a paragraph
             h.add_run(f"Question {index + 1} ({question.question_name})").bold = True
             h.add_run(f"; {question.question_type}").italic = True
@@ -98,9 +102,9 @@ class SurveyExportMixin:
         # from edsl.questions import QuestionBase
 
         if questions_only:
-            to_iterate_over = self._questions
+            to_iterate_over = self.survey._questions
         else:
-            to_iterate_over = self.recombined_questions_and_instructions()
+            to_iterate_over = self.survey.recombined_questions_and_instructions()
 
         if rename:
             renaming_dict = {
@@ -150,13 +154,13 @@ class SurveyExportMixin:
         header_lines = ["from edsl.surveys.Survey import Survey"]
         header_lines.append("from edsl import Question")
         lines = ["\n".join(header_lines)]
-        for question in self._questions:
+        for question in self.survey._questions:
             question.question_text = question["question_text"].replace("\n", " ")
             # remove dublicate spaces
             question.question_text = " ".join(question.question_text.split())
             lines.append(f"{question.question_name} = " + repr(question))
         lines.append(
-            f"{survey_var_name} = Survey(questions = [{', '.join(self.question_names)}])"
+            f"{survey_var_name} = Survey(questions = [{', '.join(self.survey.question_names)}])"
         )
         # return lines
         code_string = "\n".join(lines)
@@ -216,7 +220,7 @@ class SurveyExportMixin:
 
         with open(filename, "w") as f:
             f.write(html_header)
-            for question in self._questions:
+            for question in self.survey._questions:
                 f.write(
                     question.html(
                         scenario=scenario, include_question_name=include_question_name

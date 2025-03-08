@@ -46,14 +46,15 @@ from .instructions.ChangeInstruction import ChangeInstruction
 from .base import EndOfSurvey
 from .descriptors import QuestionsDescriptor
 from .memory import MemoryPlan
-from .SurveyExportMixin import SurveyExportMixin
-from .SurveyFlowVisualization import SurveyFlowVisualization
+from .survey_flow_visualization import SurveyFlowVisualization
 from .instructions.InstructionHandler import InstructionHandler
 from .edit_survey import EditSurvey
-from .Simulator import Simulator
+from .survey_simulator import Simulator
 from .memory import MemoryManagement
 
 from .rules import RuleManager, RuleCollection
+
+from .survey_export import SurveyExport
 
 class PseudoIndices(UserDict):
     """A dictionary of pseudo-indices for the survey.
@@ -89,7 +90,7 @@ class PseudoIndices(UserDict):
         return isinstance(self.max_pseudo_index, float)
 
 
-class Survey(SurveyExportMixin, Base):
+class Survey(Base):
     """A collection of questions that supports skip logic."""
 
     __documentation__ = """https://docs.expectedparrot.com/en/latest/surveys.html"""
@@ -175,6 +176,8 @@ class Survey(SurveyExportMixin, Base):
 
         # Cache the InstructionCollection
         self._cached_instruction_collection = None
+
+        self._exporter = SurveyExport(self)
 
     def question_names_valid(self) -> bool:
         """Check if the question names are valid."""
@@ -1055,7 +1058,7 @@ class Survey(SurveyExportMixin, Base):
         {1: {0}, 2: {0}}
 
         """
-        from edsl.surveys.construct_dag import ConstructDAG
+        from edsl.surveys.dag import ConstructDAG
 
         return ConstructDAG(self).dag(textify)
 
@@ -1213,6 +1216,52 @@ class Survey(SurveyExportMixin, Base):
             self, project_name, survey_description, survey_alias, survey_visibility
         )
         return project_details
+
+    # Add export method delegations
+    def css(self):
+        """Return the default CSS style for the survey."""
+        return self._exporter.css()
+
+    def get_description(self) -> str:
+        """Return the description of the survey."""
+        return self._exporter.get_description()
+
+    def docx(
+        self,
+        return_document_object: bool = False,
+        filename: Optional[str] = None,
+        open_file: bool = False,
+    ) -> Union["Document", None]:
+        """Generate a docx document for the survey."""
+        return self._exporter.docx(return_document_object, filename, open_file)
+
+    def show(self):
+        """Display the survey in a rich format."""
+        return self._exporter.show()
+
+    def to_scenario_list(
+        self, questions_only: bool = True, rename=False
+    ) -> "ScenarioList":
+        """Convert the survey to a scenario list."""
+        return self._exporter.to_scenario_list(questions_only, rename)
+
+    def code(self, filename: str = None, survey_var_name: str = "survey") -> list[str]:
+        """Create the Python code representation of a survey."""
+        return self._exporter.code(filename, survey_var_name)
+
+    def html(
+        self,
+        scenario: Optional[dict] = None,
+        filename: Optional[str] = None,
+        return_link=False,
+        css: Optional[str] = None,
+        cta: Optional[str] = "Open HTML file",
+        include_question_name=False,
+    ):
+        """Generate HTML representation of the survey."""
+        return self._exporter.html(
+            scenario, filename, return_link, css, cta, include_question_name
+        )
 
 
 def main():

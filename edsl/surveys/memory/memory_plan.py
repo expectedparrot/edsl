@@ -7,7 +7,7 @@ from typing import Optional
 if TYPE_CHECKING:
     from edsl.surveys import Survey
     from edsl.prompts.Prompt import Prompt
-    from edsl.surveys.DAG import DAG
+    from edsl.surveys.dag import DAG
 
 # from edsl.surveys.Memory import Memory
 # from edsl.prompts.Prompt import Prompt
@@ -200,7 +200,7 @@ class MemoryPlan(UserDict):
         >>> mp.dag
         {1: {0}}
         """
-        from edsl.surveys.DAG import DAG
+        from edsl.surveys.dag import DAG
 
         d = defaultdict(set)
         for focal_question, memory in self.items():

@@ -10,7 +10,7 @@ from edsl.exceptions.surveys import (
 
 from .rule import Rule
 from ..base import EndOfSurvey
-from ..DAG import DAG
+from ..dag import DAG
 
 NextQuestion = namedtuple(
     "NextQuestion", "next_q, num_rules_found, expressions_evaluating_to_true, priority"
