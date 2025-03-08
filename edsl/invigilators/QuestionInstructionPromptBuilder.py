@@ -4,14 +4,14 @@ import logging
 from edsl.prompts.Prompt import Prompt
 
 if TYPE_CHECKING:
-    from edsl.agents.PromptConstructor import PromptConstructor
+    from .PromptConstructor import PromptConstructor
     from edsl import Model
     from edsl import Survey
     from edsl.questions.QuestionBase import QuestionBase
     from edsl import Scenario
     from edsl import Agent
 
-from edsl.agents.QuestionTemplateReplacementsBuilder import (
+from .QuestionTemplateReplacementsBuilder import (
     QuestionTemplateReplacementsBuilder as QTRB,
 )
 
@@ -166,8 +166,7 @@ class QuestionInstructionPromptBuilder:
             Dict: Question data with processed question options
         """
         if "question_options" in question_data:
-            from edsl.agents.question_option_processor import QuestionOptionProcessor
-
+            from .question_option_processor import QuestionOptionProcessor
             question_options = QuestionOptionProcessor(
                 scenario, prior_answers_dict
             ).get_question_options(question_data=question_data)

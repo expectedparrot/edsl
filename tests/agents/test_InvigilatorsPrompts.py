@@ -9,7 +9,7 @@ from edsl.exceptions.questions import QuestionScenarioRenderError
 # from edsl.prompts.registry import get_classes
 from edsl.surveys.Survey import Survey
 
-from edsl.agents.Invigilator import InvigilatorAI
+from edsl.invigilators.invigilators import InvigilatorAI
 
 
 class MockModel:

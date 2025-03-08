@@ -3,7 +3,7 @@ import unittest
 import asyncio
 from typing import Any
 from unittest.mock import Mock
-from edsl.agents.Invigilator import InvigilatorAI
+from edsl.invigilators.invigilators import InvigilatorAI
 
 from edsl.agents.Agent import Agent
 from edsl.language_models import LanguageModel

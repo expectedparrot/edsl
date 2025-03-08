@@ -2,8 +2,7 @@ import traceback
 import datetime
 import json
 
-from edsl.agents.InvigilatorBase import InvigilatorBase
-
+from edsl.invigilators.invigilators import InvigilatorBase
 
 class InterviewExceptionEntry:
     """Class to record an exception that occurred during the interview."""
@@ -208,7 +207,7 @@ class InterviewExceptionEntry:
     @classmethod
     def from_dict(cls, data: dict) -> "InterviewExceptionEntry":
         """Create an InterviewExceptionEntry from a dictionary."""
-        from edsl.agents.Invigilator import InvigilatorAI
+        from edsl.invigilators.invigilators import InvigilatorAI
 
         exception = cls.deserialize_exception(data["exception"])
         if data["invigilator"] is None:
