@@ -1,5 +1,5 @@
 from collections import UserDict
-from edsl.jobs.interviews.InterviewStatistic import InterviewStatistic
+from .InterviewStatistic import InterviewStatistic
 
 
 class InterviewStatisticsCollection(UserDict):
@@ -9,7 +9,7 @@ class InterviewStatisticsCollection(UserDict):
         super().__init__(*args, **kwargs)
         self.raw: dict = {}
 
-    def add_stat(self, statistic: InterviewStatistic):
+    def add_stat(self, statistic: InterviewStatistic) -> None:
         """Add a statistic to the collection.
 
         Each statistic is a dictionary with a single key-value pair.
@@ -23,3 +23,9 @@ class InterviewStatisticsCollection(UserDict):
         """
         self.update(statistic)
         self.raw.update(statistic.raw)
+
+
+if __name__ == "__main__":
+    import doctest
+
+    doctest.testmod(optionflags=doctest.ELLIPSIS)

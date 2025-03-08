@@ -1,5 +1,7 @@
 import traceback
 import datetime
+import json
+
 from edsl.agents.InvigilatorBase import InvigilatorBase
 
 
@@ -16,33 +18,33 @@ class InterviewExceptionEntry:
     ):
         self.time = datetime.datetime.now().isoformat()
         self.exception = exception
-        # self.failed_question = failed_question
         self.invigilator = invigilator
         self.traceback_format = traceback_format
         self.answers = answers
 
-        # breakpoint()
-
     @property
-    def question_type(self):
-        # return self.failed_question.question.question_type
+    def question_type(self) -> str:
+        """Return the type of the question that failed."""
         return self.invigilator.question.question_type
 
     @property
-    def name(self):
+    def name(self) -> str:
+        """Return the name of the exception."""
         return repr(self.exception)
 
     @property
-    def rendered_prompts(self):
+    def rendered_prompts(self) -> str:
+        """Return the rendered prompts."""
         return self.invigilator.get_prompts()
 
     @property
-    def key_sequence(self):
+    def key_sequence(self) -> tuple[str, ...]:
+        """Return the key sequence."""
         return self.invigilator.model.key_sequence
 
     @property
-    def generated_token_string(self):
-        # return "POO"
+    def generated_token_string(self) -> str:
+        """Return the generated token string."""
         if self.invigilator.raw_model_response is None:
             return "No raw model response available."
         else:
@@ -51,9 +53,8 @@ class InterviewExceptionEntry:
             )
 
     @property
-    def raw_model_response(self):
-        import json
-
+    def raw_model_response(self) -> dict:
+        """Return the raw model response."""
         if self.invigilator.raw_model_response is None:
             return "No raw model response available."
         return json.dumps(self.invigilator.raw_model_response, indent=2)
@@ -64,6 +65,10 @@ class InterviewExceptionEntry:
 
     @classmethod
     def example(cls):
+        """Return an example InterviewExceptionEntry.
+
+        >>> entry = InterviewExceptionEntry.example()
+        """
         from edsl import QuestionFreeText
         from edsl.language_models import LanguageModel
 
@@ -80,9 +85,11 @@ class InterviewExceptionEntry:
 
     @property
     def code_to_reproduce(self):
+        """Return the code to reproduce the exception."""
         return self.code(run=False)
 
     def code(self, run=True):
+        """Return the code to reproduce the exception."""
         lines = []
         lines.append("from edsl import Question, Model, Scenario, Agent")
 
@@ -101,7 +108,7 @@ class InterviewExceptionEntry:
         return code_str
 
     @property
-    def traceback(self):
+    def traceback(self) -> str:
         """Return the exception as HTML."""
         if self.traceback_format == "html":
             return self.html_traceback
@@ -109,7 +116,7 @@ class InterviewExceptionEntry:
             return self.text_traceback
 
     @property
-    def text_traceback(self):
+    def text_traceback(self) -> str:
         """
         >>> entry = InterviewExceptionEntry.example()
         >>> entry.text_traceback
@@ -120,7 +127,7 @@ class InterviewExceptionEntry:
         return tb_str
 
     @property
-    def html_traceback(self):
+    def html_traceback(self) -> str:
         from rich.console import Console
         from rich.table import Table
         from rich.traceback import Traceback
@@ -142,6 +149,11 @@ class InterviewExceptionEntry:
 
     @staticmethod
     def serialize_exception(exception: Exception) -> dict:
+        """Serialize an exception to a dictionary.
+
+        >>> entry = InterviewExceptionEntry.example()
+        >>> _ = entry.serialize_exception(entry.exception)
+        """
         return {
             "type": type(exception).__name__,
             "message": str(exception),
@@ -154,6 +166,11 @@ class InterviewExceptionEntry:
 
     @staticmethod
     def deserialize_exception(data: dict) -> Exception:
+        """Deserialize an exception from a dictionary.
+
+        >>> entry = InterviewExceptionEntry.example()
+        >>> _ = entry.deserialize_exception(entry.to_dict()["exception"])
+        """
         try:
             exception_class = globals()[data["type"]]
         except KeyError:
@@ -166,7 +183,6 @@ class InterviewExceptionEntry:
         >>> entry = InterviewExceptionEntry.example()
         >>> _ = entry.to_dict()
         """
-        import json
         from edsl.exceptions.questions import QuestionAnswerValidationError
 
         invigilator = (
