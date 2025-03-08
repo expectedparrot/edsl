@@ -3,11 +3,11 @@ from typing import Callable, Union, List, TYPE_CHECKING
 from collections import UserList, UserDict
 
 from edsl.exceptions.jobs import InterviewErrorPriorTaskCanceled
-
-from edsl.jobs.tasks.task_status_enum import TaskStatus, TaskStatusDescriptor
-from edsl.jobs.tasks.TaskStatusLog import TaskStatusLog
 from edsl.jobs.tokens.TokenUsage import TokenUsage
 from edsl.jobs.Answers import Answers
+
+from .task_status_enum import TaskStatus, TaskStatusDescriptor
+from .TaskStatusLog import TaskStatusLog
 
 if TYPE_CHECKING:
     from edsl.questions.QuestionBase import QuestionBase
@@ -28,7 +28,6 @@ class QuestionTaskCreator(UserList):
     It is a UserList with all the tasks that must be completed before the focal task can be run.
     The focal task is the question that we are interested in answering.
     """
-
     task_status = TaskStatusDescriptor()
 
     def __init__(

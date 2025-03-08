@@ -273,15 +273,15 @@ class TaskHistory(RepresentationMixin):
                 for exception in exceptions:
                     key = (
                         exception.exception.__class__.__name__,  # Exception type
-                        interview.model._inference_service_,    # Service
-                        interview.model.model,                  # Model
-                        question_name                           # Question name
+                        interview.model._inference_service_,  # Service
+                        interview.model.model,  # Model
+                        question_name,  # Question name
                     )
                     if key not in exceptions_table:
                         exceptions_table[key] = 0
                     exceptions_table[key] += 1
         return exceptions_table
-    
+
     @property
     def exceptions_by_type(self) -> dict:
         """Return a dictionary of exceptions tallied by type."""
