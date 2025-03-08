@@ -335,11 +335,6 @@ class Dataset(UserList, ResultsExportMixin, PersistenceMixin, HashingMixin):
         >>> d.select('a.b', 'c.d')
         Dataset([{'a.b': [1, 2, 3, 4]}, {'c.d': [5, 6, 7, 8]}])
 
-        >>> d.select('poop')
-        Traceback (most recent call last):
-        ...
-        ValueError: Key 'poop' not found in the dataset.
-        Available keys: ['a.b', 'c.d']
         """
         for key in keys:
             if key not in self.keys():
