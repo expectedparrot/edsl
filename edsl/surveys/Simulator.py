@@ -1,9 +1,15 @@
+from typing import TYPE_CHECKING
 from typing import Callable
 from edsl.agents import Agent
+#from edsl.surveys import Survey
 
+if TYPE_CHECKING:
+    from edsl.surveys import Survey
+    from edsl.results import Results
+    from edsl.questions import QuestionBase
 
 class Simulator:
-    def __init__(self, survey):
+    def __init__(self, survey: "Survey"):
         self.survey = survey
 
     @classmethod
@@ -11,7 +17,7 @@ class Simulator:
         """Create a random survey."""
         from edsl.questions import QuestionMultipleChoice, QuestionFreeText
         from random import choice
-        from edsl.surveys.Survey import Survey
+        from edsl.surveys import Survey
 
         num_questions = 10
         questions = []
@@ -58,7 +64,7 @@ class Simulator:
     def create_agent(self) -> "Agent":
         """Create an agent from the simulated answers."""
         answers_dict = self.survey.simulate()
-        from edsl.agents.Agent import Agent
+        from edsl.agents import Agent
 
         def construct_answer_dict_function(traits: dict) -> Callable:
             def func(self, question: "QuestionBase", scenario=None):

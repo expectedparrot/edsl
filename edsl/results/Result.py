@@ -8,6 +8,7 @@ from edsl.base import Base
 from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
 from edsl.agents import Agent
 from edsl.scenarios import Scenario
+from edsl.surveys import Survey
 
 if TYPE_CHECKING:
     from edsl.agents import Agent

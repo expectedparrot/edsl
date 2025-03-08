@@ -31,6 +31,8 @@ from .data_structures import RunEnvironment, RunParameters, RunConfig
 from edsl.scenarios import Scenario
 from edsl.scenarios import ScenarioList
 
+from edsl.surveys import Survey
+
 if TYPE_CHECKING:
     from edsl.agents import Agent
     from edsl.agents import AgentList

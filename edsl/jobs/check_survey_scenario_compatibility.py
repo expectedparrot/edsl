@@ -1,6 +1,7 @@
 import warnings
 from typing import TYPE_CHECKING
 from edsl.scenarios import ScenarioList
+from edsl.surveys import Survey
 
 if TYPE_CHECKING:
     from edsl.surveys.Survey import Survey

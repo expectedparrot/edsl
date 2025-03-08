@@ -20,12 +20,12 @@ from edsl.utilities.remove_edsl_version import remove_edsl_version
 from edsl.utilities.utilities import is_valid_variable_name
 from edsl.agents import Agent
 from edsl.scenarios import Scenario
+from edsl.surveys import Survey
 
 if TYPE_CHECKING:
     from edsl.questions.response_validator_abc import ResponseValidatorABC
     from edsl.language_models.LanguageModel import LanguageModel
     from edsl.results.Results import Results
-    from edsl.surveys.Survey import Survey
     from edsl.jobs.Jobs import Jobs
 
 

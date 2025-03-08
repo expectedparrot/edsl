@@ -24,6 +24,7 @@ from .InterviewExceptionCollection import (
 )
 from .InterviewExceptionEntry import InterviewExceptionEntry
 
+from edsl.surveys import Survey
 
 if TYPE_CHECKING:
     from edsl.agents.Agent import Agent

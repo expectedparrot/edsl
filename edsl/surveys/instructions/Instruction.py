@@ -1,6 +1,7 @@
 from typing import Union, Optional, List, Generator, Dict
 from edsl.utilities.remove_edsl_version import remove_edsl_version
 from edsl.base import RepresentationMixin
+#from edsl.surveys import Survey
 
 
 class Instruction(RepresentationMixin):
@@ -36,8 +37,7 @@ class Instruction(RepresentationMixin):
         return d
 
     def add_question(self, question) -> "Survey":
-        from edsl.surveys.Survey import Survey
-
+        from edsl.surveys import Survey
         return Survey([self, question])
 
     def __hash__(self) -> int:
