@@ -1,8 +1,15 @@
 # from edsl.jobs.buckets.TokenBucket import TokenBucket
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .TokenBucket import TokenBucket
 
 class ModelBuckets:
-    """A class to represent the token and request buckets for a model.
+    """A class to represent a token or requests buckets for a model.
+    
+    This is confusingly named because we're dealing with LLMs that use tokens. 
+    These are different tokens---these are tokens to control rate of requests.
 
     Most LLM model services have limits both on requests-per-minute (RPM) and tokens-per-minute (TPM).
     A request is one call to the service. The number of tokens required for a request depends on parameters.
@@ -10,6 +17,9 @@ class ModelBuckets:
 
     def __init__(self, requests_bucket: "TokenBucket", tokens_bucket: "TokenBucket"):
         """Initialize the model buckets.
+
+        :param requests_bucket: A TokenBucket object that captures requests per unit of time.
+        :param tokens_bucket: A TokenBucket object that captures tokens per unit of time.
 
         The requests bucket captures requests per unit of time.
         The tokens bucket captures the number of language model tokens.
