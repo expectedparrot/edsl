@@ -132,7 +132,7 @@ class QuestionBaseGenMixin:
         edsl.questions.question_base_gen_mixin.QuestionBaseGenMixin.MaxTemplateNestingExceeded:...
         """
         from jinja2 import Environment, meta
-        from edsl.scenarios.Scenario import Scenario
+        from edsl.scenarios import Scenario
 
         MAX_NESTING = 10  # Maximum allowed nesting levels
         

@@ -67,7 +67,7 @@ def create_test_function(child_class):
         from edsl.agents import AgentList
         from edsl.language_models.LanguageModel import LanguageModel
         from edsl.language_models.ModelList import ModelList
-        from edsl.scenarios.FileStore import FileStore
+        from edsl.scenarios import FileStore
         from edsl.prompts.Prompt import Prompt
         from edsl.results.Results import Results
         from edsl.results.Result import Result

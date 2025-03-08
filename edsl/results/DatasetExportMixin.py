@@ -386,8 +386,7 @@ class DatasetExportMixin:
         >>> r.select('how_feeling').to_scenario_list()
         ScenarioList([Scenario({'how_feeling': 'OK'}), Scenario({'how_feeling': 'Great'}), Scenario({'how_feeling': 'Terrible'}), Scenario({'how_feeling': 'OK'})])
         """
-        from edsl.scenarios.ScenarioList import ScenarioList
-        from edsl.scenarios.Scenario import Scenario
+        from edsl.scenarios import ScenarioList, Scenario
 
         list_of_dicts = self.to_dicts(remove_prefix=remove_prefix)
         scenarios = []

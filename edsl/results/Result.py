@@ -396,7 +396,7 @@ class Result(Base, UserDict):
         """Return a Result object from a dictionary representation."""
 
         from edsl.agents import Agent
-        from edsl.scenarios.Scenario import Scenario
+        from edsl.scenarios import Scenario
         from edsl.language_models.LanguageModel import LanguageModel
         from edsl.prompts.Prompt import Prompt
 

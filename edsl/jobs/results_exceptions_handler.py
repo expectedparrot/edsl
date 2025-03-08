@@ -1,6 +1,6 @@
 from typing import Optional, TYPE_CHECKING, Protocol
 import sys
-from edsl.scenarios.FileStore import HTMLFileStore
+#from edsl.scenarios.FileStore import HTMLFileStore
 from edsl.config import CONFIG
 from edsl.coop.coop import Coop
 
@@ -88,6 +88,6 @@ class ResultsExceptionsHandler:
 
         # Handle remote logging if enabled
         if self.remote_logging:
-            filestore = HTMLFileStore(filepath)
+            filestore = FileStore(filepath)
             coop_details = filestore.push(description="Exceptions Report")
             print(coop_details)

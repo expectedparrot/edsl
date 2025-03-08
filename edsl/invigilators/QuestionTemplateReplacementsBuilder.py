@@ -4,7 +4,7 @@ from edsl.agents import Agent
 from edsl.scenarios import Scenario
 
 if TYPE_CHECKING:
-    from edsl.agents.PromptConstructor import PromptConstructor
+    from edsl.invigilators.PromptConstructor import PromptConstructor
     from edsl.questions.QuestionBase import QuestionBase
 
 
@@ -87,7 +87,7 @@ class QuestionTemplateReplacementsBuilder:
         ...     QuestionTemplateReplacementsBuilder._find_file_keys(scenario)
         ['fs_file']
         """
-        from edsl.scenarios.FileStore import FileStore
+        from edsl.scenarios import FileStore
 
         file_entries = []
         for key, value in scenario.items():
@@ -103,7 +103,7 @@ class QuestionTemplateReplacementsBuilder:
         Extracts the file keys from a question text.
 
         >>> from edsl import Scenario
-        >>> from edsl.scenarios.FileStore import FileStore
+        >>> from edsl.scenarios import FileStore
         >>> import tempfile
         >>> with tempfile.NamedTemporaryFile() as f:
         ...     _ = f.write(b"Hello, world!")

@@ -11,8 +11,8 @@ from edsl.enums import InferenceServiceType
 from edsl.surveys.Survey import Survey
 from edsl.questions import QuestionFreeText
 from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
-from edsl.questions.QuestionYesNo import QuestionYesNo
-from edsl.agents.Agent import Agent
+from edsl.questions.derived.QuestionYesNo import QuestionYesNo
+from edsl.agents import Agent
 from edsl.language_models.model import Model
 from edsl.scenarios import Scenario
 

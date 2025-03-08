@@ -6,7 +6,7 @@ from edsl.questions.compose_questions import compose_questions
 from edsl.jobs.Jobs import Jobs
 from edsl.scenarios import Scenario
 from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
-from edsl.questions.QuestionYesNo import QuestionYesNo
+from edsl.questions.derived.QuestionYesNo import QuestionYesNo
 
 
 def SillyFunction(scenario, agent_traits):

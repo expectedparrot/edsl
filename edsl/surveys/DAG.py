@@ -13,7 +13,7 @@ class DAG(UserDict):
         self.reverse_mapping = self._create_reverse_mapping()
         self.validate_no_cycles()
 
-    def _create_reverse_mapping(self):
+    def _create_reverse_mapping(self) -> dict:
         """
         Create a reverse mapping of the DAG, where the keys are the children and the values are the parents.
 
@@ -33,7 +33,7 @@ class DAG(UserDict):
                 rev_map.setdefault(value, set()).add(key)
         return rev_map
 
-    def get_all_children(self, key):
+    def get_all_children(self, key) -> set:
         """Get all children of a node in the DAG."""
         children = set()
 
@@ -46,7 +46,7 @@ class DAG(UserDict):
         dfs(key)
         return children
 
-    def topologically_sorted_nodes(self):
+    def topologically_sorted_nodes(self) -> list[str]:
         """
         Return a sequence of the DAG.
 
@@ -62,17 +62,21 @@ class DAG(UserDict):
         """
         return list(TopologicalSorter(self).static_order())
 
-    def __add__(self, other_dag):
-        """Combine two DAGs."""
+    def __add__(self, other_dag: 'DAG') -> 'DAG':
+        """Combine two DAGs.
+        
+        >>> from edsl.surveys import DAG
+        >>> dag1 = DAG({'a': ['b'], 'b': ['c']})
+        >>> dag2 = DAG({'d': ['e'], 'e': ['f']})
+        >>> dag1 + dag2
+        DAG({'a': {'b'}, 'b': {'c'}, 'd': {'e'}, 'e': {'f'}})
+        
+        """
         d = {}
         combined_keys = set(self.keys()).union(set(other_dag.keys()))
         for key in combined_keys:
             d[key] = self.get(key, set({})).union(other_dag.get(key, set({})))
         return DAG(d)
-        # if textify:
-        #     return DAG(self.textify(d))
-        # else:
-        #     return DAG(d)
 
     def remove_node(self, node: int) -> None:
         """Remove a node and all its connections from the DAG."""
