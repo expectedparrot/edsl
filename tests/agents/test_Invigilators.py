@@ -1,7 +1,7 @@
 import pytest
 import unittest
 from unittest.mock import Mock
-from edsl.agents.Invigilator import InvigilatorHuman
+from edsl.invigilators.invigilators import InvigilatorHuman
 from edsl.surveys.Survey import Survey
 
 

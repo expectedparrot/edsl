@@ -6,14 +6,14 @@ import logging
 
 from edsl.prompts.Prompt import Prompt
 
-from edsl.agents.prompt_helpers import PromptPlan
-from edsl.agents.QuestionTemplateReplacementsBuilder import (
+from .prompt_helpers import PromptPlan
+from .QuestionTemplateReplacementsBuilder import (
     QuestionTemplateReplacementsBuilder,
 )
-from edsl.agents.question_option_processor import QuestionOptionProcessor
+from .question_option_processor import QuestionOptionProcessor
 
 if TYPE_CHECKING:
-    from edsl.agents.InvigilatorBase import InvigilatorBase
+    from .invigilators import InvigilatorBase
     from edsl.questions.QuestionBase import QuestionBase
     from edsl.agents.Agent import Agent
     from edsl.surveys.Survey import Survey
@@ -116,7 +116,7 @@ class PromptConstructor:
     @cached_property
     def agent_instructions_prompt(self) -> Prompt:
         """
-        >>> from edsl.agents.InvigilatorBase import InvigilatorBase
+        >>> from .invigilators import InvigilatorBase
         >>> i = InvigilatorBase.example()
         >>> i.prompt_constructor.agent_instructions_prompt
         Prompt(text=\"""You are answering questions as if you were a human. Do not break character.\""")
@@ -131,7 +131,7 @@ class PromptConstructor:
     @cached_property
     def agent_persona_prompt(self) -> Prompt:
         """
-        >>> from edsl.agents.InvigilatorBase import InvigilatorBase
+        >>> from edsl.invigilators.invigilators import InvigilatorBase
         >>> i = InvigilatorBase.example()
         >>> i.prompt_constructor.agent_persona_prompt
         Prompt(text=\"""Your traits: {'age': 22, 'hair': 'brown', 'height': 5.5}\""")
@@ -146,7 +146,7 @@ class PromptConstructor:
     def prior_answers_dict(self) -> dict[str, "QuestionBase"]:
         """This is a dictionary of prior answers, if they exist.
         
-        >>> from edsl.agents.InvigilatorBase import InvigilatorBase
+        >>> from edsl.invigilators.invigilators import InvigilatorBase
         >>> i = InvigilatorBase.example()
         >>> i.prompt_constructor.prior_answers_dict()
         {'q0': ..., 'q1': ...}
@@ -239,7 +239,7 @@ class PromptConstructor:
     @cached_property
     def question_instructions_prompt(self) -> Prompt:
         """
-        >>> from edsl.agents.InvigilatorBase import InvigilatorBase
+        >>> from edsl.invigilators.invigilators import InvigilatorBase
         >>> i = InvigilatorBase.example()
         >>> i.prompt_constructor.question_instructions_prompt
         Prompt(text=\"""...
@@ -249,9 +249,7 @@ class PromptConstructor:
 
     def build_question_instructions_prompt(self) -> Prompt:
         """Buils the question instructions prompt."""
-        from edsl.agents.QuestionInstructionPromptBuilder import (
-            QuestionInstructionPromptBuilder,
-        )
+        from .QuestionInstructionPromptBuilder import QuestionInstructionPromptBuilder
         qipb = QuestionInstructionPromptBuilder.from_prompt_constructor(self)
         prompt = qipb.build()
         if prompt.captured_variables:
@@ -273,7 +271,7 @@ class PromptConstructor:
 
         The returns a memory prompt for the agent.
 
-        >>> from edsl.agents.InvigilatorBase import InvigilatorBase
+        >>> from edsl.invigilators.invigilators import InvigilatorBase
         >>> i = InvigilatorBase.example()
         >>> i.current_answers = {"q0": "Prior answer"}
         >>> i.memory_plan.add_single_memory("q1", "q0")

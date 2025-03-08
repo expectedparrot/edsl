@@ -27,7 +27,7 @@ if TYPE_CHECKING:
     from edsl.language_models import LanguageModel
     from edsl.surveys.MemoryPlan import MemoryPlan
     from edsl.questions import QuestionBase
-    from edsl.agents.Invigilator import InvigilatorBase
+    from edsl.invigilators.invigilators import InvigilatorBase
     from edsl.prompts import Prompt
     from edsl.questions.QuestionBase import QuestionBase
     from edsl.scenarios.Scenario import Scenario
@@ -652,7 +652,7 @@ class Agent(Base):
         This method returns the invigilator class that should be used to answer a question.
         The invigilator class is determined by the type of question and the type of agent.
         """
-        from edsl.agents.Invigilator import (
+        from edsl.invigilators.invigilators import (
             InvigilatorHuman,
             InvigilatorFunctional,
             InvigilatorAI,
