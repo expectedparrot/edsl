@@ -1,5 +1,5 @@
 import pytest
-from edsl.surveys.Survey import Survey
+from edsl.surveys import Survey
 from edsl.questions.QuestionFreeText import QuestionFreeText
 from edsl.language_models.utilities import create_language_model
 from edsl.scenarios import ScenarioList

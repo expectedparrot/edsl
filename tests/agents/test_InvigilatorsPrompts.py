@@ -7,7 +7,7 @@ from edsl.prompts.Prompt import Prompt
 from edsl.exceptions.questions import QuestionScenarioRenderError
 
 # from edsl.prompts.registry import get_classes
-from edsl.surveys.Survey import Survey
+from edsl.surveys import Survey
 
 from edsl.invigilators.invigilators import InvigilatorAI
 
