@@ -6,8 +6,7 @@ from edsl.jobs.interviews.Interview import Interview
 from edsl.jobs.Jobs import Jobs, main
 from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
 from edsl.questions.QuestionFreeText import QuestionFreeText
-from edsl.scenarios.Scenario import Scenario
-from edsl.scenarios.ScenarioList import ScenarioList
+from edsl.scenarios import Scenario, ScenarioList
 from edsl.surveys.Survey import Survey
 from edsl.language_models.model import Model
 from edsl.questions.question_registry import (

@@ -2,6 +2,7 @@ from edsl.scenarios.file_methods import FileMethods
 import os
 import tempfile
 import sqlite3
+from edsl.scenarios import FileStore
 
 
 class SQLiteMethods(FileMethods):
@@ -144,6 +145,4 @@ class SQLiteMethods(FileMethods):
 
 if __name__ == "__main__":
     sqlite_temp = SQLiteMethods.example()
-    from edsl.scenarios.FileStore import FileStore
-
     fs = FileStore(sqlite_temp)

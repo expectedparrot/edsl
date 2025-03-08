@@ -11,6 +11,7 @@ from .QuestionTemplateReplacementsBuilder import (
     QuestionTemplateReplacementsBuilder,
 )
 from .question_option_processor import QuestionOptionProcessor
+from edsl.scenarios import Scenario
 
 if TYPE_CHECKING:
     from .invigilators import InvigilatorBase

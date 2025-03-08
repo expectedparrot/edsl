@@ -28,6 +28,9 @@ from .jobs_checks import JobsChecks
 from .interviews.Interview import Interview
 from .data_structures import RunEnvironment, RunParameters, RunConfig
 
+from edsl.scenarios import Scenario
+from edsl.scenarios import ScenarioList
+
 if TYPE_CHECKING:
     from edsl.agents import Agent
     from edsl.agents import AgentList

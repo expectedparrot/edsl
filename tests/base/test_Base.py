@@ -4,6 +4,7 @@ import warnings
 
 from edsl.base import RegisterSubclassesMeta, Base
 from edsl.questions import QuestionMultipleChoice
+from edsl.scenarios import Scenario, ScenarioList
 
 
 class EvalReprFail(Warning):
@@ -66,8 +67,6 @@ def create_test_function(child_class):
         from edsl.agents import AgentList
         from edsl.language_models.LanguageModel import LanguageModel
         from edsl.language_models.ModelList import ModelList
-        from edsl.scenarios.Scenario import Scenario
-        from edsl.scenarios.ScenarioList import ScenarioList
         from edsl.scenarios.FileStore import FileStore
         from edsl.prompts.Prompt import Prompt
         from edsl.results.Results import Results

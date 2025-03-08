@@ -1,6 +1,7 @@
 from edsl.scenarios.file_methods import FileMethods
 import os
 import tempfile
+from edsl.scenarios import Scenario, ScenarioList, FileStore
 
 
 class DocxMethods(FileMethods):

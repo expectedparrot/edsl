@@ -5,7 +5,7 @@ import pandas as pd
 import sqlite3
 from io import StringIO, BytesIO
 from unittest.mock import patch, MagicMock
-from edsl.scenarios.Scenario import Scenario
+from edsl.scenarios import Scenario
 
 from edsl.scenarios.FileStore import (
     FileStore,

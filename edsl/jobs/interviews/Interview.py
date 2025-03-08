@@ -28,7 +28,7 @@ from .InterviewExceptionEntry import InterviewExceptionEntry
 if TYPE_CHECKING:
     from edsl.agents.Agent import Agent
     from edsl.surveys.Survey import Survey
-    from edsl.scenarios.Scenario import Scenario
+    from edsl.scenarios import Scenario
     from edsl.data.Cache import Cache
     from edsl.language_models.LanguageModel import LanguageModel
     from edsl.jobs.tokens.InterviewTokenUsage import InterviewTokenUsage
@@ -197,7 +197,7 @@ class Interview:
 
         from edsl.agents import Agent
         from edsl.surveys.Survey import Survey
-        from edsl.scenarios.Scenario import Scenario
+        from edsl.scenarios import Scenario
         from edsl.language_models.LanguageModel import LanguageModel
 
         agent = Agent.from_dict(d["agent"])

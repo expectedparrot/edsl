@@ -5,7 +5,7 @@ from typing import Optional, List, Callable, Type, TYPE_CHECKING, Union
 
 if TYPE_CHECKING:
     from edsl.questions.QuestionBase import QuestionBase
-    from edsl.scenarios.ScenarioList import ScenarioList
+    from edsl.scenarios import ScenarioList
 
 
 class QuestionBaseGenMixin:

@@ -4,8 +4,6 @@ import csv
 import base64
 from typing import Optional, Union, Tuple, List, Any, Dict
 
-from edsl.scenarios.FileStore import FileStore
-
 
 class FileExport(ABC):
     def __init__(
@@ -46,7 +44,7 @@ class FileExport(ABC):
         else:
             base64_string = base64.b64encode(data).decode()
 
-        from edsl.scenarios.FileStore import FileStore
+        from edsl.scenarios import FileStore
 
         path = self.filename or self._get_default_filename()
 

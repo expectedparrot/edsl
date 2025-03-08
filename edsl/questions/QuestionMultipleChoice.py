@@ -4,7 +4,7 @@ from typing import Union, Literal, Optional, List, Any
 from jinja2 import Template
 from pydantic import BaseModel, Field
 
-from edsl.scenarios.Scenario import Scenario
+from edsl.scenarios import Scenario
 from edsl.questions.QuestionBase import QuestionBase
 from edsl.questions.descriptors import QuestionOptionsDescriptor
 from edsl.questions.decorators import inject_exception

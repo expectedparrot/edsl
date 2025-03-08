@@ -2,8 +2,10 @@ import pytest
 import asyncio
 
 from edsl.agents import Agent
+from edsl.jobs.Jobs import Jobs
+from edsl.questions.QuestionFreeText import QuestionFreeText
 from edsl.surveys.Survey import Survey
-from edsl.scenarios.Scenario import Scenario
+from edsl.scenarios import Scenario
 from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
 from edsl.jobs.interviews.Interview import Interview
 

@@ -25,6 +25,8 @@ from edsl.exceptions.questions import QuestionAnswerValidationError
 from pydantic import BaseModel, Field, conlist
 from typing import List, Literal, Optional, Annotated
 
+from edsl.scenarios import Scenario
+
 
 def create_checkbox_response_model(
     choices: list,
@@ -245,8 +247,6 @@ class QuestionCheckBox(QuestionBase):
         For example, for question options ["a", "b", "c"],the answer codes are 0, 1, and 2.
         The LLM will respond with [0,1] and this code will translate it to ["a","b"].
         """
-        from edsl.scenarios.Scenario import Scenario
-
         scenario = scenario or Scenario()
         translated_options = [
             Template(str(option)).render(scenario) for option in self.question_options

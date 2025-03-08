@@ -1,4 +1,5 @@
 from edsl.jobs.FetchInvigilator import FetchInvigilator
+from edsl.scenarios import FileStore
 
 
 class RequestTokenEstimator:
@@ -9,7 +10,6 @@ class RequestTokenEstimator:
 
     def __call__(self, question) -> float:
         """Estimate the number of tokens that will be required to run the focal task."""
-        from edsl.scenarios.FileStore import FileStore
 
         invigilator = FetchInvigilator(self.interview)(question=question)
 

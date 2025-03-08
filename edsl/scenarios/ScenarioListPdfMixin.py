@@ -4,6 +4,7 @@ import copy
 import atexit
 import tempfile
 import subprocess
+from edsl.scenarios import Scenario
 
 
 class GoogleDriveDownloader:
@@ -131,7 +132,6 @@ class ScenarioListPdfMixin:
             txt = ""
             for scenario in scenarios:
                 txt += scenario["text"]
-            from edsl.scenarios import Scenario
 
             base_scenario = copy.copy(scenarios[0])
             base_scenario["text"] = txt
@@ -160,7 +160,6 @@ class ScenarioListPdfMixin:
         """
         import tempfile
         from pdf2image import convert_from_path
-        from edsl.scenarios import Scenario
 
         with tempfile.TemporaryDirectory() as output_folder:
             # Convert PDF to images
@@ -173,7 +172,6 @@ class ScenarioListPdfMixin:
                 image_path = os.path.join(output_folder, f"page_{i+1}.{image_format}")
                 image.save(image_path, image_format.upper())
 
-                from edsl import FileStore
                 scenario = Scenario({
                     "filepath":image_path,
                     "page":i,
@@ -185,7 +183,6 @@ class ScenarioListPdfMixin:
 
     @staticmethod
     def extract_text_from_pdf(pdf_path):
-        from edsl.scenarios.Scenario import Scenario
         import fitz  # PyMuPDF
 
         # TODO: Add test case

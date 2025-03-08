@@ -27,7 +27,7 @@ if TYPE_CHECKING:
     from edsl.data.Cache import Cache
     from edsl.agents import AgentList
     from edsl.language_models.model import Model
-    from edsl.scenarios.ScenarioList import ScenarioList
+    from edsl.scenarios import ScenarioList
     from edsl.results.Result import Result
     from edsl.jobs.tasks.TaskHistory import TaskHistory
     from edsl.language_models.ModelList import ModelList
@@ -723,7 +723,7 @@ class Results(UserList, Mixins, Base):
         >>> r.scenarios
         ScenarioList([Scenario({'period': 'morning', 'scenario_index': 0}), Scenario({'period': 'afternoon', 'scenario_index': 1}), Scenario({'period': 'morning', 'scenario_index': 0}), Scenario({'period': 'afternoon', 'scenario_index': 1})])
         """
-        from edsl.scenarios.ScenarioList import ScenarioList
+        from edsl.scenarios import ScenarioList
 
         return ScenarioList([r.scenario for r in self.data])
 

@@ -19,6 +19,7 @@ from edsl.questions.question_base_gen_mixin import QuestionBaseGenMixin
 from edsl.utilities.remove_edsl_version import remove_edsl_version
 from edsl.utilities.utilities import is_valid_variable_name
 from edsl.agents import Agent
+from edsl.scenarios import Scenario
 
 if TYPE_CHECKING:
     from edsl.questions.response_validator_abc import ResponseValidatorABC

@@ -9,6 +9,7 @@ from edsl.questions.descriptors import (
     NumSelectionsDescriptor,
 )
 from edsl.questions.response_validator_abc import ResponseValidatorABC
+from edsl.scenarios import Scenario
 
 
 def create_response_model(
@@ -190,9 +191,6 @@ class QuestionRank(QuestionBase):
         self, answer_codes, scenario: Scenario = None
     ) -> list[str]:
         """Translate the answer code to the actual answer."""
-        from edsl.scenarios.Scenario import Scenario
-        from jinja2 import Template
-
         scenario = scenario or Scenario()
         translated_options = [
             Template(option).render(scenario) for option in self.question_options

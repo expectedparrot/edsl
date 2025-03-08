@@ -3,7 +3,7 @@ from typing import Union, Sequence, TYPE_CHECKING
 if TYPE_CHECKING:
     from edsl.agents import Agent
     from edsl.language_models.LanguageModel import LanguageModel
-    from edsl.scenarios.Scenario import Scenario
+    from edsl.scenarios import Scenario
     from edsl.jobs.Jobs import Jobs
     from edsl.invigilators.invigilators import InvigilatorBase
 
@@ -108,7 +108,7 @@ class JobsComponentConstructor:
         self, object: Union["Agent", "Scenario", "LanguageModel"]
     ) -> tuple[list, str]:
         from edsl.agents import Agent
-        from edsl.scenarios.Scenario import Scenario
+        from edsl.scenarios import Scenario
         from edsl.language_models.LanguageModel import LanguageModel
 
         """Return the current objects of the same type as the first argument.
@@ -139,7 +139,7 @@ class JobsComponentConstructor:
     @staticmethod
     def _get_empty_container_object(object):
         from edsl.agents import AgentList
-        from edsl.scenarios.ScenarioList import ScenarioList
+        from edsl.scenarios import ScenarioList
 
         return {"Agent": AgentList([]), "Scenario": ScenarioList([])}.get(
             object.__class__.__name__, []
@@ -169,8 +169,8 @@ class JobsComponentConstructor:
     def _get_container_class(object):
         from edsl.agents import AgentList
         from edsl.agents import Agent
-        from edsl.scenarios.Scenario import Scenario
-        from edsl.scenarios.ScenarioList import ScenarioList
+        from edsl.scenarios import Scenario
+        from edsl.scenarios import ScenarioList
         from edsl.language_models.ModelList import ModelList
 
         if isinstance(object, Agent):

@@ -6,8 +6,7 @@ from edsl.data.Cache import Cache
 from edsl.language_models.ModelList import ModelList
 from edsl.notebooks.Notebook import Notebook
 from edsl.results.Results import Results
-from edsl.scenarios.Scenario import Scenario
-from edsl.scenarios.ScenarioList import ScenarioList
+from edsl.scenarios import Scenario, ScenarioList
 from edsl.surveys.Survey import Survey
 from edsl.study.Study import Study
 

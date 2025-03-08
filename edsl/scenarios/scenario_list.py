@@ -41,7 +41,7 @@ from edsl.utilities.naming_utilities import sanitize_string
 from edsl.utilities.is_valid_variable_name import is_valid_variable_name
 from edsl.exceptions.scenarios import ScenarioError
 
-from .Scenario import Scenario
+from .scenario import Scenario
 from .ScenarioListPdfMixin import ScenarioListPdfMixin
 from .ScenarioListExportMixin import ScenarioListExportMixin
 from .directory_scanner import DirectoryScanner
