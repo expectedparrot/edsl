@@ -1,6 +1,6 @@
 from typing import Union, Optional, List, Generator, Dict
 from edsl.utilities.remove_edsl_version import remove_edsl_version
-from edsl.Base import RepresentationMixin
+from edsl.base import RepresentationMixin
 
 
 class Instruction(RepresentationMixin):
@@ -54,3 +54,8 @@ class Instruction(RepresentationMixin):
             data["text"],
             data.get("preamble", "You were given the following instructions:"),
         )
+
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod(optionflags=doctest.ELLIPSIS)

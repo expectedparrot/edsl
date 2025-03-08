@@ -13,7 +13,6 @@ edsl_answer_dict: The parsed JSON response from the model either {'answer': ...}
 """
 
 from __future__ import annotations
-import warnings
 from functools import wraps
 import asyncio
 import json
@@ -52,15 +51,11 @@ from edsl.utilities.decorators import (
 )
 from edsl.utilities.remove_edsl_version import remove_edsl_version
 
-from edsl.Base import PersistenceMixin, RepresentationMixin
+from edsl.base import PersistenceMixin, RepresentationMixin, HashingMixin
 from edsl.language_models.RegisterLanguageModelsMeta import RegisterLanguageModelsMeta
 
-from edsl.language_models.key_management.KeyLookupCollection import (
-    KeyLookupCollection,
-)
-
-from edsl.language_models.RawResponseHandler import RawResponseHandler
-
+from .key_management.KeyLookupCollection import KeyLookupCollection
+from .RawResponseHandler import RawResponseHandler
 
 def handle_key_error(func):
     """Handle KeyError exceptions."""
@@ -85,7 +80,6 @@ class classproperty:
         return self.method(cls)
 
 
-from edsl.Base import HashingMixin
 
 
 class LanguageModel(

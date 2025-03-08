@@ -15,11 +15,10 @@ from typing import (
     TYPE_CHECKING,
 )
 from uuid import uuid4
-from edsl.Base import Base
+from edsl.base import Base
 from edsl.exceptions.surveys import SurveyCreationError, SurveyHasNoRulesError
 from edsl.exceptions.surveys import SurveyError
 from collections import UserDict
-
 
 class PseudoIndices(UserDict):
     @property
@@ -71,22 +70,21 @@ if TYPE_CHECKING:
 
 from edsl.utilities.remove_edsl_version import remove_edsl_version
 
-from edsl.surveys.instructions.InstructionCollection import InstructionCollection
-from edsl.surveys.instructions.Instruction import Instruction
-from edsl.surveys.instructions.ChangeInstruction import ChangeInstruction
+from .instructions.InstructionCollection import InstructionCollection
+from .instructions.Instruction import Instruction
+from .instructions.ChangeInstruction import ChangeInstruction
 
-from edsl.surveys.base import EndOfSurvey
-from edsl.surveys.descriptors import QuestionsDescriptor
-from edsl.surveys.MemoryPlan import MemoryPlan
-from edsl.surveys.RuleCollection import RuleCollection
-from edsl.surveys.SurveyExportMixin import SurveyExportMixin
-from edsl.surveys.SurveyFlowVisualization import SurveyFlowVisualization
-from edsl.surveys.InstructionHandler import InstructionHandler
-from edsl.surveys.EditSurvey import EditSurvey
-from edsl.surveys.Simulator import Simulator
-from edsl.surveys.MemoryManagement import MemoryManagement
-from edsl.surveys.RuleManager import RuleManager
-
+from .base import EndOfSurvey
+from .descriptors import QuestionsDescriptor
+from .MemoryPlan import MemoryPlan
+from .RuleCollection import RuleCollection
+from .SurveyExportMixin import SurveyExportMixin
+from .SurveyFlowVisualization import SurveyFlowVisualization
+from .InstructionHandler import InstructionHandler
+from .EditSurvey import EditSurvey
+from .Simulator import Simulator
+from .MemoryManagement import MemoryManagement
+from .RuleManager import RuleManager
 
 class Survey(SurveyExportMixin, Base):
     """A collection of questions that supports skip logic."""

@@ -42,7 +42,7 @@ class DirectAnswerMethod(Protocol):
 
 from uuid import uuid4
 
-from edsl.Base import Base
+from edsl.base import Base
 from edsl.exceptions.questions import QuestionScenarioRenderError
 
 from edsl.exceptions.agents import (

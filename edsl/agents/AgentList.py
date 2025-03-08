@@ -11,7 +11,7 @@ from typing import Any, List, Optional, Union, TYPE_CHECKING
 
 from simpleeval import EvalWithCompoundTypes, NameNotDefined
 
-from edsl.Base import Base
+from edsl.base import Base
 from edsl.utilities.remove_edsl_version import remove_edsl_version
 from edsl.exceptions.agents import AgentListError
 from edsl.utilities.is_notebook import is_notebook

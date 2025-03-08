@@ -8,15 +8,14 @@ from collections import UserDict
 from typing import Union, List, Optional, TYPE_CHECKING, Collection
 from uuid import uuid4
 
-from edsl.Base import Base
-from edsl.scenarios.ScenarioHtmlMixin import ScenarioHtmlMixin
+from edsl.base import Base
+from .ScenarioHtmlMixin import ScenarioHtmlMixin
 from edsl.utilities.remove_edsl_version import remove_edsl_version
 from edsl.exceptions.scenarios import ScenarioError
 
 if TYPE_CHECKING:
-    from edsl.scenarios.ScenarioList import ScenarioList
+    from .ScenarioList import ScenarioList
     from edsl.results.Dataset import Dataset
-
 
 class DisplayJSON:
     """Display a dictionary as JSON."""

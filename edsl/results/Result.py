@@ -3,7 +3,8 @@ from __future__ import annotations
 import inspect
 from collections import UserDict
 from typing import Any, Type, Callable, Optional, TYPE_CHECKING, Union
-from edsl.Base import Base
+
+from edsl.base import Base
 from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
 
 if TYPE_CHECKING:
@@ -13,10 +14,8 @@ if TYPE_CHECKING:
     from edsl.prompts.Prompt import Prompt
     from edsl.surveys.Survey import Survey
 
-
 QuestionName = str
 AnswerValue = Any
-
 
 class AgentNamer:
     """Maintains a registry of agent names to ensure unique naming."""

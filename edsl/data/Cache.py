@@ -7,7 +7,7 @@ import json
 import os
 import warnings
 from typing import Optional, Union, TYPE_CHECKING
-from edsl.Base import Base
+from edsl.base import Base
 
 from edsl.utilities.remove_edsl_version import remove_edsl_version
 from edsl.exceptions.cache import CacheError
