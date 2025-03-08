@@ -2,7 +2,7 @@ from edsl.language_models.model import Model
 from edsl.jobs.Jobs import Jobs
 from edsl.questions.QuestionFreeText import QuestionFreeText
 from edsl.surveys.Survey import Survey
-from edsl.jobs.JobsPrompts import JobsPrompts
+from edsl.jobs.jobs_pricing_estimation import JobsPrompts
 
 price_lookup = {
     ("test", "test"): {

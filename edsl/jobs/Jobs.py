@@ -19,15 +19,15 @@ from typing import (
 from edsl.Base import Base
 
 from edsl.jobs.buckets.BucketCollection import BucketCollection
-from edsl.jobs.JobsPrompts import JobsPrompts
+from .jobs_pricing_estimation import JobsPrompts
 from edsl.jobs.interviews.Interview import Interview
 from edsl.utilities.remove_edsl_version import remove_edsl_version
 #from edsl.jobs.runners.JobsRunnerAsyncio import JobsRunnerAsyncio
 #from edsl.data.RemoteCacheSync import RemoteCacheSync
 from edsl.exceptions.coop import CoopServerResponseError
 
-from edsl.jobs.JobsChecks import JobsChecks
-from edsl.jobs.data_structures import RunEnvironment, RunParameters, RunConfig
+from .JobsChecks import JobsChecks
+from .data_structures import RunEnvironment, RunParameters, RunConfig
 
 if TYPE_CHECKING:
     from edsl.agents.Agent import Agent
