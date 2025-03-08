@@ -1,28 +1,132 @@
 import logging
-from typing import List, TYPE_CHECKING
+import math
 
-from edsl.results.Dataset import Dataset
+from typing import List, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .Jobs import Jobs
+    from edsl.agents.AgentList import AgentList
+    from edsl.scenarios.ScenarioList import ScenarioList
+    from edsl.surveys.Survey import Survey
+    from edsl.jobs.interviews.Interview import Interview
 
 from .FetchInvigilator import FetchInvigilator
 from edsl.data.CacheEntry import CacheEntry
+from edsl.results.Dataset import Dataset
 
 logger = logging.getLogger(__name__)
 
+
+class PromptCostEstimator:
+
+    DEFAULT_INPUT_PRICE_PER_TOKEN = 0.000001
+    DEFAULT_OUTPUT_PRICE_PER_TOKEN = 0.000001
+    CHARS_PER_TOKEN = 4
+    OUTPUT_TOKENS_PER_INPUT_TOKEN = 0.75
+    PIPING_MULTIPLIER = 2
+
+    def __init__(self,      
+        system_prompt: str,
+        user_prompt: str,
+        price_lookup: dict,
+        inference_service: str,
+        model: str):
+        self.system_prompt = system_prompt
+        self.user_prompt = user_prompt
+        self.price_lookup = price_lookup
+        self.inference_service = inference_service
+        self.model = model
+
+    @staticmethod    
+    def get_piping_multiplier(prompt: str):
+        """Returns 2 if a prompt includes Jinja braces, and 1 otherwise."""
+
+        if "{{" in prompt and "}}" in prompt:
+            return PromptCostEstimator.PIPING_MULTIPLIER
+        return 1
+    
+    @property
+    def key(self):
+        return (self.inference_service, self.model)
+    
+    @property
+    def relevant_prices(self):
+        try:
+            return self.price_lookup[self.key]
+        except KeyError:
+            return {}
+    
+    def input_price_per_token(self):
+        try:
+            return self.relevant_prices["input"]["service_stated_token_price"] / self.relevant_prices["input"]["service_stated_token_qty"]
+        except KeyError:
+            import warnings
+            warnings.warn(
+                "Price data could not be retrieved. Using default estimates for input and output token prices. Input: $1.00 / 1M tokens; Output: $1.00 / 1M tokens"
+            )
+            return self.DEFAULT_INPUT_PRICE_PER_TOKEN
+
+    def output_price_per_token(self):
+        try:
+            return self.relevant_prices["output"]["service_stated_token_price"] / self.relevant_prices["output"]["service_stated_token_qty"]
+        except KeyError:
+            return self.DEFAULT_OUTPUT_PRICE_PER_TOKEN
+        
+    def __call__(self):
+        user_prompt_chars = len(str(self.user_prompt)) * self.get_piping_multiplier(
+            str(self.user_prompt)
+        )
+        system_prompt_chars = len(str(self.system_prompt)) * self.get_piping_multiplier(
+            str(self.system_prompt)
+        )
+        # Convert into tokens (1 token approx. equals 4 characters)
+        input_tokens = (user_prompt_chars + system_prompt_chars) // self.CHARS_PER_TOKEN
+        output_tokens = math.ceil(self.OUTPUT_TOKENS_PER_INPUT_TOKEN * input_tokens)
+
+        cost = (
+            input_tokens * self.input_price_per_token()
+            + output_tokens * self.output_price_per_token()
+        )
+        return {
+            "input_tokens": input_tokens,
+            "output_tokens": output_tokens,
+            "cost_usd": cost,
+        }
+
+
 class JobsPrompts:
+
+    relevant_keys = ["user_prompt", "system_prompt", "interview_index", "question_name", "scenario_index", "agent_index", "model", "estimated_cost", "cache_keys"]
+
     """This generates the prompts for a job for price estimation purposes. 
     
     It does *not* do the full job execution---that requires an LLM. 
     So assumptions are made about expansion of Jinja braces, etc.
     """
-    def __init__(self, jobs: "Jobs"):
-        self.interviews = jobs.interviews()
-        self.agents = jobs.agents
-        self.scenarios = jobs.scenarios
-        self.survey = jobs.survey
+
+
+    @classmethod
+    def from_jobs(cls, jobs: "Jobs"):
+        """Construct a JobsPrompts object from a Jobs object."""
+        interviews = jobs.interviews()
+        agents = jobs.agents
+        scenarios = jobs.scenarios
+        survey = jobs.survey
+        return cls(
+            interviews=interviews,
+            agents=agents,
+            scenarios=scenarios,
+            survey=survey
+        )
+    
+    def __init__(self, interviews: List['Interview'], agents:'AgentList', scenarios: 'ScenarioList', survey: 'Survey'):
+        """Initialize with extracted components rather than a Jobs object."""
+        self.interviews = interviews
+        self.agents = agents
+        self.scenarios = scenarios
+        self.survey = survey
         self._price_lookup = None
+
         self._agent_lookup = {agent: idx for idx, agent in enumerate(self.agents)}
         self._scenario_lookup = {
             scenario: idx for idx, scenario in enumerate(self.scenarios)
@@ -38,6 +142,53 @@ class JobsPrompts:
             self._price_lookup = c.fetch_prices()
         return self._price_lookup
 
+    def _process_one_invigilator(self, invigilator: 'Invigilator', interview_index: int, iterations: int = 1) -> dict   :
+        """Process a single invigilator and return a dictionary with all needed data fields."""
+        prompts = invigilator.get_prompts()
+        user_prompt = prompts["user_prompt"]
+        system_prompt = prompts["system_prompt"]
+        
+        agent_index = self._agent_lookup[invigilator.agent]
+        scenario_index = self._scenario_lookup[invigilator.scenario]
+        model = invigilator.model.model
+        question_name = invigilator.question.question_name
+        
+        # Calculate prompt cost
+        prompt_cost = self.estimate_prompt_cost(
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            price_lookup=self.price_lookup,
+            inference_service=invigilator.model._inference_service_,
+            model=model,
+        )
+        cost = prompt_cost["cost_usd"]
+        
+        # Generate cache keys for each iteration
+        cache_keys = []
+        for iteration in range(iterations):
+            cache_key = CacheEntry.gen_key(
+                model=model,
+                parameters=invigilator.model.parameters,
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                iteration=iteration,
+            )
+            cache_keys.append(cache_key)
+        
+        d = {
+            "user_prompt": user_prompt,
+            "system_prompt": system_prompt,
+            "interview_index": interview_index,
+            "question_name": question_name,
+            "scenario_index": scenario_index,
+            "agent_index": agent_index,
+            "model": model,
+            "estimated_cost": cost,
+            "cache_keys": cache_keys,
+        }
+        assert list(d.keys()) == self.relevant_keys
+        return d
+
     def prompts(self, iterations=1) -> "Dataset":
         """Return a Dataset of prompts that will be used.
 
@@ -45,72 +196,24 @@ class JobsPrompts:
         >>> Jobs.example().prompts()
         Dataset(...)
         """
-        interviews = self.interviews
-        interview_indices = []
-        question_names = []
-        user_prompts = []
-        system_prompts = []
-        scenario_indices = []
-        agent_indices = []
-        models = []
-        costs = []
-        cache_keys = []
+        dataset_of_prompts = {k: [] for k in self.relevant_keys}
 
+        interviews = self.interviews
+        
+        # Process each interview and invigilator
         for interview_index, interview in enumerate(interviews):
             invigilators = [
                 FetchInvigilator(interview)(question)
                 for question in interview.survey.questions
             ]
 
-            for _, invigilator in enumerate(invigilators):
-                prompts = invigilator.get_prompts()
-                user_prompt = prompts["user_prompt"]
-                system_prompt = prompts["system_prompt"]
-                user_prompts.append(user_prompt)
-                system_prompts.append(system_prompt)
-
-                agent_index = self._agent_lookup[invigilator.agent]
-                agent_indices.append(agent_index)
-                interview_indices.append(interview_index)
-                scenario_index = self._scenario_lookup[invigilator.scenario]
-                scenario_indices.append(scenario_index)
-
-                models.append(invigilator.model.model)
-                question_names.append(invigilator.question.question_name)
-
-                prompt_cost = self.estimate_prompt_cost(
-                    system_prompt=system_prompt,
-                    user_prompt=user_prompt,
-                    price_lookup=self.price_lookup,
-                    inference_service=invigilator.model._inference_service_,
-                    model=invigilator.model.model,
-                )
-                costs.append(prompt_cost["cost_usd"])
-
-                for iteration in range(iterations):
-                    cache_key = CacheEntry.gen_key(
-                        model=invigilator.model.model,
-                        parameters=invigilator.model.parameters,
-                        system_prompt=system_prompt,
-                        user_prompt=user_prompt,
-                        iteration=iteration,
-                    )
-                    cache_keys.append(cache_key)
-
-        d = Dataset(
-            [
-                {"user_prompt": user_prompts},
-                {"system_prompt": system_prompts},
-                {"interview_index": interview_indices},
-                {"question_name": question_names},
-                {"scenario_index": scenario_indices},
-                {"agent_index": agent_indices},
-                {"model": models},
-                {"estimated_cost": costs},
-                {"cache_key": cache_keys},
-            ]
-        )
-        return d
+            for invigilator in invigilators:
+                # Process the invigilator and get all data as a dictionary
+                data = self._process_one_invigilator(invigilator, interview_index, iterations)
+                for k in self.relevant_keys:
+                    dataset_of_prompts[k].append(data[k])
+                
+        return Dataset([{k:dataset_of_prompts[k]} for k in self.relevant_keys])
 
     @staticmethod
     def estimate_prompt_cost(
@@ -121,74 +224,13 @@ class JobsPrompts:
         model: str,
     ) -> dict:
         """Estimates the cost of a prompt, taking piping into account."""
-        import math
-
-        def get_piping_multiplier(prompt: str):
-            """Returns 2 if a prompt includes Jinja braces, and 1 otherwise."""
-
-            if "{{" in prompt and "}}" in prompt:
-                return 2
-            return 1
-
-        # Look up prices per token
-        key = (inference_service, model)
-
-        try:
-            relevant_prices = price_lookup[key]
-
-            service_input_token_price = float(
-                relevant_prices["input"]["service_stated_token_price"]
-            )
-            service_input_token_qty = float(
-                relevant_prices["input"]["service_stated_token_qty"]
-            )
-            input_price_per_token = service_input_token_price / service_input_token_qty
-
-            service_output_token_price = float(
-                relevant_prices["output"]["service_stated_token_price"]
-            )
-            service_output_token_qty = float(
-                relevant_prices["output"]["service_stated_token_qty"]
-            )
-            output_price_per_token = (
-                service_output_token_price / service_output_token_qty
-            )
-
-        except KeyError:
-            # A KeyError is likely to occur if we cannot retrieve prices (the price_lookup dict is empty)
-            # Use a sensible default
-
-            import warnings
-
-            warnings.warn(
-                "Price data could not be retrieved. Using default estimates for input and output token prices. Input: $1.00 / 1M tokens; Output: $1.00 / 1M tokens"
-            )
-            input_price_per_token = 0.000001  # $1.00 / 1M tokens
-            output_price_per_token = 0.000001  # $1.00 / 1M tokens
-
-        # Compute the number of characters (double if the question involves piping)
-        user_prompt_chars = len(str(user_prompt)) * get_piping_multiplier(
-            str(user_prompt)
-        )
-        system_prompt_chars = len(str(system_prompt)) * get_piping_multiplier(
-            str(system_prompt)
-        )
-
-        # Convert into tokens (1 token approx. equals 4 characters)
-        input_tokens = (user_prompt_chars + system_prompt_chars) // 4
-
-        output_tokens = math.ceil(0.75 * input_tokens)
-
-        cost = (
-            input_tokens * input_price_per_token
-            + output_tokens * output_price_per_token
-        )
-
-        return {
-            "input_tokens": input_tokens,
-            "output_tokens": output_tokens,
-            "cost_usd": cost,
-        }
+        return PromptCostEstimator(
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            price_lookup=price_lookup,
+            inference_service=inference_service,
+            model=model
+        )()
     
     @staticmethod
     def _extract_prompt_details(invigilator: FetchInvigilator) -> dict:
