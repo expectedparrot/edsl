@@ -1,8 +1,16 @@
+"""
+Checks a Jobs object for missing API keys and other requirements.
+"""
+
 import os
 from edsl.exceptions.general import MissingAPIKeyError
 
 
 class JobsChecks:
+    """
+    Checks a Jobs object for missing API keys and other requirements.
+    """
+
     def __init__(self, jobs):
         """Checks a Jobs object for missing API keys and other requirements."""
         self.jobs = jobs
@@ -42,9 +50,7 @@ class JobsChecks:
 
     def user_has_ep_api_key(self) -> bool:
         """
-        Returns True if the user has an EXPECTED_PARROT_API_KEY in their env.
-
-        Otherwise, returns False.
+        Does the user have an EXPECTED_PARROT_API_KEY in their env?
         """
 
         coop_api_key = os.getenv("EXPECTED_PARROT_API_KEY")
@@ -54,9 +60,9 @@ class JobsChecks:
         else:
             return False
 
-    def user_has_all_model_keys(self):
+    def user_has_all_model_keys(self) -> bool:
         """
-        Returns True if the user has all model keys required to run their job.
+        Does the user have all the model keys required to run their job?
 
         Otherwise, returns False.
         """
@@ -71,7 +77,7 @@ class JobsChecks:
 
     def needs_external_llms(self) -> bool:
         """
-        Returns True if the job needs external LLMs to run.
+        Does the job need external LLMs to run?
 
         Otherwise, returns False.
         """
@@ -99,8 +105,10 @@ class JobsChecks:
         else:
             return True
 
-    def needs_key_process(self):
+    def needs_key_process(self) -> bool:
         """
+        Determines if the user needs to go through the key process.
+
         A User needs the key process when:
         1. They don't have all the model keys
         2. They don't have the EP API
