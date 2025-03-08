@@ -39,7 +39,7 @@ def test_prompt_cost_estimation():
 
     assert estimated_cost_dct["input_tokens"] == 7
     assert estimated_cost_dct["output_tokens"] == 6
-    assert estimated_cost_dct["cost_usd"] == 13
+    assert estimated_cost_dct["cost_usd"] == 13  # should be 13
 
     estimated_cost_dct = JobsPrompts.estimate_prompt_cost(
         system_prompt="",

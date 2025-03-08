@@ -7,17 +7,11 @@ from edsl.results.Dataset import Dataset
 if TYPE_CHECKING:
     from edsl.jobs import Jobs
 
-    # from edsl.jobs.interviews.Interview import Interview
-    # from edsl.results.Dataset import Dataset
-    # from edsl.agents.AgentList import AgentList
-    # from edsl.scenarios.ScenarioList import ScenarioList
-    # from edsl.surveys.Survey import Survey
 
-from edsl.jobs.FetchInvigilator import FetchInvigilator
+from .FetchInvigilator import FetchInvigilator
 from edsl.data.CacheEntry import CacheEntry
 
 logger = logging.getLogger(__name__)
-
 
 class JobsPrompts:
     def __init__(self, jobs: "Jobs"):
@@ -32,7 +26,7 @@ class JobsPrompts:
         }
 
     @property
-    def price_lookup(self):
+    def price_lookup(self) -> dict:
         if self._price_lookup is None:
             from edsl.coop.coop import Coop
 
@@ -182,7 +176,7 @@ class JobsPrompts:
         inference_service: str,
         model: str,
     ) -> dict:
-        """Estimates the cost of a prompt. Takes piping into account."""
+        """Estimates the cost of a prompt, taking piping into account."""
         import math
 
         def get_piping_multiplier(prompt: str):
@@ -251,6 +245,21 @@ class JobsPrompts:
             "output_tokens": output_tokens,
             "cost_usd": cost,
         }
+    
+    @staticmethod
+    def _extract_prompt_details(invigilator: FetchInvigilator) -> dict:
+        """Extracts the prompt details from the invigilator."""
+        prompts = invigilator.get_prompts()
+        user_prompt = prompts["user_prompt"]
+        system_prompt = prompts["system_prompt"]
+        inference_service = invigilator.model._inference_service_
+        model = invigilator.model.model
+        return {
+            "user_prompt": user_prompt,
+            "system_prompt": system_prompt,
+            "inference_service": inference_service,
+            "model": model,
+        }
 
     def estimate_job_cost_from_external_prices(
         self, price_lookup: dict, iterations: int = 1
@@ -263,9 +272,6 @@ class JobsPrompts:
 
         price_lookup is an external pricing dictionary.
         """
-
-        import pandas as pd
-
         interviews = self.interviews
         data = []
         for interview in interviews:
@@ -274,53 +280,41 @@ class JobsPrompts:
                 for question in self.survey.questions
             ]
             for invigilator in invigilators:
-                prompts = invigilator.get_prompts()
-
-                # By this point, agent and scenario data has already been added to the prompts
-                user_prompt = prompts["user_prompt"]
-                system_prompt = prompts["system_prompt"]
-                inference_service = invigilator.model._inference_service_
-                model = invigilator.model.model
-
-                prompt_cost = self.estimate_prompt_cost(
-                    system_prompt=system_prompt,
-                    user_prompt=user_prompt,
-                    price_lookup=price_lookup,
-                    inference_service=inference_service,
-                    model=model,
-                )
-
-                data.append(
-                    {
-                        "user_prompt": user_prompt,
-                        "system_prompt": system_prompt,
-                        "estimated_input_tokens": prompt_cost["input_tokens"],
-                        "estimated_output_tokens": prompt_cost["output_tokens"],
-                        "estimated_cost_usd": prompt_cost["cost_usd"],
-                        "inference_service": inference_service,
-                        "model": model,
-                    }
-                )
-
-        df = pd.DataFrame.from_records(data)
-
-        df = (
-            df.groupby(["inference_service", "model"])
-            .agg(
-                {
-                    "estimated_cost_usd": "sum",
-                    "estimated_input_tokens": "sum",
-                    "estimated_output_tokens": "sum",
+                prompt_details = self._extract_prompt_details(invigilator)
+                prompt_cost = self.estimate_prompt_cost(**prompt_details, price_lookup=price_lookup)
+                price_estimates = {
+                    'estimated_input_tokens': prompt_cost['input_tokens'],
+                    'estimated_output_tokens': prompt_cost['output_tokens'],
+                    'estimated_cost_usd': prompt_cost['cost_usd']
                 }
-            )
-            .reset_index()
-        )
-        df["estimated_cost_usd"] = df["estimated_cost_usd"] * iterations
-        df["estimated_input_tokens"] = df["estimated_input_tokens"] * iterations
-        df["estimated_output_tokens"] = df["estimated_output_tokens"] * iterations
+                data.append({**price_estimates, **prompt_details})
 
-        estimated_costs_by_model = df.to_dict("records")
+        model_groups = {}
+        for item in data:
+            key = (item["inference_service"], item["model"])
+            if key not in model_groups:
+                model_groups[key] = {
+                    "inference_service": item["inference_service"],
+                    "model": item["model"],
+                    "estimated_cost_usd": 0,
+                    "estimated_input_tokens": 0,
+                    "estimated_output_tokens": 0
+                }
+            
+            # Accumulate values
+            model_groups[key]["estimated_cost_usd"] += item["estimated_cost_usd"]
+            model_groups[key]["estimated_input_tokens"] += item["estimated_input_tokens"]
+            model_groups[key]["estimated_output_tokens"] += item["estimated_output_tokens"]
+        
+        # Apply iterations and convert to list
+        estimated_costs_by_model = []
+        for group_data in model_groups.values():
+            group_data["estimated_cost_usd"] *= iterations
+            group_data["estimated_input_tokens"] *= iterations
+            group_data["estimated_output_tokens"] *= iterations
+            estimated_costs_by_model.append(group_data)
 
+        # Calculate totals
         estimated_total_cost = sum(
             model["estimated_cost_usd"] for model in estimated_costs_by_model
         )
