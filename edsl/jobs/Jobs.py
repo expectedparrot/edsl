@@ -304,7 +304,7 @@ class Jobs(Base):
         >>> Jobs.example().prompts()
         Dataset(...)
         """
-        return JobsPrompts(self).prompts(iterations=iterations)
+        return JobsPrompts.from_jobs(self).prompts(iterations=iterations)
 
     def show_prompts(self, all: bool = False) -> None:
         """Print the prompts."""
@@ -347,7 +347,7 @@ class Jobs(Base):
     def estimate_job_cost_from_external_prices(
         self, price_lookup: dict, iterations: int = 1
     ) -> dict:
-        return JobsPrompts(self).estimate_job_cost_from_external_prices(
+        return JobsPrompts.from_jobs(self).estimate_job_cost_from_external_prices(
             price_lookup, iterations
         )
 
