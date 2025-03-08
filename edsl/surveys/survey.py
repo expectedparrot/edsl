@@ -82,7 +82,7 @@ from .MemoryPlan import MemoryPlan
 from .RuleCollection import RuleCollection
 from .SurveyExportMixin import SurveyExportMixin
 from .SurveyFlowVisualization import SurveyFlowVisualization
-from .InstructionHandler import InstructionHandler
+from .instructions.InstructionHandler import InstructionHandler
 from .EditSurvey import EditSurvey
 from .Simulator import Simulator
 from .MemoryManagement import MemoryManagement
