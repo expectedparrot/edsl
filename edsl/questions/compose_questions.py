@@ -3,6 +3,7 @@
 from edsl.questions import QuestionFunctional
 from edsl.questions.QuestionBase import QuestionBase
 from edsl.scenarios.Scenario import Scenario
+from edsl.agents import Agent
 
 
 def compose_questions(

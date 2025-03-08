@@ -1030,11 +1030,11 @@ class Agent(Base):
 
         >>> a = Agent(traits = {"age": 10, "hair": "brown", "height": 5.5})
         >>> print(a.code())
-        from edsl.agents.Agent import Agent
+        from edsl.agents import Agent
         agent = Agent(traits={'age': 10, 'hair': 'brown', 'height': 5.5})
         """
         return (
-            f"from edsl.agents.Agent import Agent\nagent = Agent(traits={self.traits})"
+            f"from edsl.agents import Agent\nagent = Agent(traits={self.traits})"
         )
 
 

@@ -20,6 +20,8 @@ from edsl.exceptions.surveys import SurveyCreationError, SurveyHasNoRulesError
 from edsl.exceptions.surveys import SurveyError
 from collections import UserDict
 
+from edsl.agents import Agent
+
 class PseudoIndices(UserDict):
     @property
     def max_pseudo_index(self) -> float:

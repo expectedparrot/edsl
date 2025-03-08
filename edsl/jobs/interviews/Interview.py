@@ -195,7 +195,7 @@ class Interview:
     def from_dict(cls, d: dict[str, Any]) -> "Interview":
         """Return an Interview instance from a dictionary."""
 
-        from edsl.agents.Agent import Agent
+        from edsl.agents import Agent
         from edsl.surveys.Survey import Survey
         from edsl.scenarios.Scenario import Scenario
         from edsl.language_models.LanguageModel import LanguageModel

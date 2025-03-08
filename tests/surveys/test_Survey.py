@@ -2,6 +2,7 @@ import pytest
 import unittest
 from edsl.surveys.Survey import Survey
 from edsl.questions import QuestionMultipleChoice
+from edsl.agents import Agent
 
 
 class TestSurvey(unittest.TestCase):
@@ -112,8 +113,6 @@ class TestSurvey(unittest.TestCase):
         q2 = QuestionYesNo(
             question_name="own_shovel", question_text="Do you own a shovel?"
         )
-
-        from edsl.agents.Agent import Agent
 
         d = Agent()
 

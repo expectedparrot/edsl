@@ -67,8 +67,6 @@ def test_jobs_simple_stuf(valid_job):
 
 
 def test_jobs_by_agents():
-    from edsl.agents.AgentList import AgentList
-
     q = QuestionMultipleChoice(
         question_text="How are you?",
         question_options=["Good", "Great", "OK", "Bad"],
