@@ -1,10 +1,8 @@
 import pytest
 
-from edsl.agents import Agent
-from edsl.agents import AgentList
+from edsl.agents import Agent, AgentList
 from edsl.data.Cache import Cache
-from edsl.scenarios.Scenario import Scenario
-from edsl.scenarios.ScenarioList import ScenarioList
+from edsl.scenarios import Scenario, ScenarioList
 from edsl.questions.QuestionCheckBox import QuestionCheckBox
 from edsl.questions.QuestionFreeText import QuestionFreeText
 from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice

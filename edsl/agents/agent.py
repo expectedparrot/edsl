@@ -23,14 +23,14 @@ A = TypeVar("A", bound="Agent")
 if TYPE_CHECKING:
     from edsl.data.Cache import Cache
     from edsl.surveys.Survey import Survey
-    from edsl.scenarios.Scenario import Scenario
+    from edsl.scenarios import Scenario
     from edsl.language_models import LanguageModel
     from edsl.surveys.MemoryPlan import MemoryPlan
     from edsl.questions import QuestionBase
     from edsl.invigilators.invigilators import InvigilatorBase
     from edsl.prompts import Prompt
     from edsl.questions.QuestionBase import QuestionBase
-    from edsl.scenarios.Scenario import Scenario
+    from edsl.scenarios import Scenario
 
 
 @runtime_checkable
@@ -65,7 +65,7 @@ from edsl.utilities.remove_edsl_version import remove_edsl_version
 from edsl.data_transfer_models import AgentResponseDict
 from edsl.utilities.restricted_python import create_restricted_function
 
-from edsl.scenarios.Scenario import Scenario
+from edsl.scenarios import Scenario
 
 
 class AgentTraits(Scenario):
@@ -570,7 +570,7 @@ class Agent(Base):
         """
         from edsl.language_models.model import Model
 
-        from edsl.scenarios.Scenario import Scenario
+        from edsl.scenarios import Scenario
 
         cache = cache
         self.current_question = question
@@ -680,7 +680,7 @@ class Agent(Base):
     ) -> "InvigilatorBase":
         """Create an Invigilator."""
         from edsl.language_models.model import Model
-        from edsl.scenarios.Scenario import Scenario
+        from edsl.scenarios import Scenario
 
         model = model or Model()
         scenario = scenario or Scenario()

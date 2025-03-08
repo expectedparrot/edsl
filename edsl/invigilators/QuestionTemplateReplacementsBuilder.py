@@ -1,10 +1,10 @@
 from jinja2 import Environment, meta, TemplateSyntaxError
 from typing import Any, Set, TYPE_CHECKING
 from edsl.agents import Agent
+from edsl.scenarios import Scenario
 
 if TYPE_CHECKING:
     from edsl.agents.PromptConstructor import PromptConstructor
-    from edsl.scenarios.Scenario import Scenario
     from edsl.questions.QuestionBase import QuestionBase
 
 

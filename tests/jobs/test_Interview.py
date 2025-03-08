@@ -2,7 +2,7 @@ import pytest
 from edsl.surveys.Survey import Survey
 from edsl.questions.QuestionFreeText import QuestionFreeText
 from edsl.language_models.utilities import create_language_model
-from edsl.scenarios.ScenarioList import ScenarioList
+from edsl.scenarios import ScenarioList
 from edsl.data.Cache import Cache
 
 

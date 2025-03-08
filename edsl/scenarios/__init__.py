@@ -1,3 +1,3 @@
-from edsl.scenarios.Scenario import Scenario
-from edsl.scenarios.ScenarioList import ScenarioList
-from edsl.scenarios.FileStore import FileStore
+from edsl.scenarios.scenario import Scenario
+from edsl.scenarios.scenario_list import ScenarioList
+from edsl.scenarios.file_store import FileStore

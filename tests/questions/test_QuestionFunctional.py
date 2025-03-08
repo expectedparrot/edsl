@@ -4,7 +4,9 @@ from edsl.questions import QuestionFreeText, QuestionFunctional
 from edsl.questions.QuestionFreeText import QuestionFreeText
 from edsl.questions.compose_questions import compose_questions
 from edsl.jobs.Jobs import Jobs
-from edsl.scenarios.Scenario import Scenario
+from edsl.scenarios import Scenario
+from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
+from edsl.questions.QuestionYesNo import QuestionYesNo
 
 
 def SillyFunction(scenario, agent_traits):

@@ -11,6 +11,8 @@ from edsl.base import Base
 
 from edsl.utilities.remove_edsl_version import remove_edsl_version
 from edsl.exceptions.cache import CacheError
+from edsl.scenarios import Scenario
+from edsl.scenarios import ScenarioList
 
 
 class Cache(Base):

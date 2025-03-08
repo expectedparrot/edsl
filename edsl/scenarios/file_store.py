@@ -5,7 +5,7 @@ import mimetypes
 import os
 from typing import Dict, Any, IO, Optional
 
-from edsl.scenarios.Scenario import Scenario
+from edsl.scenarios import Scenario
 from edsl.utilities.remove_edsl_version import remove_edsl_version
 
 from edsl.scenarios.file_methods import FileMethods

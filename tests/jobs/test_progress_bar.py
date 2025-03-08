@@ -3,9 +3,11 @@ import pytest
 import time
 from edsl.agents import Agent
 from edsl.data.Cache import Cache
-from edsl.scenarios.Scenario import Scenario
+from edsl.scenarios import Scenario
 from edsl.questions import QuestionYesNo
 from edsl.jobs.runners.JobsRunnerStatus import JobsRunnerStatusBase
+from edsl.jobs.Jobs import Jobs
+from edsl.questions.QuestionFreeText import QuestionFreeText
 
 
 def test_progress_bar():

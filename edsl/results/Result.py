@@ -7,6 +7,7 @@ from typing import Any, Type, Callable, Optional, TYPE_CHECKING, Union
 from edsl.base import Base
 from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
 from edsl.agents import Agent
+from edsl.scenarios import Scenario
 
 if TYPE_CHECKING:
     from edsl.agents import Agent

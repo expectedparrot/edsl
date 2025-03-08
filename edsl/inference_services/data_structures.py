@@ -2,6 +2,7 @@ from collections import UserDict, defaultdict, UserList
 from typing import Union, Optional, List
 from edsl.enums import InferenceServiceLiteral
 from dataclasses import dataclass
+from edsl.scenarios import ScenarioList
 
 
 @dataclass

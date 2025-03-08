@@ -21,6 +21,7 @@ from edsl.exceptions.surveys import SurveyError
 from collections import UserDict
 
 from edsl.agents import Agent
+from edsl.scenarios import Scenario
 
 class PseudoIndices(UserDict):
     @property
@@ -57,7 +58,6 @@ if TYPE_CHECKING:
     from edsl.agents.Agent import Agent
     from edsl.surveys.DAG import DAG
     from edsl.language_models.LanguageModel import LanguageModel
-    from edsl.scenarios.Scenario import Scenario
     from edsl.data.Cache import Cache
 
     # This is a hack to get around the fact that TypeAlias is not available in typing until Python 3.10

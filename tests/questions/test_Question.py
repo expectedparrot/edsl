@@ -2,8 +2,9 @@ import pytest
 from edsl.exceptions.questions import QuestionScenarioRenderError
 from edsl.questions.QuestionFreeText import QuestionFreeText
 from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
+from edsl.questions.QuestionYesNo import QuestionYesNo
 from edsl.surveys.Survey import Survey
-from edsl.scenarios.Scenario import Scenario
+from edsl.scenarios import Scenario
 from edsl.exceptions.questions import QuestionMissingTypeError, QuestionBadTypeError
 
 valid_question = {

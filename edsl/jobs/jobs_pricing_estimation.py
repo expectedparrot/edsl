@@ -6,7 +6,7 @@ from typing import List, TYPE_CHECKING
 if TYPE_CHECKING:
     from .Jobs import Jobs
     from edsl.agents.AgentList import AgentList
-    from edsl.scenarios.ScenarioList import ScenarioList
+    from edsl.scenarios import ScenarioList
     from edsl.surveys.Survey import Survey
     from edsl.jobs.interviews.Interview import Interview
 

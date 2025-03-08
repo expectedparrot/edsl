@@ -9,7 +9,7 @@ if TYPE_CHECKING:
     from edsl.prompts.Prompt import Prompt
     from edsl.data.Cache import Cache
     from edsl.questions.QuestionBase import QuestionBase
-    from edsl.scenarios.Scenario import Scenario
+    from edsl.scenarios import Scenario
     from edsl.surveys.MemoryPlan import MemoryPlan
     from edsl.language_models.LanguageModel import LanguageModel
     from edsl.surveys.Survey import Survey
@@ -108,7 +108,7 @@ class InvigilatorBase(ABC):
     def from_dict(cls, data) -> "InvigilatorBase":
         from edsl.agents import Agent
         from edsl.questions import QuestionBase
-        from edsl.scenarios.Scenario import Scenario
+        from edsl.scenarios import Scenario
         from edsl.surveys.MemoryPlan import MemoryPlan
         from edsl.language_models.LanguageModel import LanguageModel
         from edsl.surveys.Survey import Survey
@@ -212,7 +212,7 @@ class InvigilatorBase(ABC):
         Exception: This is a test error
         """
         from edsl.agents import Agent
-        from edsl.scenarios.Scenario import Scenario
+        from edsl.scenarios import Scenario
         from edsl.surveys.MemoryPlan import MemoryPlan
         from edsl.language_models.model import Model
         from edsl.surveys.Survey import Survey

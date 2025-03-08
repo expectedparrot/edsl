@@ -3,7 +3,7 @@ from typing import Union, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from edsl.scenarios.ScenarioList import ScenarioList
-    from edsl.scenarios.Scenario import Scenario
+    from edsl.scenarios import Scenario
 
 
 class ScenarioJoin:
@@ -88,7 +88,7 @@ class ScenarioJoin:
         self, by_keys: list[str], other_dict: dict, all_keys: set
     ) -> list[Scenario]:
         """Create the joined scenarios."""
-        from edsl.scenarios.Scenario import Scenario
+        from edsl.scenarios import Scenario
 
         new_scenarios = []
 
