@@ -197,7 +197,7 @@ class Interview:
         """Return an Interview instance from a dictionary."""
 
         from edsl.agents import Agent
-        from edsl.surveys.Survey import Survey
+        from edsl.surveys import Survey
         from edsl.scenarios import Scenario
         from edsl.language_models.LanguageModel import LanguageModel
 

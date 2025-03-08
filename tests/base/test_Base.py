@@ -5,6 +5,7 @@ import warnings
 from edsl.base import RegisterSubclassesMeta, Base
 from edsl.questions import QuestionMultipleChoice
 from edsl.scenarios import Scenario, ScenarioList
+from edsl.surveys import Survey
 
 
 class EvalReprFail(Warning):
@@ -58,7 +59,7 @@ def create_test_function(child_class):
     @staticmethod
     def base_test_func():
         from edsl.agents import Agent
-        from edsl.surveys.Survey import Survey
+        from edsl.surveys import Survey
         from edsl.questions.question_registry import Question
         from edsl.data.CacheEntry import CacheEntry
         from edsl.language_models.model import Model
