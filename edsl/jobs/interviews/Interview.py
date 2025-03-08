@@ -6,7 +6,7 @@ from typing import Any, Type, List, Generator, Optional, TYPE_CHECKING
 import copy
 from dataclasses import dataclass
 
-# from edsl.jobs.Answers import Answers
+# from jobs
 from ..data_structures import Answers
 from ..buckets.ModelBuckets import ModelBuckets
 from ..AnswerQuestionFunctionConstructor import (
@@ -39,6 +39,7 @@ if TYPE_CHECKING:
 @dataclass
 class InterviewRunningConfig:
     """Configuration for an interview."""
+
     cache: Optional["Cache"] = (None,)
     skip_retry: bool = (False,)  # COULD BE SET WITH CONFIG
     raise_validation_errors: bool = (True,)
@@ -113,11 +114,6 @@ class Interview:
             raise_validation_errors=raise_validation_errors,
         )
 
-        # Possibly not needed?
-        # self.cache = cache
-        # self.skip_retry = skip_retry
-        # self.raise_validation_errors = raise_validation_errors
-
         # dictionary mapping question names to their index in the survey.
         self.to_index = {
             question_name: index
@@ -130,31 +126,26 @@ class Interview:
         self.initial_hash = hash(self)
 
     @property
-    def cache(self) -> 'Cache':
+    def cache(self) -> "Cache":
         """Return the cache used for the interview."""
         return self.running_config.cache
-        
+
     @cache.setter
-    def cache(self, value: 'Cache') -> None:
+    def cache(self, value: "Cache") -> None:
         """Set the cache used for the interview."""
         self.running_config.cache = value
-    
+
     @property
     def skip_retry(self) -> bool:
         """Return the skip retry flag."""
         return self.running_config.skip_retry
-    
+
     @property
     def raise_validation_errors(self) -> bool:
         """Return the raise validation errors flag."""
-        #raise ValueError("Raise validation errors is not used in the Interview class.")
+        # raise ValueError("Raise validation errors is not used in the Interview class.")
         return self.running_config.raise_validation_errors
-    
-    # @property
-    # def running_config(self) -> InterviewRunningConfig:
-    #     """Return the running configuration for the interview."""
-    #     return self.running_config
-    
+
     @property
     def has_exceptions(self) -> bool:
         """Return True if there are exceptions."""
@@ -230,6 +221,7 @@ class Interview:
         return interview
 
     def __hash__(self) -> int:
+        """Hash the interview instance."""
         from edsl.utilities.utilities import dict_hash
 
         return dict_hash(self.to_dict(include_exceptions=False, add_edsl_version=False))
@@ -292,7 +284,6 @@ class Interview:
 
         self.skip_flags = {q.question_name: False for q in self.survey.questions}
 
-        # was "self.tasks" - is that necessary?
         self.tasks = self.task_manager.build_question_tasks(
             answer_func=AnswerQuestionFunctionConstructor(
                 self, key_lookup=run_config.environment.key_lookup
@@ -378,7 +369,6 @@ class Interview:
         >>> i2 = i.duplicate(1, None)
         >>> i.iteration + 1 == i2.iteration
         True
-
         """
         if randomize_survey:
             new_survey = self.survey.draw()
@@ -422,5 +412,4 @@ class Interview:
 if __name__ == "__main__":
     import doctest
 
-    # add ellipsis
     doctest.testmod(optionflags=doctest.ELLIPSIS)

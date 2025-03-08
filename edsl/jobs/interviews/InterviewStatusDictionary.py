@@ -1,5 +1,4 @@
 from __future__ import annotations
-import json
 from collections import UserDict
 from typing import Union, Dict
 
@@ -48,31 +47,41 @@ class InterviewStatusDictionary(UserDict):
     def __repr__(self):
         return f"InterviewStatusDictionary({self.data})"
 
-    def to_dict(self):
+    def to_dict(self) -> dict:
+        """Return a dictionary representation of the InterviewStatusDictionary."""
         new_data = {str(key): value for key, value in self.data.items()}
         return new_data
 
-    def print(self):
-        d = {}
-        for key, value in self.data.items():
-            d[str(key)] = value
-        from edsl.utilities.interface import print_dict_with_rich
+    # def print(self):
+    #     d = {}
+    #     for key, value in self.data.items():
+    #         d[str(key)] = value
+    #     from edsl.utilities.interface import print_dict_with_rich
 
-        print_dict_with_rich(d)
+    #     print_dict_with_rich(d)
 
     @classmethod
-    def from_dict(cls, data):
+    def from_dict(cls, data: dict) -> "InterviewStatusDictionary":
+        """Create an InterviewStatusDictionary from a dictionary."""
         new_data = {get_enum_from_string(key): value for key, value in data.items()}
         return cls(new_data)
 
-    def to_json(self):
+    def to_json(self) -> str:
+        """Return a JSON representation of the InterviewStatusDictionary."""
         import json
 
         return json.dumps(self.to_dict())
 
     @classmethod
-    def from_json(cls, data):
+    def from_json(cls, data: str) -> "InterviewStatusDictionary":
+        """Create an InterviewStatusDictionary from a JSON string."""
         import json
 
         data = json.loads(data)
         return cls.from_dict(data)
+
+
+if __name__ == "__main__":
+    import doctest
+
+    doctest.testmod(optionflags=doctest.ELLIPSIS)

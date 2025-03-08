@@ -10,14 +10,16 @@ class InterviewStatusLog(UserDict):
     """
 
     @property
-    def min_time(self):
+    def min_time(self) -> float:
+        """Return the minimum time of the status log."""
         return min([log.min_time for log in self.values()])
 
     @property
-    def max_time(self):
+    def max_time(self) -> float:
+        """Return the maximum time of the status log."""
         return max([log.max_time for log in self.values()])
 
-    def status_matrix(self, num_periods):
+    def status_matrix(self, num_periods: int) -> dict[str, list[TaskStatus]]:
         """Return a matrix of status values."""
         start_time = self.min_time
         end_time = self.max_time
@@ -28,7 +30,9 @@ class InterviewStatusLog(UserDict):
             status_matrix[task_name] = [log.status_at_time(t) for t in time_periods]
         return status_matrix
 
-    def numerical_matrix(self, num_periods):
+    def numerical_matrix(
+        self, num_periods: int
+    ) -> tuple[list[list[int]], dict[int, str]]:
         """Return a numerical matrix of status values."""
         status_dicts = self.status_matrix(num_periods)
 
@@ -44,7 +48,7 @@ class InterviewStatusLog(UserDict):
         index_to_names = {i: name for i, name in enumerate(status_dicts.keys())}
         return matrix, index_to_names
 
-    def visualize(self, num_periods=10):
+    def visualize(self, num_periods: int = 10) -> None:
         """Visualize the status matrix with outlined squares."""
         import matplotlib.pyplot as plt
         from matplotlib.colors import ListedColormap
@@ -90,3 +94,9 @@ class InterviewStatusLog(UserDict):
 
         # Show the plot
         plt.show()
+
+
+if __name__ == "__main__":
+    import doctest
+
+    doctest.testmod(optionflags=doctest.ELLIPSIS)

@@ -7,8 +7,10 @@ InterviewTokenUsageMapping = DefaultDict[str, InterviewTokenUsage]
 
 
 class InterviewStatistic(UserDict):
+    """A statistic for an interview."""
+
     @staticmethod
-    def _format_number(number, digits=0, units="") -> str:
+    def _format_number(number, digits: int = 0, units: str = "") -> str:
         """Format a number.
 
         :param number: the number to format
@@ -60,4 +62,5 @@ class InterviewStatistic(UserDict):
 
 if __name__ == "__main__":
     import doctest
+
     doctest.testmod()

@@ -7,6 +7,7 @@ class InterviewExceptionCollection(UserDict):
     """A collection of exceptions that occurred during the interview."""
 
     def __init__(self):
+        """Initialize the InterviewExceptionCollection."""
         super().__init__()
         self.fixed = set()
 
@@ -14,7 +15,7 @@ class InterviewExceptionCollection(UserDict):
         """Return a list of unfixed exceptions."""
         return {k: v for k, v in self.data.items() if k not in self.fixed}
 
-    def num_unfixed(self) -> list:
+    def num_unfixed(self) -> int:
         """Return a list of unfixed questions."""
         return len([k for k in self.data.keys() if k not in self.fixed])
 
@@ -49,6 +50,7 @@ class InterviewExceptionCollection(UserDict):
         return data_to_html(self.to_dict(include_traceback=True))
 
     def ascii_table(self, traceback: bool = False) -> None:
+        """Print the collection of exceptions as an ASCII table."""
         headers = ["Question name", "Exception", "Time", "Traceback"]
         from tabulate import tabulate
 
@@ -68,29 +70,29 @@ class InterviewExceptionCollection(UserDict):
 
         print(tabulate(data, headers=headers, tablefmt="grid"))
 
-    def print(self, traceback=False):
-        """Print the collection of exceptions."""
-        console = Console()
-        table = Table(show_header=True, header_style="bold magenta")
-        table.add_column("Question name", style="dim", width=12)
-        table.add_column("Exception", width=32)
-        table.add_column("Time", justify="right")
-        table.add_column("Traceback", min_width=20)
+    # def print(self, traceback=False):
+    #     """Print the collection of exceptions."""
+    #     console = Console()
+    #     table = Table(show_header=True, header_style="bold magenta")
+    #     table.add_column("Question name", style="dim", width=12)
+    #     table.add_column("Exception", width=32)
+    #     table.add_column("Time", justify="right")
+    #     table.add_column("Traceback", min_width=20)
 
-        for queue, exceptions in self.data.items():
-            for exception in exceptions:
-                if traceback:
-                    traceback_string = exception["traceback"].replace("\n", "\n\n")
-                else:
-                    traceback_string = ""
-                table.add_row(
-                    queue,
-                    exception["exception"],
-                    str(exception["time"]),
-                    traceback_string,  # Adding extra newlines for better readability
-                )
+    #     for queue, exceptions in self.data.items():
+    #         for exception in exceptions:
+    #             if traceback:
+    #                 traceback_string = exception["traceback"].replace("\n", "\n\n")
+    #             else:
+    #                 traceback_string = ""
+    #             table.add_row(
+    #                 queue,
+    #                 exception["exception"],
+    #                 str(exception["time"]),
+    #                 traceback_string,  # Adding extra newlines for better readability
+    #             )
 
-        console.print(table)
+    #     console.print(table)
 
 
 if __name__ == "__main__":
