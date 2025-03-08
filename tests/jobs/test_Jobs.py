@@ -1,5 +1,5 @@
 import pytest
-from edsl.agents.Agent import Agent
+from edsl.agents import Agent
 from edsl.exceptions.jobs import JobsRunError
 from edsl.exceptions.agents import AgentCombinationError
 from edsl.jobs.interviews.Interview import Interview
@@ -16,7 +16,7 @@ from edsl.questions.question_registry import (
 from edsl.language_models.LanguageModel import LanguageModel
 from edsl.data.Cache import Cache
 
-from edsl.agents.AgentList import AgentList
+from edsl.agents import AgentList
 from edsl.language_models.ModelList import ModelList
 
 

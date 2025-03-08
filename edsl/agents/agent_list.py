@@ -413,14 +413,6 @@ class AgentList(UserList, Base):
             scenario_list.append(Scenario(d))
         return scenario_list
 
-        # if include_agent_name:
-        #     return ScenarioList(
-        #         [
-        #             Scenario(agent.traits | {"agent_name": agent.name} | })
-        #             for agent in self.data
-        #         ]
-        #     )
-        # return ScenarioList([Scenario(agent.traits) for agent in self.data])
 
     def table(
         self,
@@ -487,7 +479,7 @@ class AgentList(UserList, Base):
         >>> al2 == al
         True
         """
-        from edsl.agents.Agent import Agent
+        from edsl.agents import Agent
 
         agents = [Agent.from_dict(agent_dict) for agent_dict in data["agent_list"]]
         return cls(agents)
@@ -499,7 +491,7 @@ class AgentList(UserList, Base):
 
         :param randomize: If True, uses Agent's randomize method.
         """
-        from edsl.agents.Agent import Agent
+        from edsl.agents import Agent
 
         return cls([Agent.example(randomize), Agent.example(randomize)])
 
@@ -513,7 +505,7 @@ class AgentList(UserList, Base):
         >>> AgentList.from_list('age', [22, 23])
         AgentList([Agent(traits = {'age': 22}), Agent(traits = {'age': 23})])
         """
-        from edsl.agents.Agent import Agent
+        from edsl.agents import Agent
 
         return AgentList([Agent({trait_name: value}) for value in values])
 
@@ -531,13 +523,13 @@ class AgentList(UserList, Base):
 
         >>> al = AgentList.example()
         >>> print(al.code())
-        from edsl.agents.Agent import Agent
-        from edsl.agents.AgentList import AgentList
+        from edsl.agents import Agent
+        from edsl.agents import AgentList
         agent_list = AgentList([Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5}), Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5})])
         """
         lines = [
-            "from edsl.agents.Agent import Agent",
-            "from edsl.agents.AgentList import AgentList",
+            "from edsl.agents import Agent",
+            "from edsl.agents import AgentList",
         ]
         lines.append(f"agent_list = AgentList({self.data})")
         if string:

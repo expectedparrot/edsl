@@ -15,7 +15,7 @@ from .question_option_processor import QuestionOptionProcessor
 if TYPE_CHECKING:
     from .invigilators import InvigilatorBase
     from edsl.questions.QuestionBase import QuestionBase
-    from edsl.agents.Agent import Agent
+    from edsl.agents import Agent
     from edsl.surveys.Survey import Survey
     from edsl.language_models.LanguageModel import LanguageModel
     from edsl.surveys.MemoryPlan import MemoryPlan
@@ -121,7 +121,7 @@ class PromptConstructor:
         >>> i.prompt_constructor.agent_instructions_prompt
         Prompt(text=\"""You are answering questions as if you were a human. Do not break character.\""")
         """
-        from edsl.agents.Agent import Agent
+        from edsl.agents import Agent
 
         if self.agent == Agent():  # if agent is empty, then return an empty prompt
             return Prompt(text="")
@@ -136,7 +136,7 @@ class PromptConstructor:
         >>> i.prompt_constructor.agent_persona_prompt
         Prompt(text=\"""Your traits: {'age': 22, 'hair': 'brown', 'height': 5.5}\""")
         """
-        from edsl.agents.Agent import Agent
+        from edsl.agents import Agent
 
         if self.agent == Agent():  # if agent is empty, then return an empty prompt
             return Prompt(text="")

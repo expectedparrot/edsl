@@ -56,14 +56,14 @@ def create_test_function(child_class):
 
     @staticmethod
     def base_test_func():
-        from edsl.agents.Agent import Agent
+        from edsl.agents import Agent
         from edsl.surveys.Survey import Survey
         from edsl.questions.question_registry import Question
         from edsl.data.CacheEntry import CacheEntry
         from edsl.language_models.model import Model
         from edsl.surveys.RuleCollection import RuleCollection
         from edsl.surveys.Rule import Rule
-        from edsl.agents.AgentList import AgentList
+        from edsl.agents import AgentList
         from edsl.language_models.LanguageModel import LanguageModel
         from edsl.language_models.ModelList import ModelList
         from edsl.scenarios.Scenario import Scenario

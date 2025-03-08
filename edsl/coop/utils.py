@@ -1,7 +1,7 @@
 from typing import Literal, Optional, Type, Union
 
-from edsl.agents.Agent import Agent
-from edsl.agents.AgentList import AgentList
+from edsl.agents import Agent
+from edsl.agents import AgentList
 from edsl.data.Cache import Cache
 from edsl.language_models.ModelList import ModelList
 from edsl.notebooks.Notebook import Notebook

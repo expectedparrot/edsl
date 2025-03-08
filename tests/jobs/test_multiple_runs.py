@@ -1,5 +1,5 @@
 from edsl.questions.QuestionFreeText import QuestionFreeText
-from edsl.agents.Agent import Agent
+from edsl.agents import Agent
 
 
 def test_multiple_runs():

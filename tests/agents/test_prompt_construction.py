@@ -1,6 +1,6 @@
 import pytest
 
-from edsl.agents.Agent import Agent
+from edsl.agents import Agent
 from edsl.questions import QuestionMultipleChoice, QuestionList, QuestionFreeText
 from edsl.scenarios.Scenario import Scenario
 from edsl.surveys.Survey import Survey

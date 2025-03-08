@@ -25,7 +25,7 @@ if TYPE_CHECKING:
     from edsl.surveys.MemoryPlan import MemoryPlan
     from edsl.language_models.LanguageModel import LanguageModel
     from edsl.surveys.Survey import Survey
-    from edsl.agents.Agent import Agent
+    from edsl.agents import Agent
     from edsl.language_models.key_management.KeyLookup import KeyLookup
 
 from .PromptConstructor import PromptConstructor
@@ -120,7 +120,7 @@ class InvigilatorBase(ABC):
 
     @classmethod
     def from_dict(cls, data) -> "InvigilatorBase":
-        from edsl.agents.Agent import Agent
+        from edsl.agents import Agent
         from edsl.questions import QuestionBase
         from edsl.scenarios.Scenario import Scenario
         from edsl.surveys.MemoryPlan import MemoryPlan
@@ -225,7 +225,7 @@ class InvigilatorBase(ABC):
         ...
         Exception: This is a test error
         """
-        from edsl.agents.Agent import Agent
+        from edsl.agents import Agent
         from edsl.scenarios.Scenario import Scenario
         from edsl.surveys.MemoryPlan import MemoryPlan
         from edsl.language_models.model import Model

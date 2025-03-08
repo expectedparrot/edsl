@@ -1,5 +1,6 @@
 import pytest
-from edsl.agents.Agent import Agent
+from edsl.agents import Agent
+
 from edsl.exceptions.agents import (
     AgentCombinationError,
     AgentDirectAnswerFunctionError,
