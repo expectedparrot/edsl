@@ -63,8 +63,8 @@ def create_test_function(child_class):
         from edsl.questions.question_registry import Question
         from edsl.data.CacheEntry import CacheEntry
         from edsl.language_models.model import Model
-        from edsl.surveys.RuleCollection import RuleCollection
-        from edsl.surveys.Rule import Rule
+        from edsl.surveys.rules import RuleCollection
+        from edsl.surveys.rules import Rule
         from edsl.agents import AgentList
         from edsl.language_models.LanguageModel import LanguageModel
         from edsl.language_models.ModelList import ModelList

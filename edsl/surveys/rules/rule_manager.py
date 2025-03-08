@@ -3,10 +3,10 @@ from typing import Union, TYPE_CHECKING
 if TYPE_CHECKING:
     from edsl.questions.QuestionBase import QuestionBase
 
-from edsl.surveys.Rule import Rule
-from edsl.surveys.base import RulePriority, EndOfSurvey
 from edsl.exceptions.surveys import SurveyError, SurveyCreationError
 
+from .rule import Rule
+from ..base import RulePriority, EndOfSurvey
 
 class ValidatedString(str):
     def __new__(cls, content):

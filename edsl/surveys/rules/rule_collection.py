@@ -8,10 +8,9 @@ from edsl.exceptions.surveys import (
     SurveyRuleCollectionHasNoRulesAtNodeError,
 )
 
-from edsl.surveys.Rule import Rule
-from edsl.surveys.base import EndOfSurvey
-from edsl.surveys.DAG import DAG
-
+from .rule import Rule
+from ..base import EndOfSurvey
+from ..DAG import DAG
 
 NextQuestion = namedtuple(
     "NextQuestion", "next_q, num_rules_found, expressions_evaluating_to_true, priority"

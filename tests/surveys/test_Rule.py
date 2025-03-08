@@ -5,7 +5,7 @@ from edsl.exceptions.surveys import (
     SurveyRuleSendsYouBackwardsError,
 )
 from edsl.questions import QuestionMultipleChoice
-from edsl.surveys.Rule import Rule
+from edsl.surveys.rules import Rule
 
 
 class TestRule(unittest.TestCase):

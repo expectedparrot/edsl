@@ -3,11 +3,12 @@ from edsl.exceptions.surveys import SurveyError
 
 if TYPE_CHECKING:
     from edsl.questions.QuestionBase import QuestionBase
+    from .survey import Survey
 
 from edsl.exceptions.surveys import SurveyError, SurveyCreationError
-from edsl.surveys.Rule import Rule
-from edsl.surveys.base import RulePriority, EndOfSurvey
 
+from .rules.rule import Rule
+from .base import RulePriority, EndOfSurvey
 
 class EditSurvey:
     def __init__(self, survey):
@@ -147,7 +148,7 @@ class EditSurvey:
                 self.survey._pseudo_indices[question_name] = old_index - 1
 
         # Update rules
-        from .RuleCollection import RuleCollection
+        from .rules import RuleCollection
 
         new_rule_collection = RuleCollection()
         for rule in self.survey.rule_collection:

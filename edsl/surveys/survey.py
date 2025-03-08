@@ -16,19 +16,18 @@ from typing import (
     Callable,
     TYPE_CHECKING,
 )
-from edsl.base import Base
-from edsl.exceptions.surveys import SurveyCreationError, SurveyHasNoRulesError
-from edsl.exceptions.surveys import SurveyError
-
-from edsl.agents import Agent
-from edsl.scenarios import Scenario
+from ..base import Base
+from ..exceptions.surveys import SurveyCreationError, SurveyHasNoRulesError, SurveyError
+from ..agents import Agent
+from ..scenarios import Scenario
+from ..utilities.remove_edsl_version import remove_edsl_version
 
 if TYPE_CHECKING:
-    from edsl.questions.QuestionBase import QuestionBase
-    from edsl.agents import Agent
+    from ..questions.QuestionBase import QuestionBase
+    from ..agents import Agent
     from .DAG import DAG
-    from edsl.language_models.LanguageModel import LanguageModel
-    from edsl.data.Cache import Cache
+    from ..language_models.LanguageModel import LanguageModel
+    from ..data.Cache import Cache
 
     # This is a hack to get around the fact that TypeAlias is not available in typing until Python 3.10
     try:
@@ -40,8 +39,6 @@ if TYPE_CHECKING:
     QuestionGroupType: TypeAlias = dict[str, tuple[int, int]]
 
 
-from edsl.utilities.remove_edsl_version import remove_edsl_version
-
 from .instructions.InstructionCollection import InstructionCollection
 from .instructions.Instruction import Instruction
 from .instructions.ChangeInstruction import ChangeInstruction
@@ -49,15 +46,15 @@ from .instructions.ChangeInstruction import ChangeInstruction
 from .base import EndOfSurvey
 from .descriptors import QuestionsDescriptor
 from .MemoryPlan import MemoryPlan
-from .RuleCollection import RuleCollection
 from .SurveyExportMixin import SurveyExportMixin
 from .SurveyFlowVisualization import SurveyFlowVisualization
 from .instructions.InstructionHandler import InstructionHandler
 from .EditSurvey import EditSurvey
 from .Simulator import Simulator
 from .MemoryManagement import MemoryManagement
-from .RuleManager import RuleManager
 
+from .rules.rule_manager import RuleManager
+from .rules.rule_collection import RuleCollection
 
 class PseudoIndices(UserDict):
     """A dictionary of pseudo-indices for the survey.
@@ -1059,7 +1056,7 @@ class Survey(SurveyExportMixin, Base):
         {1: {0}, 2: {0}}
 
         """
-        from edsl.surveys.ConstructDAG import ConstructDAG
+        from edsl.surveys.construct_dag import ConstructDAG
 
         return ConstructDAG(self).dag(textify)
 
