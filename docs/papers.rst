@@ -22,6 +22,12 @@ If you use the EDSL package in your research or projects, please use the followi
     }
 
 
+| *Linear Representations of Political Perspective Emerge in Large Language Models*
+| Junsol Kim, James Evans, Aaron Schein
+| March 2025
+| https://arxiv.org/pdf/2503.02080v1
+
+
 | *Simulating the Survey of Professional Forecasters*
 | Anne Lundgaard Hansen, John J. Horton, Sophia Kazinnik, Daniela Puzzello, Ali Zarifhonarvar
 | February 2025
