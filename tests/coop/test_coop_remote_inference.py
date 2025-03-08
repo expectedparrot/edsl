@@ -7,7 +7,7 @@ from edsl.coop.coop import Coop
 from edsl.jobs.Jobs import Jobs
 from edsl.language_models.model import Model
 from edsl.results.Results import Results
-from edsl.surveys.Survey import Survey
+from edsl.surveys import Survey
 
 from edsl.questions import (
     QuestionMultipleChoice,

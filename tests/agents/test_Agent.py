@@ -8,7 +8,7 @@ from edsl.exceptions.agents import (
 )
 from edsl.jobs import Jobs
 from edsl.questions import QuestionMultipleChoice
-from edsl.surveys.Survey import Survey
+from edsl.surveys import Survey
 
 from edsl.exceptions.agents import AgentNameError
 from edsl.exceptions.agents import AgentTraitKeyError

@@ -3,7 +3,7 @@ import pytest
 import unittest
 from edsl.data.Cache import Cache
 from edsl.coop import Coop
-from edsl.surveys.Survey import Survey
+from edsl.surveys import Survey
 from edsl.data.CacheEntry import CacheEntry
 from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
 from unittest.mock import patch, PropertyMock
