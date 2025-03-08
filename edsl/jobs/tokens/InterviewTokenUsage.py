@@ -1,6 +1,7 @@
+from typing import Optional
+
 from .TokenUsage import TokenUsage
 from edsl.enums import TokenPricing
-from typing import Optional
 
 class InterviewTokenUsage:
     """A class to represent the token usage of an interview."""
@@ -37,6 +38,7 @@ class InterviewTokenUsage:
 
         >>> usage = InterviewTokenUsage()
         >>> usage.cost(TokenPricing.example())
+        0.0
         """
         return self.new_token_usage.cost(prices)
 
