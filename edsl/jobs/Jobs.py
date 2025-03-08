@@ -2,6 +2,9 @@
 from __future__ import annotations
 import asyncio
 from inspect import signature
+from typing import Optional, Union, TypeVar, Callable, cast
+from functools import wraps
+
 from typing import (
     Literal,
     Optional,
@@ -19,8 +22,8 @@ from edsl.jobs.buckets.BucketCollection import BucketCollection
 from edsl.jobs.JobsPrompts import JobsPrompts
 from edsl.jobs.interviews.Interview import Interview
 from edsl.utilities.remove_edsl_version import remove_edsl_version
-from edsl.jobs.runners.JobsRunnerAsyncio import JobsRunnerAsyncio
-from edsl.data.RemoteCacheSync import RemoteCacheSync
+#from edsl.jobs.runners.JobsRunnerAsyncio import JobsRunnerAsyncio
+#from edsl.data.RemoteCacheSync import RemoteCacheSync
 from edsl.exceptions.coop import CoopServerResponseError
 
 from edsl.jobs.JobsChecks import JobsChecks
@@ -42,9 +45,6 @@ if TYPE_CHECKING:
 
 VisibilityType = Literal["private", "public", "unlisted"]
 
-from dataclasses import dataclass
-from typing import Optional, Union, TypeVar, Callable, cast
-from functools import wraps
 
 try:
     from typing import ParamSpec
@@ -83,18 +83,6 @@ def with_config(f: Callable[P, T]) -> Callable[P, T]:
         )
         config = RunConfig(environment=environment, parameters=parameters)
         return f(*args, config=config)
-
-    # Update the wrapper's signature to include all RunConfig parameters
-    # old_sig = signature(f)
-    # wrapper.__signature__ = old_sig.replace(
-    #     parameters=list(old_sig.parameters.values())[:-1]
-    #     + [
-    #         old_sig.parameters["config"].replace(
-    #             default=parameter_fields[name], name=name
-    #         )
-    #         for name in combined
-    #     ]
-    # )
 
     return cast(Callable[P, T], wrapper)
 
@@ -142,6 +130,8 @@ class Jobs(Base):
         self.scenarios: ScenarioList = scenarios
         self.models: ModelList = models
 
+        self._where_clauses = []
+
         try:
             assert self.survey.question_names_valid()
         except Exception as e:
@@ -162,7 +152,7 @@ class Jobs(Base):
         self.run_config.add_cache(cache)
         return self
 
-    def using_bucket_collection(self, bucket_collection: BucketCollection) -> Jobs:
+    def using_bucket_collection(self, bucket_collection: 'BucketCollection') -> Jobs:
         """
         Add a BucketCollection to the job.
 
@@ -171,7 +161,7 @@ class Jobs(Base):
         self.run_config.add_bucket_collection(bucket_collection)
         return self
 
-    def using_key_lookup(self, key_lookup: KeyLookup) -> Jobs:
+    def using_key_lookup(self, key_lookup: 'KeyLookup') -> Jobs:
         """
         Add a KeyLookup to the job.
 
@@ -234,6 +224,15 @@ class Jobs(Base):
                 self._agents = value
         else:
             self._agents = AgentList([])
+
+    def where(self, expression: str) -> Jobs:
+        """
+        Filter the agents, scenarios, and models based on a condition.
+
+        :param expression: a condition to filter the agents, scenarios, and models
+        """
+        self._where_clauses.append(expression)
+        return self
 
     @property
     def scenarios(self):
