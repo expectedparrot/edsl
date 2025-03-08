@@ -1,12 +1,10 @@
-import time
 import logging
 from typing import List, TYPE_CHECKING
 
 from edsl.results.Dataset import Dataset
 
 if TYPE_CHECKING:
-    from edsl.jobs import Jobs
-
+    from .Jobs import Jobs
 
 from .FetchInvigilator import FetchInvigilator
 from edsl.data.CacheEntry import CacheEntry
@@ -14,6 +12,11 @@ from edsl.data.CacheEntry import CacheEntry
 logger = logging.getLogger(__name__)
 
 class JobsPrompts:
+    """This generates the prompts for a job for price estimation purposes. 
+    
+    It does *not* do the full job execution---that requires an LLM. 
+    So assumptions are made about expansion of Jinja braces, etc.
+    """
     def __init__(self, jobs: "Jobs"):
         self.interviews = jobs.interviews()
         self.agents = jobs.agents
@@ -27,6 +30,7 @@ class JobsPrompts:
 
     @property
     def price_lookup(self) -> dict:
+        """Fetches the price lookup from Coop if it is not already cached."""
         if self._price_lookup is None:
             from edsl.coop.coop import Coop
 
@@ -53,59 +57,27 @@ class JobsPrompts:
         cache_keys = []
 
         for interview_index, interview in enumerate(interviews):
-            logger.info(f"Processing interview {interview_index} of {len(interviews)}")
-            interview_start = time.time()
-
-            # Fetch invigilators timing
-            invig_start = time.time()
             invigilators = [
                 FetchInvigilator(interview)(question)
                 for question in interview.survey.questions
             ]
-            invig_end = time.time()
-            logger.debug(
-                f"Time taken to fetch invigilators: {invig_end - invig_start:.4f}s"
-            )
 
-            # Process prompts timing
-            prompts_start = time.time()
             for _, invigilator in enumerate(invigilators):
-                # Get prompts timing
-                get_prompts_start = time.time()
                 prompts = invigilator.get_prompts()
-                get_prompts_end = time.time()
-                logger.debug(
-                    f"Time taken to get prompts: {get_prompts_end - get_prompts_start:.4f}s"
-                )
-
                 user_prompt = prompts["user_prompt"]
                 system_prompt = prompts["system_prompt"]
                 user_prompts.append(user_prompt)
                 system_prompts.append(system_prompt)
 
-                # Index lookups timing
-                index_start = time.time()
                 agent_index = self._agent_lookup[invigilator.agent]
                 agent_indices.append(agent_index)
                 interview_indices.append(interview_index)
                 scenario_index = self._scenario_lookup[invigilator.scenario]
                 scenario_indices.append(scenario_index)
-                index_end = time.time()
-                logger.debug(
-                    f"Time taken for index lookups: {index_end - index_start:.4f}s"
-                )
 
-                # Model and question name assignment timing
-                assign_start = time.time()
                 models.append(invigilator.model.model)
                 question_names.append(invigilator.question.question_name)
-                assign_end = time.time()
-                logger.debug(
-                    f"Time taken for assignments: {assign_end - assign_start:.4f}s"
-                )
 
-                # Cost estimation timing
-                cost_start = time.time()
                 prompt_cost = self.estimate_prompt_cost(
                     system_prompt=system_prompt,
                     user_prompt=user_prompt,
@@ -113,14 +85,8 @@ class JobsPrompts:
                     inference_service=invigilator.model._inference_service_,
                     model=invigilator.model.model,
                 )
-                cost_end = time.time()
-                logger.debug(
-                    f"Time taken to estimate prompt cost: {cost_end - cost_start:.4f}s"
-                )
                 costs.append(prompt_cost["cost_usd"])
 
-                # Cache key generation timing
-                cache_key_gen_start = time.time()
                 for iteration in range(iterations):
                     cache_key = CacheEntry.gen_key(
                         model=invigilator.model.model,
@@ -130,28 +96,6 @@ class JobsPrompts:
                         iteration=iteration,
                     )
                     cache_keys.append(cache_key)
-
-                cache_key_gen_end = time.time()
-                logger.debug(
-                    f"Time taken to generate cache key: {cache_key_gen_end - cache_key_gen_start:.4f}s"
-                )
-                logger.debug("-" * 50)  # Separator between iterations
-
-            prompts_end = time.time()
-            logger.info(
-                f"Time taken to process prompts: {prompts_end - prompts_start:.4f}s"
-            )
-
-            interview_end = time.time()
-            logger.info(
-                f"Overall time taken for interview: {interview_end - interview_start:.4f}s"
-            )
-            logger.info("Time breakdown:")
-            logger.info(f"  Invigilators: {invig_end - invig_start:.4f}s")
-            logger.info(f"  Prompts processing: {prompts_end - prompts_start:.4f}s")
-            logger.info(
-                f"  Other overhead: {(interview_end - interview_start) - ((invig_end - invig_start) + (prompts_end - prompts_start)):.4f}s"
-            )
 
         d = Dataset(
             [
@@ -248,7 +192,13 @@ class JobsPrompts:
     
     @staticmethod
     def _extract_prompt_details(invigilator: FetchInvigilator) -> dict:
-        """Extracts the prompt details from the invigilator."""
+        """Extracts the prompt details from the invigilator.
+        
+        >>> from edsl.agents.Invigilator import InvigilatorAI
+        >>> invigilator = InvigilatorAI.example()
+        >>> JobsPrompts._extract_prompt_details(invigilator)
+        {'user_prompt': ...
+        """
         prompts = invigilator.get_prompts()
         user_prompt = prompts["user_prompt"]
         system_prompt = prompts["system_prompt"]
@@ -265,12 +215,14 @@ class JobsPrompts:
         self, price_lookup: dict, iterations: int = 1
     ) -> dict:
         """
-        Estimates the cost of a job according to the following assumptions:
+        Estimates the cost of a job.
 
+        :param price_lookup: An external pricing dictionary.
+        :param iterations: The number of times to iterate over the job.
+
+        Key assumptions:
         - 1 token = 4 characters.
         - For each prompt, output tokens = input tokens * 0.75, rounded up to the nearest integer.
-
-        price_lookup is an external pricing dictionary.
         """
         interviews = self.interviews
         data = []
@@ -346,3 +298,8 @@ class JobsPrompts:
         return self.estimate_job_cost_from_external_prices(
             price_lookup=self.price_lookup, iterations=iterations
         )
+
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod(optionflags=doctest.ELLIPSIS)
