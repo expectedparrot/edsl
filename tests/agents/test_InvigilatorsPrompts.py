@@ -1,5 +1,5 @@
 import pytest
-from edsl.agents.Agent import Agent
+from edsl.agents import Agent
 
 from edsl.prompts.Prompt import Prompt
 

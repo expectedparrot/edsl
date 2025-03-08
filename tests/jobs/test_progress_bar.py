@@ -1,7 +1,7 @@
 import pytest
 
 import time
-from edsl.agents.Agent import Agent
+from edsl.agents import Agent
 from edsl.data.Cache import Cache
 from edsl.scenarios.Scenario import Scenario
 from edsl.questions import QuestionYesNo

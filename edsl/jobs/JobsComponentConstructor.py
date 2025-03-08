@@ -1,11 +1,11 @@
 from typing import Union, Sequence, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from edsl.agents.Agent import Agent
+    from edsl.agents import Agent
     from edsl.language_models.LanguageModel import LanguageModel
     from edsl.scenarios.Scenario import Scenario
     from edsl.jobs.Jobs import Jobs
-
+    from edsl.invigilators.invigilators import InvigilatorBase
 
 class JobsComponentConstructor:
     "Handles the creation of Agents, Scenarios, and LanguageModels in a job."
@@ -107,7 +107,7 @@ class JobsComponentConstructor:
     def _get_current_objects_of_this_type(
         self, object: Union["Agent", "Scenario", "LanguageModel"]
     ) -> tuple[list, str]:
-        from edsl.agents.Agent import Agent
+        from edsl.agents import Agent
         from edsl.scenarios.Scenario import Scenario
         from edsl.language_models.LanguageModel import LanguageModel
 
@@ -138,7 +138,7 @@ class JobsComponentConstructor:
 
     @staticmethod
     def _get_empty_container_object(object):
-        from edsl.agents.AgentList import AgentList
+        from edsl.agents import AgentList
         from edsl.scenarios.ScenarioList import ScenarioList
 
         return {"Agent": AgentList([]), "Scenario": ScenarioList([])}.get(
@@ -167,8 +167,8 @@ class JobsComponentConstructor:
 
     @staticmethod
     def _get_container_class(object):
-        from edsl.agents.AgentList import AgentList
-        from edsl.agents.Agent import Agent
+        from edsl.agents import AgentList
+        from edsl.agents import Agent
         from edsl.scenarios.Scenario import Scenario
         from edsl.scenarios.ScenarioList import ScenarioList
         from edsl.language_models.ModelList import ModelList

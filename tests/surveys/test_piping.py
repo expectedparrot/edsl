@@ -1,7 +1,7 @@
 import pytest
 from edsl.questions import QuestionList, QuestionMultipleChoice
 from edsl.surveys.Survey import Survey
-from edsl.agents.Agent import Agent
+from edsl.agents import Agent
 from edsl.language_models.LanguageModel import LanguageModel
 
 

@@ -25,7 +25,7 @@ from edsl.exceptions.results import (
 if TYPE_CHECKING:
     from edsl.surveys.Survey import Survey
     from edsl.data.Cache import Cache
-    from edsl.agents.AgentList import AgentList
+    from edsl.agents import AgentList
     from edsl.language_models.model import Model
     from edsl.scenarios.ScenarioList import ScenarioList
     from edsl.results.Result import Result
@@ -579,7 +579,7 @@ class Results(UserList, Mixins, Base):
         from edsl.data.Cache import Cache
         from edsl.results.Result import Result
         from edsl.jobs.tasks.TaskHistory import TaskHistory
-        from edsl.agents.Agent import Agent
+        from edsl.agents import Agent
 
         survey = Survey.from_dict(data["survey"])
         results_data = [Result.from_dict(r) for r in data["data"]]

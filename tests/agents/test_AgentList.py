@@ -1,7 +1,6 @@
 import unittest
-from edsl.agents.Agent import Agent
-from edsl.agents.AgentList import AgentList
-
+from edsl.agents import Agent
+from edsl.agents import AgentList
 
 class TestAgentList(unittest.TestCase):
     def setUp(self):
@@ -15,20 +14,6 @@ class TestAgentList(unittest.TestCase):
         agent_list = AgentList()
         self.assertEqual(len(agent_list), 0)
 
-    # def test_to_method(self):
-    #     agent_list = AgentList(self.example_agents)
-    #     # Assuming you have a mock for Question or Survey
-    #     mock_question = MockQuestion()
-    #     result = agent_list.to(mock_question)
-    #     # Test the expected behavior
-    #     # ...
-
-    # def test_update_traits(self):
-    #     agent_list = AgentList(self.example_agents)
-    #     new_attributes = {"new_attribute": "value"}
-    #     agent_list.update_traits(new_attributes)
-    #     for agent in agent_list:
-    #         self.assertIn("new_attribute", agent.traits)
 
     def test_to_dict(self):
         agent_list = AgentList(self.example_agents)

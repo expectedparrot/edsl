@@ -1,7 +1,7 @@
 import pytest
 import asyncio
 
-from edsl.agents.Agent import Agent
+from edsl.agents import Agent
 from edsl.surveys.Survey import Survey
 from edsl.scenarios.Scenario import Scenario
 from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice

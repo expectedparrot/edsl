@@ -8,8 +8,8 @@ from edsl.__version__ import __version__
 
 # from edsl.config import Config, CONFIG
 
-from edsl.agents.Agent import Agent
-from edsl.agents.AgentList import AgentList
+from edsl.agents import Agent
+from edsl.agents import AgentList
 
 from edsl.questions import QuestionBase
 from edsl.questions.question_registry import Question

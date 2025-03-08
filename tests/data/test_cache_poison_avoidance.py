@@ -5,7 +5,7 @@ from typing import Any
 from unittest.mock import Mock
 from edsl.invigilators.invigilators import InvigilatorAI
 
-from edsl.agents.Agent import Agent
+from edsl.agents import Agent
 from edsl.language_models import LanguageModel
 from edsl.enums import InferenceServiceType
 

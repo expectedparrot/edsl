@@ -29,8 +29,8 @@ from .interviews.Interview import Interview
 from .data_structures import RunEnvironment, RunParameters, RunConfig
 
 if TYPE_CHECKING:
-    from edsl.agents.Agent import Agent
-    from edsl.agents.AgentList import AgentList
+    from edsl.agents import Agent
+    from edsl.agents import AgentList
     from edsl.language_models.LanguageModel import LanguageModel
     from edsl.scenarios.Scenario import Scenario
     from edsl.scenarios.ScenarioList import ScenarioList
@@ -213,7 +213,7 @@ class Jobs(Base):
 
     @agents.setter
     def agents(self, value):
-        from edsl.agents.AgentList import AgentList
+        from edsl.agents import AgentList
 
         if value:
             if not isinstance(value, AgentList):
@@ -279,7 +279,7 @@ class Jobs(Base):
         >>> j = Jobs(survey = Survey(questions=[q]))
         >>> j
         Jobs(survey=Survey(...), agents=AgentList([]), models=ModelList([]), scenarios=ScenarioList([]))
-        >>> from edsl.agents.Agent import Agent; a = Agent(traits = {"status": "Sad"})
+        >>> from edsl.agents import Agent; a = Agent(traits = {"status": "Sad"})
         >>> j.by(a).agents
         AgentList([Agent(traits = {'status': 'Sad'})])
 
@@ -357,7 +357,7 @@ class Jobs(Base):
         return job_results.compute_job_cost()
 
     def replace_missing_objects(self) -> None:
-        from edsl.agents.Agent import Agent
+        from edsl.agents import Agent
         from edsl.language_models.model import Model
         from edsl.scenarios.Scenario import Scenario
 
@@ -741,7 +741,7 @@ class Jobs(Base):
     def from_dict(cls, data: dict) -> Jobs:
         """Creates a Jobs instance from a dictionary."""
         from edsl.surveys.Survey import Survey
-        from edsl.agents.Agent import Agent
+        from edsl.agents import Agent
         from edsl.language_models.LanguageModel import LanguageModel
         from edsl.scenarios.Scenario import Scenario
 
@@ -782,7 +782,7 @@ class Jobs(Base):
         import random
         from uuid import uuid4
         from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
-        from edsl.agents.Agent import Agent
+        from edsl.agents import Agent
         from edsl.scenarios.Scenario import Scenario
 
         addition = "" if not randomize else str(uuid4())
