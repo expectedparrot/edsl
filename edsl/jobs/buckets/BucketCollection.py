@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 from collections import UserDict
 from threading import RLock
 
@@ -8,17 +8,20 @@ from .ModelBuckets import ModelBuckets
 # from functools import wraps
 from edsl.jobs.decorators import synchronized_class
 
-
+if TYPE_CHECKING:
+    from edsl.language_models.LanguageModel import LanguageModel
+    from edsl.language_models.key_management.KeyLookup import KeyLookup
+    
 @synchronized_class
 class BucketCollection(UserDict):
-    """A Jobs object will have a whole collection of model buckets, as multiple models could be used.
+    """BucketCollection is a collection of ModelBuckets objects used to control the rate of requests to the inference service.
 
-    The keys here are the models, and the values are the ModelBuckets objects.
-    Models themselves are hashable, so this works.
+    The keys here are the models, and the values are the ModelBuckets objects---models themselves are hashable, so this works.
     """
 
     def __init__(self, infinity_buckets: bool = False):
         """Create a new BucketCollection.
+
         An infinity bucket is a bucket that never runs out of tokens or requests.
         """
         super().__init__()
@@ -48,9 +51,16 @@ class BucketCollection(UserDict):
         return bucket_collection
 
     def get_tokens(
-        self, model: "LanguageModel", bucket_type: str, num_tokens: int
+        self, model: 'LanguageModel', bucket_type: str, num_tokens: int
     ) -> int:
-        """Get the number of tokens remaining in the bucket."""
+        """Get the number of tokens remaining in the bucket.
+        
+        >>> bucket_collection = BucketCollection()
+        >>> from edsl import Model 
+        >>> m = Model('test')
+        >>> bucket_collection.add_model(m)
+        """
+        raise Exception("John thinks this isn't being used but wants to keep it for now")
         relevant_bucket = getattr(self[model], bucket_type)
         return relevant_bucket.get_tokens(num_tokens)
 
@@ -60,7 +70,12 @@ class BucketCollection(UserDict):
     def add_model(self, model: "LanguageModel") -> None:
         """Adds a model to the bucket collection.
 
-        This will create the token and request buckets for the model."""
+        >>> from edsl import Model 
+        >>> m = Model('test')
+        >>> bucket_collection = BucketCollection()
+        >>> bucket_collection.add_model(m)
+        
+        """
 
         # compute the TPS and RPS from the model
         if not self.infinity_buckets:
@@ -131,3 +146,13 @@ class BucketCollection(UserDict):
         for model in self:
             plots[model] = self[model].visualize()
         return plots
+
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod(optionflags=doctest.ELLIPSIS)
+
+    #from edsl import Model 
+    #m = Model('test')
+    #bucket_collection = BucketCollection()
+    #bucket_collection.add_model(m)
