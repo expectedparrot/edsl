@@ -34,10 +34,10 @@ class TaskCreators(UserDict):
             new_token_usage=new_tokens, cached_token_usage=cached_tokens
         )
 
-    def print(self) -> None:
-        from rich import print
+    # def print(self) -> None:
+    #     from rich import print
 
-        print({task.get_name(): task.task_status for task in self.values()})
+    #     print({task.get_name(): task.task_status for task in self.values()})
 
     @property
     def interview_status(self) -> InterviewStatusDictionary:
@@ -53,7 +53,7 @@ class TaskCreators(UserDict):
             status_dict["number_from_cache"] += task_creator.from_cache
         return status_dict
 
-    def status_logs(self):
+    def status_logs(self) -> list['TaskStatusLog']:
         """Returns a list of status logs for each task."""
         return [task_creator.status_log for task_creator in self.values()]
 

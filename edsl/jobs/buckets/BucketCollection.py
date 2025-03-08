@@ -1,11 +1,11 @@
 from typing import Optional
 from collections import UserDict
-from edsl.jobs.buckets.TokenBucket import TokenBucket
-from edsl.jobs.buckets.ModelBuckets import ModelBuckets
-
-# from functools import wraps
 from threading import RLock
 
+from .TokenBucket import TokenBucket
+from .ModelBuckets import ModelBuckets
+
+# from functools import wraps
 from edsl.jobs.decorators import synchronized_class
 
 
@@ -34,7 +34,6 @@ class BucketCollection(UserDict):
 
         if url == "None" or url is None:
             self.remote_url = None
-            # print(f"Using remote token bucket URL: {url}")
         else:
             self.remote_url = url
 
