@@ -1090,6 +1090,10 @@ class Results(UserList, Mixins, Base):
         >>> results.select('how_feeling')
         Dataset([{'answer.how_feeling': ['OK', 'Great', 'Terrible', 'OK']}])
 
+        >>> new_r = Results.example() + Results.example()
+        >>> new_r.select('poop')
+        True
+
         >>> results.select('how_feeling', 'model', 'how_feeling')
         Dataset([{'answer.how_feeling': ['OK', 'Great', 'Terrible', 'OK']}, {'answer.how_feeling': ['OK', 'Great', 'Terrible', 'OK']}, {'model.model': ['...', '...', '...', '...']}, {'answer.how_feeling': ['OK', 'Great', 'Terrible', 'OK']}, {'answer.how_feeling': ['OK', 'Great', 'Terrible', 'OK']}])
 

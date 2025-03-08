@@ -3,7 +3,8 @@ from itertools import product
 
 if TYPE_CHECKING:
     from edsl.jobs.interviews.Interview import Interview
-
+    from edsl.jobs.Jobs import Jobs
+    from edsl.data.Cache import Cache
 
 class InterviewsConstructor:
     def __init__(self, jobs: "Jobs", cache: "Cache"):
@@ -12,7 +13,7 @@ class InterviewsConstructor:
 
     def create_interviews(self) -> Generator["Interview", None, None]:
         """
-        Generate interviews.
+        Generates interviews.
 
         Note that this sets the agents, model and scenarios if they have not been set. This is a side effect of the method.
         This is useful because a user can create a job without setting the agents, models, or scenarios, and the job will still run,
@@ -35,7 +36,7 @@ class InterviewsConstructor:
             self.jobs.agents, self.jobs.scenarios, self.jobs.models
         ):
             yield Interview(
-                survey=self.jobs.survey.draw(),
+                survey=self.jobs.survey.draw(), # this draw is to support shuffling of question options
                 agent=agent,
                 scenario=scenario,
                 model=model,
@@ -48,3 +49,7 @@ class InterviewsConstructor:
                     "scenario": scenario_index[hash(scenario)],
                 },
             )
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod()
