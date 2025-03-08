@@ -5,7 +5,7 @@ import asyncio
 from typing import Any
 import pytest
 
-from edsl.surveys.Memory import Memory
+from edsl.surveys.memory import Memory
 from edsl.language_models.LanguageModel import LanguageModel
 from edsl.enums import InferenceServiceType
 from edsl.surveys import Survey
