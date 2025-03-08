@@ -10,16 +10,15 @@ from edsl.exceptions.coop import CoopServerResponseError
 
 if TYPE_CHECKING:
     from edsl.results.Results import Results
-    from edsl.jobs.Jobs import Jobs
-    from edsl.coop.coop import RemoteInferenceResponse, RemoteInferenceCreationInfo
-    from edsl.jobs.JobsRemoteInferenceLogger import JobLogger
+    from .Jobs import Jobs
+    from .JobsRemoteInferenceLogger import JobLogger
 
+from edsl.coop.utils import VisibilityType
+from edsl.coop.coop import RemoteInferenceResponse, RemoteInferenceCreationInfo
 from edsl.coop.coop import RemoteInferenceResponse, RemoteInferenceCreationInfo
 
-from edsl.jobs.jobs_status_enums import JobsStatus
-from edsl.coop.utils import VisibilityType
-from edsl.jobs.JobsRemoteInferenceLogger import JobLogger
-
+from .jobs_status_enums import JobsStatus
+from .JobsRemoteInferenceLogger import JobLogger
 
 class RemoteJobConstants:
     """Constants for remote job handling."""
@@ -87,7 +86,7 @@ class JobsRemoteInferenceHandler:
         self,
         iterations: int = 1,
         remote_inference_description: Optional[str] = None,
-        remote_inference_results_visibility: Optional[VisibilityType] = "unlisted",
+        remote_inference_results_visibility: Optional['VisibilityType'] = "unlisted",
         fresh: Optional[bool] = False,
     ) -> RemoteJobInfo:
         from edsl.config import CONFIG
@@ -140,7 +139,7 @@ class JobsRemoteInferenceHandler:
     @staticmethod
     def check_status(
         job_uuid: JobUUID,
-    ) -> RemoteInferenceResponse:
+    ) -> 'RemoteInferenceResponse':
         from edsl.coop.coop import Coop
 
         coop = Coop()
