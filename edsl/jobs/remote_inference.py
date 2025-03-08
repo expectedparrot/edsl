@@ -6,13 +6,12 @@ from dataclasses import dataclass
 Seconds = NewType("Seconds", float)
 JobUUID = NewType("JobUUID", str)
 
-from edsl.exceptions.coop import CoopServerResponseError
-
 if TYPE_CHECKING:
     from edsl.results.Results import Results
     from .Jobs import Jobs
     from .JobsRemoteInferenceLogger import JobLogger
 
+from edsl.exceptions.coop import CoopServerResponseError
 from edsl.coop.utils import VisibilityType
 from edsl.coop.coop import RemoteInferenceResponse, RemoteInferenceCreationInfo
 from edsl.coop.coop import RemoteInferenceResponse, RemoteInferenceCreationInfo
