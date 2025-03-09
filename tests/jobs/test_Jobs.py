@@ -223,7 +223,7 @@ def test_normal_run():
     from edsl.questions import QuestionFreeText
 
     q = QuestionFreeText(question_text="What is your name?", question_name="name")
-    from edsl.data.Cache import Cache
+    from edsl.data import Cache
 
     cache = Cache()
     results = q.by(model).run(cache=cache)

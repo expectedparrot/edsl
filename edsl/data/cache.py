@@ -112,7 +112,7 @@ class Cache(Base):
 
     def _perform_checks(self):
         """Perform checks on the cache."""
-        from edsl.data.CacheEntry import CacheEntry
+        from .cache_entry import CacheEntry
 
         if any(not isinstance(value, CacheEntry) for value in self.data.values()):
             raise CacheError("Not all values are CacheEntry instances")
@@ -148,7 +148,7 @@ class Cache(Base):
 
 
         """
-        from edsl.data.CacheEntry import CacheEntry
+        from .cache_entry import CacheEntry
 
         key = CacheEntry.gen_key(
             model=model,
@@ -198,7 +198,7 @@ class Cache(Base):
         >>> len(c)
         1
         """
-        from edsl.data.CacheEntry import CacheEntry
+        from .cache_entry import CacheEntry
 
         entry = CacheEntry(
             model=model,
@@ -225,7 +225,7 @@ class Cache(Base):
 
         :param write_now: Whether to write to the cache immediately (similar to `immediate_write`).
         """
-        from edsl.data.CacheEntry import CacheEntry
+        from .cache_entry import CacheEntry
 
         for key, value in new_data.items():
             if key in self.data:
@@ -246,7 +246,7 @@ class Cache(Base):
 
         :param write_now: Whether to write to the cache immediately (similar to `immediate_write`).
         """
-        from edsl.data.CacheEntry import CacheEntry
+        from .cache_entry import CacheEntry
 
         with open(filename, "a+") as f:
             f.seek(0)
@@ -278,7 +278,7 @@ class Cache(Base):
         """
         Construct a Cache from a SQLite database.
         """
-        from edsl.data.SQLiteDict import SQLiteDict
+        from .sql_dict import SQLiteDict
 
         return cls(data=SQLiteDict(db_path))
 
@@ -306,7 +306,7 @@ class Cache(Base):
         * If `db_path` is provided, the cache will be stored in an SQLite database.
         """
         # if a file doesn't exist at jsonfile, throw an error
-        from edsl.data.SQLiteDict import SQLiteDict
+        from .sql_dict import SQLiteDict
 
         if not os.path.exists(jsonlfile):
             raise FileNotFoundError(f"File {jsonlfile} not found")
@@ -326,7 +326,7 @@ class Cache(Base):
         """
         ## TODO: Check to make sure not over-writing (?)
         ## Should be added to SQLiteDict constructor (?)
-        from edsl.data.SQLiteDict import SQLiteDict
+        from .sql_dict import SQLiteDict
 
         new_data = SQLiteDict(db_path)
         for key, value in self.data.items():
@@ -459,7 +459,7 @@ class Cache(Base):
     @remove_edsl_version
     def from_dict(cls, data) -> Cache:
         """Construct a Cache from a dictionary."""
-        from edsl.data.CacheEntry import CacheEntry
+        from .cache_entry import CacheEntry
 
         newdata = {k: CacheEntry.from_dict(v) for k, v in data.items()}
         return cls(data=newdata)
@@ -503,7 +503,7 @@ class Cache(Base):
         """
         Create an example input for a 'fetch' operation.
         """
-        from edsl.data.CacheEntry import CacheEntry
+        from .cache_entry import CacheEntry
 
         return CacheEntry.fetch_input_example()
 
@@ -568,7 +568,7 @@ class Cache(Base):
 
         :param randomize: If True, uses CacheEntry's randomize method.
         """
-        from edsl.data.CacheEntry import CacheEntry
+        from .cache_entry import CacheEntry
 
         return cls(
             data={

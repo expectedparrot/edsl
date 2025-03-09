@@ -40,7 +40,7 @@ from .results import Results
 from .data import Cache
 
 # from edsl.data.CacheEntry import CacheEntry
-from .data.CacheHandler import set_session_cache, unset_session_cache
+from .data.cache_handler import set_session_cache, unset_session_cache
 
 # from edsl.shared import shared_globals
 

@@ -2,9 +2,9 @@ from __future__ import annotations
 import json
 from typing import Any, Generator, Optional, Union
 
-from edsl.config import CONFIG
-from edsl.data.CacheEntry import CacheEntry
-from edsl.data.orm import Base, Data
+from ..config import CONFIG
+from .cache_entry import CacheEntry
+from .orm import Base, Data
 
 
 class SQLiteDict:
@@ -263,8 +263,8 @@ class SQLiteDict:
 
 
 def main():
-    from edsl.data.CacheEntry import CacheEntry
-    from edsl.data.SQLiteDict import SQLiteDict
+    from .cache_entry import CacheEntry
+    from .sql_dict import SQLiteDict
 
     d = SQLiteDict.example()
     d["foo"] = CacheEntry.example()

@@ -224,7 +224,7 @@ class Interview:
 
     def __eq__(self, other: "Interview") -> bool:
         """
-        >>> from edsl.jobs.interviews.Interview import Interview; i = Interview.example(); d = i.to_dict(); i2 = Interview.from_dict(d); i == i2
+        >>> from edsl.interviews import Interview; i = Interview.example(); d = i.to_dict(); i2 = Interview.from_dict(d); i == i2
         True
         """
         return hash(self) == hash(other)
@@ -253,7 +253,7 @@ class Interview:
         >>> i.exceptions
         {'q0': ...
         >>> i = Interview.example()
-        >>> from edsl.jobs.Jobs import RunConfig, RunParameters, RunEnvironment
+        >>> from edsl.jobs import RunConfig, RunParameters, RunEnvironment
         >>> run_config = RunConfig(parameters = RunParameters(), environment = RunEnvironment())
         >>> run_config.parameters.stop_on_exception = True
         >>> result, _ = asyncio.run(i.async_conduct_interview(run_config))

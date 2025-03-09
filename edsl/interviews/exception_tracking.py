@@ -69,8 +69,8 @@ class InterviewExceptionEntry:
 
         >>> entry = InterviewExceptionEntry.example()
         """
-        from edsl import QuestionFreeText
-        from edsl.language_models import LanguageModel
+        from ..questions import QuestionFreeText
+        from ..language_models import LanguageModel
 
         m = LanguageModel.example(test_model=True)
         q = QuestionFreeText.example(exception_to_throw=ValueError)
@@ -183,7 +183,7 @@ class InterviewExceptionEntry:
         >>> entry = InterviewExceptionEntry.example()
         >>> _ = entry.to_dict()
         """
-        from edsl.exceptions.questions import QuestionAnswerValidationError
+        from ..exceptions.questions import QuestionAnswerValidationError
 
         invigilator = (
             self.invigilator.to_dict() if self.invigilator is not None else None
@@ -208,7 +208,7 @@ class InterviewExceptionEntry:
     @classmethod
     def from_dict(cls, data: dict) -> "InterviewExceptionEntry":
         """Create an InterviewExceptionEntry from a dictionary."""
-        from edsl.invigilators import InvigilatorAI
+        from ..invigilators import InvigilatorAI
 
         exception = cls.deserialize_exception(data["exception"])
         if data["invigilator"] is None:
@@ -261,7 +261,7 @@ class InterviewExceptionCollection(UserDict):
         return collection
 
     def _repr_html_(self) -> str:
-        from edsl.utilities.utilities import data_to_html
+        from ..utilities.utilities import data_to_html
 
         return data_to_html(self.to_dict(include_traceback=True))
 

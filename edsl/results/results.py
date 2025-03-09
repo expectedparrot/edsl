@@ -157,7 +157,7 @@ class Results(UserList, ResultsOperationsMixin, Base):
         self.completed = True
         self._fetching = False
         super().__init__(data)
-        from ..data.Cache import Cache
+        from ..data import Cache
         from ..tasks import TaskHistory
 
         self.survey = survey
@@ -468,7 +468,7 @@ class Results(UserList, ResultsOperationsMixin, Base):
         include_task_history: bool = False,
         include_cache_info: bool = True,
     ) -> dict[str, Any]:
-        from edsl.data.Cache import Cache
+        from ..data import Cache
 
         if sort:
             data = sorted([result for result in self.data], key=lambda x: hash(x))
@@ -1253,7 +1253,7 @@ class Results(UserList, ResultsOperationsMixin, Base):
         :param debug: if False, uses actual API calls
         """
         from ..jobs import Jobs
-        from ..data.Cache import Cache
+        from ..data import Cache
 
         c = Cache()
         job = Jobs.example(randomize=randomize)
