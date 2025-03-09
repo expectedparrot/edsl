@@ -11,7 +11,7 @@ from typing import Optional, Callable, Any, Type, Union, List, TYPE_CHECKING
 
 from bisect import bisect_left
 
-from edsl.base import Base
+from ..base import Base
 from edsl.exceptions.results import (
     ResultsError,
     ResultsBadMutationstringError,
@@ -23,18 +23,18 @@ from edsl.exceptions.results import (
 )
 
 if TYPE_CHECKING:
-    from edsl.surveys import Survey
-    from edsl.data.Cache import Cache
-    from edsl.agents import AgentList
-    from edsl.language_models.model import Model
-    from edsl.scenarios import ScenarioList
-    from edsl.results import Result
-    from edsl.jobs.tasks.TaskHistory import TaskHistory
-    from edsl.language_models.ModelList import ModelList
+    from ..surveys import Survey
+    from ..data.Cache import Cache
+    from ..agents import AgentList
+    from ..language_models.model import Model
+    from ..scenarios import ScenarioList
+    from ..results import Result
+    from ..jobs.tasks import TaskHistory
+    from ..language_models.ModelList import ModelList
     from simpleeval import EvalWithCompoundTypes
 
 #from edsl.results.ResultsExportMixin import ResultsExportMixin
-from edsl.results.results_fetch_mixin import ResultsFetchMixin
+from .results_fetch_mixin import ResultsFetchMixin
 from edsl.utilities.remove_edsl_version import remove_edsl_version
 
 from ..dataset.dataset_operations_mixin import ResultsOperationsMixin
@@ -183,8 +183,8 @@ class Results(UserList, Mixins, Base):
         self.completed = True
         self._fetching = False
         super().__init__(data)
-        from edsl.data.Cache import Cache
-        from edsl.jobs.tasks.TaskHistory import TaskHistory
+        from ..data.Cache import Cache
+        from ..jobs.tasks import TaskHistory
 
         self.survey = survey
         self.created_columns = created_columns or []
@@ -568,7 +568,7 @@ class Results(UserList, Mixins, Base):
         from ..surveys import Survey
         from ..data.Cache import Cache
         from ..results import Result
-        from ..jobs.tasks.TaskHistory import TaskHistory
+        from ..jobs.tasks import TaskHistory
         from ..agents import Agent
 
         survey = Survey.from_dict(data["survey"])

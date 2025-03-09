@@ -6,7 +6,7 @@ from typing import List
 
 # Import the TaskHistory class
 # Assuming the module is named task_history.py
-from edsl.jobs.tasks.TaskHistory import TaskHistory
+from edsl.jobs.tasks.task_history import TaskHistory
 
 
 @pytest.fixture
