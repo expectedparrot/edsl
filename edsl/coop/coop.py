@@ -7,21 +7,21 @@ from uuid import UUID
 
 import edsl
 
-from edsl.config import CONFIG
-from edsl.data.CacheEntry import CacheEntry
+from ..config import CONFIG
+from ..data.CacheEntry import CacheEntry
 #from edsl.jobs.Jobs import Jobs
 #from edsl.surveys.Survey import Survey
 
 if TYPE_CHECKING:
-    from edsl.jobs.Jobs import Jobs
-    from edsl.surveys import Survey
+    from ..jobs import Jobs
+    from ..surveys import Survey
 
 from edsl.exceptions.coop import (
     CoopInvalidURLError,
     CoopNoUUIDError,
     CoopServerResponseError,
 )
-from edsl.coop.utils import (
+from .utils import (
     EDSLObject,
     ObjectRegistry,
     ObjectType,
@@ -29,9 +29,10 @@ from edsl.coop.utils import (
     VisibilityType,
 )
 
-from edsl.coop.CoopFunctionsMixin import CoopFunctionsMixin
-from edsl.coop.ExpectedParrotKeyHandler import ExpectedParrotKeyHandler
-from edsl.inference_services.data_structures import ServiceToModelsMapping
+from .coop_functions import CoopFunctionsMixin
+from .ep_key_handling import ExpectedParrotKeyHandler
+
+from ..inference_services.data_structures import ServiceToModelsMapping
 
 
 class RemoteInferenceResponse(TypedDict):
