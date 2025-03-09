@@ -6,14 +6,15 @@ import warnings
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from ...results import Results
+    from ..results import Results
 
-from ...results import Results
-from .JobsRunnerStatus import JobsRunnerStatus
-from ...tasks import TaskHistory
-from ...utilities.decorators import jupyter_nb_handler
-from ..async_interview_runner import AsyncInterviewRunner
-from ..data_structures import RunEnvironment, RunParameters, RunConfig
+from ..results import Results
+from ..tasks import TaskHistory
+from ..utilities.decorators import jupyter_nb_handler
+
+from .jobs_runner_status import JobsRunnerStatus
+from .async_interview_runner import AsyncInterviewRunner
+from .data_structures import RunEnvironment, RunParameters, RunConfig
 
 if TYPE_CHECKING:
     from ..jobs import Jobs
