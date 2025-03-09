@@ -25,23 +25,23 @@ from .jobs_pricing_estimation import JobsPrompts
 from .remote_inference import JobsRemoteInferenceHandler
 
 from .jobs_checks import JobsChecks
-from .interviews import Interview
 from .data_structures import RunEnvironment, RunParameters, RunConfig
 
 from ..scenarios import Scenario
 from ..scenarios import ScenarioList
 from ..surveys import Survey
+from ..interviews import Interview
 
 if TYPE_CHECKING:
     from ..agents import Agent
     from ..agents import AgentList
-    from ..language_models.LanguageModel import LanguageModel
+    from ..language_models import LanguageModel
     from ..scenarios import Scenario, ScenarioList
     from ..surveys import Survey
     from ..results import Results
     from ..dataset import Dataset
-    from ..language_models.ModelList import ModelList
-    from ..data.Cache import Cache
+    from ..language_models import ModelList
+    from ..data import Cache
     from ..language_models.key_management.KeyLookup import KeyLookup
 
 VisibilityType = Literal["private", "public", "unlisted"]
@@ -194,7 +194,7 @@ class Jobs(Base):
 
     @models.setter
     def models(self, value):
-        from edsl.language_models.ModelList import ModelList
+        from ..language_models import ModelList
 
         if value:
             if not isinstance(value, ModelList):
@@ -743,10 +743,10 @@ class Jobs(Base):
     @remove_edsl_version
     def from_dict(cls, data: dict) -> Jobs:
         """Creates a Jobs instance from a dictionary."""
-        from edsl.surveys import Survey
-        from edsl.agents import Agent
-        from edsl.language_models.LanguageModel import LanguageModel
-        from edsl.scenarios import Scenario
+        from ..surveys import Survey
+        from ..agents import Agent
+        from ..language_models import LanguageModel
+        from ..scenarios import Scenario
 
         return cls(
             survey=Survey.from_dict(data["survey"]),
@@ -784,14 +784,14 @@ class Jobs(Base):
         """
         import random
         from uuid import uuid4
-        from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
-        from edsl.agents import Agent
-        from edsl.scenarios import Scenario
+        from ..questions import QuestionMultipleChoice
+        from ..agents import Agent
+        from ..scenarios import Scenario
 
         addition = "" if not randomize else str(uuid4())
 
         if test_model:
-            from edsl.language_models.LanguageModel import LanguageModel
+            from ..language_models import LanguageModel
 
             m = LanguageModel.example(test_model=True)
 
@@ -832,8 +832,8 @@ class Jobs(Base):
             question_options=["Good", "Great", "OK", "Terrible"],
             question_name="how_feeling_yesterday",
         )
-        from edsl.surveys import Survey
-        from edsl.scenarios import ScenarioList
+        from ..surveys import Survey
+        from ..scenarios import ScenarioList
 
         base_survey = Survey(questions=[q1, q2])
 
@@ -857,8 +857,8 @@ class Jobs(Base):
 
 def main():
     """Run the module's doctests."""
-    from edsl.jobs.Jobs import Jobs
-    from edsl.data.Cache import Cache
+    from .jobs import Jobs
+    from ..data import Cache
 
     job = Jobs.example()
     len(job) == 4

@@ -1,13 +1,14 @@
 from typing import Any, List, Optional
 import os
 import asyncio
-from edsl.inference_services.InferenceServiceABC import InferenceServiceABC
-from edsl.language_models.LanguageModel import LanguageModel
-from edsl.inference_services.rate_limits_cache import rate_limits
-from edsl.utilities.utilities import fix_partial_correct_response
-
-from edsl.enums import InferenceServiceType
 import random
+
+from .InferenceServiceABC import InferenceServiceABC
+from .rate_limits_cache import rate_limits
+
+from ..language_models import LanguageModel
+from ..utilities.utilities import fix_partial_correct_response
+from ..enums import InferenceServiceType
 
 
 class TestService(InferenceServiceABC):

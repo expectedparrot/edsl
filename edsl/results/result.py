@@ -398,8 +398,8 @@ class Result(Base, UserDict):
 
         from ..agents import Agent
         from ..scenarios import Scenario
-        from ..language_models.LanguageModel import LanguageModel
-        from ..prompts.Prompt import Prompt
+        from ..language_models import LanguageModel
+        from ..prompts import Prompt
 
         prompt_data = json_dict.get("prompt", {})
         prompt_d = {}

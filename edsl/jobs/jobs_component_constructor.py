@@ -2,7 +2,7 @@ from typing import Union, Sequence, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ..agents import Agent
-    from ..language_models.LanguageModel import LanguageModel
+    from ..language_models import LanguageModel
     from ..scenarios import Scenario
     from .jobs import Jobs
     from ..invigilators import InvigilatorBase
@@ -108,9 +108,10 @@ class JobsComponentConstructor:
     def _get_current_objects_of_this_type(
         self, object: Union["Agent", "Scenario", "LanguageModel"]
     ) -> tuple[list, str]:
-        from edsl.agents import Agent
-        from edsl.scenarios import Scenario
-        from edsl.language_models.LanguageModel import LanguageModel
+        
+        from ..agents import Agent
+        from ..scenarios import Scenario
+        from ..language_models import LanguageModel
 
         """Return the current objects of the same type as the first argument.
 
@@ -168,11 +169,11 @@ class JobsComponentConstructor:
 
     @staticmethod
     def _get_container_class(object):
-        from edsl.agents import AgentList
-        from edsl.agents import Agent
-        from edsl.scenarios import Scenario
-        from edsl.scenarios import ScenarioList
-        from edsl.language_models.ModelList import ModelList
+        from ..agents import AgentList
+        from ..agents import Agent
+        from ..scenarios import Scenario
+        from ..scenarios import ScenarioList
+        from ..language_models import ModelList
 
         if isinstance(object, Agent):
             return AgentList

@@ -1,7 +1,7 @@
 import os
 from typing import Any, List, Optional
 from edsl.inference_services.InferenceServiceABC import InferenceServiceABC
-from edsl.language_models.LanguageModel import LanguageModel
+from ..language_models import LanguageModel
 import asyncio
 from mistralai import Mistral
 

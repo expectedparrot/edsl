@@ -29,15 +29,15 @@ from edsl.questions import QuestionBudget
 from edsl.questions import QuestionRank
 from edsl.questions import QuestionTopK
 
-from edsl.scenarios import Scenario, ScenarioList, FileStore
+from .scenarios import Scenario, ScenarioList, FileStore
 
 # from edsl.utilities.interface import print_dict_with_rich
 from .surveys import Survey
-from .language_models.model import Model
-from .language_models.ModelList import ModelList
+from .language_models import Model
+from .language_models import ModelList
 
 from .results import Results
-from .data.Cache import Cache
+from .data import Cache
 
 # from edsl.data.CacheEntry import CacheEntry
 from .data.CacheHandler import set_session_cache, unset_session_cache
@@ -50,7 +50,7 @@ from .notebooks import Notebook
 # from edsl.study.Study import Study
 
 # from edsl.conjure.Conjure import Conjure
-from edsl.coop.coop import Coop
+from edsl.coop import Coop
 
 from .surveys.instructions.Instruction import Instruction
 from .surveys.instructions.ChangeInstruction import ChangeInstruction

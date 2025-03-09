@@ -3,7 +3,7 @@ import pytest
 from edsl.results import Result
 from edsl.agents import Agent
 from edsl.scenarios import Scenario
-from edsl.language_models.LanguageModel import LanguageModel
+from edsl.language_models import LanguageModel
 
 
 def test_constructor():

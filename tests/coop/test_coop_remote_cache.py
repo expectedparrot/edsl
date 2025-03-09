@@ -1,13 +1,14 @@
 import datetime
 import pytest
 import unittest
-from edsl.data.Cache import Cache
+from unittest.mock import patch, PropertyMock
+
+from edsl.data import Cache
 from edsl.coop import Coop
 from edsl.surveys import Survey
-from edsl.data.CacheEntry import CacheEntry
-from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
-from unittest.mock import patch, PropertyMock
-from edsl.language_models.LanguageModel import LanguageModel
+from edsl.data import CacheEntry
+from edsl.questions import QuestionMultipleChoice
+from edsl.language_models import LanguageModel
 
 example_cache_entries = [
     CacheEntry(

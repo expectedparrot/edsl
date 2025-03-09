@@ -7,7 +7,7 @@ from edsl.inference_services.AvailableModelFetcher import AvailableModelFetcher
 from edsl.exceptions.inference_services import InferenceServiceError
 
 if TYPE_CHECKING:
-    from edsl.language_models.LanguageModel import LanguageModel
+    from edsl.language_models import LanguageModel
     from edsl.inference_services.InferenceServiceABC import InferenceServiceABC
 
 

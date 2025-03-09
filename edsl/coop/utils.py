@@ -1,16 +1,16 @@
 from typing import Literal, Optional, Type, Union
 
 from ..agents import Agent, AgentList
-from ..data.Cache import Cache
-from ..language_models.ModelList import ModelList
+from ..data import Cache
+from ..language_models import ModelList
 from ..notebooks import Notebook
 from ..results import Results
 from ..scenarios import Scenario, ScenarioList
 from ..surveys import Survey
 from ..study import Study
 
-from ..language_models.LanguageModel import LanguageModel
-from ..questions.QuestionBase import QuestionBase
+from ..language_models import LanguageModel
+from ..questions import QuestionBase
 
 EDSLObject = Union[
     Agent,

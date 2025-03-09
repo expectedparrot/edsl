@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from ..data_structures import Answers
 from ..buckets.ModelBuckets import ModelBuckets
 from ..fetch_invigilator import FetchInvigilator
+from ...utilities.utilities import dict_hash
 
 # from interviews module 
 from .AnswerQuestionFunctionConstructor import (
@@ -152,7 +153,7 @@ class Interview:
         return len(self.exceptions) > 0
 
     @property
-    def task_status_logs(self) -> InterviewStatusLog:
+    def task_status_logs(self) -> 'InterviewStatusLog':
         """Return the task status logs for the interview.
 
         The keys are the question names; the values are the lists of status log changes for each task.
@@ -195,10 +196,10 @@ class Interview:
     def from_dict(cls, d: dict[str, Any]) -> "Interview":
         """Return an Interview instance from a dictionary."""
 
-        from edsl.agents import Agent
-        from edsl.surveys import Survey
-        from edsl.scenarios import Scenario
-        from edsl.language_models.LanguageModel import LanguageModel
+        from ..agents import Agent
+        from ..surveys import Survey
+        from ..scenarios import Scenario
+        from ..language_models import LanguageModel
 
         agent = Agent.from_dict(d["agent"])
         survey = Survey.from_dict(d["survey"])
@@ -222,8 +223,7 @@ class Interview:
 
     def __hash__(self) -> int:
         """Hash the interview instance."""
-        from edsl.utilities.utilities import dict_hash
-
+        
         return dict_hash(self.to_dict(include_exceptions=False, add_edsl_version=False))
 
     def __eq__(self, other: "Interview") -> bool:
@@ -389,10 +389,10 @@ class Interview:
     @classmethod
     def example(self, throw_exception: bool = False) -> Interview:
         """Return an example Interview instance."""
-        from edsl.agents import Agent
-        from edsl.surveys import Survey
-        from edsl.scenarios import Scenario
-        from edsl.language_models import LanguageModel
+        from ..agents import Agent
+        from ..surveys import Survey
+        from ..scenarios import Scenario
+        from ..language_models import LanguageModel
 
         def f(self, question, scenario):
             return "yes"

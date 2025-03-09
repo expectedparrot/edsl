@@ -6,7 +6,7 @@ from typing import Any
 import pytest
 
 from edsl.surveys.memory import Memory
-from edsl.language_models.LanguageModel import LanguageModel
+from edsl.language_models import LanguageModel
 from edsl.enums import InferenceServiceType
 from edsl.surveys import Survey
 from edsl.questions import QuestionFreeText

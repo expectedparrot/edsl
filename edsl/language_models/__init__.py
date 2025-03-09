@@ -1,2 +1,3 @@
-from edsl.language_models.LanguageModel import LanguageModel
-from edsl.language_models.model import Model
+from .language_model import LanguageModel
+from .model import Model
+from .model_list import ModelList

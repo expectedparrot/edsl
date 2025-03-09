@@ -7,7 +7,7 @@ from tempfile import NamedTemporaryFile
 
 from edsl.exceptions.language_models import LanguageModelAttributeTypeError
 from edsl.enums import InferenceServiceType
-from edsl.language_models.LanguageModel import LanguageModel
+from edsl.language_models import LanguageModel
 
 
 def create_temp_env_file(contents):

@@ -3,7 +3,7 @@ from typing import Any, Optional, List
 import re
 from anthropic import AsyncAnthropic
 from edsl.inference_services.InferenceServiceABC import InferenceServiceABC
-from edsl.language_models.LanguageModel import LanguageModel
+from ..language_models import LanguageModel
 
 
 class AnthropicService(InferenceServiceABC):
