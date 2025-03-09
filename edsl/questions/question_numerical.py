@@ -6,10 +6,10 @@ from typing import Any, Optional, Union, Literal
 from pydantic import BaseModel, Field, field_validator
 
 from edsl.exceptions.questions import QuestionAnswerValidationError
-from edsl.questions.QuestionBase import QuestionBase
-from edsl.questions.descriptors import NumericalOrNoneDescriptor
-from edsl.questions.decorators import inject_exception
-from edsl.questions.response_validator_abc import ResponseValidatorABC
+from .question_base import QuestionBase
+from .descriptors import NumericalOrNoneDescriptor
+from .decorators import inject_exception
+from .response_validator_abc import ResponseValidatorABC
 
 
 def create_numeric_response(

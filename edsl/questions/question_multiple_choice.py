@@ -4,12 +4,11 @@ from typing import Union, Literal, Optional, List, Any
 from jinja2 import Template
 from pydantic import BaseModel, Field
 
-from edsl.scenarios import Scenario
-from edsl.questions.QuestionBase import QuestionBase
-from edsl.questions.descriptors import QuestionOptionsDescriptor
-from edsl.questions.decorators import inject_exception
-from edsl.questions.response_validator_abc import ResponseValidatorABC
-
+from ..scenarios import Scenario
+from .question_base import QuestionBase
+from .descriptors import QuestionOptionsDescriptor
+from .decorators import inject_exception
+from .response_validator_abc import ResponseValidatorABC
 
 def create_response_model(choices: List[str], permissive: bool = False):
     """

@@ -2,8 +2,8 @@ import pytest
 from pathlib import Path
 from pydantic import BaseModel
 from edsl.exceptions.questions import QuestionAnswerValidationError
-from edsl.questions.QuestionBase import QuestionBase
-from edsl.questions.QuestionDict import QuestionDict
+from edsl.questions import QuestionBase
+from edsl.questions import QuestionDict
 from edsl.exceptions.questions import QuestionCreationValidationError
 
 valid_question = {

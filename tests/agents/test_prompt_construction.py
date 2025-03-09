@@ -4,7 +4,7 @@ from edsl.agents import Agent
 from edsl.questions import QuestionMultipleChoice, QuestionList, QuestionFreeText
 from edsl.scenarios import Scenario
 from edsl.surveys import Survey
-from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice as q
+from edsl.questions import QuestionMultipleChoice as q
 
 
 def test_option_expansion_from_current_answers_list_not_present_yet():

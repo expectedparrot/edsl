@@ -7,26 +7,27 @@ from typing import Any, Type, Optional, List, Callable, Union, TypedDict, TYPE_C
 from edsl.exceptions.questions import (
     QuestionSerializationError,
 )
+
+from ..base import PersistenceMixin, RepresentationMixin
+from ..base import BaseDiff, BaseDiffCollection
+from ..utilities.remove_edsl_version import remove_edsl_version
+from ..utilities.utilities import is_valid_variable_name
+from ..agents import Agent
+from ..scenarios import Scenario
+from ..surveys import Survey
+
 from .descriptors import QuestionNameDescriptor, QuestionTextDescriptor
 from .answer_validator_mixin import AnswerValidatorMixin
 from .register_questions_meta import RegisterQuestionsMeta
-from edsl.base import PersistenceMixin, RepresentationMixin
-from ..base import BaseDiff, BaseDiffCollection
-
-from edsl.questions.SimpleAskMixin import SimpleAskMixin
-from edsl.questions.QuestionBasePromptsMixin import QuestionBasePromptsMixin
-from edsl.questions.question_base_gen_mixin import QuestionBaseGenMixin
-from edsl.utilities.remove_edsl_version import remove_edsl_version
-from edsl.utilities.utilities import is_valid_variable_name
-from edsl.agents import Agent
-from edsl.scenarios import Scenario
-from edsl.surveys import Survey
+from .simple_ask_mixin import SimpleAskMixin
+from .question_base_prompts_mixin import QuestionBasePromptsMixin
+from .question_base_gen_mixin import QuestionBaseGenMixin
 
 if TYPE_CHECKING:
-    from edsl.questions.response_validator_abc import ResponseValidatorABC
-    from edsl.language_models.LanguageModel import LanguageModel
-    from edsl.results.Results import Results
-    from edsl.jobs.Jobs import Jobs
+    from .response_validator_abc import ResponseValidatorABC
+    from ..language_models import LanguageModel
+    from ..results import Results
+    from ..jobs import Jobs
 
 
 class QuestionBase(

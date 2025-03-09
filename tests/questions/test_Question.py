@@ -1,7 +1,7 @@
 import pytest
 from edsl.exceptions.questions import QuestionScenarioRenderError
-from edsl.questions.QuestionFreeText import QuestionFreeText
-from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
+from edsl.questions import QuestionFreeText
+from edsl.questions import QuestionMultipleChoice
 from edsl.questions import QuestionYesNo
 from edsl.surveys import Survey
 from edsl.scenarios import Scenario

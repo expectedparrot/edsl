@@ -5,12 +5,11 @@ from typing import Any, Optional, Union
 from pydantic import Field
 from json_repair import repair_json
 
-from edsl.exceptions.questions import QuestionAnswerValidationError
-from edsl.questions.QuestionBase import QuestionBase
-from edsl.questions.descriptors import IntegerOrNoneDescriptor
-from edsl.questions.decorators import inject_exception
-from edsl.questions.response_validator_abc import ResponseValidatorABC
-
+from ..exceptions.questions import QuestionAnswerValidationError
+from .question_base import QuestionBase
+from .descriptors import IntegerOrNoneDescriptor
+from .decorators import inject_exception
+from .response_validator_abc import ResponseValidatorABC
 
 def convert_string(s: str) -> Union[float, int, str, dict]:
     """Convert a string to a more appropriate type if possible.
@@ -198,7 +197,7 @@ class QuestionList(QuestionBase):
 
 def main():
     """Create an example of a list question and demonstrate its functionality."""
-    from edsl.questions.QuestionList import QuestionList
+    from edsl.questions import QuestionList
 
     q = QuestionList.example(max_list_items=5)
     q.question_text

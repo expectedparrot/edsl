@@ -5,8 +5,8 @@ from edsl.exceptions.questions import (
     QuestionResponseValidationError,
 )
 from edsl.questions import Settings
-from edsl.questions.QuestionBase import QuestionBase
-from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
+from edsl.questions import QuestionBase
+from edsl.questions import QuestionMultipleChoice
 
 
 def test_QuestionMultipleChoice_main():

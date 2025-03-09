@@ -4,15 +4,16 @@ from typing import Union, Optional, Dict, List, Any
 from pydantic import BaseModel, Field, field_validator
 from jinja2 import Template
 import random
-from edsl.questions.QuestionBase import QuestionBase
-from edsl.questions.descriptors import (
+from .question_base import QuestionBase
+from .descriptors import (
     QuestionOptionsDescriptor,
     OptionLabelDescriptor,
     QuestionTextDescriptor,
 )
-from edsl.questions.response_validator_abc import ResponseValidatorABC
-from edsl.questions.decorators import inject_exception
-from edsl.exceptions.questions import (
+from .response_validator_abc import ResponseValidatorABC
+from .decorators import inject_exception
+
+from ..exceptions.questions import (
     QuestionAnswerValidationError,
     QuestionCreationValidationError,
 )

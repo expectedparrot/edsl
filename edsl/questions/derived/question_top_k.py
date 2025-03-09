@@ -2,8 +2,8 @@ from __future__ import annotations
 from typing import Optional
 
 from edsl.exceptions.questions import QuestionCreationValidationError
-from edsl.questions.QuestionCheckBox import QuestionCheckBox
-from edsl.questions.decorators import inject_exception
+from ..question_check_box import QuestionCheckBox
+from ..decorators import inject_exception
 
 
 class QuestionTopK(QuestionCheckBox):

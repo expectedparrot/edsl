@@ -1,10 +1,11 @@
+from __future__ import annotations
 from typing import Optional, Callable
 import inspect
 
-from edsl.questions.QuestionBase import QuestionBase
+from .question_base import QuestionBase
 
-from edsl.utilities.restricted_python import create_restricted_function
-from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
+from ..utilities.restricted_python import create_restricted_function
+from ..utilities.decorators import add_edsl_version, remove_edsl_version
 
 
 class QuestionFunctional(QuestionBase):
@@ -25,7 +26,7 @@ class QuestionFunctional(QuestionBase):
 
     # Serialize the question to a dictionary
 
-    >>> from edsl.questions.QuestionBase import QuestionBase
+    >>> from .question_base import QuestionBase
     >>> new_question = QuestionBase.from_dict(question.to_dict())
     >>> results = new_question.by(scenario).by(agent).run(disable_remote_cache = True, disable_remote_inference = True)
     >>> results.select("answer.*").to_list()[0] == 150
@@ -146,7 +147,7 @@ def calculate_sum_and_multiply(scenario, agent_traits):
 
 def main():
     from edsl import Scenario, Agent
-    from edsl.questions.QuestionFunctional import QuestionFunctional
+    from .question_functional import QuestionFunctional
 
     # Create an instance of QuestionFunctional with the new function
     question = QuestionFunctional.example()

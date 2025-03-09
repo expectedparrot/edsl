@@ -1,19 +1,17 @@
 from __future__ import annotations
 from typing import Any, Optional
-from uuid import uuid4
-
-from pydantic import field_validator, model_validator
-
-from edsl.questions.QuestionBase import QuestionBase
-from edsl.questions.response_validator_abc import ResponseValidatorABC
-
-from edsl.exceptions.questions import QuestionAnswerValidationError
-from edsl.questions.decorators import inject_exception
-
-from pydantic import BaseModel
 from typing import Optional, Any, List
 
-from edsl.prompts.Prompt import Prompt
+from uuid import uuid4
+
+from pydantic import field_validator, model_validator, BaseModel
+
+from ..exceptions.questions import QuestionAnswerValidationError
+from ..prompts import Prompt
+
+from .question_base import QuestionBase
+from .response_validator_abc import ResponseValidatorABC
+from .decorators import inject_exception
 
 
 class FreeTextResponse(BaseModel):
@@ -107,7 +105,7 @@ class QuestionFreeText(QuestionBase):
 
 def main():
     """Create an example question and demonstrate its functionality."""
-    from edsl.questions.QuestionFreeText import QuestionFreeText
+    from .question_free_text import QuestionFreeText
 
     q = QuestionFreeText.example()
     q.question_text

@@ -377,16 +377,16 @@ class Survey(Base):
         """
 
         def get_class(pass_dict):
-            from ..questions.QuestionBase import QuestionBase
+            from ..questions import QuestionBase
 
             if (class_name := pass_dict.get("edsl_class_name")) == "QuestionBase":
                 return QuestionBase
             elif pass_dict.get("edsl_class_name") == "QuestionDict":
-                from ..questions.QuestionDict import QuestionDict
+                from ..questions import QuestionDict
 
                 return QuestionDict
             elif class_name == "Instruction":
-                from edsl.surveys.instructions.Instruction import Instruction
+                from .instructions.Instruction import Instruction
 
                 return Instruction
             elif class_name == "ChangeInstruction":
@@ -1135,7 +1135,7 @@ class Survey(Base):
         >>> [q.question_text for q in s.questions]
         ['Do you like school?', 'Why not?', 'Why?']
         """
-        from ..questions.QuestionMultipleChoice import QuestionMultipleChoice
+        from ..questions import QuestionMultipleChoice
 
         addition = "" if not randomize else str(uuid4())
         q0 = QuestionMultipleChoice(

@@ -3,10 +3,9 @@ from typing import Any, Optional, Union, List
 
 from pydantic import Field, BaseModel, validator
 
-from edsl.questions.QuestionBase import QuestionBase
-from edsl.questions.descriptors import IntegerDescriptor, QuestionOptionsDescriptor
-from edsl.questions.response_validator_abc import ResponseValidatorABC
-
+from .question_base import QuestionBase
+from .descriptors import IntegerDescriptor, QuestionOptionsDescriptor
+from .response_validator_abc import ResponseValidatorABC
 
 class BudgetResponseValidator(ResponseValidatorABC):
     valid_examples = []
