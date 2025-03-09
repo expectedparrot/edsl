@@ -1,5 +1,4 @@
-"""
-The Results object is the result of running a survey. 
+"""The Results object is the result of running a survey. 
 It is not typically instantiated directly, but is returned by the run method of a `Job` object.
 """
 
@@ -34,8 +33,8 @@ if TYPE_CHECKING:
     from simpleeval import EvalWithCompoundTypes
 
 #from edsl.results.ResultsExportMixin import ResultsExportMixin
-from .results_fetch_mixin import ResultsFetchMixin
-from edsl.utilities.remove_edsl_version import remove_edsl_version
+# from .results_fetch_mixin import ResultsFetchMixin
+from ..utilities.remove_edsl_version import remove_edsl_version
 
 from ..dataset.dataset_operations_mixin import ResultsOperationsMixin
 
@@ -98,32 +97,8 @@ class NotReadyObject:
     def __call__(self, *args, **kwargs):
         return self
 
-class Mixins(
-    ResultsOperationsMixin,
-    ResultsFetchMixin,
-):
-    def long(self):
-        return self.table().long()
 
-    def print_long(self, max_rows: int = None) -> None:
-        """Print the results in long format.
-
-        >>> from edsl.results import Results
-        >>> r = Results.example()
-        >>> r.select('how_feeling').print_long(max_rows = 2)
-        ┏━━━━━━━━━━━━━━┳━━━━━━━━━━━━━┳━━━━━━━┓
-        ┃ Result index ┃ Key         ┃ Value ┃
-        ┡━━━━━━━━━━━━━━╇━━━━━━━━━━━━━╇━━━━━━━┩
-        │ 0            │ how_feeling │ OK    │
-        │ 1            │ how_feeling │ Great │
-        └──────────────┴─────────────┴───────┘
-        """
-        from edsl.utilities.interface import print_results_long
-
-        print_results_long(self, max_rows=max_rows)
-
-
-class Results(UserList, Mixins, Base):
+class Results(UserList, ResultsOperationsMixin, Base):
     """
     This class is a UserList of Result objects.
 
@@ -196,6 +171,47 @@ class Results(UserList, Mixins, Base):
 
         if hasattr(self, "_add_output_functions"):
             self._add_output_functions()
+
+    def long(self):
+        return self.table().long()
+
+    def print_long(self, max_rows: int = None) -> None:
+        """Print the results in long format.
+
+        >>> from edsl.results import Results
+        >>> r = Results.example()
+        >>> r.select('how_feeling').print_long(max_rows = 2)
+        ┏━━━━━━━━━━━━━━┳━━━━━━━━━━━━━┳━━━━━━━┓
+        ┃ Result index ┃ Key         ┃ Value ┃
+        ┡━━━━━━━━━━━━━━╇━━━━━━━━━━━━━╇━━━━━━━┩
+        │ 0            │ how_feeling │ OK    │
+        │ 1            │ how_feeling │ Great │
+        └──────────────┴─────────────┴───────┘
+        """
+        from edsl.utilities.interface import print_results_long
+
+        print_results_long(self, max_rows=max_rows)
+
+
+    def _fetch_list(self, data_type: str, key: str) -> list:
+        """
+        Return a list of values from the data for a given data type and key.
+
+        Uses the filtered data, not the original data.
+
+        Example:
+
+        >>> from edsl.results import Results
+        >>> r = Results.example()
+        >>> r._fetch_list('answer', 'how_feeling')
+        ['OK', 'Great', 'Terrible', 'OK']
+        """
+        returned_list = []
+        for row in self.data:
+            returned_list.append(row.sub_dicts[data_type].get(key, None))
+
+        return returned_list
+
 
     def _summary(self) -> dict:
         import reprlib
