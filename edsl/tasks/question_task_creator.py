@@ -7,7 +7,7 @@ from ..tokens import TokenUsage
 from ..jobs.Answers import Answers
 
 from .task_status_enum import TaskStatus, TaskStatusDescriptor
-from .TaskStatusLog import TaskStatusLog
+from .task_status_log import TaskStatusLog
 
 if TYPE_CHECKING:
     from ..questions import QuestionBase
@@ -158,8 +158,8 @@ class QuestionTaskCreator(UserList):
     @classmethod
     def example(cls):
         """Return an example instance of the class."""
-        from edsl.questions.QuestionFreeText import QuestionFreeText
-        from edsl.jobs.buckets.ModelBuckets import ModelBuckets
+        from ..questions import QuestionFreeText
+        from ..buckets import ModelBuckets
 
         m = ModelBuckets.infinity_bucket()
 

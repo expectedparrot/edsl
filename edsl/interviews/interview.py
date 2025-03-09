@@ -34,7 +34,7 @@ if TYPE_CHECKING:
     from ..language_models import LanguageModel
     from ..tokens import InterviewTokenUsage
     from ..invigilators import InvigilatorBase
-    from edsl.language_models.key_management.KeyLookup import KeyLookup
+    from ..key_management import KeyLookup
 
 
 @dataclass
