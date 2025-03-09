@@ -5,7 +5,7 @@ from functools import lru_cache
 from ..enums import service_to_api_keyname
 from ..exceptions.general import MissingAPIKeyError
 
-from .KeyLookup import KeyLookup
+from .key_lookup import KeyLookup
 from .models import (
     APIKeyEntry,
     LimitEntry,
@@ -53,7 +53,7 @@ class KeyLookupBuilder:
 
     # DEFAULT_RPM = 10
     # DEFAULT_TPM = 2000000
-    from edsl.config import CONFIG
+    from ..config import CONFIG
 
     DEFAULT_RPM = int(CONFIG.get("EDSL_SERVICE_RPM_BASELINE"))
     DEFAULT_TPM = int(CONFIG.get("EDSL_SERVICE_TPM_BASELINE"))
@@ -299,3 +299,9 @@ class KeyLookupBuilder:
     def process_key_value_pairs(self) -> None:
         """Process all key-value pairs from the configured sources."""
         self.update_from_dict(self.get_key_value_pairs())
+
+
+if __name__ == "__main__":
+    import doctest
+
+    doctest.testmod(optionflags=doctest.ELLIPSIS)

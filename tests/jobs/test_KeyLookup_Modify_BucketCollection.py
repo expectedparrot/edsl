@@ -34,3 +34,8 @@ def test_custom_rpm_bucket_collection():
     actual_rpm = rr * 60
     assert abs(actual_rpm - target_rpm) < 1, \
         f"Actual RPM ({actual_rpm}) differs from target RPM ({target_rpm}) by more than 1"
+
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod(optionflags=doctest.ELLIPSIS)
