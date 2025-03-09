@@ -11,7 +11,7 @@ from ..utilities.decorators import jupyter_nb_handler
 from ..data_transfer_models import AgentResponseDict
 from ..data_transfer_models import EDSLResultObjectInput
 
-from .PromptConstructor import PromptConstructor
+from .prompt_constructor import PromptConstructor
 from .prompt_helpers import PromptPlan
 
 if TYPE_CHECKING:
@@ -26,7 +26,7 @@ if TYPE_CHECKING:
     from ..language_models import LanguageModel
     from ..surveys import Survey
     from ..agents import Agent
-    from ..language_models.key_management.KeyLookup import KeyLookup
+    from ..key_management import KeyLookup
 
 
 
