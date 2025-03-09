@@ -9,6 +9,7 @@ from edsl.exceptions.results import (
 )
 
 from edsl.results import Results
+from edsl.language_models import LanguageModel
 
 
 class TestResults(unittest.TestCase):
@@ -142,7 +143,6 @@ class TestResults(unittest.TestCase):
         )
 
         from edsl.questions.QuestionFreeText import QuestionFreeText
-        from edsl.language_models.LanguageModel import LanguageModel
 
         q = QuestionFreeText.example()
 

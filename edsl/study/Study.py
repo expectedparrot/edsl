@@ -8,12 +8,12 @@ from datetime import datetime
 from typing import Dict, Optional, Union
 from uuid import UUID, uuid4
 
-from edsl.data.Cache import Cache
-from edsl import set_session_cache, unset_session_cache
-from edsl.utilities.utilities import dict_hash
-from edsl.study.ObjectEntry import ObjectEntry
-from edsl.study.ProofOfWork import ProofOfWork
-from edsl.study.SnapShot import SnapShot
+from ..data.Cache import Cache
+#from edsl import set_session_cache, unset_session_cache
+from ..utilities.utilities import dict_hash
+from ..study.ObjectEntry import ObjectEntry
+from ..study.ProofOfWork import ProofOfWork
+from ..study.SnapShot import SnapShot
 
 
 class Study:

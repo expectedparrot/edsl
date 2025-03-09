@@ -6,6 +6,7 @@ from edsl.base import RegisterSubclassesMeta, Base
 from edsl.questions import QuestionMultipleChoice
 from edsl.scenarios import Scenario, ScenarioList
 from edsl.surveys import Survey
+from edsl.language_models import LanguageModel
 
 
 class EvalReprFail(Warning):
@@ -61,15 +62,14 @@ def create_test_function(child_class):
         from edsl.agents import Agent
         from edsl.surveys import Survey
         from edsl.questions.question_registry import Question
-        from edsl.data.CacheEntry import CacheEntry
-        from edsl.language_models.model import Model
+        from edsl.data import CacheEntry
+        from edsl.language_models import Model
         from edsl.surveys.rules import RuleCollection
         from edsl.surveys.rules import Rule
         from edsl.agents import AgentList
-        from edsl.language_models.LanguageModel import LanguageModel
-        from edsl.language_models.ModelList import ModelList
+        from edsl.language_models import ModelList
         from edsl.scenarios import FileStore
-        from edsl.prompts.Prompt import Prompt
+        from edsl.prompts import Prompt
         from edsl.results import Results
         from edsl.results import Result
 

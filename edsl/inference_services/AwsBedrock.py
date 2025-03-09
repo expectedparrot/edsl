@@ -4,7 +4,7 @@ import re
 import boto3
 from botocore.exceptions import ClientError
 from edsl.inference_services.InferenceServiceABC import InferenceServiceABC
-from edsl.language_models.LanguageModel import LanguageModel
+from ..language_models import LanguageModel
 import json
 from edsl.utilities.utilities import fix_partial_correct_response
 

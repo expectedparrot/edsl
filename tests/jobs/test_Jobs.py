@@ -8,15 +8,15 @@ from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
 from edsl.questions.QuestionFreeText import QuestionFreeText
 from edsl.scenarios import Scenario, ScenarioList
 from edsl.surveys import Survey
-from edsl.language_models.model import Model
+from edsl.language_models import LanguageModel
 from edsl.questions.question_registry import (
     Question,
 )  # needed for the eval() of the repr() of the Job
-from edsl.language_models.LanguageModel import LanguageModel
-from edsl.data.Cache import Cache
+from edsl.data import Cache
 
 from edsl.agents import AgentList
-from edsl.language_models.ModelList import ModelList
+from edsl.language_models import ModelList
+from edsl.language_models import Model
 
 
 @pytest.fixture(scope="function")
@@ -28,7 +28,6 @@ def valid_job():
     )
     survey = Survey(questions=[q])
     agent = Agent(traits={"trait1": "value1"})
-    # model = LanguageModel.example(test_model=True, canned_response="SPAM!")
     model = Model("test", canned_response="SPAM!")
     scenario = Scenario({"price": 100, "quantity": 2})
     valid_job = Jobs(
@@ -199,7 +198,7 @@ def test_jobs_run(valid_job):
 
 
 def test_normal_run():
-    from edsl.language_models.LanguageModel import LanguageModel
+    from edsl.language_models import LanguageModel
     from edsl.enums import InferenceServiceType
     import asyncio
     from typing import Any
@@ -234,7 +233,7 @@ def test_normal_run():
 
 def test_handle_model_exception():
     import random
-    from edsl.language_models.LanguageModel import LanguageModel
+    from edsl.language_models import LanguageModel
     from edsl.enums import InferenceServiceType
     import asyncio
     from typing import Any

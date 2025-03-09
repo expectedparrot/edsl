@@ -38,24 +38,24 @@ from ..data_transfer_models import (
 )
 
 if TYPE_CHECKING:
-    from edsl.data.Cache import Cache
+    from ..data import Cache
     from ..scenarios import FileStore
     from ..questions import QuestionBase
     from .key_management.KeyLookup import KeyLookup
 
-from edsl.enums import InferenceServiceType
+from ..enums import InferenceServiceType
 
 from ..utilities.decorators import (
     sync_wrapper,
     jupyter_nb_handler,
 )
-from edsl.utilities.remove_edsl_version import remove_edsl_version
+from ..utilities.remove_edsl_version import remove_edsl_version
 
 from ..base import PersistenceMixin, RepresentationMixin, HashingMixin
-from .RegisterLanguageModelsMeta import RegisterLanguageModelsMeta
 
+from .registry import RegisterLanguageModelsMeta
 from .key_management.KeyLookupCollection import KeyLookupCollection
-from .RawResponseHandler import RawResponseHandler
+from .raw_response_handler import RawResponseHandler
 
 def handle_key_error(func):
     """Handle KeyError exceptions."""
@@ -387,7 +387,7 @@ class LanguageModel(
                 "system_prompt": system_prompt,
                 "files_list": files_list,
             }
-            from edsl.config import CONFIG
+            from ..config import CONFIG
 
             TIMEOUT = float(CONFIG.get("EDSL_API_TIMEOUT"))
             response = await asyncio.wait_for(f(**params), timeout=TIMEOUT)

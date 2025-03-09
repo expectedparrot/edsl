@@ -4,6 +4,8 @@ from __future__ import annotations
 import copy
 import inspect
 import types
+from uuid import uuid4
+
 from typing import (
     Callable,
     Optional,
@@ -21,17 +23,16 @@ from dataclasses import dataclass
 A = TypeVar("A", bound="Agent")
 
 if TYPE_CHECKING:
-    from edsl.data.Cache import Cache
-    from edsl.surveys import Survey
-    from edsl.scenarios import Scenario
-    from edsl.language_models import LanguageModel
-    from edsl.surveys.MemoryPlan import MemoryPlan
-    from edsl.questions import QuestionBase
-    from edsl.invigilators.invigilators import InvigilatorBase
-    from edsl.prompts import Prompt
-    from edsl.questions.QuestionBase import QuestionBase
-    from edsl.scenarios import Scenario
-
+    from ..data.Cache import Cache
+    from ..surveys import Survey
+    from ..scenarios import Scenario
+    from ..language_models import LanguageModel
+    from ..surveys.memory import MemoryPlan
+    from ..questions import QuestionBase
+    from ..invigilators import InvigilatorBase
+    from ..prompts import Prompt
+    from ..questions import QuestionBase
+   
 
 @runtime_checkable
 class DirectAnswerMethod(Protocol):
@@ -40,9 +41,8 @@ class DirectAnswerMethod(Protocol):
     def __call__(self, self_: A, question: QuestionBase, scenario: Scenario) -> Any: ...
 
 
-from uuid import uuid4
 
-from edsl.base import Base
+from ..base import Base
 from edsl.exceptions.questions import QuestionScenarioRenderError
 
 from edsl.exceptions.agents import (
@@ -52,20 +52,20 @@ from edsl.exceptions.agents import (
     AgentDynamicTraitsFunctionError,
 )
 
-from edsl.agents.descriptors import (
+from .descriptors import (
     TraitsDescriptor,
     CodebookDescriptor,
     InstructionDescriptor,
     NameDescriptor,
 )
-from edsl.utilities.decorators import (
+from ..utilities.decorators import (
     sync_wrapper,
 )
-from edsl.utilities.remove_edsl_version import remove_edsl_version
-from edsl.data_transfer_models import AgentResponseDict
-from edsl.utilities.restricted_python import create_restricted_function
+from ..utilities.remove_edsl_version import remove_edsl_version
+from ..data_transfer_models import AgentResponseDict
+from ..utilities.restricted_python import create_restricted_function
 
-from edsl.scenarios import Scenario
+from ..scenarios import Scenario
 
 
 class AgentTraits(Scenario):
@@ -568,9 +568,8 @@ class Agent(Base):
         An invigator is an object that is responsible for administering a question to an agent and
         recording the responses.
         """
-        from edsl.language_models.model import Model
-
-        from edsl.scenarios import Scenario
+        from edsl.language_models import Model
+        from ..scenarios import Scenario
 
         cache = cache
         self.current_question = question

@@ -25,17 +25,16 @@ if TYPE_CHECKING:
     from ..surveys import Survey
     from ..data.Cache import Cache
     from ..agents import AgentList
-    from ..language_models.model import Model
+    from ..language_models import Model
     from ..scenarios import ScenarioList
     from ..results import Result
     from ..jobs.tasks import TaskHistory
-    from ..language_models.ModelList import ModelList
+    from ..language_models import ModelList
     from simpleeval import EvalWithCompoundTypes
 
 #from edsl.results.ResultsExportMixin import ResultsExportMixin
 # from .results_fetch_mixin import ResultsFetchMixin
 from ..utilities.remove_edsl_version import remove_edsl_version
-
 from ..dataset.dataset_operations_mixin import ResultsOperationsMixin
 
 def ensure_fetched(method):
@@ -712,7 +711,7 @@ class Results(UserList, ResultsOperationsMixin, Base):
         >>> r.models[0]
         Model(model_name = ...)
         """
-        from edsl.language_models.ModelList import ModelList
+        from ..language_models import ModelList
 
         return ModelList([r.model for r in self.data])
 
@@ -729,7 +728,7 @@ class Results(UserList, ResultsOperationsMixin, Base):
         >>> r.scenarios
         ScenarioList([Scenario({'period': 'morning', 'scenario_index': 0}), Scenario({'period': 'afternoon', 'scenario_index': 1}), Scenario({'period': 'morning', 'scenario_index': 0}), Scenario({'period': 'afternoon', 'scenario_index': 1})])
         """
-        from edsl.scenarios import ScenarioList
+        from ..scenarios import ScenarioList
 
         return ScenarioList([r.scenario for r in self.data])
 

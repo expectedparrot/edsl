@@ -1,16 +1,15 @@
 from typing import Optional, List, TYPE_CHECKING
 from collections import UserList
 
-from edsl.base import Base
-from edsl.language_models.model import Model
+from ..base import Base
+from ..language_models import Model
 
-
-from edsl.utilities.remove_edsl_version import remove_edsl_version
-from edsl.utilities.is_valid_variable_name import is_valid_variable_name
+from ..utilities.remove_edsl_version import remove_edsl_version
+from ..utilities.is_valid_variable_name import is_valid_variable_name
 
 if TYPE_CHECKING:
-    from edsl.inference_services.data_structures import AvailableModels
-    from edsl.language_models import LanguageModel
+    from ..inference_services.data_structures import AvailableModels
+    from ..language_models import LanguageModel
 
 
 class ModelList(Base, UserList):
@@ -140,7 +139,7 @@ class ModelList(Base, UserList):
         >>> newm = ModelList.from_dict(ModelList.example().to_dict())
         >>> assert ModelList.example() == newm
         """
-        from edsl.language_models.LanguageModel import LanguageModel
+        from ..language_models import LanguageModel
 
         return cls(data=[LanguageModel.from_dict(model) for model in data["models"]])
 

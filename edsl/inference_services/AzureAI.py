@@ -3,7 +3,7 @@ from typing import Any, Optional, List
 import re
 from openai import AsyncAzureOpenAI
 from edsl.inference_services.InferenceServiceABC import InferenceServiceABC
-from edsl.language_models.LanguageModel import LanguageModel
+from ..language_models import LanguageModel
 
 from azure.ai.inference.aio import ChatCompletionsClient
 from azure.core.credentials import AzureKeyCredential
