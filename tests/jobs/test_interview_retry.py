@@ -3,11 +3,11 @@ import asyncio
 
 from edsl.agents import Agent
 from edsl.jobs import Jobs
-from edsl.questions.QuestionFreeText import QuestionFreeText
+from edsl.questions import QuestionFreeText
 from edsl.surveys import Survey
 from edsl.scenarios import Scenario
-from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
-from edsl.jobs.interviews import Interview
+from edsl.questions import QuestionMultipleChoice
+from edsl.interviews import Interview
 
 
 def test_retry():

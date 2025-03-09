@@ -20,7 +20,7 @@ from ..base import Base
 from ..utilities.remove_edsl_version import remove_edsl_version
 from edsl.exceptions.coop import CoopServerResponseError
 
-from .buckets.BucketCollection import BucketCollection
+from ..buckets import BucketCollection
 from .jobs_pricing_estimation import JobsPrompts
 from .remote_inference import JobsRemoteInferenceHandler
 

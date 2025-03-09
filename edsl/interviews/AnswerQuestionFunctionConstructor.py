@@ -5,18 +5,20 @@ from typing import Union, Type, Callable, TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from ..questions.QuestionBase import QuestionBase
-    from ..jobs.interviews.Interview import Interview
+    from .interview import Interview
     from ..language_models.key_management.KeyLookup import KeyLookup
 
-from ...surveys.base import EndOfSurvey
+from ..surveys.base import EndOfSurvey
 from ..tasks.task_status_enum import TaskStatus
 
-from ..fetch_invigilator import FetchInvigilator
-from edsl.exceptions.language_models import LanguageModelNoResponseError
-from edsl.exceptions.questions import QuestionAnswerValidationError
-from edsl.data_transfer_models import AgentResponseDict, EDSLResultObjectInput
+from ..jobs.fetch_invigilator import FetchInvigilator
+from ..exceptions.language_models import LanguageModelNoResponseError
+from ..exceptions.questions import QuestionAnswerValidationError
+from ..data_transfer_models import AgentResponseDict, EDSLResultObjectInput
 
-from edsl.jobs.Answers import Answers
+from ..jobs.Answers import Answers
+
+from .InterviewExceptionEntry import InterviewExceptionEntry
 
 
 class RetryConfig:
@@ -139,7 +141,6 @@ class AnswerQuestionFunctionConstructor:
     ):
         """Handle an exception that occurred while answering a question."""
 
-        from edsl.jobs.interviews.InterviewExceptionEntry import InterviewExceptionEntry
 
         answers = copy.copy(
             self.interview.answers

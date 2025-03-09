@@ -1,7 +1,6 @@
 from collections import UserDict
 
-from edsl.jobs.tasks.task_status_enum import TaskStatus, status_colors
-
+from ..tasks.task_status_enum import TaskStatus, status_colors
 
 class InterviewStatusLog(UserDict):
     """A dictionary of TaskStatusLog objects.

@@ -2,7 +2,7 @@ import traceback
 import datetime
 import json
 
-from edsl.invigilators import InvigilatorBase
+from ..invigilators import InvigilatorBase
 
 class InterviewExceptionEntry:
     """Class to record an exception that occurred during the interview."""

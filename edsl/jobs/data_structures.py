@@ -2,10 +2,11 @@ from typing import Optional, Literal
 from dataclasses import dataclass, asdict
 
 # from edsl.data_transfer_models import VisibilityType
-from edsl.data.Cache import Cache
-from edsl.jobs.buckets.BucketCollection import BucketCollection
-from edsl.language_models.key_management.KeyLookup import KeyLookup
-from edsl.jobs.runners.JobsRunnerStatus import JobsRunnerStatus
+from ..data import Cache
+from ..buckets import BucketCollection
+from ..language_models.key_management.KeyLookup import KeyLookup
+
+from .runners.JobsRunnerStatus import JobsRunnerStatus
 
 VisibilityType = Literal["private", "public", "unlisted"]
 from edsl.base import Base
