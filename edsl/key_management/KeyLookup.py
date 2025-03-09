@@ -2,7 +2,7 @@ from collections import UserDict
 from dataclasses import asdict
 from edsl.enums import service_to_api_keyname
 
-from edsl.language_models.key_management.models import LanguageModelInput
+from .models import LanguageModelInput
 
 
 class KeyLookup(UserDict):

@@ -1,15 +1,12 @@
 from typing import Optional, List
-from collections import UserDict
 import os
 from functools import lru_cache
-from dataclasses import dataclass, asdict
 
-from edsl.enums import service_to_api_keyname
-from edsl.exceptions.general import MissingAPIKeyError
+from ..enums import service_to_api_keyname
+from ..exceptions.general import MissingAPIKeyError
 
-from edsl.language_models.key_management.KeyLookup import KeyLookup
-
-from edsl.language_models.key_management.models import (
+from .KeyLookup import KeyLookup
+from .models import (
     APIKeyEntry,
     LimitEntry,
     APIIDEntry,
