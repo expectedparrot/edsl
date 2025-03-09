@@ -41,7 +41,7 @@ if TYPE_CHECKING:
     from ..data import Cache
     from ..scenarios import FileStore
     from ..questions import QuestionBase
-    from .key_management.KeyLookup import KeyLookup
+    from ..key_management import KeyLookup
 
 from ..enums import InferenceServiceType
 
@@ -50,11 +50,10 @@ from ..utilities.decorators import (
     jupyter_nb_handler,
 )
 from ..utilities.remove_edsl_version import remove_edsl_version
-
 from ..base import PersistenceMixin, RepresentationMixin, HashingMixin
+from ..key_management import KeyLookupCollection
 
 from .registry import RegisterLanguageModelsMeta
-from .key_management.KeyLookupCollection import KeyLookupCollection
 from .raw_response_handler import RawResponseHandler
 
 def handle_key_error(func):

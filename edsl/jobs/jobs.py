@@ -177,8 +177,8 @@ class Jobs(Base):
 
         :param obj: the object to add
         """
-        from edsl.data.Cache import Cache
-        from edsl.language_models.key_management.KeyLookup import KeyLookup
+        from ..data import Cache
+        from ..key_management import KeyLookup
 
         if isinstance(obj, Cache):
             self.using_cache(obj)

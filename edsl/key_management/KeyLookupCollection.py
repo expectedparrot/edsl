@@ -1,7 +1,6 @@
 from collections import UserDict
 
-from edsl.language_models.key_management.KeyLookupBuilder import KeyLookupBuilder
-
+from .KeyLookupBuilder import KeyLookupBuilder
 
 class KeyLookupCollection(UserDict):
     """A singleton class that stores key-lookup objects.

@@ -4,7 +4,7 @@ from dataclasses import dataclass, asdict
 # from edsl.data_transfer_models import VisibilityType
 from ..data import Cache
 from ..buckets import BucketCollection
-from ..language_models.key_management.KeyLookup import KeyLookup
+from ..key_management import KeyLookup
 
 from .runners.JobsRunnerStatus import JobsRunnerStatus
 
