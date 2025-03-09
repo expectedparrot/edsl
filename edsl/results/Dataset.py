@@ -95,10 +95,17 @@ class Dataset(UserList, ResultsExportMixin, PersistenceMixin, HashingMixin):
         return w
 
     def keys(self) -> list[str]:
-        """Return the keys of the first observation in the dataset.
+        """Return the keys of the dataset.
 
         >>> d = Dataset([{'a.b':[1,2,3,4]}])
         >>> d.keys()
+        ['a.b']
+
+        >>> d = Dataset([{'a.b':[1,2,3,4]}, {'c.d':[5,6,7,8]}])
+        >>> d.keys()
+        ['a.b', 'c.d']
+
+
         ['a.b']
         """
         return [list(o.keys())[0] for o in self]
@@ -327,7 +334,19 @@ class Dataset(UserList, ResultsExportMixin, PersistenceMixin, HashingMixin):
 
         >>> d.select('a.b', 'c.d')
         Dataset([{'a.b': [1, 2, 3, 4]}, {'c.d': [5, 6, 7, 8]}])
+
+        >>> d.select('poop')
+        Traceback (most recent call last):
+        ...
+        ValueError: Key 'poop' not found in the dataset.
+        Available keys: ['a.b', 'c.d']
         """
+        for key in keys:
+            if key not in self.keys():
+                raise ValueError(f"Key '{key}' not found in the dataset."
+                                 f"Available keys: {self.keys()}"
+                                 )
+            
         if isinstance(keys, str):
             keys = [keys]
 
