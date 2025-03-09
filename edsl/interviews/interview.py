@@ -8,7 +8,7 @@ from dataclasses import dataclass
 
 # from jobs module 
 from ..jobs.data_structures import Answers
-from ..buckets.ModelBuckets import ModelBuckets
+from ..buckets import ModelBuckets
 from ..jobs.fetch_invigilator import FetchInvigilator
 from ..utilities.utilities import dict_hash
 
