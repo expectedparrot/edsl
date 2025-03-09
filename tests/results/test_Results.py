@@ -142,7 +142,7 @@ class TestResults(unittest.TestCase):
             "task_history", self.example_results.to_dict(include_task_history=True)
         )
 
-        from edsl.questions.QuestionFreeText import QuestionFreeText
+        from edsl.questions import QuestionFreeText
 
         q = QuestionFreeText.example()
 

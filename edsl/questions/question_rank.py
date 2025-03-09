@@ -285,7 +285,7 @@ class QuestionRank(QuestionBase):
 
 def main():
     """Show example usage."""
-    from edsl.questions.QuestionRank import QuestionRank
+    from edsl.questions import QuestionRank
 
     q = QuestionRank.example(use_code=True)
     q.question_text

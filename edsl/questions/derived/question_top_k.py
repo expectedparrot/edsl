@@ -70,7 +70,7 @@ class QuestionTopK(QuestionCheckBox):
 
 def main():
     """Test QuestionTopK."""
-    from edsl.questions.derived.QuestionTopK import QuestionTopK
+    from edsl.questions import QuestionTopK
 
     q = QuestionTopK.example()
     q.question_text

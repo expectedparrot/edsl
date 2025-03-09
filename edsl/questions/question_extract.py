@@ -156,7 +156,7 @@ class QuestionExtract(QuestionBase):
 
 def main():
     """Administer a question and validate the answer."""
-    from edsl.questions.QuestionExtract import QuestionExtract
+    from edsl.questions import QuestionExtract
 
     q = QuestionExtract.example()
     q.question_text
