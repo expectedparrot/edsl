@@ -2,7 +2,7 @@ import pytest
 from edsl.agents import Agent
 from edsl.exceptions.jobs import JobsRunError
 from edsl.exceptions.agents import AgentCombinationError
-from edsl.jobs.interviews.Interview import Interview
+from edsl.jobs.interviews import Interview
 from edsl.jobs import Jobs
 from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
 from edsl.questions.QuestionFreeText import QuestionFreeText

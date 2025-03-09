@@ -1,6 +1,6 @@
 import pytest
 
-from edsl.jobs.interviews.InterviewStatusDictionary import InterviewStatusDictionary
+from edsl.jobs.interviews.interview_status_dictionary import InterviewStatusDictionary
 from edsl.jobs.tasks.task_status_enum import TaskStatus, TaskStatusDescriptor
 
 

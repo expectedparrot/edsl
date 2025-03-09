@@ -7,7 +7,7 @@ from edsl.questions.QuestionFreeText import QuestionFreeText
 from edsl.surveys import Survey
 from edsl.scenarios import Scenario
 from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
-from edsl.jobs.interviews.Interview import Interview
+from edsl.jobs.interviews import Interview
 
 
 def test_retry():

@@ -50,9 +50,9 @@ class TaskHistory(RepresentationMixin):
     @classmethod
     def example(cls):
         """ """
-        from edsl.jobs.interviews.Interview import Interview
+        from ..jobs.interviews import Interview
 
-        from edsl.jobs.Jobs import Jobs
+        from edsl.jobs import Jobs
 
         j = Jobs.example(throw_exception_probability=1, test_model=True)
 
@@ -119,7 +119,7 @@ class TaskHistory(RepresentationMixin):
         if data is None:
             return cls([], include_traceback=False)
 
-        from edsl.jobs.interviews.Interview import Interview
+        from ..interviews import Interview
 
         interviews = [Interview.from_dict(i) for i in data["interviews"]]
         return cls(interviews, include_traceback=data["include_traceback"])

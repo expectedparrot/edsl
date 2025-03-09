@@ -15,10 +15,9 @@ from ..fetch_invigilator import FetchInvigilator
 from .AnswerQuestionFunctionConstructor import (
     AnswerQuestionFunctionConstructor,
 )
-from .InterviewTaskManager import InterviewTaskManager
+from .interview_task_manager import InterviewTaskManager
 from .RequestTokenEstimator import RequestTokenEstimator
-from .InterviewStatusLog import InterviewStatusLog
-from .InterviewStatusDictionary import InterviewStatusDictionary
+from .interview_status_dictionary import InterviewStatusDictionary
 from .InterviewExceptionCollection import (
     InterviewExceptionCollection,
 )

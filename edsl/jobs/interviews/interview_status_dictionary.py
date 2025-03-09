@@ -2,7 +2,7 @@ from __future__ import annotations
 from collections import UserDict
 from typing import Union, Dict
 
-from edsl.jobs.tasks.task_status_enum import TaskStatus, get_enum_from_string
+from ..tasks.task_status_enum import TaskStatus, get_enum_from_string
 
 
 class InterviewStatusDictionary(UserDict):

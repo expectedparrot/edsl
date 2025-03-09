@@ -25,7 +25,7 @@ from .jobs_pricing_estimation import JobsPrompts
 from .remote_inference import JobsRemoteInferenceHandler
 
 from .jobs_checks import JobsChecks
-from .interviews.Interview import Interview
+from .interviews import Interview
 from .data_structures import RunEnvironment, RunParameters, RunConfig
 
 from ..scenarios import Scenario

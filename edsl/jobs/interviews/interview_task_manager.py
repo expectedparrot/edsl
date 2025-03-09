@@ -3,18 +3,18 @@ import asyncio
 from typing import Any, Type, List, Generator, Optional, Union, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from edsl.questions import QuestionBase
-    from edsl.jobs.tokens.InterviewTokenUsage import InterviewTokenUsage
-    from edsl.jobs.interviews.InterviewStatusDictionary import InterviewStatusDictionary
-    from edsl.jobs.interviews.InterviewStatusLog import InterviewStatusLog
+    from ...questions import QuestionBase
+    from ..tokens import InterviewTokenUsage
+    from ..interviews import InterviewStatusDictionary
+    from ..interviews import InterviewStatusLog
 
 
 class InterviewTaskManager:
     """Handles creation and management of interview tasks."""
 
     def __init__(self, survey, iteration=0):
-        from edsl.jobs.tasks.TaskCreators import TaskCreators
-        from edsl.jobs.interviews.InterviewStatusLog import InterviewStatusLog
+        from ..tasks import TaskCreators
+        from ..interviews import InterviewStatusLog
 
         self.survey = survey
         self.iteration = iteration
@@ -59,7 +59,7 @@ class InterviewTaskManager:
         model_buckets,
     ) -> asyncio.Task:
         """Create a single question task with its dependencies."""
-        from edsl.jobs.tasks.QuestionTaskCreator import QuestionTaskCreator
+        from edsl.jobs.tasks import QuestionTaskCreator
 
         task_creator = QuestionTaskCreator(
             question=question,
@@ -96,3 +96,8 @@ class InterviewTaskManager:
     def interview_status(self) -> "InterviewStatusDictionary":
         """Return a dictionary mapping task status codes to counts."""
         return self.task_creators.interview_status
+
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod()
