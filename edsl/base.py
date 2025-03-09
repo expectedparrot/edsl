@@ -389,8 +389,8 @@ class RepresentationMixin:
     #     return d
 
     def _repr_html_(self):
-        from edsl.results.TableDisplay import TableDisplay
-
+        from .dataset.display import TableDisplay
+        
         if hasattr(self, "_summary"):
             summary_dict = self._summary()
             summary_line = "".join([f" {k}: {v};" for k, v in summary_dict.items()])

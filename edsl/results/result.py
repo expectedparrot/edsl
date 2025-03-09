@@ -438,7 +438,7 @@ class Result(Base, UserDict):
         Result(...)
 
         """
-        from edsl.results.Results import Results
+        from .results import Results
 
         return Results.example()[0]
     

@@ -15,14 +15,17 @@ from edsl.base import Base
 from edsl.utilities.remove_edsl_version import remove_edsl_version
 from edsl.exceptions.agents import AgentListError
 from edsl.utilities.is_notebook import is_notebook
-from edsl.results.ResultsExportMixin import ResultsExportMixin
+#from edsl.results.ResultsExportMixin import ResultsExportMixin
 import logging
 from edsl.agents import Agent
+
+
+from ..dataset.dataset_operations_mixin import AgentListOperationsMixin
 
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
-    from edsl.scenarios.ScenarioList import ScenarioList
+    from edsl.scenarios import ScenarioList
     from edsl.agents.Agent import Agent
     from pandas import DataFrame
 
@@ -37,7 +40,7 @@ class EmptyAgentList:
 
 
 # ResultsExportMixin,
-class AgentList(UserList, Base):
+class AgentList(UserList, Base, AgentListOperationsMixin):
     """A list of Agents."""
 
     __documentation__ = (

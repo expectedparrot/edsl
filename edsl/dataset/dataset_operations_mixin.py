@@ -1,21 +1,36 @@
 """Mixin class for exporting results."""
 
+from abc import ABC, abstractmethod
 import io
 import warnings
 import textwrap
 from typing import Optional, Tuple, Union, List, TYPE_CHECKING
-
-from edsl.results.file_exports import CSVExport, ExcelExport, JSONLExport, SQLiteExport
+from .r.ggplot import GGPlotMethod
 
 if TYPE_CHECKING:
     from docx import Document
+    from .dataset import Dataset
 
-
-class DatasetExportMixin:
+class DataOperationsBase:
     """Mixin class for exporting Dataset objects."""
 
+
+    def ggplot2(
+        self,
+        ggplot_code: str,
+        shape="wide",
+        sql: str = None,
+        remove_prefix: bool = True,
+        debug: bool = False,
+        height=4,
+        width=6,
+        factor_orders: Optional[dict] = None,
+    ):
+        return GGPlotMethod(self).ggplot2(ggplot_code, shape, sql, remove_prefix, debug, height, width, factor_orders)
+
+
     def relevant_columns(
-        self, data_type: Optional[str] = None, remove_prefix=False
+        self, data_type: Optional[str] = None, remove_prefix:bool=False
     ) -> list:
         """Return the set of keys that are present in the dataset.
 
@@ -92,7 +107,7 @@ class DatasetExportMixin:
 
         return _num_observations
 
-    def _make_tabular(
+    def make_tabular(
         self, remove_prefix: bool, pretty_labels: Optional[dict] = None
     ) -> tuple[list, List[list]]:
         """Turn the results into a tabular format.
@@ -101,10 +116,10 @@ class DatasetExportMixin:
 
         >>> from edsl.results import Results
         >>> r = Results.example()
-        >>> r.select('how_feeling')._make_tabular(remove_prefix = True)
+        >>> r.select('how_feeling').make_tabular(remove_prefix = True)
         (['how_feeling'], [['OK'], ['Great'], ['Terrible'], ['OK']])
 
-        >>> r.select('how_feeling')._make_tabular(remove_prefix = True, pretty_labels = {'how_feeling': "How are you feeling"})
+        >>> r.select('how_feeling').make_tabular(remove_prefix = True, pretty_labels = {'how_feeling': "How are you feeling"})
         (['How are you feeling'], [['OK'], ['Great'], ['Terrible'], ['OK']])
         """
 
@@ -147,7 +162,7 @@ class DatasetExportMixin:
             for value in list_of_values:
                 print(f"{key}: {value}")
 
-    def _get_tabular_data(
+    def get_tabular_data(
         self,
         remove_prefix: bool = False,
         pretty_labels: Optional[dict] = None,
@@ -164,7 +179,7 @@ class DatasetExportMixin:
         if pretty_labels is None:
             pretty_labels = {}
 
-        return self._make_tabular(
+        return self.make_tabular(
             remove_prefix=remove_prefix, pretty_labels=pretty_labels
         )
 
@@ -199,6 +214,8 @@ class DatasetExportMixin:
         pretty_labels: Optional[dict] = None,
     ) -> Optional["FileStore"]:
         """Export the results to a FileStore instance containing CSV data."""
+        from .file_exports import CSVExport
+
         exporter = CSVExport(
             data=self,
             filename=filename,
@@ -215,6 +232,8 @@ class DatasetExportMixin:
         sheet_name: Optional[str] = None,
     ) -> Optional["FileStore"]:
         """Export the results to a FileStore instance containing Excel data."""
+        from .file_exports import  ExcelExport
+
         exporter = ExcelExport(
             data=self,
             filename=filename,
@@ -319,7 +338,7 @@ class DatasetExportMixin:
             else:
                 df = df.set_index(df.columns[0])
             df = df.transpose()
-        from edsl.results.Dataset import Dataset
+        from .dataset import Dataset
 
         return Dataset.from_pandas_dataframe(df)
 
@@ -404,8 +423,7 @@ class DatasetExportMixin:
         >>> r.select('how_feeling').to_agent_list()
         AgentList([Agent(traits = {'how_feeling': 'OK'}), Agent(traits = {'how_feeling': 'Great'}), Agent(traits = {'how_feeling': 'Terrible'}), Agent(traits = {'how_feeling': 'OK'})])
         """
-        from edsl.agents import Agent
-        from edsl.agents.AgentList import AgentList
+        from edsl.agents import Agent, AgentList
 
         list_of_dicts = self.to_dicts(remove_prefix=remove_prefix)
         agents = []
@@ -790,7 +808,9 @@ class DatasetExportMixin:
             f in self.relevant_columns() or f in relevant_columns_without_prefix
             for f in fields
         ):
-            raise ValueError("One or more specified fields are not in the dataset.")
+            raise ValueError("One or more specified fields are not in the dataset."
+                             f"The available fields are: {self.relevant_columns()}"
+                             )
 
         if len(fields) == 1:
             field = fields[0]
@@ -843,7 +863,7 @@ class DatasetExportMixin:
             keys.append("count")
             return sl.reorder_keys(keys).to_dataset()
 
-    def flatten(self, field, keep_original=False):
+    def flatten(self, field:str, keep_original=False):
         """
         Flatten a field containing a list of dictionaries into separate fields.
 
@@ -1112,6 +1132,62 @@ class DatasetExportMixin:
         
         return Dataset(new_data)
 
+
+from functools import wraps
+
+def to_dataset(func):
+    """Convert the Results object to a Dataset object before calling the function."""
+    @wraps(func)
+    def wrapper(self, *args, **kwargs):
+        """Return the function with the Results object converted to a Dataset object."""
+        # Convert to Dataset first
+        if self.__class__.__name__ == "Results":
+            dataset_self = self.select()
+        elif self.__class__.__name__ == "AgentList":
+            dataset_self = self.to_dataset()
+        elif self.__class__.__name__ == "ScenarioList":
+            dataset_self = self.to_dataset()
+        else:
+            dataset_self = self
+            
+        # Now call the function with the converted self
+        return func(dataset_self, *args, **kwargs)
+
+    wrapper._is_wrapped = True
+    return wrapper
+
+def decorate_methods_from_mixin(cls, mixin_cls):
+    """Decorates all methods from mixin_cls with to_dataset decorator."""
+    
+    # Get all attributes, including inherited ones
+    for attr_name in dir(mixin_cls):
+        # Skip magic methods and private methods
+        if not attr_name.startswith('_'):
+            attr_value = getattr(mixin_cls, attr_name)
+            if callable(attr_value):
+                setattr(cls, attr_name, to_dataset(attr_value))
+    return cls
+
+class DatasetOperationsMixin(DataOperationsBase):
+    pass
+
+class ResultsOperationsMixin(DataOperationsBase):
+    """Mixin class for exporting Results objects."""
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        decorate_methods_from_mixin(cls, DatasetOperationsMixin)
+
+class ScenarioListOperationsMixin(DataOperationsBase):
+    """Mixin class for ScenarioList objects."""
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        decorate_methods_from_mixin(cls, DatasetOperationsMixin)
+
+class AgentListOperationsMixin(DataOperationsBase):
+    """Mixin class for AgentList objects."""
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        decorate_methods_from_mixin(cls, DatasetOperationsMixin)
 
 if __name__ == "__main__":
     import doctest

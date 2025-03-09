@@ -28,15 +28,16 @@ if TYPE_CHECKING:
     from edsl.agents import AgentList
     from edsl.language_models.model import Model
     from edsl.scenarios import ScenarioList
-    from edsl.results.Result import Result
+    from edsl.results import Result
     from edsl.jobs.tasks.TaskHistory import TaskHistory
     from edsl.language_models.ModelList import ModelList
     from simpleeval import EvalWithCompoundTypes
 
-from edsl.results.ResultsExportMixin import ResultsExportMixin
-from edsl.results.ResultsGGMixin import GGPlotMethod
+#from edsl.results.ResultsExportMixin import ResultsExportMixin
 from edsl.results.results_fetch_mixin import ResultsFetchMixin
 from edsl.utilities.remove_edsl_version import remove_edsl_version
+
+from ..dataset.dataset_operations_mixin import ResultsOperationsMixin
 
 def ensure_fetched(method):
     """A decorator that checks if remote data is loaded, and if not, attempts to fetch it."""
@@ -98,9 +99,8 @@ class NotReadyObject:
         return self
 
 class Mixins(
-    ResultsExportMixin,
+    ResultsOperationsMixin,
     ResultsFetchMixin,
-#    ResultsGGMixin,
 ):
     def long(self):
         return self.table().long()
@@ -150,19 +150,6 @@ class Results(UserList, Mixins, Base):
         "cache_used",
         "cache_keys",
     ]
-
-    def ggplot2(
-        self,
-        ggplot_code: str,
-        shape="wide",
-        sql: str = None,
-        remove_prefix: bool = True,
-        debug: bool = False,
-        height=4,
-        width=6,
-        factor_orders: Optional[dict] = None,
-    ):
-        return GGPlotMethod(self).ggplot2(ggplot_code, shape, sql, remove_prefix, debug, height, width, factor_orders)
 
     @classmethod
     def from_job_info(cls, job_info: dict) -> Results:
@@ -454,6 +441,9 @@ class Results(UserList, Mixins, Base):
                 print_parameters=print_parameters,
             )
         )
+    
+    def to_dataset(self) -> 'Dataset':
+        return self.select()
 
     def to_dict(
         self,
@@ -575,11 +565,11 @@ class Results(UserList, Mixins, Base):
         >>> r == r2
         True
         """
-        from edsl.surveys import Survey
-        from edsl.data.Cache import Cache
-        from edsl.results.Result import Result
-        from edsl.jobs.tasks.TaskHistory import TaskHistory
-        from edsl.agents import Agent
+        from ..surveys import Survey
+        from ..data.Cache import Cache
+        from ..results import Result
+        from ..jobs.tasks.TaskHistory import TaskHistory
+        from ..agents import Agent
 
         survey = Survey.from_dict(data["survey"])
         results_data = [Result.from_dict(r) for r in data["data"]]

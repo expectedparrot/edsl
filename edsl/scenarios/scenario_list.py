@@ -25,10 +25,10 @@ from collections.abc import Iterable
 
 if TYPE_CHECKING:
     from urllib.parse import ParseResult
-    from edsl.results.Dataset import Dataset
-    from edsl.jobs.Jobs import Jobs
-    from edsl.surveys import Survey
-    from edsl.questions.QuestionBase import QuestionBase
+    from ..dataset import Dataset
+    from ..jobs import Jobs
+    from ..surveys import Survey
+    from ..questions.QuestionBase import QuestionBase
 
 
 from simpleeval import EvalWithCompoundTypes, NameNotDefined  # type: ignore
@@ -43,17 +43,17 @@ from edsl.exceptions.scenarios import ScenarioError
 
 from .scenario import Scenario
 from .ScenarioListPdfMixin import ScenarioListPdfMixin
-from .ScenarioListExportMixin import ScenarioListExportMixin
+#from .ScenarioListExportMixin import ScenarioListExportMixin
 from .directory_scanner import DirectoryScanner
 
+from ..dataset.dataset_operations_mixin import ScenarioListOperationsMixin
 
-
-class ScenarioListMixin(ScenarioListPdfMixin, ScenarioListExportMixin):
+class ScenarioListMixin(ScenarioListPdfMixin, ScenarioListOperationsMixin):
     pass
 
 
 if TYPE_CHECKING:
-    from edsl.results.Dataset import Dataset
+    from ..dataset import Dataset
 
 TableFormat: TypeAlias = Literal[
     "plain",
@@ -858,7 +858,7 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         >>> s.to_dataset()
         Dataset([{'a': [1, 2, 3]}, {'b': [4, 5, 6]}])
         """
-        from edsl.results.Dataset import Dataset
+        from ..dataset import Dataset
 
         keys = list(self[0].keys())
         for scenario in self:

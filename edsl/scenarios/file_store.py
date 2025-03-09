@@ -497,7 +497,7 @@ class FileStore(Scenario):
 class CSVFileStore(FileStore):
     @classmethod
     def example(cls):
-        from edsl.results.Results import Results
+        from edsl.results import Results
 
         r = Results.example()
         import tempfile

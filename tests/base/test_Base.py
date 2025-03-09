@@ -70,8 +70,8 @@ def create_test_function(child_class):
         from edsl.language_models.ModelList import ModelList
         from edsl.scenarios import FileStore
         from edsl.prompts.Prompt import Prompt
-        from edsl.results.Results import Results
-        from edsl.results.Result import Result
+        from edsl.results import Results
+        from edsl.results import Result
 
         e = child_class.example()
         e.show_methods()
