@@ -1,14 +1,13 @@
 from typing import Literal, Optional, Type, Union
 
-from edsl.agents import Agent
-from edsl.agents import AgentList
-from edsl.data.Cache import Cache
-from edsl.language_models.ModelList import ModelList
+from ..agents import Agent, AgentList
+from ..data.Cache import Cache
+from ..language_models.ModelList import ModelList
 from edsl.notebooks.Notebook import Notebook
-from edsl.results.Results import Results
-from edsl.scenarios import Scenario, ScenarioList
-from edsl.surveys import Survey
-from edsl.study.Study import Study
+from ..results import Results
+from ..scenarios import Scenario, ScenarioList
+from ..surveys import Survey
+from ..study import Study
 
 from edsl.language_models.LanguageModel import LanguageModel
 from edsl.questions.QuestionBase import QuestionBase

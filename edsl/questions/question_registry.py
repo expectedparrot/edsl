@@ -4,8 +4,7 @@ import textwrap
 from uuid import UUID
 from typing import Any, Optional, Union
 
-
-from edsl.questions.QuestionBase import RegisterQuestionsMeta
+from .QuestionBase import RegisterQuestionsMeta
 
 
 class Meta(type):
@@ -114,7 +113,7 @@ class Question(metaclass=Meta):
         Example usage:
 
         """
-        from edsl.results.Dataset import Dataset
+        from ..dataset import Dataset
 
         exclude = ["budget"]
         if show_class_names:
@@ -168,9 +167,5 @@ question_purpose = {
 
 
 if __name__ == "__main__":
-    print(Question.available())
-
-    # q = Question("free_text", question_text="How are you doing?", question_name="test")
-    # results = q.run()
-
-    q = Question.pull(id=76)
+    import doctest
+    doctest.testmod()

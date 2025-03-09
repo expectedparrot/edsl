@@ -5,12 +5,15 @@ import threading
 import warnings
 from typing import TYPE_CHECKING
 
-from edsl.results.Results import Results
-from edsl.jobs.runners.JobsRunnerStatus import JobsRunnerStatus
+if TYPE_CHECKING:
+    from ...results import Results
+
+from ...results import Results
+from .JobsRunnerStatus import JobsRunnerStatus
 from edsl.jobs.tasks.TaskHistory import TaskHistory
-from edsl.utilities.decorators import jupyter_nb_handler
-from edsl.jobs.async_interview_runner import AsyncInterviewRunner
-from edsl.jobs.data_structures import RunEnvironment, RunParameters, RunConfig
+from ...utilities.decorators import jupyter_nb_handler
+from ..async_interview_runner import AsyncInterviewRunner
+from ..data_structures import RunEnvironment, RunParameters, RunConfig
 
 if TYPE_CHECKING:
     from edsl.jobs.Jobs import Jobs
@@ -30,7 +33,7 @@ class JobsRunnerAsyncio:
     def __len__(self):
         return len(self.jobs)
 
-    async def run_async(self, parameters: RunParameters) -> Results:
+    async def run_async(self, parameters: RunParameters) -> 'Results':
         """Used for some other modules that have a non-standard way of running interviews."""
 
         self.environment.jobs_runner_status = JobsRunnerStatus(self, n=parameters.n)

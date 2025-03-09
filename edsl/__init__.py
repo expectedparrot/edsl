@@ -8,7 +8,8 @@ from edsl.__version__ import __version__
 
 # from edsl.config import Config, CONFIG
 
-from edsl.agents import Agent
+from .dataset import Dataset
+from .agents import Agent
 from edsl.agents import AgentList
 
 from edsl.questions import QuestionBase
@@ -36,7 +37,7 @@ from edsl.surveys import Survey
 from edsl.language_models.model import Model
 from edsl.language_models.ModelList import ModelList
 
-from edsl.results.Results import Results
+from .results import Results
 from edsl.data.Cache import Cache
 
 # from edsl.data.CacheEntry import CacheEntry

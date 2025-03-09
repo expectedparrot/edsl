@@ -1,11 +1,11 @@
 from typing import Union, Sequence, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from edsl.agents import Agent
-    from edsl.language_models.LanguageModel import LanguageModel
-    from edsl.scenarios import Scenario
-    from edsl.jobs.Jobs import Jobs
-    from edsl.invigilators.invigilators import InvigilatorBase
+    from ..agents import Agent
+    from ..language_models.LanguageModel import LanguageModel
+    from ..scenarios import Scenario
+    from .jobs import Jobs
+    from ..invigilators import InvigilatorBase
 
 class JobsComponentConstructor:
     "Handles the creation of Agents, Scenarios, and LanguageModels in a job."
@@ -50,7 +50,8 @@ class JobsComponentConstructor:
         - scenarios: traits of new scenarios are combined with traits of old existing. New scenarios will overwrite overlapping traits, and do not increase the number of scenarios in the instance
         - models: new models overwrite old models.
         """
-        from edsl.results.Dataset import Dataset
+        
+        from ..dataset.dataset import Dataset
 
         if isinstance(
             args[0], Dataset

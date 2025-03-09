@@ -7,7 +7,7 @@ from edsl.questions.QuestionCheckBox import QuestionCheckBox
 from edsl.questions.QuestionFreeText import QuestionFreeText
 from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
 from edsl.notebooks.Notebook import Notebook
-from edsl.results.Results import Results
+from edsl.results import Results
 from edsl.surveys import Survey
 from edsl.coop import Coop
 

@@ -90,7 +90,7 @@ class TabularExport(FileExport, ABC):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.header, self.rows = self.data._get_tabular_data(
+        self.header, self.rows = self.data.get_tabular_data(
             remove_prefix=self.remove_prefix, pretty_labels=self.pretty_labels
         )
 

@@ -1,1 +1,1 @@
-from edsl.jobs.Jobs import Jobs
+from .Jobs import Jobs

@@ -10,11 +10,11 @@ from typing import (
 )
 
 if TYPE_CHECKING:
-    from edsl.results.Dataset import Dataset
+    from ..dataset import Dataset
 
-from edsl.results.table_data_class import TableData
+from .table_data_class import TableData
 
-from edsl.results.table_renderers import DataTablesRenderer, PandasStyleRenderer
+from .table_renderers import DataTablesRenderer, PandasStyleRenderer
 
 Row = Sequence[Union[str, int, float, bool, None]]
 TableFormat = Literal[

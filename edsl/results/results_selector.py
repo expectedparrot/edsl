@@ -1,10 +1,9 @@
 from typing import Union, List, Dict, Any, Optional
 import sys
 from collections import defaultdict
-from edsl.results.Dataset import Dataset
 
+from ..dataset import Dataset
 from edsl.exceptions.results import ResultsColumnNotFoundError
-
 from edsl.utilities.is_notebook import is_notebook
 
 

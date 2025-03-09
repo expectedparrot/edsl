@@ -5,14 +5,14 @@ from typing import List, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .Jobs import Jobs
-    from edsl.agents.AgentList import AgentList
-    from edsl.scenarios import ScenarioList
-    from edsl.surveys import Survey
-    from edsl.jobs.interviews.Interview import Interview
+    from ..agents import AgentList
+    from ..scenarios import ScenarioList
+    from ..surveys import Survey
+    from .interviews.Interview import Interview
 
 from .FetchInvigilator import FetchInvigilator
 from edsl.data.CacheEntry import CacheEntry
-from edsl.results.Dataset import Dataset
+from ..dataset import Dataset
 
 logger = logging.getLogger(__name__)
 

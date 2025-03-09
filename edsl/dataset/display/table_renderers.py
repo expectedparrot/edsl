@@ -1,6 +1,5 @@
 from abc import ABC, abstractmethod
-from edsl.results.table_data_class import TableData
-
+from .table_data_class import TableData
 
 class DataTablesRendererABC(ABC):
     def __init__(self, table_data: TableData):

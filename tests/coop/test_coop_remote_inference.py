@@ -6,7 +6,7 @@ from edsl.agents import Agent
 from edsl.coop.coop import Coop
 from edsl.jobs.Jobs import Jobs
 from edsl.language_models.model import Model
-from edsl.results.Results import Results
+from edsl.results import Results
 from edsl.surveys import Survey
 
 from edsl.questions import (

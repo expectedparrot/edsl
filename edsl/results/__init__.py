@@ -1,2 +1,3 @@
 # from edsl.results.Result import Result
-from edsl.results.Results import Results
+from .results import Results
+from .result import Result

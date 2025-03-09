@@ -5,7 +5,7 @@ from edsl import __version__ as edsl_version
 from edsl.base import RegisterSubclassesMeta
 from edsl.coop.utils import ObjectRegistry
 from edsl.questions import RegisterQuestionsMeta
-
+from edsl.results import Result
 
 def test_serialization():
     # get all filenames in tests/serialization/data -- just use full path
@@ -47,7 +47,6 @@ def test_serialization():
         with open(os.path.join(path, file), "r") as f:
             data = json.load(f)
         for item in data:
-            from edsl.results.Result import Result
 
             class_name = item["class_name"]
             if class_name in [

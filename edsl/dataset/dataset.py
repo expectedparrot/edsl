@@ -1,22 +1,26 @@
-"""A module to represent a dataset of observations."""
+
 
 from __future__ import annotations
 import sys
 import json
 import random
 from collections import UserList
-from typing import Any, Union, Optional
+from typing import Any, Union, Optional, TYPE_CHECKING
 
-from edsl.base import PersistenceMixin, HashingMixin
+from ..base import PersistenceMixin, HashingMixin
 
-from .ResultsExportMixin import ResultsExportMixin
-from .DatasetTree import Tree
-from .TableDisplay import TableDisplay
+from .dataset_tree import Tree
+
+from .display.TableDisplay import TableDisplay
 from .smart_objects import FirstObject
-from .ResultsGGMixin import GGPlotMethod
-from edsl.surveys import Survey
+from .r.ggplot import GGPlotMethod
+from .dataset_operations_mixin import DatasetOperationsMixin
 
-class Dataset(UserList, ResultsExportMixin, PersistenceMixin, HashingMixin):
+if TYPE_CHECKING:
+    from ..surveys import Survey
+    from ..questions.QuestionBase import QuestionBase
+
+class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
     """A class to represent a dataset of observations."""
 
     def __init__(
@@ -26,19 +30,6 @@ class Dataset(UserList, ResultsExportMixin, PersistenceMixin, HashingMixin):
         super().__init__(data)
         self.print_parameters = print_parameters
 
-
-    def ggplot2(
-        self,
-        ggplot_code: str,
-        shape="wide",
-        sql: str = None,
-        remove_prefix: bool = True,
-        debug: bool = False,
-        height=4,
-        width=6,
-        factor_orders: Optional[dict] = None,
-    ):
-        return GGPlotMethod(self).ggplot2(ggplot_code, shape, sql, remove_prefix, debug, height, width, factor_orders)
 
     def __len__(self) -> int:
         """Return the number of observations in the dataset.
@@ -314,7 +305,8 @@ class Dataset(UserList, ResultsExportMixin, PersistenceMixin, HashingMixin):
         return Dataset.from_pandas_dataframe(merged_df)
 
     def to(self, survey_or_question: Union["Survey", "QuestionBase"]) -> "Jobs":
-        from edsl.surveys.Survey import Survey
+        """Return a new dataset with the observations transformed by the given survey or question."""
+        from edsl.surveys import Survey
         from edsl.questions.QuestionBase import QuestionBase
 
         if isinstance(survey_or_question, Survey):
@@ -669,5 +661,4 @@ class Dataset(UserList, ResultsExportMixin, PersistenceMixin, HashingMixin):
 
 if __name__ == "__main__":
     import doctest
-
     doctest.testmod(optionflags=doctest.ELLIPSIS)

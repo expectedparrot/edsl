@@ -1,3 +1,4 @@
+from .template_loader import TemplateLoader
 # from edsl.utilities.interface import (
 #     print_dict_as_html_table,
 #     print_dict_with_rich,

@@ -8,7 +8,7 @@ from edsl.exceptions.results import (
     ResultsInvalidNameError,
 )
 
-from edsl.results.Results import Results
+from edsl.results import Results
 
 
 class TestResults(unittest.TestCase):

@@ -367,7 +367,7 @@ class TaskHistory(RepresentationMixin):
         models_used = set([i.model.model for index, i in self._interviews.items()])
 
         from jinja2 import Environment, FileSystemLoader
-        from edsl.TemplateLoader import TemplateLoader
+        from edsl.utilities import TemplateLoader
 
         env = Environment(loader=TemplateLoader("edsl", "templates/error_reporting"))
 

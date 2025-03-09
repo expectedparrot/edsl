@@ -1,6 +1,6 @@
-from edsl.results.Result import Result
-
 import pytest
+
+from edsl.results import Result
 from edsl.agents import Agent
 from edsl.scenarios import Scenario
 from edsl.language_models.LanguageModel import LanguageModel

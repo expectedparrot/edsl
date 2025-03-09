@@ -16,8 +16,8 @@ from typing import (
     Tuple,
 )
 
-from edsl.base import Base
-from edsl.utilities.remove_edsl_version import remove_edsl_version
+from ..base import Base
+from ..utilities.remove_edsl_version import remove_edsl_version
 from edsl.exceptions.coop import CoopServerResponseError
 
 from .buckets.BucketCollection import BucketCollection
@@ -28,22 +28,21 @@ from .jobs_checks import JobsChecks
 from .interviews.Interview import Interview
 from .data_structures import RunEnvironment, RunParameters, RunConfig
 
-from edsl.scenarios import Scenario
-from edsl.scenarios import ScenarioList
-
-from edsl.surveys import Survey
+from ..scenarios import Scenario
+from ..scenarios import ScenarioList
+from ..surveys import Survey
 
 if TYPE_CHECKING:
-    from edsl.agents import Agent
-    from edsl.agents import AgentList
-    from edsl.language_models.LanguageModel import LanguageModel
-    from edsl.scenarios.Scenario import Scenario, ScenarioList
-    from edsl.surveys.Survey import Survey
-    from edsl.results.Results import Results
-    from edsl.results.Dataset import Dataset
-    from edsl.language_models.ModelList import ModelList
-    from edsl.data.Cache import Cache
-    from edsl.language_models.key_management.KeyLookup import KeyLookup
+    from ..agents import Agent
+    from ..agents import AgentList
+    from ..language_models.LanguageModel import LanguageModel
+    from ..scenarios.Scenario import Scenario, ScenarioList
+    from ..surveys import Survey
+    from ..results import Results
+    from ..dataset import Dataset
+    from ..language_models.ModelList import ModelList
+    from ..data.Cache import Cache
+    from ..language_models.key_management.KeyLookup import KeyLookup
 
 VisibilityType = Literal["private", "public", "unlisted"]
 
@@ -243,7 +242,7 @@ class Jobs(Base):
     @scenarios.setter
     def scenarios(self, value):
         from edsl.scenarios import ScenarioList
-        from edsl.results.Dataset import Dataset
+        from edsl.dataset import Dataset
 
         if value:
             if isinstance(
@@ -531,7 +530,7 @@ class Jobs(Base):
         if jh.use_remote_inference(self.run_config.parameters.disable_remote_inference):
             job_info: RemoteJobInfo = self._start_remote_inference_job(jh)
             if background:
-                from edsl.results.Results import Results
+                from edsl.results import Results
 
                 results = Results.from_job_info(job_info)
                 return results
