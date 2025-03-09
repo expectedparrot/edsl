@@ -27,3 +27,9 @@ class RequestTokenEstimator:
             else:
                 raise ValueError(f"Prompt is of type {type(prompt)}")
         return len(combined_text) / 4.0 + file_tokens
+
+
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod(optionflags=doctest.ELLIPSIS)
