@@ -3,7 +3,7 @@ from unittest.mock import Mock, create_autospec
 from edsl.questions import QuestionFreeText, QuestionFunctional
 from edsl.questions.QuestionFreeText import QuestionFreeText
 from edsl.questions.compose_questions import compose_questions
-from edsl.jobs.Jobs import Jobs
+from edsl.jobs import Jobs
 from edsl.scenarios import Scenario
 from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
 from edsl.questions.derived.QuestionYesNo import QuestionYesNo

@@ -4,13 +4,13 @@ import math
 from typing import List, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .Jobs import Jobs
+    from .jobs import Jobs
     from ..agents import AgentList
     from ..scenarios import ScenarioList
     from ..surveys import Survey
     from .interviews.Interview import Interview
 
-from .FetchInvigilator import FetchInvigilator
+from .fetch_invigilator import FetchInvigilator
 from edsl.data.CacheEntry import CacheEntry
 from ..dataset import Dataset
 

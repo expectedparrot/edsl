@@ -7,17 +7,16 @@ Seconds = NewType("Seconds", float)
 JobUUID = NewType("JobUUID", str)
 
 if TYPE_CHECKING:
-    from edsl.results.Results import Results
-    from .Jobs import Jobs
-    from .JobsRemoteInferenceLogger import JobLogger
+    from ..results import Results
+    from .jobs import Jobs
+    from .jobs_remote_inference_logger import JobLogger
 
 from edsl.exceptions.coop import CoopServerResponseError
-from edsl.coop.utils import VisibilityType
-from edsl.coop.coop import RemoteInferenceResponse, RemoteInferenceCreationInfo
-from edsl.coop.coop import RemoteInferenceResponse, RemoteInferenceCreationInfo
+from ..coop.utils import VisibilityType
+from ..coop.coop import RemoteInferenceResponse, RemoteInferenceCreationInfo
 
 from .jobs_status_enums import JobsStatus
-from .JobsRemoteInferenceLogger import JobLogger
+from .jobs_remote_inference_logger import JobLogger
 
 class RemoteJobConstants:
     """Constants for remote job handling."""

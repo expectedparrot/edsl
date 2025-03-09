@@ -4,14 +4,14 @@ import asyncio
 from typing import Union, Type, Callable, TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from edsl.questions.QuestionBase import QuestionBase
-    from edsl.jobs.interviews.Interview import Interview
-    from edsl.language_models.key_management.KeyLookup import KeyLookup
+    from ..questions.QuestionBase import QuestionBase
+    from ..jobs.interviews.Interview import Interview
+    from ..language_models.key_management.KeyLookup import KeyLookup
 
-from edsl.surveys.base import EndOfSurvey
-from edsl.jobs.tasks.task_status_enum import TaskStatus
+from ...surveys.base import EndOfSurvey
+from ..tasks.task_status_enum import TaskStatus
 
-from edsl.jobs.FetchInvigilator import FetchInvigilator
+from ..fetch_invigilator import FetchInvigilator
 from edsl.exceptions.language_models import LanguageModelNoResponseError
 from edsl.exceptions.questions import QuestionAnswerValidationError
 from edsl.data_transfer_models import AgentResponseDict, EDSLResultObjectInput

@@ -1237,8 +1237,8 @@ class Results(UserList, Mixins, Base):
 
         :param debug: if False, uses actual API calls
         """
-        from edsl.jobs.Jobs import Jobs
-        from edsl.data.Cache import Cache
+        from ..jobs import Jobs
+        from ..data.Cache import Cache
 
         c = Cache()
         job = Jobs.example(randomize=randomize)
@@ -1301,8 +1301,8 @@ class Results(UserList, Mixins, Base):
         """
         #print("Calling fetch_remote")
         try:
-            from edsl.coop.coop import Coop
-            from edsl.jobs.JobsRemoteInferenceHandler import JobsRemoteInferenceHandler
+            from ..coop.coop import Coop
+            from ..jobs.remote_inference.jobs_remote_inference_handler import JobsRemoteInferenceHandler
             
             # Get the remote job data
             remote_job_data = JobsRemoteInferenceHandler.check_status(job_info.job_uuid)
@@ -1349,7 +1349,7 @@ class Results(UserList, Mixins, Base):
         if not hasattr(self, "job_info"):
             raise ResultsError("No job info available - this Results object wasn't created from a remote job")
         
-        from edsl.jobs.JobsRemoteInferenceHandler import JobsRemoteInferenceHandler
+        from ..jobs.remote_inference.jobs_remote_inference_handler import JobsRemoteInferenceHandler
         
         try:
             # Get the remote job data
@@ -1430,7 +1430,7 @@ class Results(UserList, Mixins, Base):
 
 def main():  # pragma: no cover
     """Call the OpenAI API credits."""
-    from edsl.results.Results import Results
+    from edsl.results import Results
 
     results = Results.example(debug=True)
     print(results.filter("how_feeling == 'Great'").select("how_feeling"))

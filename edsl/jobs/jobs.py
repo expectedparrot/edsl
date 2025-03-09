@@ -36,7 +36,7 @@ if TYPE_CHECKING:
     from ..agents import Agent
     from ..agents import AgentList
     from ..language_models.LanguageModel import LanguageModel
-    from ..scenarios.Scenario import Scenario, ScenarioList
+    from ..scenarios import Scenario, ScenarioList
     from ..surveys import Survey
     from ..results import Results
     from ..dataset import Dataset
@@ -293,7 +293,7 @@ class Jobs(Base):
         - scenarios: traits of new scenarios are combined with traits of old existing. New scenarios will overwrite overlapping traits, and do not increase the number of scenarios in the instance
         - models: new models overwrite old models.
         """
-        from edsl.jobs.JobsComponentConstructor import JobsComponentConstructor
+        from .jobs_component_constructor import JobsComponentConstructor
 
         return JobsComponentConstructor(self).by(*args)
 
@@ -377,7 +377,7 @@ class Jobs(Base):
         with us filling in defaults.
 
         """
-        from edsl.jobs.InterviewsConstructor import InterviewsConstructor
+        from .jobs_interview_constructor import InterviewsConstructor
 
         self.replace_missing_objects()
         yield from InterviewsConstructor(

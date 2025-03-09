@@ -1,6 +1,6 @@
 import pytest
 from edsl.jobs.tasks.task_status_enum import TaskStatus
-from edsl.jobs.Jobs import Jobs
+from edsl.jobs import Jobs
 from edsl.jobs.interviews.Interview import Interview
 from typing import List
 

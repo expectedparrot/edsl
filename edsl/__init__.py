@@ -9,8 +9,7 @@ from edsl.__version__ import __version__
 # from edsl.config import Config, CONFIG
 
 from .dataset import Dataset
-from .agents import Agent
-from edsl.agents import AgentList
+from .agents import Agent, AgentList
 
 from edsl.questions import QuestionBase
 from edsl.questions.question_registry import Question
@@ -33,25 +32,25 @@ from edsl.questions import QuestionTopK
 from edsl.scenarios import Scenario, ScenarioList, FileStore
 
 # from edsl.utilities.interface import print_dict_with_rich
-from edsl.surveys import Survey
-from edsl.language_models.model import Model
-from edsl.language_models.ModelList import ModelList
+from .surveys import Survey
+from .language_models.model import Model
+from .language_models.ModelList import ModelList
 
 from .results import Results
-from edsl.data.Cache import Cache
+from .data.Cache import Cache
 
 # from edsl.data.CacheEntry import CacheEntry
-from edsl.data.CacheHandler import set_session_cache, unset_session_cache
+from .data.CacheHandler import set_session_cache, unset_session_cache
 
 # from edsl.shared import shared_globals
 
-from edsl.jobs.Jobs import Jobs
-from edsl.notebooks.Notebook import Notebook
+from .jobs import Jobs
+from .notebooks import Notebook
 
 # from edsl.study.Study import Study
 
 # from edsl.conjure.Conjure import Conjure
 from edsl.coop.coop import Coop
 
-from edsl.surveys.instructions.Instruction import Instruction
-from edsl.surveys.instructions.ChangeInstruction import ChangeInstruction
+from .surveys.instructions.Instruction import Instruction
+from .surveys.instructions.ChangeInstruction import ChangeInstruction

@@ -377,12 +377,12 @@ class Survey(Base):
         """
 
         def get_class(pass_dict):
-            from edsl.questions.QuestionBase import QuestionBase
+            from ..questions.QuestionBase import QuestionBase
 
             if (class_name := pass_dict.get("edsl_class_name")) == "QuestionBase":
                 return QuestionBase
             elif pass_dict.get("edsl_class_name") == "QuestionDict":
-                from edsl.questions.QuestionDict import QuestionDict
+                from ..questions.QuestionDict import QuestionDict
 
                 return QuestionDict
             elif class_name == "Instruction":
@@ -390,7 +390,7 @@ class Survey(Base):
 
                 return Instruction
             elif class_name == "ChangeInstruction":
-                from edsl.surveys.instructions.ChangeInstruction import (
+                from ..surveys.instructions.ChangeInstruction import (
                     ChangeInstruction,
                 )
 
@@ -832,7 +832,7 @@ class Survey(Base):
         >>> s.by(Agent.example()).by(Scenario.example())
         Jobs(...)
         """
-        from edsl.jobs.Jobs import Jobs
+        from edsl.jobs import Jobs
 
         return Jobs(survey=self).by(*args)
 
@@ -842,7 +842,7 @@ class Survey(Base):
         >>> s.to_jobs()
         Jobs(...)
         """
-        from edsl.jobs.Jobs import Jobs
+        from edsl.jobs import Jobs
 
         return Jobs(survey=self)
 
@@ -933,13 +933,13 @@ class Survey(Base):
         >>> results.select('answer.*')
         Dataset([{'answer.how_are_you': ['Great!']}])
         """
-        from edsl.jobs.Jobs import Jobs
+        from ..jobs import Jobs
 
         return Jobs(survey=self).run(*args, **kwargs)
 
     def using(self, obj: Union["Cache", "KeyLookup", "BucketCollection"]) -> "Jobs":
         """Turn the survey into a Job and appends the arguments to the Job."""
-        from edsl.jobs.Jobs import Jobs
+        from ..jobs.Jobs import Jobs
 
         return Jobs(survey=self).using(obj)
 
@@ -1058,7 +1058,7 @@ class Survey(Base):
         {1: {0}, 2: {0}}
 
         """
-        from edsl.surveys.dag import ConstructDAG
+        from .dag import ConstructDAG
 
         return ConstructDAG(self).dag(textify)
 
@@ -1135,7 +1135,7 @@ class Survey(Base):
         >>> [q.question_text for q in s.questions]
         ['Do you like school?', 'Why not?', 'Why?']
         """
-        from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
+        from ..questions.QuestionMultipleChoice import QuestionMultipleChoice
 
         addition = "" if not randomize else str(uuid4())
         q0 = QuestionMultipleChoice(

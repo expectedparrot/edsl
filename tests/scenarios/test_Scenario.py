@@ -1,7 +1,7 @@
 import unittest
 from edsl.scenarios import Scenario
 from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
-from edsl.jobs.Jobs import Jobs
+from edsl.jobs import Jobs
 from edsl.agents import Agent
 from edsl.surveys import Survey
 

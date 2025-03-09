@@ -3,7 +3,7 @@ from edsl.agents import Agent
 from edsl.exceptions.jobs import JobsRunError
 from edsl.exceptions.agents import AgentCombinationError
 from edsl.jobs.interviews.Interview import Interview
-from edsl.jobs.Jobs import Jobs, main
+from edsl.jobs import Jobs
 from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
 from edsl.questions.QuestionFreeText import QuestionFreeText
 from edsl.scenarios import Scenario, ScenarioList
@@ -285,7 +285,7 @@ def test_jobs_bucket_creator(valid_job):
 
     bc_to_use = valid_job.create_bucket_collection()
 
-    from edsl.jobs.Jobs import RunEnvironment
+    from edsl.jobs.data_structures import RunEnvironment
 
     re = RunEnvironment()
     re.bucket_collection = bc_to_use
@@ -294,9 +294,6 @@ def test_jobs_bucket_creator(valid_job):
     assert bc[valid_job.models[0]].requests_bucket.tokens > 10
     assert bc[valid_job.models[0]].tokens_bucket.tokens > 10
 
-
-def test_jobs_main():
-    main()
 
 
 if __name__ == "__main__":
