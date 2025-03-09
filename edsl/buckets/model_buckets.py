@@ -3,7 +3,7 @@
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .TokenBucket import TokenBucket
+    from .token_bucket import TokenBucket
 
 class ModelBuckets:
     """A class to represent a token or requests buckets for a model.
@@ -48,7 +48,7 @@ class ModelBuckets:
     @classmethod
     def infinity_bucket(cls, model_name: str = "not_specified") -> "ModelBuckets":
         """Create a bucket with infinite capacity and refill rate."""
-        from .TokenBucket import TokenBucket
+        from .token_bucket import TokenBucket
 
         return cls(
             requests_bucket=TokenBucket(
@@ -73,3 +73,9 @@ class ModelBuckets:
 
     def __repr__(self):
         return f"ModelBuckets(requests_bucket={self.requests_bucket}, tokens_bucket={self.tokens_bucket})"
+
+
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod(optionflags=doctest.ELLIPSIS)

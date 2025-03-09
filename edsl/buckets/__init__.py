@@ -1,3 +1,3 @@
-from .BucketCollection import BucketCollection
-from .ModelBuckets import ModelBuckets
-from .TokenBucket import TokenBucket
+from .bucket_collection import BucketCollection
+from .model_buckets import ModelBuckets
+from .token_bucket import TokenBucket

@@ -2,15 +2,15 @@ from typing import Optional, TYPE_CHECKING
 from collections import UserDict
 from threading import RLock
 
-from .TokenBucket import TokenBucket
-from .ModelBuckets import ModelBuckets
+from .token_bucket import TokenBucket
+from .model_buckets import ModelBuckets
 
 # from functools import wraps
-from edsl.jobs.decorators import synchronized_class
+from ..jobs.decorators import synchronized_class
 
 if TYPE_CHECKING:
-    from edsl.language_models.LanguageModel import LanguageModel
-    from edsl.language_models.key_management.KeyLookup import KeyLookup
+    from ..language_models import LanguageModel
+    from ..key_management import KeyLookup
     
 @synchronized_class
 class BucketCollection(UserDict):

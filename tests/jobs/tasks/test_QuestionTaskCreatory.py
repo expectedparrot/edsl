@@ -3,7 +3,7 @@ import unittest
 from unittest.mock import AsyncMock, MagicMock, Mock
 
 from edsl.tasks import QuestionTaskCreator
-from edsl.buckets.ModelBuckets import ModelBuckets
+from edsl.buckets import ModelBuckets
 from edsl.tasks import TaskStatus
 from edsl.questions import QuestionBase
 from edsl.exceptions.jobs import InterviewErrorPriorTaskCanceled
