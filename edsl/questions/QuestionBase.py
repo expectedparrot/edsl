@@ -11,7 +11,7 @@ from .descriptors import QuestionNameDescriptor, QuestionTextDescriptor
 from .answer_validator_mixin import AnswerValidatorMixin
 from .register_questions_meta import RegisterQuestionsMeta
 from edsl.base import PersistenceMixin, RepresentationMixin
-from edsl.BaseDiff import BaseDiff, BaseDiffCollection
+from ..base import BaseDiff, BaseDiffCollection
 
 from edsl.questions.SimpleAskMixin import SimpleAskMixin
 from edsl.questions.QuestionBasePromptsMixin import QuestionBasePromptsMixin
