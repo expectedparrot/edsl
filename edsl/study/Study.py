@@ -407,7 +407,7 @@ class Study:
 
         study_file = tempfile.NamedTemporaryFile()
         with cls(filename=study_file.name, verbose=verbose) as study:
-            from edsl.questions.QuestionFreeText import QuestionFreeText
+            from ..questions import QuestionFreeText
 
             q = QuestionFreeText.example(randomize=randomize)
         return study
