@@ -4,18 +4,18 @@ import inspect
 from collections import UserDict
 from typing import Any, Type, Callable, Optional, TYPE_CHECKING, Union
 
-from edsl.base import Base
-from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
-from edsl.agents import Agent
-from edsl.scenarios import Scenario
-from edsl.surveys import Survey
+from ..base import Base
+from ..utilities.decorators import add_edsl_version, remove_edsl_version
+from ..agents import Agent
+from ..scenarios import Scenario
+from ..surveys import Survey
 
 if TYPE_CHECKING:
-    from edsl.agents import Agent
-    from edsl.scenarios.Scenario import Scenario
-    from edsl.language_models.LanguageModel import LanguageModel
-    from edsl.prompts.Prompt import Prompt
-    from edsl.surveys.Survey import Survey
+    from ..agents import Agent
+    from ..scenarios.Scenario import Scenario
+    from ..language_models.LanguageModel import LanguageModel
+    from ..prompts.Prompt import Prompt
+    from ..surveys import Survey
 
 QuestionName = str
 AnswerValue = Any
@@ -387,7 +387,7 @@ class Result(Base, UserDict):
 
     def __hash__(self):
         """Return a hash of the Result object."""
-        from edsl.utilities.utilities import dict_hash
+        from ..utilities.utilities import dict_hash
 
         return dict_hash(self.to_dict(add_edsl_version=False, include_cache_info=False))
 
@@ -396,10 +396,10 @@ class Result(Base, UserDict):
     def from_dict(self, json_dict: dict) -> Result:
         """Return a Result object from a dictionary representation."""
 
-        from edsl.agents import Agent
-        from edsl.scenarios import Scenario
-        from edsl.language_models.LanguageModel import LanguageModel
-        from edsl.prompts.Prompt import Prompt
+        from ..agents import Agent
+        from ..scenarios import Scenario
+        from ..language_models.LanguageModel import LanguageModel
+        from ..prompts.Prompt import Prompt
 
         prompt_data = json_dict.get("prompt", {})
         prompt_d = {}

@@ -3,8 +3,8 @@ import sys
 from collections import defaultdict
 
 from ..dataset import Dataset
-from edsl.exceptions.results import ResultsColumnNotFoundError
-from edsl.utilities.is_notebook import is_notebook
+from ..exceptions.results import ResultsColumnNotFoundError
+from ..utilities.is_notebook import is_notebook
 
 
 class Selector:
