@@ -2,23 +2,23 @@ from abc import ABC, abstractmethod
 import asyncio
 from typing import Coroutine, Dict, Any, Optional, TYPE_CHECKING
 
-from edsl.utilities.decorators import jupyter_nb_handler
-from edsl.data_transfer_models import AgentResponseDict
+from ..utilities.decorators import jupyter_nb_handler
+from ..data_transfer_models import AgentResponseDict
 
 if TYPE_CHECKING:
-    from edsl.prompts.Prompt import Prompt
-    from edsl.data.Cache import Cache
-    from edsl.questions.QuestionBase import QuestionBase
-    from edsl.scenarios import Scenario
-    from edsl.surveys.MemoryPlan import MemoryPlan
-    from edsl.language_models.LanguageModel import LanguageModel
-    from edsl.surveys import Survey
-    from edsl.agents import Agent
-    from edsl.language_models.key_management.KeyLookup import KeyLookup
+    from ..prompts import Prompt
+    from ..data import Cache
+    from ..questions import QuestionBase
+    from ..scenarios import Scenario
+    from ..surveys.memory import MemoryPlan
+    from ..language_models import LanguageModel
+    from ..surveys import Survey
+    from ..agents import Agent
+    from ..key_management import KeyLookup
 
-from edsl.data_transfer_models import EDSLResultObjectInput
-from edsl.agents.PromptConstructor import PromptConstructor
-from edsl.agents.prompt_helpers import PromptPlan
+from ..data_transfer_models import EDSLResultObjectInput
+from .prompt_constructor import PromptConstructor
+from .prompt_helpers import PromptPlan
 
 
 class InvigilatorBase(ABC):
@@ -106,13 +106,13 @@ class InvigilatorBase(ABC):
 
     @classmethod
     def from_dict(cls, data) -> "InvigilatorBase":
-        from edsl.agents import Agent
-        from edsl.questions import QuestionBase
-        from edsl.scenarios import Scenario
-        from edsl.surveys.MemoryPlan import MemoryPlan
-        from edsl.language_models.LanguageModel import LanguageModel
-        from edsl.surveys import Survey
-        from edsl.data.Cache import Cache
+        from ..agents import Agent
+        from ..questions import QuestionBase
+        from ..scenarios import Scenario
+        from ..surveys.memory import MemoryPlan
+        from ..language_models import LanguageModel
+        from ..surveys import Survey
+        from ..data import Cache
 
         attributes_to_classes = {
             "agent": Agent,
@@ -171,7 +171,7 @@ class InvigilatorBase(ABC):
 
     def get_prompts(self) -> Dict[str, "Prompt"]:
         """Return the prompt used."""
-        from edsl.prompts.Prompt import Prompt
+        from ..prompts import Prompt
 
         return {
             "user_prompt": Prompt("NA"),
@@ -211,11 +211,11 @@ class InvigilatorBase(ABC):
         ...
         Exception: This is a test error
         """
-        from edsl.agents import Agent
-        from edsl.scenarios import Scenario
-        from edsl.surveys.MemoryPlan import MemoryPlan
-        from edsl.language_models.model import Model
-        from edsl.surveys import Survey
+        from ..agents import Agent
+        from ..scenarios import Scenario
+        from ..surveys.memory import MemoryPlan
+        from ..language_models import Model
+        from ..surveys import Survey
 
         model = Model("test", canned_response="SPAM!")
 

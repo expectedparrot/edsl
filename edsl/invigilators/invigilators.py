@@ -184,7 +184,7 @@ class InvigilatorBase(ABC):
 
     def get_prompts(self) -> Dict[str, "Prompt"]:
         """Return the prompt used."""
-        from edsl.prompts.Prompt import Prompt
+        from ..prompts import Prompt
 
         return {
             "user_prompt": Prompt("NA"),
@@ -224,11 +224,11 @@ class InvigilatorBase(ABC):
         ...
         Exception: This is a test error
         """
-        from edsl.agents import Agent
-        from edsl.scenarios import Scenario
-        from edsl.surveys.memory import MemoryPlan
-        from edsl.language_models.model import Model
-        from edsl.surveys import Survey
+        from ..agents import Agent
+        from ..scenarios import Scenario
+        from ..surveys.memory import MemoryPlan
+        from ..language_models import Model
+        from ..surveys import Survey
 
         model = Model("test", canned_response="SPAM!")
 
@@ -524,7 +524,7 @@ class InvigilatorFunctional(InvigilatorBase):
         )
 
     def get_prompts(self) -> Dict[str, "Prompt"]:
-        from edsl.prompts.Prompt import Prompt
+        from ..prompts import Prompt
 
         """Return the prompts used."""
         return {

@@ -16,7 +16,7 @@ from edsl.exceptions.prompts import (
     PromptBadQuestionTypeError,
     PromptBadLanguageModelTypeError,
 )
-from edsl.prompts.Prompt import Prompt
+from edsl.prompts import Prompt
 
 
 # Testing __add__ method

@@ -1,7 +1,8 @@
 import enum
 from typing import Dict, Optional
 from collections import UserList
-from edsl.prompts.Prompt import Prompt
+
+from ..prompts import Prompt
 
 
 class PromptComponent(enum.Enum):
