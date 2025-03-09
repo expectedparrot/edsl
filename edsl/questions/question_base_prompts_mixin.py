@@ -277,7 +277,7 @@ class QuestionBasePromptsMixin:
 
         :param model: The language model to use.
         """
-        from edsl.prompts.Prompt import Prompt
+        from ..prompts import Prompt
 
         if model in self.model_instructions:
             return Prompt(text=self.model_instructions[model])

@@ -284,7 +284,7 @@ class Agent(Base):
     @property
     def agent_persona(self) -> Prompt:
         """Return the agent persona template."""
-        from edsl.prompts.Prompt import Prompt
+        from ..prompts import Prompt
 
         return Prompt(text=self.traits_presentation_template)
 

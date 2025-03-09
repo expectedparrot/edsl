@@ -5,14 +5,9 @@ from collections import UserDict, defaultdict
 from typing import Optional
 
 if TYPE_CHECKING:
-    from edsl.surveys import Survey
-    from edsl.prompts.Prompt import Prompt
-    from edsl.surveys.dag import DAG
-
-# from edsl.surveys.Memory import Memory
-# from edsl.prompts.Prompt import Prompt
-# from edsl.surveys.DAG import DAG
-
+    from ...surveys import Survey
+    from ...prompts import Prompt
+    from ..dag import DAG
 
 class MemoryPlan(UserDict):
     """A survey has a memory plan that specifies what the agent should remember when answering a question.
@@ -67,7 +62,7 @@ class MemoryPlan(UserDict):
         :param answers: A dictionary of question names to answers.
 
         """
-        from edsl.prompts.Prompt import Prompt
+        from ...prompts import Prompt
 
         self._check_valid_question_name(focal_question)
 
