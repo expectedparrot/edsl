@@ -3,7 +3,7 @@ from io import BytesIO
 import base64
 
 from .task_status_enum import TaskStatus
-from edsl.base import RepresentationMixin
+from ...base import RepresentationMixin
 
 
 class TaskHistory(RepresentationMixin):

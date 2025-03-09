@@ -10,7 +10,7 @@ if TYPE_CHECKING:
 
 from ...results import Results
 from .JobsRunnerStatus import JobsRunnerStatus
-from edsl.jobs.tasks.TaskHistory import TaskHistory
+from ..tasks import TaskHistory
 from ...utilities.decorators import jupyter_nb_handler
 from ..async_interview_runner import AsyncInterviewRunner
 from ..data_structures import RunEnvironment, RunParameters, RunConfig
