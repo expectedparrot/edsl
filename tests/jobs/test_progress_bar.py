@@ -5,7 +5,7 @@ from edsl.agents import Agent
 from edsl.data import Cache
 from edsl.scenarios import Scenario
 from edsl.questions import QuestionYesNo
-from edsl.jobs.runners.JobsRunnerStatus import JobsRunnerStatusBase
+from edsl.jobs.jobs_runner_status import JobsRunnerStatusBase
 from edsl.jobs import Jobs
 from edsl.questions import QuestionFreeText
 

@@ -558,7 +558,7 @@ class Jobs(Base):
         use_remote_cache = self.use_remote_cache()
 
         from ..coop import Coop
-        from .runners.JobsRunnerAsyncio import JobsRunnerAsyncio
+        from .jobs_runner_asyncio import JobsRunnerAsyncio
         from ..data import Cache
 
         assert isinstance(self.run_config.environment.cache, Cache)

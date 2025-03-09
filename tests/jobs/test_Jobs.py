@@ -8,15 +8,13 @@ from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
 from edsl.questions.QuestionFreeText import QuestionFreeText
 from edsl.scenarios import Scenario, ScenarioList
 from edsl.surveys import Survey
-from edsl.language_models import LanguageModel
 from edsl.questions.question_registry import (
     Question,
 )  # needed for the eval() of the repr() of the Job
 from edsl.data import Cache
 
 from edsl.agents import AgentList
-from edsl.language_models import ModelList
-from edsl.language_models import Model
+from edsl.language_models import ModelList, Model, LanguageModel
 
 
 @pytest.fixture(scope="function")
@@ -280,7 +278,7 @@ def test_handle_model_exception():
 def test_jobs_bucket_creator(valid_job):
     # from edsl.jobs.runners.job_runners_registry import JobsRunnersRegistry
     # JobRunner = JobsRunnersRegistry["asyncio"](jobs=valid_job)
-    from edsl.jobs.runners.JobsRunnerAsyncio import JobsRunnerAsyncio
+    from edsl.jobs.jobs_runner_asyncio import JobsRunnerAsyncio
 
     bc_to_use = valid_job.create_bucket_collection()
 
