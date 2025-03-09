@@ -1,11 +1,8 @@
 import pytest
-
-from edsl.study.Study import Study
-from edsl.questions.QuestionFreeText import QuestionFreeText
-from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
-
 from uuid import UUID
 
+from edsl.study import Study
+from edsl.questions import QuestionFreeText, QuestionMultipleChoice
 
 def test_instantiate():
     s = Study.example()

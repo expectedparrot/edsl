@@ -4,8 +4,8 @@ from edsl.exceptions.jobs import JobsRunError
 from edsl.exceptions.agents import AgentCombinationError
 from edsl.interviews import Interview
 from edsl.jobs import Jobs
-from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
-from edsl.questions.QuestionFreeText import QuestionFreeText
+from edsl.questions import QuestionMultipleChoice
+from edsl.questions import QuestionFreeText
 from edsl.scenarios import Scenario, ScenarioList
 from edsl.surveys import Survey
 from edsl.questions.question_registry import (

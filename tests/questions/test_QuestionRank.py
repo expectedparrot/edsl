@@ -4,8 +4,8 @@ from edsl.exceptions.questions import (
     QuestionResponseValidationError,
 )
 from edsl.questions import Settings
-from edsl.questions.QuestionBase import QuestionBase
-from edsl.questions.QuestionRank import QuestionRank, main
+from edsl.questions import QuestionBase
+from edsl.questions.question_rank import QuestionRank, main
 
 
 def test_QuestionRank_main():

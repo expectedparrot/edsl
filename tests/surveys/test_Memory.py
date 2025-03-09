@@ -10,10 +10,9 @@ from edsl.language_models import LanguageModel
 from edsl.enums import InferenceServiceType
 from edsl.surveys import Survey
 from edsl.questions import QuestionFreeText
-from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
-from edsl.questions.derived.QuestionYesNo import QuestionYesNo
+from edsl.questions import QuestionMultipleChoice, QuestionYesNo
 from edsl.agents import Agent
-from edsl.language_models.model import Model
+from edsl.language_models import Model
 from edsl.scenarios import Scenario
 
 

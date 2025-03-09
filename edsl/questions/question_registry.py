@@ -4,7 +4,7 @@ import textwrap
 from uuid import UUID
 from typing import Any, Optional, Union
 
-from .QuestionBase import RegisterQuestionsMeta
+from .question_base import RegisterQuestionsMeta
 
 
 class Meta(type):

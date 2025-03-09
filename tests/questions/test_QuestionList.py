@@ -5,8 +5,8 @@ from edsl.exceptions.questions import (
     QuestionResponseValidationError,
 )
 from edsl.questions import Settings
-from edsl.questions.QuestionBase import QuestionBase
-from edsl.questions.QuestionList import QuestionList, main
+from edsl.questions import QuestionBase
+from edsl.questions.question_list import QuestionList, main
 from edsl.language_models import LanguageModel
 
 

@@ -1,9 +1,9 @@
 """Compose two questions where the answer to q1 is used as an input to q2."""
 
-from edsl.questions import QuestionFunctional
-from edsl.questions.QuestionBase import QuestionBase
-from edsl.scenarios import Scenario
-from edsl.agents import Agent
+from .question_functional import QuestionFunctional
+from .question_base import QuestionBase
+from ..scenarios import Scenario
+from ..agents import Agent
 
 
 def compose_questions(

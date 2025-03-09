@@ -1,6 +1,6 @@
-from edsl.language_models.model import Model
+from edsl.language_models import Model
 from edsl.jobs import Jobs
-from edsl.questions.QuestionFreeText import QuestionFreeText
+from edsl.questions import QuestionFreeText
 from edsl.surveys import Survey
 from edsl.jobs.jobs_pricing_estimation import JobsPrompts
 

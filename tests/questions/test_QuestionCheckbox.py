@@ -4,10 +4,10 @@ from edsl.exceptions.questions import (
     QuestionAnswerValidationError,
     QuestionResponseValidationError,
 )
-from edsl.questions.QuestionBase import QuestionBase
+from edsl.questions import QuestionBase
 from edsl.questions import Settings
-from edsl.questions.QuestionCheckBox import QuestionCheckBox, main
-from edsl.language_models.model import Model
+from edsl.questions.question_check_box import QuestionCheckBox, main
+from edsl.language_models import Model
 
 valid_question = {
     "question_text": "Which weekdays do you like? Select 2 or 3.",

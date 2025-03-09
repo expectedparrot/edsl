@@ -4,16 +4,16 @@ from pydantic import BaseModel, Field, field_validator
 from jinja2 import Environment, FileSystemLoader, TemplateNotFound
 from pathlib import Path
 
-from edsl.questions.QuestionBase import QuestionBase
-from edsl.questions.descriptors import (
+from .question_base import QuestionBase
+from .descriptors import (
     AnswerKeysDescriptor,
     ValueTypesDescriptor,
     ValueDescriptionsDescriptor,
     QuestionTextDescriptor,
 )
-from edsl.questions.response_validator_abc import ResponseValidatorABC
-from edsl.exceptions.questions import QuestionCreationValidationError
-from edsl.questions.decorators import inject_exception
+from .response_validator_abc import ResponseValidatorABC
+from ..exceptions.questions import QuestionCreationValidationError
+from .decorators import inject_exception
 
 
 class DictResponseValidator(ResponseValidatorABC):

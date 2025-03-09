@@ -3,13 +3,13 @@ from typing import Optional, Any, List, Annotated, Literal
 
 from pydantic import BaseModel, Field
 
-from edsl.questions.QuestionBase import QuestionBase
-from edsl.questions.descriptors import (
+from .question_base import QuestionBase
+from .descriptors import (
     QuestionOptionsDescriptor,
     NumSelectionsDescriptor,
 )
-from edsl.questions.response_validator_abc import ResponseValidatorABC
-from edsl.scenarios import Scenario
+from .response_validator_abc import ResponseValidatorABC
+from ..scenarios import Scenario
 
 
 def create_response_model(

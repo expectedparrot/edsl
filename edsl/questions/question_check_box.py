@@ -3,29 +3,25 @@ import random
 from typing import Any, Optional, Union, TYPE_CHECKING
 
 from jinja2 import Template
-
-from edsl.questions.QuestionBase import QuestionBase
-from edsl.questions.descriptors import (
-    IntegerDescriptor,
-    QuestionOptionsDescriptor,
-)
-
-from edsl.questions.decorators import inject_exception
-
 from pydantic import field_validator
-from edsl.questions.response_validator_abc import ResponseValidatorABC
-
-if TYPE_CHECKING:
-    from edsl.questions.data_structures import (
-        BaseResponse,
-    )
-
-from edsl.exceptions.questions import QuestionAnswerValidationError
-
 from pydantic import BaseModel, Field, conlist
 from typing import List, Literal, Optional, Annotated
 
+from ..exceptions.questions import QuestionAnswerValidationError
 from edsl.scenarios import Scenario
+
+from .question_base import QuestionBase
+from .descriptors import (
+    IntegerDescriptor,
+    QuestionOptionsDescriptor,
+)
+from .decorators import inject_exception
+from .response_validator_abc import ResponseValidatorABC
+
+if TYPE_CHECKING:
+    from .data_structures import (
+        BaseResponse,
+    )
 
 
 def create_checkbox_response_model(

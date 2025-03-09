@@ -1,10 +1,10 @@
 from __future__ import annotations
 from typing import Optional
 
-from edsl.questions.descriptors import QuestionOptionsDescriptor, OptionLabelDescriptor
-from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
+from ..descriptors import QuestionOptionsDescriptor, OptionLabelDescriptor
+from ..question_multiple_choice import QuestionMultipleChoice
 
-from edsl.questions.decorators import inject_exception
+from ..decorators import inject_exception
 
 
 class QuestionLinearScale(QuestionMultipleChoice):
