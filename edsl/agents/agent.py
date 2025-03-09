@@ -620,7 +620,7 @@ class Agent(Base):
 
         >>> a = Agent(traits = {})
         >>> a.add_direct_question_answering_method(lambda self, question, scenario: "I am a direct answer.")
-        >>> from edsl.questions.QuestionFreeText import QuestionFreeText
+        >>> from edsl.questions import QuestionFreeText
         >>> q = QuestionFreeText.example()
         >>> a.answer_question(question = q, cache = False).answer
         'I am a direct answer.'

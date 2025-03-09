@@ -183,7 +183,7 @@ class EditSurvey:
         :param instruction: The instruction to add to the survey.
 
         >>> from edsl import Instruction
-        >>> from edsl.surveys.Survey import Survey
+        >>> from edsl.surveys import Survey
         >>> i = Instruction(text="Pay attention to the following questions.", name="intro")
         >>> s = Survey().add_instruction(i)
         >>> s._instruction_names_to_instructions

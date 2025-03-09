@@ -35,7 +35,7 @@ class ScenarioJoin:
         Raises:
             ValueError: If by is empty or if any join keys don't exist in both ScenarioLists
         """
-        from edsl.scenarios.ScenarioList import ScenarioList
+        from .scenario_list import ScenarioList
 
         self._validate_join_keys(by)
         by_keys = [by] if isinstance(by, str) else by

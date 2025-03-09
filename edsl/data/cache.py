@@ -374,7 +374,7 @@ class Cache(Base):
         :param other: Another Cache object to compare against
         :return: A new Cache object containing unique entries
 
-        >>> from edsl.data.CacheEntry import CacheEntry
+        >>> from edsl.data import CacheEntry
         >>> ce1 = CacheEntry.example(randomize = True)
         >>> ce2 = CacheEntry.example(randomize = True)
         >>> ce2 = CacheEntry.example(randomize = True)

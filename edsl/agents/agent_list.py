@@ -125,7 +125,7 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         :param new_name: The new name of the trait.
         :param inplace: Whether to rename the trait in place.
 
-        >>> from edsl.agents.Agent import Agent
+        >>> from edsl.agents import Agent
         >>> al = AgentList([Agent(traits = {'a': 1, 'b': 1}), Agent(traits = {'a': 1, 'b': 2})])
         >>> al2 = al.rename('a', 'c')
         >>> assert al2 == AgentList([Agent(traits = {'c': 1, 'b': 1}), Agent(traits = {'c': 1, 'b': 2})])
@@ -139,7 +139,7 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
     def select(self, *traits) -> AgentList:
         """Selects agents with only the references traits.
 
-        >>> from edsl.agents.Agent import Agent
+        >>> from edsl.agents import Agent
         >>> al = AgentList([Agent(traits = {'a': 1, 'b': 1}), Agent(traits = {'a': 1, 'b': 2})])
         >>> al.select('a')
         AgentList([Agent(traits = {'a': 1}), Agent(traits = {'a': 1})])
@@ -157,7 +157,7 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         """
         Filter a list of agents based on an expression.
 
-        >>> from edsl.agents.Agent import Agent
+        >>> from edsl.agents import Agent
         >>> al = AgentList([Agent(traits = {'a': 1, 'b': 1}), Agent(traits = {'a': 1, 'b': 2})])
         >>> al.filter("b == 2")
         AgentList([Agent(traits = {'a': 1, 'b': 2})])
@@ -192,7 +192,7 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
     @property
     def all_traits(self) -> list[str]:
         """Return all traits in the AgentList.
-        >>> from edsl.agents.Agent import Agent
+        >>> from edsl.agents import Agent
         >>> agent_1 = Agent(traits = {'age': 22})
         >>> agent_2 = Agent(traits = {'hair': 'brown'})
         >>> al = AgentList([agent_1, agent_2])
@@ -225,7 +225,7 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         :param file_path: The path to the CSV file.
         :param name_field: The name of the field to use as the agent name.
         """
-        from edsl.agents.Agent import Agent
+        from .agent import Agent
 
         agent_list = []
         with open(file_path, "r") as f:
@@ -262,7 +262,7 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         """Remove traits from the AgentList.
 
         :param traits: The traits to remove.
-        >>> from edsl.agents.Agent import Agent
+        >>> from edsl.agents import Agent
         >>> al = AgentList([Agent({'age': 22, 'hair': 'brown', 'height': 5.5}), Agent({'age': 22, 'hair': 'brown', 'height': 5.5})])
         >>> al.remove_trait('age')
         AgentList([Agent(traits = {'hair': 'brown', 'height': 5.5}), Agent(traits = {'hair': 'brown', 'height': 5.5})])
@@ -372,7 +372,7 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
     def set_codebook(self, codebook: dict[str, str]) -> AgentList:
         """Set the codebook for the AgentList.
 
-        >>> from edsl.agents.Agent import Agent
+        >>> from edsl.agents import Agent
         >>> a = Agent(traits = {'hair': 'brown'})
         >>> al = AgentList([a, a])
         >>> _ = al.set_codebook({'hair': "Color of hair on driver's license"})
@@ -441,14 +441,14 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         """
         Convert the AgentList to a Dataset.
 
-        >>> from edsl.agents.AgentList import AgentList
+        >>> from edsl.agents import AgentList
         >>> al = AgentList.example()
         >>> al.to_dataset()
         Dataset([{'age': [22, 22]}, {'hair': ['brown', 'brown']}, {'height': [5.5, 5.5]}])
         >>> al.to_dataset(traits_only = False)
         Dataset([{'age': [22, 22]}, {'hair': ['brown', 'brown']}, {'height': [5.5, 5.5]}, {'agent_parameters': [{'instruction': 'You are answering questions as if you were a human. Do not break character.', 'agent_name': None}, {'instruction': 'You are answering questions as if you were a human. Do not break character.', 'agent_name': None}]}])
         """
-        from edsl.results.Dataset import Dataset
+        from ..dataset import Dataset
         from collections import defaultdict
 
         agent_trait_keys = []
@@ -477,7 +477,7 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         """Deserialize the dictionary back to an AgentList object.
 
         :param: data: A dictionary representing an AgentList.
-        >>> from edsl.agents.Agent import Agent
+        >>> from edsl.agents import Agent
         >>> al = AgentList([Agent.example(), Agent.example()])
         >>> al2 = AgentList.from_dict(al.to_dict())
         >>> al2 == al

@@ -101,7 +101,7 @@ class LoopProcessor:
             Rendered template string, preserving any unmatched template variables
 
         Examples:
-            >>> from edsl.questions.QuestionBase import QuestionBase
+            >>> from edsl.questions import QuestionBase
             >>> q = QuestionBase()
             >>> q.question_text = "test"
             >>> p = LoopProcessor(q)

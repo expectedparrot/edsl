@@ -54,8 +54,8 @@ class ModelList(Base, UserList):
         return dict_hash(self.to_dict(sort=True, add_edsl_version=False))
 
     def to_scenario_list(self):
-        from edsl.scenarios.ScenarioList import ScenarioList
-        from edsl.scenarios.Scenario import Scenario
+        from ..scenarios import ScenarioList
+        from ..scenarios import Scenario
 
         sl = ScenarioList()
         for model in self:
