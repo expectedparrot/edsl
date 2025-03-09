@@ -4,7 +4,7 @@ from pathlib import Path
 import time
 from functools import lru_cache
 
-from jinja2 import Environment, meta, TemplateSyntaxError, Undefined
+from jinja2 import Environment, meta, Undefined
 
 from ..exceptions.prompts import TemplateRenderError
 from ..base import PersistenceMixin, RepresentationMixin

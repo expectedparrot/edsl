@@ -18,7 +18,7 @@ from ..data_transfer_models import AgentResponseDict, EDSLResultObjectInput
 
 from ..jobs.Answers import Answers
 
-from .InterviewExceptionEntry import InterviewExceptionEntry
+from .exception_tracking import InterviewExceptionEntry
 
 
 class RetryConfig:

@@ -1,30 +1,26 @@
-"""This module contains the Interview class, which is responsible for conducting an interview asynchronously."""
+"""The Interview class is responsible for conducting an interview asynchronously."""
 
 from __future__ import annotations
 import asyncio
-from typing import Any, Type, List, Generator, Optional, TYPE_CHECKING
 import copy
 from dataclasses import dataclass
+
+from typing import Any, Type, List, Generator, Optional, TYPE_CHECKING
 
 # from jobs module 
 from ..jobs.data_structures import Answers
 from ..buckets import ModelBuckets
 from ..jobs.fetch_invigilator import FetchInvigilator
 from ..utilities.utilities import dict_hash
+from ..surveys import Survey
 
 # from interviews module 
-from .AnswerQuestionFunctionConstructor import (
-    AnswerQuestionFunctionConstructor,
-)
+from .answering_function import AnswerQuestionFunctionConstructor
 from .interview_task_manager import InterviewTaskManager
-from .RequestTokenEstimator import RequestTokenEstimator
+from .request_token_estimator import RequestTokenEstimator
 from .interview_status_dictionary import InterviewStatusDictionary
-from .InterviewExceptionCollection import (
-    InterviewExceptionCollection,
-)
-from .InterviewExceptionEntry import InterviewExceptionEntry
+from .exception_tracking import InterviewExceptionCollection, InterviewExceptionEntry
 
-from ..surveys import Survey
 
 if TYPE_CHECKING:
     from ..agents import Agent
