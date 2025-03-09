@@ -8,14 +8,13 @@ from collections import UserDict
 from typing import Union, List, Optional, TYPE_CHECKING, Collection
 from uuid import uuid4
 
-from edsl.base import Base
-from .ScenarioHtmlMixin import ScenarioHtmlMixin
+from ..base import Base
 from edsl.utilities.remove_edsl_version import remove_edsl_version
 from edsl.exceptions.scenarios import ScenarioError
 
 if TYPE_CHECKING:
-    from .ScenarioList import ScenarioList
-    from edsl.results.Dataset import Dataset
+    from .scenario_list import ScenarioList
+    from ..dataset import Dataset
 
 class DisplayJSON:
     """Display a dictionary as JSON."""
@@ -39,7 +38,7 @@ class DisplayYAML:
         return self.text
 
 
-class Scenario(Base, UserDict, ScenarioHtmlMixin):
+class Scenario(Base, UserDict):
     """A Scenario is a dictionary of keys/values that can be used to parameterize questions."""
 
     __documentation__ = "https://docs.expectedparrot.com/en/latest/scenarios.html"
@@ -405,7 +404,60 @@ class Scenario(Base, UserDict, ScenarioHtmlMixin):
                 "PDF extraction requires the PyMuPDF library. "
                 "Install it with: pip install pymupdf"
             )
-        
+
+    @classmethod
+    def from_html(cls, url: str, field_name: Optional[str] = None) -> "Scenario":
+        """Create a scenario from HTML content.
+
+        :param html: The HTML content.
+        :param field_name: The name of the field containing the HTML content.
+
+
+        """
+        html = cls.fetch_html(url)
+        text = cls.extract_text(html)
+        if not field_name:
+            field_name = "text"
+        return cls({"url": url, "html": html, field_name: text})
+
+    @staticmethod
+    def fetch_html(url):
+        # Define the user-agent to mimic a browser
+        import requests
+        from requests.adapters import HTTPAdapter
+        from requests.packages.urllib3.util.retry import Retry
+
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+        }
+
+        # Create a session to manage cookies and retries
+        session = requests.Session()
+        retries = Retry(
+            total=5, backoff_factor=0.1, status_forcelist=[500, 502, 503, 504]
+        )
+        session.mount("http://", HTTPAdapter(max_retries=retries))
+        session.mount("https://", HTTPAdapter(max_retries=retries))
+
+        try:
+            # Make the request
+            response = session.get(url, headers=headers, timeout=10)
+            response.raise_for_status()  # Raise an exception for HTTP errors
+            return response.text
+        except requests.exceptions.RequestException as e:
+            print(f"An error occurred: {e}")
+            return None
+
+    @staticmethod
+    def extract_text(html):
+        # Extract text from HTML using BeautifulSoup
+        from bs4 import BeautifulSoup
+
+        soup = BeautifulSoup(html, "html.parser")
+        text = soup.get_text()
+        return text
+
+
     @classmethod
     def from_pdf_to_image(cls, pdf_path, image_format="jpeg"):
         """
