@@ -4,19 +4,17 @@ import asyncio
 from typing import Union, Type, Callable, TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from ..questions.QuestionBase import QuestionBase
+    from ..questions import QuestionBase
     from .interview import Interview
-    from ..language_models.key_management.KeyLookup import KeyLookup
+    from ..key_management import KeyLookup
 
 from ..surveys.base import EndOfSurvey
-from ..tasks.task_status_enum import TaskStatus
+from ..tasks import TaskStatus
 
 from ..jobs.fetch_invigilator import FetchInvigilator
 from ..exceptions.language_models import LanguageModelNoResponseError
 from ..exceptions.questions import QuestionAnswerValidationError
-from ..data_transfer_models import AgentResponseDict, EDSLResultObjectInput
-
-from ..jobs.Answers import Answers
+from ..data_transfer_models import AgentResponseDict, EDSLResultObjectInput, Answers
 
 from .exception_tracking import InterviewExceptionEntry
 
