@@ -4,10 +4,10 @@ from functools import cached_property
 import time
 import logging
 
-from edsl.prompts.Prompt import Prompt
+from ..prompts import Prompt
 
 from .prompt_helpers import PromptPlan
-from .QuestionTemplateReplacementsBuilder import (
+from .question_template_replacements_builder import (
     QuestionTemplateReplacementsBuilder,
 )
 from .question_option_processor import QuestionOptionProcessor
@@ -18,10 +18,10 @@ if TYPE_CHECKING:
     from .invigilators import InvigilatorBase
     from edsl.questions.QuestionBase import QuestionBase
     from edsl.agents import Agent
-    from edsl.language_models.LanguageModel import LanguageModel
-    from edsl.surveys.MemoryPlan import MemoryPlan
-    from edsl.questions.QuestionBase import QuestionBase
-    from edsl.scenarios.Scenario import Scenario
+    from edsl.language_models import LanguageModel
+    from edsl.surveys.memory import MemoryPlan
+    from edsl.questions import QuestionBase
+    from edsl.scenarios import Scenario
 
 logger = logging.getLogger(__name__)
 
@@ -250,7 +250,7 @@ class PromptConstructor:
 
     def build_question_instructions_prompt(self) -> Prompt:
         """Buils the question instructions prompt."""
-        from .QuestionInstructionPromptBuilder import QuestionInstructionPromptBuilder
+        from .question_instructions_prompt_builder import QuestionInstructionPromptBuilder
         qipb = QuestionInstructionPromptBuilder.from_prompt_constructor(self)
         prompt = qipb.build()
         if prompt.captured_variables:

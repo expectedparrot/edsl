@@ -1,17 +1,17 @@
 from typing import Dict, List, Set, Any, Union, TYPE_CHECKING
 from warnings import warn
 import logging
-from edsl.prompts.Prompt import Prompt
+from ..prompts import Prompt
 
 if TYPE_CHECKING:
-    from .PromptConstructor import PromptConstructor
-    from edsl import Model
-    from edsl import Survey
-    from edsl.questions.QuestionBase import QuestionBase
-    from edsl import Scenario
-    from edsl import Agent
+    from .prompt_constructor import PromptConstructor
+    from ..language_models import Model
+    from ..surveys import Survey
+    from ..questions import QuestionBase
+    from ..scenarios import Scenario
+    from ..agents import Agent
 
-from .QuestionTemplateReplacementsBuilder import (
+from .question_template_replacements_builder import (
     QuestionTemplateReplacementsBuilder as QTRB,
 )
 
