@@ -30,7 +30,7 @@ from typing import (
 )
 from abc import ABC, abstractmethod
 
-from edsl.data_transfer_models import (
+from ..data_transfer_models import (
     ModelResponse,
     ModelInputs,
     EDSLOutput,
@@ -39,20 +39,20 @@ from edsl.data_transfer_models import (
 
 if TYPE_CHECKING:
     from edsl.data.Cache import Cache
-    from edsl.scenarios.FileStore import FileStore
-    from edsl.questions.QuestionBase import QuestionBase
-    from edsl.language_models.key_management.KeyLookup import KeyLookup
+    from ..scenarios import FileStore
+    from ..questions import QuestionBase
+    from .key_management.KeyLookup import KeyLookup
 
 from edsl.enums import InferenceServiceType
 
-from edsl.utilities.decorators import (
+from ..utilities.decorators import (
     sync_wrapper,
     jupyter_nb_handler,
 )
 from edsl.utilities.remove_edsl_version import remove_edsl_version
 
-from edsl.base import PersistenceMixin, RepresentationMixin, HashingMixin
-from edsl.language_models.RegisterLanguageModelsMeta import RegisterLanguageModelsMeta
+from ..base import PersistenceMixin, RepresentationMixin, HashingMixin
+from .RegisterLanguageModelsMeta import RegisterLanguageModelsMeta
 
 from .key_management.KeyLookupCollection import KeyLookupCollection
 from .RawResponseHandler import RawResponseHandler
@@ -476,7 +476,7 @@ class LanguageModel(
         """
 
         usage = self.get_usage_dict(raw_response)
-        from edsl.language_models.PriceManager import PriceManager
+        from .price_manager import PriceManager
 
         price_manger = PriceManager()
         return price_manger.calculate_cost(
@@ -515,7 +515,7 @@ class LanguageModel(
 
         NB: This method does not use the stores inference_service but rather just fetches a model class based on the name.
         """
-        from edsl.language_models.model import get_model_class
+        from .model import get_model_class
 
         model_class = get_model_class(
             data["model"], service_name=data.get("inference_service", None)
@@ -577,7 +577,7 @@ class LanguageModel(
     def from_cache(self, cache: "Cache") -> LanguageModel:
         from copy import deepcopy
         from types import MethodType
-        from edsl import Cache
+        from ..data import Cache
 
         new_instance = deepcopy(self)
         print("Cache entries", len(cache))

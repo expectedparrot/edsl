@@ -1,5 +1,5 @@
 import pytest
-from edsl.language_models.PriceManager import PriceManager
+from edsl.language_models.price_manager import PriceManager
 
 
 class MockPriceManager(PriceManager):

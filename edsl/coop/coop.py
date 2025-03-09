@@ -1098,9 +1098,9 @@ class Coop(CoopFunctionsMixin):
         Fetch model prices from Coop. If the request fails, return an empty dict.
         """
 
-        from edsl.coop.PriceFetcher import PriceFetcher
+        from .price_fetcher import PriceFetcher
 
-        from edsl.config import CONFIG
+        from ..config import CONFIG
 
         if CONFIG.get("EDSL_FETCH_TOKEN_PRICES") == "True":
             price_fetcher = PriceFetcher()
@@ -1225,7 +1225,7 @@ class Coop(CoopFunctionsMixin):
         """
         import secrets
         from dotenv import load_dotenv
-        from edsl.utilities.utilities import write_api_key_to_env
+        from ..utilities.utilities import write_api_key_to_env
 
         edsl_auth_token = secrets.token_urlsafe(16)
 
@@ -1263,9 +1263,9 @@ def main():
         ScenarioList,
         Survey,
     )
-    from edsl.coop import Coop
-    from edsl.data.CacheEntry import CacheEntry
-    from edsl.jobs import Jobs
+    from ..coop import Coop
+    from ..data import CacheEntry
+    from ..jobs import Jobs
 
     # init & basics
     API_KEY = "b"
