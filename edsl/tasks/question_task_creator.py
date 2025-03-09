@@ -4,7 +4,7 @@ from collections import UserList, UserDict
 
 from ..exceptions.jobs import InterviewErrorPriorTaskCanceled
 from ..tokens import TokenUsage
-from ..jobs.Answers import Answers
+from ..data_transfer_models import Answers
 
 from .task_status_enum import TaskStatus, TaskStatusDescriptor
 from .task_status_log import TaskStatusLog
