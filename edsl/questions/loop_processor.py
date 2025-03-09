@@ -1,8 +1,7 @@
 from typing import List, Any, Dict, Union
 from jinja2 import Environment, Undefined
-from edsl.questions.QuestionBase import QuestionBase
-from edsl import ScenarioList
-
+from .question_base import QuestionBase
+from ..scenarios import ScenarioList
 
 class LoopProcessor:
     def __init__(self, question: QuestionBase):

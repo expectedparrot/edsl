@@ -67,7 +67,7 @@ class QuestionLinearScale(QuestionMultipleChoice):
 
 def main():
     """Create an example of a linear scale question and demonstrate its functionality."""
-    from edsl.questions.derived.QuestionLinearScale import QuestionLinearScale
+    from edsl.questions import QuestionLinearScale
 
     q = QuestionLinearScale.example()
     q.question_text

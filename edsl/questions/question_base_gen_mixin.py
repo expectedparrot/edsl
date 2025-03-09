@@ -4,9 +4,8 @@ import itertools
 from typing import Optional, List, Callable, Type, TYPE_CHECKING, Union
 
 if TYPE_CHECKING:
-    from edsl.questions.QuestionBase import QuestionBase
-    from edsl.scenarios import ScenarioList
-
+    from .question_base import QuestionBase
+    from ..scenarios import ScenarioList
 
 class QuestionBaseGenMixin:
     """Mixin for QuestionBase.
@@ -187,7 +186,7 @@ class QuestionBaseGenMixin:
     def apply_function(
         self, func: Callable, exclude_components: Optional[List[str]] = None
     ) -> QuestionBase:
-        from edsl.questions.QuestionBase import QuestionBase
+        from .question_base import QuestionBase
         d = self._apply_function_dict(func, exclude_components)
         return QuestionBase.from_dict(d)
 
