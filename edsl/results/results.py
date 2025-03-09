@@ -28,7 +28,7 @@ if TYPE_CHECKING:
     from ..language_models import Model
     from ..scenarios import ScenarioList
     from ..results import Result
-    from ..jobs.tasks import TaskHistory
+    from ..tasks import TaskHistory
     from ..language_models import ModelList
     from simpleeval import EvalWithCompoundTypes
 
@@ -158,7 +158,7 @@ class Results(UserList, ResultsOperationsMixin, Base):
         self._fetching = False
         super().__init__(data)
         from ..data.Cache import Cache
-        from ..jobs.tasks import TaskHistory
+        from ..tasks import TaskHistory
 
         self.survey = survey
         self.created_columns = created_columns or []
@@ -581,9 +581,9 @@ class Results(UserList, ResultsOperationsMixin, Base):
         True
         """
         from ..surveys import Survey
-        from ..data.Cache import Cache
+        from ..data import Cache
         from ..results import Result
-        from ..jobs.tasks import TaskHistory
+        from ..tasks import TaskHistory
         from ..agents import Agent
 
         survey = Survey.from_dict(data["survey"])

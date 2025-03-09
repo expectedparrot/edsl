@@ -59,7 +59,7 @@ class InterviewTaskManager:
         model_buckets,
     ) -> asyncio.Task:
         """Create a single question task with its dependencies."""
-        from edsl.jobs.tasks import QuestionTaskCreator
+        from ..tasks import QuestionTaskCreator
 
         task_creator = QuestionTaskCreator(
             question=question,

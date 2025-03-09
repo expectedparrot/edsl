@@ -2,16 +2,16 @@ import asyncio
 from typing import Callable, Union, List, TYPE_CHECKING
 from collections import UserList, UserDict
 
-from edsl.exceptions.jobs import InterviewErrorPriorTaskCanceled
-from ..jobs.tokens import TokenUsage
+from ..exceptions.jobs import InterviewErrorPriorTaskCanceled
+from ..tokens import TokenUsage
 from ..jobs.Answers import Answers
 
 from .task_status_enum import TaskStatus, TaskStatusDescriptor
 from .TaskStatusLog import TaskStatusLog
 
 if TYPE_CHECKING:
-    from ..questions.QuestionBase import QuestionBase
-    from ..jobs.buckets import ModelBuckets
+    from ..questions import QuestionBase
+    from ..buckets import ModelBuckets
 
 
 class TokensUsed(UserDict):

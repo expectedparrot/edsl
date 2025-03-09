@@ -6,13 +6,14 @@ from contextlib import asynccontextmanager
 from edsl.data_transfer_models import EDSLResultObjectInput
 
 from ..results import Result
-from .interviews import Interview
+from ..interviews import Interview
 from edsl.config import Config
 config = Config()
 
 if TYPE_CHECKING:
-    from edsl.jobs.Jobs import Jobs
+    from ..jobs import Jobs
 
+from .data_structures import RunConfig
 
 @dataclass
 class InterviewResult:
@@ -21,7 +22,6 @@ class InterviewResult:
     order: int
 
 
-from edsl.jobs.data_structures import RunConfig
 
 
 class AsyncInterviewRunner:

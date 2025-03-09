@@ -1,6 +1,6 @@
 from collections import UserDict
 
-from edsl.jobs.interviews.InterviewExceptionEntry import InterviewExceptionEntry
+from .InterviewExceptionEntry import InterviewExceptionEntry
 
 
 class InterviewExceptionCollection(UserDict):

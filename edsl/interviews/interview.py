@@ -7,10 +7,10 @@ import copy
 from dataclasses import dataclass
 
 # from jobs module 
-from ..data_structures import Answers
+from ..jobs.data_structures import Answers
 from ..buckets.ModelBuckets import ModelBuckets
-from ..fetch_invigilator import FetchInvigilator
-from ...utilities.utilities import dict_hash
+from ..jobs.fetch_invigilator import FetchInvigilator
+from ..utilities.utilities import dict_hash
 
 # from interviews module 
 from .AnswerQuestionFunctionConstructor import (
@@ -24,16 +24,16 @@ from .InterviewExceptionCollection import (
 )
 from .InterviewExceptionEntry import InterviewExceptionEntry
 
-from edsl.surveys import Survey
+from ..surveys import Survey
 
 if TYPE_CHECKING:
-    from ...agents import Agent
-    from ...surveys import Survey
-    from ...scenarios import Scenario
-    from ...data.Cache import Cache
-    from ...language_models.LanguageModel import LanguageModel
-    from ..tokens.InterviewTokenUsage import InterviewTokenUsage
-    from ...invigialtors import InvigilatorBase
+    from ..agents import Agent
+    from ..surveys import Survey
+    from ..scenarios import Scenario
+    from ..data.Cache import Cache
+    from ..language_models import LanguageModel
+    from ..tokens import InterviewTokenUsage
+    from ..invigilators import InvigilatorBase
     from edsl.language_models.key_management.KeyLookup import KeyLookup
 
 

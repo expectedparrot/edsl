@@ -4,13 +4,12 @@ from pathlib import Path
 import time
 from functools import lru_cache
 
+from jinja2 import Environment, meta, TemplateSyntaxError, Undefined
 
-from edsl.exceptions.prompts import TemplateRenderError
-from edsl.base import PersistenceMixin, RepresentationMixin
+from ..exceptions.prompts import TemplateRenderError
+from ..base import PersistenceMixin, RepresentationMixin
 
 MAX_NESTING = 100
-
-from jinja2 import Environment, meta, TemplateSyntaxError, Undefined
 
 class PreserveUndefined(Undefined):
     def __str__(self):

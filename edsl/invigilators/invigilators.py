@@ -4,32 +4,31 @@ import asyncio
 from typing import Coroutine, Dict, Any, Optional, TYPE_CHECKING
 from typing import Dict, Any, Optional, TYPE_CHECKING, Literal
 
-from edsl.utilities.decorators import sync_wrapper
-from edsl.exceptions.questions import QuestionAnswerValidationError
-from edsl.data_transfer_models import AgentResponseDict, EDSLResultObjectInput
-
-if TYPE_CHECKING:
-    from edsl.prompts.Prompt import Prompt
-    from edsl.scenarios import Scenario
-    from edsl.surveys import Survey
-
-from edsl.utilities.decorators import jupyter_nb_handler
-from edsl.data_transfer_models import AgentResponseDict
-from edsl.data_transfer_models import EDSLResultObjectInput
-
-if TYPE_CHECKING:
-    from edsl.prompts.Prompt import Prompt
-    from edsl.data.Cache import Cache
-    from edsl.questions.QuestionBase import QuestionBase
-    from edsl.scenarios import Scenario
-    from edsl.surveys.memory import MemoryPlan
-    from edsl.language_models.LanguageModel import LanguageModel
-    from edsl.surveys import Survey
-    from edsl.agents import Agent
-    from edsl.language_models.key_management.KeyLookup import KeyLookup
+from ..utilities.decorators import sync_wrapper
+from ..exceptions.questions import QuestionAnswerValidationError
+from ..data_transfer_models import AgentResponseDict, EDSLResultObjectInput
+from ..utilities.decorators import jupyter_nb_handler
+from ..data_transfer_models import AgentResponseDict
+from ..data_transfer_models import EDSLResultObjectInput
 
 from .PromptConstructor import PromptConstructor
 from .prompt_helpers import PromptPlan
+
+if TYPE_CHECKING:
+    from ..prompts import Prompt
+    from ..scenarios import Scenario
+    from ..surveys import Survey
+    from ..prompts import Prompt
+    from ..data import Cache
+    from ..questions import QuestionBase
+    from ..scenarios import Scenario
+    from ..surveys.memory import MemoryPlan
+    from ..language_models import LanguageModel
+    from ..surveys import Survey
+    from ..agents import Agent
+    from ..language_models.key_management.KeyLookup import KeyLookup
+
+
 
 PromptType = Literal["user_prompt", "system_prompt", "encoded_image", "files_list"]
 
@@ -124,9 +123,9 @@ class InvigilatorBase(ABC):
         from ..questions import QuestionBase
         from ..scenarios import Scenario
         from ..surveys.memory import MemoryPlan
-        from ..language_models.LanguageModel import LanguageModel
+        from ..language_models import LanguageModel
         from ..surveys import Survey
-        from ..data.Cache import Cache
+        from ..data import Cache
 
         attributes_to_classes = {
             "agent": Agent,

@@ -1,13 +1,10 @@
 import pytest
-from edsl.jobs.tasks.task_status_enum import TaskStatus
-from edsl.jobs import Jobs
-from edsl.jobs.interviews import Interview
 from typing import List
 
-# Import the TaskHistory class
-# Assuming the module is named task_history.py
-from edsl.jobs.tasks.task_history import TaskHistory
-
+from edsl.tasks import TaskStatus
+from edsl.jobs import Jobs
+from edsl.interviews import Interview
+from edsl.tasks import TaskHistory
 
 @pytest.fixture
 def sample_task_history():

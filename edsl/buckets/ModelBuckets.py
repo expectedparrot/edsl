@@ -48,7 +48,7 @@ class ModelBuckets:
     @classmethod
     def infinity_bucket(cls, model_name: str = "not_specified") -> "ModelBuckets":
         """Create a bucket with infinite capacity and refill rate."""
-        from edsl.jobs.buckets.TokenBucket import TokenBucket
+        from .TokenBucket import TokenBucket
 
         return cls(
             requests_bucket=TokenBucket(

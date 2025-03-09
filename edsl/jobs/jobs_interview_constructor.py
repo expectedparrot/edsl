@@ -2,9 +2,9 @@ from typing import Generator, TYPE_CHECKING
 from itertools import product
 
 if TYPE_CHECKING:
-    from .interviews import Interview
+    from ..interviews import Interview
     from .jobs import Jobs
-    from ..data.Cache import Cache
+    from ..data import Cache
 
 class InterviewsConstructor:
     def __init__(self, jobs: "Jobs", cache: "Cache"):
@@ -20,7 +20,7 @@ class InterviewsConstructor:
         with us filling in defaults.
 
         """
-        from .interviews import Interview
+        from ..interviews import Interview
 
         agent_index = {
             hash(agent): index for index, agent in enumerate(self.jobs.agents)

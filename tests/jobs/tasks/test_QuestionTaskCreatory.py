@@ -2,10 +2,10 @@ import asyncio
 import unittest
 from unittest.mock import AsyncMock, MagicMock, Mock
 
-from edsl.jobs.tasks import QuestionTaskCreator
-from edsl.jobs.buckets.ModelBuckets import ModelBuckets
-from edsl.jobs.tasks.task_status_enum import TaskStatus
-from edsl.questions.QuestionBase import QuestionBase
+from edsl.tasks import QuestionTaskCreator
+from edsl.buckets.ModelBuckets import ModelBuckets
+from edsl.tasks import TaskStatus
+from edsl.questions import QuestionBase
 from edsl.exceptions.jobs import InterviewErrorPriorTaskCanceled
 
 from collections import namedtuple

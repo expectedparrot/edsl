@@ -9,7 +9,7 @@ from typing import Dict, Optional, Union
 from uuid import UUID, uuid4
 
 from ..data.Cache import Cache
-#from edsl import set_session_cache, unset_session_cache
+from edsl import set_session_cache, unset_session_cache
 from ..utilities.utilities import dict_hash
 from ..study.ObjectEntry import ObjectEntry
 from ..study.ProofOfWork import ProofOfWork

@@ -1,4 +1,5 @@
 import pytest
+
 from edsl.surveys import Survey
 from edsl.questions.QuestionFreeText import QuestionFreeText
 from edsl.language_models.utilities import create_language_model
@@ -81,7 +82,7 @@ def test_task_management(create_survey):
     cache = Cache()
     results = jobs.run(cache=cache)
 
-    from edsl.jobs.interviews import InterviewStatusDictionary
+    from edsl.interviews import InterviewStatusDictionary
 
     interview_status = jobs.interviews()[0].interview_status
     assert isinstance(interview_status, InterviewStatusDictionary)
