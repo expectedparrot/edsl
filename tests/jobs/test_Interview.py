@@ -1,10 +1,10 @@
 import pytest
 
 from edsl.surveys import Survey
-from edsl.questions.QuestionFreeText import QuestionFreeText
+from edsl.questions import QuestionFreeText
 from edsl.language_models.utilities import create_language_model
 from edsl.scenarios import ScenarioList
-from edsl.data.Cache import Cache
+from edsl.data import Cache
 
 
 @pytest.fixture

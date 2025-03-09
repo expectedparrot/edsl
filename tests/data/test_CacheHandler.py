@@ -2,9 +2,7 @@ import os
 import shutil
 import sqlite3
 import pytest
-from edsl.data.CacheHandler import CacheHandler
-from edsl.data.CacheEntry import CacheEntry
-from edsl.data.Cache import Cache
+from edsl.data import CacheHandler, CacheEntry, Cache
 
 
 @pytest.fixture

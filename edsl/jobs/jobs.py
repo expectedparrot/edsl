@@ -557,9 +557,9 @@ class Jobs(Base):
     async def _execute_with_remote_cache(self, run_job_async: bool) -> Results:
         use_remote_cache = self.use_remote_cache()
 
-        from edsl.coop.coop import Coop
-        from edsl.jobs.runners.JobsRunnerAsyncio import JobsRunnerAsyncio
-        from edsl.data.Cache import Cache
+        from ..coop import Coop
+        from .runners.JobsRunnerAsyncio import JobsRunnerAsyncio
+        from ..data import Cache
 
         assert isinstance(self.run_config.environment.cache, Cache)
 
@@ -606,12 +606,12 @@ class Jobs(Base):
             self.run_config.environment.cache is None
             or self.run_config.environment.cache is True
         ):
-            from edsl.data.CacheHandler import CacheHandler
+            from ..data import CacheHandler
 
             self.run_config.environment.cache = CacheHandler().get_cache()
 
         if self.run_config.environment.cache is False:
-            from edsl.data.Cache import Cache
+            from .. import Cache
 
             self.run_config.environment.cache = Cache(immediate_write=False)
 

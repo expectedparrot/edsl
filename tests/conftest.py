@@ -10,7 +10,7 @@ import signal
 from typing import Any
 
 from edsl.config import CONFIG
-from edsl.data.SQLiteDict import SQLiteDict
+from edsl.data.sql_dict import SQLiteDict
 from edsl.enums import InferenceServiceType
 from edsl.language_models import LanguageModel
 

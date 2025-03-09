@@ -1,4 +1,4 @@
-from edsl.data.CacheEntry import CacheEntry
+from edsl.data import CacheEntry
 
 
 def test_CacheEntry_equality():

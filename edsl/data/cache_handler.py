@@ -62,17 +62,17 @@ class CacheHandler:
         """
         Generate a Cache object.
         """
-        from edsl.data.Cache import Cache
+        from .cache import Cache
 
         if self.test:
             return Cache(data={})
 
-        from edsl.config import CONFIG
+        from ..config import CONFIG
 
         if hasattr(CONFIG, "EDSL_SESSION_CACHE"):
             return CONFIG.EDSL_SESSION_CACHE
 
-        from edsl.data.SQLiteDict import SQLiteDict
+        from .sql_dict import SQLiteDict
 
         cache = Cache(data=SQLiteDict(self.CACHE_PATH))
         return cache
@@ -122,7 +122,7 @@ class CacheHandler:
         entry_dict["user_prompt"] = entry_dict.pop("prompt")
         parameters = entry_dict["parameters"]
         entry_dict["parameters"] = ast.literal_eval(parameters)
-        from edsl.data.CacheEntry import CacheEntry
+        from .cache_entry import CacheEntry
 
         entry = CacheEntry(**entry_dict)
         return entry

@@ -37,7 +37,7 @@ class TestLanguageModel(unittest.TestCase):
         self.assertEqual(m.rpm, 45)
 
     def test_execute_model_call(self):
-        from edsl.data.Cache import Cache
+        from edsl.data import Cache
 
         example_cache = Cache()
 

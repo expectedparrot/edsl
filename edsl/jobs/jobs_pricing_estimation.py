@@ -11,7 +11,7 @@ if TYPE_CHECKING:
     from .interviews.Interview import Interview
 
 from .fetch_invigilator import FetchInvigilator
-from edsl.data.CacheEntry import CacheEntry
+from ..data import CacheEntry
 from ..dataset import Dataset
 
 logger = logging.getLogger(__name__)

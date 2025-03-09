@@ -678,14 +678,14 @@ class Agent(Base):
         key_lookup: Optional["KeyLookup"] = None,
     ) -> "InvigilatorBase":
         """Create an Invigilator."""
-        from edsl.language_models.model import Model
-        from edsl.scenarios import Scenario
+        from ..language_models import Model
+        from ..scenarios import Scenario
 
         model = model or Model()
         scenario = scenario or Scenario()
 
         if cache is None:
-            from edsl.data.Cache import Cache
+            from ..data import Cache
 
             cache = Cache()
 

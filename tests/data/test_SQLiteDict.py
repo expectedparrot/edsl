@@ -1,6 +1,6 @@
 import pytest
-from edsl.data.CacheEntry import CacheEntry
-from edsl.data.SQLiteDict import main
+from edsl.data import CacheEntry
+from edsl.data.sql_dict import main
 
 
 @pytest.mark.linux_only

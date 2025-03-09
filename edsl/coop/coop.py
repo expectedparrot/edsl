@@ -8,7 +8,7 @@ from uuid import UUID
 import edsl
 
 from ..config import CONFIG
-from ..data.CacheEntry import CacheEntry
+from ..data import CacheEntry
 #from edsl.jobs.Jobs import Jobs
 #from edsl.surveys.Survey import Survey
 
