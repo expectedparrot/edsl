@@ -1,2 +1,2 @@
-from edsl.agents.agent import Agent
-from edsl.agents.agent_list import AgentList
+from .agent import Agent
+from .agent_list import AgentList

@@ -5,7 +5,7 @@ import hashlib
 from typing import Optional
 from uuid import uuid4
 
-from edsl.base import RepresentationMixin
+from ..base import RepresentationMixin
 
 class CacheEntry(RepresentationMixin):
     """
@@ -204,7 +204,7 @@ class CacheEntry(RepresentationMixin):
 
 
 def main():
-    from edsl.data.CacheEntry import CacheEntry
+    from .cache_entry import CacheEntry
 
     # an example of how a cache entry looks
     cache_entry = CacheEntry.example()

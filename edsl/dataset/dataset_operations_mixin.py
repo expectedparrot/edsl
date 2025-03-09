@@ -37,7 +37,7 @@ class DataOperationsBase:
         :param data_type: The data type to filter by.
         :param remove_prefix: Whether to remove the prefix from the column names.
 
-        >>> from edsl.results.Dataset import Dataset
+        >>> from ..dataset import Dataset
         >>> d = Dataset([{'a.b':[1,2,3,4]}])
         >>> d.relevant_columns()
         ['a.b']
@@ -89,7 +89,7 @@ class DataOperationsBase:
     def num_observations(self):
         """Return the number of observations in the dataset.
 
-        >>> from edsl.results.Results import Results
+        >>> from edsl.results import Results
         >>> Results.example().num_observations()
         4
         """
@@ -484,11 +484,11 @@ class DataOperationsBase:
         >>> r.select('how_feeling').to_list()
         ['OK', 'Great', 'Terrible', 'OK']
 
-        >>> from edsl.results.Dataset import Dataset
+        >>> from edsl.dataset import Dataset
         >>> Dataset([{'a.b': [[1, 9], 2, 3, 4]}]).select('a.b').to_list(flatten = True)
         [1, 9, 2, 3, 4]
 
-        >>> from edsl.results.Dataset import Dataset
+        >>> from edsl.dataset import Dataset
         >>> Dataset([{'a.b': [[1, 9], 2, 3, 4]}, {'c': [6, 2, 3, 4]}]).select('a.b', 'c').to_list(flatten = True)
         Traceback (most recent call last):
         ...
@@ -867,7 +867,7 @@ class DataOperationsBase:
         """
         Flatten a field containing a list of dictionaries into separate fields.
 
-        >>> from edsl.results.Dataset import Dataset
+        >>> from edsl.dataset import Dataset
         >>> Dataset([{'a': [{'a': 1, 'b': 2}]}, {'c': [5] }]).flatten('a')
         Dataset([{'c': [5]}, {'a.a': [1]}, {'a.b': [2]}])
 
@@ -883,7 +883,7 @@ class DataOperationsBase:
         Returns:
             A new dataset with the flattened fields
         """
-        from edsl.results.Dataset import Dataset
+        from ..dataset import Dataset
 
         # Ensure the dataset isn't empty
         if not self.data:
@@ -992,7 +992,7 @@ class DataOperationsBase:
             >>> d.unpack_list('data', new_names=['first', 'second', 'third'])
             Dataset([{'data': [[1, 2, 3], [4, 5, 6]]}, {'first': [1, 4]}, {'second': [2, 5]}, {'third': [3, 6]}])
         """
-        from edsl.results.Dataset import Dataset
+        from .dataset import Dataset
 
         # Create a copy of the dataset
         result = Dataset(self.data.copy())
@@ -1050,7 +1050,7 @@ class DataOperationsBase:
             KeyError: If the field_name doesn't exist in the dataset.
             
         Examples:
-            >>> from edsl.results.Dataset import Dataset
+            >>> from .dataset import Dataset
             >>> d = Dataset([{'a': [1, 2, 3]}, {'b': [4, 5, 6]}])
             >>> d.drop('a')
             Dataset([{'b': [4, 5, 6]}])
@@ -1060,7 +1060,7 @@ class DataOperationsBase:
             ...
             KeyError: "Field 'c' not found in dataset"
         """
-        from edsl.results.Dataset import Dataset
+        from .dataset import Dataset
         
         # Check if field exists in the dataset
         if field_name not in self.relevant_columns():
@@ -1090,14 +1090,14 @@ class DataOperationsBase:
             >>> r.select('how_feeling', 'how_feeling_yesterday').remove_prefix().relevant_columns()
             ['how_feeling', 'how_feeling_yesterday']
             
-            >>> from edsl.results.Dataset import Dataset
+            >>> from edsl.dataset import Dataset
             >>> d = Dataset([{'a.x': [1, 2, 3]}, {'b.x': [4, 5, 6]}])
             >>> d.remove_prefix()
             Traceback (most recent call last):
             ...
             ValueError: Removing prefixes would result in duplicate column names: ['x']
         """
-        from edsl.results.Dataset import Dataset
+        from .dataset import Dataset
         
         # Get all column names
         columns = self.relevant_columns()

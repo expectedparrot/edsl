@@ -3,7 +3,7 @@ import asyncio
 import time
 from threading import RLock
 
-from edsl.jobs.decorators import synchronized_class
+from ..jobs.decorators import synchronized_class
 
 
 @synchronized_class
@@ -80,7 +80,7 @@ class TokenBucket:
         """
         if remote_url is not None:
             # Import here to avoid circular imports
-            from edsl.jobs.buckets.TokenBucketClient import TokenBucketClient
+            from ..buckets import TokenBucketClient
 
             return TokenBucketClient(
                 bucket_name=bucket_name,

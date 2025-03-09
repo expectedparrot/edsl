@@ -4,35 +4,31 @@
 from __future__ import annotations
 import csv
 import sys
+import logging
+
 from collections import UserList
 from collections.abc import Iterable
-
 from typing import Any, List, Optional, Union, TYPE_CHECKING
 
 from simpleeval import EvalWithCompoundTypes, NameNotDefined
 
-from edsl.base import Base
-from edsl.utilities.remove_edsl_version import remove_edsl_version
-from edsl.exceptions.agents import AgentListError
-from edsl.utilities.is_notebook import is_notebook
-#from edsl.results.ResultsExportMixin import ResultsExportMixin
-import logging
-from edsl.agents import Agent
-
-
+from ..base import Base
+from ..utilities.remove_edsl_version import remove_edsl_version
+from ..exceptions.agents import AgentListError
+from ..utilities.is_notebook import is_notebook
 from ..dataset.dataset_operations_mixin import AgentListOperationsMixin
+
+from .agent import Agent
 
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
-    from edsl.scenarios import ScenarioList
-    from edsl.agents.Agent import Agent
+    from ..scenarios import ScenarioList
+    from ..agents import Agent
     from pandas import DataFrame
-
 
 def is_iterable(obj):
     return isinstance(obj, Iterable)
-
 
 class EmptyAgentList:
     def __repr__(self):
@@ -326,7 +322,7 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         >>> hash(al)
         1681154913465662422
         """
-        from edsl.utilities.utilities import dict_hash
+        from ..utilities.utilities import dict_hash
 
         return dict_hash(self.to_dict(add_edsl_version=False, sorted=True))
 
@@ -402,8 +398,8 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         self, include_agent_name: bool = False, include_instruction: bool = False
     ) -> ScenarioList:
         """Converts the agent to a scenario list."""
-        from edsl.scenarios.ScenarioList import ScenarioList
-        from edsl.scenarios.Scenario import Scenario
+        from ..scenarios import ScenarioList
+        from ..scenarios import Scenario
 
         # raise NotImplementedError("This method is not implemented yet.")
 
@@ -477,13 +473,14 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         """Deserialize the dictionary back to an AgentList object.
 
         :param: data: A dictionary representing an AgentList.
+        
         >>> from edsl.agents import Agent
         >>> al = AgentList([Agent.example(), Agent.example()])
         >>> al2 = AgentList.from_dict(al.to_dict())
         >>> al2 == al
         True
         """
-        from edsl.agents import Agent
+        from .agent import Agent
 
         agents = [Agent.from_dict(agent_dict) for agent_dict in data["agent_list"]]
         return cls(agents)
@@ -495,7 +492,7 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
 
         :param randomize: If True, uses Agent's randomize method.
         """
-        from edsl.agents import Agent
+        from .agent import Agent
 
         return cls([Agent.example(randomize), Agent.example(randomize)])
 
@@ -509,7 +506,7 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         >>> AgentList.from_list('age', [22, 23])
         AgentList([Agent(traits = {'age': 22}), Agent(traits = {'age': 23})])
         """
-        from edsl.agents import Agent
+        from .agent import Agent
 
         return AgentList([Agent({trait_name: value}) for value in values])
 

@@ -385,8 +385,12 @@ class Jobs(Base):
         ).create_interviews()
 
     def show_flow(self, filename: Optional[str] = None) -> None:
-        """Show the flow of the survey."""
-        from edsl.surveys.SurveyFlowVisualization import SurveyFlowVisualization
+        """Show the flow of the survey.
+        
+        >>> from edsl.jobs import Jobs
+        >>> Jobs.example().show_flow()
+        """
+        from ..surveys.survey_flow_visualization import SurveyFlowVisualization
         if self.scenarios: 
             scenario = self.scenarios[0]
         else:
@@ -488,7 +492,7 @@ class Jobs(Base):
             return False
         if not self.run_config.parameters.disable_remote_cache:
             try:
-                from edsl.coop.coop import Coop
+                from ..coop import Coop
 
                 user_edsl_settings = Coop().edsl_settings
                 return user_edsl_settings.get("remote_caching", False)
