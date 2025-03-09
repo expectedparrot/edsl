@@ -832,7 +832,7 @@ class DataOperationsBase:
         if top_n is not None:
             sorted_tally = dict(list(sorted_tally.items())[:top_n])
 
-        from edsl.results.Dataset import Dataset
+        from ..dataset import Dataset
 
         if output == "dict":
             # why did I do this?

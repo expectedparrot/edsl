@@ -236,7 +236,7 @@ class JobsPrompts:
     def _extract_prompt_details(invigilator: FetchInvigilator) -> dict:
         """Extracts the prompt details from the invigilator.
         
-        >>> from edsl.agents.Invigilator import InvigilatorAI
+        >>> from edsl.invigilators import InvigilatorAI
         >>> invigilator = InvigilatorAI.example()
         >>> JobsPrompts._extract_prompt_details(invigilator)
         {'user_prompt': ...

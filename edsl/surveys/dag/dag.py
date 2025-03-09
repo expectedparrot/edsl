@@ -65,17 +65,16 @@ class DAG(UserDict):
     def __add__(self, other_dag: 'DAG') -> 'DAG':
         """Combine two DAGs.
         
-        >>> from edsl.surveys import DAG
-        >>> dag1 = DAG({'a': ['b'], 'b': ['c']})
-        >>> dag2 = DAG({'d': ['e'], 'e': ['f']})
-        >>> dag1 + dag2
-        DAG({'a': {'b'}, 'b': {'c'}, 'd': {'e'}, 'e': {'f'}})
-        
+        >>> from edsl.surveys.dag import DAG
+        >>> dag1 = DAG({'a': {'b'}, 'b': {'c'}})
+        >>> dag2 = DAG({'d': {'e'}, 'e': {'f'}})
+        >>> dag1 + dag2 ==  {'d': {'e'}, 'a': {'b'}, 'e': {'f'}, 'b': {'c'}}
+        True
         """
         d = {}
         combined_keys = set(self.keys()).union(set(other_dag.keys()))
         for key in combined_keys:
-            d[key] = self.get(key, set({})).union(other_dag.get(key, set({})))
+            d[key] = set(self.get(key, set({}))).union(set(other_dag.get(key, set({}))))
         return DAG(d)
 
     def remove_node(self, node: int) -> None:

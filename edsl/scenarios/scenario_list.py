@@ -1452,7 +1452,7 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         >>> s3 == ScenarioList([Scenario({'age': 30, 'location': 'New York', 'name': 'Alice'}), Scenario({'age': 25, 'location': None, 'name': 'Bob'})])
         True
         """
-        from edsl.scenarios.scenario_join import ScenarioJoin
+        from .scenario_join import ScenarioJoin
 
         sj = ScenarioJoin(self, other)
         return sj.left_join(by)
@@ -1489,14 +1489,14 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
 
         Example:
         >>> from edsl import Survey
-        >>> from edsl.jobs.Jobs import Jobs
+        >>> from edsl.jobs import Jobs
         >>> from edsl import ScenarioList
         >>> isinstance(ScenarioList.example().to(Survey.example()), Jobs)
         True
         """
-        from edsl.surveys import Survey
-        from edsl.questions.QuestionBase import QuestionBase
-        from edsl.jobs.Jobs import Jobs
+        from ..surveys import Survey
+        from ..questions import QuestionBase
+        from ..jobs import Jobs
 
         if isinstance(survey, QuestionBase):
             return Survey([survey]).by(self)
@@ -1513,7 +1513,7 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         ScenarioList([Scenario({'name': 'Alice'}), Scenario({'name': 'Bob'})])
 
         """
-        from edsl.scenarios.Scenario import Scenario
+        from .scenario import Scenario
 
         return cls([Scenario(s) for s in scenario_dicts_list])
 

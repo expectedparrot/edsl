@@ -81,7 +81,7 @@ class Scenario(Base, UserDict):
         >>> s.replicate(2)
         ScenarioList([Scenario({'food': 'wood chips'}), Scenario({'food': 'wood chips'})])
         """
-        from edsl.scenarios.ScenarioList import ScenarioList
+        from .scenario_list import ScenarioList
 
         return ScenarioList([copy.deepcopy(self) for _ in range(n)])
 
@@ -255,7 +255,7 @@ class Scenario(Base, UserDict):
         >>> s.to_dataset()
         Dataset([{'key': ['food']}, {'value': ['wood chips']}])
         """
-        from edsl.results.Dataset import Dataset
+        from ..dataset import Dataset
 
         keys = list(self.keys())
         values = list(self.values())

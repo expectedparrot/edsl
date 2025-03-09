@@ -155,7 +155,7 @@ class JobsComponentConstructor:
         For example, if the user passes in 3 agents,
         and there are 2 existing agents, this will create 6 new agents
         >>> from edsl.jobs import Jobs
-        >>> from edsl.surveys.Survey import Survey
+        >>> from edsl.surveys import Survey
         >>> JobsComponentConstructor(Jobs(survey = Survey.example()))._merge_objects([1,2,3], [4,5,6])
         [5, 6, 7, 6, 7, 8, 7, 8, 9]
         """

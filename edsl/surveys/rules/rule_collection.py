@@ -44,7 +44,7 @@ class RuleCollection(UserList):
 
     def to_dataset(self):
         """Return a Dataset object representation of the RuleCollection object."""
-        from edsl.results.Dataset import Dataset
+        from ...dataset import Dataset
 
         keys = ["current_q", "expression", "next_q", "priority", "before_rule"]
         rule_list = {}

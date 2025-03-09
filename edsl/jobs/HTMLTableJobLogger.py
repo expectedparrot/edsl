@@ -1,14 +1,16 @@
 import re
 import uuid
 from datetime import datetime
-from IPython.display import display, HTML
-from edsl.jobs.JobsRemoteInferenceLogger import JobLogger
-from edsl.jobs.jobs_status_enums import JobsStatus
+
+from .jobs_remote_inference_logger import JobLogger
+from .jobs_status_enums import JobsStatus
 
 
 class HTMLTableJobLogger(JobLogger):
     def __init__(self, verbose=True, theme="auto", **kwargs):
         super().__init__(verbose=verbose)
+        from IPython.display import display, HTML
+
         self.display_handle = display(HTML(""), display_id=True) if verbose else None
         #self.display_handle = display(HTML(""), display_id=True)
         self.current_message = None
@@ -22,6 +24,8 @@ class HTMLTableJobLogger(JobLogger):
         self._init_css()
 
     def _init_css(self):
+        from IPython.display import display, HTML
+
         """Initialize the CSS styles with enhanced theme support"""
         if not self.verbose:
             return None

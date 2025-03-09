@@ -110,8 +110,8 @@ class Jobs(Base):
         :param scenarios: a list of scenarios
 
 
-        >>> from edsl.surveys.Survey import Survey
-        >>> from edsl.questions.QuestionFreeText import QuestionFreeText
+        >>> from edsl.surveys import Survey
+        >>> from edsl.questions import QuestionFreeText
         >>> q = QuestionFreeText(question_name="name", question_text="What is your name?")
         >>> s = Survey(questions=[q])
         >>> j = Jobs(survey = s)
@@ -276,8 +276,8 @@ class Jobs(Base):
 
         This 'by' is intended to create a fluent interface.
 
-        >>> from edsl.surveys.Survey import Survey
-        >>> from edsl.questions.QuestionFreeText import QuestionFreeText
+        >>> from edsl.surveys import Survey
+        >>> from edsl.questions import QuestionFreeText
         >>> q = QuestionFreeText(question_name="name", question_text="What is your name?")
         >>> j = Jobs(survey = Survey(questions=[q]))
         >>> j

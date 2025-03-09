@@ -17,10 +17,10 @@ class CheckSurveyScenarioCompatibility:
     def check(self, strict: bool = False, warn: bool = False) -> None:
         """Check if the parameters in the survey and scenarios are consistent.
 
-        >>> from edsl.jobs.Jobs import Jobs
-        >>> from edsl.questions.QuestionFreeText import QuestionFreeText
-        >>> from edsl.surveys.Survey import Survey
-        >>> from edsl.scenarios.Scenario import Scenario
+        >>> from edsl.jobs import Jobs
+        >>> from edsl.questions import QuestionFreeText
+        >>> from edsl.surveys import Survey
+        >>> from edsl.scenarios import Scenario
         >>> q = QuestionFreeText(question_text = "{{poo}}", question_name = "ugly_question")
         >>> j = Jobs(survey = Survey(questions=[q]))
         >>> cs = CheckSurveyScenarioCompatibility(j.survey, j.scenarios)
@@ -41,7 +41,7 @@ class CheckSurveyScenarioCompatibility:
 
         >>> q = QuestionFreeText(question_text = "Hello", question_name = "ugly_question")
         >>> s = Scenario({'ugly_question': "B"})
-        >>> from edsl.scenarios.ScenarioList import ScenarioList
+        >>> from edsl.scenarios import ScenarioList
         >>> cs = CheckSurveyScenarioCompatibility(Survey(questions=[q]), ScenarioList([s]))
         >>> cs.check()
         Traceback (most recent call last):
