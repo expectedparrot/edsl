@@ -9,14 +9,12 @@ import edsl
 
 from ..config import CONFIG
 from ..data import CacheEntry
-#from edsl.jobs.Jobs import Jobs
-#from edsl.surveys.Survey import Survey
 
 if TYPE_CHECKING:
     from ..jobs import Jobs
     from ..surveys import Survey
 
-from edsl.exceptions.coop import (
+from ..exceptions.coop import (
     CoopInvalidURLError,
     CoopNoUUIDError,
     CoopServerResponseError,
@@ -869,7 +867,7 @@ class Coop(CoopFunctionsMixin):
         :param visibility: The visibility of the cache entry.
         :param iterations: The number of times to run each interview.
 
-        >>> from edsl.jobs.Jobs import Jobs
+        >>> from edsl.jobs import Jobs
         >>> job = Jobs.example()
         >>> coop.remote_inference_create(job=job, description="My job")
         {'uuid': '9f8484ee-b407-40e4-9652-4133a7236c9c', 'description': 'My job', 'status': 'queued', 'iterations': None, 'visibility': 'unlisted', 'version': '0.1.38.dev1'}
@@ -986,8 +984,8 @@ class Coop(CoopFunctionsMixin):
         >>> coop.remote_inference_cost(input=job)
         {'credits': 0.77, 'usd': 0.0076950000000000005}
         """
-        from edsl.jobs.Jobs import Jobs
-        from edsl.surveys import Survey
+        from ..jobs import Jobs
+        from ..surveys import Survey
 
         if isinstance(input, Jobs):
             job = input
@@ -1049,16 +1047,10 @@ class Coop(CoopFunctionsMixin):
             "respondent_url": f"{self.url}/respond/{response_json.get('uuid')}",
         }
 
-    ################
-    # DUNDER METHODS
-    ################
     def __repr__(self):
         """Return a string representation of the client."""
         return f"Client(api_key='{self.api_key}', url='{self.url}')"
 
-    ################
-    # EXPERIMENTAL
-    ################
     async def remote_async_execute_model_call(
         self, model_dict: dict, user_prompt: str, system_prompt: str
     ) -> dict:
@@ -1094,8 +1086,7 @@ class Coop(CoopFunctionsMixin):
         return response_json
 
     def fetch_prices(self) -> dict:
-        """
-        Fetch model prices from Coop. If the request fails, return an empty dict.
+        """Fetch model prices from Coop. If the request fails, return an empty dict.
         """
 
         from .price_fetcher import PriceFetcher
@@ -1113,8 +1104,7 @@ class Coop(CoopFunctionsMixin):
             )
 
     def fetch_models(self) -> ServiceToModelsMapping:
-        """
-        Fetch a dict of available models from Coop.
+        """Fetch a dict of available models from Coop.
 
         Each key in the dict is an inference service, and each value is a list of models from that service.
         """

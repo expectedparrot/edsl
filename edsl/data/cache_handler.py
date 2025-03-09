@@ -6,15 +6,14 @@ import shutil
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from edsl.data.Cache import Cache
-    from edsl.data.CacheEntry import CacheEntry
-
+    from .cache import Cache
+    from .cache_entry import CacheEntry
 
 def set_session_cache(cache: "Cache") -> None:
     """
     Set the session cache.
     """
-    from edsl.config import CONFIG
+    from ..config import CONFIG
 
     CONFIG.EDSL_SESSION_CACHE = cache
 
@@ -23,7 +22,7 @@ def unset_session_cache() -> None:
     """
     Unset the session cache.
     """
-    from edsl.config import CONFIG
+    from ..config import CONFIG
 
     if hasattr(CONFIG, "EDSL_SESSION_CACHE"):
         del CONFIG.EDSL_SESSION_CACHE
@@ -36,7 +35,7 @@ class CacheHandler:
 
     @property
     def CACHE_PATH(self):
-        from edsl.config import CONFIG
+        from ..config import CONFIG
 
         return CONFIG.get("EDSL_DATABASE_PATH")
 
@@ -114,9 +113,7 @@ class CacheHandler:
         return old_data
 
     def _parse_old_cache_entry(self, row: tuple, schema) -> CacheEntry:
-        """
-        Parse an old cache entry.
-        """
+        """Parse an old cache entry."""
         entry_dict = {k: row[i] for i, k in enumerate(schema.keys())}
         _ = entry_dict.pop("id")
         entry_dict["user_prompt"] = entry_dict.pop("prompt")
@@ -137,6 +134,7 @@ class CacheHandler:
         """
         Read in a new-style sqlite cache and return a dictionary of dictionaries.
         """
+        import sqlite3
         conn = sqlite3.connect(uri)
         with conn:
             cur = conn.cursor()
@@ -162,7 +160,5 @@ class CacheHandler:
 
 
 if __name__ == "__main__":
-    # ch = CacheHandler()
     import doctest
-
     doctest.testmod()

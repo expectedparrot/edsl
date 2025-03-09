@@ -193,6 +193,10 @@ test-doctests: ## Run doctests
 	make clean-test
 	pytest --doctest-modules edsl/inference_services
 	pytest --doctest-modules edsl/results
+	pytest --doctest-modules edsl/dataset
+	pytest --doctest-modules edsl/buckets
+	pytest --doctest-modules edsl/interviews
+	pytest --doctest-modules edsl/tokens
 	pytest --doctest-modules edsl/jobs/
 	pytest --doctest-modules edsl/surveys
 	pytest --doctest-modules edsl/agents

@@ -23,7 +23,7 @@ from dataclasses import dataclass
 A = TypeVar("A", bound="Agent")
 
 if TYPE_CHECKING:
-    from ..data.Cache import Cache
+    from ..data import Cache
     from ..surveys import Survey
     from ..scenarios import Scenario
     from ..language_models import LanguageModel
@@ -43,9 +43,8 @@ class DirectAnswerMethod(Protocol):
 
 
 from ..base import Base
-from edsl.exceptions.questions import QuestionScenarioRenderError
-
-from edsl.exceptions.agents import (
+from ..exceptions.questions import QuestionScenarioRenderError
+from ..exceptions.agents import (
     AgentErrors,
     AgentCombinationError,
     AgentDirectAnswerFunctionError,
@@ -568,7 +567,7 @@ class Agent(Base):
         An invigator is an object that is responsible for administering a question to an agent and
         recording the responses.
         """
-        from edsl.language_models import Model
+        from ..language_models import Model
         from ..scenarios import Scenario
 
         cache = cache
@@ -651,7 +650,7 @@ class Agent(Base):
         This method returns the invigilator class that should be used to answer a question.
         The invigilator class is determined by the type of question and the type of agent.
         """
-        from edsl.invigilators.invigilators import (
+        from ..invigilators import (
             InvigilatorHuman,
             InvigilatorFunctional,
             InvigilatorAI,
@@ -887,7 +886,7 @@ class Agent(Base):
         >>> hash(Agent.example())
         2067581884874391607
         """
-        from edsl.utilities.utilities import dict_hash
+        from ..utilities.utilities import dict_hash
 
         return dict_hash(self.to_dict(add_edsl_version=False))
 
@@ -1043,8 +1042,8 @@ def main():
 
     WARNING: Consume API credits
     """
-    from edsl.agents import Agent
-    from edsl.questions import QuestionMultipleChoice
+    from ..agents import Agent
+    from ..questions import QuestionMultipleChoice
 
     # a simple agent
     agent = Agent(traits={"age": 10, "hair": "brown", "height": 5.5})

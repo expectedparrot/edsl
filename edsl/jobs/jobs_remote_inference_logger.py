@@ -5,12 +5,13 @@ from abc import ABC, abstractmethod
 from typing import Optional, Union, Literal, TYPE_CHECKING, List, Dict
 from datetime import datetime
 from dataclasses import dataclass
-from edsl.exceptions.coop import CoopServerResponseError
 
-from edsl.jobs.jobs_status_enums import JobsStatus
+from ..exceptions.coop import CoopServerResponseError
+
+from .jobs_status_enums import JobsStatus
 
 if TYPE_CHECKING:
-    from edsl.results.Results import Results
+    from ..results import Results
 
 
 @dataclass

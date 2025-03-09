@@ -9,10 +9,9 @@ import warnings
 from typing import Optional, Union, TYPE_CHECKING
 from edsl.base import Base
 
-from edsl.utilities.remove_edsl_version import remove_edsl_version
-from edsl.exceptions.cache import CacheError
-from edsl.scenarios import Scenario
-from edsl.scenarios import ScenarioList
+from ..utilities.remove_edsl_version import remove_edsl_version
+from ..exceptions.cache import CacheError
+from ..scenarios import Scenario, ScenarioList
 
 
 class Cache(Base):
@@ -265,7 +264,8 @@ class Cache(Base):
 
         :param write_now: Whether to write to the cache immediately (similar to `immediate_write`).
         """
-        from edsl.data.SQLiteDict import SQLiteDict
+        from .sql_dict import SQLiteDict
+        from .cache_entry import CacheEntry
 
         db = SQLiteDict(db_path)
         new_data = {}
@@ -275,19 +275,15 @@ class Cache(Base):
 
     @classmethod
     def from_sqlite_db(cls, db_path: str) -> Cache:
-        """
-        Construct a Cache from a SQLite database.
-        """
+        """Construct a Cache from a SQLite database."""
         from .sql_dict import SQLiteDict
 
         return cls(data=SQLiteDict(db_path))
 
     @classmethod
     def from_local_cache(cls) -> Cache:
-        """
-        Construct a Cache from a local cache file.
-        """
-        from edsl.config import CONFIG
+        """Construct a Cache from a local cache file."""
+        from ..config import CONFIG
 
         CACHE_PATH = CONFIG.get("EDSL_DATABASE_PATH")
         path = CACHE_PATH.replace("sqlite:///", "")
@@ -355,8 +351,7 @@ class Cache(Base):
                 f.write(json.dumps({key: value.to_dict()}) + "\n")
 
     def to_scenario_list(self):
-        from edsl.scenarios.ScenarioList import ScenarioList
-        from edsl.scenarios.Scenario import Scenario
+        from ..scenarios import ScenarioList, Scenario
 
         scenarios = []
         for key, value in self.data.items():
@@ -419,7 +414,7 @@ class Cache(Base):
 
     def __hash__(self):
         """Return the hash of the Cache."""
-        from edsl.utilities.utilities import dict_hash
+        from ..utilities.utilities import dict_hash
 
         return dict_hash(self.to_dict(add_edsl_version=False))
 
