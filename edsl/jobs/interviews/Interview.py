@@ -9,7 +9,7 @@ from dataclasses import dataclass
 # from jobs module 
 from ..data_structures import Answers
 from ..buckets.ModelBuckets import ModelBuckets
-from ..FetchInvigilator import FetchInvigilator
+from ..fetch_invigilator import FetchInvigilator
 
 # from interviews module 
 from .AnswerQuestionFunctionConstructor import (
@@ -27,13 +27,13 @@ from .InterviewExceptionEntry import InterviewExceptionEntry
 from edsl.surveys import Survey
 
 if TYPE_CHECKING:
-    from edsl.agents.Agent import Agent
-    from edsl.surveys.Survey import Survey
-    from edsl.scenarios import Scenario
-    from edsl.data.Cache import Cache
-    from edsl.language_models.LanguageModel import LanguageModel
-    from edsl.jobs.tokens.InterviewTokenUsage import InterviewTokenUsage
-    from edsl.agents.InvigilatorBase import InvigilatorBase
+    from ...agents import Agent
+    from ...surveys import Survey
+    from ...scenarios import Scenario
+    from ...data.Cache import Cache
+    from ...language_models.LanguageModel import LanguageModel
+    from ..tokens.InterviewTokenUsage import InterviewTokenUsage
+    from ...invigialtors import InvigilatorBase
     from edsl.language_models.key_management.KeyLookup import KeyLookup
 
 
@@ -263,7 +263,7 @@ class Interview:
         >>> run_config.parameters.stop_on_exception = True
         >>> result, _ = asyncio.run(i.async_conduct_interview(run_config))
         """
-        from edsl.jobs.Jobs import RunConfig, RunParameters, RunEnvironment
+        from ..jobs import RunConfig, RunParameters, RunEnvironment
 
         if run_config is None:
             run_config = RunConfig(

@@ -1,1 +1,1 @@
-from .Jobs import Jobs
+from .jobs import Jobs
