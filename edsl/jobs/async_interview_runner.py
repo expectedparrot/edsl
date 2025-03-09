@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 from edsl.data_transfer_models import EDSLResultObjectInput
 
 from ..results import Result
-from .interviews.Interview import Interview
+from .interviews import Interview
 from edsl.config import Config
 config = Config()
 

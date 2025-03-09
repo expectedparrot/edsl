@@ -3,7 +3,7 @@ import pytest
 from collections import namedtuple
 
 from edsl.jobs.tasks.task_status_enum import TaskStatus
-from edsl.jobs.tasks.QuestionTaskCreator import QuestionTaskCreator
+from edsl.jobs.tasks import QuestionTaskCreator
 from edsl.questions.QuestionFreeText import QuestionFreeText
 from edsl.jobs.buckets.ModelBuckets import ModelBuckets
 

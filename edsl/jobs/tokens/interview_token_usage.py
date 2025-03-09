@@ -1,6 +1,6 @@
 from typing import Optional
 
-from .TokenUsage import TokenUsage
+from .token_usage import TokenUsage
 from edsl.enums import TokenPricing
 
 class InterviewTokenUsage:

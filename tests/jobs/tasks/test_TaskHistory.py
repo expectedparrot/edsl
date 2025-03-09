@@ -1,7 +1,7 @@
 import pytest
 from edsl.jobs.tasks.task_status_enum import TaskStatus
 from edsl.jobs import Jobs
-from edsl.jobs.interviews.Interview import Interview
+from edsl.jobs.interviews import Interview
 from typing import List
 
 # Import the TaskHistory class

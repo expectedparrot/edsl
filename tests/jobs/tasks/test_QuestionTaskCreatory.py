@@ -2,7 +2,7 @@ import asyncio
 import unittest
 from unittest.mock import AsyncMock, MagicMock, Mock
 
-from edsl.jobs.tasks.QuestionTaskCreator import QuestionTaskCreator
+from edsl.jobs.tasks import QuestionTaskCreator
 from edsl.jobs.buckets.ModelBuckets import ModelBuckets
 from edsl.jobs.tasks.task_status_enum import TaskStatus
 from edsl.questions.QuestionBase import QuestionBase

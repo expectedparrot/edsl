@@ -3,15 +3,15 @@ from typing import Callable, Union, List, TYPE_CHECKING
 from collections import UserList, UserDict
 
 from edsl.exceptions.jobs import InterviewErrorPriorTaskCanceled
-from edsl.jobs.tokens.TokenUsage import TokenUsage
-from edsl.jobs.Answers import Answers
+from ..tokens import TokenUsage
+from ..Answers import Answers
 
 from .task_status_enum import TaskStatus, TaskStatusDescriptor
 from .TaskStatusLog import TaskStatusLog
 
 if TYPE_CHECKING:
-    from edsl.questions.QuestionBase import QuestionBase
-    from edsl.jobs.buckets import ModelBuckets
+    from ...questions.QuestionBase import QuestionBase
+    from ..jobs.buckets import ModelBuckets
 
 
 class TokensUsed(UserDict):

@@ -1,10 +1,10 @@
-from typing import Callable, Union, List
+from typing import Callable, Union, List, TYPE_CHECKING
 from collections import UserDict
 
-from edsl.jobs.tokens.TokenUsage import TokenUsage
-from edsl.jobs.interviews.InterviewStatusDictionary import InterviewStatusDictionary
-from edsl.jobs.tokens.InterviewTokenUsage import InterviewTokenUsage
-
+if TYPE_CHECKING:
+    from ..tokens import TokenUsage
+    from ..tokens import InterviewTokenUsage
+    from ..interviews import InterviewStatusDictionary
 
 class TaskCreators(UserDict):
     """A dictionary of task creators. A task is one question being answered.
@@ -16,7 +16,7 @@ class TaskCreators(UserDict):
         super().__init__(*args, **kwargs)
 
     @property
-    def token_usage(self) -> InterviewTokenUsage:
+    def token_usage(self) -> 'InterviewTokenUsage':
         """Determines how many tokens were used for the interview.
 
         This is iterates through all tasks that make up an interview.
@@ -24,6 +24,9 @@ class TaskCreators(UserDict):
         It then sums the total number of cached and new tokens used for the interview.
 
         """
+        from ..tokens import TokenUsage
+        from ..tokens import InterviewTokenUsage
+
         cached_tokens = TokenUsage(from_cache=True)
         new_tokens = TokenUsage(from_cache=False)
         for task_creator in self.values():
@@ -34,19 +37,15 @@ class TaskCreators(UserDict):
             new_token_usage=new_tokens, cached_token_usage=cached_tokens
         )
 
-    # def print(self) -> None:
-    #     from rich import print
-
-    #     print({task.get_name(): task.task_status for task in self.values()})
-
     @property
-    def interview_status(self) -> InterviewStatusDictionary:
+    def interview_status(self) -> 'InterviewStatusDictionary':
         """Returns a dictionary, InterviewStatusDictionary, mapping task status codes to counts of tasks in that state.
 
         >>> t = TaskCreators()
         >>> t.interview_status
         InterviewStatusDictionary({<TaskStatus.NOT_STARTED: 1>: 0, <TaskStatus.WAITING_FOR_DEPENDENCIES: 2>: 0, <TaskStatus.CANCELLED: 3>: 0, <TaskStatus.PARENT_FAILED: 4>: 0, <TaskStatus.WAITING_FOR_REQUEST_CAPACITY: 5>: 0, <TaskStatus.WAITING_FOR_TOKEN_CAPACITY: 6>: 0, <TaskStatus.API_CALL_IN_PROGRESS: 7>: 0, <TaskStatus.SUCCESS: 8>: 0, <TaskStatus.FAILED: 9>: 0, 'number_from_cache': 0})
         """
+        from ..interviews import InterviewStatusDictionary
         status_dict = InterviewStatusDictionary()
         for task_creator in self.values():
             status_dict[task_creator.task_status] += 1
