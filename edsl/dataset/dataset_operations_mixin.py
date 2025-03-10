@@ -394,6 +394,14 @@ class DataOperationsBase:
         csv_string = self.to_csv(remove_prefix=remove_prefix).text
         df = pl.read_csv(io.StringIO(csv_string))
         return df
+    
+    def tree(self, node_order: Optional[List[str]] = None) -> "Tree":
+        """Convert the results to a Tree.
+
+        :param node_order: The order of the nodes.
+        """
+        from .dataset_tree import Tree
+        return Tree(self, node_order=node_order)
 
     def to_scenario_list(self, remove_prefix: bool = True) -> list[dict]:
         """Convert the results to a list of dictionaries, one per scenario.
@@ -1157,6 +1165,7 @@ def to_dataset(func):
     wrapper._is_wrapped = True
     return wrapper
 
+
 def decorate_methods_from_mixin(cls, mixin_cls):
     """Decorates all methods from mixin_cls with to_dataset decorator."""
     
@@ -1166,8 +1175,29 @@ def decorate_methods_from_mixin(cls, mixin_cls):
         if not attr_name.startswith('_'):
             attr_value = getattr(mixin_cls, attr_name)
             if callable(attr_value):
-                setattr(cls, attr_name, to_dataset(attr_value))
+                # Check if the method is already defined in the class's MRO
+                # but skip DataOperationsBase methods
+                for base in cls.__mro__[1:]:  # Skip the class itself
+                    if (attr_name in base.__dict__ and 
+                        base is not DataOperationsBase):
+                        # Method is overridden in a more specific class, skip decorating
+                        break
+                else:
+                    # Method not overridden, safe to decorate
+                    setattr(cls, attr_name, to_dataset(attr_value))
     return cls
+
+# def decorate_methods_from_mixin(cls, mixin_cls):
+#     """Decorates all methods from mixin_cls with to_dataset decorator."""
+    
+#     # Get all attributes, including inherited ones
+#     for attr_name in dir(mixin_cls):
+#         # Skip magic methods and private methods
+#         if not attr_name.startswith('_'):
+#             attr_value = getattr(mixin_cls, attr_name)
+#             if callable(attr_value):
+#                 setattr(cls, attr_name, to_dataset(attr_value))
+#     return cls
 
 class DatasetOperationsMixin(DataOperationsBase):
     pass
@@ -1189,6 +1219,7 @@ class AgentListOperationsMixin(DataOperationsBase):
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
         decorate_methods_from_mixin(cls, DatasetOperationsMixin)
+
 
 if __name__ == "__main__":
     import doctest
