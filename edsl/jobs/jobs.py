@@ -18,7 +18,7 @@ from typing import (
 
 from ..base import Base
 from ..utilities import remove_edsl_version
-from edsl.exceptions.coop import CoopServerResponseError
+from ..coop import CoopServerResponseError
 
 from ..buckets import BucketCollection
 from ..scenarios import Scenario, ScenarioList

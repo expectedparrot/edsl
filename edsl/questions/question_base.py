@@ -108,7 +108,7 @@ class QuestionBase(
         self, answer: dict, replacement_dict: dict = None
     ) -> ValidatedAnswer:
         """Validate the answer.
-        >>> from edsl.exceptions.questions import QuestionAnswerValidationError
+        >>> from edsl.questions.exceptions import QuestionAnswerValidationError
         >>> from edsl.questions import QuestionFreeText as Q
         >>> Q.example()._validate_answer({'answer': 'Hello', 'generated_tokens': 'Hello'})
         {'answer': 'Hello', 'generated_tokens': 'Hello'}

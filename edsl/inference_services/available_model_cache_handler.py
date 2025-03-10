@@ -4,11 +4,10 @@ import sqlite3
 from datetime import datetime
 import tempfile
 from platformdirs import user_cache_dir
-from dataclasses import dataclass
 import os
 
-from edsl.inference_services.data_structures import LanguageModelInfo, AvailableModels
-from edsl.enums import InferenceServiceLiteral
+from .data_structures import LanguageModelInfo, AvailableModels
+from ..enums import InferenceServiceLiteral
 
 
 class AvailableModelCacheHandler:
