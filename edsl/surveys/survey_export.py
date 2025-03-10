@@ -32,7 +32,7 @@ class SurveyExport:
         self.survey = survey
 
     def css(self):
-        from edsl.surveys.SurveyCSS import SurveyCSS
+        from .survey_css import SurveyCSS
 
         return SurveyCSS.default_style().generate_css()
 
@@ -76,20 +76,13 @@ class SurveyExport:
                     for option in getattr(question, "question_options", []):
                         doc.add_paragraph(str(option), style="ListBullet")
 
-        if return_document_object and filename is None:
+        if return_document_object:
             return doc
-
-        if filename is None:
-            with tempfile.NamedTemporaryFile(
-                "w", delete=False, suffix=".docx", dir=os.getcwd()
-            ) as f:
-                filename = f.name
-
-        doc.save(filename)
-        print("The survey has been saved to", filename)
-        if open_file:
-            open_docx(filename)
-        return
+        else:
+            doc.save(filename)
+            if open_file:
+                os.system(f"open {filename}")
+            return None
 
     def show(self):
         self.to_scenario_list(questions_only=False, rename=True).print(format="rich")
@@ -97,9 +90,7 @@ class SurveyExport:
     def to_scenario_list(
         self, questions_only: bool = True, rename=False
     ) -> "ScenarioList":
-        from edsl import ScenarioList, Scenario
-
-        # from edsl.questions import QuestionBase
+        from ..scenarios import ScenarioList, Scenario
 
         if questions_only:
             to_iterate_over = self.survey._questions

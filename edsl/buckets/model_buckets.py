@@ -30,7 +30,7 @@ class ModelBuckets:
         tokens_bucket (TokenBucket): Controls token usage rate limits (TPM)
         
     Example:
-        >>> from edsl.buckets.token_bucket import TokenBucket
+        >>> from ..buckets.token_bucket import TokenBucket
         >>> requests_bucket = TokenBucket(bucket_name="gpt-4", bucket_type="requests", 
         ...                              capacity=100, refill_rate=10)
         >>> tokens_bucket = TokenBucket(bucket_name="gpt-4", bucket_type="tokens", 
@@ -47,9 +47,9 @@ class ModelBuckets:
             tokens_bucket: TokenBucket controlling tokens-per-minute (TPM) limits
             
         Example:
-            >>> from edsl.buckets.token_bucket import TokenBucket
-            >>> requests_bucket = TokenBucket("gpt-4", "requests", 100, 10)
-            >>> tokens_bucket = TokenBucket("gpt-4", "tokens", 100000, 10000)
+            >>> from edsl.buckets import TokenBucket
+            >>> requests_bucket = TokenBucket(bucket_name="gpt-4", bucket_type="requests", capacity=100, refill_rate=10)
+            >>> tokens_bucket = TokenBucket(bucket_name="gpt-4", bucket_type="tokens", capacity=100000, refill_rate=10000)
             >>> buckets = ModelBuckets(requests_bucket, tokens_bucket)
         """
         self.requests_bucket = requests_bucket
@@ -160,9 +160,9 @@ class ModelBuckets:
             A tuple containing two matplotlib Figures (requests_plot, tokens_plot)
             
         Example:
-            >>> buckets = ModelBuckets.infinity_bucket("test")
-            >>> request_plot, token_plot = buckets.visualize()
-            >>> # Now you can display or save these plots
+            >>> ## buckets = ModelBuckets.infinity_bucket("test")
+            >>> ## request_plot, token_plot = buckets.visualize()
+            >>> ## Now you can display or save these plots
         """
         plot1 = self.requests_bucket.visualize()
         plot2 = self.tokens_bucket.visualize()

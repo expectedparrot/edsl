@@ -106,14 +106,14 @@ class ScenarioList(Base, UserList, ScenarioListOperationsMixin):
         >>> sl = ScenarioList([s1, s2])
         
         Filter scenarios based on a condition:
-        >>> cheap_fruits = sl.filter(lambda s: s["price"] < 1.50)
+        >>> cheap_fruits = sl.filter("price < 1.50")
         >>> len(cheap_fruits)
         1
         >>> cheap_fruits[0]["product"]
         'banana'
         
         Add a new column based on existing data:
-        >>> sl_with_tax = sl.mutate(tax=lambda s: s["price"] * 0.08)
+        >>> sl_with_tax = sl.mutate("tax = price * 0.08")
         >>> sl_with_tax[0]["tax"]
         0.1592
     """

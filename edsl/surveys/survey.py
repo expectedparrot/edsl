@@ -21,10 +21,14 @@ from typing import (
     Optional,
     Union,
     List,
-    Literal,
     Callable,
     TYPE_CHECKING,
+    Dict,
+    Tuple,
+    Set,
+    Type,
 )
+from typing_extensions import Literal, TypeAlias
 from ..base import Base
 from ..agents import Agent
 from ..scenarios import Scenario
@@ -42,26 +46,22 @@ if TYPE_CHECKING:
     from ..buckets.bucket_collection import BucketCollection
     from ..key_management.key_lookup import KeyLookup
     from .memory import Memory
-    from typing_extensions import TypeAlias, Literal
     
     # Define types for documentation purpose only  
-    VisibilityType: TypeAlias = Literal["unlisted", "public", "private"]
+    VisibilityType = Literal["unlisted", "public", "private"]
     Table = Any  # Type for table display
-    # Try to import Document for documentation
-    try:
-        from docx.document import Document
-    except ImportError:
-        Document = Any  # Type for docx document
+    # Type alias for docx document
+    Document = Any
 
-    QuestionType: TypeAlias = Union[QuestionBase, "Instruction", "ChangeInstruction"]
-    QuestionGroupType: TypeAlias = dict[str, tuple[int, int]]
+    QuestionType = Union[QuestionBase, "Instruction", "ChangeInstruction"]
+    QuestionGroupType = Dict[str, Tuple[int, int]]
 
 
 from ..instructions import InstructionCollection
 from ..instructions import Instruction
 from ..instructions import ChangeInstruction
 
-from .base import EndOfSurvey
+from .base import EndOfSurvey, EndOfSurveyParent
 from .descriptors import QuestionsDescriptor
 from .memory import MemoryPlan
 from .survey_flow_visualization import SurveyFlowVisualization
@@ -236,10 +236,10 @@ class Survey(Base):
         else:
             self.questions_to_randomize = []
 
-        self._seed = None
+        self._seed: Optional[int] = None
 
         # Cache the InstructionCollection
-        self._cached_instruction_collection = None
+        self._cached_instruction_collection: Optional[InstructionCollection] = None
 
         self._exporter = SurveyExport(self)
 
@@ -251,7 +251,7 @@ class Survey(Base):
         """Return a new survey with a randomly selected permutation of the options."""
         if self._seed is None:  # only set once
             self._seed = hash(self)
-            random.seed(self._seed)
+            random.seed(self._seed)  # type: ignore
 
         if len(self.questions_to_randomize) == 0:
             return self
@@ -270,12 +270,27 @@ class Survey(Base):
     def _process_raw_questions(self, questions: Optional[List["QuestionType"]]) -> list:
         """Process the raw questions passed to the survey."""
         handler = InstructionHandler(self)
-        components = handler.separate_questions_and_instructions(questions or [])
-        self._instruction_names_to_instructions = (
-            components.instruction_names_to_instructions
-        )
-        self._pseudo_indices = PseudoIndices(components.pseudo_indices)
-        return components.true_questions
+        result = handler.separate_questions_and_instructions(questions or [])
+        
+        # Handle result safely for mypy
+        if hasattr(result, 'true_questions') and hasattr(result, 'instruction_names_to_instructions') and hasattr(result, 'pseudo_indices'):
+            # It's the SeparatedComponents dataclass
+            self._instruction_names_to_instructions = result.instruction_names_to_instructions  # type: ignore
+            self._pseudo_indices = PseudoIndices(result.pseudo_indices)  # type: ignore
+            return result.true_questions  # type: ignore
+        else:
+            # For older versions that return a tuple
+            # This is a hacky way to get mypy to allow tuple unpacking of an Any type
+            result_list = list(result)  # type: ignore
+            if len(result_list) == 3:
+                true_q = result_list[0]
+                inst_dict = result_list[1]
+                pseudo_idx = result_list[2]
+                self._instruction_names_to_instructions = inst_dict
+                self._pseudo_indices = PseudoIndices(pseudo_idx)
+                return true_q
+            else:
+                raise TypeError(f"Unexpected result type from separate_questions_and_instructions: {type(result)}")
 
     @property
     def _relevant_instructions_dict(self) -> InstructionCollection:
@@ -321,8 +336,8 @@ class Survey(Base):
         return Simulator(self).simulate()
 
     def _get_question_index(
-        self, q: Union[QuestionBase, str, EndOfSurvey.__class__]
-    ) -> Union[int, EndOfSurvey.__class__]:
+        self, q: Union["QuestionBase", str, EndOfSurveyParent]
+    ) -> Union[int, EndOfSurveyParent]:
         """Return the index of the question or EndOfSurvey object.
 
         :param q: The question or question name to get the index of.
@@ -341,10 +356,15 @@ class Survey(Base):
         edsl.surveys.exceptions.SurveyError: Question name poop not found in survey. The current question names are {'q0': 0, 'q1': 1, 'q2': 2}.
         ...
         """
-        if q == EndOfSurvey:
+        if q is EndOfSurvey:
             return EndOfSurvey
         else:
-            question_name = q if isinstance(q, str) else q.question_name
+            if isinstance(q, str):
+                question_name = q
+            elif isinstance(q, EndOfSurveyParent):
+                return EndOfSurvey
+            else:
+                question_name = q.question_name
             if question_name not in self.question_name_to_index:
                 raise SurveyError(
                     f"""Question name {question_name} not found in survey. The current question names are {self.question_name_to_index}."""
@@ -362,7 +382,7 @@ class Survey(Base):
         """
         if question_name not in self.question_name_to_index:
             raise SurveyError(f"Question name {question_name} not found in survey.")
-        return self._questions[self.question_name_to_index[question_name]]
+        return self.questions[self.question_name_to_index[question_name]]
 
     def question_names_to_questions(self) -> dict:
         """Return a dictionary mapping question names to question attributes."""
@@ -666,9 +686,9 @@ class Survey(Base):
 
     def _recombined_questions_and_instructions(
         self,
-    ) -> list[Union[QuestionBase, "Instruction"]]:
+    ) -> List[Union["QuestionBase", "Instruction"]]:
         """Return a list of questions and instructions sorted by pseudo index."""
-        questions_and_instructions = self._questions + list(
+        questions_and_instructions = list(self.questions) + list(
             self._instruction_names_to_instructions.values()
         )
         return sorted(
@@ -881,30 +901,41 @@ class Survey(Base):
         start_index = self._get_question_index(start_question)
         end_index = self._get_question_index(end_question)
 
+        # Check if either index is the EndOfSurvey object
+        if start_index is EndOfSurvey or end_index is EndOfSurvey:
+            raise SurveyCreationError(
+                "Cannot use EndOfSurvey as a boundary for question groups."
+            )
+            
+        # Now we know both are integers
+        assert isinstance(start_index, int) and isinstance(end_index, int)
+        
         if start_index > end_index:
             raise SurveyCreationError(
                 f"Start index {start_index} is greater than end index {end_index}."
             )
 
-        for existing_group_name, (
-            existing_start_index,
-            existing_end_index,
-        ) in self.question_groups.items():
-            if start_index < existing_start_index and end_index > existing_end_index:
+        # Check for overlaps with existing groups
+        for existing_group_name, (exist_start, exist_end) in self.question_groups.items():
+            # Ensure the existing indices are integers (they should be, but for type checking)
+            assert isinstance(exist_start, int) and isinstance(exist_end, int)
+            
+            # Check containment and overlap cases
+            if start_index < exist_start and end_index > exist_end:
                 raise SurveyCreationError(
-                    f"Group {group_name} contains the questions in the new group."
+                    f"Group {existing_group_name} is contained within the new group."
                 )
-            if start_index > existing_start_index and end_index < existing_end_index:
+            if start_index > exist_start and end_index < exist_end:
                 raise SurveyCreationError(
-                    f"Group {group_name} is contained in the new group."
+                    f"New group would be contained within existing group {existing_group_name}."
                 )
-            if start_index < existing_start_index and end_index > existing_start_index:
+            if start_index < exist_start and end_index > exist_start:
                 raise SurveyCreationError(
-                    f"Group {group_name} overlaps with the new group."
+                    f"New group overlaps with the start of existing group {existing_group_name}."
                 )
-            if start_index < existing_end_index and end_index > existing_end_index:
+            if start_index < exist_end and end_index > exist_end:
                 raise SurveyCreationError(
-                    f"Group {group_name} overlaps with the new group."
+                    f"New group overlaps with the end of existing group {existing_group_name}."
                 )
 
         self.question_groups[group_name] = (start_index, end_index)
@@ -963,7 +994,7 @@ class Survey(Base):
         return s
 
     def add_skip_rule(
-        self, question: Union[QuestionBase, str], expression: str
+        self, question: Union["QuestionBase", str], expression: str
     ) -> Survey:
         """Add a rule to skip a question based on a conditional expression.
         
@@ -1002,15 +1033,23 @@ class Survey(Base):
             >>> s = s.add_skip_rule("q1", "{{ q0.answer }} == 'skip next'")
         """
         question_index = self._get_question_index(question)
-        return RuleManager(self).add_rule(
-            question, expression, question_index + 1, before_rule=True
-        )
+        
+        # Only proceed if question_index is an integer (not EndOfSurvey)
+        if isinstance(question_index, int):
+            next_index = question_index + 1
+            return RuleManager(self).add_rule(
+                question, expression, next_index, before_rule=True
+            )
+        else:
+            raise SurveyCreationError(
+                "Cannot add skip rule to EndOfSurvey"
+            )
 
     def add_rule(
         self,
-        question: Union[QuestionBase, str],
+        question: Union["QuestionBase", str],
         expression: str,
-        next_question: Union[QuestionBase, str, int, EndOfSurvey.__class__],
+        next_question: Union["QuestionBase", str, int, EndOfSurveyParent],
         before_rule: bool = False,
     ) -> Survey:
         """Add a conditional rule for navigating between questions in the survey.
@@ -1173,8 +1212,6 @@ class Survey(Base):
         model: Optional["LanguageModel"] = None,
         agent: Optional["Agent"] = None,
         cache: Optional["Cache"] = None,
-        disable_remote_inference: bool = False,
-        disable_remote_cache: bool = False,
         **kwargs,
     ) -> "Results":
         """Execute the survey asynchronously and return results.
@@ -1187,9 +1224,9 @@ class Survey(Base):
             model: The language model to use. If None, a default model is used.
             agent: The agent to use. If None, a default agent is used.
             cache: The cache to use for storing results. If provided, reuses cached results.
-            disable_remote_inference: If True, don't use remote inference even if available.
-            disable_remote_cache: If True, don't use remote cache even if available.
-            **kwargs: Key-value pairs to use as scenario parameters.
+            **kwargs: Key-value pairs to use as scenario parameters. May include:
+                - disable_remote_inference: If True, don't use remote inference even if available.
+                - disable_remote_cache: If True, don't use remote cache even if available.
             
         Returns:
             Results: The results of running the survey.
@@ -1201,9 +1238,10 @@ class Survey(Base):
             >>> from edsl.questions import QuestionFunctional
             >>> def f(scenario, agent_traits): return "yes" if scenario["period"] == "morning" else "no"
             >>> q = QuestionFunctional(question_name="q0", func=f)
+            >>> from edsl import Model 
             >>> s = Survey([q])
             >>> async def test_run_async(): 
-            ...     result = await s.run_async(period="morning", disable_remote_inference=True, disable_remote_cache=True)
+            ...     result = await s.run_async(period="morning", disable_remote_inference = True)
             ...     print(result.select("answer.q0").first())
             >>> asyncio.run(test_run_async())
             yes
@@ -1211,7 +1249,7 @@ class Survey(Base):
             Run with evening parameter:
             
             >>> async def test_run_async2(): 
-            ...     result = await s.run_async(period="evening", disable_remote_inference=True, disable_remote_cache=True)
+            ...     result = await s.run_async(period="evening", disable_remote_inference = True)
             ...     print(result.select("answer.q0").first())
             >>> asyncio.run(test_run_async2())
             no
@@ -1223,11 +1261,16 @@ class Survey(Base):
         else:
             c = cache
 
-        jobs: "Jobs" = self.get_job(model=model, agent=agent, **kwargs).using(c)
-        return await jobs.run_async(
-            disable_remote_inference=disable_remote_inference,
-            disable_remote_cache=disable_remote_cache,
-        )
+        # Get scenario parameters, excluding any that will be passed to run_async
+        scenario_kwargs = {k: v for k, v in kwargs.items() 
+                         if k not in ['disable_remote_inference', 'disable_remote_cache']}
+        
+        # Get the job options to pass to run_async
+        job_kwargs = {k: v for k, v in kwargs.items() 
+                     if k in ['disable_remote_inference', 'disable_remote_cache']}
+                     
+        jobs: "Jobs" = self.get_job(model=model, agent=agent, **scenario_kwargs).using(c)
+        return await jobs.run_async(**job_kwargs)
 
     def run(self, *args, **kwargs) -> "Results":
         """Convert the survey to a Job and execute it with the provided parameters.
@@ -1283,9 +1326,9 @@ class Survey(Base):
 
     def next_question(
         self,
-        current_question: Optional[Union[str, QuestionBase]] = None,
-        answers: Optional[dict] = None,
-    ) -> Union[QuestionBase, EndOfSurvey.__class__]:
+        current_question: Optional[Union[str, "QuestionBase"]] = None,
+        answers: Optional[Dict[str, Any]] = None,
+    ) -> Union["QuestionBase", EndOfSurveyParent]:
         """
         Return the next question in a survey.
 
@@ -1310,12 +1353,14 @@ class Survey(Base):
             current_question = self._get_question_by_name(current_question)
 
         question_index = self.question_name_to_index[current_question.question_name]
+        # Ensure we have a non-None answers dict
+        answer_dict = answers if answers is not None else {}
         next_question_object = self.rule_collection.next_question(
-            question_index, answers
+            question_index, answer_dict
         )
 
         if next_question_object.num_rules_found == 0:
-            raise SurveyHasNoRulesError
+            raise SurveyHasNoRulesError("No rules found for this question")
 
         if next_question_object.next_q == EndOfSurvey:
             return EndOfSurvey
@@ -1370,10 +1415,10 @@ class Survey(Base):
             Question('multiple_choice', question_name = \"""q1\""", question_text = \"""Why not?\""", question_options = ['killer bees in cafeteria', 'other'])
         """
         # Initialize empty answers dictionary
-        self.answers = {}
+        self.answers: Dict[str, Any] = {}
         
         # Start with the first question
-        question = self._questions[0]
+        question = self.questions[0]
         
         # Check if the first question should be skipped based on skip rules
         if self.rule_collection.skip_question_before_running(0, self.answers):
@@ -1434,9 +1479,9 @@ class Survey(Base):
         >>> len(s)
         3
         """
-        return len(self._questions)
+        return len(self.questions)
 
-    def __getitem__(self, index) -> QuestionBase:
+    def __getitem__(self, index: Union[int, str]) -> "QuestionBase":
         """Return the question object given the question index.
 
         :param index: The index of the question to get.
@@ -1447,7 +1492,7 @@ class Survey(Base):
 
         """
         if isinstance(index, int):
-            return self._questions[index]
+            return self.questions[index]
         elif isinstance(index, str):
             return getattr(self, index)
 
@@ -1471,7 +1516,7 @@ class Survey(Base):
     def table(self, *fields, tablefmt=None) -> Table:
         return self.to_scenario_list().to_dataset().table(*fields, tablefmt=tablefmt)
 
-    def codebook(self) -> dict[str, str]:
+    def codebook(self) -> Dict[str, str]:
         """Create a codebook for the survey, mapping question names to question text.
 
         >>> s = Survey.example()
@@ -1479,7 +1524,7 @@ class Survey(Base):
         {'q0': 'Do you like school?', 'q1': 'Why not?', 'q2': 'Why?'}
         """
         codebook = {}
-        for question in self._questions:
+        for question in self.questions:
             codebook[question.question_name] = question.question_text
         return codebook
 
@@ -1624,7 +1669,7 @@ class Survey(Base):
     def docx(
         self,
         return_document_object: bool = False,
-        filename: Optional[str] = None,
+        filename: str = "",
         open_file: bool = False,
     ) -> Union["Document", None]:
         """Generate a docx document for the survey."""
@@ -1640,17 +1685,17 @@ class Survey(Base):
         """Convert the survey to a scenario list."""
         return self._exporter.to_scenario_list(questions_only, rename)
 
-    def code(self, filename: str = None, survey_var_name: str = "survey") -> list[str]:
+    def code(self, filename: str = "", survey_var_name: str = "survey") -> list[str]:
         """Create the Python code representation of a survey."""
         return self._exporter.code(filename, survey_var_name)
 
     def html(
         self,
         scenario: Optional[dict] = None,
-        filename: Optional[str] = None,
+        filename: str = "",
         return_link=False,
         css: Optional[str] = None,
-        cta: Optional[str] = "Open HTML file",
+        cta: str = "Open HTML file",
         include_question_name=False,
     ):
         """Generate HTML representation of the survey."""

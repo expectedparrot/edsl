@@ -65,7 +65,13 @@ class Scenario(Base, UserDict):
         Scenario({'product': 'coffee', 'price': 4.99})
         
         Create a scenario from a file:
-        >>> s = Scenario.from_file("data.txt", "document")
+        >>> import tempfile
+        >>> with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as f:
+        ...     _ = f.write("Hello World")
+        ...     data_path = f.name
+        >>> s = Scenario.from_file(data_path, "document")
+        >>> import os
+        >>> os.unlink(data_path) # Clean up temp file
     """
 
     __documentation__ = "https://docs.expectedparrot.com/en/latest/scenarios.html"
@@ -859,6 +865,7 @@ class Scenario(Base, UserDict):
             Scenario({'food': 'wood chips'})
             
             >>> # Example with a serialized FileStore
+            >>> from edsl import FileStore
             >>> file_dict = {"path": "example.txt", "base64_string": "SGVsbG8gV29ybGQ="}
             >>> s = Scenario.from_dict({"document": file_dict})
             >>> isinstance(s["document"], FileStore)

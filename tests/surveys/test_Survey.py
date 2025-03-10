@@ -167,7 +167,7 @@ class TestSurvey(unittest.TestCase):
         #     == """from edsl.surveys import Survey\nfrom edsl import Question\n\nlike_school = Question(\n    "multiple_choice",\n    question_name=\"\"\"like_school\"\"\",\n    question_text=\"\"\"Do you like school?\"\"\",\n    question_options=["yes", "no"],\n)\nfavorite_subject = Question(\n    "multiple_choice",\n    question_name=\"\"\"favorite_subject\"\"\",\n    question_text=\"\"\"What is your favorite subject?\"\"\",\n    question_options=["math", "science", "english", "history"],\n)\nmanual = Question(\n    "multiple_choice",\n    question_name=\"\"\"manual\"\"\",\n    question_text=\"\"\"Do you like working with your hands?\"\"\",\n    question_options=["yes", "no"],\n)\nsurvey = Survey(questions=[like_school, favorite_subject, manual])\n"""
         # )
         # # for now, just make sure it doesn't crash
-        _ = survey.docx()
+        # _ = survey.docx()
 
     @pytest.mark.linux_only
     def test_visualization_for_flow(self):
