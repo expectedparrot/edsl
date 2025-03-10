@@ -4,7 +4,9 @@ from __future__ import annotations
 import copy
 import inspect
 import types
+import warnings
 from uuid import uuid4
+from contextlib import contextmanager
 
 from typing import (
     Callable,
@@ -16,8 +18,6 @@ from typing import (
     runtime_checkable,
     TypeVar,
 )
-from contextlib import contextmanager
-from dataclasses import dataclass
 
 # Type variable for the Agent class
 A = TypeVar("A", bound="Agent")
@@ -32,7 +32,8 @@ if TYPE_CHECKING:
     from ..invigilators import InvigilatorBase
     from ..prompts import Prompt
     from ..questions import QuestionBase
-   
+    from ..key_management import KeyLookup
+
 
 @runtime_checkable
 class DirectAnswerMethod(Protocol):
@@ -41,10 +42,19 @@ class DirectAnswerMethod(Protocol):
     def __call__(self, self_: A, question: QuestionBase, scenario: Scenario) -> Any: ...
 
 
-
 from ..base import Base
+from ..scenarios import Scenario
 from ..exceptions.questions import QuestionScenarioRenderError
-from ..exceptions.agents import (
+from ..data_transfer_models import AgentResponseDict
+from ..utilities import (
+    sync_wrapper,
+    create_restricted_function,
+    dict_hash,
+    remove_edsl_version,
+)
+
+
+from .exceptions import (
     AgentErrors,
     AgentCombinationError,
     AgentDirectAnswerFunctionError,
@@ -57,14 +67,6 @@ from .descriptors import (
     InstructionDescriptor,
     NameDescriptor,
 )
-from ..utilities.decorators import (
-    sync_wrapper,
-)
-from ..utilities.remove_edsl_version import remove_edsl_version
-from ..data_transfer_models import AgentResponseDict
-from ..utilities.restricted_python import create_restricted_function
-
-from ..scenarios import Scenario
 
 
 class AgentTraits(Scenario):
@@ -321,7 +323,7 @@ class Agent(Base):
         >>> a = Agent(dynamic_traits_function = g)
         Traceback (most recent call last):
         ...
-        edsl.exceptions.agents.AgentDynamicTraitsFunctionError: ...
+        ....AgentDynamicTraitsFunctionError: ...
         """
         if self.has_dynamic_traits_function:
             sig = inspect.signature(self.dynamic_traits_function)
@@ -382,8 +384,6 @@ class Agent(Base):
     def traits(self, traits: dict[str, str]):
         with self.modify_traits_context():
             self._traits = traits
-        # self._check_before_modifying_traits()
-        # self._traits = AgentTraits(traits)
 
     def rename(
         self,
@@ -515,7 +515,6 @@ class Agent(Base):
         'I am a direct answer.'
         """
         if hasattr(self, "answer_question_directly"):
-            import warnings
 
             warnings.warn(
                 "Warning: overwriting existing answer_question_directly method"
@@ -523,12 +522,6 @@ class Agent(Base):
 
         self.validate_response = validate_response
         self.translate_response = translate_response
-
-        # if not isinstance(method, DirectAnswerMethod):
-        #     raise AgentDirectAnswerFunctionError(
-        #         f"Method {method} does not match required signature. "
-        #         "Must take (self, question, scenario) parameters."
-        #     )
 
         signature = inspect.signature(method)
         for argument in ["question", "scenario", "self"]:
@@ -886,8 +879,6 @@ class Agent(Base):
         >>> hash(Agent.example())
         2067581884874391607
         """
-        from ..utilities.utilities import dict_hash
-
         return dict_hash(self.to_dict(add_edsl_version=False))
 
     def to_dict(self, add_edsl_version=True) -> dict[str, Union[dict, bool]]:
@@ -1031,9 +1022,7 @@ class Agent(Base):
         from edsl.agents import Agent
         agent = Agent(traits={'age': 10, 'hair': 'brown', 'height': 5.5})
         """
-        return (
-            f"from edsl.agents import Agent\nagent = Agent(traits={self.traits})"
-        )
+        return f"from edsl.agents import Agent\nagent = Agent(traits={self.traits})"
 
 
 def main():

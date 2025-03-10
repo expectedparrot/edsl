@@ -5,6 +5,11 @@ import gzip
 import json
 from typing import Any, Optional, Union
 from uuid import UUID
+import difflib
+import json
+from typing import Any, Dict, Tuple
+from collections import UserList
+import inspect
 
 
 class PersistenceMixin:
@@ -58,7 +63,7 @@ class PersistenceMixin:
 
     def create_download_link(self):
         from tempfile import NamedTemporaryFile
-        from edsl.scenarios.FileStore import FileStore
+        from .scenarios import FileStore
 
         with NamedTemporaryFile(suffix=".json.gz") as f:
             self.save(f.name)
@@ -76,8 +81,8 @@ class PersistenceMixin:
         Args:
             url_or_uuid: Either a UUID string or a URL pointing to the object
         """
-        from edsl.coop import Coop
-        from edsl.coop.utils import ObjectRegistry
+        from .coop import Coop
+        from .coop import ObjectRegistry
 
         object_type = ObjectRegistry.get_object_type_by_edsl_class(cls)
         coop = Coop()
@@ -87,7 +92,7 @@ class PersistenceMixin:
     @classmethod
     def delete(cls, url_or_uuid: Union[str, UUID]) -> None:
         """Delete the object from coop."""
-        from edsl.coop import Coop
+        from .coop import Coop
 
         coop = Coop()
 
@@ -107,7 +112,7 @@ class PersistenceMixin:
         - `value` changes the value of the object on Coop. **has to be an EDSL object**
         - `visibility` changes the visibility of the object on Coop
         """
-        from edsl.coop import Coop
+        from .coop import Coop
 
         coop = Coop()
 
@@ -193,7 +198,7 @@ class PersistenceMixin:
     @classmethod
     def search(cls, query):
         """Search for objects on coop."""
-        from edsl.coop import Coop
+        from .coop import Coop
 
         c = Coop()
         return c.search(cls, query)
@@ -208,7 +213,8 @@ class PersistenceMixin:
     def save(self, filename, compress=True):
         """Save the object to a file as zippped JSON.
 
-        >>> obj.save("obj.json.gz")
+        E.g., 
+        obj.save("obj.json.gz")
 
         """
         if filename.endswith("json.gz"):
@@ -246,9 +252,6 @@ class PersistenceMixin:
     @classmethod
     def load(cls, filename):
         """Load the object from a file.
-
-        >>> obj = cls.load("obj.json.gz")
-
         """
 
         if filename.endswith("json.gz"):
@@ -292,7 +295,7 @@ class RegisterSubclassesMeta(ABCMeta):
 class DiffMethodsMixin:
     def __sub__(self, other):
         """Return the difference between two objects."""
-        from edsl.BaseDiff import BaseDiff
+        from .base import BaseDiff
 
         return BaseDiff(self, other)
 
@@ -310,7 +313,7 @@ class RepresentationMixin:
         return json.loads(json.dumps(self.to_dict(add_edsl_version=False)))
 
     def to_dataset(self):
-        from edsl.results.Dataset import Dataset
+        from .dataset import Dataset
 
         return Dataset.from_edsl_object(self)
 
@@ -349,45 +352,6 @@ class RepresentationMixin:
         console = Console(record=True)
         console.print(table)
 
-    # def help(obj):
-    #     """
-    #     Extract all public instance methods and their docstrings from a class instance.
-
-    #     Args:
-    #         obj: The instance to inspect
-
-    #     Returns:
-    #         dict: A dictionary where keys are method names and values are their docstrings
-    #     """
-    #     import inspect
-
-    #     if inspect.isclass(obj):
-    #         raise TypeError("Please provide a class instance, not a class")
-
-    #     methods = {}
-
-    #     # Get all members of the instance
-    #     for name, member in inspect.getmembers(obj):
-    #         # Skip private and special methods (those starting with underscore)
-    #         if name.startswith("_"):
-    #             continue
-
-    #         # Check if it's specifically an instance method
-    #         if inspect.ismethod(member):
-    #             # Get the docstring (or empty string if none exists)
-    #             docstring = inspect.getdoc(member) or ""
-    #             methods[name] = docstring
-
-    #     from edsl.results.Dataset import Dataset
-
-    #     d = Dataset(
-    #         [
-    #             {"method": list(methods.keys())},
-    #             {"documentation": list(methods.values())},
-    #         ]
-    #     )
-    #     return d
-
     def _repr_html_(self):
         from .dataset.display import TableDisplay
         
@@ -420,7 +384,7 @@ class RepresentationMixin:
 class HashingMixin:
     def __hash__(self) -> int:
         """Return a hash of the question."""
-        from edsl.utilities.utilities import dict_hash
+        from .utilities.utilities import dict_hash
 
         return dict_hash(self.to_dict(add_edsl_version=False))
 
@@ -497,13 +461,6 @@ class Base(
                 print(f"{method}: {documentation}")
         else:
             return [x[0] for x in public_methods_with_docstrings]
-
-
-import difflib
-import json
-from typing import Any, Dict, Tuple
-from collections import UserList
-import inspect
 
 
 class BaseDiffCollection(UserList):
@@ -718,6 +675,9 @@ class BaseDiff:
 
 
 if __name__ == "__main__":
+    import doctest 
+    doctest.testmod()
+
     from edsl import Question
 
     q_ft = Question.example("free_text")
@@ -726,15 +686,7 @@ if __name__ == "__main__":
     diff1 = q_ft - q_mc
     assert q_ft == q_mc + diff1
     assert q_ft == diff1.apply(q_mc)
-    # new_q_mc = diff1.apply(q_ft)
-    # assert new_q_mc == q_mc
-
-    # new_q_mc = q_ft + diff1
-    # assert new_q_mc == q_mc
-
-    # new_q_mc = diff1 + q_ft
-    # assert new_q_mc == q_mc
-
+    
     # ## Test chain of diffs
     q0 = Question.example("free_text")
     q1 = q0.copy()
@@ -752,10 +704,4 @@ if __name__ == "__main__":
     new_q2 = diff_chain + q0
     assert new_q2 == q2
 
-    # new_diffs = diff1.add_diff(diff1).add_diff(diff1)
-    # assert len(new_diffs) == 3
-
-    # q0 = Question.example("free_text")
-    # q1 = Question.example("free_text")
-    # q1.question_text = "Why is Buzzard's Bay so named?"
-    # q2 = q1.copy()
+    

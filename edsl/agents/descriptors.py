@@ -3,6 +3,7 @@
 from typing import Dict
 from ..exceptions.agents import AgentNameError, AgentTraitKeyError
 
+
 def convert_agent_name(x):
     # potentially a numpy int64
     import numpy as np
@@ -18,7 +19,7 @@ def convert_agent_name(x):
 
 
 class NameDescriptor:
-    """ABC for something."""
+    """Valid agent name descriptor."""
 
     def __get__(self, instance, owner):
         """Return the value of the attribute."""
