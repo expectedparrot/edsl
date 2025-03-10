@@ -2,8 +2,8 @@ import os
 from typing import Any, Optional, List
 from anthropic import AsyncAnthropic
 
-from .inference_service_abc import InferenceServiceABC
-from ..language_models import LanguageModel
+from ..inference_service_abc import InferenceServiceABC
+from ...language_models import LanguageModel
 
 
 class AnthropicService(InferenceServiceABC):

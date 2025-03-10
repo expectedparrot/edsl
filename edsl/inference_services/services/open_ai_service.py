@@ -2,15 +2,14 @@ from __future__ import annotations
 from typing import Any, List, Optional, Dict, NewType
 import os
 
-
 import openai
 
-from .inference_service_abc import InferenceServiceABC
-from ..language_models import LanguageModel
-from edsl.inference_services.rate_limits_cache import rate_limits
-from edsl.utilities.utilities import fix_partial_correct_response
+from ..inference_service_abc import InferenceServiceABC
+from ...language_models import LanguageModel
+from ..rate_limits_cache import rate_limits
+from ...utilities.utilities import fix_partial_correct_response
 
-from edsl.config import CONFIG
+from ...config import CONFIG
 
 APIToken = NewType("APIToken", str)
 
