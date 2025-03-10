@@ -1,9 +1,9 @@
 from collections import UserDict, defaultdict, UserList
 from typing import Union, Optional, List
-from edsl.enums import InferenceServiceLiteral
 from dataclasses import dataclass
-from edsl.scenarios import ScenarioList
 
+from ..enums import InferenceServiceLiteral
+from ..scenarios import ScenarioList
 
 @dataclass
 class LanguageModelInfo:
@@ -82,7 +82,7 @@ class AvailableModels(UserList):
         )
 
     def to_model_list(self):
-        from edsl.language_models.ModelList import ModelList
+        from ..language_models import ModelList
 
         return ModelList.from_available_models(self)
 
