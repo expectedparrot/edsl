@@ -387,11 +387,11 @@ class Scenario(Base, UserDict):
             requests.exceptions.RequestException: If the URL cannot be accessed.
             
         Examples:
-            >>> s = Scenario.from_url("https://example.com")
+            >>> s = Scenario.from_url("https://example.com", testing=True)
             >>> "url" in s and "text" in s
             True
             
-            >>> s = Scenario.from_url("https://example.com", field_name="content")
+            >>> s = Scenario.from_url("https://example.com", field_name="content", testing=True)
             >>> "url" in s and "content" in s
             True
             
