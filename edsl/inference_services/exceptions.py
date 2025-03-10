@@ -1,4 +1,4 @@
-from edsl.exceptions.BaseException import BaseException
+from ..base import BaseException
 
 
 class InferenceServiceError(BaseException):

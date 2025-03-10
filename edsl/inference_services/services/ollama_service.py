@@ -4,15 +4,15 @@ import requests
 from typing import Any, List
 
 # from edsl.inference_services.InferenceServiceABC import InferenceServiceABC
-from edsl.language_models import LanguageModel
+from ..language_models import LanguageModel
 
-from edsl.inference_services.OpenAIService import OpenAIService
+from ..open_ai_service import OpenAIService
 
 
-class DeepInfraService(OpenAIService):
+class OllamaService(OpenAIService):
     """DeepInfra service class."""
 
-    _inference_service_ = "deep_infra"
+    _inference_service_ = "ollama"
     _env_key_name_ = "DEEP_INFRA_API_KEY"
-    _base_url_ = "https://api.deepinfra.com/v1/openai"
+    _base_url_ = "http://localhost:11434/v1"
     _models_list_cache: List[str] = []

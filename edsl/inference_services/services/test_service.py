@@ -3,7 +3,7 @@ import os
 import asyncio
 import random
 
-from .InferenceServiceABC import InferenceServiceABC
+from ..inference_service_abc import InferenceServiceABC
 from .rate_limits_cache import rate_limits
 
 from ..language_models import LanguageModel

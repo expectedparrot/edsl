@@ -1,11 +1,11 @@
 import os
 from typing import Any, List, Optional
-from edsl.inference_services.InferenceServiceABC import InferenceServiceABC
+from .inference_service_abc import InferenceServiceABC
 from ..language_models import LanguageModel
 import asyncio
 from mistralai import Mistral
 
-from edsl.exceptions.language_models import LanguageModelBadResponseError
+from ..language_models import LanguageModelBadResponseError
 
 
 class MistralAIService(InferenceServiceABC):

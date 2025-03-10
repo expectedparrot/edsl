@@ -4,9 +4,9 @@ import requests
 from typing import Any, List
 
 # from edsl.inference_services.InferenceServiceABC import InferenceServiceABC
-from edsl.language_models import LanguageModel
+from ..language_models import LanguageModel
 
-from edsl.inference_services.OpenAIService import OpenAIService
+from ..open_ai_service import OpenAIService
 
 
 class DeepSeekService(OpenAIService):

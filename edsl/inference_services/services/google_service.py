@@ -7,7 +7,7 @@ from google.api_core.exceptions import InvalidArgument
 
 # from edsl.exceptions.general import MissingAPIKeyError
 from ..language_models import LanguageModel
-from edsl.inference_services.InferenceServiceABC import InferenceServiceABC
+from .inference_service_abc import InferenceServiceABC
 from edsl.coop import Coop
 
 safety_settings = [
