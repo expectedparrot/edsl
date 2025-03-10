@@ -4,17 +4,15 @@ from __future__ import annotations
 from abc import ABC
 from typing import Any, Type, Optional, List, Callable, Union, TypedDict, TYPE_CHECKING
 
-from edsl.exceptions.questions import (
-    QuestionSerializationError,
-)
+from .exceptions import QuestionSerializationError
 
-from ..base import PersistenceMixin, RepresentationMixin
-from ..base import BaseDiff, BaseDiffCollection
-from ..utilities.remove_edsl_version import remove_edsl_version
-from ..utilities.utilities import is_valid_variable_name
-from ..agents import Agent
-from ..scenarios import Scenario
-from ..surveys import Survey
+from ..base import PersistenceMixin, RepresentationMixin, BaseDiff, BaseDiffCollection
+from ..utilities import remove_edsl_version, is_valid_variable_name
+
+if TYPE_CHECKING:
+    from ..agents import Agent
+    from ..scenarios import Scenario
+    from ..surveys import Survey
 
 from .descriptors import QuestionNameDescriptor, QuestionTextDescriptor
 from .answer_validator_mixin import AnswerValidatorMixin

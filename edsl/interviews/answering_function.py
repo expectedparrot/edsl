@@ -13,7 +13,7 @@ from ..tasks import TaskStatus
 
 from ..jobs.fetch_invigilator import FetchInvigilator
 from ..language_models.exceptions import LanguageModelNoResponseError
-from ..exceptions.questions import QuestionAnswerValidationError
+from ..questions.exceptions import QuestionAnswerValidationError
 from ..data_transfer_models import AgentResponseDict, EDSLResultObjectInput, Answers
 
 from .exception_tracking import InterviewExceptionEntry

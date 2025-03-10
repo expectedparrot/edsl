@@ -1,8 +1,8 @@
 from importlib import resources
 from typing import Optional
-from edsl.exceptions.questions import QuestionAnswerValidationError
 from functools import lru_cache
 
+from .exceptions import QuestionAnswerValidationError
 
 class TemplateManager:
     _instance = None

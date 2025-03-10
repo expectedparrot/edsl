@@ -9,10 +9,8 @@ import warnings
 from typing import Optional, Union, TYPE_CHECKING
 from edsl.base import Base
 
-from ..utilities.remove_edsl_version import remove_edsl_version
-from ..exceptions.cache import CacheError
-from ..scenarios import Scenario, ScenarioList
-
+from ..utilities import remove_edsl_version, dict_hash
+from .exceptions import CacheError
 
 class Cache(Base):
     """
@@ -414,7 +412,6 @@ class Cache(Base):
 
     def __hash__(self):
         """Return the hash of the Cache."""
-        from ..utilities.utilities import dict_hash
 
         return dict_hash(self.to_dict(add_edsl_version=False))
 
@@ -428,7 +425,7 @@ class Cache(Base):
 
         return d
 
-    def _summary(self):
+    def _summary(self) -> dict:
         return {"EDSL Class": "Cache", "Number of entries": len(self.data)}
 
     def table(

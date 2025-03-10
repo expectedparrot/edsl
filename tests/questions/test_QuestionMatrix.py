@@ -1,8 +1,8 @@
 import pytest
-from edsl.exceptions.questions import QuestionAnswerValidationError
+from edsl.questions.exceptions import QuestionAnswerValidationError
 from edsl.questions import QuestionBase
 from edsl.questions.question_matrix import QuestionMatrix
-from edsl.exceptions.questions import QuestionCreationValidationError
+from edsl.questions.exceptions import QuestionCreationValidationError
 
 valid_question = {
     "question_name": "child_happiness",

@@ -44,7 +44,7 @@ class DirectAnswerMethod(Protocol):
 
 from ..base import Base
 from ..scenarios import Scenario
-from ..exceptions.questions import QuestionScenarioRenderError
+from ..questions import QuestionScenarioRenderError
 from ..data_transfer_models import AgentResponseDict
 from ..utilities import (
     sync_wrapper,

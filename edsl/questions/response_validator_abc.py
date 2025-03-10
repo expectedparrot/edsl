@@ -3,8 +3,8 @@ from typing import Optional, Any, List, TypedDict, TYPE_CHECKING
 
 from pydantic import BaseModel, Field, field_validator, ValidationError
 
-from edsl.exceptions.questions import QuestionAnswerValidationError
-from edsl.questions.ExceptionExplainer import ExceptionExplainer
+from .exceptions import QuestionAnswerValidationError
+from .ExceptionExplainer import ExceptionExplainer
 
 if TYPE_CHECKING:
     from edsl.questions.data_structures import (

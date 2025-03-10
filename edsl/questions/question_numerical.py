@@ -5,7 +5,7 @@ from typing import Any, Optional, Union, Literal
 
 from pydantic import BaseModel, Field, field_validator
 
-from edsl.exceptions.questions import QuestionAnswerValidationError
+from .exceptions import QuestionAnswerValidationError
 from .question_base import QuestionBase
 from .descriptors import NumericalOrNoneDescriptor
 from .decorators import inject_exception

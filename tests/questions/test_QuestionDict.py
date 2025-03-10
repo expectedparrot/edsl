@@ -1,10 +1,10 @@
 import pytest
 from pathlib import Path
 from pydantic import BaseModel
-from edsl.exceptions.questions import QuestionAnswerValidationError
+from edsl.questions.exceptions import QuestionAnswerValidationError
 from edsl.questions import QuestionBase
 from edsl.questions import QuestionDict
-from edsl.exceptions.questions import QuestionCreationValidationError
+from edsl.questions.exceptions import QuestionCreationValidationError
 
 valid_question = {
     "question_name": "recipe",

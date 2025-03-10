@@ -5,7 +5,7 @@ from typing import Any, Optional, Union
 from pydantic import Field
 from json_repair import repair_json
 
-from ..exceptions.questions import QuestionAnswerValidationError
+from .exceptions import QuestionAnswerValidationError
 from .question_base import QuestionBase
 from .descriptors import IntegerOrNoneDescriptor
 from .decorators import inject_exception

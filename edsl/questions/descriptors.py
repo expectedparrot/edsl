@@ -2,14 +2,12 @@
 
 from abc import ABC, abstractmethod
 import re
-import textwrap
 from typing import Any, Callable, List, Optional
-from edsl.exceptions.questions import (
+from .exceptions import (
     QuestionCreationValidationError,
     QuestionAnswerValidationError,
 )
-from edsl.questions.settings import Settings
-
+from .settings import Settings
 
 ################################
 # Helper functions

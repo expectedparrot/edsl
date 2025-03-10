@@ -183,7 +183,7 @@ class InterviewExceptionEntry:
         >>> entry = InterviewExceptionEntry.example()
         >>> _ = entry.to_dict()
         """
-        from ..exceptions.questions import QuestionAnswerValidationError
+        from ..questions.exceptions import QuestionAnswerValidationError
 
         invigilator = (
             self.invigilator.to_dict() if self.invigilator is not None else None

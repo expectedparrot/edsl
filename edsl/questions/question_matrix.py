@@ -13,7 +13,7 @@ from .descriptors import (
 from .response_validator_abc import ResponseValidatorABC
 from .decorators import inject_exception
 
-from ..exceptions.questions import (
+from .exceptions import (
     QuestionAnswerValidationError,
     QuestionCreationValidationError,
 )
