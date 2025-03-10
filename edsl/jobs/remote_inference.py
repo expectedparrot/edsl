@@ -51,12 +51,12 @@ class JobsRemoteInferenceHandler:
         self.remote_inference_url = f"{self.expected_parrot_url}/home/remote-inference"
 
     def _create_logger(self) -> JobLogger:
-        from edsl.utilities.is_notebook import is_notebook
-        from edsl.jobs.JobsRemoteInferenceLogger import (
+        from ..utilities import is_notebook
+        from .jobs_remote_inference_logger import (
             JupyterJobLogger,
             StdOutJobLogger,
         )
-        from edsl.jobs.loggers.HTMLTableJobLogger import HTMLTableJobLogger
+        from .html_table_job_logger import HTMLTableJobLogger
 
         if is_notebook():
             return HTMLTableJobLogger(verbose=self.verbose)
@@ -69,7 +69,7 @@ class JobsRemoteInferenceHandler:
             return False
         if not disable_remote_inference:
             try:
-                from edsl.coop.coop import Coop
+                from ..coop import Coop
 
                 user_edsl_settings = Coop().edsl_settings
                 return user_edsl_settings.get("remote_inference", False)
@@ -87,8 +87,8 @@ class JobsRemoteInferenceHandler:
         remote_inference_results_visibility: Optional['VisibilityType'] = "unlisted",
         fresh: Optional[bool] = False,
     ) -> RemoteJobInfo:
-        from edsl.config import CONFIG
-        from edsl.coop.coop import Coop
+        from ..config import CONFIG
+        from ..coop import Coop
 
         logger = self._create_logger()
 
@@ -138,7 +138,7 @@ class JobsRemoteInferenceHandler:
     def check_status(
         job_uuid: JobUUID,
     ) -> 'RemoteInferenceResponse':
-        from edsl.coop.coop import Coop
+        from ..coop import Coop
 
         coop = Coop()
         return coop.remote_inference_get(job_uuid)
@@ -149,7 +149,7 @@ class JobsRemoteInferenceHandler:
         if testing_simulated_response is not None:
             return lambda job_uuid: testing_simulated_response
         else:
-            from edsl.coop.coop import Coop
+            from ..coop import Coop
 
             coop = Coop()
             return coop.remote_inference_get
@@ -161,7 +161,7 @@ class JobsRemoteInferenceHandler:
         if testing_simulated_response is not None:
             return lambda results_uuid, expected_object_type: Results.example()
         else:
-            from edsl.coop.coop import Coop
+            from ..coop import Coop
 
             coop = Coop()
             return coop.get
