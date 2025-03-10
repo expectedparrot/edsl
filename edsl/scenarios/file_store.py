@@ -15,12 +15,45 @@ from ..utilities import remove_edsl_version
 from .file_methods import FileMethods
 
 class FileStore(Scenario):
-
     """
+    A specialized Scenario subclass for managing file content and metadata.
     
-    >>> formats = ["txt", "pdf", "docx", "pptx", "md", "py", "json", "csv", "html", "png", "db"]
-    >>> _ = [FileStore.example(format) for format in formats]
+    FileStore provides functionality for working with files in EDSL, handling various
+    file formats with appropriate encoding, storage, and access methods. It extends
+    Scenario to allow files to be included in surveys, questions, and other EDSL components.
     
+    FileStore supports multiple file formats including text, PDF, Word documents, images,
+    and more. It can load files from local paths or URLs, and provides methods for
+    accessing file content, extracting text, and managing file operations.
+    
+    Key features:
+    - Base64 encoding for portability and serialization
+    - Lazy loading through temporary files when needed
+    - Automatic MIME type detection
+    - Text extraction from various file formats
+    - Format-specific operations through specialized handlers
+    
+    Attributes:
+        _path (str): The original file path.
+        _temp_path (str): Path to any generated temporary file.
+        suffix (str): File extension.
+        binary (bool): Whether the file is binary.
+        mime_type (str): The file's MIME type.
+        base64_string (str): Base64-encoded file content.
+        external_locations (dict): Dictionary of external locations.
+        extracted_text (str): Text extracted from the file.
+    
+    Examples:
+        >>> import tempfile
+        >>> # Create a text file
+        >>> with tempfile.NamedTemporaryFile(suffix=".txt", mode="w") as f:
+        ...     _ = f.write("Hello World")
+        ...     _ = f.flush()
+        ...     fs = FileStore(f.name)
+        
+        >>> # FileStore supports various formats
+        >>> formats = ["txt", "pdf", "docx", "pptx", "md", "py", "json", "csv", "html", "png", "db"]
+        >>> _ = [FileStore.example(format) for format in formats]
     """
     __documentation__ = "https://docs.expectedparrot.com/en/latest/filestore.html"
 
@@ -35,6 +68,31 @@ class FileStore(Scenario):
         extracted_text: Optional[str] = None,
         **kwargs,
     ):
+        """
+        Initialize a new FileStore object.
+        
+        This constructor creates a FileStore object from either a file path or a base64-encoded
+        string representation of file content. It handles automatic detection of file properties
+        like MIME type, extracts text content when possible, and manages file encoding.
+        
+        Args:
+            path: Path to the file to load. Can be a local file path or URL.
+            mime_type: MIME type of the file. If not provided, will be auto-detected.
+            binary: Whether the file is binary. Defaults to False.
+            suffix: File extension. If not provided, will be extracted from the path.
+            base64_string: Base64-encoded file content. If provided, the file content
+                          will be loaded from this string instead of the path.
+            external_locations: Dictionary mapping location names to URLs or paths where
+                              the file can also be accessed.
+            extracted_text: Pre-extracted text content from the file. If not provided,
+                          text will be extracted automatically if possible.
+            **kwargs: Additional keyword arguments. 'filename' can be used as an
+                     alternative to 'path'.
+                     
+        Note:
+            If path is a URL (starts with http:// or https://), the file will be
+            downloaded automatically.
+        """
         if path is None and "filename" in kwargs:
             path = kwargs["filename"]
 
@@ -74,8 +132,36 @@ class FileStore(Scenario):
     @property
     def path(self) -> str:
         """
-        Property that returns a valid path to the file content.
-        If the original path doesn't exist, generates a temporary file from the base64 content.
+        Returns a valid path to the file content, creating a temporary file if needed.
+        
+        This property ensures that a valid file path is always available for the file
+        content, even if the original file is no longer accessible or if the FileStore
+        was created from a base64 string without a path. If the original path doesn't
+        exist, it automatically generates a temporary file from the base64 content.
+        
+        Returns:
+            A string containing a valid file path to access the file content.
+            
+        Examples:
+            >>> import tempfile, os
+            >>> with tempfile.NamedTemporaryFile(suffix=".txt", mode="w") as f:
+            ...     f.write("Hello World")
+            ...     f.flush()
+            ...     fs = FileStore(f.name)
+            ...     os.path.isfile(fs.path)
+            True
+            
+            >>> # Even if the original file is deleted, the path remains valid
+            >>> fs2 = FileStore(base64_string="SGVsbG8gV29ybGQ=", suffix="txt")
+            >>> os.path.isfile(fs2.path)  # Creates a temp file
+            True
+            
+        Notes:
+            - The path may point to a temporary file that will be cleaned up when the
+              Python process exits
+            - Accessing this property may create a new temporary file if needed
+            - This property provides a consistent interface regardless of how the
+              FileStore was created (from file or from base64 string)
         """
         # Check if original path exists and is accessible
         if self._path and os.path.isfile(self._path):
