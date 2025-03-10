@@ -53,8 +53,8 @@ class InstructionHandler:
         ...
         ValueError: ChangeInstruction change_instruction_0 references instruction poop which does not exist.
         """
-        from .Instruction import Instruction
-        from .ChangeInstruction import ChangeInstruction
+        from .instruction import Instruction
+        from .change_instruction import ChangeInstruction
         from edsl.questions import QuestionBase
 
         true_questions = []

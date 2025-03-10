@@ -276,7 +276,7 @@ class Tree:
             >>> print(sorted(result['North America'].keys()))
             ['Canada', 'US']
         """
-        from edsl.results.Dataset import Dataset
+        from .dataset import Dataset
         
         data = Dataset([
             {"continent": ["North America", "Asia", "Europe", "North America", "Asia"]},

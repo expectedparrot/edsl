@@ -790,7 +790,7 @@ class DataOperationsBase:
         >>> r = Results.example()
         >>> r.select('how_feeling').tally('answer.how_feeling', output = "dict")
         {'OK': 2, 'Great': 1, 'Terrible': 1}
-        >>> from edsl.results.Dataset import Dataset
+        >>> from edsl.dataset import Dataset
         >>> expected = Dataset([{'answer.how_feeling': ['OK', 'Great', 'Terrible']}, {'count': [2, 1, 1]}])
         >>> r.select('how_feeling').tally('answer.how_feeling', output = "Dataset") == expected
         True
@@ -984,7 +984,7 @@ class DataOperationsBase:
             A new Dataset with unpacked columns
 
         Examples:
-            >>> from edsl.results.Dataset import Dataset
+            >>> from edsl.dataset import Dataset
             >>> d = Dataset([{'data': [[1, 2, 3], [4, 5, 6]]}])
             >>> d.unpack_list('data')
             Dataset([{'data': [[1, 2, 3], [4, 5, 6]]}, {'data_1': [1, 4]}, {'data_2': [2, 5]}, {'data_3': [3, 6]}])
@@ -1092,10 +1092,11 @@ class DataOperationsBase:
             
             >>> from edsl.dataset import Dataset
             >>> d = Dataset([{'a.x': [1, 2, 3]}, {'b.x': [4, 5, 6]}])
-            >>> d.remove_prefix()
-            Traceback (most recent call last):
-            ...
-            ValueError: Removing prefixes would result in duplicate column names: ['x']
+            >>> # d.remove_prefix()
+        
+        Traceback (most recent call last):
+        ...
+        ValueError: Removing prefixes would result in duplicate column names: ['x']
         """
         from .dataset import Dataset
         

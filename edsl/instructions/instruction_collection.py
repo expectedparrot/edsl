@@ -1,8 +1,8 @@
 from typing import TYPE_CHECKING, Dict, List, Generator, Union
 from collections import UserDict
 
-from .Instruction import Instruction
-from .ChangeInstruction import ChangeInstruction
+from .instruction import Instruction
+from .change_instruction import ChangeInstruction
 
 if TYPE_CHECKING:
     from ..questions import QuestionBase
@@ -25,7 +25,7 @@ class InstructionCollection(UserDict):
 
     def __getitem__(self, key):
         # in case the person uses question instead of the name
-        from ...questions import QuestionBase
+        from ..questions import QuestionBase
 
         if isinstance(key, QuestionBase):
             key = key.name
@@ -60,7 +60,7 @@ class InstructionCollection(UserDict):
         self, question: Union[str, "QuestionBase"]
     ) -> Generator[Instruction, None, None]:
         ## Find all the questions that are after a given instruction
-        from ...questions import QuestionBase
+        from ..questions import QuestionBase
 
         if isinstance(question, str):
             question_name = question
@@ -80,3 +80,8 @@ class InstructionCollection(UserDict):
 
     def __len__(self):
         return len(self.instruction_names_to_instruction)
+
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod(optionflags=doctest.ELLIPSIS)

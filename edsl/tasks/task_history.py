@@ -50,9 +50,8 @@ class TaskHistory(RepresentationMixin):
     @classmethod
     def example(cls):
         """ """
-        from ..jobs.interviews import Interview
-
-        from edsl.jobs import Jobs
+        from ..interviews import Interview
+        from ..jobs import Jobs
 
         j = Jobs.example(throw_exception_probability=1, test_model=True)
 

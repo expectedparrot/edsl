@@ -3,8 +3,8 @@ from pydantic import BaseModel
 from typing import Union, Dict
 from typing import Union, List, Any, Optional
 from threading import RLock
-from edsl.jobs.buckets.TokenBucket import TokenBucket  # Original implementation
 
+from .token_bucket import TokenBucket  # Original implementation
 
 def safe_float_for_json(value: float) -> Union[float, str]:
     """Convert float('inf') to 'infinity' for JSON serialization.
