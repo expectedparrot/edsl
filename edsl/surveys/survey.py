@@ -82,7 +82,7 @@ class PseudoIndices(UserDict):
         >>> s = Survey.example()
         >>> s._pseudo_indices.last_item_was_instruction
         False
-        >>> from edsl.surveys.instructions.Instruction import Instruction
+        >>> from edsl.instructions import Instruction
         >>> s = s.add_instruction(Instruction(text="Pay attention to the following questions.", name="intro"))
         >>> s._pseudo_indices.last_item_was_instruction
         True

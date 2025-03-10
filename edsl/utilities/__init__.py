@@ -1,4 +1,17 @@
 from .template_loader import TemplateLoader
+
+
+from .decorators import sync_wrapper
+
+from .restricted_python import create_restricted_function
+
+from .utilities import dict_hash
+
+from .remove_edsl_version import remove_edsl_version
+
+from .utilities import is_notebook
+
+
 # from edsl.utilities.interface import (
 #     print_dict_as_html_table,
 #     print_dict_with_rich,

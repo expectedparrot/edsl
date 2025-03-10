@@ -1,16 +1,7 @@
-from edsl.exceptions.BaseException import BaseException
-
-
-# from edsl.utilities.utilities import is_notebook
-
-# from IPython.core.error import UsageError
-
-# class AgentListErrorAlternative(UsageError):
-#     def __init__(self, message):
-#         super().__init__(message)
-
 import sys
-from edsl.utilities.is_notebook import is_notebook
+
+from ..exceptions.BaseException import BaseException
+from ..utilities.is_notebook import is_notebook
 
 
 class AgentListError(BaseException):
