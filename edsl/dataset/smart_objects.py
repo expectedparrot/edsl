@@ -35,13 +35,13 @@ class SmartStr(str):
 
     def pdf(self, filename: Optional[str] = None):  # Markdown will have this as well
         # renders the markdown as a pdf that can be downloaded
-        from edsl.results.MarkdownToPDF import MarkdownToPDF
+        from ..utilities.markdown_to_pdf import MarkdownToPDF
 
         return MarkdownToPDF(self, filename).preview()
 
     def docx(self, filename: Optional[str] = None):
         # renders the markdown as a docx that can be downloaded
-        from edsl.results.MarkdownToDocx import MarkdownToDocx
+        from ..utilities.markdown_to_docx import MarkdownToDocx
 
         return MarkdownToDocx(self, filename).preview()
 

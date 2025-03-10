@@ -1,9 +1,10 @@
-from edsl.scenarios.file_methods import FileMethods
 import tempfile
 import re
 from typing import List, Optional
 import textwrap
 
+
+from ..file_methods import FileMethods
 
 class SqlMethods(FileMethods):
     suffix = "sql"

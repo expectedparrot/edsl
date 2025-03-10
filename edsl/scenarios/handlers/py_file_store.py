@@ -1,14 +1,12 @@
-from edsl.scenarios.file_methods import FileMethods
 import tempfile
-import re
 from typing import List, Optional, Dict
 import ast
 import black
-import textwrap
 import subprocess
 import sys
 from importlib import util
 
+from ..file_methods import FileMethods
 
 class PyMethods(FileMethods):
     suffix = "py"

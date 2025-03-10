@@ -104,7 +104,7 @@ class MarkdownToPDF:
             temp_pdf = os.path.join(temp_dir, "preview.pdf")
 
         if self.convert(temp_pdf):
-            from edsl.scenarios.FileStore import FileStore
+            from ..scenarios import FileStore
 
             return FileStore(temp_pdf)
 

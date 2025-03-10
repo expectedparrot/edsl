@@ -1,6 +1,5 @@
-from edsl.scenarios.file_methods import FileMethods
 import tempfile
-
+from ..file_methods import FileMethods
 
 class HtmlMethods(FileMethods):
     suffix = "html"

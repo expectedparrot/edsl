@@ -1,8 +1,8 @@
-from edsl.scenarios.file_methods import FileMethods
 import tempfile
 import json
 from typing import Optional, Dict, Any
 
+from ..file_methods import FileMethods
 
 class JsonMethods(FileMethods):
     suffix = "json"

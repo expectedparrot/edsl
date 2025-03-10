@@ -1,8 +1,10 @@
-from edsl.scenarios.file_methods import FileMethods
+from ..file_methods import FileMethods
 import os
 import tempfile
-from edsl.scenarios import Scenario, ScenarioList, FileStore
 
+from ..scenario import Scenario
+from ..scenario_list import ScenarioList
+from ..file_store import FileStore
 
 class PptxMethods(FileMethods):
     suffix = "pptx"
@@ -74,8 +76,8 @@ class PptxMethods(FileMethods):
 
     def example(self):
         from pptx import Presentation
-        from edsl.scenarios.Scenario import Scenario
-        from edsl.scenarios.ScenarioList import ScenarioList
+        from ..scenario import Scenario
+        from ..scenario_list import ScenarioList
 
         os.makedirs("test_dir", exist_ok=True)
 
@@ -100,7 +102,5 @@ class PptxMethods(FileMethods):
 
 
 if __name__ == "__main__":
-    pptx_temp = PptxMethods.example()
-    from edsl.scenarios.FileStore import FileStore
-
-    fs = FileStore(pptx_temp)
+    import doctest
+    doctest.testmod()
