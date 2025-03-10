@@ -36,14 +36,24 @@ if TYPE_CHECKING:
     from .dag import DAG
     from ..language_models import LanguageModel
     from ..data import Cache
-
-    # This is a hack to get around the fact that TypeAlias is not available in typing until Python 3.10
+    from ..jobs import Jobs
+    from ..results import Results
+    from ..scenarios import ScenarioList
+    from ..buckets.bucket_collection import BucketCollection
+    from ..key_management.key_lookup import KeyLookup
+    from .memory import Memory
+    from typing_extensions import TypeAlias, Literal
+    
+    # Define types for documentation purpose only  
+    VisibilityType: TypeAlias = Literal["unlisted", "public", "private"]
+    Table = Any  # Type for table display
+    # Try to import Document for documentation
     try:
-        from typing import TypeAlias
+        from docx.document import Document
     except ImportError:
-        from typing import _GenericAlias as TypeAlias
+        Document = Any  # Type for docx document
 
-    QuestionType: TypeAlias = Union[QuestionBase, Instruction, ChangeInstruction]
+    QuestionType: TypeAlias = Union[QuestionBase, "Instruction", "ChangeInstruction"]
     QuestionGroupType: TypeAlias = dict[str, tuple[int, int]]
 
 

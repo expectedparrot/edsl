@@ -1,4 +1,4 @@
-from typing import Union, TYPE_CHECKING, Type, TypeVar
+from typing import Union, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ...questions import QuestionBase
@@ -22,8 +22,8 @@ class RuleManager:
         self.survey = survey
 
     def _get_question_index(
-        self, q: Union["QuestionBase", str, Type[EndOfSurvey]]
-    ) -> Union[int, Type[EndOfSurvey]]:
+        self, q: Union["QuestionBase", str, 'EndOfSurvey']
+    ) -> Union[int, 'EndOfSurvey']:
         """Return the index of the question or EndOfSurvey object.
 
         :param q: The question or question name to get the index of.
