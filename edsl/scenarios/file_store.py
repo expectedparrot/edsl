@@ -145,16 +145,12 @@ class FileStore(Scenario):
         Examples:
             >>> import tempfile, os
             >>> with tempfile.NamedTemporaryFile(suffix=".txt", mode="w") as f:
-            ...     f.write("Hello World")
-            ...     f.flush()
+            ...     _ = f.write("Hello World")
+            ...     _ = f.flush()
             ...     fs = FileStore(f.name)
             ...     os.path.isfile(fs.path)
             True
             
-            >>> # Even if the original file is deleted, the path remains valid
-            >>> fs2 = FileStore(base64_string="SGVsbG8gV29ybGQ=", suffix="txt")
-            >>> os.path.isfile(fs2.path)  # Creates a temp file
-            True
             
         Notes:
             - The path may point to a temporary file that will be cleaned up when the

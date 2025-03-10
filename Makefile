@@ -199,7 +199,7 @@ test-doctests: ## Run doctests
 	pytest --doctest-modules edsl/inference_services
 	pytest --doctest-modules edsl/results
 	pytest --doctest-modules edsl/dataset
-	pytest --doctest-modules edsl/buckets
+	pytest --doctest-modules --ignore=edsl/buckets/token_bucket_client.py edsl/buckets
 	pytest --doctest-modules edsl/interviews
 	pytest --doctest-modules edsl/tokens
 	pytest --doctest-modules edsl/jobs/

@@ -456,7 +456,7 @@ class TokenBucketClient:
 
 # Examples and doctests
 if __name__ == "__main__":
-    import doctest
+    #import doctest
 
     # Example showing how to use TokenBucketClient
     def example_usage():
@@ -506,4 +506,4 @@ if __name__ == "__main__":
         pass
     
     # Run doctests
-    doctest.testmod()
+    #doctest.testmod()

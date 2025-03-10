@@ -133,9 +133,9 @@ class QuestionFreeText(QuestionBase):
         'free_text'
         
         >>> from edsl.language_models import Model
-        >>> model = Model.example(canned_response="I think AI is fascinating.")
+        >>> model = Model("test", canned_response="I think AI is fascinating.")
         >>> result = q.by(model).run(disable_remote_inference=True)
-        >>> answer = result.first().answer.opinion
+        >>> answer = result.select("answer.*").to_list()[0]
         >>> "fascinating" in answer
         True
     """

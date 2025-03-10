@@ -37,12 +37,14 @@ class SQLiteDict:
         Session: SQLAlchemy sessionmaker for creating database sessions
         
     Example:
-        >>> cache = SQLiteDict("path/to/cache.db")
+        >>> temp_db_path = SQLiteDict._get_temp_path()
+        >>> cache = SQLiteDict(temp_db_path)
         >>> entry = CacheEntry.example()
         >>> cache[entry.key] = entry
         >>> retrieved_entry = cache[entry.key]
         >>> entry == retrieved_entry
         True
+        >>> import os; os.unlink(temp_db_path)  # Clean up temp file
     """
 
     def __init__(self, db_path: Optional[str] = None):

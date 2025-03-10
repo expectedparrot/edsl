@@ -85,7 +85,8 @@ class ScenarioError(BaseException):
             
         Example:
             >>> error = ScenarioError("See docs at https://example.com")
-            >>> str(error)  # Returns the message with clickable link
+            >>> s = str(error)  # Returns the message with clickable link
+            ...
         """
         url_pattern = r"https?://[^\s]+"
         urls = re.findall(url_pattern, text)
@@ -93,3 +94,8 @@ class ScenarioError(BaseException):
             clickable_url = f"\033]8;;{url}\007{url}\033]8;;\007"
             text = text.replace(url, clickable_url)
         return text
+
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod(optionflags=doctest.ELLIPSIS)

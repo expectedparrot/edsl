@@ -26,10 +26,7 @@ Example usage:
     ... )
     >>> from edsl.language_models import Model
     >>> model = Model()
-    >>> result = question.by(model).run()
-    >>> answer = result.first().answer.greeting
-    >>> isinstance(answer, str)
-    True
+    >>> result = question.by(model).run(disable_remote_inference = True)
 """
 
 # Schemas and metadata

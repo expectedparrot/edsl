@@ -122,8 +122,9 @@ class QuestionBase(
             True
             
             >>> q = QuestionFreeText(question_name="123invalid", question_text="Text")
-            >>> q.is_valid_question_name()
-            False
+            Traceback (most recent call last):
+            ...
+            edsl.questions.exceptions.QuestionCreationValidationError: `question_name` is not a valid variable name (got 123invalid).
         """
         return is_valid_variable_name(self.question_name)
 

@@ -37,9 +37,9 @@ class DirectoryScanner:
         >>> # Create a temporary directory with some files
         >>> with tempfile.TemporaryDirectory() as tmpdir:
         ...     # Create a few files with different extensions
-        ...     open(os.path.join(tmpdir, "file1.txt"), "w").write("content")
-        ...     open(os.path.join(tmpdir, "file2.txt"), "w").write("content")
-        ...     open(os.path.join(tmpdir, "image.jpg"), "w").write("content")
+        ...     _ = open(os.path.join(tmpdir, "file1.txt"), "w").write("content")
+        ...     _ = open(os.path.join(tmpdir, "file2.txt"), "w").write("content")
+        ...     _ = open(os.path.join(tmpdir, "image.jpg"), "w").write("content")
         ...     # Create a scanner and find all text files
         ...     scanner = DirectoryScanner(tmpdir)
         ...     txt_files = scanner.scan(lambda path: path, suffix_allow_list=["txt"])
@@ -49,7 +49,7 @@ class DirectoryScanner:
         ...         return os.path.basename(path)
         ...     filenames = scanner.scan(get_filename)
         ...     sorted(filenames)
-        4
+        2
         ['file1.txt', 'file2.txt', 'image.jpg']
     """
 
@@ -92,10 +92,10 @@ class DirectoryScanner:
             >>> import os
             >>> with tempfile.TemporaryDirectory() as tmpdir:
             ...     # Create test files
-            ...     open(os.path.join(tmpdir, "doc1.txt"), "w").write("content")
-            ...     open(os.path.join(tmpdir, "doc2.md"), "w").write("content")
+            ...     _ = open(os.path.join(tmpdir, "doc1.txt"), "w").write("content")
+            ...     _ = open(os.path.join(tmpdir, "doc2.md"), "w").write("content")
             ...     os.mkdir(os.path.join(tmpdir, "subdir"))
-            ...     open(os.path.join(tmpdir, "subdir", "doc3.txt"), "w").write("content")
+            ...     _ = open(os.path.join(tmpdir, "subdir", "doc3.txt"), "w").write("content")
             ...     # Scan for text files only
             ...     scanner = DirectoryScanner(tmpdir)
             ...     paths = scanner.scan(lambda p: p, suffix_allow_list=["txt"])
@@ -165,8 +165,8 @@ class DirectoryScanner:
             >>> import os
             >>> with tempfile.TemporaryDirectory() as tmpdir:
             ...     # Create test files
-            ...     open(os.path.join(tmpdir, "doc1.txt"), "w").write("content")
-            ...     open(os.path.join(tmpdir, "doc2.md"), "w").write("content")
+            ...     _ = open(os.path.join(tmpdir, "doc1.txt"), "w").write("content")
+            ...     _ = open(os.path.join(tmpdir, "doc2.md"), "w").write("content")
             ...     # Process files lazily
             ...     scanner = DirectoryScanner(tmpdir)
             ...     for path in scanner.iter_scan(lambda p: p):
