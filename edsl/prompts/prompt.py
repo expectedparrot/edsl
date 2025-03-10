@@ -6,7 +6,7 @@ from functools import lru_cache
 
 from jinja2 import Environment, meta, Undefined
 
-from ..exceptions.prompts import TemplateRenderError
+from .exceptions import TemplateRenderError
 from ..base import PersistenceMixin, RepresentationMixin
 
 MAX_NESTING = 100
@@ -101,7 +101,7 @@ class Prompt(PersistenceMixin, RepresentationMixin):
         self.captured_variables = {}
 
     @classmethod
-    def from_txt(cls, filename: str) -> 'PromptBase':
+    def from_txt(cls, filename: str) -> 'Prompt':
         """Create a `Prompt` from text.
 
         :param text: The text of the prompt.
@@ -116,7 +116,7 @@ class Prompt(PersistenceMixin, RepresentationMixin):
         file_name: str,
         path_to_folder: Optional[Union[str, Path]] = None,
         **kwargs: Dict[str, Any],
-    ) -> "PromptBase":
+    ) -> "Prompt":
         """Create a `PromptBase` from a Jinja template.
 
         Args:
@@ -149,11 +149,11 @@ class Prompt(PersistenceMixin, RepresentationMixin):
         return cls(text=text)
 
     @property
-    def text(self):
+    def text(self) -> str:
         """Return the `Prompt` text."""
         return self._text
 
-    def __add__(self, other_prompt):
+    def __add__(self, other_prompt) -> 'Prompt':
         """Add two prompts together.
 
         Example:
@@ -181,7 +181,7 @@ class Prompt(PersistenceMixin, RepresentationMixin):
         """
         return self.text
 
-    def __contains__(self, text_to_check):
+    def __contains__(self, text_to_check) -> bool:
         """Check if the text_to_check is in the `Prompt` text.
 
         Example:
@@ -208,7 +208,7 @@ class Prompt(PersistenceMixin, RepresentationMixin):
         """Return the variables in the template."""
         return _find_template_variables(self.text)
 
-    def undefined_template_variables(self, replacement_dict: dict):
+    def undefined_template_variables(self, replacement_dict: dict) -> list[str]:
         """Return the variables in the template that are not in the replacement_dict.
 
         :param replacement_dict: A dictionary of replacements to populate the template.
@@ -225,7 +225,7 @@ class Prompt(PersistenceMixin, RepresentationMixin):
         """
         return [var for var in self.template_variables() if var not in replacement_dict]
 
-    def unused_traits(self, traits: dict):
+    def unused_traits(self, traits: dict) -> list[str]:
         """Return the traits that are not used in the template."""
         return [trait for trait in traits if trait not in self.template_variables()]
 
@@ -337,7 +337,7 @@ class Prompt(PersistenceMixin, RepresentationMixin):
         return {"text": self.text, "class_name": self.__class__.__name__}
 
     @classmethod
-    def from_dict(cls, data) -> PromptBase:
+    def from_dict(cls, data) -> 'Prompt':
         """Create a `Prompt` from a dictionary.
 
         Example:
@@ -359,6 +359,10 @@ class Prompt(PersistenceMixin, RepresentationMixin):
 
     def get_prompts(self) -> Dict[str, Any]:
         """Get the prompts for the question.        
+
+        >>> p = Prompt("Hello, {{person}}")
+        >>> p.get_prompts()
+        {'agent_instructions': 'Hello, {{person}}', 'agent_persona': 'Hello, {{person}}', 'question_instructions': 'Hello, {{person}}', 'prior_question_memory': 'Hello, {{person}}'}
         """
         start = time.time()
         
