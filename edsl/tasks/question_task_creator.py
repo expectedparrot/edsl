@@ -2,7 +2,7 @@ import asyncio
 from typing import Callable, Union, List, TYPE_CHECKING
 from collections import UserList, UserDict
 
-from ..exceptions.jobs import InterviewErrorPriorTaskCanceled
+from ..jobs.exceptions import InterviewErrorPriorTaskCanceled
 from ..tokens import TokenUsage
 from ..data_transfer_models import Answers
 

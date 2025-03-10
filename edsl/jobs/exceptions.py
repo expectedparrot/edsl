@@ -1,7 +1,8 @@
 from textwrap import dedent
 
+from ..base import BaseException
 
-class JobsErrors(Exception):
+class JobsErrors(BaseException):
     pass
 
 

@@ -2,12 +2,11 @@ from collections.abc import AsyncGenerator
 from typing import List, TypeVar, Generator, Tuple, TYPE_CHECKING
 from dataclasses import dataclass
 import asyncio
-from contextlib import asynccontextmanager
 from edsl.data_transfer_models import EDSLResultObjectInput
 
 from ..results import Result
 from ..interviews import Interview
-from edsl.config import Config
+from ..config import Config
 config = Config()
 
 if TYPE_CHECKING:
@@ -22,9 +21,16 @@ class InterviewResult:
     order: int
 
 
-
-
 class AsyncInterviewRunner:
+    """
+    Runs interviews asynchronously.
+
+    TODO: add doctests
+    >>> True
+    True
+
+    """
+    
     MAX_CONCURRENT = int(config.EDSL_MAX_CONCURRENT_TASKS)
 
     def __init__(self, jobs: "Jobs", run_config: RunConfig):
@@ -138,3 +144,9 @@ class AsyncInterviewRunner:
                 for task in tasks:
                     if not task.done():
                         task.cancel()
+
+
+
+if __name__ == "__main__":
+    import doctest 
+    doctest.testmod()
