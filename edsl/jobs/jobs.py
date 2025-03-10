@@ -17,20 +17,20 @@ from typing import (
 )
 
 from ..base import Base
-from ..utilities.remove_edsl_version import remove_edsl_version
+from ..utilities import remove_edsl_version
 from edsl.exceptions.coop import CoopServerResponseError
 
 from ..buckets import BucketCollection
-from .jobs_pricing_estimation import JobsPrompts
-from .remote_inference import JobsRemoteInferenceHandler
-
-from .jobs_checks import JobsChecks
-from .data_structures import RunEnvironment, RunParameters, RunConfig
-
-from ..scenarios import Scenario
-from ..scenarios import ScenarioList
+from ..scenarios import Scenario, ScenarioList
 from ..surveys import Survey
 from ..interviews import Interview
+
+from .jobs_pricing_estimation import JobsPrompts
+from .remote_inference import JobsRemoteInferenceHandler
+from .jobs_checks import JobsChecks
+from .data_structures import RunEnvironment, RunParameters, RunConfig
+from .check_survey_scenario_compatibility import CheckSurveyScenarioCompatibility
+
 
 if TYPE_CHECKING:
     from ..agents import Agent
@@ -42,7 +42,7 @@ if TYPE_CHECKING:
     from ..dataset import Dataset
     from ..language_models import ModelList
     from ..data import Cache
-    from ..language_models.key_management.KeyLookup import KeyLookup
+    from ..key_management import KeyLookup
 
 VisibilityType = Literal["private", "public", "unlisted"]
 
@@ -57,9 +57,6 @@ P = ParamSpec("P")
 T = TypeVar("T")
 
 
-from .check_survey_scenario_compatibility import (
-    CheckSurveyScenarioCompatibility,
-)
 
 
 def with_config(f: Callable[P, T]) -> Callable[P, T]:

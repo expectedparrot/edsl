@@ -6,7 +6,7 @@ from edsl.tasks import QuestionTaskCreator
 from edsl.buckets import ModelBuckets
 from edsl.tasks import TaskStatus
 from edsl.questions import QuestionBase
-from edsl.exceptions.jobs import InterviewErrorPriorTaskCanceled
+from edsl.jobs.exceptions import InterviewErrorPriorTaskCanceled
 
 from collections import namedtuple
 
