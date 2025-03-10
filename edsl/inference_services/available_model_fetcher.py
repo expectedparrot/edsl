@@ -56,7 +56,7 @@ class AvailableModelFetcher:
 
         :param service: Optional[InferenceServiceABC] - If specified, only fetch models for this service.
 
-        >>> from edsl.inference_services.OpenAIService import OpenAIService
+        >>> from edsl.inference_services.services.open_ai_service import OpenAIService
         >>> af = AvailableModelFetcher([OpenAIService()], {})
         >>> af.available(service="openai")
         [LanguageModelInfo(model_name='...', service_name='openai'), ...]

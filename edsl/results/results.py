@@ -1187,7 +1187,7 @@ class Results(UserList, ResultsOperationsMixin, Base):
         >>> r = Results.example().filter("how_feeling = 'Great'").select('how_feeling')
         Traceback (most recent call last):
         ...
-        edsl.exceptions.results.ResultsFilterError: You must use '==' instead of '=' in the filter expression.
+        edsl.results.exceptions.ResultsFilterError: You must use '==' instead of '=' in the filter expression.
         ...
 
         >>> r.filter("how_feeling == 'Great' or how_feeling == 'Terrible'").select('how_feeling')

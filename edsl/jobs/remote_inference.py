@@ -11,7 +11,7 @@ if TYPE_CHECKING:
     from .jobs import Jobs
     from .jobs_remote_inference_logger import JobLogger
 
-from ..exceptions.coop import CoopServerResponseError
+from ..coop import CoopServerResponseError
 from ..coop.utils import VisibilityType
 from ..coop.coop import RemoteInferenceResponse, RemoteInferenceCreationInfo
 

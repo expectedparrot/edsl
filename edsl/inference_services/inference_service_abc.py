@@ -1,7 +1,7 @@
 from abc import abstractmethod, ABC
 import re
 from datetime import datetime, timedelta
-from edsl.config import CONFIG
+from ..config import CONFIG
 
 
 class InferenceServiceABC(ABC):

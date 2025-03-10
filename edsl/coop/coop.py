@@ -14,7 +14,7 @@ if TYPE_CHECKING:
     from ..jobs import Jobs
     from ..surveys import Survey
 
-from ..exceptions.coop import (
+from .exceptions import (
     CoopInvalidURLError,
     CoopNoUUIDError,
     CoopServerResponseError,

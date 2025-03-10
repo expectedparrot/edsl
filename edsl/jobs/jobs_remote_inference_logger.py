@@ -6,7 +6,7 @@ from typing import Optional, Union, Literal, TYPE_CHECKING, List, Dict
 from datetime import datetime
 from dataclasses import dataclass
 
-from ..exceptions.coop import CoopServerResponseError
+from ..coop import CoopServerResponseError
 
 from .jobs_status_enums import JobsStatus
 

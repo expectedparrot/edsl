@@ -260,7 +260,7 @@ class QuestionOptionsDescriptor(BaseDescriptor):
     >>> _ = q_class(["a", "b", "c", "d", "d"])
     Traceback (most recent call last):
     ...
-    edsl.exceptions.questions.QuestionCreationValidationError: Question options must be unique (got ['a', 'b', 'c', 'd', 'd']).
+    edsl.questions.exceptions.QuestionCreationValidationError: Question options must be unique (got ['a', 'b', 'c', 'd', 'd']).
 
     We allow dynamic question options, which are strings of the form '{{ question_options }}'.
 
@@ -268,7 +268,7 @@ class QuestionOptionsDescriptor(BaseDescriptor):
     >>> _ = q_class("dynamic_options")
     Traceback (most recent call last):
     ...
-    edsl.exceptions.questions.QuestionCreationValidationError: ...
+    edsl.questions.exceptions.QuestionCreationValidationError: ...
     """
 
     @classmethod

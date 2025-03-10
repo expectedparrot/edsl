@@ -1,4 +1,6 @@
-class CoopErrors(Exception):
+from ..base import BaseException
+
+class CoopErrors(BaseException):
     pass
 
 
