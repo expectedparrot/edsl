@@ -1,10 +1,10 @@
-from typing import Union, TYPE_CHECKING
+from typing import Union, TYPE_CHECKING, Type, TypeVar
 
 if TYPE_CHECKING:
-    from edsl.questions.QuestionBase import QuestionBase
+    from ...questions import QuestionBase
+    from ..survey import Survey
 
-from edsl.exceptions.surveys import SurveyError, SurveyCreationError
-
+from ..exceptions import SurveyError, SurveyCreationError
 from .rule import Rule
 from ..base import RulePriority, EndOfSurvey
 
@@ -22,8 +22,8 @@ class RuleManager:
         self.survey = survey
 
     def _get_question_index(
-        self, q: Union["QuestionBase", str, EndOfSurvey.__class__]
-    ) -> Union[int, EndOfSurvey.__class__]:
+        self, q: Union["QuestionBase", str, Type[EndOfSurvey]]
+    ) -> Union[int, Type[EndOfSurvey]]:
         """Return the index of the question or EndOfSurvey object.
 
         :param q: The question or question name to get the index of.
@@ -41,7 +41,7 @@ class RuleManager:
         >>> s._get_question_index("poop")
         Traceback (most recent call last):
         ...
-        edsl.exceptions.surveys.SurveyError: Question name poop not found in survey. The current question names are {'q0': 0, 'q1': 1, 'q2': 2}.
+        edsl.surveys.exceptions.SurveyError: Question name poop not found in survey. The current question names are {'q0': 0, 'q1': 1, 'q2': 2}.
         ...
         """
         if q == EndOfSurvey:
@@ -153,7 +153,7 @@ class RuleManager:
         >>> s.add_stop_rule("q0", "{{ q1.answer }} <> 'yes'")
         Traceback (most recent call last):
         ...
-        edsl.exceptions.surveys.SurveyCreationError: The expression contains '<>', which is not allowed. You probably mean '!='.
+        edsl.surveys.exceptions.SurveyCreationError: The expression contains '<>', which is not allowed. You probably mean '!='.
         ...
         """
         expression = ValidatedString(expression)

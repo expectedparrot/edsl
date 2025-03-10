@@ -1,6 +1,6 @@
 from ..base import EndOfSurvey
 from . import DAG
-from edsl.exceptions.surveys import SurveyError
+from ..exceptions import SurveyError
 
 
 class ConstructDAG:

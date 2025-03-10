@@ -17,10 +17,9 @@ from typing import (
     TYPE_CHECKING,
 )
 from ..base import Base
-from ..exceptions.surveys import SurveyCreationError, SurveyHasNoRulesError, SurveyError
 from ..agents import Agent
 from ..scenarios import Scenario
-from ..utilities.remove_edsl_version import remove_edsl_version
+from ..utilities import remove_edsl_version
 
 if TYPE_CHECKING:
     from ..questions import QuestionBase
@@ -51,10 +50,9 @@ from ..instructions import InstructionHandler
 from .edit_survey import EditSurvey
 from .survey_simulator import Simulator
 from .memory import MemoryManagement
-
 from .rules import RuleManager, RuleCollection
-
 from .survey_export import SurveyExport
+from .exceptions import SurveyCreationError, SurveyHasNoRulesError, SurveyError
 
 class PseudoIndices(UserDict):
     """A dictionary of pseudo-indices for the survey.
@@ -274,7 +272,7 @@ class Survey(Base):
         >>> s._get_question_index("poop")
         Traceback (most recent call last):
         ...
-        edsl.exceptions.surveys.SurveyError: Question name poop not found in survey. The current question names are {'q0': 0, 'q1': 1, 'q2': 2}.
+        edsl.surveys.exceptions.SurveyError: Question name poop not found in survey. The current question names are {'q0': 0, 'q1': 1, 'q2': 2}.
         ...
         """
         if q == EndOfSurvey:
@@ -472,7 +470,7 @@ class Survey(Base):
         >>> s3 = s1 + s2
         Traceback (most recent call last):
         ...
-        edsl.exceptions.surveys.SurveyCreationError: ...
+        edsl.surveys.exceptions.SurveyCreationError: ...
         ...
         >>> s3 = s1.clear_non_default_rules() + s2
         >>> len(s3.questions)
@@ -539,7 +537,7 @@ class Survey(Base):
         >>> s = Survey().add_question(q).add_question(q)
         Traceback (most recent call last):
         ...
-        edsl.exceptions.surveys.SurveyCreationError: Question name 'q0' already exists in survey. Existing names are ['q0'].
+        edsl.surveys.exceptions.SurveyCreationError: Question name 'q0' already exists in survey. Existing names are ['q0'].
         ...
         """
         return EditSurvey(self).add_question(question, index)
@@ -652,17 +650,17 @@ class Survey(Base):
         >>> s = Survey.example().add_question_group("q0", "q2", "1group1")
         Traceback (most recent call last):
         ...
-        edsl.exceptions.surveys.SurveyCreationError: Group name 1group1 is not a valid identifier.
+        edsl.surveys.exceptions.SurveyCreationError: Group name 1group1 is not a valid identifier.
         ...
         >>> s = Survey.example().add_question_group("q0", "q1", "q0")
         Traceback (most recent call last):
         ...
-        edsl.exceptions.surveys.SurveyCreationError: ...
+        edsl.surveys.exceptions.SurveyCreationError: ...
         ...
         >>> s = Survey.example().add_question_group("q1", "q0", "group1")
         Traceback (most recent call last):
         ...
-        edsl.exceptions.surveys.SurveyCreationError: ...
+        edsl.surveys.exceptions.SurveyCreationError: ...
         ...
         """
 
@@ -747,7 +745,7 @@ class Survey(Base):
         >>> s.add_stop_rule("q0", "{{ q1.answer }} <> 'yes'")
         Traceback (most recent call last):
         ...
-        edsl.exceptions.surveys.SurveyCreationError: The expression contains '<>', which is not allowed. You probably mean '!='.
+        edsl.surveys.exceptions.SurveyCreationError: The expression contains '<>', which is not allowed. You probably mean '!='.
         ...
         """
         return RuleManager(self).add_stop_rule(question, expression)

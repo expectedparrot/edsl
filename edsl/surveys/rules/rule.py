@@ -25,19 +25,17 @@ from typing import Any, Union, List
 # from rich import print
 from simpleeval import EvalWithCompoundTypes
 
-from edsl.exceptions.surveys import SurveyError
+from ..exceptions import SurveyError
 
-from edsl.exceptions.surveys import (
+from ..exceptions import (
     SurveyRuleCannotEvaluateError,
     SurveyRuleRefersToFutureStateError,
     SurveyRuleSendsYouBackwardsError,
     SurveyRuleSkipLogicSyntaxError,
 )
 
-from edsl.surveys.base import EndOfSurvey
-from edsl.utilities.ast_utilities import extract_variable_names
-from edsl.utilities.remove_edsl_version import remove_edsl_version
-
+from ..base import EndOfSurvey
+from ...utilities import extract_variable_names, remove_edsl_version
 
 class QuestionIndex:
     def __set_name__(self, owner, name):

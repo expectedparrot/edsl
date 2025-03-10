@@ -14,6 +14,8 @@ from .is_notebook import is_notebook
 from .naming_utilities import sanitize_string
 from .is_valid_variable_name import is_valid_variable_name
 
+from .ast_utilities import extract_variable_names
+
 # from edsl.utilities.interface import (
 #     print_dict_as_html_table,
 #     print_dict_with_rich,

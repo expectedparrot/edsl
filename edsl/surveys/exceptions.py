@@ -1,5 +1,4 @@
-from edsl.exceptions.BaseException import BaseException
-
+from ..base import BaseException
 
 class SurveyError(BaseException):
     relevant_doc = "https://docs.expectedparrot.com/en/latest/surveys.html"
