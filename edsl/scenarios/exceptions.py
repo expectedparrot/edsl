@@ -1,15 +1,13 @@
 import re
-import textwrap
 
-# from IPython.core.error import UsageError
+from ..base import BaseException
 
-
-class AgentListError(Exception):
+class AgentListError(BaseException):
     def __init__(self, message):
         super().__init__(message)
 
 
-class ScenarioError(Exception):
+class ScenarioError(BaseException):
     documentation = "https://docs.expectedparrot.com/en/latest/scenarios.html#module-edsl.scenarios.Scenario"
 
     def __init__(self, message: str):

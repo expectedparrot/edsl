@@ -11,6 +11,8 @@ from .remove_edsl_version import remove_edsl_version
 
 from .is_notebook import is_notebook
 
+from .naming_utilities import sanitize_string
+from .is_valid_variable_name import is_valid_variable_name
 
 # from edsl.utilities.interface import (
 #     print_dict_as_html_table,

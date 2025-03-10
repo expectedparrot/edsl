@@ -9,33 +9,13 @@ from typing import Union, List, Optional, TYPE_CHECKING, Collection
 from uuid import uuid4
 
 from ..base import Base
-from edsl.utilities.remove_edsl_version import remove_edsl_version
-from edsl.exceptions.scenarios import ScenarioError
+from ..utilities import remove_edsl_version
+from .exceptions import ScenarioError
 
 if TYPE_CHECKING:
     from .scenario_list import ScenarioList
     from ..dataset import Dataset
 
-class DisplayJSON:
-    """Display a dictionary as JSON."""
-
-    def __init__(self, input_dict: dict):
-        self.text = json.dumps(input_dict, indent=4)
-
-    def __repr__(self):
-        return self.text
-
-
-class DisplayYAML:
-    """Display a dictionary as YAML."""
-
-    def __init__(self, input_dict: dict):
-        import yaml
-
-        self.text = yaml.dump(input_dict)
-
-    def __repr__(self):
-        return self.text
 
 
 class Scenario(Base, UserDict):
@@ -63,7 +43,27 @@ class Scenario(Base, UserDict):
         self.name = name
 
     def __mul__(self, scenario_list_or_scenario: Union["ScenarioList", "Scenario"]) -> "ScenarioList":
-        from edsl.scenarios.ScenarioList import ScenarioList
+        """Takes the cross product of a Scenario with another Scenario or ScenarioList.
+
+        Args:
+            scenario_list_or_scenario: A Scenario or ScenarioList to multiply with.
+
+        Returns:
+            A ScenarioList containing the cross product.
+
+        Example:
+            >>> s1 = Scenario({'a': 1})
+            >>> s2 = Scenario({'b': 2})
+            >>> s1 * s2
+            ScenarioList([Scenario({'a': 1, 'b': 2})])
+
+            >>> from edsl.scenarios import ScenarioList
+            >>> sl = ScenarioList([Scenario({'b': 2}), Scenario({'b': 3})])
+            >>> new_s = s1 * sl
+            >>> new_s == ScenarioList([Scenario({'a': 1, 'b': 2}), Scenario({'a': 1, 'b': 3})])
+            True
+        """
+        from .scenario_list import ScenarioList
         if isinstance(scenario_list_or_scenario, ScenarioList):
             return scenario_list_or_scenario * self
         elif isinstance(scenario_list_or_scenario, Scenario):
@@ -197,13 +197,6 @@ class Scenario(Base, UserDict):
         """Display a scenario as a table."""
         return self.to_dataset().table(tablefmt=tablefmt)
 
-    def json(self):
-        return DisplayJSON(self.to_dict(add_edsl_version=False))
-
-    def yaml(self):
-        import yaml
-
-        return DisplayYAML(self.to_dict(add_edsl_version=False))
 
     def to_dict(self, add_edsl_version: bool = True) -> dict:
         """Convert a scenario to a dictionary.
@@ -562,7 +555,7 @@ class Scenario(Base, UserDict):
         ...
         ValueError: You must specify either num_words or num_lines, but not both.
         """
-        from edsl.scenarios.DocumentChunker import DocumentChunker
+        from .document_chunker import DocumentChunker
 
         return DocumentChunker(self).chunk(
             field, num_words, num_lines, include_original, hash_original

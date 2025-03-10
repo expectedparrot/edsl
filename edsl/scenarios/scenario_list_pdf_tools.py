@@ -4,7 +4,9 @@ import copy
 import atexit
 import tempfile
 import subprocess
-from edsl.scenarios import Scenario
+import requests
+
+from .scenario import Scenario
 
 
 class GoogleDriveDownloader:
@@ -13,7 +15,6 @@ class GoogleDriveDownloader:
 
     @classmethod
     def fetch_from_drive(cls, url, filename=None):
-        import requests
 
         # Extract file ID from the URL
         file_id = cls._extract_file_id(url)
@@ -108,11 +109,13 @@ def fetch_and_save_pdf(url, filename):
     return temp_file_path
 
 
-class ScenarioListPdfMixin:
-    @classmethod
-    def from_pdf(cls, filename_or_url, collapse_pages=False):
+class PdfTools:
+    """Class for handling PDF-related operations for scenarios"""
+    
+    @staticmethod
+    def from_pdf(filename_or_url, collapse_pages=False):
         # Check if the input is a URL
-        if cls.is_url(filename_or_url):
+        if PdfTools.is_url(filename_or_url):
             # Check if it's a Google Drive URL
             if "drive.google.com" in filename_or_url:
                 temp_filename = GoogleDriveDownloader.fetch_from_drive(
@@ -122,12 +125,12 @@ class ScenarioListPdfMixin:
                 # For other URLs, use the previous fetch_and_save_pdf function
                 temp_filename = fetch_and_save_pdf(filename_or_url, "temp_pdf.pdf")
 
-            scenarios = list(cls.extract_text_from_pdf(temp_filename))
+            scenarios = list(PdfTools.extract_text_from_pdf(temp_filename))
         else:
             # If it's not a URL, assume it's a local file path
-            scenarios = list(cls.extract_text_from_pdf(filename_or_url))
+            scenarios = list(PdfTools.extract_text_from_pdf(filename_or_url))
         if not collapse_pages:
-            return cls(scenarios)
+            return scenarios
         else:
             txt = ""
             for scenario in scenarios:
@@ -147,8 +150,8 @@ class ScenarioListPdfMixin:
         except ValueError:
             return False
 
-    @classmethod
-    def from_pdf_to_image(cls, pdf_path, image_format="jpeg"):
+    @staticmethod
+    def from_pdf_to_image(pdf_path, image_format="jpeg"):
         """
         Convert each page of a PDF into an image and create Scenario instances.
 
@@ -179,7 +182,7 @@ class ScenarioListPdfMixin:
                     })
                 scenarios.append(scenario)
 
-            return cls(scenarios)
+            return scenarios
 
     @staticmethod
     def extract_text_from_pdf(pdf_path):
@@ -205,6 +208,7 @@ class ScenarioListPdfMixin:
             page_info = {"filename": filename, "page": page_num + 1, "text": text}
             yield Scenario(page_info)
 
+    @staticmethod
     def create_hello_world_pdf(pdf_path):
         # LaTeX content
         latex_content = r"""

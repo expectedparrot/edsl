@@ -2,20 +2,25 @@ import base64
 import io
 import tempfile
 import mimetypes
+import asyncio
 import os
 from typing import Dict, Any, IO, Optional
-
-from edsl.scenarios import Scenario
-from edsl.utilities.remove_edsl_version import remove_edsl_version
-
-from edsl.scenarios.file_methods import FileMethods
 from typing import Union
 from uuid import UUID
 import time
 from typing import Dict, Any, IO, Optional, List, Union, Literal
 
+from .scenario import Scenario
+from ..utilities import remove_edsl_version
+from .file_methods import FileMethods
 
 class FileStore(Scenario):
+
+    """
+    
+    >>> fs = FileStore.example("txt")
+    
+    """
     __documentation__ = "https://docs.expectedparrot.com/en/latest/filestore.html"
 
     def __init__(
@@ -156,7 +161,7 @@ class FileStore(Scenario):
         Returns:
             ScenarioList containing FileStore objects with their corresponding URLs
         """
-        from edsl import ScenarioList
+        from .scenario_list import ScenarioList
 
         try:
             # Try using get_event_loop first (works in regular Python)
@@ -221,13 +226,13 @@ class FileStore(Scenario):
 
     def _repr_html_(self):
         parent_html = super()._repr_html_()
-        from edsl.scenarios.ConstructDownloadLink import ConstructDownloadLink
+        from .construct_download_link import ConstructDownloadLink
 
         link = ConstructDownloadLink(self).html_create_link(self.path, style=None)
         return f"{parent_html}<br>{link}"
     
     def download_link(self):
-        from edsl.scenarios.ConstructDownloadLink import ConstructDownloadLink
+        from .construct_download_link import ConstructDownloadLink
         return ConstructDownloadLink(self).html_create_link(self.path, style=None)
 
     def encode_file_to_base64_string(self, file_path: str):
@@ -457,7 +462,7 @@ class FileStore(Scenario):
         return cls(download_path, mime_type=mime_type)
 
     def create_link(self, custom_filename=None, style=None):
-        from edsl.scenarios.ConstructDownloadLink import ConstructDownloadLink
+        from .construct_download_link import ConstructDownloadLink
 
         return ConstructDownloadLink(self).create_link(custom_filename, style)
 
@@ -497,7 +502,7 @@ class FileStore(Scenario):
 class CSVFileStore(FileStore):
     @classmethod
     def example(cls):
-        from edsl.results import Results
+        from ..results import Results
 
         r = Results.example()
         import tempfile
@@ -657,9 +662,6 @@ if __name__ == "__main__":
 
     doctest.testmod()
 
-    # fs = FileStore.example("pdf")
-    # fs.view()
-
     formats = FileMethods.supported_file_types()
     for file_type in formats:
         print("Now testinging", file_type)
@@ -667,11 +669,3 @@ if __name__ == "__main__":
         fs.view()
         input("Press Enter to continue...")
 
-    # pdf_example.view()
-    # FileStore(pdf_example).view()
-
-    # pdf_methods = methods.get("pdf")
-    # file = pdf_methods().example()
-    # pdf_methods(file).view()
-
-    # print(FileMethods._handlers)

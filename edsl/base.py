@@ -11,6 +11,50 @@ from typing import Any, Dict, Tuple
 from collections import UserList
 import inspect
 
+class BaseException(Exception):
+    relevant_doc = "https://docs.expectedparrot.com/"
+
+    def __init__(self, message, *, show_docs=True):
+        # Format main error message
+        formatted_message = [message.strip()]
+
+        # Add documentation links if requested
+        if show_docs:
+            if hasattr(self, "relevant_doc"):
+                formatted_message.append(
+                    f"\nFor more information, see:\n{self.relevant_doc}"
+                )
+            if hasattr(self, "relevant_notebook"):
+                formatted_message.append(
+                    f"\nFor a usage example, see:\n{self.relevant_notebook}"
+                )
+
+        # Join with double newlines for clear separation
+        final_message = "\n\n".join(formatted_message)
+        super().__init__(final_message)
+
+
+class DisplayJSON:
+    """Display a dictionary as JSON."""
+
+    def __init__(self, input_dict: dict):
+        self.text = json.dumps(input_dict, indent=4)
+
+    def __repr__(self):
+        return self.text
+
+
+class DisplayYAML:
+    """Display a dictionary as YAML."""
+
+    def __init__(self, input_dict: dict):
+        import yaml
+
+        self.text = yaml.dump(input_dict)
+
+    def __repr__(self):
+        return self.text
+
 
 class PersistenceMixin:
     """Mixin for saving and loading objects to and from files."""
@@ -423,6 +467,14 @@ class Base(
     def example():
         """This method should be implemented by subclasses."""
         raise NotImplementedError("This method is not implemented yet.")
+    
+    def json(self):
+        return DisplayJSON(self.to_dict(add_edsl_version=False))
+
+    def yaml(self):
+        import yaml
+        return DisplayYAML(self.to_dict(add_edsl_version=False))
+
 
     @abstractmethod
     def to_dict():
