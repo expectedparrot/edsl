@@ -1,3 +1,37 @@
+"""
+EDSL Questions Module: The core system for creating and processing questions.
+
+The questions module provides a comprehensive framework for creating, validating,
+and processing various types of questions that can be asked to language models.
+It is one of the foundational components of EDSL and enables the creation of 
+surveys, interviews, and other question-based interactions.
+
+Key features:
+- A wide variety of question types including free text, multiple choice, checkbox, etc.
+- Consistent interface for asking questions to language models
+- Robust validation of responses
+- Support for question templates and parameterization with scenarios
+- Integration with the rest of the EDSL framework
+
+The module is organized around the QuestionBase abstract base class, which defines
+the core interface all question types must implement. Specific question types are
+implemented as subclasses of QuestionBase, each with its own response format and
+validation rules.
+
+Example usage:
+    >>> from edsl import QuestionFreeText
+    >>> question = QuestionFreeText(
+    ...     question_name="greeting",
+    ...     question_text="Say hello to the user."
+    ... )
+    >>> from edsl.language_models import Model
+    >>> model = Model()
+    >>> result = question.by(model).run()
+    >>> answer = result.first().answer.greeting
+    >>> isinstance(answer, str)
+    True
+"""
+
 # Schemas and metadata
 from .settings import Settings
 from .register_questions_meta import RegisterQuestionsMeta
