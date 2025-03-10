@@ -5,13 +5,29 @@ It is not typically instantiated directly, but is returned by the run method of 
 from __future__ import annotations
 import json
 import random
+import warnings
 from collections import UserList, defaultdict
 from typing import Optional, Callable, Any, Type, Union, List, TYPE_CHECKING
-
 from bisect import bisect_left
 
 from ..base import Base
-from edsl.exceptions.results import (
+
+if TYPE_CHECKING:
+    from ..surveys import Survey
+    from ..data import Cache
+    from ..agents import AgentList
+    from ..language_models import Model
+    from ..scenarios import ScenarioList
+    from ..results import Result
+    from ..tasks import TaskHistory
+    from ..language_models import ModelList
+    from simpleeval import EvalWithCompoundTypes
+    from ..dataset import Dataset
+
+from ..utilities import remove_edsl_version, dict_hash
+from ..dataset import ResultsOperationsMixin
+
+from .exceptions import (
     ResultsError,
     ResultsBadMutationstringError,
     ResultsColumnNotFoundError,
@@ -20,22 +36,6 @@ from edsl.exceptions.results import (
     ResultsFilterError,
     ResultsDeserializationError,
 )
-
-if TYPE_CHECKING:
-    from ..surveys import Survey
-    from ..data.Cache import Cache
-    from ..agents import AgentList
-    from ..language_models import Model
-    from ..scenarios import ScenarioList
-    from ..results import Result
-    from ..tasks import TaskHistory
-    from ..language_models import ModelList
-    from simpleeval import EvalWithCompoundTypes
-
-#from edsl.results.ResultsExportMixin import ResultsExportMixin
-# from .results_fetch_mixin import ResultsFetchMixin
-from ..utilities.remove_edsl_version import remove_edsl_version
-from ..dataset.dataset_operations_mixin import ResultsOperationsMixin
 
 def ensure_fetched(method):
     """A decorator that checks if remote data is loaded, and if not, attempts to fetch it."""
@@ -79,7 +79,7 @@ def ensure_ready(method):
 
 class NotReadyObject:
     """A placeholder object that prints a message when any attribute is accessed."""
-    def __init__(self, name: str, job_info: RemoteJobInfo):
+    def __init__(self, name: str, job_info: 'RemoteJobInfo'):
         self.name = name
         self.job_info = job_info
         #print(f"Not ready to call {name}")
@@ -282,83 +282,83 @@ class Results(UserList, ResultsOperationsMixin, Base):
 
         return total_cost
 
-    def leaves(self):
-        leaves = []
-        for result in self:
-            leaves.extend(result.leaves())
-        return leaves
+    # def leaves(self):
+    #     leaves = []
+    #     for result in self:
+    #         leaves.extend(result.leaves())
+    #     return leaves
 
-    def tree(self, node_list: Optional[List[str]] = None):
-        return self.to_scenario_list().tree(node_list)
+    # def tree(self, node_list: Optional[List[str]] = None):
+    #     return self.to_scenario_list().tree(node_list)
 
-    def interactive_tree(
-        self,
-        fold_attributes: Optional[List[str]] = None,
-        drop: Optional[List[str]] = None,
-        open_file=True,
-    ) -> dict:
-        """Return the results as a tree."""
-        from edsl.results.tree_explore import FoldableHTMLTableGenerator
+    # def interactive_tree(
+    #     self,
+    #     fold_attributes: Optional[List[str]] = None,
+    #     drop: Optional[List[str]] = None,
+    #     open_file=True,
+    # ) -> dict:
+    #     """Return the results as a tree."""
+    #     from edsl.results.tree_explore import FoldableHTMLTableGenerator
 
-        if drop is None:
-            drop = []
+    #     if drop is None:
+    #         drop = []
 
-        valid_attributes = [
-            "model",
-            "scenario",
-            "agent",
-            "answer",
-            "question",
-            "iteration",
-        ]
-        if fold_attributes is None:
-            fold_attributes = []
+    #     valid_attributes = [
+    #         "model",
+    #         "scenario",
+    #         "agent",
+    #         "answer",
+    #         "question",
+    #         "iteration",
+    #     ]
+    #     if fold_attributes is None:
+    #         fold_attributes = []
 
-        for attribute in fold_attributes:
-            if attribute not in valid_attributes:
-                raise ValueError(
-                    f"Invalid fold attribute: {attribute}; must be in {valid_attributes}"
-                )
-        data = self.leaves()
-        generator = FoldableHTMLTableGenerator(data)
-        tree = generator.tree(fold_attributes=fold_attributes, drop=drop)
-        html_content = generator.generate_html(tree, fold_attributes)
-        import tempfile
-        from edsl.utilities.utilities import is_notebook
+    #     for attribute in fold_attributes:
+    #         if attribute not in valid_attributes:
+    #             raise ValueError(
+    #                 f"Invalid fold attribute: {attribute}; must be in {valid_attributes}"
+    #             )
+    #     data = self.leaves()
+    #     generator = FoldableHTMLTableGenerator(data)
+    #     tree = generator.tree(fold_attributes=fold_attributes, drop=drop)
+    #     html_content = generator.generate_html(tree, fold_attributes)
+    #     import tempfile
+    #     from edsl.utilities.utilities import is_notebook
 
-        from IPython.display import display, HTML
+    #     from IPython.display import display, HTML
 
-        if is_notebook():
-            import html
-            from IPython.display import display, HTML
+    #     if is_notebook():
+    #         import html
+    #         from IPython.display import display, HTML
 
-            height = 1000
-            width = 1000
-            escaped_output = html.escape(html_content)
-            # escaped_output = rendered_html
-            iframe = f""""
-            <iframe srcdoc="{ escaped_output }" style="width: {width}px; height: {height}px;"></iframe>
-            """
-            display(HTML(iframe))
-            return None
+    #         height = 1000
+    #         width = 1000
+    #         escaped_output = html.escape(html_content)
+    #         # escaped_output = rendered_html
+    #         iframe = f""""
+    #         <iframe srcdoc="{ escaped_output }" style="width: {width}px; height: {height}px;"></iframe>
+    #         """
+    #         display(HTML(iframe))
+    #         return None
 
-        with tempfile.NamedTemporaryFile(suffix=".html", delete=False) as f:
-            f.write(html_content.encode())
-            print(f"HTML file has been generated: {f.name}")
+    #     with tempfile.NamedTemporaryFile(suffix=".html", delete=False) as f:
+    #         f.write(html_content.encode())
+    #         print(f"HTML file has been generated: {f.name}")
 
-            if open_file:
-                import webbrowser
-                import time
+    #         if open_file:
+    #             import webbrowser
+    #             import time
 
-                time.sleep(1)  # Wait for 1 second
-                # webbrowser.open(f.name)
-                import os
+    #             time.sleep(1)  # Wait for 1 second
+    #             # webbrowser.open(f.name)
+    #             import os
 
-                filename = f.name
-                webbrowser.open(f"file://{os.path.abspath(filename)}")
+    #             filename = f.name
+    #             webbrowser.open(f"file://{os.path.abspath(filename)}")
 
-            else:
-                return html_content
+    #         else:
+    #             return html_content
 
     def code(self):
         raise NotImplementedError
@@ -530,8 +530,7 @@ class Results(UserList, ResultsOperationsMixin, Base):
         return self.task_history.has_unfixed_exceptions
 
     def __hash__(self) -> int:
-        from edsl.utilities.utilities import dict_hash
-
+        
         return dict_hash(
             self.to_dict(sort=True, add_edsl_version=False, include_cache_info=False)
         )
@@ -1119,8 +1118,6 @@ class Results(UserList, ResultsOperationsMixin, Base):
     @ensure_ready
     def sort_by(self, *columns: str, reverse: bool = False) -> Results:
         """Sort the results by one or more columns."""
-        import warnings
-
         warnings.warn(
             "sort_by is deprecated. Use order_by instead.", DeprecationWarning
         )
@@ -1316,8 +1313,8 @@ class Results(UserList, ResultsOperationsMixin, Base):
         """
         #print("Calling fetch_remote")
         try:
-            from ..coop.coop import Coop
-            from ..jobs.remote_inference.jobs_remote_inference_handler import JobsRemoteInferenceHandler
+            from ..coop import Coop
+            from ..jobs import JobsRemoteInferenceHandler
             
             # Get the remote job data
             remote_job_data = JobsRemoteInferenceHandler.check_status(job_info.job_uuid)
@@ -1364,7 +1361,7 @@ class Results(UserList, ResultsOperationsMixin, Base):
         if not hasattr(self, "job_info"):
             raise ResultsError("No job info available - this Results object wasn't created from a remote job")
         
-        from ..jobs.remote_inference.jobs_remote_inference_handler import JobsRemoteInferenceHandler
+        from ..jobs import JobsRemoteInferenceHandler
         
         try:
             # Get the remote job data
@@ -1388,10 +1385,10 @@ class Results(UserList, ResultsOperationsMixin, Base):
         """Run a survey to spot issues and suggest improvements for prompts that had no model response, returning a new Results object.
         Future version: Allow user to optionally pass a list of questions to review, regardless of whether they had a null model response.
         """
-        from edsl.questions import QuestionFreeText, QuestionDict
-        from edsl.surveys import Survey
-        from edsl.scenarios import Scenario, ScenarioList
-        from edsl.language_models import Model, ModelList
+        from ..questions import QuestionFreeText, QuestionDict
+        from ..surveys import Survey
+        from ..scenarios import Scenario, ScenarioList
+        from ..language_models import Model, ModelList
         import pandas as pd
 
         df = self.select("agent.*", "scenario.*", "answer.*", "raw_model_response.*", "prompt.*").to_pandas()
@@ -1445,7 +1442,7 @@ class Results(UserList, ResultsOperationsMixin, Base):
 
 def main():  # pragma: no cover
     """Call the OpenAI API credits."""
-    from edsl.results import Results
+    from ..results import Results
 
     results = Results.example(debug=True)
     print(results.filter("how_feeling == 'Great'").select("how_feeling"))
@@ -1454,5 +1451,4 @@ def main():  # pragma: no cover
 
 if __name__ == "__main__":
     import doctest
-
     doctest.testmod(optionflags=doctest.ELLIPSIS)

@@ -2,7 +2,7 @@ import os
 import unittest
 from contextlib import redirect_stdout
 from io import StringIO
-from edsl.exceptions.results import (
+from edsl.results.exceptions import (
     ResultsBadMutationstringError,
     ResultsColumnNotFoundError,
     ResultsInvalidNameError,
