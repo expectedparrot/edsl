@@ -361,9 +361,9 @@ class Prompt(PersistenceMixin, RepresentationMixin):
         """Get the prompts for the question.        
 
         >>> p = Prompt("Hello, {{person}}")
-        >>> p.get_prompts()
-        {'agent_instructions': 'Hello, {{person}}', 'agent_persona': 'Hello, {{person}}', 'question_instructions': 'Hello, {{person}}', 'prior_question_memory': 'Hello, {{person}}'}
         """
+
+        raise NotImplementedError("This method should be implemented by the subclass.")
         start = time.time()
         
         # Build all the components

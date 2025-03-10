@@ -3,10 +3,11 @@ from typing import List, Optional, TYPE_CHECKING
 from functools import partial
 import warnings
 
-from edsl.inference_services.data_structures import AvailableModels, ModelNamesList
+from .data_structures import AvailableModels, ModelNamesList
+from .inference_service_abc import InferenceServiceABC
 
 if TYPE_CHECKING:
-    from edsl.inference_services.InferenceServiceABC import InferenceServiceABC
+    from .inference_service_abc import InferenceServiceABC
 
 
 class ModelSource(Enum):
@@ -110,26 +111,5 @@ class ServiceAvailability:
 
 
 if __name__ == "__main__":
-    # sa = ServiceAvailability()
-    # models_from_coop = sa.models_from_coop()
-    # print(models_from_coop)
-    from edsl.inference_services.OpenAIService import OpenAIService
-
-    openai_models = ServiceAvailability._fetch_from_local_service(OpenAIService())
-    print(openai_models)
-
-# Example usage:
-"""
-# Default order (LOCAL -> COOP -> CACHE)
-availability = ServiceAvailability()
-
-# Custom order (COOP -> LOCAL -> CACHE)
-availability_coop_first = ServiceAvailability([
-    ModelSource.COOP,
-    ModelSource.LOCAL,
-    ModelSource.CACHE
-])
-
-# Get available models using custom order
-models = availability_coop_first.get_service_available(service, warn=True)
-"""
+    import doctest 
+    doctest.tesmod()

@@ -1,8 +1,8 @@
 import os
 from typing import Any, Optional, List
-import re
 from anthropic import AsyncAnthropic
-from edsl.inference_services.InferenceServiceABC import InferenceServiceABC
+
+from .inference_service_abc import InferenceServiceABC
 from ..language_models import LanguageModel
 
 

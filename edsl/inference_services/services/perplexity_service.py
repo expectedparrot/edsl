@@ -5,9 +5,9 @@ from typing import Any, List, Optional
 from edsl.inference_services.rate_limits_cache import rate_limits
 
 # from edsl.inference_services.InferenceServiceABC import InferenceServiceABC
-from edsl.language_models import LanguageModel
+from ..language_models import LanguageModel
 
-from edsl.inference_services.OpenAIService import OpenAIService
+from ..open_ai_service import OpenAIService
 
 
 class PerplexityService(OpenAIService):

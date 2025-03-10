@@ -4,9 +4,9 @@ import requests
 from typing import Any, List, Optional
 
 # from edsl.inference_services.InferenceServiceABC import InferenceServiceABC
-from edsl.language_models import LanguageModel
+from ..language_models import LanguageModel
 
-from edsl.inference_services.OpenAIService import OpenAIService
+from ..inference_services.OpenAIService import OpenAIService
 import openai
 
 

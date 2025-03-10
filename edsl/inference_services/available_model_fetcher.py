@@ -3,7 +3,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from collections import UserList
 
 from edsl.inference_services.ServiceAvailability import ServiceAvailability
-from edsl.inference_services.InferenceServiceABC import InferenceServiceABC
+from .inference_service_abc import InferenceServiceABC
 from edsl.inference_services.data_structures import ModelNamesList
 from edsl.enums import InferenceServiceLiteral
 

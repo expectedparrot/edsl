@@ -5,7 +5,7 @@ import os
 
 import openai
 
-from edsl.inference_services.InferenceServiceABC import InferenceServiceABC
+from .inference_service_abc import InferenceServiceABC
 from ..language_models import LanguageModel
 from edsl.inference_services.rate_limits_cache import rate_limits
 from edsl.utilities.utilities import fix_partial_correct_response
