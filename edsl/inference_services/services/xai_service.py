@@ -1,6 +1,6 @@
 from typing import Any, List
-from edsl.inference_services.OpenAIService import OpenAIService
 
+from .open_ai_service import OpenAIService
 
 class XAIService(OpenAIService):
     """Openai service class."""

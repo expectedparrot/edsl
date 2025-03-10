@@ -1,12 +1,6 @@
-import aiohttp
-import json
-import requests
 from typing import Any, List
 
-# from edsl.inference_services.InferenceServiceABC import InferenceServiceABC
-from ..language_models import LanguageModel
-
-from ..open_ai_service import OpenAIService
+from .open_ai_service import OpenAIService
 
 
 class OllamaService(OpenAIService):

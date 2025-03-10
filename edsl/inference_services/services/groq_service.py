@@ -1,8 +1,8 @@
 from typing import Any, List
-from edsl.inference_services.OpenAIService import OpenAIService
 
 import groq
 
+from .open_ai_service import OpenAIService
 
 class GroqService(OpenAIService):
     """DeepInfra service class."""

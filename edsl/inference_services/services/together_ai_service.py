@@ -1,12 +1,8 @@
-import aiohttp
-import json
-import requests
 from typing import Any, List, Optional
 
-# from edsl.inference_services.InferenceServiceABC import InferenceServiceABC
-from ..language_models import LanguageModel
+from ...language_models import LanguageModel
+from .open_ai_service import OpenAIService
 
-from ..inference_services.OpenAIService import OpenAIService
 import openai
 
 

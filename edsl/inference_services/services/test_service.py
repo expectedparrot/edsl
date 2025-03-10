@@ -4,11 +4,11 @@ import asyncio
 import random
 
 from ..inference_service_abc import InferenceServiceABC
-from .rate_limits_cache import rate_limits
+from ..rate_limits_cache import rate_limits
 
-from ..language_models import LanguageModel
-from ..utilities.utilities import fix_partial_correct_response
-from ..enums import InferenceServiceType
+from ...language_models import LanguageModel
+from ...utilities.utilities import fix_partial_correct_response
+from ...enums import InferenceServiceType
 
 
 class TestService(InferenceServiceABC):

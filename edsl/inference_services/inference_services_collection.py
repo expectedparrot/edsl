@@ -4,7 +4,7 @@ from typing import Optional, Protocol, Dict, List, Tuple, TYPE_CHECKING, Literal
 import os
 
 from .inference_service_abc import InferenceServiceABC
-from .AvailableModelFetcher import AvailableModelFetcher
+from .available_model_fetcher import AvailableModelFetcher
 from .exceptions import InferenceServiceError
 
 if TYPE_CHECKING:
@@ -48,7 +48,7 @@ class ModelResolver:
 
         """
         if model_name == "test":
-            from edsl.inference_services.TestService import TestService
+            from .services.test_service import TestService
 
             return TestService()
 

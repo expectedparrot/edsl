@@ -6,9 +6,8 @@ from google.generativeai.types import GenerationConfig
 from google.api_core.exceptions import InvalidArgument
 
 # from edsl.exceptions.general import MissingAPIKeyError
-from ..language_models import LanguageModel
-from .inference_service_abc import InferenceServiceABC
-from edsl.coop import Coop
+from ..inference_service_abc import InferenceServiceABC
+#from ...coop import Coop
 
 safety_settings = [
     {
@@ -58,9 +57,11 @@ class GoogleService(InferenceServiceABC):
     @classmethod
     def create_model(
         cls, model_name: str = "gemini-pro", model_class_name=None
-    ) -> LanguageModel:
+    ) -> 'LanguageModel':
         if model_class_name is None:
             model_class_name = cls.to_class_name(model_name)
+
+        from ...language_models import LanguageModel
 
         class LLM(LanguageModel):
             _model_ = model_name
