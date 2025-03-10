@@ -1,12 +1,12 @@
+import math
+
 from typing import Union, Optional, TYPE_CHECKING
-from edsl.exceptions.surveys import SurveyError
 
 if TYPE_CHECKING:
-    from edsl.questions.QuestionBase import QuestionBase
+    from ..questions import QuestionBase
     from .survey import Survey
 
-from edsl.exceptions.surveys import SurveyError, SurveyCreationError
-
+from .exceptions import SurveyError, SurveyCreationError
 from .rules.rule import Rule
 from .base import RulePriority, EndOfSurvey
 
@@ -191,7 +191,6 @@ class EditSurvey:
         >>> s._pseudo_indices
         {'intro': -0.5}
         """
-        import math
 
         if instruction.name in self.survey._instruction_names_to_instructions:
             raise SurveyCreationError(
