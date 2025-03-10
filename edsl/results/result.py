@@ -5,16 +5,16 @@ from collections import UserDict
 from typing import Any, Type, Callable, Optional, TYPE_CHECKING, Union
 
 from ..base import Base
-from ..utilities.decorators import add_edsl_version, remove_edsl_version
+from ..utilities import remove_edsl_version
 from ..agents import Agent
 from ..scenarios import Scenario
 from ..surveys import Survey
 
 if TYPE_CHECKING:
     from ..agents import Agent
-    from ..scenarios.Scenario import Scenario
-    from ..language_models.LanguageModel import LanguageModel
-    from ..prompts.Prompt import Prompt
+    from ..scenarios import Scenario
+    from ..language_models import LanguageModel
+    from ..prompts import Prompt
     from ..surveys import Survey
 
 QuestionName = str
@@ -373,7 +373,7 @@ class Result(Base, UserDict):
             d["indices"] = self.indices
 
         if add_edsl_version:
-            from edsl import __version__
+            from .. import __version__
 
             d["edsl_version"] = __version__
             d["edsl_class_name"] = "Result"

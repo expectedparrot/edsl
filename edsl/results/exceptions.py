@@ -1,5 +1,5 @@
-from edsl.exceptions.BaseException import BaseException
 
+from ..base import BaseException
 
 class ResultsError(BaseException):
     relevant_docs = "https://docs.expectedparrot.com/en/latest/results.html"

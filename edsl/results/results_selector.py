@@ -3,9 +3,9 @@ import sys
 from collections import defaultdict
 
 from ..dataset import Dataset
-from ..exceptions.results import ResultsColumnNotFoundError
-from ..utilities.is_notebook import is_notebook
+from ..utilities import is_notebook
 
+from .exceptions import ResultsColumnNotFoundError
 
 class Selector:
     def __init__(
