@@ -10,12 +10,7 @@ from typing import (
     Literal,
     TYPE_CHECKING,
 )
-
-try:
-    from typing import TypeAlias
-except ImportError:
-    from typing_extensions import TypeAlias
-
+import warnings
 import csv
 import random
 from io import StringIO
@@ -23,33 +18,30 @@ import inspect
 from collections import UserList, defaultdict
 from collections.abc import Iterable
 
+from simpleeval import EvalWithCompoundTypes, NameNotDefined  # type: ignore
+from tabulate import tabulate_formats
+
+try:
+    from typing import TypeAlias
+except ImportError:
+    from typing_extensions import TypeAlias
+
 if TYPE_CHECKING:
     from urllib.parse import ParseResult
     from ..dataset import Dataset
     from ..jobs import Jobs
     from ..surveys import Survey
-    from ..questions.QuestionBase import QuestionBase
+    from ..questions import QuestionBase
 
 
-from simpleeval import EvalWithCompoundTypes, NameNotDefined  # type: ignore
+from ..base import Base
+from ..utilities import remove_edsl_version, sanitize_string, is_valid_variable_name, dict_hash
+from ..dataset import ScenarioListOperationsMixin
 
-from tabulate import tabulate_formats
-
-from edsl.base import Base
-from edsl.utilities.remove_edsl_version import remove_edsl_version
-from edsl.utilities.naming_utilities import sanitize_string
-from edsl.utilities.is_valid_variable_name import is_valid_variable_name
-from edsl.exceptions.scenarios import ScenarioError
-
+from .exceptions import ScenarioError
 from .scenario import Scenario
-from .ScenarioListPdfMixin import ScenarioListPdfMixin
-#from .ScenarioListExportMixin import ScenarioListExportMixin
 from .directory_scanner import DirectoryScanner
-
-from ..dataset.dataset_operations_mixin import ScenarioListOperationsMixin
-
-class ScenarioListMixin(ScenarioListPdfMixin, ScenarioListOperationsMixin):
-    pass
+from .scenario_list_pdf_tools import PdfTools
 
 
 if TYPE_CHECKING:
@@ -72,8 +64,7 @@ TableFormat: TypeAlias = Literal[
     "tsv",
 ]
 
-
-class ScenarioList(Base, UserList, ScenarioListMixin):
+class ScenarioList(Base, UserList, ScenarioListOperationsMixin):
     """Class for creating a list of scenarios to be used in a survey."""
 
     __documentation__ = (
@@ -202,7 +193,7 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
             url={https://arxiv.org/abs/2407.11418},
             }
         """
-        from edsl import QuestionYesNo
+        from ..questions import QuestionYesNo
 
         new_scenario_list = self.duplicate()
         q = QuestionYesNo(
@@ -341,8 +332,6 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         >>> hash(s)
         1262252885757976162
         """
-        from edsl.utilities.utilities import dict_hash
-
         return dict_hash(self.to_dict(sort=True, add_edsl_version=False))
 
     def __eq__(self, other: Any) -> bool:
@@ -360,7 +349,7 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         ScenarioList([Scenario({'a': 1, 'b': 3}), Scenario({'a': 1, 'b': 4}), Scenario({'a': 2, 'b': 3}), Scenario({'a': 2, 'b': 4})])
         """
         from itertools import product
-        from edsl import Scenario
+        from .scenario import Scenario
         if isinstance(other, Scenario):
             other = ScenarioList([other])
         elif not isinstance(other, ScenarioList):
@@ -609,7 +598,6 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
             )
         raw_var_name, expression = new_var_string.split("=", 1)
         var_name = raw_var_name.strip()
-        from edsl.utilities.utilities import is_valid_variable_name
 
         if not is_valid_variable_name(var_name):
             raise ScenarioError(f"{var_name} is not a valid variable name.")
@@ -737,7 +725,7 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         >>> s.select('a')
         ScenarioList([Scenario({'a': 1}), Scenario({'a': 1})])
         """
-        from edsl.scenarios.scenario_selector import ScenarioSelector
+        from .scenario_selector import ScenarioSelector
 
         return ScenarioSelector(self).select(*fields)
 
@@ -1287,7 +1275,7 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         >>> scenario_list[1]['name']
         'Charlie'
         """
-        from edsl.scenarios import Scenario
+        from .scenario import Scenario
         import pandas as pd
 
         # Get all sheets
@@ -1396,7 +1384,7 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
     ) -> ScenarioList:
         """Create a ScenarioList from a delimited file (CSV/TSV) or URL."""
         import requests
-        from edsl.scenarios import Scenario
+        from .scenario import Scenario
         from urllib.parse import urlparse
         from urllib.parse import ParseResult
 
@@ -1476,7 +1464,7 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         d = {"scenarios": [s.to_dict(add_edsl_version=add_edsl_version) for s in data]}
 
         if add_edsl_version:
-            from edsl import __version__
+            from .. import __version__
 
             d["edsl_version"] = __version__
             d["edsl_class_name"] = self.__class__.__name__
@@ -1488,9 +1476,7 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         :param survey: The Survey object to use for the Jobs object.
 
         Example:
-        >>> from edsl import Survey
-        >>> from edsl.jobs import Jobs
-        >>> from edsl import ScenarioList
+        >>> from edsl import Survey, Jobs, ScenarioList
         >>> isinstance(ScenarioList.example().to(Survey.example()), Jobs)
         True
         """
@@ -1521,7 +1507,7 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
     @remove_edsl_version
     def from_dict(cls, data) -> ScenarioList:
         """Create a `ScenarioList` from a dictionary."""
-        from edsl.scenarios import Scenario
+        from .scenario import Scenario
 
         return cls([Scenario.from_dict(s) for s in data["scenarios"]])
 
@@ -1548,8 +1534,8 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
     def code(self) -> str:
         """Create the Python code representation of a survey."""
         header_lines = [
-            "from edsl.scenarios.Scenario import Scenario",
-            "from edsl.scenarios.ScenarioList import ScenarioList",
+            "from edsl.scenarios import Scenario",
+            "from edsl.scenarios import ScenarioList",
         ]
         lines = ["\n".join(header_lines)]
         names = []
@@ -1567,17 +1553,6 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         :params randomize: If True, use Scenario's randomize method to randomize the values.
         """
         return cls([Scenario.example(randomize), Scenario.example(randomize)])
-
-    # def rich_print(self) -> None:
-    #     """Display an object as a table."""
-    #     from rich.table import Table
-
-    #     table = Table(title="ScenarioList")
-    #     table.add_column("Index", style="bold")
-    #     table.add_column("Scenario")
-    #     for i, s in enumerate(self):
-    #         table.add_row(str(i), s.rich_print())
-    #     return table
 
     def __getitem__(self, key: Union[int, slice]) -> Any:
         """Return the item at the given index.
@@ -1607,9 +1582,7 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         >>> s.to_agent_list()
         AgentList([Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5}), Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5})])
         """
-        from edsl.agents.AgentList import AgentList
-        from edsl.agents import Agent
-        import warnings
+        from ..agents import AgentList, Agent
 
         agents = []
         for scenario in self:
@@ -1875,6 +1848,14 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
                     new_scenario[key] = value
             new_scenarios.append(Scenario(new_scenario))
         return ScenarioList(new_scenarios)
+
+    @classmethod
+    def from_pdf(cls, filename_or_url, collapse_pages=False):
+        return PdfTools.from_pdf(filename_or_url, collapse_pages)
+    
+    @classmethod
+    def from_pdf_to_image(cls, pdf_path, image_format="jpeg"):
+        return PdfTools.from_pdf_to_image(pdf_path, image_format)
 
 
 

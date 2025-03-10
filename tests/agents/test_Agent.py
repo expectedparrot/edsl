@@ -1,17 +1,16 @@
 import pytest
 from edsl.agents import Agent
 
-from edsl.exceptions.agents import (
+from edsl.agents.exceptions import (
     AgentCombinationError,
     AgentDirectAnswerFunctionError,
     AgentDynamicTraitsFunctionError,
+    AgentNameError,
+    AgentTraitKeyError,
 )
 from edsl.jobs import Jobs
 from edsl.questions import QuestionMultipleChoice
 from edsl.surveys import Survey
-
-from edsl.exceptions.agents import AgentNameError
-from edsl.exceptions.agents import AgentTraitKeyError
 
 
 def test_agent_creation_valid():
