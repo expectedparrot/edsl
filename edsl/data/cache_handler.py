@@ -31,6 +31,9 @@ def unset_session_cache() -> None:
 class CacheHandler:
     """
     This CacheHandler figures out what caches are available and does migrations, as needed.
+
+    >>> cache_handler = CacheHandler()
+    >>> c = cache_handler.get_cache()
     """
 
     @property

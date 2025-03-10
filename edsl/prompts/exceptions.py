@@ -1,4 +1,6 @@
-class PromptError(Exception):
+from ..base import BaseException
+
+class PromptError(BaseException):
     pass
 
 
