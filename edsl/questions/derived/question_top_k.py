@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import Optional
 
-from edsl.exceptions.questions import QuestionCreationValidationError
+from ..exceptions import QuestionCreationValidationError
 from ..question_check_box import QuestionCheckBox
 from ..decorators import inject_exception
 

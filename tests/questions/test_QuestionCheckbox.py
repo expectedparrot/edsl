@@ -1,6 +1,6 @@
 import pytest
 import uuid
-from edsl.exceptions.questions import (
+from edsl.questions.exceptions import (
     QuestionAnswerValidationError,
     QuestionResponseValidationError,
 )

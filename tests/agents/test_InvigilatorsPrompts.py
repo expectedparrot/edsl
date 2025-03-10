@@ -4,7 +4,7 @@ from edsl.agents import Agent
 from edsl.prompts import Prompt
 
 # from edsl.prompts.registry import get_classes
-from edsl.exceptions.questions import QuestionScenarioRenderError
+from edsl.questions.exceptions import QuestionScenarioRenderError
 
 # from edsl.prompts.registry import get_classes
 from edsl.surveys import Survey

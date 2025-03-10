@@ -5,7 +5,7 @@ from typing import Coroutine, Dict, Any, Optional, TYPE_CHECKING
 from typing import Dict, Any, Optional, TYPE_CHECKING, Literal
 
 from ..utilities.decorators import sync_wrapper
-from ..exceptions.questions import QuestionAnswerValidationError
+from ..questions.exceptions import QuestionAnswerValidationError
 from ..data_transfer_models import AgentResponseDict, EDSLResultObjectInput
 from ..utilities.decorators import jupyter_nb_handler
 from ..data_transfer_models import AgentResponseDict

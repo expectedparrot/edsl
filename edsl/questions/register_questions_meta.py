@@ -1,11 +1,9 @@
 from __future__ import annotations
 from abc import ABCMeta
-
-from edsl.enums import QuestionType
-from edsl.exceptions.questions import QuestionMissingTypeError, QuestionBadTypeError
-
 import inspect
 
+from ..enums import QuestionType
+from .exceptions import QuestionMissingTypeError, QuestionBadTypeError
 
 class RegisterQuestionsMeta(ABCMeta):
     """Metaclass to register output elements in a registry i.e., those that have a parent."""
@@ -69,3 +67,9 @@ class RegisterQuestionsMeta(ABCMeta):
                     f"Class {classname} does not have a question_type class attribute"
                 )
         return d
+
+
+
+if __name__ == "__main__":
+    import doctest 
+    doctest.testmod()

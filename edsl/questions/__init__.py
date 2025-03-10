@@ -25,6 +25,8 @@ from .derived.question_linear_scale import QuestionLinearScale
 from .derived.question_yes_no import QuestionYesNo
 from .derived.question_top_k import QuestionTopK
 
+from .exceptions import QuestionScenarioRenderError
+
 __all__ = [
     # Schema and metadata
     "Settings",

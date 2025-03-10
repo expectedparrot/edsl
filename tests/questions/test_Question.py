@@ -1,11 +1,11 @@
 import pytest
-from edsl.exceptions.questions import QuestionScenarioRenderError
+from edsl.questions.exceptions import QuestionScenarioRenderError
 from edsl.questions import QuestionFreeText
 from edsl.questions import QuestionMultipleChoice
 from edsl.questions import QuestionYesNo
 from edsl.surveys import Survey
 from edsl.scenarios import Scenario
-from edsl.exceptions.questions import QuestionMissingTypeError, QuestionBadTypeError
+from edsl.questions.exceptions import QuestionMissingTypeError, QuestionBadTypeError
 
 valid_question = {
     "question_text": "How are you?",
@@ -99,7 +99,7 @@ def test_validation_with_rendering():
             "{{city[3]}}",
         ],
     )
-    from edsl.exceptions.questions import QuestionAnswerValidationError
+    from edsl.questions.exceptions import QuestionAnswerValidationError
 
     with pytest.raises(QuestionAnswerValidationError):
         q._validate_answer({"answer": "Paris"})

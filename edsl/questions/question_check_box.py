@@ -7,8 +7,8 @@ from pydantic import field_validator
 from pydantic import BaseModel, Field, conlist
 from typing import List, Literal, Optional, Annotated
 
-from ..exceptions.questions import QuestionAnswerValidationError
-from edsl.scenarios import Scenario
+from .exceptions import QuestionAnswerValidationError
+from ..scenarios import Scenario
 
 from .question_base import QuestionBase
 from .descriptors import (
