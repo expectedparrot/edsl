@@ -1,27 +1,70 @@
+"""
+SQLite-backed dictionary implementation for persistent storage of cache entries.
+
+This module provides a dictionary-like interface to an SQLite database, which allows
+for efficient, persistent storage of cache entries. SQLiteDict implements standard
+dictionary methods like __getitem__, __setitem__, keys(), values(), and items(),
+making it a drop-in replacement for regular dictionaries but with database persistence.
+"""
+
 from __future__ import annotations
 import json
-from typing import Any, Generator, Optional, Union
+from typing import Any, Generator, Optional, Union, Dict, List, Tuple, TypeVar
 
 from ..config import CONFIG
 from .cache_entry import CacheEntry
 from .orm import Base, Data
 
+T = TypeVar('T')
+
 
 class SQLiteDict:
     """
-    A dictionary-like object that is an interface for an local database.
-    - You can use SQLiteDict as a regular dictionary.
-    - Supports only SQLite for now.
+    Dictionary-like interface for SQLite database storage of cache entries.
+    
+    SQLiteDict provides a dictionary-like interface to an SQLite database, allowing
+    for persistent storage of CacheEntry objects. It implements all the standard
+    dictionary methods, making it a drop-in replacement for in-memory dictionaries
+    when persistence is needed.
+    
+    The primary use case is for storing cache entries that should persist across
+    program invocations, with keys being the hash of the cache entry's content and
+    values being the CacheEntry objects themselves.
+    
+    Attributes:
+        db_path (str): Path to the SQLite database file
+        engine: SQLAlchemy engine instance for database access
+        Session: SQLAlchemy sessionmaker for creating database sessions
+        
+    Example:
+        >>> cache = SQLiteDict("path/to/cache.db")
+        >>> entry = CacheEntry.example()
+        >>> cache[entry.key] = entry
+        >>> retrieved_entry = cache[entry.key]
+        >>> entry == retrieved_entry
+        True
     """
 
     def __init__(self, db_path: Optional[str] = None):
         """
-
-        >>> temp_db_path = SQLiteDict._get_temp_path()
-        >>> SQLiteDict(f"sqlite:///{temp_db_path}")  # Use the temp file for SQLite
-        SQLiteDict(db_path='...')
-        >>> import os; os.unlink(temp_db_path)  # Clean up the temp file after the test
-
+        Initializes a SQLiteDict with the specified database path.
+        
+        This constructor creates a new SQLiteDict instance connected to the
+        specified SQLite database. If no database path is provided, it uses
+        the path from the EDSL configuration.
+        
+        Args:
+            db_path: Path to the SQLite database file. If None, uses the path
+                    from CONFIG.get("EDSL_DATABASE_PATH")
+                    
+        Raises:
+            Exception: If there is an error initializing the database connection
+            
+        Example:
+            >>> temp_db_path = SQLiteDict._get_temp_path()
+            >>> SQLiteDict(f"sqlite:///{temp_db_path}")  # Use the temp file for SQLite
+            SQLiteDict(db_path='...')
+            >>> import os; os.unlink(temp_db_path)  # Clean up the temp file after the test
         """
         from sqlalchemy.exc import SQLAlchemyError
         from sqlalchemy.orm import sessionmaker
@@ -42,7 +85,17 @@ class SQLiteDict:
             ) from e
 
     @classmethod
-    def _get_temp_path(self):
+    def _get_temp_path(cls) -> str:
+        """
+        Creates a temporary file path for a SQLite database.
+        
+        This helper method generates a temporary file path suitable for
+        creating a temporary SQLite database file. It's primarily used
+        for testing and examples.
+        
+        Returns:
+            Path to a temporary file location
+        """
         import tempfile
         import os
 
@@ -51,10 +104,21 @@ class SQLiteDict:
 
     def __setitem__(self, key: str, value: CacheEntry) -> None:
         """
-        Stores a key-value pair.
-
-        >>> d = SQLiteDict.example()
-        >>> d["foo"] = CacheEntry.example()
+        Stores a CacheEntry object at the specified key.
+        
+        This method stores a CacheEntry object in the database, using the
+        specified key. The value is serialized to JSON before storage.
+        
+        Args:
+            key: The key to store the value under
+            value: The CacheEntry object to store
+            
+        Raises:
+            ValueError: If the value is not a CacheEntry object
+            
+        Example:
+            >>> d = SQLiteDict.example()
+            >>> d["foo"] = CacheEntry.example()
         """
         if not isinstance(value, CacheEntry):
             raise ValueError(f"Value must be a CacheEntry object (got {type(value)}).")
@@ -66,13 +130,26 @@ class SQLiteDict:
 
     def __getitem__(self, key: str) -> CacheEntry:
         """
-        Gets a value for a given key.
-        - Raises a KeyError if the key is not found.
-
-        >>> d = SQLiteDict.example()
-        >>> d["foo"] = CacheEntry.example()
-        >>> d["foo"] == CacheEntry.example()
-        True
+        Retrieves a CacheEntry object for the specified key.
+        
+        This method retrieves a CacheEntry object from the database using
+        the specified key. The stored JSON value is deserialized into a
+        CacheEntry object.
+        
+        Args:
+            key: The key to retrieve the value for
+            
+        Returns:
+            The CacheEntry object stored at the specified key
+            
+        Raises:
+            KeyError: If the key is not found in the database
+            
+        Example:
+            >>> d = SQLiteDict.example()
+            >>> d["foo"] = CacheEntry.example()
+            >>> d["foo"] == CacheEntry.example()
+            True
         """
         with self.Session() as db:
             from edsl.data.orm import Base, Data
@@ -84,12 +161,23 @@ class SQLiteDict:
 
     def get(self, key: str, default: Optional[Any] = None) -> Union[CacheEntry, Any]:
         """
-        Gets the value for a given key
-        - Returns the `default` value if the key is not found.
-
-        >>> d = SQLiteDict.example()
-        >>> d.get("foo", "bar")
-        'bar'
+        Retrieves a value for the specified key with a default fallback.
+        
+        This method attempts to retrieve a CacheEntry for the specified key,
+        returning a default value if the key is not found. This provides a
+        safer alternative to __getitem__ when the key might not exist.
+        
+        Args:
+            key: The key to retrieve the value for
+            default: The value to return if the key is not found (default: None)
+            
+        Returns:
+            The CacheEntry for the key if found, otherwise the default value
+            
+        Example:
+            >>> d = SQLiteDict.example()
+            >>> d.get("foo", "bar")
+            'bar'
         """
         try:
             return self[key]
@@ -97,30 +185,50 @@ class SQLiteDict:
             return default
 
     def __bool__(self) -> bool:
-        """This is so likes like
-        self.data = data or {} 'work' as expected
+        """
+        Always returns True for SQLiteDict instances.
+        
+        This special method ensures that SQLiteDict objects are always truthy
+        in boolean contexts, which allows patterns like `cache = cache or SQLiteDict()`
+        to work as expected.
+        
+        Returns:
+            Always True for any SQLiteDict instance
         """
         return True
 
     def update(
         self,
-        new_d: Union[dict, SQLiteDict],
-        overwrite: Optional[bool] = False,
-        max_batch_size: Optional[int] = 100,
+        new_d: Union[Dict[str, CacheEntry], SQLiteDict],
+        overwrite: bool = False,
+        max_batch_size: int = 100,
     ) -> None:
         """
-        Update the dictionary with the values from another dictionary.
-
-        :param new_d: The dictionary to update the current dictionary with.
-        :param overwrite: If `overwrite` is False, existing values will not be overwritten.
-        :param max_batch_size: The maximum number of items to update in a single transaction.
-
-        - If `overwrite` is True, existing values will be overwritten.
-
-        >>> d = SQLiteDict.example()
-        >>> d.update({"foo": CacheEntry.example()})
-        >>> d["foo"] == CacheEntry.example()
-        True
+        Updates the dictionary with values from another dictionary or SQLiteDict.
+        
+        This method adds entries from another dictionary or SQLiteDict to this
+        SQLiteDict. It optionally overwrites existing entries and uses batched
+        transactions for efficiency when updating many entries.
+        
+        Args:
+            new_d: The dictionary or SQLiteDict containing entries to add
+            overwrite: If True, overwrites existing entries; if False, keeps
+                       existing entries unchanged (default: False)
+            max_batch_size: Maximum number of entries to update in a single
+                           database transaction (default: 100)
+                           
+        Raises:
+            ValueError: If new_d is not a dict or SQLiteDict
+            
+        Example:
+            >>> d = SQLiteDict.example()
+            >>> d.update({"foo": CacheEntry.example()})
+            >>> d["foo"] == CacheEntry.example()
+            True
+        
+        Note:
+            For large updates, the batched transaction approach helps prevent
+            the database from being locked for too long.
         """
         if not (isinstance(new_d, dict) or isinstance(new_d, SQLiteDict)):
             raise ValueError(
@@ -133,10 +241,8 @@ class SQLiteDict:
                     db.commit()
                     current_batch = 0
                 current_batch += 1
-                if key in self:
-                    if overwrite:
-                        db.merge(Data(key=key, value=json.dumps(value.to_dict())))
-                else:
+                # Only merge if key doesn't exist or overwrite is True
+                if (key in self and overwrite) or key not in self:
                     db.merge(Data(key=key, value=json.dumps(value.to_dict())))
             db.commit()
 
@@ -253,37 +359,78 @@ class SQLiteDict:
     @classmethod
     def example(cls) -> SQLiteDict:
         """
-        Returns an example SQLiteDict object.
-        - The example SQLiteDict is empty and stored in memory.
-
-        >>> SQLiteDict.example()
-        SQLiteDict(db_path='sqlite:///:memory:')
+        Creates an in-memory SQLiteDict for examples and testing.
+        
+        This factory method creates a SQLiteDict that uses an in-memory SQLite
+        database, making it suitable for examples, testing, and demonstrations
+        without creating persistent files.
+        
+        Returns:
+            A new SQLiteDict instance using an in-memory SQLite database
+            
+        Example:
+            >>> SQLiteDict.example()
+            SQLiteDict(db_path='sqlite:///:memory:')
         """
         return cls(db_path="sqlite:///:memory:")
 
 
-def main():
+def main() -> None:
+    """
+    Demonstrates SQLiteDict functionality for interactive testing.
+    
+    This function demonstrates the key features of the SQLiteDict class,
+    including creating, retrieving, updating, and deleting entries. It
+    provides a practical example of how to use SQLiteDict in code.
+    
+    Note:
+        This function is intended to be run in an interactive Python session
+        for exploration and testing, not as part of normal code execution.
+    """
     from .cache_entry import CacheEntry
     from .sql_dict import SQLiteDict
 
+    # Create an in-memory SQLiteDict for demonstration
+    print("Creating an in-memory SQLiteDict...")
     d = SQLiteDict.example()
+    
+    # Store and retrieve a value
+    print("Storing and retrieving a value...")
     d["foo"] = CacheEntry.example()
-    d["foo"]
-    d.get("foo")
-    d.get("poo")
-    d.get("poo", "not found")
+    print(f"Retrieved value: {d['foo']}")
+    
+    # Demonstrate get() with existing and non-existing keys
+    print("Demonstrating get() with existing and non-existing keys...")
+    print(f"Get existing key: {d.get('foo')}")
+    print(f"Get non-existing key: {d.get('poo')}")
+    print(f"Get non-existing key with default: {d.get('poo', 'not found')}")
+    
+    # Update the dictionary
+    print("Updating the dictionary...")
     d.update({"poo": CacheEntry.example()})
-    d["poo"]
-    len(d)
-    list(d.keys())
-    list(d.values())
-    list(d.items())
-    assert "poo" in d
-    assert "loo" not in d
+    print(f"After update, retrieved value: {d['poo']}")
+    
+    # Dictionary operations
+    print("Demonstrating dictionary operations...")
+    print(f"Length: {len(d)}")
+    print(f"Keys: {list(d.keys())}")
+    print(f"Values: {list(d.values())}")
+    print(f"Items: {list(d.items())}")
+    
+    # Membership testing
+    print("Demonstrating membership testing...")
+    print(f"'poo' in d: {'poo' in d}")
+    print(f"'loo' in d: {'loo' in d}")
+    
+    # Deletion
+    print("Demonstrating deletion...")
     del d["poo"]
-    assert len(d) == 1
-    repr(d)
-    d
+    print(f"After deletion, length: {len(d)}")
+    
+    # Representation
+    print("Demonstrating string representation...")
+    print(f"repr(d): {repr(d)}")
+    print(f"d: {d}")
 
 
 if __name__ == "__main__":
