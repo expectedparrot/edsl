@@ -1,6 +1,6 @@
 import json
 from typing import Optional, Any, List
-from edsl.exceptions.language_models import LanguageModelBadResponseError
+from .exceptions import LanguageModelBadResponseError
 
 from json_repair import repair_json
 

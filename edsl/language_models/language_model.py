@@ -17,6 +17,9 @@ from functools import wraps
 import asyncio
 import json
 import os
+import warnings
+from abc import ABC, abstractmethod
+
 from typing import (
     Coroutine,
     Any,
@@ -28,7 +31,6 @@ from typing import (
     Optional,
     TYPE_CHECKING,
 )
-from abc import ABC, abstractmethod
 
 from ..data_transfer_models import (
     ModelResponse,
@@ -45,11 +47,7 @@ if TYPE_CHECKING:
 
 from ..enums import InferenceServiceType
 
-from ..utilities.decorators import (
-    sync_wrapper,
-    jupyter_nb_handler,
-)
-from ..utilities.remove_edsl_version import remove_edsl_version
+from ..utilities import sync_wrapper, jupyter_nb_handler, remove_edsl_version, dict_hash
 from ..base import PersistenceMixin, RepresentationMixin, HashingMixin
 from ..key_management import KeyLookupCollection
 
@@ -223,7 +221,7 @@ class LanguageModel(
 
         This method is used to check if the model has a valid API key.
         """
-        from edsl.enums import service_to_api_keyname
+        from ..enums import service_to_api_keyname
 
         if self._model_ == "test":
             return True
@@ -239,7 +237,6 @@ class LanguageModel(
         >>> hash(m)
         325654563661254408
         """
-        from edsl.utilities.utilities import dict_hash
 
         return dict_hash(self.to_dict(add_edsl_version=False))
 
@@ -283,7 +280,7 @@ class LanguageModel(
         self, user_prompt: str, system_prompt: str
     ):
         """Execute the model call and returns the result as a coroutine, using Coop."""
-        from edsl.coop import Coop
+        from ..coop import Coop
 
         client = Coop()
         response_data = await client.remote_async_execute_model_call(
@@ -534,8 +531,6 @@ class LanguageModel(
 
     def __add__(self, other_model: Type[LanguageModel]) -> Type[LanguageModel]:
         """Combine two models into a single model (other_model takes precedence over self)."""
-        import warnings
-
         warnings.warn(
             f"""Warning: one model is replacing another. If you want to run both models, use a single `by` e.g., 
               by(m1, m2, m3) not by(m1).by(m2).by(m3)."""

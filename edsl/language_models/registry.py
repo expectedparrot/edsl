@@ -2,7 +2,7 @@ from abc import ABC, ABCMeta
 from typing import Any, List, Callable
 import inspect
 from typing import get_type_hints
-from edsl.exceptions.language_models import LanguageModelAttributeTypeError
+from .exceptions import LanguageModelAttributeTypeError
 from edsl.enums import InferenceServiceType
 
 

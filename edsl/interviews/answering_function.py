@@ -12,7 +12,7 @@ from ..surveys.base import EndOfSurvey
 from ..tasks import TaskStatus
 
 from ..jobs.fetch_invigilator import FetchInvigilator
-from ..exceptions.language_models import LanguageModelNoResponseError
+from ..language_models.exceptions import LanguageModelNoResponseError
 from ..exceptions.questions import QuestionAnswerValidationError
 from ..data_transfer_models import AgentResponseDict, EDSLResultObjectInput, Answers
 
