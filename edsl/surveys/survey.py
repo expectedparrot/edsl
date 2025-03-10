@@ -383,14 +383,45 @@ class Survey(Base):
         return {q.question_name: i for i, q in enumerate(self.questions)}
 
     def to_dict(self, add_edsl_version=True) -> dict[str, Any]:
-        """Serialize the Survey object to a dictionary.
-
-        >>> s = Survey.example()
-        >>> s.to_dict(add_edsl_version = False).keys()
-        dict_keys(['questions', 'memory_plan', 'rule_collection', 'question_groups'])
+        """Serialize the Survey object to a dictionary for storage or transmission.
+        
+        This method converts the entire survey structure, including questions, rules,
+        memory plan, and question groups, into a dictionary that can be serialized to JSON.
+        This is essential for saving surveys, sharing them, or transferring them between
+        systems.
+        
+        The serialized dictionary contains the complete state of the survey, allowing it
+        to be fully reconstructed using the from_dict() method.
+        
+        Args:
+            add_edsl_version: If True (default), includes the EDSL version and class name
+                in the dictionary, which can be useful for backward compatibility when
+                deserializing.
+                
+        Returns:
+            dict[str, Any]: A dictionary representation of the survey with the following keys:
+                - 'questions': List of serialized questions and instructions
+                - 'memory_plan': Serialized memory plan
+                - 'rule_collection': Serialized rule collection
+                - 'question_groups': Dictionary of question groups
+                - 'questions_to_randomize': List of questions to randomize (if any)
+                - 'edsl_version': EDSL version (if add_edsl_version=True)
+                - 'edsl_class_name': Class name (if add_edsl_version=True)
+                
+        Examples:
+            >>> s = Survey.example()
+            >>> s.to_dict(add_edsl_version=False).keys()
+            dict_keys(['questions', 'memory_plan', 'rule_collection', 'question_groups'])
+            
+            With version information:
+            
+            >>> d = s.to_dict(add_edsl_version=True)
+            >>> 'edsl_version' in d and 'edsl_class_name' in d
+            True
         """
         from edsl import __version__
 
+        # Create the base dictionary with all survey components
         d = {
             "questions": [
                 q.to_dict(add_edsl_version=add_edsl_version)
@@ -402,34 +433,55 @@ class Survey(Base):
             ),
             "question_groups": self.question_groups,
         }
+        
+        # Include randomization information if present
         if self.questions_to_randomize != []:
             d["questions_to_randomize"] = self.questions_to_randomize
 
+        # Add version information if requested
         if add_edsl_version:
             d["edsl_version"] = __version__
             d["edsl_class_name"] = "Survey"
+            
         return d
 
     @classmethod
     @remove_edsl_version
     def from_dict(cls, data: dict) -> Survey:
-        """Deserialize the dictionary back to a Survey object.
-
-        :param data: The dictionary to deserialize.
-
-        >>> d = Survey.example().to_dict()
-        >>> s = Survey.from_dict(d)
-        >>> s == Survey.example()
-        True
-
-        >>> s = Survey.example(include_instructions = True)
-        >>> d = s.to_dict()
-        >>> news = Survey.from_dict(d)
-        >>> news == s
-        True
-
+        """Reconstruct a Survey object from its dictionary representation.
+        
+        This class method is the counterpart to to_dict() and allows you to recreate
+        a Survey object from a serialized dictionary. This is useful for loading saved
+        surveys, receiving surveys from other systems, or cloning surveys.
+        
+        The method handles deserialization of all survey components, including questions,
+        instructions, memory plan, rules, and question groups.
+        
+        Args:
+            data: A dictionary containing the serialized survey data, typically
+                created by the to_dict() method.
+                
+        Returns:
+            Survey: A fully reconstructed Survey object with all the original
+                questions, rules, and configuration.
+                
+        Examples:
+            Create a survey, serialize it, and deserialize it back:
+            
+            >>> d = Survey.example().to_dict()
+            >>> s = Survey.from_dict(d)
+            >>> s == Survey.example()
+            True
+            
+            Works with instructions as well:
+            
+            >>> s = Survey.example(include_instructions=True)
+            >>> d = s.to_dict()
+            >>> news = Survey.from_dict(d)
+            >>> news == s
+            True
         """
-
+        # Helper function to determine the correct class for each serialized component
         def get_class(pass_dict):
             from ..questions import QuestionBase
 
@@ -437,27 +489,31 @@ class Survey(Base):
                 return QuestionBase
             elif pass_dict.get("edsl_class_name") == "QuestionDict":
                 from ..questions import QuestionDict
-
                 return QuestionDict
             elif class_name == "Instruction":
                 from ..instructions import Instruction
-
                 return Instruction
             elif class_name == "ChangeInstruction":
                 from ..instructions import ChangeInstruction
-
                 return ChangeInstruction
             else:
                 return QuestionBase
 
+        # Deserialize each question and instruction
         questions = [
             get_class(q_dict).from_dict(q_dict) for q_dict in data["questions"]
         ]
+        
+        # Deserialize the memory plan
         memory_plan = MemoryPlan.from_dict(data["memory_plan"])
+        
+        # Get the list of questions to randomize if present
         if "questions_to_randomize" in data:
             questions_to_randomize = data["questions_to_randomize"]
         else:
             questions_to_randomize = None
+            
+        # Create and return the reconstructed survey
         survey = cls(
             questions=questions,
             memory_plan=memory_plan,
@@ -734,35 +790,67 @@ class Survey(Base):
         end_question: Union[QuestionBase, str],
         group_name: str,
     ) -> Survey:
-        """Add a group of questions to the survey.
-
-        :param start_question: The first question in the group.
-        :param end_question: The last question in the group.
-        :param group_name: The name of the group.
-
-        Example:
-
-        >>> s = Survey.example().add_question_group("q0", "q1", "group1")
-        >>> s.question_groups
-        {'group1': (0, 1)}
-
-        The name of the group must be a valid identifier:
-
-        >>> s = Survey.example().add_question_group("q0", "q2", "1group1")
-        Traceback (most recent call last):
-        ...
-        edsl.surveys.exceptions.SurveyCreationError: Group name 1group1 is not a valid identifier.
-        ...
-        >>> s = Survey.example().add_question_group("q0", "q1", "q0")
-        Traceback (most recent call last):
-        ...
-        edsl.surveys.exceptions.SurveyCreationError: ...
-        ...
-        >>> s = Survey.example().add_question_group("q1", "q0", "group1")
-        Traceback (most recent call last):
-        ...
-        edsl.surveys.exceptions.SurveyCreationError: ...
-        ...
+        """Create a logical group of questions within the survey.
+        
+        Question groups allow you to organize questions into meaningful sections,
+        which can be useful for:
+        - Analysis (analyzing responses by section)
+        - Navigation (jumping between sections)
+        - Presentation (displaying sections with headers)
+        
+        Groups are defined by a contiguous range of questions from start_question
+        to end_question, inclusive. Groups cannot overlap with other groups.
+        
+        Args:
+            start_question: The first question in the group, specified either as a
+                QuestionBase object or its question_name string.
+            end_question: The last question in the group, specified either as a
+                QuestionBase object or its question_name string.
+            group_name: A name for the group. Must be a valid Python identifier
+                and must not conflict with existing group or question names.
+                
+        Returns:
+            Survey: The modified survey instance (allows for method chaining).
+            
+        Raises:
+            SurveyCreationError: If the group name is invalid, already exists,
+                conflicts with a question name, if start comes after end,
+                or if the group overlaps with an existing group.
+                
+        Examples:
+            Create a group of questions for demographics:
+            
+            >>> s = Survey.example().add_question_group("q0", "q1", "group1")
+            >>> s.question_groups
+            {'group1': (0, 1)}
+            
+            Group names must be valid Python identifiers:
+            
+            >>> from edsl.surveys.exceptions import SurveyCreationError
+            >>> # Example showing invalid group name error
+            >>> try:
+            ...     Survey.example().add_question_group("q0", "q2", "1group1")
+            ... except SurveyCreationError:
+            ...     print("Error: Invalid group name (as expected)")
+            Error: Invalid group name (as expected)
+            
+            Group names can't conflict with question names:
+            
+            >>> # Example showing name conflict error
+            >>> try:
+            ...     Survey.example().add_question_group("q0", "q1", "q0")
+            ... except SurveyCreationError:
+            ...     print("Error: Group name conflicts with question name (as expected)")
+            Error: Group name conflicts with question name (as expected)
+            
+            Start question must come before end question:
+            
+            >>> # Example showing index order error
+            >>> try:
+            ...     Survey.example().add_question_group("q1", "q0", "group1")
+            ... except SurveyCreationError:
+            ...     print("Error: Start index greater than end index (as expected)")
+            Error: Start index greater than end index (as expected)
         """
 
         if not group_name.isidentifier():
@@ -1294,16 +1382,33 @@ class Survey(Base):
             question = self.next_question(question, self.answers)
 
 
-    def dag(self, textify: bool = False) -> DAG:
-        """Return the DAG of the survey, which reflects both skip-logic and memory.
-
-        :param textify: Whether to return the DAG with question names instead of indices.
-
-        >>> s = Survey.example()
-        >>> d = s.dag()
-        >>> d
-        {1: {0}, 2: {0}}
-
+    def dag(self, textify: bool = False) -> "DAG":
+        """Return a Directed Acyclic Graph (DAG) representation of the survey flow.
+        
+        This method constructs a DAG that represents the possible paths through the survey,
+        taking into account both skip logic and memory relationships. The DAG is useful
+        for visualizing and analyzing the structure of the survey.
+        
+        Args:
+            textify: If True, the DAG will use question names as nodes instead of indices.
+                This makes the DAG more human-readable but less compact.
+                
+        Returns:
+            DAG: A dictionary where keys are question indices (or names if textify=True)
+                and values are sets of prerequisite questions. For example, {2: {0, 1}}
+                means question 2 depends on questions 0 and 1.
+                
+        Examples:
+            >>> s = Survey.example()
+            >>> d = s.dag()
+            >>> d
+            {1: {0}, 2: {0}}
+            
+            With textify=True:
+            
+            >>> dag = s.dag(textify=True)
+            >>> sorted([(k, sorted(list(v))) for k, v in dag.items()])
+            [('q1', ['q0']), ('q2', ['q0'])]
         """
         from .dag import ConstructDAG
 
