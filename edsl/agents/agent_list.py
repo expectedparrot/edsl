@@ -7,6 +7,7 @@ import sys
 import random
 import logging
 from collections import defaultdict
+from itertools import product
 
 
 from collections import UserList
@@ -47,6 +48,20 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
 
     The AgentList class extends Python's UserList to provide a container for Agent objects
     with methods for filtering, transforming, and analyzing collections of agents.
+
+
+    >>> AgentList.example().to_scenario_list()
+    ScenarioList([Scenario({'age': 22, 'hair': 'brown', 'height': 5.5}), Scenario({'age': 22, 'hair': 'brown', 'height': 5.5})])
+
+    >>> AgentList.example().to_dataset()
+    Dataset([{'age': [22, 22]}, {'hair': ['brown', 'brown']}, {'height': [5.5, 5.5]}])
+
+    >>> AgentList.example().to_pandas()
+       age   hair  height
+    0   22  brown     5.5
+    1   22  brown     5.5
+
+
     """
 
     __documentation__ = (
@@ -55,6 +70,12 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
 
     def __init__(self, data: Optional[list["Agent"]] = None):
         """Initialize a new AgentList.
+
+        >>> from edsl import Agent
+        >>> al = AgentList([Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5}),
+        ...                Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5})])
+        >>> al
+        AgentList([Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5}), Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5})])
 
         Args:
             data: A list of Agent objects. If None, creates an empty AgentList.
@@ -73,8 +94,6 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         Returns:
             AgentList: The shuffled AgentList (self).
         """
-        import random
-
         if seed is not None:
             random.seed(seed)
         random.shuffle(self.data)
@@ -94,47 +113,6 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         if seed:
             random.seed(seed)
         return AgentList(random.sample(self.data, n))
-
-    def to_pandas(self) -> "DataFrame":
-        """Convert the AgentList to a pandas DataFrame.
-
-        Returns:
-            DataFrame: A pandas DataFrame where each row represents an agent and columns
-            represent their traits.
-
-        Examples:
-            >>> from edsl import Agent
-            >>> al = AgentList([Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5}),
-            ...                Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5})])
-            >>> al.to_pandas()
-               age   hair  height
-            0   22  brown     5.5
-            1   22  brown     5.5
-        """
-        return self.to_scenario_list().to_pandas()
-
-    def tally(
-        self, *fields: Optional[str], top_n: Optional[int] = None, output="Dataset"
-    ) -> Union[dict, "Dataset"]:
-        """Count the occurrences of values in specified fields.
-
-        Performs either a simple count of values in a single field or a cross-tabulation
-        of multiple fields.
-
-        Args:
-            *fields: The field(s) to tally. Multiple fields result in cross-tabulation.
-            top_n: Optional limit on the number of results to return.
-            output: The output format, defaults to "Dataset".
-
-        Returns:
-            Union[dict, Dataset]: Counts of values in the specified format.
-
-        Examples:
-            >>> al = AgentList.example()
-            >>> al.tally('age')
-            Dataset([{'age': [22]}, {'count': [2]}])
-        """
-        return self.to_scenario_list().tally(*fields, top_n=top_n, output=output)
 
     def duplicate(self) -> AgentList:
         """Create a deep copy of the AgentList.
@@ -336,7 +314,7 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         >>> al.add_trait('new_trait', [1, 2, 3])
         Traceback (most recent call last):
         ...
-        edsl.exceptions.agents.AgentListError: The passed values have to be the same length as the agent list.
+        edsl.agents.exceptions.AgentListError: The passed values have to be the same length as the agent list.
         ...
         """
         if not is_iterable(values):
@@ -412,11 +390,11 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
     def __repr__(self):
         return f"AgentList({self.data})"
 
-    def _summary(self):
+    def _summary(self) -> dict:
         return {
             "agents": len(self),
         }
-
+    
     def set_codebook(self, codebook: dict[str, str]) -> AgentList:
         """Set the codebook for the AgentList.
 
@@ -435,33 +413,6 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
 
         return self
 
-    def to_csv(self, file_path: str):
-        """Save the AgentList to a CSV file.
-
-        :param file_path: The path to the CSV file.
-        """
-        self.to_scenario_list().to_csv(file_path)
-
-    def to_list(self, include_agent_name=False) -> list[tuple]:
-        """Return a list of tuples."""
-        return self.to_scenario_list(include_agent_name).to_list()
-
-    def to_scenario_list(
-        self, include_agent_name: bool = False, include_instruction: bool = False
-    ) -> ScenarioList:
-        """Converts the agent to a scenario list."""
-        from ..scenarios import ScenarioList
-        from ..scenarios import Scenario
-
-        scenario_list = ScenarioList()
-        for agent in self.data:
-            d = agent.traits
-            if include_agent_name:
-                d["agent_name"] = agent.name
-            if include_instruction:
-                d["instruction"] = agent.instruction
-            scenario_list.append(Scenario(d))
-        return scenario_list
 
     def table(
         self,
@@ -497,12 +448,8 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
             >>> al = AgentList.example()
             >>> al.to_dataset()
             Dataset([{'age': [22, 22]}, {'hair': ['brown', 'brown']}, {'height': [5.5, 5.5]}])
-            >>> al.to_dataset(traits_only = False)
-            Dataset([{'age': [22, 22]}, {'hair': ['brown', 'brown']}, {'height': [5.5, 5.5]},
-            ...      {'agent_parameters': [{'instruction': 'You are answering questions as if you were a human. Do not break character.',
-            ...                            'agent_name': None},
-            ...                           {'instruction': 'You are answering questions as if you were a human. Do not break character.',
-            ...                            'agent_name': None}]}])
+            >>> al.to_dataset(traits_only=False)  # doctest: +NORMALIZE_WHITESPACE
+            Dataset([{'age': [22, 22]}, {'hair': ['brown', 'brown']}, {'height': [5.5, 5.5]}, {'agent_parameters': [{'instruction': 'You are answering questions as if you were a human. Do not break character.', 'agent_name': None}, {'instruction': 'You are answering questions as if you were a human. Do not break character.', 'agent_name': None}]}])
         """
         from ..dataset import Dataset
 
@@ -522,9 +469,6 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
                     {"instruction": agent.instruction, "agent_name": agent.name}
                 )
         return Dataset([{key: entry} for key, entry in data.items()])
-
-    def tree(self, node_order: Optional[List[str]] = None):
-        return self.to_scenario_list().tree(node_order)
 
     @classmethod
     @remove_edsl_version
@@ -556,7 +500,7 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         return cls([Agent.example(randomize), Agent.example(randomize)])
 
     @classmethod
-    def from_list(self, trait_name: str, values: List[Any]):
+    def from_list(self, trait_name: str, values: List[Any]) -> "AgentList":
         """Create an AgentList from a list of values.
 
         :param trait_name: The name of the trait.
@@ -571,8 +515,6 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
 
     def __mul__(self, other: AgentList) -> AgentList:
         """Takes the cross product of two AgentLists."""
-        from itertools import product
-
         new_sl = []
         for s1, s2 in list(product(self, other)):
             new_sl.append(s1 + s2)
@@ -599,5 +541,4 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
 
 if __name__ == "__main__":
     import doctest
-
-    doctest.testmod(optionflags=doctest.ELLIPSIS)
+    doctest.testmod(optionflags=doctest.ELLIPSIS | doctest.NORMALIZE_WHITESPACE)

@@ -1,7 +1,7 @@
 """This module contains the descriptors used to set the attributes of the Agent class."""
 
 from typing import Dict
-from ..exceptions.agents import AgentNameError, AgentTraitKeyError
+from .exceptions import AgentNameError, AgentTraitKeyError
 
 
 def convert_agent_name(x):

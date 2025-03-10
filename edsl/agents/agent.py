@@ -323,7 +323,7 @@ class Agent(Base):
         >>> a = Agent(dynamic_traits_function = g)
         Traceback (most recent call last):
         ...
-        ....AgentDynamicTraitsFunctionError: ...
+        edsl.agents.exceptions.AgentDynamicTraitsFunctionError: ...
         """
         if self.has_dynamic_traits_function:
             sig = inspect.signature(self.dynamic_traits_function)
@@ -746,7 +746,7 @@ class Agent(Base):
         >>> a1 + a1
         Traceback (most recent call last):
         ...
-        edsl.exceptions.agents.AgentCombinationError: The agents have overlapping traits: {'age'}.
+        edsl.agents.exceptions.AgentCombinationError: The agents have overlapping traits: {'age'}.
         ...
         >>> a1 = Agent(traits = {"age": 10}, codebook = {"age": "Their age is"})
         >>> a2 = Agent(traits = {"height": 5.5}, codebook = {"height": "Their height is"})

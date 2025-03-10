@@ -9,7 +9,7 @@ from .utilities import dict_hash
 
 from .remove_edsl_version import remove_edsl_version
 
-from .utilities import is_notebook
+from .is_notebook import is_notebook
 
 
 # from edsl.utilities.interface import (
