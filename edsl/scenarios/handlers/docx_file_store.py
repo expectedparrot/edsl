@@ -1,8 +1,10 @@
-from edsl.scenarios.file_methods import FileMethods
 import os
 import tempfile
-from edsl.scenarios import Scenario, ScenarioList, FileStore
 
+from ..file_methods import FileMethods
+from ..scenario import Scenario
+from ..scenario_list import ScenarioList
+from ..file_store import FileStore
 
 class DocxMethods(FileMethods):
     suffix = "docx"
@@ -57,8 +59,8 @@ class DocxMethods(FileMethods):
 
     def example(self):
         from docx import Document
-        from edsl.scenarios.Scenario import Scenario
-        from edsl.scenarios.ScenarioList import ScenarioList
+        from ..scenario import Scenario
+        from ..scenario_list import ScenarioList
 
         os.makedirs("test_dir", exist_ok=True)
         doc1 = Document()
@@ -75,7 +77,5 @@ class DocxMethods(FileMethods):
 
 
 if __name__ == "__main__":
-    docx_temp = DocxMethods.example()
-    from edsl.scenarios.FileStore import FileStore
-
-    fs = FileStore(docx_temp)
+    import doctest
+    doctest.testmod()

@@ -1,5 +1,5 @@
 import tempfile
-from edsl.scenarios.file_methods import FileMethods
+from ..file_methods import FileMethods
 
 
 class JpegMethods(FileMethods):

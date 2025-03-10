@@ -2,15 +2,23 @@ from __future__ import annotations
 from typing import Union, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from edsl.scenarios.ScenarioList import ScenarioList
-    from edsl.scenarios import Scenario
-
+    from .scenario_list import ScenarioList
+    from .scenario import Scenario
 
 class ScenarioJoin:
     """Handles join operations between two ScenarioLists.
 
     This class encapsulates all join-related logic, making it easier to maintain
     and extend with other join types (inner, right, full) in the future.
+
+    >>> from edsl import ScenarioList, Scenario
+    >>> s1 = ScenarioList([Scenario({'name': 'Alice', 'age': 30}), Scenario({'name': 'Bob', 'age': 25})])
+    >>> s2 = ScenarioList([Scenario({'name': 'Alice', 'location': 'New York'}), Scenario({'name': 'Charlie', 'location': 'Los Angeles'})])
+    >>> s3 = s1.left_join(s2, 'name')
+    >>> s3 == ScenarioList([Scenario({'age': 30, 'location': 'New York', 'name': 'Alice'}), Scenario({'age': 25, 'location': None, 'name': 'Bob'})])
+    True
+
+
     """
 
     def __init__(self, left: "ScenarioList", right: "ScenarioList"):
@@ -88,7 +96,7 @@ class ScenarioJoin:
         self, by_keys: list[str], other_dict: dict, all_keys: set
     ) -> list[Scenario]:
         """Create the joined scenarios."""
-        from edsl.scenarios import Scenario
+        from .scenario import Scenario
 
         new_scenarios = []
 
@@ -129,3 +137,8 @@ class ScenarioJoin:
         # Only update with non-overlapping keys from matching scenario
         new_keys = set(right_scenario.keys()) - set(left_scenario.keys())
         new_scenario.update({k: right_scenario[k] for k in new_keys})
+
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod()

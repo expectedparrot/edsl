@@ -6,6 +6,12 @@ class ConstructDownloadLink:
     """
     A class to create HTML download links for FileStore objects.
     The links can be displayed in Jupyter notebooks or other web interfaces.
+
+    >>> from edsl import FileStore
+    >>> fs = FileStore.example("txt")
+    >>> link = ConstructDownloadLink(fs)
+    >>> link.create_link()
+    <IPython.core.display.HTML object>
     """
 
     def __init__(self, filestore):
@@ -98,6 +104,7 @@ class ConstructDownloadLink:
                 )._repr_html_()
             )
 
+        from IPython.display import HTML
         return HTML(
             '<div style="display: flex; gap: 10px;">' + "".join(html_parts) + "</div>"
         )

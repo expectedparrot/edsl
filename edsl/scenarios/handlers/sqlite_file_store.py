@@ -1,9 +1,9 @@
-from edsl.scenarios.file_methods import FileMethods
 import os
 import tempfile
 import sqlite3
 from edsl.scenarios import FileStore
 
+from ..file_methods import FileMethods
 
 class SQLiteMethods(FileMethods):
     suffix = "db"  # or "sqlite", depending on your preference

@@ -1,7 +1,7 @@
 import os
 import base64
 
-from edsl.scenarios.file_methods import FileMethods
+from ..file_methods import FileMethods
 
 
 class PdfMethods(FileMethods):
@@ -61,7 +61,7 @@ class PdfMethods(FileMethods):
         return
 
     def example(self):
-        from edsl.results.Results import Results
+        from ...results import Results
 
         return (
             Results.example().select("answer.how_feeling").first().pdf().to_tempfile()
