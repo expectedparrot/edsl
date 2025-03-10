@@ -15,18 +15,26 @@ class MarkdownToPDF:
         """
         self.markdown_content = markdown_content
         self.filename = filename
-        self._check_pandoc()
+        self.has_pandoc = self._check_pandoc()
         # self.convert()
 
     def _check_pandoc(self):
-        """Check if pandoc is installed and accessible."""
+        """
+        Check if pandoc is installed and accessible.
+        
+        Returns:
+            bool: True if pandoc is available, False otherwise
+        """
         try:
             subprocess.run(["pandoc", "--version"], capture_output=True, check=True)
+            return True
         except (subprocess.CalledProcessError, FileNotFoundError):
-            raise RuntimeError(
+            import warnings
+            warnings.warn(
                 "Pandoc is not installed or not found in PATH. "
-                "Please install pandoc before using this converter."
+                "PDF conversion will not be available."
             )
+            return False
 
     def convert(self, output_path: str, **options) -> bool:
         """
