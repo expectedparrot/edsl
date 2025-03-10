@@ -9,7 +9,7 @@ from typing import Dict, Optional, Union
 from uuid import UUID, uuid4
 
 from ..data import Cache
-from edsl import set_session_cache, unset_session_cache
+#from edsl import set_session_cache, unset_session_cache
 from ..utilities.utilities import dict_hash
 from ..study.ObjectEntry import ObjectEntry
 from ..study.ProofOfWork import ProofOfWork
@@ -242,7 +242,7 @@ class Study:
         if self.use_study_cache:
             if self.verbose:
                 print("Using study cache.")
-            set_session_cache(self.cache)
+            #set_session_cache(self.cache)
 
         if snapshot.edsl_objects:
             raise ValueError(
@@ -258,7 +258,7 @@ class Study:
 
     def study_diff(self):
         ## Need to also report missing.
-        from edsl.BaseDiff import BaseDiff
+        from ..base import BaseDiff
 
         raise NotImplementedError("Need to implement this.")
 
@@ -308,7 +308,8 @@ class Study:
         # print("Frame objects are:", snapshot.namespace.keys())
         # breakpoint()
         if self.use_study_cache:
-            unset_session_cache()
+            #unset_session_cache()
+            pass
 
         for variable_name, object in snapshot.edsl_objects.items():
             self._add_edsl_object(object=object, variable_name=variable_name)

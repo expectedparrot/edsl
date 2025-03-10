@@ -5,11 +5,10 @@ from edsl.enums import service_to_api_keyname
 
 from .models import LanguageModelInput
 
-
 class KeyLookup(UserDict):
     """A class for looking up API keys and related configuration.
 
-    >>> from edsl.language_models.key_management.models import LanguageModelInput
+    >>> from edsl.key_management.models import LanguageModelInput
     >>> lookup = KeyLookup()
     >>> lm_input = LanguageModelInput.example()
     >>> lookup['test'] = lm_input

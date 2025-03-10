@@ -23,11 +23,11 @@ from ..scenarios import Scenario
 from ..utilities.remove_edsl_version import remove_edsl_version
 
 if TYPE_CHECKING:
-    from ..questions.QuestionBase import QuestionBase
+    from ..questions import QuestionBase
     from ..agents import Agent
-    from .DAG import DAG
-    from ..language_models.LanguageModel import LanguageModel
-    from ..data.Cache import Cache
+    from .dag import DAG
+    from ..language_models import LanguageModel
+    from ..data import Cache
 
     # This is a hack to get around the fact that TypeAlias is not available in typing until Python 3.10
     try:
@@ -39,15 +39,15 @@ if TYPE_CHECKING:
     QuestionGroupType: TypeAlias = dict[str, tuple[int, int]]
 
 
-from .instructions.InstructionCollection import InstructionCollection
-from .instructions.Instruction import Instruction
-from .instructions.ChangeInstruction import ChangeInstruction
+from ..instructions import InstructionCollection
+from ..instructions import Instruction
+from ..instructions import ChangeInstruction
 
 from .base import EndOfSurvey
 from .descriptors import QuestionsDescriptor
 from .memory import MemoryPlan
 from .survey_flow_visualization import SurveyFlowVisualization
-from .instructions.InstructionHandler import InstructionHandler
+from ..instructions import InstructionHandler
 from .edit_survey import EditSurvey
 from .survey_simulator import Simulator
 from .memory import MemoryManagement
@@ -386,13 +386,11 @@ class Survey(Base):
 
                 return QuestionDict
             elif class_name == "Instruction":
-                from .instructions.Instruction import Instruction
+                from ..instructions import Instruction
 
                 return Instruction
             elif class_name == "ChangeInstruction":
-                from ..surveys.instructions.ChangeInstruction import (
-                    ChangeInstruction,
-                )
+                from ..instructions import ChangeInstruction
 
                 return ChangeInstruction
             else:

@@ -191,6 +191,10 @@ test-data: ## Create serialization test data for the current EDSL version
 	fi
 test-doctests: ## Run doctests
 	make clean-test
+	pytest --doctest-modules edsl/instructions
+	pytest --doctest-modules edsl/key_management
+	pytest --doctest-modules edsl/prompts
+	pytest --doctest-modules edsl/tasks
 	pytest --doctest-modules edsl/inference_services
 	pytest --doctest-modules edsl/results
 	pytest --doctest-modules edsl/dataset
