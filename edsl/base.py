@@ -397,7 +397,7 @@ class RepresentationMixin:
         console.print(table)
 
     def _repr_html_(self):
-        from .dataset.display import TableDisplay
+        from .dataset.display.table_display import TableDisplay
         
         if hasattr(self, "_summary"):
             summary_dict = self._summary()

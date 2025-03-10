@@ -11,7 +11,7 @@ from ..base import PersistenceMixin, HashingMixin
 
 from .dataset_tree import Tree
 
-from .display.TableDisplay import TableDisplay
+from .display.table_display import TableDisplay
 from .smart_objects import FirstObject
 from .r.ggplot import GGPlotMethod
 from .dataset_operations_mixin import DatasetOperationsMixin
