@@ -1,4 +1,21 @@
-"""A list of Scenarios to be used in a survey."""
+"""
+ScenarioList provides a collection of Scenario objects with advanced operations.
+
+The ScenarioList module extends the functionality of a simple list of Scenario objects,
+providing powerful operations for data manipulation, filtering, transformation, and analysis.
+It serves as a bridge between individual Scenarios and higher-level EDSL components like
+Surveys and Jobs.
+
+Key features include:
+- Collection operations (filtering, sorting, sampling, and iteration)
+- Data manipulation (transformation, joining, grouping, pivoting)
+- Format conversion (to/from pandas, CSV, Excel, etc.)
+- Advanced selection and retrieval mechanisms
+- Integration with other EDSL components
+
+ScenarioList is a core component in the EDSL framework for creating, managing, and
+manipulating collections of Scenarios for experiments, surveys, and data processing tasks.
+"""
 
 from __future__ import annotations
 from typing import (
@@ -65,7 +82,41 @@ TableFormat: TypeAlias = Literal[
 ]
 
 class ScenarioList(Base, UserList, ScenarioListOperationsMixin):
-    """Class for creating a list of scenarios to be used in a survey."""
+    """
+    A collection of Scenario objects with advanced operations for manipulation and analysis.
+    
+    ScenarioList extends Python's UserList to provide specialized functionality for
+    working with collections of Scenario objects. It inherits from Base to integrate
+    with EDSL's object model and from ScenarioListOperationsMixin to provide
+    powerful data manipulation capabilities.
+    
+    The class provides methods for filtering, sorting, joining, transforming, and
+    analyzing collections of Scenarios. It's designed to work seamlessly with other
+    EDSL components like Surveys, Jobs, and Questions.
+    
+    Attributes:
+        data (list): The underlying list of Scenario objects.
+        codebook (dict): Optional metadata describing the fields in the scenarios.
+        
+    Examples:
+        Create a ScenarioList from Scenario objects:
+        >>> from edsl.scenarios import Scenario, ScenarioList
+        >>> s1 = Scenario({"product": "apple", "price": 1.99})
+        >>> s2 = Scenario({"product": "banana", "price": 0.99})
+        >>> sl = ScenarioList([s1, s2])
+        
+        Filter scenarios based on a condition:
+        >>> cheap_fruits = sl.filter(lambda s: s["price"] < 1.50)
+        >>> len(cheap_fruits)
+        1
+        >>> cheap_fruits[0]["product"]
+        'banana'
+        
+        Add a new column based on existing data:
+        >>> sl_with_tax = sl.mutate(tax=lambda s: s["price"] * 0.08)
+        >>> sl_with_tax[0]["tax"]
+        0.1592
+    """
 
     __documentation__ = (
         "https://docs.expectedparrot.com/en/latest/scenarios.html#scenariolist"
@@ -74,7 +125,24 @@ class ScenarioList(Base, UserList, ScenarioListOperationsMixin):
     def __init__(
         self, data: Optional[list] = None, codebook: Optional[dict[str, str]] = None
     ):
-        """Initialize the ScenarioList class."""
+        """
+        Initialize a new ScenarioList with optional data and codebook.
+        
+        Args:
+            data: A list of Scenario objects. If None, an empty list is used.
+            codebook: A dictionary mapping field names to descriptions or metadata.
+                     Used for documentation and to provide context for fields.
+                     
+        Examples:
+            >>> sl = ScenarioList()  # Empty list
+            >>> s1 = Scenario({"product": "apple"})
+            >>> s2 = Scenario({"product": "banana"})
+            >>> sl = ScenarioList([s1, s2])  # With data
+            
+            >>> # With a codebook
+            >>> codebook = {"product": "Fruit name", "price": "Price in USD"}
+            >>> sl = ScenarioList([s1, s2], codebook=codebook)
+        """
         if data is not None:
             super().__init__(data)
         else:
@@ -82,21 +150,85 @@ class ScenarioList(Base, UserList, ScenarioListOperationsMixin):
         self.codebook = codebook or {}
 
     def unique(self) -> ScenarioList:
-        """Return a list of unique scenarios.
-
-        >>> s = ScenarioList([Scenario({'a': 1}), Scenario({'a': 1}), Scenario({'a': 2})])
-        >>> s.unique()
-        ScenarioList([Scenario({'a': 1}), Scenario({'a': 2})])
+        """
+        Return a new ScenarioList containing only unique Scenario objects.
+        
+        This method removes duplicate Scenario objects based on their hash values,
+        which are determined by their content. Two Scenarios with identical key-value
+        pairs will have the same hash and be considered duplicates.
+        
+        Returns:
+            A new ScenarioList containing only unique Scenario objects.
+            
+        Examples:
+            >>> from edsl.scenarios import Scenario, ScenarioList
+            >>> s1 = Scenario({"a": 1})
+            >>> s2 = Scenario({"a": 1})  # Same content as s1
+            >>> s3 = Scenario({"a": 2})
+            >>> sl = ScenarioList([s1, s2, s3])
+            >>> unique_sl = sl.unique()
+            >>> len(unique_sl)
+            2
+            >>> unique_sl
+            ScenarioList([Scenario({'a': 1}), Scenario({'a': 2})])
+            
+        Notes:
+            - The order of scenarios in the result is not guaranteed due to the use of sets
+            - Uniqueness is determined by the Scenario's __hash__ method
+            - The original ScenarioList is not modified
         """
         return ScenarioList(list(set(self)))
 
     @property
     def has_jinja_braces(self) -> bool:
-        """Check if the ScenarioList has Jinja braces."""
+        """
+        Check if any Scenario in the list contains values with Jinja template braces.
+        
+        This property checks all Scenarios in the list to determine if any contain
+        string values with Jinja template syntax ({{ and }}). This is important for
+        rendering templates and avoiding conflicts with other templating systems.
+        
+        Returns:
+            True if any Scenario contains values with Jinja braces, False otherwise.
+            
+        Examples:
+            >>> from edsl.scenarios import Scenario, ScenarioList
+            >>> s1 = Scenario({"text": "Plain text"})
+            >>> s2 = Scenario({"text": "Template with {{variable}}"})
+            >>> sl1 = ScenarioList([s1])
+            >>> sl1.has_jinja_braces
+            False
+            >>> sl2 = ScenarioList([s1, s2])
+            >>> sl2.has_jinja_braces
+            True
+        """
         return any([scenario.has_jinja_braces for scenario in self])
 
     def _convert_jinja_braces(self) -> ScenarioList:
-        """Convert Jinja braces to Python braces."""
+        """
+        Convert Jinja braces to alternative symbols in all Scenarios in the list.
+        
+        This method creates a new ScenarioList where all Jinja template braces
+        ({{ and }}) in string values are converted to alternative symbols (<< and >>).
+        This is useful when you need to prevent template processing or avoid conflicts
+        with other templating systems.
+        
+        Returns:
+            A new ScenarioList with converted braces in all Scenarios.
+            
+        Examples:
+            >>> from edsl.scenarios import Scenario, ScenarioList
+            >>> s = Scenario({"text": "Template with {{variable}}"})
+            >>> sl = ScenarioList([s])
+            >>> converted = sl._convert_jinja_braces()
+            >>> converted[0]["text"]
+            'Template with <<variable>>'
+            
+        Notes:
+            - The original ScenarioList is not modified
+            - This is primarily intended for internal use
+            - The default replacement symbols are << and >>
+        """
         return ScenarioList([scenario._convert_jinja_braces() for scenario in self])
 
     def give_valid_names(self, existing_codebook: dict = None) -> ScenarioList:
