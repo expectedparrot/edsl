@@ -1,7 +1,16 @@
-from typing import Any, Union
+from typing import Any, Union, TYPE_CHECKING
 
+if TYPE_CHECKING:
+    from .language_model import LanguageModel
 
 class ComputeCost:
+    """Computes the dollar cost of a raw response.
+    
+    # TODO: Add doctests
+    >>> True
+    True
+    
+    """
     def __init__(self, language_model: "LanguageModel"):
         self.language_model = language_model
         self._price_lookup = None
@@ -9,7 +18,7 @@ class ComputeCost:
     @property
     def price_lookup(self):
         if self._price_lookup is None:
-            from edsl.coop import Coop
+            from ..coop import Coop
 
             c = Coop()
             self._price_lookup = c.fetch_prices()
@@ -19,7 +28,7 @@ class ComputeCost:
         """Return the dollar cost of a raw response."""
 
         usage = self.get_usage_dict(raw_response)
-        from edsl.coop import Coop
+        from ..coop import Coop
 
         c = Coop()
         price_lookup = c.fetch_prices()
@@ -61,3 +70,9 @@ class ComputeCost:
                 return f"Could not compute output price - {e}"
 
         return input_cost + output_cost
+
+
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod()

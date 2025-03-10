@@ -5,7 +5,7 @@ from unittest.mock import patch
 from typing import Any
 from tempfile import NamedTemporaryFile
 
-from edsl.exceptions.language_models import LanguageModelAttributeTypeError
+from edsl.language_models.exceptions import LanguageModelAttributeTypeError
 from edsl.enums import InferenceServiceType
 from edsl.language_models import LanguageModel
 

@@ -4,13 +4,11 @@ from collections import UserList
 from ..base import Base
 from ..language_models import Model
 
-from ..utilities.remove_edsl_version import remove_edsl_version
-from ..utilities.is_valid_variable_name import is_valid_variable_name
+from ..utilities import remove_edsl_version, is_valid_variable_name, dict_hash
 
 if TYPE_CHECKING:
     from ..inference_services.data_structures import AvailableModels
     from ..language_models import LanguageModel
-
 
 class ModelList(Base, UserList):
     __documentation__ = """https://docs.expectedparrot.com/en/latest/language_models.html#module-edsl.language_models.ModelList"""
@@ -49,8 +47,6 @@ class ModelList(Base, UserList):
         True
 
         """
-        from edsl.utilities.utilities import dict_hash
-
         return dict_hash(self.to_dict(sort=True, add_edsl_version=False))
 
     def to_scenario_list(self):
@@ -106,7 +102,7 @@ class ModelList(Base, UserList):
                 ]
             }
         if add_edsl_version:
-            from edsl import __version__
+            from .. import __version__
 
             d["edsl_version"] = __version__
             d["edsl_class_name"] = "ModelList"

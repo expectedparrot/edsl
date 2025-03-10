@@ -1,7 +1,10 @@
 from .template_loader import TemplateLoader
 
 
-from .decorators import sync_wrapper
+from .PrettyList import PrettyList
+
+from .utilities import clean_json
+from .decorators import sync_wrapper, jupyter_nb_handler
 
 from .restricted_python import create_restricted_function
 
@@ -15,6 +18,7 @@ from .naming_utilities import sanitize_string
 from .is_valid_variable_name import is_valid_variable_name
 
 from .ast_utilities import extract_variable_names
+
 
 # from edsl.utilities.interface import (
 #     print_dict_as_html_table,

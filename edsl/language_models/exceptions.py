@@ -1,8 +1,9 @@
 from textwrap import dedent
 from typing import Optional
 
+from ..base import BaseException
 
-class LanguageModelExceptions(Exception):
+class LanguageModelExceptions(BaseException):
     explanation = (
         "This is the base class for all exceptions in the LanguageModel class."
     )

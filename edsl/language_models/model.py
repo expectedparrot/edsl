@@ -2,19 +2,20 @@ import textwrap
 from random import random
 from typing import Optional, TYPE_CHECKING, List, Callable
 
-from edsl.utilities.PrettyList import PrettyList
-from edsl.config import CONFIG
+from ..utilities import PrettyList
+from ..config import CONFIG
 
 from edsl.inference_services.InferenceServicesCollection import (
     InferenceServicesCollection,
 )
 from edsl.inference_services.data_structures import AvailableModels
 from edsl.inference_services.InferenceServiceABC import InferenceServiceABC
-from edsl.enums import InferenceServiceLiteral
 from edsl.exceptions.inference_services import InferenceServiceError
 
+from ..enums import InferenceServiceLiteral
+
 if TYPE_CHECKING:
-    from edsl.results.Dataset import Dataset
+    from ..dataset import Dataset
 
 
 def get_model_class(
@@ -165,10 +166,8 @@ class Model(metaclass=Meta):
     @classmethod
     def key_info(cls, obscure_api_key: bool = True) -> "Dataset":
         """Returns a dataset of local key information."""
-        from edsl.language_models.key_management.KeyLookupCollection import (
-            KeyLookupCollection,
-        )
-        from edsl.scenarios import Scenario, ScenarioList
+        from ..key_management import KeyLookupCollection
+        from ..scenarios import Scenario, ScenarioList
 
         klc = KeyLookupCollection()
         klc.add_key_lookup(fetch_order=None)
@@ -349,10 +348,5 @@ class Model(metaclass=Meta):
 
 if __name__ == "__main__":
     import doctest
-
     doctest.testmod(optionflags=doctest.ELLIPSIS)
 
-    # available = Model.available()
-    # m = Model("gpt-4-1106-preview")
-    # results = m.execute_model_call("Hello world")
-    # print(results)
