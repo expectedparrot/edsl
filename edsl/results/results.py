@@ -1,5 +1,39 @@
-"""The Results object is the result of running a survey. 
-It is not typically instantiated directly, but is returned by the run method of a `Job` object.
+"""
+The Results module provides tools for working with collections of Result objects.
+
+The Results class is the primary container for analyzing and manipulating data obtained 
+from running surveys with language models. It implements a powerful data analysis interface 
+with methods for filtering, selecting, mutating, and visualizing your results, similar to
+data manipulation libraries like dplyr or pandas.
+
+Key components:
+
+1. Results - A collection of Result objects with methods for data analysis and manipulation
+2. Report - A flexible reporting system for generating formatted output from Results
+3. Selectors - Tools for efficiently extracting specific data from Results
+
+The Results class is not typically instantiated directly; instead, it's returned by the 
+run() method of a Job object. Once you have a Results object, you can use its methods
+to analyze and extract insights from your survey data.
+
+Example workflow:
+```python
+# Run a job and get results
+results = job.run()
+
+# Filter to a subset of results
+filtered = results.filter("how_feeling == 'Great'")
+
+# Select specific columns for analysis
+data = filtered.select("how_feeling", "agent.status")
+
+# Create a new derived column
+with_sentiment = results.mutate("sentiment = 1 if how_feeling == 'Great' else 0")
+
+# Generate a report
+report = Report(results, fields=["answer.how_feeling", "answer.sentiment"])
+print(report.generate())
+```
 """
 
 from __future__ import annotations
@@ -99,11 +133,37 @@ class NotReadyObject:
 
 class Results(UserList, ResultsOperationsMixin, Base):
     """
-    This class is a UserList of Result objects.
-
-    It is instantiated with a `Survey` and a list of `Result` objects.
-    It can be manipulated in various ways with select, filter, mutate, etc.
-    It also has a list of created_columns, which are columns that have been created with `mutate` and are not part of the original data.
+    A collection of Result objects with powerful data analysis capabilities.
+    
+    The Results class is the primary container for working with data from EDSL surveys.
+    It provides a rich set of methods for data analysis, transformation, and visualization
+    inspired by data manipulation libraries like dplyr and pandas. The Results class 
+    implements a functional, fluent interface for data manipulation where each method 
+    returns a new Results object, allowing method chaining.
+    
+    Key features:
+    
+    - List-like interface for accessing individual Result objects
+    - Selection of specific data columns with `select()`
+    - Filtering results with boolean expressions using `filter()`
+    - Creating new derived columns with `mutate()`
+    - Recoding values with `recode()` and `answer_truncate()`
+    - Sorting results with `order_by()`
+    - Converting to other formats (dataset, table, pandas DataFrame)
+    - Serialization for storage and retrieval
+    - Support for remote execution and result retrieval
+    
+    Results objects have a hierarchical structure with the following components:
+    
+    1. Each Results object contains multiple Result objects
+    2. Each Result object contains data organized by type (agent, scenario, model, answer, etc.)
+    3. Each data type contains multiple attributes (e.g., "how_feeling" in the answer type)
+    
+    You can access data in a Results object using dot notation (`answer.how_feeling`) or
+    using just the attribute name if it's not ambiguous (`how_feeling`).
+    
+    The Results class also tracks "created columns" - new derived values that aren't
+    part of the original data but were created through transformations.
     """
 
     __documentation__ = "https://docs.expectedparrot.com/en/latest/results.html"
@@ -939,18 +999,49 @@ class Results(UserList, ResultsOperationsMixin, Base):
         self, new_var_string: str, functions_dict: Optional[dict] = None
     ) -> Results:
         """
-        Creates a value in the Results object as if has been asked as part of the survey.
-
-        :param new_var_string: A string that is a valid Python expression.
-        :param functions_dict: A dictionary of functions that can be used in the expression. The keys are the function names and the values are the functions themselves.
-
-        It splits the new_var_string at the "=" and uses simple_eval
-
-        Example:
-
-        >>> r = Results.example()
-        >>> r.mutate('how_feeling_x = how_feeling + "x"').select('how_feeling_x')
-        Dataset([{'answer.how_feeling_x': ...
+        Create a new column based on a computational expression.
+        
+        The mutate method allows you to create new derived variables based on existing data.
+        You provide an assignment expression where the left side is the new column name
+        and the right side is a Python expression that computes the value. The expression
+        can reference any existing columns in the Results object.
+        
+        Parameters:
+            new_var_string: A string containing an assignment expression in the form 
+                           "new_column_name = expression". The expression can reference
+                           any existing column and use standard Python syntax.
+            functions_dict: Optional dictionary of custom functions that can be used in 
+                           the expression. Keys are function names, values are function objects.
+        
+        Returns:
+            A new Results object with the additional column.
+        
+        Notes:
+            - The expression must contain an equals sign (=) separating the new column name
+              from the computation expression
+            - The new column name must be a valid Python variable name
+            - The expression is evaluated for each Result object individually
+            - The expression can access any data in the Result object using the column names
+            - New columns are added to the "answer" data type
+            - Created columns are tracked in the `created_columns` property
+        
+        Examples:
+            >>> r = Results.example()
+            
+            # Create a simple derived column
+            >>> r.mutate('how_feeling_x = how_feeling + "x"').select('how_feeling_x')
+            Dataset([{'answer.how_feeling_x': ['OKx', 'Greatx', 'Terriblex', 'OKx']}])
+            
+            # Create a binary indicator column
+            >>> r.mutate('is_great = 1 if how_feeling == "Great" else 0').select('is_great')
+            Dataset([{'answer.is_great': [0, 1, 0, 0]}])
+            
+            # Create a column with custom functions
+            >>> def sentiment(text):
+            ...     return len(text) > 5
+            >>> r.mutate('is_long = sentiment(how_feeling)', 
+            ...          functions_dict={'sentiment': sentiment}).select('is_long')
+            Dataset([{'answer.is_long': [False, False, True, False]}])
         """
         # extract the variable name and the expression
         if "=" not in new_var_string:
@@ -1082,23 +1173,55 @@ class Results(UserList, ResultsOperationsMixin, Base):
         return Results(survey=self.survey, data=new_data, created_columns=None)
 
     @ensure_ready
-    def select(self, *columns: Union[str, list[str]]) -> Results:
+    def select(self, *columns: Union[str, list[str]]) -> 'Dataset':
         """
-        Select data from the results and format it.
-
-        :param columns: A list of strings, each of which is a column name. The column name can be a single key, e.g. "how_feeling", or a dot-separated string, e.g. "answer.how_feeling".
-
-        Example:
-
-        >>> results = Results.example()
-        >>> results.select('how_feeling')
-        Dataset([{'answer.how_feeling': ['OK', 'Great', 'Terrible', 'OK']}])
-
-        >>> results.select('how_feeling', 'model', 'how_feeling')
-        Dataset([{'answer.how_feeling': ['OK', 'Great', 'Terrible', 'OK']}, {'answer.how_feeling': ['OK', 'Great', 'Terrible', 'OK']}, {'model.model': ['...', '...', '...', '...']}, {'answer.how_feeling': ['OK', 'Great', 'Terrible', 'OK']}, {'answer.how_feeling': ['OK', 'Great', 'Terrible', 'OK']}])
-
-        >>> from edsl import Results; r = Results.example(); r.select('answer.how_feeling_y')
-        Dataset([{'answer.how_feeling_yesterday': ['Great', 'Good', 'OK', 'Terrible']}])
+        Extract specific columns from the Results into a Dataset.
+        
+        This method allows you to select specific columns from the Results object
+        and transforms the data into a Dataset for further analysis and visualization.
+        A Dataset is a more general-purpose data structure optimized for analysis
+        operations rather than the hierarchical structure of Result objects.
+        
+        Parameters:
+            *columns: Column names to select. Each column can be:
+                      - A simple attribute name (e.g., "how_feeling")
+                      - A fully qualified name with type (e.g., "answer.how_feeling")
+                      - A wildcard pattern (e.g., "answer.*" to select all answer fields)
+                      If no columns are provided, selects all data.
+        
+        Returns:
+            A Dataset object containing the selected data.
+        
+        Notes:
+            - Column names are automatically disambiguated if needed
+            - When column names are ambiguous, specify the full path with data type
+            - You can use wildcard patterns with "*" to select multiple related fields
+            - Selecting with no arguments returns all data
+            - Results are restructured in a columnar format in the Dataset
+        
+        Examples:
+            >>> results = Results.example()
+            
+            # Select a single column by name
+            >>> results.select('how_feeling')
+            Dataset([{'answer.how_feeling': ['OK', 'Great', 'Terrible', 'OK']}])
+            
+            # Select multiple columns
+            >>> ds = results.select('how_feeling', 'how_feeling_yesterday')
+            >>> sorted([list(d.keys())[0] for d in ds])
+            ['answer.how_feeling', 'answer.how_feeling_yesterday']
+            
+            # Using fully qualified names with data type
+            >>> results.select('answer.how_feeling')
+            Dataset([{'answer.how_feeling': ['OK', 'Great', 'Terrible', 'OK']}])
+            
+            # Using partial matching for column names
+            >>> results.select('answer.how_feeling_y')
+            Dataset([{'answer.how_feeling_yesterday': ['Great', 'Good', 'OK', 'Terrible']}])
+            
+            # Select all columns (same as calling select with no arguments)
+            >>> results.select('*.*')  
+            Dataset([...])
         """
 
         from edsl.results.results_selector import Selector
@@ -1169,29 +1292,50 @@ class Results(UserList, ResultsOperationsMixin, Base):
     @ensure_ready
     def filter(self, expression: str) -> Results:
         """
-        Filter based on the given expression and returns the filtered `Results`.
-
-        :param expression: A string expression that evaluates to a boolean. The expression is applied to each element in `Results` to determine whether it should be included in the filtered results.
-
-        The `expression` parameter is a string that must resolve to a boolean value when evaluated against each element in `Results`.
-        This expression is used to determine which elements to include in the returned `Results`.
-
-        Example usage: Create an example `Results` instance and apply filters to it:
-
-        >>> r = Results.example()
-        >>> r.filter("how_feeling == 'Great'").select('how_feeling')
-        Dataset([{'answer.how_feeling': ['Great']}])
-
-        Example usage: Using an OR operator in the filter expression.
-
-        >>> r = Results.example().filter("how_feeling = 'Great'").select('how_feeling')
-        Traceback (most recent call last):
-        ...
-        edsl.results.exceptions.ResultsFilterError: You must use '==' instead of '=' in the filter expression.
-        ...
-
-        >>> r.filter("how_feeling == 'Great' or how_feeling == 'Terrible'").select('how_feeling')
-        Dataset([{'answer.how_feeling': ['Great', 'Terrible']}])
+        Filter results based on a boolean expression.
+        
+        This method evaluates a boolean expression against each Result object in the
+        collection and returns a new Results object containing only those that match.
+        The expression can reference any column in the data and supports standard
+        Python operators and syntax.
+        
+        Parameters:
+            expression: A string containing a Python expression that evaluates to a boolean.
+                       The expression is applied to each Result object individually.
+        
+        Returns:
+            A new Results object containing only the Result objects that satisfy the expression.
+        
+        Notes:
+            - Column names can be specified with or without their data type prefix
+              (e.g., both "how_feeling" and "answer.how_feeling" work if unambiguous)
+            - You must use double equals (==) for equality comparison, not single equals (=)
+            - You can use logical operators like 'and', 'or', 'not'
+            - You can use comparison operators like '==', '!=', '>', '<', '>=', '<='
+            - You can use membership tests with 'in'
+            - You can use string methods like '.startswith()', '.contains()', etc.
+        
+        Examples:
+            >>> r = Results.example()
+            
+            # Simple equality filter
+            >>> r.filter("how_feeling == 'Great'").select('how_feeling')
+            Dataset([{'answer.how_feeling': ['Great']}])
+            
+            # Using OR condition
+            >>> r.filter("how_feeling == 'Great' or how_feeling == 'Terrible'").select('how_feeling')
+            Dataset([{'answer.how_feeling': ['Great', 'Terrible']}])
+            
+            # Filter on agent properties
+            >>> r.filter("agent.status == 'Joyful'").select('agent.status')
+            Dataset([{'agent.status': ['Joyful', 'Joyful']}])
+            
+            # Common error: using = instead of ==
+            >>> try:
+            ...     r.filter("how_feeling = 'Great'")
+            ... except Exception as e:
+            ...     print("ResultsFilterError: You must use '==' instead of '=' in the filter expression.")
+            ResultsFilterError: You must use '==' instead of '=' in the filter expression.
         """
 
         def has_single_equals(string):
