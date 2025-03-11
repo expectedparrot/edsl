@@ -19,7 +19,7 @@ if TYPE_CHECKING:
     from ..scenarios import Scenario
     from ..surveys import Survey
     from ..prompts import Prompt
-    from ..data import Cache
+    from ..caching import Cache
     from ..questions import QuestionBase
     from ..scenarios import Scenario
     from ..surveys.memory import MemoryPlan
@@ -125,7 +125,7 @@ class InvigilatorBase(ABC):
         from ..surveys.memory import MemoryPlan
         from ..language_models import LanguageModel
         from ..surveys import Survey
-        from ..data import Cache
+        from ..caching import Cache
 
         attributes_to_classes = {
             "agent": Agent,

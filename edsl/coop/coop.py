@@ -8,7 +8,7 @@ from uuid import UUID
 from .. import __version__
 
 from ..config import CONFIG
-from ..data import CacheEntry
+from ..caching import CacheEntry
 
 if TYPE_CHECKING:
     from ..jobs import Jobs
@@ -1463,7 +1463,7 @@ def main():
         Survey,
     )
     from ..coop import Coop
-    from ..data import CacheEntry
+    from ..caching import CacheEntry
     from ..jobs import Jobs
 
     # init & basics

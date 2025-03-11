@@ -1,7 +1,7 @@
 import pytest
 
 from edsl.agents import Agent, AgentList
-from edsl.data import Cache
+from edsl.caching import Cache
 from edsl.scenarios import Scenario, ScenarioList
 from edsl.questions import QuestionCheckBox
 from edsl.questions import QuestionFreeText

@@ -2,7 +2,7 @@ import pytest
 
 import time
 from edsl.agents import Agent
-from edsl.data import Cache
+from edsl.caching import Cache
 from edsl.scenarios import Scenario
 from edsl.questions import QuestionYesNo
 from edsl.jobs.jobs_runner_status import JobsRunnerStatusBase

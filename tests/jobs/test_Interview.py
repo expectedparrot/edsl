@@ -4,7 +4,7 @@ from edsl.surveys import Survey
 from edsl.questions import QuestionFreeText
 from edsl.language_models.utilities import create_language_model
 from edsl.scenarios import ScenarioList
-from edsl.data import Cache
+from edsl.caching import Cache
 
 
 @pytest.fixture

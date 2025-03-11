@@ -51,7 +51,7 @@ from ..data_transfer_models import (
 )
 
 if TYPE_CHECKING:
-    from ..data import Cache
+    from ..caching import Cache
     from ..scenarios import FileStore
     from ..questions import QuestionBase
     from ..key_management import KeyLookup
@@ -1022,7 +1022,7 @@ class LanguageModel(
         """
         from copy import deepcopy
         from types import MethodType
-        from ..data import Cache
+        from ..caching import Cache
 
         # Create a deep copy of this model instance
         new_instance = deepcopy(self)

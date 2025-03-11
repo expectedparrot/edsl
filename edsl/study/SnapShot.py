@@ -26,10 +26,10 @@ class SnapShot:
         >>> sn.edsl_classes
         {}
 
-        >>> from edsl.data import Cache
+        >>> from edsl.caching import Cache
         >>> sn = SnapShot(namespace = globals())
         >>> sn.edsl_classes
-        {'Cache': <class 'edsl.data.cache.Cache'>}
+        {'Cache': <class 'edsl.caching.cache.Cache'>}
         """
         from ..base import RegisterSubclassesMeta
         from ..questions import QuestionBase
