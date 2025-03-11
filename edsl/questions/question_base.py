@@ -7,7 +7,7 @@ functionality, interface, and behavior that all questions must implement.
 
 Key features of this module include:
 - Abstract base class that defines the question interface
-- Core validation and serialization capabilities
+- Core validation and serialization capabilities 
 - Integration with language models and agents
 - Support for template-based question generation
 - Connection to response validation and answer processing
@@ -15,6 +15,35 @@ Key features of this module include:
 This module is one of the most important in EDSL as it establishes the contract that
 all question types must follow, enabling consistent behavior across different types
 of questions while allowing for specialized functionality in derived classes.
+
+Technical Details:
+-----------------
+1. Question Architecture:
+   - QuestionBase is an abstract base class that cannot be instantiated directly
+   - It uses multiple inheritance from several mixins to provide different capabilities
+   - The RegisterQuestionsMeta metaclass enables automatic registration of question types
+   - Each concrete question type must define specific class attributes and methods
+
+2. Inheritance Hierarchy:
+   - PersistenceMixin: Provides serialization and deserialization via to_dict/from_dict
+   - RepresentationMixin: Provides string representation via __repr__
+   - SimpleAskMixin: Provides the basic asking functionality to interact with models
+   - QuestionBasePromptsMixin: Handles template-based prompt generation
+   - QuestionBaseGenMixin: Connects questions to language models for response generation
+   - AnswerValidatorMixin: Handles validation of answers using response validators
+
+3. Common Workflow:
+   - User creates a question instance with specific parameters
+   - Question is connected to a language model via the `by()` method
+   - The question generates prompts using templates and scenario variables
+   - The language model generates a response which is parsed and validated
+   - The validated response is returned to the user
+
+4. Extension Points:
+   - New question types inherit from QuestionBase and define specialized behavior
+   - Custom template files can be defined for specialized prompt generation
+   - Response validators can be customized for different validation requirements
+   - Integration with the survey system using question_name as a key identifier
 """
 
 from __future__ import annotations
@@ -79,8 +108,35 @@ class QuestionBase(
         
     Required attributes in derived classes:
         question_type (str): String identifier for the question type
-        _response_model (Type): Data model class for responses
+        _response_model (Type): Pydantic model class for validating responses
         response_validator_class (Type): Validator class for responses
+        
+    Key Methods:
+        by(model): Connect this question to a language model for answering
+        run(): Execute the question with the connected language model
+        duplicate(): Create an exact copy of this question
+        is_valid_question_name(): Verify the question_name is valid
+        
+    Lifecycle:
+        1. Instantiation: A question is created with specific parameters
+        2. Connection: The question is connected to a language model via by()
+        3. Execution: The question is run to generate a response
+        4. Validation: The response is validated based on the question type
+        5. Result: The validated response is returned for analysis
+        
+    Template System:
+        Questions use Jinja2 templates for generating prompts. Each question type
+        has associated template files:
+        - answering_instructions.jinja: Instructions for how the model should answer
+        - question_presentation.jinja: Format for how the question is presented
+        Templates support variable substitution using scenario variables.
+        
+    Response Validation:
+        Each question type has a dedicated response validator that:
+        - Enforces the expected response structure
+        - Ensures the response is valid for the question type
+        - Attempts to fix invalid responses when possible
+        - Uses Pydantic models for schema validation
         
     Example:
         Derived classes must define the required attributes:
@@ -90,12 +146,38 @@ class QuestionBase(
             question_type = "free_text"
             _response_model = FreeTextResponse
             response_validator_class = FreeTextResponseValidator
+            
+            def __init__(self, question_name, question_text, **kwargs):
+                self.question_name = question_name
+                self.question_text = question_text
+                # Additional initialization as needed
+        ```
+        
+        Using a question:
+        
+        ```python
+        # Create a question
+        question = FreeTextQuestion(
+            question_name="opinion",
+            question_text="What do you think about AI?"
+        )
+        
+        # Connect to a language model and run
+        from edsl.language_models import Model
+        model = Model()
+        result = question.by(model).run()
+        
+        # Access the answer
+        answer = result.select("answer.opinion").to_list()[0]
+        print(f"The model's opinion: {answer}")
         ```
     
     Notes:
         - QuestionBase is abstract and cannot be instantiated directly
         - Child classes must implement required methods and attributes
         - The RegisterQuestionsMeta metaclass handles registration of question types
+        - Questions can be serialized to and from dictionaries for storage
+        - Questions can be used independently or as part of surveys
     """
 
     question_name: str = QuestionNameDescriptor()
