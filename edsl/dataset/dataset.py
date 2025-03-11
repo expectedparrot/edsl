@@ -21,12 +21,60 @@ if TYPE_CHECKING:
     from ..questions.QuestionBase import QuestionBase
 
 class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
-    """A class to represent a dataset of observations."""
+    """
+    A versatile data container for tabular data with powerful manipulation capabilities.
+    
+    The Dataset class is a fundamental data structure in EDSL that represents tabular data
+    in a column-oriented format. It provides a rich set of methods for data manipulation,
+    transformation, analysis, visualization, and export through the DatasetOperationsMixin.
+    
+    Key features:
+    
+    1. Column-oriented data structure optimized for LLM experiment results
+    2. Rich data manipulation API similar to dplyr/pandas (filter, select, mutate, etc.)
+    3. Visualization capabilities including tables, plots, and reports
+    4. Export to various formats (CSV, Excel, SQLite, pandas, etc.)
+    5. Serialization for storage and transport
+    6. Tree-based data exploration
+    
+    A Dataset typically contains multiple columns, each represented as a dictionary
+    with a single key-value pair. The key is the column name and the value is a list
+    of values for that column. All columns must have the same length.
+    
+    The Dataset class inherits from:
+    - UserList: Provides list-like behavior for storing column data
+    - DatasetOperationsMixin: Provides data manipulation methods
+    - PersistenceMixin: Provides serialization capabilities
+    - HashingMixin: Provides hashing functionality for comparison and storage
+    
+    Datasets are typically created by transforming other EDSL container types like
+    Results, AgentList, or ScenarioList, but can also be created directly from data.
+    """
 
     def __init__(
         self, data: list[dict[str, Any]] = None, print_parameters: Optional[dict] = None
     ):
-        """Initialize the dataset with the given data."""
+        """
+        Initialize a new Dataset instance.
+        
+        Parameters:
+            data: A list of dictionaries, where each dictionary represents a column
+                 in the dataset. Each dictionary should have a single key-value pair,
+                 where the key is the column name and the value is a list of values.
+                 All value lists must have the same length.
+            print_parameters: Optional dictionary of parameters controlling how the
+                             dataset is displayed when printed.
+                
+        Examples:
+            >>> # Create a dataset with two columns
+            >>> d = Dataset([{'a': [1, 2, 3]}, {'b': [4, 5, 6]}])
+            >>> len(d)
+            3
+            
+            >>> # Dataset with a single column
+            >>> Dataset([{'answer.how_feeling': ['OK', 'Great', 'Terrible']}])
+            Dataset([{'answer.how_feeling': ['OK', 'Great', 'Terrible']}])
+        """
         super().__init__(data)
         self.print_parameters = print_parameters
 
