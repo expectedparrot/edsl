@@ -1,4 +1,16 @@
-"""Mixin class for exporting results."""
+"""
+This module provides mixin classes that enable powerful data manipulation operations
+across various EDSL list-like objects.
+
+The DataOperationsBase class defines common operations for working with structured data,
+including data transformation, visualization, export, querying, and analysis. These
+operations are inherited by different specialized mixins (DatasetOperationsMixin,
+ResultsOperationsMixin, etc.) which implement class-specific behaviors.
+
+The design pattern used here allows different container types (Results, Dataset, 
+ScenarioList, AgentList) to share the same data manipulation interface, enabling
+fluid operations across different parts of the EDSL ecosystem.
+"""
 
 from abc import ABC, abstractmethod
 import io
@@ -12,20 +24,87 @@ if TYPE_CHECKING:
     from .dataset import Dataset
 
 class DataOperationsBase:
-    """Mixin class for exporting Dataset objects."""
+    """
+    Base class providing common data operations for EDSL container objects.
+    
+    This class serves as the foundation for various data manipulation mixins,
+    providing a consistent interface for operations like filtering, aggregation,
+    transformation, visualization, and export across different types of EDSL
+    containers (Results, Dataset, ScenarioList, AgentList).
+    
+    Key functionality categories:
+    
+    1. Data Transformation:
+       - Filtering with `filter()`
+       - Creating new columns with `mutate()`
+       - Reshaping with `long()`, `wide()`, `flatten()`, etc.
+       - Selecting specific columns with `select()`
+    
+    2. Visualization and Display:
+       - Tabular display with `table()`
+       - Plotting with `ggplot2()`
+       - Generating reports with `report()`
+       
+    3. Data Export:
+       - To various formats with `to_csv()`, `to_excel()`, etc.
+       - To other data structures with `to_pandas()`, `to_dicts()`, etc.
+       
+    4. Analysis:
+       - SQL-based querying with `sql()`
+       - Aggregation with `tally()`
+       - Tree-based exploration
+       
+    These operations are designed to be applied fluently in sequence, enabling
+    expressive data manipulation pipelines.
+    """
 
 
     def ggplot2(
         self,
         ggplot_code: str,
-        shape="wide",
-        sql: str = None,
+        shape: str = "wide",
+        sql: Optional[str] = None,
         remove_prefix: bool = True,
         debug: bool = False,
-        height=4,
-        width=6,
+        height: float = 4,
+        width: float = 6,
         factor_orders: Optional[dict] = None,
     ):
+        """
+        Create visualizations using R's ggplot2 library.
+        
+        This method provides a bridge to R's powerful ggplot2 visualization library,
+        allowing you to create sophisticated plots directly from EDSL data structures.
+        
+        Parameters:
+            ggplot_code: R code string containing ggplot2 commands
+            shape: Data shape to use ("wide" or "long")
+            sql: Optional SQL query to transform data before visualization
+            remove_prefix: Whether to remove prefixes (like "answer.") from column names
+            debug: Whether to display debugging information
+            height: Plot height in inches
+            width: Plot width in inches
+            factor_orders: Dictionary mapping factor variables to their desired order
+            
+        Returns:
+            A plot object that renders in Jupyter notebooks
+            
+        Notes:
+            - Requires R and the ggplot2 package to be installed
+            - Data is automatically converted to a format suitable for ggplot2
+            - The ggplot2 code should reference column names as they appear after
+              any transformations from the shape and remove_prefix parameters
+              
+        Examples:
+            >>> from edsl.results import Results
+            >>> r = Results.example()
+            >>> # The following would create a plot if R is installed (not shown in doctest):
+            >>> # r.ggplot2('''
+            >>> #     ggplot(df, aes(x=how_feeling)) + 
+            >>> #     geom_bar() +
+            >>> #     labs(title="Distribution of Feelings")
+            >>> # ''')
+        """
         return GGPlotMethod(self).ggplot2(ggplot_code, shape, sql, remove_prefix, debug, height, width, factor_orders)
 
 
@@ -300,29 +379,51 @@ class DataOperationsBase:
         transpose_by: str = None,
         remove_prefix: bool = True,
         shape: str = "wide",
-    ) -> Union["pd.DataFrame", str]:
-        """Execute a SQL query and return the results as a DataFrame.
-
-         Args:
-             query: The SQL query to execute
-             shape: The shape of the data in the database (wide or long)
-             remove_prefix: Whether to remove the prefix from the column names
-             transpose: Whether to transpose the DataFrame
-             transpose_by: The column to use as the index when transposing
-             csv: Whether to return the DataFrame as a CSV string
-             to_list: Whether to return the results as a list
-             to_latex: Whether to return the results as LaTeX
-             filename: Optional filename to save the results to
-
-         Returns:
-             DataFrame, CSV string, list, or LaTeX string depending on parameters
-
+    ) -> "Dataset":
+        """
+        Execute SQL queries on the dataset.
+        
+        This powerful method allows you to use SQL to query and transform your data, 
+        combining the expressiveness of SQL with EDSL's data structures. It works by 
+        creating an in-memory SQLite database from your data and executing the query
+        against it.
+        
+        Parameters:
+            query: SQL query string to execute
+            transpose: Whether to transpose the resulting table (rows become columns)
+            transpose_by: Column to use as the new index when transposing
+            remove_prefix: Whether to remove type prefixes (e.g., "answer.") from column names
+            shape: Data shape to use ("wide" or "long")
+                  - "wide": Default tabular format with columns for each field
+                  - "long": Melted format with key-value pairs, useful for certain queries
+        
+        Returns:
+            A Dataset object containing the query results
+            
+        Notes:
+            - The data is stored in a table named "self" in the SQLite database
+            - In wide format, column names include their type prefix unless remove_prefix=True
+            - In long format, the data is melted into columns: row_number, key, value, data_type
+            - Complex objects like lists and dictionaries are converted to strings
+            
         Examples:
             >>> from edsl import Results
-            >>> r = Results.example();
-            >>> len(r.sql("SELECT * FROM self", shape = "wide"))
+            >>> r = Results.example()
+            
+            # Basic selection
+            >>> len(r.sql("SELECT * FROM self", shape="wide"))
             4
-            >>> len(r.sql("SELECT * FROM self", shape = "long"))
+            
+            # Filtering with WHERE clause
+            >>> r.sql("SELECT * FROM self WHERE how_feeling = 'Great'").num_observations()
+            1
+            
+            # Aggregation
+            >>> r.sql("SELECT how_feeling, COUNT(*) as count FROM self GROUP BY how_feeling").keys()
+            ['how_feeling', 'count']
+            
+            # Using long format
+            >>> len(r.sql("SELECT * FROM self", shape="long"))
             172
         """
         import pandas as pd
@@ -790,18 +891,46 @@ class DataOperationsBase:
     def tally(
         self, *fields: Optional[str], top_n: Optional[int] = None, output="Dataset"
     ) -> Union[dict, "Dataset"]:
-        """Tally the values of a field or perform a cross-tab of multiple fields.
-
-        :param fields: The field(s) to tally, multiple fields for cross-tabulation.
-
-        >>> from edsl.results import Results
-        >>> r = Results.example()
-        >>> r.select('how_feeling').tally('answer.how_feeling', output = "dict")
-        {'OK': 2, 'Great': 1, 'Terrible': 1}
-        >>> from edsl.dataset import Dataset
-        >>> expected = Dataset([{'answer.how_feeling': ['OK', 'Great', 'Terrible']}, {'count': [2, 1, 1]}])
-        >>> r.select('how_feeling').tally('answer.how_feeling', output = "Dataset") == expected
-        True
+        """
+        Count frequency distributions of values in specified fields.
+        
+        This method tallies the occurrence of unique values within one or more fields,
+        similar to a GROUP BY and COUNT in SQL. When multiple fields are provided, it
+        performs cross-tabulation across those fields.
+        
+        Parameters:
+            *fields: Field names to tally. If none provided, uses all available fields.
+            top_n: Optional limit to return only the top N most frequent values.
+            output: Format for results, either "Dataset" (recommended) or "dict".
+        
+        Returns:
+            By default, returns a Dataset with columns for the field(s) and a 'count' column.
+            If output="dict", returns a dictionary mapping values to counts.
+            
+        Notes:
+            - For single fields, returns counts of each unique value
+            - For multiple fields, returns counts of each unique combination of values
+            - Results are sorted in descending order by count
+            - Fields can be specified with or without their type prefix
+            
+        Examples:
+            >>> from edsl import Results
+            >>> r = Results.example()
+            
+            # Single field frequency count
+            >>> r.select('how_feeling').tally('answer.how_feeling', output="dict")
+            {'OK': 2, 'Great': 1, 'Terrible': 1}
+            
+            # Return as Dataset (default)
+            >>> from edsl.dataset import Dataset
+            >>> expected = Dataset([{'answer.how_feeling': ['OK', 'Great', 'Terrible']}, {'count': [2, 1, 1]}])
+            >>> r.select('how_feeling').tally('answer.how_feeling', output="Dataset") == expected
+            True
+            
+            # Multi-field cross-tabulation - exact output varies based on data
+            >>> result = r.tally('how_feeling', 'how_feeling_yesterday')
+            >>> 'how_feeling' in result.keys() and 'how_feeling_yesterday' in result.keys() and 'count' in result.keys()
+            True
         """
         from collections import Counter
 
@@ -871,25 +1000,42 @@ class DataOperationsBase:
             keys.append("count")
             return sl.reorder_keys(keys).to_dataset()
 
-    def flatten(self, field:str, keep_original=False):
+    def flatten(self, field: str, keep_original: bool = False) -> "Dataset":
         """
-        Flatten a field containing a list of dictionaries into separate fields.
-
-        >>> from edsl.dataset import Dataset
-        >>> Dataset([{'a': [{'a': 1, 'b': 2}]}, {'c': [5] }]).flatten('a')
-        Dataset([{'c': [5]}, {'a.a': [1]}, {'a.b': [2]}])
-
-
-        >>> Dataset([{'answer.example': [{'a': 1, 'b': 2}]}, {'c': [5] }]).flatten('answer.example')
-        Dataset([{'c': [5]}, {'answer.example.a': [1]}, {'answer.example.b': [2]}])
-
-
-        Args:
-            field: The field to flatten
-            keep_original: If True, keeps the original field in the dataset
-
+        Expand a field containing dictionaries into separate fields.
+        
+        This method takes a field that contains a list of dictionaries and expands
+        it into multiple fields, one for each key in the dictionaries. This is useful
+        when working with nested data structures or results from extraction operations.
+        
+        Parameters:
+            field: The field containing dictionaries to flatten
+            keep_original: Whether to retain the original field in the result
+            
         Returns:
-            A new dataset with the flattened fields
+            A new Dataset with the dictionary keys expanded into separate fields
+            
+        Notes:
+            - Each key in the dictionaries becomes a new field with name pattern "{field}.{key}"
+            - All dictionaries in the field must have compatible structures
+            - If a dictionary is missing a key, the corresponding value will be None
+            - Non-dictionary values in the field will cause a warning
+            
+        Examples:
+            >>> from edsl.dataset import Dataset
+            
+            # Basic flattening of nested dictionaries
+            >>> Dataset([{'a': [{'a': 1, 'b': 2}]}, {'c': [5]}]).flatten('a')
+            Dataset([{'c': [5]}, {'a.a': [1]}, {'a.b': [2]}])
+            
+            # Works with prefixed fields too
+            >>> Dataset([{'answer.example': [{'a': 1, 'b': 2}]}, {'c': [5]}]).flatten('answer.example')
+            Dataset([{'c': [5]}, {'answer.example.a': [1]}, {'answer.example.b': [2]}])
+            
+            # Keep the original field if needed
+            >>> d = Dataset([{'a': [{'a': 1, 'b': 2}]}, {'c': [5]}])
+            >>> d.flatten('a', keep_original=True)
+            Dataset([{'a': [{'a': 1, 'b': 2}]}, {'c': [5]}, {'a.a': [1]}, {'a.b': [2]}])
         """
         from ..dataset import Dataset
 
@@ -1145,11 +1291,30 @@ class DataOperationsBase:
 from functools import wraps
 
 def to_dataset(func):
-    """Convert the Results object to a Dataset object before calling the function."""
+    """
+    Decorator that ensures functions receive a Dataset object as their first argument.
+    
+    This decorator automatically converts various EDSL container objects (Results,
+    AgentList, ScenarioList) to Dataset objects before passing them to the decorated
+    function. This allows methods defined in DataOperationsBase to work seamlessly
+    across different container types without duplicating conversion logic.
+    
+    Parameters:
+        func: The function to decorate
+        
+    Returns:
+        A wrapped function that ensures its first argument is a Dataset
+        
+    Notes:
+        - For Results objects, calls select() to convert to a Dataset
+        - For AgentList and ScenarioList objects, calls their to_dataset() method
+        - For Dataset objects, passes them through unchanged
+        - This decorator is used internally by the mixin system to enable method sharing
+    """
     @wraps(func)
     def wrapper(self, *args, **kwargs):
-        """Return the function with the Results object converted to a Dataset object."""
-        # Convert to Dataset first
+        """Execute the function with self converted to a Dataset if needed."""
+        # Convert to Dataset based on the class type
         if self.__class__.__name__ == "Results":
             dataset_self = self.select()
         elif self.__class__.__name__ == "AgentList":
@@ -1159,16 +1324,38 @@ def to_dataset(func):
         else:
             dataset_self = self
             
-        # Now call the function with the converted self
+        # Call the function with the converted self
         return func(dataset_self, *args, **kwargs)
 
+    # Mark the wrapper as being wrapped by to_dataset
     wrapper._is_wrapped = True
     return wrapper
 
 
 def decorate_methods_from_mixin(cls, mixin_cls):
-    """Decorates all methods from mixin_cls with to_dataset decorator."""
+    """
+    Apply the to_dataset decorator to methods inherited from a mixin class.
     
+    This function is part of EDSL's method inheritance system. It takes methods
+    from a source mixin class, applies the to_dataset decorator to them, and adds
+    them to a target class. This enables the sharing of data manipulation methods
+    across different container types while ensuring they receive the right data type.
+    
+    The function is careful not to override methods that are already defined in
+    more specific parent classes, preserving the method resolution order (MRO).
+    
+    Parameters:
+        cls: The target class to add decorated methods to
+        mixin_cls: The source mixin class providing the methods
+        
+    Returns:
+        The modified target class with decorated methods added
+        
+    Notes:
+        - Only public methods (not starting with "_") are decorated and added
+        - Methods already defined in more specific parent classes are not overridden
+        - Methods from DataOperationsBase are not skipped to ensure all base methods are available
+    """
     # Get all attributes, including inherited ones
     for attr_name in dir(mixin_cls):
         # Skip magic methods and private methods
@@ -1200,23 +1387,101 @@ def decorate_methods_from_mixin(cls, mixin_cls):
 #     return cls
 
 class DatasetOperationsMixin(DataOperationsBase):
+    """
+    Mixin providing data manipulation operations for Dataset objects.
+    
+    This mixin class is the cornerstone of EDSL's data manipulation system. It directly 
+    inherits methods from DataOperationsBase without requiring conversion, as it's
+    designed specifically for the Dataset class. It serves as the primary implementation
+    of all data operations methods that other container types will inherit and adapt 
+    through the to_dataset decorator.
+    
+    The design follows a standard mixin pattern where common functionality is defined
+    in a standalone class that can be "mixed in" to other classes. In EDSL's case,
+    this allows different container types (Results, AgentList, ScenarioList) to share
+    the same powerful data manipulation interface.
+    
+    Key features:
+    
+    1. Data Transformation:
+       - Filtering with `filter()`
+       - Creating new columns with `mutate()`
+       - Reshaping with `long()`, `wide()`, `flatten()`, etc.
+       - Selecting specific data with `select()`
+    
+    2. Visualization:
+       - Table display with `table()`
+       - R integration with `ggplot2()`
+       - Report generation with `report()`
+    
+    3. Data Export:
+       - To files with `to_csv()`, `to_excel()`, etc.
+       - To other formats with `to_pandas()`, `to_dicts()`, etc.
+    
+    4. Analysis:
+       - SQL queries with `sql()`
+       - Aggregation with `tally()`
+       - Tree-based exploration with `tree()`
+    
+    This mixin is designed for fluent method chaining, allowing complex data manipulation
+    pipelines to be built in an expressive and readable way.
+    """
     pass
 
 class ResultsOperationsMixin(DataOperationsBase):
-    """Mixin class for exporting Results objects."""
+    """
+    Mixin providing data operations for Results objects.
+    
+    This mixin adapts DatasetOperationsMixin methods to work with Results objects.
+    When a method is called on a Results object, it's automatically converted to
+    a Dataset first via the to_dataset decorator applied in __init_subclass__.
+    
+    This allows Results objects to have the same data manipulation capabilities
+    as Dataset objects without duplicating code.
+    """
     def __init_subclass__(cls, **kwargs):
+        """
+        Automatically decorate all methods from DatasetOperationsMixin.
+        
+        This hook runs when a class inherits from ResultsOperationsMixin,
+        applying the to_dataset decorator to all methods from DatasetOperationsMixin.
+        """
         super().__init_subclass__(**kwargs)
         decorate_methods_from_mixin(cls, DatasetOperationsMixin)
 
 class ScenarioListOperationsMixin(DataOperationsBase):
-    """Mixin class for ScenarioList objects."""
+    """
+    Mixin providing data operations for ScenarioList objects.
+    
+    This mixin adapts DatasetOperationsMixin methods to work with ScenarioList objects.
+    ScenarioList objects are converted to Dataset objects before method execution
+    via the to_dataset decorator applied in __init_subclass__.
+    """
     def __init_subclass__(cls, **kwargs):
+        """
+        Automatically decorate all methods from DatasetOperationsMixin.
+        
+        This hook runs when a class inherits from ScenarioListOperationsMixin,
+        applying the to_dataset decorator to all methods from DatasetOperationsMixin.
+        """
         super().__init_subclass__(**kwargs)
         decorate_methods_from_mixin(cls, DatasetOperationsMixin)
 
 class AgentListOperationsMixin(DataOperationsBase):
-    """Mixin class for AgentList objects."""
+    """
+    Mixin providing data operations for AgentList objects.
+    
+    This mixin adapts DatasetOperationsMixin methods to work with AgentList objects.
+    AgentList objects are converted to Dataset objects before method execution
+    via the to_dataset decorator applied in __init_subclass__.
+    """
     def __init_subclass__(cls, **kwargs):
+        """
+        Automatically decorate all methods from DatasetOperationsMixin.
+        
+        This hook runs when a class inherits from AgentListOperationsMixin,
+        applying the to_dataset decorator to all methods from DatasetOperationsMixin.
+        """
         super().__init_subclass__(**kwargs)
         decorate_methods_from_mixin(cls, DatasetOperationsMixin)
 
