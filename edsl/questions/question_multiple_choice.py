@@ -111,10 +111,64 @@ class MultipleChoiceResponseValidator(ResponseValidatorABC):
 
 
 class QuestionMultipleChoice(QuestionBase):
-    """This question prompts the agent to select one option from a list of options.
-
-    https://docs.expectedparrot.com/en/latest/questions.html#questionmultiplechoice-class
-
+    """
+    A question that prompts the agent to select one option from a list of choices.
+    
+    QuestionMultipleChoice presents a set of predefined choices to the agent and asks
+    them to select exactly one option. This question type is ideal for scenarios where
+    the possible answers are known and limited, such as surveys, preference questions,
+    or classification tasks.
+    
+    Key Features:
+    - Presents a fixed set of options to choose from
+    - Enforces selection of exactly one option
+    - Can use numeric codes for options (use_code=True)
+    - Supports custom instructions and presentation
+    - Optional comment field for additional explanation
+    - Can be configured to be permissive (accept answers outside the options)
+    
+    Technical Details:
+    - Uses Pydantic models for validation with Literal types for strict checking
+    - Supports dynamic options from scenario variables
+    - HTML rendering for web interfaces
+    - Robust validation with repair capabilities
+    
+    Examples:
+        Basic usage:
+        
+        ```python
+        q = QuestionMultipleChoice(
+            question_name="preference",
+            question_text="Which color do you prefer?",
+            question_options=["Red", "Green", "Blue", "Yellow"]
+        )
+        ```
+        
+        With numeric codes:
+        
+        ```python
+        q = QuestionMultipleChoice(
+            question_name="rating",
+            question_text="Rate this product from 1 to 5",
+            question_options=["Very Poor", "Poor", "Average", "Good", "Excellent"],
+            use_code=True  # The answer will be 0-4 instead of the text
+        )
+        ```
+        
+        Dynamic options from scenario:
+        
+        ```python
+        q = QuestionMultipleChoice(
+            question_name="choice",
+            question_text="Select an option",
+            question_options=["{{option1}}", "{{option2}}", "{{option3}}"]
+        )
+        scenario = Scenario({"option1": "Choice A", "option2": "Choice B", "option3": "Choice C"})
+        result = q.by(model).with_scenario(scenario).run()
+        ```
+    
+    See also:
+        https://docs.expectedparrot.com/en/latest/questions.html#questionmultiplechoice-class
     """
 
     question_type = "multiple_choice"
@@ -136,17 +190,69 @@ class QuestionMultipleChoice(QuestionBase):
         question_presentation: Optional[str] = None,
         permissive: bool = False,
     ):
-        """Instantiate a new QuestionMultipleChoice.
-
-        :param question_name: The name of the question.
-        :param question_text: The text of the question.
-        :param question_options: The options the agent should select from.
-        :param include_comment: Whether to include a comment field.
-        :param use_code: Whether to use code for the options.
-        :param answering_instructions: Instructions for the question.
-        :param question_presentation: The presentation of the question.
-        :param permissive: Whether to force the answer to be one of the options.
-
+        """
+        Initialize a new multiple choice question.
+        
+        Parameters
+        ----------
+        question_name : str
+            The name of the question, used as an identifier. Must be a valid Python variable name.
+            This name will be used in results, templates, and when referencing the question in surveys.
+            
+        question_text : str
+            The actual text of the question to be asked. This is the prompt that will be presented
+            to the language model or agent.
+            
+        question_options : Union[list[str], list[list], list[float], list[int]]
+            The list of options the agent can select from. These can be:
+            - Strings: ["Option A", "Option B", "Option C"]
+            - Lists: Used for nested or complex options
+            - Numbers: [1, 2, 3, 4, 5] or [0.1, 0.2, 0.3]
+            - Template strings: ["{{var1}}", "{{var2}}"] which will be rendered with scenario variables
+            
+        include_comment : bool, default=True
+            Whether to include a comment field in the response, allowing the model to provide
+            additional explanation beyond just selecting an option.
+            
+        use_code : bool, default=False
+            If True, the answer will be the index of the selected option (0-based) instead of
+            the option text itself. This is useful for numeric scoring or when option text is long.
+            
+        answering_instructions : Optional[str], default=None
+            Custom instructions for how the model should answer the question. If None,
+            default instructions for multiple choice questions will be used.
+            
+        question_presentation : Optional[str], default=None
+            Custom template for how the question is presented to the model. If None,
+            the default presentation for multiple choice questions will be used.
+            
+        permissive : bool, default=False
+            If True, the validator will accept answers that are not in the provided options list.
+            If False (default), only exact matches to the provided options are allowed.
+            
+        Examples
+        --------
+        >>> q = QuestionMultipleChoice(
+        ...     question_name="color_preference",
+        ...     question_text="What is your favorite color?",
+        ...     question_options=["Red", "Blue", "Green", "Yellow"],
+        ...     include_comment=True
+        ... )
+        
+        >>> q_numeric = QuestionMultipleChoice(
+        ...     question_name="rating",
+        ...     question_text="How would you rate this product?",
+        ...     question_options=["Very Poor", "Poor", "Average", "Good", "Excellent"],
+        ...     use_code=True,
+        ...     include_comment=True
+        ... )
+        
+        Notes
+        -----
+        - When `use_code=True`, the answer will be the index (0-based) of the selected option
+        - The `permissive` parameter is useful when you want to allow free-form responses
+          while still suggesting options
+        - Dynamic options can reference variables in a scenario using Jinja2 template syntax
         """
         self.question_name = question_name
         self.question_text = question_text
