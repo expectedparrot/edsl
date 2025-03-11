@@ -4,7 +4,7 @@ from itertools import product
 if TYPE_CHECKING:
     from ..interviews import Interview
     from .jobs import Jobs
-    from ..data import Cache
+    from ..caching import Cache
 
 class InterviewsConstructor:
     def __init__(self, jobs: "Jobs", cache: "Cache"):

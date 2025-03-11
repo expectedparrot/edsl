@@ -2,7 +2,7 @@ from typing import Optional, Literal
 from dataclasses import dataclass, asdict
 
 # from edsl.data_transfer_models import VisibilityType
-from ..data import Cache
+from ..caching import Cache
 from ..buckets import BucketCollection
 from ..key_management import KeyLookup
 from ..base import Base

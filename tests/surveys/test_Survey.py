@@ -129,7 +129,7 @@ class TestSurvey(unittest.TestCase):
 
         jobs = survey.by(d)
 
-        from edsl.data import Cache
+        from edsl.caching import Cache
 
         results = jobs.run(cache=Cache())
         # with this skip logic, the second question should not be answered

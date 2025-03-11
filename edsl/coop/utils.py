@@ -1,7 +1,7 @@
 from typing import Literal, Optional, Type, Union
 
 from ..agents import Agent, AgentList
-from ..data import Cache
+from ..caching import Cache
 from ..language_models import ModelList
 from ..notebooks import Notebook
 from ..results import Results

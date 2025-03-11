@@ -7,7 +7,7 @@ from ..data_transfer_models import AgentResponseDict
 
 if TYPE_CHECKING:
     from ..prompts import Prompt
-    from ..data import Cache
+    from ..caching import Cache
     from ..questions import QuestionBase
     from ..scenarios import Scenario
     from ..surveys.memory import MemoryPlan

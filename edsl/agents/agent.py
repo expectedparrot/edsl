@@ -37,7 +37,7 @@ from typing import (
 A = TypeVar("A", bound="Agent")
 
 if TYPE_CHECKING:
-    from ..data import Cache
+    from ..caching import Cache
     from ..surveys import Survey
     from ..scenarios import Scenario
     from ..language_models import LanguageModel
@@ -828,7 +828,7 @@ class Agent(Base):
         scenario = scenario or Scenario()
 
         if cache is None:
-            from ..data import Cache
+            from ..caching import Cache
 
             cache = Cache()
 

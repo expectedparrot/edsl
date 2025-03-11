@@ -6,7 +6,7 @@ def test_multiple_runs():
 
     a = Agent(traits={})
 
-    from edsl.data import Cache
+    from edsl.caching import Cache
 
     a.add_direct_question_answering_method(lambda self, question, scenario: "yes")
 

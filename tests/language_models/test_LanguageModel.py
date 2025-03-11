@@ -37,7 +37,7 @@ class TestLanguageModel(unittest.TestCase):
         self.assertEqual(m.rpm, 45)
 
     def test_execute_model_call(self):
-        from edsl.data import Cache
+        from edsl.caching import Cache
 
         example_cache = Cache()
 
@@ -65,7 +65,7 @@ class TestLanguageModel(unittest.TestCase):
         self.assertEqual(len(example_cache), 1)
 
     # def test_get_response(self):
-    #     from edsl.data.Cache import Cache
+    #     from edsl.caching.cache import Cache
 
     #     m = self.good_class()
     #     response = m.get_response(
@@ -85,7 +85,7 @@ class TestLanguageModel(unittest.TestCase):
     #     m = self.good_class(
     #         model="fake model", parameters={"temperature": 0.5}, iteration=1
     #     )
-    #     from edsl.data.Cache import Cache
+    #     from edsl.caching.cache import Cache
 
     #     cache = Cache(method="memory")
 
@@ -105,7 +105,7 @@ class TestLanguageModel(unittest.TestCase):
     #         "iteration": 1,
     #     }
 
-    #     from edsl.data.Cache import Cache
+    #     from edsl.caching.cache import Cache
 
     #     outcome = list(cache.data.values())[0].to_dict()
 
