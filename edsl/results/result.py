@@ -1,4 +1,25 @@
-# """This module contains the Result class, which captures the result of one interview."""
+"""
+This module contains the Result class, which captures the result of one interview.
+
+The Result class is a fundamental building block in EDSL that stores all the data
+associated with a single agent interview. Each Result object contains:
+
+1. The agent that was interviewed
+2. The scenario that was presented to the agent
+3. The language model that was used to generate the agent's responses
+4. The answers provided to the questions
+5. The prompts used to generate those answers
+6. Raw model responses and token usage statistics
+7. Metadata about the questions and caching behavior
+
+Results are typically created automatically when running interviews through the
+Jobs system, and multiple Result objects are collected into a Results collection
+for analysis.
+
+The Result class inherits from both Base (for serialization) and UserDict (for
+dictionary-like behavior), allowing it to be accessed like a dictionary while
+maintaining a rich object model.
+"""
 from __future__ import annotations
 import inspect
 from collections import UserDict
@@ -40,7 +61,24 @@ agent_namer = AgentNamer().get_name
 
 class Result(Base, UserDict):
     """
-    This class captures the result of one interview.
+    The Result class captures the complete data from one agent interview.
+    
+    A Result object stores the agent, scenario, language model, and all answers
+    provided during an interview, along with metadata such as token usage,
+    caching information, and raw model responses. It provides a rich interface
+    for accessing this data and supports serialization for storage and retrieval.
+    
+    Key features:
+    
+    - Dictionary-like access to all data through the UserDict interface
+    - Properties for convenient access to common attributes (agent, scenario, model, answer)
+    - Rich data structure with sub-dictionaries for organization
+    - Support for scoring results against reference answers
+    - Serialization to/from dictionaries for storage
+    
+    Results are typically created by the Jobs system when running interviews and
+    collected into a Results collection for analysis. You rarely need to create
+    Result objects manually.
     """
 
     def __init__(
@@ -277,24 +315,52 @@ class Result(Base, UserDict):
 
     def get_value(self, data_type: str, key: str) -> Any:
         """Return the value for a given data type and key.
+        
+        This method provides a consistent way to access values across different
+        sub-dictionaries in the Result object. It's particularly useful when you
+        need to programmatically access values without knowing which data type
+        a particular key belongs to.
 
-        >>> r = Result.example()
-        >>> r.get_value("answer", "how_feeling")
-        'OK'
+        Parameters:
+            data_type: The category of data to retrieve from, one of:
+                "agent", "scenario", "model", "answer", "prompt", "comment",
+                "generated_tokens", "raw_model_response", "question_text",
+                "question_options", "question_type", "cache_used", "cache_keys"
+            key: The specific attribute name within that data type
 
-        - data types can be "agent", "scenario", "model", or "answer"
-        - keys are relevant attributes of the Objects the data types represent
+        Returns:
+            The value associated with the key in the specified data type
+        
+        Examples:
+            >>> r = Result.example()
+            >>> r.get_value("answer", "how_feeling")
+            'OK'
+            >>> r.get_value("scenario", "period")
+            'morning'
         """
         return self.sub_dicts[data_type][key]
 
     @property
     def key_to_data_type(self) -> dict[str, str]:
-        """Return a dictionary where keys are object attributes and values are the data type (object) that the attribute is associated with.
+        """A mapping of attribute names to their container data types.
+        
+        This property returns a dictionary that maps each attribute name (like 'how_feeling')
+        to its containing data type or category (like 'answer'). This is useful for
+        determining which part of the Result object a particular attribute belongs to,
+        especially when working with data programmatically.
+        
+        If a key name appears in multiple data types, the property will automatically
+        rename the conflicting keys by appending the data type name to avoid ambiguity.
+        
+        Returns:
+            A dictionary mapping attribute names to their data types
 
-        >>> r = Result.example()
-        >>> r.key_to_data_type["how_feeling"]
-        'answer'
-
+        Examples:
+            >>> r = Result.example()
+            >>> r.key_to_data_type["how_feeling"]
+            'answer'
+            >>> r.key_to_data_type["model"]
+            'model'
         """
         d = {}
         problem_keys = []
@@ -442,20 +508,38 @@ class Result(Base, UserDict):
 
         return Results.example()[0]
     
-    def score_with_answer_key(self, answer_key: dict) -> Union[int, float]:
-        """Score the result using an answer key.
+    def score_with_answer_key(self, answer_key: dict) -> dict[str, int]:
+        """Score the result against a reference answer key.
+        
+        This method evaluates the correctness of answers by comparing them to a 
+        provided answer key. It returns a dictionary with counts of correct, 
+        incorrect, and missing answers.
+        
+        The answer key can contain either single values or lists of acceptable values.
+        If a list is provided, the answer is considered correct if it matches any
+        value in the list.
 
-        :param answer_key: A dictionary that maps question_names to answers
+        Parameters:
+            answer_key: A dictionary mapping question names to expected answers.
+                       Values can be single items or lists of acceptable answers.
 
-        >>> Result.example()['answer']
-        {'how_feeling': 'OK', 'how_feeling_yesterday': 'Great'}
+        Returns:
+            A dictionary with keys 'correct', 'incorrect', and 'missing', indicating
+            the counts of each answer type.
+            
+        Examples:
+            >>> Result.example()['answer']
+            {'how_feeling': 'OK', 'how_feeling_yesterday': 'Great'}
 
-        >>> answer_key = {'how_feeling': 'OK', 'how_feeling_yesterday': 'Great'}
-        >>> Result.example().score_with_answer_key(answer_key)
-        {'correct': 2, 'incorrect': 0, 'missing': 0}
-        >>> answer_key = {'how_feeling': 'OK', 'how_feeling_yesterday': ['Great', 'Good']}
-        >>> Result.example().score_with_answer_key(answer_key)
-        {'correct': 2, 'incorrect': 0, 'missing': 0}
+            >>> # Using exact match answer key
+            >>> answer_key = {'how_feeling': 'OK', 'how_feeling_yesterday': 'Great'}
+            >>> Result.example().score_with_answer_key(answer_key)
+            {'correct': 2, 'incorrect': 0, 'missing': 0}
+            
+            >>> # Using answer key with multiple acceptable answers
+            >>> answer_key = {'how_feeling': 'OK', 'how_feeling_yesterday': ['Great', 'Good']}
+            >>> Result.example().score_with_answer_key(answer_key)
+            {'correct': 2, 'incorrect': 0, 'missing': 0}
         """
         final_scores = {'correct': 0, 'incorrect': 0, 'missing': 0}
         for question_name, answer in self.answer.items():
