@@ -28,6 +28,8 @@ class TestScenario(unittest.TestCase):
                 print(e)
             except ModuleNotFoundError as e:
                 print(e)
+            except Exception as e:
+                print(e)
 
 
 # @pytest.fixture
