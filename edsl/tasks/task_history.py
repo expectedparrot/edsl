@@ -1,12 +1,47 @@
-from typing import List, Optional
+"""
+This module provides the TaskHistory class for tracking and analyzing task execution history.
+
+The TaskHistory class maintains a record of all interviews conducted by EDSL, including
+their task execution histories, exceptions, and performance metrics. It supports rich
+visualization and reporting to help users understand task execution patterns and diagnose
+issues.
+"""
+
+from typing import List, Optional, Dict, Any, Union
 from io import BytesIO
 import base64
+import os
+import tempfile
 
 from .task_status_enum import TaskStatus
 from ..base import RepresentationMixin
 
 
 class TaskHistory(RepresentationMixin):
+    """
+    Records and analyzes the execution history of tasks across multiple interviews.
+    
+    The TaskHistory class serves as a central repository for tracking task execution
+    across multiple interviews. It provides methods for:
+    
+    1. Error Analysis - Collecting, categorizing, and reporting exceptions
+    2. Execution Visualization - Generating plots of task status over time
+    3. Performance Metrics - Calculating timing statistics for tasks
+    4. HTML Reports - Creating detailed interactive reports of execution
+    
+    This class is particularly useful for debugging complex interview workflows,
+    identifying performance bottlenecks, and understanding patterns in task execution.
+    It supports both interactive exploration in notebooks and standalone report
+    generation.
+    
+    Key features:
+    - Tracks exceptions with optional traceback storage
+    - Provides visualizations of task status transitions
+    - Generates interactive HTML reports with filtering and drill-down
+    - Computes statistics across interviews (by model, question type, etc.)
+    - Exports to various formats (HTML, notebook, etc.)
+    """
+    
     def __init__(
         self,
         interviews: List["Interview"] = None,
@@ -15,12 +50,16 @@ class TaskHistory(RepresentationMixin):
         interviews_with_exceptions_only: bool = False,
     ):
         """
-        The structure of a TaskHistory exception
-
-        [Interview.exceptions, Interview.exceptions, Interview.exceptions, ...]
-
-        >>> _ = TaskHistory.example()
-        ...
+        Initialize a TaskHistory to track execution across multiple interviews.
+        
+        Parameters:
+            interviews: List of Interview objects to track
+            include_traceback: Whether to include full exception tracebacks
+            max_interviews: Maximum number of interviews to display in reports
+            interviews_with_exceptions_only: If True, only track interviews with exceptions
+        
+        Example:
+            >>> _ = TaskHistory.example()  # Create a sample TaskHistory
         """
         self.interviews_with_exceptions_only = interviews_with_exceptions_only
         self._interviews = {}
@@ -394,12 +433,35 @@ class TaskHistory(RepresentationMixin):
     def html(
         self,
         filename: Optional[str] = None,
-        return_link=False,
-        css=None,
-        cta="<br><span style='font-size: 18px; font-weight: medium-bold; text-decoration: underline;'>Click to open the report in a new tab</span><br><br>",
-        open_in_browser=False,
-    ):
-        """Return an HTML report."""
+        return_link: bool = False,
+        css: Optional[str] = None,
+        cta: str = "<br><span style='font-size: 18px; font-weight: medium-bold; text-decoration: underline;'>Click to open the report in a new tab</span><br><br>",
+        open_in_browser: bool = False,
+    ) -> Optional[str]:
+        """
+        Generate and display an interactive HTML report of task execution.
+        
+        This method creates a comprehensive HTML report showing task execution details,
+        exceptions, timing information, and statistics across all tracked interviews.
+        In notebook environments, it displays an embedded preview with a link to open
+        the full report in a new tab.
+        
+        Parameters:
+            filename: Path to save the HTML report (if None, a temporary file is created)
+            return_link: If True, return the path to the saved HTML file
+            css: Custom CSS to apply to the report (if None, uses default styling)
+            cta: HTML for the "Call to Action" link text
+            open_in_browser: If True, automatically open the report in the default browser
+            
+        Returns:
+            If return_link is True, returns the path to the saved HTML file; otherwise None
+            
+        Notes:
+            - In Jupyter notebooks, displays an embedded preview with a link
+            - In terminal environments, saves the file and prints its location
+            - The report includes interactive elements for filtering and drill-down
+            - Exception details, status transitions, and timing are all included
+        """
         from IPython.display import display, HTML
         import tempfile
         import os
