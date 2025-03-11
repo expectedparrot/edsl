@@ -1,11 +1,13 @@
 import pytest
 import asyncio
 
-from edsl.agents.Agent import Agent
-from edsl.surveys.Survey import Survey
-from edsl.scenarios.Scenario import Scenario
-from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
-from edsl.jobs.interviews.Interview import Interview
+from edsl.agents import Agent
+from edsl.jobs import Jobs
+from edsl.questions import QuestionFreeText
+from edsl.surveys import Survey
+from edsl.scenarios import Scenario
+from edsl.questions import QuestionMultipleChoice
+from edsl.interviews import Interview
 
 
 def test_retry():

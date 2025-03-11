@@ -3,13 +3,17 @@ from httpcore import ConnectionNotAvailable
 import random
 import asyncio
 from typing import Any
+import pytest
 
-from edsl.surveys.Memory import Memory
-from edsl.language_models.LanguageModel import LanguageModel
+from edsl.surveys.memory import Memory
+from edsl.language_models import LanguageModel
 from edsl.enums import InferenceServiceType
-from edsl.scenarios.Scenario import Scenario
-from edsl.surveys.Survey import Survey
+from edsl.surveys import Survey
 from edsl.questions import QuestionFreeText
+from edsl.questions import QuestionMultipleChoice, QuestionYesNo
+from edsl.agents import Agent
+from edsl.language_models import Model
+from edsl.scenarios import Scenario
 
 
 class TestMemory(unittest.TestCase):

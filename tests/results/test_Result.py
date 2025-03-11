@@ -1,8 +1,9 @@
-from edsl.results.Result import Result
+import pytest
 
-from edsl.agents.Agent import Agent
-from edsl.scenarios.Scenario import Scenario
-from edsl.language_models.LanguageModel import LanguageModel
+from edsl.results import Result
+from edsl.agents import Agent
+from edsl.scenarios import Scenario
+from edsl.language_models import LanguageModel
 
 
 def test_constructor():

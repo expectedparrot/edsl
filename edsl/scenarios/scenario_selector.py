@@ -1,6 +1,10 @@
 from typing import TYPE_CHECKING
 
 
+if TYPE_CHECKING:
+    from .scenario_list import ScenarioList
+    from .scenario import Scenario
+
 class ScenarioSelector:
     """
     A class for performing advanced field selection on ScenarioList objects,
@@ -34,7 +38,7 @@ class ScenarioSelector:
             field: The field name to check
 
         Examples:
-            >>> from edsl.scenarios import ScenarioList, Scenario
+            >>> from edsl import ScenarioList, Scenario
             >>> selector = ScenarioSelector(ScenarioList([]))
             >>> selector._match_field_pattern('test*', 'test_field')
             True
