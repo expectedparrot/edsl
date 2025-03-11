@@ -366,13 +366,11 @@ class Jobs(Base):
             >>> from edsl.language_models import Model
             >>> from edsl.scenarios import Scenario
             >>> j = Jobs.example()
-            >>> j.by(Agent(traits={"mood": "happy"}), 
-            ...      Model(temperature=0.7), 
-            ...      Scenario({"time": "morning"}))
+            >>> _ = j.by(Agent(traits={"mood": "happy"})).by(Model(temperature=0.7)).by(Scenario({"time": "morning"}))
             
             # Adding a sequence of the same type
             >>> agents = [Agent(traits={"age": i}) for i in range(5)]
-            >>> j.by(agents)
+            >>> _ = j.by(agents)
             
         Notes:
             - All objects must implement 'get_value', 'set_value', and '__add__' methods
@@ -772,7 +770,10 @@ class Jobs(Base):
             >>> from edsl.jobs import Jobs
             >>> from edsl.data import Cache
             >>> job = Jobs.example()
-            >>> results = job.run(cache=Cache(), progress_bar=True, n=2)
+            >>> from edsl import Model
+            >>> m = Model('test')
+            >>> results = job.by(m).run(cache=Cache(), progress_bar=False, n=2, disable_remote_inference=True)
+            ...
         """
         potentially_completed_results = self._run(config)
 

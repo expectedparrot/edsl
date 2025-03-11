@@ -5,7 +5,7 @@ import requests
 from typing import Any, Optional, Union, Literal, TypedDict, TYPE_CHECKING
 from uuid import UUID
 
-import edsl
+from .. import __version__
 
 from ..config import CONFIG
 from ..data import CacheEntry
@@ -123,7 +123,7 @@ class Coop(CoopFunctionsMixin):
             self.api_url = "http://localhost:8000"
         else:
             self.api_url = self.url
-        self._edsl_version = edsl.__version__
+        self._edsl_version = __version__
 
     def get_progress_bar_url(self):
         return f"{CONFIG.EXPECTED_PARROT_URL}"
@@ -249,7 +249,7 @@ class Coop(CoopFunctionsMixin):
             # print(response.text)
             if "The API key you provided is invalid" in message and check_api_key:
                 import secrets
-                from edsl.utilities.utilities import write_api_key_to_env
+                from ..utilities.utilities import write_api_key_to_env
 
                 edsl_auth_token = secrets.token_urlsafe(16)
 

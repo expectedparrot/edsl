@@ -1,11 +1,12 @@
 from jinja2 import Environment, meta, TemplateSyntaxError
 from typing import Any, Set, TYPE_CHECKING
-from edsl.agents import Agent
-from edsl.scenarios import Scenario
+
+from ..agents import Agent
+from ..scenarios import Scenario
 
 if TYPE_CHECKING:
-    from edsl.invigilators.PromptConstructor import PromptConstructor
-    from edsl.questions.QuestionBase import QuestionBase
+    from .prompt_constructor import PromptConstructor
+    from ..questions import QuestionBase
 
 
 class QuestionTemplateReplacementsBuilder:
@@ -33,12 +34,13 @@ class QuestionTemplateReplacementsBuilder:
 
     def question_file_keys(self):
         """
-        >>> from edsl import QuestionMultipleChoice, Scenario
+        >>> from ..questions import QuestionMultipleChoice
+        >>> from ..scenarios import Scenario
         >>> q = QuestionMultipleChoice(question_text="Do you like school?", question_name = "q0", question_options = ["yes", "no"])
         >>> qtrb = QuestionTemplateReplacementsBuilder(scenario = {"file1": "file1"}, question = q, prior_answers_dict = {'q0': 'q0'}, agent = "agent")
         >>> qtrb.question_file_keys()
         []
-        >>> from edsl import FileStore
+        >>> from ..scenarios import FileStore
         >>> fs = FileStore.example()
         >>> q = QuestionMultipleChoice(question_text="What do you think of this file: {{ file1 }}", question_name = "q0", question_options = ["good", "bad"])
         >>> qtrb = QuestionTemplateReplacementsBuilder(scenario = Scenario({"file1": fs}), question = q, prior_answers_dict = {'q0': 'q0'}, agent = "agent")
@@ -76,8 +78,8 @@ class QuestionTemplateReplacementsBuilder:
         """We need to find all the keys in the scenario that refer to FileStore objects.
         These will be used to append to the prompt a list of files that are part of the scenario.
 
-        >>> from edsl import Scenario
-        >>> from edsl.scenarios.FileStore import FileStore
+        >>> from ..scenarios import Scenario
+        >>> from ..scenarios import FileStore
         >>> import tempfile
         >>> with tempfile.NamedTemporaryFile() as f:
         ...     _ = f.write(b"Hello, world!")
@@ -87,7 +89,7 @@ class QuestionTemplateReplacementsBuilder:
         ...     QuestionTemplateReplacementsBuilder._find_file_keys(scenario)
         ['fs_file']
         """
-        from edsl.scenarios import FileStore
+        from ..scenarios import FileStore
 
         file_entries = []
         for key, value in scenario.items():

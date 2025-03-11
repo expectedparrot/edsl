@@ -29,7 +29,7 @@ class FileMethods(ABC):
     def load_plugins(cls):
         """Load all file handler plugins including built-ins and external plugins."""
 
-        import edsl.scenarios.handlers  # noqa: F401 - import needed for handler registration
+        from . import handlers  # noqa: F401 - import needed for handler registration
 
         # Then load any external plugins
         try:

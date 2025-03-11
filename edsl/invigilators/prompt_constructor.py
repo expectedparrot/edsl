@@ -5,23 +5,23 @@ import time
 import logging
 
 from ..prompts import Prompt
+from ..scenarios import Scenario
+from ..surveys import Survey
 
 from .prompt_helpers import PromptPlan
 from .question_template_replacements_builder import (
     QuestionTemplateReplacementsBuilder,
 )
 from .question_option_processor import QuestionOptionProcessor
-from edsl.scenarios import Scenario
-from edsl.surveys import Survey
 
 if TYPE_CHECKING:
     from .invigilators import InvigilatorBase
-    from edsl.questions.QuestionBase import QuestionBase
-    from edsl.agents import Agent
-    from edsl.language_models import LanguageModel
-    from edsl.surveys.memory import MemoryPlan
-    from edsl.questions import QuestionBase
-    from edsl.scenarios import Scenario
+    from ..questions import QuestionBase
+    from ..agents import Agent
+    from ..language_models import LanguageModel
+    from ..surveys.memory import MemoryPlan
+    from ..questions import QuestionBase
+    from ..scenarios import Scenario
 
 logger = logging.getLogger(__name__)
 
@@ -274,7 +274,7 @@ class PromptConstructor:
         >>> i.prompt_constructor.agent_instructions_prompt
         Prompt(text=\"""You are answering questions as if you were a human. Do not break character.\""")
         """
-        from edsl.agents import Agent
+        from ..agents import Agent
 
         if self.agent == Agent():  # if agent is empty, then return an empty prompt
             return Prompt(text="")
@@ -289,7 +289,7 @@ class PromptConstructor:
         >>> i.prompt_constructor.agent_persona_prompt
         Prompt(text=\"""Your traits: {'age': 22, 'hair': 'brown', 'height': 5.5}\""")
         """
-        from edsl.agents import Agent
+        from ..agents import Agent
 
         if self.agent == Agent():  # if agent is empty, then return an empty prompt
             return Prompt(text="")
@@ -453,8 +453,6 @@ class PromptConstructor:
             "question_instructions": question_instructions.text,
             "prior_question_memory": prior_question_memory.text,
         }        
-        # Get arranged components first
-        #arranged = self.prompt_plan.arrange_components(**components)
         
         prompts = self.prompt_plan.get_prompts(**components)
         
