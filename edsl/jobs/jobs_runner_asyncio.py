@@ -1,9 +1,27 @@
+"""
+Asynchronous execution engine for EDSL jobs.
+
+This module provides the core functionality for running interviews asynchronously,
+which is essential for efficient execution of large jobs. It handles the complex
+process of coordinating multiple concurrent interviews, managing progress tracking,
+and gracefully handling cancellations and errors.
+
+Key components:
+- JobsRunnerAsyncio: The main class that orchestrates async execution
+- Progress bar integration with remote status tracking
+- Error handling and graceful cancellation
+- Result collection and organization
+
+This module is primarily used internally by the Jobs class and is typically not
+accessed directly by end users, though advanced users may need to understand its
+behavior when customizing job execution.
+"""
 from __future__ import annotations
 import time
 import asyncio
 import threading
 import warnings
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, List, Generator, Tuple, Optional, Any
 
 if TYPE_CHECKING:
     from ..results import Results
@@ -18,25 +36,74 @@ from .data_structures import RunEnvironment, RunParameters, RunConfig
 
 if TYPE_CHECKING:
     from ..jobs import Jobs
+    from ..interviews import Interview
 
 
 class JobsRunnerAsyncio:
-    """A class for running a collection of interviews asynchronously.
-
-    It gets instaniated from a Jobs object.
-    The Jobs object is a collection of interviews that are to be run.
+    """
+    Executes a collection of interviews asynchronously with progress tracking.
+    
+    This class is the main execution engine for EDSL jobs. It manages the asynchronous
+    running of interviews, handles progress tracking, and organizes results. It is
+    instantiated by a Jobs object and handles the complex execution logic that makes
+    parallel interview processing efficient.
+    
+    Key responsibilities:
+    1. Coordinating asynchronous execution of interviews
+    2. Tracking and reporting progress
+    3. Handling errors and cancellations
+    4. Collecting and organizing results
+    
+    This class supports two main execution modes:
+    - run(): For synchronous contexts (returns after completion)
+    - run_async(): For asynchronous contexts (can be awaited)
     """
 
     def __init__(self, jobs: "Jobs", environment: RunEnvironment):
+        """
+        Initialize a JobsRunnerAsyncio instance.
+        
+        Parameters:
+            jobs (Jobs): The Jobs instance containing the interviews to run
+            environment (RunEnvironment): The environment configuration containing
+                resources like cache, key_lookup, and bucket_collection
+                
+        Notes:
+            - The Jobs instance provides the interviews to be executed
+            - The environment contains resources like caches and API keys
+            - Additional runtime state like completion status is initialized when run() is called
+        """
         self.jobs = jobs
         self.environment = environment
+        # These will be set when run() is called
+        self.start_time = None
+        self.completed = None
 
     def __len__(self):
         return len(self.jobs)
 
     async def run_async(self, parameters: RunParameters) -> 'Results':
-        """Used for some other modules that have a non-standard way of running interviews."""
-
+        """
+        Execute interviews asynchronously without progress tracking.
+        
+        This method provides a simplified version of the run method, primarily used
+        by other modules that need direct access to asynchronous execution without
+        the full feature set of the main run() method. This is a lower-level interface
+        that doesn't include progress bars or advanced error handling.
+        
+        Parameters:
+            parameters (RunParameters): Configuration parameters for the run
+            
+        Returns:
+            Results: A Results object containing all responses and metadata
+            
+        Notes:
+            - This method doesn't support progress bars or interactive cancellation
+            - It doesn't handle keyboard interrupts specially
+            - It's primarily meant for internal use by other EDSL components
+            - For most use cases, the main run() method is preferred
+        """
+        # Initialize a simple status tracker (no progress bar)
         self.environment.jobs_runner_status = JobsRunnerStatus(self, n=parameters.n)
         data = []
         task_history = TaskHistory(include_traceback=False)
@@ -44,12 +111,15 @@ class JobsRunnerAsyncio:
         run_config = RunConfig(parameters=parameters, environment=self.environment)
         result_generator = AsyncInterviewRunner(self.jobs, run_config)
 
+        # Process results as they come in
         async for result, interview in result_generator.run():
             data.append(result)
             task_history.add_interview(interview)
 
+        # Create the results object
         results = Results(survey=self.jobs.survey, task_history=task_history, data=data)
 
+        # Extract only the relevant cache entries
         relevant_cache = results.relevant_cache(self.environment.cache)
 
         return Results(
@@ -59,13 +129,58 @@ class JobsRunnerAsyncio:
             cache=relevant_cache,
         )
 
-    def simple_run(self):
-        data = asyncio.run(self.run_async())
+    def simple_run(self, parameters: Optional[RunParameters] = None) -> Results:
+        """
+        Run interviews synchronously with minimal configuration.
+        
+        This is a convenience method that provides a very simple synchronous interface
+        for running jobs. It's primarily used for quick tests or debugging, not for 
+        production use.
+        
+        Parameters:
+            parameters (RunParameters, optional): Configuration parameters for the run.
+                If not provided, default parameters will be used.
+                
+        Returns:
+            Results: A Results object containing all responses and metadata
+            
+        Notes:
+            - This method is synchronous (blocks until completion)
+            - It doesn't include progress tracking or advanced error handling
+            - For production use, use the main run() method instead
+        """
+        if parameters is None:
+            parameters = RunParameters()
+            
+        data = asyncio.run(self.run_async(parameters))
         return Results(survey=self.jobs.survey, data=data)
 
     @jupyter_nb_handler
     async def run(self, parameters: RunParameters) -> Results:
-        """Runs a collection of interviews, handling both async and sync contexts."""
+        """
+        Execute interviews asynchronously with full feature support.
+        
+        This is the main method for running jobs with full feature support, including
+        progress tracking, error handling, and graceful cancellation. It's decorated
+        with @jupyter_nb_handler to ensure proper handling in notebook environments.
+        
+        Parameters:
+            parameters (RunParameters): Configuration parameters for the run
+            
+        Returns:
+            Results: A Results object containing all responses and metadata
+            
+        Raises:
+            Exception: Any unhandled exception from interviews if stop_on_exception=True
+            KeyboardInterrupt: If the user interrupts execution and it can't be handled gracefully
+            
+        Notes:
+            - Supports progress bars with remote tracking via Coop
+            - Handles keyboard interrupts gracefully
+            - Manages concurrent execution of multiple interviews
+            - Collects and consolidates results from all completed interviews
+            - Can be used in both async and sync contexts due to the @jupyter_nb_handler decorator
+        """
 
         run_config = RunConfig(parameters=parameters, environment=self.environment)
 
