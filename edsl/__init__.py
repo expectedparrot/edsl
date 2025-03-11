@@ -38,9 +38,9 @@ from .results import __all__ as results_all
 from .results import *
 __all__.extend(results_all)
 
-from .data import __all__ as data_all
-from .data import *
-__all__.extend(data_all)
+from .caching import __all__ as caching_all
+from .caching import *
+__all__.extend(caching_all)
 
 from .notebooks import __all__ as notebooks_all
 from .notebooks import *

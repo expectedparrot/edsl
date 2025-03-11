@@ -57,7 +57,7 @@ if TYPE_CHECKING:
     from ..results import Results
     from ..dataset import Dataset
     from ..language_models import ModelList
-    from ..data import Cache
+    from ..caching import Cache
     from ..key_management import KeyLookup
 
 VisibilityType = Literal["private", "public", "unlisted"]
@@ -248,7 +248,7 @@ class Jobs(Base):
 
         :param obj: the object to add
         """
-        from ..data import Cache
+        from ..caching import Cache
         from ..key_management import KeyLookup
 
         if isinstance(obj, Cache):
@@ -650,7 +650,7 @@ class Jobs(Base):
 
         from ..coop import Coop
         from .jobs_runner_asyncio import JobsRunnerAsyncio
-        from ..data import Cache
+        from ..caching import Cache
 
         assert isinstance(self.run_config.environment.cache, Cache)
 
@@ -697,12 +697,12 @@ class Jobs(Base):
             self.run_config.environment.cache is None
             or self.run_config.environment.cache is True
         ):
-            from ..data import CacheHandler
+            from ..caching import CacheHandler
 
             self.run_config.environment.cache = CacheHandler().get_cache()
 
         if self.run_config.environment.cache is False:
-            from .. import Cache
+            from ..caching import Cache
 
             self.run_config.environment.cache = Cache(immediate_write=False)
 
@@ -1007,7 +1007,7 @@ class Jobs(Base):
 def main():
     """Run the module's doctests."""
     from .jobs import Jobs
-    from ..data import Cache
+    from ..caching import Cache
 
     job = Jobs.example()
     len(job) == 4

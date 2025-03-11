@@ -1,5 +1,5 @@
 """
-Data module for EDSL framework.
+Caching module for EDSL framework.
 
 This module provides caching functionality for language model responses,
 with support for both in-memory and persistent storage through SQLite.
