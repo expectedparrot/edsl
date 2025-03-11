@@ -768,7 +768,7 @@ class Jobs(Base):
             
         Example:
             >>> from edsl.jobs import Jobs
-            >>> from edsl.data import Cache
+            >>> from edsl.caching import Cache
             >>> job = Jobs.example()
             >>> from edsl import Model
             >>> m = Model('test')
@@ -823,7 +823,7 @@ class Jobs(Base):
         Example:
             >>> import asyncio
             >>> from edsl.jobs import Jobs
-            >>> from edsl.data import Cache
+            >>> from edsl.caching import Cache
             >>> job = Jobs.example()
             >>> # In an async context
             >>> async def run_job():
