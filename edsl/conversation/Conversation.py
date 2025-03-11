@@ -6,7 +6,7 @@ from edsl import Agent, QuestionFreeText, Results, AgentList, ScenarioList, Scen
 from edsl.questions import QuestionBase
 from edsl.results.Result import Result
 from jinja2 import Template
-from edsl.data import Cache
+from edsl.caching import Cache
 
 from edsl.conversation.next_speaker_utilities import (
     default_turn_taking_generator,

@@ -2,13 +2,14 @@ import os
 import unittest
 from contextlib import redirect_stdout
 from io import StringIO
-from edsl.exceptions.results import (
+from edsl.results.exceptions import (
     ResultsBadMutationstringError,
     ResultsColumnNotFoundError,
     ResultsInvalidNameError,
 )
 
-from edsl.results.Results import Results
+from edsl.results import Results
+from edsl.language_models import LanguageModel
 
 
 class TestResults(unittest.TestCase):
@@ -141,8 +142,7 @@ class TestResults(unittest.TestCase):
             "task_history", self.example_results.to_dict(include_task_history=True)
         )
 
-        from edsl.questions.QuestionFreeText import QuestionFreeText
-        from edsl.language_models.LanguageModel import LanguageModel
+        from edsl.questions import QuestionFreeText
 
         q = QuestionFreeText.example()
 

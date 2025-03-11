@@ -1,4 +1,6 @@
-from edsl.study.ObjectEntry import ObjectEntry
-from edsl.study.ProofOfWork import ProofOfWork
-from edsl.study.SnapShot import SnapShot
-from edsl.study.Study import Study
+from .ObjectEntry import ObjectEntry
+from .ProofOfWork import ProofOfWork
+from .SnapShot import SnapShot
+from .Study import Study
+
+__all__ = ["ObjectEntry", "ProofOfWork", "SnapShot", "Study"]

@@ -1,11 +1,11 @@
 import pytest
-from edsl.exceptions.questions import (
+from edsl.questions.exceptions import (
     QuestionAnswerValidationError,
     QuestionResponseValidationError,
 )
 from edsl.questions import Settings
-from edsl.questions.QuestionBase import QuestionBase
-from edsl.questions.QuestionFreeText import QuestionFreeText, main
+from edsl.questions import QuestionBase
+from edsl.questions.question_free_text import QuestionFreeText, main
 
 
 def test_QuestionFreeText_main():

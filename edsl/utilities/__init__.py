@@ -1,22 +1,30 @@
-# from edsl.utilities.interface import (
-#     print_dict_as_html_table,
-#     print_dict_with_rich,
-#     print_list_of_dicts_as_html_table,
-#     print_table_with_rich,
-#     print_public_methods_with_doc,
-#     print_list_of_dicts_as_markdown_table,
-# )
+# Core utilities - used across the codebase
+from .template_loader import TemplateLoader
+from .PrettyList import PrettyList
+from .restricted_python import create_restricted_function
+from .remove_edsl_version import remove_edsl_version
+from .ast_utilities import extract_variable_names
 
-# from edsl.utilities.utilities import (
-#     create_valid_var_name,
-#     dict_to_html,
-#     hash_value,
-#     HTMLSnippet,
-#     is_notebook,
-#     is_gzipped,
-#     is_valid_variable_name,
-#     random_string,
-#     repair_json,
-#     shorten_string,
-#     time_all_functions,
-# )
+# Functions from utilities.py
+from .utilities import (
+    clean_json,
+    dict_hash,
+    hash_value,
+    repair_json,
+    create_valid_var_name,
+    random_string,
+    shorten_string,
+    is_gzipped
+)
+
+# Decorator utilities
+from .decorators import sync_wrapper, jupyter_nb_handler
+
+# Standalone utilities
+from .is_notebook import is_notebook
+from .is_valid_variable_name import is_valid_variable_name
+from .naming_utilities import sanitize_string
+
+# Interface module - note: print_results_long is imported directly in results.py
+from .interface import print_results_long
+

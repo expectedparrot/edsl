@@ -1,6 +1,6 @@
 import pytest
 
-from edsl.notebooks.Notebook import Notebook
+from edsl.notebooks import Notebook
 from jsonschema.exceptions import ValidationError
 from nbformat.reader import NotJSONError
 from nbformat.validator import NotebookValidationError

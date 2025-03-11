@@ -1,6 +1,6 @@
 import unittest
 from unittest.mock import Mock
-from edsl.surveys.MemoryPlan import MemoryPlan
+from edsl.surveys.memory import MemoryPlan
 
 
 class TestMemoryPlan(unittest.TestCase):
@@ -61,7 +61,7 @@ class TestMemoryPlan(unittest.TestCase):
         self.assertEqual(memory_plan.to_dict(), expected_dict)
 
     def test_from_dict(self):
-        from edsl.surveys.Memory import Memory
+        from edsl.surveys.memory import Memory
 
         data = {
             "survey_question_names": self.question_names,
