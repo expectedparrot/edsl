@@ -68,7 +68,7 @@ Example Usage:
     ... )
     >>> from edsl.language_models import Model
     >>> model = Model()
-    >>> result = question.by(model).run(disable_remote_inference = True)
+    >>> # result = question.by(model).run()
     
     >>> from edsl import QuestionMultipleChoice
     >>> choice_q = QuestionMultipleChoice(
@@ -76,7 +76,7 @@ Example Usage:
     ...     question_text="Which color do you prefer?",
     ...     question_options=["Red", "Blue", "Green", "Yellow"]
     ... )
-    >>> result = choice_q.by(model).run(disable_remote_inference = True)
+    >>> # result = choice_q.by(model).run()
 
 Integration with Surveys:
 -----------------------
