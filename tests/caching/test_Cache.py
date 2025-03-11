@@ -2,7 +2,7 @@ import os
 import pytest
 from edsl.config import CONFIG
 from edsl.questions import QuestionFreeText
-from edsl.data import Cache, CacheEntry
+from edsl.caching import Cache, CacheEntry
 from edsl.language_models.model import Model
 
 

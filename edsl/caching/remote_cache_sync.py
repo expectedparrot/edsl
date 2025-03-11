@@ -4,9 +4,9 @@ from contextlib import AbstractContextManager
 from collections import UserList
 
 if TYPE_CHECKING:
-    from .Cache import Cache
+    from .cache import Cache
     from edsl.coop.coop import Coop
-    from .CacheEntry import CacheEntry
+    from .cache_entry import CacheEntry
 
 from logging import Logger
 
@@ -35,7 +35,7 @@ class CacheEntriesList(UserList):
         return f"CacheEntries({entries_repr})"
 
     def to_cache(self) -> "Cache":
-        from edsl.data.Cache import Cache
+        from edsl.caching.cache import Cache
 
         return Cache({entry.key: entry for entry in self.data})
 

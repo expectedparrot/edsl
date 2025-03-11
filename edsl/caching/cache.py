@@ -24,7 +24,7 @@ class Cache(Base):
     :param method: The method of storage to use for the cache.
     """
 
-    __documentation__ = "https://docs.expectedparrot.com/en/latest/data.html"
+    __documentation__ = "https://docs.expectedparrot.com/en/latest/caching.html"
 
     data = {}
 
@@ -367,7 +367,7 @@ class Cache(Base):
         :param other: Another Cache object to compare against
         :return: A new Cache object containing unique entries
 
-        >>> from edsl.data import CacheEntry
+        >>> from edsl.caching import CacheEntry
         >>> ce1 = CacheEntry.example(randomize = True)
         >>> ce2 = CacheEntry.example(randomize = True)
         >>> ce2 = CacheEntry.example(randomize = True)

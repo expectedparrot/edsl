@@ -39,7 +39,7 @@ if TYPE_CHECKING:
     from ..agents import Agent
     from .dag import DAG
     from ..language_models import LanguageModel
-    from ..data import Cache
+    from ..caching import Cache
     from ..jobs import Jobs
     from ..results import Results
     from ..scenarios import ScenarioList
@@ -1256,7 +1256,7 @@ class Survey(Base):
         """
         # Create a cache if none provided
         if cache is None:
-            from edsl.data import Cache
+            from edsl.caching import Cache
             c = Cache()
         else:
             c = cache

@@ -11,7 +11,7 @@ from edsl.surveys import Survey
 from edsl.questions.question_registry import (
     Question,
 )  # needed for the eval() of the repr() of the Job
-from edsl.data import Cache
+from edsl.caching import Cache
 
 from edsl.agents import AgentList
 from edsl.language_models import ModelList, Model, LanguageModel

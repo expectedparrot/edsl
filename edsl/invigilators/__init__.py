@@ -33,3 +33,6 @@ from .invigilators import InvigilatorAI
 from .invigilators import InvigilatorHuman
 from .invigilator_base import InvigilatorBase
 from .invigilators import InvigilatorFunctional
+from .prompt_constructor import PromptConstructor
+
+__all_ = []
