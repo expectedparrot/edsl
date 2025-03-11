@@ -28,5 +28,3 @@ from .naming_utilities import sanitize_string
 # Interface module - note: print_results_long is imported directly in results.py
 from .interface import print_results_long
 
-# Path to test data
-from .data.Registry import SCOOTER_RESULTS_PATH

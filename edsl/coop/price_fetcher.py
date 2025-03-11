@@ -86,7 +86,7 @@ class PriceFetcher:
 
         import os
         import requests
-        from edsl.config import CONFIG
+        from ..config import CONFIG
 
         try:
             # Fetch the pricing data

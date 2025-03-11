@@ -5,11 +5,11 @@ from dataclasses import dataclass, asdict
 from ..data import Cache
 from ..buckets import BucketCollection
 from ..key_management import KeyLookup
+from ..base import Base
 
 from .jobs_runner_status import JobsRunnerStatus
 
 VisibilityType = Literal["private", "public", "unlisted"]
-from edsl.base import Base
 
 @dataclass
 class RunEnvironment:
