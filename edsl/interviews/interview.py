@@ -39,7 +39,7 @@ if TYPE_CHECKING:
     from ..agents import Agent
     from ..surveys import Survey
     from ..scenarios import Scenario
-    from ..data.Cache import Cache
+    from ..caching import Cache
     from ..language_models import LanguageModel
     from ..tokens import InterviewTokenUsage
     from ..invigilators import InvigilatorBase

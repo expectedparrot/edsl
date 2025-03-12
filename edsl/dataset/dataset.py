@@ -325,14 +325,33 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
         return Dataset(new_data)
 
     def print(self, pretty_labels=None, **kwargs):
+        """
+        Print the dataset in a formatted way.
+        
+        Args:
+            pretty_labels: A dictionary mapping column names to their display names
+            **kwargs: Additional arguments
+                format: The output format ("html", "markdown", "rich", "latex")
+                
+        Returns:
+            TableDisplay object
+        """
         if "format" in kwargs:
             if kwargs["format"] not in ["html", "markdown", "rich", "latex"]:
                 raise ValueError(f"Format '{kwargs['format']}' not supported.")
+            
+            # If rich format is requested, set tablefmt accordingly
+            if kwargs["format"] == "rich":
+                kwargs["tablefmt"] = "rich"
+                
         if pretty_labels is None:
             pretty_labels = {}
         else:
             return self.rename(pretty_labels).print(**kwargs)
-        return self.table()
+            
+        # Pass through any tablefmt parameter
+        tablefmt = kwargs.get("tablefmt", None)
+        return self.table(tablefmt=tablefmt)
 
     def rename(self, rename_dic) -> Dataset:
         new_data = []
@@ -576,7 +595,8 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
 
         headers, data = self._tabular()
 
-        if tablefmt is not None:
+        if tablefmt is not None and tablefmt != "rich":
+            # Rich format is handled separately, so we don't validate it against tabulate_formats
             from tabulate import tabulate_formats
 
             if tablefmt not in tabulate_formats:
@@ -584,7 +604,7 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
                     f"Error: The following table format is not supported: {tablefmt}",
                     file=sys.stderr,
                 )
-                print(f"\nAvailable formats are: {tabulate_formats}", file=sys.stderr)
+                print(f"\nAvailable formats are: {tabulate_formats} and 'rich'", file=sys.stderr)
                 return None
 
         if max_rows:

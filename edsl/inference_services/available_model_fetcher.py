@@ -189,7 +189,7 @@ class AvailableModelFetcher:
 
 
 def main():
-    from edsl.inference_services.OpenAIService import OpenAIService
+    from .services.open_ai_service import OpenAIService
 
     af = AvailableModelFetcher([OpenAIService()], {}, verbose=True)
     # print(af.available(service="openai"))
@@ -205,7 +205,7 @@ if __name__ == "__main__":
     doctest.testmod(optionflags=doctest.ELLIPSIS)
     # main()
 
-    # from edsl.inference_services.OpenAIService import OpenAIService
+    # from .services.open_ai_service import OpenAIService
 
     # af = AvailableModelFetcher([OpenAIService()], {}, verbose=True)
     # # print(af.available(service="openai"))

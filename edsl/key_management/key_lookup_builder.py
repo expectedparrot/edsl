@@ -29,26 +29,56 @@ api_id_to_service = {"AWS_ACCESS_KEY_ID": "bedrock"}
 
 
 class KeyLookupBuilder:
-    """Builds KeyLookup options.
-
-    >>> builder = KeyLookupBuilder(fetch_order=("config", "env"))
-    >>> builder.DEFAULT_RPM
-    100
-    >>> builder.DEFAULT_TPM
-    2000000
-    >>> builder.fetch_order
-    ('config', 'env')
-
-    Test invalid fetch_order:
-    >>> try:
-    ...     KeyLookupBuilder(fetch_order=["config", "env"])  # Should be tuple
-    ... except ValueError as e:
-    ...     str(e)
-    'fetch_order must be a tuple'
-
-    Test service extraction:
-    >>> builder.extract_service("EDSL_SERVICE_RPM_OPENAI")
-    ('openai', 'rpm')
+    """Factory class for building KeyLookup objects by gathering credentials from multiple sources.
+    
+    KeyLookupBuilder is responsible for discovering, organizing, and consolidating API keys
+    and rate limits from various sources. It can pull credentials from:
+    
+    - Environment variables (env)
+    - Configuration files (config) 
+    - Remote services (coop)
+    
+    The builder handles the complexities of:
+    - Finding API keys with different naming conventions
+    - Merging rate limits from different sources
+    - Processing additional credentials like API IDs
+    - Prioritizing sources based on a configurable order
+    
+    Basic usage:
+        >>> builder = KeyLookupBuilder()
+        >>> keys = builder.build()
+        >>> # Now use keys to access service credentials
+        >>> keys['test'].api_token
+        'test'
+    
+    Customizing priorities:
+        >>> builder = KeyLookupBuilder(fetch_order=("config", "env"))
+        >>> builder.fetch_order
+        ('config', 'env')
+        >>> # 'env' has higher priority than 'config'
+    
+    Configuration parameters:
+        >>> builder = KeyLookupBuilder()
+        >>> builder.DEFAULT_RPM  # Default API calls per minute
+        100
+        >>> builder.DEFAULT_TPM  # Default tokens per minute
+        2000000
+    
+    Validation examples:
+        >>> try:
+        ...     KeyLookupBuilder(fetch_order=["config", "env"])  # Should be tuple
+        ... except ValueError as e:
+        ...     str(e)
+        'fetch_order must be a tuple'
+        
+        >>> builder = KeyLookupBuilder()
+        >>> builder.extract_service("EDSL_SERVICE_RPM_OPENAI")
+        ('openai', 'rpm')
+    
+    Technical Notes:
+        - The fetch_order parameter controls priority (later sources override earlier ones)
+        - Default rate limits are applied when not explicitly provided
+        - Maintains tracking of where each value came from for debugging
     """
 
     # DEFAULT_RPM = 10
@@ -63,7 +93,7 @@ class KeyLookupBuilder:
         fetch_order: Optional[tuple[str]] = None,
         coop: Optional["Coop"] = None,
     ):
-        from edsl.coop import Coop
+        from ..coop import Coop
 
         # Fetch order goes from lowest priority to highest priority
         if fetch_order is None:
@@ -96,34 +126,72 @@ class KeyLookupBuilder:
 
     @lru_cache
     def build(self) -> "KeyLookup":
-        """Build a KeyLookup instance.
-
-        >>> builder = KeyLookupBuilder()
-        >>> lookup = builder.build()
-        >>> isinstance(lookup, KeyLookup)
-        True
-        >>> lookup['test'].api_token  # Test service should always exist
-        'test'
+        """Build a KeyLookup instance with all discovered credentials.
+        
+        Processes all discovered API keys and rate limits from the configured sources
+        and builds a KeyLookup instance containing LanguageModelInput objects for
+        each valid service. This method is cached, so subsequent calls will return
+        the same instance unless the builder state changes.
+        
+        Returns:
+            KeyLookup: A populated KeyLookup instance with service credentials
+            
+        Examples:
+            >>> builder = KeyLookupBuilder()
+            >>> lookup = builder.build()
+            >>> isinstance(lookup, KeyLookup)
+            True
+            >>> lookup['test'].api_token  # Test service should always exist
+            'test'
+            
+        Technical Notes:
+            - Skips services with missing API keys
+            - Always includes a 'test' service for internal testing
+            - Uses lru_cache to avoid rebuilding unless necessary
+            - Each valid service gets a complete LanguageModelInput with
+              API token, rate limits, and optional API ID
         """
         d = {}
+        # Create entries for all discovered services
         for service in self.known_services:
             try:
                 d[service] = self.get_language_model_input(service)
             except MissingAPIKeyError:
-                pass
+                pass  # Skip services with missing API keys
 
+        # Always include a test service
         d.update({"test": LanguageModelInput(api_token="test", rpm=10, tpm=2000000)})
         return KeyLookup(d)
 
     def get_language_model_input(self, service: str) -> LanguageModelInput:
-        """Get the language model input for a given service.
-
-        >>> builder = KeyLookupBuilder()
-        >>> try:
-        ...     builder.get_language_model_input("nonexistent_service")
-        ... except MissingAPIKeyError as e:
-        ...     str(e)
-        "No key found for service 'nonexistent_service'"
+        """Construct a LanguageModelInput object for the specified service.
+        
+        Creates a complete LanguageModelInput object for the requested service by
+        combining the API key, rate limits, and optional API ID from the various 
+        data sources. This method assembles the disparate pieces of information
+        into a single configuration object.
+        
+        Args:
+            service: Name of the service to retrieve configuration for (e.g., 'openai')
+            
+        Returns:
+            LanguageModelInput: A configuration object with the service's credentials
+            
+        Raises:
+            MissingAPIKeyError: If the required API key for the service is not found
+            
+        Examples:
+            >>> builder = KeyLookupBuilder()
+            >>> try:
+            ...     builder.get_language_model_input("nonexistent_service")
+            ... except MissingAPIKeyError as e:
+            ...     str(e)
+            "No key found for service 'nonexistent_service'"
+            
+        Technical Notes:
+            - Uses default rate limits if none are specified
+            - Preserves information about where each value came from
+            - Supports services that require both API key and API ID
         """
         if (key_entries := self.key_data.get(service)) is None:
             raise MissingAPIKeyError(f"No key found for service '{service}'")
@@ -170,7 +238,7 @@ class KeyLookupBuilder:
         return dict(list(self.coop.fetch_rate_limit_config_vars().items()))
 
     def _config_key_value_pairs(self):
-        from edsl.config import CONFIG
+        from ..config import CONFIG
 
         return dict(list(CONFIG.items()))
 
