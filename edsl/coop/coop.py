@@ -469,7 +469,7 @@ class Coop(CoopFunctionsMixin):
         self._resolve_server_response(response)
         response_json = response.json()
 
-        if object_type == "scenario" and description != "cat image":
+        if object_type == "scenario" and description not in ["cat image", "cat pdf"]:
             json_data = json.dumps(
                 object.to_dict(),
                 default=self._json_handle_none,
@@ -495,6 +495,19 @@ class Coop(CoopFunctionsMixin):
                 raise Exception("No signed url provided received")
 
             response = requests.put(signed_url, data=data, headers=headers)
+        elif object_type == "scenario" and description == "cat pdf":
+            import base64
+
+            pdf_data = base64.b64decode(object.to_dict()["base64_string"])
+            headers = {"Content-Type": "application/pdf"}
+            data = pdf_data
+            if response_json.get("upload_signed_url"):
+                signed_url = response_json.get("upload_signed_url")
+            else:
+                raise Exception("No signed url provided received")
+
+            response = requests.put(signed_url, data=data, headers=headers)
+
         owner_username = response_json.get("owner_username")
         object_alias = response_json.get("alias")
 
