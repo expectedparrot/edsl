@@ -35,7 +35,8 @@ def test_good_answer_cached():
     from edsl.language_models.model import Model
 
     m = Model("test", canned_response=1)
-    results = q.by(m).run(cache=cache)
+    # Add disable_remote_inference=True to prevent the test from using remote inference
+    results = q.by(m).run(cache=cache, disable_remote_cache=True, disable_remote_inference=True)
     results.select("answer.*").print()
     try:
         assert cache.data != {}
