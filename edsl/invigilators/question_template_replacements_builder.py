@@ -42,10 +42,21 @@ class QuestionTemplateReplacementsBuilder:
         []
         >>> from ..scenarios import FileStore
         >>> fs = FileStore.example()
+        >>> # Test direct key reference
         >>> q = QuestionMultipleChoice(question_text="What do you think of this file: {{ file1 }}", question_name = "q0", question_options = ["good", "bad"])
         >>> qtrb = QuestionTemplateReplacementsBuilder(scenario = Scenario({"file1": fs}), question = q, prior_answers_dict = {'q0': 'q0'}, agent = "agent")
         >>> qtrb.question_file_keys()
         ['file1']
+        >>> # Test scenario.key reference
+        >>> q = QuestionMultipleChoice(question_text="What do you think of this file: {{ scenario.file2 }}", question_name = "q0", question_options = ["good", "bad"])
+        >>> qtrb = QuestionTemplateReplacementsBuilder(scenario = Scenario({"file2": fs}), question = q, prior_answers_dict = {'q0': 'q0'}, agent = "agent")
+        >>> qtrb.question_file_keys()
+        ['file2']
+        >>> # Test both formats in the same question
+        >>> q = QuestionMultipleChoice(question_text="Compare {{ file1 }} with {{ scenario.file2 }}", question_name = "q0", question_options = ["good", "bad"])
+        >>> qtrb = QuestionTemplateReplacementsBuilder(scenario = Scenario({"file1": fs, "file2": fs}), question = q, prior_answers_dict = {'q0': 'q0'}, agent = "agent")
+        >>> sorted(qtrb.question_file_keys())
+        ['file1', 'file2']
         """
         question_text = self.question.question_text
         file_keys = self._find_file_keys(self.scenario)
@@ -102,7 +113,8 @@ class QuestionTemplateReplacementsBuilder:
         question_text: str, scenario_file_keys: list
     ) -> list:
         """
-        Extracts the file keys from a question text.
+        Extracts the file keys from a question text, handling both direct references ({{ file_key }})
+        and scenario-prefixed references ({{ scenario.file_key }}).
 
         >>> from edsl import Scenario
         >>> from edsl.scenarios import FileStore
@@ -114,15 +126,53 @@ class QuestionTemplateReplacementsBuilder:
         ...     scenario = Scenario({"fs_file": fs, 'a': 1})
         ...     QuestionTemplateReplacementsBuilder._extract_file_keys_from_question_text("{{ fs_file }}", ['fs_file'])
         ['fs_file']
+        >>> with tempfile.NamedTemporaryFile() as f:
+        ...     _ = f.write(b"Hello, world!")
+        ...     _ = f.seek(0)
+        ...     fs = FileStore(f.name)
+        ...     scenario = Scenario({"print": fs, 'a': 1})
+        ...     QuestionTemplateReplacementsBuilder._extract_file_keys_from_question_text("{{ scenario.print }}", ['print'])
+        ['print']
+        >>> with tempfile.NamedTemporaryFile() as f:
+        ...     _ = f.write(b"Hello, world!")
+        ...     _ = f.seek(0)
+        ...     fs = FileStore(f.name)
+        ...     scenario = Scenario({"file1": fs, "file2": fs})
+        ...     sorted(QuestionTemplateReplacementsBuilder._extract_file_keys_from_question_text("Compare {{ file1 }} with {{ scenario.file2 }}", ['file1', 'file2']))
+        ['file1', 'file2']
         """
         variables = QuestionTemplateReplacementsBuilder.get_jinja2_variables(
             question_text
         )
         question_file_keys = []
+        
+        # Direct references: {{ file_key }}
         for var in variables:
             if var in scenario_file_keys:
                 question_file_keys.append(var)
-        return question_file_keys
+                
+        # Scenario-prefixed references: {{ scenario.file_key }}
+        for var in variables:
+            if var == "scenario":
+                # If we find a scenario variable, we need to check for nested references
+                # Create a modified template with just {{ scenario.* }} expressions to isolate them
+                scenario_template = "".join([
+                    "{% for key, value in scenario.items() %}{{ key }}{% endfor %}"
+                ])
+                try:
+                    # This is a check to make sure there's scenario.something syntax in the template
+                    if "scenario." in question_text:
+                        # Extract dot-notation scenario references by parsing the template
+                        import re
+                        scenario_refs = re.findall(r'{{\s*scenario\.(\w+)\s*}}', question_text)
+                        for key in scenario_refs:
+                            if key in scenario_file_keys:
+                                question_file_keys.append(key)
+                except:
+                    # If there's any issue parsing, just continue with what we have
+                    pass
+                
+        return list(set(question_file_keys))  # Remove duplicates
 
     def _scenario_replacements(
         self, replacement_string: str = "<see file {key}>"
