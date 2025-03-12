@@ -1,4 +1,4 @@
-"""Function to check if the code is running in a Jupyter notebook."""
+"""Utility functions for working with Jupyter notebooks."""
 
 
 def is_notebook() -> bool:

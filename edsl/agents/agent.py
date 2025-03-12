@@ -12,6 +12,32 @@ that answer questions in the EDSL framework, and they can be configured with:
 
 Agents can be combined, modified, and used to answer various question types through different
 invigilator mechanisms.
+
+Codebook and Trait Rendering
+---------------------------
+One of the key features of the Agent class is its ability to use codebooks to improve
+how traits are presented to language models. A codebook is a dictionary that maps trait keys 
+to human-readable descriptions:
+
+```python
+traits = {"age": 30, "occupation": "doctor"}
+codebook = {"age": "Age in years", "occupation": "Current profession"}
+agent = Agent(traits=traits, codebook=codebook)
+```
+
+When an agent with a codebook generates prompts, it will use these descriptions
+instead of the raw trait keys, creating more natural and descriptive prompts:
+
+Without codebook: "Your traits: {'age': 30, 'occupation': 'doctor'}"
+With codebook: 
+```
+Your traits:
+Age in years: 30
+Current profession: doctor
+```
+
+This approach helps language models better understand the traits and can lead to
+more natural responses that properly interpret the agent's characteristics.
 """
 
 from __future__ import annotations
@@ -127,10 +153,21 @@ class Agent(Base):
 
     default_instruction = """You are answering questions as if you were a human. Do not break character."""
 
+    # Trait storage using descriptors for validation and management
     _traits = TraitsDescriptor()
+    
+    # Codebook maps trait keys to human-readable descriptions
+    # This improves prompt readability and LLM understanding
+    # Example: {'age': 'Age in years'} → "Age in years: 30" instead of "age: 30"
     codebook = CodebookDescriptor()
+    
+    # Instructions for how the agent should answer questions
     instruction = InstructionDescriptor()
+    
+    # Optional name identifier for the agent
     name = NameDescriptor()
+    
+    # Default values for function-related attributes
     dynamic_traits_function_name = ""
     answer_question_directly_function_name = ""
     has_dynamic_traits_function = False
@@ -153,7 +190,9 @@ class Agent(Base):
         Args:
             traits: Dictionary of agent characteristics (e.g., {"age": 30, "occupation": "doctor"})
             name: Optional name identifier for the agent
-            codebook: Dictionary mapping trait keys to human-readable descriptions for prompts
+            codebook: Dictionary mapping trait keys to human-readable descriptions for prompts.
+                This provides more descriptive labels for traits when rendering prompts.
+                For example, {'age': 'Age in years'} would display "Age in years: 30" instead of "age: 30".
             instruction: Directive for how the agent should answer questions
             traits_presentation_template: Jinja2 template for formatting traits in prompts
             dynamic_traits_function: Function that can modify traits based on questions
@@ -256,18 +295,69 @@ class Agent(Base):
     ) -> None:
         """Initialize the template for presenting agent traits in prompts.
         
-        If no template is provided, uses a default template that displays 
-        all traits as a dictionary.
+        This method sets up how the agent's traits will be formatted in language model prompts.
+        The template is a Jinja2 template string that can reference trait values and other
+        agent properties.
+        
+        If no template is provided:
+        - If a codebook exists, the method creates a template that displays each trait with its 
+          codebook description instead of the raw key names (e.g., "Age in years: 30" instead of "age: 30")
+        - Without a codebook, it uses a default template that displays all traits as a dictionary
+        
+        Custom templates always take precedence over automatically generated ones, giving users
+        complete control over how traits are presented.
         
         Args:
-            traits_presentation_template: Jinja2 template for formatting traits
+            traits_presentation_template: Optional Jinja2 template string for formatting traits.
+                If not provided, a default template will be generated.
+                
+        Examples:
+            With no template or codebook, traits are shown as a dictionary:
+            
+            >>> agent = Agent(traits={"age": 25, "occupation": "engineer"})
+            >>> str(agent.prompt().text)
+            'Your traits: {\'age\': 25, \'occupation\': \'engineer\'}'
+            
+            With a codebook but no custom template, traits are shown with descriptions:
+            
+            >>> codebook = {"age": "Age in years", "occupation": "Current profession"}
+            >>> agent = Agent(traits={"age": 25, "occupation": "engineer"}, codebook=codebook)
+            >>> print(agent.prompt().text)  # doctest: +NORMALIZE_WHITESPACE
+            Your traits:
+            Age in years: 25
+            Current profession: engineer
+            
+            With a custom template, that format is used regardless of codebook:
+            
+            >>> template = "Person: {{age}} years old, works as {{occupation}}"
+            >>> agent = Agent(traits={"age": 25, "occupation": "engineer"}, 
+            ...               codebook=codebook, traits_presentation_template=template)
+            >>> str(agent.prompt().text)
+            'Person: 25 years old, works as engineer'
         """
         if traits_presentation_template is not None:
             self._traits_presentation_template = traits_presentation_template
             self.traits_presentation_template = traits_presentation_template
             self.set_traits_presentation_template = True
         else:
-            self.traits_presentation_template = "Your traits: {{traits}}"
+            # Set the default template based on whether a codebook exists
+            if self.codebook:
+                # Create a template that uses the codebook descriptions
+                traits_lines = []
+                for trait_key in self.traits.keys():
+                    if trait_key in self.codebook:
+                        # Use codebook description if available
+                        traits_lines.append(f"{self.codebook[trait_key]}: {{{{ {trait_key} }}}}")
+                    else:
+                        # Fall back to raw key for traits without codebook entries
+                        traits_lines.append(f"{trait_key}: {{{{ {trait_key} }}}}")
+                
+                # Join all trait lines with newlines
+                self.traits_presentation_template = "Your traits:\n" + "\n".join(traits_lines)
+            else:
+                # Use the standard dictionary format if no codebook
+                self.traits_presentation_template = "Your traits: {{traits}}"
+                
             self.set_traits_presentation_template = False
 
     def _initialize_dynamic_traits_function(
@@ -416,17 +506,79 @@ class Agent(Base):
         agent's traits and codebook, creating a formatted prompt that can be
         used in language model requests.
         
+        The method is dynamic and responsive to changes in the agent's state:
+        
+        1. If a custom template was explicitly set during initialization, it will be used
+        2. If using the default template and the codebook has been updated since
+           initialization, this method will recreate the template to reflect the current
+           codebook values
+        3. The template is rendered with access to all trait values, the complete traits
+           dictionary, and the codebook
+           
+        The template rendering makes the following variables available:
+        - All individual trait keys (e.g., {{age}}, {{occupation}})
+        - The full traits dictionary as {{traits}}
+        - The codebook as {{codebook}}
+        
         Returns:
-            str: The rendered prompt string
+            Prompt: A Prompt object containing the rendered template
             
         Raises:
             QuestionScenarioRenderError: If any template variables remain undefined
             
-        Example:
-            >>> a = Agent(traits={"age": 10, "hair": "brown", "height": 5.5})
-            >>> a.prompt()
+        Examples:
+            Basic trait rendering without a codebook:
+            
+            >>> agent = Agent(traits={"age": 10, "hair": "brown", "height": 5.5})
+            >>> agent.prompt()
             Prompt(text=\"""Your traits: {'age': 10, 'hair': 'brown', 'height': 5.5}\""")
+            
+            Trait rendering with a codebook (more readable format):
+            
+            >>> codebook = {"age": "Age in years", "hair": "Hair color"}
+            >>> agent = Agent(traits={"age": 10, "hair": "brown"}, codebook=codebook)
+            >>> print(agent.prompt().text)  # doctest: +NORMALIZE_WHITESPACE
+            Your traits:
+            Age in years: 10
+            Hair color: brown
+            
+            Adding a codebook after initialization updates the rendering:
+            
+            >>> agent = Agent(traits={"age": 30, "occupation": "doctor"})
+            >>> initial_prompt = agent.prompt()
+            >>> "Your traits: {" in initial_prompt.text
+            True
+            >>> agent.codebook = {"age": "Age", "occupation": "Profession"}
+            >>> updated_prompt = agent.prompt()
+            >>> "Age: 30" in updated_prompt.text
+            True
+            >>> "Profession: doctor" in updated_prompt.text
+            True
+            
+            Custom templates can reference any trait directly:
+            
+            >>> template = "Profile: {{age}} year old {{occupation}}"
+            >>> agent = Agent(traits={"age": 45, "occupation": "teacher"}, 
+            ...               traits_presentation_template=template)
+            >>> agent.prompt().text
+            'Profile: 45 year old teacher'
         """
+        # If using the default template and the codebook has been updated since initialization,
+        # recreate the template to use the current codebook
+        if not self.set_traits_presentation_template and self.codebook:
+            # Create a template that uses the codebook descriptions
+            traits_lines = []
+            for trait_key in self.traits.keys():
+                if trait_key in self.codebook:
+                    # Use codebook description if available
+                    traits_lines.append(f"{self.codebook[trait_key]}: {{{{ {trait_key} }}}}")
+                else:
+                    # Fall back to raw key for traits without codebook entries
+                    traits_lines.append(f"{trait_key}: {{{{ {trait_key} }}}}")
+            
+            # Join all trait lines with newlines
+            self.traits_presentation_template = "Your traits:\n" + "\n".join(traits_lines)
+            
         # Create a dictionary with traits, a reference to all traits, and the codebook
         replacement_dict = (
             self.traits | {"traits": self.traits} | {"codebook": self.codebook}

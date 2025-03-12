@@ -68,7 +68,7 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         "https://docs.expectedparrot.com/en/latest/agents.html#agentlist-class"
     )
 
-    def __init__(self, data: Optional[list["Agent"]] = None):
+    def __init__(self, data: Optional[list["Agent"]] = None, codebook: Optional[dict[str, str]] = None):
         """Initialize a new AgentList.
 
         >>> from edsl import Agent
@@ -76,14 +76,23 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         ...                Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5})])
         >>> al
         AgentList([Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5}), Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5})])
+        >>> al_with_codebook = AgentList([Agent(traits = {'age': 22})], codebook={'age': 'Age in years'})
+        >>> al_with_codebook[0].codebook
+        {'age': 'Age in years'}
 
         Args:
             data: A list of Agent objects. If None, creates an empty AgentList.
+            codebook: Optional dictionary mapping trait names to descriptions. 
+                      If provided, will be applied to all agents in the list.
         """
         if data is not None:
             super().__init__(data)
         else:
             super().__init__()
+            
+        # Apply codebook to all agents if provided
+        if codebook is not None:
+            self.set_codebook(codebook)
 
     def shuffle(self, seed: Optional[str] = None) -> AgentList:
         """Randomly shuffle the agents in place.
@@ -233,7 +242,7 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         return list(d.keys())
 
     @classmethod
-    def from_csv(cls, file_path: str, name_field: Optional[str] = None):
+    def from_csv(cls, file_path: str, name_field: Optional[str] = None, codebook: Optional[dict[str, str]] = None):
         """Load AgentList from a CSV file.
 
         >>> import csv
@@ -248,10 +257,14 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         >>> al = AgentList.from_csv('/tmp/agents.csv', name_field='hair')
         >>> al
         AgentList([Agent(name = \"""brown\""", traits = {'age': '22', 'height': '5.5'})])
+        >>> al = AgentList.from_csv('/tmp/agents.csv', codebook={'age': 'Age in years'})
+        >>> al[0].codebook
+        {'age': 'Age in years'}
         >>> os.remove('/tmp/agents.csv')
 
         :param file_path: The path to the CSV file.
         :param name_field: The name of the field to use as the agent name.
+        :param codebook: Optional dictionary mapping trait names to descriptions.
         """
         from .agent import Agent
 
@@ -266,9 +279,9 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
                     name_field = "name"
                 if name_field is not None:
                     agent_name = row.pop(name_field)
-                    agent_list.append(Agent(traits=row, name=agent_name))
+                    agent_list.append(Agent(traits=row, name=agent_name, codebook=codebook))
                 else:
-                    agent_list.append(Agent(traits=row))
+                    agent_list.append(Agent(traits=row, codebook=codebook))
         return cls(agent_list)
 
     def translate_traits(self, codebook: dict[str, str]):
@@ -361,7 +374,13 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
 
         >>> AgentList.example().to_dict(add_edsl_version=False)
         {'agent_list': [{'traits': {'age': 22, 'hair': 'brown', 'height': 5.5}}, {'traits': {'age': 22, 'hair': 'brown', 'height': 5.5}}]}
-
+        >>> example_codebook = {'age': 'Age in years'}
+        >>> al = AgentList.example().set_codebook(example_codebook)
+        >>> result = al.to_dict(add_edsl_version=False)
+        >>> 'codebook' in result
+        True
+        >>> result['codebook'] == example_codebook
+        True
         """
         if sorted:
             data = self.data[:]
@@ -374,6 +393,19 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
                 agent.to_dict(add_edsl_version=add_edsl_version) for agent in data
             ]
         }
+        
+        # Add codebook if all agents have the same codebook
+        if len(self.data) > 0:
+            # Get the first agent's codebook
+            first_codebook = self.data[0].codebook
+            
+            # Check if all agents have the same codebook
+            all_same = all(agent.codebook == first_codebook for agent in self.data)
+            
+            # Only include codebook if it's non-empty and consistent across all agents
+            if all_same and first_codebook:
+                d["codebook"] = first_codebook
+                
         if add_edsl_version:
             from edsl import __version__
 
@@ -482,36 +514,69 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         >>> al2 = AgentList.from_dict(al.to_dict())
         >>> al2 == al
         True
+        >>> example_codebook = {'age': 'Age in years'}
+        >>> al = AgentList([Agent.example()]).set_codebook(example_codebook)
+        >>> al2 = AgentList.from_dict(al.to_dict())
+        >>> al2[0].codebook == example_codebook
+        True
         """
         from .agent import Agent
 
         agents = [Agent.from_dict(agent_dict) for agent_dict in data["agent_list"]]
-        return cls(agents)
+        agent_list = cls(agents)
+        
+        # Apply codebook if present in the dictionary
+        if "codebook" in data and data["codebook"]:
+            agent_list.set_codebook(data["codebook"])
+            
+        return agent_list
 
     @classmethod
-    def example(cls, randomize: bool = False) -> AgentList:
+    def example(cls, randomize: bool = False, codebook: Optional[dict[str, str]] = None) -> AgentList:
         """
         Returns an example AgentList instance.
 
         :param randomize: If True, uses Agent's randomize method.
+        :param codebook: Optional dictionary mapping trait names to descriptions.
+        
+        >>> al = AgentList.example()
+        >>> al
+        AgentList([Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5}), Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5})])
+        >>> al = AgentList.example(codebook={'age': 'Age in years'})
+        >>> al[0].codebook
+        {'age': 'Age in years'}
         """
         from .agent import Agent
 
-        return cls([Agent.example(randomize), Agent.example(randomize)])
+        agent_list = cls([Agent.example(randomize), Agent.example(randomize)])
+        
+        if codebook:
+            agent_list.set_codebook(codebook)
+            
+        return agent_list
 
     @classmethod
-    def from_list(self, trait_name: str, values: List[Any]) -> "AgentList":
+    def from_list(self, trait_name: str, values: List[Any], codebook: Optional[dict[str, str]] = None) -> "AgentList":
         """Create an AgentList from a list of values.
 
         :param trait_name: The name of the trait.
         :param values: A list of values.
+        :param codebook: Optional dictionary mapping trait names to descriptions.
 
         >>> AgentList.from_list('age', [22, 23])
         AgentList([Agent(traits = {'age': 22}), Agent(traits = {'age': 23})])
+        >>> al = AgentList.from_list('age', [22], codebook={'age': 'Age in years'})
+        >>> al[0].codebook
+        {'age': 'Age in years'}
         """
         from .agent import Agent
 
-        return AgentList([Agent({trait_name: value}) for value in values])
+        agent_list = AgentList([Agent({trait_name: value}) for value in values])
+        
+        if codebook:
+            agent_list.set_codebook(codebook)
+            
+        return agent_list
 
     def __mul__(self, other: AgentList) -> AgentList:
         """Takes the cross product of two AgentLists."""
