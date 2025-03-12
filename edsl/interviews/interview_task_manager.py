@@ -3,10 +3,10 @@ import asyncio
 from typing import Any, Type, List, Generator, Optional, Union, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from ...questions import QuestionBase
+    from ..questions import QuestionBase
     from ..tokens import InterviewTokenUsage
-    from ..interviews import InterviewStatusDictionary
-    from ..interviews import InterviewStatusLog
+    from . import InterviewStatusDictionary
+    from . import InterviewStatusLog
 
 
 class InterviewTaskManager:
@@ -14,7 +14,7 @@ class InterviewTaskManager:
 
     def __init__(self, survey, iteration=0):
         from ..tasks import TaskCreators
-        from ..interviews import InterviewStatusLog
+        from . import InterviewStatusLog
 
         self.survey = survey
         self.iteration = iteration
