@@ -504,9 +504,29 @@ class Result(Base, UserDict):
         Result(...)
 
         """
-        from .results import Results
+        from ..agents import Agent
+        from ..scenarios import Scenario
+        from ..language_models import Model
+        from ..prompts import Prompt
 
-        return Results.example()[0]
+        agent = Agent.example()
+        scenario = Scenario.example()
+        model = Model.example()
+        
+        # Create a simple example Result with minimal required fields
+        return cls(
+            agent=agent,
+            scenario=scenario,
+            model=model,
+            iteration=1,
+            answer={"how_feeling": "Great"},
+            prompt={"how_feeling_user_prompt": Prompt("How are you feeling?")},
+            raw_model_response={"how_feeling_raw_model_response": "Great"},
+            generated_tokens={"how_feeling_generated_tokens": "Great"},
+            comments_dict={"how_feeling_comment": "I'm really happy!"},
+            cache_used_dict={"how_feeling": False},
+            cache_keys={"how_feeling": "test_cache_key"},
+        )
     
     def score_with_answer_key(self, answer_key: dict) -> dict[str, int]:
         """Score the result against a reference answer key.
@@ -631,6 +651,7 @@ class Result(Base, UserDict):
         def get_raw_model_results_and_cache_used_dictionary(model_response_objects):
             raw_model_results_dictionary = {}
             cache_used_dictionary = {}
+            captured_variables_dictionary = {}
             for result in model_response_objects:
                 question_name = result.question_name
                 raw_model_results_dictionary[question_name + "_raw_model_response"] = (
@@ -648,8 +669,12 @@ class Result(Base, UserDict):
                     one_use_buys
                 )
                 cache_used_dictionary[question_name] = result.cache_used
+                
+                # Store captured variables for this question if available
+                if hasattr(result, 'captured_variables') and result.captured_variables:
+                    captured_variables_dictionary[question_name + "_captured_variables"] = result.captured_variables
 
-            return raw_model_results_dictionary, cache_used_dictionary
+            return raw_model_results_dictionary, cache_used_dictionary, captured_variables_dictionary
 
         question_results = get_question_results(model_response_objects)
         answer_key_names = list(question_results.keys())
@@ -662,9 +687,12 @@ class Result(Base, UserDict):
         prompt_dictionary = get_prompt_dictionary(
             answer_key_names, question_name_to_prompts
         )
-        raw_model_results_dictionary, cache_used_dictionary = (
+        raw_model_results_dictionary, cache_used_dictionary, captured_variables_dictionary = (
             get_raw_model_results_and_cache_used_dictionary(model_response_objects)
         )
+
+        # Add captured variables to raw_model_results_dictionary
+        raw_model_results_dictionary.update(captured_variables_dictionary)
 
         result = cls(
             agent=interview.agent,

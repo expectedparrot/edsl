@@ -45,6 +45,7 @@ class EDSLResultObjectInput(NamedTuple):
     validated: bool = False
     exception_occurred: Exception = None
     cost: Optional[float] = None
+    captured_variables: Optional[Dict[str, Any]] = None
 
 
 @dataclass

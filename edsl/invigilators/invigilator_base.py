@@ -304,6 +304,7 @@ class InvigilatorBase(ABC):
             "raw_model_response": None,
             "cache_used": None,
             "cache_key": None,
+            "captured_variables": self.get_captured_variables(),
         }
         return EDSLResultObjectInput(**data)
 
@@ -328,6 +329,23 @@ class InvigilatorBase(ABC):
             "user_prompt": Prompt("NA"),
             "system_prompt": Prompt("NA"),
         }
+        
+    def get_captured_variables(self) -> Dict[str, Any]:
+        """
+        Get variables captured during template rendering.
+        
+        This base implementation returns an empty dictionary. Subclasses like InvigilatorAI
+        may override this method to provide variables captured during prompt rendering.
+        
+        Returns:
+            A dictionary mapping variable names to their captured values.
+            
+        Technical Notes:
+            - This is a fallback implementation that returns an empty dictionary
+            - Concrete implementations like InvigilatorAI use the prompt_constructor to capture variables
+            - Captured variables include values set via {% set var = ... %} in Jinja2 templates
+        """
+        return {}
 
     @abstractmethod
     async def async_answer_question(self) -> Any:

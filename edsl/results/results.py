@@ -1391,22 +1391,24 @@ class Results(UserList, ResultsOperationsMixin, Base):
 
         >>> r = Results.example()
 
-        :param debug: if False, uses actual API calls
+        :param randomize: Whether to randomize the example data
         """
-        from ..jobs import Jobs
-        from ..caching import Cache
-
-        c = Cache()
-        job = Jobs.example(randomize=randomize)
-        results = job.run(
-            cache=c,
-            stop_on_exception=True,
-            skip_retry=True,
-            raise_validation_errors=True,
-            disable_remote_cache=True,
-            disable_remote_inference=True,
-        )
-        return results
+        from ..results.result import Result
+        from ..surveys import Survey
+        
+        # Create a simple Results object with multiple results
+        results = []
+        feelings = ["OK", "Great", "Terrible", "OK"]
+        
+        # Create a result for each feeling
+        for i, feeling in enumerate(feelings):
+            result = Result.example()
+            # Customize the answer for each result
+            result["answer"]["how_feeling"] = feeling
+            results.append(result)
+        
+        # Create and return a Results object
+        return cls(data=results, survey=Survey.example())
 
     def rich_print(self):
         """Display an object as a table."""
