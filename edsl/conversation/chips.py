@@ -1,11 +1,11 @@
 from typing import Optional
 
-from edsl import Agent, AgentList, QuestionFreeText
-from edsl import Cache
-from edsl import QuestionList
-from edsl import Model
+from .. import Agent, AgentList, QuestionFreeText
+from .. import Cache
+from .. import QuestionList
+from .. import Model
 
-from edsl.conversation.Conversation import Conversation, ConversationList
+from .Conversation import Conversation, ConversationList
 
 m = Model("gemini-1.5-flash")
 
@@ -79,7 +79,7 @@ with Cache() as c:
         question_name="actors",
     )
 
-    from edsl import QuestionList
+    from .. import QuestionList
 
     q_transfers = QuestionList(
         question_text="""This was a conversation/negotiation: {{ transcript }}. 

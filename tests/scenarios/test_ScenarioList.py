@@ -1,6 +1,5 @@
 import pytest
-from edsl.scenarios.Scenario import Scenario
-from edsl.scenarios.ScenarioList import ScenarioList
+from edsl.scenarios import Scenario, ScenarioList
 import tempfile
 import os
 

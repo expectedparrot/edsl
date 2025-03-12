@@ -15,11 +15,23 @@ If you use the EDSL package in your research or projects, please use the followi
 
     @techreport{Horton2024EDSL,
     title = {EDSL: Expected Parrot Domain Specific Language for AI Powered Social Science},
-    author = {John Horton and Apostolos Filippas and Robin Horton},
+    author = {John Horton and Robin Horton},
     year = {2024},
     institution = {Expected Parrot},
     type = {Whitepaper}
     }
+
+
+| *Social Science Production with LLMs*
+| Eric Vansteenberghe
+| February 2025
+| https://papers.ssrn.com/sol3/papers.cfm?abstract_id=5133210
+
+
+| *Linear Representations of Political Perspective Emerge in Large Language Models*
+| Junsol Kim, James Evans, Aaron Schein
+| March 2025
+| https://arxiv.org/pdf/2503.02080v1
 
 
 | *Simulating the Survey of Professional Forecasters*

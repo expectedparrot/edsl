@@ -2,10 +2,10 @@ import asyncio
 import pytest
 from collections import namedtuple
 
-from edsl.jobs.tasks.task_status_enum import TaskStatus
-from edsl.jobs.tasks.QuestionTaskCreator import QuestionTaskCreator
-from edsl.questions.QuestionFreeText import QuestionFreeText
-from edsl.jobs.buckets.ModelBuckets import ModelBuckets
+from edsl.tasks import TaskStatus
+from edsl.tasks import QuestionTaskCreator
+from edsl.questions import QuestionFreeText
+from edsl.buckets import ModelBuckets
 
 AnswerTuple = namedtuple("AnswerTuple", ["answer", "cache_used"])
 

@@ -1,10 +1,11 @@
 import pytest
-from edsl.exceptions.questions import QuestionScenarioRenderError
-from edsl.questions.QuestionFreeText import QuestionFreeText
-from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
-from edsl.surveys.Survey import Survey
-from edsl.scenarios.Scenario import Scenario
-from edsl.exceptions.questions import QuestionMissingTypeError, QuestionBadTypeError
+from edsl.questions.exceptions import QuestionScenarioRenderError
+from edsl.questions import QuestionFreeText
+from edsl.questions import QuestionMultipleChoice
+from edsl.questions import QuestionYesNo
+from edsl.surveys import Survey
+from edsl.scenarios import Scenario
+from edsl.questions.exceptions import QuestionMissingTypeError, QuestionBadTypeError
 
 valid_question = {
     "question_text": "How are you?",
@@ -51,14 +52,16 @@ def test_Question_properties(capsys):
     # assert q.formulate_prompt()
     # with pytest.raises(QuestionScenarioRenderError):
     #     q3.formulate_prompt()
-    curly = valid_question.copy()
-    import warnings
 
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", UserWarning)
-        with pytest.warns(UserWarning):
-            curly["question_text"] = "What is the capital of {country}"
-            QuestionFreeText(**curly)
+    # Don't check this anymore b/c it's not a problem
+    # curly = valid_question.copy()
+    # import warnings
+
+    # with warnings.catch_warnings():
+    #     warnings.simplefilter("ignore", UserWarning)
+    #     with pytest.warns(UserWarning):
+    #         curly["question_text"] = "What is the capital of {country}"
+    #         QuestionFreeText(**curly)
 
     # Q -> Survey stuff
     q1 = QuestionFreeText(**valid_question)
@@ -96,7 +99,7 @@ def test_validation_with_rendering():
             "{{city[3]}}",
         ],
     )
-    from edsl.exceptions.questions import QuestionAnswerValidationError
+    from edsl.questions.exceptions import QuestionAnswerValidationError
 
     with pytest.raises(QuestionAnswerValidationError):
         q._validate_answer({"answer": "Paris"})

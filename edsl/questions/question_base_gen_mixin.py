@@ -4,9 +4,8 @@ import itertools
 from typing import Optional, List, Callable, Type, TYPE_CHECKING, Union
 
 if TYPE_CHECKING:
-    from edsl.questions.QuestionBase import QuestionBase
-    from edsl.scenarios.ScenarioList import ScenarioList
-
+    from .question_base import QuestionBase
+    from ..scenarios import ScenarioList
 
 class QuestionBaseGenMixin:
     """Mixin for QuestionBase.
@@ -30,7 +29,7 @@ class QuestionBaseGenMixin:
     def option_permutations(self) -> list[QuestionBase]:
         """Return a list of questions with all possible permutations of the options.
 
-        >>> from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice as Q
+        >>> from edsl.questions import QuestionMultipleChoice as Q
         >>> len(Q.example().option_permutations())
         24
         """
@@ -53,7 +52,7 @@ class QuestionBaseGenMixin:
 
         If the question has no options, returns a copy of the original question.
 
-        >>> from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice as Q
+        >>> from edsl.questions import QuestionMultipleChoice as Q
         >>> q = Q.example()
         >>> drawn = q.draw()
         >>> len(drawn.question_options) == len(q.question_options)
@@ -78,8 +77,8 @@ class QuestionBaseGenMixin:
 
         :param scenario_list: The list of scenarios to loop through.
 
-        >>> from edsl.questions.QuestionFreeText import QuestionFreeText
-        >>> from edsl.scenarios.ScenarioList import ScenarioList
+        >>> from edsl.questions import QuestionFreeText
+        >>> from edsl.scenarios import ScenarioList
         >>> q = QuestionFreeText(question_text = "What are your thoughts on: {{ subject}}?", question_name = "base_{{subject}}")
         >>> len(q.loop(ScenarioList.from_list("subject", ["Math", "Economics", "Chemistry"])))
         3
@@ -100,31 +99,31 @@ class QuestionBaseGenMixin:
         Raises:
             MaxTemplateNestingExceeded: If template nesting exceeds MAX_NESTING levels
         
-        >>> from edsl.questions.QuestionFreeText import QuestionFreeText
+        >>> from edsl.questions import QuestionFreeText
         >>> q = QuestionFreeText(question_name = "color", question_text = "What is your favorite {{ thing }}?")
         >>> q.render({"thing": "color"})
         Question('free_text', question_name = \"""color\""", question_text = \"""What is your favorite color?\""")
 
-        >>> from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
+        >>> from edsl.questions import QuestionMultipleChoice
         >>> q = QuestionMultipleChoice(question_name = "color", question_text = "What is your favorite {{ thing }}?", question_options = ["red", "blue", "green"])
-        >>> from edsl.scenarios.Scenario import Scenario
+        >>> from edsl.scenarios import Scenario
         >>> q.render(Scenario({"thing": "color"})).data
         {'question_name': 'color', 'question_text': 'What is your favorite color?', 'question_options': ['red', 'blue', 'green']}
 
-        >>> from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
+        >>> from edsl.questions import QuestionMultipleChoice
         >>> q = QuestionMultipleChoice(question_name = "color", question_text = "What is your favorite {{ thing }}?", question_options = ["red", "blue", "green"])
         >>> q.render({"thing": 1}).data
         {'question_name': 'color', 'question_text': 'What is your favorite 1?', 'question_options': ['red', 'blue', 'green']}
 
 
-        >>> from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
-        >>> from edsl.scenarios.Scenario import Scenario
+        >>> from edsl.questions import QuestionMultipleChoice
+        >>> from edsl.scenarios import Scenario
         >>> q = QuestionMultipleChoice(question_name = "color", question_text = "What is your favorite {{ thing }}?", question_options = ["red", "blue", "green"])
         >>> q.render(Scenario({"thing": "color of {{ object }}", "object":"water"})).data
         {'question_name': 'color', 'question_text': 'What is your favorite color of water?', 'question_options': ['red', 'blue', 'green']}
 
         
-        >>> from edsl.questions.QuestionFreeText import QuestionFreeText
+        >>> from edsl.questions import QuestionFreeText
         >>> q = QuestionFreeText(question_name = "infinite", question_text = "This has {{ a }}")
         >>> q.render({"a": "{{ b }}", "b": "{{ a }}"}) # doctest: +IGNORE_EXCEPTION_DETAIL
         Traceback (most recent call last):
@@ -132,7 +131,7 @@ class QuestionBaseGenMixin:
         edsl.questions.question_base_gen_mixin.QuestionBaseGenMixin.MaxTemplateNestingExceeded:...
         """
         from jinja2 import Environment, meta
-        from edsl.scenarios.Scenario import Scenario
+        from edsl.scenarios import Scenario
 
         MAX_NESTING = 10  # Maximum allowed nesting levels
         
@@ -187,7 +186,7 @@ class QuestionBaseGenMixin:
     def apply_function(
         self, func: Callable, exclude_components: Optional[List[str]] = None
     ) -> QuestionBase:
-        from edsl.questions.QuestionBase import QuestionBase
+        from .question_base import QuestionBase
         d = self._apply_function_dict(func, exclude_components)
         return QuestionBase.from_dict(d)
 

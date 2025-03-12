@@ -1,43 +1,94 @@
+"""
+Asynchronous interview runner module for conducting interviews concurrently.
+
+This module provides functionality to run multiple interviews in parallel
+with controlled concurrency, supporting both error handling and result collection.
+"""
+
 from collections.abc import AsyncGenerator
-from typing import List, TypeVar, Generator, Tuple, TYPE_CHECKING
+from typing import List, Generator, Tuple, TYPE_CHECKING
 from dataclasses import dataclass
 import asyncio
-from contextlib import asynccontextmanager
 from edsl.data_transfer_models import EDSLResultObjectInput
 
-from edsl.results.Result import Result
-from edsl.jobs.interviews.Interview import Interview
-from edsl.config import Config
+from ..results import Result
+from ..interviews import Interview
+from ..config import Config
 config = Config()
 
 if TYPE_CHECKING:
-    from edsl.jobs.Jobs import Jobs
+    from ..jobs import Jobs
 
+from .data_structures import RunConfig
 
 @dataclass
 class InterviewResult:
+    """Container for the result of an interview along with metadata.
+    
+    Attributes:
+        result: The Result object containing the interview answers
+        interview: The Interview object used to conduct the interview
+        order: The original position of this interview in the processing queue
+    """
     result: Result
     interview: Interview
     order: int
 
 
-from edsl.jobs.data_structures import RunConfig
-
-
 class AsyncInterviewRunner:
+    """
+    Runs interviews asynchronously with controlled concurrency.
+    
+    This class manages the parallel execution of multiple interviews while
+    respecting concurrency limits and handling errors appropriately.
+    
+    Examples:
+        >>> from unittest.mock import MagicMock, AsyncMock
+        >>> mock_jobs = MagicMock()
+        >>> mock_run_config = MagicMock()
+        >>> mock_run_config.parameters.n = 1
+        >>> mock_run_config.environment.cache = None
+        >>> runner = AsyncInterviewRunner(mock_jobs, mock_run_config)
+        >>> isinstance(runner._initialized, asyncio.Event)
+        True
+    """
+    
     MAX_CONCURRENT = int(config.EDSL_MAX_CONCURRENT_TASKS)
 
     def __init__(self, jobs: "Jobs", run_config: RunConfig):
+        """
+        Initialize the AsyncInterviewRunner.
+        
+        Args:
+            jobs: The Jobs object that generates interviews
+            run_config: Configuration for running the interviews
+        """
         self.jobs = jobs
         self.run_config = run_config
         self._initialized = asyncio.Event()
 
     def _expand_interviews(self) -> Generator["Interview", None, None]:
-        """Populates self.total_interviews with n copies of each interview.
-
-        It also has to set the cache for each interview.
-
-        :param n: how many times to run each interview.
+        """
+        Create multiple copies of each interview based on the run configuration.
+        
+        This method expands interviews for repeated runs and ensures each has
+        the proper cache configuration.
+        
+        Yields:
+            Interview objects ready to be conducted
+            
+        Examples:
+            >>> from unittest.mock import MagicMock
+            >>> mock_jobs = MagicMock()
+            >>> mock_interview = MagicMock()
+            >>> mock_jobs.generate_interviews.return_value = [mock_interview]
+            >>> mock_run_config = MagicMock()
+            >>> mock_run_config.parameters.n = 2
+            >>> mock_run_config.environment.cache = "mock_cache"
+            >>> runner = AsyncInterviewRunner(mock_jobs, mock_run_config)
+            >>> interviews = list(runner._expand_interviews())
+            >>> len(interviews)
+            2
         """
         for interview in self.jobs.generate_interviews():
             for iteration in range(self.run_config.parameters.n):
@@ -52,21 +103,22 @@ class AsyncInterviewRunner:
     async def _conduct_interview(
         self, interview: "Interview"
     ) -> Tuple["Result", "Interview"]:
-        """Conducts an interview and returns the result object, along with the associated interview.
-
-        We return the interview because it is not populated with exceptions, if any.
-
-        :param interview: the interview to conduct
-        :return: the result of the interview
-
-        'extracted_answers' is a dictionary of the answers to the questions in the interview.
-        This is not the same as the generated_tokens---it can include substantial cleaning and processing / validation.
         """
-        # the model buckets are used to track usage rates
-        # model_buckets = self.bucket_collection[interview.model]
-        # model_buckets = self.run_config.environment.bucket_collection[interview.model]
-
-        # get the results of the interview e.g., {'how_are_you':"Good" 'how_are_you_generated_tokens': "Good"}
+        Asynchronously conduct a single interview.
+        
+        This method performs the interview and creates a Result object with
+        the extracted answers and model responses.
+        
+        Args:
+            interview: The interview to conduct
+            
+        Returns:
+            Tuple containing the Result object and the Interview object
+            
+        Notes:
+            'extracted_answers' contains the processed and validated answers
+            from the interview, which may differ from the raw model output.
+        """
         extracted_answers: dict[str, str]
         model_response_objects: List[EDSLResultObjectInput]
 
@@ -83,10 +135,20 @@ class AsyncInterviewRunner:
     async def run(
         self,
     ) -> AsyncGenerator[tuple[Result, Interview], None]:
-        """Creates and processes tasks asynchronously, yielding results as they complete.
-
-        Uses TaskGroup for structured concurrency and automated cleanup.
-        Results are yielded as they become available while maintaining controlled concurrency.
+        """
+        Run all interviews asynchronously and yield results as they complete.
+        
+        This method processes interviews in chunks based on MAX_CONCURRENT,
+        maintaining controlled concurrency while yielding results as soon as
+        they become available.
+        
+        Yields:
+            Tuples of (Result, Interview) as interviews complete
+            
+        Notes:
+            - Uses structured concurrency patterns for proper resource management
+            - Handles exceptions according to the run configuration
+            - Ensures task cleanup even in case of failures
         """
         interviews = list(self._expand_interviews())
         self._initialized.set()
@@ -102,10 +164,8 @@ class AsyncInterviewRunner:
                 result.order = idx
                 return InterviewResult(result, interview, idx)
             except Exception as e:
-                # breakpoint()
                 if self.run_config.parameters.stop_on_exception:
                     raise
-                # logger.error(f"Task failed with error: {e}")
                 return None
 
         # Process interviews in chunks
@@ -130,7 +190,6 @@ class AsyncInterviewRunner:
             except Exception as e:
                 if self.run_config.parameters.stop_on_exception:
                     raise
-                # logger.error(f"Chunk processing failed with error: {e}")
                 continue
 
             finally:
@@ -138,3 +197,8 @@ class AsyncInterviewRunner:
                 for task in tasks:
                     if not task.done():
                         task.cancel()
+
+
+if __name__ == "__main__":
+    import doctest 
+    doctest.testmod()

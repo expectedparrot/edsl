@@ -191,17 +191,27 @@ test-data: ## Create serialization test data for the current EDSL version
 	fi
 test-doctests: ## Run doctests
 	make clean-test
+	#pytest --doctest-modules edsl/base.py
+	pytest --doctest-modules edsl/instructions
+	pytest --doctest-modules edsl/key_management
+	pytest --doctest-modules edsl/prompts
+	pytest --doctest-modules edsl/tasks
 	pytest --doctest-modules edsl/inference_services
 	pytest --doctest-modules edsl/results
-	pytest --doctest-modules edsl/jobs
+	pytest --doctest-modules edsl/dataset
+	pytest --doctest-modules --ignore=edsl/buckets/token_bucket_client.py edsl/buckets
+	pytest --doctest-modules edsl/interviews
+	pytest --doctest-modules edsl/tokens
+	pytest --doctest-modules edsl/jobs/
 	pytest --doctest-modules edsl/surveys
 	pytest --doctest-modules edsl/agents
 	pytest --doctest-modules edsl/scenarios
 	pytest --doctest-modules edsl/questions
 	pytest --doctest-modules edsl/utilities
 	pytest --doctest-modules edsl/language_models
-	pytest --doctest-modules edsl/data
+	pytest --doctest-modules edsl/caching
 	pytest --doctest-modules edsl/study
+
 
 test-services:
 	python integration/test_all_questions_and_models.py
