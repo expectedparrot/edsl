@@ -228,14 +228,14 @@ class Coop(CoopFunctionsMixin):
         # breakpoint()
         server_edsl_version = response.headers.get("X-EDSL-Version")
 
-        if server_edsl_version:
-            if self._user_version_is_outdated(
-                user_version_str=self._edsl_version,
-                server_version_str=server_edsl_version,
-            ):
-                print(
-                    "Please upgrade your EDSL version to access our latest features. Open your terminal and run `pip install --upgrade edsl`"
-                )
+        # if server_edsl_version:
+        #     if self._user_version_is_outdated(
+        #         user_version_str=self._edsl_version,
+        #         server_version_str=server_edsl_version,
+        #     ):
+        #         print(
+        #             "Please upgrade your EDSL version to access our latest features. Open your terminal and run `pip install --upgrade edsl`"
+        #         )
 
         if response.status_code >= 400:
             try:
