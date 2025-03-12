@@ -39,8 +39,8 @@ class LanguageModelNoResponseError(LanguageModelExceptions):
     5. Consider implementing exponential backoff retry logic
     
     Examples:
-        >>> # API timeout during a model call
-        >>> model.generate(prompt="Very complex prompt", timeout=1)  # Raises LanguageModelNoResponseError if timeout is too short
+        # API timeout during a model call
+        model.generate(prompt="Very complex prompt", timeout=1)  # Raises LanguageModelNoResponseError if timeout is too short
     """
     relevant_doc = "https://docs.expectedparrot.com/en/latest/language_models.html#handling-errors"
     explanation = "This happens when the language model API cannot be reached or does not respond within the specified timeout."
@@ -69,8 +69,8 @@ class LanguageModelBadResponseError(LanguageModelExceptions):
     4. Review the attached response_json for clues about what went wrong
     
     Examples:
-        >>> # Requesting a format the model can't produce
-        >>> model.generate(prompt="Return valid XML")  # May raise LanguageModelBadResponseError if response isn't valid XML
+        # Requesting a format the model can't produce
+        model.generate(prompt="Return valid XML")  # May raise LanguageModelBadResponseError if response isn't valid XML
     
     Attributes:
         message (str): Error message
@@ -100,7 +100,7 @@ class LanguageModelNotFound(LanguageModelExceptions):
     4. For new models, ensure your EDSL version supports them
     
     Examples:
-        >>> Model("non-existent-model")  # Raises LanguageModelNotFound
+        Model("non-existent-model")  # Raises LanguageModelNotFound
     """
     relevant_doc = "https://docs.expectedparrot.com/en/latest/language_models.html#available-models"
 
@@ -110,14 +110,14 @@ class LanguageModelNotFound(LanguageModelExceptions):
             Model {model_name} not found.
             To create an instance of this model, pass the model name to a `Model` object.
             You can optionally pass additional parameters to the model, e.g.: 
-            >>> m = Model('gpt-4-1106-preview', temperature=0.5)
+            m = Model('gpt-4-1106-preview', temperature=0.5)
             
             To use the default model, simply run your job without specifying a model.
             To check the default model, run the following code:
-            >>> Model()
+            Model()
 
             To see information about all available models, run the following code:
-            >>> Model.available()
+            Model.available()
 
             See https://docs.expectedparrot.com/en/latest/language_models.html#available-models for more details.
             """

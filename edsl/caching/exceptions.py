@@ -25,13 +25,13 @@ class CacheError(BaseException):
     4. For migration issues, you may need to clear the cache by calling cache.clear()
     
     Examples:
-        >>> # Cache key generation failure
-        >>> @cache
-        >>> def my_function(non_serializable_object):  # Raises CacheError
-        >>>     return result
-        >>>
-        >>> # Storage failure
-        >>> cache.set("key", "value")  # May raise CacheError if DB is locked
+        # Cache key generation failure
+        @cache
+        def my_function(non_serializable_object):  # Raises CacheError
+            return result
+        
+        # Storage failure
+        cache.set("key", "value")  # May raise CacheError if DB is locked
     
     Attributes:
         message (str): Detailed explanation of the error

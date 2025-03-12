@@ -36,7 +36,7 @@ class ResultsDeserializationError(ResultsError):
     3. If the issue persists, you may need to recreate the results from raw data
     
     Examples:
-        >>> Results.from_dict(incomplete_or_corrupted_data)  # Raises ResultsDeserializationError
+        Results.from_dict(incomplete_or_corrupted_data)  # Raises ResultsDeserializationError
     """
     relevant_doc = "https://docs.expectedparrot.com/en/latest/results.html#saving-and-loading-results"
 
@@ -55,8 +55,8 @@ class ResultsBadMutationstringError(ResultsError):
     3. Verify the right side is a valid Python expression
     
     Examples:
-        >>> results.mutate("invalid_mutation_no_equals")  # Raises ResultsBadMutationstringError
-        >>> results.mutate("column_name == value")  # Raises ResultsBadMutationstringError (should use single =)
+        results.mutate("invalid_mutation_no_equals")  # Raises ResultsBadMutationstringError
+        results.mutate("column_name == value")  # Raises ResultsBadMutationstringError (should use single =)
     """
     relevant_doc = "https://docs.expectedparrot.com/en/latest/results.html#creating-new-columns"
 
@@ -77,8 +77,8 @@ class ResultsColumnNotFoundError(ResultsError):
     that do exist, which can help identify typos.
     
     Examples:
-        >>> results.table(keys=["non_existent_column"])  # Raises ResultsColumnNotFoundError
-        >>> results.select("typo_in_column_name")  # Raises ResultsColumnNotFoundError
+        results.table(keys=["non_existent_column"])  # Raises ResultsColumnNotFoundError
+        results.select("typo_in_column_name")  # Raises ResultsColumnNotFoundError
     """
     relevant_doc = "https://docs.expectedparrot.com/en/latest/results.html#selecting-columns"
 
@@ -98,9 +98,9 @@ class ResultsInvalidNameError(ResultsError):
     3. Use only letters, numbers, and underscores (not starting with a number)
     
     Examples:
-        >>> results.mutate("123invalid = 1")  # Raises ResultsInvalidNameError (starts with number)
-        >>> results.mutate("invalid-name = 1")  # Raises ResultsInvalidNameError (contains hyphen)
-        >>> results.mutate("filter = 1")  # Raises ResultsInvalidNameError (reserved method name)
+        results.mutate("123invalid = 1")  # Raises ResultsInvalidNameError (starts with number)
+        results.mutate("invalid-name = 1")  # Raises ResultsInvalidNameError (contains hyphen)
+        results.mutate("filter = 1")  # Raises ResultsInvalidNameError (reserved method name)
     """
     relevant_doc = "https://docs.expectedparrot.com/en/latest/results.html#creating-new-columns"
 
@@ -122,8 +122,8 @@ class ResultsMutateError(ResultsError):
     4. Test the expression with simple cases first
     
     Examples:
-        >>> results.mutate("new_col = old_col + 'text'")  # Raises ResultsMutateError if old_col contains numbers
-        >>> results.mutate("new_col = undefined_col + 1")  # Raises ResultsMutateError if undefined_col doesn't exist
+        results.mutate("new_col = old_col + 'text'")  # Raises ResultsMutateError if old_col contains numbers
+        results.mutate("new_col = undefined_col + 1")  # Raises ResultsMutateError if undefined_col doesn't exist
     """
     relevant_doc = "https://docs.expectedparrot.com/en/latest/results.html#creating-new-columns"
 
@@ -145,7 +145,7 @@ class ResultsFilterError(ResultsError):
     4. Ensure type compatibility in comparisons
     
     Examples:
-        >>> results.filter("column = value")  # Raises ResultsFilterError (use == instead)
-        >>> results.filter("column == undefined_var")  # Raises ResultsFilterError if undefined_var isn't defined
+        results.filter("column = value")  # Raises ResultsFilterError (use == instead)
+        results.filter("column == undefined_var")  # Raises ResultsFilterError if undefined_var isn't defined
     """
     relevant_doc = "https://docs.expectedparrot.com/en/latest/results.html#filtering-results"

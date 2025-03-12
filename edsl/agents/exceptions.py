@@ -14,8 +14,8 @@ class AgentListError(BaseException):
     - When attempting to create a table from an empty AgentList
     
     Examples:
-        >>> agents.filter("invalid expression")  # Raises AgentListError
-        >>> agents.add_trait(name="scores", values=[1, 2])  # Raises AgentListError if agents list has different length
+        agents.filter("invalid expression")  # Raises AgentListError
+        agents.add_trait(name="scores", values=[1, 2])  # Raises AgentListError if agents list has different length
     """
     relevant_doc = "https://docs.expectedparrot.com/en/latest/agents.html#agent-lists"
 
@@ -42,8 +42,8 @@ class AgentDynamicTraitsFunctionError(AgentErrors):
     The function should accept only one parameter named 'question'.
     
     Examples:
-        >>> def wrong_func(question, extra_param):  # Will raise AgentDynamicTraitsFunctionError
-        >>>     return {"trait": "value"}
+        def wrong_func(question, extra_param):  # Will raise AgentDynamicTraitsFunctionError
+            return {"trait": "value"}
     """
     relevant_doc = (
         "https://docs.expectedparrot.com/en/latest/agents.html#dynamic-traits-function"
@@ -59,8 +59,8 @@ class AgentDirectAnswerFunctionError(AgentErrors):
     The method must include 'question', 'scenario', and/or 'self' parameters.
     
     Examples:
-        >>> def wrong_answer_func(wrong_param):  # Will raise AgentDirectAnswerFunctionError
-        >>>     return "Answer"
+        def wrong_answer_func(wrong_param):  # Will raise AgentDirectAnswerFunctionError
+            return "Answer"
     """
     relevant_doc = "https://docs.expectedparrot.com/en/latest/agents.html#agent-direct-answering-methods"
 
@@ -76,9 +76,9 @@ class AgentCombinationError(AgentErrors):
     or rename the conflicting traits before combination.
     
     Examples:
-        >>> agent1 = Agent(name="A1", age=30)
-        >>> agent2 = Agent(name="A2", age=40)
-        >>> agent1 + agent2  # Raises AgentCombinationError due to duplicate 'age' trait
+        agent1 = Agent(name="A1", age=30)
+        agent2 = Agent(name="A2", age=40)
+        agent1 + agent2  # Raises AgentCombinationError due to duplicate 'age' trait
     """
     relevant_doc = (
         "https://docs.expectedparrot.com/en/latest/agents.html#combining-agents"
@@ -93,8 +93,8 @@ class AgentNameError(AgentErrors):
     as 'name' is a special attribute for agents and cannot be used as a trait name.
     
     Examples:
-        >>> Agent(name="John", name="John")  # Raises AgentNameError
-        >>> agent.add_trait(name="name", value="NewName")  # Raises AgentNameError
+        Agent(name="John", name="John")  # Raises AgentNameError
+        agent.add_trait(name="name", value="NewName")  # Raises AgentNameError
     """
     relevant_doc = "https://docs.expectedparrot.com/en/latest/agents.html#agent-names"
 
@@ -108,8 +108,8 @@ class AgentTraitKeyError(AgentErrors):
     except underscore, cannot start with a number).
     
     Examples:
-        >>> Agent(name="John", "invalid-key"=30)  # Raises AgentTraitKeyError
-        >>> agent.add_trait(name="2invalid", value="value")  # Raises AgentTraitKeyError
+        Agent(name="John", "invalid-key"=30)  # Not valid syntax, would raise AgentTraitKeyError
+        agent.add_trait(name="2invalid", value="value")  # Raises AgentTraitKeyError
     """
     relevant_doc = (
         "https://docs.expectedparrot.com/en/latest/agents.html#constructing-an-agent"

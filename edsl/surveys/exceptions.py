@@ -33,8 +33,8 @@ class SurveyCreationError(SurveyError):
     4. When combining surveys, ensure they're compatible
     
     Examples:
-        >>> survey.add(question)  # Raises SurveyCreationError if question's name already exists
-        >>> survey.add_rules_to_question(EndOfSurvey)  # Raises SurveyCreationError
+        survey.add(question)  # Raises SurveyCreationError if question's name already exists
+        survey.add_rules_to_question(EndOfSurvey)  # Raises SurveyCreationError
     """
     relevant_doc = "https://docs.expectedparrot.com/en/latest/surveys.html#creating-surveys"
 
@@ -53,7 +53,7 @@ class SurveyHasNoRulesError(SurveyError):
     3. Use default rules where appropriate (add_default_rules method)
     
     Examples:
-        >>> survey.next_question(0)  # Raises SurveyHasNoRulesError if question 0 has no rules
+        survey.next_question(0)  # Raises SurveyHasNoRulesError if question 0 has no rules
     """
     relevant_doc = "https://docs.expectedparrot.com/en/latest/surveys.html#rules"
 
@@ -74,7 +74,7 @@ class SurveyRuleSendsYouBackwardsError(SurveyError):
     3. Consider using memory to carry forward information if needed
     
     Examples:
-        >>> survey.add_rule(question_index=2, rule=Rule(lambda x: True, 1))  # Raises SurveyRuleSendsYouBackwardsError
+        survey.add_rule(question_index=2, rule=Rule(lambda x: True, 1))  # Raises SurveyRuleSendsYouBackwardsError
     """
     relevant_doc = "https://docs.expectedparrot.com/en/latest/surveys.html#rules"
 
@@ -93,7 +93,8 @@ class SurveyRuleSkipLogicSyntaxError(SurveyError):
     3. Test the expression in isolation to verify it's valid Python
     
     Examples:
-        >>> Rule(lambda x: x[question] ==, 1)  # Raises SurveyRuleSkipLogicSyntaxError (invalid syntax)
+        # This would not be valid Python syntax
+        # Rule(lambda x: x[question] ==, 1)  # Raises SurveyRuleSkipLogicSyntaxError (invalid syntax)
     """
     relevant_doc = "https://docs.expectedparrot.com/en/latest/surveys.html#rules"
 
@@ -131,8 +132,8 @@ class SurveyRuleRefersToFutureStateError(SurveyError):
     3. Restructure your survey if you need different branching logic
     
     Examples:
-        >>> # If question 3 hasn't been asked yet:
-        >>> Rule(lambda x: x['q3_answer'] == 'Yes', next_question=4)  # Raises SurveyRuleRefersToFutureStateError
+        # If question 3 hasn't been asked yet:
+        Rule(lambda x: x['q3_answer'] == 'Yes', next_question=4)  # Raises SurveyRuleRefersToFutureStateError
     """
     relevant_doc = "https://docs.expectedparrot.com/en/latest/surveys.html#rules"
 
@@ -151,8 +152,8 @@ class SurveyRuleCollectionHasNoRulesAtNodeError(SurveyError):
     3. Add default rules where appropriate
     
     Examples:
-        >>> # If rule_collection has no rules for question 2:
-        >>> rule_collection.next_question(2, {})  # Raises SurveyRuleCollectionHasNoRulesAtNodeError
+        # If rule_collection has no rules for question 2:
+        rule_collection.next_question(2, {})  # Raises SurveyRuleCollectionHasNoRulesAtNodeError
     """
     relevant_doc = "https://docs.expectedparrot.com/en/latest/surveys.html#rule-collections"
 
@@ -173,7 +174,7 @@ class SurveyRuleCannotEvaluateError(SurveyError):
     4. Test rules with sample data before using in production
     
     Examples:
-        >>> # If 'q1_answer' is not in the data dictionary:
-        >>> Rule(lambda x: x['q1_answer'] == 'Yes', 2).evaluate({})  # Raises SurveyRuleCannotEvaluateError
+        # If 'q1_answer' is not in the data dictionary:
+        Rule(lambda x: x['q1_answer'] == 'Yes', 2).evaluate({})  # Raises SurveyRuleCannotEvaluateError
     """
     relevant_doc = "https://docs.expectedparrot.com/en/latest/surveys.html#rules"

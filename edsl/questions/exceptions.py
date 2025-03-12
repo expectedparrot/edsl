@@ -136,11 +136,11 @@ class QuestionCreationValidationError(QuestionErrors):
     4. Confirm that parameter combinations are compatible
     
     Examples:
-        >>> # Missing required options for multiple choice
-        >>> MultipleChoice(question_text="Choose one:", options=[])  # Raises QuestionCreationValidationError
-        >>> 
-        >>> # Invalid parameter combination
-        >>> Numerical(question_text="Enter a value:", min_value=10, max_value=5)  # Raises QuestionCreationValidationError
+        # Missing required options for multiple choice
+        MultipleChoice(question_text="Choose one:", options=[])  # Raises QuestionCreationValidationError
+        
+        # Invalid parameter combination
+        Numerical(question_text="Enter a value:", min_value=10, max_value=5)  # Raises QuestionCreationValidationError
     """
     
     def __init__(self, message="Invalid parameters for question creation"):
@@ -204,7 +204,7 @@ class QuestionSerializationError(QuestionErrors):
     3. Check for version compatibility if deserializing from an older version
     
     Examples:
-        >>> question.to_dict()  # Raises QuestionSerializationError if contains unserializable attributes
+        question.to_dict()  # Raises QuestionSerializationError if contains unserializable attributes
     """
     
     def __init__(self, message="Failed to serialize or deserialize question"):
@@ -226,7 +226,7 @@ class QuestionScenarioRenderError(QuestionErrors):
     3. Verify that the scenario size is within acceptable limits
     
     Examples:
-        >>> question.with_scenario(scenario_with_invalid_template)  # Raises QuestionScenarioRenderError
+        question.with_scenario(scenario_with_invalid_template)  # Raises QuestionScenarioRenderError
     """
     
     def __init__(self, message="Failed to render scenario for question"):
@@ -246,9 +246,9 @@ class QuestionMissingTypeError(QuestionErrors):
     2. Ensure the question_type is a unique identifier for the question type
     
     Examples:
-        >>> class MyQuestion(Question):  # Missing question_type attribute
-        >>>     pass
-        >>> # Registration would raise QuestionMissingTypeError
+        class MyQuestion(Question):  # Missing question_type attribute
+            pass
+        # Registration would raise QuestionMissingTypeError
     """
     
     def __init__(self, message="Question class is missing required type attribute"):
@@ -268,11 +268,11 @@ class QuestionBadTypeError(QuestionErrors):
     2. Match the parameter pattern required by the question registry
     
     Examples:
-        >>> class MyQuestion(Question):
-        >>>     question_type = "my_question"
-        >>>     def __init__(self, missing_required_params):  # Invalid signature
-        >>>         pass
-        >>> # Registration would raise QuestionBadTypeError
+        class MyQuestion(Question):
+            question_type = "my_question"
+            def __init__(self, missing_required_params):  # Invalid signature
+                pass
+        # Registration would raise QuestionBadTypeError
     """
     
     def __init__(self, message="Question class has invalid __init__ method signature"):
