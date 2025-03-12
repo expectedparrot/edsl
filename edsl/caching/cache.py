@@ -157,8 +157,8 @@ class Cache(Base):
             
         Examples:
             >>> from edsl import Cache
-            >>> Cache.example().keys()  # doctest: +ELLIPSIS
-            ['...']
+            >>> Cache.example().keys()
+            ['5513286eb6967abc0511211f0402587d']
         """
         return list(self.data.keys())
 
