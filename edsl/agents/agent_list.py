@@ -18,6 +18,7 @@ from simpleeval import EvalWithCompoundTypes, NameNotDefined
 
 from ..base import Base
 from ..utilities import is_notebook, remove_edsl_version, dict_hash
+from ..utilities.query_utils import Field, QueryExpression, apply_filter
 from ..dataset.dataset_operations_mixin import AgentListOperationsMixin
 
 from .agent import Agent
@@ -186,12 +187,12 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
 
         return AgentList([agent.select(*traits_to_select) for agent in self.data])
 
-    def filter(self, expression: str) -> AgentList:
+    def filter(self, expression: Union[str, QueryExpression]) -> AgentList:
         """Filter agents based on a boolean expression.
 
         Args:
-            expression: A string containing a boolean expression to evaluate against
-                each agent's traits.
+            expression: Either a string containing a boolean expression or a QueryExpression
+                created using Field objects (e.g., Field('age') > 10).
 
         Returns:
             AgentList: A new AgentList containing only agents that satisfy the expression.
@@ -202,24 +203,48 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
             ...                Agent(traits = {'a': 1, 'b': 2})])
             >>> al.filter("b == 2")
             AgentList([Agent(traits = {'a': 1, 'b': 2})])
+            >>> from edsl.utilities.query_utils import Field
+            >>> al.filter(Field('b') == 2)
+            AgentList([Agent(traits = {'a': 1, 'b': 2})])
         """
+        # If expression is a string, use the original implementation
+        if isinstance(expression, str):
+            def create_evaluator(agent: "Agent"):
+                """Create an evaluator for the given agent."""
+                return EvalWithCompoundTypes(names=agent.traits)
 
-        def create_evaluator(agent: "Agent"):
-            """Create an evaluator for the given agent."""
-            return EvalWithCompoundTypes(names=agent.traits)
+            try:
+                new_data = [
+                    agent for agent in self.data if create_evaluator(agent).eval(expression)
+                ]
+            except NameNotDefined as e:
+                e = AgentListError(f"'{expression}' is not a valid expression.")
+                if is_notebook():
+                    print(e, file=sys.stderr)
+                else:
+                    raise e
 
-        try:
-            new_data = [
-                agent for agent in self.data if create_evaluator(agent).eval(expression)
-            ]
-        except NameNotDefined as e:
-            e = AgentListError(f"'{expression}' is not a valid expression.")
-            if is_notebook():
-                print(e, file=sys.stderr)
-            else:
-                raise e
+                return EmptyAgentList()
 
-            return EmptyAgentList()
+        # If expression is a QueryExpression, use the new implementation
+        elif isinstance(expression, QueryExpression):
+            try:
+                # Get filtered agents by evaluating the expression against each agent's traits
+                new_data = [
+                    agent for agent in self.data if expression.evaluate(agent.traits)
+                ]
+            except Exception as e:
+                e = AgentListError(f"Error evaluating query expression: {str(e)}")
+                if is_notebook():
+                    print(e, file=sys.stderr)
+                else:
+                    raise e
+
+                return EmptyAgentList()
+        else:
+            raise AgentListError(
+                f"Expression must be a string or QueryExpression, got {type(expression)}"
+            )
 
         if len(new_data) == 0:
             return EmptyAgentList()

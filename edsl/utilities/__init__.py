@@ -69,3 +69,6 @@ from .converter_utils import (
 
 # Restricted Python
 from .restricted_python import create_restricted_function
+
+# Query utilities
+from .query_utils import Field, QueryExpression

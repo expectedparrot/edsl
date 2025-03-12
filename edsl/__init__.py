@@ -61,3 +61,7 @@ __all__.extend(jobs_all)
 from .study import __all__ as study_all
 from .study import *
 __all__.extend(study_all)
+
+# Add Field class for query expressions
+from .utilities.query_utils import Field
+__all__.append('Field')

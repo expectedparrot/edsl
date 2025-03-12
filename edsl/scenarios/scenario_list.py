@@ -38,6 +38,10 @@ from collections.abc import Iterable
 from simpleeval import EvalWithCompoundTypes, NameNotDefined  # type: ignore
 from tabulate import tabulate_formats
 
+from ..utilities.query_utils import Field, QueryExpression, apply_filter
+# Import ScenarioError for exception handling
+from .exceptions import ScenarioError
+
 try:
     from typing import TypeAlias
 except ImportError:
@@ -246,7 +250,7 @@ class ScenarioList(Base, UserList, ScenarioListOperationsMixin):
         ScenarioList([Scenario({'a': 1, 'b': 2}), Scenario({'a': 1, 'b': 1})])
         >>> s = ScenarioList([Scenario({'are you there John?': 1, 'b': 2}), Scenario({'a': 1, 'b': 1})])
         >>> s.give_valid_names()
-        ScenarioList([Scenario({'john': 1, 'b': 2}), Scenario({'a': 1, 'b': 1})])
+        ScenarioList([Scenario({'are_you_there_John_': 1, 'b': 2}), Scenario({'a': 1, 'b': 1})])
         >>> s.give_valid_names({'are you there John?': 'custom_name'})
         ScenarioList([Scenario({'custom_name': 1, 'b': 2}), Scenario({'a': 1, 'b': 1})])
         """
@@ -783,16 +787,20 @@ class ScenarioList(Base, UserList, ScenarioListOperationsMixin):
         """
         return ScenarioList([scenario.copy() for scenario in self])
 
-    def filter(self, expression: str) -> ScenarioList:
+    def filter(self, expression: Union[str, QueryExpression]) -> ScenarioList:
         """
         Filter a list of scenarios based on an expression.
 
-        :param expression: The expression to filter by.
+        :param expression: Either a string containing a boolean expression or a QueryExpression
+            created using Field objects (e.g., Field('age') > 10).
 
         Example:
 
         >>> s = ScenarioList([Scenario({'a': 1, 'b': 1}), Scenario({'a': 1, 'b': 2})])
         >>> s.filter("b == 2")
+        ScenarioList([Scenario({'a': 1, 'b': 2})])
+        >>> from edsl.utilities.query_utils import Field
+        >>> s.filter(Field('b') == 2)
         ScenarioList([Scenario({'a': 1, 'b': 2})])
         """
         sl = self.duplicate()
@@ -807,30 +815,47 @@ class ScenarioList(Base, UserList, ScenarioListOperationsMixin):
                 "Ragged ScenarioList detected (different keys for different scenario entries). This may cause unexpected behavior."
             )
 
-        def create_evaluator(scenario: Scenario):
-            """Create an evaluator for the given result.
-            The 'combined_dict' is a mapping of all values for that Result object.
-            """
-            return EvalWithCompoundTypes(names=scenario)
+        # If expression is a string, use the original implementation
+        if isinstance(expression, str):
+            def create_evaluator(scenario: Scenario):
+                """Create an evaluator for the given result.
+                The 'combined_dict' is a mapping of all values for that Result object.
+                """
+                return EvalWithCompoundTypes(names=scenario)
 
-        try:
-            # iterates through all the results and evaluates the expression
-            new_data = []
-            for scenario in sl:
-                if create_evaluator(scenario).eval(expression):
-                    new_data.append(scenario)
-        except NameNotDefined as e:
-            available_fields = ", ".join(self.data[0].keys() if self.data else [])
+            try:
+                # iterates through all the results and evaluates the expression
+                new_data = []
+                for scenario in sl:
+                    if create_evaluator(scenario).eval(expression):
+                        new_data.append(scenario)
+            except NameNotDefined as e:
+                available_fields = ", ".join(self.data[0].keys() if self.data else [])
+                raise ScenarioError(
+                    f"Error in filter: '{e}'\n"
+                    f"The expression '{expression}' refers to a field that does not exist.\n"
+                    f"Scenario: {scenario}\n"
+                    f"Available fields: {available_fields}\n"
+                    "Check your filter expression or consult the documentation: "
+                    "https://docs.expectedparrot.com/en/latest/scenarios.html#module-edsl.scenarios.Scenario"
+                ) from None
+            except Exception as e:
+                raise ScenarioError(f"Error in filter. Exception:{e}")
+        
+        # If expression is a QueryExpression, use the new implementation
+        elif isinstance(expression, QueryExpression):
+            try:
+                # Get filtered scenarios by evaluating the expression against each scenario's dict
+                new_data = []
+                for scenario in sl:
+                    if expression.evaluate(scenario):
+                        new_data.append(scenario)
+            except Exception as e:
+                raise ScenarioError(f"Error evaluating query expression: {str(e)}")
+        else:
             raise ScenarioError(
-                f"Error in filter: '{e}'\n"
-                f"The expression '{expression}' refers to a field that does not exist.\n"
-                f"Scenario: {scenario}\n"
-                f"Available fields: {available_fields}\n"
-                "Check your filter expression or consult the documentation: "
-                "https://docs.expectedparrot.com/en/latest/scenarios.html#module-edsl.scenarios.Scenario"
-            ) from None
-        except Exception as e:
-            raise ScenarioError(f"Error in filter. Exception:{e}")
+                f"Expression must be a string or QueryExpression, got {type(expression)}"
+            )
 
         return ScenarioList(new_data)
 

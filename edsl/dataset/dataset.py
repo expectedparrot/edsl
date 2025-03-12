@@ -8,6 +8,7 @@ from collections import UserList
 from typing import Any, Union, Optional, TYPE_CHECKING
 
 from ..base import PersistenceMixin, HashingMixin
+from ..utilities.query_utils import Field, QueryExpression
 
 from .dataset_tree import Tree
 
@@ -148,7 +149,24 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
         """
         return [list(o.keys())[0] for o in self]
 
-    def filter(self, expression):
+    def filter(self, expression: Union[str, QueryExpression]):
+        """Filter the dataset based on a boolean expression.
+        
+        Args:
+            expression: Either a string containing a boolean expression or a QueryExpression
+                created using Field objects (e.g., Field('age') > 10).
+                
+        Returns:
+            A new Dataset containing only observations that satisfy the expression.
+            
+        Examples:
+            >>> d = Dataset([{'age': [25, 30, 20]}, {'name': ['John', 'Alice', 'Bob']}])
+            >>> d.filter("age > 25")
+            Dataset([{'age': [30]}, {'name': ['Alice']}])
+            >>> from edsl.utilities.query_utils import Field
+            >>> d.filter(Field('age') > 25)
+            Dataset([{'age': [30]}, {'name': ['Alice']}])
+        """
         return self.to_scenario_list().filter(expression).to_dataset()
     
     def mutate(self, new_var_string: str, functions_dict: Optional[dict[str, Callable]] = None) -> "Dataset":
