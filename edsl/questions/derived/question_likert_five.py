@@ -145,8 +145,7 @@ class QuestionLikertFive(QuestionMultipleChoice):
 
 def main():
     """Test QuestionLikertFive."""
-    from edsl.questions.derived.QuestionLikertFive import QuestionLikertFive
-
+    # Use the class directly since we're already in the module
     q = QuestionLikertFive.example()
     q.question_text
     q.question_options
