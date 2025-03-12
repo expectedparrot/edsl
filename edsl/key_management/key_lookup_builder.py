@@ -63,7 +63,7 @@ class KeyLookupBuilder:
         fetch_order: Optional[tuple[str]] = None,
         coop: Optional["Coop"] = None,
     ):
-        from edsl.coop import Coop
+        from ..coop import Coop
 
         # Fetch order goes from lowest priority to highest priority
         if fetch_order is None:
@@ -170,7 +170,7 @@ class KeyLookupBuilder:
         return dict(list(self.coop.fetch_rate_limit_config_vars().items()))
 
     def _config_key_value_pairs(self):
-        from edsl.config import CONFIG
+        from ..config import CONFIG
 
         return dict(list(CONFIG.items()))
 

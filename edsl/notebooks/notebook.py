@@ -5,8 +5,8 @@ import json
 from typing import Dict, List, Optional, Union
 from uuid import uuid4
 
-from edsl.base import Base
-from edsl.utilities.decorators import remove_edsl_version
+from ..base import Base
+from ..utilities.decorators import remove_edsl_version
 
 class Notebook(Base):
     """
@@ -102,7 +102,7 @@ class Notebook(Base):
         """
         Allow the model to be used as a key in a dictionary.
         """
-        from edsl.utilities.utilities import dict_hash
+        from ..utilities.utilities import dict_hash
 
         return dict_hash(self.data["cells"])
 
@@ -112,7 +112,7 @@ class Notebook(Base):
         """
         d = {"name": self.name, "data": self.data}
         if add_edsl_version:
-            from edsl import __version__
+            from .. import __version__
 
             d["edsl_version"] = __version__
             d["edsl_class_name"] = self.__class__.__name__
@@ -241,7 +241,7 @@ class Notebook(Base):
         Return the code that could be used to create this Notebook.
         """
         lines = []
-        lines.append("from edsl import Notebook")
+        lines.append("from edsl import Notebook")  # Keep as absolute for code generation
         lines.append(f'nb = Notebook(data={self.data}, name="""{self.name}""")')
         return lines
 
@@ -257,6 +257,6 @@ class Notebook(Base):
 
 
 if __name__ == "__main__":
-    from edsl import Notebook
+    from .. import Notebook
     notebook = Notebook.example()
     assert notebook == notebook.from_dict(notebook.to_dict())

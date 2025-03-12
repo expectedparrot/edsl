@@ -3,7 +3,7 @@
 import os
 import platformdirs
 from dotenv import load_dotenv, find_dotenv
-from edsl.exceptions.configuration import (
+from .exceptions.configuration import (
     InvalidEnvironmentVariableError,
     MissingEnvironmentVariableError,
 )

@@ -1,7 +1,7 @@
 import json
 import requests
 import threading
-from edsl.coop import Coop
+from ..coop import Coop
 
 
 class ReportErrors:
@@ -41,7 +41,7 @@ class ReportErrors:
 
 
 def main():
-    from edsl.jobs.interviews.ReportErrors import ReportErrors
+    # Use the class directly since we're already in the module
 
     class TaskHistory:
         def __init__(self, data):
