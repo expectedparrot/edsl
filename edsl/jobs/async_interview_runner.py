@@ -13,13 +13,12 @@ from edsl.data_transfer_models import EDSLResultObjectInput
 
 from ..results import Result
 from ..interviews import Interview
-from ..config import Config
-config = Config()
 
 if TYPE_CHECKING:
     from ..jobs import Jobs
 
 from .data_structures import RunConfig
+from .concurrency_control import ConcurrencyManager
 
 @dataclass
 class InterviewResult:
@@ -52,8 +51,6 @@ class AsyncInterviewRunner:
         >>> isinstance(runner._initialized, asyncio.Event)
         True
     """
-    
-    MAX_CONCURRENT = int(config.EDSL_MAX_CONCURRENT_TASKS)
 
     def __init__(self, jobs: "Jobs", run_config: RunConfig):
         """
@@ -66,6 +63,8 @@ class AsyncInterviewRunner:
         self.jobs = jobs
         self.run_config = run_config
         self._initialized = asyncio.Event()
+        # Get the concurrency limit adaptively
+        self.max_concurrent = ConcurrencyManager.get_max_concurrent()
 
     def _expand_interviews(self) -> Generator["Interview", None, None]:
         """
@@ -138,8 +137,8 @@ class AsyncInterviewRunner:
         """
         Run all interviews asynchronously and yield results as they complete.
         
-        This method processes interviews in chunks based on MAX_CONCURRENT,
-        maintaining controlled concurrency while yielding results as soon as
+        This method processes interviews in chunks using adaptive concurrency control,
+        maintaining controlled parallelism while yielding results as soon as
         they become available.
         
         Yields:
@@ -149,6 +148,7 @@ class AsyncInterviewRunner:
             - Uses structured concurrency patterns for proper resource management
             - Handles exceptions according to the run configuration
             - Ensures task cleanup even in case of failures
+            - Adapts concurrency based on system resources
         """
         interviews = list(self._expand_interviews())
         self._initialized.set()
@@ -168,9 +168,13 @@ class AsyncInterviewRunner:
                     raise
                 return None
 
-        # Process interviews in chunks
-        for i in range(0, len(interviews), self.MAX_CONCURRENT):
-            chunk = interviews[i : i + self.MAX_CONCURRENT]
+        # Check if we should reduce concurrency based on system load
+        if ConcurrencyManager.should_reduce_concurrency():
+            self.max_concurrent = max(2, self.max_concurrent // 2)
+
+        # Process interviews in chunks with adaptive concurrency
+        for i in range(0, len(interviews), self.max_concurrent):
+            chunk = interviews[i : i + self.max_concurrent]
             tasks = [
                 asyncio.create_task(_process_single_interview(interview, idx))
                 for idx, interview in enumerate(chunk, start=i)
@@ -197,6 +201,11 @@ class AsyncInterviewRunner:
                 for task in tasks:
                     if not task.done():
                         task.cancel()
+                        
+                # Check if we should adjust concurrency for next chunk
+                if i + self.max_concurrent < len(interviews):
+                    if ConcurrencyManager.should_reduce_concurrency():
+                        self.max_concurrent = max(2, self.max_concurrent - 1)
 
 
 if __name__ == "__main__":

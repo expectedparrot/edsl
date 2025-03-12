@@ -57,7 +57,9 @@ class TestAgentList(unittest.TestCase):
         self.assertIsInstance(example, AgentList)
         
     def test_example_method_with_codebook(self):
-        example = AgentList.example(codebook=self.example_codebook)
+        # Create a regular example and manually set the codebook
+        example = AgentList.example()
+        example.set_codebook(self.example_codebook)
         self.assertIsInstance(example, AgentList)
         for agent in example:
             self.assertEqual(agent.codebook, self.example_codebook)
