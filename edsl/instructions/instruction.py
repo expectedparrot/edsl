@@ -1,7 +1,7 @@
 from typing import Union, Optional, List, Generator, Dict
-from edsl.utilities.remove_edsl_version import remove_edsl_version
-from edsl.base import RepresentationMixin
-#from edsl.surveys import Survey
+from ..utilities.remove_edsl_version import remove_edsl_version
+from ..base import RepresentationMixin
+#from ..surveys import Survey
 
 
 class Instruction(RepresentationMixin):
@@ -30,19 +30,19 @@ class Instruction(RepresentationMixin):
             "preamble": self.preamble,
         }
         if add_edsl_version:
-            from edsl import __version__
+            from .. import __version__
 
             d["edsl_version"] = __version__
             d["edsl_class_name"] = "Instruction"
         return d
 
     def add_question(self, question) -> "Survey":
-        from edsl.surveys import Survey
+        from ..surveys import Survey
         return Survey([self, question])
 
     def __hash__(self) -> int:
         """Return a hash of the question."""
-        from edsl.utilities.utilities import dict_hash
+        from ..utilities.utilities import dict_hash
 
         return dict_hash(self.to_dict(add_edsl_version=False))
 
