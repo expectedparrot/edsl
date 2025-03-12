@@ -2,13 +2,13 @@ from collections import UserList
 import asyncio
 import inspect
 from typing import Optional, Callable
-from edsl import Agent, QuestionFreeText, Results, AgentList, ScenarioList, Scenario
-from edsl.questions import QuestionBase
-from edsl.results.Result import Result
+from .. import Agent, QuestionFreeText, Results, AgentList, ScenarioList, Scenario
+from ..questions import QuestionBase
+from ..results.Result import Result
 from jinja2 import Template
-from edsl.caching import Cache
+from ..caching import Cache
 
-from edsl.conversation.next_speaker_utilities import (
+from .next_speaker_utilities import (
     default_turn_taking_generator,
     speaker_closure,
 )
@@ -83,7 +83,7 @@ class Conversation:
 
         self.agent_list = agent_list
 
-        from edsl import Model
+        from .. import Model
 
         for agent in self.agent_list:
             if not hasattr(agent, "model"):
@@ -200,7 +200,7 @@ What do you say next?"""
         """Get the next statement from the speaker."""
         q = self.next_statement_question
         # assert q.parameters == {"agent_name", "conversation"}, q.parameters
-        from edsl import Scenario
+        from .. import Scenario
 
         if self.per_round_message_template is None:
             round_message = None

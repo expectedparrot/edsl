@@ -20,7 +20,7 @@ from .exception_tracking import InterviewExceptionEntry
 
 
 class RetryConfig:
-    from edsl.config import CONFIG
+    from ..config import CONFIG
 
     EDSL_BACKOFF_START_SEC = float(CONFIG.get("EDSL_BACKOFF_START_SEC"))
     EDSL_BACKOFF_MAX_SEC = float(CONFIG.get("EDSL_BACKOFF_MAX_SEC"))

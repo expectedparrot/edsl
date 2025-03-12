@@ -128,6 +128,7 @@ Working with Results
 --------------------
 
 - :ref:`results`: Access built-in methods for analyzing survey results as datasets.
+- :ref:`dataset`: Work with tabular data using the versatile Dataset class.
 - :ref:`caching`: Learn about caching and sharing results.
 - :ref:`exceptions`: Identify and handle exceptions in running surveys.
 - :ref:`token_usage`: Monitor token limits and usage for language models.
@@ -225,6 +226,7 @@ Links
    :hidden:
 
    results
+   dataset
    data
    exceptions
    token_usage
