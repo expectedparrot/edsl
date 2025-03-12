@@ -7,7 +7,7 @@ import json
 import os
 import warnings
 from typing import Optional, Union, TYPE_CHECKING
-from edsl.base import Base
+from ..base import Base
 
 from ..utilities import remove_edsl_version, dict_hash
 from .exceptions import CacheError
@@ -418,7 +418,7 @@ class Cache(Base):
     def to_dict(self, add_edsl_version=True) -> dict:
         d = {k: v.to_dict() for k, v in self.data.items()}
         if add_edsl_version:
-            from edsl import __version__
+            from .. import __version__
 
             d["edsl_version"] = __version__
             d["edsl_class_name"] = "Cache"
