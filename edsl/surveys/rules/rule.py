@@ -1,10 +1,21 @@
 """The Rule class defines a rule for determining the next question presented to an agent.
 
-The key component is an expression specifiying the logic of the rule, which can include any combination of logical operators ('and', 'or', 'not'), e.g.:
+The key component is an expression specifying the logic of the rule. This can be defined in two ways:
+
+1. Using a string expression with logical operators ('and', 'or', 'not'), e.g.:
 
 .. code-block:: python
 
-    "q1 == 'yes' or q2 == 'no'"
+    "q1.answer == 'yes' or q2.answer == 'no'"
+    
+2. Using Field-based syntax for a more intuitive, pandas-like experience:
+
+.. code-block:: python
+
+    (Field('q1.answer') == 'yes') | (Field('q2.answer') == 'no')
+
+Both approaches are converted to Jinja2 templates for evaluation. The Field-based approach
+provides better type safety and IDE support, with a more intuitive syntax.
 
 The expression must be about questions "before" the current question.
 
@@ -19,8 +30,10 @@ with a low (-1) priority.
 
 import ast
 import random
-from typing import Any, Union, List
+from typing import Any, Union, List, Optional
 from collections import defaultdict
+
+from ...utilities import Field, QueryExpression, apply_filter
 
 
 # from rich import print
@@ -64,7 +77,7 @@ class Rule:
     def __init__(
         self,
         current_q: int,
-        expression: str,
+        expression: Union[str, QueryExpression],
         next_q: Union[int, EndOfSurvey.__class__],
         question_name_to_index: dict[str, int],
         priority: int,
@@ -75,17 +88,26 @@ class Rule:
         Questions are represented by int indices.
 
         :param current_q: The question at which the rule is potentially applied.
-        :param expression: A string that evaluates to true or false. If true, then next_q is next.
+        :param expression: Either a string that evaluates to true or false, or a QueryExpression
+            created using Field objects (e.g., Field('q1.answer') == 'yes').
+            If the expression evaluates to true, then next_q is next.
         :param next_q: The next question if the expression is true.
         :param question_name_to_index: A dictionary mapping question names to indices.
         :param priority: An integer that determines which rule is applied, if multiple rules apply.
         """
         self.current_q = current_q
-        self.expression = expression
         self.next_q = next_q
         self.question_name_to_index = question_name_to_index
         self.priority = priority
         self.before_rule = before_rule
+        self._query_expression = None
+
+        # Handle QueryExpression - convert to string expression with Jinja2 syntax
+        if isinstance(expression, QueryExpression):
+            self._query_expression = expression
+            self.expression = self._convert_query_expression_to_jinja(expression)
+        else:
+            self.expression = expression
 
         if not self.next_q == EndOfSurvey:
             if self.next_q <= self.current_q:
@@ -137,6 +159,73 @@ class Rule:
                 else:
                     self.expression = self.expression.replace(q, f"{{{{ {q}.answer }}}}")
             warnings.warn(f"This uses the old syntax! Converting to Jinja2 style with {{ }}.\nOld expression: {old_expression}\nNew expression: {self.expression}")
+            
+    def _convert_query_expression_to_jinja(self, query_expr: QueryExpression) -> str:
+        """Convert a QueryExpression to a Jinja2-compatible string expression.
+        
+        Args:
+            query_expr: The QueryExpression to convert
+            
+        Returns:
+            A string representation of the expression using Jinja2 syntax
+            
+        Examples:
+            Field('q1.answer') == 'yes' -> "{{ q1.answer }} == 'yes'"
+            (Field('q1.answer') == 'yes') & (Field('q2.answer') > 5) -> 
+                "{{ q1.answer }} == 'yes' and {{ q2.answer }} > 5"
+        """
+        # Map operators to their string representations
+        op_map = {
+            'eq': '==',
+            'ne': '!=',
+            'lt': '<',
+            'le': '<=',
+            'gt': '>',
+            'ge': '>=',
+            'contains': 'in',
+            'and_': 'and',
+            'or_': 'or',
+        }
+        
+        # Handle leaf nodes (simple expressions)
+        if hasattr(query_expr, 'op') and hasattr(query_expr, 'left') and hasattr(query_expr, 'right'):
+            # Get operator name
+            op_name = query_expr.op.__name__ if hasattr(query_expr.op, '__name__') else str(query_expr.op)
+            op_str = op_map.get(op_name, op_name)
+            
+            # Handle left operand
+            if isinstance(query_expr.left, Field):
+                left_str = f"{{{{ {query_expr.left.name} }}}}"
+            elif isinstance(query_expr.left, QueryExpression):
+                left_str = self._convert_query_expression_to_jinja(query_expr.left)
+            else:
+                left_str = repr(query_expr.left)
+                
+            # Handle right operand
+            if isinstance(query_expr.right, Field):
+                right_str = f"{{{{ {query_expr.right.name} }}}}"
+            elif isinstance(query_expr.right, QueryExpression):
+                right_str = self._convert_query_expression_to_jinja(query_expr.right)
+            else:
+                right_str = repr(query_expr.right)
+            
+            # Handle special methods like startswith, endswith, etc.
+            if op_name == '<lambda>':
+                # Handle string operations that use lambdas
+                if 'startswith' in str(query_expr.op):
+                    return f"{left_str}.startswith({right_str})"
+                elif 'endswith' in str(query_expr.op):
+                    return f"{left_str}.endswith({right_str})"
+                elif 'contains' in str(query_expr.op):
+                    return f"{right_str} in {left_str}"
+                elif 'matches' in str(query_expr.op):
+                    return f"re.search({right_str}, {left_str})"
+            
+            # Format the expression
+            return f"({left_str} {op_str} {right_str})"
+        
+        # If the expression doesn't have the expected structure, return it as is
+        return str(query_expr)
 
     def _checks(self):
         pass
@@ -246,6 +335,13 @@ class Rule:
 
         >>> r = Rule.example(jinja2=True)
         >>> r.evaluate({'q1.answer' : 'This is q1'})
+        False
+        
+        >>> # Using Field-based expressions (converted to Jinja2 underneath)
+        >>> r = Rule.example(field_based=True)
+        >>> r.evaluate({'q1.answer' : 'yes'})
+        True
+        >>> r.evaluate({'q1.answer' : 'no'})
         False
 
         >>> import warnings
@@ -357,19 +453,35 @@ class Rule:
             raise SurveyRuleCannotEvaluateError(msg)
 
     @classmethod
-    def example(cls, jinja2=False, bad=False):
-        if jinja2:
-            # a rule written in jinja2 style with {{ }}
-            expression = "{{ q1.answer }} == 'yes'"
+    def example(cls, jinja2=False, field_based=False, bad=False):
+        """Create an example Rule.
+        
+        Args:
+            jinja2: Whether to use Jinja2 syntax (has no effect if field_based=True)
+            field_based: Whether to use Field-based expression syntax
+            bad: Whether to use a 'bad' expression that won't evaluate correctly
+            
+        Returns:
+            An example Rule instance
+        """
+        if field_based:
+            # Using the Field-based syntax
+            if bad:
+                expression = Field('q1') == 'This is q1'
+            else:
+                expression = Field('q1.answer') == 'yes'
+        elif jinja2:
+            # A rule written in jinja2 style with {{ }}
+            if bad:
+                expression = "{{ q1 }} == 'This is q1'"
+            else:
+                expression = "{{ q1.answer }} == 'yes'"
         else:
-            expression = "{{ q1.answer }} == 'yes'"
-
-        if bad and jinja2:
-            # a rule written in jinja2 style with {{ }} but with a 'bad' expression
-            expression = "{{ q1 }} == 'This is q1'"
-
-        if bad and not jinja2:
-            expression = "{{ q1.answer }} == 'This is q1'"
+            # Default string expression
+            if bad:
+                expression = "{{ q1.answer }} == 'This is q1'"
+            else:
+                expression = "{{ q1.answer }} == 'yes'"
 
         r = Rule(
             current_q=1,
