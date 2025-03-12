@@ -20,6 +20,7 @@ with a low (-1) priority.
 import ast
 import random
 from typing import Any, Union, List
+from collections import defaultdict
 
 
 # from rich import print
@@ -257,6 +258,66 @@ class Rule:
         """
         from jinja2 import Template
 
+        def jinja_ize_dictionary(dictionary):
+            """Convert a dictionary to a Jinja2 dictionary.
+            
+            Keys must be either:
+            - 'agent'
+            - 'scenario'
+            - A valid question name from question_name_to_index
+            
+            For question keys, the value is wrapped in an 'answer' subdictionary.
+            
+            Examples:
+            >>> d = jinja_ize_dictionary({'q1': 'yes'}, {'q1': 1})
+            >>> d['q1']['answer']
+            'yes'
+            
+            >>> d = jinja_ize_dictionary({'agent': 'friendly'}, {'q1': 1})
+            >>> d['agent']
+            'friendly'            
+            """
+            jinja_dict = defaultdict(dict)
+            
+            for key, value in dictionary.items():
+                # print("Now processing key: ", key)
+                # print(f"key: {key}, value: {value}")
+                # Handle special keys
+                if 'agent.' in key:
+                    # print("Agent key found")
+                    jinja_dict['agent'][key.split('.')[1]] = value
+                    # print("jinja dict: ", jinja_dict)
+                    continue 
+
+                if 'scenario.' in key:
+                    # print("Scenario key found")
+                    jinja_dict['scenario'][key.split('.')[1]] = value
+                    # print("jinja dict: ", jinja_dict)
+                    continue
+
+                # print("On to question keys")
+                for question_name in self.question_name_to_index.keys():
+                    # print("question_name: ", question_name)
+                    if question_name in key:
+                        if question_name == key:
+                            # print("question name is key; it's an answer")
+                            jinja_dict[question_name]['answer'] = value
+                            # print("jinja dict: ", jinja_dict)
+                            continue
+                        else:
+                            # print("question name is not key; it's a sub-type")
+                            if "." in key:
+                                passed_name, value_type = key.split('.')
+                                # print("passed_name: ", passed_name)
+                                # print("value_type: ", value_type)
+                                if passed_name == question_name:
+                                    # print("passed name is question name; it's a sub-type")
+                                    jinja_dict[question_name][value_type] = value
+                                    # print("jinja dict: ", jinja_dict)
+                                    continue
+                  
+            return jinja_dict
+
         def substitute_in_answers(expression, current_info_env):
             """Take the dictionary of answers and substitute them into the expression."""
 
@@ -264,11 +325,7 @@ class Rule:
 
             if "{{" in expression and "}}" in expression:
                 template_expression = Template(self.expression)
-                from collections import defaultdict
-                jinja_dict = defaultdict(dict)
-                for key, value in current_info.items():
-                    key_type, key_name = key.split(".")
-                    jinja_dict[key_type][key_name] = value
+                jinja_dict = jinja_ize_dictionary(current_info)
                 to_evaluate = template_expression.render(jinja_dict)
             else:
                 to_evaluate = expression
@@ -276,6 +333,8 @@ class Rule:
                     to_evaluate = to_evaluate.replace(var, value)
 
             return to_evaluate
+        
+        #breakpoint()
 
         try:
             to_evaluate = substitute_in_answers(self.expression, current_info_env)

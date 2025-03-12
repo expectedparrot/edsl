@@ -54,8 +54,7 @@ class QuestionYesNo(QuestionMultipleChoice):
 
 def main():
     """Create an example of a yes/no question and demonstrate its functionality."""
-    from edsl.questions.derived.QuestionYesNo import QuestionYesNo
-
+    # Use the class directly since we're already in the module
     q = QuestionYesNo.example()
     q.question_text
     q.question_options

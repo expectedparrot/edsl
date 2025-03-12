@@ -22,7 +22,7 @@ async def async_repair(
         return valid_dict, success
 
     try:
-        from edsl.utilities.repair_functions import extract_json_from_string
+        from ..utilities.repair_functions import extract_json_from_string
 
         valid_dict = extract_json_from_string(s)
         success = True
@@ -32,11 +32,11 @@ async def async_repair(
     else:
         return valid_dict, success
 
-    from edsl.language_models.model import Model
+    from .model import Model
 
     m = Model()
 
-    from edsl.questions.QuestionExtract import QuestionExtract
+    from ..questions.QuestionExtract import QuestionExtract
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", UserWarning)
