@@ -14,11 +14,11 @@ if TYPE_CHECKING:
 
 from .table_data_class import TableData
 
-from .table_renderers import DataTablesRenderer, PandasStyleRenderer
+from .table_renderers import DataTablesRenderer, PandasStyleRenderer, RichRenderer
 
 Row = Sequence[Union[str, int, float, bool, None]]
 TableFormat = Literal[
-    "grid", "simple", "pipe", "orgtbl", "rst", "mediawiki", "html", "latex"
+    "grid", "simple", "pipe", "orgtbl", "rst", "mediawiki", "html", "latex", "rich"
 ]
 
 
@@ -66,9 +66,20 @@ class TableDisplay:
         return self.renderer_class(table_data).render_html()
 
     def __repr__(self):
-        from tabulate import tabulate
-
-        return tabulate(self.data, headers=self.headers, tablefmt=self.tablefmt)
+        # If rich format is requested, use RichRenderer
+        if self.tablefmt == "rich":
+            table_data = TableData(
+                headers=self.headers,
+                data=self.data,
+                parameters=self.printing_parameters,
+                raw_data_set=self.raw_data_set,
+            )
+            RichRenderer(table_data).render_terminal()
+            return ""  # Return empty string since the table is already printed
+        else:
+            # Fall back to tabulate for other formats
+            from tabulate import tabulate
+            return tabulate(self.data, headers=self.headers, tablefmt=self.tablefmt)
 
     @classmethod
     def from_dictionary(
