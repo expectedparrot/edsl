@@ -1,29 +1,71 @@
-# Core utilities - used across the codebase
-from .template_loader import TemplateLoader
-from .PrettyList import PrettyList
-from .restricted_python import create_restricted_function
-from .remove_edsl_version import remove_edsl_version
-from .ast_utilities import extract_variable_names
+"""
+Utility functions and classes for the EDSL package.
 
-# Functions from utilities.py
-from .utilities import (
-    clean_json,
-    dict_hash,
-    hash_value,
-    repair_json,
-    create_valid_var_name,
+This module provides various utility functions and classes used across the EDSL package.
+"""
+
+# Core classes
+from .pretty_list import PrettyList
+from .template_loader import TemplateLoader
+
+# String utilities
+from .string_utils import (
     random_string,
+    is_valid_variable_name,
+    create_valid_var_name,
     shorten_string,
-    is_gzipped
+    sanitize_string,
+    text_to_shortname,
+)
+
+# JSON utilities
+from .json_utils import (
+    dict_hash,
+    clean_json,
+    repair_json,
+    extract_json_from_string,
+    merge_dicts,
+)
+
+# File utilities
+from .file_utils import (
+    is_gzipped,
+    hash_value,
+    file_notice,
+    HTMLSnippet,
+)
+
+# Display utilities
+from .display_utils import (
+    Markdown,
+    dict_to_html,
 )
 
 # Decorator utilities
-from .decorators import sync_wrapper, jupyter_nb_handler
+from .decorator_utils import (
+    time_it,
+    time_all_functions,
+    add_edsl_version,
+    jupyter_nb_handler,
+    sync_wrapper,
+)
+from .decorators import add_edsl_version
+from .remove_edsl_version import remove_edsl_version
 
-# Standalone utilities
+# Notebook utilities
 from .is_notebook import is_notebook
-from .is_valid_variable_name import is_valid_variable_name
-from .naming_utilities import sanitize_string
 
-# Interface module - note: print_results_long is imported directly in results.py
+# Validation utilities
+from .validation_utils import (
+    is_valid_variable_name,
+    extract_variable_names,
+)
 
+# Converter utilities
+from .converter_utils import (
+    MarkdownToDocx,
+    MarkdownToPDF,
+)
+
+# Restricted Python
+from .restricted_python import create_restricted_function

@@ -1,3 +1,6 @@
+"""Function to check if the code is running in a Jupyter notebook."""
+
+
 def is_notebook() -> bool:
     """Check if the code is running in a Jupyter notebook or Google Colab."""
     try:
