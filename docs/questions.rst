@@ -853,6 +853,43 @@ An example can also be created using the `example` method:
 
    QuestionFreeText.example()
 
+HTML/XML Tags in Question Text
+'''''''''''''''''''''''''''''
+
+You can use HTML or XML tags within question text to provide additional context or instructions to the language model. These tags will be preserved and passed to the model as part of the prompt. This can be useful for structuring complex prompts or providing inline instructions.
+
+Example with XML tags for language specification:
+
+.. code-block:: python
+
+   q = QuestionFreeText(
+      question_name = "favorite_color",
+      question_text = """Please return your favorite color
+                     <language>
+                     German
+                     </language>
+                     """,
+   )
+
+When this question is run, the model will observe the XML tags and may respond in German:
+
+.. code-block:: python
+
+   results = q.run()
+   results.select('answer.*')
+   # Example output: 
+   # Dataset([{'answer.favorite_color': ['Als KI-Modell habe ich keine persönlichen Vorlieben oder Lieblingsfarben. Aber ich kann Ihnen sagen, dass in der deutschen Kultur Farben wie Blau, Rot und Grün oft beliebt sind. Wenn Sie weitere Informationen über Farben auf Deutsch benötigen, lassen Sie es mich wissen!']}])
+
+You can also use HTML formatting tags:
+
+.. code-block:: python
+
+   q = QuestionFreeText(
+      question_name = "formatted_question",
+      question_text = """This text includes <b>bold</b> and <i>italic</i> formatting.
+                     <br>This appears on a new line."""
+   )
+
 
 .. automodule:: edsl.questions.QuestionFreeText
    :members:
