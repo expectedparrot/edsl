@@ -1,7 +1,8 @@
 import pytest
 from docx import Document
 from docx.document import Document as DocumentClass
-from edsl.surveys.Survey import Survey
+from edsl.questions import QuestionMultipleChoice
+from edsl.surveys import Survey
 
 
 class TestDocxMethod:

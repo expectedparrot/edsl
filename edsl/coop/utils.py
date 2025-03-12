@@ -1,18 +1,16 @@
 from typing import Literal, Optional, Type, Union
 
-from edsl.agents.Agent import Agent
-from edsl.agents.AgentList import AgentList
-from edsl.data.Cache import Cache
-from edsl.language_models.ModelList import ModelList
-from edsl.notebooks.Notebook import Notebook
-from edsl.results.Results import Results
-from edsl.scenarios.Scenario import Scenario
-from edsl.scenarios.ScenarioList import ScenarioList
-from edsl.surveys.Survey import Survey
-from edsl.study.Study import Study
+from ..agents import Agent, AgentList
+from ..caching import Cache
+from ..language_models import ModelList
+from ..notebooks import Notebook
+from ..results import Results
+from ..scenarios import Scenario, ScenarioList
+from ..surveys import Survey
+from ..study import Study
 
-from edsl.language_models.LanguageModel import LanguageModel
-from edsl.questions.QuestionBase import QuestionBase
+from ..language_models import LanguageModel
+from ..questions import QuestionBase
 
 EDSLObject = Union[
     Agent,
@@ -61,7 +59,23 @@ VisibilityType = Literal[
 
 class ObjectRegistry:
     """
-    Utility class to map object types to database models.
+    Registry that maps between EDSL class types and their cloud storage object types.
+    
+    This utility class maintains a bidirectional mapping between EDSL Python classes
+    (like Survey, Agent, Results) and their corresponding object type identifiers
+    used in the cloud storage system. It enables the proper serialization,
+    deserialization, and type checking for objects stored in Expected Parrot's
+    cloud services.
+    
+    The registry is used by the Coop client to:
+    1. Determine the correct object type when uploading EDSL objects
+    2. Instantiate the correct class when downloading objects
+    3. Validate that retrieved objects match expected types
+    
+    Attributes:
+        objects (list): List of mappings between object types and EDSL classes
+        object_type_to_edsl_class (dict): Maps object type strings to EDSL classes
+        edsl_class_to_object_type (dict): Maps EDSL class names to object type strings
     """
 
     objects = [
@@ -78,6 +92,8 @@ class ObjectRegistry:
         {"object_type": "survey", "edsl_class": Survey},
         {"object_type": "study", "edsl_class": Study},
     ]
+    
+    # Create mappings for efficient lookups
     object_type_to_edsl_class = {o["object_type"]: o["edsl_class"] for o in objects}
     edsl_class_to_object_type = {
         o["edsl_class"].__name__: o["object_type"] for o in objects
@@ -85,12 +101,36 @@ class ObjectRegistry:
 
     @classmethod
     def get_object_type_by_edsl_class(cls, edsl_object: EDSLObject) -> ObjectType:
+        """
+        Get the object type identifier for an EDSL class or instance.
+        
+        This method determines the appropriate object type string for a given EDSL class
+        or instance, which is needed when storing the object in the cloud.
+        
+        Parameters:
+            edsl_object (EDSLObject): An EDSL class (type) or instance
+            
+        Returns:
+            ObjectType: The corresponding object type string (e.g., "survey", "agent")
+            
+        Raises:
+            ValueError: If no mapping exists for the provided object
+            
+        Notes:
+            - Special handling for Question classes, which all map to "question"
+            - Works with both class types and instances
+        """
+        # Handle both class objects and instances
         if isinstance(edsl_object, type):
             edsl_class_name = edsl_object.__name__
         else:
             edsl_class_name = type(edsl_object).__name__
+            
+        # Special handling for question classes
         if edsl_class_name.startswith("Question"):
             edsl_class_name = "QuestionBase"
+            
+        # Look up the object type
         object_type = cls.edsl_class_to_object_type.get(edsl_class_name)
         if object_type is None:
             raise ValueError(f"Object type not found for {edsl_object=}")
@@ -98,10 +138,25 @@ class ObjectRegistry:
 
     @classmethod
     def get_edsl_class_by_object_type(cls, object_type: ObjectType) -> EDSLObject:
-        EDSL_object = cls.object_type_to_edsl_class.get(object_type)
-        if EDSL_object is None:
+        """
+        Get the EDSL class for a given object type identifier.
+        
+        This method returns the appropriate EDSL class for a given object type string,
+        which is needed when retrieving objects from the cloud.
+        
+        Parameters:
+            object_type (ObjectType): The object type string (e.g., "survey", "agent")
+            
+        Returns:
+            EDSLObject: The corresponding EDSL class
+            
+        Raises:
+            ValueError: If no mapping exists for the provided object type
+        """
+        EDSL_class = cls.object_type_to_edsl_class.get(object_type)
+        if EDSL_class is None:
             raise ValueError(f"EDSL class not found for {object_type=}")
-        return EDSL_object
+        return EDSL_class
 
     @classmethod
     def get_registry(
@@ -110,14 +165,24 @@ class ObjectRegistry:
         exclude_classes: Optional[list] = None,
     ) -> dict:
         """
-        Return the registry of objects.
-
-        Exclude objects that are already registered in subclass_registry.
-        This allows the user to isolate Coop-only objects.
-
-        Also exclude objects if their class name is in the exclude_classes list.
+        Get a filtered registry of EDSL classes.
+        
+        This method returns a dictionary of EDSL classes, optionally excluding
+        classes that are already registered elsewhere or explicitly excluded.
+        
+        Parameters:
+            subclass_registry (dict, optional): Dictionary of classes to exclude
+                because they are already registered elsewhere
+            exclude_classes (list, optional): List of class names to explicitly exclude
+            
+        Returns:
+            dict: Dictionary mapping class names to EDSL classes
+            
+        Notes:
+            - This method is useful for building registries of classes that
+              can be serialized and stored in the cloud
+            - It helps avoid duplicate registrations of classes
         """
-
         if subclass_registry is None:
             subclass_registry = {}
         if exclude_classes is None:

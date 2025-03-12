@@ -26,13 +26,13 @@ class SnapShot:
         >>> sn.edsl_classes
         {}
 
-        >>> from edsl.data.Cache import Cache
+        >>> from edsl.caching import Cache
         >>> sn = SnapShot(namespace = globals())
         >>> sn.edsl_classes
-        {'Cache': <class 'edsl.data.Cache.Cache'>}
+        {'Cache': <class 'edsl.caching.cache.Cache'>}
         """
-        from edsl.Base import RegisterSubclassesMeta
-        from edsl.questions.QuestionBase import QuestionBase
+        from ..base import RegisterSubclassesMeta
+        from ..questions import QuestionBase
 
         all_edsl_objects = RegisterSubclassesMeta.get_registry()
 
@@ -54,7 +54,7 @@ class SnapShot:
         {}
 
         """
-        from edsl.Base import Base
+        from edsl.base import Base
         from edsl.study.Study import Study
 
         def is_edsl_object(obj):

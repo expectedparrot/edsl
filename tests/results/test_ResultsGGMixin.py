@@ -1,6 +1,6 @@
 import pytest
 import subprocess
-from edsl.results.ResultsGGMixin import GGPlot
+from edsl.dataset.r.ggplot import GGPlot
 
 def is_r_installed():
     """Check if R is installed by trying to run Rscript --version"""

@@ -6,7 +6,7 @@ import warnings
 async def async_repair(
     bad_json, error_message="", user_prompt=None, system_prompt=None, cache=None
 ):
-    from edsl.utilities.utilities import clean_json
+    from ..utilities import clean_json
 
     s = clean_json(bad_json)
 

@@ -1,7 +1,7 @@
 import pytest
 from edsl import Model 
 from edsl import QuestionFreeText
-from edsl.language_models.key_management.KeyLookup import KeyLookup
+from edsl.key_management import KeyLookup
 
 def test_default_rpm_bucket_collection():
     # Create model with default RPM
@@ -34,3 +34,8 @@ def test_custom_rpm_bucket_collection():
     actual_rpm = rr * 60
     assert abs(actual_rpm - target_rpm) < 1, \
         f"Actual RPM ({actual_rpm}) differs from target RPM ({target_rpm}) by more than 1"
+
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod(optionflags=doctest.ELLIPSIS)

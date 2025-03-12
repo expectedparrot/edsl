@@ -4,7 +4,8 @@ import threading
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 from io import StringIO
 from urllib.parse import urljoin
-from edsl.scenarios.ScenarioList import ScenarioList  # Adjust this import as necessary
+
+from edsl.scenarios import ScenarioList  # Adjust this import as necessary
 
 
 class CSVRequestHandler(SimpleHTTPRequestHandler):

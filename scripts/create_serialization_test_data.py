@@ -4,7 +4,7 @@ import json
 import os
 import sys
 from edsl import __version__ as edsl_version
-from edsl.Base import RegisterSubclassesMeta
+from edsl.base import RegisterSubclassesMeta
 from edsl.coop.utils import ObjectRegistry, Study
 from edsl.questions import *
 from tests.serialization.cases.RegisterSerializationCasesMeta import (

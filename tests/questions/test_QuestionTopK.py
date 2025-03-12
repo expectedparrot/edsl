@@ -1,8 +1,8 @@
 import pytest
 import uuid
 from edsl.questions import Settings
-from edsl.questions.QuestionBase import QuestionBase
-from edsl.questions.derived.QuestionTopK import QuestionTopK, main
+from edsl.questions import QuestionBase
+from edsl.questions.derived.question_top_k import QuestionTopK, main
 
 
 def test_QuestionTopK_main():

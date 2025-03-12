@@ -1,13 +1,13 @@
 import pytest
 from unittest.mock import patch, MagicMock
-from edsl.language_models.key_management.models import (
+from edsl.key_management.models import (
     APIKeyEntry,
     LimitEntry,
     APIIDEntry,
     LanguageModelInput,
 )
 
-from edsl.language_models.key_management.KeyLookupBuilder import KeyLookupBuilder
+from edsl.key_management import KeyLookupBuilder
 
 from edsl.exceptions.general import MissingAPIKeyError
 
