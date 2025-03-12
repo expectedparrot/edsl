@@ -16,11 +16,13 @@ class AgentListError(BaseException):
     """
     Exception raised for errors related to AgentList operations.
     
-    This exception is raised when there are issues with creating, modifying,
-    or using an AgentList in conjunction with scenarios.
+    This exception appears to be a duplicate of the exception defined in
+    edsl.agents.exceptions. It exists here for legacy reasons but is not
+    actively used from this module.
     
-    Args:
-        message: A description of the error that occurred.
+    Note: This exception is defined but not used from this module. The AgentListError
+    from edsl.agents.exceptions is used instead. This raises Exception("not used")
+    to indicate this state.
     """
     
     def __init__(self, message: str):
@@ -31,15 +33,29 @@ class AgentListError(BaseException):
             message: A description of the error that occurred.
         """
         super().__init__(message)
+        raise Exception("not used - see edsl.agents.exceptions.AgentListError instead")
 
 
 class ScenarioError(BaseException):
     """
     Exception raised for errors related to Scenario operations.
     
-    This exception is raised when there are issues with creating, modifying,
-    or using Scenarios. It automatically includes a link to the documentation
-    in the error message and makes URLs clickable in terminal output.
+    This exception is raised when:
+    - Invalid data is passed to initialize a Scenario (not convertible to dictionary)
+    - Required fields are missing in scenario data
+    - File operations fail when loading scenarios from files
+    - Scenario content cannot be properly parsed or processed
+    - Scenario lists encounter issues with data formats or operations
+    
+    To fix this error:
+    1. Check that your scenario data is properly formatted (valid dictionary or convertible to one)
+    2. Ensure all required fields for a scenario are present
+    3. Verify file paths and permissions when loading from files
+    4. Check for syntax or format errors in scenario content
+    
+    Examples:
+        >>> Scenario(123)  # Raises ScenarioError (not convertible to dictionary)
+        >>> Scenario({"invalid_format": True})  # May raise ScenarioError (missing required fields)
     
     Args:
         message: A description of the error that occurred.
