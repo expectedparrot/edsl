@@ -382,7 +382,7 @@ class PromptConstructor:
         return answer_dict
 
     @cached_property
-    def question_file_keys(self) -> list:
+    def file_keys_from_question(self) -> list:
         """Extracts the file keys from the question text.
         
         It checks if the variables in the question text are in the scenario file keys.
@@ -457,9 +457,10 @@ class PromptConstructor:
         prompts = self.prompt_plan.get_prompts(**components)
         
         # Handle file keys if present
-        if hasattr(self, 'question_file_keys') and self.question_file_keys:
+        file_keys = self.file_keys_from_question
+        if file_keys:
             files_list = []
-            for key in self.question_file_keys:
+            for key in file_keys:
                 files_list.append(self.scenario[key])
             prompts["files_list"] = files_list
     
