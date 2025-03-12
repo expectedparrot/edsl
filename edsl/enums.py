@@ -24,6 +24,7 @@ class QuestionType(EnumWithChecks):
     CHECKBOX = "checkbox"
     EXTRACT = "extract"
     FUNCTIONAL = "functional"
+    JINJA_FUNCTION = "jinja_function"
     LIST = "list"
     NUMERICAL = "numerical"
     TOP_K = "top_k"

@@ -1,3 +1,5 @@
+"""Module for creating and running restricted Python code safely."""
+
 from RestrictedPython import compile_restricted, safe_globals
 from RestrictedPython.Guards import (
     safe_builtins,
@@ -18,6 +20,7 @@ class FunctionAForbiddenAttributeException(Exception):
 
 
 def default_guarded_getitem(ob, key):
+    """Prevent access to sensitive Python attributes."""
     sensitive_python_keys = [
         "__dict__",
         "__class__",

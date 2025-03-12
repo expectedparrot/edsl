@@ -66,3 +66,11 @@ class LanguageModelAttributeTypeError(LanguageModelExceptions):
 
 class LanguageModelDoNotAddError(LanguageModelExceptions):
     pass
+
+
+class ModelListError(LanguageModelExceptions):
+    """Exception raised for errors in the ModelList operations.
+    
+    This exception is used when there are errors in filtering or manipulating a ModelList.
+    """
+    pass
