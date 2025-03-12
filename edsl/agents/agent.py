@@ -256,8 +256,10 @@ class Agent(Base):
     ) -> None:
         """Initialize the template for presenting agent traits in prompts.
         
-        If no template is provided, uses a default template that displays 
-        all traits as a dictionary.
+        If no template is provided:
+        - If a codebook exists, creates a template that displays each trait with its 
+          codebook description instead of the raw key names
+        - Otherwise, uses a default template that displays all traits as a dictionary
         
         Args:
             traits_presentation_template: Jinja2 template for formatting traits
@@ -267,7 +269,24 @@ class Agent(Base):
             self.traits_presentation_template = traits_presentation_template
             self.set_traits_presentation_template = True
         else:
-            self.traits_presentation_template = "Your traits: {{traits}}"
+            # Set the default template based on whether a codebook exists
+            if self.codebook:
+                # Create a template that uses the codebook descriptions
+                traits_lines = []
+                for trait_key in self.traits.keys():
+                    if trait_key in self.codebook:
+                        # Use codebook description if available
+                        traits_lines.append(f"{self.codebook[trait_key]}: {{{{ {trait_key} }}}}")
+                    else:
+                        # Fall back to raw key for traits without codebook entries
+                        traits_lines.append(f"{trait_key}: {{{{ {trait_key} }}}}")
+                
+                # Join all trait lines with newlines
+                self.traits_presentation_template = "Your traits:\n" + "\n".join(traits_lines)
+            else:
+                # Use the standard dictionary format if no codebook
+                self.traits_presentation_template = "Your traits: {{traits}}"
+                
             self.set_traits_presentation_template = False
 
     def _initialize_dynamic_traits_function(
@@ -416,6 +435,10 @@ class Agent(Base):
         agent's traits and codebook, creating a formatted prompt that can be
         used in language model requests.
         
+        If the traits_presentation_template was not explicitly set and the codebook
+        has been updated since initialization, this method will recreate the default
+        template to reflect the current codebook.
+        
         Returns:
             str: The rendered prompt string
             
@@ -426,7 +449,29 @@ class Agent(Base):
             >>> a = Agent(traits={"age": 10, "hair": "brown", "height": 5.5})
             >>> a.prompt()
             Prompt(text=\"""Your traits: {'age': 10, 'hair': 'brown', 'height': 5.5}\""")
+            
+            >>> a = Agent(traits={"age": 10, "hair": "brown"}, codebook={"age": "Age in years", "hair": "Hair color"})
+            >>> a.prompt()  # doctest: +NORMALIZE_WHITESPACE
+            Prompt(text=\"""Your traits:
+            Age in years: 10
+            Hair color: brown\""")
         """
+        # If using the default template and the codebook has been updated since initialization,
+        # recreate the template to use the current codebook
+        if not self.set_traits_presentation_template and self.codebook:
+            # Create a template that uses the codebook descriptions
+            traits_lines = []
+            for trait_key in self.traits.keys():
+                if trait_key in self.codebook:
+                    # Use codebook description if available
+                    traits_lines.append(f"{self.codebook[trait_key]}: {{{{ {trait_key} }}}}")
+                else:
+                    # Fall back to raw key for traits without codebook entries
+                    traits_lines.append(f"{trait_key}: {{{{ {trait_key} }}}}")
+            
+            # Join all trait lines with newlines
+            self.traits_presentation_template = "Your traits:\n" + "\n".join(traits_lines)
+            
         # Create a dictionary with traits, a reference to all traits, and the codebook
         replacement_dict = (
             self.traits | {"traits": self.traits} | {"codebook": self.codebook}
