@@ -2,22 +2,24 @@ import aiohttp
 import json
 import requests
 
-from typing import Any, Optional, Union, Literal, TypedDict
+from typing import Any, Optional, Union, Literal, TypedDict, TYPE_CHECKING
 from uuid import UUID
 
-import edsl
+from .. import __version__
 
-from edsl.config import CONFIG
-from edsl.data.CacheEntry import CacheEntry
-from edsl.jobs.Jobs import Jobs
-from edsl.surveys.Survey import Survey
+from ..config import CONFIG
+from ..caching import CacheEntry
 
-from edsl.exceptions.coop import (
+if TYPE_CHECKING:
+    from ..jobs import Jobs
+    from ..surveys import Survey
+
+from .exceptions import (
     CoopInvalidURLError,
     CoopNoUUIDError,
     CoopServerResponseError,
 )
-from edsl.coop.utils import (
+from .utils import (
     EDSLObject,
     ObjectRegistry,
     ObjectType,
@@ -25,10 +27,10 @@ from edsl.coop.utils import (
     VisibilityType,
 )
 
-from edsl.coop.CoopFunctionsMixin import CoopFunctionsMixin
-from edsl.coop.ExpectedParrotKeyHandler import ExpectedParrotKeyHandler
+from .coop_functions import CoopFunctionsMixin
+from .ep_key_handling import ExpectedParrotKeyHandler
 
-from edsl.inference_services.data_structures import ServiceToModelsMapping
+from ..inference_services.data_structures import ServiceToModelsMapping
 
 
 class RemoteInferenceResponse(TypedDict):
@@ -54,16 +56,58 @@ class RemoteInferenceCreationInfo(TypedDict):
 
 class Coop(CoopFunctionsMixin):
     """
-    Client for the Expected Parrot API.
+    Client for the Expected Parrot API that provides cloud-based functionality for EDSL.
+    
+    The Coop class is the main interface for interacting with Expected Parrot's cloud services.
+    It enables:
+    
+    1. Storing and retrieving EDSL objects (surveys, agents, models, results, etc.)
+    2. Running inference jobs remotely for better performance and scalability
+    3. Retrieving and caching interview results
+    4. Managing API keys and authentication
+    5. Accessing model availability and pricing information
+    
+    The client handles authentication, serialization/deserialization of EDSL objects,
+    and communication with the Expected Parrot API endpoints. It also provides
+    methods for tracking job status and managing results.
+    
+    When initialized without parameters, Coop will attempt to use an API key from:
+    1. The EXPECTED_PARROT_API_KEY environment variable
+    2. A stored key in the user's config directory
+    3. Interactive login if needed
+    
+    Attributes:
+        api_key (str): The API key used for authentication
+        url (str): The base URL for the Expected Parrot API
+        api_url (str): The URL for API endpoints (derived from base URL)
     """
 
     def __init__(
         self, api_key: Optional[str] = None, url: Optional[str] = None
     ) -> None:
         """
-        Initialize the client.
-        - Provide an API key directly, or through an env variable.
-        - Provide a URL directly, or use the default one.
+        Initialize the Expected Parrot API client.
+        
+        This constructor sets up the connection to Expected Parrot's cloud services.
+        If not provided explicitly, it will attempt to obtain an API key from
+        environment variables or from a stored location in the user's config directory.
+        
+        Parameters:
+            api_key (str, optional): API key for authentication with Expected Parrot.
+                If not provided, will attempt to obtain from environment or stored location.
+            url (str, optional): Base URL for the Expected Parrot service.
+                If not provided, uses the default from configuration.
+                
+        Notes:
+            - The API key is stored in the EXPECTED_PARROT_API_KEY environment variable
+              or in a platform-specific config directory
+            - The URL is determined based on whether it's a production, staging,
+              or development environment
+            - The api_url for actual API endpoints is derived from the base URL
+            
+        Example:
+            >>> coop = Coop()  # Uses API key from environment or stored location
+            >>> coop = Coop(api_key="your-api-key")  # Explicitly provide API key
         """
         self.ep_key_handler = ExpectedParrotKeyHandler()
         self.api_key = api_key or self.ep_key_handler.get_ep_api_key()
@@ -79,7 +123,7 @@ class Coop(CoopFunctionsMixin):
             self.api_url = "http://localhost:8000"
         else:
             self.api_url = self.url
-        self._edsl_version = edsl.__version__
+        self._edsl_version = __version__
 
     def get_progress_bar_url(self):
         return f"{CONFIG.EXPECTED_PARROT_URL}"
@@ -205,7 +249,7 @@ class Coop(CoopFunctionsMixin):
             # print(response.text)
             if "The API key you provided is invalid" in message and check_api_key:
                 import secrets
-                from edsl.utilities.utilities import write_api_key_to_env
+                from ..utilities.utilities import write_api_key_to_env
 
                 edsl_auth_token = secrets.token_urlsafe(16)
 
@@ -372,7 +416,35 @@ class Coop(CoopFunctionsMixin):
         visibility: Optional[VisibilityType] = "unlisted",
     ) -> dict:
         """
-        Create an EDSL object in the Coop server.
+        Store an EDSL object in the Expected Parrot cloud service.
+        
+        This method uploads an EDSL object (like a Survey, Agent, or Results) to the
+        Expected Parrot cloud service for storage, sharing, or further processing.
+        
+        Parameters:
+            object (EDSLObject): The EDSL object to store (Survey, Agent, Results, etc.)
+            description (str, optional): A human-readable description of the object
+            alias (str, optional): A custom alias for easier reference later
+            visibility (VisibilityType, optional): Access level for the object. One of:
+                - "private": Only accessible by the owner
+                - "public": Accessible by anyone
+                - "unlisted": Accessible with the link, but not listed publicly
+        
+        Returns:
+            dict: Information about the created object including:
+                - url: The URL to access the object
+                - alias_url: The URL with the custom alias (if provided)
+                - uuid: The unique identifier for the object
+                - visibility: The visibility setting
+                - version: The EDSL version used to create the object
+                
+        Raises:
+            CoopServerResponseError: If there's an error communicating with the server
+            
+        Example:
+            >>> survey = Survey(questions=[QuestionFreeText(question_name="name")])
+            >>> result = coop.create(survey, description="Basic survey", visibility="public")
+            >>> print(result["url"])  # URL to access the survey
         """
         object_type = ObjectRegistry.get_object_type_by_edsl_class(object)
         response = self._send_server_request(
@@ -429,15 +501,39 @@ class Coop(CoopFunctionsMixin):
         expected_object_type: Optional[ObjectType] = None,
     ) -> EDSLObject:
         """
-        Retrieve an EDSL object by its uuid/url or by owner username and alias.
-        - If the object's visibility is private, the user must be the owner.
-        - Optionally, check if the retrieved object is of a certain type.
-
-        :param url_or_uuid: The UUID or URL of the object.
-            URLs can be in the form content/uuid or content/username/alias.
-        :param expected_object_type: The expected type of the object.
-
-        :return: the object instance.
+        Retrieve an EDSL object from the Expected Parrot cloud service.
+        
+        This method downloads and deserializes an EDSL object from the cloud service
+        using either its UUID, URL, or username/alias combination.
+        
+        Parameters:
+            url_or_uuid (Union[str, UUID]): Identifier for the object to retrieve.
+                Can be one of:
+                - UUID string (e.g., "123e4567-e89b-12d3-a456-426614174000")
+                - Full URL (e.g., "https://expectedparrot.com/content/123e4567...")
+                - Alias URL (e.g., "https://expectedparrot.com/content/username/my-survey")
+            expected_object_type (ObjectType, optional): If provided, validates that the
+                retrieved object is of the expected type (e.g., "survey", "agent")
+                
+        Returns:
+            EDSLObject: The retrieved object as its original EDSL class instance
+            (e.g., Survey, Agent, Results)
+            
+        Raises:
+            CoopNoUUIDError: If no UUID or URL is provided
+            CoopInvalidURLError: If the URL format is invalid
+            CoopServerResponseError: If the server returns an error (e.g., not found,
+                unauthorized access)
+            Exception: If the retrieved object doesn't match the expected type
+            
+        Notes:
+            - If the object's visibility is set to "private", you must be the owner to access it
+            - For objects stored with an alias, you can use either the UUID or the alias URL
+            
+        Example:
+            >>> survey = coop.get("123e4567-e89b-12d3-a456-426614174000")
+            >>> survey = coop.get("https://expectedparrot.com/content/username/my-survey")
+            >>> survey = coop.get(url, expected_object_type="survey")  # Validates the type
         """
         obj_uuid, owner_username, alias = self._resolve_uuid_or_alias(url_or_uuid)
 
@@ -848,7 +944,7 @@ class Coop(CoopFunctionsMixin):
 
     def remote_inference_create(
         self,
-        job: Jobs,
+        job: 'Jobs',
         description: Optional[str] = None,
         status: RemoteJobStatus = "queued",
         visibility: Optional[VisibilityType] = "unlisted",
@@ -857,17 +953,48 @@ class Coop(CoopFunctionsMixin):
         fresh: Optional[bool] = False,
     ) -> RemoteInferenceCreationInfo:
         """
-        Send a remote inference job to the server.
-
-        :param job: The EDSL job to send to the server.
-        :param optional description: A description for this entry in the remote cache.
-        :param status: The status of the job. Should be 'queued', unless you are debugging.
-        :param visibility: The visibility of the cache entry.
-        :param iterations: The number of times to run each interview.
-
-        >>> job = Jobs.example()
-        >>> coop.remote_inference_create(job=job, description="My job")
-        {'uuid': '9f8484ee-b407-40e4-9652-4133a7236c9c', 'description': 'My job', 'status': 'queued', 'iterations': None, 'visibility': 'unlisted', 'version': '0.1.38.dev1'}
+        Create a remote inference job for execution in the Expected Parrot cloud.
+        
+        This method sends a job to be executed in the cloud, which can be more efficient
+        for large jobs or when you want to run jobs in the background. The job execution
+        is handled by Expected Parrot's infrastructure, and you can check the status
+        and retrieve results later.
+        
+        Parameters:
+            job (Jobs): The EDSL job to run in the cloud
+            description (str, optional): A human-readable description of the job
+            status (RemoteJobStatus): Initial status, should be "queued" for normal use
+                Possible values: "queued", "running", "completed", "failed"
+            visibility (VisibilityType): Access level for the job information. One of:
+                - "private": Only accessible by the owner
+                - "public": Accessible by anyone
+                - "unlisted": Accessible with the link, but not listed publicly
+            initial_results_visibility (VisibilityType): Access level for the job results
+            iterations (int): Number of times to run each interview (default: 1)
+            fresh (bool): If True, ignore existing cache entries and generate new results
+        
+        Returns:
+            RemoteInferenceCreationInfo: Information about the created job including:
+                - uuid: The unique identifier for the job
+                - description: The job description
+                - status: Current status of the job
+                - iterations: Number of iterations for each interview
+                - visibility: Access level for the job
+                - version: EDSL version used to create the job
+        
+        Raises:
+            CoopServerResponseError: If there's an error communicating with the server
+        
+        Notes:
+            - Remote jobs run asynchronously and may take time to complete
+            - Use remote_inference_get() with the returned UUID to check status
+            - Credits are consumed based on the complexity of the job
+            
+        Example:
+            >>> from edsl.jobs import Jobs
+            >>> job = Jobs.example()
+            >>> job_info = coop.remote_inference_create(job=job, description="My job")
+            >>> print(f"Job created with UUID: {job_info['uuid']}")
         """
         response = self._send_server_request(
             uri="api/v0/remote-inference",
@@ -904,15 +1031,43 @@ class Coop(CoopFunctionsMixin):
         self, job_uuid: Optional[str] = None, results_uuid: Optional[str] = None
     ) -> RemoteInferenceResponse:
         """
-        Get the details of a remote inference job.
-        You can pass either the job uuid or the results uuid as a parameter.
-        If you pass both, the job uuid will be prioritized.
-
-        :param job_uuid: The UUID of the EDSL job.
-        :param results_uuid: The UUID of the results associated with the EDSL job.
-
-        >>> coop.remote_inference_get("9f8484ee-b407-40e4-9652-4133a7236c9c")
-        {'job_uuid': '9f8484ee-b407-40e4-9652-4133a7236c9c', 'results_uuid': 'dd708234-31bf-4fe1-8747-6e232625e026', 'results_url': 'https://www.expectedparrot.com/content/dd708234-31bf-4fe1-8747-6e232625e026', 'latest_error_report_uuid': None, 'latest_error_report_url': None, 'status': 'completed', 'reason': None, 'credits_consumed': 0.35, 'version': '0.1.38.dev1'}
+        Get the status and details of a remote inference job.
+        
+        This method retrieves the current status and information about a remote job,
+        including links to results if the job has completed successfully.
+        
+        Parameters:
+            job_uuid (str, optional): The UUID of the remote job to check
+            results_uuid (str, optional): The UUID of the results associated with the job
+                (can be used if you only have the results UUID)
+        
+        Returns:
+            RemoteInferenceResponse: Information about the job including:
+                - job_uuid: The unique identifier for the job
+                - results_uuid: The UUID of the results (if job is completed)
+                - results_url: URL to access the results (if available)
+                - latest_error_report_uuid: UUID of error report (if job failed)
+                - latest_error_report_url: URL to access error details (if available)
+                - status: Current status ("queued", "running", "completed", "failed")
+                - reason: Reason for failure (if applicable)
+                - credits_consumed: Credits used for the job execution
+                - version: EDSL version used for the job
+        
+        Raises:
+            ValueError: If neither job_uuid nor results_uuid is provided
+            CoopServerResponseError: If there's an error communicating with the server
+        
+        Notes:
+            - Either job_uuid or results_uuid must be provided
+            - If both are provided, job_uuid takes precedence
+            - For completed jobs, you can use the results_url to view or download results
+            - For failed jobs, check the latest_error_report_url for debugging information
+            
+        Example:
+            >>> job_status = coop.remote_inference_get("9f8484ee-b407-40e4-9652-4133a7236c9c")
+            >>> print(f"Job status: {job_status['status']}")
+            >>> if job_status['status'] == 'completed':
+            ...     print(f"Results available at: {job_status['results_url']}")
         """
         if job_uuid is None and results_uuid is None:
             raise ValueError("Either job_uuid or results_uuid must be provided.")
@@ -970,7 +1125,7 @@ class Coop(CoopFunctionsMixin):
         return response.json().get("running_jobs", [])
 
     def remote_inference_cost(
-        self, input: Union[Jobs, Survey], iterations: int = 1
+        self, input: Union['Jobs', 'Survey'], iterations: int = 1
     ) -> int:
         """
         Get the cost of a remote inference job.
@@ -981,6 +1136,9 @@ class Coop(CoopFunctionsMixin):
         >>> coop.remote_inference_cost(input=job)
         {'credits': 0.77, 'usd': 0.0076950000000000005}
         """
+        from ..jobs import Jobs
+        from ..surveys import Survey
+
         if isinstance(input, Jobs):
             job = input
         elif isinstance(input, Survey):
@@ -1011,7 +1169,7 @@ class Coop(CoopFunctionsMixin):
     ################
     def create_project(
         self,
-        survey: Survey,
+        survey: 'Survey',
         project_name: str = "Project",
         survey_description: Optional[str] = None,
         survey_alias: Optional[str] = None,
@@ -1041,16 +1199,10 @@ class Coop(CoopFunctionsMixin):
             "respondent_url": f"{self.url}/respond/{response_json.get('uuid')}",
         }
 
-    ################
-    # DUNDER METHODS
-    ################
     def __repr__(self):
         """Return a string representation of the client."""
         return f"Client(api_key='{self.api_key}', url='{self.url}')"
 
-    ################
-    # EXPERIMENTAL
-    ################
     async def remote_async_execute_model_call(
         self, model_dict: dict, user_prompt: str, system_prompt: str
     ) -> dict:
@@ -1087,12 +1239,39 @@ class Coop(CoopFunctionsMixin):
 
     def fetch_prices(self) -> dict:
         """
-        Fetch model prices from Coop. If the request fails, return an empty dict.
+        Fetch the current pricing information for language models.
+        
+        This method retrieves the latest pricing information for all supported language models
+        from the Expected Parrot API. The pricing data is used to estimate costs for jobs
+        and to optimize model selection based on budget constraints.
+        
+        Returns:
+            dict: A dictionary mapping (service, model) tuples to pricing information.
+                Each entry contains token pricing for input and output tokens.
+                Example structure:
+                {
+                    ('openai', 'gpt-4'): {
+                        'input': {'usd_per_1M_tokens': 30.0, ...},
+                        'output': {'usd_per_1M_tokens': 60.0, ...}
+                    }
+                }
+                
+        Raises:
+            ValueError: If the EDSL_FETCH_TOKEN_PRICES configuration setting is invalid
+                
+        Notes:
+            - Returns an empty dict if EDSL_FETCH_TOKEN_PRICES is set to "False"
+            - The pricing data is cached to minimize API calls
+            - Pricing may vary based on the model, provider, and token type (input/output)
+            - All prices are in USD per million tokens
+            
+        Example:
+            >>> prices = coop.fetch_prices()
+            >>> gpt4_price = prices.get(('openai', 'gpt-4'), {})
+            >>> print(f"GPT-4 input price: ${gpt4_price.get('input', {}).get('usd_per_1M_tokens')}")
         """
-
-        from edsl.coop.PriceFetcher import PriceFetcher
-
-        from edsl.config import CONFIG
+        from .price_fetcher import PriceFetcher
+        from ..config import CONFIG
 
         if CONFIG.get("EDSL_FETCH_TOKEN_PRICES") == "True":
             price_fetcher = PriceFetcher()
@@ -1106,9 +1285,37 @@ class Coop(CoopFunctionsMixin):
 
     def fetch_models(self) -> ServiceToModelsMapping:
         """
-        Fetch a dict of available models from Coop.
-
-        Each key in the dict is an inference service, and each value is a list of models from that service.
+        Fetch information about available language models from Expected Parrot.
+        
+        This method retrieves the current list of available language models grouped
+        by service provider (e.g., OpenAI, Anthropic, etc.). This information is
+        useful for programmatically selecting models based on availability and
+        for ensuring that jobs only use supported models.
+        
+        Returns:
+            ServiceToModelsMapping: A mapping of service providers to their available models.
+                Example structure:
+                {
+                    "openai": ["gpt-4", "gpt-3.5-turbo", ...],
+                    "anthropic": ["claude-3-opus", "claude-3-sonnet", ...],
+                    ...
+                }
+                
+        Raises:
+            CoopServerResponseError: If there's an error communicating with the server
+            
+        Notes:
+            - The availability of models may change over time
+            - Not all models may be accessible with your current API keys
+            - Use this method to check for model availability before creating jobs
+            - Models may have different capabilities (text-only, multimodal, etc.)
+            
+        Example:
+            >>> models = coop.fetch_models()
+            >>> if "gpt-4" in models.get("openai", []):
+            ...     print("GPT-4 is available")
+            >>> available_services = list(models.keys())
+            >>> print(f"Available services: {available_services}")
         """
         response = self._send_server_request(uri="api/v0/models", method="GET")
         self._resolve_server_response(response)
@@ -1217,7 +1424,7 @@ class Coop(CoopFunctionsMixin):
         """
         import secrets
         from dotenv import load_dotenv
-        from edsl.utilities.utilities import write_api_key_to_env
+        from ..utilities.utilities import write_api_key_to_env
 
         edsl_auth_token = secrets.token_urlsafe(16)
 
@@ -1255,9 +1462,9 @@ def main():
         ScenarioList,
         Survey,
     )
-    from edsl.coop import Coop
-    from edsl.data.CacheEntry import CacheEntry
-    from edsl.jobs import Jobs
+    from ..coop import Coop
+    from ..caching import CacheEntry
+    from ..jobs import Jobs
 
     # init & basics
     API_KEY = "b"

@@ -1,15 +1,15 @@
 import pytest
-from edsl.agents.Agent import Agent
+from edsl.agents import Agent
 
-from edsl.prompts.Prompt import Prompt
-
-# from edsl.prompts.registry import get_classes
-from edsl.exceptions.questions import QuestionScenarioRenderError
+from edsl.prompts import Prompt
 
 # from edsl.prompts.registry import get_classes
-from edsl.surveys.Survey import Survey
+from edsl.questions.exceptions import QuestionScenarioRenderError
 
-from edsl.agents.Invigilator import InvigilatorAI
+# from edsl.prompts.registry import get_classes
+from edsl.surveys import Survey
+
+from edsl.invigilators import InvigilatorAI
 
 
 class MockModel:

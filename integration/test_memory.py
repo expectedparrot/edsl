@@ -1,6 +1,6 @@
 import random
 from edsl.surveys import Survey
-from edsl.data import Cache
+from edsl.caching import Cache
 from edsl.questions import QuestionMultipleChoice
 from edsl.scenarios.ScenarioList import ScenarioList
 from edsl import Model

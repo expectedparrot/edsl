@@ -1,7 +1,7 @@
 """This module contains the descriptors used to set the attributes of the Agent class."""
 
 from typing import Dict
-from edsl.exceptions.agents import AgentNameError, AgentTraitKeyError
+from .exceptions import AgentNameError, AgentTraitKeyError
 
 
 def convert_agent_name(x):
@@ -19,7 +19,7 @@ def convert_agent_name(x):
 
 
 class NameDescriptor:
-    """ABC for something."""
+    """Valid agent name descriptor."""
 
     def __get__(self, instance, owner):
         """Return the value of the attribute."""
@@ -43,7 +43,7 @@ class TraitsDescriptor:
 
     def __set__(self, instance, traits_dict: Dict[str, str]) -> None:
         """Set the value of the attribute."""
-        from edsl.utilities.utilities import is_valid_variable_name
+        from ..utilities.utilities import is_valid_variable_name
 
         for key, value in traits_dict.items():
             if key == "name":

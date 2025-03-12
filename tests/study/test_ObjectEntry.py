@@ -1,5 +1,5 @@
 import pytest
-from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
+from edsl.questions import QuestionMultipleChoice
 from edsl.study.ObjectEntry import ObjectEntry
 
 question = QuestionMultipleChoice.example()
