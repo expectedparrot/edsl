@@ -7,7 +7,13 @@ ROOT_DIR = os.path.dirname(BASE_DIR)
 from edsl.__version__ import __version__
 from edsl.config import Config, CONFIG
 
-__all__ = []
+# Initialize and expose logger
+from edsl import logger
+
+# Set up logger with configuration from environment/config
+# (We'll configure the logger after CONFIG is initialized below)
+
+__all__ = ['logger']
 
 from .dataset import __all__ as dataset_all
 from .dataset import *
@@ -61,3 +67,6 @@ __all__.extend(jobs_all)
 from .study import __all__ as study_all
 from .study import *
 __all__.extend(study_all)
+
+# Now that all modules are loaded, configure logging from the config
+logger.configure_from_config()
