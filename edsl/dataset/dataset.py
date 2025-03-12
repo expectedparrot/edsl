@@ -8,7 +8,7 @@ from collections import UserList
 from typing import Any, Union, Optional, TYPE_CHECKING
 
 from ..base import PersistenceMixin, HashingMixin
-from ..utilities.query_utils import Field, QueryExpression
+from ..utilities import Field, QueryExpression, apply_filter
 
 from .dataset_tree import Tree
 

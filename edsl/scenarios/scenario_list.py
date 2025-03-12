@@ -38,7 +38,7 @@ from collections.abc import Iterable
 from simpleeval import EvalWithCompoundTypes, NameNotDefined  # type: ignore
 from tabulate import tabulate_formats
 
-from ..utilities.query_utils import Field, QueryExpression, apply_filter
+from ..utilities import Field, QueryExpression, apply_filter
 # Import ScenarioError for exception handling
 from .exceptions import ScenarioError
 

@@ -63,5 +63,5 @@ from .study import *
 __all__.extend(study_all)
 
 # Add Field class for query expressions
-from .utilities.query_utils import Field
-__all__.append('Field')
+from .utilities import Field, QueryExpression, apply_filter
+__all__.extend(['Field', 'QueryExpression', 'apply_filter'])

@@ -18,7 +18,7 @@ from simpleeval import EvalWithCompoundTypes, NameNotDefined
 
 from ..base import Base
 from ..utilities import is_notebook, remove_edsl_version, dict_hash
-from ..utilities.query_utils import Field, QueryExpression, apply_filter
+from ..utilities import Field, QueryExpression, apply_filter
 from ..dataset.dataset_operations_mixin import AgentListOperationsMixin
 
 from .agent import Agent

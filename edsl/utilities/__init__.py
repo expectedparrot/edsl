@@ -71,4 +71,4 @@ from .converter_utils import (
 from .restricted_python import create_restricted_function
 
 # Query utilities
-from .query_utils import Field, QueryExpression
+from .query_utils import Field, QueryExpression, apply_filter

@@ -1,10 +1,13 @@
-from typing import Optional, List, TYPE_CHECKING
+from typing import Optional, List, Union, TYPE_CHECKING
 from collections import UserList
+
+from simpleeval import EvalWithCompoundTypes, NameNotDefined
 
 from ..base import Base
 from ..language_models import Model
 
 from ..utilities import remove_edsl_version, is_valid_variable_name, dict_hash
+from ..utilities import Field, QueryExpression, apply_filter
 
 if TYPE_CHECKING:
     from ..inference_services.data_structures import AvailableModels
@@ -139,6 +142,102 @@ class ModelList(Base, UserList):
 
         return cls(data=[LanguageModel.from_dict(model) for model in data["models"]])
 
+    def filter(self, expression: Union[str, QueryExpression]) -> "ModelList":
+        """
+        Filter models based on a boolean expression.
+
+        Args:
+            expression: Either a string containing a boolean expression or a QueryExpression
+                created using Field objects (e.g., Field('model') == 'gpt-4').
+
+        Returns:
+            ModelList: A new ModelList containing only models that satisfy the expression.
+
+        Examples:
+            >>> from edsl import Model, ModelList, Field
+            >>> models = ModelList([
+            ...     Model('gpt-4o', temperature=0.7),
+            ...     Model('claude-3-opus', temperature=0.5),
+            ...     Model('gpt-3.5-turbo', temperature=0.9)
+            ... ])
+            >>> # Filter using string expression
+            >>> models.filter("model == 'gpt-4o'")
+            ModelList([Model('gpt-4o', temperature=0.7)])
+            >>> # Filter using Field expression
+            >>> models.filter(Field('temperature') > 0.6)
+            ModelList([Model('gpt-4o', temperature=0.7), Model('gpt-3.5-turbo', temperature=0.9)])
+            >>> # Combined expressions
+            >>> models.filter((Field('model').contains('gpt')) & (Field('temperature') > 0.8))
+            ModelList([Model('gpt-3.5-turbo', temperature=0.9)])
+        """
+        # Handle empty list case
+        if len(self.data) == 0:
+            return ModelList([])
+            
+        # If expression is a string, use string-based evaluation
+        if isinstance(expression, str):
+            def create_evaluator(model):
+                """Create an evaluator for the given model."""
+                # Combine model attributes into a dictionary for evaluation
+                eval_dict = {
+                    'model': model.model,
+                    'inference_service': model._inference_service_
+                }
+                # Add all parameters
+                eval_dict.update(model.parameters)
+                return EvalWithCompoundTypes(names=eval_dict)
+
+            try:
+                # Filter models by evaluating the expression against each one
+                new_data = []
+                for model in self.data:
+                    if create_evaluator(model).eval(expression):
+                        new_data.append(model)
+            except NameNotDefined as e:
+                # If a field name doesn't exist, provide helpful error
+                from ..language_models.exceptions import ModelListError
+                sample_model = self.data[0] if self.data else None
+                if sample_model:
+                    available_fields = ", ".join(["model", "inference_service"] + list(sample_model.parameters.keys()))
+                    error_msg = (
+                        f"Error in filter: '{e}'. "
+                        f"The field does not exist in model attributes. "
+                        f"Available fields: {available_fields}"
+                    )
+                else:
+                    error_msg = f"Error in filter: '{e}'. The ModelList is empty."
+                raise ModelListError(error_msg) from None
+            except Exception as e:
+                from ..language_models.exceptions import ModelListError
+                raise ModelListError(f"Error in filter. Exception: {e}")
+
+        # If expression is a QueryExpression, use the field-based evaluation
+        elif isinstance(expression, QueryExpression):
+            try:
+                # Create a list of dictionaries with model attributes for evaluation
+                new_data = []
+                for model in self.data:
+                    # Create a dictionary representing all model attributes
+                    model_dict = {
+                        'model': model.model,
+                        'inference_service': model._inference_service_
+                    }
+                    model_dict.update(model.parameters)
+                    
+                    # Evaluate the expression against this dictionary
+                    if expression.evaluate(model_dict):
+                        new_data.append(model)
+            except Exception as e:
+                from ..language_models.exceptions import ModelListError
+                raise ModelListError(f"Error evaluating query expression: {str(e)}")
+        else:
+            from ..language_models.exceptions import ModelListError
+            raise ModelListError(
+                f"Expression must be a string or QueryExpression, got {type(expression)}"
+            )
+
+        return ModelList(new_data)
+        
     def code(self):
         pass
 
