@@ -1,5 +1,5 @@
 from typing import Optional
-from edsl.prompts.Prompt import Prompt
+from ..prompts import Prompt
 
 
 class HTMLQuestion:

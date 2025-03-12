@@ -1,16 +1,16 @@
 import pytest
-from edsl.agents.Agent import Agent
-from edsl.exceptions.agents import (
+from edsl.agents import Agent
+
+from edsl.agents.exceptions import (
     AgentCombinationError,
     AgentDirectAnswerFunctionError,
     AgentDynamicTraitsFunctionError,
+    AgentNameError,
+    AgentTraitKeyError,
 )
 from edsl.jobs import Jobs
 from edsl.questions import QuestionMultipleChoice
-from edsl.surveys.Survey import Survey
-
-from edsl.exceptions.agents import AgentNameError
-from edsl.exceptions.agents import AgentTraitKeyError
+from edsl.surveys import Survey
 
 
 def test_agent_creation_valid():
@@ -153,5 +153,5 @@ def test_agent_dynamic_traits_answering():
 
     q = QuestionFreeText(question_name="age", question_text="How old are you?")
     m = Model("test")
-    results = q.by(a).run(disable_remote_inference=True, disable_remote_cache=True)
+    results = q.by(m).by(a).run(disable_remote_inference=True, disable_remote_cache=True, stop_on_exception=True)
     assert results.select("answer.age").to_list()

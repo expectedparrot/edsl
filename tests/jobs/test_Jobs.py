@@ -1,23 +1,20 @@
 import pytest
-from edsl.agents.Agent import Agent
-from edsl.exceptions.jobs import JobsRunError
-from edsl.exceptions.agents import AgentCombinationError
-from edsl.jobs.interviews.Interview import Interview
-from edsl.jobs.Jobs import Jobs, main
-from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
-from edsl.questions.QuestionFreeText import QuestionFreeText
-from edsl.scenarios.Scenario import Scenario
-from edsl.scenarios.ScenarioList import ScenarioList
-from edsl.surveys.Survey import Survey
-from edsl.language_models.model import Model
+from edsl.agents import Agent
+from edsl.jobs.exceptions import JobsRunError
+from edsl.agents.exceptions import AgentCombinationError
+from edsl.interviews import Interview
+from edsl.jobs import Jobs
+from edsl.questions import QuestionMultipleChoice
+from edsl.questions import QuestionFreeText
+from edsl.scenarios import Scenario, ScenarioList
+from edsl.surveys import Survey
 from edsl.questions.question_registry import (
     Question,
 )  # needed for the eval() of the repr() of the Job
-from edsl.language_models.LanguageModel import LanguageModel
-from edsl.data.Cache import Cache
+from edsl.caching import Cache
 
-from edsl.agents.AgentList import AgentList
-from edsl.language_models.ModelList import ModelList
+from edsl.agents import AgentList
+from edsl.language_models import ModelList, Model, LanguageModel
 
 
 @pytest.fixture(scope="function")
@@ -29,7 +26,6 @@ def valid_job():
     )
     survey = Survey(questions=[q])
     agent = Agent(traits={"trait1": "value1"})
-    # model = LanguageModel.example(test_model=True, canned_response="SPAM!")
     model = Model("test", canned_response="SPAM!")
     scenario = Scenario({"price": 100, "quantity": 2})
     valid_job = Jobs(
@@ -44,8 +40,8 @@ def valid_job():
 def test_jobs_simple_stuf(valid_job):
     # simple stuff
     # assert valid_job.survey.name == "Test Survey"
-    from edsl.surveys.RuleCollection import RuleCollection
-    from edsl.surveys.Rule import Rule
+    from edsl.surveys.rules import RuleCollection
+    from edsl.surveys.rules import Rule
 
     assert valid_job.agents[0].traits == {"trait1": "value1"}
     # assert valid_job.models[0].model == "gpt-4-1106-preview"
@@ -67,8 +63,6 @@ def test_jobs_simple_stuf(valid_job):
 
 
 def test_jobs_by_agents():
-    from edsl.agents.AgentList import AgentList
-
     q = QuestionMultipleChoice(
         question_text="How are you?",
         question_options=["Good", "Great", "OK", "Bad"],
@@ -202,7 +196,7 @@ def test_jobs_run(valid_job):
 
 
 def test_normal_run():
-    from edsl.language_models.LanguageModel import LanguageModel
+    from edsl.language_models import LanguageModel
     from edsl.enums import InferenceServiceType
     import asyncio
     from typing import Any
@@ -227,7 +221,7 @@ def test_normal_run():
     from edsl.questions import QuestionFreeText
 
     q = QuestionFreeText(question_text="What is your name?", question_name="name")
-    from edsl.data.Cache import Cache
+    from edsl.caching import Cache
 
     cache = Cache()
     results = q.by(model).run(cache=cache)
@@ -237,7 +231,7 @@ def test_normal_run():
 
 def test_handle_model_exception():
     import random
-    from edsl.language_models.LanguageModel import LanguageModel
+    from edsl.language_models import LanguageModel
     from edsl.enums import InferenceServiceType
     import asyncio
     from typing import Any
@@ -284,11 +278,11 @@ def test_handle_model_exception():
 def test_jobs_bucket_creator(valid_job):
     # from edsl.jobs.runners.job_runners_registry import JobsRunnersRegistry
     # JobRunner = JobsRunnersRegistry["asyncio"](jobs=valid_job)
-    from edsl.jobs.runners.JobsRunnerAsyncio import JobsRunnerAsyncio
+    from edsl.jobs.jobs_runner_asyncio import JobsRunnerAsyncio
 
     bc_to_use = valid_job.create_bucket_collection()
 
-    from edsl.jobs.Jobs import RunEnvironment
+    from edsl.jobs.data_structures import RunEnvironment
 
     re = RunEnvironment()
     re.bucket_collection = bc_to_use
@@ -297,9 +291,6 @@ def test_jobs_bucket_creator(valid_job):
     assert bc[valid_job.models[0]].requests_bucket.tokens > 10
     assert bc[valid_job.models[0]].tokens_bucket.tokens > 10
 
-
-def test_jobs_main():
-    main()
 
 
 if __name__ == "__main__":

@@ -1,9 +1,9 @@
 import unittest
-from edsl.scenarios.Scenario import Scenario
-from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
-from edsl.jobs.Jobs import Jobs
-from edsl.agents.Agent import Agent
-from edsl.surveys.Survey import Survey
+from edsl.scenarios import Scenario
+from edsl.questions import QuestionMultipleChoice
+from edsl.jobs import Jobs
+from edsl.agents import Agent
+from edsl.surveys import Survey
 
 import unittest
 from unittest.mock import patch, MagicMock
@@ -46,7 +46,7 @@ class TestScenario(unittest.TestCase):
         url = "http://example.com"
         
         # Act
-        scenario = Scenario.from_url(url, field_name="content")
+        scenario = Scenario.from_url(url, field_name="content", testing=True)
 
         # Assert
         self.assertEqual(scenario["url"], url)

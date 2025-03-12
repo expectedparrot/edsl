@@ -5,54 +5,59 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ROOT_DIR = os.path.dirname(BASE_DIR)
 
 from edsl.__version__ import __version__
+from edsl.config import Config, CONFIG
 
-# from edsl.config import Config, CONFIG
+__all__ = []
 
-from edsl.agents.Agent import Agent
-from edsl.agents.AgentList import AgentList
+from .dataset import __all__ as dataset_all
+from .dataset import *
+__all__.extend(dataset_all)
 
-from edsl.questions import QuestionBase
-from edsl.questions.question_registry import Question
-from edsl.questions import QuestionMultipleChoice
-from edsl.questions import QuestionCheckBox
-from edsl.questions import QuestionExtract
-from edsl.questions import QuestionFreeText
-from edsl.questions import QuestionFunctional
-from edsl.questions import QuestionLikertFive
-from edsl.questions import QuestionList
-from edsl.questions import QuestionMatrix
-from edsl.questions import QuestionDict
-from edsl.questions import QuestionLinearScale
-from edsl.questions import QuestionNumerical
-from edsl.questions import QuestionYesNo
-from edsl.questions import QuestionBudget
-from edsl.questions import QuestionRank
-from edsl.questions import QuestionTopK
+from .agents import __all__ as agents_all
+from .agents import *
+__all__.extend(agents_all)
 
-from edsl.scenarios.Scenario import Scenario
-from edsl.scenarios.ScenarioList import ScenarioList
-from edsl.scenarios.FileStore import FileStore
+from .surveys import __all__ as surveys_all
+from .surveys import *
+__all__.extend(surveys_all)
 
-# from edsl.utilities.interface import print_dict_with_rich
-from edsl.surveys.Survey import Survey
-from edsl.language_models.model import Model
-from edsl.language_models.ModelList import ModelList
+# Questions
+from .questions import __all__ as questions_all
+from .questions import *
+__all__.extend(questions_all)
 
-from edsl.results.Results import Results
-from edsl.data.Cache import Cache
+from .scenarios import __all__ as scenarios_all
+from .scenarios import *
+__all__.extend(scenarios_all)
 
-# from edsl.data.CacheEntry import CacheEntry
-from edsl.data.CacheHandler import set_session_cache, unset_session_cache
+from .language_models import __all__ as language_models_all
+from .language_models import *
+__all__.extend(language_models_all)
 
-# from edsl.shared import shared_globals
+from .results import __all__ as results_all
+from .results import *
+__all__.extend(results_all)
 
-from edsl.jobs.Jobs import Jobs
-from edsl.notebooks.Notebook import Notebook
+from .caching import __all__ as caching_all
+from .caching import *
+__all__.extend(caching_all)
 
-# from edsl.study.Study import Study
+from .notebooks import __all__ as notebooks_all
+from .notebooks import *
+__all__.extend(notebooks_all)
 
-# from edsl.conjure.Conjure import Conjure
-from edsl.coop.coop import Coop
+from .coop import __all__ as coop_all
+from .coop import *
+__all__.extend(coop_all)
 
-from edsl.surveys.instructions.Instruction import Instruction
-from edsl.surveys.instructions.ChangeInstruction import ChangeInstruction
+from .instructions import __all__ as instructions_all
+from .instructions import *
+__all__.extend(instructions_all)
+
+from .jobs import __all__ as jobs_all
+from .jobs import *
+__all__.extend(jobs_all)
+
+from .study import __all__ as study_all
+from .study import *
+__all__.extend(study_all)

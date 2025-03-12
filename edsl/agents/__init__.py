@@ -1,2 +1,4 @@
-from edsl.agents.Agent import Agent
-from edsl.agents.AgentList import AgentList
+from .agent import Agent
+from .agent_list import AgentList
+
+__all__ = ["Agent", "AgentList"]

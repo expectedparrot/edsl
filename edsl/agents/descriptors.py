@@ -1,7 +1,7 @@
 """This module contains the descriptors used to set the attributes of the Agent class."""
 
 from typing import Dict
-from edsl.exceptions.agents import AgentNameError, AgentTraitKeyError
+from .exceptions import AgentNameError, AgentTraitKeyError
 
 
 def convert_agent_name(x):
@@ -19,7 +19,7 @@ def convert_agent_name(x):
 
 
 class NameDescriptor:
-    """ABC for something."""
+    """Valid agent name descriptor."""
 
     def __get__(self, instance, owner):
         """Return the value of the attribute."""
@@ -43,7 +43,7 @@ class TraitsDescriptor:
 
     def __set__(self, instance, traits_dict: Dict[str, str]) -> None:
         """Set the value of the attribute."""
-        from edsl.utilities.utilities import is_valid_variable_name
+        from ..utilities.utilities import is_valid_variable_name
 
         for key, value in traits_dict.items():
             if key == "name":
@@ -67,18 +67,57 @@ class TraitsDescriptor:
 
 
 class CodebookDescriptor:
-    """ABC for something."""
+    """Descriptor for the Agent's codebook attribute.
+    
+    A codebook provides human-readable descriptions for trait keys, allowing traits
+    to be presented in a more understandable format in prompts. The codebook is a
+    dictionary mapping trait keys to their descriptive text.
+    
+    For example, a trait key like 'age' might have a codebook description of
+    'Age in years', making prompts more natural and clear.
+    
+    Example:
+        >>> # Agent would typically be imported from edsl.agents
+        >>> # For doctests, we'll just demonstrate the descriptor behavior
+        >>> class TestObject:
+        ...     codebook = CodebookDescriptor()
+        >>> test_obj = TestObject()
+        >>> test_obj.codebook = {'age': 'Age in years'}
+        >>> test_obj.codebook
+        {'age': 'Age in years'}
+        >>> test_obj.codebook = {'age': 'How old they are'}
+        >>> test_obj.codebook
+        {'age': 'How old they are'}
+    """
 
     def __get__(self, instance, owner):
-        """Return the value of the attribute."""
+        """Return the codebook dictionary.
+        
+        Args:
+            instance: The instance object
+            owner: The class
+            
+        Returns:
+            dict: The codebook dictionary mapping trait keys to descriptions
+        """
         return instance.__dict__[self.name]
 
     def __set__(self, instance, codebook_dict: Dict[str, str]) -> None:
-        """Set the value of the attribute."""
+        """Set the codebook dictionary.
+        
+        Args:
+            instance: The instance object
+            codebook_dict: Dictionary mapping trait keys to descriptions
+        """
         instance.__dict__[self.name] = codebook_dict
 
     def __set_name__(self, owner, name: str) -> None:
-        """Set the name of the attribute."""
+        """Set the name of the attribute in the instance's dictionary.
+        
+        Args:
+            owner: The class
+            name: The name of the attribute
+        """
         self.name = "_" + name
 
 

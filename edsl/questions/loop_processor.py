@@ -1,13 +1,12 @@
 from typing import List, Any, Dict, Union
-from jinja2 import Environment
-from edsl.questions.QuestionBase import QuestionBase
-from edsl import ScenarioList
-
+from jinja2 import Environment, Undefined
+from .question_base import QuestionBase
+from ..scenarios import ScenarioList
 
 class LoopProcessor:
     def __init__(self, question: QuestionBase):
         self.question = question
-        self.env = Environment()
+        self.env = Environment(undefined=Undefined)
 
     def process_templates(self, scenario_list: ScenarioList) -> List[QuestionBase]:
         """Process templates for each scenario and return list of modified questions.
@@ -46,8 +45,11 @@ class LoopProcessor:
         """
         processed = {}
 
+        extended_scenario = scenario.copy()
+        extended_scenario.update({"scenario": scenario})
+
         for key, value in [(k, v) for k, v in data.items() if v is not None]:
-            processed[key] = self._process_value(key, value, scenario)
+            processed[key] = self._process_value(key, value, extended_scenario)
 
         return processed
 
@@ -96,9 +98,61 @@ class LoopProcessor:
             scenario: Current scenario
 
         Returns:
-            Rendered template string
+            Rendered template string, preserving any unmatched template variables
+
+        Examples:
+            >>> from edsl.questions import QuestionBase
+            >>> q = QuestionBase()
+            >>> q.question_text = "test"
+            >>> p = LoopProcessor(q)
+            >>> p._render_template("Hello {{name}}!", {"name": "World"})
+            'Hello World!'
+
+            >>> p._render_template("{{a}} and {{b}}", {"b": 6})
+            '{{ a }} and 6'
+
+            >>> p._render_template("{{x}} + {{y}} = {{z}}", {"x": 2, "y": 3})
+            '2 + 3 = {{ z }}'
+
+            >>> p._render_template("No variables here", {})
+            'No variables here'
+
+            >>> p._render_template("{{item.price}}", {"item": {"price": 9.99}})
+            '9.99'
+
+            >>> p._render_template("{{item.missing}}", {"item": {"price": 9.99}})
+            '{{ item.missing }}'
         """
-        return self.env.from_string(template).render(scenario)
+        import re
+        
+        # Regular expression to find Jinja2 variables in the template
+        pattern = r'(?P<open>\{\{\s*)(?P<var>[a-zA-Z0-9_.]+)(?P<close>\s*\}\})'
+        
+        def replace_var(match):
+            var_name = match.group('var')
+            open_brace = match.group('open')
+            close_brace = match.group('close')
+            
+            # Try to evaluate the variable in the context
+            try:
+                # Handle nested attributes (like item.price)
+                parts = var_name.split('.')
+                value = scenario
+                for part in parts:
+                    if part in value:
+                        value = value[part]
+                    else:
+                        # If any part doesn't exist, return the original with spacing
+                        return f"{{ {var_name} }}".replace("{", "{{").replace("}", "}}")
+                # Return the rendered value if successful
+                return str(value)
+            except (KeyError, TypeError):
+                # Return the original variable name with the expected spacing
+                return f"{{ {var_name} }}".replace("{", "{{").replace("}", "}}")
+                
+        # Replace all variables in the template
+        result = re.sub(pattern, replace_var, template)
+        return result
 
     def _process_list(self, items: List[Any], scenario: Dict[str, Any]) -> List[Any]:
         """Process all items in a list.
@@ -135,15 +189,7 @@ class LoopProcessor:
         }
 
 
-# Usage example:
-"""
-from edsl import QuestionFreeText, ScenarioList
+if __name__ == "__main__":
+    import doctest
 
-question = QuestionFreeText(
-    question_text="What are your thoughts on: {{subject}}?",
-    question_name="base_{{subject}}"
-)
-processor = TemplateProcessor(question)
-scenarios = ScenarioList.from_list("subject", ["Math", "Economics", "Chemistry"])
-processed_questions = processor.process_templates(scenarios)
-"""
+    doctest.testmod()

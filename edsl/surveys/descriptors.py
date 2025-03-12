@@ -38,7 +38,7 @@ class QuestionsDescriptor(BaseDescriptor):
 
     def validate(self, value: Any, instance) -> None:
         """Validate the value. If it is invalid, raise an exception. If it is valid, do nothing."""
-        from edsl.questions.QuestionBase import QuestionBase
+        from ..questions import QuestionBase
 
         if not isinstance(value, list):
             raise TypeError("Questions must be a list.")

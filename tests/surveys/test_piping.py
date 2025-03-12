@@ -1,8 +1,8 @@
 import pytest
 from edsl.questions import QuestionList, QuestionMultipleChoice
-from edsl.surveys.Survey import Survey
-from edsl.agents.Agent import Agent
-from edsl.language_models.LanguageModel import LanguageModel
+from edsl.surveys import Survey
+from edsl.agents import Agent
+from edsl.language_models import LanguageModel
 
 
 def test_survey_flow():

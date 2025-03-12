@@ -2,8 +2,7 @@ from typing import Optional, Dict, Type
 from abc import ABC, abstractmethod
 import importlib.metadata
 import importlib.util
-
-from edsl.utilities.is_notebook import is_notebook
+from ..utilities import is_notebook
 
 
 class FileMethods(ABC):
@@ -30,7 +29,7 @@ class FileMethods(ABC):
     def load_plugins(cls):
         """Load all file handler plugins including built-ins and external plugins."""
 
-        from edsl.scenarios import handlers
+        from . import handlers  # noqa: F401 - import needed for handler registration
 
         # Then load any external plugins
         try:
