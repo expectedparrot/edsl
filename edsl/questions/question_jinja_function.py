@@ -11,6 +11,7 @@ from typing import Optional, Dict, Any, Callable
 import inspect
 import re
 import jinja2
+from jinja2 import DictLoader
 
 from .question_base import QuestionBase
 from ..utilities.decorators import add_edsl_version, remove_edsl_version
@@ -113,7 +114,8 @@ class QuestionJinjaFunction(QuestionBase):
         self.environment = jinja2.Environment(
             autoescape=True,
             trim_blocks=True,
-            lstrip_blocks=True
+            lstrip_blocks=True,
+            loader=jinja2.DictLoader({"template": self.jinja2_template})
         )
         
         # Verify the template is valid
@@ -238,18 +240,19 @@ class QuestionJinjaFunction(QuestionBase):
             env = jinja2.Environment(
                 autoescape=True,
                 trim_blocks=True,
-                lstrip_blocks=True
+                lstrip_blocks=True,
+                loader=jinja2.DictLoader({"template": self.jinja2_template})
             )
             
-            # First, load the macro definitions
-            env.from_string(self.jinja2_template).render(context)
-            
-            # Now import the macros and call the specific one
-            template_with_macros = "{% import _self as macros %}" + self.jinja2_template + clean_template
-            template = env.from_string(template_with_macros)
+            # Define the template with macros and the call to the specific macro
+            template_str = self.jinja2_template + "\n" + clean_template
+            template = env.from_string(template_str)
             output = template.render(context)
             
-            return {"answer": output, "comment": None}
+            # Ensure output is converted to a string and trimmed
+            output_str = str(output).strip()
+            
+            return {"answer": output_str, "comment": None}
         except Exception as e:
             raise Exception(f"Error executing Jinja2 function: {str(e)}")
     

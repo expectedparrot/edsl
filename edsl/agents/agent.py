@@ -952,6 +952,7 @@ class Agent(Base):
             InvigilatorAI,
         )
 
+        # Check if this is a functional question (including jinja_function)
         if hasattr(question, "answer_question_directly"):
             return InvigilatorFunctional
         elif hasattr(self, "answer_question_directly"):

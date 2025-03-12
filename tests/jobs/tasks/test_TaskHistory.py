@@ -14,6 +14,8 @@ def sample_task_history():
         skip_retry=True,
         cache=False,
         raise_validation_errors=True,
+        disable_remote_cache=True,
+        disable_remote_inference=True,
     )
     return TaskHistory(results.task_history.total_interviews)
 
