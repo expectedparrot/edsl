@@ -3,7 +3,7 @@ import time
 from edsl.questions import QuestionMultipleChoice
 from edsl.scenarios.ScenarioList import ScenarioList
 from edsl import Model
-from edsl.data import Cache
+from edsl.caching import Cache
 
 serial_time = 1000
 async_time = 1000

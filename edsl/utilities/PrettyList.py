@@ -1,5 +1,5 @@
 from collections import UserList
-from edsl.results.Dataset import Dataset
+from ..dataset import Dataset
 
 class Markkdown:
 

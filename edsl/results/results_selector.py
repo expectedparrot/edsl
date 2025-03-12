@@ -1,12 +1,11 @@
 from typing import Union, List, Dict, Any, Optional
 import sys
 from collections import defaultdict
-from edsl.results.Dataset import Dataset
 
-from edsl.exceptions.results import ResultsColumnNotFoundError
+from ..dataset import Dataset
+from ..utilities import is_notebook
 
-from edsl.utilities.is_notebook import is_notebook
-
+from .exceptions import ResultsColumnNotFoundError
 
 class Selector:
     def __init__(

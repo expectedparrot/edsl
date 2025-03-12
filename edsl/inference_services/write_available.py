@@ -1,5 +1,4 @@
-from edsl.inference_services.registry import default
-
+from .registry import default
 
 def write_available():
     d = {}

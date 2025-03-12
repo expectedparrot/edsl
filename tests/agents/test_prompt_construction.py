@@ -1,15 +1,15 @@
 import pytest
 
-from edsl.agents.Agent import Agent
+from edsl.agents import Agent
 from edsl.questions import QuestionMultipleChoice, QuestionList, QuestionFreeText
-from edsl.scenarios.Scenario import Scenario
-from edsl.surveys.Survey import Survey
-from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice as q
+from edsl.scenarios import Scenario
+from edsl.surveys import Survey
+from edsl.questions import QuestionMultipleChoice as q
 
 
 def test_option_expansion_from_current_answers_list_not_present_yet():
     # from edsl import QuestionMultipleChoice, QuestionList, Survey
-    from edsl.agents.InvigilatorBase import InvigilatorBase
+    from edsl.invigilators.invigilators import InvigilatorBase
 
     q0 = QuestionList(
         question_text="What are some age levels?",
@@ -28,7 +28,7 @@ def test_option_expansion_from_current_answers_list_not_present_yet():
 
 
 def test_option_expansion_from_current_answers_list():
-    from edsl.agents.InvigilatorBase import InvigilatorBase
+    from edsl.invigilators.invigilators import InvigilatorBase
 
     q0 = QuestionList(
         question_text="What are some age levels?",
@@ -46,7 +46,7 @@ def test_option_expansion_from_current_answers_list():
 
 
 def test_option_expansion_from_current_answers():
-    from edsl.agents.InvigilatorBase import InvigilatorBase
+    from edsl.invigilators.invigilators import InvigilatorBase
 
     q0 = QuestionList(
         question_text="What are some age levels?",
@@ -65,12 +65,13 @@ def test_option_expansion_from_current_answers():
 
 def test_option_expansion_from_scenario():
 
+    from edsl.invigilators.invigilators import InvigilatorBase
+
     q = QuestionMultipleChoice(
         question_text="Here is a question",
         question_name="example_question",
         question_options="{{ scenario.age_levels }}",
     )
-    from edsl.agents.InvigilatorBase import InvigilatorBase
 
     i = InvigilatorBase.example(question=q)
     i.scenario = Scenario({"age_levels": ["10-20", "20-30"]})

@@ -1,8 +1,7 @@
 from typing import List, Any, Dict, Union
 from jinja2 import Environment, Undefined
-from edsl.questions.QuestionBase import QuestionBase
-from edsl import ScenarioList
-
+from .question_base import QuestionBase
+from ..scenarios import ScenarioList
 
 class LoopProcessor:
     def __init__(self, question: QuestionBase):
@@ -102,7 +101,7 @@ class LoopProcessor:
             Rendered template string, preserving any unmatched template variables
 
         Examples:
-            >>> from edsl.questions.QuestionBase import QuestionBase
+            >>> from edsl.questions import QuestionBase
             >>> q = QuestionBase()
             >>> q.question_text = "test"
             >>> p = LoopProcessor(q)
