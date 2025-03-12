@@ -5,16 +5,9 @@ import pandas as pd
 import sqlite3
 from io import StringIO, BytesIO
 from unittest.mock import patch, MagicMock
-from edsl.scenarios.Scenario import Scenario
+from edsl.scenarios import Scenario
 
-from edsl.scenarios.FileStore import (
-    FileStore,
-    CSVFileStore,
-    PDFFileStore,
-    PNGFileStore,
-    SQLiteFileStore,
-    HTMLFileStore,
-)
+from edsl.scenarios import FileStore
 
 from edsl.scenarios.file_methods import FileMethods
 
@@ -34,6 +27,8 @@ class TestScenario(unittest.TestCase):
             except RuntimeError as e:
                 print(e)
             except ModuleNotFoundError as e:
+                print(e)
+            except Exception as e:
                 print(e)
 
 

@@ -1,12 +1,12 @@
 import pytest
 import uuid
-from edsl.exceptions.questions import (
+from edsl.questions.exceptions import (
     QuestionAnswerValidationError,
     QuestionResponseValidationError,
 )
 from edsl.questions import Settings
-from edsl.questions.QuestionBase import QuestionBase
-from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
+from edsl.questions import QuestionBase
+from edsl.questions import QuestionMultipleChoice
 
 
 def test_QuestionMultipleChoice_main():

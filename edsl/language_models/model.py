@@ -2,19 +2,16 @@ import textwrap
 from random import random
 from typing import Optional, TYPE_CHECKING, List, Callable
 
-from edsl.utilities.PrettyList import PrettyList
-from edsl.config import CONFIG
+from ..utilities import PrettyList
+from ..config import CONFIG
 
-from edsl.inference_services.InferenceServicesCollection import (
-    InferenceServicesCollection,
-)
-from edsl.inference_services.data_structures import AvailableModels
-from edsl.inference_services.InferenceServiceABC import InferenceServiceABC
-from edsl.enums import InferenceServiceLiteral
-from edsl.exceptions.inference_services import InferenceServiceError
+from ..inference_services import (InferenceServicesCollection, 
+                                  AvailableModels, InferenceServiceABC, InferenceServiceError, default)
+
+from ..enums import InferenceServiceLiteral
 
 if TYPE_CHECKING:
-    from edsl.results.Dataset import Dataset
+    from ..dataset import Dataset
 
 
 def get_model_class(
@@ -22,15 +19,12 @@ def get_model_class(
     registry: Optional[InferenceServicesCollection] = None,
     service_name: Optional[InferenceServiceLiteral] = None,
 ):
-    from edsl.inference_services.registry import default
-
     registry = registry or default
     try:
         factory = registry.create_model_factory(model_name, service_name=service_name)
         return factory
     except (InferenceServiceError, Exception) as e:
         return Model._handle_model_error(model_name, e)
-
 
 class Meta(type):
     def __repr__(cls):
@@ -59,8 +53,6 @@ class Model(metaclass=Meta):
     def get_registry(cls) -> InferenceServicesCollection:
         """Get the current registry or initialize with default if None"""
         if cls._registry is None:
-            from edsl.inference_services.registry import default
-
             cls._registry = default
         return cls._registry
 
@@ -165,10 +157,8 @@ class Model(metaclass=Meta):
     @classmethod
     def key_info(cls, obscure_api_key: bool = True) -> "Dataset":
         """Returns a dataset of local key information."""
-        from edsl.language_models.key_management.KeyLookupCollection import (
-            KeyLookupCollection,
-        )
-        from edsl.scenarios import Scenario, ScenarioList
+        from ..key_management import KeyLookupCollection
+        from ..scenarios import Scenario, ScenarioList
 
         klc = KeyLookupCollection()
         klc.add_key_lookup(fetch_order=None)
@@ -290,7 +280,7 @@ class Model(metaclass=Meta):
         works_with_text: Optional[bool] = None,
         works_with_images: Optional[bool] = None,
     ) -> list[dict]:
-        from edsl.coop import Coop
+        from ..coop import Coop
 
         c = Coop()
         working_models = c.fetch_working_models()
@@ -349,10 +339,5 @@ class Model(metaclass=Meta):
 
 if __name__ == "__main__":
     import doctest
-
     doctest.testmod(optionflags=doctest.ELLIPSIS)
 
-    # available = Model.available()
-    # m = Model("gpt-4-1106-preview")
-    # results = m.execute_model_call("Hello world")
-    # print(results)

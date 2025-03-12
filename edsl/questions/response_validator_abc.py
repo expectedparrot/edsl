@@ -3,8 +3,8 @@ from typing import Optional, Any, List, TypedDict, TYPE_CHECKING
 
 from pydantic import BaseModel, Field, field_validator, ValidationError
 
-from edsl.exceptions.questions import QuestionAnswerValidationError
-from edsl.questions.ExceptionExplainer import ExceptionExplainer
+from .exceptions import QuestionAnswerValidationError
+from .ExceptionExplainer import ExceptionExplainer
 
 if TYPE_CHECKING:
     from edsl.questions.data_structures import (
@@ -101,7 +101,7 @@ class ResponseValidatorABC(ABC):
         >>> rv.validate({"answer": "120"})
         Traceback (most recent call last):
         ...
-        edsl.exceptions.questions.QuestionAnswerValidationError:...
+        edsl.questions.exceptions.QuestionAnswerValidationError:...
         >>> from edsl import QuestionNumerical
         >>> q = QuestionNumerical.example()
         >>> q.permissive = True
@@ -111,7 +111,7 @@ class ResponseValidatorABC(ABC):
         >>> rv.validate({"answer": "poo"})
         Traceback (most recent call last):
         ...
-        edsl.exceptions.questions.QuestionAnswerValidationError:...
+        edsl.questions.exceptions.QuestionAnswerValidationError:...
         """
         proposed_edsl_answer_dict = self._preprocess(raw_edsl_answer_dict)
         try:

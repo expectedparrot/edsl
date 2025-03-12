@@ -4,8 +4,8 @@ import requests
 import os
 from io import StringIO
 
-from edsl.coop.PriceFetcher import PriceFetcher
-
+#from edsl.coop.PriceFetcher import PriceFetcher
+from edsl.coop.price_fetcher import PriceFetcher
 
 class TestPriceFetcher:
     @pytest.fixture
