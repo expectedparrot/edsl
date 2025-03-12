@@ -228,7 +228,7 @@ class QuestionBase(
             - The validator is responsible for ensuring responses conform to the expected
               format and constraints for this question type
         """
-        from edsl.questions.response_validator_factory import ResponseValidatorFactory
+        from .response_validator_factory import ResponseValidatorFactory
 
         rvf = ResponseValidatorFactory(self)
         return rvf.response_validator
@@ -394,7 +394,7 @@ class QuestionBase(
             >>> hash(q1) == hash(q2)
             True
         """
-        from edsl.utilities.utilities import dict_hash
+        from ..utilities import dict_hash
 
         return dict_hash(self.to_dict(add_edsl_version=False))
 
@@ -454,7 +454,7 @@ class QuestionBase(
         candidate_data["question_type"] = self.question_type
         d = {key: value for key, value in candidate_data.items() if value is not None}
         if add_edsl_version:
-            from edsl import __version__
+            from .. import __version__
 
             d["edsl_version"] = __version__
             d["edsl_class_name"] = "QuestionBase"
@@ -513,7 +513,7 @@ class QuestionBase(
             raise QuestionSerializationError(
                 f"Data does not have a 'question_type' field (got {data})."
             )
-        from edsl.questions.question_registry import get_question_class
+        from .question_registry import get_question_class
 
         try:
             question_class = get_question_class(question_type)
@@ -549,7 +549,7 @@ class QuestionBase(
             - When canned_response is provided, the model will always return that response
             - Used primarily for testing, demonstrations, and examples
         """
-        from edsl.language_models import LanguageModel
+        from ..language_models import LanguageModel
 
         return LanguageModel.example(canned_response=canned_response, test_model=True)
 
@@ -597,7 +597,7 @@ class QuestionBase(
             - Additional parameters to customize the example can be passed via kwargs
         """
         if model is None:
-            from edsl.language_models.model import Model
+            from ..language_models import Model
 
             model = Model()
         results = (
@@ -773,7 +773,7 @@ class QuestionBase(
         >>> Q.example().to_survey().questions[0].question_name
         'how_are_you'
         """
-        from edsl.surveys import Survey
+        from ..surveys import Survey
 
         return Survey([self])
 
@@ -797,7 +797,7 @@ class QuestionBase(
 
     def by(self, *args) -> "Jobs":
         """Turn a single question into a survey and then a Job."""
-        from edsl.surveys import Survey
+        from ..surveys import Survey
 
         s = Survey([self])
         return s.by(*args)
@@ -828,7 +828,7 @@ class QuestionBase(
         width: Optional[int] = None,
         iframe=False,
     ):
-        from edsl.questions.HTMLQuestion import HTMLQuestion
+        from ..questions.HTMLQuestion import HTMLQuestion
 
         return HTMLQuestion(self).html(
             scenario, agent, answers, include_question_name, height, width, iframe
@@ -836,7 +836,7 @@ class QuestionBase(
 
     @classmethod
     def example_model(cls):
-        from edsl.language_models.model import Model
+        from ..language_models import Model
 
         q = cls.example()
         m = Model("test", canned_response=cls._simulate_answer(q)["answer"])
