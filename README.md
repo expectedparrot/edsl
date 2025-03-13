@@ -142,6 +142,27 @@ results.select("color", "flower")
 **Caching**: 
 API calls to LLMs are cached automatically, allowing you to retrieve responses to questions that have already been run and reproduce experiments at no cost. Learn more about how the <a href="https://docs.expectedparrot.com/en/latest/remote_caching.html" target="_blank" rel="noopener noreferrer">universal remote cache</a> works.
 
+**Logging**:
+EDSL includes a comprehensive logging system to help with debugging and monitoring. Control log levels and see important information about operations:
+
+```python
+from edsl import logger
+import logging
+
+# Set the logging level
+logger.set_level(logging.DEBUG)  # Show all log messages
+
+# Get a module-specific logger
+my_logger = logger.get_logger(__name__)
+my_logger.info("This is a module-specific log message")
+
+# Log messages at different levels
+logger.debug("Detailed debugging information")
+logger.info("General information about operation")
+logger.warning("Something unexpected but not critical")
+logger.error("Something went wrong")
+```
+
 **Flexibility**: 
 Choose whether to run surveys on your own computer or at the Expected Parrot server.
 
