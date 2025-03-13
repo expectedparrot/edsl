@@ -149,7 +149,7 @@ class Coop(CoopFunctionsMixin):
         method: str,
         payload: Optional[dict[str, Any]] = None,
         params: Optional[dict[str, Any]] = None,
-        timeout: Optional[float] = 0.1,
+        timeout: Optional[float] = 10,
     ) -> requests.Response:
         """
         Send a request to the server and return the response.
