@@ -4,9 +4,14 @@ from typing import Optional
 from ..base import BaseException
 
 class LanguageModelExceptions(BaseException):
-    explanation = (
-        "This is the base class for all exceptions in the LanguageModel class."
-    )
+    """
+    Base exception class for all language model-related errors.
+    
+    This is the parent class for all exceptions related to language model operations,
+    including model creation, API calls, and response handling.
+    """
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/language_models.html"
+    explanation = "This is the base class for all exceptions in the language models module."
 
     def __init__(self, message):
         super().__init__(message)
@@ -14,16 +19,69 @@ class LanguageModelExceptions(BaseException):
 
 
 class LanguageModelNoResponseError(LanguageModelExceptions):
-    explanation = (
-        """This happens when the LLM API cannot be reached and/or does not respond."""
-    )
+    """
+    Exception raised when a language model API fails to respond.
+    
+    This exception occurs when:
+    - The language model API cannot be reached (network error)
+    - The API request times out
+    - The service is unavailable or overloaded
+    - Authentication fails (in some cases)
+    
+    This exception is used in the retry mechanism for handling model API failures,
+    particularly during interviews and asynchronous operations.
+    
+    To fix this error:
+    1. Check your internet connection
+    2. Verify that the language model service is operational
+    3. Increase timeout settings if dealing with complex requests
+    4. Check API keys and authentication if applicable
+    5. Consider implementing exponential backoff retry logic
+    
+    Examples:
+        ```python
+        # API timeout during a model call
+        model.generate(prompt="Very complex prompt", timeout=1)  # Raises LanguageModelNoResponseError if timeout is too short
+        ```
+    """
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/language_models.html#handling-errors"
+    explanation = "This happens when the language model API cannot be reached or does not respond within the specified timeout."
 
     def __init__(self, message):
         super().__init__(message)
 
 
 class LanguageModelBadResponseError(LanguageModelExceptions):
-    explanation = """This happens when the LLM API can be reached and responds, does not return a usable answer."""
+    """
+    Exception raised when a language model responds with unusable data.
+    
+    This exception occurs when:
+    - The API responds but with malformed data
+    - Required fields are missing in the response
+    - The response format doesn't match expectations
+    - The content can't be properly parsed
+    
+    This exception is commonly raised during response parsing and is used
+    to distinguish between no response (timeout/network error) and invalid response.
+    
+    To fix this error:
+    1. Check if the language model API has changed its response format
+    2. Verify that your prompt is correctly formatted for the expected response
+    3. Consider using a different model if the current one consistently produces bad responses
+    4. Review the attached response_json for clues about what went wrong
+    
+    Examples:
+        ```python
+        # Requesting a format the model can't produce
+        model.generate(prompt="Return valid XML")  # May raise LanguageModelBadResponseError if response isn't valid XML
+        ```
+    
+    Attributes:
+        message (str): Error message
+        response_json (Optional[dict]): The raw response that caused the error, if available
+    """
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/language_models.html#handling-errors"
+    explanation = "This happens when the language model API responds, but does not return a usable or properly formatted answer."
 
     def __init__(self, message, response_json: Optional[dict] = None):
         super().__init__(message)
@@ -31,20 +89,41 @@ class LanguageModelBadResponseError(LanguageModelExceptions):
 
 
 class LanguageModelNotFound(LanguageModelExceptions):
+    """
+    Exception raised when attempting to use a non-existent language model.
+    
+    This exception occurs when:
+    - A model name is not recognized by the system
+    - The requested model is not available in the current environment
+    - There's a typo in the model name
+    
+    To fix this error:
+    1. Check the model name for typos
+    2. Use Model.available() to see all available models
+    3. If using a proprietary model, ensure you have the necessary API keys
+    4. For new models, ensure your EDSL version supports them
+    
+    Examples:
+        ```python
+        Model("non-existent-model")  # Raises LanguageModelNotFound
+        ```
+    """
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/language_models.html#available-models"
+
     def __init__(self, model_name):
         msg = dedent(
             f"""\
             Model {model_name} not found.
             To create an instance of this model, pass the model name to a `Model` object.
             You can optionally pass additional parameters to the model, e.g.: 
-            >>> m = Model('gpt-4-1106-preview', temperature=0.5)
+            m = Model('gpt-4-1106-preview', temperature=0.5)
             
             To use the default model, simply run your job without specifying a model.
             To check the default model, run the following code:
-            >>> Model()
+            Model()
 
             To see information about all available models, run the following code:
-            >>> Model.available()
+            Model.available()
 
             See https://docs.expectedparrot.com/en/latest/language_models.html#available-models for more details.
             """
@@ -53,16 +132,83 @@ class LanguageModelNotFound(LanguageModelExceptions):
 
 
 class LanguageModelResponseNotJSONError(LanguageModelExceptions):
-    pass
+    """
+    Exception raised when a language model response cannot be parsed as JSON.
+    
+    This exception is for cases where JSON output was expected but the
+    model returned something that couldn't be parsed as valid JSON.
+    
+    To fix this error:
+    1. Check your prompt instructions regarding JSON format
+    2. Ensure the model is capable of producing JSON output
+    3. Consider using a structured output format with the model
+    
+    Note: This exception is defined but not currently used in the codebase.
+    It raises Exception("not used") to indicate this state.
+    """
+    def __init__(self, message="Language model response is not valid JSON", **kwargs):
+        super().__init__(message, **kwargs)
+        raise Exception("not used")
 
 
 class LanguageModelMissingAttributeError(LanguageModelExceptions):
-    pass
+    """
+    Exception raised when a required language model attribute is missing.
+    
+    This exception is for cases where a language model instance is missing
+    a required attribute for its operation.
+    
+    To fix this error:
+    1. Ensure the model is properly initialized
+    2. Check for any configuration issues
+    3. Verify the model class implements all required attributes
+    
+    Note: This exception is defined but not currently used in the codebase.
+    It raises Exception("not used") to indicate this state.
+    """
+    def __init__(self, message="Missing required language model attribute", **kwargs):
+        super().__init__(message, **kwargs)
+        raise Exception("not used")
 
 
 class LanguageModelAttributeTypeError(LanguageModelExceptions):
-    pass
+    """
+    Exception raised when a language model attribute has an incorrect type.
+    
+    This exception occurs when:
+    - An invalid inference service is provided
+    - A model parameter has the wrong data type
+    - The model metaclass validation fails
+    
+    This exception is used during model registration to validate that model
+    attributes meet the required specifications.
+    
+    To fix this error:
+    1. Check the types of all parameters passed to the Model constructor
+    2. Ensure inference service objects are properly initialized
+    3. Verify that custom model classes follow the required attribute patterns
+    
+    Examples:
+        ```python
+        Model("gpt-4", max_tokens="not a number")  # Raises LanguageModelAttributeTypeError
+        ```
+    """
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/language_models.html#model-parameters"
+    
+    def __init__(self, message="Language model attribute has incorrect type"):
+        super().__init__(message)
 
 
 class LanguageModelDoNotAddError(LanguageModelExceptions):
-    pass
+    """
+    Exception raised when attempting to add custom models inappropriately.
+    
+    This exception is designed to prevent inappropriate additions or
+    modifications to the language model registry.
+    
+    Note: This exception is defined but not currently used in the codebase.
+    It raises Exception("not used") to indicate this state.
+    """
+    def __init__(self, message="Do not add custom models this way", **kwargs):
+        super().__init__(message, **kwargs)
+        raise Exception("not used")
