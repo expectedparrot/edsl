@@ -578,7 +578,7 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
     def table(
         self,
         *fields,
-        tablefmt: Optional[str] = None,
+        tablefmt: Optional[str] = "rich",
         max_rows: Optional[int] = None,
         pretty_labels=None,
         print_parameters: Optional[dict] = None,
