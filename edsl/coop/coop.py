@@ -170,7 +170,6 @@ class Coop(CoopFunctionsMixin):
                     method, url, params=params, headers=self.headers, timeout=timeout
                 )
             elif method in ["POST", "PATCH"]:
-                print(timeout)
                 response = requests.request(
                     method,
                     url,
