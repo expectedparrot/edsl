@@ -543,10 +543,28 @@ class Coop(CoopFunctionsMixin):
                 raise Exception("No file store signed url provided.")
             elif file_store_metadata:
                 headers = {"Content-Type": file_store_metadata["mime_type"]}
-                data = base64.b64decode(object_dict["base64_string"])
+                # Lint json files prior to upload
+                if file_store_metadata["suffix"] == "json":
+                    file_store_bytes = base64.b64decode(object_dict["base64_string"])
+                    pretty_json_string = json.dumps(
+                        json.loads(file_store_bytes), indent=4
+                    )
+                    byte_data = pretty_json_string.encode("utf-8")
+                # Lint python files prior to upload
+                elif file_store_metadata["suffix"] == "py":
+                    import black
+
+                    file_store_bytes = base64.b64decode(object_dict["base64_string"])
+                    python_string = file_store_bytes.decode("utf-8")
+                    formatted_python_string = black.format_str(
+                        python_string, mode=black.Mode()
+                    )
+                    byte_data = formatted_python_string.encode("utf-8")
+                else:
+                    byte_data = base64.b64decode(object_dict["base64_string"])
                 response = requests.put(
                     file_store_upload_signed_url,
-                    data=data,
+                    data=byte_data,
                     headers=headers,
                 )
                 self._resolve_gcs_response(response)
