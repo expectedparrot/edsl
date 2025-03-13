@@ -1,4 +1,5 @@
 import aiohttp
+import base64
 import json
 import requests
 
@@ -433,6 +434,21 @@ class Coop(CoopFunctionsMixin):
         else:
             return None
 
+    def _scenario_is_file_store(self, scenario_dict: dict) -> bool:
+        """
+        Check if the scenario object is a valid FileStore.
+        """
+        file_store_keys = [
+            "path",
+            "base64_string",
+            "binary",
+            "suffix",
+            "mime_type",
+            "external_locations",
+            "extracted_text",
+        ]
+        return all(key in scenario_dict.keys() for key in file_store_keys)
+
     def create(
         self,
         object: EDSLObject,
@@ -472,6 +488,16 @@ class Coop(CoopFunctionsMixin):
             >>> print(result["url"])  # URL to access the survey
         """
         object_type = ObjectRegistry.get_object_type_by_edsl_class(object)
+        object_dict = object.to_dict()
+        if object_type == "scenario" and self._scenario_is_file_store(object_dict):
+            file_store_metadata = {
+                "suffix": object_dict["suffix"],
+                "mime_type": object_dict["mime_type"],
+                "binary": object_dict["binary"],
+                "path": object_dict["path"],
+            }
+        else:
+            file_store_metadata = None
         response = self._send_server_request(
             uri=f"api/v0/object",
             method="POST",
@@ -480,13 +506,14 @@ class Coop(CoopFunctionsMixin):
                 "alias": alias,
                 "json_string": (
                     json.dumps(
-                        object.to_dict(),
+                        object_dict,
                         default=self._json_handle_none,
                     )
                     if object_type != "scenario"
                     else ""
                 ),
                 "object_type": object_type,
+                "file_store_metadata": file_store_metadata,
                 "visibility": visibility,
                 "version": self._edsl_version,
             },
@@ -494,62 +521,36 @@ class Coop(CoopFunctionsMixin):
         self._resolve_server_response(response)
         response_json = response.json()
 
-        if object_type == "scenario" and description not in [
-            "cat image",
-            "cat pdf",
-            "cat csv",
-        ]:
+        if object_type == "scenario":
             json_data = json.dumps(
-                object.to_dict(),
+                object_dict,
                 default=self._json_handle_none,
             )
             headers = {"Content-Type": "application/json"}
-            if response_json.get("upload_signed_url"):
-                signed_url = response_json.get("upload_signed_url")
-            else:
-                raise Exception("No signed url provided received")
 
+            signed_url = response_json.get("upload_signed_url")
+            if not signed_url:
+                raise Exception("No signed url provided.")
             response = requests.put(
                 signed_url, data=json_data.encode(), headers=headers
             )
-        elif object_type == "scenario" and description == "cat image":
-            import base64
-
-            jpeg_data = base64.b64decode(object.to_dict()["base64_string"])
-            headers = {"Content-Type": "image/jpeg"}
-            data = jpeg_data
-            if response_json.get("upload_signed_url"):
-                signed_url = response_json.get("upload_signed_url")
-            else:
-                raise Exception("No signed url provided received")
-
-            response = requests.put(signed_url, data=data, headers=headers)
-        elif object_type == "scenario" and description == "cat pdf":
-            import base64
-
-            pdf_data = base64.b64decode(object.to_dict()["base64_string"])
-            headers = {"Content-Type": "application/pdf"}
-            data = pdf_data
-            if response_json.get("upload_signed_url"):
-                signed_url = response_json.get("upload_signed_url")
-            else:
-                raise Exception("No signed url provided received")
-
-            response = requests.put(signed_url, data=data, headers=headers)
-        elif object_type == "scenario" and description == "cat csv":
-            import base64
-
-            csv_data = base64.b64decode(object.to_dict()["base64_string"])
-            headers = {"Content-Type": "text/csv"}
-            data = csv_data
-            if response_json.get("upload_signed_url"):
-                signed_url = response_json.get("upload_signed_url")
-            else:
-                raise Exception("No signed url provided received")
-
-            response = requests.put(signed_url, data=data, headers=headers)
-
             self._resolve_gcs_response(response)
+
+            file_store_upload_signed_url = response_json.get(
+                "file_store_upload_signed_url"
+            )
+            if file_store_metadata and not file_store_upload_signed_url:
+                raise Exception("No file store signed url provided.")
+            elif file_store_metadata:
+                headers = {"Content-Type": file_store_metadata["mime_type"]}
+                data = base64.b64decode(object_dict["base64_string"])
+                response = requests.put(
+                    file_store_upload_signed_url,
+                    data=data,
+                    headers=headers,
+                )
+                self._resolve_gcs_response(response)
+
         owner_username = response_json.get("owner_username")
         object_alias = response_json.get("alias")
 
@@ -561,7 +562,6 @@ class Coop(CoopFunctionsMixin):
             "uuid": response_json.get("uuid"),
             "version": self._edsl_version,
             "visibility": response_json.get("visibility"),
-            "upload_signed_url": response_json.get("upload_signed_url", None),
         }
 
     def get(
