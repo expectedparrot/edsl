@@ -13,13 +13,13 @@ from pathlib import Path
 
 # Create the logger
 logger = logging.getLogger("edsl")
-logger.setLevel(logging.INFO)  # Default level
+logger.setLevel(logging.ERROR)  # Default level
 
 # Avoid adding handlers multiple times when imported in different modules
 if not logger.handlers:
     # Console handler
     console_handler = logging.StreamHandler(sys.stdout)
-    console_handler.setLevel(logging.INFO)
+    console_handler.setLevel(logging.ERROR)
     console_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     console_handler.setFormatter(console_formatter)
     logger.addHandler(console_handler)
@@ -34,7 +34,7 @@ if not logger.handlers:
             maxBytes=5 * 1024 * 1024,  # 5 MB
             backupCount=3
         )
-        file_handler.setLevel(logging.INFO)
+        file_handler.setLevel(logging.ERROR)
         file_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
         file_handler.setFormatter(file_formatter)
         logger.addHandler(file_handler)
@@ -112,7 +112,7 @@ def configure_from_config():
     - ERROR
     - CRITICAL
     
-    If no configuration is found, the default level (INFO) is maintained.
+    If no configuration is found, the default level (ERROR) is maintained.
     """
     try:
         import os
