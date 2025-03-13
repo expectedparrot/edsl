@@ -59,9 +59,9 @@ def create_large_survey(num_questions=1000):
     questions = []
     for i in range(num_questions):
         q = QuestionMultipleChoice(
-            name=f"q_{i}",
-            question=f"This is question {i}",
-            options=[f"Option {j}" for j in range(5)]
+            question_name=f"q_{i}",
+            question_text=f"This is question {i}",
+            question_options=[f"Option {j}" for j in range(5)]
         )
         questions.append(q)
     
@@ -72,9 +72,10 @@ def create_large_survey(num_questions=1000):
 @timed
 def render_survey_prompts(survey):
     """Measure how long it takes to render all prompts in a survey."""
-    for question in survey.questions:
-        # Access prompt to force rendering
-        _ = question.prompt
+    # for question in survey.questions:
+    #     # Access prompt to force rendering
+    #     _ = question.prompt
+    survey.to_jobs().prompts()
     return None
 
 
@@ -82,16 +83,22 @@ def render_survey_prompts(survey):
 def run_survey_with_test_model(survey, num_questions=10):
     """Run a survey with a test model and measure performance."""
     from edsl import Survey
-    from edsl.language_models import TestLanguageModel
+    from edsl import Model
     
     # Use a subset of questions if needed
     if len(survey.questions) > num_questions:
         small_survey = Survey(questions=survey.questions[:num_questions])
     else:
         small_survey = survey
-        
+
+    from edsl.caching import Cache
+    c = Cache()    
+    from edsl.language_models import LanguageModel
+    m = LanguageModel.example(test_model=True, canned_response="Option 0")
+
+    #m = Model('test', canned_response = "Option 0")
     # Run with test model (no real API calls)
-    results = small_survey.run(model=TestLanguageModel())
+    results = small_survey.by(m).run(disable_remote_inference = True, disable_remote_cache = True, cache = c)
     return results
 
 

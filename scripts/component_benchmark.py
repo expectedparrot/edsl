@@ -82,7 +82,7 @@ def benchmark_question_types():
     """Benchmark creating different question types."""
     from edsl.questions import (
         QuestionMultipleChoice, QuestionFreeText, QuestionCheckBox,
-        QuestionNumerical, QuestionList, QuestionBudget
+        QuestionNumerical, QuestionList
     )
     
     questions = []
@@ -91,45 +91,39 @@ def benchmark_question_types():
     for i in range(100):
         # Multiple choice
         q1 = QuestionMultipleChoice(
-            name=f"mc_{i}", 
-            question=f"Multiple choice question {i}", 
-            options=[f"Option {j}" for j in range(5)]
+            question_name=f"mc_{i}", 
+            question_text=f"Multiple choice question {i}", 
+            question_options=[f"Option {j}" for j in range(5)]
         )
         
         # Free text
         q2 = QuestionFreeText(
-            name=f"ft_{i}",
-            question=f"Free text question {i}"
+            question_name=f"ft_{i}",
+            question_text=f"Free text question {i}"
         )
         
         # Checkbox
         q3 = QuestionCheckBox(
-            name=f"cb_{i}",
-            question=f"Checkbox question {i}",
-            options=[f"Option {j}" for j in range(5)]
+            question_name=f"cb_{i}",
+            question_text=f"Checkbox question {i}",
+            question_options=[f"Option {j}" for j in range(5)]
         )
         
         # Numerical
         q4 = QuestionNumerical(
-            name=f"num_{i}",
-            question=f"Numerical question {i}"
+            question_name=f"num_{i}",
+            question_text=f"Numerical question {i}"
         )
         
         # List
         q5 = QuestionList(
-            name=f"list_{i}",
-            question=f"List question {i}"
+            question_name=f"list_{i}",
+            question_text=f"List question {i}"
         )
         
         # Budget
-        q6 = QuestionBudget(
-            name=f"budget_{i}",
-            question=f"Budget question {i}",
-            options=[f"Option {j}" for j in range(5)],
-            budget=100
-        )
         
-        questions.extend([q1, q2, q3, q4, q5, q6])
+        questions.extend([q1, q2, q3, q4, q5])
     
     return questions
 
@@ -137,15 +131,16 @@ def benchmark_question_types():
 @timed
 def benchmark_large_survey_dag():
     """Benchmark creating a large survey with a complex DAG."""
-    from edsl import Survey, QuestionMultipleChoice, Rule
+    from edsl import Survey, QuestionMultipleChoice
+    from edsl.surveys import Rule
     
     # Create 100 questions
     questions = []
     for i in range(100):
         q = QuestionMultipleChoice(
-            name=f"q_{i}",
-            question=f"This is question {i}",
-            options=[f"Option {j}" for j in range(5)]
+            question_name=f"q_{i}",
+            question_text=f"This is question {i}",
+            question_options=[f"Option {j}" for j in range(5)]
         )
         questions.append(q)
     
@@ -153,14 +148,14 @@ def benchmark_large_survey_dag():
     survey = Survey(questions=questions)
     
     # Add some skip logic
-    for i in range(0, 98, 2):
-        # If the answer to question i is Option 0, skip the next question
-        rule = Rule(
-            name=f"skip_rule_{i}",
-            condition=f"q_{i} == 'Option 0'",
-            action=f"skip q_{i+1}"
-        )
-        survey.add_rule(rule)
+    # for i in range(0, 98, 2):
+    #     # If the answer to question i is Option 0, skip the next question
+    #     rule = Rule(
+    #         rule_name=f"skip_rule_{i}",
+    #         condition=f"q_{i} == 'Option 0'",
+    #         action=f"skip q_{i+1}"
+    #     )
+    #     survey.add_rule(rule)
     
     return survey
 
@@ -168,18 +163,13 @@ def benchmark_large_survey_dag():
 @timed
 def benchmark_model_setup():
     """Benchmark setting up various language models."""
-    from edsl.language_models import (
-        LanguageModel, AnthropicLanguageModel, OpenAILanguageModel, 
-        TestLanguageModel
-    )
+    from edsl import Model
     
     models = []
     
     # Create instances of various models
-    models.append(LanguageModel())
-    models.append(AnthropicLanguageModel("claude-3-opus-20240229"))
-    models.append(OpenAILanguageModel("gpt-4-turbo"))
-    models.append(TestLanguageModel())
+    models.append(Model())
+    models.append(Model("claude-3-opus-20240229"))
     
     return models
 

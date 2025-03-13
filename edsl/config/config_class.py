@@ -52,7 +52,7 @@ CONFIG_MAP = {
         "info": "This config var determines whether to fetch prices for tokens used in remote inference",
     },
     "EDSL_LOG_LEVEL": {
-        "default": "INFO",
+        "default": "ERROR",
         "info": "This config var determines the logging level for the EDSL package (DEBUG, INFO, WARNING, ERROR, CRITICAL).",
     },
     "EDSL_MAX_ATTEMPTS": {
