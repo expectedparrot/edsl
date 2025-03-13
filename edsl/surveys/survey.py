@@ -73,6 +73,28 @@ from .rules import RuleManager, RuleCollection
 from .survey_export import SurveyExport
 from .exceptions import SurveyCreationError, SurveyHasNoRulesError, SurveyError
 
+
+from ..extension_manager.plugin_system import PluginManager, PluginHost
+
+#class EP:
+    
+    # List available methods
+    # print("\nAvailable methods:")
+    # for method in host.list_available_methods():
+    #     print(f"  - {method}")
+    
+    # # Example usage
+    # print("\nExample usage:")
+    
+    # # Using shorthand method names
+    # text = "Hello Plugin System"
+    # print(f"Original text: {text}")
+    # print(f"Uppercase: {host.uppercase(text)}")
+    # print(f"Lowercase: {host.lowercase(text)}")
+    # print(f"Reverse: {host.reverse(text)}")
+    # print(f"Word count: {host.word_count(text)}")
+    
+
 class PseudoIndices(UserDict):
     """A dictionary of pseudo-indices for the survey.
     
@@ -242,6 +264,17 @@ class Survey(Base):
         self._cached_instruction_collection: Optional[InstructionCollection] = None
 
         self._exporter = SurveyExport(self)
+
+    @property
+    def ep(self) -> Any:
+        """Return the survey."""
+
+        plugin_manager = PluginManager("edsl.plugins")
+        plugin_manager.discover_plugins()
+        plugin_manager.instantiate_plugins()        
+        # Create a plugin host
+        host = PluginHost(plugin_manager, self)
+        return host
 
     def question_names_valid(self) -> bool:
         """Check if the question names are valid."""

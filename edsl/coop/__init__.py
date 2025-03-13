@@ -22,4 +22,5 @@ Example:
 from .utils import EDSLObject, ObjectType, VisibilityType, ObjectRegistry
 from .coop import Coop
 from .exceptions import CoopServerResponseError
+from .remote_plugin import RemotePlugin
 __all__ = ["Coop"]
