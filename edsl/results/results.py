@@ -231,26 +231,6 @@ class Results(UserList, ResultsOperationsMixin, Base):
         if hasattr(self, "_add_output_functions"):
             self._add_output_functions()
 
-    def long(self):
-        return self.table().long()
-
-    def print_long(self, max_rows: int = None) -> None:
-        """Print the results in long format.
-
-        >>> from edsl.results import Results
-        >>> r = Results.example()
-        >>> r.select('how_feeling').print_long(max_rows = 2)
-        ┏━━━━━━━━━━━━━━┳━━━━━━━━━━━━━┳━━━━━━━┓
-        ┃ Result index ┃ Key         ┃ Value ┃
-        ┡━━━━━━━━━━━━━━╇━━━━━━━━━━━━━╇━━━━━━━┩
-        │ 0            │ how_feeling │ OK    │
-        │ 1            │ how_feeling │ Great │
-        └──────────────┴─────────────┴───────┘
-        """
-        from edsl.utilities.interface import print_results_long
-
-        print_results_long(self, max_rows=max_rows)
-
 
     def _fetch_list(self, data_type: str, key: str) -> list:
         """
@@ -482,7 +462,7 @@ class Results(UserList, ResultsOperationsMixin, Base):
     def table(
         self,
         *fields,
-        tablefmt: Optional[str] = None,
+        tablefmt: Optional[str] = "rich",
         pretty_labels: Optional[dict] = None,
         print_parameters: Optional[dict] = None,
     ):

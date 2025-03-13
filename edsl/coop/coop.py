@@ -149,7 +149,7 @@ class Coop(CoopFunctionsMixin):
         method: str,
         payload: Optional[dict[str, Any]] = None,
         params: Optional[dict[str, Any]] = None,
-        timeout: Optional[float] = 5,
+        timeout: Optional[float] = 10,
     ) -> requests.Response:
         """
         Send a request to the server and return the response.
@@ -159,7 +159,7 @@ class Coop(CoopFunctionsMixin):
         if payload is None:
             timeout = 40
         elif (
-            method.upper() == "POST"
+            (method.upper() == "POST" or method.upper() == "PATCH")
             and "json_string" in payload
             and payload.get("json_string") is not None
         ):
@@ -170,6 +170,7 @@ class Coop(CoopFunctionsMixin):
                     method, url, params=params, headers=self.headers, timeout=timeout
                 )
             elif method in ["POST", "PATCH"]:
+                print(timeout)
                 response = requests.request(
                     method,
                     url,

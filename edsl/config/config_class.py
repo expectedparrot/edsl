@@ -7,6 +7,7 @@ from edsl.exceptions.configuration import (
     InvalidEnvironmentVariableError,
     MissingEnvironmentVariableError,
 )
+from edsl import logger
 
 cache_dir = platformdirs.user_cache_dir("edsl")
 os.makedirs(cache_dir, exist_ok=True)
@@ -50,6 +51,10 @@ CONFIG_MAP = {
         "default": "True",
         "info": "This config var determines whether to fetch prices for tokens used in remote inference",
     },
+    "EDSL_LOG_LEVEL": {
+        "default": "ERROR",
+        "info": "This config var determines the logging level for the EDSL package (DEBUG, INFO, WARNING, ERROR, CRITICAL).",
+    },
     "EDSL_MAX_ATTEMPTS": {
         "default": "5",
         "info": "This config var determines the maximum number of times to retry a failed API call.",
@@ -86,9 +91,11 @@ class Config:
 
     def __init__(self):
         """Initialize the Config class."""
+        logger.debug("Initializing Config class")
         self._set_run_mode()
         self._load_dotenv()
         self._set_env_vars()
+        logger.info(f"Config initialized with run mode: {self.EDSL_RUN_MODE}")
 
     def show_path_to_dot_env(self):
         print(find_dotenv(usecwd=True))
@@ -101,7 +108,12 @@ class Config:
         default = CONFIG_MAP.get("EDSL_RUN_MODE").get("default")
         if run_mode is None:
             run_mode = default
+            logger.debug(f"EDSL_RUN_MODE not set, using default: {default}")
+        else:
+            logger.debug(f"EDSL_RUN_MODE set to: {run_mode}")
+
         if run_mode not in EDSL_RUN_MODES:
+            logger.error(f"Invalid EDSL_RUN_MODE: {run_mode}")
             raise InvalidEnvironmentVariableError(
                 f"Value `{run_mode}` is not allowed for EDSL_RUN_MODE."
             )
@@ -149,12 +161,19 @@ class Config:
         """
         Returns the value of an environment variable.
         """
+        logger.debug(f"Getting config value for: {env_var}")
+
         if env_var not in CONFIG_MAP:
+            logger.error(f"Invalid environment variable requested: {env_var}")
             raise InvalidEnvironmentVariableError(f"{env_var} is not a valid env var. ")
         elif env_var not in self.__dict__:
             info = CONFIG_MAP[env_var].get("info")
+            logger.error(f"Missing environment variable: {env_var}")
             raise MissingEnvironmentVariableError(f"{env_var} is not set. {info}")
-        return self.__dict__.get(env_var)
+
+        value = self.__dict__.get(env_var)
+        logger.debug(f"Config value for {env_var}: {value}")
+        return value
 
     def __iter__(self):
         """Iterate over the environment variables."""
