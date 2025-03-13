@@ -1,10 +1,10 @@
 from typing import List, Dict, Any, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from edsl.questions.QuestionBase import QuestionBase
-    from edsl.agents.InvigilatorBase import InvigilatorBase
-    from edsl.language_models.key_management.KeyLookup import KeyLookup
-    from edsl.jobs.interviews.Interview import Interview
+    from ..questions import QuestionBase
+    from ..agents import InvigilatorBase
+    from ..language_models.key_management import KeyLookup
+    from .interviews import Interview
 
 
 class FetchInvigilator:

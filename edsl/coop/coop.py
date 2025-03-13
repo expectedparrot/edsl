@@ -149,7 +149,7 @@ class Coop(CoopFunctionsMixin):
         method: str,
         payload: Optional[dict[str, Any]] = None,
         params: Optional[dict[str, Any]] = None,
-        timeout: Optional[float] = 5,
+        timeout: Optional[float] = 10,
     ) -> requests.Response:
         """
         Send a request to the server and return the response.
@@ -159,7 +159,7 @@ class Coop(CoopFunctionsMixin):
         if payload is None:
             timeout = 40
         elif (
-            method.upper() == "POST"
+            (method.upper() == "POST" or method.upper() == "PATCH")
             and "json_string" in payload
             and payload.get("json_string") is not None
         ):
@@ -170,6 +170,7 @@ class Coop(CoopFunctionsMixin):
                     method, url, params=params, headers=self.headers, timeout=timeout
                 )
             elif method in ["POST", "PATCH"]:
+                print(timeout)
                 response = requests.request(
                     method,
                     url,
@@ -228,14 +229,14 @@ class Coop(CoopFunctionsMixin):
         # breakpoint()
         server_edsl_version = response.headers.get("X-EDSL-Version")
 
-        if server_edsl_version:
-            if self._user_version_is_outdated(
-                user_version_str=self._edsl_version,
-                server_version_str=server_edsl_version,
-            ):
-                print(
-                    "Please upgrade your EDSL version to access our latest features. Open your terminal and run `pip install --upgrade edsl`"
-                )
+        # if server_edsl_version:
+        #     if self._user_version_is_outdated(
+        #         user_version_str=self._edsl_version,
+        #         server_version_str=server_edsl_version,
+        #     ):
+        #         print(
+        #             "Please upgrade your EDSL version to access our latest features. Open your terminal and run `pip install --upgrade edsl`"
+        #         )
 
         if response.status_code >= 400:
             try:
@@ -282,6 +283,30 @@ class Coop(CoopFunctionsMixin):
                 message = "Please provide an Expected Parrot API key."
 
             raise CoopServerResponseError(message)
+
+    def _resolve_gcs_response(self, response: requests.Response) -> None:
+        """
+        Check the response from uploading or downloading a file from Google Cloud Storage.
+        Raise errors as appropriate.
+        """
+        if response.status_code >= 400:
+            try:
+                import xml.etree.ElementTree as ET
+
+                # Extract elements from XML string
+                root = ET.fromstring(response.text)
+
+                code = root.find("Code").text
+                message = root.find("Message").text
+                details = root.find("Details").text
+            except Exception:
+                raise Exception(
+                    f"Server returned status code {response.status_code}",
+                    "XML response could not be decoded.",
+                    "The server response was: " + response.text,
+                )
+
+            raise Exception(f"An error occurred: {code} - {message} - {details}")
 
     def _poll_for_api_key(
         self, edsl_auth_token: str, timeout: int = 120
@@ -524,6 +549,7 @@ class Coop(CoopFunctionsMixin):
 
             response = requests.put(signed_url, data=data, headers=headers)
 
+            self._resolve_gcs_response(response)
         owner_username = response_json.get("owner_username")
         object_alias = response_json.get("alias")
 
@@ -598,6 +624,7 @@ class Coop(CoopFunctionsMixin):
         if "load_from:" in json_string[0:12]:
             load_link = json_string.split("load_from:")[1]
             object_data = requests.get(load_link)
+            self._resolve_gcs_response(object_data)
             json_string = object_data.text
         object_type = response.json().get("object_type")
         if expected_object_type and object_type != expected_object_type:
@@ -624,6 +651,7 @@ class Coop(CoopFunctionsMixin):
             if "load_from:" in json_string[0:12]:
                 load_link = json_string.split("load_from:")[1]
                 object_data = requests.get(load_link)
+                self._resolve_gcs_response(object_data)
                 json_string = object_data.text
 
             json_string = json.loads(json_string)

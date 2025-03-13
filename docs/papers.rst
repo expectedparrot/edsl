@@ -22,6 +22,12 @@ If you use the EDSL package in your research or projects, please use the followi
     }
 
 
+| *Social Science Production with LLMs*
+| Eric Vansteenberghe
+| February 2025
+| https://papers.ssrn.com/sol3/papers.cfm?abstract_id=5133210
+
+
 | *Linear Representations of Political Perspective Emerge in Large Language Models*
 | Junsol Kim, James Evans, Aaron Schein
 | March 2025
