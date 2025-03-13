@@ -220,6 +220,6 @@ def test_repairs():
         test_model=True, canned_response="""["{'a':1}", "{'b':2}"]"""
     )
     results = q.by(m).run()
-    results.select("answer.list_of_foods").show()
+    results.select("answer.list_of_foods")
     assert results.select("answer.list_of_foods").to_list()[0][0]["a"] == 1
     assert results.select("answer.list_of_foods").to_list()[0][1]["b"] == 2
