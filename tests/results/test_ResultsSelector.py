@@ -260,7 +260,7 @@ class TestSelector(unittest.TestCase):
         with patch.object(self.selector, '_normalize_columns') as mock_normalize:
             with patch.object(self.selector, '_get_columns_to_fetch') as mock_get_cols:
                 with patch.object(self.selector, '_fetch_data') as mock_fetch:
-                    with patch('edsl.results.results_selector.Dataset') as mock_dataset:
+                    with patch('edsl.dataset.Dataset') as mock_dataset:
                         # Set up the mocks to return expected values
                         mock_normalize.return_value = ('question1',)
                         mock_get_cols.return_value = {'answer': ['question1']}
@@ -280,7 +280,7 @@ class TestSelector(unittest.TestCase):
         with patch.object(self.selector, '_normalize_columns') as mock_normalize:
             with patch.object(self.selector, '_get_columns_to_fetch') as mock_get_cols:
                 with patch.object(self.selector, '_fetch_data') as mock_fetch:
-                    with patch('edsl.results.results_selector.Dataset') as mock_dataset:
+                    with patch('edsl.dataset.Dataset') as mock_dataset:
                         # Set up the mocks to return expected values
                         mock_normalize.return_value = ('question1', 'name')
                         mock_get_cols.return_value = {'answer': ['question1'], 'agent': ['name']}
@@ -304,7 +304,7 @@ class TestSelector(unittest.TestCase):
         with patch.object(self.selector, '_normalize_columns') as mock_normalize:
             with patch.object(self.selector, '_get_columns_to_fetch') as mock_get_cols:
                 with patch.object(self.selector, '_fetch_data') as mock_fetch:
-                    with patch('edsl.results.results_selector.Dataset') as mock_dataset:
+                    with patch('edsl.dataset.Dataset') as mock_dataset:
                         # Set up the mocks to return expected values
                         mock_normalize.return_value = ('answer.*',)
                         mock_get_cols.return_value = {'answer': ['question1', 'question2']}
@@ -328,7 +328,7 @@ class TestSelector(unittest.TestCase):
         with patch.object(self.selector, '_normalize_columns') as mock_normalize:
             with patch.object(self.selector, '_get_columns_to_fetch') as mock_get_cols:
                 with patch.object(self.selector, '_fetch_data') as mock_fetch:
-                    with patch('edsl.results.results_selector.Dataset') as mock_dataset:
+                    with patch('edsl.dataset.Dataset') as mock_dataset:
                         # Set up the mocks to return expected values
                         mock_normalize.return_value = ('*.*',)
                         
