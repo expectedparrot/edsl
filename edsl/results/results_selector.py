@@ -11,8 +11,8 @@ from typing import Union, List, Dict, Any, Optional, Tuple, Callable
 import sys
 from collections import defaultdict
 
-from ..dataset import Dataset
-from ..utilities import is_notebook
+# Import is_notebook but defer Dataset import to avoid potential circular imports
+from edsl.utilities import is_notebook
 
 from .exceptions import ResultsColumnNotFoundError
 
@@ -67,7 +67,7 @@ class Selector:
         self.columns = columns
         self.items_in_order = []  # Tracks column order for consistent output
 
-    def select(self, *columns: Union[str, List[str]]) -> Optional[Dataset]:
+    def select(self, *columns: Union[str, List[str]]) -> Optional["Dataset"]:
         """
         Select specific columns from the data and return as a Dataset.
         
@@ -111,6 +111,9 @@ class Selector:
                 return None
             else:
                 raise e
+                
+        # Import Dataset here to avoid circular import issues
+        from edsl.dataset import Dataset
         return Dataset(new_data)
 
     def _normalize_columns(self, columns: Union[str, List[str]]) -> Tuple[str, ...]:
