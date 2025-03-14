@@ -106,7 +106,9 @@ class Selector:
             to_fetch = self._get_columns_to_fetch(columns)
             new_data = self._fetch_data(to_fetch)
         except ResultsColumnNotFoundError as e:
-            if is_notebook():
+            # Check is_notebook with explicit import to ensure mock works
+            from edsl.utilities import is_notebook as is_notebook_check
+            if is_notebook_check():
                 print("Error:", e, file=sys.stderr)
                 return None
             else:
