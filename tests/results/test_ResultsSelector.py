@@ -354,7 +354,7 @@ class TestSelector(unittest.TestCase):
                         mock_fetch.assert_called_once_with(to_fetch)
                         mock_dataset.assert_called_once_with(mock_data)
 
-    @patch("edsl.results.results_selector.is_notebook")
+    @patch("edsl.utilities.is_notebook")
     @patch("sys.stderr")
     def test_select_error_handling_notebook(self, mock_stderr, mock_is_notebook):
         """Test error handling in notebook environment."""
@@ -372,7 +372,7 @@ class TestSelector(unittest.TestCase):
             # Verify that None was returned
             self.assertIsNone(result)
 
-    @patch("edsl.results.results_selector.is_notebook")
+    @patch("edsl.utilities.is_notebook")
     def test_select_error_handling_non_notebook(self, mock_is_notebook):
         """Test error handling in non-notebook environment."""
         mock_is_notebook.return_value = False
