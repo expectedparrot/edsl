@@ -1,4 +1,4 @@
-from typing import List, Any, Dict, Union
+from typing import List, Any, Dict
 from jinja2 import Environment, Undefined
 from .question_base import QuestionBase
 from ..scenarios import ScenarioList
@@ -68,7 +68,6 @@ class LoopProcessor:
             return value
 
         if key == "option_labels":
-            import json
 
             return (
                 eval(self._render_template(value, scenario))
@@ -130,8 +129,10 @@ class LoopProcessor:
         
         def replace_var(match):
             var_name = match.group('var')
-            open_brace = match.group('open')
-            close_brace = match.group('close')
+            # We're keeping the original formatting with braces
+            # but not using these variables directly
+            # open_brace = match.group('open')
+            # close_brace = match.group('close')
             
             # Try to evaluate the variable in the context
             try:

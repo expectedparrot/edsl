@@ -5,7 +5,6 @@ import inspect
 from .question_base import QuestionBase
 
 from ..utilities.restricted_python import create_restricted_function
-from ..utilities.decorators import add_edsl_version, remove_edsl_version
 
 
 class QuestionFunctional(QuestionBase):

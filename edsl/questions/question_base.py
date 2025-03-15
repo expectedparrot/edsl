@@ -48,17 +48,7 @@ Technical Details:
 
 from __future__ import annotations
 from abc import ABC
-from typing import Any, Type, Optional, List, Callable, Union, TypedDict, TYPE_CHECKING
-
-from .exceptions import QuestionSerializationError
-
-from ..base import PersistenceMixin, RepresentationMixin, BaseDiff, BaseDiffCollection
-from ..utilities import remove_edsl_version, is_valid_variable_name
-
-if TYPE_CHECKING:
-    from ..agents import Agent
-    from ..scenarios import Scenario
-    from ..surveys import Survey
+from typing import Any, Type, Optional, Union, TypedDict, TYPE_CHECKING, Literal
 
 from .descriptors import QuestionNameDescriptor, QuestionTextDescriptor
 from .answer_validator_mixin import AnswerValidatorMixin
@@ -66,6 +56,18 @@ from .register_questions_meta import RegisterQuestionsMeta
 from .simple_ask_mixin import SimpleAskMixin
 from .question_base_prompts_mixin import QuestionBasePromptsMixin
 from .question_base_gen_mixin import QuestionBaseGenMixin
+from .exceptions import QuestionSerializationError
+
+from ..base import PersistenceMixin, RepresentationMixin, BaseDiff, BaseDiffCollection
+from ..utilities import remove_edsl_version, is_valid_variable_name
+
+# Define VisibilityType for type annotations
+VisibilityType = Literal["private", "public", "unlisted"]
+
+if TYPE_CHECKING:
+    from ..agents import Agent
+    from ..scenarios import Scenario
+    from ..surveys import Survey
 
 if TYPE_CHECKING:
     from .response_validator_abc import ResponseValidatorABC
@@ -509,9 +511,9 @@ class QuestionBase(
                         int(key): value for key, value in options_labels.items()
                     }
                     local_data["option_labels"] = options_labels
-        except:
+        except Exception as e:
             raise QuestionSerializationError(
-                f"Data does not have a 'question_type' field (got {data})."
+                f"Error in deserialization: {str(e)}. Data does not have a 'question_type' field (got {data})."
             )
         from .question_registry import get_question_class
 

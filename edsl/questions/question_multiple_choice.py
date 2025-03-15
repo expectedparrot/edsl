@@ -4,7 +4,6 @@ from typing import Union, Literal, Optional, List, Any
 from jinja2 import Template
 from pydantic import BaseModel, Field
 
-from ..scenarios import Scenario
 from .question_base import QuestionBase
 from .descriptors import QuestionOptionsDescriptor
 from .decorators import inject_exception

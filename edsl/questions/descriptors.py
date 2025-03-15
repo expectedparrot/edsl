@@ -2,7 +2,7 @@
 
 from abc import ABC, abstractmethod
 import re
-from typing import Any, Callable, List, Optional
+from typing import Any, Callable, List
 from .exceptions import (
     QuestionCreationValidationError,
     QuestionAnswerValidationError,
@@ -338,7 +338,7 @@ class QuestionOptionsDescriptor(BaseDescriptor):
                     )
             if not all(
                 [
-                    type(option) != str
+                    not isinstance(option, str)
                     or (len(option) >= 1 and len(option) < Settings.MAX_OPTION_LENGTH)
                     for option in value
                 ]
@@ -356,12 +356,12 @@ class QuestionOptionsDescriptor(BaseDescriptor):
                     UserWarning,
                 )
 
-        if hasattr(instance, "min_selections") and instance.min_selections != None:
+        if hasattr(instance, "min_selections") and instance.min_selections is not None:
             if instance.min_selections > len(value):
                 raise QuestionCreationValidationError(
                     f"You asked for at least {instance.min_selections} selections, but provided fewer options (got {value})."
                 )
-        if hasattr(instance, "max_selections") and instance.max_selections != None:
+        if hasattr(instance, "max_selections") and instance.max_selections is not None:
             if instance.max_selections > len(value):
                 raise QuestionCreationValidationError(
                     f"You asked for at most {instance.max_selections} selections, but provided fewer options (got {value})."

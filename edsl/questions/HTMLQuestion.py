@@ -1,5 +1,4 @@
 from typing import Optional
-from ..prompts import Prompt
 
 
 class HTMLQuestion:
@@ -87,7 +86,6 @@ class HTMLQuestion:
         rendered_html = base_template.render(**params)
 
         if iframe:
-            import html
             from ..display import display_html
             
             height = height or 200

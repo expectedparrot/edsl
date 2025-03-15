@@ -1,8 +1,13 @@
 from importlib import resources
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 from functools import lru_cache
 
 from .exceptions import QuestionAnswerValidationError
+
+if TYPE_CHECKING:
+    from pydantic import BaseModel
+    from ..prompts import Prompt
+    from ..prompts.prompt import PromptBase
 
 class TemplateManager:
     _instance = None
@@ -85,7 +90,7 @@ class QuestionBasePromptsMixin:
 
     @classmethod
     def path_to_folder(cls) -> str:
-        return resources.files(f"edsl.questions.templates", cls.question_type)
+        return resources.files("edsl.questions.templates", cls.question_type)
 
     @property
     def response_model(self) -> type["BaseModel"]:
