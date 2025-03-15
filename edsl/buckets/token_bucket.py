@@ -4,6 +4,7 @@ import time
 from threading import RLock
 
 from ..jobs.decorators import synchronized_class
+from .exceptions import BucketError, TokenLimitError, BucketConfigurationError
 
 
 @synchronized_class
@@ -375,7 +376,7 @@ class TokenBucket:
         if amount >= self.capacity:
             if not cheat_bucket_capacity:
                 msg = f"Requested amount exceeds bucket capacity. Bucket capacity: {self.capacity}, requested amount: {amount}. As the bucket never overflows, the requested amount will never be available."
-                raise ValueError(msg)
+                raise TokenLimitError(msg)
             else:
                 self.capacity = amount * 1.10
                 self._old_capacity = self.capacity
