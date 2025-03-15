@@ -111,7 +111,7 @@ class Config:
             logger.debug(f"EDSL_RUN_MODE not set, using default: {default}")
         else:
             logger.debug(f"EDSL_RUN_MODE set to: {run_mode}")
-            
+
         if run_mode not in EDSL_RUN_MODES:
             logger.error(f"Invalid EDSL_RUN_MODE: {run_mode}")
             raise InvalidEnvironmentVariableError(
@@ -162,7 +162,7 @@ class Config:
         Returns the value of an environment variable.
         """
         logger.debug(f"Getting config value for: {env_var}")
-        
+
         if env_var not in CONFIG_MAP:
             logger.error(f"Invalid environment variable requested: {env_var}")
             raise InvalidEnvironmentVariableError(f"{env_var} is not a valid env var. ")
@@ -170,7 +170,7 @@ class Config:
             info = CONFIG_MAP[env_var].get("info")
             logger.error(f"Missing environment variable: {env_var}")
             raise MissingEnvironmentVariableError(f"{env_var} is not set. {info}")
-            
+
         value = self.__dict__.get(env_var)
         logger.debug(f"Config value for {env_var}: {value}")
         return value
