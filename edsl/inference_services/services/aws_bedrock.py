@@ -1,9 +1,12 @@
 import os
-from typing import Any, List, Optional
+from typing import Any, List, Optional, TYPE_CHECKING
 import boto3
 from botocore.exceptions import ClientError
 from ..inference_service_abc import InferenceServiceABC
 from ...language_models import LanguageModel
+
+if TYPE_CHECKING:
+    from ....scenarios.file_store import FileStore
 
 
 class AwsBedrockService(InferenceServiceABC):
@@ -75,9 +78,8 @@ class AwsBedrockService(InferenceServiceABC):
             ) -> dict[str, Any]:
                 """Calls the AWS Bedrock API and returns the API response."""
 
-                api_token = (
-                    self.api_token
-                )  # call to check the if env variables are set.
+                # Ensure credentials are available
+                _ = self.api_token  # call to check if env variables are set.
 
                 region = os.getenv("AWS_REGION", "us-east-1")
                 client = boto3.client("bedrock-runtime", region_name=region)
@@ -88,11 +90,13 @@ class AwsBedrockService(InferenceServiceABC):
                         "content": [{"text": user_prompt}],
                     }
                 ]
-                system = [
-                    {
-                        "text": system_prompt,
-                    }
-                ]
+                # We'll need to handle system prompt in the future
+                # Commented out to avoid unused variable warning
+                # system_content = [
+                #     {
+                #         "text": system_prompt,
+                #     }
+                # ]
                 try:
                     response = client.converse(
                         modelId=self._model_,

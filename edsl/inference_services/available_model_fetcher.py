@@ -190,8 +190,7 @@ class AvailableModelFetcher:
 def main():
     from .services.open_ai_service import OpenAIService
 
-    af = AvailableModelFetcher([OpenAIService()], {}, verbose=True)
-    # print(af.available(service="openai"))
+    # Create fetcher without assigning to unused variable
     all_models = AvailableModelFetcher([OpenAIService()], {})._get_all_models(
         force_refresh=True
     )

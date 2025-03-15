@@ -385,7 +385,7 @@ class TokenBucket:
                 self.capacity = amount * 1.10
                 self._old_capacity = self.capacity
 
-        start_time = time.monotonic()
+        # Loop until we have enough tokens
         while True:
             self.refill()  # Refill based on elapsed time
             if self.tokens >= amount:

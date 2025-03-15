@@ -1,6 +1,9 @@
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 import os
 from functools import lru_cache
+
+if TYPE_CHECKING:
+    from ..coop import Coop
 
 from ..enums import service_to_api_keyname
 from ..exceptions.general import MissingAPIKeyError
@@ -93,7 +96,8 @@ class KeyLookupBuilder:
         fetch_order: Optional[tuple[str]] = None,
         coop: Optional["Coop"] = None,
     ):
-        from ..coop import Coop
+        # Import here to avoid circular import issues
+        from ..coop import Coop  # Import Coop type for type hinting
 
         # Fetch order goes from lowest priority to highest priority
         if fetch_order is None:
@@ -141,8 +145,8 @@ class KeyLookupBuilder:
             >>> lookup = builder.build()
             >>> isinstance(lookup, KeyLookup)
             True
-            >>> lookup['test'].api_token  # Test service should always exist
-            'test'
+            >>> lookup['test'].api_token == 'test'  # Test service should always exist
+            True
             
         Technical Notes:
             - Skips services with missing API keys
