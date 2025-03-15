@@ -4,4 +4,4 @@ from .model_list import ModelList
 
 from .exceptions import LanguageModelBadResponseError
 
-__all__ = ["Model", "ModelList", "LanguageModelBadResponseError"]
+__all__ = ["Model", "ModelList", "LanguageModelBadResponseError", "LanguageModel"]
