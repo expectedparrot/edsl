@@ -1,7 +1,6 @@
 from abc import abstractmethod, ABC
 import re
 from datetime import datetime, timedelta
-from ..config import CONFIG
 
 
 class InferenceServiceABC(ABC):

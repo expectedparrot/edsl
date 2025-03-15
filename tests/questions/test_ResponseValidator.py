@@ -1,10 +1,8 @@
 import pytest
-from pydantic import BaseModel, Field
-from typing import Optional, Any
-from decimal import Decimal
+from pydantic import Field
+from typing import Optional
 
 from edsl.questions.exceptions import QuestionAnswerValidationError
-from abc import ABC, abstractmethod
 
 from edsl.questions.response_validator_abc import ResponseValidatorABC
 from edsl.questions.data_structures import BaseResponse

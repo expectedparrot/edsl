@@ -1,13 +1,10 @@
-import pytest
 
 
 def test_handle_model_exception():
-    import random
     from edsl.language_models.LanguageModel import LanguageModel
     from edsl.enums import LanguageModelType, InferenceServiceType
     import asyncio
     from typing import Any
-    from edsl import Scenario
     from edsl import Survey
 
     from httpcore import ConnectionNotAvailable
@@ -39,7 +36,7 @@ def test_handle_model_exception():
         survey = Survey()
         for i in range(num_questions):
             q = QuestionFreeText(
-                question_text=f"How are you?", question_name=f"question_{i}"
+                question_text="How are you?", question_name=f"question_{i}"
             )
             survey.add_question(q)
             if i > 0 and chained:

@@ -33,7 +33,7 @@ def generate_diagrams(projects):
         index_file.write("<html><body>\n")
 
         for name, path in projects:
-            print(f"Generating diagrams for", name, "from", path)
+            print("Generating diagrams for", name, "from", path)
             # Constructing command line arguments
             args = ["-o", "svg", "-d", output_dir, "-p", name, path]
 

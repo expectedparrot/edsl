@@ -18,7 +18,7 @@ import textwrap
 from typing import Optional, Tuple, Union, List, TYPE_CHECKING  # Callable not used
 from functools import wraps
 from .r.ggplot import GGPlotMethod
-from .exceptions import DatasetError, DatasetKeyError, DatasetValueError, DatasetTypeError, DatasetExportError
+from .exceptions import DatasetKeyError, DatasetValueError, DatasetTypeError, DatasetExportError
 
 if TYPE_CHECKING:
     from docx import Document

@@ -11,7 +11,7 @@ from __future__ import annotations
 import json
 import datetime
 import hashlib
-from typing import Optional, Dict, List, Any, Union
+from typing import Optional, Dict, List, Any
 from uuid import uuid4
 
 from ..base import RepresentationMixin
@@ -95,7 +95,7 @@ class CacheEntry(RepresentationMixin):
             raise CacheError("`iteration` should be an integer")
         # Note: timestamp is stored as int for compatibility, but could be float in future
         if not isinstance(self.timestamp, int):
-            raise CacheError(f"`timestamp` should be an integer")
+            raise CacheError("`timestamp` should be an integer")
         if self.service is not None and not isinstance(self.service, str):
             raise CacheError("`service` should be either a string or None")
 

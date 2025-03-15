@@ -1,9 +1,8 @@
 from collections import UserDict, defaultdict, UserList
-from typing import Union, Optional, List
+from typing import Optional, List
 from dataclasses import dataclass
 
 from ..enums import InferenceServiceLiteral
-from ..scenarios import ScenarioList
 
 @dataclass
 class LanguageModelInfo:

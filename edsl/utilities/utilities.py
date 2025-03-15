@@ -14,7 +14,6 @@ import string
 import tempfile
 import gzip
 import webbrowser
-import json
 
 from html import escape
 from typing import Callable, Union

@@ -1,7 +1,5 @@
-import os
 import pytest
-import re
-from edsl.questions.exceptions import QuestionSerializationError, QuestionValueError
+from edsl.questions.exceptions import QuestionValueError
 from edsl.questions.question_registry import get_question_class
 
 

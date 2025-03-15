@@ -115,7 +115,7 @@ class GoogleService(InferenceServiceABC):
                             safety_settings=safety_settings,
                             system_instruction=system_prompt,
                         )
-                    except InvalidArgument as e:
+                    except InvalidArgument:
                         print(
                             f"This model, {self._model_}, does not support system_instruction"
                         )

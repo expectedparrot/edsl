@@ -1,12 +1,9 @@
 import pytest
 from unittest.mock import Mock, create_autospec
 from edsl.questions import QuestionFreeText, QuestionFunctional
-from edsl.questions import QuestionFreeText
 from edsl.questions.compose_questions import compose_questions
 from edsl.jobs import Jobs
 from edsl.scenarios import Scenario
-from edsl.questions import QuestionMultipleChoice
-from edsl.questions import QuestionYesNo
 
 
 def SillyFunction(scenario, agent_traits):

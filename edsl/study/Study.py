@@ -6,7 +6,7 @@ import platform
 import socket
 from datetime import datetime
 from typing import Dict, Optional, Union
-from uuid import UUID, uuid4
+from uuid import UUID
 
 from ..caching import Cache
 #from edsl import set_session_cache, unset_session_cache
@@ -256,7 +256,6 @@ class Study:
 
     def study_diff(self):
         ## Need to also report missing.
-        from ..base import BaseDiff
 
         raise NotImplementedError("Need to implement this.")
 
@@ -358,7 +357,6 @@ class Study:
 
         if self.proof_of_work_difficulty:
             print("Adding proof of work to study...")
-            from edsl.study.ProofOfWork import ProofOfWork
 
             # TODO: Need to check if hashes are the same.
             if not self.proof_of_work.input_data:

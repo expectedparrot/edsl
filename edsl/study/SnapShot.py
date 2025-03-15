@@ -54,8 +54,6 @@ class SnapShot:
         {}
 
         """
-        from edsl.base import Base
-        from edsl.study.Study import Study
 
         def is_edsl_object(obj):
             package_name = "edsl"

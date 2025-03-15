@@ -135,7 +135,6 @@ class Prompt(PersistenceMixin, RepresentationMixin):
         # Convert path_to_folder to a Path object if it's a string
         if path_to_folder is None:
             from importlib import resources
-            import os
 
             path_to_folder = resources.path("edsl.questions", "prompt_templates")
 

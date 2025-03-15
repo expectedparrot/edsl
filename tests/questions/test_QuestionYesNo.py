@@ -1,10 +1,9 @@
 import pytest
 from edsl.questions.exceptions import (
-    QuestionResponseValidationError,
     QuestionAnswerValidationError,
 )
 from edsl.questions import QuestionBase
-from edsl.questions.derived.question_yes_no import QuestionYesNo, main
+from edsl.questions.derived.question_yes_no import QuestionYesNo
 
 
 def test_QuestionYesNo_main():

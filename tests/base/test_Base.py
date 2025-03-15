@@ -60,7 +60,6 @@ def create_test_function(child_class):
     @staticmethod
     def base_test_func():
         from edsl.agents import Agent
-        from edsl.surveys import Survey
         from edsl.questions.question_registry import Question
         from edsl.caching import CacheEntry
         from edsl.language_models import Model
