@@ -5,7 +5,6 @@ if TYPE_CHECKING:
     from ..language_models import LanguageModel
     from ..scenarios import Scenario
     from .jobs import Jobs
-    from ..invigilators import InvigilatorBase
 
 class JobsComponentConstructor:
     "Handles the creation of Agents, Scenarios, and LanguageModels in a job."

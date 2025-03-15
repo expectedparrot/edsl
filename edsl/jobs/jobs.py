@@ -17,19 +17,14 @@ who need to run complex simulations with language models.
 """
 from __future__ import annotations
 import asyncio
-from inspect import signature
 from typing import Optional, Union, TypeVar, Callable, cast
 from functools import wraps
 
 from typing import (
     Literal,
-    Optional,
-    Union,
     Sequence,
     Generator,
     TYPE_CHECKING,
-    Callable,
-    Tuple,
 )
 
 from ..base import Base
@@ -107,7 +102,8 @@ def with_config(f: Callable[P, T]) -> Callable[P, T]:
         name: field.default
         for name, field in RunEnvironment.__dataclass_fields__.items()
     }
-    combined = {**parameter_fields, **environment_fields}
+    # Combined fields dict used for reference during development
+    # combined = {**parameter_fields, **environment_fields}
 
     @wraps(f)
     def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
@@ -206,7 +202,7 @@ class Jobs(Base):
 
         try:
             assert self.survey.question_names_valid()
-        except Exception as e:
+        except Exception:
             invalid_question_names = [q.question_name for q in self.survey.questions if not q.is_valid_question_name()]
             raise ValueError(f"At least some question names are not valid: {invalid_question_names}")
         
@@ -585,7 +581,7 @@ class Jobs(Base):
                 return user_edsl_settings.get("remote_caching", False)
             except requests.ConnectionError:
                 pass
-            except CoopServerResponseError as e:
+            except CoopServerResponseError:
                 pass
 
         return False
@@ -646,9 +642,9 @@ class Jobs(Base):
             jc.check_api_keys()
 
     async def _execute_with_remote_cache(self, run_job_async: bool) -> Results:
-        use_remote_cache = self.use_remote_cache()
+        # Remote cache usage determination happens inside this method
+        # use_remote_cache = self.use_remote_cache()
 
-        from ..coop import Coop
         from .jobs_runner_asyncio import JobsRunnerAsyncio
         from ..caching import Cache
 

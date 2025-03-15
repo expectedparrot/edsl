@@ -2,16 +2,15 @@ import re
 import sys
 import uuid
 from abc import ABC, abstractmethod
-from typing import Optional, Union, Literal, TYPE_CHECKING, List, Dict
+from typing import Literal, TYPE_CHECKING, List
 from datetime import datetime
 from dataclasses import dataclass
 
-from ..coop import CoopServerResponseError
 
 from .jobs_status_enums import JobsStatus
 
 if TYPE_CHECKING:
-    from ..results import Results
+    pass
 
 
 @dataclass
