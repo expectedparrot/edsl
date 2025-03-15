@@ -40,14 +40,18 @@ def create_budget_model(
         @validator("answer")
         def validate_answer(cls, v):
             if len(v) != len(question_options):
-                raise ValueError(f"Must provide {len(question_options)} values")
+                from ..exceptions import QuestionAnswerValidationError
+                raise QuestionAnswerValidationError(f"Must provide {len(question_options)} values")
             if any(x < 0 for x in v):
-                raise ValueError("All values must be non-negative")
+                from ..exceptions import QuestionAnswerValidationError
+                raise QuestionAnswerValidationError("All values must be non-negative")
             total = sum(v)
             if not permissive and total != budget_sum:
-                raise ValueError(f"Sum of numbers must equal {budget_sum}")
+                from ..exceptions import QuestionAnswerValidationError
+                raise QuestionAnswerValidationError(f"Sum of numbers must equal {budget_sum}")
             elif permissive and total > budget_sum:
-                raise ValueError(f"Sum of numbers cannot exceed {budget_sum}")
+                from ..exceptions import QuestionAnswerValidationError
+                raise QuestionAnswerValidationError(f"Sum of numbers cannot exceed {budget_sum}")
             return v
 
         class Config:

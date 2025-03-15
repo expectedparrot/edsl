@@ -184,7 +184,8 @@ class QuestionBasePromptsMixin:
             except QuestionAnswerValidationError:
                 pass
             else:
-                raise ValueError(f"Example {answer} should have failed for {reason}.")
+                from .exceptions import QuestionValueError
+                raise QuestionValueError(f"Example {answer} should have failed for {reason}.")
 
     @property
     def new_default_instructions(self) -> "Prompt":
