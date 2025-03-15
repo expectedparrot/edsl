@@ -351,6 +351,7 @@ class TokenBucket:
             - Usage statistics and token levels are logged for tracking purposes
             
         Example:
+            >>> from edsl.buckets.token_bucket import TokenBucket
             >>> bucket = TokenBucket(bucket_name="api", bucket_type="test", capacity=100, refill_rate=10)
             >>> bucket.tokens = 100
             >>> import asyncio
@@ -359,18 +360,21 @@ class TokenBucket:
             70
             
             >>> # Example with capacity cheating
+            >>> from edsl.buckets.token_bucket import TokenBucket
             >>> bucket = TokenBucket(bucket_name="api", bucket_type="test", capacity=10, refill_rate=1)
             >>> asyncio.run(bucket.get_tokens(15, cheat_bucket_capacity=True))
             >>> bucket.capacity > 15  # Capacity should have been increased
             True
             
-            >>> # Example raising ValueError
+            >>> # Example raising TokenLimitError
+            >>> from edsl.buckets.token_bucket import TokenBucket
+            >>> from edsl.buckets.exceptions import TokenLimitError
             >>> bucket = TokenBucket(bucket_name="api", bucket_type="test", capacity=10, refill_rate=1)
             >>> try:
             ...     asyncio.run(bucket.get_tokens(15, cheat_bucket_capacity=False))
-            ... except ValueError as e:
-            ...     print("ValueError raised")
-            ValueError raised
+            ... except TokenLimitError as e:
+            ...     print("TokenLimitError raised")
+            TokenLimitError raised
         """
         self.num_requests += amount
         if amount >= self.capacity:
