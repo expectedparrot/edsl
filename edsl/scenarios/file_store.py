@@ -8,11 +8,14 @@ from typing import Dict, IO, Optional
 from typing import Union
 from uuid import UUID
 import time
-from typing import List, Literal
+from typing import List, Literal, TYPE_CHECKING
 
 from .scenario import Scenario
 from ..utilities import remove_edsl_version
 from .file_methods import FileMethods
+
+if TYPE_CHECKING:
+    from .scenario_list import ScenarioList
 
 class FileStore(Scenario):
     """
@@ -246,6 +249,7 @@ class FileStore(Scenario):
         Returns:
             ScenarioList containing FileStore objects with their corresponding URLs
         """
+        # Import here to avoid circular imports
         from .scenario_list import ScenarioList
 
         try:
@@ -282,7 +286,7 @@ class FileStore(Scenario):
 
     @property
     def size(self) -> int:
-        if self.base64_string != None:
+        if self.base64_string is not None:
             return (len(self.base64_string) / 4.0) * 3  # from base64 to char size
         return os.path.getsize(self.path)
 

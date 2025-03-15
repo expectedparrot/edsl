@@ -175,6 +175,7 @@ class PdfTools:
                 image_path = os.path.join(output_folder, f"page_{i+1}.{image_format}")
                 image.save(image_path, image_format.upper())
 
+                from ..file_store import FileStore
                 scenario = Scenario({
                     "filepath":image_path,
                     "page":i,
