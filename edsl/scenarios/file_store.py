@@ -4,11 +4,11 @@ import tempfile
 import mimetypes
 import asyncio
 import os
-from typing import Dict, Any, IO, Optional
+from typing import Dict, IO, Optional
 from typing import Union
 from uuid import UUID
 import time
-from typing import Dict, Any, IO, Optional, List, Union, Literal
+from typing import List, Literal
 
 from .scenario import Scenario
 from ..utilities import remove_edsl_version

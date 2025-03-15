@@ -215,17 +215,8 @@ def is_notebook() -> bool:
 
 def file_notice(file_name):
     """Print a notice about the file being created."""
-    if is_notebook():
-        from IPython.display import HTML, display
-
-        link_text = "Download file"
-        display(
-            HTML(
-                f'<p>File created: {file_name}</p>.<a href="{file_name}" download>{link_text}</a>'
-            )
-        )
-    else:
-        print(f"File created: {file_name}")
+    from ..display import file_notice as display_file_notice
+    display_file_notice(file_name, link_text="Download file")
 
 
 class HTMLSnippet(str):

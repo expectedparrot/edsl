@@ -5,20 +5,21 @@ import sys
 import json
 import random
 from collections import UserList
-from typing import Any, Union, Optional, TYPE_CHECKING
+from typing import Any, Union, Optional, TYPE_CHECKING, Callable
 
 from ..base import PersistenceMixin, HashingMixin
 
 from .dataset_tree import Tree
 
 from .display.table_display import TableDisplay
-from .smart_objects import FirstObject
-from .r.ggplot import GGPlotMethod
+#from .smart_objects import FirstObject
 from .dataset_operations_mixin import DatasetOperationsMixin
 
 if TYPE_CHECKING:
     from ..surveys import Survey
-    from ..questions.QuestionBase import QuestionBase
+    from ..questions import QuestionBase
+    from ..jobs import Job  # noqa: F401
+
 
 class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
     """
@@ -76,6 +77,7 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
             Dataset([{'answer.how_feeling': ['OK', 'Great', 'Terrible']}])
         """
         super().__init__(data)
+        #self.data = data
         self.print_parameters = print_parameters
 
 
@@ -121,16 +123,16 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
     def expand(self, field):
         return self.to_scenario_list().expand(field)
 
-    def view(self):
-        from perspective.widget import PerspectiveWidget
+    # def view(self):
+    #     from perspective.widget import PerspectiveWidget
 
-        w = PerspectiveWidget(
-            self.to_pandas(),
-            plugin="Datagrid",
-            aggregates={"datetime": "any"},
-            sort=[["date", "desc"]],
-        )
-        return w
+    #     w = PerspectiveWidget(
+    #         self.to_pandas(),
+    #         plugin="Datagrid",
+    #         aggregates={"datetime": "any"},
+    #         sort=[["date", "desc"]],
+    #     )
+    #     return w
 
     def keys(self) -> list[str]:
         """Return the keys of the dataset.
@@ -308,7 +310,7 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
             """Get the values of the first key in the dictionary."""
             return list(d.values())[0]
 
-        return FirstObject(get_values(self.data[0])[0])
+        return get_values(self.data[0])[0]
 
     def latex(self, **kwargs):
         return self.table().latex()
@@ -371,10 +373,17 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
         merged_df = df1.merge(df2, how="left", left_on=by_x, right_on=by_y)
         return Dataset.from_pandas_dataframe(merged_df)
 
-    def to(self, survey_or_question: Union["Survey", "QuestionBase"]) -> "Jobs":
-        """Return a new dataset with the observations transformed by the given survey or question."""
+    def to(self, survey_or_question: Union["Survey", "QuestionBase"]) -> "Job":
+        """Return a new dataset with the observations transformed by the given survey or question.
+        
+        >>> d = Dataset([{'person_name':["John"]}])
+        >>> from edsl import QuestionFreeText 
+        >>> q = QuestionFreeText(question_text = "How are you, {{ person_name ?}}?", question_name = "how_feeling")
+        >>> d.to(q)
+        Jobs(...)
+        """
         from edsl.surveys import Survey
-        from edsl.questions.QuestionBase import QuestionBase
+        from edsl.questions import QuestionBase
 
         if isinstance(survey_or_question, Survey):
             return survey_or_question.by(self.to_scenario_list())
@@ -442,7 +451,11 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
 
         return self
 
-    def expand(self, field):
+    def expand_field(self, field):
+        """Expand a field in the dataset.
+        
+        Renamed to avoid conflict with the expand method defined earlier.
+        """
         return self.to_scenario_list().expand(field).to_dataset()
 
     def sample(

@@ -62,7 +62,6 @@ class GGPlot:
         if self._saved:
             return None
             
-        import tempfile
         
         # Generate SVG if we haven't already
         if self._svg_data is None:
@@ -77,7 +76,12 @@ class GGPlot:
 
 class GGPlotMethod:
 
-    def __init__(self, results: 'Results'):
+    def __init__(self, results):
+        """Initialize the GGPlotMethod with results.
+        
+        Args:
+            results: A Results or Dataset object.
+        """
         self.results = results
     
     """Mixin class for ggplot2 plotting."""
@@ -106,7 +110,7 @@ class GGPlotMethod:
         :param width: The width of the plot in inches.
         :param factor_orders: A dictionary of factor columns and their order.
         """
-        if sql == None:
+        if sql is None:
             sql = "select * from self"
 
         if shape == "long":

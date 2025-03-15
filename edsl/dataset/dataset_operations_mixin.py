@@ -12,16 +12,17 @@ ScenarioList, AgentList) to share the same data manipulation interface, enabling
 fluid operations across different parts of the EDSL ecosystem.
 """
 
-from abc import ABC, abstractmethod
 import io
 import warnings
 import textwrap
-from typing import Optional, Tuple, Union, List, TYPE_CHECKING
+from typing import Optional, Tuple, Union, List, TYPE_CHECKING  # Callable not used
+from functools import wraps
 from .r.ggplot import GGPlotMethod
 
 if TYPE_CHECKING:
     from docx import Document
     from .dataset import Dataset
+    from ..jobs import Job  # noqa: F401
 
 class DataOperationsBase:
     """
@@ -262,8 +263,9 @@ class DataOperationsBase:
             remove_prefix=remove_prefix, pretty_labels=pretty_labels
         )
 
-    def to_jsonl(self, filename: Optional[str] = None) -> Optional["FileStore"]:
+    def to_jsonl(self, filename: Optional[str] = None):
         """Export the results to a FileStore instance containing JSONL data."""
+        from .file_exports import JSONLExport
         exporter = JSONLExport(data=self, filename=filename)
         return exporter.export()
 
@@ -274,8 +276,9 @@ class DataOperationsBase:
         pretty_labels: Optional[dict] = None,
         table_name: str = "results",
         if_exists: str = "replace",
-    ) -> Optional["FileStore"]:
+    ):
         """Export the results to a SQLite database file."""
+        from .file_exports import SQLiteExport
         exporter = SQLiteExport(
             data=self,
             filename=filename,
@@ -291,7 +294,7 @@ class DataOperationsBase:
         filename: Optional[str] = None,
         remove_prefix: bool = False,
         pretty_labels: Optional[dict] = None,
-    ) -> Optional["FileStore"]:
+    ):
         """Export the results to a FileStore instance containing CSV data."""
         from .file_exports import CSVExport
 
@@ -309,9 +312,9 @@ class DataOperationsBase:
         remove_prefix: bool = False,
         pretty_labels: Optional[dict] = None,
         sheet_name: Optional[str] = None,
-    ) -> Optional["FileStore"]:
+    ):
         """Export the results to a FileStore instance containing Excel data."""
-        from .file_exports import  ExcelExport
+        from .file_exports import ExcelExport
 
         exporter = ExcelExport(
             data=self,
@@ -324,25 +327,28 @@ class DataOperationsBase:
 
     def _db(
         self, remove_prefix: bool = True, shape: str = "wide"
-    ) -> "sqlalchemy.engine.Engine":
+    ):
         """Create a SQLite database in memory and return the connection.
 
         Args:
             remove_prefix: Whether to remove the prefix from the column names
             shape: The shape of the data in the database ("wide" or "long")
-
+            
         Returns:
             A database connection
-        >>> from sqlalchemy import text
-        >>> from edsl import Results
-        >>> engine = Results.example()._db()
-        >>> len(engine.execute(text("SELECT * FROM self")).fetchall())
-        4
-        >>> engine = Results.example()._db(shape = "long")
-        >>> len(engine.execute(text("SELECT * FROM self")).fetchall())
-        172
+            
+        Examples:
+            >>> from sqlalchemy import text
+            >>> from edsl import Results
+            >>> engine = Results.example()._db()
+            >>> len(engine.execute(text("SELECT * FROM self")).fetchall())
+            4
+            >>> engine = Results.example()._db(shape = "long")
+            >>> len(engine.execute(text("SELECT * FROM self")).fetchall())
+            172
         """
-        from sqlalchemy import create_engine, text
+        # Import needed for database connection
+        from sqlalchemy import create_engine
 
         engine = create_engine("sqlite:///:memory:")
         if remove_prefix and shape == "wide":
@@ -445,29 +451,35 @@ class DataOperationsBase:
 
     def to_pandas(
         self, remove_prefix: bool = False, lists_as_strings=False
-    ) -> "DataFrame":
+    ):
         """Convert the results to a pandas DataFrame, ensuring that lists remain as lists.
 
-        :param remove_prefix: Whether to remove the prefix from the column names.
-
+        Args:
+            remove_prefix: Whether to remove the prefix from the column names.
+            lists_as_strings: Whether to convert lists to strings.
+            
+        Returns:
+            A pandas DataFrame.
         """
+        # pandas is imported in _to_pandas_strings
         return self._to_pandas_strings(remove_prefix)
 
-    def _to_pandas_strings(self, remove_prefix: bool = False) -> "pd.DataFrame":
+    def _to_pandas_strings(self, remove_prefix: bool = False):
         """Convert the results to a pandas DataFrame.
 
-        :param remove_prefix: Whether to remove the prefix from the column names.
+        Args:
+            remove_prefix: Whether to remove the prefix from the column names.
 
-        >>> from edsl.results import Results
-        >>> r = Results.example()
-        >>> r.select('how_feeling').to_pandas()
-          answer.how_feeling
-        0                 OK
-        1              Great
-        2           Terrible
-        3                 OK
+        Examples:
+            >>> from edsl.results import Results
+            >>> r = Results.example()
+            >>> r.select('how_feeling').to_pandas()
+              answer.how_feeling
+            0                 OK
+            1              Great
+            2           Terrible
+            3                 OK
         """
-
         import pandas as pd
 
         csv_string = self.to_csv(remove_prefix=remove_prefix).text
@@ -478,17 +490,27 @@ class DataOperationsBase:
 
     def to_polars(
         self, remove_prefix: bool = False, lists_as_strings=False
-    ) -> "pl.DataFrame":
+    ):
         """Convert the results to a Polars DataFrame.
 
-        :param remove_prefix: Whether to remove the prefix from the column names.
+        Args:
+            remove_prefix: Whether to remove the prefix from the column names.
+            lists_as_strings: Whether to convert lists to strings.
+            
+        Returns:
+            A Polars DataFrame.
         """
+        # polars is imported in _to_polars_strings
         return self._to_polars_strings(remove_prefix)
 
-    def _to_polars_strings(self, remove_prefix: bool = False) -> "pl.DataFrame":
+    def _to_polars_strings(self, remove_prefix: bool = False):
         """Convert the results to a Polars DataFrame.
 
-        :param remove_prefix: Whether to remove the prefix from the column names.
+        Args:
+            remove_prefix: Whether to remove the prefix from the column names.
+            
+        Returns:
+            A Polars DataFrame.
         """
         import polars as pl
 
@@ -496,10 +518,14 @@ class DataOperationsBase:
         df = pl.read_csv(io.StringIO(csv_string))
         return df
     
-    def tree(self, node_order: Optional[List[str]] = None) -> "Tree":
+    def tree(self, node_order: Optional[List[str]] = None):
         """Convert the results to a Tree.
 
-        :param node_order: The order of the nodes.
+        Args:
+            node_order: The order of the nodes.
+            
+        Returns:
+            A Tree object.
         """
         from .dataset_tree import Tree
         return Tree(self, node_order=node_order)
@@ -632,7 +658,6 @@ class DataOperationsBase:
                     new_list.append(item)
             list_to_return = new_list
 
-        from edsl.utilities.PrettyList import PrettyList
 
         #return PrettyList(list_to_return)
         return list_to_return
@@ -647,7 +672,6 @@ class DataOperationsBase:
         import tempfile
         from edsl.utilities.utilities import is_notebook
         from IPython.display import HTML, display
-        from edsl.utilities.utilities import is_notebook
 
         df = self.to_pandas()
 
@@ -797,7 +821,7 @@ class DataOperationsBase:
                 if header_parts:
                     header_text += f" ({', '.join(header_parts)})"
             
-            heading = doc.add_heading(header_text, level=1)
+            doc.add_heading(header_text, level=1)
             
             # Add the remaining fields
             for field in fields:
@@ -823,7 +847,7 @@ class DataOperationsBase:
     def report(self, *fields: Optional[str], top_n: Optional[int] = None, 
                header_fields: Optional[List[str]] = None, divider: bool = True,
                return_string: bool = False, format: str = "markdown",
-               filename: Optional[str] = None) -> Optional[Union[str, "docx.Document"]]:
+               filename: Optional[str] = None) -> Optional[Union[str, "Document"]]:
         """Generates a report of the results by iterating through rows.
         
         Args:
@@ -1287,8 +1311,6 @@ class DataOperationsBase:
         
         return Dataset(new_data)
 
-
-from functools import wraps
 
 def to_dataset(func):
     """

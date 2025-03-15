@@ -1,6 +1,6 @@
 import tempfile
 import re
-from typing import List, Optional
+from typing import List
 import textwrap
 
 
