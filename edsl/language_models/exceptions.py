@@ -148,7 +148,6 @@ class LanguageModelResponseNotJSONError(LanguageModelExceptions):
     """
     def __init__(self, message="Language model response is not valid JSON", **kwargs):
         super().__init__(message, **kwargs)
-        raise Exception("not used")
 
 
 class LanguageModelMissingAttributeError(LanguageModelExceptions):
@@ -168,7 +167,6 @@ class LanguageModelMissingAttributeError(LanguageModelExceptions):
     """
     def __init__(self, message="Missing required language model attribute", **kwargs):
         super().__init__(message, **kwargs)
-        raise Exception("not used")
 
 
 class LanguageModelAttributeTypeError(LanguageModelExceptions):
@@ -207,8 +205,152 @@ class LanguageModelDoNotAddError(LanguageModelExceptions):
     modifications to the language model registry.
     
     Note: This exception is defined but not currently used in the codebase.
-    It raises Exception("not used") to indicate this state.
     """
     def __init__(self, message="Do not add custom models this way", **kwargs):
         super().__init__(message, **kwargs)
-        raise Exception("not used")
+
+
+class LanguageModelValueError(LanguageModelExceptions):
+    """
+    Exception raised when there's an invalid value in a language model operation.
+    
+    This exception occurs when:
+    - A parameter value is out of its acceptable range
+    - A model configuration is invalid or incompatible
+    - An operation is attempted with improper settings
+    
+    To fix this error:
+    1. Check parameter values for validity (temperature, max_tokens, etc.)
+    2. Ensure model settings are compatible with the chosen provider
+    3. Verify that operation parameters are within acceptable ranges
+    
+    Examples:
+        ```python
+        # Setting temperature outside valid range
+        model = Model("gpt-4", temperature=2.5)  # Raises LanguageModelValueError
+        ```
+    """
+    def __init__(self, message="Invalid value in language model operation", **kwargs):
+        super().__init__(message, **kwargs)
+
+
+class LanguageModelTypeError(LanguageModelExceptions):
+    """
+    Exception raised when there's a type mismatch in a language model operation.
+    
+    This exception occurs when:
+    - A parameter is of the wrong type (e.g., string instead of number)
+    - An object of the wrong type is passed to a language model method
+    - Type conversion fails during processing
+    
+    To fix this error:
+    1. Check the types of all parameters passed to language model methods
+    2. Ensure proper type conversions before passing data to models
+    3. Verify that response handling functions expect the correct types
+    
+    Examples:
+        ```python
+        # Passing non-string prompt
+        model.generate(prompt=123)  # Raises LanguageModelTypeError
+        ```
+    """
+    def __init__(self, message="Type mismatch in language model operation", **kwargs):
+        super().__init__(message, **kwargs)
+
+
+class LanguageModelImplementationError(LanguageModelExceptions):
+    """
+    Exception raised when a required method or feature is not implemented.
+    
+    This exception occurs when:
+    - An abstract method is not implemented by a subclass
+    - A feature is requested that is not available for a specific model
+    - A required interface method is missing
+    
+    To fix this error:
+    1. Implement the required method in your subclass
+    2. Use a model that supports the requested feature
+    3. Check for updates that might add the missing functionality
+    
+    Examples:
+        ```python
+        # Requesting an unimplemented feature
+        model.specialized_feature()  # Raises LanguageModelImplementationError
+        ```
+    """
+    def __init__(self, message="Required method or feature is not implemented", **kwargs):
+        super().__init__(message, **kwargs)
+
+
+class LanguageModelRegistryError(LanguageModelExceptions):
+    """
+    Exception raised when there's an issue with the language model registry.
+    
+    This exception occurs when:
+    - A model registration fails
+    - There's a conflict in the registry
+    - The registry contains invalid or corrupted entries
+    
+    To fix this error:
+    1. Check for duplicate model registrations
+    2. Ensure model classes follow the required registration pattern
+    3. Verify that the registry is correctly initialized
+    
+    Examples:
+        ```python
+        # Attempting to register a model with a duplicate name
+        Registry.register(duplicate_model)  # Raises LanguageModelRegistryError
+        ```
+    """
+    def __init__(self, message="Error in language model registry", **kwargs):
+        super().__init__(message, **kwargs)
+
+
+class LanguageModelKeyError(LanguageModelExceptions):
+    """
+    Exception raised when a key is missing in a language model operation.
+    
+    This exception occurs when:
+    - A required key is missing in a response dictionary
+    - A lookup operation fails to find the requested key
+    - An expected field is not present in a model response
+    
+    To fix this error:
+    1. Check if the response format has changed
+    2. Ensure the key you're looking for is correctly spelled
+    3. Add fallback behavior for missing keys in responses
+    
+    Examples:
+        ```python
+        # Accessing a missing key in a model response
+        response = model.generate(prompt="hello")
+        print(response["missing_key"])  # Raises LanguageModelKeyError
+        ```
+    """
+    def __init__(self, message="Key missing in language model operation", **kwargs):
+        super().__init__(message, **kwargs)
+
+
+class LanguageModelIndexError(LanguageModelExceptions):
+    """
+    Exception raised when an index is out of range in a language model operation.
+    
+    This exception occurs when:
+    - An attempt is made to access an item at an invalid index
+    - A list or sequence access is out of bounds
+    - A token or completion index is invalid
+    
+    To fix this error:
+    1. Check array boundaries before accessing elements
+    2. Ensure index values are within valid ranges
+    3. Add bounds checking for array operations
+    
+    Examples:
+        ```python
+        # Accessing an out-of-range index in a response
+        completions = model.generate_completions(prompt="hello")
+        print(completions[9999])  # Raises LanguageModelIndexError if fewer completions exist
+        ```
+    """
+    def __init__(self, message="Index out of range in language model operation", **kwargs):
+        super().__init__(message, **kwargs)

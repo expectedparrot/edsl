@@ -799,7 +799,8 @@ class DataOperationsBase:
             from docx.shared import Pt
             import json
         except ImportError:
-            raise ImportError("The python-docx package is required for DOCX export. Install it with 'pip install python-docx'.")
+            from edsl.dataset.exceptions import DatasetImportError
+            raise DatasetImportError("The python-docx package is required for DOCX export. Install it with 'pip install python-docx'.")
         
         doc = Document()
         
@@ -1075,7 +1076,8 @@ class DataOperationsBase:
         # Check if the field is ambiguous
         if len(matching_entries) > 1:
             matching_cols = [next(iter(entry.keys())) for entry in matching_entries]
-            raise ValueError(
+            from edsl.dataset.exceptions import DatasetValueError
+            raise DatasetValueError(
                 f"Ambiguous field name '{field}'. It matches multiple columns: {matching_cols}. "
                 f"Please specify the full column name to flatten."
             )

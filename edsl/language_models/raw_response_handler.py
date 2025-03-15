@@ -1,6 +1,11 @@
 import json
 from typing import Optional, Any
-from .exceptions import LanguageModelBadResponseError
+from .exceptions import (
+    LanguageModelBadResponseError,
+    LanguageModelTypeError,
+    LanguageModelIndexError,
+    LanguageModelKeyError
+)
 
 from json_repair import repair_json
 
@@ -16,20 +21,20 @@ def _extract_item_from_raw_response(data, sequence):
         try:
             if isinstance(current_data, (list, tuple)):
                 if not isinstance(key, int):
-                    raise TypeError(
+                    raise LanguageModelTypeError(
                         f"Expected integer index for sequence at position {i}, got {type(key).__name__}"
                     )
                 if key < 0 or key >= len(current_data):
-                    raise IndexError(
+                    raise LanguageModelIndexError(
                         f"Index {key} out of range for sequence of length {len(current_data)} at position {i}"
                     )
             elif isinstance(current_data, dict):
                 if key not in current_data:
-                    raise KeyError(
+                    raise LanguageModelKeyError(
                         f"Key '{key}' not found in dictionary at position {i}"
                     )
             else:
-                raise TypeError(
+                raise LanguageModelTypeError(
                     f"Cannot index into {type(current_data).__name__} at position {i}. Full response is: {data} of type {type(data)}. Key sequence is: {sequence}"
                 )
 

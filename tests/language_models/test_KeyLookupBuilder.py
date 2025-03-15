@@ -8,6 +8,7 @@ from edsl.key_management.models import (
 )
 
 from edsl.key_management import KeyLookupBuilder
+from edsl.key_management.exceptions import KeyManagementValueError, KeyManagementDuplicateError
 
 from edsl.exceptions.general import MissingAPIKeyError
 
@@ -39,8 +40,8 @@ def test_initialization():
 
 
 def test_invalid_fetch_order():
-    """Test that invalid fetch order raises ValueError"""
-    with pytest.raises(ValueError):
+    """Test that invalid fetch order raises KeyManagementValueError"""
+    with pytest.raises(KeyManagementValueError):
         KeyLookupBuilder(fetch_order=["env"])  # Should be tuple
 
 
@@ -192,5 +193,5 @@ def test_duplicate_id_handling():
     builder = KeyLookupBuilder()
     builder._add_id("AWS_ACCESS_KEY_ID", "test-id-1", "env")
 
-    with pytest.raises(ValueError, match="Duplicate ID for service bedrock"):
+    with pytest.raises(KeyManagementDuplicateError, match="Duplicate ID for service bedrock"):
         builder._add_id("AWS_ACCESS_KEY_ID", "test-id-2", "env")

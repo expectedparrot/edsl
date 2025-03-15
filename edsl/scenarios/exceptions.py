@@ -32,7 +32,6 @@ class AgentListError(BaseException):
             message: A description of the error that occurred.
         """
         super().__init__(message)
-        raise Exception("not used - see edsl.agents.exceptions.AgentListError instead")
 
 
 class ScenarioError(BaseException):
@@ -113,4 +112,214 @@ class ScenarioError(BaseException):
             text = text.replace(url, clickable_url)
         return text
 
+
+class FileNotFoundScenarioError(ScenarioError):
+    """
+    Exception raised when a file needed for a scenario cannot be found.
+    
+    This exception occurs when:
+    - A file specified in a file path does not exist
+    - A referenced image, document, or other resource is missing
+    - A directory expected to contain scenario files is not found
+    
+    To fix this error:
+    1. Check that the file path is correct and the file exists
+    2. Verify file system permissions allow access to the file
+    3. Ensure any referenced external resources are properly available
+    
+    Examples:
+        ```python
+        Scenario.from_file("/path/to/nonexistent/file.json")  # Raises FileNotFoundScenarioError
+        ```
+    """
+    
+    def __init__(self, message: str):
+        """
+        Initialize the FileNotFoundScenarioError with a message.
+        
+        Args:
+            message: A description of the error that occurred.
+        """
+        super().__init__(message)
+
+
+class ImportScenarioError(ScenarioError):
+    """
+    Exception raised when importing a library needed for scenario operations fails.
+    
+    This exception occurs when:
+    - A required library for handling specific file types is not installed
+    - A module needed for processing scenario data cannot be imported
+    - Optional dependencies for advanced features are missing
+    
+    To fix this error:
+    1. Install the required dependencies mentioned in the error message
+    2. Check for version conflicts between dependencies
+    3. Ensure your environment has all necessary packages
+    
+    Examples:
+        ```python
+        # When attempting to load a PDF without the pdf dependencies
+        Scenario.from_pdf("document.pdf")  # Raises ImportScenarioError
+        ```
+    """
+    
+    def __init__(self, message: str):
+        """
+        Initialize the ImportScenarioError with a message.
+        
+        Args:
+            message: A description of the error that occurred.
+        """
+        super().__init__(message)
+
+
+class TypeScenarioError(ScenarioError):
+    """
+    Exception raised when there's a type mismatch in scenario operations.
+    
+    This exception occurs when:
+    - A parameter is of the wrong type for a scenario operation
+    - Incompatible types are used in scenario methods
+    - Type conversion fails during scenario processing
+    
+    To fix this error:
+    1. Check the types of parameters passed to scenario methods
+    2. Ensure data structures match what scenario operations expect
+    3. Verify that operations between scenarios and other objects are compatible
+    
+    Examples:
+        ```python
+        scenario * "invalid_operand"  # Raises TypeScenarioError
+        ```
+    """
+    
+    def __init__(self, message: str):
+        """
+        Initialize the TypeScenarioError with a message.
+        
+        Args:
+            message: A description of the error that occurred.
+        """
+        super().__init__(message)
+
+
+class ValueScenarioError(ScenarioError):
+    """
+    Exception raised when there's an invalid value in scenario operations.
+    
+    This exception occurs when:
+    - A parameter value is out of its acceptable range
+    - Invalid formats are provided for scenario data
+    - Operation parameters are invalid for the requested action
+    
+    To fix this error:
+    1. Check parameter values against allowed ranges or formats
+    2. Verify inputs meet the requirements for specific operations
+    3. Ensure data formats match what's expected by scenario methods
+    
+    Examples:
+        ```python
+        scenario_list.to_table(output_type="invalid_format")  # Raises ValueScenarioError
+        ```
+    """
+    
+    def __init__(self, message: str):
+        """
+        Initialize the ValueScenarioError with a message.
+        
+        Args:
+            message: A description of the error that occurred.
+        """
+        super().__init__(message)
+
+
+class AttributeScenarioError(ScenarioError):
+    """
+    Exception raised when accessing a non-existent attribute in a scenario.
+    
+    This exception occurs when:
+    - Attempting to access a field not present in a scenario
+    - Using an attribute accessor on a scenario for a missing property
+    - CSV or dataframe column access issues
+    
+    To fix this error:
+    1. Check that the attribute name is correct
+    2. Verify the scenario contains the expected fields
+    3. Use hasattr() to check for attribute existence before access
+    
+    Examples:
+        ```python
+        scenario.nonexistent_attribute  # Raises AttributeScenarioError
+        ```
+    """
+    
+    def __init__(self, message: str):
+        """
+        Initialize the AttributeScenarioError with a message.
+        
+        Args:
+            message: A description of the error that occurred.
+        """
+        super().__init__(message)
+
+
+class IndexScenarioError(ScenarioError):
+    """
+    Exception raised when an index is out of range in scenario operations.
+    
+    This exception occurs when:
+    - Accessing a scenario index outside the valid range
+    - Using an invalid index in a scenario list operation
+    - Sequence operations with invalid indices
+    
+    To fix this error:
+    1. Check array boundaries before accessing elements
+    2. Verify indices are within valid ranges for the collection
+    3. Use len() to determine the valid index range
+    
+    Examples:
+        ```python
+        scenario_list[999]  # Raises IndexScenarioError if fewer items exist
+        ```
+    """
+    
+    def __init__(self, message: str):
+        """
+        Initialize the IndexScenarioError with a message.
+        
+        Args:
+            message: A description of the error that occurred.
+        """
+        super().__init__(message)
+
+
+class KeyScenarioError(ScenarioError):
+    """
+    Exception raised when a key is missing in scenario operations.
+    
+    This exception occurs when:
+    - Accessing a non-existent key in a scenario
+    - Using key-based access for missing fields
+    - Dictionary operations with invalid keys
+    
+    To fix this error:
+    1. Check if the key exists before attempting access
+    2. Use dictionary get() method with default values for safer access
+    3. Verify the scenario contains the expected keys
+    
+    Examples:
+        ```python
+        scenario["missing_key"]  # Raises KeyScenarioError
+        ```
+    """
+    
+    def __init__(self, message: str):
+        """
+        Initialize the KeyScenarioError with a message.
+        
+        Args:
+            message: A description of the error that occurred.
+        """
+        super().__init__(message)
 

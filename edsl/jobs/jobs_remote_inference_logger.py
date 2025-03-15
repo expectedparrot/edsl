@@ -6,6 +6,8 @@ from typing import Literal, TYPE_CHECKING, List
 from datetime import datetime
 from dataclasses import dataclass
 
+from .exceptions import JobsValueError
+
 
 from .jobs_status_enums import JobsStatus
 
@@ -62,7 +64,7 @@ class JobLogger(ABC):
         '1234'
         """
         if information_type not in self.jobs_info.__annotations__:
-            raise ValueError(f"Information type {information_type} not supported")
+            raise JobsValueError(f"Information type {information_type} not supported")
         setattr(self.jobs_info, information_type, value)
 
     @abstractmethod

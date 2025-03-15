@@ -9,7 +9,8 @@ class ChangeInstruction:
         drop: Optional[List[str]] = None,
     ):
         if keep is None and drop is None:
-            raise ValueError("Keep and drop cannot both be None")
+            from edsl.instructions.exceptions import InstructionValueError
+            raise InstructionValueError("Keep and drop cannot both be None")
 
         self.keep = keep or []
         self.drop = drop or []

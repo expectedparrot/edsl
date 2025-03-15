@@ -26,7 +26,8 @@ class InferenceServiceABC(ABC):
         ]
         for attr in must_have_attributes:
             if not hasattr(cls, attr):
-                raise NotImplementedError(
+                from edsl.inference_services.exceptions import InferenceServiceNotImplementedError
+                raise InferenceServiceNotImplementedError(
                     f"Class {cls.__name__} must have a '{attr}' attribute."
                 )
 
