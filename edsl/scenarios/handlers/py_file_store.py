@@ -35,7 +35,6 @@ class PyMethods(FileMethods):
         import pygments
         from pygments.lexers import PythonLexer
         from pygments.formatters import HtmlFormatter
-        from pygments.styles import get_style_by_name
 
         try:
             with open(self.path, "r", encoding="utf-8") as f:

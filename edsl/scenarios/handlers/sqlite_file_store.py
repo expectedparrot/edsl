@@ -50,7 +50,6 @@ class SQLiteMethods(FileMethods):
         """
         Opens the database with the system's default SQLite viewer if available.
         """
-        import os
         import subprocess
 
         if os.path.exists(self.path):

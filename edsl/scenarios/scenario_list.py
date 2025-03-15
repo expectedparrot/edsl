@@ -57,7 +57,6 @@ from ..dataset import ScenarioListOperationsMixin
 
 from .exceptions import ScenarioError
 from .scenario import Scenario
-from .directory_scanner import DirectoryScanner
 from .scenario_list_pdf_tools import PdfTools
 
 
@@ -914,7 +913,6 @@ class ScenarioList(Base, UserList, ScenarioListOperationsMixin):
     ) -> str:
         """Return the ScenarioList as a table."""
 
-        from tabulate import tabulate_formats
 
         if tablefmt is not None and tablefmt not in tabulate_formats:
             raise ValueError(
@@ -1210,7 +1208,6 @@ class ScenarioList(Base, UserList, ScenarioListOperationsMixin):
         """
         import tempfile
         import requests
-        from docx import Document
 
         if "/edit" in url:
             doc_id = url.split("/d/")[1].split("/edit")[0]
@@ -1468,7 +1465,6 @@ class ScenarioList(Base, UserList, ScenarioListOperationsMixin):
             ScenarioList: An instance of the ScenarioList class.
 
         """
-        import pandas as pd
         import tempfile
         import requests
 
@@ -1614,7 +1610,6 @@ class ScenarioList(Base, UserList, ScenarioListOperationsMixin):
         """
         from ..surveys import Survey
         from ..questions import QuestionBase
-        from ..jobs import Jobs
 
         if isinstance(survey, QuestionBase):
             return Survey([survey]).by(self)
