@@ -902,7 +902,9 @@ class ScenarioList(Base, UserList, ScenarioListOperationsMixin):
         ScenarioList([Scenario({'name': 'Alice'}), Scenario({'name': 'Bob'})])
         """
         if not func:
-            func = lambda x: x
+            def identity(x):
+                return x
+            func = identity
         return cls([Scenario({name: func(value)}) for value in values])
 
     def table(
@@ -1018,7 +1020,7 @@ class ScenarioList(Base, UserList, ScenarioListOperationsMixin):
         return ScenarioList(new_scenarios)
 
     @classmethod
-    def from_list_of_tuples(self, *names: str, values: List[Tuple]) -> ScenarioList:
+    def from_list_of_tuples(self, *names: str, values: List[tuple]) -> ScenarioList:
         sl = ScenarioList.from_list(names[0], [value[0] for value in values])
         for index, name in enumerate(names[1:]):
             sl = sl.add_list(name, [value[index + 1] for value in values])
