@@ -1,5 +1,5 @@
 import json
-from typing import Optional, Any, List
+from typing import Optional, Any
 from .exceptions import LanguageModelBadResponseError
 
 from json_repair import repair_json
@@ -9,7 +9,7 @@ def _extract_item_from_raw_response(data, sequence):
     if isinstance(data, str):
         try:
             data = json.loads(data)
-        except json.JSONDecodeError as e:
+        except json.JSONDecodeError:
             return data
     current_data = data
     for i, key in enumerate(sequence):
@@ -62,7 +62,7 @@ class RawResponseHandler:
             return {}
         return _extract_item_from_raw_response(raw_response, self.usage_sequence)
 
-    def parse_response(self, raw_response: dict[str, Any]) -> "EDSLOutput":
+    def parse_response(self, raw_response: dict[str, Any]) -> Any:
         """Parses the API response and returns the response text."""
 
         from edsl.data_transfer_models import EDSLOutput
@@ -101,6 +101,6 @@ class RawResponseHandler:
 
         try:
             return json.loads(repaired)
-        except json.JSONDecodeError as j:
+        except json.JSONDecodeError:
             # last resort
             return response_part

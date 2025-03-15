@@ -1,7 +1,9 @@
-from abc import ABC, ABCMeta
-from typing import Any, List, Callable
+from abc import ABCMeta
+from typing import Any, List, Callable, TYPE_CHECKING
 import inspect
-from typing import get_type_hints
+
+if TYPE_CHECKING:
+    from .language_model import LanguageModel
 from .exceptions import LanguageModelAttributeTypeError
 from edsl.enums import InferenceServiceType
 
