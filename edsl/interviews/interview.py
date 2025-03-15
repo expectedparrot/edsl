@@ -20,6 +20,10 @@ from dataclasses import dataclass
 
 from typing import Any, Type, List, Generator, Optional, TYPE_CHECKING
 
+if TYPE_CHECKING:
+    from .interview_status_log import InterviewStatusLog
+    from ..jobs.data_structures import RunConfig
+
 # from jobs module 
 from ..jobs.data_structures import Answers
 from ..buckets import ModelBuckets
@@ -43,7 +47,6 @@ if TYPE_CHECKING:
     from ..language_models import LanguageModel
     from ..tokens import InterviewTokenUsage
     from ..invigilators import InvigilatorBase
-    from ..key_management import KeyLookup
 
 
 @dataclass
@@ -503,7 +506,7 @@ class Interview:
                     result = invigilator.get_failed_task_result(
                         failure_reason="Task was skipped."
                     )
-            except asyncio.CancelledError as e:  # task was cancelled
+            except asyncio.CancelledError:  # task was cancelled
                 result = invigilator.get_failed_task_result(
                     failure_reason="Task was cancelled."
                 )

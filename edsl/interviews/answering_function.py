@@ -1,12 +1,13 @@
 import copy
 import asyncio
 
-from typing import Union, Type, Callable, TYPE_CHECKING, Any
+from typing import Union, Callable, TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from ..questions import QuestionBase
     from .interview import Interview
     from ..key_management import KeyLookup
+    from ..invigilators.invigilator_base import InvigilatorBase
 
 from ..surveys.base import EndOfSurvey
 from ..tasks import TaskStatus
@@ -14,7 +15,7 @@ from ..tasks import TaskStatus
 from ..jobs.fetch_invigilator import FetchInvigilator
 from ..language_models.exceptions import LanguageModelNoResponseError
 from ..questions.exceptions import QuestionAnswerValidationError
-from ..data_transfer_models import AgentResponseDict, EDSLResultObjectInput, Answers
+from ..data_transfer_models import EDSLResultObjectInput
 
 from .exception_tracking import InterviewExceptionEntry
 
