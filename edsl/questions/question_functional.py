@@ -98,11 +98,13 @@ class QuestionFunctional(QuestionBase):
 
     def _simulate_answer(self, human_readable=True) -> dict[str, str]:
         """Required by Question, but not used by QuestionFunctional."""
-        raise NotImplementedError
+        from .exceptions import QuestionNotImplementedError
+        raise QuestionNotImplementedError("_simulate_answer not implemented for QuestionFunctional")
 
     def _validate_answer(self, answer: dict[str, str]):
         """Required by Question, but not used by QuestionFunctional."""
-        raise NotImplementedError
+        from .exceptions import QuestionNotImplementedError
+        raise QuestionNotImplementedError("_validate_answer not implemented for QuestionFunctional")
 
     @property
     def question_html_content(self) -> str:

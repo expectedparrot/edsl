@@ -80,7 +80,8 @@ class HTMLQuestion:
                 "include_question_name": include_question_name,
             }
         except Exception as e:
-            raise ValueError(
+            from .exceptions import QuestionValueError
+            raise QuestionValueError(
                 f"Error rendering question: params = {params}, error = {e}"
             )
         rendered_html = base_template.render(**params)

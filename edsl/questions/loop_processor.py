@@ -87,7 +87,8 @@ class LoopProcessor:
         if isinstance(value, (int, float)):
             return value
 
-        raise ValueError(f"Unexpected value type: {type(value)} for key '{key}'")
+        from .exceptions import QuestionValueError
+        raise QuestionValueError(f"Unexpected value type: {type(value)} for key '{key}'")
 
     def _render_template(self, template: str, scenario: Dict[str, Any]) -> str:
         """Render a single template string.

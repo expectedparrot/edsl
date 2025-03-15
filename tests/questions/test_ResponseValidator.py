@@ -32,7 +32,8 @@ def test_validator_initialization():
 
 
 def test_validator_missing_params():
-    with pytest.raises(ValueError, match="Missing required parameters"):
+    from edsl.questions.exceptions import QuestionValueError
+    with pytest.raises(QuestionValueError, match="Missing required parameters"):
         MockValidator(response_model=MockResponseModel, min_value=0)
 
 

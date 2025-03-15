@@ -313,7 +313,8 @@ class QuestionMultipleChoice(QuestionBase):
 
             if potential_replacement is None:
                 # Nope - maybe it's in the substition dict?
-                raise ValueError(
+                from .exceptions import QuestionValueError
+                raise QuestionValueError(
                     f"Could not find the key '{question_option_key}' in the scenario."
                     f"The substition dict was: '{substitution_dict}.'"
                     f"The question options were: '{question_options}'."
@@ -352,11 +353,13 @@ class QuestionMultipleChoice(QuestionBase):
             try:
                 return translated_options[int(answer_code)]
             except IndexError:
-                raise ValueError(
+                from .exceptions import QuestionValueError
+                raise QuestionValueError(
                     f"Answer code is out of range. The answer code index was: {int(answer_code)}. The options were: {translated_options}."
                 )
             except TypeError:
-                raise ValueError(
+                from .exceptions import QuestionValueError
+                raise QuestionValueError(
                     f"The answer code was: '{answer_code}.'",
                     f"The options were: '{translated_options}'.",
                 )

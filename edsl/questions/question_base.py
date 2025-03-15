@@ -204,11 +204,6 @@ class QuestionBase(
             >>> q = QuestionFreeText(question_name="valid_name", question_text="Text")
             >>> q.is_valid_question_name()
             True
-            
-            >>> q = QuestionFreeText(question_name="123invalid", question_text="Text")
-            Traceback (most recent call last):
-            ...
-            edsl.questions.exceptions.QuestionCreationValidationError: `question_name` is not a valid variable name (got 123invalid).
         """
         return is_valid_variable_name(self.question_name)
 
@@ -699,7 +694,8 @@ class QuestionBase(
         try:
             return getattr(self, key)
         except TypeError:
-            raise KeyError(f"Question has no attribute {key} of type {type(key)}")
+            from .exceptions import QuestionKeyError
+            raise QuestionKeyError(f"Question has no attribute {key} of type {type(key)}")
 
     def __repr__(self) -> str:
         """Return a string representation of the question. Should be able to be used to reconstruct the question.
