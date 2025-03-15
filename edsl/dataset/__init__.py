@@ -9,3 +9,7 @@ from .dataset_operations_mixin import ResultsOperationsMixin  # noqa: F401
 __all__ = [
     "Dataset",
 ]
+
+__edsl_all__ = [
+    "Dataset",
+]

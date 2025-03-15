@@ -157,3 +157,23 @@ __all__ = [
     "QuestionLikertFive",
     "QuestionYesNo",
 ]
+
+__edsl_all__ = [
+    "QuestionFreeText",
+    "QuestionMultipleChoice",
+    "QuestionCheckBox",
+    "QuestionDict",
+    "QuestionExtract",
+    "QuestionFunctional",
+    "QuestionList",
+    "QuestionMatrix",
+    "QuestionNumerical",
+    "QuestionBudget",
+    "QuestionRank",
+    "QuestionLinearScale",
+    "QuestionTopK",
+    "QuestionLikertFive",
+    "QuestionYesNo",
+    "QuestionBase",
+    "Question"
+]

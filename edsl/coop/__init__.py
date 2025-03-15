@@ -23,3 +23,7 @@ from .utils import EDSLObject, ObjectType, VisibilityType, ObjectRegistry
 from .coop import Coop
 from .exceptions import CoopServerResponseError
 __all__ = ["Coop", "EDSLObject", "ObjectType", "VisibilityType", "ObjectRegistry", "CoopServerResponseError"]
+
+__edsl_all__ = [
+    "Coop"
+]

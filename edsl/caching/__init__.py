@@ -18,3 +18,5 @@ from .cache_entry import CacheEntry
 from .cache_handler import CacheHandler
 
 __all__ = ["Cache", "CacheEntry", "CacheHandler"]
+
+__edsl_all__ = ["Cache"]
