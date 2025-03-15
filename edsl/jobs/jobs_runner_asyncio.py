@@ -33,6 +33,9 @@ from ..utilities.decorators import jupyter_nb_handler
 from .jobs_runner_status import JobsRunnerStatus
 from .async_interview_runner import AsyncInterviewRunner
 from .data_structures import RunEnvironment, RunParameters, RunConfig
+from .progress_tracking import ProgressTracker
+from .error_handling import ErrorHandler
+from .cache_manager import CacheManager
 
 if TYPE_CHECKING:
     from ..jobs import Jobs
@@ -120,7 +123,7 @@ class JobsRunnerAsyncio:
         results = Results(survey=self.jobs.survey, task_history=task_history, data=data)
 
         # Extract only the relevant cache entries
-        relevant_cache = results.relevant_cache(self.environment.cache)
+        relevant_cache = CacheManager.extract_relevant_cache(results, self.environment.cache)
 
         return Results(
             survey=self.jobs.survey,
@@ -181,102 +184,94 @@ class JobsRunnerAsyncio:
             - Collects and consolidates results from all completed interviews
             - Can be used in both async and sync contexts due to the @jupyter_nb_handler decorator
         """
-
         run_config = RunConfig(parameters=parameters, environment=self.environment)
 
         self.start_time = time.monotonic()
         self.completed = False
 
-        from edsl.coop import Coop
+        # Set up jobs runner status and progress tracking
+        if self.environment.jobs_runner_status is None:
+            from edsl.coop import Coop
+            coop = Coop()
+            endpoint_url = coop.get_progress_bar_url()
+            
+            self.environment.jobs_runner_status = JobsRunnerStatus(
+                self,
+                n=parameters.n,
+                endpoint_url=endpoint_url,
+                job_uuid=parameters.job_uuid,
+            )
+        
+        # Set up progress tracking
+        progress_tracker = ProgressTracker(self.jobs, run_config)
+        progress_tracker.setup()
 
-        coop = Coop()
-        endpoint_url = coop.get_progress_bar_url()
-
-        def set_up_jobs_runner_status(jobs_runner_status):
-            if jobs_runner_status is not None:
-                return jobs_runner_status(
-                    self,
-                    n=parameters.n,
-                    endpoint_url=endpoint_url,
-                    job_uuid=parameters.job_uuid,
-                )
-            else:
-                return JobsRunnerStatus(
-                    self,
-                    n=parameters.n,
-                    endpoint_url=endpoint_url,
-                    job_uuid=parameters.job_uuid,
-                )
-
-        run_config.environment.jobs_runner_status = set_up_jobs_runner_status(
-            self.environment.jobs_runner_status
-        )
-
-        async def get_results(results) -> None:
-            """Conducted the interviews and append to the results list."""
-            result_generator = AsyncInterviewRunner(self.jobs, run_config)
-            async for result, interview in result_generator.run():
-                results.append(result)
-                results.task_history.add_interview(interview)
-
-            self.completed = True
-
-        def run_progress_bar(stop_event, jobs_runner_status) -> None:
-            """Runs the progress bar in a separate thread."""
-            jobs_runner_status.update_progress(stop_event)
-
-        def set_up_progress_bar(progress_bar: bool, jobs_runner_status):
-            progress_thread = None
-            if progress_bar and jobs_runner_status.has_ep_api_key():
-                jobs_runner_status.setup()
-                progress_thread = threading.Thread(
-                    target=run_progress_bar, args=(stop_event, jobs_runner_status)
-                )
-                progress_thread.start()
-            elif progress_bar:
-                warnings.warn(
-                    "You need an Expected Parrot API key to view job progress bars."
-                )
-            return progress_thread
-
+        # Initialize empty results
         results = Results(
             survey=self.jobs.survey,
             data=[],
             task_history=TaskHistory(),
-            #           cache=self.environment.cache.new_entries_cache(),
         )
 
-        stop_event = threading.Event()
-        progress_thread = set_up_progress_bar(
-            parameters.progress_bar, run_config.environment.jobs_runner_status
-        )
-
+        # Run the interviews and collect results
         exception_to_raise = None
         try:
-            await get_results(results)
+            # Run interviews and collect results
+            await self._collect_results(results, run_config)
+            self.completed = True
+            
         except KeyboardInterrupt:
+            # Handle keyboard interrupts gracefully
             print("Keyboard interrupt received. Stopping gracefully...")
-            stop_event.set()
+            
         except Exception as e:
+            # Handle other exceptions based on configuration
             if parameters.stop_on_exception:
                 exception_to_raise = e
-            stop_event.set()
+                
         finally:
-            stop_event.set()
-            if progress_thread is not None:
-                progress_thread.join()
+            # Clean up progress tracking
+            progress_tracker.cleanup()
 
             if exception_to_raise:
                 raise exception_to_raise
 
-            relevant_cache = results.relevant_cache(self.environment.cache)
-            results.cache = relevant_cache
-            # breakpoint()
-            results.bucket_collection = self.environment.bucket_collection
-
-            from edsl.jobs.results_exceptions_handler import ResultsExceptionsHandler
-
-            results_exceptions_handler = ResultsExceptionsHandler(results, parameters)
-
-            results_exceptions_handler.handle_exceptions()
+            # Process results and handle exceptions
+            self._process_results(results, run_config)
+            
             return results
+            
+    async def _collect_results(self, results: Results, run_config: RunConfig) -> None:
+        """
+        Collect results from interviews.
+        
+        Parameters:
+            results: The Results object to populate
+            run_config: Configuration for running interviews
+        """
+        result_generator = AsyncInterviewRunner(self.jobs, run_config)
+        async for result, interview in result_generator.run():
+            results.append(result)
+            results.task_history.add_interview(interview)
+    
+    def _process_results(self, results: Results, run_config: RunConfig) -> None:
+        """
+        Process the collected results.
+        
+        This method extracts relevant cache entries, adds bucket collection info,
+        and handles any exceptions that occurred during execution.
+        
+        Parameters:
+            results: The Results object to process
+            run_config: Configuration used for running interviews
+        """
+        # Extract relevant cache entries
+        relevant_cache = CacheManager.extract_relevant_cache(results, self.environment.cache)
+        results.cache = relevant_cache
+        
+        # Add bucket collection info
+        results.bucket_collection = self.environment.bucket_collection
+        
+        # Handle any exceptions that occurred
+        error_handler = ErrorHandler(results, run_config.parameters)
+        error_handler.handle_exceptions()

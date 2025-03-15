@@ -224,7 +224,12 @@ def test_normal_run():
     from edsl.caching import Cache
 
     cache = Cache()
-    results = q.by(model).run(cache=cache)
+    # Ensure we're using local execution by disabling remote capabilities
+    results = q.by(model).run(
+        cache=cache, 
+        disable_remote_inference=True, 
+        disable_remote_cache=True
+    )
     # breakpoint()
     assert results[0]["answer"]["name"] == "SPAM!"
 

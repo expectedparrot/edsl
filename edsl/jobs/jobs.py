@@ -590,76 +590,32 @@ class Jobs(Base):
 
         return False
 
-    def _start_remote_inference_job(
-        self, job_handler: Optional[JobsRemoteInferenceHandler] = None
-    ) -> Union["Results", None]:
-        if job_handler is None:
-            job_handler = self._create_remote_inference_handler()
-
-        job_info = job_handler.create_remote_inference_job(
-            iterations=self.run_config.parameters.n,
-            remote_inference_description=self.run_config.parameters.remote_inference_description,
-            remote_inference_results_visibility=self.run_config.parameters.remote_inference_results_visibility,
-            fresh=self.run_config.parameters.fresh,
-        )
-        return job_info
-
-    def _create_remote_inference_handler(self) -> 'JobsRemoteInferenceHandler':
-        return JobsRemoteInferenceHandler(
-            self, verbose=self.run_config.parameters.verbose
-        )
-
-    def _remote_results(
-        self,
-        config: RunConfig,
-    ) -> Union["Results", None]:
-        from .remote_inference import RemoteJobInfo
-
-        background = config.parameters.background
-
-        jh = self._create_remote_inference_handler()
-        if jh.use_remote_inference(self.run_config.parameters.disable_remote_inference):
-            job_info: RemoteJobInfo = self._start_remote_inference_job(jh)
-            if background:
-                from edsl.results import Results
-
-                results = Results.from_job_info(job_info)
-                return results
-            else:
-                results = jh.poll_remote_inference_job(job_info)
-                return results
-        else:
-            return None
 
     def _prepare_to_run(self) -> None:
         "This makes sure that the job is ready to run and that keys are in place for a remote job."
         CheckSurveyScenarioCompatibility(self.survey, self.scenarios).check()
 
     def _check_if_remote_keys_ok(self):
+        """
+        Check if remote keys are properly configured.
+        
+        This method is used by the execution strategies to verify API keys
+        for remote execution.
+        """
         jc = JobsChecks(self)
         if jc.needs_key_process():
             jc.key_process()
 
     def _check_if_local_keys_ok(self):
+        """
+        Check if local API keys are properly configured.
+        
+        This method is used by the execution strategies to verify API keys
+        for local execution when check_api_keys is enabled.
+        """
         jc = JobsChecks(self)
         if self.run_config.parameters.check_api_keys:
             jc.check_api_keys()
-
-    async def _execute_with_remote_cache(self, run_job_async: bool) -> Results:
-        use_remote_cache = self.use_remote_cache()
-
-        from ..coop import Coop
-        from .jobs_runner_asyncio import JobsRunnerAsyncio
-        from ..caching import Cache
-
-        assert isinstance(self.run_config.environment.cache, Cache)
-
-        runner = JobsRunnerAsyncio(self, environment=self.run_config.environment)
-        if run_job_async:
-            results = await runner.run_async(self.run_config.parameters)
-        else:
-            results = runner.run(self.run_config.parameters)
-        return results
 
     @property
     def num_interviews(self):
@@ -668,64 +624,6 @@ class Jobs(Base):
         else:
             return len(self) * self.run_config.parameters.n
 
-    def _run(self, config: RunConfig) -> Union[None, "Results"]:
-        "Shared code for run and run_async"
-        if config.environment.cache is not None:
-            self.run_config.environment.cache = config.environment.cache
-        if config.environment.jobs_runner_status is not None:
-            self.run_config.environment.jobs_runner_status = (
-                config.environment.jobs_runner_status
-            )
-
-        if config.environment.bucket_collection is not None:
-            self.run_config.environment.bucket_collection = (
-                config.environment.bucket_collection
-            )
-
-        if config.environment.key_lookup is not None:
-            self.run_config.environment.key_lookup = config.environment.key_lookup
-
-        # replace the parameters with the ones from the config
-        self.run_config.parameters = config.parameters
-
-        self.replace_missing_objects()
-
-        self._prepare_to_run()
-        self._check_if_remote_keys_ok()
-
-        if (
-            self.run_config.environment.cache is None
-            or self.run_config.environment.cache is True
-        ):
-            from ..caching import CacheHandler
-
-            self.run_config.environment.cache = CacheHandler().get_cache()
-
-        if self.run_config.environment.cache is False:
-            from ..caching import Cache
-
-            self.run_config.environment.cache = Cache(immediate_write=False)
-
-        # first try to run the job remotely
-        if (results := self._remote_results(config)) is not None:
-            return results
-
-        self._check_if_local_keys_ok()
-
-        if config.environment.bucket_collection is None:
-            self.run_config.environment.bucket_collection = (
-                self.create_bucket_collection()
-            )
-
-        if (
-            self.run_config.environment.key_lookup is not None
-            and self.run_config.environment.bucket_collection is not None
-        ):
-            self.run_config.environment.bucket_collection.update_from_key_lookup(
-                self.run_config.environment.key_lookup
-            )
-
-        return None
 
     @with_config
     def run(self, *, config: RunConfig) -> "Results":
@@ -775,12 +673,17 @@ class Jobs(Base):
             >>> results = job.by(m).run(cache=Cache(), progress_bar=False, n=2, disable_remote_inference=True)
             ...
         """
-        potentially_completed_results = self._run(config)
-
-        if potentially_completed_results is not None:
-            return potentially_completed_results
-
-        return asyncio.run(self._execute_with_remote_cache(run_job_async=False))
+        # Make sure we have agents, scenarios, and models
+        self.replace_missing_objects()
+        
+        # Update our run config
+        self._update_run_config(config)
+        
+        # Use the execution strategy pattern to run the job
+        from .execution_strategy import ExecutionStrategyFactory
+        
+        strategy = ExecutionStrategyFactory.create_strategy(self, self.run_config)
+        return strategy.execute()
 
     @with_config
     async def run_async(self, *, config: RunConfig) -> "Results":
@@ -830,9 +733,46 @@ class Jobs(Base):
             ...     results = await job.run_async(cache=Cache(), progress_bar=True)
             ...     return results
         """
-        self._run(config)
-
-        return await self._execute_with_remote_cache(run_job_async=True)
+        # Make sure we have agents, scenarios, and models
+        self.replace_missing_objects()
+        
+        # Update our run config
+        self._update_run_config(config)
+        
+        # Use the execution strategy pattern to run the job
+        from .execution_strategy import ExecutionStrategyFactory
+        from .jobs_runner_asyncio import JobsRunnerAsyncio
+        
+        # For async execution, we'll use the local execution strategy directly
+        # with a JobsRunnerAsyncio instance
+        runner = JobsRunnerAsyncio(self, environment=self.run_config.environment)
+        return await runner.run(self.run_config.parameters)
+    
+    def _update_run_config(self, config: RunConfig) -> None:
+        """
+        Update the job's run configuration with the provided config.
+        
+        This method combines the job's existing configuration with the provided
+        configuration, prioritizing the provided values where applicable.
+        
+        Parameters:
+            config: The configuration to apply
+        """
+        # Update environment components if provided
+        if config.environment.cache is not None:
+            self.run_config.environment.cache = config.environment.cache
+            
+        if config.environment.jobs_runner_status is not None:
+            self.run_config.environment.jobs_runner_status = config.environment.jobs_runner_status
+            
+        if config.environment.bucket_collection is not None:
+            self.run_config.environment.bucket_collection = config.environment.bucket_collection
+            
+        if config.environment.key_lookup is not None:
+            self.run_config.environment.key_lookup = config.environment.key_lookup
+            
+        # Replace parameters with those from the config
+        self.run_config.parameters = config.parameters
 
     def __repr__(self) -> str:
         """Return an eval-able string representation of the Jobs instance."""
