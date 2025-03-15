@@ -18,6 +18,7 @@ from ..coop.coop import RemoteInferenceResponse, RemoteInferenceCreationInfo
 from .jobs_status_enums import JobsStatus
 from .jobs_remote_inference_logger import JobLogger
 
+
 class RemoteJobConstants:
     """Constants for remote job handling."""
 
@@ -84,7 +85,7 @@ class JobsRemoteInferenceHandler:
         self,
         iterations: int = 1,
         remote_inference_description: Optional[str] = None,
-        remote_inference_results_visibility: Optional['VisibilityType'] = "unlisted",
+        remote_inference_results_visibility: Optional["VisibilityType"] = "unlisted",
         fresh: Optional[bool] = False,
     ) -> RemoteJobInfo:
         from ..config import CONFIG
@@ -137,7 +138,7 @@ class JobsRemoteInferenceHandler:
     @staticmethod
     def check_status(
         job_uuid: JobUUID,
-    ) -> 'RemoteInferenceResponse':
+    ) -> "RemoteInferenceResponse":
         from ..coop import Coop
 
         coop = Coop()
@@ -240,8 +241,8 @@ class JobsRemoteInferenceHandler:
             self._handle_cancelled_job(job_info)
             return None
 
-        elif status == "failed" or status == "completed":
-            if status == "failed":
+        elif status == "failed" or status == "completed" or status == "partial_failed":
+            if status == "failed" or status == "partial_failed":
                 self._handle_failed_job(job_info, remote_job_data)
 
             results_uuid = remote_job_data.get("results_uuid")

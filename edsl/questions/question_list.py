@@ -54,10 +54,10 @@ def convert_string(s: str) -> Union[float, int, str, dict]:
     return s
 
 
-def create_model(max_list_items: int, permissive: bool) -> "ListResponse":
+def create_model(min_list_items: Optional[int], max_list_items: Optional[int], permissive: bool) -> "ListResponse":
     from pydantic import BaseModel
 
-    if permissive or max_list_items is None:
+    if permissive or (max_list_items is None and min_list_items is None):
 
         class ListResponse(BaseModel):
             answer: list[Any]
@@ -65,6 +65,14 @@ def create_model(max_list_items: int, permissive: bool) -> "ListResponse":
             generated_tokens: Optional[str] = None
 
     else:
+        # Determine field constraints
+        field_kwargs = {"...": None}
+        
+        if min_list_items is not None:
+            field_kwargs["min_items"] = min_list_items
+            
+        if max_list_items is not None:
+            field_kwargs["max_items"] = max_list_items
 
         class ListResponse(BaseModel):
             """
@@ -73,7 +81,7 @@ def create_model(max_list_items: int, permissive: bool) -> "ListResponse":
             {'answer': ['Apple', 'Cherry'], 'comment': None, 'generated_tokens': None}
             """
 
-            answer: list[Any] = Field(..., min_items=0, max_items=max_list_items)
+            answer: list[Any] = Field(**field_kwargs)
             comment: Optional[str] = None
             generated_tokens: Optional[str] = None
 
@@ -81,7 +89,7 @@ def create_model(max_list_items: int, permissive: bool) -> "ListResponse":
 
 
 class ListResponseValidator(ResponseValidatorABC):
-    required_params = ["max_list_items", "permissive"]
+    required_params = ["min_list_items", "max_list_items", "permissive"]
     valid_examples = [({"answer": ["hello", "world"]}, {"max_list_items": 5})]
 
     invalid_examples = [
@@ -89,6 +97,11 @@ class ListResponseValidator(ResponseValidatorABC):
             {"answer": ["hello", "world", "this", "is", "a", "test"]},
             {"max_list_items": 5},
             "Too many items.",
+        ),
+        (
+            {"answer": ["hello"]},
+            {"min_list_items": 2},
+            "Too few items.",
         ),
     ]
 
@@ -98,6 +111,12 @@ class ListResponseValidator(ResponseValidatorABC):
             and len(response.answer) > self.max_list_items
         ):
             raise QuestionAnswerValidationError("Too many items.")
+            
+        if (
+            self.min_list_items is not None
+            and len(response.answer) < self.min_list_items
+        ):
+            raise QuestionAnswerValidationError("Too few items.")
 
     def fix(self, response, verbose=False):
         if verbose:
@@ -122,6 +141,7 @@ class QuestionList(QuestionBase):
 
     question_type = "list"
     max_list_items: int = IntegerOrNoneDescriptor()
+    min_list_items: int = IntegerOrNoneDescriptor()
     _response_model = None
     response_validator_class = ListResponseValidator
 
@@ -131,6 +151,7 @@ class QuestionList(QuestionBase):
         question_text: str,
         include_comment: bool = True,
         max_list_items: Optional[int] = None,
+        min_list_items: Optional[int] = None,
         answering_instructions: Optional[str] = None,
         question_presentation: Optional[str] = None,
         permissive: bool = False,
@@ -140,12 +161,14 @@ class QuestionList(QuestionBase):
         :param question_name: The name of the question.
         :param question_text: The text of the question.
         :param max_list_items: The maximum number of items that can be in the answer list.
+        :param min_list_items: The minimum number of items that must be in the answer list.
 
         >>> QuestionList.example().self_check()
         """
         self.question_name = question_name
         self.question_text = question_text
         self.max_list_items = max_list_items
+        self.min_list_items = min_list_items
         self.permissive = permissive
 
         self.include_comment = include_comment
@@ -153,7 +176,7 @@ class QuestionList(QuestionBase):
         self.question_presentations = question_presentation
 
     def create_response_model(self):
-        return create_model(self.max_list_items, self.permissive)
+        return create_model(self.min_list_items, self.max_list_items, self.permissive)
 
     @property
     def question_html_content(self) -> str:
@@ -183,7 +206,7 @@ class QuestionList(QuestionBase):
     @classmethod
     @inject_exception
     def example(
-        cls, include_comment=True, max_list_items=None, permissive=False
+        cls, include_comment=True, max_list_items=None, min_list_items=None, permissive=False
     ) -> QuestionList:
         """Return an example of a list question."""
         return cls(
@@ -191,6 +214,7 @@ class QuestionList(QuestionBase):
             question_text="What are your favorite foods?",
             include_comment=include_comment,
             max_list_items=max_list_items,
+            min_list_items=min_list_items,
             permissive=permissive,
         )
 
@@ -199,10 +223,11 @@ def main():
     """Create an example of a list question and demonstrate its functionality."""
     from edsl.questions import QuestionList
 
-    q = QuestionList.example(max_list_items=5)
+    q = QuestionList.example(max_list_items=5, min_list_items=2)
     q.question_text
     q.question_name
     q.max_list_items
+    q.min_list_items
     # validate an answer
     q._validate_answer({"answer": ["pasta", "garlic", "oil", "parmesan"]})
     # translate answer code
