@@ -129,7 +129,6 @@ class InterviewExceptionEntry:
     @property
     def html_traceback(self) -> str:
         from rich.console import Console
-        from rich.table import Table
         from rich.traceback import Traceback
 
         from io import StringIO
