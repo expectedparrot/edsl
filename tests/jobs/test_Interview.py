@@ -37,7 +37,6 @@ def test_order(create_survey):
     random.shuffle(scenario_values)
     sl = ScenarioList.from_list("scenario_value", scenario_values)
     # model = create_language_model(ValueError, 100)()
-    from edsl.language_models.model import Model
 
     # model = Model("test")
     model = create_language_model(ValueError, 100)()

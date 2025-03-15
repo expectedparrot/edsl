@@ -27,10 +27,7 @@ from .exceptions import AgentListError
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
-    from ..scenarios import ScenarioList
     from ..agents import Agent
-    from pandas import DataFrame
-    from ..dataset import Dataset
 
 
 def is_iterable(obj):
@@ -212,7 +209,7 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
             new_data = [
                 agent for agent in self.data if create_evaluator(agent).eval(expression)
             ]
-        except NameNotDefined as e:
+        except NameNotDefined:
             e = AgentListError(f"'{expression}' is not a valid expression.")
             if is_notebook():
                 print(e, file=sys.stderr)
@@ -451,7 +448,7 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         *fields,
         tablefmt: Optional[str] = None,
         pretty_labels: Optional[dict] = None,
-    ) -> "Table":
+    ) -> Any:
         if len(self) == 0:
             e = AgentListError("Cannot create a table from an empty AgentList.")
             if is_notebook():

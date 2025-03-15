@@ -1,4 +1,4 @@
-from typing import Dict, Tuple, Optional, Union
+from typing import Dict, Tuple, Union
 
 
 class PriceManager:

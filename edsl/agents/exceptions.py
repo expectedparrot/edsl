@@ -1,7 +1,5 @@
-import sys
 
 from ..exceptions.BaseException import BaseException
-from ..utilities.is_notebook import is_notebook
 
 
 class AgentListError(BaseException):

@@ -1,11 +1,8 @@
 import pytest
-from edsl.questions.exceptions import QuestionScenarioRenderError
 from edsl.questions import QuestionFreeText
 from edsl.questions import QuestionMultipleChoice
-from edsl.questions import QuestionYesNo
 from edsl.surveys import Survey
 from edsl.scenarios import Scenario
-from edsl.questions.exceptions import QuestionMissingTypeError, QuestionBadTypeError
 
 valid_question = {
     "question_text": "How are you?",

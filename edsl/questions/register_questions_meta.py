@@ -2,7 +2,6 @@ from __future__ import annotations
 from abc import ABCMeta
 import inspect
 
-from ..enums import QuestionType
 from .exceptions import QuestionMissingTypeError, QuestionBadTypeError
 
 class RegisterQuestionsMeta(ABCMeta):

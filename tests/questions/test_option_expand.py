@@ -1,4 +1,3 @@
-import pytest
 from edsl import QuestionMultipleChoice, Scenario
 
 def test_multiple_choice_question_format():

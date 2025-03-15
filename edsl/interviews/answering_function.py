@@ -1,21 +1,19 @@
-import copy
 import asyncio
-
-from typing import Union, Type, Callable, TYPE_CHECKING, Any
+import copy
+from typing import TYPE_CHECKING, Any, Callable, Union
 
 if TYPE_CHECKING:
+    from ..invigilators.invigilator_base import InvigilatorBase
+    from ..key_management import KeyLookup
     from ..questions import QuestionBase
     from .interview import Interview
-    from ..key_management import KeyLookup
 
-from ..surveys.base import EndOfSurvey
-from ..tasks import TaskStatus
-
+from ..data_transfer_models import EDSLResultObjectInput
 from ..jobs.fetch_invigilator import FetchInvigilator
 from ..language_models.exceptions import LanguageModelNoResponseError
 from ..questions.exceptions import QuestionAnswerValidationError
-from ..data_transfer_models import AgentResponseDict, EDSLResultObjectInput, Answers
-
+from ..surveys.base import EndOfSurvey
+from ..tasks import TaskStatus
 from .exception_tracking import InterviewExceptionEntry
 
 
@@ -46,7 +44,7 @@ class SkipHandler:
             | self.interview.agent["traits"]
         )
         return self.skip_function(current_question_index, combined_answers)
-    
+
     def _current_info_env(self) -> dict[str, Any]:
         """
         - The current answers are "generated_tokens" and "comment" 
@@ -112,7 +110,7 @@ class SkipHandler:
         if next_question_index > (current_question_index + 1):
             cancel_between(current_question_index + 1, next_question_index)
 
-        
+
 
 
 class AnswerQuestionFunctionConstructor:
@@ -175,11 +173,11 @@ class AnswerQuestionFunctionConstructor:
     ) -> "EDSLResultObjectInput":
 
         from tenacity import (
+            RetryError,
             retry,
+            retry_if_exception_type,
             stop_after_attempt,
             wait_exponential,
-            retry_if_exception_type,
-            RetryError,
         )
 
         @retry(

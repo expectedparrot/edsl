@@ -1,7 +1,7 @@
-from abc import ABC, abstractmethod
-from typing import Optional, Any, List, TypedDict, TYPE_CHECKING
+from abc import ABC
+from typing import Optional, List, TYPE_CHECKING
 
-from pydantic import BaseModel, Field, field_validator, ValidationError
+from pydantic import BaseModel, ValidationError
 
 from .exceptions import QuestionAnswerValidationError
 from .ExceptionExplainer import ExceptionExplainer
@@ -22,7 +22,8 @@ class ResponseValidatorABC(ABC):
         required_class_vars = ["required_params", "valid_examples", "invalid_examples"]
         for var in required_class_vars:
             if not hasattr(cls, var):
-                raise ValueError(f"Class {cls.__name__} must have a '{var}' attribute.")
+                from .exceptions import QuestionValueError
+                raise QuestionValueError(f"Class {cls.__name__} must have a '{var}' attribute.")
 
     def __init__(
         self,
@@ -41,7 +42,8 @@ class ResponseValidatorABC(ABC):
             param for param in self.required_params if param not in kwargs
         ]
         if missing_params:
-            raise ValueError(
+            from .exceptions import QuestionValueError
+            raise QuestionValueError(
                 f"Missing required parameters: {', '.join(missing_params)}"
             )
 

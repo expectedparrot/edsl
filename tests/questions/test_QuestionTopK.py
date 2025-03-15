@@ -1,6 +1,4 @@
 import pytest
-import uuid
-from edsl.questions import Settings
 from edsl.questions import QuestionBase
 from edsl.questions.derived.question_top_k import QuestionTopK, main
 

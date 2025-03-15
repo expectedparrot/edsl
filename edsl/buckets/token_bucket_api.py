@@ -1,8 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import Union, Dict
-from typing import Union, List, Any, Optional
-from threading import RLock
+from typing import Optional
 
 from .token_bucket import TokenBucket  # Original implementation
 

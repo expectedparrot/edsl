@@ -18,8 +18,7 @@ import json
 from typing import Any, Optional, Union
 from uuid import UUID
 import difflib
-import json
-from typing import Any, Dict, Tuple
+from typing import Dict, Tuple
 from collections import UserList
 import inspect
 
@@ -384,7 +383,6 @@ class PersistenceMixin:
         logger.debug(f"Saving {self.__class__.__name__} to file: {filename}")
         
         if filename.endswith("json.gz"):
-            import warnings
             filename = filename[:-8]
         if filename.endswith("json"):
             filename = filename[:-5]
@@ -788,7 +786,6 @@ class Base(
         Returns:
             DisplayYAML: A displayable YAML representation
         """
-        import yaml
         return DisplayYAML(self.to_dict(add_edsl_version=False))
 
 
@@ -1273,7 +1270,7 @@ class BaseDiff:
                 result.append(f"    Old value: {v1}")
                 result.append(f"    New value: {v2}")
                 if diff:
-                    result.append(f"    Diff:")
+                    result.append("    Diff:")
                     try:
                         for line in diff:
                             result.append(f"      {line}")

@@ -15,7 +15,7 @@ class ChangeInstruction:
         self.drop = drop or []
 
     def include_instruction(self, instruction_name) -> bool:
-        return (instruction_name in self.keep) or (not instruction_name in self.drop)
+        return (instruction_name in self.keep) or (instruction_name not in self.drop)
 
     def add_name(self, index) -> None:
         self.name = "change_instruction_{}".format(index)

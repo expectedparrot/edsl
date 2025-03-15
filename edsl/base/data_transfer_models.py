@@ -1,5 +1,5 @@
 from collections import UserDict
-from typing import NamedTuple, Dict, List, Optional, Any
+from typing import NamedTuple, Dict, Optional, Any
 from dataclasses import dataclass, fields
 
 

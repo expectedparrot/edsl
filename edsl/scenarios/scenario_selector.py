@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .scenario_list import ScenarioList
-    from .scenario import Scenario
 
 class ScenarioSelector:
     """

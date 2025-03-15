@@ -128,6 +128,8 @@ from .derived.question_top_k import QuestionTopK
 from .exceptions import QuestionScenarioRenderError
 
 __all__ = [
+    # Exceptions
+    "QuestionScenarioRenderError",
     # Schema and metadata
     "Settings",
     "RegisterQuestionsMeta",

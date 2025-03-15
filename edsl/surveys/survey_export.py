@@ -1,11 +1,15 @@
 """A class for exporting surveys to different formats."""
 
-from typing import Union, Optional
+from typing import Union, Optional, TYPE_CHECKING
 
 import subprocess
 import platform
 import os
 import tempfile
+
+if TYPE_CHECKING:
+    from docx import Document
+    from ..scenarios import ScenarioList
 
 
 def open_docx(file_path):
@@ -61,7 +65,7 @@ class SurveyExport:
 
         doc = Document()
         doc.add_heading("EDSL Survey")
-        doc.add_paragraph(f"\n")
+        doc.add_paragraph("\n")
         for index, question in enumerate(self.survey._questions):
             h = doc.add_paragraph()  # Add question as a paragraph
             h.add_run(f"Question {index + 1} ({question.question_name})").bold = True
@@ -176,7 +180,6 @@ class SurveyExport:
         include_question_name=False,
     ):
         from IPython.display import display, HTML
-        import tempfile
         import os
         from edsl.utilities.utilities import is_notebook
 

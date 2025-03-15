@@ -10,8 +10,8 @@ class PdfExtractor:
     def _check_pymupdf(self):
         """Check if PyMuPDF is installed."""
         try:
-            import fitz
-            return True
+            import importlib.util
+            return importlib.util.find_spec("fitz") is not None
         except ImportError:
             return False
         

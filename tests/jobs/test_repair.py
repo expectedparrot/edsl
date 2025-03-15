@@ -1,4 +1,3 @@
-import time
 import pytest
 
 from edsl.language_models import Model

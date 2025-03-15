@@ -1,4 +1,4 @@
-from typing import Dict, List, Set, Any, Union, TYPE_CHECKING
+from typing import Dict, Set, Any, Union, TYPE_CHECKING
 from warnings import warn
 import logging
 from ..prompts import Prompt

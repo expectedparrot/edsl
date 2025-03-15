@@ -156,7 +156,8 @@ class QuestionTemplateReplacementsBuilder:
             if var == "scenario":
                 # If we find a scenario variable, we need to check for nested references
                 # Create a modified template with just {{ scenario.* }} expressions to isolate them
-                scenario_template = "".join([
+                # Using a template format for reference, not actually used
+                _ = "".join([
                     "{% for key, value in scenario.items() %}{{ key }}{% endfor %}"
                 ])
                 try:
@@ -168,7 +169,7 @@ class QuestionTemplateReplacementsBuilder:
                         for key in scenario_refs:
                             if key in scenario_file_keys:
                                 question_file_keys.append(key)
-                except:
+                except Exception:
                     # If there's any issue parsing, just continue with what we have
                     pass
                 

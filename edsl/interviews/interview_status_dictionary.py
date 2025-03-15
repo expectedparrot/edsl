@@ -1,6 +1,7 @@
 from __future__ import annotations
+
 from collections import UserDict
-from typing import Union, Dict
+from typing import Dict, Union
 
 from ..tasks.task_status_enum import TaskStatus, get_enum_from_string
 

@@ -7,7 +7,6 @@ from ..notebooks import Notebook
 from ..results import Results
 from ..scenarios import Scenario, ScenarioList
 from ..surveys import Survey
-from ..study import Study
 
 from ..language_models import LanguageModel
 from ..questions import QuestionBase
@@ -24,7 +23,6 @@ EDSLObject = Union[
     Scenario,
     ScenarioList,
     Survey,
-    Study,
 ]
 
 ObjectType = Literal[
@@ -39,7 +37,6 @@ ObjectType = Literal[
     "scenario",
     "scenario_list",
     "survey",
-    "study",
 ]
 
 
@@ -90,7 +87,6 @@ class ObjectRegistry:
         {"object_type": "scenario", "edsl_class": Scenario},
         {"object_type": "scenario_list", "edsl_class": ScenarioList},
         {"object_type": "survey", "edsl_class": Survey},
-        {"object_type": "study", "edsl_class": Study},
     ]
     
     # Create mappings for efficient lookups

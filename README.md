@@ -196,6 +196,13 @@ Analyze results as specified datasets from your account or workspace. Easily imp
 - API keys for language models. You can use your own keys or an Expected Parrot key that provides access to all available models.
 See instructions on <a href="https://docs.expectedparrot.com/en/latest/api_keys.html" target="_blank" rel="noopener noreferrer">managing keys</a> and <a href="https://www.expectedparrot.com/getting-started/coop-pricing" target="_blank" rel="noopener noreferrer">model pricing and performance</a> information.
 
+## Developer Notes
+
+### Running Tests
+- Unit tests: `python -m pytest tests/`  
+- Integration tests: `python -m pytest integration/`
+- Doctests: `python run_doctests.py` (use `-v` flag for verbose output)
+
 ## Coop
 An integrated platform for running experiments, sharing workflows and launching hybrid human/AI surveys.
 - <a href="https://www.expectedparrot.com/login" target="_blank" rel="noopener noreferrer">Login / Signup</a>

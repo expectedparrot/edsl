@@ -1,4 +1,4 @@
-from typing import List, Dict, Any, Optional, TYPE_CHECKING, Callable
+from typing import List, TYPE_CHECKING, Callable
 from dataclasses import dataclass
 from contextlib import AbstractContextManager
 from collections import UserList
@@ -8,7 +8,6 @@ if TYPE_CHECKING:
     from edsl.coop.coop import Coop
     from .cache_entry import CacheEntry
 
-from logging import Logger
 
 
 class CacheKeyList(UserList):

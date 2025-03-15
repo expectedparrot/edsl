@@ -1,11 +1,9 @@
 from __future__ import annotations
-import random
-from typing import Any, Optional, Union, TYPE_CHECKING
+from typing import Any, Optional, TYPE_CHECKING
 
 from jinja2 import Template
-from pydantic import field_validator
-from pydantic import BaseModel, Field, conlist
-from typing import List, Literal, Optional, Annotated
+from pydantic import BaseModel, Field
+from typing import List, Literal, Annotated
 
 from .exceptions import QuestionAnswerValidationError
 from ..scenarios import Scenario

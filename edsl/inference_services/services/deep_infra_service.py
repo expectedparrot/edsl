@@ -1,7 +1,4 @@
-import aiohttp
-import json
-import requests
-from typing import Any, List
+from typing import List
 
 
 from .open_ai_service import OpenAIService

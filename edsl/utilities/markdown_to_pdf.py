@@ -86,7 +86,7 @@ class MarkdownToPDF:
 
         try:
             # Run pandoc command
-            result = subprocess.run(
+            subprocess.run(
                 cmd,
                 input=self.markdown_content,
                 text=True,

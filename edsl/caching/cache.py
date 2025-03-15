@@ -32,10 +32,14 @@ import json
 import os
 import warnings
 from typing import Optional, Union, TYPE_CHECKING
-from ..base import Base
 
+from ..base import Base
 from ..utilities import remove_edsl_version, dict_hash
 from .exceptions import CacheError
+from .sql_dict import SQLiteDict
+
+if TYPE_CHECKING:
+    from .cache_entry import CacheEntry
 
 class Cache(Base):
     """Cache for storing and retrieving language model responses.

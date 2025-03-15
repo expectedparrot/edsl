@@ -7,12 +7,14 @@ operations to a remote server, enabling distributed rate limiting across
 multiple processes or machines.
 """
 
-from typing import Union, Optional, Dict, List, Any, Tuple
+from typing import Union, Optional, Dict, Any
 import asyncio
 import time
 import aiohttp
 from matplotlib import pyplot as plt
 from matplotlib.figure import Figure
+
+from .exceptions import BucketError, TokenBucketClientError
 
 
 class TokenBucketClient:
@@ -125,7 +127,7 @@ class TokenBucketClient:
                 json=payload,
             ) as response:
                 if response.status != 200:
-                    raise ValueError(f"Unexpected error: {await response.text()}")
+                    raise TokenBucketClientError(f"Unexpected error: {await response.text()}")
 
                 # Process server response
                 result = await response.json()
@@ -200,7 +202,7 @@ class TokenBucketClient:
                 params={"amount": amount},
             ) as response:
                 if response.status != 200:
-                    raise ValueError(f"Failed to add tokens: {await response.text()}")
+                    raise TokenBucketClientError(f"Failed to add tokens: {await response.text()}")
 
     async def _set_turbo_mode(self, state: bool) -> None:
         """
@@ -220,7 +222,7 @@ class TokenBucketClient:
                 f"{self.api_base_url}/bucket/{self.bucket_id}/turbo_mode/{str(state).lower()}"
             ) as response:
                 if response.status != 200:
-                    raise ValueError(
+                    raise TokenBucketClientError(
                         f"Failed to set turbo mode: {await response.text()}"
                     )
 
@@ -259,7 +261,7 @@ class TokenBucketClient:
                 },
             ) as response:
                 if response.status != 200:
-                    raise ValueError(f"Failed to get tokens: {await response.text()}")
+                    raise TokenBucketClientError(f"Failed to get tokens: {await response.text()}")
 
     def get_throughput(self, time_window: Optional[float] = None) -> float:
         """
@@ -324,7 +326,7 @@ class TokenBucketClient:
                 f"{self.api_base_url}/bucket/{self.bucket_id}/status"
             ) as response:
                 if response.status != 200:
-                    raise ValueError(
+                    raise TokenBucketClientError(
                         f"Failed to get bucket status: {await response.text()}"
                     )
                 return await response.json()
@@ -408,7 +410,7 @@ class TokenBucketClient:
             # Calculate time needed to accumulate the required tokens
             return (requested_tokens - self.tokens) / self.refill_rate
         except Exception as e:
-            raise ValueError(f"Error calculating wait time: {e}")
+            raise BucketError(f"Error calculating wait time: {e}")
 
     # Note: The commented out method below is a reminder for future implementation
     # def wait_time(self, num_tokens: Union[int, float]) -> float:

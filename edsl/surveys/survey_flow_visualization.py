@@ -1,8 +1,17 @@
 """A mixin for visualizing the flow of a survey with parameter nodes."""
 
-from typing import Optional, TYPE_CHECKING
+from typing import Optional
 from edsl.surveys.base import RulePriority, EndOfSurvey
 import tempfile
+
+
+# Import types for annotations
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ..surveys.survey import Survey
+    from ..scenarios import Scenario
+    from ..agents import Agent
 
 
 class SurveyFlowVisualization:

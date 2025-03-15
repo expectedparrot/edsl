@@ -1,4 +1,3 @@
-import pytest
 from edsl.caching import Cache
 from edsl import QuestionFreeText
 

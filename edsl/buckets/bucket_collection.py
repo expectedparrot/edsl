@@ -7,10 +7,9 @@ API rate limits are respected while allowing models from the same service to
 share the same rate limit buckets.
 """
 
-from typing import Optional, TYPE_CHECKING, Dict, List, Any, Tuple
+from typing import TYPE_CHECKING, Dict, List, Tuple
 from collections import UserDict
 from threading import RLock
-import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
 
 from .token_bucket import TokenBucket
@@ -74,7 +73,6 @@ class BucketCollection(UserDict):
         self._lock = RLock()
 
         # Check for remote token bucket server URL in environment
-        from edsl.config import CONFIG
         import os
 
         url = os.environ.get("EDSL_REMOTE_TOKEN_BUCKET_URL", None)

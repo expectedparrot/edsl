@@ -1,8 +1,9 @@
 from .inference_services_collection import InferenceServicesCollection
 
-from .services import *
-from .services import __all__
+# Import services module
+from . import services
 
-services = [globals()[service_name] for service_name in __all__ if service_name in globals()]
+# Use __all__ from services to get service class names
+services = [getattr(services, service_name) for service_name in services.__all__]
 
 default = InferenceServicesCollection(services)

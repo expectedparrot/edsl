@@ -42,7 +42,8 @@ class Question(metaclass=Meta):
 
         subclass = get_question_classes.get(question_type, None)
         if subclass is None:
-            raise ValueError(
+            from .exceptions import QuestionValueError
+            raise QuestionValueError(
                 f"No question registered with question_type {question_type}"
             )
 
@@ -144,7 +145,8 @@ def get_question_class(question_type):
     """Return the class for the given question type."""
     q2c = RegisterQuestionsMeta.question_types_to_classes()
     if question_type not in q2c:
-        raise ValueError(
+        from .exceptions import QuestionValueError
+        raise QuestionValueError(
             f"The question type, {question_type}, is not recognized. Recognied types are: {q2c.keys()}"
         )
     return q2c.get(question_type)

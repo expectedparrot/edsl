@@ -1,5 +1,7 @@
-from typing import Optional, Literal
+from typing import Optional, Literal, TYPE_CHECKING
 from dataclasses import dataclass, asdict
+from collections import UserDict
+from edsl.data_transfer_models import EDSLResultObjectInput
 
 # from edsl.data_transfer_models import VisibilityType
 from ..caching import Cache
@@ -8,6 +10,10 @@ from ..key_management import KeyLookup
 from ..base import Base
 
 from .jobs_runner_status import JobsRunnerStatus
+
+if TYPE_CHECKING:
+    from ..questions.question_base import QuestionBase
+    from ..surveys import Survey
 
 VisibilityType = Literal["private", "public", "unlisted"]
 
@@ -156,9 +162,6 @@ class RunConfig:
 """
 Additional data structures for working with job results and answers.
 """
-
-from collections import UserDict
-from edsl.data_transfer_models import EDSLResultObjectInput
 
 
 class Answers(UserDict):

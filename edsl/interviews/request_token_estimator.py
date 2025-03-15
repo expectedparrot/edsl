@@ -1,6 +1,7 @@
 from ..jobs.fetch_invigilator import FetchInvigilator
 from ..scenarios import FileStore
 
+
 class RequestTokenEstimator:
     """Estimate the number of tokens that will be required to run the focal task."""
 

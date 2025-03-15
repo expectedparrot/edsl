@@ -1,6 +1,4 @@
 import pytest
-from pathlib import Path
-from pydantic import BaseModel
 from edsl.questions.exceptions import QuestionAnswerValidationError
 from edsl.questions import QuestionBase
 from edsl.questions import QuestionDict

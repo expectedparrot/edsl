@@ -1,4 +1,3 @@
-import pytest
 
 from edsl.results import Result
 from edsl.agents import Agent

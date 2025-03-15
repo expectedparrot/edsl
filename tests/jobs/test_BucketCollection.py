@@ -1,4 +1,3 @@
-import pytest
 
 from edsl.language_models import Model
 from edsl.questions import QuestionFreeText

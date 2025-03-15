@@ -7,10 +7,6 @@
 import glob
 import os
 import sys
-import sphinx
-import sphinx_rtd_theme
-import inspect
-from sphinx.application import Sphinx
 
 project = "edsl"
 copyright = "2024 Expected Parrot, Inc"

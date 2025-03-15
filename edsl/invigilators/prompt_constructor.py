@@ -1,7 +1,6 @@
 from __future__ import annotations
-from typing import Dict, Any, Optional, Set, Union, TYPE_CHECKING, Literal
+from typing import Dict, Any, Optional, TYPE_CHECKING
 from functools import cached_property
-import time
 import logging
 
 from ..prompts import Prompt
@@ -20,7 +19,6 @@ if TYPE_CHECKING:
     from ..agents import Agent
     from ..language_models import LanguageModel
     from ..surveys.memory import MemoryPlan
-    from ..questions import QuestionBase
     from ..scenarios import Scenario
 
 logger = logging.getLogger(__name__)
@@ -438,8 +436,6 @@ class PromptConstructor:
 
     def get_prompts(self) -> Dict[str, Any]:
         """Get the prompts for the question."""
-        start = time.time()
-        
         # Build all the components
         agent_instructions = self.agent_instructions_prompt
         agent_persona = self.agent_persona_prompt

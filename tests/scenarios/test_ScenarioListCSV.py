@@ -1,8 +1,6 @@
 import pytest
-import csv
 import threading
 from http.server import HTTPServer, SimpleHTTPRequestHandler
-from io import StringIO
 from urllib.parse import urljoin
 
 from edsl.scenarios import ScenarioList  # Adjust this import as necessary

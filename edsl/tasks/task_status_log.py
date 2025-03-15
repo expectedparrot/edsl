@@ -7,9 +7,8 @@ execution, including timing, state transitions, and status at any point in time.
 """
 
 from collections import UserList
-from typing import List, Optional, Union
 
-from .task_status_enum import TaskStatus, TaskStatusLogEntry
+from .task_status_enum import TaskStatus
 
 
 class TaskStatusLog(UserList):

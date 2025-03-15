@@ -1,5 +1,4 @@
 import pytest
-from edsl.language_models import Model
 from edsl.language_models import LanguageModel
 from edsl.language_models import ModelList
 

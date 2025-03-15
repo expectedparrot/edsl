@@ -64,9 +64,6 @@ from .jobs import __all__ as jobs_all
 from .jobs import *
 __all__.extend(jobs_all)
 
-from .study import __all__ as study_all
-from .study import *
-__all__.extend(study_all)
 
 # Load plugins
 try:

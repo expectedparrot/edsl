@@ -57,7 +57,6 @@ from ..dataset import ScenarioListOperationsMixin
 
 from .exceptions import ScenarioError
 from .scenario import Scenario
-from .directory_scanner import DirectoryScanner
 from .scenario_list_pdf_tools import PdfTools
 
 
@@ -903,7 +902,9 @@ class ScenarioList(Base, UserList, ScenarioListOperationsMixin):
         ScenarioList([Scenario({'name': 'Alice'}), Scenario({'name': 'Bob'})])
         """
         if not func:
-            func = lambda x: x
+            def identity(x):
+                return x
+            func = identity
         return cls([Scenario({name: func(value)}) for value in values])
 
     def table(
@@ -914,7 +915,6 @@ class ScenarioList(Base, UserList, ScenarioListOperationsMixin):
     ) -> str:
         """Return the ScenarioList as a table."""
 
-        from tabulate import tabulate_formats
 
         if tablefmt is not None and tablefmt not in tabulate_formats:
             raise ValueError(
@@ -1020,7 +1020,7 @@ class ScenarioList(Base, UserList, ScenarioListOperationsMixin):
         return ScenarioList(new_scenarios)
 
     @classmethod
-    def from_list_of_tuples(self, *names: str, values: List[Tuple]) -> ScenarioList:
+    def from_list_of_tuples(self, *names: str, values: List[tuple]) -> ScenarioList:
         sl = ScenarioList.from_list(names[0], [value[0] for value in values])
         for index, name in enumerate(names[1:]):
             sl = sl.add_list(name, [value[index + 1] for value in values])
@@ -1210,7 +1210,6 @@ class ScenarioList(Base, UserList, ScenarioListOperationsMixin):
         """
         import tempfile
         import requests
-        from docx import Document
 
         if "/edit" in url:
             doc_id = url.split("/d/")[1].split("/edit")[0]
@@ -1468,7 +1467,6 @@ class ScenarioList(Base, UserList, ScenarioListOperationsMixin):
             ScenarioList: An instance of the ScenarioList class.
 
         """
-        import pandas as pd
         import tempfile
         import requests
 
@@ -1614,7 +1612,6 @@ class ScenarioList(Base, UserList, ScenarioListOperationsMixin):
         """
         from ..surveys import Survey
         from ..questions import QuestionBase
-        from ..jobs import Jobs
 
         if isinstance(survey, QuestionBase):
             return Survey([survey]).by(self)

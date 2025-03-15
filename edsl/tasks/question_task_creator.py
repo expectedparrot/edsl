@@ -8,7 +8,7 @@ execution unit in EDSL's task system.
 """
 
 import asyncio
-from typing import Callable, Union, List, Dict, Any, Optional, TYPE_CHECKING
+from typing import Callable, Optional, TYPE_CHECKING
 from collections import UserList, UserDict
 
 from ..jobs.exceptions import InterviewErrorPriorTaskCanceled
@@ -170,12 +170,12 @@ class QuestionTaskCreator(UserList):
         """
 
         requested_tokens = self.estimated_tokens()
-        if (estimated_wait_time := self.tokens_bucket.wait_time(requested_tokens)) > 0:
+        if (self.tokens_bucket.wait_time(requested_tokens)) > 0:
             self.task_status = TaskStatus.WAITING_FOR_TOKEN_CAPACITY
 
         await self.tokens_bucket.get_tokens(requested_tokens)
 
-        if (estimated_wait_time := self.model_buckets.requests_bucket.wait_time(1)) > 0:
+        if self.model_buckets.requests_bucket.wait_time(1) > 0:
             self.waiting = True  #  do we need this?
             self.task_status = TaskStatus.WAITING_FOR_REQUEST_CAPACITY
 

@@ -44,8 +44,6 @@ results.select("conversation_index", "index", "agent_name", "dialogue").print(
 )
 
 from edsl import (
-    QuestionFreeText,
-    QuestionMultipleChoice,
     QuestionYesNo,
     QuestionNumerical,
 )

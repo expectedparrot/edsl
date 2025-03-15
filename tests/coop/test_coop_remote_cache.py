@@ -14,7 +14,7 @@ example_cache_entries = [
     CacheEntry(
         model="gpt-4o",
         parameters={"temperature": 0.5},
-        system_prompt=f"The quick brown fox jumps over the lazy dog.",
+        system_prompt="The quick brown fox jumps over the lazy dog.",
         user_prompt="What does the fox say?",
         output="The fox says 'hello'",
         iteration=1,
@@ -23,7 +23,7 @@ example_cache_entries = [
     CacheEntry(
         model="gpt-4-1106-preview",
         parameters={"temperature": 0.5},
-        system_prompt=f"The quick brown fox jumps over the lazy dog.",
+        system_prompt="The quick brown fox jumps over the lazy dog.",
         user_prompt="What does the fox say?",
         output="The fox says 'hello'",
         iteration=1,

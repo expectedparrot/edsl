@@ -56,7 +56,7 @@ if __name__ == "__main__":
     print("EDSL Logging Test\n")
     
     # Show current log level
-    print(f"Default log level: INFO\n")
+    print("Default log level: INFO\n")
     
     # Run tests
     test_logger_levels()

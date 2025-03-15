@@ -14,7 +14,6 @@ from .response_validator_abc import ResponseValidatorABC
 from .decorators import inject_exception
 
 from .exceptions import (
-    QuestionAnswerValidationError,
     QuestionCreationValidationError,
 )
 
@@ -52,12 +51,14 @@ def create_matrix_response(
                 # Check that all items have responses
                 if not all(item in v for item in question_items):
                     missing = set(question_items) - set(v.keys())
-                    raise ValueError(f"Missing responses for items: {missing}")
+                    from .exceptions import QuestionAnswerValidationError
+                    raise QuestionAnswerValidationError(f"Missing responses for items: {missing}")
 
                 # Check that all responses are valid options
                 if not all(answer in question_options for answer in v.values()):
                     invalid = [ans for ans in v.values() if ans not in question_options]
-                    raise ValueError(f"Invalid options selected: {invalid}")
+                    from .exceptions import QuestionAnswerValidationError
+                    raise QuestionAnswerValidationError(f"Invalid options selected: {invalid}")
                 return v
 
     return MatrixResponse
@@ -115,7 +116,8 @@ class MatrixResponseValidator(ResponseValidatorABC):
                         mapped_answer
                     ):  # Only return if we successfully mapped some answers
                         return {"answer": mapped_answer}
-            except:
+            except (ValueError, KeyError, TypeError):
+                # Just continue to the next parsing attempt
                 pass
 
         # If answer uses numeric keys, map them to question items

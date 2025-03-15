@@ -1,6 +1,5 @@
-from typing import Any, List, Tuple, Optional, Dict, TYPE_CHECKING, Union, Generator
+from typing import List, Tuple, Optional, Dict, Union
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from collections import UserList
 
 from .service_availability import ServiceAvailability
 from .inference_service_abc import InferenceServiceABC
@@ -191,8 +190,7 @@ class AvailableModelFetcher:
 def main():
     from .services.open_ai_service import OpenAIService
 
-    af = AvailableModelFetcher([OpenAIService()], {}, verbose=True)
-    # print(af.available(service="openai"))
+    # Create fetcher without assigning to unused variable
     all_models = AvailableModelFetcher([OpenAIService()], {})._get_all_models(
         force_refresh=True
     )

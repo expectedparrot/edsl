@@ -1,15 +1,17 @@
 from __future__ import annotations
 import json
-from typing import Any, Optional, Union
+from typing import Any, Optional, Union, ForwardRef
 
 from pydantic import Field
 from json_repair import repair_json
-
 from .exceptions import QuestionAnswerValidationError
 from .question_base import QuestionBase
 from .descriptors import IntegerOrNoneDescriptor
 from .decorators import inject_exception
 from .response_validator_abc import ResponseValidatorABC
+
+# Forward reference for function return type annotation
+ListResponse = ForwardRef("ListResponse")
 
 def convert_string(s: str) -> Union[float, int, str, dict]:
     """Convert a string to a more appropriate type if possible.

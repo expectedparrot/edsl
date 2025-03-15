@@ -1,5 +1,4 @@
 import json
-from .utilities import valid_json
 
 
 def extract_json_from_string(s):

@@ -1,12 +1,10 @@
 import pytest
-import uuid
 from edsl.questions.exceptions import (
     QuestionAnswerValidationError,
-    QuestionResponseValidationError,
 )
 from edsl.questions import QuestionBase
 from edsl.questions import Settings
-from edsl.questions.question_check_box import QuestionCheckBox, main
+from edsl.questions.question_check_box import QuestionCheckBox
 from edsl.language_models import Model
 
 valid_question = {

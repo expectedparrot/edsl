@@ -21,7 +21,7 @@ import time
 import asyncio
 import threading
 import warnings
-from typing import TYPE_CHECKING, List, Generator, Tuple, Optional, Any
+from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
     from ..results import Results
@@ -36,7 +36,6 @@ from .data_structures import RunEnvironment, RunParameters, RunConfig
 
 if TYPE_CHECKING:
     from ..jobs import Jobs
-    from ..interviews import Interview
 
 
 class JobsRunnerAsyncio:

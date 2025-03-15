@@ -1,4 +1,4 @@
-from edsl import Model, QuestionFreeText
+from edsl import QuestionFreeText
 from edsl.language_models.LanguageModel import LanguageModel
 
 # m = [LanguageModel.example(test_model=True, throw_exception=True) for _ in range(1000)]

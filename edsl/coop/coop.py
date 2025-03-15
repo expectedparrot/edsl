@@ -140,7 +140,7 @@ class Coop(CoopFunctionsMixin):
         if self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"
         else:
-            headers["Authorization"] = f"Bearer None"
+            headers["Authorization"] = "Bearer None"
         return headers
 
     def _send_server_request(
@@ -226,7 +226,8 @@ class Coop(CoopFunctionsMixin):
         """
         # Get EDSL version from header
         # breakpoint()
-        server_edsl_version = response.headers.get("X-EDSL-Version")
+        # Commented out as currently unused
+        # server_edsl_version = response.headers.get("X-EDSL-Version")
 
         # if server_edsl_version:
         #     if self._user_version_is_outdated(
@@ -266,7 +267,7 @@ class Coop(CoopFunctionsMixin):
 
                 print("\n✨ API key retrieved.")
 
-                if stored_in_user_space := self.ep_key_handler.ask_to_store(api_key):
+                if self.ep_key_handler.ask_to_store(api_key):
                     pass
                 else:
                     path_to_env = write_api_key_to_env(api_key)
@@ -472,7 +473,7 @@ class Coop(CoopFunctionsMixin):
         """
         object_type = ObjectRegistry.get_object_type_by_edsl_class(object)
         response = self._send_server_request(
-            uri=f"api/v0/object",
+            uri="api/v0/object",
             method="POST",
             payload={
                 "description": description,
@@ -566,13 +567,13 @@ class Coop(CoopFunctionsMixin):
 
         if obj_uuid:
             response = self._send_server_request(
-                uri=f"api/v0/object",
+                uri="api/v0/object",
                 method="GET",
                 params={"uuid": obj_uuid},
             )
         else:
             response = self._send_server_request(
-                uri=f"api/v0/object/alias",
+                uri="api/v0/object/alias",
                 method="GET",
                 params={"owner_username": owner_username, "alias": alias},
             )
@@ -597,7 +598,7 @@ class Coop(CoopFunctionsMixin):
         """
         edsl_class = ObjectRegistry.object_type_to_edsl_class.get(object_type)
         response = self._send_server_request(
-            uri=f"api/v0/objects",
+            uri="api/v0/objects",
             method="GET",
             params={"type": object_type},
         )
@@ -1215,7 +1216,7 @@ class Coop(CoopFunctionsMixin):
         )
         survey_uuid = survey_details.get("uuid")
         response = self._send_server_request(
-            uri=f"api/v0/projects/create-from-survey",
+            uri="api/v0/projects/create-from-survey",
             method="POST",
             payload={"project_name": project_name, "survey_uuid": str(survey_uuid)},
         )

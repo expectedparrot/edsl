@@ -23,7 +23,7 @@ maintaining a rich object model.
 from __future__ import annotations
 import inspect
 from collections import UserDict
-from typing import Any, Type, Callable, Optional, TYPE_CHECKING, Union
+from typing import Any, Callable, Optional, TYPE_CHECKING, Union
 
 from ..base import Base
 from ..utilities import remove_edsl_version
@@ -35,7 +35,6 @@ if TYPE_CHECKING:
     from ..agents import Agent
     from ..scenarios import Scenario
     from ..language_models import LanguageModel
-    from ..prompts import Prompt
     from ..surveys import Survey
 
 QuestionName = str
@@ -259,7 +258,7 @@ class Result(Base, UserDict):
 
     def check_expression(self, expression: str) -> None:
         for key in self.problem_keys:
-            if key in expression and not key + "." in expression:
+            if key in expression and key + "." not in expression:
                 raise ValueError(
                     f"Key by iself {key} is problematic. Use the full key {key + '.' + key} name instead."
                 )
@@ -307,7 +306,7 @@ class Result(Base, UserDict):
         return self._combined_dict
 
     @property
-    def problem_keys(self) -> list[str]:
+    def get_problem_keys(self) -> list[str]:
         """Return a list of keys that are problematic."""
         if self._combined_dict is None or self._problem_keys is None:
             self._compute_combined_dict_and_problem_keys()
@@ -579,7 +578,7 @@ class Result(Base, UserDict):
 
         def get_question_results(
             model_response_objects,
-        ) -> dict[str, "EDSLResultObjectInput"]:
+        ) -> dict[str, Any]:
             """Maps the question name to the EDSLResultObjectInput."""
             question_results = {}
             for result in model_response_objects:

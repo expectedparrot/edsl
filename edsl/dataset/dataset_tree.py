@@ -1,4 +1,7 @@
-from typing import Dict, List, Any, Optional, List
+from typing import Optional, List, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .dataset import Dataset
 
 
 def is_hashable(v):
@@ -16,8 +19,10 @@ class TreeNode:
         self.children = {}
 
 
+
 class Tree:
     def __init__(self, data: "Dataset", node_order: Optional[List[str]] = None):
+        """Initialize the tree with a Dataset."""
         d = {}
         for entry in data:
             d.update(entry)
@@ -95,8 +100,7 @@ class Tree:
             filename = "tree_structure.docx"
 
         from docx import Document
-        from docx.shared import Inches, Pt
-        from docx.enum.text import WD_ALIGN_PARAGRAPH
+        from docx.shared import Pt
         from docx.enum.style import WD_STYLE_TYPE
 
         doc = Document()
@@ -118,7 +122,6 @@ class Tree:
         self._add_to_docx(doc, self.root, 0)
         import base64
         from io import BytesIO
-        import base64
 
         # Save document to bytes buffer
         doc_buffer = BytesIO()

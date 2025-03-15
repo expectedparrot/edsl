@@ -28,7 +28,7 @@ def coop_object_api_workflows(object_type, object_examples):
         response = coop.create(object, visibility=visibility)
         assert (
             coop.get(response.get("uuid")) == object
-        ), f"Expected object to be the same as the one created. "
+        ), "Expected object to be the same as the one created. "
         # assert coop.get(response.get("url")) == object
         responses.append(response)
 

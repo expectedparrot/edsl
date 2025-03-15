@@ -36,7 +36,6 @@ class JobsChecks:
         """
         missing_api_keys = set()
 
-        from edsl.language_models.model import Model
         from edsl.enums import service_to_api_keyname
 
         for model in self.jobs.models: # + [Model()]:
@@ -134,7 +133,6 @@ class JobsChecks:
     def key_process(self):
         import secrets
         from dotenv import load_dotenv
-        from edsl.config import CONFIG
         from edsl.coop.coop import Coop
         from edsl.utilities.utilities import write_api_key_to_env
 

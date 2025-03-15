@@ -1,12 +1,7 @@
-from edsl import Jobs
-import requests 
-import json
-from edsl import QuestionCheckBox,QuestionFreeText,QuestionList
+from edsl import QuestionCheckBox
 import time
-import threading
 from concurrent.futures import ThreadPoolExecutor
-import matplotlib
-from edsl import Survey,Results
+from edsl import Survey
 from edsl import Cache
 import matplotlib.pyplot as plt
 

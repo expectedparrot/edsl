@@ -3,7 +3,6 @@
 from .question_functional import QuestionFunctional
 from .question_base import QuestionBase
 from ..scenarios import Scenario
-from ..agents import Agent
 
 
 def compose_questions(
@@ -20,7 +19,8 @@ def compose_questions(
     if question_name is None:
         question_name = f"{q1.question_name}_{q2.question_name}"
     if q1.question_name not in q2.question_text:
-        raise ValueError(
+        from .exceptions import QuestionValueError
+        raise QuestionValueError(
             f"q2 requires a field not present in q1's answer. "
             f"q1: {q1.question_name}, q2: {q2.question_name}"
         )

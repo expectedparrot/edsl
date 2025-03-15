@@ -3,7 +3,6 @@ from edsl import (
     QuestionMultipleChoice,
     Survey,
     QuestionList,
-    Question,
 )
 
 

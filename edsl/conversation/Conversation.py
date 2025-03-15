@@ -2,7 +2,7 @@ from collections import UserList
 import asyncio
 import inspect
 from typing import Optional, Callable
-from .. import Agent, QuestionFreeText, Results, AgentList, ScenarioList, Scenario
+from .. import QuestionFreeText, Results, AgentList, ScenarioList, Scenario
 from ..questions import QuestionBase
 from ..results.Result import Result
 from jinja2 import Template

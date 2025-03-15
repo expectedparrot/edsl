@@ -1,4 +1,3 @@
-import pytest
 
 from edsl.agents import Agent
 from edsl.questions import QuestionMultipleChoice, QuestionList, QuestionFreeText

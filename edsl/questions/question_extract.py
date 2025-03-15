@@ -2,7 +2,7 @@ from __future__ import annotations
 import json
 import re
 from typing import Dict, Any
-from typing import Any, Optional, Dict
+from typing import Optional
 
 from pydantic import create_model, Field
 

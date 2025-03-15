@@ -7,9 +7,7 @@ that price information is only fetched once and then cached for efficiency.
 """
 
 import requests
-import csv
-from io import StringIO
-from typing import Dict, Tuple, Optional, Any
+from typing import Dict, Tuple, Any
 
 
 class PriceFetcher:
@@ -85,7 +83,6 @@ class PriceFetcher:
             return self._cached_prices
 
         import os
-        import requests
         from ..config import CONFIG
 
         try:
@@ -96,7 +93,7 @@ class PriceFetcher:
             if api_key:
                 headers["Authorization"] = f"Bearer {api_key}"
             else:
-                headers["Authorization"] = f"Bearer None"
+                headers["Authorization"] = "Bearer None"
 
             response = requests.get(url, headers=headers, timeout=20)
             response.raise_for_status()  # Raise an exception for bad responses
@@ -120,7 +117,7 @@ class PriceFetcher:
             self._cached_prices = price_lookup
             return self._cached_prices
 
-        except requests.RequestException as e:
+        except requests.RequestException:
             # Silently handle errors and return empty dict
             # print(f"An error occurred: {e}")
             return {}

@@ -1,6 +1,6 @@
 """A collection of rules for a survey."""
 
-from typing import List, Union, Any, Optional
+from typing import List, Any, Optional
 from collections import defaultdict, UserList, namedtuple
 
 from ..exceptions import (

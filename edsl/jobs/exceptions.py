@@ -1,4 +1,3 @@
-from textwrap import dedent
 
 from ..base import BaseException
 

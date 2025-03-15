@@ -1,11 +1,13 @@
 import os
-from typing import Any, List, Optional
-import asyncio
+from typing import Any, List, Optional, TYPE_CHECKING
 from mistralai import Mistral
 
 
 from ..inference_service_abc import InferenceServiceABC
 from ...language_models import LanguageModel
+
+if TYPE_CHECKING:
+    from ....scenarios.file_store import FileStore
 
 
 class MistralAIService(InferenceServiceABC):

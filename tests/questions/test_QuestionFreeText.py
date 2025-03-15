@@ -1,8 +1,4 @@
 import pytest
-from edsl.questions.exceptions import (
-    QuestionAnswerValidationError,
-    QuestionResponseValidationError,
-)
 from edsl.questions import Settings
 from edsl.questions import QuestionBase
 from edsl.questions.question_free_text import QuestionFreeText, main

@@ -43,7 +43,7 @@ class AnswerValidatorMixin:
             raise QuestionAnswerValidationError(
                 f"Answer must be a dictionary (got {answer})."
             )
-        if not "answer" in answer:
+        if "answer" not in answer:
             raise QuestionAnswerValidationError(
                 f"Answer must have an 'answer' key (got {answer})."
             )
@@ -70,7 +70,7 @@ class AnswerValidatorMixin:
         """
         value = answer.get(key)
         initial_value = value
-        if type(value) == str:
+        if isinstance(value, str):
             value = value.replace(",", "")
             value = "".join(re.findall(r"[-+]?\d*\.\d+|\d+", value))
             if value.isdigit():
@@ -84,11 +84,11 @@ class AnswerValidatorMixin:
                         f"Answer should be numerical (int or float). Got '{initial_value}'"
                     )
             return None
-        elif type(value) == int or type(value) == float:
+        elif isinstance(value, (int, float)):
             return None
         else:
             raise QuestionAnswerValidationError(
-                f"Answer should be numerical (int or float)."
+                "Answer should be numerical (int or float)."
             )
 
     #####################
@@ -141,7 +141,7 @@ class AnswerValidatorMixin:
         answer_codes = answer["answer"]
         try:
             answer_codes = [int(k) for k in answer["answer"]]
-        except:
+        except (ValueError, TypeError):
             raise QuestionAnswerValidationError(
                 f"Answer codes must be a list of strings, bytes-like objects or real numbers (got {answer['answer']})."
             )
@@ -189,7 +189,7 @@ class AnswerValidatorMixin:
         value = answer.get("answer")
         if (
             hasattr(self, "allow_nonresponse")
-            and self.allow_nonresponse == False
+            and not self.allow_nonresponse
             and (value == [] or value is None)
         ):
             raise QuestionAnswerValidationError("You must provide a response.")
@@ -241,7 +241,7 @@ class AnswerValidatorMixin:
         """
         try:
             value = int(answer.get("answer"))
-        except:
+        except (ValueError, TypeError):
             raise QuestionAnswerValidationError(
                 f"Answer code must be a string, a bytes-like object or a real number (got {answer.get('answer')})."
             )

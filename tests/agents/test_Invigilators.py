@@ -1,4 +1,3 @@
-import pytest
 import unittest
 from unittest.mock import Mock
 from edsl.invigilators import InvigilatorHuman

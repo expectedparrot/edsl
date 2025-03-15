@@ -1,4 +1,3 @@
-import pytest
 from edsl.surveys.dag import DAG
 
 

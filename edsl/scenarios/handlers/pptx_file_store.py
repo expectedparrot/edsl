@@ -2,9 +2,6 @@ from ..file_methods import FileMethods
 import os
 import tempfile
 
-from ..scenario import Scenario
-from ..scenario_list import ScenarioList
-from ..file_store import FileStore
 
 class PptxMethods(FileMethods):
     suffix = "pptx"
@@ -76,8 +73,6 @@ class PptxMethods(FileMethods):
 
     def example(self):
         from pptx import Presentation
-        from ..scenario import Scenario
-        from ..scenario_list import ScenarioList
 
         os.makedirs("test_dir", exist_ok=True)
 

@@ -1,11 +1,9 @@
 from __future__ import annotations
 
-from random import uniform
-from typing import Any, Optional, Union, Literal
+from typing import Any, Optional, Union
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field
 
-from .exceptions import QuestionAnswerValidationError
 from .question_base import QuestionBase
 from .descriptors import NumericalOrNoneDescriptor
 from .decorators import inject_exception

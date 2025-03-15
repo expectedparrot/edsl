@@ -8,7 +8,8 @@ if TYPE_CHECKING:
     from ..agents import AgentList
     from ..scenarios import ScenarioList
     from ..surveys import Survey
-    from .interviews.Interview import Interview
+    from ..interviews import Interview
+    from ..invigilators.invigilator_base import Invigilator
 
 from .fetch_invigilator import FetchInvigilator
 from ..caching import CacheEntry
@@ -142,7 +143,7 @@ class JobsPrompts:
             self._price_lookup = c.fetch_prices()
         return self._price_lookup
 
-    def _process_one_invigilator(self, invigilator: 'Invigilator', interview_index: int, iterations: int = 1) -> dict   :
+    def _process_one_invigilator(self, invigilator: 'Invigilator', interview_index: int, iterations: int = 1) -> dict:
         """Process a single invigilator and return a dictionary with all needed data fields."""
         prompts = invigilator.get_prompts()
         user_prompt = prompts["user_prompt"]

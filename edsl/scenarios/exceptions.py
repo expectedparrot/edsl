@@ -7,7 +7,6 @@ that can occur when working with Scenarios, ScenarioLists, and related component
 """
 
 import re
-from typing import List
 
 from ..base import BaseException
 

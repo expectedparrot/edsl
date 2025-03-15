@@ -17,7 +17,7 @@ class TokenUsage:
         if not isinstance(other, TokenUsage):
             raise ValueError(f"Can't add {type(other)} to InterviewTokenUsage")
         if self.from_cache != other.from_cache:
-            raise ValueError(f"Can't add token usages from different sources")
+            raise ValueError("Can't add token usages from different sources")
         return TokenUsage(
             from_cache=self.from_cache,
             prompt_tokens=self.prompt_tokens + other.prompt_tokens,

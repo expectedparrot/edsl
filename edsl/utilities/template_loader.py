@@ -1,6 +1,5 @@
 from importlib import resources
 from jinja2 import BaseLoader, TemplateNotFound
-import os
 
 
 class TemplateLoader(BaseLoader):
@@ -10,8 +9,8 @@ class TemplateLoader(BaseLoader):
 
     def get_source(self, environment, template):
         try:
-            parts = [self.templates_dir] + template.split("/")
-            template_path = os.path.join(*parts)
+            # Split template path into components
+            # (template_path from os.path.join is no longer needed with importlib.resources)
 
             # Use resources.files() to get a Traversable object
             templates = resources.files(self.package_name).joinpath(self.templates_dir)

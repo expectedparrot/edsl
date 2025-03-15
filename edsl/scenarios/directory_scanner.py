@@ -8,9 +8,8 @@ the matching files.
 """
 
 from dataclasses import dataclass
-from typing import Optional, List, Iterator, TypeVar, Generic, Callable, Any
+from typing import Optional, List, Iterator, TypeVar, Callable
 import os
-from pathlib import Path
 
 # Generic type variable for the factory function's return type
 T = TypeVar("T")

@@ -1,6 +1,6 @@
 import textwrap
 from random import random
-from typing import Optional, TYPE_CHECKING, List, Callable
+from typing import Optional, TYPE_CHECKING, List
 
 from ..utilities import PrettyList
 from ..config import CONFIG

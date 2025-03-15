@@ -12,7 +12,6 @@ import sys
 from collections import defaultdict
 
 # Import is_notebook but defer Dataset import to avoid potential circular imports
-from edsl.utilities import is_notebook
 
 from .exceptions import ResultsColumnNotFoundError
 
@@ -67,7 +66,7 @@ class Selector:
         self.columns = columns
         self.items_in_order = []  # Tracks column order for consistent output
 
-    def select(self, *columns: Union[str, List[str]]) -> Optional["Dataset"]:
+    def select(self, *columns: Union[str, List[str]]) -> Optional[Any]:
         """
         Select specific columns from the data and return as a Dataset.
         

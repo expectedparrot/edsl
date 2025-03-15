@@ -1,9 +1,12 @@
 import os
-from typing import Any, Optional, List
+from typing import Any, Optional, List, TYPE_CHECKING
 from anthropic import AsyncAnthropic
 
 from ..inference_service_abc import InferenceServiceABC
 from ...language_models import LanguageModel
+
+if TYPE_CHECKING:
+    from ....scenarios.file_store import FileStore as Files
 
 
 class AnthropicService(InferenceServiceABC):
