@@ -14,7 +14,6 @@ from .response_validator_abc import ResponseValidatorABC
 from .decorators import inject_exception
 
 from .exceptions import (
-    QuestionAnswerValidationError,
     QuestionCreationValidationError,
 )
 
@@ -115,7 +114,8 @@ class MatrixResponseValidator(ResponseValidatorABC):
                         mapped_answer
                     ):  # Only return if we successfully mapped some answers
                         return {"answer": mapped_answer}
-            except:
+            except (ValueError, KeyError, TypeError):
+                # Just continue to the next parsing attempt
                 pass
 
         # If answer uses numeric keys, map them to question items

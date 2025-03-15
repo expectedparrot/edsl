@@ -3,7 +3,6 @@
 from .question_functional import QuestionFunctional
 from .question_base import QuestionBase
 from ..scenarios import Scenario
-from ..agents import Agent
 
 
 def compose_questions(
