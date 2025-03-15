@@ -3,6 +3,7 @@ from typing import Callable, Union, List, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from edsl.questions.QuestionBase import QuestionBase
+    from ...surveys.survey import Survey
 
 
 class MemoryManagement:
