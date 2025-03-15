@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from typing import Any, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from edsl.questions.QuestionBase import QuestionBase
+    pass  # Not using any imported types in this file
 
 
 class BaseDescriptor(ABC):
