@@ -4,7 +4,7 @@ import time
 from threading import RLock
 
 from ..jobs.decorators import synchronized_class
-from .exceptions import BucketError, TokenLimitError, BucketConfigurationError
+from .exceptions import TokenLimitError
 
 
 @synchronized_class

@@ -10,7 +10,7 @@ from typing import Any, Union, Optional, TYPE_CHECKING, Callable
 from ..base import PersistenceMixin, HashingMixin
 
 from .dataset_tree import Tree
-from .exceptions import DatasetError, DatasetKeyError, DatasetValueError, DatasetTypeError, DatasetExportError
+from .exceptions import DatasetKeyError, DatasetValueError
 
 from .display.table_display import TableDisplay
 #from .smart_objects import FirstObject

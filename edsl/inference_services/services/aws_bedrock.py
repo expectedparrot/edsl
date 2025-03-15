@@ -1,12 +1,9 @@
 import os
 from typing import Any, List, Optional
-import re
 import boto3
 from botocore.exceptions import ClientError
 from ..inference_service_abc import InferenceServiceABC
 from ...language_models import LanguageModel
-import json
-from edsl.utilities.utilities import fix_partial_correct_response
 
 
 class AwsBedrockService(InferenceServiceABC):

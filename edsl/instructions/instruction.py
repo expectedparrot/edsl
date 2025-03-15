@@ -1,4 +1,3 @@
-from typing import Union, Optional, List, Generator, Dict
 from ..utilities.remove_edsl_version import remove_edsl_version
 from ..base import RepresentationMixin
 #from ..surveys import Survey

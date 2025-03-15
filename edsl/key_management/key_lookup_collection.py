@@ -1,7 +1,6 @@
 from collections import UserDict
 
 from .key_lookup_builder import KeyLookupBuilder
-from .key_lookup import KeyLookup
 
 class KeyLookupCollection(UserDict):
     """Singleton collection for caching and reusing KeyLookup objects.

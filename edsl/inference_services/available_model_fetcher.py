@@ -1,6 +1,5 @@
-from typing import Any, List, Tuple, Optional, Dict, TYPE_CHECKING, Union, Generator
+from typing import List, Tuple, Optional, Dict, Union
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from collections import UserList
 
 from .service_availability import ServiceAvailability
 from .inference_service_abc import InferenceServiceABC

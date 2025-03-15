@@ -94,7 +94,7 @@ class PerplexityService(OpenAIService):
                     else:
                         headers = self.get_headers()
 
-                except Exception as e:
+                except Exception:
                     return {
                         "rpm": 10_000,
                         "tpm": 2_000_000,

@@ -7,7 +7,7 @@ visualization and reporting to help users understand task execution patterns and
 issues.
 """
 
-from typing import List, Optional, Dict, Any, Union
+from typing import List, Optional
 from io import BytesIO
 import base64
 import os
@@ -89,12 +89,10 @@ class TaskHistory(RepresentationMixin):
     @classmethod
     def example(cls):
         """ """
-        from ..interviews import Interview
         from ..jobs import Jobs
 
         j = Jobs.example(throw_exception_probability=1, test_model=True)
 
-        from edsl.config import CONFIG
 
         results = j.run(
             print_exceptions=False,
@@ -404,7 +402,7 @@ class TaskHistory(RepresentationMixin):
 
         models_used = set([i.model.model for index, i in self._interviews.items()])
 
-        from jinja2 import Environment, FileSystemLoader
+        from jinja2 import Environment
         from edsl.utilities import TemplateLoader
 
         env = Environment(loader=TemplateLoader("edsl", "templates/error_reporting"))
@@ -463,7 +461,6 @@ class TaskHistory(RepresentationMixin):
             - Exception details, status transitions, and timing are all included
         """
         from IPython.display import display, HTML
-        import tempfile
         import os
         from edsl.utilities.utilities import is_notebook
 
@@ -509,8 +506,6 @@ class TaskHistory(RepresentationMixin):
         """Create a notebook with the HTML content embedded in the first cell, then delete the cell content while keeping the output."""
         from nbformat import v4 as nbf
         from nbconvert.preprocessors import ExecutePreprocessor
-        import nbformat
-        import os
 
         # Use the existing html method to generate the HTML content
         output_html = self.generate_html_report(css=None)

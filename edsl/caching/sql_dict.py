@@ -9,11 +9,11 @@ making it a drop-in replacement for regular dictionaries but with database persi
 
 from __future__ import annotations
 import json
-from typing import Any, Generator, Optional, Union, Dict, List, Tuple, TypeVar
+from typing import Any, Generator, Optional, Union, Dict, TypeVar
 
 from ..config import CONFIG
 from .cache_entry import CacheEntry
-from .orm import Base, Data
+from .orm import Data
 
 T = TypeVar('T')
 
@@ -76,7 +76,7 @@ class SQLiteDict:
         if not self.db_path.startswith("sqlite:///"):
             self.db_path = f"sqlite:///{self.db_path}"
         try:
-            from edsl.caching.orm import Base, Data
+            from edsl.caching.orm import Base
 
             self.engine = create_engine(self.db_path, echo=False, future=True)
             Base.metadata.create_all(self.engine)
@@ -99,7 +99,6 @@ class SQLiteDict:
             Path to a temporary file location
         """
         import tempfile
-        import os
 
         _, temp_db_path = tempfile.mkstemp(suffix=".db")
         return temp_db_path
@@ -125,7 +124,7 @@ class SQLiteDict:
         if not isinstance(value, CacheEntry):
             raise ValueError(f"Value must be a CacheEntry object (got {type(value)}).")
         with self.Session() as db:
-            from edsl.caching.orm import Base, Data
+            from edsl.caching.orm import Data
 
             db.merge(Data(key=key, value=json.dumps(value.to_dict())))
             db.commit()
@@ -154,7 +153,7 @@ class SQLiteDict:
             True
         """
         with self.Session() as db:
-            from edsl.caching.orm import Base, Data
+            from edsl.caching.orm import Data
 
             value = db.query(Data).filter_by(key=key).first()
             if not value:

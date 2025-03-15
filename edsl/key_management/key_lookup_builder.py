@@ -1,4 +1,4 @@
-from typing import Optional, List
+from typing import Optional
 import os
 from functools import lru_cache
 

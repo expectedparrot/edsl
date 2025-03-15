@@ -2,9 +2,7 @@ import pytest
 import uuid
 from edsl.questions.exceptions import (
     QuestionAnswerValidationError,
-    QuestionResponseValidationError,
 )
-from edsl.questions import Settings
 from edsl.questions import QuestionBase
 from edsl.questions.question_list import QuestionList, main
 from edsl.language_models import LanguageModel
@@ -187,7 +185,6 @@ def test_test_QuestionList_extras():
 
 def test_repairs():
     q = QuestionList(question_text="Blah", question_name="list_of_foods")
-    from edsl.language_models import LanguageModel
 
     m = LanguageModel.example(
         test_model=True, canned_response="""["{'a':1}", "{'b':2}"]"""

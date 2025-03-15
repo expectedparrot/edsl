@@ -1,4 +1,3 @@
-import pytest
 from edsl.questions import QuestionMultipleChoice
 from edsl.study.ObjectEntry import ObjectEntry
 

@@ -4,7 +4,6 @@ from typing import List
 from dataclasses import dataclass
 
 from edsl.exceptions.general import MissingAPIKeyError
-from edsl.enums import service_to_api_keyname
 from edsl.jobs.jobs_checks import JobsChecks
 
 

@@ -1,12 +1,12 @@
 from __future__ import annotations
+
 import asyncio
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ..questions import QuestionBase
     from ..tokens import InterviewTokenUsage
-    from . import InterviewStatusDictionary
-    from . import InterviewStatusLog
+    from . import InterviewStatusDictionary, InterviewStatusLog
 
 
 class InterviewTaskManager:

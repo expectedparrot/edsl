@@ -1,6 +1,5 @@
 import os
 from typing import Any, Optional, List
-import re
 from openai import AsyncAzureOpenAI
 from ..inference_service_abc import InferenceServiceABC
 from ...language_models import LanguageModel
@@ -8,9 +7,6 @@ from ...language_models import LanguageModel
 from azure.ai.inference.aio import ChatCompletionsClient
 from azure.core.credentials import AzureKeyCredential
 from azure.ai.inference.models import SystemMessage, UserMessage
-import asyncio
-import json
-from edsl.utilities.utilities import fix_partial_correct_response
 
 
 def json_handle_none(value: Any) -> Any:
@@ -47,7 +43,7 @@ class AzureAIService(InferenceServiceABC):
         out = []
         azure_endpoints = os.getenv("AZURE_ENDPOINT_URL_AND_KEY", None)
         if not azure_endpoints:
-            raise EnvironmentError(f"AZURE_ENDPOINT_URL_AND_KEY is not defined")
+            raise EnvironmentError("AZURE_ENDPOINT_URL_AND_KEY is not defined")
         azure_endpoints = azure_endpoints.split(",")
         for data in azure_endpoints:
             try:

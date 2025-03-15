@@ -1,5 +1,4 @@
 import pytest
-from uuid import UUID
 
 from edsl.study import Study
 from edsl.questions import QuestionFreeText, QuestionMultipleChoice

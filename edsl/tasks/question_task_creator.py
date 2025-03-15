@@ -8,7 +8,7 @@ execution unit in EDSL's task system.
 """
 
 import asyncio
-from typing import Callable, Union, List, Dict, Any, Optional, TYPE_CHECKING
+from typing import Callable, Optional, TYPE_CHECKING
 from collections import UserList, UserDict
 
 from ..jobs.exceptions import InterviewErrorPriorTaskCanceled

@@ -7,14 +7,14 @@ operations to a remote server, enabling distributed rate limiting across
 multiple processes or machines.
 """
 
-from typing import Union, Optional, Dict, List, Any, Tuple
+from typing import Union, Optional, Dict, Any
 import asyncio
 import time
 import aiohttp
 from matplotlib import pyplot as plt
 from matplotlib.figure import Figure
 
-from .exceptions import BucketError, TokenLimitError, TokenBucketClientError, BucketConfigurationError
+from .exceptions import BucketError, TokenBucketClientError
 
 
 class TokenBucketClient:

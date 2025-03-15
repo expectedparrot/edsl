@@ -31,7 +31,7 @@ from __future__ import annotations
 import json
 import os
 import warnings
-from typing import Optional, Union, TYPE_CHECKING
+from typing import Optional, Union
 from ..base import Base
 
 from ..utilities import remove_edsl_version, dict_hash

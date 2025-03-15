@@ -1,5 +1,5 @@
-from jinja2 import Environment, meta
-from typing import List, Optional, Union
+from jinja2 import Environment
+from typing import List, Union
 
 
 def extract_template_variables(ast) -> List[Union[str, tuple]]:
