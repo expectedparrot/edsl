@@ -56,7 +56,7 @@ class TestService(InferenceServiceABC):
 
                     return self.canned_response
                 else:
-                    return "Hello, world"
+                    return "Hello, world X"
 
             async def async_execute_model_call(
                 self,
