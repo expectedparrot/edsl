@@ -18,6 +18,7 @@ import textwrap
 from typing import Optional, Tuple, Union, List, TYPE_CHECKING  # Callable not used
 from functools import wraps
 from .r.ggplot import GGPlotMethod
+from .exceptions import DatasetError, DatasetKeyError, DatasetValueError, DatasetTypeError, DatasetExportError
 
 if TYPE_CHECKING:
     from docx import Document
@@ -160,7 +161,7 @@ class DataOperationsBase:
                 all_data_types = sorted(
                     list(set(get_data_type(column) for column in all_columns))
                 )
-                raise ValueError(
+                raise DatasetValueError(
                     f"No columns found for data type: {data_type}. Available data types are: {all_data_types}."
                 )
 
@@ -632,7 +633,7 @@ class DataOperationsBase:
 
         """
         if len(self.relevant_columns()) > 1 and flatten:
-            raise ValueError(
+            raise DatasetValueError(
                 "Cannot flatten a list of lists when there are multiple columns selected."
             )
 
@@ -910,7 +911,7 @@ class DataOperationsBase:
             return doc
             
         else:
-            raise ValueError(f"Unsupported format: {format}. Use 'markdown' or 'docx'.")
+            raise DatasetExportError(f"Unsupported format: {format}. Use 'markdown' or 'docx'.")
 
     def tally(
         self, *fields: Optional[str], top_n: Optional[int] = None, output="Dataset"
@@ -1242,7 +1243,7 @@ class DataOperationsBase:
         
         # Check if field exists in the dataset
         if field_name not in self.relevant_columns():
-            raise KeyError(f"Field '{field_name}' not found in dataset")
+            raise DatasetKeyError(f"Field '{field_name}' not found in dataset")
         
         # Create a new dataset without the specified field
         new_data = [entry for entry in self.data if field_name not in entry]
@@ -1297,7 +1298,7 @@ class DataOperationsBase:
         
         # Check for duplicates
         if duplicates:
-            raise ValueError(f"Removing prefixes would result in duplicate column names: {sorted(list(duplicates))}")
+            raise DatasetValueError(f"Removing prefixes would result in duplicate column names: {sorted(list(duplicates))}")
         
         # Create a new dataset with unprefixed column names
         new_data = []

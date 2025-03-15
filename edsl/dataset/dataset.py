@@ -10,6 +10,7 @@ from typing import Any, Union, Optional, TYPE_CHECKING, Callable
 from ..base import PersistenceMixin, HashingMixin
 
 from .dataset_tree import Tree
+from .exceptions import DatasetError, DatasetKeyError, DatasetValueError, DatasetTypeError, DatasetExportError
 
 from .display.table_display import TableDisplay
 #from .smart_objects import FirstObject
@@ -214,7 +215,7 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
         values = value_dict["value"]
 
         if not (len(rows) == len(keys) == len(values)):
-            raise ValueError("All input arrays must have the same length")
+            raise DatasetValueError("All input arrays must have the same length")
 
         # Get unique keys and row indices
         unique_keys = sorted(set(keys))
@@ -340,7 +341,7 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
         """
         if "format" in kwargs:
             if kwargs["format"] not in ["html", "markdown", "rich", "latex"]:
-                raise ValueError(f"Format '{kwargs['format']}' not supported.")
+                raise DatasetValueError(f"Format '{kwargs['format']}' not supported.")
             
             # If rich format is requested, set tablefmt accordingly
             if kwargs["format"] == "rich":
@@ -562,9 +563,9 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
                 number_found += 1
 
         if number_found == 0:
-            raise ValueError(f"Key '{sort_key}' not found in any of the dictionaries.")
+            raise DatasetKeyError(f"Key '{sort_key}' not found in any of the dictionaries.")
         elif number_found > 1:
-            raise ValueError(f"Key '{sort_key}' found in more than one dictionary.")
+            raise DatasetKeyError(f"Key '{sort_key}' found in more than one dictionary.")
 
         # relevant_values = self._key_to_value(sort_key)
         sort_indices_list = sort_indices(relevant_values)
