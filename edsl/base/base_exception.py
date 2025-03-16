@@ -1,4 +1,5 @@
 import sys
+from pathlib import Path
 
 from .. import logger
 
@@ -11,9 +12,30 @@ class BaseException(Exception):
     Attributes:
         relevant_doc: URL to documentation explaining this type of exception
         relevant_notebook: Optional URL to a notebook with usage examples
+        doc_page: Optional string with the document page name (without extension)
+        doc_anchor: Optional string with the anchor within the document page
     """
     relevant_doc = "https://docs.expectedparrot.com/"
     suppress_traceback = True
+    doc_page = None
+    doc_anchor = None
+
+    @classmethod
+    def get_doc_url(cls):
+        """Construct the documentation URL from the doc_page and doc_anchor attributes.
+        
+        Returns:
+            str: The full documentation URL
+        """
+        base_url = "https://docs.expectedparrot.com/en/latest/"
+        
+        if cls.doc_page:
+            url = f"{base_url}{cls.doc_page}.html"
+            if cls.doc_anchor:
+                url = f"{url}#{cls.doc_anchor}"
+            return url
+        
+        return base_url
 
     def __init__(self, message:str, *, show_docs:bool=True, log_level:str="error"):
         """Initialize a new BaseException with formatted error message.
@@ -28,7 +50,13 @@ class BaseException(Exception):
 
         # Add documentation links if requested
         if show_docs:
-            if hasattr(self, "relevant_doc"):
+            # Use the class method to get the documentation URL if doc_page is set
+            if hasattr(self.__class__, "doc_page") and self.__class__.doc_page:
+                formatted_message.append(
+                    f"\nFor more information, see: {self.__class__.get_doc_url()}"
+                )
+            # Fall back to relevant_doc if it's explicitly set
+            elif hasattr(self, "relevant_doc"):
                 formatted_message.append(
                     f"\nFor more information, see: {self.relevant_doc}"
                 )
