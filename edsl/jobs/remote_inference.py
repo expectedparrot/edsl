@@ -178,6 +178,13 @@ class JobsRemoteInferenceHandler:
     ) -> None:
         "Handles a failed job by logging the error and updating the job status."
         latest_error_report_url = remote_job_data.get("latest_error_report_url")
+
+        reason = remote_job_data.get("reason")
+
+        if reason == "insufficient funds":
+            latest_error_report_url = "Error: Insufficient balance to start the job"
+            print("❌ Error: Insufficient balance to start the job")
+
         if latest_error_report_url:
             job_info.logger.add_info("error_report_url", latest_error_report_url)
 
