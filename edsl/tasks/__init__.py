@@ -26,6 +26,8 @@ For most users, this module works behind the scenes, but understanding it can
 be helpful when debugging or optimizing complex EDSL workflows.
 """
 
+__all__ = ['TaskHistory', 'QuestionTaskCreator', 'TaskCreators', 'TaskStatus', 'TaskStatusDescriptor']
+
 from .task_history import TaskHistory
 from .question_task_creator import QuestionTaskCreator
 from .task_creators import TaskCreators

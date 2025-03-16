@@ -21,5 +21,19 @@ multiple processes or machines need to share rate limits.
 from .bucket_collection import BucketCollection
 from .model_buckets import ModelBuckets
 from .token_bucket import TokenBucket
+from .exceptions import (
+    BucketError,
+    TokenLimitError,
+    TokenBucketClientError,
+    BucketConfigurationError,
+)
 
-__all__ = ["BucketCollection", "ModelBuckets", "TokenBucket"]
+__all__ = [
+    "BucketCollection", 
+    "ModelBuckets", 
+    "TokenBucket",
+    "BucketError",
+    "TokenLimitError",
+    "TokenBucketClientError",
+    "BucketConfigurationError",
+]

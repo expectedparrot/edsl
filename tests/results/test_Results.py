@@ -4,7 +4,6 @@ from contextlib import redirect_stdout
 from io import StringIO
 from edsl.results.exceptions import (
     ResultsBadMutationstringError,
-    ResultsColumnNotFoundError,
     ResultsInvalidNameError,
 )
 

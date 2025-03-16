@@ -1,7 +1,5 @@
 import pytest
-from unittest.mock import Mock, patch
-from typing import List, Dict
-from collections import defaultdict
+from unittest.mock import Mock
 
 from edsl.inference_services.exceptions import InferenceServiceError
 from edsl.inference_services.services.test_service import TestService
@@ -9,9 +7,7 @@ from edsl.inference_services.services.test_service import TestService
 from edsl.inference_services.inference_services_collection import (
     InferenceServicesCollection,
     ModelResolver,
-    ModelCreator,
 )
-from edsl.inference_services.inference_services_collection import InferenceServiceABC
 
 
 class MockInferenceService:
@@ -113,7 +109,7 @@ class TestInferenceServicesCollection:
 
     def test_literal_matches_enum(self):
         # Get all values from the Literal type
-        from typing import Literal, get_args
+        from typing import get_args
         from edsl.inference_services.inference_services_collection import (
             InferenceServiceLiteral,
         )

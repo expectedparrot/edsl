@@ -14,36 +14,38 @@ the individual API calls to language models, with support for caching and distri
 """
 
 from __future__ import annotations
+
 import asyncio
 import copy
 from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any, Generator, List, Optional, Type
 
-from typing import Any, Type, List, Generator, Optional, TYPE_CHECKING
+if TYPE_CHECKING:
+    from ..jobs.data_structures import RunConfig
+    from .interview_status_log import InterviewStatusLog
 
-# from jobs module 
-from ..jobs.data_structures import Answers
+# from jobs module
 from ..buckets import ModelBuckets
+from ..jobs.data_structures import Answers
 from ..jobs.fetch_invigilator import FetchInvigilator
-from ..utilities.utilities import dict_hash
 from ..surveys import Survey
+from ..utilities.utilities import dict_hash
 
-# from interviews module 
+# from interviews module
 from .answering_function import AnswerQuestionFunctionConstructor
+from .exception_tracking import InterviewExceptionCollection, InterviewExceptionEntry
+from .interview_status_dictionary import InterviewStatusDictionary
 from .interview_task_manager import InterviewTaskManager
 from .request_token_estimator import RequestTokenEstimator
-from .interview_status_dictionary import InterviewStatusDictionary
-from .exception_tracking import InterviewExceptionCollection, InterviewExceptionEntry
-
 
 if TYPE_CHECKING:
     from ..agents import Agent
-    from ..surveys import Survey
-    from ..scenarios import Scenario
     from ..caching import Cache
-    from ..language_models import LanguageModel
-    from ..tokens import InterviewTokenUsage
     from ..invigilators import InvigilatorBase
-    from ..key_management import KeyLookup
+    from ..language_models import LanguageModel
+    from ..scenarios import Scenario
+    from ..surveys import Survey
+    from ..tokens import InterviewTokenUsage
 
 
 @dataclass
@@ -277,15 +279,15 @@ class Interview:
             "iteration": self.iteration,
             "exceptions": {},
         }
-        
+
         # Optionally include exceptions
         if include_exceptions:
             d["exceptions"] = self.exceptions.to_dict()
-            
+
         # Include custom indices if present
         if hasattr(self, "indices"):
             d["indices"] = self.indices
-            
+
         return d
 
     @classmethod
@@ -304,9 +306,9 @@ class Interview:
         """
         # Import necessary classes
         from ..agents import Agent
-        from ..surveys import Survey
-        from ..scenarios import Scenario
         from ..language_models import LanguageModel
+        from ..scenarios import Scenario
+        from ..surveys import Survey
 
         # Deserialize each component
         agent = Agent.from_dict(d["agent"])
@@ -314,7 +316,7 @@ class Interview:
         scenario = Scenario.from_dict(d["scenario"])
         model = LanguageModel.from_dict(d["model"])
         iteration = d["iteration"]
-        
+
         # Prepare constructor parameters
         params = {
             "agent": agent,
@@ -323,19 +325,19 @@ class Interview:
             "model": model,
             "iteration": iteration,
         }
-        
+
         # Add optional indices if present
         if "indices" in d:
             params["indices"] = d["indices"]
-            
+
         # Create the interview instance
         interview = cls(**params)
-        
+
         # Restore exceptions if present
         if "exceptions" in d:
             exceptions = InterviewExceptionCollection.from_dict(d["exceptions"])
             interview.exceptions = exceptions
-            
+
         return interview
 
     def __hash__(self) -> int:
@@ -416,7 +418,7 @@ class Interview:
             >>> run_config.parameters.stop_on_exception = True
             >>> result, _ = asyncio.run(i.async_conduct_interview(run_config))
         """
-        from ..jobs import RunConfig, RunParameters, RunEnvironment
+        from ..jobs import RunConfig, RunEnvironment, RunParameters
 
         if run_config is None:
             run_config = RunConfig(
@@ -503,7 +505,7 @@ class Interview:
                     result = invigilator.get_failed_task_result(
                         failure_reason="Task was skipped."
                     )
-            except asyncio.CancelledError as e:  # task was cancelled
+            except asyncio.CancelledError:  # task was cancelled
                 result = invigilator.get_failed_task_result(
                     failure_reason="Task was cancelled."
                 )
@@ -520,7 +522,8 @@ class Interview:
 
         for task, invigilator in zip(tasks, invigilators):
             if not task.done():
-                raise ValueError(f"Task {task.get_name()} is not done.")
+                from edsl.interviews.exceptions import InterviewTaskError
+                raise InterviewTaskError(f"Task {task.get_name()} is not done.")
 
             yield handle_task(task, invigilator)
 
@@ -608,9 +611,9 @@ class Interview:
             True
         """
         from ..agents import Agent
-        from ..surveys import Survey
-        from ..scenarios import Scenario
         from ..language_models import LanguageModel
+        from ..scenarios import Scenario
+        from ..surveys import Survey
 
         # Define a simple direct answering method that always returns "yes"
         def f(self, question, scenario):
@@ -622,12 +625,12 @@ class Interview:
         survey = Survey.example()
         scenario = Scenario.example()
         model = LanguageModel.example()
-        
+
         # If we want an interview that throws exceptions, configure it accordingly
         if throw_exception:
             model = LanguageModel.example(test_model=True, throw_exception=True)
             agent = Agent.example()  # Without direct answering method
-            
+
         # Create and return the interview
         return Interview(agent=agent, survey=survey, scenario=scenario, model=model)
 

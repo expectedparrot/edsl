@@ -5989,4 +5989,4 @@ screenshots = []
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9.1,<3.13"
-content-hash = "56aba716cd1d2bd7b07ee8af70df8dd46901ebfe6704ff3f481892a416f71727"
+content-hash = "f858c3eafaa22f2031753c3f058d469e349a6397d1fe492e17cb43711609dfd6"

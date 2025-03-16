@@ -1,9 +1,7 @@
 import pytest
-from typing import List
 
 from edsl.tasks import TaskStatus
 from edsl.jobs import Jobs
-from edsl.interviews import Interview
 from edsl.tasks import TaskHistory
 
 @pytest.fixture

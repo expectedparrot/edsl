@@ -2,7 +2,6 @@ from typing import Optional, Dict
 import os
 import nbformat
 from nbconvert.exporters import LatexExporter
-from nbconvert.writers import FilesWriter
 
 
 class NotebookToLaTeX:

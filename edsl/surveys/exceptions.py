@@ -122,7 +122,6 @@ class SurveyRuleReferenceInRuleToUnknownQuestionError(SurveyError):
     """
     def __init__(self, message="Rule references an unknown question", **kwargs):
         super().__init__(message, **kwargs)
-        raise Exception("not used")
 
 
 class SurveyRuleRefersToFutureStateError(SurveyError):
