@@ -630,12 +630,12 @@ class Jobs(Base):
                 from edsl.results import Results
 
                 results = Results.from_job_info(job_info)
-                return results
+                return results, None
             else:
-                results = jh.poll_remote_inference_job(job_info)
-                return results
+                results, reason = jh.poll_remote_inference_job(job_info)
+                return results, reason
         else:
-            return None
+            return None, None
 
     def _prepare_to_run(self) -> None:
         "This makes sure that the job is ready to run and that keys are in place for a remote job."
@@ -713,7 +713,8 @@ class Jobs(Base):
             self.run_config.environment.cache = Cache(immediate_write=False)
 
         # first try to run the job remotely
-        if (results := self._remote_results(config)) is not None:
+        results, reason = self._remote_results(config)
+        if results is not None:
             return results
 
         self._check_if_local_keys_ok()
@@ -731,7 +732,7 @@ class Jobs(Base):
                 self.run_config.environment.key_lookup
             )
 
-        return None
+        return None, reason
 
     @with_config
     def run(self, *, config: RunConfig) -> "Results":
@@ -781,13 +782,15 @@ class Jobs(Base):
             >>> results = job.by(m).run(cache=Cache(), progress_bar=False, n=2, disable_remote_inference=True)
             ...
         """
-        potentially_completed_results = self._run(config)
+        potentially_completed_results, reason = self._run(config)
 
         if potentially_completed_results is not None:
             return potentially_completed_results
 
-        if not config.parameters.disable_remote_inference:
+        print(f"Reason: {reason}")
+        if reason == "isuficient_funds":
             return None
+
         return asyncio.run(self._execute_with_remote_cache(run_job_async=False))
 
     @with_config

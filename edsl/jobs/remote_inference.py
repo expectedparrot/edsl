@@ -238,7 +238,7 @@ class JobsRemoteInferenceHandler:
         """Makes one attempt to fetch and process a remote job's status and results."""
         remote_job_data = remote_job_data_fetcher(job_info.job_uuid)
         status = remote_job_data.get("status")
-
+        reason = remote_job_data.get("reason")
         if status == "cancelled":
             self._handle_cancelled_job(job_info)
             return None
@@ -277,11 +277,11 @@ class JobsRemoteInferenceHandler:
 
         job_in_queue = True
         while job_in_queue:
-            result = self._attempt_fetch_job(
+            result, reason = self._attempt_fetch_job(
                 job_info, remote_job_data_fetcher, object_fetcher
             )
             if result != "continue":
-                return result
+                return result, reason
 
     async def create_and_poll_remote_job(
         self,
