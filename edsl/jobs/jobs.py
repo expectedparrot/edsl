@@ -787,7 +787,7 @@ class Jobs(Base):
         if potentially_completed_results is not None:
             return potentially_completed_results
 
-        if reason == "isuficient funds":
+        if reason == "insufficient funds":
             return None
 
         return asyncio.run(self._execute_with_remote_cache(run_job_async=False))
