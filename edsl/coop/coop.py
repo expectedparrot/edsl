@@ -1136,7 +1136,7 @@ class Coop(CoopFunctionsMixin):
                 "latest_error_report_uuid": latest_error_report_uuid,
                 "latest_error_report_url": latest_error_report_url,
                 "status": data.get("status"),
-                "reason": data.get("reason"),
+                "reason": data.get("latest_failure_reason"),
                 "credits_consumed": data.get("price"),
                 "version": data.get("version"),
             }
