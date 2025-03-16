@@ -24,12 +24,13 @@ if TYPE_CHECKING:
 @dataclass
 class InterviewResult:
     """Container for the result of an interview along with metadata.
-    
+
     Attributes:
         result: The Result object containing the interview answers
         interview: The Interview object used to conduct the interview
         order: The original position of this interview in the processing queue
     """
+
     result: Result
     interview: Interview
     order: int
@@ -38,10 +39,10 @@ class InterviewResult:
 class AsyncInterviewRunner:
     """
     Runs interviews asynchronously with controlled concurrency.
-    
+
     This class manages the parallel execution of multiple interviews while
     respecting concurrency limits and handling errors appropriately.
-    
+
     Examples:
         >>> from unittest.mock import MagicMock, AsyncMock
         >>> mock_jobs = MagicMock()
@@ -52,13 +53,13 @@ class AsyncInterviewRunner:
         >>> isinstance(runner._initialized, asyncio.Event)
         True
     """
-    
+
     MAX_CONCURRENT = int(config.EDSL_MAX_CONCURRENT_TASKS)
 
     def __init__(self, jobs: "Jobs", run_config: RunConfig):
         """
         Initialize the AsyncInterviewRunner.
-        
+
         Args:
             jobs: The Jobs object that generates interviews
             run_config: Configuration for running the interviews
@@ -70,13 +71,13 @@ class AsyncInterviewRunner:
     def _expand_interviews(self) -> Generator["Interview", None, None]:
         """
         Create multiple copies of each interview based on the run configuration.
-        
+
         This method expands interviews for repeated runs and ensures each has
         the proper cache configuration.
-        
+
         Yields:
             Interview objects ready to be conducted
-            
+
         Examples:
             >>> from unittest.mock import MagicMock
             >>> mock_jobs = MagicMock()
@@ -105,16 +106,16 @@ class AsyncInterviewRunner:
     ) -> Tuple["Result", "Interview"]:
         """
         Asynchronously conduct a single interview.
-        
+
         This method performs the interview and creates a Result object with
         the extracted answers and model responses.
-        
+
         Args:
             interview: The interview to conduct
-            
+
         Returns:
             Tuple containing the Result object and the Interview object
-            
+
         Notes:
             'extracted_answers' contains the processed and validated answers
             from the interview, which may differ from the raw model output.
@@ -137,14 +138,14 @@ class AsyncInterviewRunner:
     ) -> AsyncGenerator[tuple[Result, Interview], None]:
         """
         Run all interviews asynchronously and yield results as they complete.
-        
+
         This method processes interviews in chunks based on MAX_CONCURRENT,
         maintaining controlled concurrency while yielding results as soon as
         they become available.
-        
+
         Yields:
             Tuples of (Result, Interview) as interviews complete
-            
+
         Notes:
             - Uses structured concurrency patterns for proper resource management
             - Handles exceptions according to the run configuration
@@ -159,7 +160,7 @@ class AsyncInterviewRunner:
             try:
                 result, interview = await self._conduct_interview(interview)
                 self.run_config.environment.jobs_runner_status.add_completed_interview(
-                    result
+                    interview
                 )
                 result.order = idx
                 return InterviewResult(result, interview, idx)
@@ -200,5 +201,6 @@ class AsyncInterviewRunner:
 
 
 if __name__ == "__main__":
-    import doctest 
+    import doctest
+
     doctest.testmod()

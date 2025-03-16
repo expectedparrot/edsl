@@ -174,16 +174,12 @@ class JobsRunnerStatusBase(ABC):
         status_dict["language_model_queues"] = model_queues
         return status_dict
 
-    def add_completed_interview(self, result):
+    def add_completed_interview(self, interview):
         """Records a completed interview without storing the full interview data."""
         self.stats_tracker.add_completed_interview(
-            model=result.model.model,
-            num_exceptions=(
-                len(result.exceptions) if hasattr(result, "exceptions") else 0
-            ),
-            num_unfixed=(
-                result.exceptions.num_unfixed() if hasattr(result, "exceptions") else 0
-            ),
+            model=interview.model.model,
+            num_exceptions=interview.exceptions.num_exceptions(),
+            num_unfixed=interview.exceptions.num_unfixed_exceptions(),
         )
 
     def _compute_statistic(self, stat_name: str):

@@ -12,6 +12,9 @@ Your response should be only a valid JSON in the following format:
     }
 {% endif %}
 
+{% if min_list_items is not none %}
+The list must contain at least {{ min_list_items }} items.
+{% endif %}
 {% if max_list_items is not none %}
 The list must not contain more than {{ max_list_items }} items.
 {% endif %}
