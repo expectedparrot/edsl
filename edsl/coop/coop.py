@@ -501,8 +501,6 @@ class Coop(CoopFunctionsMixin):
             file_store_metadata = {
                 "suffix": object_dict["suffix"],
                 "mime_type": object_dict["mime_type"],
-                "binary": object_dict["binary"],
-                "path": object_dict["path"],
             }
         else:
             file_store_metadata = None
