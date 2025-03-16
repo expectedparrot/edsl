@@ -1,6 +1,5 @@
 import jinja2
 import textwrap
-import warnings
 
 class Report:
     """

@@ -1,7 +1,5 @@
 from typing import (
     Protocol,
-    List,
-    Any,
     Optional,
     TYPE_CHECKING,
     Sequence,

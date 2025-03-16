@@ -1,3 +1,20 @@
+__all__ = [
+    "PdfMethods",
+    "DocxMethods",
+    "PngMethods",
+    "TxtMethods",
+    "HtmlMethods",
+    "MarkdownMethods",
+    "CsvMethods",
+    "JsonMethods",
+    "SqlMethods",
+    "PptxMethods",
+    "LaTeXMethods",
+    "PyMethods",
+    "SQLiteMethods",
+    "JpegMethods"
+]
+
 from .pdf_file_store import PdfMethods
 from .docx_file_store import DocxMethods
 from .png_file_store import PngMethods

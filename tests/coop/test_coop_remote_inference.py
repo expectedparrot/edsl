@@ -43,8 +43,9 @@ def test_coop_remote_inference_cost():
     )
     cost = coop.remote_inference_cost(survey)
     assert cost == {"credits": 0.04, "usd": 0.00038500000000000003}
-    with pytest.raises(TypeError):
-        # Not valid input - we raise a TypeError from EDSL
+    from edsl.coop.exceptions import CoopTypeError
+    with pytest.raises(CoopTypeError):
+        # Not valid input - we raise CoopTypeError from EDSL
         agent = Agent.example()
         coop.remote_inference_cost(agent)
 

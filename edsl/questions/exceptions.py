@@ -1,9 +1,9 @@
-from typing import Any, SupportsIndex
 import json
 from pydantic import ValidationError
 
+from ..base import BaseException
 
-class QuestionErrors(Exception):
+class QuestionErrors(BaseException):
     """
     Base exception class for question-related errors.
     
@@ -188,7 +188,6 @@ class QuestionAttributeMissing(QuestionErrors):
     
     def __init__(self, message="A required question attribute is missing"):
         super().__init__(message)
-        raise Exception("not used")
 
 
 class QuestionSerializationError(QuestionErrors):
@@ -286,4 +285,76 @@ class QuestionBadTypeError(QuestionErrors):
     """
     
     def __init__(self, message="Question class has invalid __init__ method signature"):
+        super().__init__(message)
+
+
+class QuestionTypeError(QuestionErrors):
+    """
+    Exception raised when a TypeError occurs in the questions module.
+    
+    This exception wraps standard Python TypeErrors to provide a consistent
+    exception handling approach within the EDSL framework. It's used when
+    a type-related error occurs during question operations.
+    
+    Examples:
+        - Attempting to access or operate on a question attribute with the wrong type
+        - Passing incorrect types to question methods
+        - Type conversion failures during question processing
+    """
+    
+    def __init__(self, message="A type error occurred while processing the question"):
+        super().__init__(message)
+
+
+class QuestionValueError(QuestionErrors):
+    """
+    Exception raised when a ValueError occurs in the questions module.
+    
+    This exception wraps standard Python ValueErrors to provide a consistent
+    exception handling approach within the EDSL framework. It's used when
+    a value-related error occurs during question operations.
+    
+    Examples:
+        - Invalid values for question parameters
+        - Out-of-range values for numerical questions
+        - Invalid option selections for multiple choice questions
+    """
+    
+    def __init__(self, message="An invalid value was provided for the question"):
+        super().__init__(message)
+
+
+class QuestionKeyError(QuestionErrors):
+    """
+    Exception raised when a KeyError occurs in the questions module.
+    
+    This exception wraps standard Python KeyErrors to provide a consistent
+    exception handling approach within the EDSL framework. It's used when
+    a key-related error occurs during question operations.
+    
+    Examples:
+        - Attempting to access a non-existent attribute via dictionary-style access
+        - Missing keys in question option dictionaries
+        - Key errors during question serialization or deserialization
+    """
+    
+    def __init__(self, message="A key error occurred while processing the question"):
+        super().__init__(message)
+
+
+class QuestionNotImplementedError(QuestionErrors):
+    """
+    Exception raised when a method that should be implemented is not.
+    
+    This exception wraps standard Python NotImplementedError to provide a consistent
+    exception handling approach within the EDSL framework. It's used when
+    a required method is called but not implemented.
+    
+    Examples:
+        - Abstract methods that must be overridden in subclasses
+        - Placeholder methods that should be implemented in concrete classes
+        - Methods that are required by an interface but not yet implemented
+    """
+    
+    def __init__(self, message="This method must be implemented in a subclass"):
         super().__init__(message)

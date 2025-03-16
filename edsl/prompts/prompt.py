@@ -2,12 +2,15 @@ from __future__ import annotations
 from typing import Any, List, Union, Dict, Optional
 from pathlib import Path
 import time
+import logging
 from functools import lru_cache
 
 from jinja2 import Environment, meta, Undefined
 
-from .exceptions import TemplateRenderError
+from .exceptions import TemplateRenderError, PromptValueError, PromptImplementationError
 from ..base import PersistenceMixin, RepresentationMixin
+
+logger = logging.getLogger(__name__)
 
 MAX_NESTING = 100
 
@@ -54,6 +57,12 @@ def _make_hashable(value):
     if isinstance(value, dict):
         return frozenset((k, _make_hashable(v)) for k, v in value.items())
     return value
+
+@lru_cache(maxsize=1024)
+def _compile_template(text: str):
+    """Compile a Jinja template with caching."""
+    env = make_env()
+    return env.from_string(text)
 
 @lru_cache(maxsize=1024)
 def _cached_render(text: str, frozen_replacements: frozenset) -> str:
@@ -135,14 +144,13 @@ class Prompt(PersistenceMixin, RepresentationMixin):
         # Convert path_to_folder to a Path object if it's a string
         if path_to_folder is None:
             from importlib import resources
-            import os
 
             path_to_folder = resources.path("edsl.questions", "prompt_templates")
 
         try:
             folder_path = Path(path_to_folder)
         except Exception as e:
-            raise ValueError(f"Invalid path: {path_to_folder}. Error: {e}")
+            raise PromptValueError(f"Invalid path: {path_to_folder}. Error: {e}")
 
         with open(folder_path.joinpath(file_name), "r") as f:
             text = f.read()
@@ -306,7 +314,7 @@ class Prompt(PersistenceMixin, RepresentationMixin):
         # Provide access to the 'vars' object inside the template.
         env.globals['vars'] = template_vars
 
-        previous_text = None
+        # Start with the original text
         current_text = text
 
         for _ in range(MAX_NESTING):
@@ -317,7 +325,7 @@ class Prompt(PersistenceMixin, RepresentationMixin):
                 # No more changes, return final text with captured variables.
                 return rendered_text, template_vars.get_all()
 
-            previous_text = current_text
+            # Update current_text for next iteration
             current_text = rendered_text
 
         raise TemplateRenderError(
@@ -363,7 +371,7 @@ class Prompt(PersistenceMixin, RepresentationMixin):
         >>> p = Prompt("Hello, {{person}}")
         """
 
-        raise NotImplementedError("This method should be implemented by the subclass.")
+        raise PromptImplementationError("This method should be implemented by the subclass.")
         start = time.time()
         
         # Build all the components

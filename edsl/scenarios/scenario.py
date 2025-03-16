@@ -20,7 +20,6 @@ information to questions in surveys.
 from __future__ import annotations
 import copy
 import os
-import json
 from collections import UserDict
 from typing import Union, List, Optional, TYPE_CHECKING, Collection
 from uuid import uuid4

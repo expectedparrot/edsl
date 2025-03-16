@@ -42,7 +42,8 @@ class InstructionCollection(UserDict):
         self, question_name
     ) -> tuple[List[Instruction], List[ChangeInstruction]]:
         if question_name not in self.question_names:
-            raise ValueError(
+            from edsl.instructions.exceptions import InstructionCollectionError
+            raise InstructionCollectionError(
                 f"Question name not found in the list of questions: got '{question_name}'; list is {self.question_names}"
             )
         instructions, changes = [], []

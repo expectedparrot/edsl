@@ -2,7 +2,7 @@ from collections import UserList
 import asyncio
 import inspect
 from typing import Optional, Callable
-from .. import Agent, QuestionFreeText, Results, AgentList, ScenarioList, Scenario
+from .. import QuestionFreeText, Results, AgentList, ScenarioList, Scenario
 from ..questions import QuestionBase
 from ..results.Result import Result
 from jinja2 import Template
@@ -120,7 +120,8 @@ What do you say next?"""
                 per_round_message_template
                 and "{{ round_message }}" not in next_statement_question.question_text
             ):
-                raise ValueError(
+                from edsl.conversation.exceptions import ConversationValueError
+                raise ConversationValueError(
                     "If you pass in a per_round_message_template, you must include {{ round_message }} in the question_text."
                 )
 

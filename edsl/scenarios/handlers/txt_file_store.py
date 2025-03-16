@@ -23,7 +23,7 @@ class TxtMethods(FileMethods):
             print("TXT file was not found.")
 
     def view_notebook(self):
-        from IPython.display import FileLink, display
+        from ...display import FileLink, display
 
         display(FileLink(self.path))
 

@@ -1,8 +1,7 @@
 import pytest
-import uuid
 from edsl.questions.exceptions import QuestionAnswerValidationError
-from edsl.questions import QuestionBudget, Settings
-from edsl.questions.question_budget import QuestionBudget, main
+from edsl.questions import QuestionBudget
+from edsl.questions.question_budget import QuestionBudget
 
 
 # def test_QuestionBudget_main():

@@ -1,4 +1,3 @@
-import pytest
 import doctest
 import edsl.prompts
 
@@ -10,7 +9,6 @@ def test_doctests_in_prompt():
 # from edsl.prompts.Prompt import PromptBase
 # from edsl.prompts.prompt_config import ComponentTypes
 
-from edsl.prompts.exceptions import TemplateRenderError
 from edsl.prompts import Prompt
 
 

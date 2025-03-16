@@ -1,4 +1,4 @@
-from typing import List, Dict, Any, Optional, TYPE_CHECKING
+from typing import Dict, Any, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ..questions import QuestionBase

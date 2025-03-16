@@ -19,10 +19,8 @@ logger.setLevel(logging.ERROR)  # Default level
 if not logger.handlers:
     # Console handler
     console_handler = logging.StreamHandler(sys.stdout)
-    console_handler.setLevel(logging.INFO)
-    console_formatter = logging.Formatter(
-        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-    )
+    console_handler.setLevel(logging.ERROR)
+    console_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     console_handler.setFormatter(console_formatter)
     logger.addHandler(console_handler)
 
@@ -34,10 +32,8 @@ if not logger.handlers:
         file_handler = RotatingFileHandler(
             log_dir / "edsl.log", maxBytes=5 * 1024 * 1024, backupCount=3  # 5 MB
         )
-        file_handler.setLevel(logging.INFO)
-        file_formatter = logging.Formatter(
-            "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-        )
+        file_handler.setLevel(logging.ERROR)
+        file_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
         file_handler.setFormatter(file_formatter)
         logger.addHandler(file_handler)
     except Exception as e:
@@ -112,9 +108,9 @@ def configure_from_config():
     - INFO
     - WARNING
     - ERROR
-    - CRITICAL
+    - CRITICAL    
+    If no configuration is found, the default level (ERROR) is maintained.
 
-    If no configuration is found, the default level (INFO) is maintained.
     """
     try:
         import os
