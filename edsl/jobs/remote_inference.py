@@ -241,7 +241,7 @@ class JobsRemoteInferenceHandler:
         reason = remote_job_data.get("reason")
         if status == "cancelled":
             self._handle_cancelled_job(job_info)
-            return None
+            return None, reason
 
         elif status == "failed" or status == "completed" or status == "partial_failed":
             if status == "failed" or status == "partial_failed":
@@ -255,9 +255,9 @@ class JobsRemoteInferenceHandler:
                     remote_job_data=remote_job_data,
                     object_fetcher=object_fetcher,
                 )
-                return results
+                return results, reason
             else:
-                return None
+                return None, reason
 
         else:
             self._sleep_for_a_bit(job_info, status)
