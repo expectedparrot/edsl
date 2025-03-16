@@ -39,7 +39,8 @@ def coop_object_api_workflows(object_type, object_examples):
         if visibility != "private":
             assert coop2.get(response.get("uuid")) == object
         else:
-            with pytest.raises(Exception):
+            from edsl.coop.exceptions import CoopServerResponseError
+            with pytest.raises(CoopServerResponseError):
                 coop2.get(response.get("uuid"))
 
     # 4. Test changing visibility
