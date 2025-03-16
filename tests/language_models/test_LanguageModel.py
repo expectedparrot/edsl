@@ -1,7 +1,12 @@
 import unittest
+import asyncio
+import nest_asyncio
 from tempfile import NamedTemporaryFile
 
 from edsl.language_models import LanguageModel
+
+# Apply nest_asyncio to allow nested event loops
+nest_asyncio.apply()
 
 
 def create_temp_env_file(contents):
@@ -13,7 +18,12 @@ def create_temp_env_file(contents):
 
 class TestLanguageModel(unittest.TestCase):
     def setUp(self):
-        pass
+        self.loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(self.loop)
+        
+    def tearDown(self):
+        self.loop.run_until_complete(asyncio.sleep(0))
+        self.loop.close()
 
     def test_tokens(self):
         import random

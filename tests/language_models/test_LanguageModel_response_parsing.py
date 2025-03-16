@@ -1,7 +1,26 @@
+import pytest
+import asyncio
+import nest_asyncio
+
 from edsl.language_models import LanguageModel
 
+# Apply nest_asyncio to allow nested event loops
+nest_asyncio.apply()
 
-def test_integrer_list_examples():
+@pytest.fixture(scope="function")
+def event_loop():
+    """Create an instance of the default event loop for each test."""
+    loop = asyncio.new_event_loop()
+    yield loop
+    # Cleanup properly after each test
+    loop.run_until_complete(asyncio.sleep(0))
+    loop.close()
+
+
+def test_integrer_list_examples(event_loop):
+    # Set the event loop to our fresh loop
+    asyncio.set_event_loop(event_loop)
+    
     example_1 = """[1,2,3]
 
     These are my comments."""
@@ -35,11 +54,13 @@ def test_integrer_list_examples():
         )
 
 
-def test_str_list_examples():
+def test_str_list_examples(event_loop):
+    # Set the event loop to our fresh loop
+    asyncio.set_event_loop(event_loop)
 
     example_1 = """["hello", "world"]"""
 
-    example_1 = """["hello", "world"]
+    example_2 = """["hello", "world"]
     
     These are my comments."""
 
@@ -52,7 +73,7 @@ def test_str_list_examples():
 
     """
 
-    examples = [example_1]
+    examples = [example_2]  # Using example_2 instead of example_1 to get the proper comment
 
     for generated_tokens in examples:
         m = LanguageModel.example(test_model=True, canned_response=generated_tokens)

@@ -441,6 +441,73 @@ class ScenarioList(Base, UserList, ScenarioListOperationsMixin):
 
         return ScenarioList(result)
 
+    def aggregate(self, group_by_field: str, aggregations: dict) -> ScenarioList:
+        """
+        Aggregate the ScenarioList by grouping on a field and applying aggregation functions.
+
+        :param group_by_field: Field to group by
+        :param aggregations: Dictionary mapping field names to aggregation functions or list of functions
+            - For single function: {'field': 'mean'} 
+            - For multiple functions: {'field': ['mean', 'sum', 'min', 'max']}
+            - Supported functions: 'mean', 'sum', 'min', 'max'
+
+        Returns:
+        ScenarioList: A new ScenarioList with the grouped and aggregated results
+
+        Example:
+        >>> sl = ScenarioList([
+        ...     Scenario({"group": "A", "value": 10}),
+        ...     Scenario({"group": "A", "value": 20}),
+        ...     Scenario({"group": "B", "value": 30}),
+        ...     Scenario({"group": "B", "value": 40})
+        ... ])
+        >>> sl.aggregate("group", {"value": "mean"})
+        ScenarioList([Scenario({'group': 'A', 'value': 15.0}), Scenario({'group': 'B', 'value': 35.0})])
+        """
+        # Group the scenarios
+        grouped = defaultdict(list)
+        for scenario in self:
+            key = scenario[group_by_field]
+            grouped[key].append(scenario)
+
+        # Process the aggregations
+        result = []
+        for key, scenarios in grouped.items():
+            new_scenario = {group_by_field: key}
+            
+            for field, agg_funcs in aggregations.items():
+                # Normalize to list of functions
+                if isinstance(agg_funcs, str):
+                    agg_funcs = [agg_funcs]
+                
+                # Extract values for the field
+                values = [s[field] for s in scenarios if field in s]
+                
+                # Apply each aggregation function
+                for func_name in agg_funcs:
+                    if func_name == "mean":
+                        if not values:
+                            result_value = None
+                        else:
+                            result_value = sum(values) / len(values)
+                    elif func_name == "sum":
+                        result_value = sum(values) if values else 0
+                    elif func_name == "min":
+                        result_value = min(values) if values else None
+                    elif func_name == "max":
+                        result_value = max(values) if values else None
+                    else:
+                        raise ScenarioError(f"Unsupported aggregation function: {func_name}")
+                    
+                    # For single function, use the original field name
+                    # For multiple functions, append function name to field
+                    field_name = field if len(agg_funcs) == 1 else f"{field}_{func_name}"
+                    new_scenario[field_name] = result_value
+            
+            result.append(Scenario(new_scenario))
+            
+        return ScenarioList(result)
+
     @property
     def parameters(self) -> set:
         """Return the set of parameters in the ScenarioList
@@ -1586,12 +1653,20 @@ class ScenarioList(Base, UserList, ScenarioListOperationsMixin):
         >>> s.to_dict()
         {'scenarios': [{'food': 'wood chips', 'edsl_version': '...', 'edsl_class_name': 'Scenario'}, {'food': 'wood-fired pizza', 'edsl_version': '...', 'edsl_class_name': 'Scenario'}], 'edsl_version': '...', 'edsl_class_name': 'ScenarioList'}
 
+        >>> codebook = {"food": "Type of food"}
+        >>> s = ScenarioList([Scenario({'food': 'wood chips'})], codebook=codebook)
+        >>> s.to_dict()
+        {'scenarios': [{'food': 'wood chips', 'edsl_version': '...', 'edsl_class_name': 'Scenario'}], 'codebook': {'food': 'Type of food'}, 'edsl_version': '...', 'edsl_class_name': 'ScenarioList'}
         """
         if sort:
             data = sorted(self, key=lambda x: hash(x))
         else:
             data = self
         d = {"scenarios": [s.to_dict(add_edsl_version=add_edsl_version) for s in data]}
+        
+        # Include codebook if it exists and isn't empty
+        if self.codebook:
+            d["codebook"] = self.codebook
 
         if add_edsl_version:
             from .. import __version__
@@ -1635,10 +1710,19 @@ class ScenarioList(Base, UserList, ScenarioListOperationsMixin):
     @classmethod
     @remove_edsl_version
     def from_dict(cls, data) -> ScenarioList:
-        """Create a `ScenarioList` from a dictionary."""
+        """Create a `ScenarioList` from a dictionary.
+        
+        >>> data = {"scenarios": [{"food": "wood chips"}], "codebook": {"food": "Type of food"}}
+        >>> sl = ScenarioList.from_dict(data)
+        >>> sl.codebook
+        {'food': 'Type of food'}
+        """
         from .scenario import Scenario
-
-        return cls([Scenario.from_dict(s) for s in data["scenarios"]])
+        
+        # Extract codebook if present
+        codebook = data.get("codebook", {})
+        
+        return cls([Scenario.from_dict(s) for s in data["scenarios"]], codebook=codebook)
 
     @classmethod
     def from_nested_dict(cls, data: dict) -> ScenarioList:
@@ -1660,8 +1744,15 @@ class ScenarioList(Base, UserList, ScenarioListOperationsMixin):
             s = s.add_list(key, list_of_values)
         return s
 
-    def code(self) -> str:
-        """Create the Python code representation of a survey."""
+    def code(self, string=False) -> Union[List[str], str]:
+        """Generate code to recreate this ScenarioList.
+        
+        Args:
+            string: If True, return a single string of Python code, otherwise return a list of strings
+        
+        Returns:
+            Union[List[str], str]: Python code that can be used to recreate this ScenarioList
+        """
         header_lines = [
             "from edsl.scenarios import Scenario",
             "from edsl.scenarios import ScenarioList",
@@ -1672,6 +1763,9 @@ class ScenarioList(Base, UserList, ScenarioListOperationsMixin):
             lines.append(f"scenario_{index} = " + repr(scenario))
             names.append(f"scenario_{index}")
         lines.append(f"scenarios = ScenarioList([{', '.join(names)}])")
+        
+        if string:
+            return "\n".join(lines)
         return lines
 
     @classmethod

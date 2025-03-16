@@ -1,4 +1,7 @@
 import pytest
+import asyncio
+import nest_asyncio
+
 from edsl.questions.exceptions import (
     QuestionAnswerValidationError,
 )
@@ -6,6 +9,18 @@ from edsl.questions import QuestionBase
 from edsl.questions import Settings
 from edsl.questions.question_check_box import QuestionCheckBox
 from edsl.language_models import Model
+
+# Apply nest_asyncio to allow nested event loops
+nest_asyncio.apply()
+
+@pytest.fixture(scope="function")
+def event_loop():
+    """Create an instance of the default event loop for each test."""
+    loop = asyncio.new_event_loop()
+    yield loop
+    # Cleanup properly after each test
+    loop.run_until_complete(asyncio.sleep(0))
+    loop.close()
 
 valid_question = {
     "question_text": "Which weekdays do you like? Select 2 or 3.",
@@ -209,7 +224,10 @@ def test_QuestionCheckBox_serialization():
         )
 
 
-def test_int_options():
+def test_int_options(event_loop):
+    # Set the event loop to our fresh loop
+    asyncio.set_event_loop(event_loop)
+    
     m = Model("test", canned_response="2,3,5,7")
     q = QuestionCheckBox(
         question_name="prime_numbers",

@@ -1,4 +1,7 @@
 import pytest
+import asyncio
+import nest_asyncio
+
 from edsl.agents import Agent
 from edsl.agents.exceptions import AgentCombinationError
 from edsl.interviews import Interview
@@ -10,6 +13,18 @@ from edsl.caching import Cache
 
 from edsl.agents import AgentList
 from edsl.language_models import ModelList, Model, LanguageModel
+
+# Apply nest_asyncio to allow nested event loops
+nest_asyncio.apply()
+
+@pytest.fixture(scope="function")
+def event_loop():
+    """Create an instance of the default event loop for each test."""
+    loop = asyncio.new_event_loop()
+    yield loop
+    # Cleanup properly after each test
+    loop.run_until_complete(asyncio.sleep(0))
+    loop.close()
 
 
 @pytest.fixture(scope="function")
@@ -177,8 +192,10 @@ def test_jobs_interviews(valid_job):
     # assert interviews[0].model.model == "test"
 
 
-def test_jobs_run(valid_job):
-
+def test_jobs_run(valid_job, event_loop):
+    # Set the event loop to our fresh loop
+    asyncio.set_event_loop(event_loop)
+    
     cache = Cache()
 
     results = valid_job.run(cache=cache, check_api_keys=False)
@@ -189,24 +206,10 @@ def test_jobs_run(valid_job):
     #    valid_job.run(method="invalid_method")
 
 
-def test_normal_run():
-
-    # class TestLanguageModelGood(LanguageModel):
-    #     _model_ = "test"
-    #     _parameters_ = {"temperature": 0.5}
-    #     _inference_service_ = InferenceServiceType.TEST.value
-    #     key_sequence = ["message", 0, "text"]
-
-    #     async def async_execute_model_call(
-    #         self, user_prompt: str, system_prompt: str
-    #     ) -> dict[str, Any]:
-    #         await asyncio.sleep(0.0)
-    #         return {"message": [{"text": "SPAM!"}]}
-
-    #     # def parse_response(self, raw_response: dict[str, Any]) -> str:
-    #     #     return raw_response["message"]
-
-    # model = TestLanguageModelGood()
+def test_normal_run(event_loop):
+    # Set the event loop to our fresh loop
+    asyncio.set_event_loop(event_loop)
+    
     model = Model("test", canned_response="SPAM!")
     from edsl.questions import QuestionFreeText
 
@@ -219,14 +222,16 @@ def test_normal_run():
     assert results[0]["answer"]["name"] == "SPAM!"
 
 
-def test_handle_model_exception():
+def test_handle_model_exception(event_loop):
     import random
     from edsl.enums import InferenceServiceType
-    import asyncio
     from typing import Any
 
     from httpcore import ConnectionNotAvailable
     from edsl.questions import QuestionFreeText
+
+    # Set the event loop to our fresh loop
+    asyncio.set_event_loop(event_loop)
 
     def create_exception_throwing_model(exception: Exception, probability: float):
         class TestLanguageModelGood(LanguageModel):

@@ -187,6 +187,11 @@ class TaskHistory(RepresentationMixin):
         """Return a list of all the updates."""
         updates = []
         for interview in self.total_interviews:
+            # Skip if interview doesn't have task_status_logs attribute or it's empty
+            if not hasattr(interview, 'task_status_logs') or not interview.task_status_logs:
+                continue
+                
+            # Get logs for each question
             for question_name, logs in interview.task_status_logs.items():
                 updates.append(logs)
         return updates
@@ -217,7 +222,12 @@ class TaskHistory(RepresentationMixin):
 
     def plotting_data(self, num_periods=100):
         updates = self.get_updates()
-
+        
+        # Handle empty updates (for tests)
+        if not updates:
+            return [{task_status: 0 for task_status in TaskStatus} for _ in range(num_periods)]
+            
+        # Normal processing with updates
         min_t = min([update.min_time for update in updates])
         max_t = max([update.max_time for update in updates])
         delta_t = (max_t - min_t) / (num_periods * 1.0)
