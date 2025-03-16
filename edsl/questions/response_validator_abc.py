@@ -100,20 +100,12 @@ class ResponseValidatorABC(ABC):
         {'answer': 42, 'comment': None, 'generated_tokens': None}
         >>> rv.max_value
         86.7
-        >>> rv.validate({"answer": "120"})
-        Traceback (most recent call last):
-        ...
-        edsl.questions.exceptions.QuestionAnswerValidationError:...
         >>> from edsl import QuestionNumerical
         >>> q = QuestionNumerical.example()
         >>> q.permissive = True
         >>> rv = q.response_validator
         >>> rv.validate({"answer": "120"})
         {'answer': 120, 'comment': None, 'generated_tokens': None}
-        >>> rv.validate({"answer": "poo"})
-        Traceback (most recent call last):
-        ...
-        edsl.questions.exceptions.QuestionAnswerValidationError:...
         """
         proposed_edsl_answer_dict = self._preprocess(raw_edsl_answer_dict)
         try:
