@@ -19,7 +19,7 @@ class KeyLookup(UserDict):
     - Creating example instances for testing
     
     Typical usage:
-        >>> from edsl.key_management.models import LanguageModelInput
+        >>> from .models import LanguageModelInput  # Import for doctest
         >>> lookup = KeyLookup()
         >>> lookup['openai'] = LanguageModelInput(api_token='sk-key123', rpm=60, tpm=100000)
         >>> openai_config = lookup['openai']

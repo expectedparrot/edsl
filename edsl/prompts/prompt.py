@@ -2,12 +2,15 @@ from __future__ import annotations
 from typing import Any, List, Union, Dict, Optional
 from pathlib import Path
 import time
+import logging
 from functools import lru_cache
 
 from jinja2 import Environment, meta, Undefined
 
 from .exceptions import TemplateRenderError
 from ..base import PersistenceMixin, RepresentationMixin
+
+logger = logging.getLogger(__name__)
 
 MAX_NESTING = 100
 
@@ -54,6 +57,12 @@ def _make_hashable(value):
     if isinstance(value, dict):
         return frozenset((k, _make_hashable(v)) for k, v in value.items())
     return value
+
+@lru_cache(maxsize=1024)
+def _compile_template(text: str):
+    """Compile a Jinja template with caching."""
+    env = make_env()
+    return env.from_string(text)
 
 @lru_cache(maxsize=1024)
 def _cached_render(text: str, frozen_replacements: frozenset) -> str:
@@ -305,7 +314,7 @@ class Prompt(PersistenceMixin, RepresentationMixin):
         # Provide access to the 'vars' object inside the template.
         env.globals['vars'] = template_vars
 
-        previous_text = None
+        # Start with the original text
         current_text = text
 
         for _ in range(MAX_NESTING):
@@ -316,7 +325,7 @@ class Prompt(PersistenceMixin, RepresentationMixin):
                 # No more changes, return final text with captured variables.
                 return rendered_text, template_vars.get_all()
 
-            previous_text = current_text
+            # Update current_text for next iteration
             current_text = rendered_text
 
         raise TemplateRenderError(

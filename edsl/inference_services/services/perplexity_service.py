@@ -1,9 +1,13 @@
-from typing import Any, List, Optional
+from typing import Any, List, Optional, TYPE_CHECKING
 from ..rate_limits_cache import rate_limits
 
 from ...language_models import LanguageModel
 
 from .open_ai_service import OpenAIService
+
+if TYPE_CHECKING:
+    from ....scenarios.file_store import FileStore as Files
+    from ....invigilators.invigilator_base import InvigilatorBase as InvigilatorAI
 
 
 class PerplexityService(OpenAIService):

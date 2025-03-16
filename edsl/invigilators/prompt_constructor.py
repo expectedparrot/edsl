@@ -1,7 +1,6 @@
 from __future__ import annotations
 from typing import Dict, Any, Optional, TYPE_CHECKING
 from functools import cached_property
-import time
 import logging
 
 from ..prompts import Prompt
@@ -437,8 +436,6 @@ class PromptConstructor:
 
     def get_prompts(self) -> Dict[str, Any]:
         """Get the prompts for the question."""
-        start = time.time()
-        
         # Build all the components
         agent_instructions = self.agent_instructions_prompt
         agent_persona = self.agent_persona_prompt

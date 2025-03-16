@@ -7,7 +7,10 @@ visualization and reporting to help users understand task execution patterns and
 issues.
 """
 
-from typing import List, Optional
+from typing import List, Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ..interviews import Interview
 from io import BytesIO
 import base64
 import os

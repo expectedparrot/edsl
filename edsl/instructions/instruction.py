@@ -1,6 +1,10 @@
+from __future__ import annotations
 from ..utilities.remove_edsl_version import remove_edsl_version
 from ..base import RepresentationMixin
-#from ..surveys import Survey
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ..surveys import Survey
 
 
 class Instruction(RepresentationMixin):

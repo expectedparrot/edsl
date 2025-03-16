@@ -1,8 +1,11 @@
 import os
-from typing import Any, Optional, List
+from typing import Any, Optional, List, TYPE_CHECKING
 from openai import AsyncAzureOpenAI
 from ..inference_service_abc import InferenceServiceABC
 from ...language_models import LanguageModel
+
+if TYPE_CHECKING:
+    from ....scenarios.file_store import FileStore
 
 from azure.ai.inference.aio import ChatCompletionsClient
 from azure.core.credentials import AzureKeyCredential
@@ -127,7 +130,7 @@ class AzureAIService(InferenceServiceABC):
                     api_key = cls._model_id_to_endpoint_and_key[model_name][
                         "azure_endpoint_key"
                     ]
-                except:
+                except (KeyError, TypeError):
                     api_key = None
 
                 if not api_key:
@@ -137,7 +140,7 @@ class AzureAIService(InferenceServiceABC):
 
                 try:
                     endpoint = cls._model_id_to_endpoint_and_key[model_name]["endpoint"]
-                except:
+                except (KeyError, TypeError):
                     endpoint = None
 
                 if not endpoint:
