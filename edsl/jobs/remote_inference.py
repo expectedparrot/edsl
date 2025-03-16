@@ -261,7 +261,7 @@ class JobsRemoteInferenceHandler:
 
         else:
             self._sleep_for_a_bit(job_info, status)
-            return "continue"
+            return "continue", reason
 
     def poll_remote_inference_job(
         self,
