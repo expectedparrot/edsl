@@ -51,7 +51,6 @@ class PromptBadQuestionTypeError(PromptError):
     """
     def __init__(self, message="Invalid question type for this prompt", **kwargs):
         super().__init__(message, **kwargs)
-        raise Exception("not used")
 
 
 class PromptBadLanguageModelTypeError(PromptError):
@@ -70,4 +69,51 @@ class PromptBadLanguageModelTypeError(PromptError):
     """
     def __init__(self, message="Incompatible language model for this prompt", **kwargs):
         super().__init__(message, **kwargs)
-        raise Exception("not used")
+
+
+class PromptValueError(PromptError):
+    """
+    Exception raised when there's an invalid value in prompt operations.
+    
+    This exception occurs when:
+    - A path to a template folder is invalid
+    - Invalid parameters are provided for prompt configuration
+    - Other validation errors during prompt operations
+    
+    To fix this error:
+    1. Check that file paths are valid and accessible
+    2. Verify that parameter values are within expected ranges or formats
+    3. Ensure that all required prompt attributes are properly set
+    
+    Examples:
+        ```python
+        # Invalid path for loading templates
+        prompt = Prompt.from_folder("/nonexistent/path")  # Raises PromptValueError
+        ```
+    """
+    def __init__(self, message="Invalid value in prompt operation", **kwargs):
+        super().__init__(message, **kwargs)
+
+
+class PromptImplementationError(PromptError):
+    """
+    Exception raised when a required method or feature is not implemented.
+    
+    This exception occurs when:
+    - An abstract method is not implemented by a prompt subclass
+    - A feature is requested that is not implemented for a specific prompt type
+    
+    To fix this error:
+    1. Implement the required method in your prompt subclass
+    2. Use a different prompt type that supports the requested feature
+    3. Check for updates that might add the missing functionality
+    
+    Examples:
+        ```python
+        # Calling an unimplemented method
+        custom_prompt = CustomPrompt()
+        custom_prompt.unimplemented_method()  # Raises PromptImplementationError
+        ```
+    """
+    def __init__(self, message="Required method or feature is not implemented", **kwargs):
+        super().__init__(message, **kwargs)

@@ -46,7 +46,8 @@ class AzureAIService(InferenceServiceABC):
         out = []
         azure_endpoints = os.getenv("AZURE_ENDPOINT_URL_AND_KEY", None)
         if not azure_endpoints:
-            raise EnvironmentError("AZURE_ENDPOINT_URL_AND_KEY is not defined")
+            from edsl.inference_services.exceptions import InferenceServiceEnvironmentError
+            raise InferenceServiceEnvironmentError("AZURE_ENDPOINT_URL_AND_KEY is not defined")
         azure_endpoints = azure_endpoints.split(",")
         for data in azure_endpoints:
             try:
@@ -134,7 +135,8 @@ class AzureAIService(InferenceServiceABC):
                     api_key = None
 
                 if not api_key:
-                    raise EnvironmentError(
+                    from edsl.inference_services.exceptions import InferenceServiceEnvironmentError
+                    raise InferenceServiceEnvironmentError(
                         f"AZURE_ENDPOINT_URL_AND_KEY doesn't have the endpoint:key pair for your model: {model_name}"
                     )
 
@@ -144,7 +146,8 @@ class AzureAIService(InferenceServiceABC):
                     endpoint = None
 
                 if not endpoint:
-                    raise EnvironmentError(
+                    from edsl.inference_services.exceptions import InferenceServiceEnvironmentError
+                    raise InferenceServiceEnvironmentError(
                         f"AZURE_ENDPOINT_URL_AND_KEY doesn't have the endpoint:key pair for your model: {model_name}"
                     )
 

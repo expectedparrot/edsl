@@ -136,9 +136,10 @@ def test_cache_comparison_and_operations(cache_empty, cache_example):
 
 
 def test_throw_file_note_found_error():
+    from edsl.caching.exceptions import CacheFileNotFoundError
     try:
         Cache.from_jsonl("non_existent_file.jsonl")
-    except FileNotFoundError:
+    except CacheFileNotFoundError:
         assert True
 
 

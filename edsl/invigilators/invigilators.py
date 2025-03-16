@@ -280,7 +280,8 @@ class InvigilatorAI(InvigilatorBase):
         }
         if "encoded_image" in prompts:
             params["encoded_image"] = prompts["encoded_image"]
-            raise NotImplementedError("encoded_image not implemented")
+            from edsl.invigilators.exceptions import InvigilatorNotImplementedError
+            raise InvigilatorNotImplementedError("encoded_image not implemented")
 
         if "files_list" in prompts:
             params["files_list"] = prompts["files_list"]

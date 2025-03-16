@@ -108,9 +108,11 @@ class QuestionOptionProcessor:
         undeclared_variables = extract_template_variables(parsed_content)
         
         if not undeclared_variables:
-            raise ValueError("No variables found in template string")
+            from edsl.invigilators.exceptions import InvigilatorValueError
+            raise InvigilatorValueError("No variables found in template string")
         if len(undeclared_variables) > 1:
-            raise ValueError("Multiple variables found in template string")
+            from edsl.invigilators.exceptions import InvigilatorValueError
+            raise InvigilatorValueError("Multiple variables found in template string")
         
         return undeclared_variables[0]
 

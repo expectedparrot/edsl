@@ -44,6 +44,8 @@ class TestBaseModels:
                 "RunParameters",
             ]
 
+        from edsl.base.exceptions import BaseNotImplementedError
+        
         methods = [
             "example",
             "to_dict",
@@ -51,7 +53,7 @@ class TestBaseModels:
             "code",
         ]
         for method in methods:
-            with pytest.raises(NotImplementedError):
+            with pytest.raises(BaseNotImplementedError):
                 getattr(Base, method)()
 
 
