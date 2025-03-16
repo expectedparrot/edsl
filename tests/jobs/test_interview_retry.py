@@ -1,9 +1,6 @@
-import pytest
 import asyncio
 
 from edsl.agents import Agent
-from edsl.jobs import Jobs
-from edsl.questions import QuestionFreeText
 from edsl.surveys import Survey
 from edsl.scenarios import Scenario
 from edsl.questions import QuestionMultipleChoice

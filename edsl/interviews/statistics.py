@@ -1,6 +1,5 @@
 from collections import UserDict
-from typing import Literal, List, Type, DefaultDict
-from collections import UserDict
+from typing import DefaultDict
 
 from ..tokens import InterviewTokenUsage
 
@@ -22,7 +21,7 @@ class InterviewStatistic(UserDict):
         >>> InterviewStatistic._format_number(1000, 1, "sec.")
         '1,000.0 sec.'
         """
-        if type(number) == str:
+        if isinstance(number, str):
             return number
         else:
             return f"{number:,.{digits}f}" + " " + units

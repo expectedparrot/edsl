@@ -9,13 +9,14 @@ class ChangeInstruction:
         drop: Optional[List[str]] = None,
     ):
         if keep is None and drop is None:
-            raise ValueError("Keep and drop cannot both be None")
+            from edsl.instructions.exceptions import InstructionValueError
+            raise InstructionValueError("Keep and drop cannot both be None")
 
         self.keep = keep or []
         self.drop = drop or []
 
     def include_instruction(self, instruction_name) -> bool:
-        return (instruction_name in self.keep) or (not instruction_name in self.drop)
+        return (instruction_name in self.keep) or (instruction_name not in self.drop)
 
     def add_name(self, index) -> None:
         self.name = "change_instruction_{}".format(index)

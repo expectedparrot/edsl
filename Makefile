@@ -3,7 +3,7 @@
 ###############
 GIT_ROOT ?= $(shell git rev-parse --show-toplevel)
 PROJECT_NAME ?= $(shell basename $(GIT_ROOT))
-.PHONY: bump docs docstrings find help integration model-report
+.PHONY: bump docs docstrings find help integration model-report ruff-lint
 
 ###############
 ##@Utils ⭐ 
@@ -177,6 +177,26 @@ format: ## Run code autoformatters (black).
 lint: ## Run code linters (flake8, pylint, mypy).
 	mypy edsl
 
+ruff-lint: ## Run ruff linter on all modules in sequence
+	poetry run ruff check edsl/instructions
+	poetry run ruff check edsl/key_management
+	poetry run ruff check edsl/prompts
+	poetry run ruff check edsl/tasks
+	poetry run ruff check edsl/inference_services
+	poetry run ruff check edsl/results
+	poetry run ruff check edsl/dataset
+	poetry run ruff check edsl/buckets
+	poetry run ruff check edsl/interviews
+	poetry run ruff check edsl/tokens
+	poetry run ruff check edsl/jobs
+	poetry run ruff check edsl/surveys
+	poetry run ruff check edsl/agents
+	poetry run ruff check edsl/scenarios
+	poetry run ruff check edsl/questions
+	poetry run ruff check edsl/utilities
+	poetry run ruff check edsl/language_models
+	poetry run ruff check edsl/caching
+
 visualize: ## Visualize the repo structure
 	python scripts/visualize_structure.py
 	@UNAME=`uname`; if [ "$$UNAME" = "Darwin" ]; then \
@@ -245,7 +265,6 @@ test-doctests: ## Run doctests
 	pytest --doctest-modules edsl/utilities
 	pytest --doctest-modules edsl/language_models
 	pytest --doctest-modules edsl/caching
-	pytest --doctest-modules edsl/study
 
 
 test-services:

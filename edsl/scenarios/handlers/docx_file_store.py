@@ -2,9 +2,6 @@ import os
 import tempfile
 
 from ..file_methods import FileMethods
-from ..scenario import Scenario
-from ..scenario_list import ScenarioList
-from ..file_store import FileStore
 
 class DocxMethods(FileMethods):
     suffix = "docx"
@@ -59,8 +56,6 @@ class DocxMethods(FileMethods):
 
     def example(self):
         from docx import Document
-        from ..scenario import Scenario
-        from ..scenario_list import ScenarioList
 
         os.makedirs("test_dir", exist_ok=True)
         doc1 = Document()

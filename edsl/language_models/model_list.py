@@ -4,7 +4,7 @@ from collections import UserList
 from ..base import Base
 from ..language_models import Model
 
-from ..utilities import remove_edsl_version, is_valid_variable_name, dict_hash
+from ..utilities import remove_edsl_version, dict_hash
 
 if TYPE_CHECKING:
     from ..inference_services.data_structures import AvailableModels

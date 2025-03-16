@@ -1,6 +1,7 @@
 from __future__ import annotations
+
 from collections import UserDict
-from typing import Union, Dict
+from typing import Dict, Union
 
 from ..tasks.task_status_enum import TaskStatus, get_enum_from_string
 
@@ -26,7 +27,8 @@ class InterviewStatusDictionary(UserDict):
     ) -> "InterviewStatusDictionary":
         """Adds two InterviewStatusDictionaries together."""
         if not isinstance(other, InterviewStatusDictionary):
-            raise ValueError(f"Can't add {type(other)} to InterviewStatusDictionary")
+            from edsl.interviews.exceptions import InterviewStatusError
+            raise InterviewStatusError(f"Can't add {type(other)} to InterviewStatusDictionary")
         new_dict = {}
         for key in self.keys():
             new_dict[key] = self[key] + other[key]

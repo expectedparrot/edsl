@@ -14,7 +14,6 @@ import string
 import tempfile
 import gzip
 import webbrowser
-import json
 
 from html import escape
 from typing import Callable, Union
@@ -90,9 +89,9 @@ def fix_partial_correct_response(text: str) -> dict:
     start_pos = text.find(json_object)
     stop_pos = start_pos + len(json_object)
 
-    # Parse the JSON object to validate it
+    # Validate the JSON
     try:
-        parsed_json = json.loads(json_object)
+        json.loads(json_object)  # Just validate, don't need to keep the parsed result
     except json.JSONDecodeError:
         return {"error": "Failed to parse JSON object"}
 
@@ -215,17 +214,8 @@ def is_notebook() -> bool:
 
 def file_notice(file_name):
     """Print a notice about the file being created."""
-    if is_notebook():
-        from IPython.display import HTML, display
-
-        link_text = "Download file"
-        display(
-            HTML(
-                f'<p>File created: {file_name}</p>.<a href="{file_name}" download>{link_text}</a>'
-            )
-        )
-    else:
-        print(f"File created: {file_name}")
+    from ..display import file_notice as display_file_notice
+    display_file_notice(file_name, link_text="Download file")
 
 
 class HTMLSnippet(str):
@@ -316,20 +306,7 @@ def merge_dicts(dict_list):
         result[key] = [d.get(key, None) for d in dict_list]
     return result
 
-
-def extract_json_from_string(s):
-    """Extract a JSON string from a string."""
-    # Find the first occurrence of '{'
-    start_idx = s.find("{")
-    # Find the last occurrence of '}'
-    end_idx = s.rfind("}")
-    # If both '{' and '}' are found in the string
-    if start_idx != -1 and end_idx != -1 and start_idx < end_idx:
-        # Extract the substring from start_idx to end_idx (inclusive)
-        json_str = s[start_idx : end_idx + 1]
-        return json_str
-    else:
-        raise ValueError("No JSON object found in string")
+# Note: extract_json_from_string is already defined above (line 58)
 
 
 def valid_json(json_string):
@@ -354,7 +331,9 @@ def is_valid_variable_name(name, allow_name=True):
 def create_valid_var_name(s, transform_func: Callable = lambda x: x.lower()) -> str:
     """Create a valid variable name from a string."""
     if transform_func is None:
-        transform_func = lambda x: x
+        def identity(x):
+            return x
+        transform_func = identity
 
     # Ensure the string is not empty
     if not s:

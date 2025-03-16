@@ -1,8 +1,6 @@
 import unittest
 from edsl.surveys.exceptions import (
     SurveyRuleSkipLogicSyntaxError,
-    SurveyRuleRefersToFutureStateError,
-    SurveyRuleSendsYouBackwardsError,
 )
 from edsl.questions import QuestionMultipleChoice
 from edsl.surveys.rules import Rule

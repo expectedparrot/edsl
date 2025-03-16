@@ -1,7 +1,6 @@
 from RestrictedPython import compile_restricted, safe_globals
 from RestrictedPython.Guards import (
     safe_builtins,
-    full_write_guard,
     guarded_iter_unpack_sequence,
 )
 

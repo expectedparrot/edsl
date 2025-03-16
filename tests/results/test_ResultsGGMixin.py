@@ -31,11 +31,13 @@ def test_ggplot_initialization():
 def test_ggplot_invalid_save_format():
     """Test that saving with invalid format raises error"""
     plot = GGPlot("ggplot()")
-    with pytest.raises(ValueError, match="Only 'svg' and 'png' formats are supported"):
+    from edsl.dataset.exceptions import DatasetValueError
+    with pytest.raises(DatasetValueError, match="Only 'svg' and 'png' formats are supported"):
         plot.save("test.jpg")
 
 def test_ggplot_error_handling():
     """Test that invalid R code raises appropriate error"""
     plot = GGPlot("invalid_r_code")
-    with pytest.raises(RuntimeError, match="An error occurred while running Rscript"):
+    from edsl.dataset.exceptions import DatasetRuntimeError
+    with pytest.raises(DatasetRuntimeError, match="An error occurred while running Rscript"):
         plot._execute_r_code()

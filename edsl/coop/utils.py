@@ -7,7 +7,6 @@ from ..notebooks import Notebook
 from ..results import Results
 from ..scenarios import Scenario, ScenarioList
 from ..surveys import Survey
-from ..study import Study
 
 from ..language_models import LanguageModel
 from ..questions import QuestionBase
@@ -24,7 +23,6 @@ EDSLObject = Union[
     Scenario,
     ScenarioList,
     Survey,
-    Study,
 ]
 
 ObjectType = Literal[
@@ -39,7 +37,6 @@ ObjectType = Literal[
     "scenario",
     "scenario_list",
     "survey",
-    "study",
 ]
 
 
@@ -90,7 +87,6 @@ class ObjectRegistry:
         {"object_type": "scenario", "edsl_class": Scenario},
         {"object_type": "scenario_list", "edsl_class": ScenarioList},
         {"object_type": "survey", "edsl_class": Survey},
-        {"object_type": "study", "edsl_class": Study},
     ]
     
     # Create mappings for efficient lookups
@@ -133,7 +129,8 @@ class ObjectRegistry:
         # Look up the object type
         object_type = cls.edsl_class_to_object_type.get(edsl_class_name)
         if object_type is None:
-            raise ValueError(f"Object type not found for {edsl_object=}")
+            from edsl.coop.exceptions import CoopValueError
+            raise CoopValueError(f"Object type not found for {edsl_object=}")
         return object_type
 
     @classmethod
@@ -155,7 +152,8 @@ class ObjectRegistry:
         """
         EDSL_class = cls.object_type_to_edsl_class.get(object_type)
         if EDSL_class is None:
-            raise ValueError(f"EDSL class not found for {object_type=}")
+            from edsl.coop.exceptions import CoopValueError
+            raise CoopValueError(f"EDSL class not found for {object_type=}")
         return EDSL_class
 
     @classmethod

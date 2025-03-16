@@ -1,7 +1,4 @@
-import json
-import requests
 import threading
-from ..coop import Coop
 
 
 class ReportErrors:
