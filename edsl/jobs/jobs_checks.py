@@ -3,7 +3,7 @@ Checks a Jobs object for missing API keys and other requirements.
 """
 
 import os
-from edsl.exceptions.general import MissingAPIKeyError
+from edsl.key_management.key_lookup_builder import MissingAPIKeyError
 
 
 class JobsChecks:

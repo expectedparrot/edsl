@@ -1,12 +1,25 @@
 from typing import Optional, TYPE_CHECKING
 import os
 from functools import lru_cache
+import textwrap
 
 if TYPE_CHECKING:
     from ..coop import Coop
 
 from ..enums import service_to_api_keyname
-from ..exceptions.general import MissingAPIKeyError
+from ..base import BaseException
+
+class MissingAPIKeyError(BaseException):
+    def __init__(self, full_message=None, model_name=None, inference_service=None):
+        if model_name and inference_service:
+            full_message = textwrap.dedent(
+                f"""
+                An API Key for model `{model_name}` is missing from the .env file.
+                This key is associated with the inference service `{inference_service}`.
+                Please see https://docs.expectedparrot.com/en/latest/api_keys.html for more information.
+                """
+            )
+        super().__init__(full_message, show_docs=False)
 
 from .key_lookup import KeyLookup
 from .models import (

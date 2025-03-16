@@ -45,7 +45,7 @@ class FreeTextResponse(BaseModel):
         if self.generated_tokens is not None:  # If generated_tokens exists
             # Ensure exact string equality
             if self.answer.strip() != self.generated_tokens.strip():  # They MUST match exactly
-                from ..exceptions import QuestionAnswerValidationError
+                from .exceptions import QuestionAnswerValidationError
                 raise QuestionAnswerValidationError(
                     f"answer '{self.answer}' must exactly match generated_tokens '{self.generated_tokens}'. "
                     f"Type of answer: {type(self.answer)}, Type of tokens: {type(self.generated_tokens)}"
