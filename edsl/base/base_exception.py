@@ -69,7 +69,10 @@ class BaseException(Exception):
         def custom_excepthook(exc_type, exc_value, exc_traceback):
             # Check if this is one of our exceptions and we want to suppress the traceback
             if issubclass(exc_type, BaseException) and BaseException.suppress_traceback:
-                print(f"EDSL ERROR: {exc_type.__name__}: {exc_value}")
+                try:
+                    display(HTML(f"<div style='color: red'>❌ EDSL ERROR: {exc_type.__name__}: {exc_value.html_message}</div>"))
+                except:
+                    print(f"❌ EDSL ERROR: {exc_type.__name__}: {exc_value}", file=sys.stderr)
                 return  # Suppress traceback
             # Otherwise, use the default handler
             return original_excepthook(exc_type, exc_value, exc_traceback)
@@ -77,4 +80,16 @@ class BaseException(Exception):
         # Install the custom excepthook
         sys.excepthook = custom_excepthook
         sys.custom_excepthook_installed = True
-        # Default to error if an invalid log level is provided
+
+        # Add IPython exception handling if available
+        try:
+            ip = get_ipython()
+            def custom_showtraceback(*args, **kwargs):
+                exc_type, exc_value, _ = sys.exc_info()
+                if issubclass(exc_type, BaseException) and BaseException.suppress_traceback:
+                    print(f"❌ EDSL ERROR: {exc_type.__name__}: {exc_value}", file=sys.stderr)
+                    return
+                return ip.showtraceback(*args, **kwargs)
+            ip.showtraceback = custom_showtraceback
+        except NameError:
+            pass  # Not in IPython environment

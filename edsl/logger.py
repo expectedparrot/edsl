@@ -14,19 +14,31 @@ from pathlib import Path
 # Create the logger
 logger = logging.getLogger("edsl")
 logger.setLevel(logging.ERROR)  # Default level
+logger.propagate = False  # Prevent propagation to root logger
+
+# Remove all existing handlers
+for handler in logger.handlers[:]:
+    logger.removeHandler(handler)
 
 # Avoid adding handlers multiple times when imported in different modules
 if not logger.handlers:
-    # Console handler
-    console_handler = logging.StreamHandler(sys.stdout)
-    console_handler.setLevel(logging.INFO)
-    console_formatter = logging.Formatter(
+    # File handler for /tmp
+    tmp_formatter = logging.Formatter(
         "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     )
-    console_handler.setFormatter(console_formatter)
-    logger.addHandler(console_handler)
-
-    # File handler - create logs directory if it doesn't exist
+    
+    try:
+        tmp_file_handler = RotatingFileHandler(
+            "/tmp/edsl.log", maxBytes=5 * 1024 * 1024, backupCount=3  # 5 MB
+        )
+        tmp_file_handler.setLevel(logging.INFO)
+        tmp_file_handler.setFormatter(tmp_formatter)
+        logger.addHandler(tmp_file_handler)
+    except Exception as e:
+        # Report the error but don't fail if tmp logging can't be set up
+        print(f"Could not set up /tmp file logging: {e}")
+    
+    # Optional second log file in user's home directory
     try:
         log_dir = Path.home() / ".edsl" / "logs"
         os.makedirs(log_dir, exist_ok=True)
@@ -42,8 +54,7 @@ if not logger.handlers:
         logger.addHandler(file_handler)
     except Exception as e:
         # Don't fail if file logging can't be set up
-        console_handler.setLevel(logging.WARNING)
-        logger.warning(f"Could not set up file logging: {e}")
+        print(f"Could not set up home directory file logging: {e}")
 
 
 def get_logger(name):
@@ -56,7 +67,9 @@ def get_logger(name):
     Returns:
         A Logger instance configured with the EDSL settings
     """
-    return logging.getLogger(f"edsl.{name}")
+    child_logger = logging.getLogger(f"edsl.{name}")
+    child_logger.propagate = False  # Prevent propagation to root logger
+    return child_logger
 
 
 def set_level(level):
