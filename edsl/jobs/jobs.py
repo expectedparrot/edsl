@@ -715,7 +715,7 @@ class Jobs(Base):
         # first try to run the job remotely
         results, reason = self._remote_results(config)
         if results is not None:
-            return results
+            return results, reason
 
         self._check_if_local_keys_ok()
 
