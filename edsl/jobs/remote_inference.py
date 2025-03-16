@@ -5,6 +5,7 @@ from ..coop.utils import VisibilityType
 from ..coop.coop import RemoteInferenceResponse, RemoteInferenceCreationInfo
 from .jobs_status_enums import JobsStatus
 from .jobs_remote_inference_logger import JobLogger
+from .exceptions import RemoteInferenceError
 
 
 Seconds = NewType("Seconds", float)
@@ -305,7 +306,7 @@ class JobsRemoteInferenceHandler:
             ),
         )
         if job_info is None:
-            raise ValueError("Remote job creation failed.")
+            raise RemoteInferenceError("Remote job creation failed.")
 
         return await loop.run_in_executor(
             None,

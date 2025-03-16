@@ -155,7 +155,8 @@ class AvailableModelFetcher:
         """The service name is the _inference_service_ attribute of the service."""
         if service_name in self._service_map:
             return self._service_map[service_name]
-        raise ValueError(f"Service {service_name} not found")
+        from edsl.inference_services.exceptions import InferenceServiceValueError
+        raise InferenceServiceValueError(f"Service {service_name} not found")
 
     def _get_all_models(self, force_refresh=False) -> List[LanguageModelInfo]:
         all_models = []

@@ -4,6 +4,7 @@ import sys
 from edsl.config import CONFIG
 from edsl.coop.coop import Coop
 from ..scenarios import FileStore
+from .exceptions import JobsErrors
 
 
 class ResultsProtocol(Protocol):
@@ -52,7 +53,7 @@ class ResultsExceptionsHandler:
         elif setting == "False":
             return False
         else:
-            raise Exception(
+            raise JobsErrors(
                 "EDSL_OPEN_EXCEPTION_REPORT_URL must be either True or False"
             )
 

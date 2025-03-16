@@ -126,7 +126,26 @@ class AgentTraitKeyError(AgentErrors):
     )
 
 
-class FailedTaskException(Exception):
+class AgentAttributeError(AgentErrors):
+    """
+    Exception raised when accessing a non-existent attribute of an agent.
+    
+    This exception occurs when trying to access a trait or attribute that
+    doesn't exist on the agent.
+    
+    Examples:
+        ```python
+        agent = Agent(name="John", age=30)
+        agent.height  # Raises AgentAttributeError as 'height' doesn't exist
+        ```
+    """
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/agents.html#agent-traits"
+    
+    def __init__(self, message):
+        super().__init__(message)
+        
+
+class FailedTaskException(BaseException):
     """
     Exception raised when an agent task execution fails.
     

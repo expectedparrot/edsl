@@ -203,7 +203,8 @@ class SQLiteExport(TabularExport):
                 (self.table_name,),
             )
             if cursor.fetchone():
-                raise ValueError(f"Table {self.table_name} already exists")
+                from edsl.dataset.exceptions import DatasetValueError
+                raise DatasetValueError(f"Table {self.table_name} already exists")
 
         # Create table
         columns = ", ".join(f'"{col}" {dtype}' for col, dtype in column_types)
@@ -244,12 +245,14 @@ class SQLiteExport(TabularExport):
         """Validate initialization parameters."""
         valid_if_exists = {"fail", "replace", "append"}
         if self.if_exists not in valid_if_exists:
-            raise ValueError(
+            from edsl.dataset.exceptions import DatasetValueError
+            raise DatasetValueError(
                 f"if_exists must be one of {valid_if_exists}, got {self.if_exists}"
             )
 
         # Validate table name (basic SQLite identifier validation)
         if not self.table_name.isalnum() and not all(c in "_" for c in self.table_name):
-            raise ValueError(
+            from edsl.dataset.exceptions import DatasetValueError
+            raise DatasetValueError(
                 f"Invalid table name: {self.table_name}. Must contain only alphanumeric characters and underscores."
             )

@@ -4,6 +4,7 @@ from typing import Optional, TYPE_CHECKING, List
 
 from ..utilities import PrettyList
 from ..config import CONFIG
+from .exceptions import LanguageModelValueError
 
 from ..inference_services import (InferenceServicesCollection, 
                                   AvailableModels, InferenceServiceABC, InferenceServiceError, default)
@@ -216,9 +217,8 @@ class Model(metaclass=Meta):
         if service is not None:
             known_services = [x[0] for x in cls.services(name_only=True)]
             if service not in known_services:
-                raise ValueError(
-                    f"Service {service} not found in available services.",
-                    f"Available services are: {known_services}",
+                raise LanguageModelValueError(
+                    f"Service {service} not found in available services. Available services are: {known_services}"
                 )
 
         full_list = cls.get_registry().available(

@@ -2,6 +2,7 @@ import warnings
 from typing import TYPE_CHECKING
 from edsl.scenarios import ScenarioList
 from edsl.surveys import Survey
+from edsl.jobs.exceptions import JobsCompatibilityError
 
 if TYPE_CHECKING:
     from edsl.surveys.Survey import Survey
@@ -34,19 +35,19 @@ class CheckSurveyScenarioCompatibility:
         >>> s = Scenario({'plop': "A", 'poo': "B"})
         >>> j = Jobs(survey = Survey(questions=[q])).by(s)
         >>> cs = CheckSurveyScenarioCompatibility(j.survey, j.scenarios)
-        >>> cs.check(strict = True)
+        >>> cs.check(strict = True)  # doctest: +ELLIPSIS
         Traceback (most recent call last):
         ...
-        ValueError: The following parameters are in the scenarios but not in the survey: {'plop'}
+        edsl.jobs.exceptions.JobsCompatibilityError: The following parameters are in the scenarios but not in the survey: {'plop'}...
 
         >>> q = QuestionFreeText(question_text = "Hello", question_name = "ugly_question")
         >>> s = Scenario({'ugly_question': "B"})
         >>> from edsl.scenarios import ScenarioList
         >>> cs = CheckSurveyScenarioCompatibility(Survey(questions=[q]), ScenarioList([s]))
-        >>> cs.check()
+        >>> cs.check()  # doctest: +ELLIPSIS
         Traceback (most recent call last):
         ...
-        ValueError: The following names are in both the survey question_names and the scenario keys: {'ugly_question'}. This will create issues.
+        edsl.jobs.exceptions.JobsCompatibilityError: The following names are in both the survey question_names and the scenario keys: {'ugly_question'}. This will create issues...
         """
         survey_parameters: set = self.survey.parameters
         scenario_parameters: set = self.scenarios.parameters
@@ -59,7 +60,7 @@ class CheckSurveyScenarioCompatibility:
         ):
             msg0 = f"The following names are in both the survey question_names and the scenario keys: {intersection}. This will create issues."
 
-            raise ValueError(msg0)
+            raise JobsCompatibilityError(msg0)
 
         if in_survey_but_not_in_scenarios := survey_parameters - scenario_parameters:
             msg1 = f"The following parameters are in the survey but not in the scenarios: {in_survey_but_not_in_scenarios}"
@@ -69,7 +70,7 @@ class CheckSurveyScenarioCompatibility:
         if msg1 or msg2:
             message = "\n".join(filter(None, [msg1, msg2]))
             if strict:
-                raise ValueError(message)
+                raise JobsCompatibilityError(message)
             else:
                 if warn:
                     warnings.warn(message)

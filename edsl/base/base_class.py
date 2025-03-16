@@ -191,7 +191,7 @@ class PersistenceMixin:
             A new instance of the class populated with the deserialized data
             
         Raises:
-            ValueError: If neither yaml_str nor filename is provided
+            BaseValueError: If neither yaml_str nor filename is provided
         """
         if yaml_str is None and filename is not None:
             with open(filename, "r") as f:
@@ -203,7 +203,8 @@ class PersistenceMixin:
             d = yaml.load(yaml_str, Loader=yaml.FullLoader)
             return cls.from_dict(d)
         else:
-            raise ValueError("Either yaml_str or filename must be provided.")
+            from edsl.base.exceptions import BaseValueError
+            raise BaseValueError("Either yaml_str or filename must be provided.")
 
     def create_download_link(self):
         """Generate a downloadable link for this object.
@@ -770,7 +771,8 @@ class Base(
         Returns:
             An instance of the class with sample data
         """
-        raise NotImplementedError("This method is not implemented yet.")
+        from edsl.base.exceptions import BaseNotImplementedError
+        raise BaseNotImplementedError("This method is not implemented yet.")
     
     def json(self):
         """Get a formatted JSON representation of this object.
@@ -800,7 +802,8 @@ class Base(
         Returns:
             dict: A dictionary representation of the object
         """
-        raise NotImplementedError("This method is not implemented yet.")
+        from edsl.base.exceptions import BaseNotImplementedError
+        raise BaseNotImplementedError("This method is not implemented yet.")
 
     def to_json(self):
         """Serialize this object to a JSON string.
@@ -836,7 +839,8 @@ class Base(
         Returns:
             An instance of the class populated with data from the dictionary
         """
-        raise NotImplementedError("This method is not implemented yet.")
+        from edsl.base.exceptions import BaseNotImplementedError
+        raise BaseNotImplementedError("This method is not implemented yet.")
 
     @abstractmethod
     def code():
@@ -848,7 +852,8 @@ class Base(
         Returns:
             str: Python code that, when executed, creates an equivalent object
         """
-        raise NotImplementedError("This method is not implemented yet.")
+        from edsl.base.exceptions import BaseNotImplementedError
+        raise BaseNotImplementedError("This method is not implemented yet.")
 
     def show_methods(self, show_docstrings=True):
         """Display all public methods available on this object.

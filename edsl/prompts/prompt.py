@@ -7,7 +7,7 @@ from functools import lru_cache
 
 from jinja2 import Environment, meta, Undefined
 
-from .exceptions import TemplateRenderError
+from .exceptions import TemplateRenderError, PromptValueError, PromptImplementationError
 from ..base import PersistenceMixin, RepresentationMixin
 
 logger = logging.getLogger(__name__)
@@ -150,7 +150,7 @@ class Prompt(PersistenceMixin, RepresentationMixin):
         try:
             folder_path = Path(path_to_folder)
         except Exception as e:
-            raise ValueError(f"Invalid path: {path_to_folder}. Error: {e}")
+            raise PromptValueError(f"Invalid path: {path_to_folder}. Error: {e}")
 
         with open(folder_path.joinpath(file_name), "r") as f:
             text = f.read()
@@ -371,7 +371,7 @@ class Prompt(PersistenceMixin, RepresentationMixin):
         >>> p = Prompt("Hello, {{person}}")
         """
 
-        raise NotImplementedError("This method should be implemented by the subclass.")
+        raise PromptImplementationError("This method should be implemented by the subclass.")
         start = time.time()
         
         # Build all the components

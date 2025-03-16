@@ -120,7 +120,8 @@ What do you say next?"""
                 per_round_message_template
                 and "{{ round_message }}" not in next_statement_question.question_text
             ):
-                raise ValueError(
+                from edsl.conversation.exceptions import ConversationValueError
+                raise ConversationValueError(
                     "If you pass in a per_round_message_template, you must include {{ round_message }} in the question_text."
                 )
 

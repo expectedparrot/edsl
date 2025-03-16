@@ -188,7 +188,6 @@ class QuestionAttributeMissing(QuestionErrors):
     
     def __init__(self, message="A required question attribute is missing"):
         super().__init__(message)
-        raise Exception("not used")
 
 
 class QuestionSerializationError(QuestionErrors):

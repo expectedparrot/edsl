@@ -51,7 +51,8 @@ class Tree:
         else:
             if not set(node_order).issubset(set(self.data.keys())):
                 invalid_keys = set(node_order) - set(self.data.keys())
-                raise ValueError(f"Invalid keys in node_order: {invalid_keys}")
+                from edsl.dataset.exceptions import DatasetValueError
+                raise DatasetValueError(f"Invalid keys in node_order: {invalid_keys}")
 
         self.root = TreeNode()
 

@@ -422,9 +422,10 @@ class Cache(Base):
         """
         # if a file doesn't exist at jsonfile, throw an error
         from .sql_dict import SQLiteDict
+        from .exceptions import CacheFileNotFoundError
 
         if not os.path.exists(jsonlfile):
-            raise FileNotFoundError(f"File {jsonlfile} not found")
+            raise CacheFileNotFoundError(f"File {jsonlfile} not found")
 
         if db_path is None:
             data = {}

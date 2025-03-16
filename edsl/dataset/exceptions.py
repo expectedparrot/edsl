@@ -89,3 +89,37 @@ class DatasetExportError(DatasetError):
         ```
     """
     relevant_doc = "https://docs.expectedparrot.com/en/latest/dataset.html"
+
+
+class DatasetImportError(DatasetError):
+    """
+    Exception raised when importing data from an external source fails.
+    
+    This exception occurs when trying to import data from an external source or format
+    (like CSV, JSON, etc.) and the operation fails, often due to missing dependencies
+    or format issues.
+    
+    Examples:
+        ```python
+        # Trying to export to DOCX without python-docx package
+        dataset.to_docx("file.docx")  # Raises DatasetImportError
+        ```
+    """
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/dataset.html"
+
+
+class DatasetRuntimeError(DatasetError):
+    """
+    Exception raised when an operation fails during runtime.
+    
+    This exception is used for runtime errors in dataset operations,
+    typically for operations that depend on external systems or libraries
+    like R integration.
+    
+    Examples:
+        ```python
+        # Plotting with ggplot when R is not installed
+        dataset.ggplot()  # Raises DatasetRuntimeError
+        ```
+    """
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/dataset.html"

@@ -279,7 +279,10 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
         >>> d._key_to_value('a')
         Traceback (most recent call last):
         ...
-        KeyError: "Key 'a' not found in any of the dictionaries."
+        edsl.dataset.exceptions.DatasetKeyError: Key 'a' not found in any of the dictionaries.
+        <BLANKLINE>
+        <BLANKLINE>
+        For more information, see: https://docs.expectedparrot.com/en/latest/dataset.html
 
         """
         potential_matches = []
@@ -293,11 +296,13 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
         if len(potential_matches) == 1:
             return potential_matches[0][1]
         elif len(potential_matches) > 1:
-            raise KeyError(
+            from edsl.dataset.exceptions import DatasetKeyError
+            raise DatasetKeyError(
                 f"Key '{key}' found in more than one location: {[m[0] for m in potential_matches]}"
             )
 
-        raise KeyError(f"Key '{key}' not found in any of the dictionaries.")
+        from edsl.dataset.exceptions import DatasetKeyError
+        raise DatasetKeyError(f"Key '{key}' not found in any of the dictionaries.")
 
     def first(self) -> dict[str, Any]:
         """Get the first value of the first key in the first dictionary.
@@ -406,9 +411,10 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
         """
         for key in keys:
             if key not in self.keys():
-                raise ValueError(f"Key '{key}' not found in the dataset."
-                                 f"Available keys: {self.keys()}"
-                                 )
+                from edsl.dataset.exceptions import DatasetValueError
+                raise DatasetValueError(f"Key '{key}' not found in the dataset. "
+                                        f"Available keys: {self.keys()}"
+                                       )
             
         if isinstance(keys, str):
             keys = [keys]
@@ -480,17 +486,22 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
         >>> d.sample(n = 10, seed=0, with_replacement=False)
         Traceback (most recent call last):
         ...
-        ValueError: Sample size cannot be greater than the number of available elements when sampling without replacement.
+        edsl.dataset.exceptions.DatasetValueError: Sample size cannot be greater than the number of available elements when sampling without replacement.
+        <BLANKLINE>
+        <BLANKLINE>
+        For more information, see: https://docs.expectedparrot.com/en/latest/dataset.html
         """
         if seed is not None:
             random.seed(seed)
 
         # Validate the input for sampling parameters
         if n is None and frac is None:
-            raise ValueError("Either 'n' or 'frac' must be provided for sampling.")
+            from edsl.dataset.exceptions import DatasetValueError
+            raise DatasetValueError("Either 'n' or 'frac' must be provided for sampling.")
 
         if n is not None and frac is not None:
-            raise ValueError("Only one of 'n' or 'frac' should be specified.")
+            from edsl.dataset.exceptions import DatasetValueError
+            raise DatasetValueError("Only one of 'n' or 'frac' should be specified.")
 
         # Get the length of the lists from the first entry
         first_key, first_values = list(self[0].items())[0]
@@ -501,7 +512,8 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
             n = int(total_length * frac)
 
         if not with_replacement and n > total_length:
-            raise ValueError(
+            from edsl.dataset.exceptions import DatasetValueError
+            raise DatasetValueError(
                 "Sample size cannot be greater than the number of available elements when sampling without replacement."
             )
 
@@ -651,7 +663,8 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
 
         if max_rows is not None:
             if max_rows > len(data):
-                raise ValueError(
+                from edsl.dataset.exceptions import DatasetValueError
+                raise DatasetValueError(
                     "max_rows cannot be greater than the number of rows in the dataset."
                 )
             last_line = data[-1]

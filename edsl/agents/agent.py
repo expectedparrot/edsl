@@ -1096,6 +1096,8 @@ class Agent(Base):
         if name in self._traits:
             return self._traits[name]
 
+        # Keep using AttributeError instead of our custom exception to maintain compatibility
+        # with Python's attribute access mechanism
         raise AttributeError(
             f"'{type(self).__name__}' object has no attribute '{name}'"
         )

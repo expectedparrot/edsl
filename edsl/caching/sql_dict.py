@@ -82,7 +82,8 @@ class SQLiteDict:
             Base.metadata.create_all(self.engine)
             self.Session = sessionmaker(bind=self.engine)
         except SQLAlchemyError as e:
-            raise Exception(
+            from edsl.caching.exceptions import CacheError
+            raise CacheError(
                 f"""Database initialization error: {e}. The attempted DB path was {db_path}"""
             ) from e
 
@@ -122,7 +123,8 @@ class SQLiteDict:
             >>> d["foo"] = CacheEntry.example()
         """
         if not isinstance(value, CacheEntry):
-            raise ValueError(f"Value must be a CacheEntry object (got {type(value)}).")
+            from edsl.caching.exceptions import CacheValueError
+            raise CacheValueError(f"Value must be a CacheEntry object (got {type(value)}).")
         with self.Session() as db:
             from edsl.caching.orm import Data
 
@@ -157,7 +159,8 @@ class SQLiteDict:
 
             value = db.query(Data).filter_by(key=key).first()
             if not value:
-                raise KeyError(f"Key '{key}' not found.")
+                from edsl.caching.exceptions import CacheKeyError
+                raise CacheKeyError(f"Key '{key}' not found.")
             return CacheEntry.from_dict(json.loads(value.value))
 
     def get(self, key: str, default: Optional[Any] = None) -> Union[CacheEntry, Any]:
@@ -180,9 +183,10 @@ class SQLiteDict:
             >>> d.get("foo", "bar")
             'bar'
         """
+        from edsl.caching.exceptions import CacheKeyError
         try:
             return self[key]
-        except KeyError:
+        except (KeyError, CacheKeyError):
             return default
 
     def __bool__(self) -> bool:
@@ -232,7 +236,8 @@ class SQLiteDict:
             the database from being locked for too long.
         """
         if not (isinstance(new_d, dict) or isinstance(new_d, SQLiteDict)):
-            raise ValueError(
+            from edsl.caching.exceptions import CacheValueError
+            raise CacheValueError(
                 f"new_d must be a dict or SQLiteDict object (got {type(new_d)})"
             )
         current_batch = 0
@@ -300,7 +305,8 @@ class SQLiteDict:
                 db.delete(instance)
                 db.commit()
             else:
-                raise KeyError(f"Key '{key}' not found.")
+                from edsl.caching.exceptions import CacheKeyError
+                raise CacheKeyError(f"Key '{key}' not found.")
 
     def __contains__(self, key: str) -> bool:
         """

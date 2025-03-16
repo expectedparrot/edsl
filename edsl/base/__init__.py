@@ -18,6 +18,13 @@ from edsl.base.base_class import (
     is_iterable,
 )
 from edsl.base.base_exception import BaseException
+from edsl.base.exceptions import (
+    BaseValueError,
+    BaseNotImplementedError,
+    BaseKeyError,
+    BaseFileError, 
+    BaseTypeError
+)
 
 from edsl.base.enums import (
     EnumWithChecks,

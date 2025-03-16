@@ -39,6 +39,8 @@ from typing import (
     TYPE_CHECKING,
 )
 
+from .exceptions import LanguageModelValueError
+
 from ..data_transfer_models import (
     ModelResponse,
     ModelInputs,
@@ -352,7 +354,7 @@ class LanguageModel(
         if not hasattr(self, "_api_token"):
             info = self.key_lookup.get(self._inference_service_, None)
             if info is None:
-                raise ValueError(
+                raise LanguageModelValueError(
                     f"No key found for service '{self._inference_service_}'"
                 )
             self._api_token = info.api_token

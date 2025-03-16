@@ -35,6 +35,7 @@ from ..buckets import BucketCollection
 from ..scenarios import Scenario, ScenarioList
 from ..surveys import Survey
 from ..interviews import Interview
+from .exceptions import JobsValueError, JobsImplementationError
 
 from .jobs_pricing_estimation import JobsPrompts
 from .remote_inference import JobsRemoteInferenceHandler
@@ -182,7 +183,10 @@ class Jobs(Base):
             >>> j = Jobs(survey = s)
             Traceback (most recent call last):
             ...
-            ValueError: At least some question names are not valid: ['{{ bad_name }}']
+            edsl.jobs.exceptions.JobsValueError: At least some question names are not valid: ['{{ bad_name }}']
+            <BLANKLINE>
+            <BLANKLINE>
+            For more information, see: https://docs.expectedparrot.com/en/latest/jobs.html
         
         Notes:
             - The survey's questions must have valid names without templating variables
@@ -204,7 +208,7 @@ class Jobs(Base):
             assert self.survey.question_names_valid()
         except Exception:
             invalid_question_names = [q.question_name for q in self.survey.questions if not q.is_valid_question_name()]
-            raise ValueError(f"At least some question names are not valid: {invalid_question_names}")
+            raise JobsValueError(f"At least some question names are not valid: {invalid_question_names}")
         
 
     def add_running_env(self, running_env: RunEnvironment):
@@ -956,7 +960,8 @@ class Jobs(Base):
             """Return the answer to a question. This is a method that can be added to an agent."""
 
             if random.random() < throw_exception_probability:
-                raise Exception("Error!")
+                from .exceptions import JobsErrors
+                raise JobsErrors("Simulated error during question answering")
             return agent_answers[
                 (self.traits["status"], question.question_name, scenario["period"])
             ]
@@ -997,7 +1002,7 @@ class Jobs(Base):
 
     def code(self):
         """Return the code to create this instance."""
-        raise NotImplementedError
+        raise JobsImplementationError("Code generation not implemented yet")
 
 
 def main():

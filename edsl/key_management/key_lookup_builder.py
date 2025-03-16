@@ -34,6 +34,8 @@ api_id_to_service = {"AWS_ACCESS_KEY_ID": "bedrock"}
 class KeyLookupBuilder:
     """Factory class for building KeyLookup objects by gathering credentials from multiple sources.
     
+    >>> from edsl.key_management.exceptions import KeyManagementValueError
+    
     KeyLookupBuilder is responsible for discovering, organizing, and consolidating API keys
     and rate limits from various sources. It can pull credentials from:
     
@@ -70,9 +72,9 @@ class KeyLookupBuilder:
     Validation examples:
         >>> try:
         ...     KeyLookupBuilder(fetch_order=["config", "env"])  # Should be tuple
-        ... except ValueError as e:
-        ...     str(e)
-        'fetch_order must be a tuple'
+        ... except KeyManagementValueError as e:
+        ...     "fetch_order must be a tuple" in str(e)
+        True
         
         >>> builder = KeyLookupBuilder()
         >>> builder.extract_service("EDSL_SERVICE_RPM_OPENAI")
@@ -106,7 +108,8 @@ class KeyLookupBuilder:
             self.fetch_order = fetch_order
 
         if not isinstance(self.fetch_order, tuple):
-            raise ValueError("fetch_order must be a tuple")
+            from edsl.key_management.exceptions import KeyManagementValueError
+            raise KeyManagementValueError("fetch_order must be a tuple")
 
         if coop is None:
             self.coop = Coop()
@@ -290,6 +293,8 @@ class KeyLookupBuilder:
 
     def _add_id(self, key: str, value: str, source: str) -> None:
         """Add an API ID to the id_data dictionary.
+        
+        >>> from edsl.key_management.exceptions import KeyManagementDuplicateError
 
         >>> builder = KeyLookupBuilder()
         >>> builder._add_id("AWS_ACCESS_KEY_ID", "AKIA1234", "env")
@@ -297,9 +302,9 @@ class KeyLookupBuilder:
         'AKIA1234'
         >>> try:
         ...     builder._add_id("AWS_ACCESS_KEY_ID", "AKIA5678", "env")
-        ... except ValueError as e:
-        ...     str(e)
-        'Duplicate ID for service bedrock'
+        ... except KeyManagementDuplicateError as e:
+        ...     "Duplicate ID for service bedrock" in str(e)
+        True
         """
         service = api_id_to_service[key]
         if service not in self.id_data:
@@ -307,7 +312,8 @@ class KeyLookupBuilder:
                 service=service, name=key, value=value, source=source
             )
         else:
-            raise ValueError(f"Duplicate ID for service {service}")
+            from edsl.key_management.exceptions import KeyManagementDuplicateError
+            raise KeyManagementDuplicateError(f"Duplicate ID for service {service}")
 
     def _add_limit(self, key: str, value: str, source: str) -> None:
         """Add a rate limit entry to the limit_data dictionary.

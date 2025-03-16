@@ -522,7 +522,8 @@ class Interview:
 
         for task, invigilator in zip(tasks, invigilators):
             if not task.done():
-                raise ValueError(f"Task {task.get_name()} is not done.")
+                from edsl.interviews.exceptions import InterviewTaskError
+                raise InterviewTaskError(f"Task {task.get_name()} is not done.")
 
             yield handle_task(task, invigilator)
 
