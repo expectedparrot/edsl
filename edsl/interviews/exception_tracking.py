@@ -5,6 +5,7 @@ import json
 
 from ..invigilators import InvigilatorBase
 
+
 class InterviewExceptionEntry:
     """Class to record an exception that occurred during the interview."""
 
@@ -218,7 +219,6 @@ class InterviewExceptionEntry:
         return cls(exception=exception, invigilator=invigilator)
 
 
-
 class InterviewExceptionCollection(UserDict):
     """A collection of exceptions that occurred during the interview."""
 
@@ -230,6 +230,14 @@ class InterviewExceptionCollection(UserDict):
     def unfixed_exceptions(self) -> list:
         """Return a list of unfixed exceptions."""
         return {k: v for k, v in self.data.items() if k not in self.fixed}
+
+    def num_exceptions(self) -> int:
+        """Return the total number of exceptions."""
+        return sum(len(v) for v in self.data.values())
+
+    def num_unfixed_exceptions(self) -> int:
+        """Return the number of unfixed exceptions."""
+        return sum(len(v) for v in self.unfixed_exceptions().values())
 
     def num_unfixed(self) -> int:
         """Return a list of unfixed questions."""
