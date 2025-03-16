@@ -180,6 +180,7 @@ class Coop(CoopFunctionsMixin):
                 )
             else:
                 from edsl.coop.exceptions import CoopInvalidMethodError
+
                 raise CoopInvalidMethodError(f"Invalid {method=}.")
         except requests.ConnectionError:
             raise requests.ConnectionError(f"Could not connect to the server at {url}.")
@@ -302,6 +303,7 @@ class Coop(CoopFunctionsMixin):
                 details = root.find("Details").text
             except Exception:
                 from edsl.coop.exceptions import CoopServerResponseError
+
                 raise CoopServerResponseError(
                     f"Server returned status code {response.status_code}. "
                     f"XML response could not be decoded. "
@@ -309,7 +311,10 @@ class Coop(CoopFunctionsMixin):
                 )
 
             from edsl.coop.exceptions import CoopServerResponseError
-            raise CoopServerResponseError(f"An error occurred: {code} - {message} - {details}")
+
+            raise CoopServerResponseError(
+                f"An error occurred: {code} - {message} - {details}"
+            )
 
     def _poll_for_api_key(
         self, edsl_auth_token: str, timeout: int = 120
@@ -507,6 +512,7 @@ class Coop(CoopFunctionsMixin):
                 signed_url = response_json.get("upload_signed_url")
             else:
                 from edsl.coop.exceptions import CoopResponseError
+
                 raise CoopResponseError("No signed url was provided received")
 
             response = requests.put(
@@ -592,7 +598,10 @@ class Coop(CoopFunctionsMixin):
         object_type = response.json().get("object_type")
         if expected_object_type and object_type != expected_object_type:
             from edsl.coop.exceptions import CoopObjectTypeError
-            raise CoopObjectTypeError(f"Expected {expected_object_type=} but got {object_type=}")
+
+            raise CoopObjectTypeError(
+                f"Expected {expected_object_type=} but got {object_type=}"
+            )
         edsl_class = ObjectRegistry.object_type_to_edsl_class.get(object_type)
         object = edsl_class.from_dict(json.loads(json_string))
         return object
@@ -684,6 +693,7 @@ class Coop(CoopFunctionsMixin):
             and alias is None
         ):
             from edsl.coop.exceptions import CoopPatchError
+
             raise CoopPatchError("Nothing to patch.")
 
         obj_uuid, owner_username, obj_alias = self._resolve_uuid_or_alias(url_or_uuid)
@@ -816,6 +826,7 @@ class Coop(CoopFunctionsMixin):
         """
         if job_uuid is None:
             from edsl.coop.exceptions import CoopValueError
+
             raise CoopValueError("Must provide a job_uuid.")
         response = self._send_server_request(
             uri="api/v0/remote-cache/get-many-by-job",
@@ -845,6 +856,7 @@ class Coop(CoopFunctionsMixin):
         """
         if select_keys is None or len(select_keys) == 0:
             from edsl.coop.exceptions import CoopValueError
+
             raise CoopValueError("Must provide a non-empty list of select_keys.")
         response = self._send_server_request(
             uri="api/v0/remote-cache/get-many-by-key",
@@ -1109,6 +1121,7 @@ class Coop(CoopFunctionsMixin):
         """
         if job_uuid is None and results_uuid is None:
             from edsl.coop.exceptions import CoopValueError
+
             raise CoopValueError("Either job_uuid or results_uuid must be provided.")
         elif job_uuid is not None:
             params = {"job_uuid": job_uuid}
@@ -1146,7 +1159,7 @@ class Coop(CoopFunctionsMixin):
                 "latest_error_report_uuid": latest_error_report_uuid,
                 "latest_error_report_url": latest_error_report_url,
                 "status": data.get("status"),
-                "reason": data.get("reason"),
+                "reason": data.get("latest_failure_reason"),
                 "credits_consumed": data.get("price"),
                 "version": data.get("version"),
             }
@@ -1184,6 +1197,7 @@ class Coop(CoopFunctionsMixin):
             job = Jobs(survey=input)
         else:
             from edsl.coop.exceptions import CoopTypeError
+
             raise CoopTypeError("Input must be either a Job or a Survey.")
 
         response = self._send_server_request(
@@ -1320,6 +1334,7 @@ class Coop(CoopFunctionsMixin):
             return {}
         else:
             from edsl.coop.exceptions import CoopValueError
+
             raise CoopValueError(
                 "Invalid EDSL_FETCH_TOKEN_PRICES value---should be 'True' or 'False'."
             )
@@ -1477,6 +1492,7 @@ class Coop(CoopFunctionsMixin):
 
         if api_key is None:
             from edsl.coop.exceptions import CoopTimeoutError
+
             raise CoopTimeoutError("Timed out waiting for login. Please try again.")
 
         path_to_env = write_api_key_to_env(api_key)
