@@ -1,9 +1,8 @@
 from collections import UserDict, defaultdict, UserList
-from typing import Union, Optional, List
+from typing import Optional, List
 from dataclasses import dataclass
 
 from ..enums import InferenceServiceLiteral
-from ..scenarios import ScenarioList
 
 @dataclass
 class LanguageModelInfo:
@@ -44,7 +43,8 @@ class LanguageModelInfo:
         elif key == 1:
             return self.service_name
         else:
-            raise IndexError("Index out of range")
+            from edsl.inference_services.exceptions import InferenceServiceIndexError
+            raise InferenceServiceIndexError("Index out of range")
 
     @classmethod
     def example(cls) -> "LanguageModelInfo":
@@ -106,13 +106,15 @@ class AvailableModels(UserList):
                 ]
             )
             if len(avm) == 0:
-                raise ValueError(
+                from edsl.inference_services.exceptions import InferenceServiceValueError
+                raise InferenceServiceValueError(
                     "No models found matching the search pattern: " + pattern
                 )
             else:
                 return avm
         except re.error as e:
-            raise ValueError(f"Invalid regular expression pattern: {e}")
+            from edsl.inference_services.exceptions import InferenceServiceValueError
+            raise InferenceServiceValueError(f"Invalid regular expression pattern: {e}")
 
 
 class ServiceToModelsMapping(UserDict):
@@ -126,7 +128,8 @@ class ServiceToModelsMapping(UserDict):
     def _validate_service_names(self):
         for service in self.service_names:
             if service not in InferenceServiceLiteral:
-                raise ValueError(f"Invalid service name: {service}")
+                from edsl.inference_services.exceptions import InferenceServiceValueError
+                raise InferenceServiceValueError(f"Invalid service name: {service}")
 
     def model_to_services(self) -> dict:
         self._model_to_service = defaultdict(list)

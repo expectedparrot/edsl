@@ -1,9 +1,13 @@
-from typing import Any, List, Optional
+from typing import Any, List, Optional, TYPE_CHECKING
 from ..rate_limits_cache import rate_limits
 
 from ...language_models import LanguageModel
 
 from .open_ai_service import OpenAIService
+
+if TYPE_CHECKING:
+    from ....scenarios.file_store import FileStore as Files
+    from ....invigilators.invigilator_base import InvigilatorBase as InvigilatorAI
 
 
 class PerplexityService(OpenAIService):
@@ -94,7 +98,7 @@ class PerplexityService(OpenAIService):
                     else:
                         headers = self.get_headers()
 
-                except Exception as e:
+                except Exception:
                     return {
                         "rpm": 10_000,
                         "tpm": 2_000_000,

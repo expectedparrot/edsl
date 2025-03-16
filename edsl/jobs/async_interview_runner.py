@@ -14,14 +14,12 @@ from edsl.data_transfer_models import EDSLResultObjectInput
 from ..results import Result
 from ..interviews import Interview
 from ..config import Config
+from .data_structures import RunConfig
 
 config = Config()
 
 if TYPE_CHECKING:
     from ..jobs import Jobs
-
-from .data_structures import RunConfig
-
 
 @dataclass
 class InterviewResult:
@@ -166,7 +164,7 @@ class AsyncInterviewRunner:
                 )
                 result.order = idx
                 return InterviewResult(result, interview, idx)
-            except Exception as e:
+            except Exception:
                 if self.run_config.parameters.stop_on_exception:
                     raise
                 return None
@@ -190,7 +188,7 @@ class AsyncInterviewRunner:
                 for result in (r for r in results if r is not None):
                     yield result.result, result.interview
 
-            except Exception as e:
+            except Exception:
                 if self.run_config.parameters.stop_on_exception:
                     raise
                 continue

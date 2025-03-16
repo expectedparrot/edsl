@@ -69,7 +69,7 @@ class MarkdownToDocx:
 
         try:
             # Run pandoc command
-            result = subprocess.run(
+            subprocess.run(
                 cmd,
                 input=self.markdown_content,
                 text=True,
@@ -115,7 +115,7 @@ class MarkdownToDocx:
             cmd = ["pandoc", "--print-default-data-file", "reference.docx"]
 
             with open(output_path, "wb") as f:
-                result = subprocess.run(cmd, stdout=f, check=True)
+                subprocess.run(cmd, stdout=f, check=True)
             return True
         except subprocess.CalledProcessError as e:
             print(f"Error creating template: {e.stderr}")

@@ -30,11 +30,13 @@ class GGPlot:
 
         if result.returncode != 0:
             if result.returncode == 127:
-                raise RuntimeError(
+                from edsl.dataset.exceptions import DatasetRuntimeError
+                raise DatasetRuntimeError(
                     "Rscript is probably not installed. Please install R from https://cran.r-project.org/"
                 )
             else:
-                raise RuntimeError(
+                from edsl.dataset.exceptions import DatasetRuntimeError
+                raise DatasetRuntimeError(
                     f"An error occurred while running Rscript: {result.stderr}"
                 )
 
@@ -47,7 +49,8 @@ class GGPlot:
         """Save the plot to a file."""
         format = filename.split('.')[-1].lower()
         if format not in ['svg', 'png']:
-            raise ValueError("Only 'svg' and 'png' formats are supported")
+            from edsl.dataset.exceptions import DatasetValueError
+            raise DatasetValueError("Only 'svg' and 'png' formats are supported")
             
         save_command = f'\nggsave("{filename}", plot = last_plot(), width = {self.width}, height = {self.height}, device = "{format}")'
         self._execute_r_code(save_command)
@@ -62,7 +65,6 @@ class GGPlot:
         if self._saved:
             return None
             
-        import tempfile
         
         # Generate SVG if we haven't already
         if self._svg_data is None:
@@ -77,7 +79,12 @@ class GGPlot:
 
 class GGPlotMethod:
 
-    def __init__(self, results: 'Results'):
+    def __init__(self, results):
+        """Initialize the GGPlotMethod with results.
+        
+        Args:
+            results: A Results or Dataset object.
+        """
         self.results = results
     
     """Mixin class for ggplot2 plotting."""
@@ -106,7 +113,7 @@ class GGPlotMethod:
         :param width: The width of the plot in inches.
         :param factor_orders: A dictionary of factor columns and their order.
         """
-        if sql == None:
+        if sql is None:
             sql = "select * from self"
 
         if shape == "long":

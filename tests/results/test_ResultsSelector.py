@@ -6,12 +6,11 @@ which handles column selection and data extraction for Results objects.
 """
 
 import unittest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 from collections import defaultdict
 
 from edsl.results.results_selector import Selector
 from edsl.results.exceptions import ResultsColumnNotFoundError
-from edsl.dataset import Dataset
 
 
 class TestSelector(unittest.TestCase):

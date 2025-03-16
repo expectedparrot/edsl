@@ -28,7 +28,7 @@ def coop_object_api_workflows(object_type, object_examples):
         response = coop.create(object, visibility=visibility)
         assert (
             coop.get(response.get("uuid")) == object
-        ), f"Expected object to be the same as the one created. "
+        ), "Expected object to be the same as the one created. "
         # assert coop.get(response.get("url")) == object
         responses.append(response)
 
@@ -39,7 +39,8 @@ def coop_object_api_workflows(object_type, object_examples):
         if visibility != "private":
             assert coop2.get(response.get("uuid")) == object
         else:
-            with pytest.raises(Exception):
+            from edsl.coop.exceptions import CoopServerResponseError
+            with pytest.raises(CoopServerResponseError):
                 coop2.get(response.get("uuid"))
 
     # 4. Test changing visibility

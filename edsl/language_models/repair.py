@@ -32,10 +32,6 @@ async def async_repair(
     else:
         return valid_dict, success
 
-    from .model import Model
-
-    m = Model()
-
     from ..questions.QuestionExtract import QuestionExtract
 
     with warnings.catch_warnings():
@@ -95,9 +91,7 @@ async def async_repair(
     except json.JSONDecodeError:
         valid_dict = {}
         success = False
-        from rich import print
         from rich.console import Console
-        from rich.syntax import Syntax
 
         console = Console()
         error_message = (

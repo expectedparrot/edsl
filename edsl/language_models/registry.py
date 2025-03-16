@@ -1,8 +1,15 @@
-from abc import ABC, ABCMeta
-from typing import Any, List, Callable
+from abc import ABCMeta
+from typing import Any, List, Callable, TYPE_CHECKING
 import inspect
-from typing import get_type_hints
-from .exceptions import LanguageModelAttributeTypeError
+
+if TYPE_CHECKING:
+    from .language_model import LanguageModel
+from .exceptions import (
+    LanguageModelAttributeTypeError,
+    LanguageModelImplementationError,
+    LanguageModelTypeError,
+    LanguageModelRegistryError
+)
 from edsl.enums import InferenceServiceType
 
 
@@ -69,12 +76,15 @@ class RegisterLanguageModelsMeta(ABCMeta):
         >>> RegisterLanguageModelsMeta.check_required_class_variables(M2, ["_model_", "_parameters_"])
         Traceback (most recent call last):
         ...
-        Exception: Class M2 does not have required attribute _parameters_
+        edsl.language_models.exceptions.LanguageModelRegistryError: Class M2 does not have required attribute _parameters_
+        <BLANKLINE>
+        <BLANKLINE>
+        For more information, see: https://docs.expectedparrot.com/en/latest/language_models.html
         """
         required_attributes = required_attributes or []
         for attribute in required_attributes:
             if not hasattr(candidate_class, attribute):
-                raise Exception(
+                raise LanguageModelRegistryError(
                     f"Class {candidate_class.__name__} does not have required attribute {attribute}"
                 )
 
@@ -116,10 +126,13 @@ class RegisterLanguageModelsMeta(ABCMeta):
         >>> RegisterLanguageModelsMeta._check_method_defined(M, "g")
         Traceback (most recent call last):
         ...
-        NotImplementedError: g method must be implemented.
+        edsl.language_models.exceptions.LanguageModelImplementationError: g method must be implemented.
+        <BLANKLINE>
+        <BLANKLINE>
+        For more information, see: https://docs.expectedparrot.com/en/latest/language_models.html
         """
         if not hasattr(cls, method_name):
-            raise NotImplementedError(f"{method_name} method must be implemented.")
+            raise LanguageModelImplementationError(f"{method_name} method must be implemented.")
 
     @staticmethod
     def _check_is_coroutine(func: Callable):
@@ -131,10 +144,13 @@ class RegisterLanguageModelsMeta(ABCMeta):
         >>> RegisterLanguageModelsMeta._check_is_coroutine(f)
         Traceback (most recent call last):
         ...
-        TypeError: A LangugeModel class with method f must be an asynchronous method.
+        edsl.language_models.exceptions.LanguageModelTypeError: A LangugeModel class with method f must be an asynchronous method.
+        <BLANKLINE>
+        <BLANKLINE>
+        For more information, see: https://docs.expectedparrot.com/en/latest/language_models.html
         """
         if not inspect.iscoroutinefunction(func):
-            raise TypeError(
+            raise LanguageModelTypeError(
                 f"A LangugeModel class with method {func.__name__} must be an asynchronous method."
             )
 
@@ -178,7 +194,7 @@ class RegisterLanguageModelsMeta(ABCMeta):
             if hasattr(cls, "_model_"):
                 d[cls._model_] = cls
             else:
-                raise Exception(
+                raise LanguageModelRegistryError(
                     f"Class {classname} does not have a _model_ class attribute."
                 )
         return d

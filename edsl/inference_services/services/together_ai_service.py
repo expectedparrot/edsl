@@ -1,6 +1,5 @@
-from typing import Any, List, Optional
+from typing import List
 
-from ...language_models import LanguageModel
 from .open_ai_service import OpenAIService
 
 import openai
@@ -163,6 +162,6 @@ class TogetherAIService(OpenAIService):
                     for m in cls.get_model_list()
                     if m["id"] not in cls.model_exclude_list
                 ]
-            except Exception as e:
+            except Exception:
                 raise
         return cls._models_list_cache

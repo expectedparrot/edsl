@@ -1,14 +1,14 @@
-from typing import Any, List, Optional
-import os
+from typing import Any, List, Optional, TYPE_CHECKING
 import asyncio
 import random
 
 from ..inference_service_abc import InferenceServiceABC
-from ..rate_limits_cache import rate_limits
 
 from ...language_models import LanguageModel
-from ...utilities.utilities import fix_partial_correct_response
 from ...enums import InferenceServiceType
+
+if TYPE_CHECKING:
+    from ....scenarios.file_store import FileStore as File
 
 
 class TestService(InferenceServiceABC):
@@ -37,7 +37,7 @@ class TestService(InferenceServiceABC):
 
     @classmethod
     def create_model(cls, model_name, model_class_name=None) -> LanguageModel:
-        throw_exception = False
+        # Removed unused variable
 
         class TestServiceLanguageModel(LanguageModel):
             _model_ = "test"
@@ -74,7 +74,8 @@ class TestService(InferenceServiceABC):
                         p = 1
 
                     if random.random() < p:
-                        raise Exception("This is a test error")
+                        from edsl.inference_services.exceptions import InferenceServiceError
+                        raise InferenceServiceError("This is a test error")
 
                 if hasattr(self, "func"):
                     return {

@@ -32,16 +32,14 @@ import warnings
 from abc import ABC, abstractmethod
 
 from typing import (
-    Coroutine,
     Any,
-    Type,
     Union,
     List,
-    get_type_hints,
-    TypedDict,
     Optional,
     TYPE_CHECKING,
 )
+
+from .exceptions import LanguageModelValueError
 
 from ..data_transfer_models import (
     ModelResponse,
@@ -56,7 +54,6 @@ if TYPE_CHECKING:
     from ..questions import QuestionBase
     from ..key_management import KeyLookup
 
-from ..enums import InferenceServiceType
 
 from ..utilities import sync_wrapper, jupyter_nb_handler, remove_edsl_version, dict_hash
 from ..base import PersistenceMixin, RepresentationMixin, HashingMixin
@@ -82,7 +79,7 @@ def handle_key_error(func):
     def wrapper(*args, **kwargs):
         try:
             return func(*args, **kwargs)
-            assert True == False  # Unreachable code - this should be removed
+            # Unreachable code
         except KeyError as e:
             return f"""KeyError occurred: {e}. This is most likely because the model you are using 
             returned a JSON object we were not expecting."""
@@ -357,7 +354,7 @@ class LanguageModel(
         if not hasattr(self, "_api_token"):
             info = self.key_lookup.get(self._inference_service_, None)
             if info is None:
-                raise ValueError(
+                raise LanguageModelValueError(
                     f"No key found for service '{self._inference_service_}'"
                 )
             self._api_token = info.api_token

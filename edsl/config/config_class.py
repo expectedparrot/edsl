@@ -3,11 +3,16 @@
 import os
 import platformdirs
 from dotenv import load_dotenv, find_dotenv
-from edsl.exceptions.configuration import (
-    InvalidEnvironmentVariableError,
-    MissingEnvironmentVariableError,
-)
+from edsl.base import BaseException
 from edsl import logger
+
+class InvalidEnvironmentVariableError(BaseException):
+    """Raised when an environment variable is invalid."""
+    pass
+
+class MissingEnvironmentVariableError(BaseException):
+    """Raised when an expected environment variable is missing."""
+    pass
 
 cache_dir = platformdirs.user_cache_dir("edsl")
 os.makedirs(cache_dir, exist_ok=True)

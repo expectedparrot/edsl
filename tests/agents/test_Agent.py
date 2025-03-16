@@ -8,9 +8,6 @@ from edsl.agents.exceptions import (
     AgentNameError,
     AgentTraitKeyError,
 )
-from edsl.jobs import Jobs
-from edsl.questions import QuestionMultipleChoice
-from edsl.surveys import Survey
 
 
 def test_agent_creation_valid():
@@ -149,7 +146,6 @@ def test_agent_dynamic_traits_answering():
             return {"hair": "brown"}
 
     a = Agent(dynamic_traits_function=dynamic_traits_function)
-    from edsl import QuestionFreeText
 
     q = QuestionFreeText(question_name="age", question_text="How old are you?")
     m = Model("test")

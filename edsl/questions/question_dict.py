@@ -146,7 +146,8 @@ class QuestionDict(QuestionBase):
                 # Ensure all keys exist
                 missing_keys = set(self.answer_keys) - set(v.keys())
                 if missing_keys:
-                    raise ValueError(f"Missing required keys: {missing_keys}")
+                    from .exceptions import QuestionAnswerValidationError
+                    raise QuestionAnswerValidationError(f"Missing required keys: {missing_keys}")
                     
                 # Validate value types if not permissive
                 if not self.permissive and self.value_types:
@@ -160,7 +161,8 @@ class QuestionDict(QuestionBase):
                         # Handle list types
                         if type_str.startswith(('list[', 'list')):
                             if not isinstance(value, list):
-                                raise ValueError(f"Key '{key}' should be a list, got {type(value).__name__}")
+                                from .exceptions import QuestionAnswerValidationError
+                                raise QuestionAnswerValidationError(f"Key '{key}' should be a list, got {type(value).__name__}")
                                 
                             # If it's a parameterized list, check element types
                             if '[' in type_str:
@@ -176,7 +178,8 @@ class QuestionDict(QuestionBase):
                                     }.get(element_type)
                                     
                                     if expected_type and not isinstance(elem, expected_type):
-                                        raise ValueError(
+                                        from .exceptions import QuestionAnswerValidationError
+                                        raise QuestionAnswerValidationError(
                                             f"List element at index {i} for key '{key}' "
                                             f"has type {type(elem).__name__}, expected {element_type}"
                                         )
@@ -190,7 +193,8 @@ class QuestionDict(QuestionBase):
                             }.get(type_str)
                             
                             if expected_type and not isinstance(value, expected_type):
-                                raise ValueError(
+                                from .exceptions import QuestionAnswerValidationError
+                                raise QuestionAnswerValidationError(
                                     f"Key '{key}' has value of type {type(value).__name__}, expected {type_str}"
                                 )
                 return v

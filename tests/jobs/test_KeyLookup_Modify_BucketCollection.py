@@ -1,4 +1,3 @@
-import pytest
 from edsl import Model 
 from edsl import QuestionFreeText
 from edsl.key_management import KeyLookup

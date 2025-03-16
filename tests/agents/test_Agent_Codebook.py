@@ -1,4 +1,3 @@
-import pytest
 from edsl.agents import Agent
 
 def test_agent_prompt_with_codebook():

@@ -1,4 +1,4 @@
-from typing import List, Optional, get_args, Union
+from typing import List, Optional, Union
 from pathlib import Path
 import sqlite3
 from datetime import datetime
