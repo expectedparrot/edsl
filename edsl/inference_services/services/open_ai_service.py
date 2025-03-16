@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Any, List, Optional, Dict, NewType
+from typing import Any, List, Optional, Dict, NewType, TYPE_CHECKING
 import os
 
 import openai
@@ -7,6 +7,10 @@ import openai
 from ..inference_service_abc import InferenceServiceABC
 from ...language_models import LanguageModel
 from ..rate_limits_cache import rate_limits
+
+if TYPE_CHECKING:
+    from ....scenarios.file_store import FileStore as Files
+    from ....invigilators.invigilator_base import InvigilatorBase as InvigilatorAI
 
 
 APIToken = NewType("APIToken", str)

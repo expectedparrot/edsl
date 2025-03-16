@@ -226,7 +226,8 @@ class Coop(CoopFunctionsMixin):
         """
         # Get EDSL version from header
         # breakpoint()
-        server_edsl_version = response.headers.get("X-EDSL-Version")
+        # Commented out as currently unused
+        # server_edsl_version = response.headers.get("X-EDSL-Version")
 
         # if server_edsl_version:
         #     if self._user_version_is_outdated(
@@ -266,7 +267,7 @@ class Coop(CoopFunctionsMixin):
 
                 print("\n✨ API key retrieved.")
 
-                if stored_in_user_space := self.ep_key_handler.ask_to_store(api_key):
+                if self.ep_key_handler.ask_to_store(api_key):
                     pass
                 else:
                     path_to_env = write_api_key_to_env(api_key)

@@ -1,6 +1,8 @@
 from jinja2 import Environment
 from typing import List, Union
 
+import edsl.scenarios.scenario  # noqa: F401
+
 
 def extract_template_variables(ast) -> List[Union[str, tuple]]:
     """
@@ -61,7 +63,7 @@ class QuestionOptionProcessor:
 
         return cls(scenario, prior_answers_dict)
 
-    def __init__(self, scenario: 'Scenario', prior_answers_dict: dict):
+    def __init__(self, scenario: 'edsl.scenarios.scenario.Scenario', prior_answers_dict: dict):
         # This handles cases where the question has {{ scenario.key }} - eventually 
         # we might not allow 'naked' scenario keys w/o the scenario prefix
         #new_scenario = scenario.copy()

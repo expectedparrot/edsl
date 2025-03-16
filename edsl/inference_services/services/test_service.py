@@ -1,4 +1,4 @@
-from typing import Any, List, Optional
+from typing import Any, List, Optional, TYPE_CHECKING
 import asyncio
 import random
 
@@ -6,6 +6,9 @@ from ..inference_service_abc import InferenceServiceABC
 
 from ...language_models import LanguageModel
 from ...enums import InferenceServiceType
+
+if TYPE_CHECKING:
+    from ....scenarios.file_store import FileStore as File
 
 
 class TestService(InferenceServiceABC):
@@ -34,7 +37,7 @@ class TestService(InferenceServiceABC):
 
     @classmethod
     def create_model(cls, model_name, model_class_name=None) -> LanguageModel:
-        throw_exception = False
+        # Removed unused variable
 
         class TestServiceLanguageModel(LanguageModel):
             _model_ = "test"
