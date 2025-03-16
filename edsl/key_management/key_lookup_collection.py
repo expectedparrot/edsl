@@ -24,6 +24,7 @@ class KeyLookupCollection(UserDict):
         True
         
     Basic usage:
+        >>> from edsl.key_management import KeyLookup
         >>> collection = KeyLookupCollection()
         >>> collection.add_key_lookup(("config", "env"))
         >>> lookup = collection[("config", "env")]  # Get the stored KeyLookup
