@@ -105,6 +105,41 @@ backup: ## Backup the code to `edsl/.backups/`
 	mv $${BACKUP_NAME} "./.backups";\
 	echo "Backup created: $${BACKUP_NAME}"
 
+###############
+##@Performance Benchmarks 📊
+###############
+benchmark-timing: ## Run timing benchmarks
+	python scripts/timing_benchmark.py
+
+benchmark-timing-profile: ## Run timing benchmarks with profiling
+	python scripts/timing_benchmark.py --profile
+
+benchmark-plot: ## Plot historical benchmark data
+	python scripts/timing_benchmark.py --plot
+
+benchmark-visualize: ## Create comprehensive benchmark visualizations
+	python scripts/visualize_benchmarks.py
+
+benchmark-report: ## Generate HTML report of benchmark results
+	python scripts/visualize_benchmarks.py --report --trends
+
+benchmark-small: ## Run timing benchmarks with fewer questions
+	python scripts/timing_benchmark.py --num-questions=100
+
+benchmark-components: ## Run component-level benchmarks
+	python scripts/component_benchmark.py
+
+benchmark-all: ## Run all performance benchmarks and generate reports
+	@echo "Running all performance benchmarks..."
+	@make benchmark-timing
+	@make benchmark-components
+	@make benchmark-timing-profile
+	@make benchmark-report
+	@echo "All benchmarks complete. See benchmark_logs/reports/ for visualizations."
+
+benchmark-test: ## Test that benchmark scripts work properly
+	python scripts/test_benchmarks.py
+
 bump: ## Bump the version of the package
 	@python scripts/bump_version.py $(filter-out $@,$(MAKECMDGOALS))
 %:
