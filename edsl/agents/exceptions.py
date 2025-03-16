@@ -1,5 +1,5 @@
 
-from ..exceptions.BaseException import BaseException
+from ..base.base_exception import BaseException
 
 
 class AgentListError(BaseException):

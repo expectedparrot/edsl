@@ -27,7 +27,6 @@ from collections import defaultdict
 from simpleeval import EvalWithCompoundTypes
 
 from ..exceptions import SurveyError
-
 from ..exceptions import (
     SurveyRuleCannotEvaluateError,
     SurveyRuleRefersToFutureStateError,

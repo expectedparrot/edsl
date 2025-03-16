@@ -10,7 +10,7 @@ from edsl.key_management.models import (
 from edsl.key_management import KeyLookupBuilder
 from edsl.key_management.exceptions import KeyManagementValueError, KeyManagementDuplicateError
 
-from edsl.exceptions.general import MissingAPIKeyError
+from edsl.key_management.key_lookup_builder import MissingAPIKeyError
 
 
 @pytest.fixture
