@@ -12,6 +12,14 @@ class PigLatin:
         return "PigLatin"
     
     @hookimpl
+    def plugin_description(self):
+        return "This plugin translates text to Pig Latin."
+        
+    @hookimpl
+    def edsl_plugin(self, plugin_name=None):
+        if plugin_name is None or plugin_name == "PigLatin":
+            return self
+    @hookimpl
     def get_plugin_methods(self):
         return {
             "pig_latin": self.pig_latin
