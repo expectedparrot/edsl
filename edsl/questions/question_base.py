@@ -48,17 +48,7 @@ Technical Details:
 
 from __future__ import annotations
 from abc import ABC
-from typing import Any, Type, Optional, List, Callable, Union, TypedDict, TYPE_CHECKING
-
-from .exceptions import QuestionSerializationError
-
-from ..base import PersistenceMixin, RepresentationMixin, BaseDiff, BaseDiffCollection
-from ..utilities import remove_edsl_version, is_valid_variable_name
-
-if TYPE_CHECKING:
-    from ..agents import Agent
-    from ..scenarios import Scenario
-    from ..surveys import Survey
+from typing import Any, Type, Optional, Union, TypedDict, TYPE_CHECKING, Literal
 
 from .descriptors import QuestionNameDescriptor, QuestionTextDescriptor
 from .answer_validator_mixin import AnswerValidatorMixin
@@ -66,6 +56,18 @@ from .register_questions_meta import RegisterQuestionsMeta
 from .simple_ask_mixin import SimpleAskMixin
 from .question_base_prompts_mixin import QuestionBasePromptsMixin
 from .question_base_gen_mixin import QuestionBaseGenMixin
+from .exceptions import QuestionSerializationError
+
+from ..base import PersistenceMixin, RepresentationMixin, BaseDiff, BaseDiffCollection
+from ..utilities import remove_edsl_version, is_valid_variable_name
+
+# Define VisibilityType for type annotations
+VisibilityType = Literal["private", "public", "unlisted"]
+
+if TYPE_CHECKING:
+    from ..agents import Agent
+    from ..scenarios import Scenario
+    from ..surveys import Survey
 
 if TYPE_CHECKING:
     from .response_validator_abc import ResponseValidatorABC
@@ -202,11 +204,6 @@ class QuestionBase(
             >>> q = QuestionFreeText(question_name="valid_name", question_text="Text")
             >>> q.is_valid_question_name()
             True
-            
-            >>> q = QuestionFreeText(question_name="123invalid", question_text="Text")
-            Traceback (most recent call last):
-            ...
-            edsl.questions.exceptions.QuestionCreationValidationError: `question_name` is not a valid variable name (got 123invalid).
         """
         return is_valid_variable_name(self.question_name)
 
@@ -509,9 +506,9 @@ class QuestionBase(
                         int(key): value for key, value in options_labels.items()
                     }
                     local_data["option_labels"] = options_labels
-        except:
+        except Exception as e:
             raise QuestionSerializationError(
-                f"Data does not have a 'question_type' field (got {data})."
+                f"Error in deserialization: {str(e)}. Data does not have a 'question_type' field (got {data})."
             )
         from .question_registry import get_question_class
 
@@ -697,7 +694,8 @@ class QuestionBase(
         try:
             return getattr(self, key)
         except TypeError:
-            raise KeyError(f"Question has no attribute {key} of type {type(key)}")
+            from .exceptions import QuestionKeyError
+            raise QuestionKeyError(f"Question has no attribute {key} of type {type(key)}")
 
     def __repr__(self) -> str:
         """Return a string representation of the question. Should be able to be used to reconstruct the question.

@@ -47,7 +47,6 @@ import types
 import warnings
 from uuid import uuid4
 from contextlib import contextmanager
-
 from typing import (
     Callable,
     Optional,
@@ -57,10 +56,8 @@ from typing import (
     Protocol,
     runtime_checkable,
     TypeVar,
+    Type,
 )
-
-# Type variable for the Agent class
-A = TypeVar("A", bound="Agent")
 
 if TYPE_CHECKING:
     from ..caching import Cache
@@ -71,16 +68,7 @@ if TYPE_CHECKING:
     from ..questions import QuestionBase
     from ..invigilators import InvigilatorBase
     from ..prompts import Prompt
-    from ..questions import QuestionBase
     from ..key_management import KeyLookup
-
-
-@runtime_checkable
-class DirectAnswerMethod(Protocol):
-    """Protocol defining the required signature for direct answer methods."""
-
-    def __call__(self, self_: A, question: QuestionBase, scenario: Scenario) -> Any: ...
-
 
 from ..base import Base
 from ..scenarios import Scenario
@@ -92,7 +80,6 @@ from ..utilities import (
     dict_hash,
     remove_edsl_version,
 )
-
 
 from .exceptions import (
     AgentErrors,
@@ -107,6 +94,16 @@ from .descriptors import (
     InstructionDescriptor,
     NameDescriptor,
 )
+
+# Type variable for the Agent class
+A = TypeVar("A", bound="Agent")
+
+
+@runtime_checkable
+class DirectAnswerMethod(Protocol):
+    """Protocol defining the required signature for direct answer methods."""
+
+    def __call__(self, self_: A, question: QuestionBase, scenario: Scenario) -> Any: ...
 
 
 class AgentTraits(Scenario):
@@ -472,9 +469,10 @@ class Agent(Base):
         # Transfer direct answering method if present
         if hasattr(self, "answer_question_directly"):
             answer_question_directly = self.answer_question_directly
-            newf = lambda self, question, scenario: answer_question_directly(
-                question, scenario
-            )
+            def newf(self, question, scenario):
+                return answer_question_directly(
+                    question, scenario
+                )
             new_agent.add_direct_question_answering_method(newf)
             
         # Transfer dynamic traits function if present
@@ -940,7 +938,7 @@ class Agent(Base):
 
     answer_question = sync_wrapper(async_answer_question)
 
-    def _get_invigilator_class(self, question: QuestionBase) -> Type[InvigilatorBase]:
+    def _get_invigilator_class(self, question: "QuestionBase") -> Type["InvigilatorBase"]:
         """Get the invigilator class for a question.
 
         This method returns the invigilator class that should be used to answer a question.
@@ -1098,6 +1096,8 @@ class Agent(Base):
         if name in self._traits:
             return self._traits[name]
 
+        # Keep using AttributeError instead of our custom exception to maintain compatibility
+        # with Python's attribute access mechanism
         raise AttributeError(
             f"'{type(self).__name__}' object has no attribute '{name}'"
         )
@@ -1142,7 +1142,7 @@ class Agent(Base):
                 raw_data.pop("instruction")
         if self.codebook == {}:
             raw_data.pop("codebook")
-        if self.name == None:
+        if self.name is None:
             raw_data.pop("name")
 
         if hasattr(self, "dynamic_traits_function"):
@@ -1164,7 +1164,7 @@ class Agent(Base):
 
             if (
                 answer_question_directly_func
-                and raw_data.get("answer_question_directly_source_code", None) != None
+                and raw_data.get("answer_question_directly_source_code", None) is not None
             ):
                 raw_data["answer_question_directly_source_code"] = inspect.getsource(
                     answer_question_directly_func
@@ -1352,7 +1352,7 @@ def main():
         question_name="food_preference",
     )
     job = question.by(agent)
-    results = job.run()
+    job.run()  # results not used
 
 
 if __name__ == "__main__":

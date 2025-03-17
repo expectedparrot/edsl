@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 import json
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional
 from uuid import uuid4
 
 from ..base import Base

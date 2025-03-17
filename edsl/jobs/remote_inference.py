@@ -1,6 +1,11 @@
 from typing import Optional, Union, Literal, TYPE_CHECKING, NewType, Callable, Any
-
 from dataclasses import dataclass
+from ..coop import CoopServerResponseError
+from ..coop.utils import VisibilityType
+from ..coop.coop import RemoteInferenceResponse, RemoteInferenceCreationInfo
+from .jobs_status_enums import JobsStatus
+from .jobs_remote_inference_logger import JobLogger
+from .exceptions import RemoteInferenceError
 
 
 Seconds = NewType("Seconds", float)
@@ -9,14 +14,6 @@ JobUUID = NewType("JobUUID", str)
 if TYPE_CHECKING:
     from ..results import Results
     from .jobs import Jobs
-    from .jobs_remote_inference_logger import JobLogger
-
-from ..coop import CoopServerResponseError
-from ..coop.utils import VisibilityType
-from ..coop.coop import RemoteInferenceResponse, RemoteInferenceCreationInfo
-
-from .jobs_status_enums import JobsStatus
-from .jobs_remote_inference_logger import JobLogger
 
 
 class RemoteJobConstants:
@@ -54,7 +51,6 @@ class JobsRemoteInferenceHandler:
     def _create_logger(self) -> JobLogger:
         from ..utilities import is_notebook
         from .jobs_remote_inference_logger import (
-            JupyterJobLogger,
             StdOutJobLogger,
         )
         from .html_table_job_logger import HTMLTableJobLogger
@@ -76,7 +72,7 @@ class JobsRemoteInferenceHandler:
                 return user_edsl_settings.get("remote_inference", False)
             except requests.ConnectionError:
                 pass
-            except CoopServerResponseError as e:
+            except CoopServerResponseError:
                 pass
 
         return False
@@ -88,7 +84,6 @@ class JobsRemoteInferenceHandler:
         remote_inference_results_visibility: Optional["VisibilityType"] = "unlisted",
         fresh: Optional[bool] = False,
     ) -> RemoteJobInfo:
-        from ..config import CONFIG
         from ..coop import Coop
 
         logger = self._create_logger()
@@ -183,6 +178,13 @@ class JobsRemoteInferenceHandler:
     ) -> None:
         "Handles a failed job by logging the error and updating the job status."
         latest_error_report_url = remote_job_data.get("latest_error_report_url")
+
+        reason = remote_job_data.get("reason")
+
+        if reason == "insufficient funds":
+            latest_error_report_url = "Error: Insufficient balance to start the job"
+            print("❌ Error: Insufficient balance to start the job")
+
         if latest_error_report_url:
             job_info.logger.add_info("error_report_url", latest_error_report_url)
 
@@ -236,10 +238,10 @@ class JobsRemoteInferenceHandler:
         """Makes one attempt to fetch and process a remote job's status and results."""
         remote_job_data = remote_job_data_fetcher(job_info.job_uuid)
         status = remote_job_data.get("status")
-
+        reason = remote_job_data.get("reason")
         if status == "cancelled":
             self._handle_cancelled_job(job_info)
-            return None
+            return None, reason
 
         elif status == "failed" or status == "completed" or status == "partial_failed":
             if status == "failed" or status == "partial_failed":
@@ -253,13 +255,13 @@ class JobsRemoteInferenceHandler:
                     remote_job_data=remote_job_data,
                     object_fetcher=object_fetcher,
                 )
-                return results
+                return results, reason
             else:
-                return None
+                return None, reason
 
         else:
             self._sleep_for_a_bit(job_info, status)
-            return "continue"
+            return "continue", reason
 
     def poll_remote_inference_job(
         self,
@@ -275,11 +277,11 @@ class JobsRemoteInferenceHandler:
 
         job_in_queue = True
         while job_in_queue:
-            result = self._attempt_fetch_job(
+            result, reason = self._attempt_fetch_job(
                 job_info, remote_job_data_fetcher, object_fetcher
             )
             if result != "continue":
-                return result
+                return result, reason
 
     async def create_and_poll_remote_job(
         self,
@@ -311,7 +313,7 @@ class JobsRemoteInferenceHandler:
             ),
         )
         if job_info is None:
-            raise ValueError("Remote job creation failed.")
+            raise RemoteInferenceError("Remote job creation failed.")
 
         return await loop.run_in_executor(
             None,

@@ -25,10 +25,8 @@ from typing import (
     TYPE_CHECKING,
     Dict,
     Tuple,
-    Set,
-    Type,
 )
-from typing_extensions import Literal, TypeAlias
+from typing_extensions import Literal
 from ..base import Base
 from ..agents import Agent
 from ..scenarios import Scenario
@@ -45,7 +43,6 @@ if TYPE_CHECKING:
     from ..scenarios import ScenarioList
     from ..buckets.bucket_collection import BucketCollection
     from ..key_management.key_lookup import KeyLookup
-    from .memory import Memory
     
     # Define types for documentation purpose only  
     VisibilityType = Literal["unlisted", "public", "private"]

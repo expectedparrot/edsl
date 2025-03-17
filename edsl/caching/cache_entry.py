@@ -11,10 +11,11 @@ from __future__ import annotations
 import json
 import datetime
 import hashlib
-from typing import Optional, Dict, List, Any, Union
+from typing import Optional, Dict, List, Any
 from uuid import uuid4
 
 from ..base import RepresentationMixin
+from .exceptions import CacheError
 
 
 class CacheEntry(RepresentationMixin):
@@ -81,22 +82,22 @@ class CacheEntry(RepresentationMixin):
             TypeError: If any attribute has an incorrect type
         """
         if not isinstance(self.model, str):
-            raise TypeError("`model` should be a string.")
+            raise CacheError("`model` should be a string.")
         if not isinstance(self.parameters, dict):
-            raise TypeError("`parameters` should be a dictionary.")
+            raise CacheError("`parameters` should be a dictionary.")
         if not isinstance(self.system_prompt, str):
-            raise TypeError("`system_prompt` should be a string.")
+            raise CacheError("`system_prompt` should be a string.")
         if not isinstance(self.user_prompt, str):
-            raise TypeError("`user_prompt` should be a string")
+            raise CacheError("`user_prompt` should be a string")
         if not isinstance(self.output, str):
-            raise TypeError("`output` should be a string")
+            raise CacheError("`output` should be a string")
         if not isinstance(self.iteration, int):
-            raise TypeError("`iteration` should be an integer")
+            raise CacheError("`iteration` should be an integer")
         # Note: timestamp is stored as int for compatibility, but could be float in future
         if not isinstance(self.timestamp, int):
-            raise TypeError(f"`timestamp` should be an integer")
+            raise CacheError("`timestamp` should be an integer")
         if self.service is not None and not isinstance(self.service, str):
-            raise TypeError("`service` should be either a string or None")
+            raise CacheError("`service` should be either a string or None")
 
     @classmethod
     def gen_key(

@@ -41,7 +41,7 @@ import json
 import random
 import warnings
 from collections import UserList, defaultdict
-from typing import Optional, Callable, Any, Type, Union, List, TYPE_CHECKING
+from typing import Optional, Callable, Any, Union, List, TYPE_CHECKING
 from bisect import bisect_left
 
 from ..base import Base
@@ -50,7 +50,6 @@ if TYPE_CHECKING:
     from ..surveys import Survey
     from ..data import Cache
     from ..agents import AgentList
-    from ..language_models import Model
     from ..scenarios import ScenarioList
     from ..results import Result
     from ..tasks import TaskHistory
@@ -113,13 +112,13 @@ def ensure_ready(method):
 
 class NotReadyObject:
     """A placeholder object that prints a message when any attribute is accessed."""
-    def __init__(self, name: str, job_info: 'RemoteJobInfo'):
+    def __init__(self, name: str, job_info: 'Any'):
         self.name = name
         self.job_info = job_info
         #print(f"Not ready to call {name}")
 
     def __repr__(self):
-        message = f"""Results not ready - job still running on server."""
+        message = """Results not ready - job still running on server."""
         for key, value in self.job_info.creation_data.items():
             message += f"\n{key}: {value}"
         return message
@@ -447,7 +446,7 @@ class Results(UserList, ResultsOperationsMixin, Base):
                 self.fetch_remote(self.job_info)
             
             if not self.completed:
-                return f"Results not ready to call"
+                return "Results not ready to call"
         
         return super()._repr_html_()
 
@@ -579,7 +578,7 @@ class Results(UserList, ResultsOperationsMixin, Base):
     def hashes(self) -> set:
         return set(hash(result) for result in self.data)
 
-    def sample(self, n: int) -> Results:
+    def _sample_legacy(self, n: int) -> Results:
         """Return a random sample of the results.
 
         :param n: The number of samples to return.
@@ -623,7 +622,6 @@ class Results(UserList, ResultsOperationsMixin, Base):
         from ..caching import Cache
         from ..results import Result
         from ..tasks import TaskHistory
-        from ..agents import Agent
 
         survey = Survey.from_dict(data["survey"])
         results_data = [Result.from_dict(r) for r in data["data"]]
@@ -1056,26 +1054,7 @@ class Results(UserList, ResultsOperationsMixin, Base):
             created_columns=self.created_columns + [var_name],
         )
 
-    @ensure_ready
-    def add_column(self, column_name: str, values: list) -> Results:
-        """Adds columns to Results
-
-        >>> r = Results.example()
-        >>> r.add_column('a', [1,2,3, 4]).select('a')
-        Dataset([{'answer.a': [1, 2, 3, 4]}])
-        """
-
-        assert len(values) == len(
-            self.data
-        ), "The number of values must match the number of results."
-        new_results = self.data.copy()
-        for i, result in enumerate(new_results):
-            result["answer"][column_name] = values[i]
-        return Results(
-            survey=self.survey,
-            data=new_results,
-            created_columns=self.created_columns + [column_name],
-        )
+    # Method removed due to duplication (F811)
 
     @ensure_ready
     def rename(self, old_name: str, new_name: str) -> Results:
@@ -1255,7 +1234,7 @@ class Results(UserList, ResultsOperationsMixin, Base):
         def to_numeric_if_possible(v):
             try:
                 return float(v)
-            except:
+            except (ValueError, TypeError):
                 return v
 
         def sort_key(item):
@@ -1424,7 +1403,7 @@ class Results(UserList, ResultsOperationsMixin, Base):
         return [r.score_with_answer_key(answer_key) for r in self.data]
     
 
-    def fetch_remote(self, job_info: "RemoteJobInfo") -> None:
+    def fetch_remote(self, job_info: Any) -> None:
         """
         Fetches the remote Results object using the provided RemoteJobInfo and updates this instance with the remote data.
         
@@ -1512,7 +1491,7 @@ class Results(UserList, ResultsOperationsMixin, Base):
         from ..questions import QuestionFreeText, QuestionDict
         from ..surveys import Survey
         from ..scenarios import Scenario, ScenarioList
-        from ..language_models import Model, ModelList
+        from ..language_models import ModelList
         import pandas as pd
 
         df = self.select("agent.*", "scenario.*", "answer.*", "raw_model_response.*", "prompt.*").to_pandas()

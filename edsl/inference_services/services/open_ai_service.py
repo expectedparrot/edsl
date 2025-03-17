@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Any, List, Optional, Dict, NewType
+from typing import Any, List, Optional, Dict, NewType, TYPE_CHECKING
 import os
 
 import openai
@@ -7,9 +7,11 @@ import openai
 from ..inference_service_abc import InferenceServiceABC
 from ...language_models import LanguageModel
 from ..rate_limits_cache import rate_limits
-from ...utilities.utilities import fix_partial_correct_response
 
-from ...config import CONFIG
+if TYPE_CHECKING:
+    from ....scenarios.file_store import FileStore as Files
+    from ....invigilators.invigilator_base import InvigilatorBase as InvigilatorAI
+
 
 APIToken = NewType("APIToken", str)
 
@@ -103,7 +105,7 @@ class OpenAIService(InferenceServiceABC):
                     for m in cls.get_model_list(api_key=api_token)
                     if m.id not in cls.model_exclude_list
                 ]
-            except Exception as e:
+            except Exception:
                 raise
         return cls._models_list_cache
 
@@ -165,7 +167,7 @@ class OpenAIService(InferenceServiceABC):
                     else:
                         headers = self.get_headers()
 
-                except Exception as e:
+                except Exception:
                     return {
                         "rpm": 10_000,
                         "tpm": 2_000_000,

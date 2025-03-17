@@ -1,11 +1,11 @@
 from typing import Union, Sequence, TYPE_CHECKING
+from .exceptions import JobsValueError
 
 if TYPE_CHECKING:
     from ..agents import Agent
     from ..language_models import LanguageModel
     from ..scenarios import Scenario
     from .jobs import Jobs
-    from ..invigilators import InvigilatorBase
 
 class JobsComponentConstructor:
     "Handles the creation of Agents, Scenarios, and LanguageModels in a job."
@@ -132,7 +132,7 @@ class JobsComponentConstructor:
                 key = class_to_key[class_type]
                 break
         else:
-            raise ValueError(
+            raise JobsValueError(
                 f"First argument must be an Agent, Scenario, or LanguageModel, not {object}"
             )
         current_objects = getattr(self.jobs, key, None)

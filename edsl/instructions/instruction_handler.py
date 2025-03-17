@@ -1,4 +1,3 @@
-from typing import TYPE_CHECKING
 from dataclasses import dataclass
 
 
@@ -51,7 +50,10 @@ class InstructionHandler:
         >>> s = Survey([q1, i, q2, i_change])
         Traceback (most recent call last):
         ...
-        ValueError: ChangeInstruction change_instruction_0 references instruction poop which does not exist.
+        edsl.instructions.exceptions.InstructionValueError: ChangeInstruction change_instruction_0 references instruction poop which does not exist.
+        <BLANKLINE>
+        <BLANKLINE>
+        For more information, see: https://docs.expectedparrot.com/en/latest/instructions.html
         """
         from .instruction import Instruction
         from .change_instruction import ChangeInstruction
@@ -70,7 +72,8 @@ class InstructionHandler:
                     num_change_instructions += 1
                     for prior_instruction in entry.keep + entry.drop:
                         if prior_instruction not in instruction_names_to_instructions:
-                            raise ValueError(
+                            from edsl.instructions.exceptions import InstructionValueError
+                            raise InstructionValueError(
                                 f"ChangeInstruction {entry.name} references instruction {prior_instruction} which does not exist."
                             )
                 instructions_run_length += 1
@@ -83,7 +86,8 @@ class InstructionHandler:
                 instructions_run_length = 0
                 true_questions.append(entry)
             else:
-                raise ValueError(
+                from edsl.instructions.exceptions import InstructionValueError
+                raise InstructionValueError(
                     f"Entry {repr(entry)} is not a QuestionBase or an Instruction."
                 )
 

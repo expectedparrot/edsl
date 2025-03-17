@@ -3,7 +3,7 @@
 ###############
 GIT_ROOT ?= $(shell git rev-parse --show-toplevel)
 PROJECT_NAME ?= $(shell basename $(GIT_ROOT))
-.PHONY: bump docs docstrings find help integration model-report
+.PHONY: bump docs docstrings find help integration model-report ruff-lint
 
 ###############
 ##@Utils ⭐ 
@@ -105,6 +105,41 @@ backup: ## Backup the code to `edsl/.backups/`
 	mv $${BACKUP_NAME} "./.backups";\
 	echo "Backup created: $${BACKUP_NAME}"
 
+###############
+##@Performance Benchmarks 📊
+###############
+benchmark-timing: ## Run timing benchmarks
+	python scripts/timing_benchmark.py
+
+benchmark-timing-profile: ## Run timing benchmarks with profiling
+	python scripts/timing_benchmark.py --profile
+
+benchmark-plot: ## Plot historical benchmark data
+	python scripts/timing_benchmark.py --plot
+
+benchmark-visualize: ## Create comprehensive benchmark visualizations
+	python scripts/visualize_benchmarks.py
+
+benchmark-report: ## Generate HTML report of benchmark results
+	python scripts/visualize_benchmarks.py --report --trends
+
+benchmark-small: ## Run timing benchmarks with fewer questions
+	python scripts/timing_benchmark.py --num-questions=100
+
+benchmark-components: ## Run component-level benchmarks
+	python scripts/component_benchmark.py
+
+benchmark-all: ## Run all performance benchmarks and generate reports
+	@echo "Running all performance benchmarks..."
+	@make benchmark-timing
+	@make benchmark-components
+	@make benchmark-timing-profile
+	@make benchmark-report
+	@echo "All benchmarks complete. See benchmark_logs/reports/ for visualizations."
+
+benchmark-test: ## Test that benchmark scripts work properly
+	python scripts/test_benchmarks.py
+
 bump: ## Bump the version of the package
 	@python scripts/bump_version.py $(filter-out $@,$(MAKECMDGOALS))
 %:
@@ -141,6 +176,26 @@ format: ## Run code autoformatters (black).
 
 lint: ## Run code linters (flake8, pylint, mypy).
 	mypy edsl
+
+ruff-lint: ## Run ruff linter on all modules in sequence
+	poetry run ruff check edsl/instructions
+	poetry run ruff check edsl/key_management
+	poetry run ruff check edsl/prompts
+	poetry run ruff check edsl/tasks
+	poetry run ruff check edsl/inference_services
+	poetry run ruff check edsl/results
+	poetry run ruff check edsl/dataset
+	poetry run ruff check edsl/buckets
+	poetry run ruff check edsl/interviews
+	poetry run ruff check edsl/tokens
+	poetry run ruff check edsl/jobs
+	poetry run ruff check edsl/surveys
+	poetry run ruff check edsl/agents
+	poetry run ruff check edsl/scenarios
+	poetry run ruff check edsl/questions
+	poetry run ruff check edsl/utilities
+	poetry run ruff check edsl/language_models
+	poetry run ruff check edsl/caching
 
 visualize: ## Visualize the repo structure
 	python scripts/visualize_structure.py
@@ -210,7 +265,6 @@ test-doctests: ## Run doctests
 	pytest --doctest-modules edsl/utilities
 	pytest --doctest-modules edsl/language_models
 	pytest --doctest-modules edsl/caching
-	pytest --doctest-modules edsl/study
 
 
 test-services:

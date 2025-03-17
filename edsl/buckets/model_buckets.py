@@ -6,8 +6,7 @@ and tokens-per-minute rate limits for language model API services. Each ModelBuc
 instance contains two TokenBucket instances - one for requests and one for tokens.
 """
 
-from typing import TYPE_CHECKING, Tuple, Optional, Any
-import matplotlib.pyplot as plt
+from typing import TYPE_CHECKING, Tuple
 from matplotlib.figure import Figure
 
 if TYPE_CHECKING:
