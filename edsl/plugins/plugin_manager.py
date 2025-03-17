@@ -7,8 +7,10 @@ import importlib
 import importlib.util
 import shutil
 import re
+import json
 from typing import Optional, List, Dict, Any
 import pluggy
+import platformdirs
 from urllib.parse import urlparse
 
 from .hookspec import EDSLPluginSpec
@@ -26,6 +28,13 @@ from .. import logger
 class EDSLPluginManager:
     """Manage EDSL plugins using pluggy."""
     
+    # Define paths for persistent data
+    PLUGINS_DATA_DIR = platformdirs.user_data_dir("edsl")
+    PLUGINS_DATA_FILE = os.path.join(PLUGINS_DATA_DIR, "installed_plugins.json")
+    
+    # Ensure the directory exists
+    os.makedirs(PLUGINS_DATA_DIR, exist_ok=True)
+    
     def __init__(self):
         # Create a plugin manager for the "edsl" project
         self.manager = pluggy.PluginManager("edsl")
@@ -36,11 +45,41 @@ class EDSLPluginManager:
         # Dictionary to store plugin methods
         self.methods = {}
         # Dictionary to track installed plugins
-        self.installed_plugins = {}
+        self.installed_plugins = self._load_installed_plugins()
         # Register built-in plugins
         self._register_builtin_plugins()
         # Discover and register methods
         self._discover_methods()
+        
+    def _load_installed_plugins(self) -> Dict[str, str]:
+        """
+        Load the list of installed plugins from the data file.
+        
+        Returns:
+            Dictionary mapping plugin names to installation directories
+        """
+        # Create the directory if it doesn't exist
+        os.makedirs(os.path.dirname(self.PLUGINS_DATA_FILE), exist_ok=True)
+        
+        # Load the plugins data if it exists
+        if os.path.exists(self.PLUGINS_DATA_FILE):
+            try:
+                with open(self.PLUGINS_DATA_FILE, 'r') as f:
+                    return json.load(f)
+            except (json.JSONDecodeError, IOError) as e:
+                logger.warning(f"Failed to load installed plugins data: {str(e)}")
+        
+        return {}
+        
+    def _save_installed_plugins(self):
+        """
+        Save the list of installed plugins to the data file.
+        """
+        try:
+            with open(self.PLUGINS_DATA_FILE, 'w') as f:
+                json.dump(self.installed_plugins, f)
+        except IOError as e:
+            logger.warning(f"Failed to save installed plugins data: {str(e)}")
 
     def install_plugin_from_github(self, github_url: str, branch: Optional[str] = None) -> List[str]:
         """
@@ -180,6 +219,8 @@ class EDSLPluginManager:
             
             # Record successful installation
             self.installed_plugins[package_name] = package_dir
+            # Save the updated list of installed plugins
+            self._save_installed_plugins()
             
             # Return names of plugins in this package
             # For now just return the package name as a placeholder
@@ -219,8 +260,43 @@ class EDSLPluginManager:
                 if match:
                     return match.group(1)
         
+        # Look for name in plugins registry to normalize name
+        try:
+            # Get the GitHub URL from setup.py or repo directory
+            git_config = os.path.join(package_dir, '.git', 'config')
+            if os.path.exists(git_config):
+                with open(git_config, 'r') as f:
+                    content = f.read()
+                    url_match = re.search(r"url\s*=\s*(.+)", content)
+                    if url_match:
+                        url = url_match.group(1).strip()
+                        # Extract repo name
+                        repo_name = url.split('/')[-1]
+                        # Remove .git suffix if present
+                        if repo_name.endswith('.git'):
+                            repo_name = repo_name[:-4]
+                            
+                        # If repo name follows common patterns
+                        if repo_name.startswith('edsl-'):
+                            return repo_name[5:]  # Remove 'edsl-' prefix
+                        if repo_name.startswith('plugin-'):
+                            return repo_name[7:]  # Remove 'plugin-' prefix
+                        if repo_name.endswith('-plugin'):
+                            return repo_name[:-7]  # Remove '-plugin' suffix
+        except Exception as e:
+            logger.debug(f"Error extracting name from git config: {str(e)}")
+        
         # Default to directory name
-        return os.path.basename(os.path.normpath(package_dir))
+        dir_name = os.path.basename(os.path.normpath(package_dir))
+        # Clean up common prefixes/suffixes in directory names too
+        if dir_name.startswith('edsl-'):
+            return dir_name[5:]
+        if dir_name.startswith('plugin-'):
+            return dir_name[7:]
+        if dir_name.endswith('-plugin'):
+            return dir_name[:-7]
+            
+        return dir_name
     
     def _reload_plugins(self) -> None:
         """Reload plugins and discover new methods."""
@@ -243,17 +319,75 @@ class EDSLPluginManager:
             PluginNotFoundError: If the plugin is not installed
             PluginInstallationError: If uninstallation fails
         """
-        # Check if plugin is installed
-        if plugin_name not in self.installed_plugins:
-            raise PluginNotFoundError(f"Plugin '{plugin_name}' is not installed")
+        # Check if plugin is installed directly
+        if plugin_name in self.installed_plugins:
+            actual_name = plugin_name
+        else:
+            # Try to find the plugin using case-insensitive matching and pattern recognition
+            actual_name = None
+            for installed_name in self.installed_plugins:
+                # Check for exact match ignoring case
+                if installed_name.lower() == plugin_name.lower():
+                    actual_name = installed_name
+                    break
+                
+                # Check for matches with common prefix/suffix variations
+                normalized_installed = installed_name.lower()
+                normalized_requested = plugin_name.lower()
+                
+                # Strip common prefixes/suffixes for comparison
+                for prefix in ["edsl-", "plugin-"]:
+                    if normalized_installed.startswith(prefix):
+                        normalized_installed = normalized_installed[len(prefix):]
+                    if normalized_requested.startswith(prefix):
+                        normalized_requested = normalized_requested[len(prefix):]
+                
+                for suffix in ["-plugin"]:
+                    if normalized_installed.endswith(suffix):
+                        normalized_installed = normalized_installed[:-len(suffix)]
+                    if normalized_requested.endswith(suffix):
+                        normalized_requested = normalized_requested[:-len(suffix)]
+                
+                # Compare normalized names
+                if normalized_installed == normalized_requested:
+                    actual_name = installed_name
+                    break
+            
+            if actual_name is None:
+                raise PluginNotFoundError(f"Plugin '{plugin_name}' is not installed")
         
         try:
-            # Uninstall the package
-            cmd = [sys.executable, '-m', 'pip', 'uninstall', '-y', plugin_name]
+            package_dir = self.installed_plugins[actual_name]
+            logger.debug(f"Uninstalling plugin '{actual_name}' from {package_dir}")
+            
+            # Determine pip package name
+            pip_package_name = actual_name
+            
+            # Try to get the actual package name from setup.py or pyproject.toml
+            setup_py = os.path.join(package_dir, 'setup.py')
+            if os.path.exists(setup_py):
+                with open(setup_py, 'r') as f:
+                    content = f.read()
+                    match = re.search(r"name=['\"]([^'\"]+)['\"]", content)
+                    if match:
+                        pip_package_name = match.group(1)
+            
+            pyproject_toml = os.path.join(package_dir, 'pyproject.toml')
+            if os.path.exists(pyproject_toml):
+                with open(pyproject_toml, 'r') as f:
+                    content = f.read()
+                    match = re.search(r"name\s*=\s*['\"]([^'\"]+)['\"]", content)
+                    if match:
+                        pip_package_name = match.group(1)
+            
+            # Uninstall the package using pip
+            cmd = [sys.executable, '-m', 'pip', 'uninstall', '-y', pip_package_name]
             subprocess.run(cmd, check=True, capture_output=True)
             
             # Remove from installed plugins
-            del self.installed_plugins[plugin_name]
+            del self.installed_plugins[actual_name]
+            # Save the updated list of installed plugins
+            self._save_installed_plugins()
             
             # Reload plugins
             self._reload_plugins()
