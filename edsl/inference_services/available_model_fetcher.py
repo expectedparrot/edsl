@@ -1,6 +1,5 @@
-from typing import Any, List, Tuple, Optional, Dict, TYPE_CHECKING, Union, Generator
+from typing import List, Tuple, Optional, Dict, Union
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from collections import UserList
 
 from .service_availability import ServiceAvailability
 from .inference_service_abc import InferenceServiceABC
@@ -156,7 +155,8 @@ class AvailableModelFetcher:
         """The service name is the _inference_service_ attribute of the service."""
         if service_name in self._service_map:
             return self._service_map[service_name]
-        raise ValueError(f"Service {service_name} not found")
+        from edsl.inference_services.exceptions import InferenceServiceValueError
+        raise InferenceServiceValueError(f"Service {service_name} not found")
 
     def _get_all_models(self, force_refresh=False) -> List[LanguageModelInfo]:
         all_models = []
@@ -191,8 +191,7 @@ class AvailableModelFetcher:
 def main():
     from .services.open_ai_service import OpenAIService
 
-    af = AvailableModelFetcher([OpenAIService()], {}, verbose=True)
-    # print(af.available(service="openai"))
+    # Create fetcher without assigning to unused variable
     all_models = AvailableModelFetcher([OpenAIService()], {})._get_all_models(
         force_refresh=True
     )

@@ -1,9 +1,10 @@
-from collections import UserDict
-import traceback
 import datetime
 import json
+import traceback
+from collections import UserDict
 
 from ..invigilators import InvigilatorBase
+
 
 class InterviewExceptionEntry:
     """Class to record an exception that occurred during the interview."""
@@ -69,8 +70,8 @@ class InterviewExceptionEntry:
 
         >>> entry = InterviewExceptionEntry.example()
         """
-        from ..questions import QuestionFreeText
         from ..language_models import LanguageModel
+        from ..questions import QuestionFreeText
 
         m = LanguageModel.example(test_model=True)
         q = QuestionFreeText.example(exception_to_throw=ValueError)
@@ -128,11 +129,10 @@ class InterviewExceptionEntry:
 
     @property
     def html_traceback(self) -> str:
-        from rich.console import Console
-        from rich.table import Table
-        from rich.traceback import Traceback
-
         from io import StringIO
+
+        from rich.console import Console
+        from rich.traceback import Traceback
 
         html_output = StringIO()
 
@@ -218,7 +218,6 @@ class InterviewExceptionEntry:
         return cls(exception=exception, invigilator=invigilator)
 
 
-
 class InterviewExceptionCollection(UserDict):
     """A collection of exceptions that occurred during the interview."""
 
@@ -230,6 +229,14 @@ class InterviewExceptionCollection(UserDict):
     def unfixed_exceptions(self) -> list:
         """Return a list of unfixed exceptions."""
         return {k: v for k, v in self.data.items() if k not in self.fixed}
+
+    def num_exceptions(self) -> int:
+        """Return the total number of exceptions."""
+        return sum(len(v) for v in self.data.values())
+
+    def num_unfixed_exceptions(self) -> int:
+        """Return the number of unfixed exceptions."""
+        return sum(len(v) for v in self.unfixed_exceptions().values())
 
     def num_unfixed(self) -> int:
         """Return a list of unfixed questions."""

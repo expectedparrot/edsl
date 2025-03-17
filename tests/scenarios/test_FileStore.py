@@ -1,11 +1,4 @@
 import pytest
-import os
-import base64
-import pandas as pd
-import sqlite3
-from io import StringIO, BytesIO
-from unittest.mock import patch, MagicMock
-from edsl.scenarios import Scenario
 
 from edsl.scenarios import FileStore
 
@@ -14,7 +7,6 @@ from edsl.scenarios.file_methods import FileMethods
 file_types = FileMethods.supported_file_types()
 
 import unittest
-from unittest.mock import patch, MagicMock
 
 
 class TestScenario(unittest.TestCase):

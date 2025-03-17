@@ -1,16 +1,15 @@
 import os
-from typing import Any, Optional, List
-import re
+from typing import Any, Optional, List, TYPE_CHECKING
 from openai import AsyncAzureOpenAI
 from ..inference_service_abc import InferenceServiceABC
 from ...language_models import LanguageModel
 
+if TYPE_CHECKING:
+    from ....scenarios.file_store import FileStore
+
 from azure.ai.inference.aio import ChatCompletionsClient
 from azure.core.credentials import AzureKeyCredential
 from azure.ai.inference.models import SystemMessage, UserMessage
-import asyncio
-import json
-from edsl.utilities.utilities import fix_partial_correct_response
 
 
 def json_handle_none(value: Any) -> Any:
@@ -47,7 +46,8 @@ class AzureAIService(InferenceServiceABC):
         out = []
         azure_endpoints = os.getenv("AZURE_ENDPOINT_URL_AND_KEY", None)
         if not azure_endpoints:
-            raise EnvironmentError(f"AZURE_ENDPOINT_URL_AND_KEY is not defined")
+            from edsl.inference_services.exceptions import InferenceServiceEnvironmentError
+            raise InferenceServiceEnvironmentError("AZURE_ENDPOINT_URL_AND_KEY is not defined")
         azure_endpoints = azure_endpoints.split(",")
         for data in azure_endpoints:
             try:
@@ -131,21 +131,23 @@ class AzureAIService(InferenceServiceABC):
                     api_key = cls._model_id_to_endpoint_and_key[model_name][
                         "azure_endpoint_key"
                     ]
-                except:
+                except (KeyError, TypeError):
                     api_key = None
 
                 if not api_key:
-                    raise EnvironmentError(
+                    from edsl.inference_services.exceptions import InferenceServiceEnvironmentError
+                    raise InferenceServiceEnvironmentError(
                         f"AZURE_ENDPOINT_URL_AND_KEY doesn't have the endpoint:key pair for your model: {model_name}"
                     )
 
                 try:
                     endpoint = cls._model_id_to_endpoint_and_key[model_name]["endpoint"]
-                except:
+                except (KeyError, TypeError):
                     endpoint = None
 
                 if not endpoint:
-                    raise EnvironmentError(
+                    from edsl.inference_services.exceptions import InferenceServiceEnvironmentError
+                    raise InferenceServiceEnvironmentError(
                         f"AZURE_ENDPOINT_URL_AND_KEY doesn't have the endpoint:key pair for your model: {model_name}"
                     )
 

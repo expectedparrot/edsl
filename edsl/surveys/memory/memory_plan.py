@@ -8,6 +8,7 @@ if TYPE_CHECKING:
     from ...surveys import Survey
     from ...prompts import Prompt
     from ..dag import DAG
+    from ...questions.question_base import QuestionBase
 
 class MemoryPlan(UserDict):
     """A survey has a memory plan that specifies what the agent should remember when answering a question.

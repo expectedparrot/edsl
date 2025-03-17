@@ -1,5 +1,6 @@
 from collections import UserDict
 
+# Import for doctest and type hints
 from .key_lookup_builder import KeyLookupBuilder
 from .key_lookup import KeyLookup
 
@@ -25,6 +26,7 @@ class KeyLookupCollection(UserDict):
         True
         
     Basic usage:
+        >>> from edsl.key_management import KeyLookup
         >>> collection = KeyLookupCollection()
         >>> collection.add_key_lookup(("config", "env"))
         >>> lookup = collection[("config", "env")]  # Get the stored KeyLookup

@@ -3,7 +3,6 @@ import asyncio
 from typing import Coroutine, Dict, Any, Optional, TYPE_CHECKING
 
 from ..utilities.decorators import jupyter_nb_handler
-from ..data_transfer_models import AgentResponseDict
 
 if TYPE_CHECKING:
     from ..prompts import Prompt

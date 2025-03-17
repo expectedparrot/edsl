@@ -1,5 +1,7 @@
-from jinja2 import Environment, meta
-from typing import List, Optional, Union
+from jinja2 import Environment
+from typing import List, Union
+
+import edsl.scenarios.scenario  # noqa: F401
 
 
 def extract_template_variables(ast) -> List[Union[str, tuple]]:
@@ -61,7 +63,7 @@ class QuestionOptionProcessor:
 
         return cls(scenario, prior_answers_dict)
 
-    def __init__(self, scenario: 'Scenario', prior_answers_dict: dict):
+    def __init__(self, scenario: 'edsl.scenarios.scenario.Scenario', prior_answers_dict: dict):
         # This handles cases where the question has {{ scenario.key }} - eventually 
         # we might not allow 'naked' scenario keys w/o the scenario prefix
         #new_scenario = scenario.copy()
@@ -106,9 +108,11 @@ class QuestionOptionProcessor:
         undeclared_variables = extract_template_variables(parsed_content)
         
         if not undeclared_variables:
-            raise ValueError("No variables found in template string")
+            from edsl.invigilators.exceptions import InvigilatorValueError
+            raise InvigilatorValueError("No variables found in template string")
         if len(undeclared_variables) > 1:
-            raise ValueError("Multiple variables found in template string")
+            from edsl.invigilators.exceptions import InvigilatorValueError
+            raise InvigilatorValueError("Multiple variables found in template string")
         
         return undeclared_variables[0]
 

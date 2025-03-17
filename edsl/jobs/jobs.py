@@ -17,19 +17,14 @@ who need to run complex simulations with language models.
 """
 from __future__ import annotations
 import asyncio
-from inspect import signature
 from typing import Optional, Union, TypeVar, Callable, cast
 from functools import wraps
 
 from typing import (
     Literal,
-    Optional,
-    Union,
     Sequence,
     Generator,
     TYPE_CHECKING,
-    Callable,
-    Tuple,
 )
 
 from ..base import Base
@@ -40,6 +35,7 @@ from ..buckets import BucketCollection
 from ..scenarios import Scenario, ScenarioList
 from ..surveys import Survey
 from ..interviews import Interview
+from .exceptions import JobsValueError, JobsImplementationError
 
 from .jobs_pricing_estimation import JobsPrompts
 from .remote_inference import JobsRemoteInferenceHandler
@@ -73,27 +69,25 @@ P = ParamSpec("P")
 T = TypeVar("T")
 
 
-
-
 def with_config(f: Callable[P, T]) -> Callable[P, T]:
     """
     Decorator that processes function parameters to match the RunConfig dataclass structure.
-    
+
     This decorator is used primarily with the run() and run_async() methods to provide
     a consistent interface for job configuration while maintaining a clean API.
-    
+
     The decorator:
     1. Extracts environment-related parameters into a RunEnvironment instance
     2. Extracts execution-related parameters into a RunParameters instance
     3. Combines both into a single RunConfig object
     4. Passes this RunConfig to the decorated function as a keyword argument
-    
+
     Parameters:
         f (Callable): The function to decorate, typically run() or run_async()
-        
+
     Returns:
         Callable: A wrapped function that accepts all RunConfig parameters directly
-    
+
     Example:
         @with_config
         def run(self, *, config: RunConfig) -> Results:
@@ -107,7 +101,8 @@ def with_config(f: Callable[P, T]) -> Callable[P, T]:
         name: field.default
         for name, field in RunEnvironment.__dataclass_fields__.items()
     }
-    combined = {**parameter_fields, **environment_fields}
+    # Combined fields dict used for reference during development
+    # combined = {**parameter_fields, **environment_fields}
 
     @wraps(f)
     def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
@@ -126,25 +121,25 @@ def with_config(f: Callable[P, T]) -> Callable[P, T]:
 class Jobs(Base):
     """
     A collection of agents, scenarios, models, and a survey that orchestrates interviews.
-    
+
     The Jobs class is the central component for running large-scale experiments or simulations
     in EDSL. It manages the execution of interviews where agents interact with surveys through
     language models, possibly in different scenarios.
-    
+
     Key responsibilities:
     1. Managing collections of agents, scenarios, and models
     2. Configuring execution parameters (caching, API keys, etc.)
     3. Managing parallel execution of interviews
     4. Handling remote cache and inference capabilities
     5. Collecting and organizing results
-    
+
     A typical workflow involves:
     1. Creating a survey with questions
     2. Creating a Jobs instance with that survey
     3. Adding agents, scenarios, and models using the `by()` method
     4. Running the job with `run()` or `run_async()`
     5. Analyzing the results
-    
+
     Jobs implements a fluent interface pattern, where methods return self to allow
     method chaining for concise, readable configuration.
     """
@@ -159,22 +154,22 @@ class Jobs(Base):
         scenarios: Optional[Union["ScenarioList", list["Scenario"]]] = None,
     ):
         """Initialize a Jobs instance with a survey and optional components.
-        
+
         The Jobs constructor requires a survey and optionally accepts collections of
         agents, models, and scenarios. If any of these optional components are not provided,
         they can be added later using the `by()` method or will be automatically populated
         with defaults when the job is run.
-        
+
         Parameters:
             survey (Survey): The survey containing questions to be used in the job
             agents (Union[list[Agent], AgentList], optional): The agents that will take the survey
             models (Union[ModelList, list[LanguageModel]], optional): The language models to use
             scenarios (Union[ScenarioList, list[Scenario]], optional): The scenarios to run
-        
+
         Raises:
             ValueError: If the survey contains questions with invalid names
                        (e.g., names containing template variables)
-        
+
         Examples:
             >>> from edsl.surveys import Survey
             >>> from edsl.questions import QuestionFreeText
@@ -186,8 +181,11 @@ class Jobs(Base):
             >>> j = Jobs(survey = s)
             Traceback (most recent call last):
             ...
-            ValueError: At least some question names are not valid: ['{{ bad_name }}']
-        
+            edsl.jobs.exceptions.JobsValueError: At least some question names are not valid: ['{{ bad_name }}']
+            <BLANKLINE>
+            <BLANKLINE>
+            For more information, see: https://docs.expectedparrot.com/en/latest/jobs.html
+
         Notes:
             - The survey's questions must have valid names without templating variables
             - If agents, models, or scenarios are not provided, defaults will be used when running
@@ -206,10 +204,15 @@ class Jobs(Base):
 
         try:
             assert self.survey.question_names_valid()
-        except Exception as e:
-            invalid_question_names = [q.question_name for q in self.survey.questions if not q.is_valid_question_name()]
-            raise ValueError(f"At least some question names are not valid: {invalid_question_names}")
-        
+        except Exception:
+            invalid_question_names = [
+                q.question_name
+                for q in self.survey.questions
+                if not q.is_valid_question_name()
+            ]
+            raise JobsValueError(
+                f"At least some question names are not valid: {invalid_question_names}"
+            )
 
     def add_running_env(self, running_env: RunEnvironment):
         self.run_config.add_environment(running_env)
@@ -224,7 +227,7 @@ class Jobs(Base):
         self.run_config.add_cache(cache)
         return self
 
-    def using_bucket_collection(self, bucket_collection: 'BucketCollection') -> Jobs:
+    def using_bucket_collection(self, bucket_collection: "BucketCollection") -> Jobs:
         """
         Add a BucketCollection to the job.
 
@@ -233,7 +236,7 @@ class Jobs(Base):
         self.run_config.add_bucket_collection(bucket_collection)
         return self
 
-    def using_key_lookup(self, key_lookup: 'KeyLookup') -> Jobs:
+    def using_key_lookup(self, key_lookup: "KeyLookup") -> Jobs:
         """
         Add a KeyLookup to the job.
 
@@ -339,18 +342,18 @@ class Jobs(Base):
     ) -> "Jobs":
         """
         Add agents, scenarios, and language models to a job using a fluent interface.
-        
+
         This method is the primary way to configure a Jobs instance with components.
         It intelligently handles different types of objects and collections, making
         it easy to build complex job configurations with a concise syntax.
-        
+
         Parameters:
-            *args: Objects or sequences of objects to add to the job. 
+            *args: Objects or sequences of objects to add to the job.
                   Supported types are Agent, Scenario, LanguageModel, and sequences of these.
-                  
+
         Returns:
             Jobs: The Jobs instance (self) for method chaining
-            
+
         Examples:
             >>> from edsl.surveys import Survey
             >>> from edsl.questions import QuestionFreeText
@@ -361,17 +364,17 @@ class Jobs(Base):
             >>> from edsl.agents import Agent; a = Agent(traits = {"status": "Sad"})
             >>> j.by(a).agents
             AgentList([Agent(traits = {'status': 'Sad'})])
-            
+
             # Adding multiple components at once
             >>> from edsl.language_models import Model
             >>> from edsl.scenarios import Scenario
             >>> j = Jobs.example()
             >>> _ = j.by(Agent(traits={"mood": "happy"})).by(Model(temperature=0.7)).by(Scenario({"time": "morning"}))
-            
+
             # Adding a sequence of the same type
             >>> agents = [Agent(traits={"age": i}) for i in range(5)]
             >>> _ = j.by(agents)
-            
+
         Notes:
             - All objects must implement 'get_value', 'set_value', and '__add__' methods
             - Agent traits: When adding agents with traits to existing agents, the traits are
@@ -475,16 +478,19 @@ class Jobs(Base):
 
     def show_flow(self, filename: Optional[str] = None) -> None:
         """Show the flow of the survey.
-        
+
         >>> from edsl.jobs import Jobs
         >>> Jobs.example().show_flow()
         """
         from ..surveys import SurveyFlowVisualization
-        if self.scenarios: 
+
+        if self.scenarios:
             scenario = self.scenarios[0]
         else:
             scenario = None
-        SurveyFlowVisualization(self.survey, scenario=scenario, agent=None).show_flow(filename=filename)
+        SurveyFlowVisualization(self.survey, scenario=scenario, agent=None).show_flow(
+            filename=filename
+        )
 
     def interviews(self) -> list[Interview]:
         """
@@ -585,7 +591,7 @@ class Jobs(Base):
                 return user_edsl_settings.get("remote_caching", False)
             except requests.ConnectionError:
                 pass
-            except CoopServerResponseError as e:
+            except CoopServerResponseError:
                 pass
 
         return False
@@ -604,7 +610,7 @@ class Jobs(Base):
         )
         return job_info
 
-    def _create_remote_inference_handler(self) -> 'JobsRemoteInferenceHandler':
+    def _create_remote_inference_handler(self) -> "JobsRemoteInferenceHandler":
         return JobsRemoteInferenceHandler(
             self, verbose=self.run_config.parameters.verbose
         )
@@ -624,12 +630,12 @@ class Jobs(Base):
                 from edsl.results import Results
 
                 results = Results.from_job_info(job_info)
-                return results
+                return results, None
             else:
-                results = jh.poll_remote_inference_job(job_info)
-                return results
+                results, reason = jh.poll_remote_inference_job(job_info)
+                return results, reason
         else:
-            return None
+            return None, None
 
     def _prepare_to_run(self) -> None:
         "This makes sure that the job is ready to run and that keys are in place for a remote job."
@@ -646,9 +652,9 @@ class Jobs(Base):
             jc.check_api_keys()
 
     async def _execute_with_remote_cache(self, run_job_async: bool) -> Results:
-        use_remote_cache = self.use_remote_cache()
+        # Remote cache usage determination happens inside this method
+        # use_remote_cache = self.use_remote_cache()
 
-        from ..coop import Coop
         from .jobs_runner_asyncio import JobsRunnerAsyncio
         from ..caching import Cache
 
@@ -707,8 +713,9 @@ class Jobs(Base):
             self.run_config.environment.cache = Cache(immediate_write=False)
 
         # first try to run the job remotely
-        if (results := self._remote_results(config)) is not None:
-            return results
+        results, reason = self._remote_results(config)
+        if results is not None:
+            return results, reason
 
         self._check_if_local_keys_ok()
 
@@ -725,17 +732,17 @@ class Jobs(Base):
                 self.run_config.environment.key_lookup
             )
 
-        return None
+        return None, reason
 
     @with_config
     def run(self, *, config: RunConfig) -> "Results":
         """
         Runs the job by conducting interviews and returns their results.
-        
+
         This is the main entry point for executing a job. It processes all interviews
         (combinations of agents, scenarios, and models) and returns a Results object
         containing all responses and metadata.
-        
+
         Parameters:
             n (int): Number of iterations to run each interview (default: 1)
             progress_bar (bool): Whether to show a progress bar (default: False)
@@ -756,16 +763,16 @@ class Jobs(Base):
             cache (Cache, optional): Cache object to store results
             bucket_collection (BucketCollection, optional): Object to track API calls
             key_lookup (KeyLookup, optional): Object to manage API keys
-            
+
         Returns:
             Results: A Results object containing all responses and metadata
-            
+
         Notes:
             - This method will first try to use remote inference if available
             - If remote inference is not available, it will run locally
             - For long-running jobs, consider using progress_bar=True
             - For maximum performance, ensure appropriate caching is configured
-            
+
         Example:
             >>> from edsl.jobs import Jobs
             >>> from edsl.caching import Cache
@@ -775,10 +782,13 @@ class Jobs(Base):
             >>> results = job.by(m).run(cache=Cache(), progress_bar=False, n=2, disable_remote_inference=True)
             ...
         """
-        potentially_completed_results = self._run(config)
+        potentially_completed_results, reason = self._run(config)
 
         if potentially_completed_results is not None:
             return potentially_completed_results
+
+        if reason == "insufficient funds":
+            return None
 
         return asyncio.run(self._execute_with_remote_cache(run_job_async=False))
 
@@ -786,11 +796,11 @@ class Jobs(Base):
     async def run_async(self, *, config: RunConfig) -> "Results":
         """
         Asynchronously runs the job by conducting interviews and returns their results.
-        
+
         This method is the asynchronous version of `run()`. It has the same functionality and
         parameters but can be awaited in an async context for better integration with
         asynchronous code.
-        
+
         Parameters:
             n (int): Number of iterations to run each interview (default: 1)
             progress_bar (bool): Whether to show a progress bar (default: False)
@@ -811,15 +821,15 @@ class Jobs(Base):
             cache (Cache, optional): Cache object to store results
             bucket_collection (BucketCollection, optional): Object to track API calls
             key_lookup (KeyLookup, optional): Object to manage API keys
-            
+
         Returns:
             Results: A Results object containing all responses and metadata
-            
+
         Notes:
             - This method should be used in async contexts (e.g., with `await`)
             - For non-async contexts, use the `run()` method instead
             - This method is particularly useful in notebook environments or async applications
-            
+
         Example:
             >>> import asyncio
             >>> from edsl.jobs import Jobs
@@ -960,7 +970,9 @@ class Jobs(Base):
             """Return the answer to a question. This is a method that can be added to an agent."""
 
             if random.random() < throw_exception_probability:
-                raise Exception("Error!")
+                from .exceptions import JobsErrors
+
+                raise JobsErrors("Simulated error during question answering")
             return agent_answers[
                 (self.traits["status"], question.question_name, scenario["period"])
             ]
@@ -1001,7 +1013,7 @@ class Jobs(Base):
 
     def code(self):
         """Return the code to create this instance."""
-        raise NotImplementedError
+        raise JobsImplementationError("Code generation not implemented yet")
 
 
 def main():

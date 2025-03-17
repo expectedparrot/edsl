@@ -27,7 +27,6 @@ class PdfMethods(FileMethods):
         return text
 
     def view_system(self):
-        import os
         import subprocess
 
         if os.path.exists(self.path):

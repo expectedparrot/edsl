@@ -1,7 +1,7 @@
 from __future__ import annotations
 import copy
 import itertools
-from typing import Optional, List, Callable, Type, TYPE_CHECKING, Union
+from typing import Optional, List, Callable, TYPE_CHECKING, Union
 
 if TYPE_CHECKING:
     from .question_base import QuestionBase
@@ -174,7 +174,7 @@ class QuestionBaseGenMixin:
                 return result
             except self.MaxTemplateNestingExceeded:
                 raise
-            except Exception as e:
+            except Exception:
                 import warnings
                 warnings.warn("Failed to render string: " + value)
                 return value

@@ -3,8 +3,7 @@ import pytest
 from typing import List
 from dataclasses import dataclass
 
-from edsl.exceptions.general import MissingAPIKeyError
-from edsl.enums import service_to_api_keyname
+from edsl.key_management.key_lookup_builder import MissingAPIKeyError
 from edsl.jobs.jobs_checks import JobsChecks
 
 
