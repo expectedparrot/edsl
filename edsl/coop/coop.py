@@ -445,6 +445,8 @@ class Coop(CoopFunctionsMixin):
     def _scenario_is_file_store(self, scenario_dict: dict) -> bool:
         """
         Check if the scenario object is a valid FileStore.
+
+        Matches keys in the scenario dict against the expected keys for a FileStore.
         """
         file_store_keys = [
             "path",
