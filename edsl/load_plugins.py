@@ -16,23 +16,12 @@ def load_plugins():
         
         logger.info("Available edsl entrypoints: %s", [ep for ep in pkg_resources.iter_entry_points("edsl")])
         
-        # Define the plugin hooks specification
-        hookspec = pluggy.HookspecMarker("edsl")
-        
-        class EDSLHookSpecs:
-            """Hook specifications for edsl plugins."""
-            
-            @hookspec
-            def edsl_plugin(self, plugin_name=None):
-                """Return a plugin class for integration with edsl.
-                
-                Args:
-                    plugin_name: Optional name of the specific plugin to return.
-                """
+        # Import hook specs from the plugin system
+        from edsl.plugins.hookspec import EDSLPluginSpec
         
         # Create plugin manager and register specs
         pm = pluggy.PluginManager("edsl")
-        pm.add_hookspecs(EDSLHookSpecs)
+        pm.add_hookspecs(EDSLPluginSpec)
         
         # Load all plugins
         logger.info("Loading setuptools entrypoints...")
