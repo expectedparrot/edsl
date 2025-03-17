@@ -33,3 +33,11 @@ class EDSLPluginSpec:
         Args:
             plugin_name: Optional name of the specific plugin to return.
         """
+        
+    @hookspec
+    def conjure_plugin(self):
+        """Return the Conjure class for integration with edsl.
+        
+        This is kept for backward compatibility with the old plugin system.
+        New plugins should use edsl_plugin instead.
+        """
