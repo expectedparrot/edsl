@@ -1,4 +1,5 @@
 import pluggy
+from typing import Dict, Any, Optional
 
 # Define a hook specification namespace
 hookspec = pluggy.HookspecMarker("edsl")
@@ -32,6 +33,19 @@ class EDSLPluginSpec:
         
         Args:
             plugin_name: Optional name of the specific plugin to return.
+        """
+    
+    @hookspec
+    def exports_to_namespace(self) -> Optional[Dict[str, Any]]:
+        """
+        Define objects that should be exported to the global namespace.
+        
+        Plugins can use this hook to specify objects (classes, functions, etc.)
+        that should be available for direct import from the edsl package.
+        
+        Returns:
+            A dictionary mapping names to objects, or None if nothing to export.
+            Example: {'MyClass': MyClass, 'my_function': my_function}
         """
         
     # Legacy conjure_plugin hook removed - all plugins should use edsl_plugin

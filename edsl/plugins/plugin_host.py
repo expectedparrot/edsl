@@ -115,3 +115,14 @@ class PluginHost:
         """
         pm = get_plugin_manager()
         return pm.list_plugins()
+        
+    @staticmethod
+    def get_exports() -> Dict[str, Any]:
+        """
+        Get all objects that plugins export to the global namespace.
+        
+        Returns:
+            Dictionary mapping names to exported objects
+        """
+        pm = get_plugin_manager()
+        return pm.get_exports()

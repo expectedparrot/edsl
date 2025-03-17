@@ -18,6 +18,7 @@ Key concepts include:
 - **Plugin Registry**: A central repository of available plugins
 - **Plugin Methods**: Functions provided by plugins that you can call
 - **Plugin Host**: A component that manages plugin discovery and method execution
+- **Global Namespace Exports**: Objects that plugins can expose directly in the EDSL namespace
 
 ## Installing Plugins
 
@@ -67,6 +68,25 @@ survey.plugins.TextAnalysis.analyze_text()
 ```
 
 The `plugins` attribute is automatically added to EDSL objects, providing access to all available plugin methods.
+
+## Using Exported Objects
+
+Plugins can also export objects (like classes, functions, or constants) directly to the EDSL namespace, allowing you to import them directly:
+
+```python
+# Import classes exported by plugins
+from edsl import ExportedClass, PigLatinTranslator
+
+# Use the exported classes
+translator = PigLatinTranslator()
+result = translator.translate("Hello world")
+
+# Use other exported objects
+my_obj = ExportedClass("My Custom Object")
+greeting = my_obj.greet()
+```
+
+This feature allows plugins to expose functionality that can be used independently of EDSL objects like Survey or Scenario.
 
 ## Managing Plugins
 
@@ -203,7 +223,20 @@ You can create your own EDSL plugins by following these steps:
    )
    ```
 
-4. Install your plugin:
+4. Optionally, add exports to the global namespace:
+   ```python
+   # In your plugin.py file
+   @hookimpl
+   def exports_to_namespace(self) -> Optional[Dict[str, Any]]:
+       """Export objects to the global namespace."""
+       return {
+           "MyExportedClass": MyExportedClass,  # Export a class
+           "my_function": some_function,        # Export a function
+           "MY_CONSTANT": 42                    # Export a constant
+       }
+   ```
+
+5. Install your plugin:
    ```bash
    pip install -e /path/to/my-plugin
    ```
@@ -242,6 +275,9 @@ You can create your own EDSL plugins by following these steps:
 
 - `edsl.plugins.get_plugin_manager() -> EDSLPluginManager`
   Returns the plugin manager instance.
+  
+- `edsl.plugins.get_exports() -> Dict[str, Any]`
+  Returns a dictionary of objects that plugins export to the global namespace.
 
 ### Exceptions
 
@@ -289,6 +325,10 @@ def list_plugins():
     """List all installed plugins."""
     return PluginHost.list_plugins()
 
+def get_exports():
+    """Get objects exported to the global namespace by plugins."""
+    return PluginHost.get_exports()
+
 def cli():
     """Run the plugin CLI (legacy version)."""
     from .cli import main
@@ -305,6 +345,7 @@ __all__ = [
     'install_from_github',
     'uninstall_plugin',
     'list_plugins',
+    'get_exports',
     'cli',
     'cli_typer',
     'PluginCLI',
