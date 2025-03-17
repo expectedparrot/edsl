@@ -1,5 +1,7 @@
 import os
 import time
+import importlib
+import pkgutil
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ROOT_DIR = os.path.dirname(BASE_DIR)
@@ -15,54 +17,44 @@ from edsl import logger
 
 __all__ = ['logger']
 
-from .dataset import __all__ as dataset_all
-from .dataset import *
-__all__.extend(dataset_all)
+# Define modules to import
+modules_to_import = [
+    'dataset',
+    'agents',
+    'surveys',
+    'questions',
+    'scenarios',
+    'language_models',
+    'results',
+    'caching',
+    'notebooks',
+    'coop',
+    'instructions',
+    'jobs'
+]
 
-from .agents import __all__ as agents_all
-from .agents import *
-__all__.extend(agents_all)
-
-from .surveys import __all__ as surveys_all
-from .surveys import *
-__all__.extend(surveys_all)
-
-# Questions
-from .questions import __all__ as questions_all
-from .questions import *
-__all__.extend(questions_all)
-
-from .scenarios import __all__ as scenarios_all
-from .scenarios import *
-__all__.extend(scenarios_all)
-
-from .language_models import __all__ as language_models_all
-from .language_models import *
-__all__.extend(language_models_all)
-
-from .results import __all__ as results_all
-from .results import *
-__all__.extend(results_all)
-
-from .caching import __all__ as caching_all
-from .caching import *
-__all__.extend(caching_all)
-
-from .notebooks import __all__ as notebooks_all
-from .notebooks import *
-__all__.extend(notebooks_all)
-
-from .coop import __all__ as coop_all
-from .coop import *
-__all__.extend(coop_all)
-
-from .instructions import __all__ as instructions_all
-from .instructions import *
-__all__.extend(instructions_all)
-
-from .jobs import __all__ as jobs_all
-from .jobs import *
-__all__.extend(jobs_all)
+# Dynamically import modules and extend __all__
+for module_name in modules_to_import:
+    try:
+        # Import the module
+        module = importlib.import_module(f'.{module_name}', package='edsl')
+        
+        # Get the module's __all__ attribute
+        module_all = getattr(module, '__all__', [])
+        
+        # Import all names from the module
+        exec(f"from .{module_name} import *")
+        
+        # Extend __all__ with the module's __all__
+        if module_all:
+            logger.debug(f"Adding {len(module_all)} items from {module_name} to __all__")
+            __all__.extend(module_all)
+        else:
+            logger.warning(f"Module {module_name} does not have __all__ defined")
+    except ImportError as e:
+        logger.warning(f"Failed to import module {module_name}: {e}")
+    except Exception as e:
+        logger.warning(f"Error importing from module {module_name}: {e}")
 
 
 # Load plugins
@@ -100,18 +92,28 @@ try:
     logger.info("Registered plugins: %s", registered_plugins)
     
     # Get plugins and add to __all__
-    logger.info("Calling conjure_plugin hook...")
+    logger.info("Calling edsl_plugin hook...")
     try:
-        results = pm.hook.conjure_plugin()
+        results = pm.hook.edsl_plugin()
         logger.info("Results: %s", results)
         if results:
-            # Get the Conjure class from the plugin
-            Conjure = results[0]
-            globals()["Conjure"] = Conjure
-            __all__.append("Conjure")
-            logger.info("Loaded Conjure plugin")
+            plugins = {}
+            
+            # Process each plugin
+            for plugin in results:
+                if hasattr(plugin, "__name__"):
+                    plugin_name = plugin.__name__
+                elif hasattr(plugin, "__class__"):
+                    plugin_name = plugin.__class__.__name__
+                else:
+                    plugin_name = f"Plugin_{len(plugins)}"
+                
+                # Register plugin in globals and __all__
+                globals()[plugin_name] = plugin
+                __all__.append(plugin_name)
+                logger.info(f"Loaded plugin: {plugin_name}")
     except Exception as e:
-        logger.error("Error calling conjure_plugin hook: %s", e)
+        logger.error("Error calling edsl_plugin hook: %s", e)
 except ImportError as e:
     # pluggy not available
     logger.info("pluggy not available, skipping plugin loading: %s", e)
@@ -123,3 +125,6 @@ except Exception as e:
 
 # Now that all modules are loaded, configure logging from the config
 logger.configure_from_config()
+
+# Log the total number of items in __all__ for debugging
+logger.debug(f"EDSL initialization complete with {len(__all__)} items in __all__")

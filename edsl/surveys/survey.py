@@ -240,6 +240,14 @@ class Survey(Base):
 
         self._exporter = SurveyExport(self)
 
+
+    # In survey.py
+    @property
+    def ep(self):
+        """Return plugin host for this survey."""
+        from ..plugins.plugin_host import PluginHost
+        return PluginHost(self)
+
     def question_names_valid(self) -> bool:
         """Check if the question names are valid."""
         return all(q.is_valid_question_name() for q in self.questions)
