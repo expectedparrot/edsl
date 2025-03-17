@@ -100,26 +100,38 @@ class EDSLPluginManager:
         # Validate GitHub URL
         self._validate_github_url(github_url)
         
+        # Extract plugin name from URL
+        repo_name = github_url.split('/')[-1]
+        if repo_name.endswith('.git'):
+            repo_name = repo_name[:-4]
+        
+        # Create a persistent directory for the plugin
+        plugins_install_dir = os.path.join(self.PLUGINS_DATA_DIR, "plugins")
+        os.makedirs(plugins_install_dir, exist_ok=True)
+        plugin_dir = os.path.join(plugins_install_dir, repo_name)
+        
+        # Remove existing installation if it exists
+        if os.path.exists(plugin_dir):
+            shutil.rmtree(plugin_dir)
+        
         try:
-            # Create temporary directory for cloning
-            with tempfile.TemporaryDirectory() as temp_dir:
-                # Clone the repository
-                self._clone_repository(github_url, temp_dir, branch)
-                
-                # Check for setup.py or pyproject.toml
-                if not self._has_package_files(temp_dir):
-                    raise InvalidPluginError(
-                        f"Repository at {github_url} does not contain required setup.py or pyproject.toml"
-                    )
-                
-                # Install the package in development mode
-                installed_plugins = self._install_package(temp_dir)
-                
-                # Reload plugins and discover methods
-                self._reload_plugins()
-                
-                return installed_plugins
-                
+            # Clone the repository to the persistent directory
+            self._clone_repository(github_url, plugin_dir, branch)
+            
+            # Check for setup.py or pyproject.toml
+            if not self._has_package_files(plugin_dir):
+                raise InvalidPluginError(
+                    f"Repository at {github_url} does not contain required setup.py or pyproject.toml"
+                )
+            
+            # Install the package in development mode
+            installed_plugins = self._install_package(plugin_dir)
+            
+            # Reload plugins and discover methods
+            self._reload_plugins()
+            
+            return installed_plugins
+            
         except GitHubRepoError as e:
             # Re-raise with more context
             raise GitHubRepoError(f"Failed to access GitHub repository: {str(e)}")
@@ -302,6 +314,26 @@ class EDSLPluginManager:
         """Reload plugins and discover new methods."""
         # Reload setuptools entry points
         self.manager.load_setuptools_entrypoints("edsl_plugins")
+        
+        # Also check for directly installed plugins
+        for plugin_name, plugin_dir in self.installed_plugins.items():
+            try:
+                if os.path.exists(plugin_dir):
+                    # Try to find the main plugin module
+                    plugin_module = os.path.join(plugin_dir, plugin_name.lower())
+                    if os.path.exists(f"{plugin_module}.py"):
+                        spec = importlib.util.spec_from_file_location(plugin_name, f"{plugin_module}.py")
+                        if spec:
+                            module = importlib.util.module_from_spec(spec)
+                            spec.loader.exec_module(module)
+                            # Try to register the plugin class
+                            if hasattr(module, plugin_name):
+                                plugin_class = getattr(module, plugin_name)
+                                self.manager.register(plugin_class())
+                                logger.info(f"Registered plugin {plugin_name} from {plugin_dir}")
+            except Exception as e:
+                logger.warning(f"Error loading plugin {plugin_name} from {plugin_dir}: {str(e)}")
+                
         # Rediscover methods
         self._discover_methods()
     
@@ -482,6 +514,7 @@ class EDSLPluginManager:
         """
         plugins_info = {}
         
+        # Get plugins from the plugin manager
         for plugin in self.manager.get_plugins():
             try:
                 name = plugin.plugin_name()
@@ -498,5 +531,58 @@ class EDSLPluginManager:
                 
             except Exception as e:
                 logger.warning(f"Error getting info for plugin: {str(e)}")
+        
+        # Also include all plugins from installed_plugins.json even if they're not loaded
+        for name, install_dir in self.installed_plugins.items():
+            if name not in plugins_info:
+                # Try to find description from standard paths
+                description = None
+                try:
+                    # First check if we can find a description in setup.py or pyproject.toml
+                    setup_py = os.path.join(install_dir, 'setup.py')
+                    if os.path.exists(setup_py):
+                        with open(setup_py, 'r') as f:
+                            content = f.read()
+                            # Look for description="..." pattern
+                            match = re.search(r"description=['\"]([^'\"]+)['\"]", content)
+                            if match:
+                                description = match.group(1)
+                    
+                    pyproject_toml = os.path.join(install_dir, 'pyproject.toml')
+                    if not description and os.path.exists(pyproject_toml):
+                        with open(pyproject_toml, 'r') as f:
+                            content = f.read()
+                            # Look for description = "..." pattern
+                            match = re.search(r"description\s*=\s*['\"]([^'\"]+)['\"]", content)
+                            if match:
+                                description = match.group(1)
+                    
+                    # If still no description, check for README files
+                    if not description:
+                        for readme_file in ["README.md", "README.rst", "README.txt"]:
+                            readme_path = os.path.join(install_dir, readme_file)
+                            if os.path.exists(readme_path):
+                                with open(readme_path, 'r') as f:
+                                    # Skip any markdown headers
+                                    first_line = f.readline().strip()
+                                    if first_line.startswith('#'):
+                                        # Take the next line that's not empty
+                                        for line in f:
+                                            if line.strip():
+                                                first_line = line.strip()
+                                                break
+                                    description = first_line[:100] + "..." if len(first_line) > 100 else first_line
+                                    break
+                except Exception as e:
+                    logger.debug(f"Error extracting description for {name}: {e}")
+                
+                # Add basic info for installed but not loaded plugins
+                plugins_info[name] = {
+                    "name": name,
+                    "description": description or f"Plugin installed at {install_dir}",
+                    "methods": [],
+                    "installed_from": install_dir,
+                    "version": "unknown"
+                }
                 
         return plugins_info

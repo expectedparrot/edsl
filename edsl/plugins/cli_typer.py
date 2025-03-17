@@ -78,16 +78,12 @@ def list_available_plugins():
         table = Table(title="Available Plugins", box=box.ROUNDED)
         table.add_column("Name", style="cyan")
         table.add_column("Version", style="green")
-        table.add_column("Rating", justify="right", style="magenta")
-        table.add_column("Downloads", justify="right")
         table.add_column("Description")
         
         for plugin in plugins:
             table.add_row(
                 plugin.name,
                 plugin.version,
-                f"{plugin.rating:.1f}",
-                str(plugin.downloads),
                 plugin.description
             )
         
@@ -119,7 +115,6 @@ def search_for_plugins(
         table = Table(title=title, box=box.ROUNDED)
         table.add_column("Name", style="cyan")
         table.add_column("Version", style="green")
-        table.add_column("Rating", justify="right", style="magenta")
         table.add_column("Tags")
         table.add_column("Description")
         
@@ -132,7 +127,6 @@ def search_for_plugins(
             table.add_row(
                 plugin.name,
                 plugin.version,
-                f"{plugin.rating:.1f}",
                 tag_str,
                 plugin.description
             )
@@ -183,8 +177,6 @@ def show_plugin_info(name: str = typer.Argument(..., help="Plugin name")):
         panel_content.append(f"[bold cyan]GitHub URL:[/bold cyan] {info['github_url']}")
         panel_content.append(f"[bold cyan]Created:[/bold cyan] {info['created_at']}")
         panel_content.append(f"[bold cyan]Last Updated:[/bold cyan] {info.get('last_update', 'Unknown')}")
-        panel_content.append(f"[bold cyan]Downloads:[/bold cyan] {info['downloads']}")
-        panel_content.append(f"[bold cyan]Rating:[/bold cyan] {info['rating']:.1f}/5.0")
         panel_content.append(f"[bold cyan]License:[/bold cyan] {info.get('license', 'Unknown')}")
         panel_content.append(f"[bold cyan]Dependencies:[/bold cyan] {', '.join(info.get('dependencies', ['None']))}")
         panel_content.append(f"[bold cyan]Compatible EDSL versions:[/bold cyan] {', '.join(info.get('compatible_edsl_versions', ['Unknown']))}")
