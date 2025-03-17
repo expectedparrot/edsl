@@ -59,65 +59,47 @@ for module_name in modules_to_import:
 
 # Load plugins
 try:
-    logger.info("Loading plugins")
-    import pluggy
-    import pkg_resources
-    
-    logger.info("Available edsl entrypoints: %s", [ep for ep in pkg_resources.iter_entry_points("edsl")])
-    
-    # Define the plugin hooks specification
-    hookspec = pluggy.HookspecMarker("edsl")
-    
-    class EDSLHookSpecs:
-        """Hook specifications for edsl plugins."""
-        
-        @hookspec
-        def conjure_plugin(self):
-            """Return the Conjure class for integration with edsl."""
-    
-    # Create plugin manager and register specs
-    pm = pluggy.PluginManager("edsl")
-    pm.add_hookspecs(EDSLHookSpecs)
+    from edsl.load_plugins import load_plugins
+    from edsl.plugins import get_plugin_manager
     
     # Load all plugins
-    logger.info("Loading setuptools entrypoints...")
-    pm.load_setuptools_entrypoints("edsl")
+    plugins = load_plugins()
+    logger.info(f"Loaded {len(plugins)} plugins")
     
-    # Get registered plugins 
-    registered_plugins = [
-        plugin_name 
-        for plugin_name, _ in pm.list_name_plugin()
-        if plugin_name != "EDSLHookSpecs"
-    ]
-    logger.info("Registered plugins: %s", registered_plugins)
+    # Add plugins to globals and __all__
+    for plugin_name, plugin in plugins.items():
+        globals()[plugin_name] = plugin
+        __all__.append(plugin_name)
+        logger.info(f"Registered plugin {plugin_name} in global namespace")
     
-    # Get plugins and add to __all__
-    logger.info("Calling edsl_plugin hook...")
-    try:
-        results = pm.hook.edsl_plugin()
-        logger.info("Results: %s", results)
-        if results:
-            plugins = {}
+    # Check for Conjure plugin (for backward compatibility)
+    if "Conjure" not in plugins:
+        # Conjure not found, add a placeholder that recommends installation
+        class ConjurePlaceholder:
+            """Placeholder for the Conjure plugin that recommends installation."""
             
-            # Process each plugin
-            for plugin in results:
-                if hasattr(plugin, "__name__"):
-                    plugin_name = plugin.__name__
-                elif hasattr(plugin, "__class__"):
-                    plugin_name = plugin.__class__.__name__
-                else:
-                    plugin_name = f"Plugin_{len(plugins)}"
-                
-                # Register plugin in globals and __all__
-                globals()[plugin_name] = plugin
-                __all__.append(plugin_name)
-                logger.info(f"Loaded plugin: {plugin_name}")
-    except Exception as e:
-        logger.error("Error calling edsl_plugin hook: %s", e)
+            def __getattr__(self, name):
+                msg = (
+                    "The Conjure plugin is not installed. "
+                    "To use Conjure with EDSL, install it using:\n"
+                    "  from edsl.plugins import install_from_github\n"
+                    "  install_from_github('https://github.com/expectedparrot/edsl-conjure')\n"
+                    "\nOr from the command line:\n"
+                    "  edsl plugins install https://github.com/expectedparrot/edsl-conjure"
+                )
+                logger.warning(msg)
+                raise ImportError(msg)
+        
+        # Register the placeholder
+        Conjure = ConjurePlaceholder()
+        globals()["Conjure"] = Conjure
+        __all__.append("Conjure")
+        logger.info("Added Conjure placeholder with installation instructions")
+
 except ImportError as e:
-    # pluggy not available
-    logger.info("pluggy not available, skipping plugin loading: %s", e)
-    logger.debug("pluggy not available, skipping plugin loading: %s", e)
+    # Modules not available
+    logger.info("Plugin system not available, skipping plugin loading: %s", e)
+    logger.debug("Plugin system not available, skipping plugin loading: %s", e)
 except Exception as e:
     # Error loading plugins
     logger.error("Error loading plugins: %s", e)
