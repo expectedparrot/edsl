@@ -84,7 +84,7 @@ try:
     # Add placeholders for expected exports that are missing
     # This maintains backward compatibility for common plugins
     PLUGIN_PLACEHOLDERS = {
-        "Conjure": "https://github.com/expectedparrot/edsl-conjure"
+        # No placeholders - removed Conjure for cleaner namespace
     }
     
     for placeholder_name, github_url in PLUGIN_PLACEHOLDERS.items():
