@@ -28,13 +28,6 @@ Example:
 from .utils import EDSLObject, ObjectType, VisibilityType, ObjectRegistry
 from .coop import Coop
 from .exceptions import CoopServerResponseError
-from .plugins_registry import (
-    AvailablePlugin, 
-    get_available_plugins, 
-    search_plugins, 
-    get_plugin_details,
-    PluginRegistryError
-)
 
 __all__ = [
     "Coop", 
