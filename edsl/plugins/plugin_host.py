@@ -1,5 +1,30 @@
-# edsl/extension_manager/plugin_host.py
+# edsl/plugins/plugin_host.py
+from typing import Optional, List, Dict, Any
+
 from .plugin_manager import EDSLPluginManager
+from .exceptions import (
+    PluginException,
+    PluginNotFoundError,
+    PluginInstallationError,
+    GitHubRepoError,
+    InvalidPluginError,
+    PluginMethodError
+)
+
+# Singleton instance of the plugin manager for global access
+_plugin_manager = None
+
+def get_plugin_manager() -> EDSLPluginManager:
+    """
+    Get or create the singleton plugin manager instance.
+    
+    Returns:
+        The plugin manager instance
+    """
+    global _plugin_manager
+    if _plugin_manager is None:
+        _plugin_manager = EDSLPluginManager()
+    return _plugin_manager
 
 class PluginHost:
     """Host for plugins, providing method dispatch."""
@@ -7,7 +32,7 @@ class PluginHost:
     def __init__(self, obj):
         """Initialize with the object plugins will operate on."""
         self.obj = obj
-        self.plugin_manager = EDSLPluginManager()
+        self.plugin_manager = get_plugin_manager()
     
     def __getattr__(self, name):
         """Route method calls to the appropriate plugin."""
@@ -41,3 +66,52 @@ class PluginHost:
     def list_available_methods(self):
         """List all available methods."""
         return self.plugin_manager.list_methods()
+
+    @staticmethod
+    def install_from_github(github_url: str, branch: Optional[str] = None) -> List[str]:
+        """
+        Install a plugin from a GitHub repository.
+        
+        Args:
+            github_url: URL to the GitHub repository
+            branch: Optional branch to checkout (defaults to main/master)
+            
+        Returns:
+            List of installed plugin names
+            
+        Raises:
+            GitHubRepoError: If the URL is invalid or the repository cannot be accessed
+            PluginInstallationError: If the installation fails
+            InvalidPluginError: If the repository does not contain valid plugins
+        """
+        pm = get_plugin_manager()
+        return pm.install_plugin_from_github(github_url, branch)
+    
+    @staticmethod
+    def uninstall_plugin(plugin_name: str) -> bool:
+        """
+        Uninstall a plugin by name.
+        
+        Args:
+            plugin_name: Name of the plugin to uninstall
+            
+        Returns:
+            True if uninstallation was successful
+            
+        Raises:
+            PluginNotFoundError: If the plugin is not installed
+            PluginInstallationError: If uninstallation fails
+        """
+        pm = get_plugin_manager()
+        return pm.uninstall_plugin(plugin_name)
+    
+    @staticmethod
+    def list_plugins() -> Dict[str, Dict[str, Any]]:
+        """
+        List all installed plugins with their details.
+        
+        Returns:
+            Dictionary mapping plugin names to details
+        """
+        pm = get_plugin_manager()
+        return pm.list_plugins()
