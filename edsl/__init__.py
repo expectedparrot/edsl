@@ -60,7 +60,7 @@ for module_name in modules_to_import:
 # Load plugins
 try:
     from edsl.load_plugins import load_plugins
-    from edsl.plugins import get_plugin_manager
+    from edsl.plugins import get_plugin_manager, get_exports
     
     # Load all plugins
     plugins = load_plugins()
@@ -72,29 +72,45 @@ try:
         __all__.append(plugin_name)
         logger.info(f"Registered plugin {plugin_name} in global namespace")
     
-    # Check for Conjure plugin (for backward compatibility)
-    if "Conjure" not in plugins:
-        # Conjure not found, add a placeholder that recommends installation
-        class ConjurePlaceholder:
-            """Placeholder for the Conjure plugin that recommends installation."""
+    # Get exports from plugins and add them to globals
+    exports = get_exports()
+    logger.info(f"Found {len(exports)} exported objects from plugins")
+    
+    for name, obj in exports.items():
+        globals()[name] = obj
+        __all__.append(name)
+        logger.info(f"Added plugin export: {name}")
+    
+    # Add placeholders for expected exports that are missing
+    # This maintains backward compatibility for common plugins
+    PLUGIN_PLACEHOLDERS = {
+        "Conjure": "https://github.com/expectedparrot/edsl-conjure"
+    }
+    
+    for placeholder_name, github_url in PLUGIN_PLACEHOLDERS.items():
+        if placeholder_name not in globals():
+            # Create a placeholder class
+            placeholder_class = type(placeholder_name, (), {
+                "__getattr__": lambda self, name: self._not_installed(name),
+                "_not_installed": lambda self, name: self._raise_import_error(),
+                "_raise_import_error": lambda self: exec(f"""
+msg = (
+    "The {placeholder_name} plugin is not installed. "
+    "To use {placeholder_name} with EDSL, install it using:\\n"
+    "  from edsl.plugins import install_from_github\\n"
+    "  install_from_github('{github_url}')\\n"
+    "\\nOr from the command line:\\n"
+    "  edsl plugins install {github_url}"
+)
+logger.warning(msg)
+raise ImportError(msg)
+""")
+            })
             
-            def __getattr__(self, name):
-                msg = (
-                    "The Conjure plugin is not installed. "
-                    "To use Conjure with EDSL, install it using:\n"
-                    "  from edsl.plugins import install_from_github\n"
-                    "  install_from_github('https://github.com/expectedparrot/edsl-conjure')\n"
-                    "\nOr from the command line:\n"
-                    "  edsl plugins install https://github.com/expectedparrot/edsl-conjure"
-                )
-                logger.warning(msg)
-                raise ImportError(msg)
-        
-        # Register the placeholder
-        Conjure = ConjurePlaceholder()
-        globals()["Conjure"] = Conjure
-        __all__.append("Conjure")
-        logger.info("Added Conjure placeholder with installation instructions")
+            # Register the placeholder
+            globals()[placeholder_name] = placeholder_class()
+            __all__.append(placeholder_name)
+            logger.info(f"Added placeholder for {placeholder_name} with installation instructions")
 
 except ImportError as e:
     # Modules not available

@@ -54,8 +54,6 @@ def load_plugins():
                     logger.info(f"Loaded plugin: {plugin_name}")
                     plugins[plugin_name] = plugin
                 
-                # No special handling for any plugin - all plugins should use the standard system
-                
                 return plugins
         except Exception as e:
             logger.error("Error calling edsl_plugin hook: %s", e)

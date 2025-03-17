@@ -46,10 +46,14 @@ class EDSLPluginManager:
         self.methods = {}
         # Dictionary to track installed plugins
         self.installed_plugins = self._load_installed_plugins()
+        # Dictionary to store objects exported to the global namespace
+        self.exports = {}
         # Register built-in plugins
         self._register_builtin_plugins()
         # Discover and register methods
         self._discover_methods()
+        # Gather exports from plugins
+        self._gather_exports()
         
     def _load_installed_plugins(self) -> Dict[str, str]:
         """
@@ -310,6 +314,36 @@ class EDSLPluginManager:
             
         return dir_name
     
+    def _gather_exports(self):
+        """Gather objects from plugins that should be exported to the global namespace."""
+        # Clear existing exports
+        self.exports = {}
+        
+        # Get all plugins
+        for plugin in self.manager.get_plugins():
+            try:
+                # Check if the plugin implements the exports_to_namespace hook
+                if hasattr(plugin, "exports_to_namespace"):
+                    exports = plugin.exports_to_namespace()
+                    if exports:
+                        # If plugin provides exports, add them to the exports dictionary
+                        plugin_name = plugin.plugin_name()
+                        for name, obj in exports.items():
+                            # Log the export
+                            logger.info(f"Plugin '{plugin_name}' exports '{name}' to global namespace")
+                            self.exports[name] = obj
+            except Exception as e:
+                logger.warning(f"Error gathering exports from plugin: {str(e)}")
+    
+    def get_exports(self) -> Dict[str, Any]:
+        """
+        Get all objects that plugins export to the global namespace.
+        
+        Returns:
+            Dictionary mapping names to exported objects
+        """
+        return self.exports
+
     def _reload_plugins(self) -> None:
         """Reload plugins and discover new methods."""
         # Reload setuptools entry points
@@ -336,6 +370,9 @@ class EDSLPluginManager:
                 
         # Rediscover methods
         self._discover_methods()
+        
+        # Gather exports from plugins
+        self._gather_exports()
     
     def uninstall_plugin(self, plugin_name: str) -> bool:
         """
@@ -435,6 +472,14 @@ class EDSLPluginManager:
         # Import and register internal plugins
         from .built_in.pig_latin import PigLatin
         self.manager.register(PigLatin())
+        
+        # Register the export example plugin
+        try:
+            from .built_in.export_example import ExportExample
+            self.manager.register(ExportExample())
+        except ImportError:
+            # In case the file isn't there or has issues
+            logger.warning("Failed to load export_example plugin")
     
     def _discover_methods(self):
         """Discover and register all plugin methods."""
