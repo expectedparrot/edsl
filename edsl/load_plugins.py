@@ -54,18 +54,7 @@ def load_plugins():
                     logger.info(f"Loaded plugin: {plugin_name}")
                     plugins[plugin_name] = plugin
                 
-                # For backward compatibility with old conjure_plugin hook
-                try:
-                    # Check if the conjure_plugin hook exists
-                    if hasattr(pm.hook, 'conjure_plugin'):
-                        logger.info("Found legacy conjure_plugin hook, attempting to use it")
-                        conjure_results = pm.hook.conjure_plugin()
-                        if conjure_results:
-                            for conjure in conjure_results:
-                                plugins["Conjure"] = conjure
-                                logger.info("Loaded Conjure plugin from legacy hook")
-                except Exception as e:
-                    logger.warning(f"Error loading legacy Conjure plugin: {e}")
+                # No special handling for any plugin - all plugins should use the standard system
                 
                 return plugins
         except Exception as e:

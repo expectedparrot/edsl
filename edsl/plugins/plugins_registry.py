@@ -77,11 +77,11 @@ def get_available_plugins(refresh: bool = False) -> List[AvailablePlugin]:
     plugins = [
         AvailablePlugin(
             name="conjure",
-            description="Create EDSL objects from Qualtrics, SPSS, and Stata files",
+            description="Create EDSL objects from Qualtrics, SPSS, Stata, and other survey/statistical files",
             github_url="https://github.com/expectedparrot/edsl-conjure",
             version="1.0.0",
             author="Expected Parrot",
-            tags=["qualtrics", "stata", "spss", "survey", "web"],
+            tags=["qualtrics", "stata", "spss", "survey", "web", "import", "convert"],
         )
     ]
     
