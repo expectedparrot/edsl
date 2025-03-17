@@ -21,11 +21,12 @@ from .exceptions import (
     GitHubRepoError,
     InvalidPluginError
 )
-from ..coop.plugins_registry import (
+from .plugins_registry import (
     AvailablePlugin,
     get_available_plugins,
     search_plugins, 
-    get_plugin_details
+    get_plugin_details,
+    get_github_url_by_name
 )
 
 
@@ -48,7 +49,8 @@ class PluginCLI:
                   edsl plugins available            # List available plugins from repository
                   edsl plugins search text          # Search for plugins related to text
                   edsl plugins info text_analysis   # Get detailed info about a plugin
-                  edsl plugins install https://github.com/expectedparrot/plugin-text-analysis
+                  edsl plugins install text_analysis # Install a plugin by name
+                  edsl plugins install text_analysis --url https://github.com/example/repo # Install with explicit URL
                   edsl plugins uninstall text_analysis
             """)
         )
@@ -72,8 +74,9 @@ class PluginCLI:
         
         # Install command
         install_parser = subparsers.add_parser("install", help="Install a plugin")
-        install_parser.add_argument("github_url", help="GitHub URL of the plugin")
+        install_parser.add_argument("name", help="Name of the plugin to install")
         install_parser.add_argument("--branch", help="Branch to install from")
+        install_parser.add_argument("--url", help="Directly specify GitHub URL instead of using the registry")
         
         # Uninstall command
         uninstall_parser = subparsers.add_parser("uninstall", help="Uninstall a plugin")
@@ -108,7 +111,7 @@ class PluginCLI:
             elif args.command == "info":
                 self._show_plugin_info(args.name)
             elif args.command == "install":
-                self._install_plugin(args.github_url, args.branch)
+                self._install_plugin(args.name, args.branch, args.url)
             elif args.command == "uninstall":
                 self._uninstall_plugin(args.name)
             else:
@@ -172,7 +175,7 @@ class PluginCLI:
                 print(f"{plugin.name:<20} {plugin.version:<10} {plugin.rating:<8.1f} {plugin.downloads:<10} {description:<50}")
                 
             print("\nUse 'edsl plugins info <name>' for more details about a specific plugin.")
-            print("Use 'edsl plugins install <github_url>' to install a plugin.")
+            print("Use 'edsl plugins install <name>' to install a plugin.")
             
         except Exception as e:
             print(f"Error fetching available plugins: {str(e)}")
@@ -277,19 +280,28 @@ class PluginCLI:
         except Exception as e:
             print(f"Error retrieving plugin information: {str(e)}")
     
-    def _install_plugin(self, github_url: str, branch: Optional[str] = None) -> None:
+    def _install_plugin(self, plugin_name: str, branch: Optional[str] = None, url: Optional[str] = None) -> None:
         """
-        Install a plugin from a GitHub repository.
+        Install a plugin by name or URL.
         
         Args:
-            github_url: URL to the GitHub repository
+            plugin_name: Name of the plugin to install
             branch: Optional branch to checkout (defaults to main/master)
+            url: Optional GitHub URL to use instead of registry lookup
         """
         try:
-            # Try to get plugin name from URL
-            plugin_name = self._get_plugin_name_from_url(github_url)
+            github_url = url
             
-            print(f"Installing plugin from {github_url}...")
+            # If URL not provided, look up in registry by name
+            if not github_url:
+                github_url = get_github_url_by_name(plugin_name)
+                if not github_url:
+                    print(f"Plugin '{plugin_name}' not found in registry.")
+                    print("Use 'edsl plugins available' to see available plugins.")
+                    print("Or provide the GitHub URL with '--url' if you know it.")
+                    return
+            
+            print(f"Installing plugin '{plugin_name}' from {github_url}...")
             if branch:
                 print(f"Using branch: {branch}")
                 
