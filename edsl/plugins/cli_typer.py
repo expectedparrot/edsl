@@ -25,11 +25,12 @@ from .exceptions import (
     GitHubRepoError,
     InvalidPluginError
 )
-from ..coop.plugins_registry import (
+from .plugins_registry import (
     AvailablePlugin,
     get_available_plugins,
     search_plugins, 
-    get_plugin_details
+    get_plugin_details,
+    get_github_url_by_name
 )
 
 # Create the Typer app
@@ -92,7 +93,7 @@ def list_available_plugins():
         
         console.print(table)
         console.print("\nUse [bold cyan]edsl plugins info <name>[/bold cyan] for more details about a specific plugin.")
-        console.print("Use [bold cyan]edsl plugins install <github_url>[/bold cyan] to install a plugin.")
+        console.print("Use [bold cyan]edsl plugins install <name>[/bold cyan] to install a plugin.")
         
     except Exception as e:
         console.print(f"[red]Error fetching available plugins: {str(e)}[/red]")
@@ -203,22 +204,31 @@ def show_plugin_info(name: str = typer.Argument(..., help="Plugin name")):
             expand=False
         )
         console.print(panel)
-        console.print(f"\nUse [bold cyan]edsl plugins install {info['github_url']}[/bold cyan] to install this plugin.")
+        console.print(f"\nUse [bold cyan]edsl plugins install {info['name']}[/bold cyan] to install this plugin.")
         
     except Exception as e:
         console.print(f"[red]Error retrieving plugin information: {str(e)}[/red]")
 
 @app.command("install")
 def install_plugin(
-    github_url: str = typer.Argument(..., help="GitHub URL of the plugin"),
-    branch: Optional[str] = typer.Option(None, help="Branch to install from")
+    name: str = typer.Argument(..., help="Name of the plugin to install"),
+    branch: Optional[str] = typer.Option(None, help="Branch to install from"),
+    url: Optional[str] = typer.Option(None, help="Directly specify GitHub URL instead of using the registry")
 ):
-    """Install a plugin from a GitHub repository."""
+    """Install a plugin by name or URL."""
     try:
-        # Try to get plugin name from URL
-        plugin_name = _get_plugin_name_from_url(github_url)
+        github_url = url
         
-        with console.status(f"Installing plugin from {github_url}...", spinner="dots"):
+        # If URL not provided, look up in registry by name
+        if not github_url:
+            github_url = get_github_url_by_name(name)
+            if not github_url:
+                console.print(f"[yellow]Plugin '{name}' not found in registry.[/yellow]")
+                console.print("Use [bold cyan]edsl plugins available[/bold cyan] to see available plugins.")
+                console.print("Or provide the GitHub URL with '--url' if you know it.")
+                raise typer.Exit(code=1)
+        
+        with console.status(f"Installing plugin '{name}' from {github_url}...", spinner="dots"):
             # Install the plugin
             installed_plugins = PluginHost.install_from_github(github_url, branch)
         
