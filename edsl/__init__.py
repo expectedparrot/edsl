@@ -123,3 +123,7 @@ except Exception as e:
 
 # Now that all modules are loaded, configure logging from the config
 logger.configure_from_config()
+
+
+from edsl.base.base_exception import BaseException
+BaseException.install_exception_hook()
