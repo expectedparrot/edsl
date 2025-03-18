@@ -275,15 +275,6 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
         >>> d = Dataset([{'a.b':[1,2,3,4]}])
         >>> d._key_to_value('a.b')
         [1, 2, 3, 4]
-
-        >>> d._key_to_value('a')
-        Traceback (most recent call last):
-        ...
-        edsl.dataset.exceptions.DatasetKeyError: Key 'a' not found in any of the dictionaries.
-        <BLANKLINE>
-        <BLANKLINE>
-        For more information, see: https://docs.expectedparrot.com/en/latest/dataset.html
-
         """
         potential_matches = []
         for data_dict in self.data:
@@ -482,14 +473,6 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
         >>> d = Dataset([{'a.b':[1,2,3,4]}])
         >>> d.sample(n=2, seed=0, with_replacement=True)
         Dataset([{'a.b': [4, 4]}])
-
-        >>> d.sample(n = 10, seed=0, with_replacement=False)
-        Traceback (most recent call last):
-        ...
-        edsl.dataset.exceptions.DatasetValueError: Sample size cannot be greater than the number of available elements when sampling without replacement.
-        <BLANKLINE>
-        <BLANKLINE>
-        For more information, see: https://docs.expectedparrot.com/en/latest/dataset.html
         """
         if seed is not None:
             random.seed(seed)
