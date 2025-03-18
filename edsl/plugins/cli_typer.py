@@ -205,7 +205,9 @@ def show_plugin_info(name: str = typer.Argument(..., help="Plugin name")):
 def install_plugin(
     name: str = typer.Argument(..., help="Name of the plugin to install"),
     branch: Optional[str] = typer.Option(None, help="Branch to install from"),
-    url: Optional[str] = typer.Option(None, help="Directly specify GitHub URL instead of using the registry")
+    url: Optional[str] = typer.Option(None, help="Directly specify GitHub URL instead of using the registry"),
+    timeout: int = typer.Option(300, help="Timeout in seconds for installation operations"),
+    debug: bool = typer.Option(False, help="Enable verbose debugging output")
 ):
     """Install a plugin by name or URL."""
     try:
@@ -220,18 +222,65 @@ def install_plugin(
                 console.print("Or provide the GitHub URL with '--url' if you know it.")
                 raise typer.Exit(code=1)
         
-        with console.status(f"Installing plugin '{name}' from {github_url}...", spinner="dots"):
-            # Install the plugin
-            installed_plugins = PluginHost.install_from_github(github_url, branch)
+        console.print(f"[bold cyan]Installing plugin '{name}' from {github_url} (timeout: {timeout}s)[/bold cyan]")
+        console.print("[yellow]Installation logs will be displayed in real-time to help with debugging:[/yellow]")
         
-        console.print(f"[green]Successfully installed plugin(s): {', '.join(installed_plugins)}[/green]")
-        console.print("\nUse [bold cyan]edsl plugins list[/bold cyan] to see all installed plugins.")
+        # Enable debugging if requested
+        if debug:
+            console.print("[bold yellow]Debug mode enabled - verbose output will be shown[/bold yellow]")
         
+        try:
+            # Install the plugin with timeout and debugging enabled
+            from .github_plugin_installer import TimeoutError
+            
+            # Import directly from the module to avoid circular imports
+            from .plugin_manager import EDSLPluginManager
+            plugin_manager = EDSLPluginManager()
+            
+            # Install with timeout and debugging
+            installed_plugins = plugin_manager.install_plugin_from_github(
+                github_url, 
+                branch=branch, 
+                debug=True,
+                timeout=timeout
+            )
+            
+            console.print(f"[green]Successfully installed plugin(s): {', '.join(installed_plugins)}[/green]")
+            console.print("\nUse [bold cyan]edsl plugins list[/bold cyan] to see all installed plugins.")
+            
+        except TimeoutError as e:
+            console.print(f"[bold red]Installation timed out after {timeout} seconds.[/bold red]")
+            console.print("[yellow]Possible solutions:[/yellow]")
+            console.print("  • Try increasing the timeout with --timeout option")
+            console.print("  • Check your network connection")
+            console.print("  • Verify that the deploy key has correct permissions")
+            console.print(f"[red]Error details: {str(e)}[/red]")
+            raise typer.Exit(code=1)
+            
+    except GitHubRepoError as e:
+        console.print(f"[bold red]GitHub repository error:[/bold red]")
+        console.print("[yellow]Possible solutions:[/yellow]")
+        console.print("  • Check that the repository URL is correct")
+        console.print("  • Verify that you have access to the repository")
+        console.print("  • For private repositories, ensure your deploy key is set correctly")
+        console.print(f"[red]Error details: {str(e)}[/red]")
+        raise typer.Exit(code=1)
+    except PluginInstallationError as e:
+        console.print(f"[bold red]Plugin installation error:[/bold red]")
+        console.print("[yellow]Possible solutions:[/yellow]")
+        console.print("  • Check that the plugin package is valid")
+        console.print("  • Verify that required dependencies are installed")
+        console.print("  • Look for syntax errors in the plugin code")
+        console.print(f"[red]Error details: {str(e)}[/red]")
+        raise typer.Exit(code=1)
     except PluginException as e:
         console.print(f"[red]Error installing plugin: {str(e)}[/red]")
         raise typer.Exit(code=1)
     except Exception as e:
         console.print(f"[red]Unexpected error during installation: {str(e)}[/red]")
+        import traceback
+        console.print("[yellow]Stack trace for debugging:[/yellow]")
+        console.print(traceback.format_exc())
         raise typer.Exit(code=1)
 
 @app.command("uninstall")

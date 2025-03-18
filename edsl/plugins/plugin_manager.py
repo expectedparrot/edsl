@@ -85,13 +85,16 @@ class EDSLPluginManager:
         except IOError as e:
             logger.warning(f"Failed to save installed plugins data: {str(e)}")
 
-    def install_plugin_from_github(self, github_url: str, branch: Optional[str] = None) -> List[str]:
+    def install_plugin_from_github(self, github_url: str, branch: Optional[str] = None, 
+                              debug: bool = False, timeout: int = 300) -> List[str]:
         """
         Install a plugin from a GitHub repository.
         
         Args:
             github_url: URL to the GitHub repository
             branch: Optional branch to checkout (defaults to main/master)
+            debug: Whether to enable detailed debugging output
+            timeout: Timeout in seconds for installation operations
             
         Returns:
             List of installed plugin names
@@ -100,6 +103,7 @@ class EDSLPluginManager:
             GitHubRepoError: If the URL is invalid or the repository cannot be accessed
             PluginInstallationError: If the installation fails
             InvalidPluginError: If the repository does not contain valid plugins
+            TimeoutError: If the installation times out
         """
         # Validate GitHub URL
         self._validate_github_url(github_url)
@@ -114,13 +118,30 @@ class EDSLPluginManager:
         os.makedirs(plugins_install_dir, exist_ok=True)
         plugin_dir = os.path.join(plugins_install_dir, repo_name)
         
+        if debug:
+            print(f"DEBUG: Installing plugin to directory: {plugin_dir}")
+        
         # Remove existing installation if it exists
         if os.path.exists(plugin_dir):
+            if debug:
+                print(f"DEBUG: Removing existing installation at {plugin_dir}")
             shutil.rmtree(plugin_dir)
         
         try:
-            # Clone the repository to the persistent directory
-            self._clone_repository(github_url, plugin_dir, branch)
+            # Import here to avoid circular imports
+            from .github_plugin_installer import install_plugin_from_github as install_with_timeout
+            
+            # Use the enhanced installer with timeout and debugging
+            success = install_with_timeout(
+                github_url, 
+                branch=branch, 
+                install_args=None, 
+                debug=debug, 
+                timeout=timeout
+            )
+            
+            if not success:
+                raise PluginInstallationError(f"Failed to install plugin from {github_url}")
             
             # Check for setup.py or pyproject.toml
             if not self._has_package_files(plugin_dir):
@@ -128,14 +149,48 @@ class EDSLPluginManager:
                     f"Repository at {github_url} does not contain required setup.py or pyproject.toml"
                 )
             
-            # Install the package in development mode
-            installed_plugins = self._install_package(plugin_dir)
+            # Get the package name
+            package_name = self._get_package_name(plugin_dir)
+            
+            # Add the plugin to installed plugins
+            self.installed_plugins[package_name] = plugin_dir
+            self._save_installed_plugins()
             
             # Reload plugins and discover methods
             self._reload_plugins()
             
-            return installed_plugins
+            return [package_name]
             
+        except ImportError:
+            # Fall back to original implementation if the enhanced installer isn't available
+            if debug:
+                print("DEBUG: Enhanced installer not available, falling back to direct implementation")
+                
+            try:
+                # Clone the repository to the persistent directory
+                self._clone_repository(github_url, plugin_dir, branch)
+                
+                # Check for setup.py or pyproject.toml
+                if not self._has_package_files(plugin_dir):
+                    raise InvalidPluginError(
+                        f"Repository at {github_url} does not contain required setup.py or pyproject.toml"
+                    )
+                
+                # Install the package in development mode
+                installed_plugins = self._install_package(plugin_dir)
+                
+                # Reload plugins and discover methods
+                self._reload_plugins()
+                
+                return installed_plugins
+                
+            except GitHubRepoError as e:
+                # Re-raise with more context
+                raise GitHubRepoError(f"Failed to access GitHub repository: {str(e)}")
+            except subprocess.CalledProcessError as e:
+                raise PluginInstallationError(f"Installation command failed: {e.output.decode() if hasattr(e, 'output') else str(e)}")
+            except Exception as e:
+                raise PluginInstallationError(f"Plugin installation failed: {str(e)}")
         except GitHubRepoError as e:
             # Re-raise with more context
             raise GitHubRepoError(f"Failed to access GitHub repository: {str(e)}")

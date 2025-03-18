@@ -69,13 +69,16 @@ class PluginHost:
         return self.plugin_manager.list_methods()
 
     @staticmethod
-    def install_from_github(github_url: str, branch: Optional[str] = None) -> List[str]:
+    def install_from_github(github_url: str, branch: Optional[str] = None, 
+                          debug: bool = False, timeout: int = 300) -> List[str]:
         """
         Install a plugin from a GitHub repository.
         
         Args:
             github_url: URL to the GitHub repository
             branch: Optional branch to checkout (defaults to main/master)
+            debug: Whether to enable detailed debugging output
+            timeout: Timeout in seconds for installation operations
             
         Returns:
             List of installed plugin names
@@ -84,6 +87,7 @@ class PluginHost:
             GitHubRepoError: If the URL is invalid or the repository cannot be accessed
             PluginInstallationError: If the installation fails
             InvalidPluginError: If the repository does not contain valid plugins
+            TimeoutError: If the installation times out
         """
         # Check if this is a private repository
         is_private = "private" in github_url or github_url.startswith("git@github.com")
@@ -94,12 +98,20 @@ class PluginHost:
             deploy_key = CONFIG.get("EDSL_PRIVATE_PLUGIN_DEPLOY_KEY")
             if deploy_key:
                 logger.info(f"Installing from private repository with deploy key: {github_url}")
+                if debug:
+                    print(f"DEBUG: Installing from private repository with deploy key: {github_url}")
+                    print(f"DEBUG: Deploy key length: {len(deploy_key)} characters")
             else:
                 logger.info(f"Installing from private repository without deploy key: {github_url}")
                 logger.warning("Private repository access may fail without a deploy key")
+                if debug:
+                    print("DEBUG: WARNING - Installing from private repository WITHOUT deploy key")
+            
+        if debug:
+            print(f"DEBUG: Starting installation from {github_url} with timeout={timeout}s")
             
         pm = get_plugin_manager()
-        return pm.install_plugin_from_github(github_url, branch)
+        return pm.install_plugin_from_github(github_url, branch, debug=debug, timeout=timeout)
     
     @staticmethod
     def uninstall_plugin(plugin_name: str) -> bool:
