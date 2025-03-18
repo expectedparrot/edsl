@@ -12,7 +12,7 @@ class SurveyError(BaseException):
     - Question names don't meet validation requirements
     - Survey operations encounter general errors not covered by more specific exceptions
     """
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/surveys.html"
+    doc_page = "surveys"
 
 
 class SurveyCreationError(SurveyError):
@@ -38,7 +38,7 @@ class SurveyCreationError(SurveyError):
         survey.add_rules_to_question(EndOfSurvey)  # Raises SurveyCreationError
         ```
     """
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/surveys.html#creating-surveys"
+    doc_anchor = "creating-surveys"
 
 
 class SurveyHasNoRulesError(SurveyError):
