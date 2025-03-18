@@ -52,6 +52,28 @@ def test_module_logger():
     module_logger.warning("This is a module-specific warning")
     
 
+def test_silent_exception():
+    """Test that silent=True prevents logging and output when exception is caught."""
+    print("\nTesting silent exception handling...")
+    
+    # Create a simple class to test silent exceptions
+    class TestSilentException(BaseException):
+        def __init__(self, message, silent=False):
+            super().__init__(message, silent=silent)
+    
+    # Test with silent=True
+    try:
+        raise TestSilentException("This should be silent", silent=True)
+    except TestSilentException:
+        print("Silent exception was raised and caught")
+    
+    # Test with silent=False
+    try:
+        raise TestSilentException("This should NOT be silent", silent=False)
+    except TestSilentException:
+        print("Non-silent exception was raised and caught")
+
+
 if __name__ == "__main__":
     print("EDSL Logging Test\n")
     
@@ -62,5 +84,6 @@ if __name__ == "__main__":
     test_logger_levels()
     test_exception_logging()
     test_module_logger()
+    test_silent_exception()
     
     print("\nLogging test complete. Check the console output and ~/.edsl/logs/edsl.log")

@@ -10,7 +10,7 @@ from ..enums import service_to_api_keyname
 from ..base import BaseException
 
 class MissingAPIKeyError(BaseException):
-    def __init__(self, full_message=None, model_name=None, inference_service=None):
+    def __init__(self, full_message=None, model_name=None, inference_service=None, silent=False):
         if model_name and inference_service:
             full_message = textwrap.dedent(
                 f"""
@@ -19,7 +19,7 @@ class MissingAPIKeyError(BaseException):
                 Please see https://docs.expectedparrot.com/en/latest/api_keys.html for more information.
                 """
             )
-        super().__init__(full_message, show_docs=False)
+        super().__init__(full_message, show_docs=False, silent=silent)
 
 from .key_lookup import KeyLookup
 from .models import (
@@ -214,7 +214,7 @@ class KeyLookupBuilder:
             - Supports services that require both API key and API ID
         """
         if (key_entries := self.key_data.get(service)) is None:
-            raise MissingAPIKeyError(f"No key found for service '{service}'")
+            raise MissingAPIKeyError(f"No key found for service '{service}'", silent=True)
 
         if len(key_entries) == 1:
             api_key_entry = key_entries[0]

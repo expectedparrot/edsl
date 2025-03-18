@@ -1,6 +1,6 @@
 import sys
-
 from .. import logger
+from IPython.display import display, HTML
 
 class BaseException(Exception):
     """Base exception class for all EDSL exceptions.
@@ -15,14 +15,16 @@ class BaseException(Exception):
     relevant_doc = "https://docs.expectedparrot.com/"
     suppress_traceback = True
 
-    def __init__(self, message:str, *, show_docs:bool=True, log_level:str="error"):
+    def __init__(self, message:str, *, show_docs:bool=True, log_level:str="error", silent:bool=False):
         """Initialize a new BaseException with formatted error message.
         
         Args:
             message: The primary error message
             show_docs: If True, append documentation links to the error message
             log_level: The logging level to use ("debug", "info", "warning", "error", "critical")
+            silent: If True, suppress all output when the exception is caught
         """
+        self.silent = silent
         # Format main error message
         formatted_message = [message.strip()]
 
@@ -41,17 +43,18 @@ class BaseException(Exception):
         final_message = "\n\n".join(formatted_message)
         super().__init__(final_message)
         
-        # Log the exception
-        if log_level == "debug":
-            logger.debug(f"{self.__class__.__name__}: {message}")
-        elif log_level == "info":
-            logger.info(f"{self.__class__.__name__}: {message}")
-        elif log_level == "warning":
-            logger.warning(f"{self.__class__.__name__}: {message}")
-        elif log_level == "error":
-            logger.error(f"{self.__class__.__name__}: {message}")
-        elif log_level == "critical":
-            logger.critical(f"{self.__class__.__name__}: {message}")
+        # Log the exception unless silent is True
+        if not silent:
+            if log_level == "debug":
+                logger.debug(f"{self.__class__.__name__}: {message}")
+            elif log_level == "info":
+                logger.info(f"{self.__class__.__name__}: {message}")
+            elif log_level == "warning":
+                logger.warning(f"{self.__class__.__name__}: {message}")
+            elif log_level == "error":
+                logger.error(f"{self.__class__.__name__}: {message}")
+            elif log_level == "critical":
+                logger.critical(f"{self.__class__.__name__}: {message}")
 
         self._setup_exception_handling()
 
@@ -69,10 +72,12 @@ class BaseException(Exception):
         def custom_excepthook(exc_type, exc_value, exc_traceback):
             # Check if this is one of our exceptions and we want to suppress the traceback
             if issubclass(exc_type, BaseException) and BaseException.suppress_traceback:
-                try:
-                    display(HTML(f"<div style='color: red'>❌ EDSL ERROR: {exc_type.__name__}: {exc_value.html_message}</div>"))
-                except:
-                    print(f"❌ EDSL ERROR: {exc_type.__name__}: {exc_value}", file=sys.stderr)
+                # Only display error if not silent
+                if not getattr(exc_value, 'silent', False):
+                    try:
+                        display(HTML(f"<div style='color: red'>❌ EDSL ERROR: {exc_type.__name__}: {exc_value.html_message}</div>"))
+                    except:
+                        print(f"❌ EDSL ERROR: {exc_type.__name__}: {exc_value}", file=sys.stderr)
                 return  # Suppress traceback
             # Otherwise, use the default handler
             return original_excepthook(exc_type, exc_value, exc_traceback)
@@ -87,7 +92,8 @@ class BaseException(Exception):
             def custom_showtraceback(*args, **kwargs):
                 exc_type, exc_value, _ = sys.exc_info()
                 if issubclass(exc_type, BaseException) and BaseException.suppress_traceback:
-                    print(f"❌ EDSL ERROR: {exc_type.__name__}: {exc_value}", file=sys.stderr)
+                    if not getattr(exc_value, 'silent', False):
+                        print(f"❌ EDSL ERROR: {exc_type.__name__}: {exc_value}", file=sys.stderr)
                     return
                 return ip.showtraceback(*args, **kwargs)
             ip.showtraceback = custom_showtraceback
