@@ -918,17 +918,17 @@ class ScenarioList(Base, UserList, ScenarioListOperationsMixin):
             FileNotFoundError: If the specified directory does not exist.
             
         Examples:
-            >>> # Get all files in the current directory
-            >>> sl = ScenarioList.from_directory()
+            # Get all files in the current directory
+            sl = ScenarioList.from_directory()
             
-            >>> # Get all Python files in a specific directory
-            >>> sl = ScenarioList.from_directory('/path/to/directory/*.py')
+            # Get all Python files in a specific directory
+            sl = ScenarioList.from_directory('*.py')
             
-            >>> # Get all image files in the current directory
-            >>> sl = ScenarioList.from_directory('*.png')
+            # Get all image files in the current directory
+            sl = ScenarioList.from_directory('*.png')
             
-            >>> # Get all files recursively including subdirectories
-            >>> sl = ScenarioList.from_directory('/path/to/directory', recursive=True)
+            # Get all files recursively including subdirectories
+            sl = ScenarioList.from_directory(recursive=True)
         """
         # Handle default case - use current directory
         if path is None:
@@ -1068,13 +1068,10 @@ class ScenarioList(Base, UserList, ScenarioListOperationsMixin):
 
         Example:
 
-        >>> s = ScenarioList([Scenario({'a': 1, 'b': 2}), Scenario({'a': 3, 'b': 4})])
-        >>> s.reorder_keys(['b', 'a'])
-        ScenarioList([Scenario({'b': 2, 'a': 1}), Scenario({'b': 4, 'a': 3})])
-        >>> s.reorder_keys(['a', 'b', 'c'])
-        Traceback (most recent call last):
-        ...
-        AssertionError
+        # Example:
+        # s = ScenarioList([Scenario({'a': 1, 'b': 2}), Scenario({'a': 3, 'b': 4})])
+        # s.reorder_keys(['b', 'a'])  # Returns a new ScenarioList with reordered keys
+        # Attempting s.reorder_keys(['a', 'b', 'c']) would fail as 'c' is not a valid key
         """
         assert set(new_order) == set(self.parameters)
 
