@@ -17,12 +17,7 @@ logger.setLevel(logging.ERROR)  # Default level
 
 # Avoid adding handlers multiple times when imported in different modules
 if not logger.handlers:
-    # Console handler
-    console_handler = logging.StreamHandler(sys.stdout)
-    console_handler.setLevel(logging.ERROR)
-    console_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    console_handler.setFormatter(console_formatter)
-    logger.addHandler(console_handler)
+    # Console handler removed - logs only go to file now
 
     # File handler - create logs directory if it doesn't exist
     try:
@@ -38,8 +33,8 @@ if not logger.handlers:
         logger.addHandler(file_handler)
     except Exception as e:
         # Don't fail if file logging can't be set up
-        console_handler.setLevel(logging.WARNING)
-        logger.warning(f"Could not set up file logging: {e}")
+        # No console handler to adjust
+        print(f"WARNING: Could not set up file logging: {e}")
 
 
 def get_logger(name):

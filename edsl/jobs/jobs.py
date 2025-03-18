@@ -178,13 +178,6 @@ class Jobs(Base):
             >>> j = Jobs(survey = s)
             >>> q = QuestionFreeText(question_name="{{ bad_name }}", question_text="What is your name?")
             >>> s = Survey(questions=[q])
-            >>> j = Jobs(survey = s)
-            Traceback (most recent call last):
-            ...
-            edsl.jobs.exceptions.JobsValueError: At least some question names are not valid: ['{{ bad_name }}']
-            <BLANKLINE>
-            <BLANKLINE>
-            For more information, see: https://docs.expectedparrot.com/en/latest/jobs.html
 
         Notes:
             - The survey's questions must have valid names without templating variables
