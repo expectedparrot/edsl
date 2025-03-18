@@ -124,5 +124,11 @@ except Exception as e:
 # Now that all modules are loaded, configure logging from the config
 logger.configure_from_config()
 
+
+# Installs a custom exception handling routine for edsl exceptions
+from .base.base_exception import BaseException
+BaseException.install_exception_hook()
+
 # Log the total number of items in __all__ for debugging
 logger.debug(f"EDSL initialization complete with {len(__all__)} items in __all__")
+

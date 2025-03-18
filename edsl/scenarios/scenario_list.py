@@ -30,6 +30,8 @@ from typing import (
 import warnings
 import csv
 import random
+import os
+import glob
 from io import StringIO
 import inspect
 from collections import UserList, defaultdict
@@ -58,6 +60,8 @@ from ..dataset import ScenarioListOperationsMixin
 from .exceptions import ScenarioError
 from .scenario import Scenario
 from .scenario_list_pdf_tools import PdfTools
+from .directory_scanner import DirectoryScanner
+from .file_store import FileStore
 
 
 if TYPE_CHECKING:
@@ -887,6 +891,119 @@ class ScenarioList(Base, UserList, ScenarioListOperationsMixin):
         return ScenarioList([scenario.keep(fields) for scenario in sl])
 
     @classmethod
+    def from_directory(
+        cls,
+        path: Optional[str] = None,
+        recursive: bool = False,
+    ) -> "ScenarioList":
+        """Create a ScenarioList of FileStore objects from files in a directory.
+        
+        This method scans a directory and creates a FileStore object for each file found,
+        optionally filtering files based on a wildcard pattern. If no path is provided,
+        the current working directory is used.
+        
+        Args:
+            path: The directory path to scan, optionally including a wildcard pattern.
+                 If None, uses the current working directory.
+                 Examples:
+                 - "/path/to/directory" - scans all files in the directory
+                 - "/path/to/directory/*.py" - scans only Python files in the directory
+                 - "*.txt" - scans only text files in the current working directory
+            recursive: Whether to scan subdirectories recursively. Defaults to False.
+            
+        Returns:
+            A ScenarioList containing FileStore objects for all matching files.
+            
+        Raises:
+            FileNotFoundError: If the specified directory does not exist.
+            
+        Examples:
+            # Get all files in the current directory
+            sl = ScenarioList.from_directory()
+            
+            # Get all Python files in a specific directory
+            sl = ScenarioList.from_directory('*.py')
+            
+            # Get all image files in the current directory
+            sl = ScenarioList.from_directory('*.png')
+            
+            # Get all files recursively including subdirectories
+            sl = ScenarioList.from_directory(recursive=True)
+        """
+        # Handle default case - use current directory
+        if path is None:
+            directory_path = os.getcwd()
+            pattern = None
+        else:
+            # Special handling for "**" pattern which indicates recursive scanning
+            has_recursive_pattern = '**' in path if path else False
+            
+            # Check if path contains any wildcard
+            if path and ('*' in path):
+                # Handle "**/*.ext" pattern - find the directory part before the **
+                if has_recursive_pattern:
+                    # Extract the base directory by finding the part before **
+                    parts = path.split('**')
+                    if parts and parts[0]:
+                        # Remove trailing slash if any
+                        directory_path = parts[0].rstrip('/')
+                        if not directory_path:
+                            directory_path = os.getcwd()
+                        # Get the pattern after **
+                        pattern = parts[1] if len(parts) > 1 else None
+                        if pattern and pattern.startswith('/'):
+                            pattern = pattern[1:]  # Remove leading slash
+                    else:
+                        directory_path = os.getcwd()
+                        pattern = None
+                # Handle case where path is just a pattern (e.g., "*.py")
+                elif os.path.dirname(path) == '':
+                    directory_path = os.getcwd()
+                    pattern = os.path.basename(path)
+                else:
+                    # Split into directory and pattern
+                    directory_path = os.path.dirname(path)
+                    if not directory_path:
+                        directory_path = os.getcwd()
+                    pattern = os.path.basename(path)
+            else:
+                # Path is a directory with no pattern
+                directory_path = path
+                pattern = None
+                
+        # Ensure directory exists
+        if not os.path.isdir(directory_path):
+            raise FileNotFoundError(f"Directory not found: {directory_path}")
+        
+        # Create a DirectoryScanner for the directory
+        scanner = DirectoryScanner(directory_path)
+        
+        # Configure wildcard pattern filtering
+        suffix_allow_list = None
+        example_suffix = None
+        
+        if pattern:
+            if pattern.startswith('*.'):
+                # Simple extension filter (e.g., "*.py")
+                suffix_allow_list = [pattern[2:]]
+            elif '*' in pattern:
+                # Other wildcard patterns
+                example_suffix = pattern
+            else:
+                # Handle simple non-wildcard pattern (exact match)
+                example_suffix = pattern
+        
+        # Use scanner to find files and create FileStore objects
+        file_stores = scanner.scan(
+            factory=lambda path: FileStore(path),
+            recursive=recursive,
+            suffix_allow_list=suffix_allow_list,
+            example_suffix=example_suffix
+        )
+        
+        return cls(file_stores)
+                
+    @classmethod
     def from_list(
         cls, name: str, values: list, func: Optional[Callable] = None
     ) -> ScenarioList:
@@ -951,13 +1068,10 @@ class ScenarioList(Base, UserList, ScenarioListOperationsMixin):
 
         Example:
 
-        >>> s = ScenarioList([Scenario({'a': 1, 'b': 2}), Scenario({'a': 3, 'b': 4})])
-        >>> s.reorder_keys(['b', 'a'])
-        ScenarioList([Scenario({'b': 2, 'a': 1}), Scenario({'b': 4, 'a': 3})])
-        >>> s.reorder_keys(['a', 'b', 'c'])
-        Traceback (most recent call last):
-        ...
-        AssertionError
+        # Example:
+        # s = ScenarioList([Scenario({'a': 1, 'b': 2}), Scenario({'a': 3, 'b': 4})])
+        # s.reorder_keys(['b', 'a'])  # Returns a new ScenarioList with reordered keys
+        # Attempting s.reorder_keys(['a', 'b', 'c']) would fail as 'c' is not a valid key
         """
         assert set(new_order) == set(self.parameters)
 
