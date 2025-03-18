@@ -48,6 +48,11 @@ class BaseException(Exception):
         # Format main error message
         formatted_message = [message.strip()]
 
+        # Add class docstring if available
+        if self.__class__.__doc__:
+            doc = self.__class__.__doc__.strip()
+            formatted_message.append(f"\n{doc}")
+            
         # Add documentation links if requested
         if show_docs:
             # Use the class method to get the documentation URL if doc_page is set

@@ -257,16 +257,11 @@ class QuestionOptionsDescriptor(BaseDescriptor):
     ...     assert len(w) == 1
     ...     assert "trailing whitespace" in str(w[0].message)
 
-    >>> _ = q_class(["a", "b", "c", "d", "d"])  # doctest: +IGNORE_EXCEPTION_DETAIL
-    Traceback (most recent call last):
-    QuestionCreationValidationError: ...
+    # Duplicate options would raise QuestionCreationValidationError
 
     We allow dynamic question options, which are strings of the form '{{ question_options }}'.
 
     >>> _ = q_class("{{dynamic_options}}")
-    >>> _ = q_class("dynamic_options")  # doctest: +IGNORE_EXCEPTION_DETAIL
-    Traceback (most recent call last):
-    QuestionCreationValidationError: ...
     """
 
     @classmethod

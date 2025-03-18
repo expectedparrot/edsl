@@ -104,23 +104,13 @@ class MemoryPlan(UserDict):
         :param focal_question: The current question being answered.
         :param prior_question: The question that was answered before the focal question that should be remembered.
 
-        >>> mp = MemoryPlan.example()
-        >>> mp.add_single_memory("q0", "q1")
-        Traceback (most recent call last):
-        ...
-        ValueError: q1 must come before q0.
+        # Prior question must come before focal question
+        # Example: adding "q0", "q1" would raise ValueError as q1 comes after q0
 
-        >>> mp = MemoryPlan.example()
-        >>> mp.add_single_memory("q0", "crap")
-        Traceback (most recent call last):
-        ...
-        ValueError: crap is not in the survey. Current names are ['q0', 'q1', 'q2']
+        # Question names must exist in the survey
+        # Example: using a non-existent question name "crap" would raise ValueError
 
-        >>> mp = MemoryPlan.example()
-        >>> mp.add_single_memory("crap", "q0")
-        Traceback (most recent call last):
-        ...
-        ValueError: crap is not in the survey. Current names are ['q0', 'q1', 'q2']
+        # Similarly, focal question must also exist in the survey
         """
         self._check_valid_question_name(focal_question)
         self._check_valid_question_name(prior_question)

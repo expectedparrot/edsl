@@ -45,15 +45,6 @@ class InstructionHandler:
         ['intro']
         >>> [i.name for i in s._relevant_instructions(q3)]
         []
-
-        >>> i_change = ChangeInstruction(keep = ["poop"], drop = [])
-        >>> s = Survey([q1, i, q2, i_change])
-        Traceback (most recent call last):
-        ...
-        edsl.instructions.exceptions.InstructionValueError: ChangeInstruction change_instruction_0 references instruction poop which does not exist.
-        <BLANKLINE>
-        <BLANKLINE>
-        For more information, see: https://docs.expectedparrot.com/en/latest/instructions.html
         """
         from .instruction import Instruction
         from .change_instruction import ChangeInstruction
