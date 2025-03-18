@@ -192,24 +192,44 @@ class DirectoryScanner:
             Returns:
                 True if the file should be included, False otherwise.
             """
+            # Get filename and extension
+            basename = os.path.basename(filepath)
             _, ext = os.path.splitext(filepath)
             ext = ext[1:] if ext else ""  # Remove leading dot from extension
-
-            # Handle no extension case
-            if not ext:
-                return include_no_extension
-
-            # Check exclusions first (they take precedence)
+            
+            # Skip system files like .DS_Store by default
+            if basename == '.DS_Store':
+                return False
+            
+            # If there's a specific allow list and we have a wildcard filter
+            if suffix_allow_list:
+                # Only include files with the allowed extensions
+                return ext in suffix_allow_list
+            
+            # Check exclusions (they take precedence)
             if suffix_exclude_list and ext in suffix_exclude_list:
                 return False
 
             # Check example suffix if specified
-            if example_suffix and not filepath.endswith(example_suffix):
-                return False
-
-            # Check allowed suffixes if specified
-            if suffix_allow_list and ext not in suffix_allow_list:
-                return False
+            if example_suffix:
+                # Handle wildcard patterns
+                if '*' in example_suffix:
+                    import fnmatch
+                    basename = os.path.basename(filepath)
+                    # Try to match just the filename if the pattern doesn't contain path separators
+                    if '/' not in example_suffix and '\\' not in example_suffix:
+                        if not fnmatch.fnmatch(basename, example_suffix):
+                            return False
+                    else:
+                        # Match the full path
+                        if not fnmatch.fnmatch(filepath, example_suffix):
+                            return False
+                elif not filepath.endswith(example_suffix):
+                    return False
+                
+            # Handle no extension case
+            if not ext:
+                return include_no_extension
 
             return True
 
