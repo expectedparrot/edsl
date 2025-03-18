@@ -326,6 +326,12 @@ class PluginCLI:
                     print("Warning: EDSL_PRIVATE_PLUGIN_DEPLOY_KEY is not set.")
                     print("You may need to set this environment variable with a valid deploy key.")
                     print("See documentation for instructions on setting up deploy keys.")
+                    
+                    # Ask if user wants to continue
+                    confirm = input("Do you want to continue without a deploy key? (y/n): ")
+                    if confirm.lower() != 'y':
+                        print("Installation aborted.")
+                        return
                 else:
                     print(f"Using deploy key ({len(deploy_key)} characters)")
                 

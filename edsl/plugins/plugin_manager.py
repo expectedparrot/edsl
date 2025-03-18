@@ -195,6 +195,9 @@ class EDSLPluginManager:
             GitHubRepoError: If the clone fails
         """
         try:
+            # Use the dedicated GitHub plugin installer
+            from .github_plugin_installer import setup_ssh_with_deploy_key
+            
             # Check if this is a private repository and we need to use deploy key
             is_private = "private" in url or url.startswith("git@github.com")
             
@@ -211,38 +214,17 @@ class EDSLPluginManager:
                 logger.debug(f"Failed to get deploy key from config: {str(e)}")
             
             # For private repositories with deploy key, use SSH
+            ssh_temp_dir = None
+            env = os.environ.copy()
+            
             if is_private and deploy_key:
-                import tempfile
                 logger.info("Using deploy key for private repository")
+                env, ssh_temp_dir = setup_ssh_with_deploy_key(deploy_key)
                 
-                with tempfile.TemporaryDirectory() as temp_dir:
-                    # Create a temporary SSH key file
-                    key_file = os.path.join(temp_dir, "deploy_key")
-                    with open(key_file, "w") as f:
-                        f.write(deploy_key)
-                    os.chmod(key_file, 0o600)  # Set appropriate permissions
-                    
-                    # Set up SSH command with the key
-                    ssh_cmd = f'ssh -i "{key_file}" -o StrictHostKeyChecking=no'
-                    env = os.environ.copy()
-                    env["GIT_SSH_COMMAND"] = ssh_cmd
-                    
-                    # Clone command
-                    cmd = ['git', 'clone', url, target_dir]
-                    subprocess.run(cmd, check=True, capture_output=True, env=env)
-                    
-                    # Checkout specific branch if requested
-                    if branch:
-                        subprocess.run(
-                            ['git', 'checkout', branch], 
-                            check=True, 
-                            capture_output=True,
-                            cwd=target_dir
-                        )
-            else:
-                # Basic clone command for public repositories
+            try:
+                # Clone command
                 cmd = ['git', 'clone', url, target_dir]
-                subprocess.run(cmd, check=True, capture_output=True)
+                subprocess.run(cmd, check=True, capture_output=True, env=env)
                 
                 # Checkout specific branch if requested
                 if branch:
@@ -252,6 +234,16 @@ class EDSLPluginManager:
                         capture_output=True,
                         cwd=target_dir
                     )
+            finally:
+                # Clean up the temporary SSH key directory
+                if ssh_temp_dir and os.path.exists(ssh_temp_dir):
+                    logger.debug(f"Cleaning up SSH temporary directory: {ssh_temp_dir}")
+                    try:
+                        import shutil
+                        shutil.rmtree(ssh_temp_dir)
+                    except Exception as e:
+                        logger.warning(f"Error cleaning up SSH directory: {e}")
+                
         except subprocess.CalledProcessError as e:
             error_msg = e.stderr.decode() if hasattr(e, 'stderr') else str(e)
             raise GitHubRepoError(f"Failed to clone repository: {error_msg}")

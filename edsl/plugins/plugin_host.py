@@ -90,7 +90,13 @@ class PluginHost:
         
         # Log if this is a private repository
         if is_private:
-            logger.info(f"Installing from private repository: {github_url}")
+            from ..config import CONFIG
+            deploy_key = CONFIG.get("EDSL_PRIVATE_PLUGIN_DEPLOY_KEY")
+            if deploy_key:
+                logger.info(f"Installing from private repository with deploy key: {github_url}")
+            else:
+                logger.info(f"Installing from private repository without deploy key: {github_url}")
+                logger.warning("Private repository access may fail without a deploy key")
             
         pm = get_plugin_manager()
         return pm.install_plugin_from_github(github_url, branch)
