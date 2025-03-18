@@ -88,6 +88,10 @@ CONFIG_MAP = {
         "default": "None",
         "info": "This config var holds the URL of the remote token bucket server.",
     },
+    "EDSL_PRIVATE_PLUGIN_DEPLOY_KEY": {
+        "default": "None",
+        "info": "This config var holds the deploy key for accessing private plugins.",
+    },
 }
 
 

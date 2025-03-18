@@ -25,6 +25,9 @@ from .is_notebook import is_notebook
 from .is_valid_variable_name import is_valid_variable_name
 from .naming_utilities import sanitize_string
 
+# GitHub plugin utilities
+from .github_plugin_installer import install_plugin_from_github, install_plugin_from_local_path
+
 # Interface module - note: print_results_long is imported directly in results.py
 
 __all__ = [
@@ -45,6 +48,8 @@ __all__ = [
     "jupyter_nb_handler",
     "is_notebook",
     "is_valid_variable_name",
-    "sanitize_string"
+    "sanitize_string",
+    "install_plugin_from_github",
+    "install_plugin_from_local_path"
 ]
 

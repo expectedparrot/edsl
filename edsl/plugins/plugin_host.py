@@ -10,6 +10,7 @@ from .exceptions import (
     InvalidPluginError,
     PluginMethodError
 )
+from .. import logger
 
 # Singleton instance of the plugin manager for global access
 _plugin_manager = None
@@ -84,6 +85,13 @@ class PluginHost:
             PluginInstallationError: If the installation fails
             InvalidPluginError: If the repository does not contain valid plugins
         """
+        # Check if this is a private repository
+        is_private = "private" in github_url or github_url.startswith("git@github.com")
+        
+        # Log if this is a private repository
+        if is_private:
+            logger.info(f"Installing from private repository: {github_url}")
+            
         pm = get_plugin_manager()
         return pm.install_plugin_from_github(github_url, branch)
     

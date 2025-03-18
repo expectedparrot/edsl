@@ -154,6 +154,20 @@ class EDSLPluginManager:
         Raises:
             GitHubRepoError: If the URL is invalid
         """
+        # Handle SSH URLs (git@github.com:username/repo.git)
+        if url.startswith('git@github.com:'):
+            # Validate SSH URL format
+            parts = url.split(':')
+            if len(parts) != 2 or not parts[1]:
+                raise GitHubRepoError(f"Invalid SSH URL format: {url}")
+            
+            # Check path (username/repo)
+            if parts[1].count('/') < 1:
+                raise GitHubRepoError(f"Invalid GitHub repository path in SSH URL: {url}")
+            
+            return
+        
+        # For HTTPS URLs
         parsed_url = urlparse(url)
         
         # Check that it's a valid URL with https scheme
@@ -181,18 +195,63 @@ class EDSLPluginManager:
             GitHubRepoError: If the clone fails
         """
         try:
-            # Basic clone command
-            cmd = ['git', 'clone', url, target_dir]
-            subprocess.run(cmd, check=True, capture_output=True)
+            # Check if this is a private repository and we need to use deploy key
+            is_private = "private" in url or url.startswith("git@github.com")
             
-            # Checkout specific branch if requested
-            if branch:
-                subprocess.run(
-                    ['git', 'checkout', branch], 
-                    check=True, 
-                    capture_output=True,
-                    cwd=target_dir
-                )
+            # Import CONFIG from relative path
+            from ..config import CONFIG
+            deploy_key = None
+            try:
+                deploy_key = CONFIG.get("EDSL_PRIVATE_PLUGIN_DEPLOY_KEY")
+                # Handle the "None" string case 
+                if deploy_key == "None":
+                    deploy_key = None
+            except Exception as e:
+                # Log but continue, as this is optional
+                logger.debug(f"Failed to get deploy key from config: {str(e)}")
+            
+            # For private repositories with deploy key, use SSH
+            if is_private and deploy_key:
+                import tempfile
+                logger.info("Using deploy key for private repository")
+                
+                with tempfile.TemporaryDirectory() as temp_dir:
+                    # Create a temporary SSH key file
+                    key_file = os.path.join(temp_dir, "deploy_key")
+                    with open(key_file, "w") as f:
+                        f.write(deploy_key)
+                    os.chmod(key_file, 0o600)  # Set appropriate permissions
+                    
+                    # Set up SSH command with the key
+                    ssh_cmd = f'ssh -i "{key_file}" -o StrictHostKeyChecking=no'
+                    env = os.environ.copy()
+                    env["GIT_SSH_COMMAND"] = ssh_cmd
+                    
+                    # Clone command
+                    cmd = ['git', 'clone', url, target_dir]
+                    subprocess.run(cmd, check=True, capture_output=True, env=env)
+                    
+                    # Checkout specific branch if requested
+                    if branch:
+                        subprocess.run(
+                            ['git', 'checkout', branch], 
+                            check=True, 
+                            capture_output=True,
+                            cwd=target_dir
+                        )
+            else:
+                # Basic clone command for public repositories
+                cmd = ['git', 'clone', url, target_dir]
+                subprocess.run(cmd, check=True, capture_output=True)
+                
+                # Checkout specific branch if requested
+                if branch:
+                    subprocess.run(
+                        ['git', 'checkout', branch], 
+                        check=True, 
+                        capture_output=True,
+                        cwd=target_dir
+                    )
         except subprocess.CalledProcessError as e:
             error_msg = e.stderr.decode() if hasattr(e, 'stderr') else str(e)
             raise GitHubRepoError(f"Failed to clone repository: {error_msg}")

@@ -301,9 +301,33 @@ class PluginCLI:
                     print("Or provide the GitHub URL with '--url' if you know it.")
                     return
             
+            # Check if this is a private repository
+            is_private = "private" in github_url or github_url.startswith("git@github.com")
+            
             print(f"Installing plugin '{plugin_name}' from {github_url}...")
             if branch:
                 print(f"Using branch: {branch}")
+                
+            # Warn about private repositories
+            if is_private:
+                print("This appears to be a private repository.")
+                
+                # Import CONFIG to check if deploy key is set
+                from ..config import CONFIG
+                deploy_key = None
+                try:
+                    deploy_key = CONFIG.get("EDSL_PRIVATE_PLUGIN_DEPLOY_KEY")
+                    if deploy_key == "None":
+                        deploy_key = None
+                except Exception:
+                    pass
+                
+                if not deploy_key:
+                    print("Warning: EDSL_PRIVATE_PLUGIN_DEPLOY_KEY is not set.")
+                    print("You may need to set this environment variable with a valid deploy key.")
+                    print("See documentation for instructions on setting up deploy keys.")
+                else:
+                    print(f"Using deploy key ({len(deploy_key)} characters)")
                 
             # Install the plugin
             installed_plugins = PluginHost.install_from_github(github_url, branch)
