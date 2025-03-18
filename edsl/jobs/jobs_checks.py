@@ -28,6 +28,7 @@ class JobsChecks:
                 raise MissingAPIKeyError(
                     model_name=str(model.model),
                     inference_service=model._inference_service_,
+                    silent=False
                 )
 
     def get_missing_api_keys(self) -> set:
