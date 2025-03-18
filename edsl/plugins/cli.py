@@ -77,6 +77,8 @@ class PluginCLI:
         install_parser.add_argument("name", help="Name of the plugin to install")
         install_parser.add_argument("--branch", help="Branch to install from")
         install_parser.add_argument("--url", help="Directly specify GitHub URL instead of using the registry")
+        install_parser.add_argument("--timeout", type=int, default=300, help="Timeout in seconds for installation operations (default: 300)")
+        install_parser.add_argument("--debug", action="store_true", help="Enable verbose debugging output")
         
         # Uninstall command
         uninstall_parser = subparsers.add_parser("uninstall", help="Uninstall a plugin")
@@ -111,7 +113,7 @@ class PluginCLI:
             elif args.command == "info":
                 self._show_plugin_info(args.name)
             elif args.command == "install":
-                self._install_plugin(args.name, args.branch, args.url)
+                self._install_plugin(args.name, args.branch, args.url, args.timeout, args.debug)
             elif args.command == "uninstall":
                 self._uninstall_plugin(args.name)
             else:
@@ -280,7 +282,8 @@ class PluginCLI:
         except Exception as e:
             print(f"Error retrieving plugin information: {str(e)}")
     
-    def _install_plugin(self, plugin_name: str, branch: Optional[str] = None, url: Optional[str] = None) -> None:
+    def _install_plugin(self, plugin_name: str, branch: Optional[str] = None, url: Optional[str] = None,
+                       timeout: int = 300, debug: bool = False) -> None:
         """
         Install a plugin by name or URL.
         
@@ -288,6 +291,8 @@ class PluginCLI:
             plugin_name: Name of the plugin to install
             branch: Optional branch to checkout (defaults to main/master)
             url: Optional GitHub URL to use instead of registry lookup
+            timeout: Timeout in seconds for installation operations
+            debug: Whether to enable detailed debugging output
         """
         try:
             github_url = url
@@ -305,8 +310,11 @@ class PluginCLI:
             is_private = "private" in github_url or github_url.startswith("git@github.com")
             
             print(f"Installing plugin '{plugin_name}' from {github_url}...")
+            print(f"Timeout: {timeout} seconds")
             if branch:
                 print(f"Using branch: {branch}")
+            if debug:
+                print("Debug mode enabled - verbose output will be shown")
                 
             # Warn about private repositories
             if is_private:
@@ -334,9 +342,29 @@ class PluginCLI:
                         return
                 else:
                     print(f"Using deploy key ({len(deploy_key)} characters)")
+            
+            try:
+                # Install the plugin with timeout handling
+                from .github_plugin_installer import TimeoutError
                 
-            # Install the plugin
-            installed_plugins = PluginHost.install_from_github(github_url, branch)
+                print("Installation logs will be displayed in real-time to help with debugging:")
+                print("-" * 80)
+                
+                # Install the plugin
+                installed_plugins = PluginHost.install_from_github(
+                    github_url, 
+                    branch=branch,
+                    debug=debug,
+                    timeout=timeout
+                )
+                
+            except TimeoutError as e:
+                print(f"\nError: Installation timed out after {timeout} seconds.")
+                print("\nPossible solutions:")
+                print("  • Try increasing the timeout with --timeout option")
+                print("  • Check your network connection")
+                print("  • Verify that the deploy key has correct permissions")
+                raise PluginInstallationError(f"Installation timed out: {e}")
             
             print(f"Successfully installed plugin(s): {', '.join(installed_plugins)}")
             print("\nUse 'edsl plugins list' to see all installed plugins.")
