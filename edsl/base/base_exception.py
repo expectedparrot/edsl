@@ -1,22 +1,46 @@
 import sys
 from IPython.core.interactiveshell import InteractiveShell
 from IPython.display import HTML, display
+from pathlib import Path
 
 # Example logger import
 from .. import logger
 
 class BaseException(Exception):
-    """
-    Base exception class for all EDSL exceptions.
-
-    This class extends the standard Python Exception class to provide more helpful 
-    error messages by including links to relevant documentation and example notebooks 
-    when available.
+    """Base exception class for all EDSL exceptions.
+    
+    This class extends the standard Python Exception class to provide more helpful error messages
+    by including links to relevant documentation and example notebooks when available.
+    
+    Attributes:
+        relevant_doc: URL to documentation explaining this type of exception
+        relevant_notebook: Optional URL to a notebook with usage examples
+        doc_page: Optional string with the document page name (without extension)
+        doc_anchor: Optional string with the anchor within the document page
     """
 
     relevant_doc = "https://docs.expectedparrot.com/"
     relevant_notebook = None  # or set a default if you like
     suppress_traceback = True
+    doc_page = None
+    doc_anchor = None
+
+    @classmethod
+    def get_doc_url(cls):
+        """Construct the documentation URL from the doc_page and doc_anchor attributes.
+        
+        Returns:
+            str: The full documentation URL
+        """
+        base_url = "https://docs.expectedparrot.com/en/latest/"
+        
+        if cls.doc_page:
+            url = f"{base_url}{cls.doc_page}.html"
+            if cls.doc_anchor:
+                url = f"{url}#{cls.doc_anchor}"
+            return url
+        
+        return base_url
 
     def __init__(self, message: str, *, show_docs: bool = True, 
                  log_level: str = "error", silent: bool = False):
@@ -35,10 +59,22 @@ class BaseException(Exception):
         # Format main error message
         formatted_message = [message.strip()]
 
+        # Add class docstring if available
+        if self.__class__.__doc__:
+            doc = self.__class__.__doc__.strip()
+            formatted_message.append(f"\n{doc}")
+            
         # Add documentation links if requested
         if show_docs:
-            if self.relevant_doc:
+            # Use the class method to get the documentation URL if doc_page is set
+            if hasattr(self.__class__, "doc_page") and self.__class__.doc_page:
                 formatted_message.append(
+                    f"\nFor more information, see: {self.__class__.get_doc_url()}"
+                )
+            # Fall back to relevant_doc if it's explicitly set
+            elif hasattr(self, "relevant_doc"):
+
+              formatted_message.append(
                     f"\nFor more information, see: {self.relevant_doc}"
                 )
             if self.relevant_notebook:

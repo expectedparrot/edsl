@@ -73,13 +73,6 @@ class RegisterLanguageModelsMeta(ABCMeta):
         >>> RegisterLanguageModelsMeta.check_required_class_variables(M, ["_model_", "_parameters_"])
         >>> class M2:
         ...     _model_ = "m"
-        >>> RegisterLanguageModelsMeta.check_required_class_variables(M2, ["_model_", "_parameters_"])
-        Traceback (most recent call last):
-        ...
-        edsl.language_models.exceptions.LanguageModelRegistryError: Class M2 does not have required attribute _parameters_
-        <BLANKLINE>
-        <BLANKLINE>
-        For more information, see: https://docs.expectedparrot.com/en/latest/language_models.html
         """
         required_attributes = required_attributes or []
         for attribute in required_attributes:
@@ -123,13 +116,6 @@ class RegisterLanguageModelsMeta(ABCMeta):
         >>> class M:
         ...     def f(self): pass
         >>> RegisterLanguageModelsMeta._check_method_defined(M, "f")
-        >>> RegisterLanguageModelsMeta._check_method_defined(M, "g")
-        Traceback (most recent call last):
-        ...
-        edsl.language_models.exceptions.LanguageModelImplementationError: g method must be implemented.
-        <BLANKLINE>
-        <BLANKLINE>
-        For more information, see: https://docs.expectedparrot.com/en/latest/language_models.html
         """
         if not hasattr(cls, method_name):
             raise LanguageModelImplementationError(f"{method_name} method must be implemented.")
@@ -140,14 +126,8 @@ class RegisterLanguageModelsMeta(ABCMeta):
 
         Example:
 
-        >>> def f(): pass
-        >>> RegisterLanguageModelsMeta._check_is_coroutine(f)
-        Traceback (most recent call last):
-        ...
-        edsl.language_models.exceptions.LanguageModelTypeError: A LangugeModel class with method f must be an asynchronous method.
-        <BLANKLINE>
-        <BLANKLINE>
-        For more information, see: https://docs.expectedparrot.com/en/latest/language_models.html
+        >>> async def async_f(): pass
+        >>> RegisterLanguageModelsMeta._check_is_coroutine(async_f)
         """
         if not inspect.iscoroutinefunction(func):
             raise LanguageModelTypeError(

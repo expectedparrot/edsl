@@ -16,19 +16,12 @@ def load_plugins():
         
         logger.info("Available edsl entrypoints: %s", [ep for ep in pkg_resources.iter_entry_points("edsl")])
         
-        # Define the plugin hooks specification
-        hookspec = pluggy.HookspecMarker("edsl")
-        
-        class EDSLHookSpecs:
-            """Hook specifications for edsl plugins."""
-            
-            @hookspec
-            def conjure_plugin(self):
-                """Return the Conjure class for integration with edsl."""
+        # Import hook specs from the plugin system
+        from edsl.plugins.hookspec import EDSLPluginSpec
         
         # Create plugin manager and register specs
         pm = pluggy.PluginManager("edsl")
-        pm.add_hookspecs(EDSLHookSpecs)
+        pm.add_hookspecs(EDSLPluginSpec)
         
         # Load all plugins
         logger.info("Loading setuptools entrypoints...")
@@ -43,17 +36,27 @@ def load_plugins():
         logger.info("Registered plugins: %s", registered_plugins)
         
         # Get plugins and add to __all__
-        logger.info("Calling conjure_plugin hook...")
+        logger.info("Calling edsl_plugin hook...")
         try:
-            results = pm.hook.conjure_plugin()
+            results = pm.hook.edsl_plugin()
             logger.info("Results: %s", results)
+            plugins = {}
+            
             if results:
-                # Get the Conjure class from the plugin
-                Conjure = results[0]
-                logger.info("Loaded Conjure plugin")
-                return {"Conjure": Conjure}
+                for plugin in results:
+                    if hasattr(plugin, "__name__"):
+                        plugin_name = plugin.__name__
+                    elif hasattr(plugin, "__class__"):
+                        plugin_name = plugin.__class__.__name__
+                    else:
+                        plugin_name = f"Plugin_{len(plugins)}"
+                    
+                    logger.info(f"Loaded plugin: {plugin_name}")
+                    plugins[plugin_name] = plugin
+                
+                return plugins
         except Exception as e:
-            logger.error("Error calling conjure_plugin hook: %s", e)
+            logger.error("Error calling edsl_plugin hook: %s", e)
     except ImportError as e:
         # pluggy not available
         logger.info("pluggy not available, skipping plugin loading: %s", e)
