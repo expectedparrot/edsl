@@ -43,7 +43,8 @@ class ResultsExceptionsHandler:
         self.parameters = parameters
 
         self.open_in_browser = self._get_browser_setting()
-        self.remote_logging = self._get_remote_logging_setting()
+        #self.remote_logging = self._get_remote_logging_setting()
+        self.remote_logging = False
 
     def _get_browser_setting(self) -> bool:
         """Determine if exceptions should be opened in browser based on config."""
