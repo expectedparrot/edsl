@@ -2,16 +2,18 @@ import sys
 from IPython.core.interactiveshell import InteractiveShell
 from IPython.display import HTML, display
 from pathlib import Path
+import traceback
 
 # Example logger import
 from .. import logger
 
+
 class BaseException(Exception):
     """Base exception class for all EDSL exceptions.
-    
+
     This class extends the standard Python Exception class to provide more helpful error messages
     by including links to relevant documentation and example notebooks when available.
-    
+
     Attributes:
         relevant_doc: URL to documentation explaining this type of exception
         relevant_notebook: Optional URL to a notebook with usage examples
@@ -28,34 +30,40 @@ class BaseException(Exception):
     @classmethod
     def get_doc_url(cls):
         """Construct the documentation URL from the doc_page and doc_anchor attributes.
-        
+
         Returns:
             str: The full documentation URL
         """
         base_url = "https://docs.expectedparrot.com/en/latest/"
-        
+
         if cls.doc_page:
             url = f"{base_url}{cls.doc_page}.html"
             if cls.doc_anchor:
                 url = f"{url}#{cls.doc_anchor}"
             return url
-        
+
         return base_url
 
-    def __init__(self, message: str, *, show_docs: bool = True, 
-                 log_level: str = "error", silent: bool = False):
+    def __init__(
+        self,
+        message: str,
+        *,
+        show_docs: bool = True,
+        log_level: str = "error",
+        silent: bool = False,
+    ):
         """
         Initialize a new BaseException with a formatted error message.
-        
+
         Args:
             message (str): The primary error message.
             show_docs (bool): If True, append documentation links to the error message.
-            log_level (str): The logging level to use 
+            log_level (str): The logging level to use
                              ("debug", "info", "warning", "error", "critical").
             silent (bool): If True, suppress all output when the exception is caught.
         """
         self.silent = silent
-        
+
         # Format main error message
         formatted_message = [message.strip()]
 
@@ -63,7 +71,7 @@ class BaseException(Exception):
         if self.__class__.__doc__:
             doc = self.__class__.__doc__.strip()
             formatted_message.append(f"\n{doc}")
-            
+
         # Add documentation links if requested
         if show_docs:
             # Use the class method to get the documentation URL if doc_page is set
@@ -73,8 +81,7 @@ class BaseException(Exception):
                 )
             # Fall back to relevant_doc if it's explicitly set
             elif hasattr(self, "relevant_doc"):
-
-              formatted_message.append(
+                formatted_message.append(
                     f"\nFor more information, see: {self.relevant_doc}"
                 )
             if self.relevant_notebook:
@@ -85,11 +92,11 @@ class BaseException(Exception):
         # Join with double newlines for clear separation
         final_message = "\n\n".join(formatted_message)
         super().__init__(final_message)
-        
+
         # Log the exception unless silent is True
         if not self.silent:
             self._log_message(log_level, message)
-            
+
     @staticmethod
     def _log_message(log_level: str, message: str):
         """Helper to log a message at the specified log level."""
@@ -129,7 +136,7 @@ class BaseException(Exception):
         def _ipython_custom_exc(shell, etype, evalue, tb, tb_offset=None):
             if issubclass(etype, BaseException) and cls.suppress_traceback:
                 # Show custom message only if not silent
-                if not getattr(evalue, 'silent', False):
+                if not getattr(evalue, "silent", False):
                     # Try HTML display first; fall back to stderr
                     # try:
                     #     display(
@@ -139,7 +146,7 @@ class BaseException(Exception):
                     #         )
                     #     )
                     # except:
-                        print(f"❌ EDSL ERROR: {etype.__name__}: {evalue}", file=sys.stderr)
+                    print(f"❌ EDSL ERROR: {etype.__name__}: {evalue}", file=sys.stderr)
                 # Suppress IPython’s normal traceback
                 return
             # Otherwise, fall back to the usual traceback
@@ -153,7 +160,7 @@ class BaseException(Exception):
         Override the default sys.excepthook in a standard Python environment.
         This is typically NOT recommended for IPython/Jupyter.
         """
-        if getattr(sys, 'custom_excepthook_installed', False):
+        if getattr(sys, "custom_excepthook_installed", False):
             return  # Already installed
 
         original_excepthook = sys.excepthook
@@ -161,18 +168,25 @@ class BaseException(Exception):
         def _custom_excepthook(exc_type, exc_value, exc_traceback):
             if issubclass(exc_type, BaseException) and cls.suppress_traceback:
                 # Show custom message only if not silent
-                if not getattr(exc_value, 'silent', False):
-                    try:
-                        display(
-                            HTML(
-                                f"<div style='color: red'>❌ EDSL ERROR: "
-                                f"{exc_type.__name__}: {exc_value}</div>"
-                            )
-                        )
-                    except:
-                        print(f"❌ EDSL ERROR: {exc_type.__name__}: {exc_value}",
-                              file=sys.stderr)
+                if not getattr(exc_value, "silent", False):
+                    # try:
+                    #     display(
+                    #         HTML(
+                    #             f"<div style='color: red'>❌ EDSL ERROR: "
+                    #             f"{exc_type.__name__}: {exc_value}</div>"
+                    #         )
+                    #     )
+                    # except:
+                    print(
+                        f"❌ EDSL ERROR: {exc_type.__name__}: {exc_value}",
+                        exc_traceback,
+                        file=sys.stderr,
+                    )
                 # Suppress traceback
+                traceback.print_exception(
+                    exc_type, exc_value, exc_traceback, file=sys.stderr
+                )
+
                 return
             # Otherwise, use the default handler
             return original_excepthook(exc_type, exc_value, exc_traceback)
