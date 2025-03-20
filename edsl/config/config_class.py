@@ -14,8 +14,6 @@ class MissingEnvironmentVariableError(BaseException):
     """Raised when an expected environment variable is missing."""
     pass
 
-cache_dir = platformdirs.user_cache_dir("edsl")
-os.makedirs(cache_dir, exist_ok=True)
 
 # valid values for EDSL_RUN_MODE
 EDSL_RUN_MODES = [
@@ -87,6 +85,10 @@ CONFIG_MAP = {
     "EDSL_REMOTE_TOKEN_BUCKET_URL": {
         "default": "None",
         "info": "This config var holds the URL of the remote token bucket server.",
+    },
+    "EDSL_ALTERNATIVE_CACHE_DIR": {
+        "default": "None",
+        "info": "This config var holds the path to the alternate cache directory.",
     },
 }
 
@@ -199,3 +201,12 @@ class Config:
 # Note: Python modules are singletons. As such, once this module is imported
 # the same instance of it is reused across the application.
 CONFIG = Config()
+
+
+try:
+    cache_dir = platformdirs.user_cache_dir("edsl")
+except Exception as e:
+    #cache_dir = CONFIG.EDSL_ALTERNATIVE_CACHE_DIR
+    cache_dir = None
+
+os.makedirs(cache_dir, exist_ok=True)
