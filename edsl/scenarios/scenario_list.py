@@ -1654,14 +1654,37 @@ class ScenarioList(Base, UserList, ScenarioListOperationsMixin):
                 response.raise_for_status()
                 file_obj = StringIO(response.text)
             else:
-                file_obj = open(source, "r")
+                # Try different encodings if the default fails
+                encodings_to_try = ["utf-8", "latin-1", "cp1252", "ISO-8859-1"]
+                last_exception = None
+                file_obj = None
+                
+                for encoding in encodings_to_try:
+                    try:
+                        file_obj = open(source, "r", encoding=encoding)
+                        # Test reading a bit to verify encoding
+                        file_obj.readline()
+                        file_obj.seek(0)  # Reset file position
+                        break
+                    except UnicodeDecodeError as e:
+                        last_exception = e
+                        if file_obj:
+                            file_obj.close()
+                            file_obj = None
+                
+                if file_obj is None:
+                    raise ValueError(f"Could not decode file {source} with any of the attempted encodings. Original error: {last_exception}")
 
             reader = csv.reader(file_obj, delimiter=delimiter)
-            header = next(reader)
-            observations = [Scenario(dict(zip(header, row))) for row in reader]
+            try:
+                header = next(reader)
+                observations = [Scenario(dict(zip(header, row))) for row in reader]
+            except StopIteration:
+                raise ValueError(f"File {source} appears to be empty or has an invalid format")
 
         finally:
-            file_obj.close()
+            if file_obj:
+                file_obj.close()
 
         return cls(observations)
 
