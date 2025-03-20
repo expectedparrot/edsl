@@ -9,6 +9,34 @@ from .jobs_status_enums import JobsStatus
 
         
 class HTMLTableJobLogger(JobLogger):
+    """HTML table-based job logger for displaying job status in Jupyter notebooks.
+    
+    This logger displays a collapsible table with job information, current status,
+    and relevant links. It supports multiple themes and includes an animated spinner
+    for running jobs.
+    
+    To use the more compact SmallHTMLLogger instead, set the environment variable:
+    EDSL_USE_SMALL_LOGGER=1
+    
+    Example:
+        import os
+        os.environ["EDSL_USE_SMALL_LOGGER"] = "1"
+        # Then use Jobs as normal - HTMLTableJobLogger will be replaced with SmallHTMLLogger
+    """
+    def __new__(cls, verbose=True, theme="auto", **kwargs):
+        # Enable to use SmallHTMLLogger instead by using environment variable
+        import os
+        
+        use_small_logger = os.environ.get("EDSL_USE_SMALL_LOGGER", "").lower() in ("1", "true", "yes")
+        
+        if use_small_logger:
+            from .small_html_logger import SmallHTMLLogger
+            # Return a SmallHTMLLogger instance instead
+            return SmallHTMLLogger(verbose=verbose, theme=theme, **kwargs)
+            
+        # Otherwise proceed with normal instance creation
+        return super(HTMLTableJobLogger, cls).__new__(cls)
+        
     def __init__(self, verbose=True, theme="auto", **kwargs):
         super().__init__(verbose=verbose)
 

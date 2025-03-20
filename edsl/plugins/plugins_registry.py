@@ -82,6 +82,14 @@ def get_available_plugins(refresh: bool = False) -> List[AvailablePlugin]:
             version="1.0.0",
             author="Expected Parrot",
             tags=["qualtrics", "stata", "spss", "survey", "web", "import", "convert"],
+        ),
+        AvailablePlugin(
+            name="autostudy",
+            description="Automatically generate studies based on research questions",
+            github_url="https://github.com/expectedparrot/edsl-autostudy",
+            version="1.0.0",
+            author="Expected Parrot",
+            tags=["autostudy", "auto", "study", "generator", "research", "survey"],
         )
     ]
     
