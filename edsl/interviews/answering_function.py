@@ -220,7 +220,6 @@ class AnswerQuestionFunctionConstructor:
                         raise response.exception_occurred
 
             except QuestionAnswerValidationError as e:
-                breakpoint()
                 self._handle_exception(e, invigilator, task)
                 return invigilator.get_failed_task_result(
                     failure_reason="Question answer validation failed."
