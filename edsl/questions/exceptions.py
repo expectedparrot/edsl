@@ -1,4 +1,5 @@
 import json
+from typing import Any
 from pydantic import ValidationError
 
 from ..base import BaseException
@@ -61,10 +62,10 @@ class QuestionAnswerValidationError(QuestionErrors):
 
     def __init__(
         self,
-        message="Invalid answer.",
-        pydantic_error: ValidationError = None,
-        data: dict = None,
-        model=None,
+        message: str,
+        data: dict,
+        model: Any, # for now
+        pydantic_error: ValidationError,
     ):
         self.message = message
         self.pydantic_error = pydantic_error
@@ -93,6 +94,7 @@ class QuestionAnswerValidationError(QuestionErrors):
         Returns:
             dict: HTML-formatted error information
         """
+        #breakpoint()
         return {
             "Exception type": ("p", "/p", self.__class__.__name__),
             "Explanation": ("p", "/p", self.explanation),

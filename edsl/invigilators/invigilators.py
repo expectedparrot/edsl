@@ -166,14 +166,14 @@ class InvigilatorBase(ABC):
         """
         data = {
             "answer": None,
-            "generated_tokens": None,
+            "generated_tokens": getattr(self, "generated_tokens", None),
             "comment": failure_reason,
             "question_name": self.question.question_name,
             "prompts": self.get_prompts(),
-            "cached_response": None,
-            "raw_model_response": None,
-            "cache_used": None,
-            "cache_key": None,
+            "cached_response": getattr(self, "cached_response", None),
+            "raw_model_response": getattr(self, "raw_model_response", None),
+            "cache_used": getattr(self, "cache_used", None),
+            "cache_key": getattr(self, "cache_key", None),
         }
         return EDSLResultObjectInput(**data)
 

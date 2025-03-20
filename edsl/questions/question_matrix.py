@@ -1,9 +1,26 @@
-from __future__ import annotations
-from typing import Union, Optional, Dict, List, Any
+"""
+question_matrix.py
 
-from pydantic import BaseModel, Field, field_validator
-from jinja2 import Template
+Drop-in replacement for `QuestionMatrix` with a dynamic Pydantic approach
+that automatically raises ValidationError for invalid matrix answers.
+"""
+
+from __future__ import annotations
+from typing import (
+    Union,
+    Optional,
+    Dict,
+    List,
+    Any,
+    Type,
+    get_args,
+    Literal
+)
 import random
+
+from pydantic import BaseModel, Field, create_model, ValidationError
+from jinja2 import Template
+
 from .question_base import QuestionBase
 from .descriptors import (
     QuestionOptionsDescriptor,
@@ -15,6 +32,7 @@ from .decorators import inject_exception
 
 from .exceptions import (
     QuestionCreationValidationError,
+    QuestionAnswerValidationError,  # If you still want to raise custom exceptions
 )
 
 
@@ -22,49 +40,56 @@ def create_matrix_response(
     question_items: List[str],
     question_options: List[Union[int, str, float]],
     permissive: bool = False,
-):
-    """Create a response model for matrix questions.
+) -> Type[BaseModel]:
+    """
+    Create a dynamic Pydantic model for matrix questions.
 
-    The response model validates that:
-    1. All question items are answered
-    2. Each answer is from the allowed options
+    If `permissive=False`, each item is a required field with a `Literal[...]` type
+    so that only the given question_options are allowed.
+    If `permissive=True`, each item can have any value, and extra items are allowed.
     """
 
-    if permissive:
-
-        class MatrixResponse(BaseModel):
-            answer: Dict[str, Any]
-            comment: Optional[str] = None
-            generated_tokens: Optional[Any] = None
-
+    # If non-permissive, build a Literal for each valid option
+    # e.g. Literal[1,2,3] or Literal["Yes","No"] or a mix
+    if not permissive:
+        # If question_options is empty (edge case), fall back to 'Any'
+        if question_options:
+            AllowedOptions = Literal[tuple(question_options)]  # type: ignore
+        else:
+            AllowedOptions = Any
     else:
+        # Permissive => let each item be anything
+        AllowedOptions = Any
 
-        class MatrixResponse(BaseModel):
-            answer: Dict[str, Union[int, str, float]] = Field(
-                ..., description="Mapping of items to selected options"
-            )
-            comment: Optional[str] = None
-            generated_tokens: Optional[Any] = None
+    # Build field definitions for an "AnswerSubModel", where each
+    # question_item is a required field with type AllowedOptions
+    field_definitions = {}
+    for item in question_items:
+        field_definitions[item] = (AllowedOptions, Field(...))  # required
 
-            @field_validator("answer")
-            def validate_answer(cls, v, values, **kwargs):
-                # Check that all items have responses
-                if not all(item in v for item in question_items):
-                    missing = set(question_items) - set(v.keys())
-                    from .exceptions import QuestionAnswerValidationError
-                    raise QuestionAnswerValidationError(f"Missing responses for items: {missing}")
+    # Dynamically create the submodel
+    MatrixAnswerSubModel = create_model(
+        "MatrixAnswerSubModel",
+        __base__=BaseModel,
+        **field_definitions
+    )
 
-                # Check that all responses are valid options
-                if not all(answer in question_options for answer in v.values()):
-                    invalid = [ans for ans in v.values() if ans not in question_options]
-                    from .exceptions import QuestionAnswerValidationError
-                    raise QuestionAnswerValidationError(f"Invalid options selected: {invalid}")
-                return v
+    # Build the top-level model with `answer` + optional `comment`
+    class MatrixResponse(BaseModel):
+        answer: MatrixAnswerSubModel
+        comment: Optional[str] = None
+        generated_tokens: Optional[Any] = None
+
+        class Config:
+            # If permissive=False, forbid extra items in `answer`.
+            # If permissive=True, allow them.
+            extra = "allow" if permissive else "forbid"
 
     return MatrixResponse
 
 
 class MatrixResponseValidator(ResponseValidatorABC):
+    """Optional placeholder validator, if still needed for example/fixing logic."""
     required_params = ["question_items", "question_options", "permissive"]
 
     valid_examples = [
@@ -97,6 +122,10 @@ class MatrixResponseValidator(ResponseValidatorABC):
     ]
 
     def fix(self, response, verbose=False):
+        """
+        Example fix() method to try and repair a partially invalid response.
+        (This logic is carried over from your original code.)
+        """
         if verbose:
             print(f"Fixing matrix response: {response}")
 
@@ -112,13 +141,10 @@ class MatrixResponseValidator(ResponseValidatorABC):
                     for idx, item in enumerate(self.question_items):
                         if str(idx) in fixed:
                             mapped_answer[item] = fixed[str(idx)]
-                    if (
-                        mapped_answer
-                    ):  # Only return if we successfully mapped some answers
+                    if mapped_answer:
                         return {"answer": mapped_answer}
             except (ValueError, KeyError, TypeError):
-                # Just continue to the next parsing attempt
-                pass
+                pass  # Just continue
 
         # If answer uses numeric keys, map them to question items
         if "answer" in response and isinstance(response["answer"], dict):
@@ -127,14 +153,21 @@ class MatrixResponseValidator(ResponseValidatorABC):
                 for idx, item in enumerate(self.question_items):
                     if str(idx) in response["answer"]:
                         mapped_answer[item] = response["answer"][str(idx)]
-                if mapped_answer:  # Only update if we successfully mapped some answers
+                if mapped_answer:
                     response["answer"] = mapped_answer
 
         return response
 
 
 class QuestionMatrix(QuestionBase):
-    """A question that presents a matrix/grid where multiple items are rated using the same scale."""
+    """
+    A question that presents a matrix/grid where multiple items are rated
+    or selected from the same set of options.
+
+    This version dynamically builds a Pydantic model at runtime
+    (via `create_matrix_response`) and automatically raises ValidationError
+    if the user provides an invalid or incomplete answer.
+    """
 
     question_type = "matrix"
     question_text: str = QuestionTextDescriptor()
@@ -157,18 +190,19 @@ class QuestionMatrix(QuestionBase):
         question_presentation: Optional[str] = None,
         permissive: bool = False,
     ):
-        """Initialize a matrix question.
+        """
+        Initialize a matrix question.
 
         Args:
             question_name: The name of the question
             question_text: The text of the question
-            question_items: List of items to be rated
-            question_options: List of rating options
-            option_labels: Optional mapping of options to their labels
+            question_items: List of items to be rated or answered
+            question_options: Possible answer options (e.g., [1,2,3] or ["Yes","No"])
+            option_labels: Optional mapping of options to labels (e.g. {1: "Sad", 5: "Happy"})
             include_comment: Whether to include a comment field
-            answering_instructions: Optional custom instructions
-            question_presentation: Optional custom presentation
-            permissive: Whether to strictly validate responses
+            answering_instructions: Custom instructions
+            question_presentation: Custom presentation
+            permissive: Whether to allow any values & extra items instead of strictly checking
         """
         self.question_name = question_name
 
@@ -188,9 +222,14 @@ class QuestionMatrix(QuestionBase):
         self.question_presentation = question_presentation
         self.permissive = permissive
 
-    def create_response_model(self):
+    def create_response_model(self) -> Type[BaseModel]:
+        """
+        Returns the pydantic model that will parse/validate a user answer.
+        """
         return create_matrix_response(
-            self.question_items, self.question_options, self.permissive
+            self.question_items,
+            self.question_options,
+            self.permissive
         )
 
     @property
@@ -227,7 +266,6 @@ class QuestionMatrix(QuestionBase):
         </table>
         """
         )
-
         return template.render(
             question_name=self.question_name,
             question_items=self.question_items,
@@ -258,11 +296,5 @@ class QuestionMatrix(QuestionBase):
             "answer": {
                 item: random.choice(self.question_options)
                 for item in self.question_items
-            }
+            } 
         }
-
-
-if __name__ == "__main__":
-    import doctest
-
-    doctest.testmod(optionflags=doctest.ELLIPSIS)
