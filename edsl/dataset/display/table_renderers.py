@@ -1,5 +1,4 @@
 from abc import ABC, abstractmethod
-import os
 from pathlib import Path
 from .table_data_class import TableData
 

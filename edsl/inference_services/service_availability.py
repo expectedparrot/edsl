@@ -74,7 +74,8 @@ class ServiceAvailability:
                 continue
 
         # If we get here, all sources failed
-        raise RuntimeError(
+        from edsl.inference_services.exceptions import InferenceServiceRuntimeError
+        raise InferenceServiceRuntimeError(
             f"All sources failed to fetch models. Last error: {last_error}"
         )
 

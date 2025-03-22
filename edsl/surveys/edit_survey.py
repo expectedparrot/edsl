@@ -5,6 +5,7 @@ from typing import Union, Optional, TYPE_CHECKING
 if TYPE_CHECKING:
     from ..questions import QuestionBase
     from .survey import Survey
+    from ..instructions import Instruction, ChangeInstruction
 
 from .exceptions import SurveyError, SurveyCreationError
 from .rules.rule import Rule

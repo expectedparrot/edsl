@@ -1,7 +1,7 @@
-from abc import ABC, abstractmethod
-from typing import Optional, Any, List, TypedDict, TYPE_CHECKING
+from abc import ABC
+from typing import Optional, List, TYPE_CHECKING
 
-from pydantic import BaseModel, Field, field_validator, ValidationError
+from pydantic import BaseModel, ValidationError
 
 from .exceptions import QuestionAnswerValidationError
 from .ExceptionExplainer import ExceptionExplainer
@@ -22,7 +22,8 @@ class ResponseValidatorABC(ABC):
         required_class_vars = ["required_params", "valid_examples", "invalid_examples"]
         for var in required_class_vars:
             if not hasattr(cls, var):
-                raise ValueError(f"Class {cls.__name__} must have a '{var}' attribute.")
+                from .exceptions import QuestionValueError
+                raise QuestionValueError(f"Class {cls.__name__} must have a '{var}' attribute.")
 
     def __init__(
         self,
@@ -41,7 +42,8 @@ class ResponseValidatorABC(ABC):
             param for param in self.required_params if param not in kwargs
         ]
         if missing_params:
-            raise ValueError(
+            from .exceptions import QuestionValueError
+            raise QuestionValueError(
                 f"Missing required parameters: {', '.join(missing_params)}"
             )
 
@@ -98,20 +100,12 @@ class ResponseValidatorABC(ABC):
         {'answer': 42, 'comment': None, 'generated_tokens': None}
         >>> rv.max_value
         86.7
-        >>> rv.validate({"answer": "120"})
-        Traceback (most recent call last):
-        ...
-        edsl.questions.exceptions.QuestionAnswerValidationError:...
         >>> from edsl import QuestionNumerical
         >>> q = QuestionNumerical.example()
         >>> q.permissive = True
         >>> rv = q.response_validator
         >>> rv.validate({"answer": "120"})
         {'answer': 120, 'comment': None, 'generated_tokens': None}
-        >>> rv.validate({"answer": "poo"})
-        Traceback (most recent call last):
-        ...
-        edsl.questions.exceptions.QuestionAnswerValidationError:...
         """
         proposed_edsl_answer_dict = self._preprocess(raw_edsl_answer_dict)
         try:

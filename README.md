@@ -142,6 +142,27 @@ results.select("color", "flower")
 **Caching**: 
 API calls to LLMs are cached automatically, allowing you to retrieve responses to questions that have already been run and reproduce experiments at no cost. Learn more about how the <a href="https://docs.expectedparrot.com/en/latest/remote_caching.html" target="_blank" rel="noopener noreferrer">universal remote cache</a> works.
 
+**Logging**:
+EDSL includes a comprehensive logging system to help with debugging and monitoring. Control log levels and see important information about operations:
+
+```python
+from edsl import logger
+import logging
+
+# Set the logging level
+logger.set_level(logging.DEBUG)  # Show all log messages
+
+# Get a module-specific logger
+my_logger = logger.get_logger(__name__)
+my_logger.info("This is a module-specific log message")
+
+# Log messages at different levels
+logger.debug("Detailed debugging information")
+logger.info("General information about operation")
+logger.warning("Something unexpected but not critical")
+logger.error("Something went wrong")
+```
+
 **Flexibility**: 
 Choose whether to run surveys on your own computer or at the Expected Parrot server.
 
@@ -175,6 +196,13 @@ Analyze results as specified datasets from your account or workspace. Easily imp
 - API keys for language models. You can use your own keys or an Expected Parrot key that provides access to all available models.
 See instructions on <a href="https://docs.expectedparrot.com/en/latest/api_keys.html" target="_blank" rel="noopener noreferrer">managing keys</a> and <a href="https://www.expectedparrot.com/getting-started/coop-pricing" target="_blank" rel="noopener noreferrer">model pricing and performance</a> information.
 
+## Developer Notes
+
+### Running Tests
+- Unit tests: `python -m pytest tests/`  
+- Integration tests: `python -m pytest integration/`
+- Doctests: `python run_doctests.py` (use `-v` flag for verbose output)
+
 ## Coop
 An integrated platform for running experiments, sharing workflows and launching hybrid human/AI surveys.
 - <a href="https://www.expectedparrot.com/login" target="_blank" rel="noopener noreferrer">Login / Signup</a>
@@ -187,4 +215,4 @@ An integrated platform for running experiments, sharing workflows and launching 
 - <a href="https://blog.expectedparrot.com" target="_blank" rel="noopener noreferrer">Blog</a>.
 
 ## Contact
-- <a href="mailto:info@expectedparrot.com" target="_blank" rel="noopener noreferrer">Email</a>
+- <a href="mailto:info@expectedparrot.com" target="_blank" rel="noopener noreferrer">Email</a>.

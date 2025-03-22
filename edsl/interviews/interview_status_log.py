@@ -2,6 +2,7 @@ from collections import UserDict
 
 from ..tasks.task_status_enum import TaskStatus, status_colors
 
+
 class InterviewStatusLog(UserDict):
     """A dictionary of TaskStatusLog objects.
 
@@ -50,8 +51,8 @@ class InterviewStatusLog(UserDict):
     def visualize(self, num_periods: int = 10) -> None:
         """Visualize the status matrix with outlined squares."""
         import matplotlib.pyplot as plt
-        from matplotlib.colors import ListedColormap
         import numpy as np
+        from matplotlib.colors import ListedColormap
         from matplotlib.patches import Rectangle
 
         # Define your custom colormap

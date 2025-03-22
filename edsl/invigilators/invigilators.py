@@ -2,14 +2,12 @@
 from abc import ABC, abstractmethod
 import asyncio
 from typing import Coroutine, Dict, Any, Optional, TYPE_CHECKING
-from typing import Dict, Any, Optional, TYPE_CHECKING, Literal
+from typing import Literal
 
 from ..utilities.decorators import sync_wrapper
 from ..questions.exceptions import QuestionAnswerValidationError
 from ..data_transfer_models import AgentResponseDict, EDSLResultObjectInput
 from ..utilities.decorators import jupyter_nb_handler
-from ..data_transfer_models import AgentResponseDict
-from ..data_transfer_models import EDSLResultObjectInput
 
 from .prompt_constructor import PromptConstructor
 from .prompt_helpers import PromptPlan
@@ -18,13 +16,10 @@ if TYPE_CHECKING:
     from ..prompts import Prompt
     from ..scenarios import Scenario
     from ..surveys import Survey
-    from ..prompts import Prompt
     from ..caching import Cache
     from ..questions import QuestionBase
-    from ..scenarios import Scenario
     from ..surveys.memory import MemoryPlan
     from ..language_models import LanguageModel
-    from ..surveys import Survey
     from ..agents import Agent
     from ..key_management import KeyLookup
 
@@ -171,14 +166,14 @@ class InvigilatorBase(ABC):
         """
         data = {
             "answer": None,
-            "generated_tokens": None,
+            "generated_tokens": getattr(self, "generated_tokens", None),
             "comment": failure_reason,
             "question_name": self.question.question_name,
             "prompts": self.get_prompts(),
-            "cached_response": None,
-            "raw_model_response": None,
-            "cache_used": None,
-            "cache_key": None,
+            "cached_response": getattr(self, "cached_response", None),
+            "raw_model_response": getattr(self, "raw_model_response", None),
+            "cache_used": getattr(self, "cache_used", None),
+            "cache_key": getattr(self, "cache_key", None),
         }
         return EDSLResultObjectInput(**data)
 
@@ -285,7 +280,8 @@ class InvigilatorAI(InvigilatorBase):
         }
         if "encoded_image" in prompts:
             params["encoded_image"] = prompts["encoded_image"]
-            raise NotImplementedError("encoded_image not implemented")
+            from edsl.invigilators.exceptions import InvigilatorNotImplementedError
+            raise InvigilatorNotImplementedError("encoded_image not implemented")
 
         if "files_list" in prompts:
             params["files_list"] = prompts["files_list"]

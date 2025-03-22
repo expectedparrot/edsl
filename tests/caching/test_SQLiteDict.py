@@ -13,7 +13,8 @@ def test_SQLiteDict_set_and_get_item(sqlite_dict):
 
 @pytest.mark.linux_only
 def test_SQLiteDict_get_nonexistent_key(sqlite_dict):
-    with pytest.raises(KeyError):
+    from edsl.caching.exceptions import CacheKeyError
+    with pytest.raises(CacheKeyError):
         _ = sqlite_dict["nonexistent_key"]
 
 
@@ -67,7 +68,8 @@ def test_SQLiteDict_delete_item(sqlite_dict):
 
 @pytest.mark.linux_only
 def test_SQLiteDict_delete_nonexistent_key(sqlite_dict):
-    with pytest.raises(KeyError):
+    from edsl.caching.exceptions import CacheKeyError
+    with pytest.raises(CacheKeyError):
         del sqlite_dict["nonexistent_key"]
 
 

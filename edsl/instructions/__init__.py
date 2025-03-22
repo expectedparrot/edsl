@@ -3,4 +3,4 @@ from .instruction_collection import InstructionCollection
 from .change_instruction import ChangeInstruction
 from .instruction_handler import InstructionHandler
 
-__all__ = ["Instruction", "ChangeInstruction"]
+__all__ = ["Instruction", "ChangeInstruction", "InstructionCollection", "InstructionHandler"]

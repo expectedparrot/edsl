@@ -1,4 +1,4 @@
-from edsl import Model, QuestionFreeText
+from edsl import QuestionFreeText
 from edsl.language_models.LanguageModel import LanguageModel
 import threading
 from edsl.jobs.buckets.BucketCollection import BucketCollection

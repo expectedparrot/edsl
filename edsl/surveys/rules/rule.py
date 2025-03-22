@@ -19,7 +19,7 @@ with a low (-1) priority.
 
 import ast
 import random
-from typing import Any, Union, List
+from typing import Any, Union
 from collections import defaultdict
 
 
@@ -27,7 +27,6 @@ from collections import defaultdict
 from simpleeval import EvalWithCompoundTypes
 
 from ..exceptions import SurveyError
-
 from ..exceptions import (
     SurveyRuleCannotEvaluateError,
     SurveyRuleRefersToFutureStateError,
