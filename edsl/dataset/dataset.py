@@ -762,17 +762,18 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
             
         Example:
             >>> from edsl.dataset import Dataset
-            >>> d = Dataset([{'a': [[1, 2, 3], [4, 5, 6]], 'b': ['x', 'y']}])
+            >>> d = Dataset([{'a': [[1, 2, 3], [4, 5, 6]]}, {'b': ['x', 'y']}])
             >>> d.expand('a')
-            Dataset([{'a': [1, 4]}, {'b': ['x', 'y']}])
+            Dataset([{'a': [1, 2, 3, 4, 5, 6]}, {'b': ['x', 'x', 'x', 'y', 'y', 'y']}])
         """
-        from ..dataset import Dataset
+        from collections.abc import Iterable
         
         # Find the field in the dataset
         field_data = None
         for entry in self.data:
-            if field in entry:
-                field_data = entry[field]
+            key = list(entry.keys())[0]
+            if key == field:
+                field_data = entry[key]
                 break
             
         if field_data is None:
@@ -782,42 +783,37 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
         if not all(isinstance(v, list) for v in field_data):
             raise DatasetTypeError(f"Field '{field}' must contain lists in all entries")
         
-        # Get all fields and their values
-        fields = self.relevant_columns()
-        field_values = {}
-        for f in fields:
-            for entry in self.data:
-                if f in entry:
-                    field_values[f] = entry[f]
-                    break
-                
-        # Create expanded data
-        new_data = []
-        num_rows = len(field_data)
-        max_length = max(len(lst) for lst in field_data)
+        # Calculate the total number of rows in the expanded dataset
+        total_rows = sum(len(lst) for lst in field_data)
         
-        # For each position in the lists
-        for i in range(max_length):
-            # For each field
-            for f in fields:
-                values = []
-                # For each original row
-                for row in range(num_rows):
-                    if f == field:
-                        # Get the i-th element from the list, or None if list is too short
-                        lst = field_values[f][row]
-                        values.append(lst[i] if i < len(lst) else None)
-                    else:
-                        # Repeat the original value
-                        values.append(field_values[f][row])
-                new_data.append({f: values})
-                
+        # Create new expanded data structure
+        new_data = []
+        
+        # Process each field
+        for entry in self.data:
+            key, values = list(entry.items())[0]
+            new_values = []
+            
+            if key == field:
+                # This is the field to expand - flatten all sublists
+                for row_values in values:
+                    if not isinstance(row_values, Iterable) or isinstance(row_values, str):
+                        row_values = [row_values]
+                    new_values.extend(row_values)
+            else:
+                # For other fields, repeat each value the appropriate number of times
+                for i, row_value in enumerate(values):
+                    expand_length = len(field_data[i]) if i < len(field_data) else 0
+                    new_values.extend([row_value] * expand_length)
+            
+            new_data.append({key: new_values})
+        
         # Add number field if requested
         if number_field:
-            numbers = []
-            for row in range(num_rows):
-                numbers.extend([i + 1 for i in range(len(field_values[field][row]))])
-            new_data.append({"number": numbers})
+            number_values = []
+            for i, lst in enumerate(field_data):
+                number_values.extend(range(1, len(lst) + 1))
+            new_data.append({f"{field}_number": number_values})
         
         return Dataset(new_data)
 
