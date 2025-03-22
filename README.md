@@ -215,4 +215,4 @@ An integrated platform for running experiments, sharing workflows and launching 
 - <a href="https://blog.expectedparrot.com" target="_blank" rel="noopener noreferrer">Blog</a>.
 
 ## Contact
-- <a href="mailto:info@expectedparrot.com" target="_blank" rel="noopener noreferrer">Email</a>
+- <a href="mailto:info@expectedparrot.com" target="_blank" rel="noopener noreferrer">Email</a>.
