@@ -3,7 +3,7 @@ from typing import Optional
 
 from uuid import uuid4
 
-from pydantic import model_validator, BaseModel
+from pydantic import model_validator, BaseModel, ValidationError
 
 
 from .question_base import QuestionBase
@@ -33,8 +33,7 @@ class FreeTextResponse(BaseModel):
         Validate that the answer matches the generated tokens if provided.
         
         This validator ensures consistency between the answer and generated_tokens
-        fields when both are present. They must match exactly (after stripping
-        whitespace) to ensure token tracking accuracy.
+        fields when both are present. They must match exactly.
         
         Returns:
             The validated model instance.
@@ -42,13 +41,24 @@ class FreeTextResponse(BaseModel):
         Raises:
             ValueError: If the answer and generated_tokens don't match exactly.
         """
-        if self.generated_tokens is not None:  # If generated_tokens exists
-            # Ensure exact string equality
-            if self.answer.strip() != self.generated_tokens.strip():  # They MUST match exactly
+        if self.generated_tokens is not None:
+            if self.answer.strip() != self.generated_tokens.strip():
                 from .exceptions import QuestionAnswerValidationError
+                validation_error = ValidationError.from_exception_data(
+                    title='FreeTextResponse',
+                    line_errors=[{
+                        'type': 'value_error',
+                        'loc': ('answer', 'generated_tokens'),
+                        'msg': 'Values must match',
+                        'input': self.generated_tokens,
+                        'ctx': {'error': 'Values do not match'}
+                    }]
+                )
                 raise QuestionAnswerValidationError(
-                    f"answer '{self.answer}' must exactly match generated_tokens '{self.generated_tokens}'. "
-                    f"Type of answer: {type(self.answer)}, Type of tokens: {type(self.generated_tokens)}"
+                    message=f"answer '{self.answer}' must exactly match generated_tokens '{self.generated_tokens}'",
+                    data=self.model_dump(),
+                    model=self.__class__,
+                    pydantic_error=validation_error
                 )
         return self
 
