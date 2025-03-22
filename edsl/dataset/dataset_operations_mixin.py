@@ -184,6 +184,13 @@ class DataOperationsBase:
                     )
 
         return _num_observations
+    
+    def chart(self):
+        """
+        Create a chart from the results.
+        """
+        import altair as alt
+        return alt.Chart(self.to_pandas(remove_prefix=True))
 
     def make_tabular(
         self, remove_prefix: bool, pretty_labels: Optional[dict] = None
@@ -545,6 +552,9 @@ class DataOperationsBase:
         for d in list_of_dicts:
             scenarios.append(Scenario(d))
         return ScenarioList(scenarios)
+    
+    def expand(self, field):
+        return self.to_scenario_list().expand(field)
 
     def to_agent_list(self, remove_prefix: bool = True):
         """Convert the results to a list of dictionaries, one per agent.
