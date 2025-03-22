@@ -12,17 +12,26 @@ Run the following command to install the EDSL package:
 
 .. code:: 
 
+   pip install edsl
+
+
+If you have previously installed EDSL, you can check which version you have by running: 
+
+.. code:: 
+
    pip show edsl
+   
 
-
-If you have previously installed EDSL, you can update it with the following command:
+(Compare it to the version shown at `PyPI <https://pypi.org/project/edsl/>`_.)
+If it is out of date you can update it with the following command:
 
 .. code:: 
 
    pip install --upgrade edsl
 
 
-You can also access the source code at `GitHub <https://github.com/expectedparrot/edsl>`_. If you are using EDSL with Google Colab, see the :ref:`colab_setup` section for special instructions.
+You can also access the source code at `GitHub <https://github.com/expectedparrot/edsl>`_. 
+If you are using EDSL with Google Colab, please see the :ref:`colab_setup` section for special instructions.
 
 See :ref:`installation` instructions for more details and troubleshooting tips. 
 
@@ -32,7 +41,7 @@ See :ref:`installation` instructions for more details and troubleshooting tips.
 
 `Sign up <https://www.expectedparrot.com/login>`_ for a free account with your email address.
 This allows you to run surveys at the Expected Parrot server and collaborate with other users at Coop.
-Your account comes with $25 in credits for running surveys with any available models.
+Your account comes with $25 in credits for API calls to any available models.
 
 
 3. Choose where to run surveys

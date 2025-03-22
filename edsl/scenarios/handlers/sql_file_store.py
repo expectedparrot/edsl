@@ -1,6 +1,6 @@
 import tempfile
 import re
-from typing import List, Optional
+from typing import List
 import textwrap
 
 
@@ -217,9 +217,6 @@ class SqlMethods(FileMethods):
         This is a simple check and doesn't replace proper SQL parsing.
         """
         try:
-            with open(self.path, "r", encoding="utf-8") as f:
-                content = f.read()
-
             statements = self.split_statements()
             for stmt in statements:
                 # Check for basic SQL keywords

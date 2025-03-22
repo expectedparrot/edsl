@@ -1,8 +1,10 @@
-from typing import Optional, TYPE_CHECKING, Protocol
+from typing import Protocol
 import sys
 #from edsl.scenarios.FileStore import HTMLFileStore
 from edsl.config import CONFIG
 from edsl.coop.coop import Coop
+from ..scenarios import FileStore
+from .exceptions import JobsErrors
 
 
 class ResultsProtocol(Protocol):
@@ -41,7 +43,8 @@ class ResultsExceptionsHandler:
         self.parameters = parameters
 
         self.open_in_browser = self._get_browser_setting()
-        self.remote_logging = self._get_remote_logging_setting()
+        #self.remote_logging = self._get_remote_logging_setting()
+        self.remote_logging = False
 
     def _get_browser_setting(self) -> bool:
         """Determine if exceptions should be opened in browser based on config."""
@@ -51,7 +54,7 @@ class ResultsExceptionsHandler:
         elif setting == "False":
             return False
         else:
-            raise Exception(
+            raise JobsErrors(
                 "EDSL_OPEN_EXCEPTION_REPORT_URL must be either True or False"
             )
 
@@ -60,13 +63,13 @@ class ResultsExceptionsHandler:
         try:
             coop = Coop()
             return coop.edsl_settings["remote_logging"]
-        except Exception as e:
+        except Exception:
             # print(e)
             return False
 
     def _generate_error_message(self, indices) -> str:
         """Generate appropriate error message based on number of exceptions."""
-        msg = f"Exceptions were raised.\n" 
+        msg = "Exceptions were raised.\n" 
         return msg
 
     def handle_exceptions(self) -> None:

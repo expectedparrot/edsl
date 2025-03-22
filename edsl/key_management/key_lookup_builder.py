@@ -1,9 +1,25 @@
-from typing import Optional, List
+from typing import Optional, TYPE_CHECKING
 import os
 from functools import lru_cache
+import textwrap
+
+if TYPE_CHECKING:
+    from ..coop import Coop
 
 from ..enums import service_to_api_keyname
-from ..exceptions.general import MissingAPIKeyError
+from ..base import BaseException
+
+class MissingAPIKeyError(BaseException):
+    def __init__(self, full_message=None, model_name=None, inference_service=None, silent=False):
+        if model_name and inference_service:
+            full_message = textwrap.dedent(
+                f"""
+                An API Key for model `{model_name}` is missing from the .env file.
+                This key is associated with the inference service `{inference_service}`.
+                Please see https://docs.expectedparrot.com/en/latest/api_keys.html for more information.
+                """
+            )
+        super().__init__(full_message, show_docs=False, silent=silent)
 
 from .key_lookup import KeyLookup
 from .models import (
@@ -30,6 +46,8 @@ api_id_to_service = {"AWS_ACCESS_KEY_ID": "bedrock"}
 
 class KeyLookupBuilder:
     """Factory class for building KeyLookup objects by gathering credentials from multiple sources.
+    
+    >>> from edsl.key_management.exceptions import KeyManagementValueError
     
     KeyLookupBuilder is responsible for discovering, organizing, and consolidating API keys
     and rate limits from various sources. It can pull credentials from:
@@ -67,9 +85,9 @@ class KeyLookupBuilder:
     Validation examples:
         >>> try:
         ...     KeyLookupBuilder(fetch_order=["config", "env"])  # Should be tuple
-        ... except ValueError as e:
-        ...     str(e)
-        'fetch_order must be a tuple'
+        ... except KeyManagementValueError as e:
+        ...     "fetch_order must be a tuple" in str(e)
+        True
         
         >>> builder = KeyLookupBuilder()
         >>> builder.extract_service("EDSL_SERVICE_RPM_OPENAI")
@@ -93,7 +111,8 @@ class KeyLookupBuilder:
         fetch_order: Optional[tuple[str]] = None,
         coop: Optional["Coop"] = None,
     ):
-        from ..coop import Coop
+        # Import here to avoid circular import issues
+        from ..coop import Coop  # Import Coop type for type hinting
 
         # Fetch order goes from lowest priority to highest priority
         if fetch_order is None:
@@ -102,7 +121,8 @@ class KeyLookupBuilder:
             self.fetch_order = fetch_order
 
         if not isinstance(self.fetch_order, tuple):
-            raise ValueError("fetch_order must be a tuple")
+            from edsl.key_management.exceptions import KeyManagementValueError
+            raise KeyManagementValueError("fetch_order must be a tuple")
 
         if coop is None:
             self.coop = Coop()
@@ -141,8 +161,8 @@ class KeyLookupBuilder:
             >>> lookup = builder.build()
             >>> isinstance(lookup, KeyLookup)
             True
-            >>> lookup['test'].api_token  # Test service should always exist
-            'test'
+            >>> lookup['test'].api_token == 'test'  # Test service should always exist
+            True
             
         Technical Notes:
             - Skips services with missing API keys
@@ -194,7 +214,7 @@ class KeyLookupBuilder:
             - Supports services that require both API key and API ID
         """
         if (key_entries := self.key_data.get(service)) is None:
-            raise MissingAPIKeyError(f"No key found for service '{service}'")
+            raise MissingAPIKeyError(f"No key found for service '{service}'", silent=True)
 
         if len(key_entries) == 1:
             api_key_entry = key_entries[0]
@@ -286,6 +306,8 @@ class KeyLookupBuilder:
 
     def _add_id(self, key: str, value: str, source: str) -> None:
         """Add an API ID to the id_data dictionary.
+        
+        >>> from edsl.key_management.exceptions import KeyManagementDuplicateError
 
         >>> builder = KeyLookupBuilder()
         >>> builder._add_id("AWS_ACCESS_KEY_ID", "AKIA1234", "env")
@@ -293,9 +315,9 @@ class KeyLookupBuilder:
         'AKIA1234'
         >>> try:
         ...     builder._add_id("AWS_ACCESS_KEY_ID", "AKIA5678", "env")
-        ... except ValueError as e:
-        ...     str(e)
-        'Duplicate ID for service bedrock'
+        ... except KeyManagementDuplicateError as e:
+        ...     "Duplicate ID for service bedrock" in str(e)
+        True
         """
         service = api_id_to_service[key]
         if service not in self.id_data:
@@ -303,7 +325,8 @@ class KeyLookupBuilder:
                 service=service, name=key, value=value, source=source
             )
         else:
-            raise ValueError(f"Duplicate ID for service {service}")
+            from edsl.key_management.exceptions import KeyManagementDuplicateError
+            raise KeyManagementDuplicateError(f"Duplicate ID for service {service}")
 
     def _add_limit(self, key: str, value: str, source: str) -> None:
         """Add a rate limit entry to the limit_data dictionary.

@@ -1,10 +1,9 @@
 import functools
 import asyncio
 import nest_asyncio
+from edsl import __version__ as edsl_version
 
 nest_asyncio.apply()
-
-from edsl import __version__ as edsl_version
 
 
 def add_edsl_version(func):

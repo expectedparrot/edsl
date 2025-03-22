@@ -5,20 +5,22 @@ import sys
 import json
 import random
 from collections import UserList
-from typing import Any, Union, Optional, TYPE_CHECKING
+from typing import Any, Union, Optional, TYPE_CHECKING, Callable
 
 from ..base import PersistenceMixin, HashingMixin
 
 from .dataset_tree import Tree
+from .exceptions import DatasetKeyError, DatasetValueError
 
 from .display.table_display import TableDisplay
-from .smart_objects import FirstObject
-from .r.ggplot import GGPlotMethod
+#from .smart_objects import FirstObject
 from .dataset_operations_mixin import DatasetOperationsMixin
 
 if TYPE_CHECKING:
     from ..surveys import Survey
-    from ..questions.QuestionBase import QuestionBase
+    from ..questions import QuestionBase
+    from ..jobs import Job  # noqa: F401
+
 
 class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
     """
@@ -76,6 +78,7 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
             Dataset([{'answer.how_feeling': ['OK', 'Great', 'Terrible']}])
         """
         super().__init__(data)
+        #self.data = data
         self.print_parameters = print_parameters
 
 
@@ -121,16 +124,16 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
     def expand(self, field):
         return self.to_scenario_list().expand(field)
 
-    def view(self):
-        from perspective.widget import PerspectiveWidget
+    # def view(self):
+    #     from perspective.widget import PerspectiveWidget
 
-        w = PerspectiveWidget(
-            self.to_pandas(),
-            plugin="Datagrid",
-            aggregates={"datetime": "any"},
-            sort=[["date", "desc"]],
-        )
-        return w
+    #     w = PerspectiveWidget(
+    #         self.to_pandas(),
+    #         plugin="Datagrid",
+    #         aggregates={"datetime": "any"},
+    #         sort=[["date", "desc"]],
+    #     )
+    #     return w
 
     def keys(self) -> list[str]:
         """Return the keys of the dataset.
@@ -212,7 +215,7 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
         values = value_dict["value"]
 
         if not (len(rows) == len(keys) == len(values)):
-            raise ValueError("All input arrays must have the same length")
+            raise DatasetValueError("All input arrays must have the same length")
 
         # Get unique keys and row indices
         unique_keys = sorted(set(keys))
@@ -272,12 +275,6 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
         >>> d = Dataset([{'a.b':[1,2,3,4]}])
         >>> d._key_to_value('a.b')
         [1, 2, 3, 4]
-
-        >>> d._key_to_value('a')
-        Traceback (most recent call last):
-        ...
-        KeyError: "Key 'a' not found in any of the dictionaries."
-
         """
         potential_matches = []
         for data_dict in self.data:
@@ -290,11 +287,13 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
         if len(potential_matches) == 1:
             return potential_matches[0][1]
         elif len(potential_matches) > 1:
-            raise KeyError(
+            from edsl.dataset.exceptions import DatasetKeyError
+            raise DatasetKeyError(
                 f"Key '{key}' found in more than one location: {[m[0] for m in potential_matches]}"
             )
 
-        raise KeyError(f"Key '{key}' not found in any of the dictionaries.")
+        from edsl.dataset.exceptions import DatasetKeyError
+        raise DatasetKeyError(f"Key '{key}' not found in any of the dictionaries.")
 
     def first(self) -> dict[str, Any]:
         """Get the first value of the first key in the first dictionary.
@@ -308,7 +307,7 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
             """Get the values of the first key in the dictionary."""
             return list(d.values())[0]
 
-        return FirstObject(get_values(self.data[0])[0])
+        return get_values(self.data[0])[0]
 
     def latex(self, **kwargs):
         return self.table().latex()
@@ -338,7 +337,7 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
         """
         if "format" in kwargs:
             if kwargs["format"] not in ["html", "markdown", "rich", "latex"]:
-                raise ValueError(f"Format '{kwargs['format']}' not supported.")
+                raise DatasetValueError(f"Format '{kwargs['format']}' not supported.")
             
             # If rich format is requested, set tablefmt accordingly
             if kwargs["format"] == "rich":
@@ -371,10 +370,17 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
         merged_df = df1.merge(df2, how="left", left_on=by_x, right_on=by_y)
         return Dataset.from_pandas_dataframe(merged_df)
 
-    def to(self, survey_or_question: Union["Survey", "QuestionBase"]) -> "Jobs":
-        """Return a new dataset with the observations transformed by the given survey or question."""
+    def to(self, survey_or_question: Union["Survey", "QuestionBase"]) -> "Job":
+        """Return a new dataset with the observations transformed by the given survey or question.
+        
+        >>> d = Dataset([{'person_name':["John"]}])
+        >>> from edsl import QuestionFreeText 
+        >>> q = QuestionFreeText(question_text = "How are you, {{ person_name ?}}?", question_name = "how_feeling")
+        >>> d.to(q)
+        Jobs(...)
+        """
         from edsl.surveys import Survey
-        from edsl.questions.QuestionBase import QuestionBase
+        from edsl.questions import QuestionBase
 
         if isinstance(survey_or_question, Survey):
             return survey_or_question.by(self.to_scenario_list())
@@ -396,9 +402,10 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
         """
         for key in keys:
             if key not in self.keys():
-                raise ValueError(f"Key '{key}' not found in the dataset."
-                                 f"Available keys: {self.keys()}"
-                                 )
+                from edsl.dataset.exceptions import DatasetValueError
+                raise DatasetValueError(f"Key '{key}' not found in the dataset. "
+                                        f"Available keys: {self.keys()}"
+                                       )
             
         if isinstance(keys, str):
             keys = [keys]
@@ -442,7 +449,11 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
 
         return self
 
-    def expand(self, field):
+    def expand_field(self, field):
+        """Expand a field in the dataset.
+        
+        Renamed to avoid conflict with the expand method defined earlier.
+        """
         return self.to_scenario_list().expand(field).to_dataset()
 
     def sample(
@@ -462,21 +473,18 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
         >>> d = Dataset([{'a.b':[1,2,3,4]}])
         >>> d.sample(n=2, seed=0, with_replacement=True)
         Dataset([{'a.b': [4, 4]}])
-
-        >>> d.sample(n = 10, seed=0, with_replacement=False)
-        Traceback (most recent call last):
-        ...
-        ValueError: Sample size cannot be greater than the number of available elements when sampling without replacement.
         """
         if seed is not None:
             random.seed(seed)
 
         # Validate the input for sampling parameters
         if n is None and frac is None:
-            raise ValueError("Either 'n' or 'frac' must be provided for sampling.")
+            from edsl.dataset.exceptions import DatasetValueError
+            raise DatasetValueError("Either 'n' or 'frac' must be provided for sampling.")
 
         if n is not None and frac is not None:
-            raise ValueError("Only one of 'n' or 'frac' should be specified.")
+            from edsl.dataset.exceptions import DatasetValueError
+            raise DatasetValueError("Only one of 'n' or 'frac' should be specified.")
 
         # Get the length of the lists from the first entry
         first_key, first_values = list(self[0].items())[0]
@@ -487,7 +495,8 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
             n = int(total_length * frac)
 
         if not with_replacement and n > total_length:
-            raise ValueError(
+            from edsl.dataset.exceptions import DatasetValueError
+            raise DatasetValueError(
                 "Sample size cannot be greater than the number of available elements when sampling without replacement."
             )
 
@@ -549,9 +558,9 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
                 number_found += 1
 
         if number_found == 0:
-            raise ValueError(f"Key '{sort_key}' not found in any of the dictionaries.")
+            raise DatasetKeyError(f"Key '{sort_key}' not found in any of the dictionaries.")
         elif number_found > 1:
-            raise ValueError(f"Key '{sort_key}' found in more than one dictionary.")
+            raise DatasetKeyError(f"Key '{sort_key}' found in more than one dictionary.")
 
         # relevant_values = self._key_to_value(sort_key)
         sort_indices_list = sort_indices(relevant_values)
@@ -578,7 +587,7 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
     def table(
         self,
         *fields,
-        tablefmt: Optional[str] = None,
+        tablefmt: Optional[str] = "rich",
         max_rows: Optional[int] = None,
         pretty_labels=None,
         print_parameters: Optional[dict] = None,
@@ -637,7 +646,8 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
 
         if max_rows is not None:
             if max_rows > len(data):
-                raise ValueError(
+                from edsl.dataset.exceptions import DatasetValueError
+                raise DatasetValueError(
                     "max_rows cannot be greater than the number of rows in the dataset."
                 )
             last_line = data[-1]

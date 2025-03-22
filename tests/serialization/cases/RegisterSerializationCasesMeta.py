@@ -1,6 +1,6 @@
 import logging
 from abc import ABCMeta
-from edsl import Agent, Model, Results, Scenario, Survey
+from edsl import Agent, Model, Scenario, Survey
 from edsl.questions import *
 
 

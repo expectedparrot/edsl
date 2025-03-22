@@ -40,7 +40,7 @@ class FileMethods(ABC):
 
         for ep in entries:
             try:
-                handler_class = ep.load()
+                ep.load()
                 # Registration happens automatically via __init_subclass__
             except Exception as e:
                 print(f"Failed to load external handler {ep.name}: {e}")

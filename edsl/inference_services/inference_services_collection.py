@@ -1,8 +1,7 @@
-from functools import lru_cache
 from collections import defaultdict
-from typing import Optional, Protocol, Dict, List, Tuple, TYPE_CHECKING, Literal, Type, TypeVar, Union
-import os
+from typing import Optional, Protocol, Dict, List, Tuple, TYPE_CHECKING
 
+from edsl.enums import InferenceServiceLiteral
 from .inference_service_abc import InferenceServiceABC
 from .available_model_fetcher import AvailableModelFetcher
 from .exceptions import InferenceServiceError
@@ -15,9 +14,6 @@ if TYPE_CHECKING:
 class ModelCreator(Protocol):
     def create_model(self, model_name: str) -> "LanguageModel":
         ...
-
-
-from edsl.enums import InferenceServiceLiteral
 
 
 class ModelResolver:

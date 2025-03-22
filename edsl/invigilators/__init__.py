@@ -35,4 +35,10 @@ from .invigilator_base import InvigilatorBase
 from .invigilators import InvigilatorFunctional
 from .prompt_constructor import PromptConstructor
 
-__all_ = []
+__all__ = [
+    'InvigilatorAI',
+    'InvigilatorHuman',
+    'InvigilatorBase',
+    'InvigilatorFunctional',
+    'PromptConstructor'
+]

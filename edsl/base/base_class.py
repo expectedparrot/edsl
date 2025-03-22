@@ -18,10 +18,11 @@ import json
 from typing import Any, Optional, Union
 from uuid import UUID
 import difflib
-import json
-from typing import Any, Dict, Tuple
+from typing import Dict, Tuple
 from collections import UserList
 import inspect
+
+from .. import logger
 
 class BaseException(Exception):
     """Base exception class for all EDSL exceptions.
@@ -35,12 +36,13 @@ class BaseException(Exception):
     """
     relevant_doc = "https://docs.expectedparrot.com/"
 
-    def __init__(self, message, *, show_docs=True):
+    def __init__(self, message, *, show_docs=True, log_level="error"):
         """Initialize a new BaseException with formatted error message.
         
         Args:
             message: The primary error message
             show_docs: If True, append documentation links to the error message
+            log_level: The logging level to use ("debug", "info", "warning", "error", "critical")
         """
         # Format main error message
         formatted_message = [message.strip()]
@@ -59,6 +61,19 @@ class BaseException(Exception):
         # Join with double newlines for clear separation
         final_message = "\n\n".join(formatted_message)
         super().__init__(final_message)
+        
+        # Log the exception
+        if log_level == "debug":
+            logger.debug(f"{self.__class__.__name__}: {message}")
+        elif log_level == "info":
+            logger.info(f"{self.__class__.__name__}: {message}")
+        elif log_level == "warning":
+            logger.warning(f"{self.__class__.__name__}: {message}")
+        elif log_level == "error":
+            logger.error(f"{self.__class__.__name__}: {message}")
+        elif log_level == "critical":
+            logger.critical(f"{self.__class__.__name__}: {message}")
+        # Default to error if an invalid log level is provided
 
 
 class DisplayJSON:
@@ -176,7 +191,7 @@ class PersistenceMixin:
             A new instance of the class populated with the deserialized data
             
         Raises:
-            ValueError: If neither yaml_str nor filename is provided
+            BaseValueError: If neither yaml_str nor filename is provided
         """
         if yaml_str is None and filename is not None:
             with open(filename, "r") as f:
@@ -188,7 +203,8 @@ class PersistenceMixin:
             d = yaml.load(yaml_str, Loader=yaml.FullLoader)
             return cls.from_dict(d)
         else:
-            raise ValueError("Either yaml_str or filename must be provided.")
+            from edsl.base.exceptions import BaseValueError
+            raise BaseValueError("Either yaml_str or filename must be provided.")
 
     def create_download_link(self):
         """Generate a downloadable link for this object.
@@ -365,23 +381,28 @@ class PersistenceMixin:
             >>> obj.save("my_object.json.gz")  # Compressed
             >>> obj.save("my_object.json", compress=False)  # Uncompressed
         """
+        logger.debug(f"Saving {self.__class__.__name__} to file: {filename}")
+        
         if filename.endswith("json.gz"):
-            import warnings
-
             filename = filename[:-8]
         if filename.endswith("json"):
             filename = filename[:-5]
 
-        if compress:
-            full_file_name = filename + ".json.gz"
-            with gzip.open(full_file_name, "wb") as f:
-                f.write(json.dumps(self.to_dict()).encode("utf-8"))
-        else:
-            full_file_name = filename + ".json"
-            with open(filename + ".json", "w") as f:
-                f.write(json.dumps(self.to_dict()))
-
-        print("Saved to", full_file_name)
+        try:
+            if compress:
+                full_file_name = filename + ".json.gz"
+                with gzip.open(full_file_name, "wb") as f:
+                    f.write(json.dumps(self.to_dict()).encode("utf-8"))
+            else:
+                full_file_name = filename + ".json"
+                with open(filename + ".json", "w") as f:
+                    f.write(json.dumps(self.to_dict()))
+                    
+            logger.info(f"Successfully saved {self.__class__.__name__} to {full_file_name}")
+            print("Saved to", full_file_name)
+        except Exception as e:
+            logger.error(f"Failed to save {self.__class__.__name__} to {filename}: {str(e)}")
+            raise
 
     @staticmethod
     def open_compressed_file(filename):
@@ -429,19 +450,30 @@ class PersistenceMixin:
         Raises:
             Various exceptions may be raised if the file doesn't exist or contains invalid data
         """
-        if filename.endswith("json.gz"):
-            d = cls.open_compressed_file(filename)
-        elif filename.endswith("json"):
-            d = cls.open_regular_file(filename)
-        else:
-            try:
-                d = cls.open_compressed_file(filename + ".json.gz")
-            except:
-                d = cls.open_regular_file(filename + ".json")
-            # finally:
-            #    raise ValueError("File must be a json or json.gz file")
+        logger.debug(f"Loading {cls.__name__} from file: {filename}")
+        
+        try:
+            if filename.endswith("json.gz"):
+                d = cls.open_compressed_file(filename)
+                logger.debug(f"Loaded compressed file {filename}")
+            elif filename.endswith("json"):
+                d = cls.open_regular_file(filename)
+                logger.debug(f"Loaded regular file {filename}")
+            else:
+                try:
+                    logger.debug(f"Attempting to load as compressed file: {filename}.json.gz")
+                    d = cls.open_compressed_file(filename + ".json.gz")
+                except Exception as e:
+                    logger.debug(f"Failed to load as compressed file, trying regular: {e}")
+                    d = cls.open_regular_file(filename + ".json")
+                # finally:
+                #    raise ValueError("File must be a json or json.gz file")
 
-        return cls.from_dict(d)
+            logger.info(f"Successfully loaded {cls.__name__} from {filename}")
+            return cls.from_dict(d)
+        except Exception as e:
+            logger.error(f"Failed to load {cls.__name__} from {filename}: {str(e)}")
+            raise
 
 
 class RegisterSubclassesMeta(ABCMeta):
@@ -739,7 +771,8 @@ class Base(
         Returns:
             An instance of the class with sample data
         """
-        raise NotImplementedError("This method is not implemented yet.")
+        from edsl.base.exceptions import BaseNotImplementedError
+        raise BaseNotImplementedError("This method is not implemented yet.")
     
     def json(self):
         """Get a formatted JSON representation of this object.
@@ -755,7 +788,6 @@ class Base(
         Returns:
             DisplayYAML: A displayable YAML representation
         """
-        import yaml
         return DisplayYAML(self.to_dict(add_edsl_version=False))
 
 
@@ -770,7 +802,8 @@ class Base(
         Returns:
             dict: A dictionary representation of the object
         """
-        raise NotImplementedError("This method is not implemented yet.")
+        from edsl.base.exceptions import BaseNotImplementedError
+        raise BaseNotImplementedError("This method is not implemented yet.")
 
     def to_json(self):
         """Serialize this object to a JSON string.
@@ -806,7 +839,8 @@ class Base(
         Returns:
             An instance of the class populated with data from the dictionary
         """
-        raise NotImplementedError("This method is not implemented yet.")
+        from edsl.base.exceptions import BaseNotImplementedError
+        raise BaseNotImplementedError("This method is not implemented yet.")
 
     @abstractmethod
     def code():
@@ -818,7 +852,8 @@ class Base(
         Returns:
             str: Python code that, when executed, creates an equivalent object
         """
-        raise NotImplementedError("This method is not implemented yet.")
+        from edsl.base.exceptions import BaseNotImplementedError
+        raise BaseNotImplementedError("This method is not implemented yet.")
 
     def show_methods(self, show_docstrings=True):
         """Display all public methods available on this object.
@@ -1240,7 +1275,7 @@ class BaseDiff:
                 result.append(f"    Old value: {v1}")
                 result.append(f"    New value: {v2}")
                 if diff:
-                    result.append(f"    Diff:")
+                    result.append("    Diff:")
                     try:
                         for line in diff:
                             result.append(f"      {line}")
