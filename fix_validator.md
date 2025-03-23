@@ -10,9 +10,9 @@
 - [x] question_multiple_choice.py
 - [x] question_dict.py
 - [x] question_extract.py
-- [ ] question_functional.py
-- [ ] question_matrix.py
-- [ ] question_rank.py
+- [ ] question_functional.py (skipped per request)
+- [x] question_matrix.py
+- [x] question_rank.py
 
 The goal of this refactoring is to move the validation logic from ResponseValidatorABC child classes to Pydantic models, which provides better type safety, clearer validation errors, and more robust validation overall.
 
