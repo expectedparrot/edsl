@@ -85,12 +85,14 @@ class QuestionFunctional(QuestionBase):
     def answer_question_directly(self, scenario, agent_traits=None):
         """Return the answer to the question, ensuring the function is activated."""
         if not self.activated:
-            raise Exception("Function not activated. Please activate it first.")
+            from .exceptions import QuestionErrors
+            raise QuestionErrors("Function not activated. Please activate it first.")
         try:
             return {"answer": self.func(scenario, agent_traits), "comment": None}
         except Exception as e:
             print("Function execution error:", e)
-            raise Exception("Error during function execution.")
+            from .exceptions import QuestionErrors
+            raise QuestionErrors("Error during function execution.")
 
     def _translate_answer_code_to_answer(self, answer, scenario):
         """Required by Question, but not used by QuestionFunctional."""
