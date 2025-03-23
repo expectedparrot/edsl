@@ -74,10 +74,30 @@ def create_model(min_list_items: Optional[int], max_list_items: Optional[int], p
                 >>> response = ListResponse(answer=[])
                 >>> response.answer
                 []
+                
+                >>> # Missing answer field raises error
+                >>> try:
+                ...     ListResponse(you="will never be able to do this!")
+                ... except Exception as e:
+                ...     "Field required" in str(e)
+                True
             """
             answer: list[Any]
             comment: Optional[str] = None
             generated_tokens: Optional[str] = None
+            
+            @classmethod
+            def model_validate(cls, obj, *args, **kwargs):
+                try:
+                    return super().model_validate(obj, *args, **kwargs)
+                except ValidationError as e:
+                    from .exceptions import QuestionAnswerValidationError
+                    raise QuestionAnswerValidationError(
+                        message=f"Invalid list response: {e}",
+                        data=obj,
+                        model=cls,
+                        pydantic_error=e
+                    )
 
     else:
         # Determine field constraints
@@ -186,6 +206,19 @@ def create_model(min_list_items: Optional[int], max_list_items: Optional[int], p
                         pydantic_error=validation_error
                     )
                 return self
+                
+            @classmethod
+            def model_validate(cls, obj, *args, **kwargs):
+                try:
+                    return super().model_validate(obj, *args, **kwargs)
+                except ValidationError as e:
+                    from .exceptions import QuestionAnswerValidationError
+                    raise QuestionAnswerValidationError(
+                        message=f"Invalid list response: {e}",
+                        data=obj,
+                        model=cls,
+                        pydantic_error=e
+                    )
 
     return ListResponse
 
@@ -205,6 +238,63 @@ class ListResponseValidator(ResponseValidatorABC):
             "List must have at least 2 items",
         ),
     ]
+    
+    def validate(
+        self,
+        raw_edsl_answer_dict: dict,
+        fix=False,
+        verbose=False,
+        replacement_dict: dict = None,
+    ) -> dict:
+        """Override validate to handle missing answer key properly."""
+        # Check for missing answer key
+        if "answer" not in raw_edsl_answer_dict:
+            from .exceptions import QuestionAnswerValidationError
+            from pydantic import ValidationError
+            
+            # Create a synthetic validation error
+            validation_error = ValidationError.from_exception_data(
+                title='ListResponse',
+                line_errors=[{
+                    'type': 'missing',
+                    'loc': ('answer',),
+                    'msg': 'Field required',
+                    'input': raw_edsl_answer_dict,
+                }]
+            )
+            
+            raise QuestionAnswerValidationError(
+                message="Missing required 'answer' field in response",
+                data=raw_edsl_answer_dict,
+                model=self.response_model,
+                pydantic_error=validation_error
+            )
+        
+        # Check if answer is not a list
+        if "answer" in raw_edsl_answer_dict and not isinstance(raw_edsl_answer_dict["answer"], list):
+            from .exceptions import QuestionAnswerValidationError
+            from pydantic import ValidationError
+            
+            # Create a synthetic validation error
+            validation_error = ValidationError.from_exception_data(
+                title='ListResponse',
+                line_errors=[{
+                    'type': 'list_type',
+                    'loc': ('answer',),
+                    'msg': 'Input should be a valid list',
+                    'input': raw_edsl_answer_dict["answer"],
+                }]
+            )
+            
+            raise QuestionAnswerValidationError(
+                message=f"Answer must be a list (got {type(raw_edsl_answer_dict['answer']).__name__})",
+                data=raw_edsl_answer_dict,
+                model=self.response_model,
+                pydantic_error=validation_error
+            )
+        
+        # Continue with parent validation
+        return super().validate(raw_edsl_answer_dict, fix, verbose, replacement_dict)
 
     def _check_constraints(self, response) -> None:
         # This method can now be removed since validation is handled in the Pydantic model

@@ -330,6 +330,37 @@ class QuestionNumerical(QuestionBase):
             45
         """
         return create_numeric_response(self.min_value, self.max_value, self.permissive)
+        
+    def _simulate_answer(self, human_readable: bool = False) -> dict:
+        """
+        Generate a simulated valid answer respecting min/max constraints.
+        
+        Overrides the base class method to ensure values are within defined bounds.
+        
+        Args:
+            human_readable: Flag for human-readable output (not used for numerical questions)
+            
+        Returns:
+            A dictionary with a valid numerical answer within constraints
+            
+        Examples:
+            >>> q = QuestionNumerical(question_name="test", question_text="Test", min_value=1, max_value=10)
+            >>> answer = q._simulate_answer()
+            >>> 1 <= answer["answer"] <= 10
+            True
+        """
+        from random import randint, uniform
+        
+        min_val = self.min_value if self.min_value is not None else 0
+        max_val = self.max_value if self.max_value is not None else 100
+        
+        # Generate a value within the constraints
+        if isinstance(min_val, int) and isinstance(max_val, int):
+            value = randint(int(min_val), int(max_val))
+        else:
+            value = uniform(float(min_val), float(max_val))
+            
+        return {"answer": value, "comment": None, "generated_tokens": None}
 
     ################
     # Answer methods

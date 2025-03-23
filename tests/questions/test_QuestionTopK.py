@@ -1,6 +1,6 @@
 import pytest
 from edsl.questions import QuestionBase
-from edsl.questions.derived.question_top_k import QuestionTopK, main
+from edsl.questions.question_top_k import QuestionTopK, main
 
 
 def test_QuestionTopK_main():

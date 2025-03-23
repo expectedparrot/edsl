@@ -3,7 +3,7 @@ from edsl.questions.exceptions import (
     QuestionAnswerValidationError,
 )
 from edsl.questions import QuestionBase
-from edsl.questions.derived.question_yes_no import QuestionYesNo
+from edsl.questions.question_yes_no import QuestionYesNo
 
 
 def test_QuestionYesNo_main():

@@ -322,7 +322,7 @@ class CheckBoxResponseValidator(ResponseValidatorABC):
         This method attempts to extract valid selections from responses with
         format issues. It can handle:
         1. Single values that should be lists
-        2. Comma-separated strings
+        2. Comma-separated strings in answer field or generated_tokens
         3. Finding option indices mentioned in text
         
         Args:
@@ -334,15 +334,64 @@ class CheckBoxResponseValidator(ResponseValidatorABC):
             
         Notes:
             - First tries to convert to a list if the answer is not already a list
-            - Then tries to parse comma-separated values from generated_tokens
+            - Then tries to parse comma-separated values from answer or generated_tokens
             - Finally tries to find option indices mentioned in the text
             - Preserves any comment in the original response
         """
         if verbose:
             print("Invalid response of QuestionCheckBox was: ", response)
+        
+        # Check if answer exists and is a comma-separated string (common LLM output format)
+        if "answer" in response and isinstance(response["answer"], str) and "," in response["answer"]:
+            if verbose:
+                print(f"Parsing comma-separated answer string: {response['answer']}")
+            
+            # Split by commas and strip whitespace
+            proposed_list = response["answer"].split(",")
+            proposed_list = [item.strip() for item in proposed_list]
+            
+            # Try to convert to integers if use_code is True
+            if self.use_code:
+                try:
+                    proposed_list = [int(i) for i in proposed_list]
+                except ValueError:
+                    # If we can't convert to integers, try to match values to indices
+                    if verbose:
+                        print("Could not convert comma-separated values to integers, trying to match options")
+                    
+                    # Try to match option text values to their indices
+                    index_map = {}
+                    for i, option in enumerate(self.question_options):
+                        index_map[option.lower().strip()] = i
+                    
+                    converted_list = []
+                    for item in proposed_list:
+                        item_lower = item.lower().strip()
+                        if item_lower in index_map:
+                            converted_list.append(index_map[item_lower])
+                            
+                    if converted_list:
+                        proposed_list = converted_list
+                    
+            if verbose:
+                print("Proposed solution from comma separation is: ", proposed_list)
+            
+            proposed_data = {
+                "answer": proposed_list,
+                "comment": response.get("comment"),
+                "generated_tokens": response.get("generated_tokens"),
+            }
+            
+            # Try validating with the proposed solution
+            try:
+                validated = self._base_validate(proposed_data)
+                return validated.model_dump()
+            except Exception as e:
+                if verbose:
+                    print(f"Comma-separated solution invalid: {e}")
             
         # If answer exists but is not a list, convert it to a list
-        if "answer" in response and not isinstance(response["answer"], list):
+        elif "answer" in response and not isinstance(response["answer"], list):
             if verbose:
                 print(f"Converting non-list answer {response['answer']} to a list")
             answer_value = response["answer"]
@@ -368,8 +417,23 @@ class CheckBoxResponseValidator(ResponseValidatorABC):
                     try:
                         proposed_list = [int(i) for i in proposed_list]
                     except ValueError:
+                        # If we can't convert to integers, try to match values to indices
                         if verbose:
-                            print("Could not convert comma-separated values to integers")
+                            print("Could not convert comma-separated values to integers, trying to match options")
+                        
+                        # Try to match option text values to their indices
+                        index_map = {}
+                        for i, option in enumerate(self.question_options):
+                            index_map[option.lower().strip()] = i
+                        
+                        converted_list = []
+                        for item in proposed_list:
+                            item_lower = item.lower().strip()
+                            if item_lower in index_map:
+                                converted_list.append(index_map[item_lower])
+                                
+                        if converted_list:
+                            proposed_list = converted_list
                 
                 if verbose:
                     print("Proposed solution from comma separation is: ", proposed_list)
