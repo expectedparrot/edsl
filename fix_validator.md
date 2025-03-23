@@ -9,7 +9,7 @@
 - [x] question_budget.py
 - [x] question_multiple_choice.py
 - [x] question_dict.py
-- [ ] question_extract.py
+- [x] question_extract.py
 - [ ] question_functional.py
 - [ ] question_matrix.py
 - [ ] question_rank.py
