@@ -8,7 +8,7 @@
 - [x] question_check_box.py
 - [x] question_budget.py
 - [x] question_multiple_choice.py
-- [ ] question_dict.py
+- [x] question_dict.py
 - [ ] question_extract.py
 - [ ] question_functional.py
 - [ ] question_matrix.py
