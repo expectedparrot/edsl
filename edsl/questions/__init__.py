@@ -120,10 +120,10 @@ from .question_budget import QuestionBudget
 from .question_rank import QuestionRank
 
 # Questions derived from core questions
-from .derived.question_likert_five import QuestionLikertFive
-from .derived.question_linear_scale import QuestionLinearScale
-from .derived.question_yes_no import QuestionYesNo
-from .derived.question_top_k import QuestionTopK
+from .question_likert_five import QuestionLikertFive
+from .question_linear_scale import QuestionLinearScale
+from .question_yes_no import QuestionYesNo
+from .question_top_k import QuestionTopK
 
 from .exceptions import QuestionScenarioRenderError
 
