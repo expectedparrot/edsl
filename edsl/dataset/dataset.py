@@ -8,7 +8,8 @@ from typing import Any, Union, Optional, TYPE_CHECKING, Callable
 from ..base import PersistenceMixin, HashingMixin
 
 from .dataset_tree import Tree
-from .exceptions import DatasetKeyError, DatasetValueError
+from .exceptions import DatasetKeyError, DatasetValueError, DatasetTypeError
+
 
 from .display.table_display import TableDisplay
 #from .smart_objects import FirstObject
@@ -778,7 +779,8 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
             
         if field_data is None:
             raise DatasetKeyError(f"Field '{field}' not found in dataset. Available fields are: {self.keys()}")
-        
+
+
         # Validate that the field contains lists
         if not all(isinstance(v, list) for v in field_data):
             raise DatasetTypeError(f"Field '{field}' must contain lists in all entries")

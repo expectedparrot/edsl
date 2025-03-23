@@ -553,8 +553,6 @@ class DataOperationsBase:
             scenarios.append(Scenario(d))
         return ScenarioList(scenarios)
     
-    def expand(self, field):
-        return self.to_scenario_list().expand(field)
 
     def to_agent_list(self, remove_prefix: bool = True):
         """Convert the results to a list of dictionaries, one per agent.
@@ -1086,7 +1084,7 @@ class DataOperationsBase:
         # Check if the field is ambiguous
         if len(matching_entries) > 1:
             matching_cols = [next(iter(entry.keys())) for entry in matching_entries]
-            from edsl.dataset.exceptions import DatasetValueError
+            from .exceptions import DatasetValueError
             raise DatasetValueError(
                 f"Ambiguous field name '{field}'. It matches multiple columns: {matching_cols}. "
                 f"Please specify the full column name to flatten."
