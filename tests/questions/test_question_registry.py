@@ -22,7 +22,7 @@ def test_get_question_class_with_invalid_type():
 
 # def test_forgot_to_register_question():
 #     """Test fails if a question is added to edsl/questions but not registered in edsl/questions/question_registry.py"""
-#     paths = ["edsl/questions", "edsl/questions/derived"]
+#     paths = ["edsl/questions"]
 #     pattern = re.compile(r"^Question([A-Za-z]+)\.py$")
 #     for path in paths:
 #         for file_name in os.listdir(path):
