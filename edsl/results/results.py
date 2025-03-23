@@ -1116,10 +1116,12 @@ class Results(UserList, ResultsOperationsMixin, Base):
             random.seed(seed)
 
         if n is None and frac is None:
-            raise Exception("You must specify either n or frac.")
+            from .exceptions import ResultsError
+            raise ResultsError("You must specify either n or frac.")
 
         if n is not None and frac is not None:
-            raise Exception("You cannot specify both n and frac.")
+            from .exceptions import ResultsError
+            raise ResultsError("You cannot specify both n and frac.")
 
         if frac is not None and n is None:
             n = int(frac * len(self.data))
@@ -1186,7 +1188,8 @@ class Results(UserList, ResultsOperationsMixin, Base):
         from edsl.results.results_selector import Selector
 
         if len(self) == 0:
-            raise Exception("No data to select from---the Results object is empty.")
+            from .exceptions import ResultsError
+            raise ResultsError("No data to select from---the Results object is empty.")
 
         selector = Selector(
             known_data_types=self.known_data_types,
