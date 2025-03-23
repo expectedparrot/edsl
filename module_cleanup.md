@@ -256,12 +256,47 @@ grep -r "raise " edsl/<module_name> | grep -v "exceptions\."
 - Consider adding more doctests for better coverage
 - Review the async code in the module for potential improvements
 
-- [ ] **config**
-  - [ ] Run unit tests and fix warnings
-  - [ ] Run doctests and fix issues
-  - [ ] Run ruff linter and fix issues
-  - [ ] Convert absolute imports to relative imports
-  - [ ] Ensure all exceptions raised are from module's exceptions.py
+- [x] **config**
+  - [x] Run unit tests and fix warnings
+  - [x] Run doctests and fix issues
+  - [x] Run ruff linter and fix issues
+  - [x] Convert absolute imports to relative imports
+  - [x] Ensure all exceptions raised are from module's exceptions.py
+
+### Config Module Report
+
+#### Summary:
+- All unit tests are passing without warnings
+- No doctests found in the module
+- No linting issues
+- Converted absolute imports to relative imports
+- Custom exceptions are properly defined and used
+
+#### Issues Examined:
+1. **Import Issues:**
+   - ❌ Found absolute imports in __init__.py and config_class.py:
+     - `from edsl.config.config_class import Config, CONFIG, CONFIG_MAP, EDSL_RUN_MODES, cache_dir`
+     - `from edsl.base import BaseException`
+     - `from edsl import logger`
+
+2. **Exception Handling:**
+   - ✅ Custom exceptions `InvalidEnvironmentVariableError` and `MissingEnvironmentVariableError` are defined in the module
+   - ✅ All exceptions inherit from BaseException
+   - ✅ No Python built-in exceptions are raised directly
+
+#### Issues Resolved:
+1. **Import Fixes:**
+   - ✅ Converted imports in __init__.py to use relative imports:
+     - `.config_class import Config, CONFIG, CONFIG_MAP, EDSL_RUN_MODES, cache_dir`
+   - ✅ Converted imports in config_class.py to use relative imports:
+     - `from ..base import BaseException`
+   - ✅ Replaced logger import with standard logging module:
+     - `import logging`
+     - `logger = logging.getLogger(__name__)`
+
+#### Next Steps:
+- Consider adding doctests for better code documentation
+- Potentially expand the exception types to handle more specific error cases
 
 - [ ] **conversation**
   - [ ] Run unit tests and fix warnings
