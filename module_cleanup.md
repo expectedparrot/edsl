@@ -968,12 +968,63 @@ grep -r "raise " edsl/<module_name> | grep -v "exceptions\."
 - Review the exceptions in the module for potential hierarchy improvements
 - Consider adding more comprehensive doctests for validation behaviors
 
-- [ ] **results**
-  - [ ] Run unit tests and fix warnings
-  - [ ] Run doctests and fix issues
-  - [ ] Run ruff linter and fix issues
-  - [ ] Convert absolute imports to relative imports
-  - [ ] Ensure all exceptions raised are from module's exceptions.py
+- [x] **results**
+  - [x] Run unit tests and fix warnings
+  - [x] Run doctests and fix issues
+  - [x] Run ruff linter and fix issues
+  - [x] Convert absolute imports to relative imports
+  - [x] Ensure all exceptions raised are from module's exceptions.py
+
+### Results Module Report
+
+#### Summary:
+- All unit tests are passing without major issues
+- All doctests are passing
+- No linting issues found with ruff
+- Fixed 8 absolute imports, converting them to relative imports
+- Replaced 4 direct uses of built-in exceptions (ValueError, TypeError, NotImplementedError) with custom exceptions
+
+#### Issues Examined:
+1. **Import Issues:**
+   - ❌ Found several absolute imports in results_selector.py and results.py:
+     - `from edsl.utilities import is_notebook`
+     - `from edsl.dataset import Dataset`
+     - `from edsl.utilities.PrettyList import PrettyList`
+     - `from edsl.utilities.utilities import shorten_string`
+     - `from edsl.agents import AgentList`
+     - `from edsl.utilities.utilities import is_valid_variable_name`
+     - `from edsl.results.results_selector import Selector`
+     - `from edsl import __version__`
+
+2. **Exception Handling:**
+   - ❌ Direct use of ValueError in Result.check_expression and Result.score
+   - ❌ Direct use of NotImplementedError in Result.code and Results.code
+   - ❌ Direct use of TypeError in Results.__getitem__
+
+#### Issues Resolved:
+1. **Import Fixes:**
+   - ✅ Converted all absolute imports to relative imports:
+     - `from ..utilities import is_notebook`
+     - `from ..dataset import Dataset`
+     - `from ..utilities.PrettyList import PrettyList`
+     - `from ..utilities.utilities import shorten_string`
+     - `from ..agents import AgentList`
+     - `from ..utilities.utilities import is_valid_variable_name`
+     - `from .results_selector import Selector`
+     - `from .. import __version__`
+
+2. **Exception Handling Improvements:**
+   - ✅ Replaced ValueError with ResultsColumnNotFoundError in Result.check_expression
+   - ✅ Replaced ValueError with ResultsError in Result.score
+   - ✅ Replaced NotImplementedError with ResultsError in Result.code and Results.code
+   - ✅ Replaced TypeError with ResultsError in Results.__getitem__
+
+3. **Documentation:**
+   - ✅ Retained absolute imports in doctest examples (intentional as they show how users should import)
+
+#### Next Steps:
+- Address DeprecationWarning about sort_by vs order_by in later cleanup
+- The remaining 25 warnings are from the coop module and unrelated to results
 
 - [ ] **scenarios**
   - [ ] Run unit tests and fix warnings
@@ -1078,9 +1129,9 @@ grep -r "raise " edsl/<module_name> | grep -v "exceptions\."
 * Never raise Python's built-in exceptions directly (e.g., `ValueError`, `TypeError`)
 * Instead, create custom exceptions that inherit from the module's base exception
 
-## Progress Summary (as of March 23, 2025)
+## Progress Summary (as of March 24, 2025)
 
-### Completed Modules (19/26):
+### Completed Modules (20/26):
 1. `agents`
 2. `base`
 3. `buckets`
@@ -1100,15 +1151,15 @@ grep -r "raise " edsl/<module_name> | grep -v "exceptions\."
 17. `notebooks`
 18. `prompts`
 19. `questions`
+20. `results`
 
-### Remaining Modules (7/26):
+### Remaining Modules (6/26):
 1. `plugins`
-2. `results`
-3. `scenarios`
-4. `surveys`
-5. `tasks`
-6. `tokens`
-7. `utilities`
+2. `scenarios`
+3. `surveys`
+4. `tasks`
+5. `tokens`
+6. `utilities`
 
 ### Common Issues Found:
 1. **Absolute Imports**: Many modules use absolute imports rather than relative imports
