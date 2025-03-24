@@ -123,7 +123,7 @@ class MultipleChoiceResponseValidator(ResponseValidatorABC):
         >>> q = QuestionMultipleChoice(
         ...     question_name="feeling",
         ...     question_text="How are you feeling?",
-        ...     question_options=["Good", "Bad", "Neutral"]
+        ...     question_options=["Good", "Bad", "Neutral"], use_code=False
         ... )
         >>> validator = q.response_validator
         >>> result = validator.validate({"answer": "Good"})
@@ -153,7 +153,7 @@ class MultipleChoiceResponseValidator(ResponseValidatorABC):
 
         Examples:
             >>> from edsl.questions import QuestionMultipleChoice
-            >>> q = QuestionMultipleChoice.example()
+            >>> q = QuestionMultipleChoice.example(use_code=False)
             >>> validator = q.response_validator
             >>> result = validator.fix({"answer": "I'm feeling Good today"})
             >>> sorted(result.keys())
@@ -453,11 +453,11 @@ class QuestionMultipleChoice(QuestionBase):
         It is used to translate the answer code to the actual answer.
         The question options might be templates, so they need to be rendered with the scenario.
 
-        >>> q = QuestionMultipleChoice.example()
+        >>> q = QuestionMultipleChoice.example(use_code=False)
         >>> q._translate_answer_code_to_answer('Good', {})
         'Good'
 
-        >>> q = QuestionMultipleChoice(question_name="how_feeling", question_text="How are you?", question_options=["{{emotion[0]}}", "emotion[1]"])
+        >>> q = QuestionMultipleChoice(question_name="how_feeling", question_text="How are you?", question_options=["{{emotion[0]}}", "emotion[1]"],use_code=False)
         >>> q._translate_answer_code_to_answer('Happy', {"emotion": ["Happy", "Sad"]})
         'Happy'
 
