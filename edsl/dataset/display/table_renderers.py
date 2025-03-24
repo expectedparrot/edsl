@@ -103,9 +103,12 @@ class PandasStyleRenderer(DataTablesRendererABC):
             else:
                 df = pd.DataFrame(self.table_data.data, columns=self.table_data.headers)
 
-            styled_df = df.style.set_properties(
-                **{"text-align": "left"}
-            ).background_gradient()
+            styled_df = df.style.set_properties(**{
+                "text-align": "left",
+                "white-space": "pre-wrap",  # Allows text wrapping
+                "max-width": "300px",       # Maximum width before wrapping
+                "word-wrap": "break-word"   # Breaks words that exceed max-width
+            }).background_gradient()
 
             return f"""
             <div style="max-height: 500px; overflow-y: auto;">

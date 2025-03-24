@@ -271,8 +271,25 @@ class QuestionBase(
         """
         if not hasattr(self, "_fake_data_factory"):
             from polyfactory.factories.pydantic_factory import ModelFactory
+            from random import randint, uniform
 
-            class FakeData(ModelFactory[self.response_model]): ...
+            class FakeData(ModelFactory[self.response_model]):
+                # Add customization for specific question types
+                if hasattr(self, 'question_type') and self.question_type == 'numerical':
+                    @classmethod
+                    def build_answer(cls):
+                        min_val = getattr(self, 'min_value', None)
+                        max_val = getattr(self, 'max_value', None)
+                        
+                        # Default values if none provided
+                        min_val = 0 if min_val is None else min_val
+                        max_val = 100 if max_val is None else max_val
+                        
+                        # Ensure values are within bounds
+                        if isinstance(min_val, int) and isinstance(max_val, int):
+                            return randint(min_val, max_val)
+                        else:
+                            return uniform(min_val, max_val)
 
             self._fake_data_factory = FakeData
         return self._fake_data_factory
@@ -358,7 +375,19 @@ class QuestionBase(
             >>> Q.example()._validate_answer({'answer': 'Hello', 'generated_tokens': 'Hello'})
             {'answer': 'Hello', 'generated_tokens': 'Hello'}
         """
-        return self.response_validator.validate(answer, replacement_dict)
+        try:
+            return self.response_validator.validate(answer, replacement_dict)
+        except Exception as e:
+            # Ensure all validation errors are raised as QuestionAnswerValidationError
+            from .exceptions import QuestionAnswerValidationError
+            if not isinstance(e, QuestionAnswerValidationError):
+                raise QuestionAnswerValidationError(
+                    message=f"Invalid response: {e}",
+                    data=answer,
+                    model=getattr(self, 'response_model', None),
+                    pydantic_error=e if hasattr(e, 'errors') else None
+                ) from e
+            raise
 
     @property
     def name(self) -> str:

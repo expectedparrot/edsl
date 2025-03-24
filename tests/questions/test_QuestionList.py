@@ -166,8 +166,12 @@ def test_QuestionList_answers():
 
     # answer validation - basic
     q._validate_answer(response_good)
-    with pytest.raises(QuestionAnswerValidationError):
+    # Test the missing "answer" field directly
+    try:
         q._validate_answer(response_terrible)
+        pytest.fail("QuestionAnswerValidationError not raised for response_terrible")
+    except QuestionAnswerValidationError:
+        pass  # Expected behavior - validation error caught
     with pytest.raises(QuestionAnswerValidationError):
         q._validate_answer({"answer": 1})
 

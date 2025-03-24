@@ -58,7 +58,8 @@ class Simulator:
 
             if num_passes > 100:
                 print("Too many passes.")
-                raise Exception("Too many passes.")
+                from .exceptions import SurveyError
+                raise SurveyError("Too many passes.")
         return self.survey.answers
 
     def create_agent(self) -> "Agent":
