@@ -52,6 +52,7 @@ Ensure that the question options make sense for the question text.
 
 * Does the question text ask for options not presented, or a different number of options?
 * Should the question options include an option for non-responses (e.g., "I do not know.")?
+* Are validation constraints appropriate for your use case (e.g., min/max values, required selections)?
 
 
 Do any questions require context of other questions?

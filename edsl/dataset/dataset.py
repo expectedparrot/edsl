@@ -1,5 +1,3 @@
-
-
 from __future__ import annotations
 import sys
 import json
@@ -10,7 +8,8 @@ from typing import Any, Union, Optional, TYPE_CHECKING, Callable
 from ..base import PersistenceMixin, HashingMixin
 
 from .dataset_tree import Tree
-from .exceptions import DatasetKeyError, DatasetValueError
+from .exceptions import DatasetKeyError, DatasetValueError, DatasetTypeError
+
 
 from .display.table_display import TableDisplay
 #from .smart_objects import FirstObject
@@ -121,19 +120,9 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
             new_data.append({key: values[:n]})
         return Dataset(new_data)
 
-    def expand(self, field):
-        return self.to_scenario_list().expand(field)
+    # def expand(self, field):
+    #     return self.to_scenario_list().expand(field)
 
-    # def view(self):
-    #     from perspective.widget import PerspectiveWidget
-
-    #     w = PerspectiveWidget(
-    #         self.to_pandas(),
-    #         plugin="Datagrid",
-    #         aggregates={"datetime": "any"},
-    #         sort=[["date", "desc"]],
-    #     )
-    #     return w
 
     def keys(self) -> list[str]:
         """Return the keys of the dataset.
@@ -287,12 +276,12 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
         if len(potential_matches) == 1:
             return potential_matches[0][1]
         elif len(potential_matches) > 1:
-            from edsl.dataset.exceptions import DatasetKeyError
+            from .exceptions import DatasetKeyError
             raise DatasetKeyError(
                 f"Key '{key}' found in more than one location: {[m[0] for m in potential_matches]}"
             )
 
-        from edsl.dataset.exceptions import DatasetKeyError
+        from .exceptions import DatasetKeyError
         raise DatasetKeyError(f"Key '{key}' not found in any of the dictionaries.")
 
     def first(self) -> dict[str, Any]:
@@ -513,47 +502,61 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
 
         return self
 
-    def order_by(self, sort_key: str, reverse: bool = False) -> Dataset:
+    def get_sort_indices(self, lst: list[Any], reverse: bool = False, use_numpy: bool = True) -> list[int]:
+        """
+        Return the indices that would sort the list, using either numpy or pure Python.
+        None values are placed at the end of the sorted list.
+
+        Args:
+            lst: The list to be sorted
+            reverse: Whether to sort in descending order
+            use_numpy: Whether to use numpy implementation (falls back to pure Python if numpy is unavailable)
+
+        Returns:
+            A list of indices that would sort the list
+        """
+        if use_numpy:
+            try:
+                import numpy as np
+                # Convert list to numpy array
+                arr = np.array(lst, dtype=object)
+                # Get mask of non-None values
+                mask = ~(arr == None)
+                # Get indices of non-None and None values
+                non_none_indices = np.where(mask)[0]
+                none_indices = np.where(~mask)[0]
+                # Sort non-None values
+                sorted_indices = non_none_indices[np.argsort(arr[mask])]
+                # Combine sorted non-None indices with None indices
+                indices = np.concatenate([sorted_indices, none_indices]).tolist()
+                if reverse:
+                    # When reversing, keep None values at end
+                    indices = sorted_indices[::-1].tolist() + none_indices.tolist()
+                return indices
+            except ImportError:
+                # Fallback to pure Python if numpy is not available
+                pass
+        
+        # Pure Python implementation
+        enumerated = list(enumerate(lst))
+        # Sort None values to end by using (is_none, value) as sort key
+        sorted_pairs = sorted(enumerated, 
+                            key=lambda x: (x[1] is None, x[1]), 
+                            reverse=reverse)
+        return [index for index, _ in sorted_pairs]
+
+    def order_by(self, sort_key: str, reverse: bool = False, use_numpy: bool = True) -> Dataset:
         """Return a new dataset with the observations sorted by the given key.
 
-        :param sort_key: The key to sort the observations by.
-        :param reverse: Whether to sort in reverse order.
-
-        >>> d = Dataset([{'a':[1,2,3,4]}, {'b':[4,3,2,1]}])
-        >>> d.order_by('a')
-        Dataset([{'a': [1, 2, 3, 4]}, {'b': [4, 3, 2, 1]}])
-
-        >>> d.order_by('a', reverse=True)
-        Dataset([{'a': [4, 3, 2, 1]}, {'b': [1, 2, 3, 4]}])
-
-        >>> d = Dataset([{'X.a':[1,2,3,4]}, {'X.b':[4,3,2,1]}])
-        >>> d.order_by('a')
-        Dataset([{'X.a': [1, 2, 3, 4]}, {'X.b': [4, 3, 2, 1]}])
-
-
+        Args:
+            sort_key: The key to sort the observations by
+            reverse: Whether to sort in reverse order
+            use_numpy: Whether to use numpy for sorting (faster for large lists)
         """
-        import numpy as np
-
-        def sort_indices(lst: list[Any]) -> list[int]:
-            """
-            Return the indices that would sort the list.
-
-            :param lst: The list to be sorted.
-            :return: A list of indices that would sort the list.
-            """
-            indices = np.argsort(lst).tolist()
-            if reverse:
-                indices.reverse()
-            return indices
-
         number_found = 0
         for obs in self.data:
             key, values = list(obs.items())[0]
-            # an obseration is {'a':[1,2,3,4]}
-            # key = list(obs.keys())[0]
-            if (
-                sort_key == key or sort_key == key.split(".")[-1]
-            ):  # e.g., "age" in "scenario.age"
+            if sort_key == key or sort_key == key.split(".")[-1]:
                 relevant_values = values
                 number_found += 1
 
@@ -562,11 +565,9 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
         elif number_found > 1:
             raise DatasetKeyError(f"Key '{sort_key}' found in more than one dictionary.")
 
-        # relevant_values = self._key_to_value(sort_key)
-        sort_indices_list = sort_indices(relevant_values)
+        sort_indices_list = self.get_sort_indices(relevant_values, reverse=reverse, use_numpy=use_numpy)
         new_data = []
         for observation in self.data:
-            # print(observation)
             key, values = list(observation.items())[0]
             new_values = [values[i] for i in sort_indices_list]
             new_data.append({key: new_values})
@@ -685,6 +686,19 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
     def from_pandas_dataframe(cls, df):
         result = cls([{col: df[col].tolist()} for col in df.columns])
         return result
+    
+    def to_dict(self) -> dict:
+        """
+        Convert the dataset to a dictionary.
+        """
+        return {'data': self.data}
+
+    @classmethod
+    def from_dict(cls, data: dict) -> 'Dataset':
+        """
+        Convert a dictionary to a dataset.
+        """
+        return cls(data['data'])
 
     def to_docx(self, output_file: str, title: str = None) -> None:
         """
@@ -735,6 +749,75 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
         
         # Save the document
         doc.save(output_file)
+
+    def expand(self, field: str, number_field: bool = False) -> "Dataset":
+        """
+        Expand a field containing lists into multiple rows.
+        
+        Args:
+            field: The field containing lists to expand
+            number_field: If True, adds a number field indicating the position in the original list
+            
+        Returns:
+            A new Dataset with the expanded rows
+            
+        Example:
+            >>> from edsl.dataset import Dataset
+            >>> d = Dataset([{'a': [[1, 2, 3], [4, 5, 6]]}, {'b': ['x', 'y']}])
+            >>> d.expand('a')
+            Dataset([{'a': [1, 2, 3, 4, 5, 6]}, {'b': ['x', 'x', 'x', 'y', 'y', 'y']}])
+        """
+        from collections.abc import Iterable
+        
+        # Find the field in the dataset
+        field_data = None
+        for entry in self.data:
+            key = list(entry.keys())[0]
+            if key == field:
+                field_data = entry[key]
+                break
+            
+        if field_data is None:
+            raise DatasetKeyError(f"Field '{field}' not found in dataset. Available fields are: {self.keys()}")
+
+
+        # Validate that the field contains lists
+        if not all(isinstance(v, list) for v in field_data):
+            raise DatasetTypeError(f"Field '{field}' must contain lists in all entries")
+        
+        # Calculate the total number of rows in the expanded dataset
+        total_rows = sum(len(lst) for lst in field_data)
+        
+        # Create new expanded data structure
+        new_data = []
+        
+        # Process each field
+        for entry in self.data:
+            key, values = list(entry.items())[0]
+            new_values = []
+            
+            if key == field:
+                # This is the field to expand - flatten all sublists
+                for row_values in values:
+                    if not isinstance(row_values, Iterable) or isinstance(row_values, str):
+                        row_values = [row_values]
+                    new_values.extend(row_values)
+            else:
+                # For other fields, repeat each value the appropriate number of times
+                for i, row_value in enumerate(values):
+                    expand_length = len(field_data[i]) if i < len(field_data) else 0
+                    new_values.extend([row_value] * expand_length)
+            
+            new_data.append({key: new_values})
+        
+        # Add number field if requested
+        if number_field:
+            number_values = []
+            for i, lst in enumerate(field_data):
+                number_values.extend(range(1, len(lst) + 1))
+            new_data.append({f"{field}_number": number_values})
+        
+        return Dataset(new_data)
 
 
 if __name__ == "__main__":
