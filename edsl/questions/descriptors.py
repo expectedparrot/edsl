@@ -230,7 +230,7 @@ class QuestionNameDescriptor(BaseDescriptor):
 
     def validate(self, value, instance):
         """Validate the value is a valid variable name."""
-        from edsl.utilities.utilities import is_valid_variable_name
+        from ..utilities.utilities import is_valid_variable_name
 
         if "{{" in value and "}}" in value:
             # they're trying to use a dynamic question name - let's let this play out
