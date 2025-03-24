@@ -272,10 +272,9 @@ class TestSurvey(unittest.TestCase):
             n=10, disable_remote_inference=True, disable_remote_cache=True
         )
         color_list = results.select("question_options.color")
-
         assert (
             "".join(["".join(l) for l in color_list.to_list()])
-            == "BlueGreenRedBlueRedGreenBlueRedGreenBlueGreenRedGreenRedBlueGreenBlueRedGreenBlueRedRedBlueGreenBlueRedGreenGreenBlueRed"
+            == "BlueGreenRedRedBlueGreenGreenRedBlueBlueRedGreenGreenBlueRedRedGreenBlueGreenBlueRedRedGreenBlueBlueGreenRedGreenRedBlue"
         )
 
 

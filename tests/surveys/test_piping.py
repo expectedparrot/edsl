@@ -92,6 +92,7 @@ def test_comment_piping():
         question_text="What is your favorite kind of bird?",
         question_name="bird",
         question_options=["Parrots", "Owls", "Eagles"],
+        use_code=False,
     )
     q2 = QuestionFreeText(
         question_text="Why do you like {{ bird.answer }} - you also said {{ bird.comment}}?",
