@@ -98,7 +98,8 @@ class TaskStatusDescriptor:
             ValueError: If value is not an instance of TaskStatus enum
         """
         if not isinstance(value, TaskStatus):
-            raise ValueError("Value must be an instance of TaskStatus enum")
+            from .exceptions import TaskStatusError
+            raise TaskStatusError("Value must be an instance of TaskStatus enum")
         
         # Record the current time for the status change
         t = time.monotonic()

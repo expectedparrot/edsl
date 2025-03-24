@@ -1135,19 +1135,97 @@ grep -r "raise " edsl/<module_name> | grep -v "exceptions\."
 - Convert absolute imports to relative imports in actual code (not doctest examples)
 - Move custom exceptions to exceptions.py
 
-- [ ] **tasks**
-  - [ ] Run unit tests and fix warnings
-  - [ ] Run doctests and fix issues
-  - [ ] Run ruff linter and fix issues
-  - [ ] Convert absolute imports to relative imports
-  - [ ] Ensure all exceptions raised are from module's exceptions.py
+- [x] **tasks**
+  - [x] Run unit tests and fix warnings
+  - [x] Run doctests and fix issues
+  - [x] Run ruff linter and fix issues
+  - [x] Convert absolute imports to relative imports
+  - [x] Ensure all exceptions raised are from module's exceptions.py
 
-- [ ] **tokens**
-  - [ ] Run unit tests and fix warnings
-  - [ ] Run doctests and fix issues
-  - [ ] Run ruff linter and fix issues
-  - [ ] Convert absolute imports to relative imports
-  - [ ] Ensure all exceptions raised are from module's exceptions.py
+### Tasks Module Report
+
+#### Summary:
+- Created new exceptions.py file with a proper exception hierarchy
+- Fixed absolute imports in task_history.py
+- Updated resource path handling in template loading
+- Fixed TaskStatusDescriptor to use custom exceptions
+- Updated module documentation and exports in __init__.py
+
+#### Issues Examined:
+1. **Missing Exception File:**
+   - ❌ No exceptions.py file existed for the module
+   - ❌ Built-in ValueError exception was used in TaskStatusDescriptor
+
+2. **Absolute Import Issues:**
+   - ❌ task_history.py had absolute imports from edsl
+   - ❌ Resource paths used direct "edsl" references
+
+#### Issues Resolved:
+1. **Exception Handling:**
+   - ✅ Created a comprehensive exception hierarchy:
+     - TaskError (base exception)
+     - TaskStatusError, TaskExecutionError, TaskDependencyError
+     - TaskResourceError, TaskHistoryError
+   - ✅ Updated TaskStatusDescriptor to use TaskStatusError
+
+2. **Import Fixes:**
+   - ✅ Changed absolute imports to relative imports in task_history.py
+   - ✅ Fixed resource paths to use relative paths with "..." format
+   - ✅ Modified utilities import to use relative import
+
+3. **Module Documentation:**
+   - ✅ Updated __init__.py with proper exports
+   - ✅ Added proper exception class exports
+
+#### Next Steps:
+- Consider adding more specific tests for TaskStatusError
+- Review other validation-related code for potential improvements
+- The module is already well-structured with good documentatio
+
+- [x] **tokens**
+  - [x] Run unit tests and fix warnings
+  - [x] Run doctests and fix issues
+  - [x] Run ruff linter and fix issues
+  - [x] Convert absolute imports to relative imports
+  - [x] Ensure all exceptions raised are from module's exceptions.py
+
+### Tokens Module Report
+
+#### Summary:
+- Created new exceptions.py file with a proper exception hierarchy
+- Fixed absolute imports in token_usage.py and interview_token_usage.py
+- Replaced ValueError with TokenUsageError in both module files
+- Added comprehensive module docstring to __init__.py
+- Updated module exports to include exceptions
+
+#### Issues Examined:
+1. **Missing Exception File:**
+   - ❌ No exceptions.py file existed for the module
+   - ❌ ValueError was used for token usage-related exceptions
+
+2. **Absolute Import Issues:**
+   - ❌ Both module files imported TokenPricing with absolute imports
+
+#### Issues Resolved:
+1. **Exception Handling:**
+   - ✅ Created a comprehensive exception hierarchy:
+     - TokenError (base exception)
+     - TokenUsageError (for usage tracking issues)
+     - TokenCostError (for cost calculation issues)
+   - ✅ Replaced ValueError with TokenUsageError in both classes
+
+2. **Import Fixes:**
+   - ✅ Changed absolute imports to relative imports in both module files
+   - ✅ Added imports for new exception classes
+
+3. **Module Documentation:**
+   - ✅ Added comprehensive module docstring to __init__.py
+   - ✅ Updated __all__ list to include exception classes
+
+#### Next Steps:
+- The module is small with focused functionality
+- Token-related functionality appears to be used across multiple modules
+- Consider adding more specific doctests for error handling scenarios
 
 - [ ] **utilities**
   - [ ] Run unit tests and fix warnings
@@ -1175,7 +1253,7 @@ grep -r "raise " edsl/<module_name> | grep -v "exceptions\."
 
 ## Progress Summary (as of March 24, 2025)
 
-### Completed Modules (21/26):
+### Completed Modules (23/26):
 1. `agents`
 2. `base`
 3. `buckets`
@@ -1197,13 +1275,13 @@ grep -r "raise " edsl/<module_name> | grep -v "exceptions\."
 19. `questions`
 20. `results`
 21. `scenarios`
+22. `tasks`
+23. `tokens`
 
-### Remaining Modules (5/26):
+### Remaining Modules (3/26):
 1. `plugins`
 2. `surveys`
-3. `tasks`
-4. `tokens`
-5. `utilities`
+3. `utilities`
 
 ### Common Issues Found:
 1. **Absolute Imports**: Many modules use absolute imports rather than relative imports
