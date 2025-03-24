@@ -13,7 +13,7 @@ keywords = [ "LLM", "social science", "surveys", "user research",]
 license = "MIT"
 name = "edsl"
 readme = "README.md"
-version = "0.1.49.dev1"
+version = "0.1.51.dev1"
 
 [tool.poetry.scripts]
 edsl = "edsl.cli:main"
@@ -54,10 +54,13 @@ pypdf2 = "^3.0.1"
 python-pptx = "^1.0.2"
 platformdirs = "^4.3.6"
 pluggy = "^1.3.0"
-typer = {extras = ["all"], version = "^0.9.0"}
 
 [tool.poetry.extras]
 screenshots = [ "playwright",]
+
+[tool.poetry.dependencies.typer]
+extras = [ "all",]
+version = "^0.9.0"
 
 [tool.poetry.dependencies.black]
 extras = [ "jupyter",]

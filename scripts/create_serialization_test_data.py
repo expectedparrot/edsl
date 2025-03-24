@@ -5,7 +5,7 @@ import os
 import sys
 from edsl import __version__ as edsl_version
 from edsl.base import RegisterSubclassesMeta
-from edsl.coop.utils import ObjectRegistry, Study
+from edsl.coop.utils import ObjectRegistry
 from edsl.questions import *
 from tests.serialization.cases.RegisterSerializationCasesMeta import (
     RegisterSerializationCasesMeta,
@@ -47,20 +47,6 @@ def create_serialization_test_data(start_new_version=False):
     # B. Proceed with creating serialization test data
     data = []
 
-    # Study data needs to go up here; otherwise, there is a namespace error
-    with Study(name="example_study", verbose=False) as study:
-        from edsl import QuestionFreeText
-
-        q = QuestionFreeText.example()
-
-    data.append(
-        {
-            "class_name": "Study",
-            "class": Study,
-            "example": study,
-            "dict": study.to_dict(),
-        }
-    )
 
     # Collect all registered classes
     subclass_registry = RegisterSubclassesMeta.get_registry()
