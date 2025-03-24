@@ -31,7 +31,6 @@ import warnings
 import csv
 import random
 import os
-import glob
 from io import StringIO
 import inspect
 from collections import UserList, defaultdict
@@ -488,7 +487,8 @@ class ScenarioList(Base, UserList, ScenarioListOperationsMixin):
         if isinstance(other, Scenario):
             other = ScenarioList([other])
         elif not isinstance(other, ScenarioList):
-            raise TypeError(f"Cannot multiply ScenarioList with {type(other)}")
+            from .exceptions import TypeScenarioError
+            raise TypeScenarioError(f"Cannot multiply ScenarioList with {type(other)}")
 
         new_sl = []
         for s1, s2 in list(product(self, other)):
@@ -599,7 +599,8 @@ class ScenarioList(Base, UserList, ScenarioListOperationsMixin):
                 # Convert to a set (removes duplicates)
                 new_scenario[field_name] = set(values)
             else:
-                raise ValueError(f"Invalid output_type: {output_type}. Must be 'string', 'list', or 'set'.")
+                from .exceptions import ValueScenarioError
+                raise ValueScenarioError(f"Invalid output_type: {output_type}. Must be 'string', 'list', or 'set'.")
                 
             new_scenarios.append(new_scenario)
 
@@ -973,7 +974,8 @@ class ScenarioList(Base, UserList, ScenarioListOperationsMixin):
                 
         # Ensure directory exists
         if not os.path.isdir(directory_path):
-            raise FileNotFoundError(f"Directory not found: {directory_path}")
+            from .exceptions import FileNotFoundScenarioError
+            raise FileNotFoundScenarioError(f"Directory not found: {directory_path}")
         
         # Create a DirectoryScanner for the directory
         scanner = DirectoryScanner(directory_path)
@@ -1262,7 +1264,8 @@ class ScenarioList(Base, UserList, ScenarioListOperationsMixin):
         import sqlite3
 
         if table is None and sql_query is None:
-            raise ValueError("Either table or sql_query must be provided")
+            from .exceptions import ValueScenarioError
+            raise ValueScenarioError("Either table or sql_query must be provided")
 
         try:
             with sqlite3.connect(filepath) as conn:
@@ -1328,7 +1331,8 @@ class ScenarioList(Base, UserList, ScenarioListOperationsMixin):
         if "/edit" in url:
             doc_id = url.split("/d/")[1].split("/edit")[0]
         else:
-            raise ValueError("Invalid Google Doc URL format.")
+            from .exceptions import ValueScenarioError
+            raise ValueScenarioError("Invalid Google Doc URL format.")
 
         export_url = f"https://docs.google.com/document/d/{doc_id}/export?format=docx"
 
@@ -1532,7 +1536,8 @@ class ScenarioList(Base, UserList, ScenarioListOperationsMixin):
                 print("The Excel file contains multiple sheets:")
                 for name in all_sheets.keys():
                     print(f"- {name}")
-                raise ValueError("Please provide a sheet name to load data from.")
+                from .exceptions import ValueScenarioError
+                raise ValueScenarioError("Please provide a sheet name to load data from.")
             else:
                 # If there is only one sheet, use it
                 sheet_name = list(all_sheets.keys())[0]
@@ -1587,7 +1592,8 @@ class ScenarioList(Base, UserList, ScenarioListOperationsMixin):
         if "/edit" in url:
             sheet_id = url.split("/d/")[1].split("/edit")[0]
         else:
-            raise ValueError("Invalid Google Sheet URL format.")
+            from .exceptions import ValueScenarioError
+            raise ValueScenarioError("Invalid Google Sheet URL format.")
 
         export_url = (
             f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=xlsx"
@@ -1673,14 +1679,16 @@ class ScenarioList(Base, UserList, ScenarioListOperationsMixin):
                             file_obj = None
                 
                 if file_obj is None:
-                    raise ValueError(f"Could not decode file {source} with any of the attempted encodings. Original error: {last_exception}")
+                    from .exceptions import ValueScenarioError
+                    raise ValueScenarioError(f"Could not decode file {source} with any of the attempted encodings. Original error: {last_exception}")
 
             reader = csv.reader(file_obj, delimiter=delimiter)
             try:
                 header = next(reader)
                 observations = [Scenario(dict(zip(header, row))) for row in reader]
             except StopIteration:
-                raise ValueError(f"File {source} appears to be empty or has an invalid format")
+                from .exceptions import ValueScenarioError
+                raise ValueScenarioError(f"File {source} appears to be empty or has an invalid format")
 
         finally:
             if file_obj:
@@ -1996,13 +2004,16 @@ class ScenarioList(Base, UserList, ScenarioListOperationsMixin):
         import string
         
         if num_options < 2:
-            raise ValueError("num_options must be at least 2")
+            from .exceptions import ValueScenarioError
+            raise ValueScenarioError("num_options must be at least 2")
         
         if num_options > len(self):
-            raise ValueError(f"num_options ({num_options}) cannot exceed the number of scenarios ({len(self)})")
+            from .exceptions import ValueScenarioError
+            raise ValueScenarioError(f"num_options ({num_options}) cannot exceed the number of scenarios ({len(self)})")
         
         if use_alphabet and num_options > 26:
-            raise ValueError("When using alphabet labels, num_options cannot exceed 26 (the number of letters in the English alphabet)")
+            from .exceptions import ValueScenarioError
+            raise ValueScenarioError("When using alphabet labels, num_options cannot exceed 26 (the number of letters in the English alphabet)")
         
         # Convert each scenario to a dictionary
         scenario_dicts = [scenario.to_dict(add_edsl_version=False) for scenario in self]
