@@ -137,7 +137,7 @@ class JobsPrompts:
     def price_lookup(self) -> dict:
         """Fetches the price lookup from Coop if it is not already cached."""
         if self._price_lookup is None:
-            from edsl.coop.coop import Coop
+            from ..coop.coop import Coop
 
             c = Coop()
             self._price_lookup = c.fetch_prices()

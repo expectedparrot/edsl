@@ -3,7 +3,7 @@ Checks a Jobs object for missing API keys and other requirements.
 """
 
 import os
-from edsl.key_management.key_lookup_builder import MissingAPIKeyError
+from ..key_management.key_lookup_builder import MissingAPIKeyError
 
 
 class JobsChecks:
@@ -16,7 +16,7 @@ class JobsChecks:
         self.jobs = jobs
 
     def check_api_keys(self) -> None:
-        from edsl.language_models.model import Model
+        from ..language_models.model import Model
 
         if len(self.jobs.models) == 0:
             models = [Model()]
@@ -37,7 +37,7 @@ class JobsChecks:
         """
         missing_api_keys = set()
 
-        from edsl.enums import service_to_api_keyname
+        from ..enums import service_to_api_keyname
 
         for model in self.jobs.models: # + [Model()]:
             if not model.has_valid_api_key():
@@ -134,8 +134,8 @@ class JobsChecks:
     def key_process(self):
         import secrets
         from dotenv import load_dotenv
-        from edsl.coop.coop import Coop
-        from edsl.utilities.utilities import write_api_key_to_env
+        from ..coop.coop import Coop
+        from ..utilities.utilities import write_api_key_to_env
 
         missing_api_keys = self.get_missing_api_keys()
 
