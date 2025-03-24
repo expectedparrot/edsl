@@ -43,7 +43,7 @@ class LanguageModelInfo:
         elif key == 1:
             return self.service_name
         else:
-            from edsl.inference_services.exceptions import InferenceServiceIndexError
+            from .exceptions import InferenceServiceIndexError
             raise InferenceServiceIndexError("Index out of range")
 
     @classmethod
@@ -70,7 +70,7 @@ class AvailableModels(UserList):
         return self.to_dataset().print()
 
     def to_dataset(self):
-        from edsl.scenarios.ScenarioList import ScenarioList
+        from ..scenarios.scenario_list import ScenarioList
 
         models, services = zip(
             *[(model.model_name, model.service_name) for model in self]
@@ -106,14 +106,14 @@ class AvailableModels(UserList):
                 ]
             )
             if len(avm) == 0:
-                from edsl.inference_services.exceptions import InferenceServiceValueError
+                from .exceptions import InferenceServiceValueError
                 raise InferenceServiceValueError(
                     "No models found matching the search pattern: " + pattern
                 )
             else:
                 return avm
         except re.error as e:
-            from edsl.inference_services.exceptions import InferenceServiceValueError
+            from .exceptions import InferenceServiceValueError
             raise InferenceServiceValueError(f"Invalid regular expression pattern: {e}")
 
 
@@ -128,7 +128,7 @@ class ServiceToModelsMapping(UserDict):
     def _validate_service_names(self):
         for service in self.service_names:
             if service not in InferenceServiceLiteral:
-                from edsl.inference_services.exceptions import InferenceServiceValueError
+                from .exceptions import InferenceServiceValueError
                 raise InferenceServiceValueError(f"Invalid service name: {service}")
 
     def model_to_services(self) -> dict:

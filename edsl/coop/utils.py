@@ -129,7 +129,7 @@ class ObjectRegistry:
         # Look up the object type
         object_type = cls.edsl_class_to_object_type.get(edsl_class_name)
         if object_type is None:
-            from edsl.coop.exceptions import CoopValueError
+            from .exceptions import CoopValueError
             raise CoopValueError(f"Object type not found for {edsl_object=}")
         return object_type
 
@@ -152,7 +152,7 @@ class ObjectRegistry:
         """
         EDSL_class = cls.object_type_to_edsl_class.get(object_type)
         if EDSL_class is None:
-            from edsl.coop.exceptions import CoopValueError
+            from .exceptions import CoopValueError
             raise CoopValueError(f"EDSL class not found for {object_type=}")
         return EDSL_class
 

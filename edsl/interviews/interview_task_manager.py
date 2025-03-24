@@ -29,7 +29,7 @@ class InterviewTaskManager:
         self, answer_func, token_estimator, model_buckets
     ) -> list[asyncio.Task]:
         """Create tasks for all questions with proper dependencies."""
-        tasks = []
+        tasks: list[asyncio.Task] = []
         for question in self.survey.questions:
             dependencies = self._get_task_dependencies(tasks, question)
             task = self._create_single_task(
@@ -40,7 +40,7 @@ class InterviewTaskManager:
                 model_buckets=model_buckets,
             )
             tasks.append(task)
-        return tuple(tasks)
+        return tasks
 
     def _get_task_dependencies(
         self, existing_tasks: list[asyncio.Task], question: "QuestionBase"

@@ -43,7 +43,7 @@ class InterviewStatistic(UserDict):
         value: float,
         digits: int = 0,
         units: str = "",
-        pretty_name: str = None,
+        pretty_name: str | None = None,
     ):
         """Create a new InterviewStatistic object."""
         self.name = name

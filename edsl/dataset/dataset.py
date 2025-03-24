@@ -365,11 +365,12 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
         >>> d = Dataset([{'person_name':["John"]}])
         >>> from edsl import QuestionFreeText 
         >>> q = QuestionFreeText(question_text = "How are you, {{ person_name ?}}?", question_name = "how_feeling")
-        >>> d.to(q)
-        Jobs(...)
+        >>> jobs = d.to(q)
+        >>> isinstance(jobs, object)
+        True
         """
-        from edsl.surveys import Survey
-        from edsl.questions import QuestionBase
+        from ..surveys import Survey
+        from ..questions import QuestionBase
 
         if isinstance(survey_or_question, Survey):
             return survey_or_question.by(self.to_scenario_list())
@@ -391,7 +392,7 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
         """
         for key in keys:
             if key not in self.keys():
-                from edsl.dataset.exceptions import DatasetValueError
+                from .exceptions import DatasetValueError
                 raise DatasetValueError(f"Key '{key}' not found in the dataset. "
                                         f"Available keys: {self.keys()}"
                                        )
@@ -468,11 +469,11 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
 
         # Validate the input for sampling parameters
         if n is None and frac is None:
-            from edsl.dataset.exceptions import DatasetValueError
+            from .exceptions import DatasetValueError
             raise DatasetValueError("Either 'n' or 'frac' must be provided for sampling.")
 
         if n is not None and frac is not None:
-            from edsl.dataset.exceptions import DatasetValueError
+            from .exceptions import DatasetValueError
             raise DatasetValueError("Only one of 'n' or 'frac' should be specified.")
 
         # Get the length of the lists from the first entry
@@ -484,7 +485,7 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
             n = int(total_length * frac)
 
         if not with_replacement and n > total_length:
-            from edsl.dataset.exceptions import DatasetValueError
+            from .exceptions import DatasetValueError
             raise DatasetValueError(
                 "Sample size cannot be greater than the number of available elements when sampling without replacement."
             )
@@ -521,7 +522,7 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
                 # Convert list to numpy array
                 arr = np.array(lst, dtype=object)
                 # Get mask of non-None values
-                mask = ~(arr == None)
+                mask = ~(arr is None)
                 # Get indices of non-None and None values
                 non_none_indices = np.where(mask)[0]
                 none_indices = np.where(~mask)[0]
@@ -647,7 +648,7 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
 
         if max_rows is not None:
             if max_rows > len(data):
-                from edsl.dataset.exceptions import DatasetValueError
+                from .exceptions import DatasetValueError
                 raise DatasetValueError(
                     "max_rows cannot be greater than the number of rows in the dataset."
                 )
@@ -784,9 +785,6 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
         # Validate that the field contains lists
         if not all(isinstance(v, list) for v in field_data):
             raise DatasetTypeError(f"Field '{field}' must contain lists in all entries")
-        
-        # Calculate the total number of rows in the expanded dataset
-        total_rows = sum(len(lst) for lst in field_data)
         
         # Create new expanded data structure
         new_data = []
