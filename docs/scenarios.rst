@@ -128,6 +128,8 @@ Special methods are available for creating a `Scenario` or `ScenarioList` from v
 
 * The constructor method `from_pdf()` can be used to create a single scenario for a PDF or a scenario list where each page of a PDF is stored as an individual scenario.
 
+* The constructor method `from_directory()` can be used to create a scenario list from all files in a directory, where each file is wrapped in a Scenario object with a specified key (default is "content").
+
 * The constructor methods `from_list()`, `from_csv`, `from_nested_dict()` and `from_wikipedia_table()` will create a scenario list from a list, CSV, nested dictionary or Wikipedia table.
 
 For example, the following code will create the same scenario list as above:
@@ -137,6 +139,28 @@ For example, the following code will create the same scenario list as above:
   from edsl import ScenarioList
 
   scenariolist = ScenarioList.from_list("activity", ["running", "reading"])
+  
+Example of creating a scenario list from files in a directory:
+
+.. code-block:: python
+
+  from edsl import ScenarioList, QuestionFreeText
+  
+  # Create a ScenarioList from all image files in a directory
+  # Each file will be wrapped in a Scenario with key "content"
+  scenarios = ScenarioList.from_directory("images_folder/*.png")
+  
+  # Or specify a custom key name
+  scenarios = ScenarioList.from_directory("images_folder", key_name="image")
+  
+  # Create a question that uses the scenario key
+  q = QuestionFreeText(
+      question_name="image_description",
+      question_text="Please describe this image: {{ scenario.image }}"
+  )
+  
+  # Run the question with the scenarios
+  results = q.by(scenarios).run()
 
 
 Examples for each of these methods is provided below, and in `this notebook <https://www.expectedparrot.com/content/44de0963-31b9-4944-a9bf-508c7a07d757>`_.

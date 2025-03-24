@@ -895,11 +895,13 @@ class ScenarioList(Base, UserList, ScenarioListOperationsMixin):
         cls,
         path: Optional[str] = None,
         recursive: bool = False,
+        key_name: str = "content",
     ) -> "ScenarioList":
-        """Create a ScenarioList of FileStore objects from files in a directory.
+        """Create a ScenarioList of Scenario objects from files in a directory.
         
-        This method scans a directory and creates a FileStore object for each file found,
-        optionally filtering files based on a wildcard pattern. If no path is provided,
+        This method scans a directory and creates a Scenario object for each file found,
+        where each Scenario contains a FileStore object under the specified key.
+        Optionally filters files based on a wildcard pattern. If no path is provided,
         the current working directory is used.
         
         Args:
@@ -910,25 +912,27 @@ class ScenarioList(Base, UserList, ScenarioListOperationsMixin):
                  - "/path/to/directory/*.py" - scans only Python files in the directory
                  - "*.txt" - scans only text files in the current working directory
             recursive: Whether to scan subdirectories recursively. Defaults to False.
+            key_name: The key to use for the FileStore object in each Scenario. Defaults to "content".
             
         Returns:
-            A ScenarioList containing FileStore objects for all matching files.
+            A ScenarioList containing Scenario objects for all matching files, where each Scenario
+            has a FileStore object under the specified key.
             
         Raises:
             FileNotFoundError: If the specified directory does not exist.
             
         Examples:
-            # Get all files in the current directory
+            # Get all files in the current directory with default key "content"
             sl = ScenarioList.from_directory()
             
-            # Get all Python files in a specific directory
-            sl = ScenarioList.from_directory('*.py')
+            # Get all Python files in a specific directory with custom key "python_file"
+            sl = ScenarioList.from_directory('*.py', key_name="python_file")
             
             # Get all image files in the current directory
-            sl = ScenarioList.from_directory('*.png')
+            sl = ScenarioList.from_directory('*.png', key_name="image")
             
             # Get all files recursively including subdirectories
-            sl = ScenarioList.from_directory(recursive=True)
+            sl = ScenarioList.from_directory(recursive=True, key_name="document")
         """
         # Handle default case - use current directory
         if path is None:
@@ -1001,7 +1005,10 @@ class ScenarioList(Base, UserList, ScenarioListOperationsMixin):
             example_suffix=example_suffix
         )
         
-        return cls(file_stores)
+        # Convert FileStore objects to Scenario objects with the specified key
+        scenarios = [Scenario({key_name: file_store}) for file_store in file_stores]
+        
+        return cls(scenarios)
                 
     @classmethod
     def from_list(
