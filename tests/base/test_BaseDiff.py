@@ -19,7 +19,7 @@ def test_diff_apply(example_questions):
 
     diff1 = BaseDiff(q_ft, q_mc)
     new_q_mc = diff1.apply(q_ft)
-
+    print(new_q_mc,q_mc)
     assert new_q_mc == q_mc
 
 
