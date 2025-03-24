@@ -16,6 +16,7 @@ valid_question = {
     "question_text": "How are you?",
     "question_options": ["OK", "Bad"],
     "question_name": "how_are_you",
+    "use_code": True,
 }
 
 

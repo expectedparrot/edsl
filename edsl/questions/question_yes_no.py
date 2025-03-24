@@ -19,6 +19,7 @@ class QuestionYesNo(QuestionMultipleChoice):
         answering_instructions: Optional[str] = None,
         question_presentation: Optional[str] = None,
         include_comment: Optional[bool] = True,
+        use_code: Optional[bool] = False,
     ):
         """Instantiate a new QuestionYesNo.
 
