@@ -4,7 +4,7 @@ from edsl.questions.exceptions import (
     QuestionCreationValidationError,
 )
 from edsl.questions.question_base import QuestionBase
-from edsl.questions.derived.question_linear_scale import QuestionLinearScale, main
+from edsl.questions.question_linear_scale import QuestionLinearScale, main
 
 
 def test_QuestionLinearScale_main():

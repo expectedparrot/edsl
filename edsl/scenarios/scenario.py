@@ -96,8 +96,7 @@ class Scenario(Base, UserDict):
                 data = dict(data)
             except Exception as e:
                 raise ScenarioError(
-                    f"You must pass in a dictionary to initialize a Scenario. You passed in {data}",
-                    "Exception message:" + str(e),
+                    f"You must pass in a dictionary to initialize a Scenario. You passed in {data}" +   "Exception message:" + str(e),
                 )
 
         super().__init__()

@@ -6,7 +6,7 @@ from typing import Literal
 
 from ..utilities.decorators import sync_wrapper
 from ..questions.exceptions import QuestionAnswerValidationError
-from ..data_transfer_models import AgentResponseDict, EDSLResultObjectInput
+from ..base.data_transfer_models import AgentResponseDict, EDSLResultObjectInput
 from ..utilities.decorators import jupyter_nb_handler
 
 from .prompt_constructor import PromptConstructor
@@ -280,7 +280,7 @@ class InvigilatorAI(InvigilatorBase):
         }
         if "encoded_image" in prompts:
             params["encoded_image"] = prompts["encoded_image"]
-            from edsl.invigilators.exceptions import InvigilatorNotImplementedError
+            from .exceptions import InvigilatorNotImplementedError
             raise InvigilatorNotImplementedError("encoded_image not implemented")
 
         if "files_list" in prompts:

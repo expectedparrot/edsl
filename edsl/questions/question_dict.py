@@ -12,7 +12,7 @@ Failure:
 
 from __future__ import annotations
 from typing import Union, Optional, Dict, List, Any, Type
-from pydantic import BaseModel, Field, create_model, ValidationError
+from pydantic import BaseModel, Field, create_model
 from jinja2 import Environment, FileSystemLoader, TemplateNotFound
 from pathlib import Path
 
@@ -98,8 +98,116 @@ def create_dict_response(
 
 
 class DictResponseValidator(ResponseValidatorABC):
-    """Optional placeholder if you still want a validator class around it."""
+    """
+    Validator for dictionary responses with specific keys and value types.
+    
+    This validator ensures that:
+    1. All required keys are present in the answer
+    2. Each value has the correct type as specified
+    3. Extra keys are forbidden unless permissive=True
+    
+    Examples:
+        >>> from edsl.questions import QuestionDict
+        >>> q = QuestionDict(
+        ...     question_name="recipe",
+        ...     question_text="Describe a recipe",
+        ...     answer_keys=["name", "ingredients", "steps"],
+        ...     value_types=["str", "list[str]", "list[str]"]
+        ... )
+        >>> validator = q.response_validator
+        >>> result = validator.validate({
+        ...     "answer": {
+        ...         "name": "Pancakes", 
+        ...         "ingredients": ["flour", "milk", "eggs"],
+        ...         "steps": ["Mix", "Cook", "Serve"]
+        ...     }
+        ... })
+        >>> sorted(result.keys())
+        ['answer', 'comment', 'generated_tokens']
+    """
     required_params = ["answer_keys", "permissive"]
+
+    def fix(self, response, verbose=False):
+        """
+        Attempt to fix an invalid dictionary response.
+        
+        This method tries to:
+        1. Convert values to the expected types when possible
+        2. Extract structured data from text responses
+        3. Handle missing keys with default values
+        
+        Parameters:
+            response: The invalid response dict
+            verbose: Whether to print debug information
+            
+        Returns:
+            A fixed response dict if possible, otherwise the original
+        """
+        if "answer" not in response or not isinstance(response["answer"], dict):
+            if verbose:
+                print("Cannot fix response: 'answer' field missing or not a dictionary")
+            return response
+            
+        answer_dict = response["answer"]
+        fixed_answer = {}
+        
+        # Try to convert values to expected types
+        for key, type_str in zip(self.answer_keys, getattr(self, "value_types", [])):
+            if key in answer_dict:
+                value = answer_dict[key]
+                # Try type conversion based on the expected type
+                if type_str == "int" and not isinstance(value, int):
+                    try:
+                        fixed_answer[key] = int(value)
+                        if verbose:
+                            print(f"Converted '{key}' from {type(value).__name__} to int")
+                        continue
+                    except (ValueError, TypeError):
+                        pass
+                
+                elif type_str == "float" and not isinstance(value, float):
+                    try:
+                        fixed_answer[key] = float(value)
+                        if verbose:
+                            print(f"Converted '{key}' from {type(value).__name__} to float")
+                        continue
+                    except (ValueError, TypeError):
+                        pass
+                
+                elif type_str.startswith("list[") and not isinstance(value, list):
+                    # Try to convert string to list by splitting
+                    if isinstance(value, str):
+                        items = [item.strip() for item in value.split(",")]
+                        fixed_answer[key] = items
+                        if verbose:
+                            print(f"Converted '{key}' from string to list: {items}")
+                        continue
+                
+                # If no conversion needed or possible, keep original
+                fixed_answer[key] = value
+        
+        # Preserve any keys we didn't try to fix
+        for key, value in answer_dict.items():
+            if key not in fixed_answer:
+                fixed_answer[key] = value
+        
+        # Return fixed response
+        fixed_response = {
+            "answer": fixed_answer,
+            "comment": response.get("comment"),
+            "generated_tokens": response.get("generated_tokens")
+        }
+        
+        try:
+            # Validate the fixed answer
+            self.response_model.model_validate(fixed_response)
+            if verbose:
+                print("Successfully fixed response")
+            return fixed_response
+        except Exception as e:
+            if verbose:
+                print(f"Validation failed for fixed answer: {e}")
+            return response
 
     valid_examples = [
         (
