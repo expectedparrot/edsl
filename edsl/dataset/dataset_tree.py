@@ -51,7 +51,7 @@ class Tree:
         else:
             if not set(node_order).issubset(set(self.data.keys())):
                 invalid_keys = set(node_order) - set(self.data.keys())
-                from edsl.dataset.exceptions import DatasetValueError
+                from .exceptions import DatasetValueError
                 raise DatasetValueError(f"Invalid keys in node_order: {invalid_keys}")
 
         self.root = TreeNode()
@@ -130,7 +130,7 @@ class Tree:
         doc_buffer.seek(0)
 
         base64_string = base64.b64encode(doc_buffer.getvalue()).decode("utf-8")
-        from edsl.scenarios.FileStore import FileStore
+        from ..scenarios.file_store import FileStore
 
         # Create and return FileStore instance
         return FileStore(
@@ -335,7 +335,7 @@ class Tree:
         Returns:
             A string containing the markdown document, or renders markdown in notebooks.            
         """
-        from edsl.utilities.utilities import is_notebook
+        from ..utilities.utilities import is_notebook
         from IPython.display import Markdown, display
         
         if node is None:

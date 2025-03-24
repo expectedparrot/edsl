@@ -40,7 +40,7 @@ class FileExport(ABC):
 
     def _create_filestore(self, data: Union[str, bytes]):
         """Create a FileStore instance with encoded data."""
-        from ..scenarios import FileStore
+        from ..scenarios.file_store import FileStore
         if isinstance(data, str):
             base64_string = base64.b64encode(data.encode()).decode()
         else:
@@ -203,7 +203,7 @@ class SQLiteExport(TabularExport):
                 (self.table_name,),
             )
             if cursor.fetchone():
-                from edsl.dataset.exceptions import DatasetValueError
+                from .exceptions import DatasetValueError
                 raise DatasetValueError(f"Table {self.table_name} already exists")
 
         # Create table
@@ -245,14 +245,14 @@ class SQLiteExport(TabularExport):
         """Validate initialization parameters."""
         valid_if_exists = {"fail", "replace", "append"}
         if self.if_exists not in valid_if_exists:
-            from edsl.dataset.exceptions import DatasetValueError
+            from .exceptions import DatasetValueError
             raise DatasetValueError(
                 f"if_exists must be one of {valid_if_exists}, got {self.if_exists}"
             )
 
         # Validate table name (basic SQLite identifier validation)
         if not self.table_name.isalnum() and not all(c in "_" for c in self.table_name):
-            from edsl.dataset.exceptions import DatasetValueError
+            from .exceptions import DatasetValueError
             raise DatasetValueError(
                 f"Invalid table name: {self.table_name}. Must contain only alphanumeric characters and underscores."
             )

@@ -42,7 +42,7 @@ class ServiceAvailability:
     @classmethod
     def models_from_coop(cls) -> AvailableModels:
         if not cls._coop_model_list:
-            from edsl.coop.coop import Coop
+            from ..coop.coop import Coop
 
             c = Coop()
             coop_model_list = c.fetch_models()
@@ -74,7 +74,7 @@ class ServiceAvailability:
                 continue
 
         # If we get here, all sources failed
-        from edsl.inference_services.exceptions import InferenceServiceRuntimeError
+        from .exceptions import InferenceServiceRuntimeError
         raise InferenceServiceRuntimeError(
             f"All sources failed to fetch models. Last error: {last_error}"
         )
@@ -93,7 +93,7 @@ class ServiceAvailability:
     @staticmethod
     def _fetch_from_cache(service: "InferenceServiceABC") -> ModelNamesList:
         """Fetch models from local cache."""
-        from edsl.inference_services.models_available_cache import models_available
+        from .models_available_cache import models_available
 
         return models_available.get(service._inference_service_, [])
 
