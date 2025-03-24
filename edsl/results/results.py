@@ -400,7 +400,8 @@ class Results(UserList, ResultsOperationsMixin, Base):
     #             return html_content
 
     def code(self):
-        raise NotImplementedError
+        from .exceptions import ResultsError
+        raise ResultsError("The code() method is not implemented for Results objects")
 
     def __getitem__(self, i):
         if isinstance(i, int):
@@ -412,7 +413,8 @@ class Results(UserList, ResultsOperationsMixin, Base):
         if isinstance(i, str):
             return self.to_dict()[i]
 
-        raise TypeError("Invalid argument type")
+        from .exceptions import ResultsError
+        raise ResultsError("Invalid argument type for indexing Results object")
 
     def __add__(self, other: Results) -> Results:
         """Add two Results objects together.
@@ -540,7 +542,7 @@ class Results(UserList, ResultsOperationsMixin, Base):
             d.update({"task_history": self.task_history.to_dict()})
 
         if add_edsl_version:
-            from edsl import __version__
+            from .. import __version__
 
             d["edsl_version"] = __version__
             d["edsl_class_name"] = "Results"
@@ -695,7 +697,7 @@ class Results(UserList, ResultsOperationsMixin, Base):
         ['agent.agent_index', ...]
         """
         column_names = [f"{v}.{k}" for k, v in self._key_to_data_type.items()]
-        from edsl.utilities.PrettyList import PrettyList
+        from ..utilities.PrettyList import PrettyList
 
         return PrettyList(sorted(column_names))
 
@@ -709,7 +711,7 @@ class Results(UserList, ResultsOperationsMixin, Base):
         >>> r.answer_keys
         {'how_feeling': 'How are you this {{ period }}?', 'how_feeling_yesterday': 'How were you feeling yesterday {{ period }}?'}
         """
-        from edsl.utilities.utilities import shorten_string
+        from ..utilities.utilities import shorten_string
 
         if not self.survey:
             raise ResultsError("Survey is not defined so no answer keys are available.")
@@ -734,7 +736,7 @@ class Results(UserList, ResultsOperationsMixin, Base):
         >>> r.agents
         AgentList([Agent(traits = {'status': 'Joyful'}), Agent(traits = {'status': 'Joyful'}), Agent(traits = {'status': 'Sad'}), Agent(traits = {'status': 'Sad'})])
         """
-        from edsl.agents import AgentList
+        from ..agents import AgentList
 
         return AgentList([r.agent for r in self.data])
 
@@ -1028,7 +1030,7 @@ class Results(UserList, ResultsOperationsMixin, Base):
             )
         raw_var_name, expression = new_var_string.split("=", 1)
         var_name = raw_var_name.strip()
-        from edsl.utilities.utilities import is_valid_variable_name
+        from ..utilities.utilities import is_valid_variable_name
 
         if not is_valid_variable_name(var_name):
             raise ResultsInvalidNameError(f"{var_name} is not a valid variable name.")
@@ -1185,7 +1187,7 @@ class Results(UserList, ResultsOperationsMixin, Base):
             Dataset([...])
         """
 
-        from edsl.results.results_selector import Selector
+        from .results_selector import Selector
 
         if len(self) == 0:
             from .exceptions import ResultsError
