@@ -95,6 +95,7 @@ def test_validation_with_rendering():
             "{{city[2]}}",
             "{{city[3]}}",
         ],
+        use_code=False,
     )
     from edsl.questions.exceptions import QuestionAnswerValidationError
 
