@@ -15,7 +15,6 @@ valid_question = {
     "question_text": "Do you like pizza?",
     "question_options": ["Yes", "No"],
     "question_name": "pizza",
-    "use_code": False,
 }
 
 
