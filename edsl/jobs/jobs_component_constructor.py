@@ -140,8 +140,8 @@ class JobsComponentConstructor:
 
     @staticmethod
     def _get_empty_container_object(object):
-        from edsl.agents import AgentList
-        from edsl.scenarios import ScenarioList
+        from ..agents import AgentList
+        from ..scenarios import ScenarioList
 
         return {"Agent": AgentList([]), "Scenario": ScenarioList([])}.get(
             object.__class__.__name__, []

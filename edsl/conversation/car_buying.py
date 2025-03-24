@@ -1,5 +1,4 @@
-from .. import Agent, AgentList, QuestionFreeText
-from .. import Cache
+from .. import Agent, AgentList, QuestionFreeText, Cache, QuestionList
 from .Conversation import Conversation, ConversationList
 
 a1 = Agent(
@@ -46,7 +45,6 @@ q = QuestionFreeText(
     question_name="car_brand",
 )
 
-from .. import QuestionList
 
 q_actors = QuestionList(
     question_text="""This was a conversation about buying a car: {{ transcript }}. 

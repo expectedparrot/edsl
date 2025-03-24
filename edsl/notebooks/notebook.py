@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 import json
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from rich.table import Table
 from uuid import uuid4
 
 from ..base import Base
@@ -47,7 +50,8 @@ class Notebook(Base):
             self.data = json.loads(json.dumps(data))
         else:
             # TODO: Support for IDEs other than VSCode
-            raise NotImplementedError(
+            from .exceptions import NotebookEnvironmentError
+            raise NotebookEnvironmentError(
                 "Cannot create a notebook from within itself in this development environment"
             )
 
@@ -251,7 +255,7 @@ class Notebook(Base):
 
         :param filename: Name of the output folder and main tex file (without extension)
         """
-        from .NotebookToLaTeX import NotebookToLaTeX
+        from .notebook_to_latex import NotebookToLaTeX
 
         NotebookToLaTeX(self).convert(filename)
 
