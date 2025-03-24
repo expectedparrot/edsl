@@ -1,4 +1,5 @@
-from edsl.enums import TokenPricing
+from ..enums import TokenPricing
+from .exceptions import TokenUsageError, TokenCostError
 
 
 class TokenUsage:
@@ -15,9 +16,9 @@ class TokenUsage:
 
     def __add__(self, other):
         if not isinstance(other, TokenUsage):
-            raise ValueError(f"Can't add {type(other)} to InterviewTokenUsage")
+            raise TokenUsageError(f"Can't add {type(other)} to InterviewTokenUsage")
         if self.from_cache != other.from_cache:
-            raise ValueError("Can't add token usages from different sources")
+            raise TokenUsageError("Can't add token usages from different sources")
         return TokenUsage(
             from_cache=self.from_cache,
             prompt_tokens=self.prompt_tokens + other.prompt_tokens,

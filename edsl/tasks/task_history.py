@@ -146,7 +146,7 @@ class TaskHistory(RepresentationMixin):
             "include_traceback": self.include_traceback,
         }
         if add_edsl_version:
-            from edsl import __version__
+            from .. import __version__
 
             d["edsl_version"] = __version__
             d["edsl_class_name"] = "TaskHistory"
@@ -291,14 +291,14 @@ class TaskHistory(RepresentationMixin):
     def css(self):
         from importlib import resources
 
-        env = resources.files("edsl").joinpath("templates/error_reporting")
+        env = resources.files("...").joinpath("templates/error_reporting")
         css = env.joinpath("report.css").read_text()
         return css
 
     def javascript(self):
         from importlib import resources
 
-        env = resources.files("edsl").joinpath("templates/error_reporting")
+        env = resources.files("...").joinpath("templates/error_reporting")
         js = env.joinpath("report.js").read_text()
         return js
 
@@ -406,9 +406,9 @@ class TaskHistory(RepresentationMixin):
         models_used = set([i.model.model for index, i in self._interviews.items()])
 
         from jinja2 import Environment
-        from edsl.utilities import TemplateLoader
+        from ..utilities import TemplateLoader
 
-        env = Environment(loader=TemplateLoader("edsl", "templates/error_reporting"))
+        env = Environment(loader=TemplateLoader("...", "templates/error_reporting"))
 
         # Get current memory usage at this point
 
@@ -465,7 +465,7 @@ class TaskHistory(RepresentationMixin):
         """
         from IPython.display import display, HTML
         import os
-        from edsl.utilities.utilities import is_notebook
+        from ..utilities.utilities import is_notebook
 
         output = self.generate_html_report(css)
 
