@@ -447,7 +447,7 @@ class QuestionBase(
         ]
         only_if_not_na_list = ["_answering_instructions", "_question_presentation"]
 
-        if self.question_type == "linear_scale":
+        if self.question_type == "linear_scale" or self.question_type == "yes_no":
             only_if_not_default_list = {"_include_comment": True, "_use_code": False}
         else:
             only_if_not_default_list = {
