@@ -1,6 +1,6 @@
-from typing import Type, List, Dict, Any
-from edsl.questions.data_structures import BaseModel
-from edsl.questions.response_validator_abc import ResponseValidatorABC
+from typing import Type, List
+from .data_structures import BaseModel
+from .response_validator_abc import ResponseValidatorABC
 
 
 class ResponseValidatorFactory:

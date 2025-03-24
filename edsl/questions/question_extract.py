@@ -1,9 +1,9 @@
 from __future__ import annotations
 import json
 import re
-from typing import Dict, Any, Optional, Type, List
+from typing import Dict, Any, Optional, Type
 
-from pydantic import create_model, Field, BaseModel, ValidationError, model_validator
+from pydantic import create_model, Field, BaseModel, ValidationError
 
 from .question_base import QuestionBase
 from .descriptors import AnswerTemplateDescriptor
