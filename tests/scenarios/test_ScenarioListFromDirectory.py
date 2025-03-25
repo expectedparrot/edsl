@@ -4,7 +4,7 @@ import tempfile
 from pathlib import Path
 import shutil
 
-from edsl.scenarios import ScenarioList, FileStore
+from edsl.scenarios import ScenarioList, FileStore, Scenario
 
 
 class TestScenarioListFromDirectory:
@@ -52,11 +52,12 @@ class TestScenarioListFromDirectory:
             
             # Should find all 6 files in the root (not recursive)
             assert len(sl) == 6
-            # All items should be FileStore instances
-            assert all(isinstance(item, FileStore) for item in sl)
+            # All items should be Scenario instances with FileStore under the "content" key
+            assert all(isinstance(item, Scenario) for item in sl)
+            assert all(isinstance(item["content"], FileStore) for item in sl)
             
             # Check if file paths are correct
-            file_paths = [os.path.basename(item["path"]) for item in sl]
+            file_paths = [os.path.basename(item["content"]["path"]) for item in sl]
             for i in range(3):
                 assert f"file{i}.txt" in file_paths
             for i in range(2):
@@ -75,8 +76,9 @@ class TestScenarioListFromDirectory:
         
         # Should find all 6 files in the root (not recursive)
         assert len(sl) == 6
-        # All items should be FileStore instances
-        assert all(isinstance(item, FileStore) for item in sl)
+        # All items should be Scenario instances with FileStore under the "content" key
+        assert all(isinstance(item, Scenario) for item in sl)
+        assert all(isinstance(item["content"], FileStore) for item in sl)
 
     def test_from_directory_with_wildcard(self, temp_directory):
         """Test from_directory with wildcard pattern."""
@@ -85,11 +87,12 @@ class TestScenarioListFromDirectory:
         
         # Should find 2 Python files in the root
         assert len(sl) == 2
-        # All items should be FileStore instances
-        assert all(isinstance(item, FileStore) for item in sl)
+        # All items should be Scenario instances with FileStore under the "content" key
+        assert all(isinstance(item, Scenario) for item in sl)
+        assert all(isinstance(item["content"], FileStore) for item in sl)
         
         # All files should be Python files
-        suffixes = [Path(item["path"]).suffix for item in sl]
+        suffixes = [Path(item["content"]["path"]).suffix for item in sl]
         assert all(suffix == ".py" for suffix in suffixes)
 
     def test_from_directory_with_just_wildcard(self, temp_directory, monkeypatch):
@@ -105,7 +108,7 @@ class TestScenarioListFromDirectory:
             # Should find 3 text files in the root
             assert len(sl) == 3
             # All files should be text files
-            suffixes = [Path(item["path"]).suffix for item in sl]
+            suffixes = [Path(item["content"]["path"]).suffix for item in sl]
             assert all(suffix == ".txt" for suffix in suffixes)
         finally:
             os.chdir(original_dir)
@@ -119,7 +122,7 @@ class TestScenarioListFromDirectory:
         assert len(sl) == 8
         
         # Check if subdirectory files are included
-        file_paths = [item["path"] for item in sl]
+        file_paths = [item["content"]["path"] for item in sl]
         assert os.path.join(temp_directory, "subdir", "subfile.txt") in file_paths
         assert os.path.join(temp_directory, "subdir", "subfile.py") in file_paths
 
@@ -132,7 +135,7 @@ class TestScenarioListFromDirectory:
         assert len(sl) == 3
         
         # Check if subdirectory Python file is included
-        file_names = [os.path.basename(item["path"]) for item in sl]
+        file_names = [os.path.basename(item["content"]["path"]) for item in sl]
         assert "subfile.py" in file_names
 
     def test_from_directory_empty(self):
@@ -143,8 +146,23 @@ class TestScenarioListFromDirectory:
 
     def test_from_directory_nonexistent(self):
         """Test from_directory with a nonexistent directory."""
-        with pytest.raises(FileNotFoundError):
+        from edsl.scenarios.exceptions import FileNotFoundScenarioError
+        with pytest.raises(FileNotFoundScenarioError):
             ScenarioList.from_directory("/path/that/does/not/exist")
+
+    def test_from_directory_custom_key_name(self, temp_directory):
+        """Test from_directory with a custom key_name parameter."""
+        sl = ScenarioList.from_directory(temp_directory, key_name="file")
+        
+        # Should find all 6 files in the root (not recursive)
+        assert len(sl) == 6
+        # All items should be Scenario objects with FileStore under the "file" key
+        assert all(isinstance(item, Scenario) for item in sl)
+        assert all(isinstance(item["file"], FileStore) for item in sl)
+        
+        # Check if file paths are accessible through the custom key
+        file_paths = [os.path.basename(item["file"]["path"]) for item in sl]
+        assert len(file_paths) == 6
 
 
 if __name__ == "__main__":

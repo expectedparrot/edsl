@@ -30,12 +30,12 @@ class GGPlot:
 
         if result.returncode != 0:
             if result.returncode == 127:
-                from edsl.dataset.exceptions import DatasetRuntimeError
+                from ..exceptions import DatasetRuntimeError
                 raise DatasetRuntimeError(
                     "Rscript is probably not installed. Please install R from https://cran.r-project.org/"
                 )
             else:
-                from edsl.dataset.exceptions import DatasetRuntimeError
+                from ..exceptions import DatasetRuntimeError
                 raise DatasetRuntimeError(
                     f"An error occurred while running Rscript: {result.stderr}"
                 )
@@ -49,7 +49,7 @@ class GGPlot:
         """Save the plot to a file."""
         format = filename.split('.')[-1].lower()
         if format not in ['svg', 'png']:
-            from edsl.dataset.exceptions import DatasetValueError
+            from ..exceptions import DatasetValueError
             raise DatasetValueError("Only 'svg' and 'png' formats are supported")
             
         save_command = f'\nggsave("{filename}", plot = last_plot(), width = {self.width}, height = {self.height}, device = "{format}")'

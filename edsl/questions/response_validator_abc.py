@@ -77,8 +77,12 @@ class ResponseValidatorABC(ABC):
         ConstrainedNumericResponse(answer=42, comment=None, generated_tokens=None)
         """
         try:
-            return self.response_model(**data)
-        except ValidationError as e:
+            # Use model_validate instead of direct instantiation
+            return self.response_model.model_validate(data)
+        except (ValidationError, QuestionAnswerValidationError) as e:
+            # Pass through QuestionAnswerValidationError or convert ValidationError
+            if isinstance(e, QuestionAnswerValidationError):
+                raise
             raise QuestionAnswerValidationError(
                 message=str(e), pydantic_error=e, data=data, model=self.response_model
             )

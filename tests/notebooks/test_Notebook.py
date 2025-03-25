@@ -1,6 +1,6 @@
 import pytest
 
-from edsl.notebooks import Notebook
+from edsl.notebooks import Notebook, NotebookEnvironmentError
 from jsonschema.exceptions import ValidationError
 from nbformat.reader import NotJSONError
 from nbformat.validator import NotebookValidationError
@@ -99,7 +99,7 @@ def test_notebook_creation_from_path_invalid():
     with pytest.raises(NotJSONError):
         notebook = Notebook("docs/agents.rst")
     # No path - not implemented in environments other than VS Code
-    with pytest.raises(NotImplementedError):
+    with pytest.raises(NotebookEnvironmentError):
         notebook = Notebook()
 
 

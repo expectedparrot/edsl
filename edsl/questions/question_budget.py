@@ -1,68 +1,354 @@
 from __future__ import annotations
-from typing import Optional, List
+from typing import Optional, List, Any
+import re
 
-from pydantic import Field, BaseModel, validator
+from pydantic import BaseModel, Field, model_validator, ValidationError
 
 from .question_base import QuestionBase
 from .descriptors import IntegerDescriptor, QuestionOptionsDescriptor
 from .response_validator_abc import ResponseValidatorABC
+from .exceptions import QuestionAnswerValidationError
 
-class BudgetResponseValidator(ResponseValidatorABC):
-    valid_examples = []
 
-    invalid_examples = []
-
-    def fix(self, response, verbose=False):
-        if verbose:
-            print(f"Fixing list response: {response}")
-        answer = str(response.get("answer") or response.get("generated_tokens", ""))
-        if len(answer.split(",")) > 0:
-            return (
-                {"answer": answer.split(",")} | {"comment": response.get("comment")}
-                if "comment" in response
-                else {}
-            )
+class BudgetResponse(BaseModel):
+    """
+    Pydantic model for validating budget allocation responses.
+    
+    This model defines the structure and validation rules for responses to
+    budget questions, ensuring responses contain a list of numerical values
+    representing allocations.
+    
+    Attributes:
+        answer: List of float values representing budget allocation
+        comment: Optional comment provided with the answer
+        generated_tokens: Optional raw LLM output for token tracking
+        
+    Examples:
+        >>> # Valid response with just answer
+        >>> response = BudgetResponse(answer=[25, 25, 25, 25])
+        >>> response.answer
+        [25.0, 25.0, 25.0, 25.0]
+        
+        >>> # Valid response with comment
+        >>> response = BudgetResponse(answer=[40, 30, 20, 10], comment="My allocation")
+        >>> response.answer
+        [40.0, 30.0, 20.0, 10.0]
+        >>> response.comment
+        'My allocation'
+        
+        >>> # Invalid non-list answer
+        >>> try:
+        ...     BudgetResponse(answer="not a list")
+        ... except Exception as e:
+        ...     print("Validation error occurred")
+        Validation error occurred
+    """
+    answer: List[float]
+    comment: Optional[str] = None
+    generated_tokens: Optional[Any] = None
 
 
 def create_budget_model(
     budget_sum: float, permissive: bool, question_options: List[str]
 ):
-    class BudgetResponse(BaseModel):
+    """
+    Create a constrained budget response model with appropriate validation.
+    
+    This function creates a Pydantic model for budget allocation responses with
+    constraints on the number of values and total sum.
+    
+    Args:
+        budget_sum: The total budget that must be allocated
+        permissive: If True, allow allocations less than budget_sum
+        question_options: List of options to allocate budget to
+        
+    Returns:
+        A Pydantic model class tailored to the question's constraints
+        
+    Examples:
+        >>> # Create model with constraints
+        >>> options = ["Pizza", "Ice Cream", "Burgers", "Salad"]
+        >>> ConstrainedModel = create_budget_model(100, False, options)
+        >>> response = ConstrainedModel(answer=[25, 25, 25, 25])
+        >>> response.answer
+        [25.0, 25.0, 25.0, 25.0]
+        
+        >>> # Test count constraint
+        >>> try:
+        ...     ConstrainedModel(answer=[25, 25, 25])
+        ... except Exception as e:
+        ...     "List should have at least 4 items" in str(e)
+        True
+        
+        >>> # Test negative values constraint
+        >>> try:
+        ...     ConstrainedModel(answer=[50, 50, 25, -25])
+        ... except Exception as e:
+        ...     "All values must be non-negative" in str(e)
+        True
+        
+        >>> # Test sum constraint
+        >>> try:
+        ...     ConstrainedModel(answer=[30, 30, 30, 30])
+        ... except Exception as e:
+        ...     "Sum of numbers must equal 100" in str(e)
+        True
+        
+        >>> # Permissive mode allows lower sums
+        >>> PermissiveModel = create_budget_model(100, True, options)
+        >>> response = PermissiveModel(answer=[20, 20, 20, 20])
+        >>> response.answer
+        [20.0, 20.0, 20.0, 20.0]
+        
+        >>> # But still prevents exceeding the budget
+        >>> try:
+        ...     PermissiveModel(answer=[30, 30, 30, 30])
+        ... except Exception as e:
+        ...     "Sum of numbers cannot exceed 100" in str(e)
+        True
+    """
+    class ConstrainedBudgetResponse(BudgetResponse):
+        """Budget response model with added constraints on count and total."""
+        
         answer: List[float] = Field(
             ...,
             description="List of non-negative numbers representing budget allocation",
-            min_items=len(question_options),
-            max_items=len(question_options),
+            min_length=len(question_options),
+            max_length=len(question_options),
         )
-        comment: Optional[str] = None
-        generated_tokens: Optional[str] = None
-
-        @validator("answer")
-        def validate_answer(cls, v):
-            if len(v) != len(question_options):
-                from .exceptions import QuestionAnswerValidationError
-                raise QuestionAnswerValidationError(f"Must provide {len(question_options)} values")
-            if any(x < 0 for x in v):
-                from .exceptions import QuestionAnswerValidationError
-                raise QuestionAnswerValidationError("All values must be non-negative")
-            total = sum(v)
+        
+        @model_validator(mode='after')
+        def validate_budget_constraints(self):
+            """Validate that the budget allocation meets all constraints."""
+            # Check length constraint
+            if len(self.answer) != len(question_options):
+                validation_error = ValidationError.from_exception_data(
+                    title='ConstrainedBudgetResponse',
+                    line_errors=[{
+                        'type': 'value_error',
+                        'loc': ('answer',),
+                        'msg': f'Must provide {len(question_options)} values',
+                        'input': self.answer,
+                        'ctx': {'error': 'Invalid item count'}
+                    }]
+                )
+                raise QuestionAnswerValidationError(
+                    message=f"Must provide {len(question_options)} values",
+                    data=self.model_dump(),
+                    model=self.__class__,
+                    pydantic_error=validation_error
+                )
+                
+            # Check for negative values
+            if any(x < 0 for x in self.answer):
+                validation_error = ValidationError.from_exception_data(
+                    title='ConstrainedBudgetResponse',
+                    line_errors=[{
+                        'type': 'value_error',
+                        'loc': ('answer',),
+                        'msg': 'All values must be non-negative',
+                        'input': self.answer,
+                        'ctx': {'error': 'Negative values'}
+                    }]
+                )
+                raise QuestionAnswerValidationError(
+                    message="All values must be non-negative",
+                    data=self.model_dump(),
+                    model=self.__class__,
+                    pydantic_error=validation_error
+                )
+                
+            # Check budget sum constraints
+            total = sum(self.answer)
             if not permissive and total != budget_sum:
-                from .exceptions import QuestionAnswerValidationError
-                raise QuestionAnswerValidationError(f"Sum of numbers must equal {budget_sum}")
+                validation_error = ValidationError.from_exception_data(
+                    title='ConstrainedBudgetResponse',
+                    line_errors=[{
+                        'type': 'value_error',
+                        'loc': ('answer',),
+                        'msg': f'Sum of numbers must equal {budget_sum}',
+                        'input': self.answer,
+                        'ctx': {'error': 'Invalid sum', 'total': total, 'expected': budget_sum}
+                    }]
+                )
+                raise QuestionAnswerValidationError(
+                    message=f"Sum of numbers must equal {budget_sum} (got {total})",
+                    data=self.model_dump(),
+                    model=self.__class__,
+                    pydantic_error=validation_error
+                )
             elif permissive and total > budget_sum:
-                from .exceptions import QuestionAnswerValidationError
-                raise QuestionAnswerValidationError(f"Sum of numbers cannot exceed {budget_sum}")
-            return v
+                validation_error = ValidationError.from_exception_data(
+                    title='ConstrainedBudgetResponse',
+                    line_errors=[{
+                        'type': 'value_error',
+                        'loc': ('answer',),
+                        'msg': f'Sum of numbers cannot exceed {budget_sum}',
+                        'input': self.answer,
+                        'ctx': {'error': 'Sum too large', 'total': total, 'max': budget_sum}
+                    }]
+                )
+                raise QuestionAnswerValidationError(
+                    message=f"Sum of numbers cannot exceed {budget_sum} (got {total})",
+                    data=self.model_dump(),
+                    model=self.__class__,
+                    pydantic_error=validation_error
+                )
+                
+            return self
+        
+    return ConstrainedBudgetResponse
 
-        class Config:
-            extra = "forbid"
 
-    return BudgetResponse
+class BudgetResponseValidator(ResponseValidatorABC):
+    """
+    Validator for budget question responses.
+    
+    This class implements the validation and fixing logic for budget allocation
+    responses, ensuring they meet the requirements for item count, non-negative values,
+    and budget total.
+    
+    Attributes:
+        required_params: List of required parameters for validation
+        valid_examples: Examples of valid responses for testing
+        invalid_examples: Examples of invalid responses for testing
+        
+    Examples:
+        >>> from edsl import QuestionBudget
+        >>> q = QuestionBudget.example()
+        >>> validator = q.response_validator
+        
+        >>> # Fix string to list
+        >>> response = {"answer": "25, 25, 25, 25"}
+        >>> fixed = validator.fix(response)
+        >>> list(fixed.keys())
+        ['answer']
+        
+        >>> # Preserve comments when fixing
+        >>> response = {"answer": "25, 25, 25, 25", "comment": "My allocation"}
+        >>> fixed = validator.fix(response)
+        >>> "comment" in fixed
+        True
+    """
+    required_params = ["budget_sum", "question_options", "permissive"]
+    
+    valid_examples = [
+        ({"answer": [25, 25, 25, 25]}, {"budget_sum": 100, "question_options": ["A", "B", "C", "D"], "permissive": False}),
+        ({"answer": [20, 20, 20, 20]}, {"budget_sum": 100, "question_options": ["A", "B", "C", "D"], "permissive": True}),
+    ]
+    
+    invalid_examples = [
+        ({"answer": [30, 30, 30, 30]}, {"budget_sum": 100, "question_options": ["A", "B", "C", "D"], "permissive": False}, "Sum must equal budget"),
+        ({"answer": [25, 25, 25]}, {"budget_sum": 100, "question_options": ["A", "B", "C", "D"], "permissive": False}, "Must provide correct number of values"),
+        ({"answer": [25, 25, -10, 60]}, {"budget_sum": 100, "question_options": ["A", "B", "C", "D"], "permissive": False}, "Values must be non-negative"),
+    ]
+
+    def fix(self, response, verbose=False):
+        """
+        Fix common issues in budget responses.
+        
+        This method attempts to convert various response formats into a valid
+        budget allocation list, handling string inputs, comma-separated values,
+        and dictionary formats.
+        
+        Args:
+            response: The response dictionary to fix
+            verbose: If True, print information about the fixing process
+            
+        Returns:
+            A fixed version of the response dictionary
+            
+        Notes:
+            - Handles string inputs by splitting on commas
+            - Converts dictionaries to lists
+            - Preserves any comment in the original response
+        """
+        if verbose:
+            print(f"Fixing budget response: {response}")
+            
+        # Start with a default answer
+        fixed_answer = []
+        
+        # Extract the answer field or use generated_tokens as fallback
+        answer = response.get("answer")
+        if answer is None:
+            answer = response.get("generated_tokens", "")
+            
+        # Strategy 1: Handle string inputs with comma separators
+        if isinstance(answer, str):
+            # Split by commas and convert to floats
+            try:
+                fixed_answer = [float(x.strip()) for x in answer.split(",") if x.strip()]
+            except ValueError:
+                # If conversion fails, try to extract numbers using regex
+                pattern = r"\b\d+(?:\.\d+)?\b"
+                matches = re.findall(pattern, answer.replace(",", " "))
+                if matches:
+                    fixed_answer = [float(match) for match in matches]
+        
+        # Strategy 2: Handle dictionary inputs (convert to list)
+        elif isinstance(answer, dict):
+            # If keys are numeric or string indices, convert to a list
+            try:
+                # Sort by key (if keys are integers or can be converted to integers)
+                sorted_keys = sorted(answer.keys(), key=lambda k: int(k) if isinstance(k, str) and k.isdigit() else k)
+                fixed_answer = [float(answer[k]) for k in sorted_keys]
+            except (ValueError, TypeError):
+                # If we can't sort, just take values in whatever order
+                fixed_answer = [float(v) for v in answer.values()]
+        
+        # Strategy 3: If it's already a list but might contain non-numeric values
+        elif isinstance(answer, list):
+            try:
+                fixed_answer = [float(x) for x in answer]
+            except (ValueError, TypeError):
+                pass
+                
+        if verbose:
+            print(f"Fixed answer: {fixed_answer}")
+            
+        # Construct the response
+        fixed_response = {"answer": fixed_answer}
+        
+        # Preserve comment if present
+        if "comment" in response:
+            fixed_response["comment"] = response["comment"]
+            
+        return fixed_response
+    
+    def _check_constraints(self, pydantic_edsl_answer: BaseModel):
+        """Method preserved for compatibility, constraints handled in Pydantic model."""
+        pass
 
 
 class QuestionBudget(QuestionBase):
-    """This question prompts the agent to allocate a budget among options."""
-
+    """
+    A question that prompts the agent to allocate a budget among options.
+    
+    QuestionBudget is designed for scenarios where a fixed amount needs to be
+    distributed across multiple categories or options. It's useful for allocation
+    questions, spending priorities, resource distribution, and similar scenarios.
+    
+    Attributes:
+        question_type: Identifier for this question type, set to "budget"
+        budget_sum: The total amount to be allocated
+        question_options: List of options to allocate the budget among
+        _response_model: Initially None, set by create_response_model()
+        response_validator_class: Class used to validate and fix responses
+        
+    Examples:
+        >>> # Create budget allocation question
+        >>> q = QuestionBudget(
+        ...     question_name="spending",
+        ...     question_text="How would you allocate $100?",
+        ...     question_options=["Food", "Housing", "Entertainment", "Savings"],
+        ...     budget_sum=100
+        ... )
+        >>> q.budget_sum
+        100
+        >>> len(q.question_options)
+        4
+    """
     question_type = "budget"
     budget_sum: int = IntegerDescriptor(none_allowed=False)
     question_options: list[str] = QuestionOptionsDescriptor(q_budget=True)
@@ -80,12 +366,28 @@ class QuestionBudget(QuestionBase):
         answering_instructions: Optional[str] = None,
         permissive: bool = False,
     ):
-        """Instantiate a new QuestionBudget.
-
-        :param question_name: The name of the question.
-        :param question_text: The text of the question.
-        :param question_options: The options for allocation of the budget sum.
-        :param budget_sum: The total amount of the budget to be allocated among the options.
+        """
+        Initialize a new budget allocation question.
+        
+        Args:
+            question_name: Identifier for the question, used in results and templates
+            question_text: The actual text of the question to be asked
+            question_options: The options for allocation of the budget sum
+            budget_sum: The total amount of the budget to be allocated
+            include_comment: Whether to allow comments with the answer
+            question_presentation: Optional custom presentation template
+            answering_instructions: Optional additional instructions
+            permissive: If True, allow allocations less than budget_sum
+            
+        Examples:
+            >>> q = QuestionBudget(
+            ...     question_name="investment",
+            ...     question_text="How would you invest $1000?",
+            ...     question_options=["Stocks", "Bonds", "Real Estate", "Cash"],
+            ...     budget_sum=1000
+            ... )
+            >>> q.question_name
+            'investment'
         """
         self.question_name = question_name
         self.question_text = question_text
@@ -97,6 +399,21 @@ class QuestionBudget(QuestionBase):
         self.include_comment = include_comment
 
     def create_response_model(self):
+        """
+        Create a response model with the appropriate constraints.
+        
+        This method creates a Pydantic model customized with the budget constraints
+        and options specified for this question instance.
+        
+        Returns:
+            A Pydantic model class tailored to this question's constraints
+            
+        Examples:
+            >>> q = QuestionBudget.example()
+            >>> model = q.create_response_model()
+            >>> model(answer=[25, 25, 25, 25]).answer
+            [25.0, 25.0, 25.0, 25.0]
+        """
         return create_budget_model(
             self.budget_sum, self.permissive, self.question_options
         )
@@ -106,44 +423,86 @@ class QuestionBudget(QuestionBase):
     ) -> list[dict]:
         """
         Translate the answer codes to the actual answers.
-
+        
         For example, for a budget question with options ["a", "b", "c"],
-        the answer codes are 0, 1, and 2. The LLM will respond with 0.
-        This code will translate that to "a".
+        and answer values [50, 30, 20], this method will create a list of
+        dictionaries mapping each option to its allocated value.
+        
+        Args:
+            answer_code: List of budget allocation values
+            combined_dict: Additional context (unused)
+            
+        Returns:
+            List of dictionaries mapping options to their allocation values
+            
+        Examples:
+            >>> q = QuestionBudget.example()
+            >>> q._translate_answer_code_to_answer([40, 30, 20, 10], {})
+            [{'Pizza': 40}, {'Ice Cream': 30}, {'Burgers': 20}, {'Salad': 10}]
         """
         translated_codes = []
-        for answer_code, question_option in zip(answer_code, self.question_options):
-            translated_codes.append({question_option: answer_code})
+        for answer_value, question_option in zip(answer_code, self.question_options):
+            translated_codes.append({question_option: answer_value})
 
         return translated_codes
 
-    # def _simulate_answer(self, human_readable=True):
-    #     """Simulate a valid answer for debugging purposes (what the validator expects)."""
-    #     from edsl.utilities.utilities import random_string
+    def _simulate_answer(self, human_readable=True):
+        """
+        Simulate a valid answer for debugging purposes.
+        
+        This method generates a random budget allocation that satisfies the
+        constraints of the question, useful for testing and demonstrations.
+        
+        Args:
+            human_readable: Whether to use option text (True) or indices (False)
+            
+        Returns:
+            A dictionary containing a valid simulated answer
+            
+        Examples:
+            >>> import random
+            >>> random.seed(42)  # For reproducible test
+            >>> q = QuestionBudget.example()
+            >>> simulated = q._simulate_answer()
+            >>> len(simulated["answer"])
+            4
+            >>> abs(sum(simulated["answer"]) - q.budget_sum) < 0.01  # Allow for float imprecision
+            True
+        """
+        import random
+        from edsl.utilities.utilities import random_string
 
-    #     if human_readable:
-    #         keys = self.question_options
-    #     else:
-    #         keys = range(len(self.question_options))
-    #     remaining_budget = self.budget_sum
-    #     values = []
-    #     for _ in range(len(self.question_options)):
-    #         if _ == len(self.question_options) - 1:
-    #             # Assign remaining budget to the last value
-    #             values.append(remaining_budget)
-    #         else:
-    #             # Generate a random value between 0 and remaining budget
-    #             value = random.randint(0, remaining_budget)
-    #             values.append(value)
-    #             remaining_budget -= value
-    #     answer = dict(zip(keys, values))
-    #     return {
-    #         "answer": answer,
-    #         "comment": random_string(),
-    #     }
+        # Generate a random allocation that sums to budget_sum
+        remaining_budget = self.budget_sum
+        values = []
+        
+        for i in range(len(self.question_options)):
+            if i == len(self.question_options) - 1:
+                # Assign remaining budget to the last value
+                values.append(remaining_budget)
+            else:
+                # Generate a random value between 0 and remaining budget
+                value = random.randint(0, remaining_budget)
+                values.append(value)
+                remaining_budget -= value
+                
+        return {
+            "answer": values,
+            "comment": random_string() if self.include_comment else None,
+        }
 
     @property
     def question_html_content(self) -> str:
+        """
+        Generate HTML content for rendering the question in web interfaces.
+        
+        This property generates HTML markup for the question when it needs to be
+        displayed in web interfaces or HTML contexts, including an interactive
+        budget allocation form with JavaScript for real-time budget tracking.
+        
+        Returns:
+            str: HTML markup for rendering the question
+        """
         from jinja2 import Template
 
         question_html_content = Template(
@@ -188,7 +547,29 @@ class QuestionBudget(QuestionBase):
     ################
     @classmethod
     def example(cls, include_comment: bool = True) -> QuestionBudget:
-        """Return an example of a budget question."""
+        """
+        Create an example instance of a budget question.
+        
+        This class method creates a predefined example of a budget question
+        for demonstration, testing, and documentation purposes.
+        
+        Args:
+            include_comment: Whether to include a comment field with the answer
+                           
+        Returns:
+            QuestionBudget: An example budget question
+            
+        Examples:
+            >>> q = QuestionBudget.example()
+            >>> q.question_name
+            'food_budget'
+            >>> q.question_text
+            'How would you allocate $100?'
+            >>> q.budget_sum
+            100
+            >>> q.question_options
+            ['Pizza', 'Ice Cream', 'Burgers', 'Salad']
+        """
         return cls(
             question_name="food_budget",
             question_text="How would you allocate $100?",
@@ -199,32 +580,52 @@ class QuestionBudget(QuestionBase):
 
 
 def main():
-    """Create an example of a budget question and demonstrate its functionality."""
-    from edsl.questions.QuestionBudget import QuestionBudget
-
+    """
+    Demonstrate the functionality of the QuestionBudget class.
+    
+    This function creates an example budget question and demonstrates its
+    key features including validation, serialization, and answer simulation.
+    It's primarily intended for testing and development purposes.
+    
+    Note:
+        This function will be executed when the module is run directly,
+        but not when imported.
+    """
+    # Create an example question
     q = QuestionBudget.example()
-    q.question_text
-    q.question_options
-    q.question_name
-    # validate an answer
-    q._validate_answer(
-        {"answer": {0: 100, 1: 0, 2: 0, 3: 0}, "comment": "I like custard"}
-    )
-    # translate answer code
-    q._translate_answer_code_to_answer({0: 100, 1: 0, 2: 0, 3: 0})
-    # simulate answer
-    q._simulate_answer()
-    q._simulate_answer(human_readable=False)
-    q._validate_answer(q._simulate_answer(human_readable=False))
-    # serialization (inherits from Question)
-    q.to_dict()
-    assert q.from_dict(q.to_dict()) == q
+    
+    print(f"Question text: {q.question_text}")
+    print(f"Question options: {q.question_options}")
+    print(f"Budget sum: {q.budget_sum}")
+    
+    # Validate an answer
+    valid_answer = {"answer": [25, 25, 25, 25]}
+    validated = q._validate_answer(valid_answer)
+    print(f"Validated answer: {validated}")
+    
+    # Simulate an answer
+    simulated = q._simulate_answer()
+    print(f"Simulated answer: {simulated}")
+    
+    # Translate answer code
+    translated = q._translate_answer_code_to_answer([40, 30, 20, 10], {})
+    print(f"Translated answer: {translated}")
+    
+    # Serialization demonstration
+    serialized = q.to_dict()
+    print(f"Serialized: {serialized}")
+    deserialized = QuestionBase.from_dict(serialized)
+    print(f"Deserialization successful: {deserialized.question_text == q.question_text}")
+    
+    # Run doctests
+    import doctest
+    doctest.testmod(optionflags=doctest.ELLIPSIS)
+    print("Doctests completed")
 
 
 if __name__ == "__main__":
-    # q = QuestionBudget.example()
-    # results = q.run()
-
     import doctest
-
     doctest.testmod(optionflags=doctest.ELLIPSIS)
+    
+    # Uncomment to run demonstration
+    # main()

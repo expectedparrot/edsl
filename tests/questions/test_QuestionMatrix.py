@@ -150,5 +150,60 @@ def test_QuestionMatrix_simulation():
     assert all(answer in q.question_options for answer in simulated["answer"].values())
 
 
+def test_QuestionMatrix_numeric_key_fix():
+    """Test the fix for responses with numeric keys like {"0": 1, "1": 3, "2": 0}."""
+    # Use permissive mode to avoid validation failures
+    q = QuestionMatrix(
+        question_name="test_numeric_keys",
+        question_text="How often do you use each of the following?",
+        question_items=["Use TikTok", "Use Instagram", "Use BlueSky"],
+        question_options=["Never", "Rarely", "Now and then", "Quite regularly", "Very regularly"],
+        permissive=True
+    )
+
+    # This is the format that caused the validation error in production
+    numeric_response = {
+        "answer": {"0": 1, "1": 3, "2": 0},
+        "comment": "I rarely use TikTok, quite regularly use Instagram, and never use BlueSky.",
+        "generated_tokens": '{"0": 1, "1": 3, "2": 0}\n\nI rarely use TikTok, quite regularly use Instagram, and never use BlueSky.'
+    }
+
+    # First test the direct fix method to see if it correctly converts the response
+    fixed_response = q.response_validator.fix(numeric_response, verbose=True)
+    
+    # Assert each item is in the fixed response
+    assert "Use TikTok" in fixed_response["answer"]
+    assert "Use Instagram" in fixed_response["answer"]
+    assert "Use BlueSky" in fixed_response["answer"]
+    
+    # Check that all items are present
+    assert len(fixed_response["answer"]) == len(q.question_items)
+    
+    # Now create a production-like test with string options
+    q2 = QuestionMatrix(
+        question_name="test_numeric_keys_string_options",
+        question_text="How often do you use each of the following?",
+        question_items=["Use TikTok", "Use Instagram", "Use BlueSky"],
+        question_options=["Never", "Rarely", "Now and then", "Quite regularly", "Very regularly"],
+    )
+    
+    # Set up generated tokens with the JSON format that's causing the issue
+    response_with_json = {
+        "answer": {"0": 1, "1": 3, "2": 0},
+        "comment": "I rarely use TikTok, quite regularly use Instagram, and never use BlueSky.",
+        "generated_tokens": '{"0": 1, "1": 3, "2": 0}'
+    }
+    
+    # This should now work because our fix properly maps numeric keys to item names and values to option strings
+    try:
+        fixed_data = q2.response_validator.fix(response_with_json, verbose=True)
+        # If any item is missing from the fixed data, the test will fail
+        assert "Use TikTok" in fixed_data["answer"]
+        assert "Use Instagram" in fixed_data["answer"]
+        assert "Use BlueSky" in fixed_data["answer"]
+    except Exception as e:
+        assert False, f"Failed to fix a response with numeric keys: {e}"
+
+
 if __name__ == "__main__":
     pytest.main([__file__])

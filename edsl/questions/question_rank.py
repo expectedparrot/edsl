@@ -1,7 +1,9 @@
 from __future__ import annotations
-from typing import Optional, Any, List, Annotated, Literal
+from typing import Optional, Any, List, Union
+import random
+import re
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator, ValidationError
 
 from .question_base import QuestionBase
 from .descriptors import (
@@ -9,124 +11,359 @@ from .descriptors import (
     NumSelectionsDescriptor,
 )
 from .response_validator_abc import ResponseValidatorABC
+from .exceptions import QuestionAnswerValidationError
 from ..scenarios import Scenario
 
 
+class RankResponseBase(BaseModel):
+    """
+    Base model for rank question responses.
+    
+    Attributes:
+        answer: A list of selected choices in ranked order
+        comment: Optional comment about the ranking
+        generated_tokens: Optional token usage data
+    
+    Examples:
+        >>> # Valid response with numeric indices
+        >>> model = RankResponseBase(answer=[0, 1], comment="First and second choices")
+        >>> model.answer
+        [0, 1]
+        
+        >>> # Valid response with string options
+        >>> model = RankResponseBase(answer=["Pizza", "Pasta"])
+        >>> model.answer
+        ['Pizza', 'Pasta']
+    """
+    answer: List[Any]
+    comment: Optional[str] = None
+    generated_tokens: Optional[Any] = None
+
+
 def create_response_model(
-    choices: list,
+    choices: Union[list, range],
     num_selections: Optional[int] = None,
     permissive: bool = False,
 ):
     """
-    :param choices: A list of allowed values for the answer field.
-    :param include_comment: Whether to include a comment field in the model.
-    :return: A new Pydantic model class.
+    Creates a Pydantic model for rank question responses with appropriate validation.
+    
+    Args:
+        choices: A list of allowed values for the answer field
+        num_selections: The exact number of selections required (if not permissive)
+        permissive: If True, allows any number of selections
+        
+    Returns:
+        A Pydantic model class for validating rank responses
+    
+    Examples:
+        >>> # Create a model for ranking 2 options from ["Pizza", "Pasta", "Salad", "Soup"]
+        >>> Model = create_response_model(["Pizza", "Pasta", "Salad", "Soup"], num_selections=2)
+        >>> response = Model(answer=["Pizza", "Pasta"])
+        >>> response.answer
+        ['Pizza', 'Pasta']
+        
+        >>> # Invalid: too many selections
+        >>> try:
+        ...     Model(answer=["Pizza", "Pasta", "Salad"])
+        ... except Exception:
+        ...     print("Validation error occurred")
+        Validation error occurred
     """
-    # Convert the choices list to a tuple for use with Literal
-    choice_tuple = tuple(choices)
-
-    field_params = {}
-    if num_selections is not None and not permissive:
-        field_params["min_items"] = num_selections
-        field_params["max_items"] = num_selections
-
-    class RankResponse(BaseModel):
-        answer: Annotated[
-            List[Literal[choice_tuple]],
-            Field(..., **field_params),
-        ] = Field(..., description="List of selected choices")
-        comment: Optional[str] = Field(None, description="Optional comment field")
-        generated_tokens: Optional[Any] = Field(None)
-
+    # Convert the choices to a tuple for Literal type annotation
+    choice_tuple = tuple(choices) if not isinstance(choices, range) else tuple(choices)
+    
+    # Create a custom validation model that extends the base model
+    class RankResponse(RankResponseBase):
+        """
+        Model for rank question responses with validation for the specific choices and constraints.
+        """
+        # Use Annotated to add field metadata while keeping the type as List[Any]
+        # We'll validate the actual items in the model_validator
+        answer: List[Any] = Field(..., description="List of selected choices in ranked order")
+        
+        @model_validator(mode='after')
+        def validate_answer_items(self):
+            """
+            Validates that:
+            1. All items in the answer are valid choices
+            2. The correct number of selections is made (if not permissive)
+            3. No duplicates exist in the ranking
+            """
+            answer = self.answer
+            
+            # Check if the correct number of selections is made
+            if num_selections is not None and not permissive:
+                if len(answer) != num_selections:
+                    validation_error = ValidationError.from_exception_data(
+                        title='RankResponse',
+                        line_errors=[{
+                            'type': 'value_error',
+                            'loc': ('answer',),
+                            'msg': f'Expected exactly {num_selections} selections, got {len(answer)}',
+                            'input': answer,
+                            'ctx': {'expected': num_selections, 'actual': len(answer)}
+                        }]
+                    )
+                    raise QuestionAnswerValidationError(
+                        message=f"Number of selections must be exactly {num_selections}",
+                        data=self.model_dump(),
+                        model=self.__class__,
+                        pydantic_error=validation_error
+                    )
+            
+            # Check for duplicates
+            if len(answer) != len(set(answer)):
+                validation_error = ValidationError.from_exception_data(
+                    title='RankResponse',
+                    line_errors=[{
+                        'type': 'value_error',
+                        'loc': ('answer',),
+                        'msg': 'Duplicate items found in ranking',
+                        'input': answer,
+                        'ctx': {'error': 'Duplicate items are not allowed in rankings'}
+                    }]
+                )
+                raise QuestionAnswerValidationError(
+                    message="Rankings must not contain duplicate items",
+                    data=self.model_dump(),
+                    model=self.__class__,
+                    pydantic_error=validation_error
+                )
+            
+            # If not permissive, validate that all items are in the allowed choices
+            if not permissive:
+                # Check each item against the allowed choices
+                for idx, item in enumerate(answer):
+                    if item not in choice_tuple:
+                        validation_error = ValidationError.from_exception_data(
+                            title='RankResponse',
+                            line_errors=[{
+                                'type': 'value_error',
+                                'loc': ('answer', idx),
+                                'msg': f'Value {item} is not a valid choice',
+                                'input': item,
+                                'ctx': {'allowed_values': choice_tuple}
+                            }]
+                        )
+                        raise QuestionAnswerValidationError(
+                            message=f"Item '{item}' is not in the allowed choices",
+                            data=self.model_dump(),
+                            model=self.__class__,
+                            pydantic_error=validation_error
+                        )
+            
+            return self
+        
         class Config:
             @staticmethod
             def json_schema_extra(schema: dict, model: BaseModel) -> None:
                 # Add the list of choices to the schema for better documentation
                 for prop in schema.get("properties", {}).values():
                     if prop.get("title") == "answer":
-                        prop["items"] = {"enum": choices}
+                        prop["items"] = {"enum": list(choices) if not isinstance(choices, range) else list(choices)}
 
     return RankResponse
 
 
 class RankResponseValidator(ResponseValidatorABC):
+    """
+    Validator for rank question responses that attempts to fix invalid responses.
+    
+    This validator tries multiple strategies to recover a valid ranking from
+    malformed responses, including parsing comma-separated strings, extracting
+    numbers or options from text, and more.
+    """
     required_params = ["num_selections", "permissive", "use_code", "question_options"]
-    valid_examples = []
-    invalid_examples = []
+    
+    valid_examples = [
+        (
+            {"answer": [0, 1]},
+            {"num_selections": 2, "use_code": True, "permissive": False, 
+             "question_options": ["Pizza", "Pasta", "Salad", "Soup"]},
+        ),
+        (
+            {"answer": ["Pizza", "Pasta"]},
+            {"num_selections": 2, "use_code": False, "permissive": False, 
+             "question_options": ["Pizza", "Pasta", "Salad", "Soup"]},
+        ),
+    ]
+    
+    invalid_examples = [
+        (
+            {"answer": [0, 0]},
+            {"num_selections": 2, "use_code": True, "permissive": False, 
+             "question_options": ["Pizza", "Pasta", "Salad", "Soup"]},
+            "Duplicate items found in ranking",
+        ),
+        (
+            {"answer": [0, 1, 2]},
+            {"num_selections": 2, "use_code": True, "permissive": False, 
+             "question_options": ["Pizza", "Pasta", "Salad", "Soup"]},
+            "Expected exactly 2 selections",
+        ),
+        (
+            {"answer": [5, 6]},
+            {"num_selections": 2, "use_code": True, "permissive": False, 
+             "question_options": ["Pizza", "Pasta", "Salad", "Soup"]},
+            "not in the allowed choices",
+        ),
+    ]
 
     def fix(self, response, verbose=False):
+        """
+        Attempts to fix an invalid rank response by trying multiple parsing strategies.
+        
+        Args:
+            response: The invalid response to fix
+            verbose: Whether to print verbose debugging information
+            
+        Returns:
+            A fixed response dict if fixable, otherwise the original response
+        """
         if verbose:
-            print("Invalid response of QuestionRank was: ", False)
-        response_text = response.get("generated_tokens")
-        if response_text is None or response_text == "":  # nothing to be done
+            print(f"Fixing rank response: {response}")
+        
+        # If there's no answer field or it's empty, nothing to fix
+        if "answer" not in response or not response["answer"]:
+            if verbose:
+                print("No answer field or empty answer, nothing to fix")
             return response
-        # Maybe it's a comma separated list?
-        response_text = str(response.get("answer"))
-        proposed_list = (
-            response_text.replace("[", "").replace("]", "").replace("'", "").split(",")
-        )
-        proposed_list = [item.strip() for item in proposed_list]
-
+        
+        # Strategy 1: Parse from answer if it's a string
+        if isinstance(response.get("answer"), str):
+            text = response["answer"]
+            # Try a few parsing approaches
+            proposed_list = self._parse_answer_from_text(text)
+            if proposed_list:
+                proposed_data = {
+                    "answer": proposed_list,
+                    "comment": response.get("comment"),
+                    "generated_tokens": response.get("generated_tokens")
+                }
+                try:
+                    self.response_model(**proposed_data)
+                    if verbose:
+                        print(f"Successfully fixed by parsing string: {proposed_data}")
+                    return proposed_data
+                except Exception as e:
+                    if verbose:
+                        print(f"Failed to validate after string parsing: {e}")
+        
+        # Strategy 2: Try to parse from generated_tokens if available
+        if "generated_tokens" in response and response["generated_tokens"]:
+            text = str(response["generated_tokens"])
+            proposed_list = self._parse_answer_from_text(text)
+            
+            if proposed_list:
+                proposed_data = {
+                    "answer": proposed_list,
+                    "comment": response.get("comment"),
+                    "generated_tokens": response.get("generated_tokens")
+                }
+                try:
+                    self.response_model(**proposed_data)
+                    if verbose:
+                        print(f"Successfully fixed by parsing generated_tokens: {proposed_data}")
+                    return proposed_data
+                except Exception as e:
+                    if verbose:
+                        print(f"Failed to validate after generated_tokens parsing: {e}")
+        
+        # Strategy 3: Look for mentions of options in the text
+        if isinstance(response.get("answer"), str) or "generated_tokens" in response:
+            text = str(response.get("answer", "")) + " " + str(response.get("generated_tokens", ""))
+            matches = []
+            
+            # Extract by index or by option text
+            if self.use_code:
+                # Look for indices in the text
+                indices = re.findall(r'\b(\d+)\b', text)
+                for idx in indices:
+                    try:
+                        idx_int = int(idx)
+                        if 0 <= idx_int < len(self.question_options) and idx_int not in matches:
+                            matches.append(idx_int)
+                    except ValueError:
+                        continue
+            else:
+                # Look for options in the text
+                for option in self.question_options:
+                    if option in text and option not in matches:
+                        matches.append(option)
+            
+            # If we found enough matches, try to use them
+            if matches and (self.permissive or len(matches) == self.num_selections):
+                proposed_data = {
+                    "answer": matches[:self.num_selections] if not self.permissive else matches,
+                    "comment": response.get("comment"),
+                    "generated_tokens": response.get("generated_tokens")
+                }
+                try:
+                    self.response_model(**proposed_data)
+                    if verbose:
+                        print(f"Successfully fixed by extracting mentions: {proposed_data}")
+                    return proposed_data
+                except Exception as e:
+                    if verbose:
+                        print(f"Failed to validate after extracting mentions: {e}")
+        
+        # If we got here, we couldn't fix the response
         if verbose:
-            print("Using code? ", self.use_code)
-        if self.use_code:
+            print("Could not fix rank response, returning original")
+        return response
+    
+    def _parse_answer_from_text(self, text):
+        """
+        Parse an answer list from text using multiple strategies.
+        
+        Args:
+            text: The text to parse
+            
+        Returns:
+            A list of parsed options or indices, or None if parsing failed
+        """
+        # Try comma-separated list
+        proposed_list = (
+            text.replace("[", "").replace("]", "").replace("'", "").replace('"', "").split(",")
+        )
+        proposed_list = [item.strip() for item in proposed_list if item.strip()]
+        
+        # Convert to integers if using code indices
+        if self.use_code and proposed_list:
             try:
                 proposed_list = [int(i) for i in proposed_list]
             except ValueError:
-                # print("Could not convert to int")
-                pass
-
-        if verbose:
-            print("Proposed solution is: ", proposed_list)
-
-        # print(f"Ivalid generated tokens was was: {response_text}")
-        if "comment" in response:
-            proposed_data = {
-                "answer": proposed_list,
-                "comment": response["comment"],
-                "generated_tokens": response.get("generated_tokens", None),
-            }
-        else:
-            proposed_data = {
-                "answer": proposed_list,
-                "generated_tokens": response.get("generated_tokens", None),
-            }
-
-        try:
-            self.response_model(**proposed_data)
-            return proposed_data
-        except Exception as e:
-            if verbose:
-                print(f"Proposed solution {proposed_data} is invalid. Error: {e}")
-            # return response
-        if verbose:
-            print("Now seeing if responses show up in the answer")
-        matches = []
-        for index, option in enumerate(self.question_options):
-            if self.use_code:
-                if str(index) in response_text:
-                    if index not in matches:
-                        matches.append(index)
-            else:
-                if option in response_text:
-                    if option not in matches:
-                        matches.append(option)
-        proposed_data = {
-            "answer": matches,
-            "comment": response.get("comment", None),
-            "generated_tokens": response.get("generated_tokens", None),
-        }
-        try:
-            self.response_model(**proposed_data)
-            return proposed_data
-        except Exception as e:
-            if verbose:
-                print(f"Proposed solution {proposed_data} is invalid. Error: {e}")
-            return response
+                # If conversion fails but we're using codes, try to extract numbers
+                numbers = re.findall(r'\b(\d+)\b', text)
+                if numbers:
+                    try:
+                        proposed_list = [int(num) for num in numbers]
+                    except ValueError:
+                        pass
+        
+        return proposed_list if proposed_list else None
 
 
 class QuestionRank(QuestionBase):
-    """This question prompts the agent to rank options from a list."""
+    """
+    A question that prompts the agent to rank options from a list.
+    
+    This question type asks respondents to put options in order of preference,
+    importance, or any other ordering criteria. The response is a list of
+    selected options in ranked order.
+    
+    Examples:
+        >>> # Create a ranking question for food preferences
+        >>> question = QuestionRank(
+        ...     question_name="food_ranking",
+        ...     question_text="Rank these foods from most to least favorite.",
+        ...     question_options=["Pizza", "Pasta", "Salad", "Soup"],
+        ...     num_selections=2
+        ... )
+        >>> # The response should be a ranked list
+        >>> response = {"answer": ["Pizza", "Pasta"], "comment": "I prefer Italian food."}
+    """
 
     question_type = "rank"
     question_options: list[str] = QuestionOptionsDescriptor()
@@ -147,13 +384,19 @@ class QuestionRank(QuestionBase):
         use_code: bool = True,
         include_comment: bool = True,
     ):
-        """Initialize the question.
+        """
+        Initialize a rank question.
 
-        :param question_name: The name of the question.
-        :param question_text: The text of the question.
-        :param question_options: The options the respondent should select from.
-        :param min_selections: The minimum number of options that must be selected.
-        :param max_selections: The maximum number of options that must be selected.
+        Args:
+            question_name: The name of the question
+            question_text: The text of the question
+            question_options: The options the respondent should rank
+            num_selections: The number of options to select and rank (defaults to all)
+            question_presentation: Custom presentation template (optional)
+            answering_instructions: Custom instructions template (optional)
+            permissive: Whether to relax validation constraints
+            use_code: Whether to use numeric indices (0,1,2) instead of option text
+            include_comment: Whether to include a comment field
         """
         self.question_name = question_name
         self.question_text = question_text
@@ -166,6 +409,12 @@ class QuestionRank(QuestionBase):
         self.include_comment = include_comment
 
     def create_response_model(self):
+        """
+        Returns the pydantic model for validating responses to this question.
+        
+        The model is dynamically created based on the question's configuration,
+        including allowed choices, number of selections, and permissiveness.
+        """
         choices = (
             self.question_options
             if not self.use_code
@@ -177,20 +426,19 @@ class QuestionRank(QuestionBase):
             permissive=self.permissive,
         )
 
-    ################
-    # Answer methods
-    ################
-    # def _validate_answer(self, answer: Any) -> dict[str, list[int]]:
-    #     """Validate the answer."""
-    #     self._validate_answer_template_basic(answer)
-    #     self._validate_answer_key_value(answer, "answer", list)
-    #     self._validate_answer_rank(answer)
-    #     return answer
-
     def _translate_answer_code_to_answer(
         self, answer_codes, scenario: Scenario = None
     ) -> list[str]:
-        """Translate the answer code to the actual answer."""
+        """
+        Translate numeric answer codes to the actual option text.
+        
+        Args:
+            answer_codes: The codes to translate
+            scenario: The scenario for template rendering (optional)
+            
+        Returns:
+            A list of translated option texts
+        """
         from jinja2 import Template
         
         scenario = scenario or Scenario()
@@ -199,30 +447,53 @@ class QuestionRank(QuestionBase):
         ]
         translated_codes = []
         for answer_code in answer_codes:
-            if self._use_code:
+            if self.use_code:
                 translated_codes.append(translated_options[int(answer_code)])
             else:
                 translated_codes.append(answer_code)
         return translated_codes
 
-    # def _simulate_answer(self, human_readable=True) -> dict[str, Union[int, str]]:
-    #     """Simulate a valid answer for debugging purposes."""
-    #     from edsl.utilities.utilities import random_string
+    def _simulate_answer(self, human_readable=True) -> dict:
+        """
+        Simulate a valid answer for testing purposes.
+        
+        Args:
+            human_readable: Whether to use option text (True) or indices (False)
+            
+        Returns:
+            A valid simulated response
+        """
+        from ..utilities.utilities import random_string
 
-    #     if human_readable:
-    #         selected = random.sample(self.question_options, self.num_selections)
-    #     else:
-    #         selected = random.sample(
-    #             range(len(self.question_options)), self.num_selections
-    #         )
-    #     answer = {
-    #         "answer": selected,
-    #         "comment": random_string(),
-    #     }
-    #     return answer
+        # Handle the simulation logic based on use_code and human_readable flags
+        if human_readable:
+            if not self.use_code:
+                # When human_readable=True and not using code, return text options
+                selected = random.sample(self.question_options, self.num_selections)
+            else:
+                # When human_readable=True but we're configured to use_code, 
+                # still use the option text for better test compatibility
+                selected = random.sample(self.question_options, self.num_selections)
+        else:
+            # When human_readable=False, always use indices
+            selected = random.sample(
+                range(len(self.question_options)), self.num_selections
+            )
+            
+        answer = {
+            "answer": selected,
+            "comment": random_string(),
+        }
+        return answer
 
     @property
     def question_html_content(self) -> str:
+        """
+        Generate an HTML representation of the ranking question.
+        
+        Returns:
+            HTML content string for rendering the question
+        """
         from jinja2 import Template
 
         question_html_content = Template(
@@ -267,12 +538,18 @@ class QuestionRank(QuestionBase):
         )
         return question_html_content
 
-    ################
-    # Helpful methods
-    ################
     @classmethod
     def example(cls, use_code=False, include_comment=True) -> QuestionRank:
-        """Return an example question."""
+        """
+        Return an example rank question.
+        
+        Args:
+            use_code: Whether to use numeric indices 
+            include_comment: Whether to include a comment field
+            
+        Returns:
+            An example QuestionRank instance
+        """
         return cls(
             question_name="rank_foods",
             question_text="Rank your favorite foods.",

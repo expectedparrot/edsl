@@ -1,11 +1,13 @@
 from dataclasses import dataclass
 
 
+from typing import Dict, List, Any
+
 @dataclass
 class SeparatedComponents:
-    true_questions: list
-    instruction_names_to_instructions: dict
-    pseudo_indices: dict
+    true_questions: List[Any]
+    instruction_names_to_instructions: Dict[str, Any]
+    pseudo_indices: Dict[str, float]
 
 
 class InstructionHandler:
@@ -13,7 +15,7 @@ class InstructionHandler:
         self.survey = survey
 
     @staticmethod
-    def separate_questions_and_instructions(questions_and_instructions: list) -> tuple:
+    def separate_questions_and_instructions(questions_and_instructions: list) -> SeparatedComponents:
         """
         The 'pseudo_indices' attribute is a dictionary that maps question names to pseudo-indices
         that are used to order questions and instructions in the survey.
@@ -48,9 +50,9 @@ class InstructionHandler:
         """
         from .instruction import Instruction
         from .change_instruction import ChangeInstruction
-        from edsl.questions import QuestionBase
+        from ..questions import QuestionBase
 
-        true_questions = []
+        true_questions: List[QuestionBase] = []
         instruction_names_to_instructions = {}
 
         num_change_instructions = 0
@@ -63,7 +65,7 @@ class InstructionHandler:
                     num_change_instructions += 1
                     for prior_instruction in entry.keep + entry.drop:
                         if prior_instruction not in instruction_names_to_instructions:
-                            from edsl.instructions.exceptions import InstructionValueError
+                            from .exceptions import InstructionValueError
                             raise InstructionValueError(
                                 f"ChangeInstruction {entry.name} references instruction {prior_instruction} which does not exist."
                             )
@@ -77,7 +79,7 @@ class InstructionHandler:
                 instructions_run_length = 0
                 true_questions.append(entry)
             else:
-                from edsl.instructions.exceptions import InstructionValueError
+                from .exceptions import InstructionValueError
                 raise InstructionValueError(
                     f"Entry {repr(entry)} is not a QuestionBase or an Instruction."
                 )

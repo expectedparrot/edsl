@@ -2,9 +2,8 @@ from __future__ import annotations
 import json
 from typing import Any, Optional, Union, ForwardRef
 
-from pydantic import Field
+from pydantic import Field, model_validator, ValidationError
 from json_repair import repair_json
-from .exceptions import QuestionAnswerValidationError
 from .question_base import QuestionBase
 from .descriptors import IntegerOrNoneDescriptor
 from .decorators import inject_exception
@@ -60,11 +59,44 @@ def create_model(min_list_items: Optional[int], max_list_items: Optional[int], p
     from pydantic import BaseModel
 
     if permissive or (max_list_items is None and min_list_items is None):
-
         class ListResponse(BaseModel):
+            """
+            Pydantic model for validating list responses with no constraints.
+            
+            Examples:
+                >>> # Valid response with any number of items
+                >>> response = ListResponse(answer=["one", "two", "three"])
+                >>> response.answer
+                ['one', 'two', 'three']
+                
+                >>> # Empty list is valid in permissive mode
+                >>> response = ListResponse(answer=[])
+                >>> response.answer
+                []
+                
+                >>> # Missing answer field raises error
+                >>> try:
+                ...     ListResponse(you="will never be able to do this!")
+                ... except Exception as e:
+                ...     "Field required" in str(e)
+                True
+            """
             answer: list[Any]
             comment: Optional[str] = None
             generated_tokens: Optional[str] = None
+            
+            @classmethod
+            def model_validate(cls, obj, *args, **kwargs):
+                try:
+                    return super().model_validate(obj, *args, **kwargs)
+                except ValidationError as e:
+                    from .exceptions import QuestionAnswerValidationError
+                    raise QuestionAnswerValidationError(
+                        message=f"Invalid list response: {e}",
+                        data=obj,
+                        model=cls,
+                        pydantic_error=e
+                    )
 
     else:
         # Determine field constraints
@@ -78,14 +110,114 @@ def create_model(min_list_items: Optional[int], max_list_items: Optional[int], p
 
         class ListResponse(BaseModel):
             """
-            >>> nr = ListResponse(answer=["Apple", "Cherry"])
-            >>> nr.dict()
-            {'answer': ['Apple', 'Cherry'], 'comment': None, 'generated_tokens': None}
+            Pydantic model for validating list responses with size constraints.
+            
+            Examples:
+                >>> # Create a model with min=2, max=4 items
+                >>> ConstrainedList = create_model(min_list_items=2, max_list_items=4, permissive=False)
+                
+                >>> # Valid response within constraints
+                >>> response = ConstrainedList(answer=["Apple", "Cherry", "Banana"])
+                >>> len(response.answer)
+                3
+                
+                >>> # Too few items raises error
+                >>> try:
+                ...     ConstrainedList(answer=["Apple"])
+                ... except QuestionAnswerValidationError as e:
+                ...     "must have at least 2 items" in str(e)
+                True
+                
+                >>> # Too many items raises error
+                >>> try:
+                ...     ConstrainedList(answer=["A", "B", "C", "D", "E"])
+                ... except QuestionAnswerValidationError as e:
+                ...     "cannot have more than 4 items" in str(e)
+                True
+                
+                >>> # Optional comment is allowed
+                >>> response = ConstrainedList(
+                ...     answer=["Apple", "Cherry"],
+                ...     comment="These are my favorites"
+                ... )
+                >>> response.comment
+                'These are my favorites'
+                
+                >>> # Generated tokens are optional
+                >>> response = ConstrainedList(
+                ...     answer=["Apple", "Cherry"],
+                ...     generated_tokens="Apple, Cherry"
+                ... )
+                >>> response.generated_tokens
+                'Apple, Cherry'
             """
 
             answer: list[Any] = Field(**field_kwargs)
             comment: Optional[str] = None
             generated_tokens: Optional[str] = None
+
+            @model_validator(mode='after')
+            def validate_list_constraints(self):
+                """
+                Validate that the list meets size constraints.
+                
+                Returns:
+                    The validated model instance.
+                    
+                Raises:
+                    QuestionAnswerValidationError: If list size constraints are violated.
+                """
+                if max_list_items is not None and len(self.answer) > max_list_items:
+                    from .exceptions import QuestionAnswerValidationError
+                    validation_error = ValidationError.from_exception_data(
+                        title='ListResponse',
+                        line_errors=[{
+                            'type': 'value_error',
+                            'loc': ('answer',),
+                            'msg': f'List cannot have more than {max_list_items} items',
+                            'input': self.answer,
+                            'ctx': {'error': 'Too many items'}
+                        }]
+                    )
+                    raise QuestionAnswerValidationError(
+                        message=f"List cannot have more than {max_list_items} items",
+                        data=self.model_dump(),
+                        model=self.__class__,
+                        pydantic_error=validation_error
+                    )
+                
+                if min_list_items is not None and len(self.answer) < min_list_items:
+                    from .exceptions import QuestionAnswerValidationError
+                    validation_error = ValidationError.from_exception_data(
+                        title='ListResponse',
+                        line_errors=[{
+                            'type': 'value_error',
+                            'loc': ('answer',),
+                            'msg': f'List must have at least {min_list_items} items',
+                            'input': self.answer,
+                            'ctx': {'error': 'Too few items'}
+                        }]
+                    )
+                    raise QuestionAnswerValidationError(
+                        message=f"List must have at least {min_list_items} items",
+                        data=self.model_dump(),
+                        model=self.__class__,
+                        pydantic_error=validation_error
+                    )
+                return self
+                
+            @classmethod
+            def model_validate(cls, obj, *args, **kwargs):
+                try:
+                    return super().model_validate(obj, *args, **kwargs)
+                except ValidationError as e:
+                    from .exceptions import QuestionAnswerValidationError
+                    raise QuestionAnswerValidationError(
+                        message=f"Invalid list response: {e}",
+                        data=obj,
+                        model=cls,
+                        pydantic_error=e
+                    )
 
     return ListResponse
 
@@ -93,43 +225,131 @@ def create_model(min_list_items: Optional[int], max_list_items: Optional[int], p
 class ListResponseValidator(ResponseValidatorABC):
     required_params = ["min_list_items", "max_list_items", "permissive"]
     valid_examples = [({"answer": ["hello", "world"]}, {"max_list_items": 5})]
-
     invalid_examples = [
         (
             {"answer": ["hello", "world", "this", "is", "a", "test"]},
             {"max_list_items": 5},
-            "Too many items.",
+            "List cannot have more than 5 items",
         ),
         (
             {"answer": ["hello"]},
             {"min_list_items": 2},
-            "Too few items.",
+            "List must have at least 2 items",
         ),
     ]
+    
+    def validate(
+        self,
+        raw_edsl_answer_dict: dict,
+        fix=False,
+        verbose=False,
+        replacement_dict: dict = None,
+    ) -> dict:
+        """Override validate to handle missing answer key properly."""
+        # Check for missing answer key
+        if "answer" not in raw_edsl_answer_dict:
+            from .exceptions import QuestionAnswerValidationError
+            from pydantic import ValidationError
+            
+            # Create a synthetic validation error
+            validation_error = ValidationError.from_exception_data(
+                title='ListResponse',
+                line_errors=[{
+                    'type': 'missing',
+                    'loc': ('answer',),
+                    'msg': 'Field required',
+                    'input': raw_edsl_answer_dict,
+                }]
+            )
+            
+            raise QuestionAnswerValidationError(
+                message="Missing required 'answer' field in response",
+                data=raw_edsl_answer_dict,
+                model=self.response_model,
+                pydantic_error=validation_error
+            )
+        
+        # Check if answer is not a list
+        if "answer" in raw_edsl_answer_dict and not isinstance(raw_edsl_answer_dict["answer"], list):
+            from .exceptions import QuestionAnswerValidationError
+            from pydantic import ValidationError
+            
+            # Create a synthetic validation error
+            validation_error = ValidationError.from_exception_data(
+                title='ListResponse',
+                line_errors=[{
+                    'type': 'list_type',
+                    'loc': ('answer',),
+                    'msg': 'Input should be a valid list',
+                    'input': raw_edsl_answer_dict["answer"],
+                }]
+            )
+            
+            raise QuestionAnswerValidationError(
+                message=f"Answer must be a list (got {type(raw_edsl_answer_dict['answer']).__name__})",
+                data=raw_edsl_answer_dict,
+                model=self.response_model,
+                pydantic_error=validation_error
+            )
+        
+        # Continue with parent validation
+        return super().validate(raw_edsl_answer_dict, fix, verbose, replacement_dict)
 
     def _check_constraints(self, response) -> None:
-        if (
-            self.max_list_items is not None
-            and len(response.answer) > self.max_list_items
-        ):
-            raise QuestionAnswerValidationError("Too many items.")
-            
-        if (
-            self.min_list_items is not None
-            and len(response.answer) < self.min_list_items
-        ):
-            raise QuestionAnswerValidationError("Too few items.")
+        # This method can now be removed since validation is handled in the Pydantic model
+        pass
 
     def fix(self, response, verbose=False):
+        """
+        Fix common issues in list responses by splitting strings into lists.
+        
+        Examples:
+            >>> from edsl import QuestionList
+            >>> q = QuestionList.example(min_list_items=2, max_list_items=4)
+            >>> validator = q.response_validator
+            
+            >>> # Fix a string that should be a list
+            >>> bad_response = {"answer": "apple,banana,cherry"}
+            >>> try:
+            ...     validator.validate(bad_response)
+            ... except Exception:
+            ...     fixed = validator.fix(bad_response)
+            ...     validated = validator.validate(fixed)
+            ...     validated  # Show full response
+            {'answer': ['apple', 'banana', 'cherry'], 'comment': None, 'generated_tokens': None}
+
+            >>> # Fix using generated_tokens when answer is invalid
+            >>> bad_response = {
+            ...     "answer": None,
+            ...     "generated_tokens": "pizza, pasta, salad"
+            ... }
+            >>> try:
+            ...     validator.validate(bad_response)
+            ... except Exception:
+            ...     fixed = validator.fix(bad_response)
+            ...     validated = validator.validate(fixed)
+            ...     validated
+            {'answer': ['pizza', ' pasta', ' salad'], 'comment': None, 'generated_tokens': None}
+
+            >>> # Preserve comments during fixing
+            >>> bad_response = {
+            ...     "answer": "red,blue,green",
+            ...     "comment": "These are colors"
+            ... }
+            >>> fixed = validator.fix(bad_response)
+            >>> fixed == {
+            ...     "answer": ["red", "blue", "green"],
+            ...     "comment": "These are colors"
+            ... }
+            True
+        """
         if verbose:
             print(f"Fixing list response: {response}")
         answer = str(response.get("answer") or response.get("generated_tokens", ""))
-        if len(answer.split(",")) > 0:
-            return (
-                {"answer": answer.split(",")} | {"comment": response.get("comment")}
-                if "comment" in response
-                else {}
-            )
+        result = {"answer": answer.split(",")}
+        if "comment" in response:
+            result["comment"] = response["comment"]
+        return result
 
     def _post_process(self, edsl_answer_dict):
         edsl_answer_dict["answer"] = [

@@ -62,7 +62,8 @@ class RegisterQuestionsMeta(ABCMeta):
             if hasattr(cls, "question_type"):
                 d[cls.question_type] = cls
             else:
-                raise Exception(
+                from .exceptions import QuestionMissingTypeError
+                raise QuestionMissingTypeError(
                     f"Class {classname} does not have a question_type class attribute"
                 )
         return d

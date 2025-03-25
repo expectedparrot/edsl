@@ -122,7 +122,7 @@ To clean up build files:
 
 # Example usage:
 if __name__ == "__main__":
-    from edsl import Notebook
+    from .. import Notebook
 
     # Create or load a notebook
     notebook = Notebook.example()

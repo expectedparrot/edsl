@@ -1,9 +1,11 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from typing import Union, Dict
 from typing import Optional
 
 from .token_bucket import TokenBucket  # Original implementation
+from .exceptions import BucketNotFoundError, InvalidBucketParameterError
 
 def safe_float_for_json(value: float) -> Union[float, str]:
     """Convert float('inf') to 'infinity' for JSON serialization.
@@ -23,6 +25,20 @@ app = FastAPI()
 
 # In-memory storage for TokenBucket instances
 buckets: Dict[str, TokenBucket] = {}
+
+@app.exception_handler(BucketNotFoundError)
+async def bucket_not_found_handler(request, exc):
+    return JSONResponse(
+        status_code=404,
+        content={"detail": str(exc)},
+    )
+
+@app.exception_handler(InvalidBucketParameterError)
+async def invalid_parameter_handler(request, exc):
+    return JSONResponse(
+        status_code=400,
+        content={"detail": str(exc)},
+    )
 
 
 class TokenBucketCreate(BaseModel):
@@ -83,13 +99,13 @@ async def list_buckets(
 async def add_tokens(bucket_id: str, amount: float):
     """Add tokens to an existing bucket."""
     if bucket_id not in buckets:
-        raise HTTPException(status_code=404, detail="Bucket not found")
+        raise BucketNotFoundError(f"Bucket with ID '{bucket_id}' not found")
 
     if not isinstance(amount, (int, float)) or amount != amount:  # Check for NaN
-        raise HTTPException(status_code=400, detail="Invalid amount specified")
+        raise InvalidBucketParameterError("Invalid amount specified")
 
     if amount == float("inf") or amount == float("-inf"):
-        raise HTTPException(status_code=400, detail="Amount cannot be infinite")
+        raise InvalidBucketParameterError("Amount cannot be infinite")
 
     bucket = buckets[bucket_id]
     bucket.add_tokens(amount)
@@ -124,14 +140,14 @@ async def create_bucket(bucket: TokenBucketCreate):
         not isinstance(bucket.capacity, (int, float))
         or bucket.capacity != bucket.capacity
     ):  # Check for NaN
-        raise HTTPException(status_code=400, detail="Invalid capacity value")
+        raise InvalidBucketParameterError("Invalid capacity value")
     if (
         not isinstance(bucket.refill_rate, (int, float))
         or bucket.refill_rate != bucket.refill_rate
     ):  # Check for NaN
-        raise HTTPException(status_code=400, detail="Invalid refill rate value")
+        raise InvalidBucketParameterError("Invalid refill rate value")
     if bucket.capacity == float("inf") or bucket.refill_rate == float("inf"):
-        raise HTTPException(status_code=400, detail="Values cannot be infinite")
+        raise InvalidBucketParameterError("Values cannot be infinite")
     bucket_id = f"{bucket.bucket_name}_{bucket.bucket_type}"
     if bucket_id in buckets:
         # Instead of error, return success with "existing" status
@@ -156,7 +172,7 @@ async def create_bucket(bucket: TokenBucketCreate):
 @app.post("/bucket/{bucket_id}/get_tokens")
 async def get_tokens(bucket_id: str, amount: float, cheat_bucket_capacity: bool = True):
     if bucket_id not in buckets:
-        raise HTTPException(status_code=404, detail="Bucket not found")
+        raise BucketNotFoundError(f"Bucket with ID '{bucket_id}' not found")
 
     bucket = buckets[bucket_id]
     await bucket.get_tokens(amount, cheat_bucket_capacity)
@@ -166,7 +182,7 @@ async def get_tokens(bucket_id: str, amount: float, cheat_bucket_capacity: bool 
 @app.post("/bucket/{bucket_id}/turbo_mode/{state}")
 async def set_turbo_mode(bucket_id: str, state: bool):
     if bucket_id not in buckets:
-        raise HTTPException(status_code=404, detail="Bucket not found")
+        raise BucketNotFoundError(f"Bucket with ID '{bucket_id}' not found")
 
     bucket = buckets[bucket_id]
     if state:
@@ -179,7 +195,7 @@ async def set_turbo_mode(bucket_id: str, state: bool):
 @app.get("/bucket/{bucket_id}/status")
 async def get_bucket_status(bucket_id: str):
     if bucket_id not in buckets:
-        raise HTTPException(status_code=404, detail="Bucket not found")
+        raise BucketNotFoundError(f"Bucket with ID '{bucket_id}' not found")
 
     bucket = buckets[bucket_id]
     status = {

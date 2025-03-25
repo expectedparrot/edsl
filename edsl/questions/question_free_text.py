@@ -3,7 +3,7 @@ from typing import Optional
 
 from uuid import uuid4
 
-from pydantic import model_validator, BaseModel
+from pydantic import model_validator, BaseModel, ValidationError
 
 
 from .question_base import QuestionBase
@@ -22,6 +22,29 @@ class FreeTextResponse(BaseModel):
     Attributes:
         answer: The text response string.
         generated_tokens: Optional raw LLM output for token tracking.
+
+    Examples:
+        >>> # Valid response with just answer
+        >>> response = FreeTextResponse(answer="Hello world")
+        >>> response.answer
+        'Hello world'
+
+        >>> # Valid response with matching tokens
+        >>> response = FreeTextResponse(answer="Hello world", generated_tokens="Hello world")
+        >>> response.answer
+        'Hello world'
+
+        >>> # Invalid response with mismatched tokens
+        >>> try:
+        ...     FreeTextResponse(answer="Hello world", generated_tokens="Different text")
+        ... except Exception as e:
+        ...     print("Validation error occurred")
+        Validation error occurred
+
+        >>> # Empty string is valid
+        >>> response = FreeTextResponse(answer="")
+        >>> response.answer
+        ''
     """
 
     answer: str
@@ -33,8 +56,7 @@ class FreeTextResponse(BaseModel):
         Validate that the answer matches the generated tokens if provided.
         
         This validator ensures consistency between the answer and generated_tokens
-        fields when both are present. They must match exactly (after stripping
-        whitespace) to ensure token tracking accuracy.
+        fields when both are present. They must match exactly.
         
         Returns:
             The validated model instance.
@@ -42,13 +64,24 @@ class FreeTextResponse(BaseModel):
         Raises:
             ValueError: If the answer and generated_tokens don't match exactly.
         """
-        if self.generated_tokens is not None:  # If generated_tokens exists
-            # Ensure exact string equality
-            if self.answer.strip() != self.generated_tokens.strip():  # They MUST match exactly
+        if self.generated_tokens is not None:
+            if self.answer.strip() != self.generated_tokens.strip():
                 from .exceptions import QuestionAnswerValidationError
+                validation_error = ValidationError.from_exception_data(
+                    title='FreeTextResponse',
+                    line_errors=[{
+                        'type': 'value_error',
+                        'loc': ('answer', 'generated_tokens'),
+                        'msg': 'Values must match',
+                        'input': self.generated_tokens,
+                        'ctx': {'error': 'Values do not match'}
+                    }]
+                )
                 raise QuestionAnswerValidationError(
-                    f"answer '{self.answer}' must exactly match generated_tokens '{self.generated_tokens}'. "
-                    f"Type of answer: {type(self.answer)}, Type of tokens: {type(self.generated_tokens)}"
+                    message=f"answer '{self.answer}' must exactly match generated_tokens '{self.generated_tokens}'",
+                    data=self.model_dump(),
+                    model=self.__class__,
+                    pydantic_error=validation_error
                 )
         return self
 
@@ -65,7 +98,36 @@ class FreeTextResponseValidator(ResponseValidatorABC):
         required_params: List of required parameters for validation.
         valid_examples: Examples of valid responses for testing.
         invalid_examples: Examples of invalid responses for testing.
+
+    Examples:
+        >>> from edsl import QuestionFreeText
+        >>> q = QuestionFreeText.example()
+        >>> validator = q.response_validator
+
+        >>> # Fix mismatched tokens by using generated_tokens
+        >>> response = {"answer": "Hello", "generated_tokens": "Goodbye"}
+        >>> fixed = validator.fix(response)
+        >>> fixed
+        {'answer': 'Goodbye', 'generated_tokens': 'Goodbye'}
+
+        >>> # Handle None values by converting to strings
+        >>> response = {"answer": None, "generated_tokens": "Some text"}
+        >>> fixed = validator.fix(response)
+        >>> fixed
+        {'answer': 'Some text', 'generated_tokens': 'Some text'}
+
+        >>> # Validate fixed response
+        >>> validated = validator.validate(fixed)
+        >>> validated['answer'] == validated['generated_tokens']
+        True
+
+        >>> # Fix when only generated_tokens is present
+        >>> response = {"generated_tokens": "Solo tokens"}
+        >>> fixed = validator.fix(response)
+        >>> fixed['answer'] == fixed['generated_tokens'] == "Solo tokens"
+        True
     """
+
     required_params = []
     valid_examples = [({"answer": "This is great"}, {})]
     invalid_examples = [
@@ -121,7 +183,7 @@ class QuestionFreeText(QuestionBase):
         question_type (str): Identifier for this question type, set to "free_text".
         _response_model: Pydantic model for validating responses.
         response_validator_class: Class used to validate and fix responses.
-        
+
     Examples:
         >>> q = QuestionFreeText(
         ...     question_name="opinion", 
@@ -278,3 +340,9 @@ def main():
     import doctest
     doctest.testmod(optionflags=doctest.ELLIPSIS)
     print("Doctests completed")
+
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod(optionflags=doctest.ELLIPSIS)
+ 
