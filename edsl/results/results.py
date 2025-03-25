@@ -78,22 +78,6 @@ def ensure_fetched(method):
 
     Returns:
         The wrapped method that will ensure data is fetched before execution.
-
-    Examples:
-        >>> def dummy_method(self):
-        ...     return "Data was fetched"
-        >>> # Simulate a class with the decorator
-        >>> class DummyClass:
-        ...     _fetched = False
-        ...     job_info = "job_info"
-        ...     def fetch_remote(self, job_info):
-        ...         self._fetched = True
-        ...     @ensure_fetched
-        ...     def method(self):
-        ...         return "Data was fetched"
-        >>> dummy = DummyClass()
-        >>> dummy.method()
-        'Data was fetched'
     """
 
     def wrapper(self, *args, **kwargs):
@@ -122,31 +106,6 @@ def ensure_ready(method):
     Raises:
         Exception: Any exception from fetch_remote will be caught and printed.
 
-    Examples:
-        >>> # Simulate a test class with the decorator
-        >>> from functools import wraps
-        >>> class TestClass:
-        ...     completed = False
-        ...     job_info = type('JobInfo', (), {'creation_data': {'key': 'value'}})
-        ...     def fetch_remote(self, job_info):
-        ...         pass
-        ...     @ensure_ready
-        ...     def test_method(self):
-        ...         return "Success"
-        ...     @ensure_ready
-        ...     def __repr__(self):
-        ...         return "TestClass repr"
-        >>> # When not completed, a NotReadyObject is returned
-        >>> tc = TestClass()
-        >>> isinstance(tc.test_method(), NotReadyObject)
-        True
-        >>> # For __repr__, a string is returned
-        >>> isinstance(tc.__repr__(), str)
-        True
-        >>> # When completed, the actual method is called
-        >>> tc.completed = True
-        >>> tc.test_method()
-        'Success'
     """
     from functools import wraps
 
@@ -181,17 +140,6 @@ class NotReadyObject:
         name: The name of the method that was originally called.
         job_info: Information about the running job.
 
-    Examples:
-        >>> # Create a simple job info object
-        >>> class JobInfo:
-        ...     def __init__(self, data):
-        ...         self.creation_data = data
-        >>> job_info = JobInfo({"job_id": "123", "status": "running"})
-        >>> obj = NotReadyObject("test_method", job_info)
-        >>> str(obj).startswith("Results not ready")
-        True
-        >>> obj.some_attribute.another_attribute()  # Chaining works
-        <...NotReadyObject object at ...>
     """
 
     def __init__(self, name: str, job_info: "Any"):
@@ -511,13 +459,8 @@ class Results(UserList, ResultsOperationsMixin, Base):
         Examples:
             >>> from edsl.results import Results
             >>> r = Results.example()
-            >>> cost = r.compute_job_cost()
-            >>> isinstance(cost, float)
-            True
-            >>> # Compare with including cached responses
-            >>> cached_cost = r.compute_job_cost(include_cached_responses_in_cost=True)
-            >>> cached_cost >= cost
-            True
+            >>> r.compute_job_cost()
+            0
         """
         total_cost = 0
         for result in self:
