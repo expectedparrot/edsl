@@ -160,9 +160,15 @@ class MultipleChoiceResponseValidator(ResponseValidatorABC):
             >>> result["answer"]
             'Good'
         """
+        # Don't attempt to fix None values - they should be properly rejected
+        if response.get("answer") is None:
+            if verbose:
+                print("Not attempting to fix None answer value")
+            return response
+            
         # Get the raw text to analyze
         response_text = str(response.get("answer", ""))
-        if not response_text or response_text == "None":
+        if not response_text:
             response_text = str(response.get("generated_tokens", ""))
 
         if verbose:
@@ -221,24 +227,26 @@ class MultipleChoiceResponseValidator(ResponseValidatorABC):
         
         # Strategy 3: Check if the answer is a prefix of any option
         # This handles cases where the model returns a partial answer
-        for option in self.question_options:
-            option_str = str(option).strip()
-            if option_str.startswith(response_text_normalized) or response_text_normalized.startswith(option_str):
-                if verbose:
-                    print(f"Prefix match found with option: {option}")
-                proposed_data = {
-                    "answer": option,  # Use the exact option from the list
-                    "comment": response.get("comment"),
-                    "generated_tokens": response.get("generated_tokens"),
-                }
-                try:
-                    self.response_model.model_validate(proposed_data)
+        # Only apply this strategy if we have a meaningful response text
+        if response_text_normalized and not response_text_normalized.lower() == "none":
+            for option in self.question_options:
+                option_str = str(option).strip()
+                if option_str.startswith(response_text_normalized) or response_text_normalized.startswith(option_str):
                     if verbose:
-                        print(f"Fixed answer with prefix matching: {option}")
-                    return proposed_data
-                except Exception as e:
-                    if verbose:
-                        print(f"Validation failed for prefix answer: {e}")
+                        print(f"Prefix match found with option: {option}")
+                    proposed_data = {
+                        "answer": option,  # Use the exact option from the list
+                        "comment": response.get("comment"),
+                        "generated_tokens": response.get("generated_tokens"),
+                    }
+                    try:
+                        self.response_model.model_validate(proposed_data)
+                        if verbose:
+                            print(f"Fixed answer with prefix matching: {option}")
+                        return proposed_data
+                    except Exception as e:
+                        if verbose:
+                            print(f"Validation failed for prefix answer: {e}")
         
         # If multiple or no matches, return original response
         if verbose:
