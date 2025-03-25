@@ -1,7 +1,8 @@
 from typing import Optional
 
 from .token_usage import TokenUsage
-from edsl.enums import TokenPricing
+from ..enums import TokenPricing
+from .exceptions import TokenUsageError
 
 class InterviewTokenUsage:
     """A class to represent the token usage of an interview."""
@@ -24,7 +25,7 @@ class InterviewTokenUsage:
         >>> usage3 = usage1 + usage2
         """
         if not isinstance(other, InterviewTokenUsage):
-            raise ValueError(f"Can't add {type(other)} to InterviewTokenSummary")
+            raise TokenUsageError(f"Can't add {type(other)} to InterviewTokenSummary")
         return InterviewTokenUsage(
             new_token_usage=self.new_token_usage + other.new_token_usage,
             cached_token_usage=self.cached_token_usage + other.cached_token_usage,

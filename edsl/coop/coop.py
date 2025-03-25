@@ -180,7 +180,7 @@ class Coop(CoopFunctionsMixin):
                     timeout=timeout,
                 )
             else:
-                from edsl.coop.exceptions import CoopInvalidMethodError
+                from .exceptions import CoopInvalidMethodError
 
                 raise CoopInvalidMethodError(f"Invalid {method=}.")
         except requests.ConnectionError:
@@ -303,7 +303,7 @@ class Coop(CoopFunctionsMixin):
                 message = root.find("Message").text
                 details = root.find("Details").text
             except Exception:
-                from edsl.coop.exceptions import CoopServerResponseError
+                from .exceptions import CoopServerResponseError
 
                 raise CoopServerResponseError(
                     f"Server returned status code {response.status_code}. "
@@ -311,7 +311,7 @@ class Coop(CoopFunctionsMixin):
                     f"The server response was: {response.text}"
                 )
 
-            from edsl.coop.exceptions import CoopServerResponseError
+            from .exceptions import CoopServerResponseError
 
             raise CoopServerResponseError(
                 f"An error occurred: {code} - {message} - {details}"
@@ -538,7 +538,7 @@ class Coop(CoopFunctionsMixin):
             if response_json.get("upload_signed_url"):
                 signed_url = response_json.get("upload_signed_url")
             else:
-                from edsl.coop.exceptions import CoopResponseError
+                from .exceptions import CoopResponseError
 
                 raise CoopResponseError("No signed url was provided received")
 
@@ -551,7 +551,7 @@ class Coop(CoopFunctionsMixin):
                 "file_store_upload_signed_url"
             )
             if file_store_metadata and not file_store_upload_signed_url:
-                from edsl.coop.exceptions import CoopResponseError
+                from .exceptions import CoopResponseError
 
                 raise CoopResponseError("No file store signed url provided.")
             elif file_store_metadata:
@@ -659,7 +659,7 @@ class Coop(CoopFunctionsMixin):
             json_string = object_data.text
         object_type = response.json().get("object_type")
         if expected_object_type and object_type != expected_object_type:
-            from edsl.coop.exceptions import CoopObjectTypeError
+            from .exceptions import CoopObjectTypeError
 
             raise CoopObjectTypeError(
                 f"Expected {expected_object_type=} but got {object_type=}"
@@ -754,7 +754,7 @@ class Coop(CoopFunctionsMixin):
             and value is None
             and alias is None
         ):
-            from edsl.coop.exceptions import CoopPatchError
+            from .exceptions import CoopPatchError
 
             raise CoopPatchError("Nothing to patch.")
 
@@ -887,7 +887,7 @@ class Coop(CoopFunctionsMixin):
         [CacheEntry(...), CacheEntry(...), ...]
         """
         if job_uuid is None:
-            from edsl.coop.exceptions import CoopValueError
+            from .exceptions import CoopValueError
 
             raise CoopValueError("Must provide a job_uuid.")
         response = self._send_server_request(
@@ -917,7 +917,7 @@ class Coop(CoopFunctionsMixin):
         [CacheEntry(...), CacheEntry(...), ...]
         """
         if select_keys is None or len(select_keys) == 0:
-            from edsl.coop.exceptions import CoopValueError
+            from .exceptions import CoopValueError
 
             raise CoopValueError("Must provide a non-empty list of select_keys.")
         response = self._send_server_request(
@@ -1182,7 +1182,7 @@ class Coop(CoopFunctionsMixin):
             ...     print(f"Results available at: {job_status['results_url']}")
         """
         if job_uuid is None and results_uuid is None:
-            from edsl.coop.exceptions import CoopValueError
+            from .exceptions import CoopValueError
 
             raise CoopValueError("Either job_uuid or results_uuid must be provided.")
         elif job_uuid is not None:
@@ -1258,7 +1258,7 @@ class Coop(CoopFunctionsMixin):
         elif isinstance(input, Survey):
             job = Jobs(survey=input)
         else:
-            from edsl.coop.exceptions import CoopTypeError
+            from .exceptions import CoopTypeError
 
             raise CoopTypeError("Input must be either a Job or a Survey.")
 
@@ -1395,7 +1395,7 @@ class Coop(CoopFunctionsMixin):
         elif CONFIG.get("EDSL_FETCH_TOKEN_PRICES") == "False":
             return {}
         else:
-            from edsl.coop.exceptions import CoopValueError
+            from .exceptions import CoopValueError
 
             raise CoopValueError(
                 "Invalid EDSL_FETCH_TOKEN_PRICES value---should be 'True' or 'False'."
@@ -1553,7 +1553,7 @@ class Coop(CoopFunctionsMixin):
         api_key = self._poll_for_api_key(edsl_auth_token)
 
         if api_key is None:
-            from edsl.coop.exceptions import CoopTimeoutError
+            from .exceptions import CoopTimeoutError
 
             raise CoopTimeoutError("Timed out waiting for login. Please try again.")
 

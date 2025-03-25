@@ -92,7 +92,7 @@ class InterviewExceptionEntry:
     def code(self, run=True):
         """Return the code to reproduce the exception."""
         lines = []
-        lines.append("from edsl import Question, Model, Scenario, Agent")
+        lines.append("from .. import Question, Model, Scenario, Agent")
 
         lines.append(f"q = {repr(self.invigilator.question)}")
         lines.append(f"scenario = {repr(self.invigilator.scenario)}")

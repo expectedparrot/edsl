@@ -1,5 +1,5 @@
 from typing import List, Optional
-from edsl.utilities.remove_edsl_version import remove_edsl_version
+from ..utilities.remove_edsl_version import remove_edsl_version
 
 
 class ChangeInstruction:
@@ -9,11 +9,12 @@ class ChangeInstruction:
         drop: Optional[List[str]] = None,
     ):
         if keep is None and drop is None:
-            from edsl.instructions.exceptions import InstructionValueError
+            from .exceptions import InstructionValueError
             raise InstructionValueError("Keep and drop cannot both be None")
 
         self.keep = keep or []
         self.drop = drop or []
+        self.pseudo_index = 0.0
 
     def include_instruction(self, instruction_name) -> bool:
         return (instruction_name in self.keep) or (instruction_name not in self.drop)
@@ -30,7 +31,7 @@ class ChangeInstruction:
             "drop": self.drop,
         }
         if add_edsl_version:
-            from edsl import __version__
+            from .. import __version__
 
             d["edsl_version"] = __version__
             d["edsl_class_name"] = "ChangeInstruction"
@@ -39,7 +40,7 @@ class ChangeInstruction:
 
     def __hash__(self) -> int:
         """Return a hash of the question."""
-        from edsl.utilities.utilities import dict_hash
+        from ..utilities.utilities import dict_hash
 
         return dict_hash(self.to_dict(add_edsl_version=False))
 

@@ -145,7 +145,7 @@ class Prompt(PersistenceMixin, RepresentationMixin):
         if path_to_folder is None:
             from importlib import resources
 
-            path_to_folder = resources.path("edsl.questions", "prompt_templates")
+            path_to_folder = resources.path("..questions", "prompt_templates")
 
         try:
             folder_path = Path(path_to_folder)

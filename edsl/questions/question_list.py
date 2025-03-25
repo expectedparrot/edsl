@@ -4,7 +4,6 @@ from typing import Any, Optional, Union, ForwardRef
 
 from pydantic import Field, model_validator, ValidationError
 from json_repair import repair_json
-from .exceptions import QuestionAnswerValidationError
 from .question_base import QuestionBase
 from .descriptors import IntegerOrNoneDescriptor
 from .decorators import inject_exception
@@ -57,7 +56,7 @@ def convert_string(s: str) -> Union[float, int, str, dict]:
 
 
 def create_model(min_list_items: Optional[int], max_list_items: Optional[int], permissive: bool) -> "ListResponse":
-    from pydantic import BaseModel, model_validator
+    from pydantic import BaseModel
 
     if permissive or (max_list_items is None and min_list_items is None):
         class ListResponse(BaseModel):

@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Optional, List, Any, Union
+from typing import Optional, List, Any
 import re
 
 from pydantic import BaseModel, Field, model_validator, ValidationError

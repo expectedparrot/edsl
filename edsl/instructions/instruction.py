@@ -14,6 +14,7 @@ class Instruction(RepresentationMixin):
         self.name = name
         self.text = text
         self.preamble = preamble
+        self.pseudo_index = 0.0
 
     def __str__(self):
         return self.text

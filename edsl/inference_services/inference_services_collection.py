@@ -1,7 +1,7 @@
 from collections import defaultdict
 from typing import Optional, Protocol, Dict, List, Tuple, TYPE_CHECKING
 
-from edsl.enums import InferenceServiceLiteral
+from ..enums import InferenceServiceLiteral
 from .inference_service_abc import InferenceServiceABC
 from .available_model_fetcher import AvailableModelFetcher
 from .exceptions import InferenceServiceError

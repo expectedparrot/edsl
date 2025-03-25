@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Dict, List, Generator, Union
+from typing import TYPE_CHECKING, Dict, List, Generator, Union, Tuple
 from collections import UserDict
 
 from .instruction import Instruction
@@ -40,13 +40,14 @@ class InstructionCollection(UserDict):
 
     def _entries_before(
         self, question_name
-    ) -> tuple[List[Instruction], List[ChangeInstruction]]:
+    ) -> Tuple[List[Instruction], List[ChangeInstruction]]:
         if question_name not in self.question_names:
-            from edsl.instructions.exceptions import InstructionCollectionError
+            from .exceptions import InstructionCollectionError
             raise InstructionCollectionError(
                 f"Question name not found in the list of questions: got '{question_name}'; list is {self.question_names}"
             )
-        instructions, changes = [], []
+        instructions: List[Instruction] = []
+        changes: List[ChangeInstruction] = []
 
         index = self.question_index(question_name)
         for instruction in self.instruction_names_to_instruction.values():

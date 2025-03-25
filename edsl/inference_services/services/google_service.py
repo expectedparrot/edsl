@@ -5,7 +5,7 @@ import google.generativeai as genai
 from google.generativeai.types import GenerationConfig
 from google.api_core.exceptions import InvalidArgument
 
-# from edsl.exceptions.general import MissingAPIKeyError
+# from ...exceptions.general import MissingAPIKeyError
 from ..inference_service_abc import InferenceServiceABC
 from ...language_models import LanguageModel
 

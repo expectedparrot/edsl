@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Any, Optional, TYPE_CHECKING, Union
+from typing import Any, Optional, TYPE_CHECKING
 
 import random
 from jinja2 import Template
@@ -18,9 +18,7 @@ from .decorators import inject_exception
 from .response_validator_abc import ResponseValidatorABC
 
 if TYPE_CHECKING:
-    from .data_structures import (
-        BaseResponse,
-    )
+    pass
 
 
 class CheckboxResponse(BaseModel):

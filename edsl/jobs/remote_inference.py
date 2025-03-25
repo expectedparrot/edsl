@@ -43,7 +43,7 @@ class JobsRemoteInferenceHandler:
         self.verbose = verbose
         self.poll_interval = poll_interval
 
-        from edsl.config import CONFIG
+        from ..config import CONFIG
 
         self.expected_parrot_url = CONFIG.get("EXPECTED_PARROT_URL")
         self.remote_inference_url = f"{self.expected_parrot_url}/home/remote-inference"

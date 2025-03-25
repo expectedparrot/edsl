@@ -74,7 +74,7 @@ class TestService(InferenceServiceABC):
                         p = 1
 
                     if random.random() < p:
-                        from edsl.inference_services.exceptions import InferenceServiceError
+                        from ..exceptions import InferenceServiceError
                         raise InferenceServiceError("This is a test error")
 
                 if hasattr(self, "func"):
