@@ -3,8 +3,10 @@
 import os
 import platformdirs
 from dotenv import load_dotenv, find_dotenv
-from edsl.base import BaseException
-from edsl import logger
+from ..base import BaseException
+import logging
+
+logger = logging.getLogger(__name__)
 
 class InvalidEnvironmentVariableError(BaseException):
     """Raised when an environment variable is invalid."""

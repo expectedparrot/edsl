@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import Optional
-from ..question_multiple_choice import QuestionMultipleChoice
-from ..decorators import inject_exception
+from .question_multiple_choice import QuestionMultipleChoice
+from .decorators import inject_exception
 
 
 class QuestionLikertFive(QuestionMultipleChoice):

@@ -176,8 +176,11 @@ class Cache(Base):
             
         Examples:
             >>> from edsl import Cache
-            >>> Cache.example().values()
-            [CacheEntry(...)]
+            >>> entries = Cache.example().values()
+            >>> len(entries)
+            1
+            >>> entries[0]  # doctest: +ELLIPSIS
+            CacheEntry(model='gpt-3.5-turbo', parameters={'temperature': 0.5}, ...)
         """
         return list(self.data.values())
 

@@ -184,6 +184,13 @@ class DataOperationsBase:
                     )
 
         return _num_observations
+    
+    def chart(self):
+        """
+        Create a chart from the results.
+        """
+        import altair as alt
+        return alt.Chart(self.to_pandas(remove_prefix=True))
 
     def make_tabular(
         self, remove_prefix: bool, pretty_labels: Optional[dict] = None
@@ -538,13 +545,14 @@ class DataOperationsBase:
         >>> r.select('how_feeling').to_scenario_list()
         ScenarioList([Scenario({'how_feeling': 'OK'}), Scenario({'how_feeling': 'Great'}), Scenario({'how_feeling': 'Terrible'}), Scenario({'how_feeling': 'OK'})])
         """
-        from edsl.scenarios import ScenarioList, Scenario
+        from ..scenarios import ScenarioList, Scenario
 
         list_of_dicts = self.to_dicts(remove_prefix=remove_prefix)
         scenarios = []
         for d in list_of_dicts:
             scenarios.append(Scenario(d))
         return ScenarioList(scenarios)
+    
 
     def to_agent_list(self, remove_prefix: bool = True):
         """Convert the results to a list of dictionaries, one per agent.
@@ -556,7 +564,7 @@ class DataOperationsBase:
         >>> r.select('how_feeling').to_agent_list()
         AgentList([Agent(traits = {'how_feeling': 'OK'}), Agent(traits = {'how_feeling': 'Great'}), Agent(traits = {'how_feeling': 'Terrible'}), Agent(traits = {'how_feeling': 'OK'})])
         """
-        from edsl.agents import Agent, AgentList
+        from ..agents import Agent, AgentList
 
         list_of_dicts = self.to_dicts(remove_prefix=remove_prefix)
         agents = []
@@ -665,7 +673,7 @@ class DataOperationsBase:
     ):
         import os
         import tempfile
-        from edsl.utilities.utilities import is_notebook
+        from ..utilities.utilities import is_notebook
         from IPython.display import HTML, display
 
         df = self.to_pandas()
@@ -799,7 +807,7 @@ class DataOperationsBase:
             from docx.shared import Pt
             import json
         except ImportError:
-            from edsl.dataset.exceptions import DatasetImportError
+            from .exceptions import DatasetImportError
             raise DatasetImportError("The python-docx package is required for DOCX export. Install it with 'pip install python-docx'.")
         
         doc = Document()
@@ -871,7 +879,7 @@ class DataOperationsBase:
             >>> isinstance(doc, object)
             True
         """
-        from edsl.utilities.utilities import is_notebook
+        from ..utilities.utilities import is_notebook
         
         # Prepare the data for the report
         field_data, num_obs, fields, header_fields = self._prepare_report_data(
@@ -1076,7 +1084,7 @@ class DataOperationsBase:
         # Check if the field is ambiguous
         if len(matching_entries) > 1:
             matching_cols = [next(iter(entry.keys())) for entry in matching_entries]
-            from edsl.dataset.exceptions import DatasetValueError
+            from .exceptions import DatasetValueError
             raise DatasetValueError(
                 f"Ambiguous field name '{field}'. It matches multiple columns: {matching_cols}. "
                 f"Please specify the full column name to flatten."

@@ -105,6 +105,7 @@ This is equivalent:
 Once retrieved, a file can be converted into scenarios.
 To construct a single scenario from a file, use the `Scenario` constructor and pass the file as a value for a specified key (see image file example below).
 To construct a list of scenarios from a file, call the `from_csv` or `from_pdf` method of the `ScenarioList` constructor and pass the file as an argument (see CSV and PDF examples below).
+To construct a list of scenarios from multiple files in a directory, you can use the `ScenarioList.from_directory()` method, which will wrap each file in a Scenario with a specified key (default is "content").
 
 We can also create agents by calling the `from_csv()` method on an `AgentList` object.
 

@@ -1,9 +1,8 @@
 from __future__ import annotations
 from typing import Optional
-from ..descriptors import QuestionOptionsDescriptor
-from ..question_multiple_choice import QuestionMultipleChoice
-
-from ..decorators import inject_exception
+from .descriptors import QuestionOptionsDescriptor
+from .question_multiple_choice import QuestionMultipleChoice
+from .decorators import inject_exception
 
 
 class QuestionYesNo(QuestionMultipleChoice):

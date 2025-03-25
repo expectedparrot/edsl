@@ -2,8 +2,7 @@ import pytest
 from edsl.questions.exceptions import (
     QuestionAnswerValidationError,
 )
-from edsl.questions import QuestionBase
-from edsl.questions.derived.question_yes_no import QuestionYesNo
+from edsl.questions import QuestionBase, QuestionYesNo
 
 
 def test_QuestionYesNo_main():

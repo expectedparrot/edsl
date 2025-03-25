@@ -231,11 +231,15 @@ class LanguageModel(
         for key, value in kwargs.items():
             if key not in parameters:
                 setattr(self, key, value)
-
+            
         # Handle API key check skip for testing
         if kwargs.get("skip_api_key_check", False):
             # Skip the API key check. Sometimes this is useful for testing.
             self._api_token = None
+
+        # Add canned response to parameters
+        if "canned_response" in kwargs:
+            self.parameters["canned_response"] = kwargs["canned_response"]
 
     def _set_key_lookup(self, key_lookup: "KeyLookup") -> "KeyLookup":
         """Set up the API key lookup mechanism.

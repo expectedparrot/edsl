@@ -26,9 +26,10 @@ class RequestTokenEstimator:
                     if isinstance(file, FileStore):
                         file_tokens += file.size * 0.25
             else:
-                from edsl.interviews.exceptions import InterviewTokenError
+                from .exceptions import InterviewTokenError
                 raise InterviewTokenError(f"Prompt is of type {type(prompt)}")
-        return len(combined_text) / 4.0 + file_tokens
+        result: float = len(combined_text) / 4.0 + file_tokens
+        return result
 
 
 

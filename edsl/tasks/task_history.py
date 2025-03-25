@@ -146,7 +146,7 @@ class TaskHistory(RepresentationMixin):
             "include_traceback": self.include_traceback,
         }
         if add_edsl_version:
-            from edsl import __version__
+            from .. import __version__
 
             d["edsl_version"] = __version__
             d["edsl_class_name"] = "TaskHistory"
@@ -406,7 +406,7 @@ class TaskHistory(RepresentationMixin):
         models_used = set([i.model.model for index, i in self._interviews.items()])
 
         from jinja2 import Environment
-        from edsl.utilities import TemplateLoader
+        from ..utilities import TemplateLoader
 
         env = Environment(loader=TemplateLoader("edsl", "templates/error_reporting"))
 
@@ -465,7 +465,7 @@ class TaskHistory(RepresentationMixin):
         """
         from IPython.display import display, HTML
         import os
-        from edsl.utilities.utilities import is_notebook
+        from ..utilities.utilities import is_notebook
 
         output = self.generate_html_report(css)
 
