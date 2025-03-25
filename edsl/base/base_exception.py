@@ -146,7 +146,7 @@ class BaseException(Exception):
                     #         )
                     #     )
                     # except:
-                    print(f"❌ EDSL ERROR: {etype.__name__}: {evalue}", file=sys.stderr)
+                    print(f"❌ E[🦃] EDSL ERROR: {etype.__name__}: {evalue}", file=sys.stderr)
                 # Suppress IPython’s normal traceback
                 return
             # Otherwise, fall back to the usual traceback
@@ -178,7 +178,7 @@ class BaseException(Exception):
                     #     )
                     # except:
                     print(
-                        f"❌ EDSL ERROR: {exc_type.__name__}: {exc_value}",
+                        f"❌ E[🦃]EDSL ERROR: {exc_type.__name__}: {exc_value}",
                         exc_traceback,
                         file=sys.stderr,
                     )
