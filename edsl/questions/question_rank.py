@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Optional, Any, List, Annotated, Literal, Union, get_args
+from typing import Optional, Any, List, Union
 import random
 import re
 
@@ -463,7 +463,7 @@ class QuestionRank(QuestionBase):
         Returns:
             A valid simulated response
         """
-        from edsl.utilities.utilities import random_string
+        from ..utilities.utilities import random_string
 
         # Handle the simulation logic based on use_code and human_readable flags
         if human_readable:

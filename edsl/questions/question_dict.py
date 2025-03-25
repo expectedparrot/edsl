@@ -15,6 +15,8 @@ from typing import Union, Optional, Dict, List, Any, Type
 from pydantic import BaseModel, Field, create_model
 from jinja2 import Environment, FileSystemLoader, TemplateNotFound
 from pathlib import Path
+import re
+import ast
 
 from .question_base import QuestionBase
 from .descriptors import (
@@ -131,18 +133,82 @@ class DictResponseValidator(ResponseValidatorABC):
         """
         Attempt to fix an invalid dictionary response.
         
-        This method tries to:
-        1. Convert values to the expected types when possible
-        2. Extract structured data from text responses
-        3. Handle missing keys with default values
-        
-        Parameters:
-            response: The invalid response dict
-            verbose: Whether to print debug information
+        Examples:
+            >>> # Set up validator with proper response model
+            >>> from pydantic import BaseModel, create_model, Field
+            >>> from typing import Optional
+            >>> # Create a proper response model that matches our expected structure
+            >>> AnswerModel = create_model('AnswerModel', name=(str, ...), age=(int, ...))
+            >>> ResponseModel = create_model(
+            ...     'ResponseModel',
+            ...     answer=(AnswerModel, ...),
+            ...     comment=(Optional[str], None),
+            ...     generated_tokens=(Optional[Any], None)
+            ... )
+            >>> validator = DictResponseValidator(
+            ...     response_model=ResponseModel,
+            ...     answer_keys=["name", "age"],
+            ...     permissive=False
+            ... )
+            >>> validator.value_types = ["str", "int"]
             
-        Returns:
-            A fixed response dict if possible, otherwise the original
+            # Fix dictionary with comment on same line
+            >>> response = "{'name': 'john', 'age': 23} Here you go."
+            >>> result = validator.fix(response)
+            >>> dict(result['answer'])  # Convert to dict for consistent output
+            {'name': 'john', 'age': 23}
+            >>> result['comment']
+            'Here you go.'
+            
+            # Fix type conversion (string to int)
+            >>> response = {"answer": {"name": "john", "age": "23"}}
+            >>> result = validator.fix(response)
+            >>> dict(result['answer'])  # Convert to dict for consistent output
+            {'name': 'john', 'age': 23}
+            
+            # Fix list from comma-separated string
+            >>> AnswerModel2 = create_model('AnswerModel2', name=(str, ...), hobbies=(List[str], ...))
+            >>> ResponseModel2 = create_model(
+            ...     'ResponseModel2',
+            ...     answer=(AnswerModel2, ...),
+            ...     comment=(Optional[str], None),
+            ...     generated_tokens=(Optional[Any], None)
+            ... )
+            >>> validator = DictResponseValidator(
+            ...     response_model=ResponseModel2,
+            ...     answer_keys=["name", "hobbies"],
+            ...     permissive=False
+            ... )
+            >>> validator.value_types = ["str", "list[str]"]
+            >>> response = {"answer": {"name": "john", "hobbies": "reading, gaming, coding"}}
+            >>> result = validator.fix(response)
+            >>> dict(result['answer'])  # Convert to dict for consistent output
+            {'name': 'john', 'hobbies': ['reading', 'gaming', 'coding']}
+            
+            # Handle invalid input gracefully
+            >>> response = "not a dictionary"
+            >>> validator.fix(response)
+            'not a dictionary'
         """
+        # First try to separate dictionary from trailing comment if they're on the same line
+        if isinstance(response, str):
+            # Try to find where the dictionary ends and comment begins
+            try:
+                dict_match = re.match(r'(\{.*?\})(.*)', response.strip())
+                if dict_match:
+                    dict_str, comment = dict_match.groups()
+                    try:
+                        answer_dict = ast.literal_eval(dict_str)
+                        response = {
+                            "answer": answer_dict,
+                            "comment": comment.strip() if comment.strip() else None
+                        }
+                    except (ValueError, SyntaxError):
+                        pass
+            except Exception:
+                pass
+
+        # Continue with existing fix logic
         if "answer" not in response or not isinstance(response["answer"], dict):
             if verbose:
                 print("Cannot fix response: 'answer' field missing or not a dictionary")

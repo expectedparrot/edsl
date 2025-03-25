@@ -146,7 +146,8 @@ class TestScenarioListFromDirectory:
 
     def test_from_directory_nonexistent(self):
         """Test from_directory with a nonexistent directory."""
-        with pytest.raises(FileNotFoundError):
+        from edsl.scenarios.exceptions import FileNotFoundScenarioError
+        with pytest.raises(FileNotFoundScenarioError):
             ScenarioList.from_directory("/path/that/does/not/exist")
 
     def test_from_directory_custom_key_name(self, temp_directory):

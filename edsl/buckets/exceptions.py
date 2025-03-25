@@ -73,3 +73,35 @@ class BucketConfigurationError(BucketError):
         ```
     """
     relevant_doc = "https://docs.expectedparrot.com/"
+
+
+class BucketNotFoundError(BucketError):
+    """
+    Exception raised when a requested bucket cannot be found.
+    
+    This exception occurs when attempting to access a bucket that doesn't exist
+    in the system or has been removed.
+    
+    Examples:
+        ```python
+        # Attempting to access a non-existent bucket:
+        bucket_collection.get_bucket("non_existent_bucket")  # Would raise BucketNotFoundError
+        ```
+    """
+    relevant_doc = "https://docs.expectedparrot.com/"
+    
+    
+class InvalidBucketParameterError(BucketConfigurationError):
+    """
+    Exception raised when an invalid parameter is provided for bucket operations.
+    
+    This exception occurs when providing invalid parameters to bucket methods,
+    such as negative token amounts, invalid capacity values, etc.
+    
+    Examples:
+        ```python
+        # Attempting to use invalid parameters:
+        bucket.add_tokens(-100)  # Would raise InvalidBucketParameterError
+        ```
+    """
+    relevant_doc = "https://docs.expectedparrot.com/"

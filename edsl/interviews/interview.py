@@ -365,7 +365,7 @@ class Interview:
             bool: True if the interviews are equivalent, False otherwise
             
         Examples:
-            >>> from edsl.interviews import Interview
+            >>> from . import Interview
             >>> i = Interview.example()
             >>> d = i.to_dict()
             >>> i2 = Interview.from_dict(d)

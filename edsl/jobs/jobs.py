@@ -620,7 +620,7 @@ class Jobs(Base):
         if jh.use_remote_inference(self.run_config.parameters.disable_remote_inference):
             job_info: RemoteJobInfo = self._start_remote_inference_job(jh)
             if background:
-                from edsl.results import Results
+                from ..results import Results
 
                 results = Results.from_job_info(job_info)
                 return results, None
@@ -881,7 +881,7 @@ class Jobs(Base):
             ],
         }
         if add_edsl_version:
-            from edsl import __version__
+            from .. import __version__
 
             d["edsl_version"] = __version__
             d["edsl_class_name"] = "Jobs"

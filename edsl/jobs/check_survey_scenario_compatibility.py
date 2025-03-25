@@ -1,12 +1,12 @@
 import warnings
 from typing import TYPE_CHECKING
-from edsl.scenarios import ScenarioList
-from edsl.surveys import Survey
-from edsl.jobs.exceptions import JobsCompatibilityError
+from ..scenarios import ScenarioList
+from ..surveys import Survey
+from .exceptions import JobsCompatibilityError
 
 if TYPE_CHECKING:
-    from edsl.surveys.Survey import Survey
-    from edsl.scenarios.ScenarioList import ScenarioList
+    from ..surveys.survey import Survey
+    from ..scenarios.scenario_list import ScenarioList
 
 
 class CheckSurveyScenarioCompatibility:

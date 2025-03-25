@@ -62,7 +62,7 @@ class Question(metaclass=Meta):
     @classmethod
     def pull(cls, url_or_uuid: Union[str, UUID]):
         """Pull the object from coop."""
-        from edsl.coop import Coop
+        from ..coop import Coop
 
         coop = Coop()
         return coop.get(url_or_uuid, "question")
@@ -70,7 +70,7 @@ class Question(metaclass=Meta):
     @classmethod
     def delete(cls, url_or_uuid: Union[str, UUID]):
         """Delete the object from coop."""
-        from edsl.coop import Coop
+        from ..coop import Coop
 
         coop = Coop()
         return coop.delete(url_or_uuid)
@@ -84,7 +84,7 @@ class Question(metaclass=Meta):
         visibility: Optional[str] = None,
     ):
         """Patch the object on coop."""
-        from edsl.coop import Coop
+        from ..coop import Coop
 
         coop = Coop()
         return coop.patch(url_or_uuid, description, value, visibility)

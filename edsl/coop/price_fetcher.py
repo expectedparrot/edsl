@@ -7,6 +7,7 @@ that price information is only fetched once and then cached for efficiency.
 """
 
 import requests
+import os
 from typing import Dict, Tuple, Any
 
 
@@ -82,7 +83,6 @@ class PriceFetcher:
         if self._cached_prices is not None:
             return self._cached_prices
 
-        import os
         from ..config import CONFIG
 
         try:

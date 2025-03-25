@@ -1,5 +1,5 @@
 from collections import UserDict
-from typing import DefaultDict
+from typing import DefaultDict, Union, Optional
 
 from ..tokens import InterviewTokenUsage
 
@@ -43,7 +43,7 @@ class InterviewStatistic(UserDict):
         value: float,
         digits: int = 0,
         units: str = "",
-        pretty_name: str = None,
+        pretty_name: Optional[str] = None,
     ):
         """Create a new InterviewStatistic object."""
         self.name = name
