@@ -140,6 +140,8 @@ class MultipleChoiceResponseValidator(ResponseValidatorABC):
         1. Extract an option mentioned in the generated text
         2. Check for exact matches in the text
         3. Look for substring matches
+        4. Normalize whitespace and check for matches
+        5. Check if the answer is a prefix of any option (ignoring trailing spaces/punctuation)
         
         Parameters:
             response: The invalid response to fix
@@ -158,9 +160,15 @@ class MultipleChoiceResponseValidator(ResponseValidatorABC):
             >>> result["answer"]
             'Good'
         """
+        # Don't attempt to fix None values - they should be properly rejected
+        if response.get("answer") is None:
+            if verbose:
+                print("Not attempting to fix None answer value")
+            return response
+            
         # Get the raw text to analyze
         response_text = str(response.get("answer", ""))
-        if not response_text or response_text == "None":
+        if not response_text:
             response_text = str(response.get("generated_tokens", ""))
 
         if verbose:
@@ -195,6 +203,50 @@ class MultipleChoiceResponseValidator(ResponseValidatorABC):
             except Exception as e:
                 if verbose:
                     print(f"Validation failed for fixed answer: {e}")
+        
+        # Strategy 2: Check if the answer is a match when normalized (strip whitespace)
+        response_text_normalized = response_text.strip()
+        for option in self.question_options:
+            option_str = str(option).strip()
+            if option_str == response_text_normalized:
+                if verbose:
+                    print(f"Normalized match found with option: {option}")
+                proposed_data = {
+                    "answer": option,  # Use the exact option from the list
+                    "comment": response.get("comment"),
+                    "generated_tokens": response.get("generated_tokens"),
+                }
+                try:
+                    self.response_model.model_validate(proposed_data)
+                    if verbose:
+                        print(f"Fixed answer with normalization: {option}")
+                    return proposed_data
+                except Exception as e:
+                    if verbose:
+                        print(f"Validation failed for normalized answer: {e}")
+        
+        # Strategy 3: Check if the answer is a prefix of any option
+        # This handles cases where the model returns a partial answer
+        # Only apply this strategy if we have a meaningful response text
+        if response_text_normalized and not response_text_normalized.lower() == "none":
+            for option in self.question_options:
+                option_str = str(option).strip()
+                if option_str.startswith(response_text_normalized) or response_text_normalized.startswith(option_str):
+                    if verbose:
+                        print(f"Prefix match found with option: {option}")
+                    proposed_data = {
+                        "answer": option,  # Use the exact option from the list
+                        "comment": response.get("comment"),
+                        "generated_tokens": response.get("generated_tokens"),
+                    }
+                    try:
+                        self.response_model.model_validate(proposed_data)
+                        if verbose:
+                            print(f"Fixed answer with prefix matching: {option}")
+                        return proposed_data
+                    except Exception as e:
+                        if verbose:
+                            print(f"Validation failed for prefix answer: {e}")
         
         # If multiple or no matches, return original response
         if verbose:

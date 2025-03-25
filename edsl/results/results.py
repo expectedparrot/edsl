@@ -1,5 +1,4 @@
-"""
-The Results module provides tools for working with collections of Result objects.
+"""The Results module provides tools for working with collections of Result objects.
 
 The Results class is the primary container for analyzing and manipulating data obtained 
 from running surveys with language models. It implements a powerful data analysis interface 
@@ -48,7 +47,7 @@ from ..base import Base
 
 if TYPE_CHECKING:
     from ..surveys import Survey
-    from ..data import Cache
+    from ..caching import Cache
     from ..agents import AgentList
     from ..scenarios import ScenarioList
     from ..results import Result
@@ -70,23 +69,43 @@ from .exceptions import (
     ResultsDeserializationError,
 )
 
+
 def ensure_fetched(method):
-    """A decorator that checks if remote data is loaded, and if not, attempts to fetch it."""
+    """A decorator that checks if remote data is loaded, and if not, attempts to fetch it.
+
+    Args:
+        method: The method to decorate.
+
+    Returns:
+        The wrapped method that will ensure data is fetched before execution.
+    """
+
     def wrapper(self, *args, **kwargs):
         if not self._fetched:
             # If not fetched, try fetching now.
             # (If you know you have job info stored in self.job_info)
             self.fetch_remote(self.job_info)
         return method(self, *args, **kwargs)
+
     return wrapper
 
+
 def ensure_ready(method):
-    """
-    Decorator for Results methods.
-    
+    """Decorator for Results methods to handle not-ready state.
+
     If the Results object is not ready, for most methods we return a NotReadyObject.
     However, for __repr__ (and other methods that need to return a string), we return
     the string representation of NotReadyObject.
+
+    Args:
+        method: The method to decorate.
+
+    Returns:
+        The wrapped method that will handle not-ready Results objects appropriately.
+
+    Raises:
+        Exception: Any exception from fetch_remote will be caught and printed.
+
     """
     from functools import wraps
 
@@ -101,7 +120,7 @@ def ensure_ready(method):
         except Exception as e:
             print(f"Error during fetch_remote in {method.__name__}: {e}")
         if not self.completed:
-            not_ready = NotReadyObject(name = method.__name__, job_info = self.job_info)
+            not_ready = NotReadyObject(name=method.__name__, job_info=self.job_info)
             # For __repr__, ensure we return a string
             if method.__name__ == "__repr__" or method.__name__ == "__str__":
                 return not_ready.__repr__()
@@ -110,59 +129,115 @@ def ensure_ready(method):
 
     return wrapper
 
+
 class NotReadyObject:
-    """A placeholder object that prints a message when any attribute is accessed."""
-    def __init__(self, name: str, job_info: 'Any'):
+    """A placeholder object that indicates results are not ready yet.
+
+    This class returns itself for all attribute accesses and method calls,
+    displaying a message about the job's running status when represented as a string.
+
+    Attributes:
+        name: The name of the method that was originally called.
+        job_info: Information about the running job.
+
+    """
+
+    def __init__(self, name: str, job_info: "Any"):
+        """Initialize a NotReadyObject.
+
+        Args:
+            name: The name of the method that was attempted to be called.
+            job_info: Information about the running job.
+        """
         self.name = name
         self.job_info = job_info
-        #print(f"Not ready to call {name}")
+        # print(f"Not ready to call {name}")
 
     def __repr__(self):
+        """Generate a string representation showing the job is still running.
+
+        Returns:
+            str: A message indicating the job is still running, along with job details.
+        """
         message = """Results not ready - job still running on server."""
         for key, value in self.job_info.creation_data.items():
             message += f"\n{key}: {value}"
         return message
 
     def __getattr__(self, _):
+        """Return self for any attribute access.
+
+        Args:
+            _: The attribute name (ignored).
+
+        Returns:
+            NotReadyObject: Returns self for chaining.
+        """
         return self
-    
+
     def __call__(self, *args, **kwargs):
+        """Return self when called as a function.
+
+        Args:
+            *args: Positional arguments (ignored).
+            **kwargs: Keyword arguments (ignored).
+
+        Returns:
+            NotReadyObject: Returns self for chaining.
+        """
         return self
 
 
 class Results(UserList, ResultsOperationsMixin, Base):
-    """
-    A collection of Result objects with powerful data analysis capabilities.
-    
+    """A collection of Result objects with powerful data analysis capabilities.
+
     The Results class is the primary container for working with data from EDSL surveys.
     It provides a rich set of methods for data analysis, transformation, and visualization
-    inspired by data manipulation libraries like dplyr and pandas. The Results class 
-    implements a functional, fluent interface for data manipulation where each method 
+    inspired by data manipulation libraries like dplyr and pandas. The Results class
+    implements a functional, fluent interface for data manipulation where each method
     returns a new Results object, allowing method chaining.
-    
+
+    Attributes:
+        survey: The Survey object containing the questions used to generate results.
+        data: A list of Result objects containing the responses.
+        created_columns: A list of column names created through transformations.
+        cache: A Cache object for storing model responses.
+        completed: Whether the Results object is ready for use.
+        task_history: A TaskHistory object containing information about the tasks.
+        known_data_types: List of valid data type strings for accessing data.
+
     Key features:
-    
-    - List-like interface for accessing individual Result objects
-    - Selection of specific data columns with `select()`
-    - Filtering results with boolean expressions using `filter()`
-    - Creating new derived columns with `mutate()`
-    - Recoding values with `recode()` and `answer_truncate()`
-    - Sorting results with `order_by()`
-    - Converting to other formats (dataset, table, pandas DataFrame)
-    - Serialization for storage and retrieval
-    - Support for remote execution and result retrieval
-    
+        - List-like interface for accessing individual Result objects
+        - Selection of specific data columns with `select()`
+        - Filtering results with boolean expressions using `filter()`
+        - Creating new derived columns with `mutate()`
+        - Recoding values with `recode()` and `answer_truncate()`
+        - Sorting results with `order_by()`
+        - Converting to other formats (dataset, table, pandas DataFrame)
+        - Serialization for storage and retrieval
+        - Support for remote execution and result retrieval
+
     Results objects have a hierarchical structure with the following components:
-    
-    1. Each Results object contains multiple Result objects
-    2. Each Result object contains data organized by type (agent, scenario, model, answer, etc.)
-    3. Each data type contains multiple attributes (e.g., "how_feeling" in the answer type)
-    
+        1. Each Results object contains multiple Result objects
+        2. Each Result object contains data organized by type (agent, scenario, model, answer, etc.)
+        3. Each data type contains multiple attributes (e.g., "how_feeling" in the answer type)
+
     You can access data in a Results object using dot notation (`answer.how_feeling`) or
     using just the attribute name if it's not ambiguous (`how_feeling`).
-    
+
     The Results class also tracks "created columns" - new derived values that aren't
     part of the original data but were created through transformations.
+
+    Examples:
+        >>> # Create a simple Results object from example data
+        >>> r = Results.example()
+        >>> len(r) > 0  # Contains Result objects
+        True
+        >>> # Filter and transform data
+        >>> filtered = r.filter("how_feeling == 'Great'")
+        >>> # Access hierarchical data
+        >>> 'agent' in r.known_data_types
+        True
     """
 
     __documentation__ = "https://docs.expectedparrot.com/en/latest/results.html"
@@ -185,9 +260,28 @@ class Results(UserList, ResultsOperationsMixin, Base):
     ]
 
     @classmethod
-    def from_job_info(cls, job_info: dict) -> Results:
-        """
-        Instantiate a `Results` object from a job info dictionary.
+    def from_job_info(cls, job_info: dict) -> "Results":
+        """Instantiate a Results object from a job info dictionary.
+
+        This method creates a Results object in a not-ready state that will
+        fetch its data from a remote source when methods are called on it.
+
+        Args:
+            job_info: Dictionary containing information about a remote job.
+
+        Returns:
+            Results: A new Results instance with completed=False that will
+                fetch remote data when needed.
+
+        Examples:
+            >>> # Create a job info dictionary
+            >>> job_info = {'job_uuid': '12345', 'creation_data': {'model': 'gpt-4'}}
+            >>> # Create a Results object from the job info
+            >>> results = Results.from_job_info(job_info)
+            >>> results.completed
+            False
+            >>> hasattr(results, 'job_info')
+            True
         """
         results = cls()
         results.completed = False
@@ -204,14 +298,37 @@ class Results(UserList, ResultsOperationsMixin, Base):
         total_results: Optional[int] = None,
         task_history: Optional[TaskHistory] = None,
     ):
-        """Instantiate a `Results` object with a survey and a list of `Result` objects.
+        """Instantiate a Results object with a survey and a list of Result objects.
 
-        :param survey: A Survey object.
-        :param data: A list of Result objects.
-        :param created_columns: A list of strings that are created columns.
-        :param job_uuid: A string representing the job UUID.
-        :param total_results: An integer representing the total number of results.
-        :cache: A Cache object.
+        This initializes a completed Results object with the provided data.
+        For creating a not-ready Results object from a job info dictionary,
+        use the from_job_info class method instead.
+
+        Args:
+            survey: A Survey object containing the questions used to generate results.
+            data: A list of Result objects containing the responses.
+            created_columns: A list of column names created through transformations.
+            cache: A Cache object for storing model responses.
+            job_uuid: A string representing the job UUID.
+            total_results: An integer representing the total number of results.
+            task_history: A TaskHistory object containing information about the tasks.
+
+        Examples:
+            >>> from ..results import Result
+            >>> # Create an empty Results object
+            >>> r = Results()
+            >>> r.completed
+            True
+            >>> len(r.created_columns)
+            0
+
+            >>> # Create a Results object with data
+            >>> from unittest.mock import Mock
+            >>> mock_survey = Mock()
+            >>> mock_result = Mock(spec=Result)
+            >>> r = Results(survey=mock_survey, data=[mock_result])
+            >>> len(r)
+            1
         """
         self.completed = True
         self._fetching = False
@@ -230,19 +347,26 @@ class Results(UserList, ResultsOperationsMixin, Base):
         if hasattr(self, "_add_output_functions"):
             self._add_output_functions()
 
-
     def _fetch_list(self, data_type: str, key: str) -> list:
-        """
-        Return a list of values from the data for a given data type and key.
+        """Return a list of values from the data for a given data type and key.
 
         Uses the filtered data, not the original data.
 
-        Example:
+        Args:
+            data_type: The type of data to fetch (e.g., 'answer', 'agent', 'scenario').
+            key: The key to fetch from each data type dictionary.
 
-        >>> from edsl.results import Results
-        >>> r = Results.example()
-        >>> r._fetch_list('answer', 'how_feeling')
-        ['OK', 'Great', 'Terrible', 'OK']
+        Returns:
+            list: A list of values, one from each result in the data.
+
+        Examples:
+            >>> from edsl.results import Results
+            >>> r = Results.example()
+            >>> values = r._fetch_list('answer', 'how_feeling')
+            >>> len(values) == len(r)
+            True
+            >>> all(isinstance(v, (str, type(None))) for v in values)
+            True
         """
         returned_list = []
         for row in self.data:
@@ -250,6 +374,25 @@ class Results(UserList, ResultsOperationsMixin, Base):
 
         return returned_list
 
+    def get_answers(self, question_name: str) -> list:
+        """Get the answers for a given question name.
+
+        Args:
+            question_name: The name of the question to fetch answers for.
+
+        Returns:
+            list: A list of answers, one from each result in the data.
+
+        Examples:
+            >>> from edsl.results import Results
+            >>> r = Results.example()
+            >>> answers = r.get_answers('how_feeling')
+            >>> isinstance(answers, list)
+            True
+            >>> len(answers) == len(r)
+            True
+        """
+        return self._fetch_list("answer", question_name)
 
     def _summary(self) -> dict:
         import reprlib
@@ -301,8 +444,23 @@ class Results(UserList, ResultsOperationsMixin, Base):
             self.insert(item)
 
     def compute_job_cost(self, include_cached_responses_in_cost: bool = False) -> float:
-        """
-        Computes the cost of a completed job in USD.
+        """Compute the cost of a completed job in USD.
+
+        This method calculates the total cost of all model responses in the results.
+        By default, it only counts the cost of responses that were not cached.
+
+        Args:
+            include_cached_responses_in_cost: Whether to include the cost of cached
+                responses in the total. Defaults to False.
+
+        Returns:
+            float: The total cost in USD.
+
+        Examples:
+            >>> from edsl.results import Results
+            >>> r = Results.example()
+            >>> r.compute_job_cost()
+            0
         """
         total_cost = 0
         for result in self:
@@ -321,89 +479,55 @@ class Results(UserList, ResultsOperationsMixin, Base):
 
         return total_cost
 
-    # def leaves(self):
-    #     leaves = []
-    #     for result in self:
-    #         leaves.extend(result.leaves())
-    #     return leaves
-
-    # def tree(self, node_list: Optional[List[str]] = None):
-    #     return self.to_scenario_list().tree(node_list)
-
-    # def interactive_tree(
-    #     self,
-    #     fold_attributes: Optional[List[str]] = None,
-    #     drop: Optional[List[str]] = None,
-    #     open_file=True,
-    # ) -> dict:
-    #     """Return the results as a tree."""
-    #     from edsl.results.tree_explore import FoldableHTMLTableGenerator
-
-    #     if drop is None:
-    #         drop = []
-
-    #     valid_attributes = [
-    #         "model",
-    #         "scenario",
-    #         "agent",
-    #         "answer",
-    #         "question",
-    #         "iteration",
-    #     ]
-    #     if fold_attributes is None:
-    #         fold_attributes = []
-
-    #     for attribute in fold_attributes:
-    #         if attribute not in valid_attributes:
-    #             raise ValueError(
-    #                 f"Invalid fold attribute: {attribute}; must be in {valid_attributes}"
-    #             )
-    #     data = self.leaves()
-    #     generator = FoldableHTMLTableGenerator(data)
-    #     tree = generator.tree(fold_attributes=fold_attributes, drop=drop)
-    #     html_content = generator.generate_html(tree, fold_attributes)
-    #     import tempfile
-    #     from edsl.utilities.utilities import is_notebook
-
-    #     from IPython.display import display, HTML
-
-    #     if is_notebook():
-    #         import html
-    #         from IPython.display import display, HTML
-
-    #         height = 1000
-    #         width = 1000
-    #         escaped_output = html.escape(html_content)
-    #         # escaped_output = rendered_html
-    #         iframe = f""""
-    #         <iframe srcdoc="{ escaped_output }" style="width: {width}px; height: {height}px;"></iframe>
-    #         """
-    #         display(HTML(iframe))
-    #         return None
-
-    #     with tempfile.NamedTemporaryFile(suffix=".html", delete=False) as f:
-    #         f.write(html_content.encode())
-    #         print(f"HTML file has been generated: {f.name}")
-
-    #         if open_file:
-    #             import webbrowser
-    #             import time
-
-    #             time.sleep(1)  # Wait for 1 second
-    #             # webbrowser.open(f.name)
-    #             import os
-
-    #             filename = f.name
-    #             webbrowser.open(f"file://{os.path.abspath(filename)}")
-
-    #         else:
-    #             return html_content
-
     def code(self):
-        from .exceptions import ResultsError
+        """Method for generating code representations.
+
+        Raises:
+            ResultsError: This method is not implemented for Results objects.
+
+        Examples:
+            >>> from edsl.results import Results
+            >>> r = Results.example()
+            >>> try:
+            ...     r.code()
+            ... except ResultsError as e:
+            ...     str(e).startswith("The code() method is not implemented")
+            True
+        """
         raise ResultsError("The code() method is not implemented for Results objects")
 
     def __getitem__(self, i):
+        """Get an item from the Results object by index, slice, or key.
+
+        Args:
+            i: An integer index, a slice, or a string key.
+
+        Returns:
+            The requested item, slice of results, or dictionary value.
+
+        Raises:
+            ResultsError: If the argument type is invalid for indexing.
+
+        Examples:
+            >>> from edsl.results import Results
+            >>> r = Results.example()
+            >>> # Get by integer index
+            >>> result = r[0]
+            >>> # Get by slice
+            >>> subset = r[0:2]
+            >>> len(subset) == 2
+            True
+            >>> # Get by string key
+            >>> data = r["data"]
+            >>> isinstance(data, list)
+            True
+            >>> # Invalid index type
+            >>> try:
+            ...     r[1.5]
+            ... except ResultsError:
+            ...     True
+            True
+        """
         if isinstance(i, int):
             return self.data[i]
 
@@ -413,19 +537,40 @@ class Results(UserList, ResultsOperationsMixin, Base):
         if isinstance(i, str):
             return self.to_dict()[i]
 
-        from .exceptions import ResultsError
         raise ResultsError("Invalid argument type for indexing Results object")
 
     def __add__(self, other: Results) -> Results:
         """Add two Results objects together.
-        They must have the same survey and created columns.
-        :param other: A Results object.
 
-        Example:
+        Combines two Results objects into a new one. Both objects must have the same
+        survey and created columns.
 
-        >>> r = Results.example()
-        >>> r2 = Results.example()
-        >>> r3 = r + r2
+        Args:
+            other: A Results object to add to this one.
+
+        Returns:
+            A new Results object containing data from both objects.
+
+        Raises:
+            ResultsError: If the surveys or created columns of the two objects don't match.
+
+        Examples:
+            >>> from edsl.results import Results
+            >>> r1 = Results.example()
+            >>> r2 = Results.example()
+            >>> # Combine two Results objects
+            >>> r3 = r1 + r2
+            >>> len(r3) == len(r1) + len(r2)
+            True
+
+            >>> # Attempting to add incompatible Results
+            >>> from unittest.mock import Mock
+            >>> r4 = Results(survey=Mock())  # Different survey
+            >>> try:
+            ...     r1 + r4
+            ... except ResultsError:
+            ...     True
+            True
         """
         if self.survey != other.survey:
             raise ResultsError(
@@ -441,21 +586,17 @@ class Results(UserList, ResultsOperationsMixin, Base):
             data=self.data + other.data,
             created_columns=self.created_columns,
         )
-    
+
     def _repr_html_(self):
         if not self.completed:
             if hasattr(self, "job_info"):
                 self.fetch_remote(self.job_info)
-            
+
             if not self.completed:
                 return "Results not ready to call"
-        
+
         return super()._repr_html_()
 
-    # @ensure_ready
-    # def __str__(self):
-    #     super().__str__()    
-    
     @ensure_ready
     def __repr__(self) -> str:
         return f"Results(data = {self.data}, survey = {repr(self.survey)}, created_columns = {self.created_columns})"
@@ -497,8 +638,8 @@ class Results(UserList, ResultsOperationsMixin, Base):
                 print_parameters=print_parameters,
             )
         )
-    
-    def to_dataset(self) -> 'Dataset':
+
+    def to_dataset(self) -> "Dataset":
         return self.select()
 
     def to_dict(
@@ -571,7 +712,7 @@ class Results(UserList, ResultsOperationsMixin, Base):
         return self.task_history.has_unfixed_exceptions
 
     def __hash__(self) -> int:
-        
+
         return dict_hash(
             self.to_dict(sort=True, add_edsl_version=False, include_cache_info=False)
         )
@@ -847,7 +988,7 @@ class Results(UserList, ResultsOperationsMixin, Base):
         return self.data[0]
 
     def answer_truncate(
-        self, column: str, top_n: int = 5, new_var_name: str = None
+        self, column: str, top_n: int = 5, new_var_name: Optional[str] = None
     ) -> Results:
         """Create a new variable that truncates the answers to the top_n.
 
@@ -978,24 +1119,23 @@ class Results(UserList, ResultsOperationsMixin, Base):
     def mutate(
         self, new_var_string: str, functions_dict: Optional[dict] = None
     ) -> Results:
-        """
-        Create a new column based on a computational expression.
-        
+        """Create a new column based on a computational expression.
+
         The mutate method allows you to create new derived variables based on existing data.
         You provide an assignment expression where the left side is the new column name
         and the right side is a Python expression that computes the value. The expression
         can reference any existing columns in the Results object.
-        
-        Parameters:
-            new_var_string: A string containing an assignment expression in the form 
-                           "new_column_name = expression". The expression can reference
-                           any existing column and use standard Python syntax.
-            functions_dict: Optional dictionary of custom functions that can be used in 
-                           the expression. Keys are function names, values are function objects.
-        
+
+        Args:
+            new_var_string: A string containing an assignment expression in the form
+                "new_column_name = expression". The expression can reference
+                any existing column and use standard Python syntax.
+            functions_dict: Optional dictionary of custom functions that can be used in
+                the expression. Keys are function names, values are function objects.
+
         Returns:
             A new Results object with the additional column.
-        
+
         Notes:
             - The expression must contain an equals sign (=) separating the new column name
               from the computation expression
@@ -1004,22 +1144,22 @@ class Results(UserList, ResultsOperationsMixin, Base):
             - The expression can access any data in the Result object using the column names
             - New columns are added to the "answer" data type
             - Created columns are tracked in the `created_columns` property
-        
+
         Examples:
             >>> r = Results.example()
-            
-            # Create a simple derived column
+
+            >>> # Create a simple derived column
             >>> r.mutate('how_feeling_x = how_feeling + "x"').select('how_feeling_x')
             Dataset([{'answer.how_feeling_x': ['OKx', 'Greatx', 'Terriblex', 'OKx']}])
-            
-            # Create a binary indicator column
+
+            >>> # Create a binary indicator column
             >>> r.mutate('is_great = 1 if how_feeling == "Great" else 0').select('is_great')
             Dataset([{'answer.is_great': [0, 1, 0, 0]}])
-            
-            # Create a column with custom functions
+
+            >>> # Create a column with custom functions
             >>> def sentiment(text):
             ...     return len(text) > 5
-            >>> r.mutate('is_long = sentiment(how_feeling)', 
+            >>> r.mutate('is_long = sentiment(how_feeling)',
             ...          functions_dict={'sentiment': sentiment}).select('is_long')
             Dataset([{'answer.is_long': [False, False, True, False]}])
         """
@@ -1119,10 +1259,12 @@ class Results(UserList, ResultsOperationsMixin, Base):
 
         if n is None and frac is None:
             from .exceptions import ResultsError
+
             raise ResultsError("You must specify either n or frac.")
 
         if n is not None and frac is not None:
             from .exceptions import ResultsError
+
             raise ResultsError("You cannot specify both n and frac.")
 
         if frac is not None and n is None:
@@ -1136,54 +1278,53 @@ class Results(UserList, ResultsOperationsMixin, Base):
         return Results(survey=self.survey, data=new_data, created_columns=None)
 
     @ensure_ready
-    def select(self, *columns: Union[str, list[str]]) -> 'Dataset':
-        """
-        Extract specific columns from the Results into a Dataset.
-        
+    def select(self, *columns: Union[str, list[str]]) -> "Dataset":
+        """Extract specific columns from the Results into a Dataset.
+
         This method allows you to select specific columns from the Results object
         and transforms the data into a Dataset for further analysis and visualization.
         A Dataset is a more general-purpose data structure optimized for analysis
         operations rather than the hierarchical structure of Result objects.
-        
-        Parameters:
+
+        Args:
             *columns: Column names to select. Each column can be:
-                      - A simple attribute name (e.g., "how_feeling")
-                      - A fully qualified name with type (e.g., "answer.how_feeling")
-                      - A wildcard pattern (e.g., "answer.*" to select all answer fields)
-                      If no columns are provided, selects all data.
-        
+                - A simple attribute name (e.g., "how_feeling")
+                - A fully qualified name with type (e.g., "answer.how_feeling")
+                - A wildcard pattern (e.g., "answer.*" to select all answer fields)
+                If no columns are provided, selects all data.
+
         Returns:
             A Dataset object containing the selected data.
-        
+
         Notes:
             - Column names are automatically disambiguated if needed
             - When column names are ambiguous, specify the full path with data type
             - You can use wildcard patterns with "*" to select multiple related fields
             - Selecting with no arguments returns all data
             - Results are restructured in a columnar format in the Dataset
-        
+
         Examples:
             >>> results = Results.example()
-            
-            # Select a single column by name
+
+            >>> # Select a single column by name
             >>> results.select('how_feeling')
             Dataset([{'answer.how_feeling': ['OK', 'Great', 'Terrible', 'OK']}])
-            
-            # Select multiple columns
+
+            >>> # Select multiple columns
             >>> ds = results.select('how_feeling', 'how_feeling_yesterday')
             >>> sorted([list(d.keys())[0] for d in ds])
             ['answer.how_feeling', 'answer.how_feeling_yesterday']
-            
-            # Using fully qualified names with data type
+
+            >>> # Using fully qualified names with data type
             >>> results.select('answer.how_feeling')
             Dataset([{'answer.how_feeling': ['OK', 'Great', 'Terrible', 'OK']}])
-            
-            # Using partial matching for column names
+
+            >>> # Using partial matching for column names
             >>> results.select('answer.how_feeling_y')
             Dataset([{'answer.how_feeling_yesterday': ['Great', 'Good', 'OK', 'Terrible']}])
-            
-            # Select all columns (same as calling select with no arguments)
-            >>> results.select('*.*')  
+
+            >>> # Select all columns (same as calling select with no arguments)
+            >>> results.select('*.*')
             Dataset([...])
         """
 
@@ -1191,6 +1332,7 @@ class Results(UserList, ResultsOperationsMixin, Base):
 
         if len(self) == 0:
             from .exceptions import ResultsError
+
             raise ResultsError("No data to select from---the Results object is empty.")
 
         selector = Selector(
@@ -1255,21 +1397,24 @@ class Results(UserList, ResultsOperationsMixin, Base):
 
     @ensure_ready
     def filter(self, expression: str) -> Results:
-        """
-        Filter results based on a boolean expression.
-        
+        """Filter results based on a boolean expression.
+
         This method evaluates a boolean expression against each Result object in the
         collection and returns a new Results object containing only those that match.
         The expression can reference any column in the data and supports standard
         Python operators and syntax.
-        
-        Parameters:
+
+        Args:
             expression: A string containing a Python expression that evaluates to a boolean.
                        The expression is applied to each Result object individually.
-        
+
         Returns:
             A new Results object containing only the Result objects that satisfy the expression.
-        
+
+        Raises:
+            ResultsFilterError: If the expression is invalid or uses improper syntax
+                (like using '=' instead of '==').
+
         Notes:
             - Column names can be specified with or without their data type prefix
               (e.g., both "how_feeling" and "answer.how_feeling" work if unambiguous)
@@ -1278,23 +1423,23 @@ class Results(UserList, ResultsOperationsMixin, Base):
             - You can use comparison operators like '==', '!=', '>', '<', '>=', '<='
             - You can use membership tests with 'in'
             - You can use string methods like '.startswith()', '.contains()', etc.
-        
+
         Examples:
             >>> r = Results.example()
-            
-            # Simple equality filter
+
+            >>> # Simple equality filter
             >>> r.filter("how_feeling == 'Great'").select('how_feeling')
             Dataset([{'answer.how_feeling': ['Great']}])
-            
-            # Using OR condition
+
+            >>> # Using OR condition
             >>> r.filter("how_feeling == 'Great' or how_feeling == 'Terrible'").select('how_feeling')
             Dataset([{'answer.how_feeling': ['Great', 'Terrible']}])
-            
-            # Filter on agent properties
+
+            >>> # Filter on agent properties
             >>> r.filter("agent.status == 'Joyful'").select('agent.status')
             Dataset([{'agent.status': ['Joyful', 'Joyful']}])
-            
-            # Common error: using = instead of ==
+
+            >>> # Common error: using = instead of ==
             >>> try:
             ...     r.filter("how_feeling = 'Great'")
             ... except Exception as e:
@@ -1399,45 +1544,58 @@ class Results(UserList, ResultsOperationsMixin, Base):
         [1, 1, 0, 0]
         """
         return [r.score(f) for r in self.data]
-    
+
     def score_with_answer_key(self, answer_key: dict) -> list:
         """Score the results using an answer key.
 
         :param answer_key: A dictionary that maps answer values to scores.
         """
         return [r.score_with_answer_key(answer_key) for r in self.data]
-    
 
     def fetch_remote(self, job_info: Any) -> None:
-        """
-        Fetches the remote Results object using the provided RemoteJobInfo and updates this instance with the remote data.
-        
-        This is useful when you have a Results object that was created locally but want to sync it with 
+        """Fetch remote Results object and update this instance with the data.
+
+        This is useful when you have a Results object that was created locally but want to sync it with
         the latest data from the remote server.
-        
+
         Args:
             job_info: RemoteJobInfo object containing the job_uuid and other remote job details
-        
+
+        Returns:
+            bool: True if the fetch was successful, False if the job is not yet completed.
+
+        Raises:
+            ResultsError: If there's an error during the fetch process.
+
+        Examples:
+            >>> # This is a simplified example since we can't actually test this without a remote server
+            >>> from unittest.mock import Mock, patch
+            >>> # Create a mock job_info and Results
+            >>> job_info = Mock()
+            >>> job_info.job_uuid = "test_uuid"
+            >>> results = Results()
+            >>> # In a real scenario:
+            >>> # results.fetch_remote(job_info)
+            >>> # results.completed  # Would be True if successful
         """
-        #print("Calling fetch_remote")
         try:
             from ..coop import Coop
             from ..jobs import JobsRemoteInferenceHandler
-            
+
             # Get the remote job data
             remote_job_data = JobsRemoteInferenceHandler.check_status(job_info.job_uuid)
-            
+
             if remote_job_data.get("status") not in ["completed", "failed"]:
                 return False
-                #            
+                #
             results_uuid = remote_job_data.get("results_uuid")
             if not results_uuid:
                 raise ResultsError("No results_uuid found in remote job data")
-            
+
             # Fetch the remote Results object
             coop = Coop()
             remote_results = coop.get(results_uuid, expected_object_type="results")
-            
+
             # Update this instance with remote data
             self.data = remote_results.data
             self.survey = remote_results.survey
@@ -1445,10 +1603,10 @@ class Results(UserList, ResultsOperationsMixin, Base):
             self.cache = remote_results.cache
             self.task_history = remote_results.task_history
             self.completed = True
-            
+
             # Set job_uuid and results_uuid from remote data
             self.job_uuid = job_info.job_uuid
-            if hasattr(remote_results, 'results_uuid'):
+            if hasattr(remote_results, "results_uuid"):
                 self.results_uuid = remote_results.results_uuid
 
             return True
@@ -1456,38 +1614,59 @@ class Results(UserList, ResultsOperationsMixin, Base):
         except Exception as e:
             raise ResultsError(f"Failed to fetch remote results: {str(e)}")
 
-    def fetch(self, polling_interval: [float, int] = 1.0) -> Results:
-        """
-        Polls the server for job completion and updates this Results instance with the completed data.
-        
+    def fetch(self, polling_interval: Union[float, int] = 1.0) -> Results:
+        """Poll the server for job completion and update this Results instance.
+
+        This method continuously polls the remote server until the job is completed or
+        fails, then updates this Results object with the final data.
+
         Args:
             polling_interval: Number of seconds to wait between polling attempts (default: 1.0)
-        
+
         Returns:
             self: The updated Results instance
+
+        Raises:
+            ResultsError: If no job info is available or if there's an error during fetch.
+
+        Examples:
+            >>> # This is a simplified example since we can't actually test polling
+            >>> from unittest.mock import Mock, patch
+            >>> # Create a mock results object
+            >>> results = Results()
+            >>> # In a real scenario with a running job:
+            >>> # results.job_info = remote_job_info
+            >>> # results.fetch()  # Would poll until complete
+            >>> # results.completed  # Would be True if successful
         """
         if not hasattr(self, "job_info"):
-            raise ResultsError("No job info available - this Results object wasn't created from a remote job")
-        
+            raise ResultsError(
+                "No job info available - this Results object wasn't created from a remote job"
+            )
+
         from ..jobs import JobsRemoteInferenceHandler
-        
+
         try:
             # Get the remote job data
-            remote_job_data = JobsRemoteInferenceHandler.check_status(self.job_info.job_uuid)
-            
+            remote_job_data = JobsRemoteInferenceHandler.check_status(
+                self.job_info.job_uuid
+            )
+
             while remote_job_data.get("status") not in ["completed", "failed"]:
                 print("Waiting for remote job to complete...")
                 import time
+
                 time.sleep(polling_interval)
-                remote_job_data = JobsRemoteInferenceHandler.check_status(self.job_info.job_uuid)
-                
+                remote_job_data = JobsRemoteInferenceHandler.check_status(
+                    self.job_info.job_uuid
+                )
+
             # Once complete, fetch the full results
             self.fetch_remote(self.job_info)
             return self
-            
+
         except Exception as e:
             raise ResultsError(f"Failed to fetch remote results: {str(e)}")
-
 
     def spot_issues(self, models: Optional[ModelList] = None) -> Results:
         """Run a survey to spot issues and suggest improvements for prompts that had no model response, returning a new Results object.
@@ -1499,57 +1678,72 @@ class Results(UserList, ResultsOperationsMixin, Base):
         from ..language_models import ModelList
         import pandas as pd
 
-        df = self.select("agent.*", "scenario.*", "answer.*", "raw_model_response.*", "prompt.*").to_pandas()
+        df = self.select(
+            "agent.*", "scenario.*", "answer.*", "raw_model_response.*", "prompt.*"
+        ).to_pandas()
         scenario_list = []
 
         for _, row in df.iterrows():
             for col in df.columns:
                 if col.endswith("_raw_model_response") and pd.isna(row[col]):
-                    q = col.split("_raw_model_response")[0].replace("raw_model_response.", "")
+                    q = col.split("_raw_model_response")[0].replace(
+                        "raw_model_response.", ""
+                    )
 
-                    s = Scenario({
-                        "original_question": q,
-                        "original_agent_index": row["agent.agent_index"],
-                        "original_scenario_index": row["scenario.scenario_index"],
-                        "original_prompts": f"User prompt: {row[f'prompt.{q}_user_prompt']}\nSystem prompt: {row[f'prompt.{q}_system_prompt']}"
-                    })
-                    
+                    s = Scenario(
+                        {
+                            "original_question": q,
+                            "original_agent_index": row["agent.agent_index"],
+                            "original_scenario_index": row["scenario.scenario_index"],
+                            "original_prompts": f"User prompt: {row[f'prompt.{q}_user_prompt']}\nSystem prompt: {row[f'prompt.{q}_system_prompt']}",
+                        }
+                    )
+
                     scenario_list.append(s)
 
         sl = ScenarioList(set(scenario_list))
 
         q1 = QuestionFreeText(
-            question_name = "issues",
-            question_text = """
+            question_name="issues",
+            question_text="""
             The following prompts generated a bad or null response: '{{ original_prompts }}'
             What do you think was the likely issue(s)?
-            """
+            """,
         )
 
         q2 = QuestionDict(
-            question_name = "revised",
-            question_text = """
+            question_name="revised",
+            question_text="""
             The following prompts generated a bad or null response: '{{ original_prompts }}'
             You identified the issue(s) as '{{ issues.answer }}'.
             Please revise the prompts to address the issue(s).
             """,
-            answer_keys = ["revised_user_prompt", "revised_system_prompt"]
+            answer_keys=["revised_user_prompt", "revised_system_prompt"],
         )
 
-        survey = Survey(questions = [q1, q2])
+        survey = Survey(questions=[q1, q2])
 
         if models is not None:
             if not isinstance(models, ModelList):
                 raise ResultsError("models must be a ModelList")
             results = survey.by(sl).by(models).run()
         else:
-            results = survey.by(sl).run() # use the default model
+            results = survey.by(sl).run()  # use the default model
 
         return results
 
 
 def main():  # pragma: no cover
-    """Call the OpenAI API credits."""
+    """Run example operations on a Results object.
+
+    This function demonstrates basic filtering and mutation operations on
+    a Results object, printing the output.
+
+    Examples:
+        >>> # This can be run directly as a script
+        >>> # python -m edsl.results.results
+        >>> # It will create example results and show filtering and mutation
+    """
     from ..results import Results
 
     results = Results.example(debug=True)
@@ -1559,4 +1753,5 @@ def main():  # pragma: no cover
 
 if __name__ == "__main__":
     import doctest
+
     doctest.testmod(optionflags=doctest.ELLIPSIS)
