@@ -149,7 +149,9 @@ class DBBackedList:
         
         # Fetch from database
         cursor = self._conn.cursor()
-        cursor.execute("SELECT item_json FROM items WHERE id = ?", (idx,))
+        # Convert Python 0-based index to SQLite 1-based id
+        sql_id = idx + 1
+        cursor.execute("SELECT item_json FROM items WHERE id = ?", (sql_id,))
         row = cursor.fetchone()
         
         if row is None:
@@ -182,8 +184,11 @@ class DBBackedList:
                 (chunk_size, offset)
             )
             
-            for idx, item_json in cursor.fetchall():
+            for sql_id, item_json in cursor.fetchall():
                 item = self._deserializer(item_json)
+                
+                # Convert SQLite 1-based id to Python 0-based index
+                idx = sql_id - 1
                 
                 # Update cache if not full
                 if len(self._cache) < self.memory_limit:

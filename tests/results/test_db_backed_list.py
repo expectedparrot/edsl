@@ -137,49 +137,25 @@ class TestDBBackedList:
         assert len(db_list) == len(initial_items) + 2
     
     def test_getitem_positive_index(self, populated_list):
-        """Test getting items with positive indices.
-        
-        Note: There appears to be a known implementation issue in DBBackedList where
-        the index mapping between SQLite (1-based) and Python (0-based) is not
-        consistent after index 10. This test documents this behavior.
-        """
+        """Test getting items with positive indices."""
         db_list, initial_items = populated_list
         
-        # Check first 10 items - these work as expected
-        for i in range(min(10, len(initial_items))):
+        # Check all items - should work properly now that the index conversion is fixed
+        for i in range(len(initial_items)):
             retrieved = db_list[i]
             expected = initial_items[i]
             assert retrieved.value == expected.value, f"Failed at index {i}"
-            
-        # For higher indices, there's a known issue where 
-        # db_list[i] actually returns what should be at db_list[i-1]
-        if len(initial_items) > 10:
-            # Document the actual behavior rather than the expected one
-            # This is a compromise since we can't change the implementation
-            for i in range(10, len(initial_items)):
-                retrieved = db_list[i]
-                # The -1 adjustment accounts for the implementation bug
-                expected = initial_items[i-1] if i > 0 else initial_items[0]
-                # This will pass with the current implementation
-                assert retrieved.value == expected.value, f"Failed at index {i}"
     
     def test_getitem_negative_index(self, populated_list):
-        """Test getting items with negative indices.
-        
-        Note: As with positive indices, there's a known issue with the implementation
-        that affects index mapping. This test accounts for the actual behavior.
-        """
+        """Test getting items with negative indices."""
         db_list, initial_items = populated_list
         
-        # There's a known issue with the implementation that affects indexing
-        # The test validates the actual behavior rather than the expected one
-        
         # Last item should be retrievable
-        assert db_list[-1].value == initial_items[-2].value  # Accounting for the index shift
+        assert db_list[-1].value == initial_items[-1].value
         
         # Try a few other negative indices
         if len(initial_items) >= 5:
-            assert db_list[-5].value == initial_items[-6].value  # Accounting for the index shift
+            assert db_list[-5].value == initial_items[-5].value
     
     def test_getitem_index_error(self, populated_list):
         """Test IndexError is raised for out-of-range indices."""
@@ -196,11 +172,7 @@ class TestDBBackedList:
             _ = db_list[very_negative_index]
     
     def test_getitem_slice(self, populated_list):
-        """Test slicing functionality.
-        
-        Note: Due to the known indexing issue, some slice operations don't work
-        as expected. This test validates the actual behavior.
-        """
+        """Test slicing functionality."""
         db_list, initial_items = populated_list
         
         # Test various slices - we need to compare values directly
@@ -209,27 +181,21 @@ class TestDBBackedList:
             expected_values = [item.value for item in expected]
             return retrieved_values == expected_values
         
-        # Small slices at the beginning work as expected
+        # Test various slices
         assert compare_values(db_list[1:5], initial_items[1:5])
         assert compare_values(db_list[:3], initial_items[:3])
         
-        # For slices that include indices > 10, we need to account for the shift
-        # This test simply confirms the actual behavior rather than expected
-        # For demonstration, print the returned values
+        # Test slices with larger indices now that the bug is fixed
         if len(initial_items) > 12:
-            print("\nSlice test:")
-            print(f"  db_list[10:15] values: {[item.value for item in db_list[10:15]]}")
-            print(f"  items[9:14] values: {[item.value for item in initial_items[9:14]]}")
-            # Test that db_list[10:15] matches items[9:14]
-            assert compare_values(db_list[10:15], initial_items[9:14])
+            assert compare_values(db_list[10:15], initial_items[10:15])
             
-        # Negative indices are also affected
+        # Test negative slices
         if len(initial_items) > 5:
-            assert compare_values(db_list[-5:-2], initial_items[-6:-3])
+            assert compare_values(db_list[-5:-2], initial_items[-5:-2])
             
-        # Step slices are difficult to test correctly due to the implementation issues
-        # We limit our testing to simple patterns that are working
-        # Avoid step slices that have complex patterns
+        # Test step slices
+        assert compare_values(db_list[::2], initial_items[::2])
+        assert compare_values(db_list[1::2], initial_items[1::2])
     
     def test_cache_management(self, empty_list):
         """Test that cache respects memory limit."""
@@ -777,8 +743,8 @@ class TestDBBackedList:
             # Verify cache size never exceeds limit
             assert len(db_list._cache) <= memory_limit
             
-            # Only check the first 10 items (where indexing works correctly)
-            for i in range(min(10, num_items)):
+            # Check items throughout the list, not just at the beginning
+            for i in range(0, min(50, num_items), 10):
                 item = db_list[i]
                 assert item.value == f"large_item_{i}"
                 assert len(db_list._cache) <= memory_limit
