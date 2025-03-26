@@ -96,6 +96,7 @@ class Result(Base, UserDict):
         cache_used_dict: Optional[dict[QuestionName, bool]] = None,
         indices: Optional[dict] = None,
         cache_keys: Optional[dict[QuestionName, str]] = None,
+        interview_hash: Optional[str] = None,
     ):
         """Initialize a Result object.
 
@@ -112,6 +113,8 @@ class Result(Base, UserDict):
         :param comments_dict: A dictionary of comments.
         :param cache_used_dict: A dictionary of cache usage.
         :param indices: A dictionary of indices.
+        :param cache_keys: A dictionary of cache keys.
+        :param interview_hash: The hash of the interview that produced this result.
 
         """
         self.question_to_attributes = (
@@ -133,6 +136,7 @@ class Result(Base, UserDict):
         }
         super().__init__(**data)
         self.indices = indices
+        self.interview_hash = interview_hash
         self._sub_dicts = self._construct_sub_dicts()
         (
             self._combined_dict,
@@ -438,6 +442,9 @@ class Result(Base, UserDict):
             
         if self.indices is not None:
             d["indices"] = self.indices
+            
+        if hasattr(self, "interview_hash") and self.interview_hash is not None:
+            d["interview_hash"] = self.interview_hash
 
         if add_edsl_version:
             from .. import __version__
@@ -488,7 +495,8 @@ class Result(Base, UserDict):
             comments_dict=json_dict.get("comments_dict", {}),
             cache_used_dict=json_dict.get("cache_used_dict", {}),
             cache_keys=json_dict.get("cache_keys", {}),
-            indices = json_dict.get("indices", None)
+            indices=json_dict.get("indices", None),
+            interview_hash=json_dict.get("interview_hash", None)
         )
         return result
 
