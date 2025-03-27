@@ -354,12 +354,17 @@ class DataOperationsBase:
         """
         # Import needed for database connection
         from sqlalchemy import create_engine
+        import pandas as pd
 
         engine = create_engine("sqlite:///:memory:")
         if remove_prefix and shape == "wide":
             df = self.remove_prefix().to_pandas(lists_as_strings=True)
         else:
             df = self.to_pandas(lists_as_strings=True)
+        
+        # We don't need this anymore after fixing Result.to_dict
+
+        # We don't need this anymore as we fixed the root issue in the Result.to_dict method
 
         if shape == "long":
             # Melt the dataframe to convert it to long format
