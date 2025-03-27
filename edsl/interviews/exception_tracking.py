@@ -92,13 +92,13 @@ class InterviewExceptionEntry:
     def code(self, run=True):
         """Return the code to reproduce the exception."""
         lines = []
-        lines.append("from .. import Question, Model, Scenario, Agent")
+        lines.append("from edsl import Question, Model, Scenario, Agent")
 
         lines.append(f"q = {repr(self.invigilator.question)}")
         lines.append(f"scenario = {repr(self.invigilator.scenario)}")
         lines.append(f"agent = {repr(self.invigilator.agent)}")
-        lines.append(f"m = Model('{self.invigilator.model.model}')")
-        lines.append("results = q.by(m).by(agent).by(scenario).run()")
+        lines.append(f"model = {repr(self.invigilator.model)}")
+        lines.append("results = q.by(model).by(agent).by(scenario).run()")
         code_str = "\n".join(lines)
 
         if run:
