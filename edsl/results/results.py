@@ -1732,6 +1732,24 @@ class Results(UserList, ResultsOperationsMixin, Base):
 
         return results
 
+    def add_result(self, result: "Result") -> None:
+        """Add a single Result object to the Results collection.
+        
+        This method adds a Result object to the data list while maintaining
+        any existing sort order based on the Result's order attribute.
+        
+        Args:
+            result: A Result object to add to the collection.
+            
+        Examples:
+            >>> from edsl.results import Results, Result
+            >>> r = Results.example()
+            >>> new_result = Result(...)  # Create a new Result object
+            >>> r.add_result(new_result)
+            >>> # Result is now added to r
+        """
+        self.insert(result)  # Uses existing insert method that handles ordering
+
 
 def main():  # pragma: no cover
     """Run example operations on a Results object.

@@ -110,23 +110,35 @@ class JobsRunnerAsyncio:
         run_config = RunConfig(parameters=parameters, environment=self.environment)
         result_generator = AsyncInterviewRunner(self.jobs, run_config)
 
-        # Process results as they come in
-        async for result, interview in result_generator.run():
-            data.append(result)
-            task_history.add_interview(interview)
 
-        # Create the results object
-        results = Results(survey=self.jobs.survey, task_history=task_history, data=data)
-
-        # Extract only the relevant cache entries
-        relevant_cache = results.relevant_cache(self.environment.cache)
-
-        return Results(
+        relevant_cache = self.environment.cache.new_entries_cache()
+        
+        results = Results(
             survey=self.jobs.survey,
-            task_history=task_history,
-            data=data,
+            task_history= TaskHistory(),
+            data=[],
             cache=relevant_cache,
         )
+
+        # Process results as they come in
+        async for result, interview in result_generator.run():
+            #data.append(result)
+            #task_history.add_interview(interview)
+            results.add_result(result)
+
+        # Create the results object
+        #results = Results(survey=self.jobs.survey, task_history=task_history, data=data)
+
+        # Extract only the relevant cache entries
+        #relevant_cache = results.relevant_cache(self.environment.cache)
+        return results
+
+        # return Results(
+        #     survey=self.jobs.survey,
+        #     task_history=task_history,
+        #     data=data,
+        #     cache=relevant_cache,
+        # )
 
     def simple_run(self, parameters: Optional[RunParameters] = None) -> Results:
         """
@@ -215,8 +227,9 @@ class JobsRunnerAsyncio:
             """Conducted the interviews and append to the results list."""
             result_generator = AsyncInterviewRunner(self.jobs, run_config)
             async for result, interview in result_generator.run():
-                results.append(result)
-                results.task_history.add_interview(interview)
+                #results.add_result(result)
+                #results.task_history.add_interview(interview)
+                pass
 
             self.completed = True
 
