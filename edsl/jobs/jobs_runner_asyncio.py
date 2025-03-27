@@ -123,7 +123,7 @@ class JobsRunnerAsyncio:
         # Process results as they come in
         async for result, interview in result_generator.run():
             #data.append(result)
-            #task_history.add_interview(interview)
+            task_history.add_interview(interview)
             results.add_result(result)
 
         # Create the results object
@@ -227,9 +227,9 @@ class JobsRunnerAsyncio:
             """Conducted the interviews and append to the results list."""
             result_generator = AsyncInterviewRunner(self.jobs, run_config)
             async for result, interview in result_generator.run():
-                #results.add_result(result)
-                #results.task_history.add_interview(interview)
-                pass
+                results.add_result(result)
+                results.task_history.add_interview(interview)
+                #pass
 
             self.completed = True
 
@@ -283,7 +283,6 @@ class JobsRunnerAsyncio:
 
             relevant_cache = results.relevant_cache(self.environment.cache)
             results.cache = relevant_cache
-            # breakpoint()
             results.bucket_collection = self.environment.bucket_collection
 
             from .results_exceptions_handler import ResultsExceptionsHandler

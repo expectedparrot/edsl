@@ -4,7 +4,7 @@ Asynchronous interview runner module for conducting interviews concurrently.
 This module provides functionality to run multiple interviews in parallel
 with controlled concurrency, supporting both error handling and result collection.
 """
-
+import gc
 from collections.abc import AsyncGenerator
 from typing import List, Generator, Tuple, TYPE_CHECKING
 from dataclasses import dataclass
@@ -178,6 +178,7 @@ class AsyncInterviewRunner:
                     
                     # Process successful results
                     for result in (r for r in results if r is not None):
+                        #breakpoint()
                         yield result.result, result.interview
                         # Explicitly clear references after yielding
                         result.result = None
@@ -194,7 +195,6 @@ class AsyncInterviewRunner:
                         await task  # Ensure task is completely done
                     current_tasks.clear()  # Use clear() instead of reassignment
                     # Force garbage collection after each batch
-                    import gc
                     gc.collect()
         
         # Process any remaining tasks

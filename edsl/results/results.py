@@ -1739,14 +1739,7 @@ class Results(UserList, ResultsOperationsMixin, Base):
         any existing sort order based on the Result's order attribute.
         
         Args:
-            result: A Result object to add to the collection.
-            
-        Examples:
-            >>> from edsl.results import Results, Result
-            >>> r = Results.example()
-            >>> new_result = Result(...)  # Create a new Result object
-            >>> r.add_result(new_result)
-            >>> # Result is now added to r
+            result: A Result object to add to the collection.            
         """
         self.insert(result)  # Uses existing insert method that handles ordering
 
