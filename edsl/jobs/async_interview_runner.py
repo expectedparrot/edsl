@@ -100,6 +100,23 @@ class AsyncInterviewRunner:
                 else:
                     interview.cache = self.run_config.environment.cache
                     yield interview
+
+
+    def _get_next_chunk(
+        self,
+        gen: Generator[Interview, None, None]
+    ) -> List[Tuple[int, Interview]]:
+        """Take interviews from the generator up to MAX_CONCURRENT."""
+        chunk = []
+        while len(chunk) < self.MAX_CONCURRENT:
+            try:
+                interview = next(gen)
+                chunk.append((self._current_idx, interview))
+                self._current_idx += 1
+            except StopIteration:
+                break
+        return chunk
+
         
     async def run(
         self,
@@ -115,8 +132,9 @@ class AsyncInterviewRunner:
             Tuples of (Result, Interview) as interviews complete
         """
         self._initialized.set()
+        self._current_idx = 0  # Initialize the counter used by _get_next_chunk
 
-        async def _process_single_interview(
+        async def _run_single_interview(
             interview: Interview, idx: int
         ) -> InterviewResult:
             try:
@@ -133,26 +151,17 @@ class AsyncInterviewRunner:
 
         # Process interviews as a generator in chunks
         interview_generator = self._expand_interviews()
-        current_chunk = []
-        current_idx = 0
-
+        
         try:
             while True:
-                # Fill the chunk up to MAX_CONCURRENT
-                while len(current_chunk) < self.MAX_CONCURRENT:
-                    try:
-                        interview = next(interview_generator)
-                        current_chunk.append((current_idx, interview))
-                        current_idx += 1
-                    except StopIteration:
-                        break
-
+                current_chunk = self._get_next_chunk(interview_generator)
+                
                 if not current_chunk:
                     break
 
                 # Process the current chunk
                 tasks = [
-                    asyncio.create_task(_process_single_interview(interview, idx))
+                    asyncio.create_task(_run_single_interview(interview, idx))
                     for idx, interview in current_chunk
                 ]
 
@@ -176,9 +185,6 @@ class AsyncInterviewRunner:
                     for task in tasks:
                         if not task.done():
                             task.cancel()
-
-                # Clear the chunk for the next iteration
-                current_chunk = []
 
         except Exception:
             if self.run_config.parameters.stop_on_exception:
