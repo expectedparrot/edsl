@@ -575,9 +575,12 @@ class Result(Base, UserDict):
 
     @classmethod
     def from_interview(
-        cls, interview, extracted_answers, model_response_objects
+        cls, interview
     ) -> Result:
         """Return a Result object from an interview dictionary."""
+
+        model_response_objects = interview.valid_results
+        extracted_answers = interview.answers
 
         def get_question_results(
             model_response_objects,

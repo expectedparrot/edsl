@@ -377,7 +377,7 @@ class Interview:
     async def async_conduct_interview(
         self,
         run_config: Optional["RunConfig"] = None,
-    ) -> tuple["Answers", List[dict[str, Any]]]:
+    ) -> None:
         """Execute the interview process asynchronously.
         
         This is the core method that conducts the entire interview, creating tasks
@@ -465,7 +465,10 @@ class Interview:
         valid_results = list(
             self._extract_valid_results(self.tasks, self.invigilators, self.exceptions)
         )
-        return self.answers, valid_results
+        self.valid_results = valid_results
+        return None
+        #
+        #return self.answers, valid_results
 
     @staticmethod
     def _extract_valid_results(
