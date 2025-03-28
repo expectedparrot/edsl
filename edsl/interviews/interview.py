@@ -36,7 +36,7 @@ from .answering_function import AnswerQuestionFunctionConstructor
 from .exception_tracking import InterviewExceptionCollection, InterviewExceptionEntry
 from .interview_status_dictionary import InterviewStatusDictionary
 from .interview_task_manager import InterviewTaskManager
-from .request_token_estimator import RequestTokenEstimator
+from .request_token_estimator import request_token_estimator
 
 if TYPE_CHECKING:
     from ..agents import Agent
@@ -444,7 +444,7 @@ class Interview:
             answer_func=AnswerQuestionFunctionConstructor(
                 self, key_lookup=run_config.environment.key_lookup
             )(),
-            token_estimator=RequestTokenEstimator(self),
+            token_estimator=lambda question: request_token_estimator(self, question),
             model_buckets=model_buckets,
         )
 
