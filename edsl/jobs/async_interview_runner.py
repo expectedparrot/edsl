@@ -100,39 +100,7 @@ class AsyncInterviewRunner:
                 else:
                     interview.cache = self.run_config.environment.cache
                     yield interview
-
-    async def _conduct_interview(
-        self, interview: "Interview"
-    ) -> Tuple["Result", "Interview"]:
-        """
-        Asynchronously conduct a single interview.
-
-        This method performs the interview and creates a Result object with
-        the extracted answers and model responses.
-
-        Args:
-            interview: The interview to conduct
-
-        Returns:
-            Tuple containing the Result object and the Interview object
-
-        Notes:
-            'extracted_answers' contains the processed and validated answers
-            from the interview, which may differ from the raw model output.
-        """
-        extracted_answers: dict[str, str]
-        model_response_objects: List[EDSLResultObjectInput]
-
-        extracted_answers, model_response_objects = (
-            await interview.async_conduct_interview(self.run_config)
-        )
-        result = Result.from_interview(
-            interview=interview,
-            extracted_answers=extracted_answers,
-            model_response_objects=model_response_objects,
-        )
-        return result, interview
-
+        
     async def run(
         self,
     ) -> AsyncGenerator[tuple[Result, Interview], None]:
@@ -145,59 +113,76 @@ class AsyncInterviewRunner:
 
         Yields:
             Tuples of (Result, Interview) as interviews complete
-
-        Notes:
-            - Uses structured concurrency patterns for proper resource management
-            - Handles exceptions according to the run configuration
-            - Ensures task cleanup even in case of failures
         """
-        interviews = list(self._expand_interviews())
         self._initialized.set()
 
         async def _process_single_interview(
             interview: Interview, idx: int
         ) -> InterviewResult:
             try:
-                result, interview = await self._conduct_interview(interview)
+                await interview.async_conduct_interview(self.run_config)
+                result = Result.from_interview(interview)
                 self.run_config.environment.jobs_runner_status.add_completed_interview(
                     interview
                 )
-                result.order = idx
                 return InterviewResult(result, interview, idx)
             except Exception:
                 if self.run_config.parameters.stop_on_exception:
                     raise
                 return None
 
-        # Process interviews in chunks
-        for i in range(0, len(interviews), self.MAX_CONCURRENT):
-            chunk = interviews[i : i + self.MAX_CONCURRENT]
-            tasks = [
-                asyncio.create_task(_process_single_interview(interview, idx))
-                for idx, interview in enumerate(chunk, start=i)
-            ]
+        # Process interviews as a generator in chunks
+        interview_generator = self._expand_interviews()
+        current_chunk = []
+        current_idx = 0
 
-            try:
-                # Wait for all tasks in the chunk to complete
-                results = await asyncio.gather(
-                    *tasks,
-                    return_exceptions=not self.run_config.parameters.stop_on_exception
-                )
+        try:
+            while True:
+                # Fill the chunk up to MAX_CONCURRENT
+                while len(current_chunk) < self.MAX_CONCURRENT:
+                    try:
+                        interview = next(interview_generator)
+                        current_chunk.append((current_idx, interview))
+                        current_idx += 1
+                    except StopIteration:
+                        break
 
-                # Process successful results
-                for result in (r for r in results if r is not None):
-                    yield result.result, result.interview
+                if not current_chunk:
+                    break
 
-            except Exception:
-                if self.run_config.parameters.stop_on_exception:
-                    raise
-                continue
+                # Process the current chunk
+                tasks = [
+                    asyncio.create_task(_process_single_interview(interview, idx))
+                    for idx, interview in current_chunk
+                ]
 
-            finally:
-                # Clean up any remaining tasks
-                for task in tasks:
-                    if not task.done():
-                        task.cancel()
+                try:
+                    results = await asyncio.gather(
+                        *tasks,
+                        return_exceptions=not self.run_config.parameters.stop_on_exception
+                    )
+
+                    # Process successful results
+                    for result in (r for r in results if r is not None):
+                        yield result.result, result.interview
+
+                except Exception:
+                    if self.run_config.parameters.stop_on_exception:
+                        raise
+                    continue
+
+                finally:
+                    # Clean up any remaining tasks
+                    for task in tasks:
+                        if not task.done():
+                            task.cancel()
+
+                # Clear the chunk for the next iteration
+                current_chunk = []
+
+        except Exception:
+            if self.run_config.parameters.stop_on_exception:
+                raise
 
 
 if __name__ == "__main__":
