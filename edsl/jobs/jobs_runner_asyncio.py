@@ -17,6 +17,7 @@ accessed directly by end users, though advanced users may need to understand its
 behavior when customizing job execution.
 """
 from __future__ import annotations
+import os
 import time
 from typing import TYPE_CHECKING, Optional
 
@@ -92,9 +93,11 @@ class JobsRunnerAsyncio:
         async for result, interview in result_generator.run():
             results.append(result)
             results.add_task_history_entry(interview)
-            
-            MemoryDebugger(interview).debug_memory()  # Creates references file and object graph
-            breakpoint() 
+            if memory_debug:= False:
+                    # Create memory debug reports in temp directory 
+                    debug_dir = os.environ.get("EDSL_MEMORY_DEBUG_DIR", "/tmp/edsl_memory_debug")
+                    MemoryDebugger(interview).debug_memory(output_dir=debug_dir, open_browser=False)  
+                    #breakpoint() 
             # Check reference to interview
         
         results.cache = results.relevant_cache(self.environment.cache)
