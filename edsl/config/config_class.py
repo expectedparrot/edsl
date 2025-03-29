@@ -90,6 +90,14 @@ CONFIG_MAP = {
         "default": "None",
         "info": "This config var holds the URL of the remote token bucket server.",
     },
+    "EDSL_SQLLIST_MEMORY_THRESHOLD": {
+        "default": "10485760",  # 10MB default (10 * 1024 * 1024)
+        "info": "This config var determines the memory threshold in bytes before SQLList offloads data to SQLite.",
+    },
+    "EDSL_SQLLIST_DB_PATH": {
+        "default": f"sqlite:///{os.path.join(platformdirs.user_cache_dir('edsl'), 'sql_list_data.db')}",
+        "info": "This config var determines the default database path for SQLList instances.",
+    },
 }
 
 
