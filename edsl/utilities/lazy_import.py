@@ -72,6 +72,17 @@ class LazyCallable:
         self._package = package
         self._callable = None
         
+    def _load_callable(self):
+        """Load the actual callable if it hasn't been loaded yet."""
+        if self._callable is None:
+            if self._package:
+                module = importlib.import_module(f".{self._module_name}", package=self._package)
+            else:
+                module = importlib.import_module(self._module_name)
+                
+            self._callable = getattr(module, self._callable_name)
+        return self._callable
+        
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
         """
         Calls the function or class, importing it first if needed.
@@ -83,15 +94,25 @@ class LazyCallable:
         Returns:
             The result of calling the function or instantiating the class
         """
-        if self._callable is None:
-            if self._package:
-                module = importlib.import_module(f".{self._module_name}", package=self._package)
-            else:
-                module = importlib.import_module(self._module_name)
-                
-            self._callable = getattr(module, self._callable_name)
+        return self._load_callable()(*args, **kwargs)
+        
+    def __getattr__(self, name: str) -> Any:
+        """
+        Access class methods and attributes on the lazy callable.
+        
+        Args:
+            name: The name of the attribute to access
             
-        return self._callable(*args, **kwargs)
+        Returns:
+            The requested attribute from the loaded callable
+            
+        Raises:
+            AttributeError: If the attribute doesn't exist
+        """
+        # Load the actual callable (class) first
+        callable_obj = self._load_callable()
+        # Then get the attribute (method) from it
+        return getattr(callable_obj, name)
 
 
 def lazy_import(module_name: str, package: Optional[str] = None) -> Any:
