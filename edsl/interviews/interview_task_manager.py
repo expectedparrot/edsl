@@ -96,6 +96,16 @@ class InterviewTaskManager:
     def interview_status(self) -> "InterviewStatusDictionary":
         """Return a dictionary mapping task status codes to counts."""
         return self.task_creators.interview_status
+        
+    def clear_references(self) -> None:
+        """Clear references to help with garbage collection."""
+        # Clear task creators which might hold references to the interview
+        if hasattr(self, 'task_creators'):
+            self.task_creators = {}
+            
+        # Clear the survey reference
+        if hasattr(self, 'survey'):
+            self.survey = None
 
 
 if __name__ == "__main__":

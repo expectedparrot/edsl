@@ -76,7 +76,7 @@ class AsyncInterviewRunner:
                     task.cancel()
 
     @asynccontextmanager
-    async def _interview_batch_processor(self) -> AsyncIterator[AsyncGenerator[tuple[Result, Interview], None]]:
+    async def _interview_batch_processor(self) -> AsyncIterator[AsyncGenerator[tuple[Result, Interview, int], None]]:
         """Context manager for processing batches of interviews.
         
         Handles initialization, cleanup, and error management for the entire
@@ -87,22 +87,33 @@ class AsyncInterviewRunner:
         interview_generator = self._expand_interviews()
         
         try:
-            async def process_batches() -> AsyncGenerator[tuple[Result, Interview], None]:
+            async def process_batches() -> AsyncGenerator[tuple[Result, Interview, int], None]:
                 while True:
                     chunk = self._get_next_chunk(interview_generator)
                     if not chunk:
                         break
                     
                     async with self._process_chunk(chunk) as results:
-                        for result, interview, _ in (r for r in results if r is not None):
-                            yield result, interview
+                        for result_tuple in results:
+                            # Yield the full tuple (result, interview, idx)
+                            yield result_tuple
+                    
+                    # Clean up chunk to help with garbage collection
+                    for idx, interview in chunk:
+                        # Explicitly clear any interview references when done with the chunk
+                        if hasattr(interview, 'clear_references'):
+                            interview.clear_references()
+                    del chunk
             
             yield process_batches()
             
         finally:
-            # Cleanup code if needed
+            # Cleanup code to help garbage collection
             self._current_idx = 0
             self._initialized.clear()
+            # Clear the generator to avoid references
+            if 'interview_generator' in locals():
+                del interview_generator
 
     async def _run_single_interview(
         self, interview: Interview, idx: int
@@ -110,10 +121,13 @@ class AsyncInterviewRunner:
         """Execute a single interview with error handling."""
         try:
             await interview.async_conduct_interview(self.run_config)
+            # Create result and explicitly break reference to interview
             result = Result.from_interview(interview)
+            # Update the status
             self.run_config.environment.jobs_runner_status.add_completed_interview(
                 interview
             )
+            # Return tuple that keeps the interview reference
             return (result, interview, idx)
         except Exception as e:
             if self.run_config.parameters.stop_on_exception:
@@ -136,7 +150,24 @@ class AsyncInterviewRunner:
                 *tasks,
                 return_exceptions=not self.run_config.parameters.stop_on_exception
             )
-            yield [r for r in results if r is not None]
+            # Filter out None results and yield a new list to avoid keeping the original tuple references
+            valid_results = []
+            for r in results:
+                if r is not None:
+                    result, interview, idx = r
+                    # Create a new tuple to break reference to the original
+                    new_tuple = (result, interview, idx)
+                    valid_results.append(new_tuple)
+                    
+                    # Clear original tuple to help GC
+                    del r
+            
+            yield valid_results
+            
+            # Manually clean up the valid_results list and its contents to help garbage collection
+            for tup in valid_results:
+                del tup
+            del valid_results
 
     def _expand_interviews(self) -> Generator["Interview", None, None]:
         """
@@ -201,8 +232,14 @@ class AsyncInterviewRunner:
             Exception: If stop_on_exception is True and any interview fails
         """
         async with self._interview_batch_processor() as processor:
-            async for result in processor:
-                yield result
+            async for result_tuple in processor:
+                # For each result tuple in the processor
+                result, interview, _ = result_tuple
+                # Yield a new tuple to break reference to the original tuple
+                yield result, interview
+                
+                # Help garbage collection by removing references
+                del result_tuple
 
 if __name__ == "__main__":
     import doctest

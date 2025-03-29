@@ -541,6 +541,44 @@ class Interview:
         """
         return f"Interview(agent = {repr(self.agent)}, survey = {repr(self.survey)}, scenario = {repr(self.scenario)}, model = {repr(self.model)})"
 
+    def clear_references(self) -> None:
+        """Clear strong references to help garbage collection.
+        
+        This method clears strong references to various objects that might
+        be creating reference cycles and preventing proper garbage collection.
+        Call this method when you're done with an interview and want to ensure
+        it gets properly garbage collected.
+        
+        This is particularly important for large-scale operations where memory
+        usage needs to be minimized.
+        """
+        # Clear references to tasks
+        if hasattr(self, 'tasks'):
+            self.tasks = None
+            
+        # Clear references to invigilators
+        if hasattr(self, 'invigilators'):
+            self.invigilators = None
+            
+        # Clear validator references in questions
+        if hasattr(self, 'survey') and self.survey:
+            for question in self.survey.questions:
+                if hasattr(question, 'clear_references'):
+                    question.clear_references()
+            
+        # Clear valid_results which might contain circular references
+        if hasattr(self, 'valid_results'):
+            self.valid_results = None
+            
+        # Clear task manager references
+        if hasattr(self, 'task_manager'):
+            if hasattr(self.task_manager, 'clear_references'):
+                self.task_manager.clear_references()
+            else:
+                # Clear task creators which might hold references to the interview
+                if hasattr(self.task_manager, 'task_creators'):
+                    self.task_manager.task_creators = {}
+        
     def duplicate(
         self, iteration: int, cache: "Cache", randomize_survey: Optional[bool] = True
     ) -> "Interview":
