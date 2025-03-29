@@ -34,6 +34,8 @@ from .jobs_runner_status import JobsRunnerStatus
 from .async_interview_runner import AsyncInterviewRunner
 from .data_structures import RunEnvironment, RunParameters, RunConfig
 
+from ..utilities.memory_debugger import MemoryDebugger
+
 if TYPE_CHECKING:
     from ..jobs import Jobs
 
@@ -154,6 +156,39 @@ class JobsRunnerAsyncio:
         data = asyncio.run(self.run_async(parameters))
         return Results(survey=self.jobs.survey, data=data)
 
+    class ProgressBarManager:
+        """Context manager for handling progress bar setup and thread management."""
+        
+        def __init__(self, parameters, jobs_runner_status):
+            self.parameters = parameters
+            self.jobs_runner_status = jobs_runner_status
+            self.progress_thread = None
+            self.stop_event = threading.Event()
+
+        def __enter__(self):
+            if self.parameters.progress_bar and self.jobs_runner_status.has_ep_api_key():
+                self.jobs_runner_status.setup()
+                self.progress_thread = threading.Thread(
+                    target=self._run_progress_bar,
+                    args=(self.stop_event, self.jobs_runner_status)
+                )
+                self.progress_thread.start()
+            elif self.parameters.progress_bar:
+                warnings.warn(
+                    "You need an Expected Parrot API key to view job progress bars."
+                )
+            return self.stop_event
+
+        def __exit__(self, exc_type, exc_val, exc_tb):
+            self.stop_event.set()
+            if self.progress_thread is not None:
+                self.progress_thread.join()
+
+        @staticmethod
+        def _run_progress_bar(stop_event, jobs_runner_status):
+            """Runs the progress bar in a separate thread."""
+            jobs_runner_status.update_progress(stop_event)
+
     @jupyter_nb_handler
     async def run(self, parameters: RunParameters) -> Results:
         """
@@ -211,94 +246,19 @@ class JobsRunnerAsyncio:
             self.environment.jobs_runner_status
         )
 
-        def inspect_references(obj, skip_frames=True):
-            """
-            Inspect what objects are referring to the given object.
-            
-            Args:
-                obj: The object to inspect references for
-                skip_frames: If True, skip function frames and local namespaces
-            """
-            import gc
-            import sys
-            import types
-            
-            print(f"\nReference count for {type(obj)}: {sys.getrefcount(obj)}")
-            print("\nObjects referring to this object:")
-            
-            referrers = gc.get_referrers(obj)
-            for ref in referrers:
-                # Skip frames and this function's locals if requested
-                if skip_frames and (isinstance(ref, (types.FrameType, types.FunctionType)) or 
-                                  (isinstance(ref, dict) and ref.get('obj') is obj)):
-                    continue
-            
-                print(f"\nType: {type(ref)}")
-                
-                if isinstance(ref, dict):
-                    # For dictionaries, show the keys where our object appears
-                    for k, v in ref.items():
-                        if v is obj:
-                            print(f"  - Found in dict with key: {k}")
-                            try:
-                                # Try to get the dict's owner if it's an object's __dict__
-                                owner = [o for o in gc.get_referrers(ref) if hasattr(o, '__dict__') and o.__dict__ is ref]
-                                if owner:
-                                    print(f"    (This dict belongs to: {type(owner[0])})")
-                            except:
-                                pass
-                
-                elif isinstance(ref, list):
-                    # For lists, show the index
-                    try:
-                        idx = ref.index(obj)
-                        print(f"  - Found in list at index: {idx}")
-                        # Try to get list's container
-                        owners = [o for o in gc.get_referrers(ref) if hasattr(o, '__dict__')]
-                        if owners:
-                            print(f"    (This list belongs to: {type(owners[0])})")
-                    except ValueError:
-                        print("  - Found in list (as part of a larger structure)")
-                
-                elif isinstance(ref, tuple):
-                    try:
-                        idx = ref.index(obj)
-                        print(f"  - Found in tuple at index: {idx}")
-                    except ValueError:
-                        print("  - Found in tuple (as part of a larger structure)")
-                
-                else:
-                    # For other types, print what we can
-                    print(f"  - {ref}")
-
         async def get_results(results) -> None:
             """Conducted the interviews and append to the results list."""
             result_generator = AsyncInterviewRunner(self.jobs, run_config)
             async for result, interview in result_generator.run():
-                #inspect_references(interview)
+                #debugger = MemoryDebugger(interview)
+                #debugger.inspect_references()
+                # debugger.detect_reference_cycles()
+                # debugger.visualize_dependencies()
                 results.append(result)
                 results.task_history.add_interview(interview)
-                #breakpoint()
 
+    
             self.completed = True
-
-        def run_progress_bar(stop_event, jobs_runner_status) -> None:
-            """Runs the progress bar in a separate thread."""
-            jobs_runner_status.update_progress(stop_event)
-
-        def set_up_progress_bar(progress_bar: bool, jobs_runner_status):
-            progress_thread = None
-            if progress_bar and jobs_runner_status.has_ep_api_key():
-                jobs_runner_status.setup()
-                progress_thread = threading.Thread(
-                    target=run_progress_bar, args=(stop_event, jobs_runner_status)
-                )
-                progress_thread.start()
-            elif progress_bar:
-                warnings.warn(
-                    "You need an Expected Parrot API key to view job progress bars."
-                )
-            return progress_thread
 
         results = Results(
             survey=self.jobs.survey,
@@ -307,37 +267,26 @@ class JobsRunnerAsyncio:
             #           cache=self.environment.cache.new_entries_cache(),
         )
 
-        stop_event = threading.Event()
-        progress_thread = set_up_progress_bar(
-            parameters.progress_bar, run_config.environment.jobs_runner_status
-        )
-
         exception_to_raise = None
-        try:
-            await get_results(results)
-        except KeyboardInterrupt:
-            print("Keyboard interrupt received. Stopping gracefully...")
-            stop_event.set()
-        except Exception as e:
-            if parameters.stop_on_exception:
-                exception_to_raise = e
-            stop_event.set()
-        finally:
-            stop_event.set()
-            if progress_thread is not None:
-                progress_thread.join()
+        with self.ProgressBarManager(parameters, run_config.environment.jobs_runner_status) as stop_event:
+            try:
+                await get_results(results)
+            except KeyboardInterrupt:
+                print("Keyboard interrupt received. Stopping gracefully...")
+            except Exception as e:
+                if parameters.stop_on_exception:
+                    exception_to_raise = e
 
-            if exception_to_raise:
-                raise exception_to_raise
+        if exception_to_raise:
+            raise exception_to_raise
 
-            relevant_cache = results.relevant_cache(self.environment.cache)
-            results.cache = relevant_cache
-            # breakpoint()
-            results.bucket_collection = self.environment.bucket_collection
+        relevant_cache = results.relevant_cache(self.environment.cache)
+        results.cache = relevant_cache
+        results.bucket_collection = self.environment.bucket_collection
 
-            from .results_exceptions_handler import ResultsExceptionsHandler
+        from .results_exceptions_handler import ResultsExceptionsHandler
 
-            results_exceptions_handler = ResultsExceptionsHandler(results, parameters)
+        results_exceptions_handler = ResultsExceptionsHandler(results, parameters)
 
-            results_exceptions_handler.handle_exceptions()
-            return results
+        results_exceptions_handler.handle_exceptions()
+        return results
