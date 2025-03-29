@@ -32,24 +32,14 @@ class SkipHandler:
         # Store a weak reference to the interview
         self._interview_ref = weakref.ref(interview)
         
-        # Cache important properties to prevent the need to access the interview
-        self._to_index = interview.to_index
-        self._survey = interview.survey
-        self._answers = interview.answers
-        self._scenario = interview.scenario
-        
-        # Handle the case when agent might not have traits attribute
+        # Cache only the skip function which doesn't maintain a reference to the interview
         try:
-            self._agent_traits = interview.agent["traits"]
+            self.skip_function: Callable = (
+                interview.survey.rule_collection.skip_question_before_running
+            )
         except (AttributeError, KeyError):
-            self._agent_traits = {}
-            
-        self._skip_flags = interview.skip_flags
-        
-        # Cache the skip function
-        self.skip_function: Callable = (
-            self._survey.rule_collection.skip_question_before_running
-        )
+            # Fallback for test environments
+            self.skip_function = lambda *args: False
 
     @property
     def interview(self):
@@ -58,6 +48,33 @@ class SkipHandler:
         if interview is None:
             raise RuntimeError("Interview has been garbage collected")
         return interview
+        
+    @property
+    def _to_index(self):
+        return self.interview.to_index
+        
+    @property
+    def _survey(self):
+        return self.interview.survey
+        
+    @property
+    def _answers(self):
+        return self.interview.answers
+        
+    @property
+    def _scenario(self):
+        return self.interview.scenario
+        
+    @property
+    def _agent_traits(self):
+        try:
+            return self.interview.agent["traits"]
+        except (AttributeError, KeyError):
+            return {}
+    
+    @property
+    def _skip_flags(self):
+        return self.interview.skip_flags
 
     def should_skip(self, current_question: "QuestionBase") -> bool:
         """Determine if the current question should be skipped."""
@@ -143,22 +160,14 @@ class AnswerQuestionFunctionConstructor:
         # Store a weak reference to the interview
         self._interview_ref = weakref.ref(interview)
         self.key_lookup = key_lookup
-
-        # Cache important properties to prevent the need to access the interview
-        self._answers = interview.answers
-        self._exceptions = interview.exceptions
+        
+        # Store configuration settings that won't change during lifecycle
         self._raise_validation_errors = getattr(interview, "raise_validation_errors", False)
         self._stop_on_exception = getattr(interview, "stop_on_exception", False)
-        self._to_index = interview.to_index
-        
-        # Access skip_flags through property to avoid accessing it before it's created
-        # in test environments
-        if hasattr(interview, "skip_flags"):
-            self._skip_flags = interview.skip_flags
         
         self.had_language_model_no_response_error: bool = False
 
-        # Initialize fetch invigilator with the interview
+        # Initialize fetch invigilator with the interview - this should use weakref internally
         self.invigilator_fetcher = FetchInvigilator(
             interview, key_lookup=self.key_lookup
         )
@@ -178,6 +187,24 @@ class AnswerQuestionFunctionConstructor:
         if interview is None:
             raise RuntimeError("Interview has been garbage collected")
         return interview
+        
+    @property
+    def _answers(self):
+        return self.interview.answers
+        
+    @property
+    def _exceptions(self):
+        return self.interview.exceptions
+        
+    @property
+    def _to_index(self):
+        return self.interview.to_index
+        
+    @property
+    def _skip_flags(self):
+        if hasattr(self.interview, "skip_flags"):
+            return self.interview.skip_flags
+        return {}
 
     def _handle_exception(
         self, e: Exception, invigilator: "InvigilatorBase", task=None
