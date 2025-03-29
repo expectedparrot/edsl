@@ -82,6 +82,7 @@ class RunParameters(Base):
     disable_remote_inference: bool = False
     job_uuid: Optional[str] = None
     fresh: bool = False  # if True, will not use cache and will save new results to cache
+    memory_threshold: Optional[int] = None  # Threshold in bytes for Results SQLList memory management
 
     def to_dict(self, add_edsl_version=False) -> dict:
         d = asdict(self)
