@@ -18,9 +18,6 @@ behavior when customizing job execution.
 """
 from __future__ import annotations
 import time
-import asyncio
-import threading
-import warnings
 from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
@@ -31,12 +28,11 @@ from ..tasks import TaskHistory
 from ..utilities.decorators import jupyter_nb_handler
 from ..utilities.memory_debugger import MemoryDebugger
 
-
 from .jobs_runner_status import JobsRunnerStatus
 from .async_interview_runner import AsyncInterviewRunner
 from .data_structures import RunEnvironment, RunParameters, RunConfig
 from .results_exceptions_handler import ResultsExceptionsHandler
-        
+from .progress_bar_manager import ProgressBarManager
 
 
 if TYPE_CHECKING:
@@ -83,11 +79,9 @@ class JobsRunnerAsyncio:
         self.start_time = None
         self.completed = None
 
-    def __len__(self):
-        return len(self.jobs)
-
     async def _execute_interviews(self, parameters: RunParameters, run_config: RunConfig) -> Results:
         """Core interview execution logic shared between run() and run_async()."""
+        self.start_time = time.monotonic()
         results = Results(
             survey=self.jobs.survey,
             data=[],
@@ -111,93 +105,14 @@ class JobsRunnerAsyncio:
         
         return await self._execute_interviews(parameters, run_config)
 
-    def simple_run(self, parameters: Optional[RunParameters] = None) -> Results:
-        """
-        Run interviews synchronously with minimal configuration.
-        
-        This is a convenience method that provides a very simple synchronous interface
-        for running jobs. It's primarily used for quick tests or debugging, not for 
-        production use.
-        
-        Parameters:
-            parameters (RunParameters, optional): Configuration parameters for the run.
-                If not provided, default parameters will be used.
-                
-        Returns:
-            Results: A Results object containing all responses and metadata
-            
-        Notes:
-            - This method is synchronous (blocks until completion)
-            - It doesn't include progress tracking or advanced error handling
-            - For production use, use the main run() method instead
-        """
-        if parameters is None:
-            parameters = RunParameters()
-            
-        data = asyncio.run(self.run_async(parameters))
-        return Results(survey=self.jobs.survey, data=data)
-
-    class ProgressBarManager:
-        """Context manager for handling progress bar setup and thread management."""
-        
-        def __init__(self, jobs_runner, run_config, parameters):
-            self.parameters = parameters
-            
-            # Set up progress tracking
-            from ..coop import Coop
-            coop = Coop()
-            endpoint_url = coop.get_progress_bar_url()
-            
-            # Set up jobs runner status
-            params = {
-                "jobs_runner": jobs_runner,
-                "n": parameters.n,
-                "endpoint_url": endpoint_url,
-                "job_uuid": parameters.job_uuid,
-            }
-            jobs_runner_status_cls = (JobsRunnerStatus if run_config.environment.jobs_runner_status is None 
-                                    else run_config.environment.jobs_runner_status)
-            self.jobs_runner_status = jobs_runner_status_cls(**params)
-            
-            # Store on run_config for use by other components
-            run_config.environment.jobs_runner_status = self.jobs_runner_status
-            
-            self.progress_thread = None
-            self.stop_event = threading.Event()
-
-        def __enter__(self):
-            if self.parameters.progress_bar and self.jobs_runner_status.has_ep_api_key():
-                self.jobs_runner_status.setup()
-                self.progress_thread = threading.Thread(
-                    target=self._run_progress_bar,
-                    args=(self.stop_event, self.jobs_runner_status)
-                )
-                self.progress_thread.start()
-            elif self.parameters.progress_bar:
-                warnings.warn(
-                    "You need an Expected Parrot API key to view job progress bars."
-                )
-            return self.stop_event
-
-        def __exit__(self, exc_type, exc_val, exc_tb):
-            self.stop_event.set()
-            if self.progress_thread is not None:
-                self.progress_thread.join()
-
-        @staticmethod
-        def _run_progress_bar(stop_event, jobs_runner_status):
-            """Runs the progress bar in a separate thread."""
-            jobs_runner_status.update_progress(stop_event)
-
     @jupyter_nb_handler
     async def run(self, parameters: RunParameters) -> Results:
         """Execute interviews asynchronously with full feature support."""
         run_config = RunConfig(parameters=parameters, environment=self.environment)
-        self.start_time = time.monotonic()
         self.completed = False
 
-        exception_to_raise = None
-        with self.ProgressBarManager(self, run_config, parameters) as stop_event:
+
+        with ProgressBarManager(self, run_config, parameters) as stop_event:
             try:
                 results = await self._execute_interviews(parameters, run_config)
                 self.completed = True
@@ -206,11 +121,11 @@ class JobsRunnerAsyncio:
                 results = Results(survey=self.jobs.survey, data=[], task_history=TaskHistory())
             except Exception as e:
                 if parameters.stop_on_exception:
-                    exception_to_raise = e
+                    raise
                 results = Results(survey=self.jobs.survey, data=[], task_history=TaskHistory())
-
-        if exception_to_raise:
-            raise exception_to_raise
 
         ResultsExceptionsHandler(results, parameters).handle_exceptions()
         return results
+
+    def __len__(self):      
+        return len(self.jobs)
