@@ -756,6 +756,8 @@ class Jobs(Base):
             cache (Cache, optional): Cache object to store results
             bucket_collection (BucketCollection, optional): Object to track API calls
             key_lookup (KeyLookup, optional): Object to manage API keys
+            memory_threshold (int, optional): Memory threshold in bytes for the Results object's SQLList,
+                controlling when data is offloaded to SQLite storage
 
         Returns:
             Results: A Results object containing all responses and metadata
@@ -814,6 +816,8 @@ class Jobs(Base):
             cache (Cache, optional): Cache object to store results
             bucket_collection (BucketCollection, optional): Object to track API calls
             key_lookup (KeyLookup, optional): Object to manage API keys
+            memory_threshold (int, optional): Memory threshold in bytes for the Results object's SQLList,
+                controlling when data is offloaded to SQLite storage
 
         Returns:
             Results: A Results object containing all responses and metadata
