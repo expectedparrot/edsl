@@ -79,11 +79,21 @@ class SkipHandler:
     def should_skip(self, current_question: "QuestionBase") -> bool:
         """Determine if the current question should be skipped."""
         current_question_index = self._to_index[current_question.question_name]
-        combined_answers = (
-            self._answers
-            | self._scenario
-            | self._agent_traits
-        )
+        
+        # Handle ScenarioList case - convert to dict first
+        scenario_dict = {}
+        if hasattr(self._scenario, 'items'):
+            # Handle standard dict scenario
+            scenario_dict = self._scenario
+        else:
+            # Handle ScenarioList or other scenario object
+            # Access as a dict if possible, otherwise try to convert
+            scenario_dict = dict(self._scenario) if hasattr(self._scenario, '__iter__') else {}
+            
+        combined_answers = dict(self._answers)
+        combined_answers.update(scenario_dict)
+        combined_answers.update(self._agent_traits)
+        
         return self.skip_function(current_question_index, combined_answers)
 
     def _current_info_env(self) -> dict[str, Any]:

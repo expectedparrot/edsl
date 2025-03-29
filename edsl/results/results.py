@@ -38,6 +38,7 @@ print(report.generate())
 from __future__ import annotations
 import json
 import logging
+import os
 import random
 import warnings
 from collections import defaultdict
@@ -46,7 +47,6 @@ from bisect import bisect_left
 
 from ..base import Base
 from ..db_list import SQLList
-from ..config import CONFIG
 
 logger = logging.getLogger(__name__)
 
@@ -353,11 +353,11 @@ class Results(ResultsOperationsMixin, Base):
         
         # Initialize underlying SQLList for data storage
         if memory_threshold is None:
-            # Check for configured memory threshold for Results
+            # Check for memory threshold in environment variables
             try:
-                memory_threshold = CONFIG.get("EDSL_RESULTS_MEMORY_THRESHOLD")
-                if isinstance(memory_threshold, str):
-                    memory_threshold = int(memory_threshold)
+                env_threshold = os.environ.get("EDSL_RESULTS_MEMORY_THRESHOLD")
+                if env_threshold:
+                    memory_threshold = int(env_threshold)
             except Exception:
                 memory_threshold = None
         
@@ -1778,13 +1778,15 @@ class Results(ResultsOperationsMixin, Base):
 
         >>> r = Results.example()
 
-        :param debug: if False, uses actual API calls
+        :param randomize: If True, adds random values to make the example unique
         """
         from ..jobs import Jobs
         from ..caching import Cache
 
         c = Cache()
+        # Make sure the Job example uses the proper ScenarioList constructor
         job = Jobs.example(randomize=randomize)
+        # Disable remote inference and caching to keep tests fast and local
         results = job.run(
             cache=c,
             stop_on_exception=True,
@@ -1792,6 +1794,8 @@ class Results(ResultsOperationsMixin, Base):
             raise_validation_errors=True,
             disable_remote_cache=True,
             disable_remote_inference=True,
+            # Make sure we create SQLList-backed Results with testing memory threshold
+            memory_threshold=1024 * 1024,  # 1MB is plenty for tests
         )
         return results
 
