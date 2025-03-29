@@ -37,6 +37,7 @@ print(report.generate())
 
 from __future__ import annotations
 import json
+import logging
 import random
 import warnings
 from collections import defaultdict
@@ -46,6 +47,8 @@ from bisect import bisect_left
 from ..base import Base
 from ..db_list import SQLList
 from ..config import CONFIG
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from ..surveys import Survey
@@ -357,6 +360,9 @@ class Results(ResultsOperationsMixin, Base):
                     memory_threshold = int(memory_threshold)
             except Exception:
                 memory_threshold = None
+        
+        # Log memory threshold for debugging
+        logger.debug(f"Initializing Results with SQLList memory threshold: {memory_threshold}")
         
         self.data = SQLList(iterable=data or [], memory_threshold=memory_threshold)
         
