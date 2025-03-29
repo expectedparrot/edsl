@@ -90,8 +90,8 @@ class JobsRunnerAsyncio:
 
         result_generator = AsyncInterviewRunner(self.jobs, run_config)
         async for result, interview in result_generator.run():
-            results.data.append(result)
-            results.task_history.add_interview(interview)
+            results.append(result)
+            results.add_task_history_entry(interview)
         
         results.cache = results.relevant_cache(self.environment.cache)
         results.bucket_collection = self.environment.bucket_collection
