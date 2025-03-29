@@ -734,7 +734,6 @@ class Results(UserList, ResultsOperationsMixin, Base):
                         iteration=0,
                     )
                     cache.data[entry.key] = entry
-                    print(entry.key)
 
         self.cache = cache
 
