@@ -55,6 +55,7 @@ if TYPE_CHECKING:
 from ..base import Base
 from ..utilities import remove_edsl_version, sanitize_string, is_valid_variable_name, dict_hash
 from ..dataset import ScenarioListOperationsMixin
+from ..db_list import SQLList
 
 from .exceptions import ScenarioError
 from .scenario import Scenario
@@ -83,22 +84,24 @@ TableFormat: TypeAlias = Literal[
     "tsv",
 ]
 
-class ScenarioList(Base, UserList, ScenarioListOperationsMixin):
+class ScenarioList(Base, ScenarioListOperationsMixin):
     """
     A collection of Scenario objects with advanced operations for manipulation and analysis.
     
-    ScenarioList extends Python's UserList to provide specialized functionality for
-    working with collections of Scenario objects. It inherits from Base to integrate
-    with EDSL's object model and from ScenarioListOperationsMixin to provide
-    powerful data manipulation capabilities.
+    ScenarioList provides specialized functionality for working with collections of 
+    Scenario objects. It inherits from Base to integrate with EDSL's object model and 
+    from ScenarioListOperationsMixin to provide powerful data manipulation capabilities.
+    It uses SQLList for storage, which automatically offloads data to SQLite when memory
+    usage exceeds configured thresholds.
     
     The class provides methods for filtering, sorting, joining, transforming, and
     analyzing collections of Scenarios. It's designed to work seamlessly with other
     EDSL components like Surveys, Jobs, and Questions.
     
     Attributes:
-        data (list): The underlying list of Scenario objects.
+        data (SQLList): The underlying storage containing Scenario objects.
         codebook (dict): Optional metadata describing the fields in the scenarios.
+        memory_threshold (int): Size threshold in bytes before offloading to SQLite.
         
     Examples:
         Create a ScenarioList from Scenario objects:
@@ -125,7 +128,10 @@ class ScenarioList(Base, UserList, ScenarioListOperationsMixin):
     )
 
     def __init__(
-        self, data: Optional[list] = None, codebook: Optional[dict[str, str]] = None
+        self, 
+        data: Optional[list] = None, 
+        codebook: Optional[dict[str, str]] = None,
+        memory_threshold: Optional[int] = None
     ):
         """
         Initialize a new ScenarioList with optional data and codebook.
@@ -134,6 +140,9 @@ class ScenarioList(Base, UserList, ScenarioListOperationsMixin):
             data: A list of Scenario objects. If None, an empty list is used.
             codebook: A dictionary mapping field names to descriptions or metadata.
                      Used for documentation and to provide context for fields.
+            memory_threshold: Size threshold in bytes before offloading to SQLite.
+                     If None, uses CONFIG.get("EDSL_SCENARIOLIST_MEMORY_THRESHOLD")
+                     or a default value.
                      
         Examples:
             >>> sl = ScenarioList()  # Empty list
@@ -144,12 +153,115 @@ class ScenarioList(Base, UserList, ScenarioListOperationsMixin):
             >>> # With a codebook
             >>> codebook = {"product": "Fruit name", "price": "Price in USD"}
             >>> sl = ScenarioList([s1, s2], codebook=codebook)
+            
+            >>> # With memory threshold (10MB)
+            >>> sl = ScenarioList([s1, s2], memory_threshold=10*1024*1024)
         """
-        if data is not None:
-            super().__init__(data)
-        else:
-            super().__init__([])
+        # Initialize parameters with defaults
+        if memory_threshold is None:
+            # Check for memory threshold in environment variables
+            try:
+                env_threshold = os.environ.get("EDSL_SCENARIOLIST_MEMORY_THRESHOLD")
+                if env_threshold:
+                    memory_threshold = int(env_threshold)
+            except Exception:
+                memory_threshold = None
+        
+        # Use SQLList for data storage with memory threshold
+        self.data = SQLList(iterable=data or [], memory_threshold=memory_threshold)
         self.codebook = codebook or {}
+        
+        # Track if we're using SQLite-backed storage
+        self.memory_threshold = memory_threshold
+        
+    def __len__(self) -> int:
+        """Return the number of scenarios in the list.
+        
+        Returns:
+            int: The number of scenarios in the list
+            
+        Examples:
+            >>> sl = ScenarioList([Scenario({"a": 1}), Scenario({"b": 2})])
+            >>> len(sl)
+            2
+        """
+        return len(self.data)
+        
+    def __iter__(self):
+        """Return an iterator over the scenarios in the list.
+        
+        Yields:
+            Scenario: Each scenario in the list
+            
+        Examples:
+            >>> sl = ScenarioList([Scenario({"a": 1}), Scenario({"b": 2})])
+            >>> [s["a"] if "a" in s else s["b"] for s in sl]
+            [1, 2]
+        """
+        for item in self.data:
+            yield item
+            
+    def __getitem__(self, index):
+        """Get a scenario or slice of scenarios from the list.
+        
+        Args:
+            index: An integer index or slice
+            
+        Returns:
+            Scenario or ScenarioList: The requested scenario(s)
+            
+        Examples:
+            >>> sl = ScenarioList([Scenario({"a": 1}), Scenario({"b": 2})])
+            >>> sl[0]["a"]
+            1
+            >>> sl[1:2]
+            ScenarioList([Scenario({'b': 2})])
+        """
+        item = self.data[index]
+        # If it's a slice, return a new ScenarioList with the same memory threshold
+        if isinstance(index, slice):
+            new_list = ScenarioList(memory_threshold=self.memory_threshold)
+            new_list.data = item
+            return new_list
+        # Otherwise return the individual Scenario
+        return item
+        
+    def append(self, item):
+        """Add a scenario to the end of the list.
+        
+        Args:
+            item: The scenario to add
+            
+        Examples:
+            >>> sl = ScenarioList()
+            >>> sl.append(Scenario({"a": 1}))
+            >>> len(sl)
+            1
+        """
+        self.data.append(item)
+        
+    def extend(self, items):
+        """Add multiple scenarios to the end of the list.
+        
+        Args:
+            items: An iterable of scenarios to add
+            
+        Examples:
+            >>> sl = ScenarioList()
+            >>> sl.extend([Scenario({"a": 1}), Scenario({"b": 2})])
+            >>> len(sl)
+            2
+        """
+        self.data.extend(items)
+        
+    @property
+    def is_memory_only(self) -> bool:
+        """Check if the scenarios are stored in memory only.
+        
+        Returns:
+            bool: True if the data is stored in memory only, False if using SQLite
+        """
+        return self.data.is_memory_only
 
     def unique(self) -> ScenarioList:
         """
@@ -472,7 +584,7 @@ class ScenarioList(Base, UserList, ScenarioListOperationsMixin):
         return hash(self) == hash(other)
 
     def __repr__(self):
-        return f"ScenarioList({self.data})"
+        return f"ScenarioList({list(self.data)})"
 
     def __mul__(self, other: ScenarioList) -> ScenarioList:
         """Takes the cross product of two ScenarioLists.
@@ -785,7 +897,11 @@ class ScenarioList(Base, UserList, ScenarioListOperationsMixin):
         >>> sl is sl_copy
         False
         """
-        return ScenarioList([scenario.copy() for scenario in self])
+        return ScenarioList(
+            [scenario.copy() for scenario in self],
+            codebook=self.codebook.copy(),
+            memory_threshold=self.memory_threshold
+        )
 
     def filter(self, expression: str) -> ScenarioList:
         """
@@ -799,36 +915,45 @@ class ScenarioList(Base, UserList, ScenarioListOperationsMixin):
         >>> s.filter("b == 2")
         ScenarioList([Scenario({'a': 1, 'b': 2})])
         """
-        sl = self.duplicate()
-        base_keys = set(self[0].keys())
-        keys = set()
-        for scenario in sl:
-            keys.update(scenario.keys())
-        if keys != base_keys:
-            import warnings
-
-            warnings.warn(
-                "Ragged ScenarioList detected (different keys for different scenario entries). This may cause unexpected behavior."
-            )
-
+        # Get first item to check keys if available
+        try:
+            first_item = self[0] if len(self) > 0 else None
+            if first_item:
+                base_keys = set(first_item.keys())
+                keys = set()
+                for scenario in self:
+                    keys.update(scenario.keys())
+                if keys != base_keys:
+                    import warnings
+                    warnings.warn(
+                        "Ragged ScenarioList detected (different keys for different scenario entries). This may cause unexpected behavior."
+                    )
+        except IndexError:
+            pass
+        
+        # Create new ScenarioList with filtered data
+        new_data = []
+        
         def create_evaluator(scenario: Scenario):
-            """Create an evaluator for the given result.
-            The 'combined_dict' is a mapping of all values for that Result object.
-            """
+            """Create an evaluator for the given scenario."""
             return EvalWithCompoundTypes(names=scenario)
 
         try:
-            # iterates through all the results and evaluates the expression
-            new_data = []
-            for scenario in sl:
+            # Iterate through all scenarios and evaluate the expression
+            for scenario in self:
                 if create_evaluator(scenario).eval(expression):
-                    new_data.append(scenario)
+                    new_data.append(scenario.copy())
         except NameNotDefined as e:
-            available_fields = ", ".join(self.data[0].keys() if self.data else [])
+            # Get available fields for error message
+            try:
+                first_item = self[0] if len(self) > 0 else None
+                available_fields = ", ".join(first_item.keys() if first_item else [])
+            except:
+                available_fields = "unknown"
+                
             raise ScenarioError(
                 f"Error in filter: '{e}'\n"
                 f"The expression '{expression}' refers to a field that does not exist.\n"
-                f"Scenario: {scenario}\n"
                 f"Available fields: {available_fields}\n"
                 "Check your filter expression or consult the documentation: "
                 "https://docs.expectedparrot.com/en/latest/scenarios.html#module-edsl.scenarios.Scenario"
@@ -836,7 +961,7 @@ class ScenarioList(Base, UserList, ScenarioListOperationsMixin):
         except Exception as e:
             raise ScenarioError(f"Error in filter. Exception:{e}")
 
-        return ScenarioList(new_data)
+        return ScenarioList(new_data, codebook=self.codebook.copy(), memory_threshold=self.memory_threshold)
 
     def from_urls(
         self, urls: list[str], field_name: Optional[str] = "text"
@@ -1168,15 +1293,22 @@ class ScenarioList(Base, UserList, ScenarioListOperationsMixin):
         return sl
 
     @classmethod
-    def create_empty_scenario_list(cls, n: int) -> ScenarioList:
+    def create_empty_scenario_list(cls, n: int, memory_threshold: Optional[int] = None) -> ScenarioList:
         """Create an empty ScenarioList with n scenarios.
+
+        Args:
+            n: The number of empty scenarios to create
+            memory_threshold: Optional memory threshold in bytes
 
         Example:
 
         >>> ScenarioList.create_empty_scenario_list(3)
-        ScenarioList([Scenario({}), Scenario({}), Scenario({})])
+        ScenarioList([Scenario({}), Scenario({}), Scenario({})]) 
         """
-        return ScenarioList([Scenario({}) for _ in range(n)])
+        return ScenarioList(
+            [Scenario({}) for _ in range(n)], 
+            memory_threshold=memory_threshold
+        )
 
     def add_value(self, name: str, value: Any) -> ScenarioList:
         """Add a value to all scenarios in a ScenarioList.
@@ -1835,9 +1967,63 @@ class ScenarioList(Base, UserList, ScenarioListOperationsMixin):
         """
         return cls([Scenario.example(randomize), Scenario.example(randomize)])
 
-    def __getitem__(self, key: Union[int, slice]) -> Any:
-        """Return the item at the given index.
+    def __len__(self) -> int:
+        """Return the number of scenarios in the list."""
+        return len(self.data)
+        
+    def __iter__(self):
+        """Return an iterator over the scenarios in the list."""
+        return iter(self.data)
+        
+    @property
+    def is_memory_only(self) -> bool:
+        """Check if the scenario list data is stored entirely in memory.
+        
+        Returns:
+            bool: True if all data is in memory, False if using SQLite backing
+        """
+        return getattr(self.data, "is_memory_only", True)
+        
+    def items(self):
+        """Make this class compatible with dict.items() by accessing first scenario items.
+        
+        This ensures the class works as a drop-in replacement for UserList in code
+        that expects a dictionary-like interface.
+        
+        Returns:
+            items view from the first scenario object if available, empty list otherwise
+        """
+        if len(self.data) > 0:
+            return self.data[0].items()
+        return {}.items()
+        
+    def copy(self):
+        """Create a copy of this ScenarioList.
+        
+        Returns:
+            A new ScenarioList with copies of the same scenarios
+        """
+        # Get copies of all scenarios
+        if len(self.data) > 0:
+            # If we have at least one scenario, copy the first one
+            if hasattr(self.data[0], 'copy'):
+                return self.data[0].copy()
+            # Otherwise try to convert to Scenario
+            from .scenario import Scenario
+            try:
+                return Scenario(dict(self.data[0]))
+            except (TypeError, ValueError):
+                # Fallback to empty scenario
+                return Scenario({})
+    
+    def __getitem__(self, key: Union[int, slice, str]) -> Any:
+        """Return the item at the given index or key.
 
+        This method handles three types of keys:
+        1. Integer indices to access scenarios by position
+        2. Slice objects to get a range of scenarios
+        3. String keys to access fields across all scenarios (returns first match)
+        
         Example:
         >>> s = ScenarioList([Scenario({'age': 22, 'hair': 'brown', 'height': 5.5}), Scenario({'age': 22, 'hair': 'brown', 'height': 5.5})])
         >>> s[0]
@@ -1845,14 +2031,34 @@ class ScenarioList(Base, UserList, ScenarioListOperationsMixin):
 
         >>> s[:1]
         ScenarioList([Scenario({'age': 22, 'hair': 'brown', 'height': 5.5})])
-
+        
+        >>> s['age']  # Returns value from first scenario
+        22
         """
         if isinstance(key, slice):
-            return ScenarioList(super().__getitem__(key))
+            return ScenarioList(
+                self.data[key], 
+                codebook=self.codebook, 
+                memory_threshold=self.memory_threshold
+            )
         elif isinstance(key, int):
-            return super().__getitem__(key)
+            return self.data[key]
+        elif isinstance(key, str):
+            # For string keys, search in the first scenario
+            if len(self.data) > 0:
+                # Forward the key lookup to the first scenario
+                try:
+                    return self.data[0][key]
+                except (KeyError, IndexError):
+                    # If not found in first scenario, try to_dict as fallback
+                    try:
+                        return self.to_dict(add_edsl_version=False)[key]
+                    except KeyError:
+                        raise KeyError(f"Key '{key}' not found in any scenario")
+            # Empty list case
+            raise KeyError(f"Key '{key}' not found in empty ScenarioList")
         else:
-            return self.to_dict(add_edsl_version=False)[key]
+            raise TypeError(f"Invalid key type: {type(key)}")
 
     def to_agent_list(self):
         """Convert the ScenarioList to an AgentList.

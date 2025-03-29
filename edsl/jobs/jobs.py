@@ -995,12 +995,11 @@ class Jobs(Base):
 
         base_survey = Survey(questions=[q1, q2])
 
-        scenario_list = ScenarioList(
-            [
-                Scenario({"period": f"morning{addition}"}),
-                Scenario({"period": "afternoon"}),
-            ]
-        )
+        scenarios = [
+            Scenario({"period": f"morning{addition}"}),
+            Scenario({"period": "afternoon"}),
+        ]
+        scenario_list = ScenarioList(data=scenarios)
         if test_model:
             job = base_survey.by(m).by(scenario_list).by(joy_agent, sad_agent)
         else:

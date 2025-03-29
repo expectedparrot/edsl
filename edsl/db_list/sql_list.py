@@ -19,7 +19,6 @@ from sqlalchemy import create_engine, func
 from sqlalchemy.orm import Session, sessionmaker
 
 from ..base.base_class import Base as BaseClass
-from ..config import CONFIG
 from .exceptions import SQLListError, SQLListIndexError, SQLListValueError
 from .orm import Base, ListItem, ListMetadata
 
@@ -76,11 +75,13 @@ class SQLList(BaseClass):
         super().__init__()
         
         # Initialize parameters with defaults
-        # Check if EDSL_SQLLIST_MEMORY_THRESHOLD is defined in CONFIG
+        # Check if EDSL_SQLLIST_MEMORY_THRESHOLD is defined in environment variables
         try:
-            default_memory_threshold = CONFIG.get("EDSL_SQLLIST_MEMORY_THRESHOLD")
-            if isinstance(default_memory_threshold, str):
-                default_memory_threshold = int(default_memory_threshold)
+            env_threshold = os.environ.get("EDSL_SQLLIST_MEMORY_THRESHOLD")
+            if env_threshold:
+                default_memory_threshold = int(env_threshold)
+            else:
+                default_memory_threshold = None
         except Exception:
             default_memory_threshold = None
             
@@ -111,11 +112,13 @@ class SQLList(BaseClass):
             if db_path:
                 self.db_path = db_path
             else:
-                # Use config path if set, otherwise create a temporary file
+                # Use environment variable path if set, otherwise create a temporary file
                 try:
-                    config_path = CONFIG.get("EDSL_SQLLIST_DB_PATH")
-                    if isinstance(config_path, str) and not config_path.startswith("sqlite:///"):
-                        config_path = f"sqlite:///{config_path}"
+                    env_path = os.environ.get("EDSL_SQLLIST_DB_PATH")
+                    if env_path and not env_path.startswith("sqlite:///"):
+                        config_path = f"sqlite:///{env_path}"
+                    else:
+                        config_path = env_path
                 except Exception:
                     config_path = None
                 
@@ -166,7 +169,23 @@ class SQLList(BaseClass):
             
             # Add all items to database
             for i, item in enumerate(self.memory_list):
-                session.add(ListItem(index=i, value=json.dumps(item)))
+                # Serialize the item appropriately
+                try:
+                    serialized_value = json.dumps(item)
+                except TypeError:
+                    # Handle Scenario and other EDSL objects
+                    if hasattr(item, 'to_dict'):
+                        # Use to_dict method if available
+                        serialized_value = json.dumps(item.to_dict(add_edsl_version=True))
+                    # Handle objects that can be converted to dict but don't have to_dict
+                    elif hasattr(item, '__dict__'):
+                        # Use __dict__ as a fallback
+                        serialized_value = json.dumps(item.__dict__)
+                    else:
+                        # Fallback for other types
+                        raise SQLListValueError(f"Item of type {type(item).__name__} is not JSON serializable and has no to_dict method")
+                
+                session.add(ListItem(index=i, value=serialized_value))
             
             # Update metadata
             length_meta = session.query(ListMetadata).filter_by(key="length").first()
@@ -233,11 +252,14 @@ class SQLList(BaseClass):
                             if data['edsl_class_name'] == 'Result':
                                 from ..results import Result
                                 return Result.from_dict(data)
+                            elif data['edsl_class_name'] == 'Scenario':
+                                from ..scenarios import Scenario
+                                return Scenario.from_dict(data)
                             else:
                                 # Generic approach for other EDSL classes
                                 class_name = data['edsl_class_name']
                                 # Try to import from appropriate module
-                                for module_path in ['edsl', 'edsl.results', 'edsl.agents', 'edsl.models']:
+                                for module_path in ['edsl', 'edsl.results', 'edsl.agents', 'edsl.models', 'edsl.scenarios']:
                                     try:
                                         module = import_module(module_path)
                                         if hasattr(module, class_name):
@@ -288,9 +310,14 @@ class SQLList(BaseClass):
                     try:
                         serialized_value = json.dumps(value)
                     except TypeError:
+                        # Handle Scenario and other EDSL objects
                         if hasattr(value, 'to_dict'):
                             # Use to_dict method if available
                             serialized_value = json.dumps(value.to_dict(add_edsl_version=True))
+                        # Handle objects that can be converted to dict but don't have to_dict
+                        elif hasattr(value, '__dict__'):
+                            # Use __dict__ as a fallback
+                            serialized_value = json.dumps(value.__dict__)
                         else:
                             # Fallback for other types
                             raise SQLListValueError(f"Value of type {type(value).__name__} is not JSON serializable and has no to_dict method")
@@ -360,9 +387,14 @@ class SQLList(BaseClass):
                 try:
                     serialized_value = json.dumps(item)
                 except TypeError:
+                    # Handle Scenario and other EDSL objects
                     if hasattr(item, 'to_dict'):
                         # Use to_dict method if available
                         serialized_value = json.dumps(item.to_dict(add_edsl_version=True))
+                    # Handle objects that can be converted to dict but don't have to_dict
+                    elif hasattr(item, '__dict__'):
+                        # Use __dict__ as a fallback
+                        serialized_value = json.dumps(item.__dict__)
                     else:
                         # Fallback for other types
                         raise SQLListValueError(f"Item of type {type(item).__name__} is not JSON serializable and has no to_dict method")
@@ -402,9 +434,14 @@ class SQLList(BaseClass):
                     try:
                         serialized_value = json.dumps(item)
                     except TypeError:
+                        # Handle Scenario and other EDSL objects
                         if hasattr(item, 'to_dict'):
                             # Use to_dict method if available
                             serialized_value = json.dumps(item.to_dict(add_edsl_version=True))
+                        # Handle objects that can be converted to dict but don't have to_dict
+                        elif hasattr(item, '__dict__'):
+                            # Use __dict__ as a fallback
+                            serialized_value = json.dumps(item.__dict__)
                         else:
                             # Fallback for other types
                             raise SQLListValueError(f"Item of type {type(item).__name__} is not JSON serializable and has no to_dict method")
