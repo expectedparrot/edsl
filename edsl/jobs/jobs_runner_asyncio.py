@@ -29,12 +29,15 @@ if TYPE_CHECKING:
 from ..results import Results
 from ..tasks import TaskHistory
 from ..utilities.decorators import jupyter_nb_handler
+from ..utilities.memory_debugger import MemoryDebugger
+
 
 from .jobs_runner_status import JobsRunnerStatus
 from .async_interview_runner import AsyncInterviewRunner
 from .data_structures import RunEnvironment, RunParameters, RunConfig
+from .results_exceptions_handler import ResultsExceptionsHandler
+        
 
-from ..utilities.memory_debugger import MemoryDebugger
 
 if TYPE_CHECKING:
     from ..jobs import Jobs
@@ -83,52 +86,30 @@ class JobsRunnerAsyncio:
     def __len__(self):
         return len(self.jobs)
 
-    async def run_async(self, parameters: RunParameters) -> 'Results':
-        """
-        Execute interviews asynchronously without progress tracking.
-        
-        This method provides a simplified version of the run method, primarily used
-        by other modules that need direct access to asynchronous execution without
-        the full feature set of the main run() method. This is a lower-level interface
-        that doesn't include progress bars or advanced error handling.
-        
-        Parameters:
-            parameters (RunParameters): Configuration parameters for the run
-            
-        Returns:
-            Results: A Results object containing all responses and metadata
-            
-        Notes:
-            - This method doesn't support progress bars or interactive cancellation
-            - It doesn't handle keyboard interrupts specially
-            - It's primarily meant for internal use by other EDSL components
-            - For most use cases, the main run() method is preferred
-        """
-        # Initialize a simple status tracker (no progress bar)
-        self.environment.jobs_runner_status = JobsRunnerStatus(self, n=parameters.n)
-        data = []
-        task_history = TaskHistory(include_traceback=False)
-
-        run_config = RunConfig(parameters=parameters, environment=self.environment)
-        result_generator = AsyncInterviewRunner(self.jobs, run_config)
-
-        # Process results as they come in
-        async for result, interview in result_generator.run():
-            data.append(result)
-            task_history.add_interview(interview)
-
-        # Create the results object
-        results = Results(survey=self.jobs.survey, task_history=task_history, data=data)
-
-        # Extract only the relevant cache entries
-        relevant_cache = results.relevant_cache(self.environment.cache)
-
-        return Results(
+    async def _execute_interviews(self, parameters: RunParameters, run_config: RunConfig) -> Results:
+        """Core interview execution logic shared between run() and run_async()."""
+        results = Results(
             survey=self.jobs.survey,
-            task_history=task_history,
-            data=data,
-            cache=relevant_cache,
+            data=[],
+            task_history=TaskHistory(include_traceback=not parameters.progress_bar),
         )
+
+        result_generator = AsyncInterviewRunner(self.jobs, run_config)
+        async for result, interview in result_generator.run():
+            results.data.append(result)
+            results.task_history.add_interview(interview)
+        
+        results.cache = results.relevant_cache(self.environment.cache)
+        results.bucket_collection = self.environment.bucket_collection
+        
+        return results
+
+    async def run_async(self, parameters: RunParameters) -> Results:
+        """Execute interviews asynchronously without progress tracking."""
+        run_config = RunConfig(parameters=parameters, environment=self.environment)
+        self.environment.jobs_runner_status = JobsRunnerStatus(self, n=parameters.n)
+        
+        return await self._execute_interviews(parameters, run_config)
 
     def simple_run(self, parameters: Optional[RunParameters] = None) -> Results:
         """
@@ -159,9 +140,28 @@ class JobsRunnerAsyncio:
     class ProgressBarManager:
         """Context manager for handling progress bar setup and thread management."""
         
-        def __init__(self, parameters, jobs_runner_status):
+        def __init__(self, jobs_runner, run_config, parameters):
             self.parameters = parameters
-            self.jobs_runner_status = jobs_runner_status
+            
+            # Set up progress tracking
+            from ..coop import Coop
+            coop = Coop()
+            endpoint_url = coop.get_progress_bar_url()
+            
+            # Set up jobs runner status
+            params = {
+                "jobs_runner": jobs_runner,
+                "n": parameters.n,
+                "endpoint_url": endpoint_url,
+                "job_uuid": parameters.job_uuid,
+            }
+            jobs_runner_status_cls = (JobsRunnerStatus if run_config.environment.jobs_runner_status is None 
+                                    else run_config.environment.jobs_runner_status)
+            self.jobs_runner_status = jobs_runner_status_cls(**params)
+            
+            # Store on run_config for use by other components
+            run_config.environment.jobs_runner_status = self.jobs_runner_status
+            
             self.progress_thread = None
             self.stop_event = threading.Event()
 
@@ -191,102 +191,26 @@ class JobsRunnerAsyncio:
 
     @jupyter_nb_handler
     async def run(self, parameters: RunParameters) -> Results:
-        """
-        Execute interviews asynchronously with full feature support.
-        
-        This is the main method for running jobs with full feature support, including
-        progress tracking, error handling, and graceful cancellation. It's decorated
-        with @jupyter_nb_handler to ensure proper handling in notebook environments.
-        
-        Parameters:
-            parameters (RunParameters): Configuration parameters for the run
-            
-        Returns:
-            Results: A Results object containing all responses and metadata
-            
-        Raises:
-            Exception: Any unhandled exception from interviews if stop_on_exception=True
-            KeyboardInterrupt: If the user interrupts execution and it can't be handled gracefully
-            
-        Notes:
-            - Supports progress bars with remote tracking via Coop
-            - Handles keyboard interrupts gracefully
-            - Manages concurrent execution of multiple interviews
-            - Collects and consolidates results from all completed interviews
-            - Can be used in both async and sync contexts due to the @jupyter_nb_handler decorator
-        """
-
+        """Execute interviews asynchronously with full feature support."""
         run_config = RunConfig(parameters=parameters, environment=self.environment)
-
         self.start_time = time.monotonic()
         self.completed = False
 
-        from ..coop import Coop
-
-        coop = Coop()
-        endpoint_url = coop.get_progress_bar_url()
-
-        def set_up_jobs_runner_status(jobs_runner_status):
-            if jobs_runner_status is not None:
-                return jobs_runner_status(
-                    self,
-                    n=parameters.n,
-                    endpoint_url=endpoint_url,
-                    job_uuid=parameters.job_uuid,
-                )
-            else:
-                return JobsRunnerStatus(
-                    self,
-                    n=parameters.n,
-                    endpoint_url=endpoint_url,
-                    job_uuid=parameters.job_uuid,
-                )
-
-        run_config.environment.jobs_runner_status = set_up_jobs_runner_status(
-            self.environment.jobs_runner_status
-        )
-
-        async def get_results(results) -> None:
-            """Conducted the interviews and append to the results list."""
-            result_generator = AsyncInterviewRunner(self.jobs, run_config)
-            async for result, interview in result_generator.run():
-                #debugger = MemoryDebugger(interview)
-                #debugger.inspect_references()
-                # debugger.detect_reference_cycles()
-                # debugger.visualize_dependencies()
-                results.append(result)
-                results.task_history.add_interview(interview)
-
-    
-            self.completed = True
-
-        results = Results(
-            survey=self.jobs.survey,
-            data=[],
-            task_history=TaskHistory(),
-            #           cache=self.environment.cache.new_entries_cache(),
-        )
-
         exception_to_raise = None
-        with self.ProgressBarManager(parameters, run_config.environment.jobs_runner_status) as stop_event:
+        with self.ProgressBarManager(self, run_config, parameters) as stop_event:
             try:
-                await get_results(results)
+                results = await self._execute_interviews(parameters, run_config)
+                self.completed = True
             except KeyboardInterrupt:
                 print("Keyboard interrupt received. Stopping gracefully...")
+                results = Results(survey=self.jobs.survey, data=[], task_history=TaskHistory())
             except Exception as e:
                 if parameters.stop_on_exception:
                     exception_to_raise = e
+                results = Results(survey=self.jobs.survey, data=[], task_history=TaskHistory())
 
         if exception_to_raise:
             raise exception_to_raise
 
-        relevant_cache = results.relevant_cache(self.environment.cache)
-        results.cache = relevant_cache
-        results.bucket_collection = self.environment.bucket_collection
-
-        from .results_exceptions_handler import ResultsExceptionsHandler
-
-        results_exceptions_handler = ResultsExceptionsHandler(results, parameters)
-
-        results_exceptions_handler.handle_exceptions()
+        ResultsExceptionsHandler(results, parameters).handle_exceptions()
         return results
