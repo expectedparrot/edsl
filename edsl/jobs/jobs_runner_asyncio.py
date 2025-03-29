@@ -19,15 +19,16 @@ behavior when customizing job execution.
 from __future__ import annotations
 import os
 import time
+import gc
 from typing import TYPE_CHECKING, Optional
 import weakref
 from functools import wraps
 import asyncio
 
 if TYPE_CHECKING:
-    from ..results import Results
+    from ..results import Results, Result
 
-from ..results import Results
+from ..results import Results, Result
 from ..tasks import TaskHistory
 from ..utilities.decorators import jupyter_nb_handler
 from ..utilities.memory_debugger import MemoryDebugger
@@ -94,22 +95,22 @@ class JobsRunnerAsyncio:
 
         prev_interview_ref = None
         async for result, interview in AsyncInterviewRunner(self.jobs, run_config).run():
-            results.append(result)
-            results.add_task_history_entry(interview)
+            # If collecting results, uncomment these lines
+            #results.append(result)
+            #results.add_task_history_entry(interview)
             
-            # #if memory_debug:= True:
-            #     # Check if previous interview was garbage collected
-            # if prev_interview_ref is not None and prev_interview_ref() is not None:
-            #     print("Warning: Previous interview object was not garbage collected")
-            #     debug_dir = os.environ.get("EDSL_MEMORY_DEBUG_DIR", "/tmp/edsl_memory_debug")
-            #     memory_debugger = MemoryDebugger(prev_interview_ref())
-            #     memory_debugger.debug_memory(output_dir=debug_dir, open_browser=True)
-            #     #breakpoint()
+            # Set up reference for next iteration
+            prev_interview_ref = weakref.ref(interview)
             
-            # # Set up reference for next iteration
-            # prev_interview_ref = weakref.ref(interview)
-            # finalizer = weakref.finalize(interview, lambda: print(f"Interview object was garbage collected"))
+            # Explicitly clear references to help garbage collection
+            # Get what we need from the interview and then explicitly clear references
+            if hasattr(interview, 'clear_references'):
+                interview.clear_references()
             
+            # Try to force collection immediately
+            del result
+            del interview
+            gc.collect()
                     
         results.cache = results.relevant_cache(self.environment.cache)
         results.bucket_collection = self.environment.bucket_collection

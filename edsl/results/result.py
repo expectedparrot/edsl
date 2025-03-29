@@ -577,9 +577,9 @@ class Result(Base, UserDict):
     def from_interview(cls, interview) -> Result:
         """Return a Result object from an interview dictionary, ensuring no reference to the original interview is maintained."""
         # Copy the valid results to avoid maintaining references
-        model_response_objects = list(interview.valid_results)
+        model_response_objects = list(interview.valid_results) if hasattr(interview, 'valid_results') else []
         # Create a copy of the answers
-        extracted_answers = dict(interview.answers)
+        extracted_answers = dict(interview.answers) if hasattr(interview, 'answers') else {}
 
         def get_question_results(
             model_response_objects,
@@ -655,40 +655,69 @@ class Result(Base, UserDict):
 
             return raw_model_results_dictionary, cache_used_dictionary
 
+        # Save essential information from the interview before clearing references
+        agent_copy = interview.agent.copy() if hasattr(interview, 'agent') else None
+        scenario_copy = interview.scenario.copy() if hasattr(interview, 'scenario') else None
+        model_copy = interview.model.copy() if hasattr(interview, 'model') else None
+        iteration = interview.iteration if hasattr(interview, 'iteration') else 0
+        survey_copy = interview.survey.copy() if hasattr(interview, 'survey') and interview.survey else None
+        indices_copy = dict(interview.indices) if hasattr(interview, 'indices') and interview.indices else None
+        initial_hash = interview.initial_hash if hasattr(interview, 'initial_hash') else hash(interview)
+
+        # Process data to create dictionaries needed for Result
         question_results = get_question_results(model_response_objects)
         answer_key_names = list(question_results.keys())
-        generated_tokens_dict = get_generated_tokens_dict(answer_key_names)
-        comments_dict = get_comments_dict(answer_key_names)
-        answer_dict = {k: extracted_answers[k] for k in answer_key_names}
+        generated_tokens_dict = get_generated_tokens_dict(answer_key_names) if answer_key_names else {}
+        comments_dict = get_comments_dict(answer_key_names) if answer_key_names else {}
+        
+        # Get answers that are in the question results
+        answer_dict = {}
+        for k in answer_key_names:
+            if k in extracted_answers:
+                answer_dict[k] = extracted_answers[k]
+        
         cache_keys = get_cache_keys(model_response_objects)
 
         question_name_to_prompts = get_question_name_to_prompts(model_response_objects)
         prompt_dictionary = get_prompt_dictionary(
             answer_key_names, question_name_to_prompts
-        )
+        ) if answer_key_names else {}
+        
         raw_model_results_dictionary, cache_used_dictionary = (
             get_raw_model_results_and_cache_used_dictionary(model_response_objects)
         )
 
+        # Create the Result object with all copied data
         result = cls(
-            # Create new references or copies where needed
-            agent=interview.agent.copy(),
-            scenario=interview.scenario.copy(),
-            model=interview.model.copy(),
-            iteration=interview.iteration,
-            # Computed objects (these are already new dictionaries)
+            agent=agent_copy,
+            scenario=scenario_copy,
+            model=model_copy,
+            iteration=iteration,
             answer=answer_dict,
             prompt=prompt_dictionary,
             raw_model_response=raw_model_results_dictionary,
-            survey=interview.survey.copy() if interview.survey else None,
+            survey=survey_copy,
             generated_tokens=generated_tokens_dict,
             comments_dict=comments_dict,
             cache_used_dict=cache_used_dictionary,
-            indices=dict(interview.indices) if interview.indices else None,
+            indices=indices_copy,
             cache_keys=cache_keys,
         )
+        
         # Store only the hash, not the interview
-        result.interview_hash = interview.initial_hash
+        result.interview_hash = initial_hash
+        
+        # Clear references to help garbage collection of the interview
+        if hasattr(interview, 'clear_references'):
+            interview.clear_references()
+            
+        # Clear local references to help with garbage collection
+        del model_response_objects
+        del extracted_answers
+        del question_results
+        del answer_key_names
+        del question_name_to_prompts
+        
         return result
 
 
