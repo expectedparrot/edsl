@@ -23,24 +23,10 @@ if TYPE_CHECKING:
     from ..jobs import Jobs
 
 @dataclass
-class InterviewResult:
-    """Container for the result of an interview along with metadata.
-
-    Attributes:
-        result: The Result object containing the interview answers
-        interview: The Interview object used to conduct the interview
-        order: The original position of this interview in the processing queue
-    """
-
-    result: Result
-    interview: Interview
-    order: int
-
-@dataclass
 class InterviewBatch:
     """Container for a batch of interviews being processed."""
     chunks: List[Tuple[int, Interview]]
-    results: List[InterviewResult]
+    results: List[Tuple[Result, Interview, int]]
     failed: List[Tuple[int, Interview, Exception]]
 
     @classmethod
@@ -108,8 +94,8 @@ class AsyncInterviewRunner:
                         break
                     
                     async with self._process_chunk(chunk) as results:
-                        for result in (r for r in results if r is not None):
-                            yield result.result, result.interview
+                        for result, interview, _ in (r for r in results if r is not None):
+                            yield result, interview
             
             yield process_batches()
             
@@ -120,7 +106,7 @@ class AsyncInterviewRunner:
 
     async def _run_single_interview(
         self, interview: Interview, idx: int
-    ) -> InterviewResult:
+    ) -> Tuple[Result, Interview, int]:
         """Execute a single interview with error handling."""
         try:
             await interview.async_conduct_interview(self.run_config)
@@ -128,7 +114,7 @@ class AsyncInterviewRunner:
             self.run_config.environment.jobs_runner_status.add_completed_interview(
                 interview
             )
-            return InterviewResult(result, interview, idx)
+            return (result, interview, idx)
         except Exception as e:
             if self.run_config.parameters.stop_on_exception:
                 raise
@@ -138,7 +124,7 @@ class AsyncInterviewRunner:
     @asynccontextmanager
     async def _process_chunk(
         self, chunk: List[Tuple[int, Interview]]
-    ) -> AsyncIterator[List[InterviewResult]]:
+    ) -> AsyncIterator[List[Tuple[Result, Interview, int]]]:
         """Process a chunk of interviews concurrently."""
         tasks = [
             asyncio.create_task(self._run_single_interview(interview, idx))
