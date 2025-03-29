@@ -27,7 +27,7 @@ class InterviewStatusDictionary(UserDict):
     ) -> "InterviewStatusDictionary":
         """Adds two InterviewStatusDictionaries together."""
         if not isinstance(other, InterviewStatusDictionary):
-            from edsl.interviews.exceptions import InterviewStatusError
+            from .exceptions import InterviewStatusError
             raise InterviewStatusError(f"Can't add {type(other)} to InterviewStatusDictionary")
         new_dict = {}
         for key in self.keys():

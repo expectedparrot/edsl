@@ -64,8 +64,9 @@ class SQLiteDict:
             
         Example:
             >>> temp_db_path = SQLiteDict._get_temp_path()
-            >>> SQLiteDict(f"sqlite:///{temp_db_path}")  # Use the temp file for SQLite
-            SQLiteDict(db_path='...')
+            >>> db = SQLiteDict(f"sqlite:///{temp_db_path}")  # Use the temp file for SQLite
+            >>> isinstance(db, SQLiteDict)
+            True
             >>> import os; os.unlink(temp_db_path)  # Clean up the temp file after the test
         """
         from sqlalchemy.exc import SQLAlchemyError
@@ -76,13 +77,13 @@ class SQLiteDict:
         if not self.db_path.startswith("sqlite:///"):
             self.db_path = f"sqlite:///{self.db_path}"
         try:
-            from edsl.caching.orm import Base
+            from .orm import Base
 
             self.engine = create_engine(self.db_path, echo=False, future=True)
             Base.metadata.create_all(self.engine)
             self.Session = sessionmaker(bind=self.engine)
         except SQLAlchemyError as e:
-            from edsl.caching.exceptions import CacheError
+            from .exceptions import CacheError
             raise CacheError(
                 f"""Database initialization error: {e}. The attempted DB path was {db_path}"""
             ) from e
@@ -123,10 +124,10 @@ class SQLiteDict:
             >>> d["foo"] = CacheEntry.example()
         """
         if not isinstance(value, CacheEntry):
-            from edsl.caching.exceptions import CacheValueError
+            from .exceptions import CacheValueError
             raise CacheValueError(f"Value must be a CacheEntry object (got {type(value)}).")
         with self.Session() as db:
-            from edsl.caching.orm import Data
+            from .orm import Data
 
             db.merge(Data(key=key, value=json.dumps(value.to_dict())))
             db.commit()
@@ -155,11 +156,11 @@ class SQLiteDict:
             True
         """
         with self.Session() as db:
-            from edsl.caching.orm import Data
+            from .orm import Data
 
             value = db.query(Data).filter_by(key=key).first()
             if not value:
-                from edsl.caching.exceptions import CacheKeyError
+                from .exceptions import CacheKeyError
                 raise CacheKeyError(f"Key '{key}' not found.")
             return CacheEntry.from_dict(json.loads(value.value))
 
@@ -183,7 +184,7 @@ class SQLiteDict:
             >>> d.get("foo", "bar")
             'bar'
         """
-        from edsl.caching.exceptions import CacheKeyError
+        from .exceptions import CacheKeyError
         try:
             return self[key]
         except (KeyError, CacheKeyError):
@@ -236,7 +237,7 @@ class SQLiteDict:
             the database from being locked for too long.
         """
         if not (isinstance(new_d, dict) or isinstance(new_d, SQLiteDict)):
-            from edsl.caching.exceptions import CacheValueError
+            from .exceptions import CacheValueError
             raise CacheValueError(
                 f"new_d must be a dict or SQLiteDict object (got {type(new_d)})"
             )
@@ -305,7 +306,7 @@ class SQLiteDict:
                 db.delete(instance)
                 db.commit()
             else:
-                from edsl.caching.exceptions import CacheKeyError
+                from .exceptions import CacheKeyError
                 raise CacheKeyError(f"Key '{key}' not found.")
 
     def __contains__(self, key: str) -> bool:

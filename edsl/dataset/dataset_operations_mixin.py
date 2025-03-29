@@ -545,7 +545,7 @@ class DataOperationsBase:
         >>> r.select('how_feeling').to_scenario_list()
         ScenarioList([Scenario({'how_feeling': 'OK'}), Scenario({'how_feeling': 'Great'}), Scenario({'how_feeling': 'Terrible'}), Scenario({'how_feeling': 'OK'})])
         """
-        from edsl.scenarios import ScenarioList, Scenario
+        from ..scenarios import ScenarioList, Scenario
 
         list_of_dicts = self.to_dicts(remove_prefix=remove_prefix)
         scenarios = []
@@ -564,7 +564,7 @@ class DataOperationsBase:
         >>> r.select('how_feeling').to_agent_list()
         AgentList([Agent(traits = {'how_feeling': 'OK'}), Agent(traits = {'how_feeling': 'Great'}), Agent(traits = {'how_feeling': 'Terrible'}), Agent(traits = {'how_feeling': 'OK'})])
         """
-        from edsl.agents import Agent, AgentList
+        from ..agents import Agent, AgentList
 
         list_of_dicts = self.to_dicts(remove_prefix=remove_prefix)
         agents = []
@@ -673,7 +673,7 @@ class DataOperationsBase:
     ):
         import os
         import tempfile
-        from edsl.utilities.utilities import is_notebook
+        from ..utilities.utilities import is_notebook
         from IPython.display import HTML, display
 
         df = self.to_pandas()
@@ -807,7 +807,7 @@ class DataOperationsBase:
             from docx.shared import Pt
             import json
         except ImportError:
-            from edsl.dataset.exceptions import DatasetImportError
+            from .exceptions import DatasetImportError
             raise DatasetImportError("The python-docx package is required for DOCX export. Install it with 'pip install python-docx'.")
         
         doc = Document()
@@ -879,7 +879,7 @@ class DataOperationsBase:
             >>> isinstance(doc, object)
             True
         """
-        from edsl.utilities.utilities import is_notebook
+        from ..utilities.utilities import is_notebook
         
         # Prepare the data for the report
         field_data, num_obs, fields, header_fields = self._prepare_report_data(

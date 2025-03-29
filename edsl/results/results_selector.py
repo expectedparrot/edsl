@@ -106,7 +106,7 @@ class Selector:
             new_data = self._fetch_data(to_fetch)
         except ResultsColumnNotFoundError as e:
             # Check is_notebook with explicit import to ensure mock works
-            from edsl.utilities import is_notebook as is_notebook_check
+            from ..utilities import is_notebook as is_notebook_check
             if is_notebook_check():
                 print("Error:", e, file=sys.stderr)
                 return None
@@ -114,7 +114,7 @@ class Selector:
                 raise e
                 
         # Import Dataset here to avoid circular import issues
-        from edsl.dataset import Dataset
+        from ..dataset import Dataset
         return Dataset(new_data)
 
     def _normalize_columns(self, columns: Union[str, List[str]]) -> Tuple[str, ...]:

@@ -12,9 +12,7 @@ from typing import (
     List,
     Any,
     Type,
-    get_args,
-    Literal,
-    cast
+    Literal
 )
 import random
 import json
@@ -304,16 +302,75 @@ class MatrixResponseValidator(ResponseValidatorABC):
                     if isinstance(fixed, dict):
                         # Map numeric keys to question items if needed
                         if all(str(k).isdigit() for k in fixed.keys()):
+                            if verbose:
+                                print(f"JSON extraction found numeric keys: {fixed}")
+                                print(f"Question items: {self.question_items}")
+                                print(f"Question options: {self.question_options}")
+                            
+                            # Special handling for case when numeric keys directly represent option indices
+                            # This is the case we're trying to fix: {"0": 1, "1": 3, "2": 0} maps to options at those indices
+                            direct_mapped_answer = {}
+                            if verbose:
+                                print(f"Attempting to map numeric key/value format in JSON: {fixed}")
+                                
+                            for idx, item in enumerate(self.question_items):
+                                if str(idx) in fixed:
+                                    # Get the option index directly from the value
+                                    option_idx = fixed[str(idx)]
+                                    
+                                    # Convert to int if needed
+                                    if isinstance(option_idx, str) and option_idx.isdigit():
+                                        option_idx = int(option_idx)
+                                    
+                                    if verbose:
+                                        print(f"Item {item} at index {idx} maps to value {option_idx}")
+                                        
+                                    if isinstance(option_idx, (int, float)) and 0 <= option_idx < len(self.question_options):
+                                        direct_mapped_answer[item] = self.question_options[option_idx]
+                                        if verbose:
+                                            print(f"Mapped option_idx {option_idx} to {self.question_options[option_idx]}")
+                            
+                            if direct_mapped_answer and len(direct_mapped_answer) == len(self.question_items):
+                                proposed_data = {
+                                    "answer": direct_mapped_answer,
+                                    "comment": response.get("comment"),
+                                    "generated_tokens": response.get("generated_tokens")
+                                }
+                                if verbose:
+                                    print(f"Created direct option mapping from JSON: {proposed_data}")
+                                try:
+                                    self.response_model(**proposed_data)
+                                    if verbose:
+                                        print(f"Successfully fixed with direct option mapping from JSON: {proposed_data}")
+                                    return proposed_data
+                                except Exception as e:
+                                    if verbose:
+                                        print(f"Direct option mapping from JSON failed validation: {e}")
+                            
+                            # Try the standard approach as well
                             mapped_answer = {}
                             for idx, item in enumerate(self.question_items):
                                 if str(idx) in fixed:
-                                    # Try to convert string options to the right type if needed
-                                    value = fixed[str(idx)]
-                                    if str(value).isdigit() and isinstance(self.question_options[0], int):
-                                        value = int(value)
-                                    mapped_answer[item] = value
+                                    # Get the value (column index) from the response
+                                    value_idx = fixed[str(idx)]
                                     
-                            if len(mapped_answer) == len(self.question_items) or self.permissive:
+                                    # Convert to int if it's a digit string
+                                    if isinstance(value_idx, str) and value_idx.isdigit():
+                                        value_idx = int(value_idx)
+                                    
+                                    # Convert column index to actual option value
+                                    if isinstance(value_idx, (int, float)) and 0 <= value_idx < len(self.question_options):
+                                        option_value = self.question_options[value_idx]
+                                        mapped_answer[item] = option_value
+                                    else:
+                                        # If the value is already a valid option, use it directly
+                                        if value_idx in self.question_options:
+                                            mapped_answer[item] = value_idx
+                                        else:
+                                            # Last resort - try to use it as a direct value even if not in options
+                                            mapped_answer[item] = value_idx
+                                    
+                            if mapped_answer and (len(mapped_answer) == len(self.question_items) or self.permissive):
                                 proposed_data = {
                                     "answer": mapped_answer,
                                     "comment": response.get("comment"),
@@ -328,6 +385,25 @@ class MatrixResponseValidator(ResponseValidatorABC):
                                 except Exception as e:
                                     if verbose:
                                         print(f"Fixed response failed validation: {e}")
+                                    
+                                # Try again with string values for all options
+                                text_mapped_answer = {}
+                                for item_name, option_value in mapped_answer.items():
+                                    text_mapped_answer[item_name] = str(option_value)
+                                    
+                                proposed_data = {
+                                    "answer": text_mapped_answer,
+                                    "comment": response.get("comment"),
+                                    "generated_tokens": response.get("generated_tokens")
+                                }
+                                try:
+                                    self.response_model(**proposed_data)
+                                    if verbose:
+                                        print(f"Successfully fixed with string conversion from JSON: {proposed_data}")
+                                    return proposed_data
+                                except Exception as e:
+                                    if verbose:
+                                        print(f"String conversion from JSON failed validation: {e}")
                         else:
                             # The JSON already has string keys, use directly
                             proposed_data = {
@@ -343,6 +419,51 @@ class MatrixResponseValidator(ResponseValidatorABC):
                             except Exception as e:
                                 if verbose:
                                     print(f"Fixed response failed validation: {e}")
+                                
+                                # If validation failed, check if we need to map string keys to item names
+                                # This handles cases where the model responded with something like {"Row 0": 1, "Row 1": 2}
+                                # instead of using the exact item names
+                                item_map = {}
+                                for item in self.question_items:
+                                    # Create various forms of the item name that might appear in responses
+                                    item_variants = [
+                                        item.lower(),
+                                        item.upper(),
+                                        item.strip(),
+                                        f"Row {self.question_items.index(item)}",
+                                        f"Item {self.question_items.index(item)}",
+                                        f"{self.question_items.index(item)}"
+                                    ]
+                                    for key in fixed.keys():
+                                        if isinstance(key, str):
+                                            key_lower = key.lower().strip()
+                                            if key_lower in item_variants or item.lower() in key_lower:
+                                                item_map[key] = item
+                                
+                                if item_map:
+                                    mapped_answer = {}
+                                    for key, value in fixed.items():
+                                        if key in item_map:
+                                            # Handle both numeric indices and direct values
+                                            if isinstance(value, (int, float)) and 0 <= value < len(self.question_options):
+                                                mapped_answer[item_map[key]] = self.question_options[value]
+                                            else:
+                                                mapped_answer[item_map[key]] = value
+                                    
+                                    if mapped_answer:
+                                        proposed_data = {
+                                            "answer": mapped_answer,
+                                            "comment": response.get("comment"),
+                                            "generated_tokens": response.get("generated_tokens")
+                                        }
+                                        try:
+                                            self.response_model(**proposed_data)
+                                            if verbose:
+                                                print(f"Successfully fixed by mapping item names: {proposed_data}")
+                                            return proposed_data
+                                        except Exception as e:
+                                            if verbose:
+                                                print(f"Item-mapped response failed validation: {e}")
             except (ValueError, KeyError, TypeError, json.JSONDecodeError) as e:
                 if verbose:
                     print(f"JSON parsing failed: {e}")
@@ -353,16 +474,47 @@ class MatrixResponseValidator(ResponseValidatorABC):
             answer_dict = response["answer"]
             
             if all(str(k).isdigit() for k in answer_dict.keys()):
+                if verbose:
+                    print(f"Processing answer with numeric keys: {answer_dict}")
+                    print(f"Question items: {self.question_items}")
+                    print(f"Question options: {self.question_options}")
+                
                 mapped_answer = {}
                 for idx, item in enumerate(self.question_items):
                     if str(idx) in answer_dict:
-                        # Try to convert string options to the right type if needed
-                        value = answer_dict[str(idx)]
-                        if str(value).isdigit() and isinstance(self.question_options[0], int):
-                            value = int(value)
-                        mapped_answer[item] = value
+                        # Get the value (column index) from the response
+                        value_idx = answer_dict[str(idx)]
+                        
+                        # Convert to int if it's a digit string
+                        if isinstance(value_idx, str) and value_idx.isdigit():
+                            value_idx = int(value_idx)
+                        
+                        if verbose:
+                            print(f"Processing item {item} at index {idx}, value_idx={value_idx}")
+                        
+                        # Convert column index to actual option value
+                        if isinstance(value_idx, (int, float)) and 0 <= value_idx < len(self.question_options):
+                            option_value = self.question_options[value_idx]
+                            mapped_answer[item] = option_value
+                            if verbose:
+                                print(f"Mapped column index {value_idx} to option '{option_value}'")
+                        else:
+                            # If the value is already a valid option, use it directly
+                            if value_idx in self.question_options:
+                                mapped_answer[item] = value_idx
+                                if verbose:
+                                    print(f"Used direct option value '{value_idx}'")
+                            else:
+                                # Last resort - try to use it as a direct value even if not in options
+                                # (this helps with permissive mode)
+                                mapped_answer[item] = value_idx
+                                if verbose:
+                                    print(f"Used non-option value '{value_idx}' as direct value")
                 
-                if mapped_answer:
+                if mapped_answer and len(mapped_answer) == len(self.question_items):
+                    if verbose:
+                        print(f"Created complete mapped answer: {mapped_answer}")
+                    
                     proposed_data = {
                         "answer": mapped_answer,
                         "comment": response.get("comment"),
@@ -376,6 +528,65 @@ class MatrixResponseValidator(ResponseValidatorABC):
                     except Exception as e:
                         if verbose:
                             print(f"Fixed response failed validation: {e}")
+                    
+                    # Try again with string values for the options
+                    text_mapped_answer = {}
+                    for item_name, option_value in mapped_answer.items():
+                        text_mapped_answer[item_name] = str(option_value)
+                        
+                    proposed_data = {
+                        "answer": text_mapped_answer,
+                        "comment": response.get("comment"),
+                        "generated_tokens": response.get("generated_tokens")
+                    }
+                    try:
+                        self.response_model(**proposed_data)
+                        if verbose:
+                            print(f"Successfully fixed with string conversion: {proposed_data}")
+                        return proposed_data
+                    except Exception as e:
+                        if verbose:
+                            print(f"String conversion failed validation: {e}")
+                            
+                # Special handling for case when numeric keys directly represent option indices
+                # This is the case we're trying to fix: {"0": 1, "1": 3, "2": 0} maps to options at those indices
+                direct_mapped_answer = {}
+                if verbose:
+                    print(f"Attempting to map numeric key/value format in answer: {answer_dict}")
+                
+                for idx, item in enumerate(self.question_items):
+                    if str(idx) in answer_dict:
+                        # Get the option index directly from the value
+                        option_idx = answer_dict[str(idx)]
+                        
+                        # Convert to int if needed
+                        if isinstance(option_idx, str) and option_idx.isdigit():
+                            option_idx = int(option_idx)
+                        
+                        if verbose:
+                            print(f"Item {item} at index {idx} maps to value {option_idx}")
+                            
+                        if isinstance(option_idx, (int, float)) and 0 <= option_idx < len(self.question_options):
+                            direct_mapped_answer[item] = self.question_options[option_idx]
+                            if verbose:
+                                print(f"Mapped option_idx {option_idx} to {self.question_options[option_idx]}")
+                
+                if direct_mapped_answer and len(direct_mapped_answer) == len(self.question_items):
+                    proposed_data = {
+                        "answer": direct_mapped_answer,
+                        "comment": response.get("comment"),
+                        "generated_tokens": response.get("generated_tokens")
+                    }
+                    if verbose:
+                        print(f"Created direct option mapping: {proposed_data}")
+                    try:
+                        self.response_model(**proposed_data)
+                        if verbose:
+                            print(f"Successfully fixed with direct option mapping: {proposed_data}")
+                        return proposed_data
+                    except Exception as e:
+                        if verbose:
+                            print(f"Direct option mapping failed validation: {e}")
         
         # Strategy 3: If answer is a string, try to extract a structured response
         if isinstance(response.get("answer"), str):

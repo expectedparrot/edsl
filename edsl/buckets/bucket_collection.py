@@ -135,7 +135,7 @@ class BucketCollection(UserDict):
             >>> # The following would raise an exception:
             >>> # bucket_collection.get_tokens(m, 'tokens', 10)
         """
-        from edsl.buckets.exceptions import BucketError
+        from .exceptions import BucketError
         raise BucketError("This method is deprecated and should not be used")
         # The following code is kept for reference only
         # relevant_bucket = getattr(self[model], bucket_type)
