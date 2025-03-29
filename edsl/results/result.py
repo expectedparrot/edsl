@@ -574,13 +574,12 @@ class Result(Base, UserDict):
         return scoring_function(**params)
 
     @classmethod
-    def from_interview(
-        cls, interview
-    ) -> Result:
-        """Return a Result object from an interview dictionary."""
-
-        model_response_objects = interview.valid_results
-        extracted_answers = interview.answers
+    def from_interview(cls, interview) -> Result:
+        """Return a Result object from an interview dictionary, ensuring no reference to the original interview is maintained."""
+        # Copy the valid results to avoid maintaining references
+        model_response_objects = list(interview.valid_results)
+        # Create a copy of the answers
+        extracted_answers = dict(interview.answers)
 
         def get_question_results(
             model_response_objects,
@@ -672,21 +671,23 @@ class Result(Base, UserDict):
         )
 
         result = cls(
-            agent=interview.agent,
-            scenario=interview.scenario,
-            model=interview.model,
+            # Create new references or copies where needed
+            agent=interview.agent.copy(),
+            scenario=interview.scenario.copy(),
+            model=interview.model.copy(),
             iteration=interview.iteration,
-            # Computed objects
+            # Computed objects (these are already new dictionaries)
             answer=answer_dict,
             prompt=prompt_dictionary,
             raw_model_response=raw_model_results_dictionary,
-            survey=interview.survey,
+            survey=interview.survey.copy() if interview.survey else None,
             generated_tokens=generated_tokens_dict,
             comments_dict=comments_dict,
             cache_used_dict=cache_used_dictionary,
-            indices=interview.indices,
+            indices=dict(interview.indices) if interview.indices else None,
             cache_keys=cache_keys,
         )
+        # Store only the hash, not the interview
         result.interview_hash = interview.initial_hash
         return result
 
