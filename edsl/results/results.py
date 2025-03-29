@@ -347,6 +347,15 @@ class Results(UserList, ResultsOperationsMixin, Base):
         if hasattr(self, "_add_output_functions"):
             self._add_output_functions()
 
+
+    def add_task_history_entry(self, interview: "Interview") -> None:
+        """Add an interview to the task history.
+
+        Args:
+            interview: The interview to add to the task history.
+        """
+        self.task_history.add_interview(interview)
+
     def _fetch_list(self, data_type: str, key: str) -> list:
         """Return a list of values from the data for a given data type and key.
 
