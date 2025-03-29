@@ -92,6 +92,10 @@ class JobsRunnerAsyncio:
         async for result, interview in result_generator.run():
             results.append(result)
             results.add_task_history_entry(interview)
+            
+            MemoryDebugger(interview).debug_memory()  # Creates references file and object graph
+            breakpoint() 
+            # Check reference to interview
         
         results.cache = results.relevant_cache(self.environment.cache)
         results.bucket_collection = self.environment.bucket_collection
