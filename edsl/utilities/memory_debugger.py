@@ -70,12 +70,13 @@ class MemoryDebugger:
             
         return result
         
-    def _generate_html_report(self, prefix: str = "") -> Tuple[str, str]:
+    def _generate_html_report(self, prefix: str = "", output_dir: str = None) -> Tuple[str, str]:
         """
         Generate a comprehensive HTML memory debugging report.
         
         Args:
             prefix: Optional prefix for output files. If empty, uses target object type.
+            output_dir: Optional directory to write files to. If None, uses tempdir or current directory.
             
         Returns:
             A tuple containing (html_filename, graph_filename)
@@ -84,9 +85,17 @@ class MemoryDebugger:
         if not prefix:
             prefix = type(self.target_obj).__name__.lower()
             
+        # Determine output directory
+        if output_dir is None:
+            output_dir = os.environ.get("EDSL_MEMORY_DEBUG_DIR", "")
+            
+        if output_dir:
+            # Ensure directory exists
+            os.makedirs(output_dir, exist_ok=True)
+            
         # Prepare filenames
-        html_filename = f"{prefix}_memory_debug_{timestamp}.html"
-        graph_filename = f"{prefix}_object_graph_{timestamp}.png"
+        html_filename = os.path.join(output_dir, f"{prefix}_memory_debug_{timestamp}.html") if output_dir else f"{prefix}_memory_debug_{timestamp}.html"
+        graph_filename = os.path.join(output_dir, f"{prefix}_object_graph_{timestamp}.png") if output_dir else f"{prefix}_object_graph_{timestamp}.png"
         
         # Generate object graph
         try:
@@ -585,27 +594,33 @@ class MemoryDebugger:
             
         return html_filename, graph_filename
         
-    def debug_memory(self, prefix: str = "", open_browser: bool = True) -> str:
+    def debug_memory(self, prefix: str = "", open_browser: bool = True, output_dir: str = None) -> str:
         """
         Comprehensive memory debugging that writes results to files and opens an HTML report.
         
         Args:
             prefix: Optional prefix for output files. If empty, uses target object type.
             open_browser: Whether to automatically open the HTML report in a browser.
+            output_dir: Optional directory to write files to. If None, uses EDSL_MEMORY_DEBUG_DIR
+                        environment variable or current directory.
         
         Returns:
             The path to the HTML report file.
         """
         # Generate HTML report
-        html_filename, _ = self._generate_html_report(prefix)
+        html_filename, _ = self._generate_html_report(prefix, output_dir)
         
         # Also create the legacy markdown report for backward compatibility
         timestamp = time.strftime("%Y%m%d_%H%M%S")
         if not prefix:
             prefix = type(self.target_obj).__name__.lower()
+        
+        # Determine output directory
+        if output_dir is None:
+            output_dir = os.environ.get("EDSL_MEMORY_DEBUG_DIR", "")
             
         # Write reference analysis to markdown file
-        md_filename = f"{prefix}_memory_debug_{timestamp}.md"
+        md_filename = os.path.join(output_dir, f"{prefix}_memory_debug_{timestamp}.md") if output_dir else f"{prefix}_memory_debug_{timestamp}.md"
         with open(md_filename, 'w') as f:
             f.write(f"# Memory Debug Report for {type(self.target_obj)}\n\n")
             f.write(f"Generated: {time.strftime('%Y-%m-%d %H:%M:%S')}\n\n")
