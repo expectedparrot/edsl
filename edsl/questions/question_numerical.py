@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Optional, Union
 import re
-from pydantic import BaseModel, Field, model_validator, ValidationError
+from pydantic import BaseModel, model_validator, ValidationError
 
 from .question_base import QuestionBase
 from .descriptors import NumericalOrNoneDescriptor

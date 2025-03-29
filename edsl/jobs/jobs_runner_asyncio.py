@@ -186,7 +186,7 @@ class JobsRunnerAsyncio:
         self.start_time = time.monotonic()
         self.completed = False
 
-        from edsl.coop import Coop
+        from ..coop import Coop
 
         coop = Coop()
         endpoint_url = coop.get_progress_bar_url()
@@ -273,7 +273,7 @@ class JobsRunnerAsyncio:
             # breakpoint()
             results.bucket_collection = self.environment.bucket_collection
 
-            from edsl.jobs.results_exceptions_handler import ResultsExceptionsHandler
+            from .results_exceptions_handler import ResultsExceptionsHandler
 
             results_exceptions_handler = ResultsExceptionsHandler(results, parameters)
 

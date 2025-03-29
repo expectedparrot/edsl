@@ -26,9 +26,29 @@ For most users, this module works behind the scenes, but understanding it can
 be helpful when debugging or optimizing complex EDSL workflows.
 """
 
-__all__ = ['TaskHistory', 'QuestionTaskCreator', 'TaskCreators', 'TaskStatus', 'TaskStatusDescriptor']
+__all__ = [
+    'TaskHistory', 
+    'QuestionTaskCreator', 
+    'TaskCreators', 
+    'TaskStatus', 
+    'TaskStatusDescriptor',
+    'TaskError',
+    'TaskStatusError',
+    'TaskExecutionError',
+    'TaskDependencyError',
+    'TaskResourceError',
+    'TaskHistoryError'
+]
 
 from .task_history import TaskHistory
 from .question_task_creator import QuestionTaskCreator
 from .task_creators import TaskCreators
 from .task_status_enum import TaskStatus, TaskStatusDescriptor
+from .exceptions import (
+    TaskError,
+    TaskStatusError,
+    TaskExecutionError,
+    TaskDependencyError,
+    TaskResourceError,
+    TaskHistoryError
+)

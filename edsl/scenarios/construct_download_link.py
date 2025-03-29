@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, List
 
 if TYPE_CHECKING:
     from ..display import HTML
@@ -104,8 +104,8 @@ class ConstructDownloadLink:
 
     def create_multiple_links(
         self,
-        files: list[FileStore],
-        custom_filenames: Optional[list[str | None]] = None,
+        files: List["FileStore"],
+        custom_filenames: Optional[List[Optional[str]]] = None,
         style: Optional[dict] = None,
     ) -> HTML:
         """Create multiple download links in a horizontal layout.

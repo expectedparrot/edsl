@@ -9,7 +9,7 @@ from collections.abc import AsyncGenerator
 from typing import List, Generator, Tuple, TYPE_CHECKING
 from dataclasses import dataclass
 import asyncio
-from edsl.data_transfer_models import EDSLResultObjectInput
+from ..data_transfer_models import EDSLResultObjectInput
 
 from ..results import Result
 from ..interviews import Interview

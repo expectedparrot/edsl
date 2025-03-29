@@ -173,7 +173,7 @@ class Report:
 
 if __name__ == "__main__":
     # Suppose you have an existing Dataset
-    from edsl import Results
+    from .. import Results
     ds = Results.example().select("how_feeling", "how_feeling_yesterday")
 
     # Provide a custom template string

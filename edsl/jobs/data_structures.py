@@ -1,7 +1,7 @@
 from typing import Optional, Literal, TYPE_CHECKING
 from dataclasses import dataclass, asdict
 from collections import UserDict
-from edsl.data_transfer_models import EDSLResultObjectInput
+from ..data_transfer_models import EDSLResultObjectInput
 
 # from edsl.data_transfer_models import VisibilityType
 from ..caching import Cache
@@ -86,7 +86,7 @@ class RunParameters(Base):
     def to_dict(self, add_edsl_version=False) -> dict:
         d = asdict(self)
         if add_edsl_version:
-            from edsl import __version__
+            from .. import __version__
 
             d["edsl_version"] = __version__
             d["edsl_class_name"] = "RunConfig"

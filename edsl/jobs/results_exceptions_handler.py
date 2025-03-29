@@ -1,8 +1,8 @@
 from typing import Protocol
 import sys
 #from edsl.scenarios.FileStore import HTMLFileStore
-from edsl.config import CONFIG
-from edsl.coop.coop import Coop
+from ..config import CONFIG
+from ..coop.coop import Coop
 from ..scenarios import FileStore
 from .exceptions import JobsErrors
 

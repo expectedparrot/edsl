@@ -1,12 +1,15 @@
 from collections import UserList
 import asyncio
 import inspect
-from typing import Optional, Callable
-from .. import QuestionFreeText, Results, AgentList, ScenarioList, Scenario
+from typing import Optional, Callable, TYPE_CHECKING
+from .. import QuestionFreeText, Results, AgentList, ScenarioList, Scenario, Model
 from ..questions import QuestionBase
 from ..results.Result import Result
 from jinja2 import Template
 from ..caching import Cache
+
+if TYPE_CHECKING:
+    from ..language_models.model import Model
 
 from .next_speaker_utilities import (
     default_turn_taking_generator,
@@ -71,7 +74,7 @@ class Conversation:
         conversation_index: Optional[int] = None,
         cache=None,
         disable_remote_inference=False,
-        default_model: Optional["LanguageModel"] = None,
+        default_model: Optional[Model] = None,
     ):
         self.disable_remote_inference = disable_remote_inference
         self.per_round_message_template = per_round_message_template
@@ -120,7 +123,7 @@ What do you say next?"""
                 per_round_message_template
                 and "{{ round_message }}" not in next_statement_question.question_text
             ):
-                from edsl.conversation.exceptions import ConversationValueError
+                from .exceptions import ConversationValueError
                 raise ConversationValueError(
                     "If you pass in a per_round_message_template, you must include {{ round_message }} in the question_text."
                 )

@@ -5,7 +5,7 @@ from collections import UserList
 
 if TYPE_CHECKING:
     from .cache import Cache
-    from edsl.coop.coop import Coop
+    from ..coop.coop import Coop
     from .cache_entry import CacheEntry
 
 
@@ -34,7 +34,7 @@ class CacheEntriesList(UserList):
         return f"CacheEntries({entries_repr})"
 
     def to_cache(self) -> "Cache":
-        from edsl.caching.cache import Cache
+        from .cache import Cache
 
         return Cache({entry.key: entry for entry in self.data})
 
@@ -178,9 +178,9 @@ if __name__ == "__main__":
 
     doctest.testmod()
 
-    from edsl.coop.coop import Coop
-    from edsl.data.Cache import Cache
-    from edsl.data.CacheEntry import CacheEntry
+    from ..coop.coop import Coop
+    from .cache import Cache
+    from .cache_entry import CacheEntry
 
     r = RemoteCacheSync(Coop(), Cache(), print)
     diff = r._get_cache_difference()

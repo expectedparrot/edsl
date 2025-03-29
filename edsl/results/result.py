@@ -259,14 +259,16 @@ class Result(Base, UserDict):
     def check_expression(self, expression: str) -> None:
         for key in self.problem_keys:
             if key in expression and key + "." not in expression:
-                raise ValueError(
-                    f"Key by iself {key} is problematic. Use the full key {key + '.' + key} name instead."
+                from .exceptions import ResultsColumnNotFoundError
+                raise ResultsColumnNotFoundError(
+                    f"Key by itself {key} is problematic. Use the full key {key + '.' + key} name instead."
                 )
         return None
 
     def code(self):
         """Return a string of code that can be used to recreate the Result object."""
-        raise NotImplementedError
+        from .exceptions import ResultsError
+        raise ResultsError("The code() method is not implemented for Result objects")
 
     @property
     def problem_keys(self) -> list[str]:
@@ -567,7 +569,8 @@ class Result(Base, UserDict):
             elif v.default is not v.empty:
                 params[k] = v.default
             else:
-                raise ValueError(f"Parameter {k} not found in Result object")
+                from .exceptions import ResultsError
+                raise ResultsError(f"Parameter {k} not found in Result object")
         return scoring_function(**params)
 
     @classmethod
