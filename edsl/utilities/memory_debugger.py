@@ -7,13 +7,19 @@ import sys
 import time
 import types
 import inspect
-import objgraph
 import webbrowser
 from pathlib import Path
 import base64
 import html
 from datetime import datetime
 from typing import Any, Set, List, Dict, Optional, Tuple, Union
+
+# Try to import objgraph, which is only available as a dev dependency
+try:
+    import objgraph
+    OBJGRAPH_AVAILABLE = True
+except ImportError:
+    OBJGRAPH_AVAILABLE = False
 
 class MemoryDebugger:
     """
@@ -102,33 +108,36 @@ class MemoryDebugger:
         graph_exists = False
         backrefs_graph_exists = False
         
-        try:
-            # Use objgraph's backup function to filter frames and functions
-            def skip_frames(obj):
-                return not isinstance(obj, (types.FrameType, types.FunctionType))
-            
-            # Outgoing references (what this object references)
-            objgraph.show_refs(
-                self.target_obj, 
-                filename=refs_graph_filename,
-                max_depth=3,
-                extra_ignore=[id(obj) for obj in gc.get_objects() 
-                              if isinstance(obj, (types.FrameType, types.FunctionType))]
-            )
-            graph_exists = True
-            
-            # Incoming references (what references this object)
-            objgraph.show_backrefs(
-                self.target_obj, 
-                filename=backrefs_graph_filename,
-                max_depth=3,
-                extra_ignore=[id(obj) for obj in gc.get_objects() 
-                              if isinstance(obj, (types.FrameType, types.FunctionType))]
-            )
-            backrefs_graph_exists = True
-        except Exception as e:
-            print(f"Warning: Could not generate object graph visualization: {e}")
-            graph_exists = False
+        if OBJGRAPH_AVAILABLE:
+            try:
+                # Use objgraph's backup function to filter frames and functions
+                def skip_frames(obj):
+                    return not isinstance(obj, (types.FrameType, types.FunctionType))
+                
+                # Outgoing references (what this object references)
+                objgraph.show_refs(
+                    self.target_obj, 
+                    filename=refs_graph_filename,
+                    max_depth=3,
+                    extra_ignore=[id(obj) for obj in gc.get_objects() 
+                                if isinstance(obj, (types.FrameType, types.FunctionType))]
+                )
+                graph_exists = True
+                
+                # Incoming references (what references this object)
+                objgraph.show_backrefs(
+                    self.target_obj, 
+                    filename=backrefs_graph_filename,
+                    max_depth=3,
+                    extra_ignore=[id(obj) for obj in gc.get_objects() 
+                                if isinstance(obj, (types.FrameType, types.FunctionType))]
+                )
+                backrefs_graph_exists = True
+            except Exception as e:
+                print(f"Warning: Could not generate object graph visualization: {e}")
+                graph_exists = False
+        else:
+            print("Warning: objgraph package is not available. Install it with 'pip install objgraph' to enable visualizations.")
         
         # Get all reference cycle information
         import io
@@ -852,6 +861,10 @@ class MemoryDebugger:
         Returns:
             Tuple of (outgoing_refs_filename, incoming_refs_filename)
         """
+        if not OBJGRAPH_AVAILABLE:
+            print("Warning: objgraph package is not available. Install it with 'pip install objgraph' to enable visualizations.")
+            return "", ""
+            
         timestamp = time.strftime("%Y%m%d_%H%M%S")
         if not prefix:
             prefix = type(self.target_obj).__name__.lower()
@@ -868,30 +881,34 @@ class MemoryDebugger:
         refs_filename = os.path.join(output_dir, f"{prefix}_outgoing_refs_{timestamp}.png") if output_dir else f"{prefix}_outgoing_refs_{timestamp}.png"
         backrefs_filename = os.path.join(output_dir, f"{prefix}_incoming_refs_{timestamp}.png") if output_dir else f"{prefix}_incoming_refs_{timestamp}.png"
         
-        # Filter out frames and functions
-        ignore_ids = [id(obj) for obj in gc.get_objects() 
-                      if isinstance(obj, (types.FrameType, types.FunctionType))]
-                      
-        # For the regular references (what the object references)
-        objgraph.show_refs(
-            self.target_obj, 
-            max_depth=max_depth, 
-            filename=refs_filename,
-            extra_ignore=ignore_ids
-        )
-        
-        # For the referrers (what references the object)
-        objgraph.show_backrefs(
-            self.target_obj, 
-            max_depth=max_depth, 
-            filename=backrefs_filename,
-            extra_ignore=ignore_ids
-        )
-        
-        print(f"Outgoing references saved to: {refs_filename}")
-        print(f"Incoming references saved to: {backrefs_filename}")
-        
-        return refs_filename, backrefs_filename
+        try:
+            # Filter out frames and functions
+            ignore_ids = [id(obj) for obj in gc.get_objects() 
+                          if isinstance(obj, (types.FrameType, types.FunctionType))]
+                          
+            # For the regular references (what the object references)
+            objgraph.show_refs(
+                self.target_obj, 
+                max_depth=max_depth, 
+                filename=refs_filename,
+                extra_ignore=ignore_ids
+            )
+            
+            # For the referrers (what references the object)
+            objgraph.show_backrefs(
+                self.target_obj, 
+                max_depth=max_depth, 
+                filename=backrefs_filename,
+                extra_ignore=ignore_ids
+            )
+            
+            print(f"Outgoing references saved to: {refs_filename}")
+            print(f"Incoming references saved to: {backrefs_filename}")
+            
+            return refs_filename, backrefs_filename
+        except Exception as e:
+            print(f"Error visualizing dependencies: {e}")
+            return "", ""
     
     def _inspect_dict_reference(self, ref: Dict) -> None:
         """Helper method to inspect dictionary references."""
