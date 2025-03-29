@@ -70,7 +70,7 @@ class MemoryDebugger:
             
         return result
         
-    def _generate_html_report(self, prefix: str = "", output_dir: str = None) -> Tuple[str, str]:
+    def _generate_html_report(self, prefix: str = "", output_dir: str = None) -> Tuple[str, str, str]:
         """
         Generate a comprehensive HTML memory debugging report.
         
@@ -79,7 +79,7 @@ class MemoryDebugger:
             output_dir: Optional directory to write files to. If None, uses tempdir or current directory.
             
         Returns:
-            A tuple containing (html_filename, graph_filename)
+            A tuple containing (html_filename, refs_graph_filename, backrefs_graph_filename)
         """
         timestamp = time.strftime("%Y%m%d_%H%M%S")
         if not prefix:
@@ -95,12 +95,37 @@ class MemoryDebugger:
             
         # Prepare filenames
         html_filename = os.path.join(output_dir, f"{prefix}_memory_debug_{timestamp}.html") if output_dir else f"{prefix}_memory_debug_{timestamp}.html"
-        graph_filename = os.path.join(output_dir, f"{prefix}_object_graph_{timestamp}.png") if output_dir else f"{prefix}_object_graph_{timestamp}.png"
+        refs_graph_filename = os.path.join(output_dir, f"{prefix}_outgoing_refs_{timestamp}.png") if output_dir else f"{prefix}_outgoing_refs_{timestamp}.png"
+        backrefs_graph_filename = os.path.join(output_dir, f"{prefix}_incoming_refs_{timestamp}.png") if output_dir else f"{prefix}_incoming_refs_{timestamp}.png"
         
-        # Generate object graph
+        # Generate object graphs - both directions
+        graph_exists = False
+        backrefs_graph_exists = False
+        
         try:
-            objgraph.show_refs(self.target_obj, filename=graph_filename)
+            # Use objgraph's backup function to filter frames and functions
+            def skip_frames(obj):
+                return not isinstance(obj, (types.FrameType, types.FunctionType))
+            
+            # Outgoing references (what this object references)
+            objgraph.show_refs(
+                self.target_obj, 
+                filename=refs_graph_filename,
+                max_depth=3,
+                extra_ignore=[id(obj) for obj in gc.get_objects() 
+                              if isinstance(obj, (types.FrameType, types.FunctionType))]
+            )
             graph_exists = True
+            
+            # Incoming references (what references this object)
+            objgraph.show_backrefs(
+                self.target_obj, 
+                filename=backrefs_graph_filename,
+                max_depth=3,
+                extra_ignore=[id(obj) for obj in gc.get_objects() 
+                              if isinstance(obj, (types.FrameType, types.FunctionType))]
+            )
+            backrefs_graph_exists = True
         except Exception as e:
             print(f"Warning: Could not generate object graph visualization: {e}")
             graph_exists = False
@@ -285,7 +310,7 @@ class MemoryDebugger:
         <button class="tablinks" onclick="openTab(event, 'Referrers')">Referrers ({len(filtered_referrers)})</button>
         <button class="tablinks" onclick="openTab(event, 'Referents')">Referents ({len(referents)})</button>
         <button class="tablinks" onclick="openTab(event, 'Cycles')" {'style="color: red;"' if cycles else ''}>Cycles {f"({len(cycles)})" if cycles else ""}</button>
-        <button class="tablinks" onclick="openTab(event, 'Graph')">Visualization</button>
+        <button class="tablinks" onclick="openTab(event, 'Graph')">Reference Visualizations</button>
     </div>
     
     <div id="Overview" class="tabcontent">
@@ -528,29 +553,61 @@ class MemoryDebugger:
     
     <div id="Graph" class="tabcontent">
         <h2>Object Graph Visualization</h2>
+        
+        <h3>Outgoing References (Objects Referenced By Target)</h3>
+        <p>This graph shows what objects are referenced by the target object:</p>
 """
 
         if graph_exists:
             try:
-                with open(graph_filename, 'rb') as f:
+                with open(refs_graph_filename, 'rb') as f:
                     img_data = base64.b64encode(f.read()).decode('utf-8')
                 html_content += f"""
         <div class="graph-container">
-            <img src="data:image/png;base64,{img_data}" alt="Object reference graph" style="max-width: 100%;">
+            <img src="data:image/png;base64,{img_data}" alt="Objects referenced by target" style="max-width: 100%;">
         </div>
-        <p><a href="file://{os.path.abspath(graph_filename)}" target="_blank">Open full-size graph</a></p>
+        <p><a href="file://{os.path.abspath(refs_graph_filename)}" target="_blank">Open full-size outgoing references graph</a></p>
 """
             except Exception as e:
                 html_content += f"""
         <div class="info-box warning">
-            <p>Could not embed graph image: {e}</p>
-            <p><a href="file://{os.path.abspath(graph_filename)}" target="_blank">Open graph image</a></p>
+            <p>Could not embed outgoing references graph image: {e}</p>
+            <p><a href="file://{os.path.abspath(refs_graph_filename)}" target="_blank">Open outgoing references graph image</a></p>
         </div>
 """
         else:
             html_content += """
         <div class="info-box warning">
-            <p>Could not generate object graph visualization.</p>
+            <p>Could not generate outgoing references graph visualization.</p>
+        </div>
+"""
+
+        html_content += """
+        <h3>Incoming References (Objects Referencing Target)</h3>
+        <p>This graph shows what objects have a strong reference to the target object:</p>
+"""
+
+        if backrefs_graph_exists:
+            try:
+                with open(backrefs_graph_filename, 'rb') as f:
+                    img_data = base64.b64encode(f.read()).decode('utf-8')
+                html_content += f"""
+        <div class="graph-container">
+            <img src="data:image/png;base64,{img_data}" alt="Objects referencing the target" style="max-width: 100%;">
+        </div>
+        <p><a href="file://{os.path.abspath(backrefs_graph_filename)}" target="_blank">Open full-size incoming references graph</a></p>
+"""
+            except Exception as e:
+                html_content += f"""
+        <div class="info-box warning">
+            <p>Could not embed incoming references graph image: {e}</p>
+            <p><a href="file://{os.path.abspath(backrefs_graph_filename)}" target="_blank">Open incoming references graph image</a></p>
+        </div>
+"""
+        else:
+            html_content += """
+        <div class="info-box warning">
+            <p>Could not generate incoming references graph visualization.</p>
         </div>
 """
         
@@ -592,7 +649,7 @@ class MemoryDebugger:
         with open(html_filename, 'w') as f:
             f.write(html_content)
             
-        return html_filename, graph_filename
+        return html_filename, refs_graph_filename, backrefs_graph_filename
         
     def debug_memory(self, prefix: str = "", open_browser: bool = True, output_dir: str = None) -> str:
         """
@@ -607,8 +664,8 @@ class MemoryDebugger:
         Returns:
             The path to the HTML report file.
         """
-        # Generate HTML report
-        html_filename, _ = self._generate_html_report(prefix, output_dir)
+        # Generate HTML report with both incoming and outgoing reference visualizations
+        html_filename, outgoing_refs_filename, incoming_refs_filename = self._generate_html_report(prefix, output_dir)
         
         # Also create the legacy markdown report for backward compatibility
         timestamp = time.strftime("%Y%m%d_%H%M%S")
@@ -625,6 +682,9 @@ class MemoryDebugger:
             f.write(f"# Memory Debug Report for {type(self.target_obj)}\n\n")
             f.write(f"Generated: {time.strftime('%Y-%m-%d %H:%M:%S')}\n\n")
             f.write(f"HTML Report: [View HTML Report]({html_filename})\n\n")
+            f.write(f"Visualizations:\n")
+            f.write(f"- [Outgoing References Graph]({outgoing_refs_filename}) - Objects referenced by the target\n")
+            f.write(f"- [Incoming References Graph]({incoming_refs_filename}) - Objects that reference the target\n\n")
             
             # Capture reference count
             f.write(f"## Reference Count\n")
@@ -780,11 +840,58 @@ class MemoryDebugger:
         except TypeError:
             return False
     
-    def visualize_dependencies(self) -> None:
+    def visualize_dependencies(self, max_depth: int = 3, output_dir: str = None, prefix: str = "") -> Tuple[str, str]:
         """
         Visualize object dependencies using objgraph.
+        
+        Args:
+            max_depth: Maximum depth of reference tree to display
+            output_dir: Directory to save visualization files
+            prefix: Prefix for output files
+            
+        Returns:
+            Tuple of (outgoing_refs_filename, incoming_refs_filename)
         """
-        objgraph.show_refs(self.target_obj)
+        timestamp = time.strftime("%Y%m%d_%H%M%S")
+        if not prefix:
+            prefix = type(self.target_obj).__name__.lower()
+            
+        # Determine output directory
+        if output_dir is None:
+            output_dir = os.environ.get("EDSL_MEMORY_DEBUG_DIR", "")
+            
+        if output_dir:
+            # Ensure directory exists
+            os.makedirs(output_dir, exist_ok=True)
+        
+        # Prepare filenames  
+        refs_filename = os.path.join(output_dir, f"{prefix}_outgoing_refs_{timestamp}.png") if output_dir else f"{prefix}_outgoing_refs_{timestamp}.png"
+        backrefs_filename = os.path.join(output_dir, f"{prefix}_incoming_refs_{timestamp}.png") if output_dir else f"{prefix}_incoming_refs_{timestamp}.png"
+        
+        # Filter out frames and functions
+        ignore_ids = [id(obj) for obj in gc.get_objects() 
+                      if isinstance(obj, (types.FrameType, types.FunctionType))]
+                      
+        # For the regular references (what the object references)
+        objgraph.show_refs(
+            self.target_obj, 
+            max_depth=max_depth, 
+            filename=refs_filename,
+            extra_ignore=ignore_ids
+        )
+        
+        # For the referrers (what references the object)
+        objgraph.show_backrefs(
+            self.target_obj, 
+            max_depth=max_depth, 
+            filename=backrefs_filename,
+            extra_ignore=ignore_ids
+        )
+        
+        print(f"Outgoing references saved to: {refs_filename}")
+        print(f"Incoming references saved to: {backrefs_filename}")
+        
+        return refs_filename, backrefs_filename
     
     def _inspect_dict_reference(self, ref: Dict) -> None:
         """Helper method to inspect dictionary references."""
@@ -817,3 +924,70 @@ class MemoryDebugger:
             print(f"  - Found in tuple at index: {idx}")
         except ValueError:
             print("  - Found in tuple (as part of a larger structure)")
+            
+    def find_reference_paths(self, max_depth: int = 5) -> None:
+        """
+        Find and print paths to objects that reference the target object.
+        This is a simplified version that directly prints the results.
+        
+        Args:
+            max_depth: Maximum depth to search for references
+        """
+        print(f"\nFinding reference paths to {type(self.target_obj)} (id: {id(self.target_obj)}):")
+        
+        # Create a simplified reference chain explorer
+        def find_path_to_referrers(obj, path=None, depth=0, visited=None):
+            if path is None:
+                path = []
+            if visited is None:
+                visited = set()
+                
+            if depth > max_depth:
+                return
+                
+            # Get referrers excluding frames and functions
+            referrers = [ref for ref in gc.get_referrers(obj) 
+                        if not isinstance(ref, (types.FrameType, types.FunctionType))]
+            
+            for ref in referrers:
+                ref_id = id(ref)
+                
+                # Skip if we've seen this object already
+                if ref_id in visited:
+                    continue
+                    
+                visited.add(ref_id)
+                
+                # Print current path
+                ref_type = type(ref).__name__
+                current_path = path + [(ref_type, ref_id)]
+                
+                # Print the path
+                path_str = " -> ".join([f"{t} (id:{i})" for t, i in current_path])
+                print(f"{' ' * depth}• {ref_type} references {type(obj).__name__}")
+                
+                # If it's a container, try to find the specific reference
+                if isinstance(ref, dict):
+                    for k, v in ref.items():
+                        if v is obj:
+                            print(f"{' ' * (depth+2)}(via dict key: {k})")
+                elif isinstance(ref, (list, tuple)):
+                    try:
+                        idx = ref.index(obj)
+                        print(f"{' ' * (depth+2)}(via {type(ref).__name__} index: {idx})")
+                    except (ValueError, TypeError):
+                        print(f"{' ' * (depth+2)}(as part of a larger structure)")
+                
+                # Look for owners of this container
+                if isinstance(ref, dict):
+                    owners = [o for o in gc.get_referrers(ref) 
+                             if hasattr(o, '__dict__') and o.__dict__ is ref]
+                    if owners:
+                        owner = owners[0]
+                        print(f"{' ' * (depth+2)}(dict belongs to: {type(owner).__name__} id:{id(owner)})")
+                
+                # Continue recursion with increased depth
+                find_path_to_referrers(ref, current_path, depth + 1, visited)
+                
+        # Start the recursive search
+        find_path_to_referrers(self.target_obj)

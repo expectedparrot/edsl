@@ -20,6 +20,9 @@ from __future__ import annotations
 import os
 import time
 from typing import TYPE_CHECKING, Optional
+import weakref
+from functools import wraps
+import asyncio
 
 if TYPE_CHECKING:
     from ..results import Results
@@ -89,17 +92,25 @@ class JobsRunnerAsyncio:
             task_history=TaskHistory(include_traceback=not parameters.progress_bar),
         )
 
-        result_generator = AsyncInterviewRunner(self.jobs, run_config)
-        async for result, interview in result_generator.run():
+        prev_interview_ref = None
+        async for result, interview in AsyncInterviewRunner(self.jobs, run_config).run():
             results.append(result)
             results.add_task_history_entry(interview)
-            if memory_debug:= False:
-                    # Create memory debug reports in temp directory 
-                    debug_dir = os.environ.get("EDSL_MEMORY_DEBUG_DIR", "/tmp/edsl_memory_debug")
-                    MemoryDebugger(interview).debug_memory(output_dir=debug_dir, open_browser=False)  
-                    #breakpoint() 
-            # Check reference to interview
-        
+            
+            # #if memory_debug:= True:
+            #     # Check if previous interview was garbage collected
+            # if prev_interview_ref is not None and prev_interview_ref() is not None:
+            #     print("Warning: Previous interview object was not garbage collected")
+            #     debug_dir = os.environ.get("EDSL_MEMORY_DEBUG_DIR", "/tmp/edsl_memory_debug")
+            #     memory_debugger = MemoryDebugger(prev_interview_ref())
+            #     memory_debugger.debug_memory(output_dir=debug_dir, open_browser=True)
+            #     #breakpoint()
+            
+            # # Set up reference for next iteration
+            # prev_interview_ref = weakref.ref(interview)
+            # finalizer = weakref.finalize(interview, lambda: print(f"Interview object was garbage collected"))
+            
+                    
         results.cache = results.relevant_cache(self.environment.cache)
         results.bucket_collection = self.environment.bucket_collection
         
