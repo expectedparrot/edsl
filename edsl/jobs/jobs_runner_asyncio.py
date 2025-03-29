@@ -96,8 +96,8 @@ class JobsRunnerAsyncio:
         prev_interview_ref = None
         async for result, interview in AsyncInterviewRunner(self.jobs, run_config).run():
             # If collecting results, uncomment these lines
-            #results.append(result)
-            #results.add_task_history_entry(interview)
+            results.append(result)
+            results.add_task_history_entry(interview)
             
             # Set up reference for next iteration
             prev_interview_ref = weakref.ref(interview)
