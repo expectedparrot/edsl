@@ -42,6 +42,7 @@ class TestBaseModels:
                 "SQLiteFileStore",
                 "AgentTraits",
                 "RunParameters",
+                "SQLList",
             ]
 
         from edsl.base.exceptions import BaseNotImplementedError

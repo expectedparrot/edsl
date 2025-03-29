@@ -39,11 +39,13 @@ from __future__ import annotations
 import json
 import random
 import warnings
-from collections import UserList, defaultdict
+from collections import defaultdict
 from typing import Optional, Callable, Any, Union, List, TYPE_CHECKING
 from bisect import bisect_left
 
 from ..base import Base
+from ..db_list import SQLList
+from ..config import CONFIG
 
 if TYPE_CHECKING:
     from ..surveys import Survey
@@ -188,7 +190,7 @@ class NotReadyObject:
         return self
 
 
-class Results(UserList, ResultsOperationsMixin, Base):
+class Results(ResultsOperationsMixin, Base):
     """A collection of Result objects with powerful data analysis capabilities.
 
     The Results class is the primary container for working with data from EDSL surveys.
@@ -199,7 +201,7 @@ class Results(UserList, ResultsOperationsMixin, Base):
 
     Attributes:
         survey: The Survey object containing the questions used to generate results.
-        data: A list of Result objects containing the responses.
+        data: A SQLList of Result objects containing the responses.
         created_columns: A list of column names created through transformations.
         cache: A Cache object for storing model responses.
         completed: Whether the Results object is ready for use.
@@ -297,6 +299,7 @@ class Results(UserList, ResultsOperationsMixin, Base):
         job_uuid: Optional[str] = None,
         total_results: Optional[int] = None,
         task_history: Optional[TaskHistory] = None,
+        memory_threshold: Optional[int] = None,
     ):
         """Instantiate a Results object with a survey and a list of Result objects.
 
@@ -312,6 +315,7 @@ class Results(UserList, ResultsOperationsMixin, Base):
             job_uuid: A string representing the job UUID.
             total_results: An integer representing the total number of results.
             task_history: A TaskHistory object containing information about the tasks.
+            memory_threshold: Size threshold in bytes before offloading to SQLite.
 
         Examples:
             >>> from ..results import Result
@@ -330,9 +334,11 @@ class Results(UserList, ResultsOperationsMixin, Base):
             >>> len(r)
             1
         """
+        super().__init__()
         self.completed = True
+        self._fetched = False
         self._fetching = False
-        super().__init__(data)
+        
         from ..caching import Cache
         from ..tasks import TaskHistory
 
@@ -341,12 +347,23 @@ class Results(UserList, ResultsOperationsMixin, Base):
         self._job_uuid = job_uuid
         self._total_results = total_results
         self.cache = cache or Cache()
-
+        
+        # Initialize underlying SQLList for data storage
+        if memory_threshold is None:
+            # Check for configured memory threshold for Results
+            try:
+                memory_threshold = CONFIG.get("EDSL_RESULTS_MEMORY_THRESHOLD")
+                if isinstance(memory_threshold, str):
+                    memory_threshold = int(memory_threshold)
+            except Exception:
+                memory_threshold = None
+        
+        self.data = SQLList(iterable=data or [], memory_threshold=memory_threshold)
+        
         self.task_history = task_history or TaskHistory(interviews=[])
 
         if hasattr(self, "_add_output_functions"):
             self._add_output_functions()
-
 
     def add_task_history_entry(self, interview: "Interview") -> None:
         """Add an interview to the task history.
@@ -427,30 +444,84 @@ class Results(UserList, ResultsOperationsMixin, Base):
         return cache.subset(cache_keys)
 
     def insert(self, item):
+        """Insert an item into the Results with proper ordering.
+        
+        Args:
+            item: The Result object to insert
+        """
         item_order = getattr(item, "order", None)
         if item_order is not None:
             # Get list of orders, putting None at the end
-            orders = [getattr(x, "order", None) for x in self]
+            orders = [getattr(x, "order", None) for x in self.data]
             # Filter to just the non-None orders for bisect
             sorted_orders = [x for x in orders if x is not None]
             if sorted_orders:
                 index = bisect_left(sorted_orders, item_order)
                 # Account for any None values before this position
                 index += orders[:index].count(None)
+                self.data.insert(index, item)
             else:
                 # If no sorted items yet, insert before any unordered items
-                index = 0
-            self.data.insert(index, item)
+                self.data.insert(0, item)
         else:
             # No order - append to end
             self.data.append(item)
 
     def append(self, item):
+        """Append an item to the Results.
+        
+        Args:
+            item: The Result object to append
+        """
         self.insert(item)
 
     def extend(self, other):
+        """Extend the Results with items from another collection.
+        
+        Args:
+            other: Iterable of Result objects to add
+        """
+        # If we have a large number of items to add, we'll batch them by order
+        items_by_order = {}
+        
+        # First, collect all items by their order value
         for item in other:
-            self.insert(item)
+            item_order = getattr(item, "order", None)
+            if item_order not in items_by_order:
+                items_by_order[item_order] = []
+            items_by_order[item_order].append(item)
+        
+        # Handle ordered items first - maintain sorting
+        order_keys = sorted([k for k in items_by_order.keys() if k is not None])
+        for order in order_keys:
+            items = items_by_order[order]
+            
+            # Find the insertion point based on the first item's order
+            if self.is_memory_only:
+                # If data is in memory, find insertion point first
+                orders = [getattr(x, "order", None) for x in self.data]
+                sorted_orders = [x for x in orders if x is not None]
+                if sorted_orders:
+                    index = bisect_left(sorted_orders, order)
+                    index += orders[:index].count(None)
+                    
+                    # Insert items at the right position
+                    for i, item in enumerate(items):
+                        self.data.insert(index + i, item)
+                else:
+                    # If no sorted items yet, insert at the beginning
+                    for i, item in enumerate(items):
+                        self.data.insert(i, item)
+            else:
+                # For SQLite-backed storage, each item must be inserted individually
+                # to maintain the correct order
+                for item in items:
+                    self.insert(item)
+        
+        # Handle unordered items (just append to the end)
+        if None in items_by_order:
+            # No need for ordering, just append them all
+            self.data.extend(items_by_order[None])
 
     def compute_job_cost(self, include_cached_responses_in_cost: bool = False) -> float:
         """Compute the cost of a completed job in USD.
@@ -472,7 +543,7 @@ class Results(UserList, ResultsOperationsMixin, Base):
             0
         """
         total_cost = 0
-        for result in self:
+        for result in self.data:
             for key in result["raw_model_response"]:
                 if key.endswith("_cost"):
                     result_cost = result["raw_model_response"][key]
@@ -504,6 +575,22 @@ class Results(UserList, ResultsOperationsMixin, Base):
             True
         """
         raise ResultsError("The code() method is not implemented for Results objects")
+
+    def __len__(self):
+        """Return the number of Result objects in the Results.
+        
+        Returns:
+            int: The number of results
+        """
+        return len(self.data)
+
+    def __iter__(self):
+        """Return an iterator over the Results data.
+        
+        Returns:
+            Iterator: Iterator over Result objects
+        """
+        return iter(self.data)
 
     def __getitem__(self, i):
         """Get an item from the Results object by index, slice, or key.
@@ -541,14 +628,16 @@ class Results(UserList, ResultsOperationsMixin, Base):
             return self.data[i]
 
         if isinstance(i, slice):
-            return self.__class__(survey=self.survey, data=self.data[i])
+            # Create a new Results with the sliced data
+            sliced_data = self.data[i]
+            return self.__class__(survey=self.survey, data=list(sliced_data))
 
         if isinstance(i, str):
             return self.to_dict()[i]
 
         raise ResultsError("Invalid argument type for indexing Results object")
 
-    def __add__(self, other: Results) -> Results:
+    def __add__(self, other: "Results") -> "Results":
         """Add two Results objects together.
 
         Combines two Results objects into a new one. Both objects must have the same
@@ -590,11 +679,29 @@ class Results(UserList, ResultsOperationsMixin, Base):
                 "The created columns are not the same so they cannot be added together."
             )
 
-        return Results(
+        # Determine memory threshold for the new Results
+        # Use the larger of the two thresholds if they differ
+        memory_threshold = None
+        if hasattr(self.data, 'memory_threshold') and hasattr(other.data, 'memory_threshold'):
+            memory_threshold = max(
+                getattr(self.data, 'memory_threshold', 0),
+                getattr(other.data, 'memory_threshold', 0)
+            )
+        
+        # Create a new Results object with an empty SQLList
+        result = Results(
             survey=self.survey,
-            data=self.data + other.data,
+            data=[],  # Start with empty data
             created_columns=self.created_columns,
+            memory_threshold=memory_threshold,
         )
+        
+        # Efficiently extend with both data sources
+        # This avoids loading everything into memory at once
+        result.extend(self.data)
+        result.extend(other.data)
+        
+        return result
 
     def _repr_html_(self):
         if not self.completed:
@@ -608,6 +715,7 @@ class Results(UserList, ResultsOperationsMixin, Base):
 
     @ensure_ready
     def __repr__(self) -> str:
+        """Return a string representation of the Results object."""
         return f"Results(data = {self.data}, survey = {repr(self.survey)}, created_columns = {self.created_columns})"
 
     def table(
@@ -617,6 +725,17 @@ class Results(UserList, ResultsOperationsMixin, Base):
         pretty_labels: Optional[dict] = None,
         print_parameters: Optional[dict] = None,
     ):
+        """Display results as a formatted table.
+        
+        Args:
+            *fields: Column fields to include in the table
+            tablefmt: Table format (rich, github, etc.)
+            pretty_labels: Dictionary of column renaming for display
+            print_parameters: Additional parameters for printing
+            
+        Returns:
+            A table representation of the results
+        """
         new_fields = []
         for field in fields:
             if "." in field:
@@ -649,6 +768,7 @@ class Results(UserList, ResultsOperationsMixin, Base):
         )
 
     def to_dataset(self) -> "Dataset":
+        """Convert Results to a Dataset object."""
         return self.select()
 
     def to_dict(
@@ -659,12 +779,24 @@ class Results(UserList, ResultsOperationsMixin, Base):
         include_task_history: bool = False,
         include_cache_info: bool = True,
     ) -> dict[str, Any]:
+        """Convert Results to a dictionary representation.
+        
+        Args:
+            sort: Whether to sort the data before serializing
+            add_edsl_version: Whether to include EDSL version in the output
+            include_cache: Whether to include the cache in the output
+            include_task_history: Whether to include task history in the output
+            include_cache_info: Whether to include cache info in the output
+            
+        Returns:
+            Dictionary representation of the Results
+        """
         from ..caching import Cache
 
         if sort:
-            data = sorted([result for result in self.data], key=lambda x: hash(x))
+            data = sorted(list(self.data), key=lambda x: hash(x))
         else:
-            data = [result for result in self.data]
+            data = list(self.data)
 
         d = {
             "data": [
@@ -699,12 +831,18 @@ class Results(UserList, ResultsOperationsMixin, Base):
 
         return d
 
-    def compare(self, other_results: Results) -> dict:
+    def compare(self, other_results: "Results") -> dict:
         """
         Compare two Results objects and return the differences.
+        
+        Args:
+            other_results: Another Results object to compare with
+            
+        Returns:
+            Dictionary containing results in one but not the other
         """
-        hashes_0 = [hash(result) for result in self]
-        hashes_1 = [hash(result) for result in other_results]
+        hashes_0 = [hash(result) for result in self.data]
+        hashes_1 = [hash(result) for result in other_results.data]
 
         in_self_but_not_other = set(hashes_0).difference(set(hashes_1))
         in_other_but_not_self = set(hashes_1).difference(set(hashes_0))
@@ -712,25 +850,36 @@ class Results(UserList, ResultsOperationsMixin, Base):
         indicies_self = [hashes_0.index(h) for h in in_self_but_not_other]
         indices_other = [hashes_1.index(h) for h in in_other_but_not_self]
         return {
-            "a_not_b": [self[i] for i in indicies_self],
-            "b_not_a": [other_results[i] for i in indices_other],
+            "a_not_b": [self.data[i] for i in indicies_self],
+            "b_not_a": [other_results.data[i] for i in indices_other],
         }
 
     @property
     def has_unfixed_exceptions(self) -> bool:
+        """Whether there are unfixed exceptions in the task history."""
         return self.task_history.has_unfixed_exceptions
 
     def __hash__(self) -> int:
-
+        """Calculate hash for the Results object."""
         return dict_hash(
             self.to_dict(sort=True, add_edsl_version=False, include_cache_info=False)
         )
 
     @property
     def hashes(self) -> set:
+        """Get a set of hash values for all Result objects."""
         return set(hash(result) for result in self.data)
+        
+    @property
+    def is_memory_only(self) -> bool:
+        """Check if the results data is stored entirely in memory.
+        
+        Returns:
+            bool: True if all data is in memory, False if using SQLite backing
+        """
+        return getattr(self.data, "is_memory_only", True)
 
-    def _sample_legacy(self, n: int) -> Results:
+    def _sample_legacy(self, n: int) -> "Results":
         """Return a random sample of the results.
 
         :param n: The number of samples to return.
@@ -757,7 +906,7 @@ class Results(UserList, ResultsOperationsMixin, Base):
 
     @classmethod
     @remove_edsl_version
-    def from_dict(cls, data: dict[str, Any]) -> Results:
+    def from_dict(cls, data: dict[str, Any]) -> "Results":
         """Convert a dictionary to a Results object.
 
         :param data: A dictionary representation of a Results object.
@@ -905,6 +1054,7 @@ class Results(UserList, ResultsOperationsMixin, Base):
         return ModelList([r.model for r in self.data])
 
     def __eq__(self, other):
+        """Compare two Results objects for equality."""
         return hash(self) == hash(other)
 
     @property
@@ -985,7 +1135,7 @@ class Results(UserList, ResultsOperationsMixin, Base):
         )
         return sorted(list(all_keys))
 
-    def first(self) -> Result:
+    def first(self) -> "Result":
         """Return the first observation in the results.
 
         Example:
@@ -998,7 +1148,7 @@ class Results(UserList, ResultsOperationsMixin, Base):
 
     def answer_truncate(
         self, column: str, top_n: int = 5, new_var_name: Optional[str] = None
-    ) -> Results:
+    ) -> "Results":
         """Create a new variable that truncates the answers to the top_n.
 
         :param column: The column to truncate.
@@ -1027,7 +1177,7 @@ class Results(UserList, ResultsOperationsMixin, Base):
     @ensure_ready
     def recode(
         self, column: str, recode_function: Optional[Callable], new_var_name=None
-    ) -> Results:
+    ) -> "Results":
         """
         Recode a column in the Results object.
 
@@ -1054,7 +1204,7 @@ class Results(UserList, ResultsOperationsMixin, Base):
         )
 
     @ensure_ready
-    def add_column(self, column_name: str, values: list) -> Results:
+    def add_column(self, column_name: str, values: list) -> "Results":
         """Adds columns to Results
 
         >>> r = Results.example()
@@ -1065,7 +1215,7 @@ class Results(UserList, ResultsOperationsMixin, Base):
         assert len(values) == len(
             self.data
         ), "The number of values must match the number of results."
-        new_results = self.data.copy()
+        new_results = list(self.data)
         for i, result in enumerate(new_results):
             result["answer"][column_name] = values[i]
         return Results(
@@ -1075,7 +1225,7 @@ class Results(UserList, ResultsOperationsMixin, Base):
         )
 
     @ensure_ready
-    def add_columns_from_dict(self, columns: List[dict]) -> Results:
+    def add_columns_from_dict(self, columns: List[dict]) -> "Results":
         """Adds columns to Results from a list of dictionaries.
 
         >>> r = Results.example()
@@ -1090,7 +1240,7 @@ class Results(UserList, ResultsOperationsMixin, Base):
 
     @staticmethod
     def _create_evaluator(
-        result: Result, functions_dict: Optional[dict] = None
+        result: "Result", functions_dict: Optional[dict] = None
     ) -> "EvalWithCompoundTypes":
         """Create an evaluator for the expression.
 
@@ -1127,7 +1277,7 @@ class Results(UserList, ResultsOperationsMixin, Base):
     @ensure_ready
     def mutate(
         self, new_var_string: str, functions_dict: Optional[dict] = None
-    ) -> Results:
+    ) -> "Results":
         """Create a new column based on a computational expression.
 
         The mutate method allows you to create new derived variables based on existing data.
@@ -1208,7 +1358,7 @@ class Results(UserList, ResultsOperationsMixin, Base):
     # Method removed due to duplication (F811)
 
     @ensure_ready
-    def rename(self, old_name: str, new_name: str) -> Results:
+    def rename(self, old_name: str, new_name: str) -> "Results":
         """Rename an answer column in a Results object.
 
         >>> s = Results.example()
@@ -1226,7 +1376,7 @@ class Results(UserList, ResultsOperationsMixin, Base):
         return self
 
     @ensure_ready
-    def shuffle(self, seed: Optional[str] = "edsl") -> Results:
+    def shuffle(self, seed: Optional[str] = "edsl") -> "Results":
         """Shuffle the results.
 
         Example:
@@ -1238,9 +1388,41 @@ class Results(UserList, ResultsOperationsMixin, Base):
         if seed != "edsl":
             seed = random.seed(seed)
 
-        new_data = self.data.copy()
-        random.shuffle(new_data)
-        return Results(survey=self.survey, data=new_data, created_columns=None)
+        # Determine an efficient shuffling approach based on data storage
+        if len(self.data) <= 1000 or self.is_memory_only:
+            # For smaller datasets or in-memory data, traditional shuffling is fine
+            new_data = list(self.data).copy()
+            random.shuffle(new_data)
+            
+            # Create and return a new Results with the shuffled data
+            return Results(
+                survey=self.survey, 
+                data=new_data, 
+                created_columns=None,
+                memory_threshold=getattr(self.data, 'memory_threshold', None)
+            )
+        else:
+            # For larger SQLite-backed datasets, use an index-based approach
+            # This avoids loading everything into memory at once
+            indices = list(range(len(self.data)))
+            random.shuffle(indices)
+            
+            # Create a new empty Results with appropriate memory threshold
+            result = Results(
+                survey=self.survey,
+                data=[],
+                created_columns=None,
+                memory_threshold=getattr(self.data, 'memory_threshold', None)
+            )
+            
+            # Add items to the new Results in random order using batching
+            batch_size = 100
+            for i in range(0, len(indices), batch_size):
+                batch_indices = indices[i:i + batch_size]
+                batch_data = [self.data[idx] for idx in batch_indices]
+                result.data.extend(batch_data)
+                
+            return result
 
     @ensure_ready
     def sample(
@@ -1249,7 +1431,7 @@ class Results(UserList, ResultsOperationsMixin, Base):
         frac: Optional[float] = None,
         with_replacement: bool = True,
         seed: Optional[str] = None,
-    ) -> Results:
+    ) -> "Results":
         """Sample the results.
 
         :param n: An integer representing the number of samples to take.
@@ -1268,23 +1450,43 @@ class Results(UserList, ResultsOperationsMixin, Base):
 
         if n is None and frac is None:
             from .exceptions import ResultsError
-
             raise ResultsError("You must specify either n or frac.")
 
         if n is not None and frac is not None:
             from .exceptions import ResultsError
-
             raise ResultsError("You cannot specify both n and frac.")
 
         if frac is not None and n is None:
             n = int(frac * len(self.data))
 
-        if with_replacement:
-            new_data = random.choices(self.data, k=n)
-        else:
-            new_data = random.sample(self.data, n)
+        # Create a new Results with appropriate memory threshold
+        result = Results(
+            survey=self.survey,
+            data=[],
+            created_columns=self.created_columns,
+            memory_threshold=getattr(self.data, 'memory_threshold', None)
+        )
 
-        return Results(survey=self.survey, data=new_data, created_columns=None)
+        # Sample in a memory-efficient way for large SQLite-backed datasets
+        total_size = len(self.data)
+        
+        if total_size < 1000 or self.is_memory_only or not with_replacement:
+            # For smaller datasets, in-memory data, or sampling without replacement,
+            # standard sampling is fine
+            if with_replacement:
+                sampled_data = random.choices(list(self.data), k=n)
+            else:
+                sampled_data = random.sample(list(self.data), n)
+                
+            result.data.extend(sampled_data)
+        else:
+            # For large SQLite-backed datasets with replacement,
+            # use an index-based approach with batching
+            for _ in range(n):
+                idx = random.randrange(total_size)
+                result.data.append(self.data[idx])
+                
+        return result
 
     @ensure_ready
     def select(self, *columns: Union[str, list[str]]) -> "Dataset":
@@ -1354,7 +1556,7 @@ class Results(UserList, ResultsOperationsMixin, Base):
         return selector.select(*columns)
 
     @ensure_ready
-    def sort_by(self, *columns: str, reverse: bool = False) -> Results:
+    def sort_by(self, *columns: str, reverse: bool = False) -> "Results":
         """Sort the results by one or more columns."""
         warnings.warn(
             "sort_by is deprecated. Use order_by instead.", DeprecationWarning
@@ -1368,7 +1570,7 @@ class Results(UserList, ResultsOperationsMixin, Base):
         return self._key_to_data_type[column], column
 
     @ensure_ready
-    def order_by(self, *columns: str, reverse: bool = False) -> Results:
+    def order_by(self, *columns: str, reverse: bool = False) -> "Results":
         """Sort the results by one or more columns.
 
         :param columns: One or more column names as strings.
@@ -1401,11 +1603,47 @@ class Results(UserList, ResultsOperationsMixin, Base):
                 key_components.append(to_numeric_if_possible(value))
             return tuple(key_components)
 
-        new_data = sorted(self.data, key=sort_key, reverse=reverse)
-        return Results(survey=self.survey, data=new_data, created_columns=None)
+        # Create new Results with appropriate memory threshold
+        result = Results(
+            survey=self.survey,
+            data=[],
+            created_columns=self.created_columns,
+            memory_threshold=getattr(self.data, 'memory_threshold', None)
+        )
+        
+        # For large SQLite-backed collections, we need to handle sorting differently
+        if not self.is_memory_only and len(self.data) > 1000:
+            # Load all data to evaluate sorting keys
+            all_items = list(self.data)
+            
+            # Create a list of (item, key) pairs
+            item_keys = [(item, sort_key(item)) for item in all_items]
+            
+            # Sort by the keys
+            item_keys.sort(key=lambda x: x[1], reverse=reverse)
+            
+            # Get just the sorted items
+            sorted_items = [item for item, _ in item_keys]
+            
+            # Add to the result in sorted order using batches to avoid memory issues
+            batch_size = 100
+            for i in range(0, len(sorted_items), batch_size):
+                batch = sorted_items[i:i+batch_size]
+                result.data.extend(batch)
+                
+            return result
+        else:
+            # For smaller or in-memory collections, sort directly
+            new_data = sorted(list(self.data), key=sort_key, reverse=reverse)
+            return Results(
+                survey=self.survey, 
+                data=new_data, 
+                created_columns=self.created_columns,
+                memory_threshold=getattr(self.data, 'memory_threshold', None)
+            )
 
     @ensure_ready
-    def filter(self, expression: str) -> Results:
+    def filter(self, expression: str) -> "Results":
         """Filter results based on a boolean expression.
 
         This method evaluates a boolean expression against each Result object in the
@@ -1469,14 +1707,40 @@ class Results(UserList, ResultsOperationsMixin, Base):
                 "You must use '==' instead of '=' in the filter expression."
             )
 
+        # Create a new Results with appropriate memory threshold
+        result = Results(
+            survey=self.survey,
+            data=[],
+            created_columns=self.created_columns,
+            memory_threshold=getattr(self.data, 'memory_threshold', None)
+        )
+        
         try:
-            # iterates through all the results and evaluates the expression
-            new_data = []
-            for result in self.data:
-                evaluator = self._create_evaluator(result)
-                result.check_expression(expression)  # check expression
-                if evaluator.eval(expression):
-                    new_data.append(result)
+            # For large SQLite-backed collections, process in batches
+            if not self.is_memory_only and len(self.data) > 1000:
+                batch_size = 100
+                for i in range(0, len(self.data), batch_size):
+                    batch = list(self.data[i:i+batch_size])
+                    filtered_batch = []
+                    
+                    for item in batch:
+                        evaluator = self._create_evaluator(item)
+                        item.check_expression(expression)  # check expression
+                        if evaluator.eval(expression):
+                            filtered_batch.append(item)
+                            
+                    if filtered_batch:
+                        result.data.extend(filtered_batch)
+            else:
+                # For smaller or in-memory collections, process all at once
+                filtered_data = []
+                for item in self.data:
+                    evaluator = self._create_evaluator(item)
+                    item.check_expression(expression)  # check expression
+                    if evaluator.eval(expression):
+                        filtered_data.append(item)
+                        
+                result.data.extend(filtered_data)
 
         except ValueError as e:
             raise ResultsFilterError(
@@ -1494,15 +1758,14 @@ class Results(UserList, ResultsOperationsMixin, Base):
                 """See https://docs.expectedparrot.com/en/latest/results.html#filtering-results for more details.""",
             )
 
-        if len(new_data) == 0:
+        if len(result.data) == 0:
             import warnings
-
             warnings.warn("No results remain after applying the filter.")
 
-        return Results(survey=self.survey, data=new_data, created_columns=None)
+        return result
 
     @classmethod
-    def example(cls, randomize: bool = False) -> Results:
+    def example(cls, randomize: bool = False) -> "Results":
         """Return an example `Results` object.
 
         Example usage:
@@ -1532,6 +1795,7 @@ class Results(UserList, ResultsOperationsMixin, Base):
 
     @ensure_ready
     def __str__(self):
+        """Return a string representation of the Results data."""
         data = self.to_dict()["data"]
         return json.dumps(data, indent=4)
 
@@ -1606,7 +1870,7 @@ class Results(UserList, ResultsOperationsMixin, Base):
             remote_results = coop.get(results_uuid, expected_object_type="results")
 
             # Update this instance with remote data
-            self.data = remote_results.data
+            self.data = SQLList(list(remote_results.data))
             self.survey = remote_results.survey
             self.created_columns = remote_results.created_columns
             self.cache = remote_results.cache
@@ -1623,7 +1887,7 @@ class Results(UserList, ResultsOperationsMixin, Base):
         except Exception as e:
             raise ResultsError(f"Failed to fetch remote results: {str(e)}")
 
-    def fetch(self, polling_interval: Union[float, int] = 1.0) -> Results:
+    def fetch(self, polling_interval: Union[float, int] = 1.0) -> "Results":
         """Poll the server for job completion and update this Results instance.
 
         This method continuously polls the remote server until the job is completed or
@@ -1677,7 +1941,7 @@ class Results(UserList, ResultsOperationsMixin, Base):
         except Exception as e:
             raise ResultsError(f"Failed to fetch remote results: {str(e)}")
 
-    def spot_issues(self, models: Optional[ModelList] = None) -> Results:
+    def spot_issues(self, models: Optional[ModelList] = None) -> "Results":
         """Run a survey to spot issues and suggest improvements for prompts that had no model response, returning a new Results object.
         Future version: Allow user to optionally pass a list of questions to review, regardless of whether they had a null model response.
         """
@@ -1755,7 +2019,7 @@ def main():  # pragma: no cover
     """
     from ..results import Results
 
-    results = Results.example(debug=True)
+    results = Results.example()
     print(results.filter("how_feeling == 'Great'").select("how_feeling"))
     print(results.mutate("how_feeling_x = how_feeling + 'x'").select("how_feeling_x"))
 
