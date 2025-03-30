@@ -1,4 +1,5 @@
 from typing import Dict, Tuple, Union
+import weakref
 
 
 class PriceManager:
@@ -7,15 +8,42 @@ class PriceManager:
     _is_initialized = False
 
     def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super(PriceManager, cls).__new__(cls)
-        return cls._instance
+        if cls._instance is None or cls._instance() is None:
+            instance = super(PriceManager, cls).__new__(cls)
+            instance._price_lookup = {}  # Move to instance attribute
+            instance._is_initialized = False
+            cls._instance = weakref.ref(instance)
+            return instance
+        return cls._instance()
 
     def __init__(self):
         # Only initialize once, even if __init__ is called multiple times
         if not self._is_initialized:
             self._is_initialized = True
             self.refresh_prices()
+            
+    @classmethod
+    def get_instance(cls):
+        """Get the singleton instance, creating it if necessary."""
+        if cls._instance is None or cls._instance() is None:
+            return cls()
+        return cls._instance()
+            
+    @classmethod
+    def reset(cls):
+        """Reset the singleton instance to clean up resources."""
+        cls._instance = None
+        cls._is_initialized = False
+        cls._price_lookup = {}
+            
+    def __del__(self):
+        """Ensure proper cleanup when the instance is garbage collected."""
+        try:
+            # Clean up resources, if any
+            self._price_lookup = {}
+        except:
+            # Ignore errors during cleanup
+            pass
 
     def refresh_prices(self) -> None:
         """

@@ -894,7 +894,7 @@ class LanguageModel(
         # Use the price manager to calculate the actual cost
         from .price_manager import PriceManager
 
-        price_manager = PriceManager()
+        price_manager = PriceManager.get_instance()
 
         return price_manager.calculate_cost(
             inference_service=self._inference_service_,

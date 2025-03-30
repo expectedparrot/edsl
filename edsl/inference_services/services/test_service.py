@@ -11,7 +11,7 @@ if TYPE_CHECKING:
     from ...language_models import LanguageModel
 
 if TYPE_CHECKING:
-    from ....scenarios.file_store import FileStore as File
+    from ...scenarios.file_store import FileStore as File
 
 
 class TestService(InferenceServiceABC):
@@ -79,8 +79,8 @@ class TestService(InferenceServiceABC):
                         p = 1
 
                     if random.random() < p:
-                        from ..exceptions import InferenceServiceError
-                        raise InferenceServiceError("This is a test error")
+                        from ..exceptions import InferenceServiceIntendedError
+                        raise InferenceServiceIntendedError("This is a test error")
 
                 if hasattr(self, "func"):
                     return {
