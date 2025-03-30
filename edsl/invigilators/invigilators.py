@@ -397,10 +397,10 @@ class InvigilatorAI(InvigilatorBase):
             data = {
                 "answer": agent_response_dict.edsl_dict.answer
                 if type(agent_response_dict.edsl_dict.answer) is str
-                else None,
+                else "",
                 "comment": agent_response_dict.edsl_dict.comment
-                if type(agent_response_dict.edsl_dict.comment) is str
-                else None,
+                if agent_response_dict.edsl_dict.comment
+                else "",
                 "generated_tokens": agent_response_dict.edsl_dict.generated_tokens,
                 "question_name": self.question.question_name,
                 "prompts": self.get_prompts(),
@@ -408,10 +408,11 @@ class InvigilatorAI(InvigilatorBase):
                 "raw_model_response": agent_response_dict.model_outputs.response,
                 "cache_used": agent_response_dict.model_outputs.cache_used,
                 "cache_key": agent_response_dict.model_outputs.cache_key,
-                "validated": validated,
+                "validated": True,
                 "exception_occurred": exception_occurred,
                 "cost": agent_response_dict.model_outputs.cost,
             }
+
             result = EDSLResultObjectInput(**data)
             return result
 
@@ -452,8 +453,7 @@ class InvigilatorAI(InvigilatorBase):
             exception_occurred = non_validation_error
         finally:
             # even if validation failes, we still return the result
-            print("##$$$$$$###")
-            print(answer)
+
             data = {
                 "answer": answer,
                 "comment": comment,
