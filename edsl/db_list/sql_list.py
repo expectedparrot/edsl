@@ -1036,7 +1036,9 @@ class SQLList(BaseClass):
         """
         # Close database connections
         if hasattr(self, 'engine'):
+            # Close any open connections in the pool before disposing
             self.engine.dispose()
+            delattr(self, 'engine')  # Remove reference to avoid circular refs
             
         # Delete temporary file if we created one
         if hasattr(self, 'db_path') and self.db_path.startswith('sqlite:///'):
@@ -1047,16 +1049,13 @@ class SQLList(BaseClass):
                 try:
                     os.unlink(file_path)
                 except (OSError, IOError):
-                    pass
+                    pass  # File might be locked or already deleted
     
     def __del__(self):
         """
         Destructor to clean up resources.
         """
-        try:
-            self.__cleanup()
-        except:
-            pass  # Suppress any errors during cleanup
+        self.__cleanup()  # Let exceptions propagate for better debugging
     
     # Implementation of abstract methods from BaseClass
     
