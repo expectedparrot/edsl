@@ -19,6 +19,7 @@ from __future__ import annotations
 import asyncio
 from typing import Optional, Union, TypeVar, Callable, cast
 from functools import wraps
+from queue import Queue 
 
 from typing import (
     Literal,
@@ -203,6 +204,10 @@ class Jobs(Base):
         self.models: ModelList = models
 
         self._where_clauses = []
+        self.results_queue = Queue()
+
+
+        self._results = None
 
         try:
             assert self.survey.question_names_valid()
@@ -215,6 +220,23 @@ class Jobs(Base):
             raise JobsValueError(
                 f"At least some question names are not valid: {invalid_question_names}"
             )
+        
+    @property
+    def results(self):
+        from ..results import Results
+        from ..tasks import TaskHistory
+        if self._results is None:
+            self._results = Results(survey=self.survey, data=[], task_history=TaskHistory(include_traceback=False))
+            while not self.results_queue.empty():
+                result, interview = self.results_queue.get()
+                if result is None:
+                    break
+                self._results.append(result)
+                self._results.add_task_history_entry(interview)
+
+        from .results_exceptions_handler import ResultsExceptionsHandler
+        ResultsExceptionsHandler(self._results, self.run_config.parameters).handle_exceptions()
+        return self._results
 
     def add_running_env(self, running_env: RunEnvironment):
         self.run_config.add_environment(running_env)
@@ -658,16 +680,15 @@ class Jobs(Base):
         if self.run_config.parameters.check_api_keys:
             jc.check_api_keys()
 
-    async def _execute_with_remote_cache(self, run_job_async: bool) -> Results:
-        # Remote cache usage determination happens inside this method
-        # use_remote_cache = self.use_remote_cache()
+    async def _run_job_locally(self, run_job_async: bool) -> Results:
 
         from .jobs_runner_asyncio import JobsRunnerAsyncio
         from ..caching import Cache
 
         assert isinstance(self.run_config.environment.cache, Cache)
 
-        runner = JobsRunnerAsyncio(self, environment=self.run_config.environment)
+        runner = JobsRunnerAsyncio(self, environment=self.run_config.environment, results_queue=self.results_queue)
+
         if run_job_async:
             results = await runner.run_async(self.run_config.parameters)
         else:
@@ -681,7 +702,7 @@ class Jobs(Base):
         else:
             return len(self) * self.run_config.parameters.n
 
-    def _run(self, config: RunConfig) -> Union[None, "Results"]:
+    def _setup_and_possibly_run_remotely(self, config: RunConfig) -> Union[None, "Results"]:
         "Shared code for run and run_async"
         if config.environment.cache is not None:
             self.run_config.environment.cache = config.environment.cache
@@ -791,7 +812,7 @@ class Jobs(Base):
             >>> results = job.by(m).run(cache=Cache(), progress_bar=False, n=2, disable_remote_inference=True)
             ...
         """
-        potentially_completed_results, reason = self._run(config)
+        potentially_completed_results, reason = self._setup_and_possibly_run_remotely(config)
 
         if potentially_completed_results is not None:
             return potentially_completed_results
@@ -799,8 +820,9 @@ class Jobs(Base):
         if reason == "insufficient funds":
             return None
 
-        return asyncio.run(self._execute_with_remote_cache(run_job_async=False))
-
+        _ = asyncio.run(self._run_job_locally(run_job_async=False))
+        return self.results
+    
     @with_config
     async def run_async(self, *, config: RunConfig) -> "Results":
         """
@@ -851,9 +873,9 @@ class Jobs(Base):
             ...     results = await job.run_async(cache=Cache(), progress_bar=True)
             ...     return results
         """
-        self._run(config)
+        self._setup_and_possibly_run_remotely(config)
 
-        return await self._execute_with_remote_cache(run_job_async=True)
+        return await self._run_job_locally(run_job_async=True)
 
     def __repr__(self) -> str:
         """Return an eval-able string representation of the Jobs instance."""

@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING, Optional
 import weakref
 from functools import wraps
 import asyncio
-
+from queue import Queue
 if TYPE_CHECKING:
     from ..results import Results, Result
 
@@ -64,7 +64,7 @@ class JobsRunnerAsyncio:
     - run_async(): For asynchronous contexts (can be awaited)
     """
 
-    def __init__(self, jobs: "Jobs", environment: RunEnvironment):
+    def __init__(self, jobs: "Jobs", environment: RunEnvironment, results_queue: Optional[Queue] = None):
         """
         Initialize a JobsRunnerAsyncio instance.
         
@@ -84,45 +84,24 @@ class JobsRunnerAsyncio:
         self.start_time = None
         self.completed = None
 
+        self.results_queue = results_queue or Queue()
+
     async def _execute_interviews(self, parameters: RunParameters, run_config: RunConfig) -> Results:
         """Core interview execution logic shared between run() and run_async()."""
         self.start_time = time.monotonic()
-        results = Results(
-            survey=self.jobs.survey,
-            data=[],
-            task_history=TaskHistory(include_traceback=not parameters.progress_bar)
-        )
-
-        prev_interview_ref = None
         async for result, interview in AsyncInterviewRunner(self.jobs, run_config).run():
-            # If collecting results, uncomment these lines
-            results.append(result)
-            results.add_task_history_entry(interview)
-            
-            # Set up reference for next iteration
-            prev_interview_ref = weakref.ref(interview)
-            
-            # Explicitly clear references to help garbage collection
-            # Get what we need from the interview and then explicitly clear references
-            if hasattr(interview, 'clear_references'):
-                interview.clear_references()
-            
-            # Try to force collection immediately
-            del result
-            del interview
-            gc.collect()
+            self.results_queue.put((result, interview))
                     
-        results.cache = results.relevant_cache(self.environment.cache)
-        results.bucket_collection = self.environment.bucket_collection
-        
-        return results
+        self.results_queue.put((None, None)) # signal the end of the results
+        return None
 
     async def run_async(self, parameters: RunParameters) -> Results:
         """Execute interviews asynchronously without progress tracking."""
         run_config = RunConfig(parameters=parameters, environment=self.environment)
         self.environment.jobs_runner_status = JobsRunnerStatus(self, n=parameters.n)
         
-        return await self._execute_interviews(parameters, run_config)
+        await self._execute_interviews(parameters, run_config)
+        return None
 
     @jupyter_nb_handler
     async def run(self, parameters: RunParameters) -> Results:
@@ -133,18 +112,18 @@ class JobsRunnerAsyncio:
 
         with ProgressBarManager(self, run_config, parameters) as stop_event:
             try:
-                results = await self._execute_interviews(parameters, run_config)
+                await self._execute_interviews(parameters, run_config)
                 self.completed = True
             except KeyboardInterrupt:
                 print("Keyboard interrupt received. Stopping gracefully...")
-                results = Results(survey=self.jobs.survey, data=[], task_history=TaskHistory())
+                #results = Results(survey=self.jobs.survey, data=[], task_history=TaskHistory())
             except Exception as e:
                 if parameters.stop_on_exception:
                     raise
-                results = Results(survey=self.jobs.survey, data=[], task_history=TaskHistory())
+                #results = Results(survey=self.jobs.survey, data=[], task_history=TaskHistory())
 
-        ResultsExceptionsHandler(results, parameters).handle_exceptions()
-        return results
+        #ResultsExceptionsHandler(results, parameters).handle_exceptions()
+        return None
 
     def __len__(self):      
         return len(self.jobs)
