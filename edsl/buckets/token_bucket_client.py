@@ -11,8 +11,6 @@ from typing import Union, Optional, Dict, Any
 import asyncio
 import time
 import aiohttp
-from matplotlib import pyplot as plt
-from matplotlib.figure import Figure
 
 from .exceptions import BucketError, TokenBucketClientError
 
@@ -417,7 +415,7 @@ class TokenBucketClient:
     #     """Server-side wait time calculation (future implementation)"""
     #     return 0  # TODO - Need to implement this on the server side
 
-    def visualize(self) -> Figure:
+    def visualize(self) -> "Figure":
         """
         Visualize the token bucket usage over time as a matplotlib figure.
         
@@ -442,6 +440,10 @@ class TokenBucketClient:
         start_time = times[0]
         times = [t - start_time for t in times]
 
+        # Import here to avoid loading matplotlib until needed
+        from matplotlib import pyplot as plt
+        from matplotlib.figure import Figure
+        
         # Create the plot
         fig = plt.figure(figsize=(10, 6))
         plt.plot(times, tokens, label="Tokens Available")
