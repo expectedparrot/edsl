@@ -15,7 +15,7 @@ import tempfile
 import uuid
 from typing import Any, Callable, Generator, Iterator, List, Optional, TypeVar, Union, overload
 
-from sqlalchemy import create_engine, func
+from sqlalchemy import create_engine, func, text
 from sqlalchemy.orm import Session, sessionmaker
 
 from ..base.base_class import Base as BaseClass
@@ -357,7 +357,7 @@ class SQLList(BaseClass):
                 
                 # Shift all subsequent items down by one
                 session.execute(
-                    f"UPDATE list_items SET index = index - 1 WHERE index > {index}"
+                    text(f"UPDATE list_items SET index = index - 1 WHERE index > {index}")
                 )
                 
                 # Update length metadata
@@ -487,7 +487,7 @@ class SQLList(BaseClass):
             with self.Session() as session:
                 # Shift items to make room
                 session.execute(
-                    f"UPDATE list_items SET index = index + 1 WHERE index >= {index}"
+                    text(f"UPDATE list_items SET index = index + 1 WHERE index >= {index}")
                 )
                 
                 # Serialize the item if it's not directly JSON serializable
@@ -680,17 +680,17 @@ class SQLList(BaseClass):
             
             with self.Session() as session:
                 # We'll use a temporary table for the swap
-                session.execute("CREATE TEMPORARY TABLE temp_items AS SELECT * FROM list_items")
+                session.execute(text("CREATE TEMPORARY TABLE temp_items AS SELECT * FROM list_items"))
                 
                 # Update indices in the main table
                 for i in range(length):
                     session.execute(
-                        f"UPDATE list_items SET index = {length - 1 - i} "
-                        f"WHERE index = (SELECT index FROM temp_items WHERE index = {i})"
+                        text(f"UPDATE list_items SET index = {length - 1 - i} "
+                        f"WHERE index = (SELECT index FROM temp_items WHERE index = {i})")
                     )
                 
                 # Drop the temporary table
-                session.execute("DROP TABLE temp_items")
+                session.execute(text("DROP TABLE temp_items"))
                 session.commit()
     
     def sort(self, *, key: Optional[Callable[[T], Any]] = None, reverse: bool = False) -> None:
