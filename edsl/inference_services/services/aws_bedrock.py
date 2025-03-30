@@ -3,7 +3,9 @@ from typing import Any, List, Optional, TYPE_CHECKING
 import boto3
 from botocore.exceptions import ClientError
 from ..inference_service_abc import InferenceServiceABC
-from ...language_models import LanguageModel
+# Use TYPE_CHECKING to avoid circular imports at runtime
+if TYPE_CHECKING:
+    from ...language_models import LanguageModel
 
 if TYPE_CHECKING:
     from ....scenarios.file_store import FileStore
@@ -49,10 +51,12 @@ class AwsBedrockService(InferenceServiceABC):
     @classmethod
     def create_model(
         cls, model_name: str = "amazon.titan-tg1-large", model_class_name=None
-    ) -> LanguageModel:
+    ) -> 'LanguageModel':
         if model_class_name is None:
             model_class_name = cls.to_class_name(model_name)
 
+        # Import LanguageModel only when actually creating a model
+        from ...language_models import LanguageModel
         class LLM(LanguageModel):
             """
             Child class of LanguageModel for interacting with AWS Bedrock models.

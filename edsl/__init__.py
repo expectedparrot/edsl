@@ -144,6 +144,11 @@ QuestionFreeText = LazyCallable('questions', 'QuestionFreeText', package='edsl')
 QuestionMultipleChoice = LazyCallable('questions', 'QuestionMultipleChoice', package='edsl')
 QuestionYesNo = LazyCallable('questions', 'QuestionYesNo', package='edsl')
 QuestionLinearScale = LazyCallable('questions', 'QuestionLinearScale', package='edsl')
+QuestionList = LazyCallable('questions', 'QuestionList', package='edsl')
+QuestionCheckBox = LazyCallable('questions', 'QuestionCheckBox', package='edsl')
+QuestionNumerical = LazyCallable('questions', 'QuestionNumerical', package='edsl')
+QuestionBudget = LazyCallable('questions', 'QuestionBudget', package='edsl')
+Question = LazyCallable('questions', 'Question', package='edsl')
 Scenario = LazyCallable('scenarios', 'Scenario', package='edsl')
 ScenarioList = LazyCallable('scenarios', 'ScenarioList', package='edsl')
 FileStore = LazyCallable('scenarios', 'FileStore', package='edsl')
@@ -158,7 +163,8 @@ Jobs = LazyCallable('jobs', 'Jobs', package='edsl')
 # Add them to __all__
 __all__.extend([
     'Model', 'Agent', 'Survey', 
-    'QuestionFreeText', 'QuestionMultipleChoice', 'QuestionYesNo', 'QuestionLinearScale',
+    'QuestionFreeText', 'QuestionMultipleChoice', 'QuestionYesNo', 'QuestionLinearScale', 'QuestionList',
+    'QuestionCheckBox', 'QuestionNumerical', 'QuestionBudget', 'Question',
     'Scenario', 'ScenarioList', 'FileStore', 'Cache', 'AgentList', 'Notebook',
     'Instruction', 'ChangeInstruction', 'Results', 'Jobs'
 ])
