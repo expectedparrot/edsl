@@ -1,5 +1,7 @@
 from edsl import Model, QuestionFreeText, ScenarioList, Cache 
 from memory_profiler import profile
+from edsl.language_models.price_manager import PriceManager
+from edsl.language_models.registry import RegisterLanguageModelsMeta
 
 @profile
 def run_model_with_exceptions(n, throw_exception = True):
@@ -17,6 +19,12 @@ def run_model_with_exceptions(n, throw_exception = True):
         
         # Explicitly clean up to release resources
         del results
+    
+    # Reset the PriceManager singleton to clean up resources
+    PriceManager.reset()
+    
+    # Clear the language model registry to prevent accumulation
+    RegisterLanguageModelsMeta.clear_registry()
     
     # Force garbage collection to release any lingering references
     import gc
