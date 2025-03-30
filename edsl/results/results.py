@@ -193,7 +193,10 @@ class NotReadyObject:
         return self
 
 
-class Results(ResultsOperationsMixin, Base):
+from collections import UserList as DataList
+
+
+class Results(DataList, ResultsOperationsMixin, Base):
     """A collection of Result objects with powerful data analysis capabilities.
 
     The Results class is the primary container for working with data from EDSL surveys.
@@ -264,34 +267,6 @@ class Results(ResultsOperationsMixin, Base):
         "cache_keys",
     ]
 
-    @classmethod
-    def from_job_info(cls, job_info: dict) -> "Results":
-        """Instantiate a Results object from a job info dictionary.
-
-        This method creates a Results object in a not-ready state that will
-        fetch its data from a remote source when methods are called on it.
-
-        Args:
-            job_info: Dictionary containing information about a remote job.
-
-        Returns:
-            Results: A new Results instance with completed=False that will
-                fetch remote data when needed.
-
-        Examples:
-            >>> # Create a job info dictionary
-            >>> job_info = {'job_uuid': '12345', 'creation_data': {'model': 'gpt-4'}}
-            >>> # Create a Results object from the job info
-            >>> results = Results.from_job_info(job_info)
-            >>> results.completed
-            False
-            >>> hasattr(results, 'job_info')
-            True
-        """
-        results = cls()
-        results.completed = False
-        results.job_info = job_info
-        return results
 
     def __init__(
         self,
@@ -302,7 +277,6 @@ class Results(ResultsOperationsMixin, Base):
         job_uuid: Optional[str] = None,
         total_results: Optional[int] = None,
         task_history: Optional[TaskHistory] = None,
-        memory_threshold: Optional[int] = None,
     ):
         """Instantiate a Results object with a survey and a list of Result objects.
 
@@ -337,7 +311,8 @@ class Results(ResultsOperationsMixin, Base):
             >>> len(r)
             1
         """
-        super().__init__()
+        #super().__init__()
+        super().__init__(data or [])
         self.completed = True
         self._fetched = False
         self._fetching = False
@@ -351,25 +326,54 @@ class Results(ResultsOperationsMixin, Base):
         self._total_results = total_results
         self.cache = cache or Cache()
         
-        # Initialize underlying SQLList for data storage
-        if memory_threshold is None:
-            # Check for memory threshold in environment variables
-            try:
-                env_threshold = os.environ.get("EDSL_RESULTS_MEMORY_THRESHOLD")
-                if env_threshold:
-                    memory_threshold = int(env_threshold)
-            except Exception:
-                memory_threshold = None
+        # # Initialize underlying SQLList for data storage
+        # if memory_threshold is None:
+        #     # Check for memory threshold in environment variables
+        #     try:
+        #         env_threshold = os.environ.get("EDSL_RESULTS_MEMORY_THRESHOLD")
+        #         if env_threshold:
+        #             memory_threshold = int(env_threshold)
+        #     except Exception:
+        #         memory_threshold = None
         
         # Log memory threshold for debugging
-        logger.debug(f"Initializing Results with SQLList memory threshold: {memory_threshold}")
         
-        self.data = SQLList(iterable=data or [], memory_threshold=memory_threshold)
-        
+        #self.data = SQLList(iterable=data or [], memory_threshold=memory_threshold)
         self.task_history = task_history or TaskHistory(interviews=[])
 
         if hasattr(self, "_add_output_functions"):
             self._add_output_functions()
+
+
+    @classmethod
+    def from_job_info(cls, job_info: dict) -> "Results":
+        """Instantiate a Results object from a job info dictionary.
+
+        This method creates a Results object in a not-ready state that will
+        fetch its data from a remote source when methods are called on it.
+
+        Args:
+            job_info: Dictionary containing information about a remote job.
+
+        Returns:
+            Results: A new Results instance with completed=False that will
+                fetch remote data when needed.
+
+        Examples:
+            >>> # Create a job info dictionary
+            >>> job_info = {'job_uuid': '12345', 'creation_data': {'model': 'gpt-4'}}
+            >>> # Create a Results object from the job info
+            >>> results = Results.from_job_info(job_info)
+            >>> results.completed
+            False
+            >>> hasattr(results, 'job_info')
+            True
+        """
+        results = cls()
+        results.completed = False
+        results.job_info = job_info
+        return results
+
 
     def add_task_history_entry(self, interview: "Interview") -> None:
         """Add an interview to the task history.
@@ -481,53 +485,53 @@ class Results(ResultsOperationsMixin, Base):
         """
         self.insert(item)
 
-    def extend(self, other):
-        """Extend the Results with items from another collection.
+    # def extend(self, other):
+    #     """Extend the Results with items from another collection.
         
-        Args:
-            other: Iterable of Result objects to add
-        """
-        # If we have a large number of items to add, we'll batch them by order
-        items_by_order = {}
+    #     Args:
+    #         other: Iterable of Result objects to add
+    #     """
+    #     # If we have a large number of items to add, we'll batch them by order
+    #     items_by_order = {}
         
-        # First, collect all items by their order value
-        for item in other:
-            item_order = getattr(item, "order", None)
-            if item_order not in items_by_order:
-                items_by_order[item_order] = []
-            items_by_order[item_order].append(item)
+    #     # First, collect all items by their order value
+    #     for item in other:
+    #         item_order = getattr(item, "order", None)
+    #         if item_order not in items_by_order:
+    #             items_by_order[item_order] = []
+    #         items_by_order[item_order].append(item)
         
-        # Handle ordered items first - maintain sorting
-        order_keys = sorted([k for k in items_by_order.keys() if k is not None])
-        for order in order_keys:
-            items = items_by_order[order]
+    #     # Handle ordered items first - maintain sorting
+    #     order_keys = sorted([k for k in items_by_order.keys() if k is not None])
+    #     for order in order_keys:
+    #         items = items_by_order[order]
             
-            # Find the insertion point based on the first item's order
-            if self.is_memory_only:
-                # If data is in memory, find insertion point first
-                orders = [getattr(x, "order", None) for x in self.data]
-                sorted_orders = [x for x in orders if x is not None]
-                if sorted_orders:
-                    index = bisect_left(sorted_orders, order)
-                    index += orders[:index].count(None)
+    #         # Find the insertion point based on the first item's order
+    #         if self.is_memory_only:
+    #             # If data is in memory, find insertion point first
+    #             orders = [getattr(x, "order", None) for x in self.data]
+    #             sorted_orders = [x for x in orders if x is not None]
+    #             if sorted_orders:
+    #                 index = bisect_left(sorted_orders, order)
+    #                 index += orders[:index].count(None)
                     
-                    # Insert items at the right position
-                    for i, item in enumerate(items):
-                        self.data.insert(index + i, item)
-                else:
-                    # If no sorted items yet, insert at the beginning
-                    for i, item in enumerate(items):
-                        self.data.insert(i, item)
-            else:
-                # For SQLite-backed storage, each item must be inserted individually
-                # to maintain the correct order
-                for item in items:
-                    self.insert(item)
+    #                 # Insert items at the right position
+    #                 for i, item in enumerate(items):
+    #                     self.data.insert(index + i, item)
+    #             else:
+    #                 # If no sorted items yet, insert at the beginning
+    #                 for i, item in enumerate(items):
+    #                     self.data.insert(i, item)
+    #         else:
+    #             # For SQLite-backed storage, each item must be inserted individually
+    #             # to maintain the correct order
+    #             for item in items:
+    #                 self.insert(item)
         
-        # Handle unordered items (just append to the end)
-        if None in items_by_order:
-            # No need for ordering, just append them all
-            self.data.extend(items_by_order[None])
+    #     # Handle unordered items (just append to the end)
+    #     if None in items_by_order:
+    #         # No need for ordering, just append them all
+    #         self.data.extend(items_by_order[None])
 
     def compute_job_cost(self, include_cached_responses_in_cost: bool = False) -> float:
         """Compute the cost of a completed job in USD.
@@ -723,6 +727,52 @@ class Results(ResultsOperationsMixin, Base):
     def __repr__(self) -> str:
         """Return a string representation of the Results object."""
         return f"Results(data = {self.data}, survey = {repr(self.survey)}, created_columns = {self.created_columns})"
+        
+    def free_memory(self) -> bool:
+        """
+        Explicitly free memory used by the Results object and its SQLite backend.
+        
+        This method attempts to release memory back to the operating system by:
+        1. Running SQLite memory optimization commands via the underlying SQLList
+        2. Explicitly clearing any unneeded references
+        
+        Note: Due to SQLite's memory management, not all memory may be immediately 
+        returned to the OS even after calling this method.
+        
+        Returns:
+            bool: True if the memory optimization was successful, False otherwise
+        """
+        success = False
+        
+        # Free memory in the SQLList if possible
+        if hasattr(self, 'data') and hasattr(self.data, 'free_memory'):
+            success = self.data.free_memory()
+            
+        # Additional cleanup can be added here if needed
+        
+        return success
+        
+    def __del__(self):
+        """
+        Destructor to clean up resources when the Results object is garbage collected.
+        
+        This method attempts to properly dispose of all resources to prevent memory leaks.
+        Note that due to SQLite's memory management, not all memory may be immediately
+        returned to the OS even after proper cleanup.
+        """
+        try:
+            # Free memory in the SQLList
+            if hasattr(self, 'data') and hasattr(self.data, 'free_memory'):
+                self.data.free_memory()
+                
+            # Clear any large references
+            if hasattr(self, 'data'):
+                delattr(self, 'data')
+                
+            # Other cleanup as needed
+            
+        except Exception:
+            pass  # Suppress exceptions in __del__ to prevent crashes
 
     def table(
         self,
