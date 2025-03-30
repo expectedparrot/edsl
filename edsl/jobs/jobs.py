@@ -18,7 +18,6 @@ who need to run complex simulations with language models.
 from __future__ import annotations
 import asyncio
 from typing import Optional, Union, TypeVar, Callable, cast
-from functools import wraps
 
 from typing import (
     Literal,
@@ -51,6 +50,7 @@ from .remote_inference import JobsRemoteInferenceHandler
 from .jobs_checks import JobsChecks
 from .data_structures import RunEnvironment, RunParameters, RunConfig
 from .check_survey_scenario_compatibility import CheckSurveyScenarioCompatibility
+from .decorators import with_config
 
 
 if TYPE_CHECKING:
@@ -66,65 +66,6 @@ if TYPE_CHECKING:
     from ..key_management import KeyLookup
 
 VisibilityType = Literal["private", "public", "unlisted"]
-
-
-try:
-    from typing import ParamSpec
-except ImportError:
-    from typing_extensions import ParamSpec
-
-
-P = ParamSpec("P")
-T = TypeVar("T")
-
-
-def with_config(f: Callable[P, T]) -> Callable[P, T]:
-    """
-    Decorator that processes function parameters to match the RunConfig dataclass structure.
-
-    This decorator is used primarily with the run() and run_async() methods to provide
-    a consistent interface for job configuration while maintaining a clean API.
-
-    The decorator:
-    1. Extracts environment-related parameters into a RunEnvironment instance
-    2. Extracts execution-related parameters into a RunParameters instance
-    3. Combines both into a single RunConfig object
-    4. Passes this RunConfig to the decorated function as a keyword argument
-
-    Parameters:
-        f (Callable): The function to decorate, typically run() or run_async()
-
-    Returns:
-        Callable: A wrapped function that accepts all RunConfig parameters directly
-
-    Example:
-        @with_config
-        def run(self, *, config: RunConfig) -> Results:
-            # Function can now access config.parameters and config.environment
-    """
-    parameter_fields = {
-        name: field.default
-        for name, field in RunParameters.__dataclass_fields__.items()
-    }
-    environment_fields = {
-        name: field.default
-        for name, field in RunEnvironment.__dataclass_fields__.items()
-    }
-    # Combined fields dict used for reference during development
-    # combined = {**parameter_fields, **environment_fields}
-
-    @wraps(f)
-    def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
-        environment = RunEnvironment(
-            **{k: v for k, v in kwargs.items() if k in environment_fields}
-        )
-        parameters = RunParameters(
-            **{k: v for k, v in kwargs.items() if k in parameter_fields}
-        )
-        config = RunConfig(environment=environment, parameters=parameters)
-        return f(*args, config=config)
-
-    return cast(Callable[P, T], wrapper)
 
 
 class Jobs(Base):
@@ -659,20 +600,115 @@ class Jobs(Base):
             jc.check_api_keys()
 
     async def _execute_with_remote_cache(self, run_job_async: bool) -> Results:
-        # Remote cache usage determination happens inside this method
-        # use_remote_cache = self.use_remote_cache()
-
-        from .jobs_runner_asyncio import JobsRunnerAsyncio
+        """Core interview execution logic for jobs execution."""
+        # Import needed modules inline to avoid early binding
+        import os
+        import time
+        import gc
+        import weakref
+        import asyncio
         from ..caching import Cache
+        from ..results import Results, Result
+        from ..tasks import TaskHistory
+        from ..utilities.decorators import jupyter_nb_handler
+        from ..utilities.memory_debugger import MemoryDebugger
+        from .jobs_runner_status import JobsRunnerStatus
+        from .async_interview_runner import AsyncInterviewRunner
+        from .progress_bar_manager import ProgressBarManager
+        from .results_exceptions_handler import ResultsExceptionsHandler
 
         assert isinstance(self.run_config.environment.cache, Cache)
+        
+        # Create the RunConfig for the job
+        run_config = RunConfig(parameters=self.run_config.parameters, environment=self.run_config.environment)
+        
+        # Setup JobsRunnerStatus if needed
+        if self.run_config.environment.jobs_runner_status is None:
+            self.run_config.environment.jobs_runner_status = JobsRunnerStatus(self, n=self.run_config.parameters.n)
 
-        runner = JobsRunnerAsyncio(self, environment=self.run_config.environment)
+        # Core execution logic
         if run_job_async:
-            results = await runner.run_async(self.run_config.parameters)
+            # For async execution mode (simplified path)
+            start_time = time.monotonic()
+            results = Results(
+                survey=self.survey,
+                data=[],
+                task_history=TaskHistory(include_traceback=not self.run_config.parameters.progress_bar)
+            )
+
+            prev_interview_ref = None
+            async for result, interview in AsyncInterviewRunner(self, run_config).run():
+                # Collect results
+                results.append(result)
+                results.add_task_history_entry(interview)
+                
+                # Set up reference for next iteration
+                prev_interview_ref = weakref.ref(interview)
+                
+                # Explicitly clear references to help garbage collection
+                if hasattr(interview, 'clear_references'):
+                    interview.clear_references()
+                
+                # Try to force collection immediately
+                del result
+                del interview
+                gc.collect()
+                    
+            results.cache = results.relevant_cache(self.run_config.environment.cache)
+            results.bucket_collection = self.run_config.environment.bucket_collection
+            
+            return results
         else:
-            results = runner.run(self.run_config.parameters)
-        return results
+            # For synchronous execution mode (with progress bar)
+            results = None
+            completed = False
+            
+            # Use context manager for progress bar
+            with ProgressBarManager(self, run_config, self.run_config.parameters) as stop_event:
+                try:
+                    # Create results object
+                    results = Results(
+                        survey=self.survey,
+                        data=[],
+                        task_history=TaskHistory(include_traceback=not self.run_config.parameters.progress_bar)
+                    )
+                    
+                    # Execute interviews in a loop
+                    prev_interview_ref = None
+                    async for result, interview in AsyncInterviewRunner(self, run_config).run():
+                        # Collect results
+                        results.append(result)
+                        results.add_task_history_entry(interview)
+                        
+                        # Set up reference for next iteration
+                        prev_interview_ref = weakref.ref(interview)
+                        
+                        # Explicitly clear references to help garbage collection
+                        if hasattr(interview, 'clear_references'):
+                            interview.clear_references()
+                        
+                        # Try to force collection immediately
+                        del result
+                        del interview
+                        gc.collect()
+                    
+                    results.cache = results.relevant_cache(self.run_config.environment.cache)
+                    results.bucket_collection = self.run_config.environment.bucket_collection
+                    completed = True
+                    
+                except KeyboardInterrupt:
+                    print("Keyboard interrupt received. Stopping gracefully...")
+                    results = Results(survey=self.survey, data=[], task_history=TaskHistory())
+                except Exception as e:
+                    if self.run_config.parameters.stop_on_exception:
+                        raise
+                    results = Results(survey=self.survey, data=[], task_history=TaskHistory())
+            
+            # Process any exceptions in the results
+            if results:
+                ResultsExceptionsHandler(results, self.run_config.parameters).handle_exceptions()
+            
+            return results
 
     @property
     def num_interviews(self):
