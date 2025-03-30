@@ -16,7 +16,7 @@ from .jobs_runner_status import JobsRunnerStatus
 class ProgressBarManager:
     """Context manager for handling progress bar setup and thread management."""
     
-    def __init__(self, jobs_runner, run_config, parameters):
+    def __init__(self, jobs, run_config, parameters):
         self.parameters = parameters
         
         # Set up progress tracking
@@ -25,7 +25,7 @@ class ProgressBarManager:
         
         # Set up jobs runner status
         params = {
-            "jobs_runner": jobs_runner,
+            "jobs": jobs,
             "n": parameters.n,
             "endpoint_url": endpoint_url,
             "job_uuid": parameters.job_uuid,

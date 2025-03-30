@@ -681,19 +681,45 @@ class Jobs(Base):
             jc.check_api_keys()
 
     async def _run_job_locally(self, run_job_async: bool) -> Results:
-
-        from .jobs_runner_asyncio import JobsRunnerAsyncio
+        """Execute interviews locally, either with progress tracking or without."""
         from ..caching import Cache
-
+        from .async_interview_runner import AsyncInterviewRunner
+        import time
+        import gc
+        
         assert isinstance(self.run_config.environment.cache, Cache)
-
-        runner = JobsRunnerAsyncio(self, environment=self.run_config.environment, results_queue=self.results_queue)
-
+        
+        start_time = time.monotonic()
+        
         if run_job_async:
-            results = await runner.run_async(self.run_config.parameters)
+            # Simple async execution without progress bar
+            runner = AsyncInterviewRunner(self, RunConfig(parameters=self.run_config.parameters, 
+                                                          environment=self.run_config.environment))
+            async for result, interview in runner.run():
+                self.results_queue.put((result, interview))
+            
         else:
-            results = runner.run(self.run_config.parameters)
-        return results
+            # Full execution with progress bar
+            from .progress_bar_manager import ProgressBarManager
+            
+            completed = False
+            
+            with ProgressBarManager(self, self.run_config, self.run_config.parameters) as stop_event:
+                try:
+                    runner = AsyncInterviewRunner(self, RunConfig(parameters=self.run_config.parameters, 
+                                                                 environment=self.run_config.environment))
+                    async for result, interview in runner.run():
+                        self.results_queue.put((result, interview))
+                    completed = True
+                except KeyboardInterrupt:
+                    print("Keyboard interrupt received. Stopping gracefully...")
+                except Exception as e:
+                    if self.run_config.parameters.stop_on_exception:
+                        raise
+        
+        # Signal the end of results
+        self.results_queue.put((None, None))
+        return self.results
 
     @property
     def num_interviews(self):

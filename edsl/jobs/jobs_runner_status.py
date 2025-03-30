@@ -10,7 +10,7 @@ from typing import Any, Dict, Optional, TYPE_CHECKING
 from uuid import UUID
 
 if TYPE_CHECKING:
-    from .jobs_runner_asyncio import JobsRunnerAsyncio
+    from .jobs import Jobs
 
 
 @dataclass
@@ -65,14 +65,14 @@ class StatisticsTracker:
 class JobsRunnerStatusBase(ABC):
     def __init__(
         self,
-        jobs_runner: "JobsRunnerAsyncio",
+        jobs: "Jobs",
         n: int,
         refresh_rate: float = 1,
         endpoint_url: Optional[str] = "http://localhost:8000",
         job_uuid: Optional[UUID] = None,
         api_key: str = None,
     ):
-        self.jobs_runner = jobs_runner
+        self.jobs = jobs
         self.job_uuid = job_uuid
         self.base_url = f"{endpoint_url}"
         self.refresh_rate = refresh_rate
@@ -86,10 +86,10 @@ class JobsRunnerStatusBase(ABC):
             "unfixed_exceptions",
             "throughput",
         ]
-        self.num_total_interviews = n * len(self.jobs_runner)
+        self.num_total_interviews = n * len(self.jobs)
 
         self.distinct_models = list(
-            set(model.model for model in self.jobs_runner.jobs.models)
+            set(model.model for model in self.jobs.models)
         )
 
         self.stats_tracker = StatisticsTracker(
@@ -151,8 +151,8 @@ class JobsRunnerStatusBase(ABC):
         }
 
         model_queues = {}
-        # for model, bucket in self.jobs_runner.bucket_collection.items():
-        for model, bucket in self.jobs_runner.environment.bucket_collection.items():
+        # Use jobs instead of jobs_runner
+        for model, bucket in self.jobs.run_config.environment.bucket_collection.items():
             model_name = model.model
             model_queues[model_name] = {
                 "language_model_name": model_name,
