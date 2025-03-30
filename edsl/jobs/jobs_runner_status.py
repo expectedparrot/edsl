@@ -89,7 +89,7 @@ class JobsRunnerStatusBase(ABC):
         self.num_total_interviews = n * len(self.jobs_runner)
 
         self.distinct_models = list(
-            set(model.model for model in self.jobs_runner.jobs.models)
+            set(model.model for model in self.jobs_runner.models)
         )
 
         self.stats_tracker = StatisticsTracker(
