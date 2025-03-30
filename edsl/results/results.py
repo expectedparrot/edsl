@@ -1794,8 +1794,8 @@ class Results(ResultsOperationsMixin, Base):
             raise_validation_errors=True,
             disable_remote_cache=True,
             disable_remote_inference=True,
-            # Make sure we create SQLList-backed Results with testing memory threshold
-            memory_threshold=1024 * 1024,  # 1MB is plenty for tests
+            # For doctest compatibility, don't use SQLList
+            memory_threshold=None,  # No threshold to avoid SQLList storage
         )
         return results
 

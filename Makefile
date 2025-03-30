@@ -251,7 +251,7 @@ test-doctests: ## Run doctests
 	pytest --doctest-modules edsl/key_management
 	pytest --doctest-modules edsl/prompts
 	pytest --doctest-modules edsl/tasks
-	pytest --doctest-modules edsl/inference_services
+	# Reordered to avoid circular import
 	pytest --doctest-modules edsl/results
 	pytest --doctest-modules edsl/dataset
 	pytest --doctest-modules --ignore=edsl/buckets/token_bucket_client.py edsl/buckets
@@ -265,6 +265,7 @@ test-doctests: ## Run doctests
 	pytest --doctest-modules edsl/utilities
 	pytest --doctest-modules edsl/language_models
 	pytest --doctest-modules edsl/caching
+	pytest --doctest-modules edsl/inference_services
 
 
 test-services:
