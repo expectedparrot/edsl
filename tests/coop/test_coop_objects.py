@@ -28,8 +28,8 @@ def coop_object_api_workflows(object_type, object_examples):
         response = coop.create(object, visibility=visibility)
         if object_type == "results":
             remote_ojbect = coop.get(response.get("uuid"))
-            remote_ojbect.cache=None 
-            object.cache=None
+            remote_ojbect.cache=object.cache 
+            
             assert remote_ojbect == object, "Expected object to be the same as the one created. "
         else:
             assert (
@@ -43,7 +43,10 @@ def coop_object_api_workflows(object_type, object_examples):
     for i, response in enumerate(responses):
         object, visibility = object_examples[i]
         if visibility != "private":
-            assert coop2.get(response.get("uuid")) == object
+            remote_ojbect = coop2.get(response.get("uuid"))
+            if object_type == "results":
+                remote_ojbect.cache=object.cache
+            assert remote_ojbect == object
         else:
             from edsl.coop.exceptions import CoopServerResponseError
             with pytest.raises(CoopServerResponseError):
