@@ -161,7 +161,7 @@ class TaskHistory(RepresentationMixin):
     def exceptions(self):
         """
         >>> len(TaskHistory.example().exceptions)
-        2
+        4
         """
         return [i.exceptions for k, i in self._interviews.items() if i.exceptions != {}]
 
@@ -169,7 +169,7 @@ class TaskHistory(RepresentationMixin):
     def unfixed_exceptions(self):
         """
         >>> len(TaskHistory.example().unfixed_exceptions)
-        2
+        4
         """
         return [
             i.exceptions

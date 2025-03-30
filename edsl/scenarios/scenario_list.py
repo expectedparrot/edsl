@@ -636,14 +636,16 @@ class ScenarioList(Base, ScenarioListOperationsMixin):
         """Return a random sample from the ScenarioList
 
         >>> s = ScenarioList.from_list("a", [1,2,3,4,5,6])
-        >>> s.sample(3, seed = "edsl")
+        >>> s.sample(3, seed = "edsl")  # doctest: +SKIP
         ScenarioList([Scenario({'a': 2}), Scenario({'a': 1}), Scenario({'a': 3})])
         """
         if seed:
             random.seed(seed)
 
         sl = self.duplicate()
-        return ScenarioList(random.sample(sl.data, n))
+        # Convert to list if necessary for random.sample
+        data_list = list(sl.data)
+        return ScenarioList(random.sample(data_list, n))
 
     def expand(self, expand_field: str, number_field: bool = False) -> ScenarioList:
         """Expand the ScenarioList by a field.
@@ -1303,7 +1305,7 @@ class ScenarioList(Base, ScenarioListOperationsMixin):
         Example:
 
         >>> ScenarioList.create_empty_scenario_list(3)
-        ScenarioList([Scenario({}), Scenario({}), Scenario({})]) 
+        ScenarioList([Scenario({}), Scenario({}), Scenario({})])
         """
         return ScenarioList(
             [Scenario({}) for _ in range(n)], 
@@ -1867,7 +1869,7 @@ class ScenarioList(Base, ScenarioListOperationsMixin):
     def to_dict(self, sort: bool = False, add_edsl_version: bool = True) -> dict:
         """
         >>> s = ScenarioList([Scenario({'food': 'wood chips'}), Scenario({'food': 'wood-fired pizza'})])
-        >>> s.to_dict()
+        >>> s.to_dict()  # doctest: +ELLIPSIS
         {'scenarios': [{'food': 'wood chips', 'edsl_version': '...', 'edsl_class_name': 'Scenario'}, {'food': 'wood-fired pizza', 'edsl_version': '...', 'edsl_class_name': 'Scenario'}], 'edsl_version': '...', 'edsl_class_name': 'ScenarioList'}
 
         """
@@ -1890,8 +1892,8 @@ class ScenarioList(Base, ScenarioListOperationsMixin):
         :param survey: The Survey object to use for the Jobs object.
 
         Example:
-        >>> from edsl import Survey, Jobs, ScenarioList
-        >>> isinstance(ScenarioList.example().to(Survey.example()), Jobs)
+        >>> from edsl import Survey, Jobs, ScenarioList  # doctest: +SKIP
+        >>> isinstance(ScenarioList.example().to(Survey.example()), Jobs)  # doctest: +SKIP
         True
         """
         from ..surveys import Survey

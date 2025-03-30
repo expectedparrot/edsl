@@ -1703,7 +1703,7 @@ class Survey(Base):
             
         Examples:
             >>> s = Survey.example()
-            >>> s2 = s.deep_copy()
+            >>> s2 = s.copy()
             >>> s == s2
             True
             >>> s is s2

@@ -31,10 +31,19 @@ from ..base import Base
 from ..utilities import remove_edsl_version
 from ..coop import CoopServerResponseError
 
-from ..buckets import BucketCollection
+# Import BucketCollection with an import_module to avoid early binding
+from importlib import import_module
+def get_bucket_collection():
+    buckets_module = import_module("edsl.buckets")
+    return buckets_module.BucketCollection
+
 from ..scenarios import Scenario, ScenarioList
 from ..surveys import Survey
-from ..interviews import Interview
+# Use import_module to avoid circular import with interviews
+from importlib import import_module
+def get_interview():
+    interviews_module = import_module("edsl.interviews.interview")
+    return interviews_module.Interview
 from .exceptions import JobsValueError, JobsImplementationError
 
 from .jobs_pricing_estimation import JobsPrompts
@@ -220,7 +229,7 @@ class Jobs(Base):
         self.run_config.add_cache(cache)
         return self
 
-    def using_bucket_collection(self, bucket_collection: "BucketCollection") -> Jobs:
+    def using_bucket_collection(self, bucket_collection) -> Jobs:
         """
         Add a BucketCollection to the job.
 
@@ -238,7 +247,7 @@ class Jobs(Base):
         self.run_config.add_key_lookup(key_lookup)
         return self
 
-    def using(self, obj: Union[Cache, BucketCollection, KeyLookup]) -> Jobs:
+    def using(self, obj) -> Jobs:
         """
         Add a Cache, BucketCollection, or KeyLookup to the job.
 
@@ -246,6 +255,7 @@ class Jobs(Base):
         """
         from ..caching import Cache
         from ..key_management import KeyLookup
+        BucketCollection = get_bucket_collection()
 
         if isinstance(obj, Cache):
             self.using_cache(obj)
@@ -453,7 +463,7 @@ class Jobs(Base):
         self.models = self.models or [Model()]
         self.scenarios = self.scenarios or [Scenario()]
 
-    def generate_interviews(self) -> Generator[Interview, None, None]:
+    def generate_interviews(self) -> Generator:
         """
         Generate interviews.
 
@@ -485,7 +495,7 @@ class Jobs(Base):
             filename=filename
         )
 
-    def interviews(self) -> list[Interview]:
+    def interviews(self) -> list:
         """
         Return a list of :class:`edsl.jobs.interviews.Interview` objects.
 
@@ -508,6 +518,9 @@ class Jobs(Base):
         This is useful when you have, say, a list of failed interviews and you want to create
         a new job with only those interviews.
         """
+        if not interview_list:
+            raise JobsValueError("Cannot create Jobs from empty interview list")
+            
         survey = interview_list[0].survey
         # get all the models
         models = list(set([interview.model for interview in interview_list]))
@@ -516,7 +529,7 @@ class Jobs(Base):
         jobs._interviews = interview_list
         return jobs
 
-    def create_bucket_collection(self) -> BucketCollection:
+    def create_bucket_collection(self):
         """
         Create a collection of buckets for each model.
 
@@ -529,6 +542,7 @@ class Jobs(Base):
         >>> bc
         BucketCollection(...)
         """
+        BucketCollection = get_bucket_collection()
         bc = BucketCollection.from_models(self.models)
 
         if self.run_config.environment.key_lookup is not None:
