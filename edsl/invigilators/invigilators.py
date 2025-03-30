@@ -395,8 +395,12 @@ class InvigilatorAI(InvigilatorBase):
 
         if agent_response_dict.model_outputs.cache_used:
             data = {
-                "answer": agent_response_dict.edsl_dict.answer,
-                "comment": agent_response_dict.edsl_dict.comment,
+                "answer": agent_response_dict.edsl_dict.answer
+                if type(agent_response_dict.edsl_dict.answer) is str
+                else None,
+                "comment": agent_response_dict.edsl_dict.comment
+                if type(agent_response_dict.edsl_dict.comment) is str
+                else None,
                 "generated_tokens": agent_response_dict.edsl_dict.generated_tokens,
                 "question_name": self.question.question_name,
                 "prompts": self.get_prompts(),
@@ -448,6 +452,8 @@ class InvigilatorAI(InvigilatorBase):
             exception_occurred = non_validation_error
         finally:
             # even if validation failes, we still return the result
+            print("##$$$$$$###")
+            print(answer)
             data = {
                 "answer": answer,
                 "comment": comment,
