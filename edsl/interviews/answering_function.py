@@ -26,7 +26,6 @@ class RetryConfig:
 
 
 class SkipHandler:
-
     def __init__(self, interview: "Interview"):
         self.interview = interview
         self.question_index = self.interview.to_index
@@ -47,7 +46,7 @@ class SkipHandler:
 
     def _current_info_env(self) -> dict[str, Any]:
         """
-        - The current answers are "generated_tokens" and "comment" 
+        - The current answers are "generated_tokens" and "comment"
         - The scenario should have "scenario." added to the keys
         - The agent traits should have "agent." added to the keys
         """
@@ -65,10 +64,14 @@ class SkipHandler:
                 processed_answers[f"{key}.answer"] = value
 
         # Process scenario dictionary
-        processed_scenario = {f"scenario.{k}": v for k, v in self.interview.scenario.items()}
+        processed_scenario = {
+            f"scenario.{k}": v for k, v in self.interview.scenario.items()
+        }
 
         # Process agent traits
-        processed_agent = {f"agent.{k}": v for k, v in self.interview.agent["traits"].items()}
+        processed_agent = {
+            f"agent.{k}": v for k, v in self.interview.agent["traits"].items()
+        }
 
         return processed_answers | processed_scenario | processed_agent
 
@@ -85,21 +88,22 @@ class SkipHandler:
         # )
 
         # Get the index of the next question, which could also be the end of the survey
-        next_question: Union[int, EndOfSurvey] = (
-            self.interview.survey.rule_collection.next_question(
-                q_now=current_question_index,
-                answers=answers,
-            )
+        next_question: Union[
+            int, EndOfSurvey
+        ] = self.interview.survey.rule_collection.next_question(
+            q_now=current_question_index,
+            answers=answers,
         )
-
 
         def cancel_between(start, end):
             """Cancel the tasks for questions between the start and end indices."""
             for i in range(start, end):
-                #print(f"Cancelling task {i}")
-                #self.interview.tasks[i].cancel()
-                #self.interview.tasks[i].set_result("skipped")
-                self.interview.skip_flags[self.interview.survey.questions[i].question_name] = True
+                # print(f"Cancelling task {i}")
+                # self.interview.tasks[i].cancel()
+                # self.interview.tasks[i].set_result("skipped")
+                self.interview.skip_flags[
+                    self.interview.survey.questions[i].question_name
+                ] = True
 
         if (next_question_index := next_question.next_q) == EndOfSurvey:
             cancel_between(
@@ -109,8 +113,6 @@ class SkipHandler:
 
         if next_question_index > (current_question_index + 1):
             cancel_between(current_question_index + 1, next_question_index)
-
-
 
 
 class AnswerQuestionFunctionConstructor:
@@ -136,7 +138,6 @@ class AnswerQuestionFunctionConstructor:
         self, e: Exception, invigilator: "InvigilatorBase", task=None
     ):
         """Handle an exception that occurred while answering a question."""
-
 
         answers = copy.copy(
             self.interview.answers
@@ -171,7 +172,6 @@ class AnswerQuestionFunctionConstructor:
         question: "QuestionBase",
         task=None,
     ) -> "EDSLResultObjectInput":
-
         from tenacity import (
             RetryError,
             retry,
@@ -196,7 +196,6 @@ class AnswerQuestionFunctionConstructor:
                 return invigilator.get_failed_task_result(
                     failure_reason="Question skipped."
                 )
-
             if self.skip_handler.should_skip(question):
                 return invigilator.get_failed_task_result(
                     failure_reason="Question skipped."
@@ -240,7 +239,6 @@ class AnswerQuestionFunctionConstructor:
                 raise LanguageModelNoResponseError(
                     f"Language model did not return a response for question '{question.question_name}.'"
                 )
-
             if (
                 question.question_name in self.interview.exceptions
                 and had_language_model_no_response_error
@@ -250,7 +248,8 @@ class AnswerQuestionFunctionConstructor:
             return response
 
         try:
-            return await attempt_answer()
+            out = await attempt_answer()
+            return out
         except RetryError as retry_error:
             original_error = retry_error.last_attempt.exception()
             self._handle_exception(
