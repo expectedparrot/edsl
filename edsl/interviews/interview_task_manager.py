@@ -24,6 +24,7 @@ class InterviewTaskManager:
             for index, question_name in enumerate(self.survey.question_names)
         }
         self._task_status_log_dict = InterviewStatusLog()
+        self.survey_dag = None
 
     def build_question_tasks(
         self, answer_func, token_estimator, model_buckets
@@ -46,8 +47,9 @@ class InterviewTaskManager:
         self, existing_tasks: list[asyncio.Task], question: "QuestionBase"
     ) -> list[asyncio.Task]:
         """Get tasks that must be completed before the given question."""
-        dag = self.survey.dag(textify=True)
-        parents = dag.get(question.question_name, [])
+        if self.survey_dag is None:
+            self.survey_dag = self.survey.dag(textify=True)
+        parents = self.survey_dag.get(question.question_name, [])
         return [existing_tasks[self.to_index[parent_name]] for parent_name in parents]
 
     def _create_single_task(
@@ -100,4 +102,5 @@ class InterviewTaskManager:
 
 if __name__ == "__main__":
     import doctest
+
     doctest.testmod()

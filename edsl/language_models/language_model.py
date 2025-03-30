@@ -687,6 +687,7 @@ class LanguageModel(
 
         if cache_used := cached_response is not None:
             # Cache hit - use the cached response
+            print("cache hit", flush=True)
             response = json.loads(cached_response)
         else:
             # Cache miss - make a new API call
