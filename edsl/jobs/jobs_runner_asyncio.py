@@ -90,8 +90,7 @@ class JobsRunnerAsyncio:
         results = Results(
             survey=self.jobs.survey,
             data=[],
-            task_history=TaskHistory(include_traceback=not parameters.progress_bar),
-            memory_threshold=parameters.memory_threshold if hasattr(parameters, 'memory_threshold') else None,
+            task_history=TaskHistory(include_traceback=not parameters.progress_bar)
         )
 
         prev_interview_ref = None
