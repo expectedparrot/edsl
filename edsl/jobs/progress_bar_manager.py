@@ -30,9 +30,12 @@ class ProgressBarManager:
             "endpoint_url": endpoint_url,
             "job_uuid": parameters.job_uuid,
         }
-        jobs_runner_status_cls = (JobsRunnerStatus if run_config.environment.jobs_runner_status is None 
-                                else run_config.environment.jobs_runner_status)
-        self.jobs_runner_status = jobs_runner_status_cls(**params)
+        # If the jobs_runner_status is already set, use it directly
+        if run_config.environment.jobs_runner_status is not None:
+            self.jobs_runner_status = run_config.environment.jobs_runner_status
+        else:
+            # Otherwise create a new one
+            self.jobs_runner_status = JobsRunnerStatus(**params)
         
         # Store on run_config for use by other components
         run_config.environment.jobs_runner_status = self.jobs_runner_status
