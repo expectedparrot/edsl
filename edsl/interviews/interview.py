@@ -24,10 +24,15 @@ if TYPE_CHECKING:
     from ..jobs.data_structures import RunConfig
     from .interview_status_log import InterviewStatusLog
 
-# from jobs module
-from ..buckets import ModelBuckets
+# Import data structures
 from ..jobs.data_structures import Answers
 from ..jobs.fetch_invigilator import FetchInvigilator
+
+# Use import_module to avoid circular import
+from importlib import import_module
+def get_model_buckets():
+    buckets_module = import_module("edsl.buckets.model_buckets")
+    return buckets_module.ModelBuckets
 from ..surveys import Survey
 from ..utilities.utilities import dict_hash
 
@@ -399,14 +404,14 @@ class Interview:
             Basic usage:
             
             >>> i = Interview.example()
-            >>> result, _ = asyncio.run(i.async_conduct_interview())
-            >>> result['q0']
+            >>> asyncio.run(i.async_conduct_interview())
+            >>> i.answers['q2']
             'yes'
             
             Handling exceptions:
             
             >>> i = Interview.example(throw_exception=True)
-            >>> result, _ = asyncio.run(i.async_conduct_interview())
+            >>> asyncio.run(i.async_conduct_interview())
             >>> i.exceptions
             {'q0': ...
             
@@ -416,7 +421,7 @@ class Interview:
             >>> from edsl.jobs import RunConfig, RunParameters, RunEnvironment
             >>> run_config = RunConfig(parameters=RunParameters(), environment=RunEnvironment())
             >>> run_config.parameters.stop_on_exception = True
-            >>> result, _ = asyncio.run(i.async_conduct_interview(run_config))
+            >>> asyncio.run(i.async_conduct_interview(run_config))
         """
         from ..jobs import RunConfig, RunEnvironment, RunParameters
 
@@ -436,6 +441,7 @@ class Interview:
             model_buckets = None
 
         if model_buckets is None or hasattr(self.agent, "answer_question_directly"):
+            ModelBuckets = get_model_buckets()
             model_buckets = ModelBuckets.infinity_bucket()
 
         self.skip_flags = {q.question_name: False for q in self.survey.questions}
@@ -497,7 +503,7 @@ class Interview:
             
         Examples:
             >>> i = Interview.example()
-            >>> result, _ = asyncio.run(i.async_conduct_interview())
+            >>> asyncio.run(i.async_conduct_interview())
         """
         assert len(tasks) == len(invigilators)
 
@@ -640,14 +646,14 @@ class Interview:
             Creating a normal interview:
             
             >>> i = Interview.example()
-            >>> result, _ = asyncio.run(i.async_conduct_interview())
-            >>> result['q0']
+            >>> asyncio.run(i.async_conduct_interview())
+            >>> i.answers['q0']
             'yes'
             
             Creating an interview that will throw exceptions:
             
             >>> i = Interview.example(throw_exception=True)
-            >>> result, _ = asyncio.run(i.async_conduct_interview())
+            >>> asyncio.run(i.async_conduct_interview())
             >>> i.has_exceptions
             True
         """

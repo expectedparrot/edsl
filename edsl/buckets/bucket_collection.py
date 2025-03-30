@@ -11,10 +11,14 @@ from typing import TYPE_CHECKING, Dict, List, Tuple
 from collections import UserDict
 from threading import RLock
 from matplotlib.figure import Figure
+import functools
+import inspect
+
+# Import the synchronized_class decorator directly
+from ..jobs.decorators import synchronized_class
 
 from .token_bucket import TokenBucket
 from .model_buckets import ModelBuckets
-from ..jobs.decorators import synchronized_class
 
 if TYPE_CHECKING:
     from ..language_models import LanguageModel
