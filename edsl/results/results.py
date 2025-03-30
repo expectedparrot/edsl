@@ -44,10 +44,10 @@ from typing import Optional, Callable, Any, Union, List, TYPE_CHECKING
 from bisect import bisect_left
 
 from ..base import Base
+from ..caching import Cache, CacheEntry
 
 if TYPE_CHECKING:
     from ..surveys import Survey
-    from ..caching import Cache
     from ..agents import AgentList
     from ..scenarios import ScenarioList
     from ..results import Result
@@ -707,12 +707,41 @@ class Results(UserList, ResultsOperationsMixin, Base):
             "b_not_a": [other_results[i] for i in indices_other],
         }
 
+    def initialize_cache_from_results(self):
+        cache = Cache(data={})
+
+        for result in self.data:
+            for key in result.data["prompt"]:
+                if key.endswith("_system_prompt"):
+                    question_name = key.removesuffix("_system_prompt")
+                    system_prompt = result.data["prompt"][key].text
+                    user_key = f"{question_name}_user_prompt"
+                    if user_key in result.data["prompt"]:
+                        user_prompt = result.data["prompt"][user_key].text
+                    else:
+                        user_prompt = ""
+
+                    # Get corresponding model response
+                    response_key = f"{question_name}_raw_model_response"
+                    output = result.data["raw_model_response"].get(response_key, "")
+
+                    entry = CacheEntry(
+                        model=result.model.model,
+                        parameters=result.model.parameters,
+                        system_prompt=system_prompt,
+                        user_prompt=user_prompt,
+                        output=json.dumps(output),
+                        iteration=0,
+                    )
+                    cache.data[entry.key] = entry
+
+        self.cache = cache
+
     @property
     def has_unfixed_exceptions(self) -> bool:
         return self.task_history.has_unfixed_exceptions
 
     def __hash__(self) -> int:
-
         return dict_hash(
             self.to_dict(sort=True, add_edsl_version=False, include_cache_info=False)
         )
