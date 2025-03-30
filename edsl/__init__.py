@@ -149,12 +149,15 @@ ScenarioList = LazyCallable('scenarios', 'ScenarioList', package='edsl')
 Cache = LazyCallable('caching', 'Cache', package='edsl')
 AgentList = LazyCallable('agents', 'AgentList', package='edsl')
 Notebook = LazyCallable('notebooks', 'Notebook', package='edsl')
+Instruction = LazyCallable('instructions', 'Instruction', package='edsl')
+ChangeInstruction = LazyCallable('instructions', 'ChangeInstruction', package='edsl')
 
 # Add them to __all__
 __all__.extend([
     'Model', 'Agent', 'Survey', 
     'QuestionFreeText', 'QuestionMultipleChoice', 'QuestionYesNo', 'QuestionLinearScale',
-    'Scenario', 'ScenarioList', 'Cache', 'AgentList', 'Notebook'
+    'Scenario', 'ScenarioList', 'Cache', 'AgentList', 'Notebook',
+    'Instruction', 'ChangeInstruction'
 ])
 
 # Lazily import base exception class (this was a bottleneck)

@@ -1005,6 +1005,8 @@ class Jobs(Base):
         else:
             job = base_survey.by(scenario_list).by(joy_agent, sad_agent)
 
+        assert len(scenario_list) == 2
+
         return job
 
     def code(self):

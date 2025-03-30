@@ -1,6 +1,6 @@
 from typing import Union, Sequence, TYPE_CHECKING
 from .exceptions import JobsValueError
-
+from ..scenarios import ScenarioList
 if TYPE_CHECKING:
     from ..agents import Agent
     from ..language_models import LanguageModel
@@ -96,7 +96,7 @@ class JobsComponentConstructor:
             >>> did_user_pass_a_sequence(1)
             False
             """
-            return len(args) == 1 and isinstance(args[0], Sequence)
+            return len(args) == 1 and (isinstance(args[0], Sequence) or isinstance(args[0], ScenarioList))
 
         if did_user_pass_a_sequence(args):
             container_class = JobsComponentConstructor._get_container_class(args[0][0])
@@ -106,11 +106,11 @@ class JobsComponentConstructor:
             return container_class(args)
 
     def _get_current_objects_of_this_type(
-        self, object: Union["Agent", "Scenario", "LanguageModel", "ScenarioList"]
+        self, object: Union["Agent", "Scenario", "LanguageModel"]
     ) -> tuple[list, str]:
         
         from ..agents import Agent
-        from ..scenarios import Scenario, ScenarioList
+        from ..scenarios import Scenario
         from ..language_models import LanguageModel
 
         """Return the current objects of the same type as the first argument.
@@ -125,11 +125,6 @@ class JobsComponentConstructor:
             Scenario: "scenarios",
             LanguageModel: "models",
         }
-        
-        # Special case for ScenarioList
-        if isinstance(object, ScenarioList):
-            return getattr(self.jobs, "scenarios", None), "scenarios"
-        
         for class_type in class_to_key:
             if isinstance(object, class_type) or issubclass(
                 object.__class__, class_type
@@ -138,7 +133,7 @@ class JobsComponentConstructor:
                 break
         else:
             raise JobsValueError(
-                f"First argument must be an Agent, Scenario, LanguageModel, or ScenarioList, not {object}"
+                f"First argument must be an Agent, Scenario, or LanguageModel, not {object}"
             )
         current_objects = getattr(self.jobs, key, None)
         return current_objects, key
@@ -164,32 +159,13 @@ class JobsComponentConstructor:
         >>> JobsComponentConstructor(Jobs(survey = Survey.example()))._merge_objects([1,2,3], [4,5,6])
         [5, 6, 7, 6, 7, 8, 7, 8, 9]
         """
-        from ..scenarios import ScenarioList
-        
-        # Special case for ScenarioList since it no longer inherits from UserList
-        if passed_objects and isinstance(passed_objects[0], ScenarioList):
-            # Create a new ScenarioList with the same memory threshold
-            memory_threshold = getattr(passed_objects[0], 'memory_threshold', None)
-            new_objects = ScenarioList(memory_threshold=memory_threshold)
-            # Add all elements from the current and passed ScenarioLists
-            for current_object in current_objects:
-                for new_object in passed_objects:
-                    # Have to iterate through the data directly for ScenarioList
-                    for scenario in new_object:
-                        # Create new scenarios by adding each scenario to each current object
-                        for current_scenario in current_object:
-                            combined_scenario = current_scenario + scenario
-                            new_objects.data.append(combined_scenario)
-            return new_objects
-        else:
-            # Original implementation for other types
-            new_objects = JobsComponentConstructor._get_empty_container_object(
-                passed_objects[0]
-            )
-            for current_object in current_objects:
-                for new_object in passed_objects:
-                    new_objects.append(current_object + new_object)
-            return new_objects
+        new_objects = JobsComponentConstructor._get_empty_container_object(
+            passed_objects[0]
+        )
+        for current_object in current_objects:
+            for new_object in passed_objects:
+                new_objects.append(current_object + new_object)
+        return new_objects
 
     @staticmethod
     def _get_container_class(object):
@@ -202,8 +178,6 @@ class JobsComponentConstructor:
         if isinstance(object, Agent):
             return AgentList
         elif isinstance(object, Scenario):
-            return ScenarioList
-        elif isinstance(object, ScenarioList):
             return ScenarioList
         elif isinstance(object, ModelList):
             return ModelList
