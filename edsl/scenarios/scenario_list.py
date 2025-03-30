@@ -84,7 +84,12 @@ TableFormat: TypeAlias = Literal[
     "tsv",
 ]
 
-class ScenarioList(Base, ScenarioListOperationsMixin):
+if use_sqlite := False:
+    from ..db_list import SQLList as DataList
+else:
+    from collections import UserList as DataList
+
+class ScenarioList(DataList, Base, ScenarioListOperationsMixin):
     """
     A collection of Scenario objects with advanced operations for manipulation and analysis.
     
@@ -101,7 +106,6 @@ class ScenarioList(Base, ScenarioListOperationsMixin):
     Attributes:
         data (SQLList): The underlying storage containing Scenario objects.
         codebook (dict): Optional metadata describing the fields in the scenarios.
-        memory_threshold (int): Size threshold in bytes before offloading to SQLite.
         
     Examples:
         Create a ScenarioList from Scenario objects:
@@ -131,7 +135,6 @@ class ScenarioList(Base, ScenarioListOperationsMixin):
         self, 
         data: Optional[list] = None, 
         codebook: Optional[dict[str, str]] = None,
-        memory_threshold: Optional[int] = None
     ):
         """
         Initialize a new ScenarioList with optional data and codebook.
@@ -140,9 +143,6 @@ class ScenarioList(Base, ScenarioListOperationsMixin):
             data: A list of Scenario objects. If None, an empty list is used.
             codebook: A dictionary mapping field names to descriptions or metadata.
                      Used for documentation and to provide context for fields.
-            memory_threshold: Size threshold in bytes before offloading to SQLite.
-                     If None, uses CONFIG.get("EDSL_SCENARIOLIST_MEMORY_THRESHOLD")
-                     or a default value.
                      
         Examples:
             >>> sl = ScenarioList()  # Empty list
@@ -154,26 +154,10 @@ class ScenarioList(Base, ScenarioListOperationsMixin):
             >>> codebook = {"product": "Fruit name", "price": "Price in USD"}
             >>> sl = ScenarioList([s1, s2], codebook=codebook)
             
-            >>> # With memory threshold (10MB)
-            >>> sl = ScenarioList([s1, s2], memory_threshold=10*1024*1024)
         """
-        # Initialize parameters with defaults
-        if memory_threshold is None:
-            # Check for memory threshold in environment variables
-            try:
-                env_threshold = os.environ.get("EDSL_SCENARIOLIST_MEMORY_THRESHOLD")
-                if env_threshold:
-                    memory_threshold = int(env_threshold)
-            except Exception:
-                memory_threshold = None
-        
-        # Use SQLList for data storage with memory threshold
-        self.data = SQLList(iterable=data or [], memory_threshold=memory_threshold)
+        self.data = data or []
         self.codebook = codebook or {}
-        
-        # Track if we're using SQLite-backed storage
-        self.memory_threshold = memory_threshold
-        
+                
     def __len__(self) -> int:
         """Return the number of scenarios in the list.
         
@@ -187,82 +171,7 @@ class ScenarioList(Base, ScenarioListOperationsMixin):
         """
         return len(self.data)
         
-    def __iter__(self):
-        """Return an iterator over the scenarios in the list.
         
-        Yields:
-            Scenario: Each scenario in the list
-            
-        Examples:
-            >>> sl = ScenarioList([Scenario({"a": 1}), Scenario({"b": 2})])
-            >>> [s["a"] if "a" in s else s["b"] for s in sl]
-            [1, 2]
-        """
-        for item in self.data:
-            yield item
-            
-    def __getitem__(self, index):
-        """Get a scenario or slice of scenarios from the list.
-        
-        Args:
-            index: An integer index or slice
-            
-        Returns:
-            Scenario or ScenarioList: The requested scenario(s)
-            
-        Examples:
-            >>> sl = ScenarioList([Scenario({"a": 1}), Scenario({"b": 2})])
-            >>> sl[0]["a"]
-            1
-            >>> sl[1:2]
-            ScenarioList([Scenario({'b': 2})])
-        """
-        item = self.data[index]
-        # If it's a slice, return a new ScenarioList with the same memory threshold
-        if isinstance(index, slice):
-            new_list = ScenarioList(memory_threshold=self.memory_threshold)
-            new_list.data = item
-            return new_list
-        # Otherwise return the individual Scenario
-        return item
-        
-    def append(self, item):
-        """Add a scenario to the end of the list.
-        
-        Args:
-            item: The scenario to add
-            
-        Examples:
-            >>> sl = ScenarioList()
-            >>> sl.append(Scenario({"a": 1}))
-            >>> len(sl)
-            1
-        """
-        self.data.append(item)
-        
-    def extend(self, items):
-        """Add multiple scenarios to the end of the list.
-        
-        Args:
-            items: An iterable of scenarios to add
-            
-        Examples:
-            >>> sl = ScenarioList()
-            >>> sl.extend([Scenario({"a": 1}), Scenario({"b": 2})])
-            >>> len(sl)
-            2
-        """
-        self.data.extend(items)
-        
-    @property
-    def is_memory_only(self) -> bool:
-        """Check if the scenarios are stored in memory only.
-        
-        Returns:
-            bool: True if the data is stored in memory only, False if using SQLite
-        """
-        return self.data.is_memory_only
-
     def unique(self) -> ScenarioList:
         """
         Return a new ScenarioList containing only unique Scenario objects.
@@ -422,34 +331,6 @@ class ScenarioList(Base, ScenarioListOperationsMixin):
                 new_scenarios.append(Scenario(new_scenario))
 
         return ScenarioList(new_scenarios)
-
-    def sem_filter(self, language_predicate: str) -> ScenarioList:
-        """Filter the ScenarioList based on a language predicate.
-
-        :param language_predicate: The language predicate to use.
-
-        Inspired by:
-        @misc{patel2024semanticoperators,
-            title={Semantic Operators: A Declarative Model for Rich, AI-based Analytics Over Text Data},
-            author={Liana Patel and Siddharth Jha and Parth Asawa and Melissa Pan and Carlos Guestrin and Matei Zaharia},
-            year={2024},
-            eprint={2407.11418},
-            archivePrefix={arXiv},
-            primaryClass={cs.DB},
-            url={https://arxiv.org/abs/2407.11418},
-            }
-        """
-        from ..questions import QuestionYesNo
-
-        new_scenario_list = self.duplicate()
-        q = QuestionYesNo(
-            question_text=language_predicate, question_name="binary_outcome"
-        )
-        results = q.by(new_scenario_list).run(verbose=False)
-        new_scenario_list = new_scenario_list.add_list(
-            "criteria", results.select("binary_outcome").to_list()
-        )
-        return new_scenario_list.filter("criteria == 'Yes'").drop("criteria")
 
     def pivot(
         self,
@@ -901,8 +782,7 @@ class ScenarioList(Base, ScenarioListOperationsMixin):
         """
         return ScenarioList(
             [scenario.copy() for scenario in self],
-            codebook=self.codebook.copy(),
-            memory_threshold=self.memory_threshold
+            codebook=self.codebook.copy()
         )
 
     def filter(self, expression: str) -> ScenarioList:
@@ -963,7 +843,7 @@ class ScenarioList(Base, ScenarioListOperationsMixin):
         except Exception as e:
             raise ScenarioError(f"Error in filter. Exception:{e}")
 
-        return ScenarioList(new_data, codebook=self.codebook.copy(), memory_threshold=self.memory_threshold)
+        return ScenarioList(new_data, codebook=self.codebook.copy())
 
     def from_urls(
         self, urls: list[str], field_name: Optional[str] = "text"
@@ -1295,22 +1175,18 @@ class ScenarioList(Base, ScenarioListOperationsMixin):
         return sl
 
     @classmethod
-    def create_empty_scenario_list(cls, n: int, memory_threshold: Optional[int] = None) -> ScenarioList:
+    def create_empty_scenario_list(cls, n: int) -> ScenarioList:
         """Create an empty ScenarioList with n scenarios.
 
         Args:
             n: The number of empty scenarios to create
-            memory_threshold: Optional memory threshold in bytes
 
         Example:
 
         >>> ScenarioList.create_empty_scenario_list(3)
         ScenarioList([Scenario({}), Scenario({}), Scenario({})])
         """
-        return ScenarioList(
-            [Scenario({}) for _ in range(n)], 
-            memory_threshold=memory_threshold
-        )
+        return ScenarioList([Scenario({}) for _ in range(n)])
 
     def add_value(self, name: str, value: Any) -> ScenarioList:
         """Add a value to all scenarios in a ScenarioList.
@@ -1920,7 +1796,7 @@ class ScenarioList(Base, ScenarioListOperationsMixin):
 
     @classmethod
     @remove_edsl_version
-    def from_dict(cls, data) -> ScenarioList:
+    def from_dict(cls, data: dict) -> ScenarioList:
         """Create a `ScenarioList` from a dictionary."""
         from .scenario import Scenario
 
@@ -2040,8 +1916,7 @@ class ScenarioList(Base, ScenarioListOperationsMixin):
         if isinstance(key, slice):
             return ScenarioList(
                 self.data[key], 
-                codebook=self.codebook, 
-                memory_threshold=self.memory_threshold
+                codebook=self.codebook
             )
         elif isinstance(key, int):
             return self.data[key]

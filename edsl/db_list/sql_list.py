@@ -1036,9 +1036,17 @@ class SQLList(BaseClass):
         """
         # Close database connections
         if hasattr(self, 'engine'):
-            # Close any open connections in the pool before disposing
-            self.engine.dispose()
-            delattr(self, 'engine')  # Remove reference to avoid circular refs
+            try:
+                # Close any open connections in the pool before disposing
+                self.engine.dispose()
+                # Execute PRAGMA to help release SQLite memory back to the OS
+                if hasattr(self, 'Session'):
+                    with self.Session() as session:
+                        session.execute(text("PRAGMA optimize"))
+                        session.execute(text("PRAGMA shrink_memory"))
+                delattr(self, 'engine')  # Remove reference to avoid circular refs
+            except Exception:
+                pass  # Ignore errors during cleanup
             
         # Delete temporary file if we created one
         if hasattr(self, 'db_path') and self.db_path.startswith('sqlite:///'):
@@ -1051,11 +1059,44 @@ class SQLList(BaseClass):
                 except (OSError, IOError):
                     pass  # File might be locked or already deleted
     
+    def free_memory(self):
+        """
+        Explicitly free memory used by SQLite.
+        
+        This method runs SQLite's memory optimization commands to release
+        unused memory back to the operating system. Note that SQLite may still
+        retain some memory in its internal pools.
+        
+        Returns:
+            bool: True if successful, False if there was an error or if the object is memory-only
+        """
+        if self.is_memory_only:
+            return False
+            
+        try:
+            if hasattr(self, 'engine') and hasattr(self, 'Session'):
+                with self.Session() as session:
+                    # Execute memory optimization PRAGMAs
+                    session.execute(text("PRAGMA optimize"))
+                    session.execute(text("PRAGMA shrink_memory"))
+                return True
+        except Exception:
+            return False
+        return False
+    
     def __del__(self):
         """
         Destructor to clean up resources.
+        
+        This method ensures proper cleanup of SQLite connections and resources when
+        the object is garbage collected. However, due to SQLite's memory management,
+        not all memory may be immediately returned to the OS. Call free_memory()
+        explicitly for more aggressive memory cleanup.
         """
-        self.__cleanup()  # Let exceptions propagate for better debugging
+        try:
+            self.__cleanup()
+        except Exception:
+            pass  # Suppress exceptions in __del__ to prevent crashes
     
     # Implementation of abstract methods from BaseClass
     
