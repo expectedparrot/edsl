@@ -7,9 +7,9 @@ from google.api_core.exceptions import InvalidArgument
 
 # from ...exceptions.general import MissingAPIKeyError
 from ..inference_service_abc import InferenceServiceABC
-from ...language_models import LanguageModel
-
+# Use TYPE_CHECKING to avoid circular imports at runtime
 if TYPE_CHECKING:
+    from ...language_models import LanguageModel
     from ....scenarios.file_store import FileStore as Files
 #from ...coop import Coop
 
@@ -65,6 +65,7 @@ class GoogleService(InferenceServiceABC):
         if model_class_name is None:
             model_class_name = cls.to_class_name(model_name)
 
+        # Import LanguageModel only when actually creating a model
         from ...language_models import LanguageModel
 
         class LLM(LanguageModel):
