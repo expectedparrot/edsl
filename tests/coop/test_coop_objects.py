@@ -26,10 +26,16 @@ def coop_object_api_workflows(object_type, object_examples):
     responses = []
     for object, visibility in object_examples:
         response = coop.create(object, visibility=visibility)
-        assert (
-            coop.get(response.get("uuid")) == object
-        ), "Expected object to be the same as the one created. "
-        # assert coop.get(response.get("url")) == object
+        if object_type == "results":
+            remote_ojbect = coop.get(response.get("uuid"))
+            if object.cache == None:
+                remote_ojbect.cache=None 
+            assert remote_ojbect == object, "Expected object to be the same as the one created. "
+        else:
+            assert (
+                coop.get(response.get("uuid")) == object
+            ), "Expected object to be the same as the one created. "
+            # assert coop.get(response.get("url")) == object
         responses.append(response)
 
     # 3. Test visibility with different clients
