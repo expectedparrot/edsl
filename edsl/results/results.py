@@ -58,7 +58,8 @@ if TYPE_CHECKING:
 
 from ..utilities import remove_edsl_version, dict_hash
 from ..dataset import ResultsOperationsMixin
-#from .results import Result
+
+# from .results import Result
 
 from .exceptions import (
     ResultsError,
@@ -188,9 +189,12 @@ class NotReadyObject:
         """
         return self
 
+
 from collections import UserList as DataList
-#from ..db_list.sqlite_list import SQLiteList as DataList
-#DataList = UserList
+
+# from ..db_list.sqlite_list import SQLiteList as DataList
+# DataList = UserList
+
 
 class Results(DataList, ResultsOperationsMixin, Base):
     """A collection of Result objects with powerful data analysis capabilities.
@@ -336,6 +340,11 @@ class Results(DataList, ResultsOperationsMixin, Base):
         """
         self.completed = True
         self._fetching = False
+
+        # Sort data by iteration before initializing
+        if data:
+            data = sorted(data, key=lambda x: x.data["iteration"])
+
         super().__init__(data)
         from ..caching import Cache
         from ..tasks import TaskHistory
@@ -343,7 +352,9 @@ class Results(DataList, ResultsOperationsMixin, Base):
         import os
 
         # Create a unique shelve path in the system temp directory
-        self._shelve_path = os.path.join(tempfile.gettempdir(), f"edsl_results_{os.getpid()}")
+        self._shelve_path = os.path.join(
+            tempfile.gettempdir(), f"edsl_results_{os.getpid()}"
+        )
         self._shelf_keys = set()  # Track shelved result keys
 
         self.survey = survey
@@ -431,32 +442,34 @@ class Results(DataList, ResultsOperationsMixin, Base):
         return cache.subset(cache_keys)
 
     def insert(self, item):
-        item_order = getattr(item, "order", None)
-        if item_order is not None:
-            # Get list of orders, putting None at the end
-            orders = [getattr(x, "order", None) for x in self]
-            # Filter to just the non-None orders for bisect
-            sorted_orders = [x for x in orders if x is not None]
-            if sorted_orders:
-                index = bisect_left(sorted_orders, item_order)
-                # Account for any None values before this position
-                index += orders[:index].count(None)
-            else:
-                # If no sorted items yet, insert before any unordered items
-                index = 0
-            # Call the parent class's insert directly to avoid infinite recursion
-            DataList.insert(self, index, item)
-        else:
-            # No order - append to end
-            # Call the parent class's append directly to avoid infinite recursion
-            DataList.append(self, item)
+        # Get the iteration of the new item
+        item_iteration = item.data["iteration"]
+
+        # Find the insertion point based on iteration
+        index = 0
+        for i, result in enumerate(self.data):
+            if result.data["iteration"] > item_iteration:
+                break
+            index = i + 1
+
+        # Call the parent class's insert directly
+        DataList.insert(self, index, item)
 
     def append(self, item):
         self.insert(item)
 
     def extend(self, other):
-        for item in other:
-            self.insert(item)
+        # Instead of inserting one by one, we can collect all items
+        # and sort them once for efficiency
+        all_items = list(self.data)
+        all_items.extend(other)
+        # Sort combined list by iteration
+        all_items.sort(key=lambda x: x.data["iteration"])
+
+        # Clear and refill with sorted items
+        self.data.clear()
+        for item in all_items:
+            DataList.append(self, item)
 
     def compute_job_cost(self, include_cached_responses_in_cost: bool = False) -> float:
         """Compute the cost of a completed job in USD.
@@ -1778,18 +1791,18 @@ class Results(DataList, ResultsOperationsMixin, Base):
 
     def shelve_result(self, result: "Result") -> str:
         """Store a Result object in persistent storage using its hash as the key.
-        
+
         Args:
             result: A Result object to store
-            
+
         Returns:
             str: The hash key for retrieving the result later
-            
+
         Raises:
             ResultsError: If there's an error storing the Result
         """
         import shelve
-        
+
         key = str(hash(result))
         try:
             with shelve.open(self._shelve_path) as shelf:
@@ -1801,27 +1814,29 @@ class Results(DataList, ResultsOperationsMixin, Base):
 
     def get_shelved_result(self, key: str) -> "Result":
         """Retrieve a Result object from persistent storage.
-        
+
         Args:
             key: The hash key of the Result to retrieve
-            
+
         Returns:
             Result: The stored Result object
-            
+
         Raises:
             ResultsError: If the key doesn't exist or if there's an error retrieving the Result
         """
         import shelve
         from .result import Result
-        
+
         if key not in self._shelf_keys:
             raise ResultsError(f"No result found with key: {key}")
-            
+
         try:
             with shelve.open(self._shelve_path) as shelf:
                 return Result.from_dict(shelf[key])
         except Exception as e:
-            raise ResultsError(f"Error retrieving Result from shelve database: {str(e)}")
+            raise ResultsError(
+                f"Error retrieving Result from shelve database: {str(e)}"
+            )
 
     @property
     def shelf_keys(self) -> set:
@@ -1831,29 +1846,31 @@ class Results(DataList, ResultsOperationsMixin, Base):
     def insert_from_shelf(self) -> None:
         """Move all shelved results into memory using the insert method.
         Clears the shelf after successful insertion.
-        
+
         Raises:
             ResultsError: If there's an error accessing or clearing the shelf
         """
         import shelve
         from .result import Result
-        
+
         if not self._shelf_keys:
             return
-            
+
         try:
             # First get all results from shelf
             with shelve.open(self._shelve_path) as shelf:
                 for key in self._shelf_keys:
                     result_dict = shelf[key]
-                    result = Result.from_dict(result_dict)  # Convert dict back to Result object
+                    result = Result.from_dict(
+                        result_dict
+                    )  # Convert dict back to Result object
                     self.insert(result)
                     # Clear each result from shelf
                     del shelf[key]
-            
+
             # Clear the tracking set
             self._shelf_keys.clear()
-            
+
         except Exception as e:
             raise ResultsError(f"Error moving results from shelf to memory: {str(e)}")
 

@@ -275,11 +275,8 @@ class TestSurvey(unittest.TestCase):
             n=10, disable_remote_inference=True, disable_remote_cache=True
         )
 
+        # No need to sort manually as results are now ordered by iteration automatically
         color_list = results.select("question_options.color").to_list()
-
-        # --- Added logic to sort color_list based on real position ---
-        iteration_order = [result.data["iteration"] for result in results]
-        color_list = [x for _, x in sorted(zip(iteration_order, color_list))]
 
 
         assert (
