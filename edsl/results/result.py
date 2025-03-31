@@ -450,6 +450,9 @@ class Result(Base, UserDict):
         else:
             d.pop("cache_used_dict", None)
 
+        if hasattr(self, "interview_hash"):
+            d["interview_hash"] = self.interview_hash
+
         return d
 
     def __hash__(self):
@@ -490,6 +493,8 @@ class Result(Base, UserDict):
             cache_keys=json_dict.get("cache_keys", {}),
             indices = json_dict.get("indices", None)
         )
+        if "interview_hash" in json_dict:
+            result.interview_hash = json_dict["interview_hash"]
         return result
 
     def __repr__(self):
