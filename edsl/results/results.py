@@ -58,6 +58,7 @@ if TYPE_CHECKING:
 
 from ..utilities import remove_edsl_version, dict_hash
 from ..dataset import ResultsOperationsMixin
+#from .results import Result
 
 from .exceptions import (
     ResultsError,
@@ -187,8 +188,8 @@ class NotReadyObject:
         """
         return self
 
-from collections import UserList
-from ..db_list.sqlite_list import SQLiteList as DataList
+from collections import UserList as DataList
+#from ..db_list.sqlite_list import SQLiteList as DataList
 #DataList = UserList
 
 class Results(DataList, ResultsOperationsMixin, Base):
@@ -338,6 +339,12 @@ class Results(DataList, ResultsOperationsMixin, Base):
         super().__init__(data)
         from ..caching import Cache
         from ..tasks import TaskHistory
+        import tempfile
+        import os
+
+        # Create a unique shelve path in the system temp directory
+        self._shelve_path = os.path.join(tempfile.gettempdir(), f"edsl_results_{os.getpid()}")
+        self._shelf_keys = set()  # Track shelved result keys
 
         self.survey = survey
         self.created_columns = created_columns or []
@@ -800,7 +807,7 @@ class Results(DataList, ResultsOperationsMixin, Base):
         """
         from ..surveys import Survey
         from ..caching import Cache
-        from ..results import Result
+        from .result import Result
         from ..tasks import TaskHistory
 
         survey = Survey.from_dict(data["survey"])
@@ -1768,6 +1775,87 @@ class Results(DataList, ResultsOperationsMixin, Base):
             results = survey.by(sl).run()  # use the default model
 
         return results
+
+    def shelve_result(self, result: "Result") -> str:
+        """Store a Result object in persistent storage using its hash as the key.
+        
+        Args:
+            result: A Result object to store
+            
+        Returns:
+            str: The hash key for retrieving the result later
+            
+        Raises:
+            ResultsError: If there's an error storing the Result
+        """
+        import shelve
+        
+        key = str(hash(result))
+        try:
+            with shelve.open(self._shelve_path) as shelf:
+                shelf[key] = result.to_dict()
+                self._shelf_keys.add(key)
+            return key
+        except Exception as e:
+            raise ResultsError(f"Error storing Result in shelve database: {str(e)}")
+
+    def get_shelved_result(self, key: str) -> "Result":
+        """Retrieve a Result object from persistent storage.
+        
+        Args:
+            key: The hash key of the Result to retrieve
+            
+        Returns:
+            Result: The stored Result object
+            
+        Raises:
+            ResultsError: If the key doesn't exist or if there's an error retrieving the Result
+        """
+        import shelve
+        from .result import Result
+        
+        if key not in self._shelf_keys:
+            raise ResultsError(f"No result found with key: {key}")
+            
+        try:
+            with shelve.open(self._shelve_path) as shelf:
+                return Result.from_dict(shelf[key])
+        except Exception as e:
+            raise ResultsError(f"Error retrieving Result from shelve database: {str(e)}")
+
+    @property
+    def shelf_keys(self) -> set:
+        """Return a copy of the set of shelved result keys."""
+        return self._shelf_keys.copy()
+
+    def insert_from_shelf(self) -> None:
+        """Move all shelved results into memory using the insert method.
+        Clears the shelf after successful insertion.
+        
+        Raises:
+            ResultsError: If there's an error accessing or clearing the shelf
+        """
+        import shelve
+        from .result import Result
+        
+        if not self._shelf_keys:
+            return
+            
+        try:
+            # First get all results from shelf
+            with shelve.open(self._shelve_path) as shelf:
+                for key in self._shelf_keys:
+                    result_dict = shelf[key]
+                    result = Result.from_dict(result_dict)  # Convert dict back to Result object
+                    self.insert(result)
+                    # Clear each result from shelf
+                    del shelf[key]
+            
+            # Clear the tracking set
+            self._shelf_keys.clear()
+            
+        except Exception as e:
+            raise ResultsError(f"Error moving results from shelf to memory: {str(e)}")
 
 
 def main():  # pragma: no cover
