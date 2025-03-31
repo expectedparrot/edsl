@@ -1,130 +1,142 @@
-<style>
-    td {
-        padding: 0 10px; /* This applies the padding uniformly to all td elements */
-    }
-    .toggle-btn {
-        background-color: #4CAF50;
-        color: white;
-        border: none;
-        padding: 10px 20px;
-        text-align: center;
-        text-decoration: none;
-        display: inline-block;
-        font-size: 16px;
-        margin: 4px 2px;
-        cursor: pointer;
-        border-radius: 8px;
-        white-space: nowrap;
-    }
-    .toggle-btn span.collapse {
-        display: none;
-    }
-    .exception-content {
-        max-width: 100%; /* Adjust this value based on your layout */
-        overflow-x: auto; /* Enables horizontal scrolling */
-    }
-</style>
-
 <div class="question">Question name: {{ question }}</div>
 
+{% set seen_exceptions = [] %}
+
 {% for exception_message in exceptions %}
-<div class="exception-detail">
-    <div class="exception-header">
-        <span class="exception-exception">Exception: {{ exception_message.name }}</span>
-        <button id="toggleBtn" class="toggle-btn" onclick="toggleButton(this)" aria-expanded="false">
-            <span class="expand"> ▼ </span>
-        </button>             
-    </div>
-    <div class="exception-content">
-        <table border="1">
-            <tr>
-                <td>Interview ID (index in results)</td>
-                <td>{{ index }}</td>
-            </tr>
-            <tr>
-                <td>Question name</td>
-                <td>{{ question }}</td>
-            </tr>
-            <tr>
-                <td>Question type</td>
-                <td>{{ exception_message.question_type }}</td>
-            </tr>
-            <tr>
-                <td>Human-readable question</td>
-                <td>{{ interview.survey._get_question_by_name(question).html(
-                    scenario = interview.scenario, 
-                    agent = interview.agent,
-                    answers = exception_message.answers
-                    ) 
-                }}</td>
-            </tr>
-            <tr>
-                <td>User Prompt</td>
-                <td><pre>{{ exception_message.rendered_prompts['user_prompt'] }}</pre></td>
-            </tr>
-            <tr>
-                <td>Scenario</td>
-                <td>{{ interview.scenario.__repr__() }}</td>
-            </tr>
-            <tr>
-                <td>Agent</td>
-                <td>{{ interview.agent.__repr__() }}</td>
-            </tr>
-            <tr>
-                <td>System Prompt</td>
-                <td><pre>{{ exception_message.rendered_prompts['system_prompt'] }}</pre></td>
-            </tr>
-            <tr>
-                <td>Inference service</td>
-                <td>{{ interview.model._inference_service_ }}</td>
-            </tr>
-            <tr>
-                <td>Model name</td>
-                <td>{{ interview.model.model }}</td>
-            </tr>
-            <tr>
-                <td>Model parameters</td>
-                <td>{{ interview.model.__repr__() }}</td>
-            </tr>
-            <tr>
-                <td>Raw model response</td>
-                <td><pre>{{ exception_message.raw_model_response }}</pre>
-                </td>
-            </tr>
-            <tr>
-                <td>Generated token string (at {{ exception_message.key_sequence }}) in raw response</td>
-                <td><pre>{{ exception_message.generated_token_string }}</pre>
-                </td>
-            </tr>
-            <tr>
-            <td>Code likely to reproduce the error</td>
-            <td>
-                <textarea id="codeToCopy" rows="10" cols="90">{{ exception_message.code_to_reproduce }}</textarea>
-                <button onclick="copyCode()">Copy</button>
-            </td>
-            </tr>
-
-        </table>
+    {% set exception_key = exception_message.name ~ '|' ~ 
+                           exception_message.question_type|default('') ~ '|' ~ 
+                           (exception_message.traceback|default(''))[0:100] %}
     
-        {% if exception_message.exception.__class__.__name__ == 'QuestionAnswerValidationError' %}        
-        <h3>Answer validation details</h3>
-        <table border="1">
-            {% for field, (open_tag, close_tag, value) in exception_message.exception.to_html_dict().items() %}
-            <tr>
-                <td>{{ field }}</td>
-                <td><{{ open_tag }}> {{ value | escape }} <{{ close_tag }}></td>
-            </tr>
-            {% endfor %}
-        </table>
-    {% endif %}
-        <br><br>
-        <div class="exception-time">Time: {{ exception_message.time }}</div>          
-        <div class="exception-traceback">Traceback: 
-            <text>
-            <pre>{{ exception_message.traceback }}</pre>
-            </text>
-        </div>
-    </div>
-</div>
+    {% if exception_key not in seen_exceptions %}
+        {% set _ = seen_exceptions.append(exception_key) %}
+        
+        <div class="exception-detail">
+            <div class="exception-header" aria-expanded="false">
+                <span class="exception-exception">
+                    {{ exception_message.exception.__class__.__name__ }}
+                </span>
+                <span class="chevron"></span>
+            </div>
+            <div class="exception-content">
+                <!-- Error Summary Section -->
+                <div class="error-summary-section">
+                    <h3>Error Summary</h3>
+                    <div class="error-summary-grid">
+                        <div class="error-summary-row">
+                            <div class="error-label">Exception:</div>
+                            <div class="error-value">{{ exception_message.name }}</div>
+                        </div>
+                        <div class="error-summary-row">
+                            <div class="error-label">Model:</div>
+                            <div class="error-value">{{ interview.model.model }}</div>
+                        </div>
+                        <div class="error-summary-row">
+                            <div class="error-label">Question:</div>
+                            <div class="error-value">{{ question }} ({{ exception_message.question_type|default('Unknown type') }})</div>
+                        </div>
+                        <div class="error-summary-row">
+                            <div class="error-label">Time:</div>
+                            <div class="error-value">{{ exception_message.time }}</div>
+                        </div>
+                    </div>
+                </div>
 
+                <!-- Question Details Section -->
+                <div class="section">
+                    <h3>Question & Prompts Details</h3>
+                    <div class="collapsible-content">
+                        <table>
+                            <tbody>
+                                <tr>
+                                    <td>Human-readable question</td>
+                                    <td>{{ interview.survey._get_question_by_name(question).html(
+                                        scenario = interview.scenario, 
+                                        agent = interview.agent,
+                                        answers = exception_message.answers
+                                        ) 
+                                    }}</td>
+                                </tr>
+                                <tr>
+                                    <td>User Prompt</td>
+                                    <td><pre>{{ exception_message.rendered_prompts['user_prompt'] }}</pre></td>
+                                </tr>
+                                <tr>
+                                    <td>System Prompt</td>
+                                    <td><pre>{{ exception_message.rendered_prompts['system_prompt'] }}</pre></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Model Details Section -->
+                <div class="section">
+                    <h3>Model & Scenario Details</h3>
+                    <div class="collapsible-content">
+                        <table>
+                            <tbody>
+                                <tr>
+                                    <td>Interview ID</td>
+                                    <td>{{ index }}</td>
+                                </tr>
+                                <tr>
+                                    <td>Inference service</td>
+                                    <td>{{ interview.model._inference_service_ }}</td>
+                                </tr>
+                                <tr>
+                                    <td>Model name</td>
+                                    <td>{{ interview.model.model }}</td>
+                                </tr>
+                                <tr>
+                                    <td>Model parameters</td>
+                                    <td>{{ interview.model.__repr__() }}</td>
+                                </tr>
+                                <tr>
+                                    <td>Scenario</td>
+                                    <td>{{ interview.scenario.__repr__() }}</td>
+                                </tr>
+                                <tr>
+                                    <td>Agent</td>
+                                    <td>{{ interview.agent.__repr__() }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Response Details Section -->
+                <div class="section">
+                    <h3>Response & Error Details</h3>
+                    <div class="collapsible-content">
+                        <table>
+                            <tbody>
+                                <tr>
+                                    <td>Generated token string</td>
+                                    <td><pre>{{ exception_message.generated_token_string }}</pre></td>
+                                </tr>
+                                <tr>
+                                    <td>Raw model response</td>
+                                    <td><pre>{{ exception_message.raw_model_response }}</pre></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        
+                        <h4>Error Traceback</h4>
+                        <div class="exception-traceback">
+                            <pre>{{ exception_message.traceback }}</pre>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Reproduction Code Section -->
+                <div class="section">
+                    <h3>Code to reproduce error</h3>
+                    <div class="code-container">
+                        <textarea id="codeToCopy{{ loop.index }}" rows="8" class="code-textarea">{{ exception_message.code_to_reproduce }}</textarea>
+                        <button class="copy-button" onclick="copyCode(this)">Copy Code</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
 {% endfor %}
