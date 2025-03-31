@@ -187,7 +187,9 @@ class NotReadyObject:
         """
         return self
 
-from collections import UserList as DataList
+from collections import UserList
+from ..db_list.sqlite_list import SQLiteList as DataList
+#DataList = UserList
 
 class Results(DataList, ResultsOperationsMixin, Base):
     """A collection of Result objects with powerful data analysis capabilities.
@@ -435,10 +437,12 @@ class Results(DataList, ResultsOperationsMixin, Base):
             else:
                 # If no sorted items yet, insert before any unordered items
                 index = 0
-            self.data.insert(index, item)
+            # Call the parent class's insert directly to avoid infinite recursion
+            DataList.insert(self, index, item)
         else:
             # No order - append to end
-            self.data.append(item)
+            # Call the parent class's append directly to avoid infinite recursion
+            DataList.append(self, item)
 
     def append(self, item):
         self.insert(item)
