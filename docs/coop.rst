@@ -37,9 +37,9 @@ Your account comes with an **Expected Parrot API key** that allows you to:
 * Use any available models with your surveys 
 * Use remote caching for your responses
 
-You can inspect your key and reset it at any time at your `Settings <https://www.expectedparrot.com/home/settings>`_ page:
+You can inspect your key and reset it at any time at your `Keys <https://www.expectedparrot.com/home/keys>`_ page:
 
-.. image:: static/home-settings.png
+.. image:: static/home-ep-key.png
   :alt: Remote inference settings and Expected Parrot API key
   :align: center
   :width: 100%
@@ -205,7 +205,7 @@ You can manually update the `description` or `visibility` of an object at the Co
 Navigate to the `Explore <https://www.expectedparrot.com/content/explore>`_ page and open the page view for an object.
 You can select options to change the **visibility** of the object (*public*, *private* or *unlisted*) or to **edit** the description:
 
-.. image:: static/coop-content-object-page.png
+.. image:: static/results.png
   :alt: Page view of an object at Coop
   :align: center
   :width: 100%
