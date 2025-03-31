@@ -684,7 +684,6 @@ class LanguageModel(
 
         # Try to fetch from cache
         cached_response, cache_key = cache.fetch(**cache_call_params)
-
         if cache_used := cached_response is not None:
             # Cache hit - use the cached response
             response = json.loads(cached_response)
@@ -720,7 +719,6 @@ class LanguageModel(
 
         # Calculate cost for the response
         cost = self.cost(response)
-
         # Return a structured response with metadata
         return ModelResponse(
             response=response,
@@ -818,7 +816,6 @@ class LanguageModel(
             model_outputs=model_outputs,
             edsl_dict=edsl_dict,
         )
-
         return agent_response_dict
 
     get_response = sync_wrapper(async_get_response)

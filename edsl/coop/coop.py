@@ -666,6 +666,8 @@ class Coop(CoopFunctionsMixin):
             )
         edsl_class = ObjectRegistry.object_type_to_edsl_class.get(object_type)
         object = edsl_class.from_dict(json.loads(json_string))
+        if object_type == "results":
+            object.initialize_cache_from_results()
         return object
 
     def get_all(self, object_type: ObjectType) -> list[dict[str, Any]]:
