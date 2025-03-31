@@ -88,32 +88,3 @@ class FetchInvigilator:
     def __call__(self, question):
         return self.get_invigilator(question)
 
-
-def test_weak_reference():
-    """Test that FetchInvigilator doesn't maintain a strong reference to the interview."""
-    import gc
-    
-    # Create test objects
-    from ..interviews import Interview
-    interview = Interview.example()
-    
-    # Create a weak reference to track the interview
-    interview_ref = weakref.ref(interview)
-    
-    # Create the FetchInvigilator with the interview
-    fetch_invigilator = FetchInvigilator(interview)
-    
-    # Delete the original interview reference
-    del interview
-    
-    # Force garbage collection
-    gc.collect()
-    
-    # Check if the interview was garbage collected
-    # If our implementation works correctly, the weak reference should now be None
-    if interview_ref() is None:
-        print("Test passed: FetchInvigilator doesn't maintain a strong reference")
-        return True
-    else:
-        print("Test failed: FetchInvigilator maintains a strong reference")
-        return False

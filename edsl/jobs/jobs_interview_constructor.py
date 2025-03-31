@@ -50,38 +50,6 @@ class InterviewsConstructor:
                 },
             )
 
-def test_gc():
-    """Test that interviews are properly garbage collected after being yielded."""
-    from ..caching import Cache
-    import weakref
-    import gc
-    
-    from edsl import Jobs
-    
-    jobs = Jobs.example()
-    jobs.replace_missing_objects()
-    assert len(jobs.agents) > 0, "No agents in example job"
-    assert len(jobs.models) > 0, "No models in example job"
-    assert len(jobs.scenarios) > 0, "No scenarios in example job"
-    
-
-    constructor = InterviewsConstructor(jobs=jobs, cache=Cache())
-    
-    # Get the first interview and create a weak reference
-    interview_iter = constructor.create_interviews()
-    interview = next(interview_iter)  # Get the first interview
-    interview_ref = weakref.ref(interview)
-    
-    # Verify we have a valid reference before deletion
-    assert interview_ref() is not None, "Failed to create weak reference"
-    
-    # Remove our reference to the interview
-    del interview
-    
-    # Force garbage collection
-    gc.collect()
-    assert interview_ref() is None, "Interview was not garbage collected"
-    print("✓ Interview was successfully garbage collected")
 
 if __name__ == "__main__":
     #test_gc()

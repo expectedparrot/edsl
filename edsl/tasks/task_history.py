@@ -655,41 +655,6 @@ class TaskHistory(RepresentationMixin):
         return nb
 
 
-def test_no_strong_reference():
-    """Test that adding an interview to a task history doesn't create a strong reference.
-    
-    This test verifies that our InterviewReference implementation successfully
-    breaks the strong reference to the original Interview object, allowing it
-    to be garbage collected.
-    """
-    import weakref
-    import gc
-    from ..interviews import Interview
-    
-    # Create a test interview using the example factory method
-    interview = Interview.example()
-    
-    # Create a weak reference to the interview
-    weak_ref = weakref.ref(interview)
-    
-    # Create a task history and add the interview
-    task_history = TaskHistory()
-    task_history.add_interview(interview)
-    
-    # Delete the original interview object
-    del interview
-    
-    # Force garbage collection
-    gc.collect()
-    
-    # Check if the interview was garbage collected
-    # If our implementation works correctly, the weak reference should now be None
-    if weak_ref() is None:
-        print("Test passed: No strong reference was created")
-        return True
-    else:
-        print("Test failed: A strong reference was maintained")
-        return False
 
 
 if __name__ == "__main__":

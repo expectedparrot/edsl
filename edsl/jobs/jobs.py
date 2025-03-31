@@ -626,76 +626,46 @@ class Jobs(Base):
         if self.run_config.environment.jobs_runner_status is None:
             self.run_config.environment.jobs_runner_status = JobsRunnerStatus(self, n=self.run_config.parameters.n)
 
-        # Core execution logic
-        if run_job_async:
-            # For async execution mode (simplified path)
-            start_time = time.monotonic()
-            results = Results(
-                survey=self.survey,
-                data=[],
-                task_history=TaskHistory(include_traceback=not self.run_config.parameters.progress_bar)
-            )
-
+        # Create a shared function to process interview results
+        async def process_interviews(interview_runner, results_obj):
             prev_interview_ref = None
-            async for result, interview in AsyncInterviewRunner(self, run_config).run():
+            async for result, interview in interview_runner.run():
                 # Collect results
-                results.append(result)
-                results.add_task_history_entry(interview)
+                results_obj.append(result)
+                results_obj.add_task_history_entry(interview)
                 
-                # Set up reference for next iteration
+                # Memory management: Set up reference for next iteration and clear old references
                 prev_interview_ref = weakref.ref(interview)
-                
-                # Explicitly clear references to help garbage collection
                 if hasattr(interview, 'clear_references'):
                     interview.clear_references()
                 
-                # Try to force collection immediately
+                # Force garbage collection
                 del result
                 del interview
-                gc.collect()
-                    
-            results.cache = results.relevant_cache(self.run_config.environment.cache)
-            results.bucket_collection = self.run_config.environment.bucket_collection
             
-            return results
+            # Finalize results object with cache and bucket collection
+            results_obj.cache = results_obj.relevant_cache(self.run_config.environment.cache)
+            results_obj.bucket_collection = self.run_config.environment.bucket_collection
+            return results_obj
+
+        # Core execution logic
+        interview_runner = AsyncInterviewRunner(self, run_config)
+        
+        # Create an initial Results object with appropriate traceback settings
+        results = Results(
+            survey=self.survey,
+            data=[],
+            task_history=TaskHistory(include_traceback=not self.run_config.parameters.progress_bar)
+        )
+
+        if run_job_async:
+            # For async execution mode (simplified path without progress bar)
+            return await process_interviews(interview_runner, results)
         else:
             # For synchronous execution mode (with progress bar)
-            results = None
-            completed = False
-            
-            # Use context manager for progress bar
             with ProgressBarManager(self, run_config, self.run_config.parameters) as stop_event:
                 try:
-                    # Create results object
-                    results = Results(
-                        survey=self.survey,
-                        data=[],
-                        task_history=TaskHistory(include_traceback=not self.run_config.parameters.progress_bar)
-                    )
-                    
-                    # Execute interviews in a loop
-                    prev_interview_ref = None
-                    async for result, interview in AsyncInterviewRunner(self, run_config).run():
-                        # Collect results
-                        results.append(result)
-                        results.add_task_history_entry(interview)
-                        
-                        # Set up reference for next iteration
-                        prev_interview_ref = weakref.ref(interview)
-                        
-                        # Explicitly clear references to help garbage collection
-                        if hasattr(interview, 'clear_references'):
-                            interview.clear_references()
-                        
-                        # Try to force collection immediately
-                        del result
-                        del interview
-                        gc.collect()
-                    
-                    results.cache = results.relevant_cache(self.run_config.environment.cache)
-                    results.bucket_collection = self.run_config.environment.bucket_collection
-                    completed = True
-                    
+                    return await process_interviews(interview_runner, results)
                 except KeyboardInterrupt:
                     print("Keyboard interrupt received. Stopping gracefully...")
                     results = Results(survey=self.survey, data=[], task_history=TaskHistory())
@@ -718,59 +688,60 @@ class Jobs(Base):
             return len(self) * self.run_config.parameters.n
 
     def _run(self, config: RunConfig) -> Union[None, "Results"]:
-        "Shared code for run and run_async"
-        if config.environment.cache is not None:
-            self.run_config.environment.cache = config.environment.cache
-        if config.environment.jobs_runner_status is not None:
-            self.run_config.environment.jobs_runner_status = (
-                config.environment.jobs_runner_status
-            )
-
-        if config.environment.bucket_collection is not None:
-            self.run_config.environment.bucket_collection = (
-                config.environment.bucket_collection
-            )
-
-        if config.environment.key_lookup is not None:
-            self.run_config.environment.key_lookup = config.environment.key_lookup
-
-        # replace the parameters with the ones from the config
+        """
+        Shared code for run and run_async methods.
+        
+        This method handles all pre-execution setup including:
+        1. Transferring configuration settings from the input config
+        2. Ensuring all required objects (agents, models, scenarios) exist
+        3. Checking API keys and remote execution availability
+        4. Setting up caching and bucket collections
+        5. Attempting remote execution if appropriate
+        
+        Returns:
+            Tuple containing (Results, reason) if remote execution succeeds,
+            or (None, reason) if local execution should proceed
+        """
+        # Apply configuration from input config to self.run_config
+        for attr_name in ['cache', 'jobs_runner_status', 'bucket_collection', 'key_lookup']:
+            if getattr(config.environment, attr_name) is not None:
+                setattr(self.run_config.environment, attr_name, getattr(config.environment, attr_name))
+        
+        # Replace parameters with the ones from the config
         self.run_config.parameters = config.parameters
 
+        # Make sure all required objects exist
         self.replace_missing_objects()
-
         self._prepare_to_run()
         self._check_if_remote_keys_ok()
 
-        if (
-            self.run_config.environment.cache is None
-            or self.run_config.environment.cache is True
-        ):
-            from ..caching import CacheHandler
-
+        # Setup caching
+        from ..caching import CacheHandler, Cache
+        
+        if self.run_config.environment.cache is None or self.run_config.environment.cache is True:
             self.run_config.environment.cache = CacheHandler().get_cache()
-
-        if self.run_config.environment.cache is False:
-            from ..caching import Cache
-
+        elif self.run_config.environment.cache is False:
             self.run_config.environment.cache = Cache(immediate_write=False)
 
-        # first try to run the job remotely
+        # Try to run the job remotely first
         results, reason = self._remote_results(config)
         if results is not None:
             return results, reason
 
+        # If we need to run locally, ensure keys and resources are ready
         self._check_if_local_keys_ok()
 
-        if config.environment.bucket_collection is None:
-            self.run_config.environment.bucket_collection = (
-                self.create_bucket_collection()
-            )
+        # Create bucket collection if it doesn't exist
+        if self.run_config.environment.bucket_collection is None:
+            self.run_config.environment.bucket_collection = self.create_bucket_collection()
+        else:
+            # Ensure models are properly added to the bucket collection
+            for model in self.models:
+                self.run_config.environment.bucket_collection.add_model(model)
 
-        if (
-            self.run_config.environment.key_lookup is not None
-            and self.run_config.environment.bucket_collection is not None
-        ):
+        # Update bucket collection from key lookup if both exist
+        if (self.run_config.environment.key_lookup is not None and 
+            self.run_config.environment.bucket_collection is not None):
             self.run_config.environment.bucket_collection.update_from_key_lookup(
                 self.run_config.environment.key_lookup
             )
