@@ -99,16 +99,6 @@ You can also choose whether to grant access to other users and set usage limits:
    <br>  
 
 
-.. image:: static/home-keys-add-key.png
-   :alt: Keys page view for adding a key
-   :width: 100%
-
-
-.. raw:: html
-
-   <br>
-
-
 If you are running surveys locally, or only want to post and retrieve content at Coop without running your surveys remotely, you can store your keys in a `.env` file on your computer.
 This file should be in the same directory as your EDSL code and contain the following lines:
 
