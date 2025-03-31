@@ -5,6 +5,6 @@ This module provides a drop-in replacement for Python's built-in list that autom
 offloads data to SQLite when memory usage exceeds a configured threshold.
 """
 
-from .sql_list import SQLList
+from .sqlite_list import SQLiteList
 
-__all__ = ["SQLList"]
+__all__ = ["SQLiteList"]

@@ -55,7 +55,7 @@ if TYPE_CHECKING:
 from ..base import Base
 from ..utilities import remove_edsl_version, sanitize_string, is_valid_variable_name, dict_hash
 from ..dataset import ScenarioListOperationsMixin
-from ..db_list import SQLList
+#from ..db_list import SQLList
 
 from .exceptions import ScenarioError
 from .scenario import Scenario
@@ -84,10 +84,7 @@ TableFormat: TypeAlias = Literal[
     "tsv",
 ]
 
-if use_sqlite := False:
-    from ..db_list import SQLList as DataList
-else:
-    from collections import UserList as DataList
+from collections import UserList as DataList
 
 class ScenarioList(DataList, Base, ScenarioListOperationsMixin):
     """
