@@ -140,18 +140,6 @@ We can see the job has been added:
   <br>
 
 
-We can view the details of each cache entry:
-
-.. image:: static/home-remote-cache-entry-details.png
-  :alt: Page displaying the code for a remote cache entry on the Coop web app
-  :align: center
-  :width: 100%
-
-.. raw:: html
-
-  <br>
-
-
 
 Reproducing results 
 ^^^^^^^^^^^^^^^^^^^
