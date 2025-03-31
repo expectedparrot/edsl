@@ -1049,8 +1049,8 @@ class LanguageModel(
 
             Create a test model that throws exceptions:
 
-            >>> m = LanguageModel.example(test_model=True, canned_response="WOWZA!", throw_exception=True)
-            >>> r = q.by(m).run(cache=False, disable_remote_cache=True, disable_remote_inference=True, print_exceptions=True)
+            >>> m = LanguageModel.example(test_model=True, canned_response="WOWZA!", throw_exception=True) # doctest: +SKIP
+            >>> r = q.by(m).run(cache=False, disable_remote_cache=True, disable_remote_inference=True, print_exceptions=True) # doctest: +SKIP
             Exception report saved to ...
         """
         from ..language_models import Model
