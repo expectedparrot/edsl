@@ -69,17 +69,6 @@ When you run surveys remotely, your Expected Parrot key is used by default with 
   <br>
 
 
-.. image:: static/home-keys-add-key.png
-  :alt: Add a key
-  :align: center
-  :width: 100%
-  
-
-.. raw:: html
-
-  <br>
-
-
 
 2. Store keys in a local file
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
