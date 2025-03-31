@@ -1,24 +1,106 @@
-<div class="overview-section">
-    <table class="exceptions-table">
-        <thead>
-            <tr>
-                <th>Exception Type</th>
-                <th>Service</th>
-                <th>Model</th>
-                <th>Question Name</th>
-                <th>Total</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for (exception_type, service, model, question_name), count in exceptions_table.items() %}
+<div class="summary-section">    
+    <div class="table-container">
+        <h2>Exceptions Report</h2>
+        <table class="exceptions-table">
+            <thead>
                 <tr>
-                    <td>{{ exception_type }}</td>
-                    <td>{{ service }}</td>
-                    <td>{{ model }}</td>
-                    <td>{{ question_name }}</td>
-                    <td>{{ count }}</td>
+                    <th>Exception Type</th>
+                    <th>Service</th>
+                    <th>Model</th>
+                    <th>Question Name</th>
+                    <th class="count-column">Count</th>
                 </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+            </thead>
+            <tbody>
+                {% for (exception_type, service, model, question_name), count in exceptions_table.items() %}
+                    <tr>
+                        <td>{{ exception_type }}</td>
+                        <td>{{ service }}</td>
+                        <td>{{ model }}</td>
+                        <td>{{ question_name }}</td>
+                        <td class="count-cell">{{ count }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <p class="note">
+        Note: Each unique exception is counted only once. You may encounter repeated exceptions where retries were attempted.
+    </p>
 </div>
+
+<style>
+/* Summary section styles */
+.summary-section {
+    background-color: white;
+    border-radius: 8px;
+    margin-bottom: 24px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    border: 1px solid #e0e0e0;
+    padding: 0 0 16px 0;
+}
+
+.section-header {
+    background-color: #f9f9f9;
+    padding: 12px 16px;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.section-header h2 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 500;
+    color: #3f51b5;
+}
+
+.table-container {
+    padding: 16px;
+    overflow-x: auto;
+}
+
+/* Table styles */
+.exceptions-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 16px;
+}
+
+.exceptions-table th {
+    background-color: #f5f5f5;
+    color: #333;
+    font-weight: 500;
+    text-align: left;
+    padding: 12px;
+    border-bottom: 2px solid #e0e0e0;
+}
+
+.exceptions-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid #e0e0e0;
+    color: #333;
+}
+
+.exceptions-table tr:hover {
+    background-color: #f9f9f9;
+}
+
+.count-column {
+    width: 80px;
+    text-align: center;
+}
+
+.count-cell {
+    text-align: center;
+    font-weight: 500;
+}
+
+/* Note styles */
+.note {
+    font-size: 14px;
+    color: #666;
+    margin: 0 16px;
+    line-height: 1.5;
+}
+</style>
