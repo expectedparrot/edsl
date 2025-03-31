@@ -1,34 +1,24 @@
-<style>
-    th, td {
-        padding: 0 10px; /* This applies the padding uniformly to all td elements */
-    }
-</style>
-
-<table border="1">
-    <thead>
-        <tr>
-            <th style="text-align: left">Exception Type</th>
-            <th style="text-align: left">Service</th>
-            <th style="text-align: left">Model</th>
-            <th style="text-align: left">Question Name</th>
-            <th style="text-align: left">Total</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for (exception_type, service, model, question_name), count in exceptions_table.items() %}
+<div class="overview-section">
+    <table class="exceptions-table">
+        <thead>
             <tr>
-                <td>{{ exception_type }}</td>
-                <td>{{ service }}</td>
-                <td>{{ model }}</td>
-                <td>{{ question_name }}</td>
-                <td>{{ count }}</td>
+                <th>Exception Type</th>
+                <th>Service</th>
+                <th>Model</th>
+                <th>Question Name</th>
+                <th>Total</th>
             </tr>
-        {% endfor %}
-    </tbody>
-</table>
-<p>
-    Note: You may encounter repeated exceptions where retries were attempted. 
-</p>
-<p>
-    See details about each exception, including code for reproducing it (click to expand).
-</p>
+        </thead>
+        <tbody>
+            {% for (exception_type, service, model, question_name), count in exceptions_table.items() %}
+                <tr>
+                    <td>{{ exception_type }}</td>
+                    <td>{{ service }}</td>
+                    <td>{{ model }}</td>
+                    <td>{{ question_name }}</td>
+                    <td>{{ count }}</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
