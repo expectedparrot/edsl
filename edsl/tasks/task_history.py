@@ -302,22 +302,59 @@ class TaskHistory(RepresentationMixin):
         js = env.joinpath("report.js").read_text()
         return js
 
+    # @property
+    # def exceptions_table(self) -> dict:
+    #     """Return a dictionary of exceptions organized by type, service, model, and question name."""
+    #     exceptions_table = {}
+    #     for interview in self.total_interviews:
+    #         for question_name, exceptions in interview.exceptions.items():
+    #             for exception in exceptions:
+    #                 key = (
+    #                     exception.exception.__class__.__name__,  # Exception type
+    #                     interview.model._inference_service_,  # Service
+    #                     interview.model.model,  # Model
+    #                     question_name,  # Question name
+    #                 )
+    #                 if key not in exceptions_table:
+    #                     exceptions_table[key] = 0
+    #                 exceptions_table[key] += 1
+    #     return exceptions_table
+
     @property
     def exceptions_table(self) -> dict:
-        """Return a dictionary of exceptions organized by type, service, model, and question name."""
+        """Return a dictionary of unique exceptions organized by type, service, model, and question name."""
         exceptions_table = {}
+        seen_exceptions = set()
+        
         for interview in self.total_interviews:
             for question_name, exceptions in interview.exceptions.items():
                 for exception in exceptions:
-                    key = (
+                    # Create a unique identifier for this exception based on its content
+                    exception_key = (
                         exception.exception.__class__.__name__,  # Exception type
-                        interview.model._inference_service_,  # Service
-                        interview.model.model,  # Model
-                        question_name,  # Question name
+                        interview.model._inference_service_,     # Service
+                        interview.model.model,                   # Model
+                        question_name,                           # Question name
+                        exception.name,                          # Exception name
+                        str(exception.traceback)[:100] if exception.traceback else "",  # Truncated traceback
                     )
-                    if key not in exceptions_table:
-                        exceptions_table[key] = 0
-                    exceptions_table[key] += 1
+                    
+                    # Only count if we haven't seen this exact exception before
+                    if exception_key not in seen_exceptions:
+                        seen_exceptions.add(exception_key)
+                        
+                        # Add to the summary table
+                        table_key = (
+                            exception.exception.__class__.__name__,  # Exception type
+                            interview.model._inference_service_,     # Service
+                            interview.model.model,                   # Model
+                            question_name,                           # Question name
+                        )
+                        
+                        if table_key not in exceptions_table:
+                            exceptions_table[table_key] = 0
+                        exceptions_table[table_key] += 1
+        
         return exceptions_table
 
     @property
