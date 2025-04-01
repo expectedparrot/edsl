@@ -182,8 +182,10 @@ class JobsRemoteInferenceHandler:
         reason = remote_job_data.get("reason")
 
         if reason == "insufficient funds":
-            latest_error_report_url = "Error: Insufficient balance to start the job"
-            print("❌ Error: Insufficient balance to start the job")
+            job_info.logger.update(
+                f"Error: Insufficient balance to start the job. Add funds to your account here: {self.expected_parrot_url}/home/credits",
+                status=JobsStatus.FAILED,
+            )
 
         if latest_error_report_url:
             job_info.logger.add_info("error_report_url", latest_error_report_url)
