@@ -176,9 +176,6 @@ class HTMLTableJobLogger(JobLogger):
             .uuid-item:last-child {
                 border-bottom: none;
             }
-            .results-uuid .uuid-label {
-                color: #059669;
-            }
             .uuid-label {
                 font-weight: 500;
                 color: #4b5563;
@@ -394,18 +391,11 @@ class HTMLTableJobLogger(JobLogger):
         uuid_fields.sort(key=lambda x: 0 if "result" in x[0].lower() else 1)
         for field, pretty_name, value in uuid_fields:
             # Create single-line UUID displays
-            if "result" in field.lower():
-                content_html += f"""
-                <div class="uuid-item results-uuid">
-                    <span class="uuid-label">{pretty_name}:</span>{self._create_uuid_copy_button(value)}
-                </div>
-                """
-            else:
-                content_html += f"""
-                <div class="uuid-item">
-                    <span class="uuid-label">{pretty_name}:</span>{self._create_uuid_copy_button(value)}
-                </div>
-                """
+            content_html += f"""
+            <div class="uuid-item">
+                <span class="uuid-label">{pretty_name}:</span>{self._create_uuid_copy_button(value)}
+            </div>
+            """
         
         content_html += """
                 </div>
@@ -487,7 +477,7 @@ class HTMLTableJobLogger(JobLogger):
                 }}">
                 <div>
                     <span id="arrow-{self.log_id}" class="expand-toggle">{'&#8963;' if self.is_expanded else '&#8964;'}</span>
-                    Job Status
+                    Job Status 🦜
                 </div>
                 <div class="{status_class}">{status_text}</div>
             </div>
