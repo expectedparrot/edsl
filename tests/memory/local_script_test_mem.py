@@ -5,7 +5,11 @@ import json
 import time
 from memory_profiler import memory_usage
 
-my_print = FileStore("test_img.png")
+import os
+current_dir = os.path.dirname(__file__)
+img_path = os.path.join(current_dir, "test_img.png")
+my_print = FileStore(img_path)
+
 s = Scenario({f"image_{i}": my_print for i in range(0, 10)})
 
 def print_memory(label):
