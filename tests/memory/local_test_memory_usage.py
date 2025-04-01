@@ -87,7 +87,7 @@ def test_memory_scaling(scenario_with_images):
 def test_memory_with_faulty_question_type(scenario_with_images):
     """Test memory usage when one question is of a wrong type (QuestionList instead of QuestionFreeText)."""
     questions = []
-    for i in range(1, 4):  # Smaller set to trigger issue without overload
+    for i in range(1, 10):  # Smaller set to trigger issue without overload
         # Injecting a faulty question to simulate a misconfiguration
         q0 = QuestionList(
             question_name=f"topic_{i}",
