@@ -344,7 +344,8 @@ class Results(DataList, ResultsOperationsMixin, Base):
         self._fetching = False
         
         # Sort data appropriately before initialization
-        if data:
+        # But only if explicitly requested or if needed for internal operations
+        if data and sort_by_iteration:
             # First try to sort by order attribute if present on any result
             has_order = any(hasattr(item, 'order') for item in data)
             if has_order:
@@ -357,8 +358,8 @@ class Results(DataList, ResultsOperationsMixin, Base):
                 
                 # Sort by order attribute
                 data = sorted(data, key=get_order)
-            # If no order attributes and sort_by_iteration requested, sort by iteration
-            elif sort_by_iteration:
+            else:
+                # Sort by iteration if requested
                 data = sorted(data, key=lambda x: x.data.get('iteration', 0))
 
         super().__init__(data)
@@ -1485,7 +1486,6 @@ class Results(DataList, ResultsOperationsMixin, Base):
         Dataset([{'answer.how_feeling': ['Terrible', 'OK', 'OK', 'Great']}])
 
         """
-
         def to_numeric_if_possible(v):
             try:
                 return float(v)
@@ -1497,11 +1497,25 @@ class Results(DataList, ResultsOperationsMixin, Base):
             for col in columns:
                 data_type, key = self._parse_column(col)
                 value = item.get_value(data_type, key)
-                key_components.append(to_numeric_if_possible(value))
+                # Convert to string for alphabetical sorting if string-like
+                if isinstance(value, (str, bytes)):
+                    key_components.append(str(value))
+                else:
+                    key_components.append(to_numeric_if_possible(value))
             return tuple(key_components)
 
+        # Sort the data using the provided sort key
         new_data = sorted(self.data, key=sort_key, reverse=reverse)
-        return Results(survey=self.survey, data=new_data, created_columns=None)
+        
+        # Create a new Results object with the sorted data
+        # Pass created_columns to maintain any derived columns
+        return Results(
+            survey=self.survey,
+            data=new_data,
+            created_columns=self.created_columns,
+            # Disable automatic sorting by iteration
+            sort_by_iteration=False
+        )
 
     @ensure_ready
     def filter(self, expression: str) -> Results:
