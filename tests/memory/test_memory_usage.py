@@ -24,17 +24,17 @@ def create_image_survey(num_questions=10):
     for i in range(1, num_questions + 1):
         q0 = QuestionFreeText(
             question_name=f"topic_{i}",
-            question_text=f"Describe what is happening in this print: {{{{ scenario.image_{i} }}}}"
+            question_text="Describe what is happening in this print: {{ scenario.image_" + f"{i}" + " }}"
         )
 
         q1 = QuestionFreeText(
             question_name=f"colors_{i}",
-            question_text=f"List the prominent colors in this print: {{{{ scenario.image_{i} }}}}",
+            question_text="List the prominent colors in this print: {{ scenario.image_" + f"{i}" + " }}",
         )
 
         q2 = QuestionFreeText(
             question_name=f"year_{i}",
-            question_text=f"Estimate the year that this print was created: {{{{ scenario.image_{i} }}}}",
+            question_text="Estimate the year that this print was created: {{ scenario.image_" + f"{i}" + " }}",
         )
         questions.extend([q0, q1, q2])
     return Survey(questions=questions)
@@ -46,9 +46,8 @@ def test_memory_usage_basic(scenario_with_images):
     model = Model("test", rpm=10000, tpm=10000000)
     
     # Measure memory usage during execution
-    cache = Cache()
     mem_usage = memory_usage(
-        (lambda: survey.by(scenario_with_images).by(model).run(disable_remote_inference=True,cache=cache)), 
+        (lambda: survey.by(scenario_with_images).by(model).run(disable_remote_inference=True,cache=False)), 
         interval=0.1, 
         timeout=30
     )
@@ -67,14 +66,12 @@ def test_memory_scaling(scenario_with_images):
     model = Model("test", rpm=10000, tpm=10000000)
     results = {}
     
-
     for num_questions in [2, 4]:  # Use small values for testing
         survey = create_image_survey(num_questions)
         
-        cache = Cache()
         # Measure memory usage
         mem_usage = memory_usage(
-            (lambda: survey.by(scenario_with_images).by(model).run(disable_remote_inference=True,cache=cache)),
+            (lambda: survey.by(scenario_with_images).by(model).run(disable_remote_inference=True,cache=False)),
             interval=0.1,
             timeout=30
         )
@@ -86,42 +83,40 @@ def test_memory_scaling(scenario_with_images):
     print(f"Memory usage scaling: {results}")
     assert results[4] < results[2] * 3  # Should not scale worse than O(n)
 
+
 def test_memory_with_faulty_question_type(scenario_with_images):
     """Test memory usage when one question is of a wrong type (QuestionList instead of QuestionFreeText)."""
     questions = []
     for i in range(1, 4):  # Smaller set to trigger issue without overload
-            # Injecting a faulty question to simulate a misconfiguration
+        # Injecting a faulty question to simulate a misconfiguration
         q0 = QuestionList(
             question_name=f"topic_{i}",
-            question_text=f"Choose what's happening in this print: {{{{ scenario.image_{i} }}}}",
+            question_text="Choose what's happening in this print: {{ scenario.image_" + f"{i}" + " }}",
         )
 
         q1 = QuestionFreeText(
             question_name=f"colors_{i}",
-            question_text=f"List the prominent colors in this print: {{{{ scenario.image_{i} }}}}",
+            question_text="List the prominent colors in this print: {{ scenario.image_" + f"{i}" + " }}",
         )
 
         q2 = QuestionFreeText(
             question_name=f"year_{i}",
-            question_text=f"Estimate the year that this print was created: {{{{ scenario.image_{i} }}}}",
+            question_text="Estimate the year that this print was created: {{ scenario.image_" + f"{i}" + " }}",
         )
         questions.extend([q0, q1, q2])
     
     faulty_survey = Survey(questions=questions)
     model = Model("test", rpm=10000, tpm=10000000)
 
-    cache = Cache()
-
     try:
         mem_usage = memory_usage(
-            (lambda: faulty_survey.by(scenario_with_images).by(model).run(disable_remote_inference=True,cache=cache)),
+            (lambda: faulty_survey.by(scenario_with_images).by(model).run(disable_remote_inference=True,cache=False)),
             interval=0.1,
             timeout=30
         )
         print(f"Memory usage with faulty question: {max(mem_usage)} MB")
     except Exception as e:
         print(f"Expected error triggered: {e}")
-
 
 
 if __name__ == "__main__":
