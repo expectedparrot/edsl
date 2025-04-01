@@ -217,7 +217,7 @@ class AsyncInterviewRunner:
                 break
         return chunk
 
-    async def run(self) -> AsyncGenerator[tuple[Result, Interview], None]:
+    async def run(self) -> AsyncGenerator[tuple[Result, Interview, int], None]:
         """
         Run all interviews asynchronously and yield results as they complete.
 
@@ -226,7 +226,8 @@ class AsyncInterviewRunner:
         they become available.
 
         Yields:
-            Tuples of (Result, Interview) as interviews complete
+            Tuples of (Result, Interview, idx) as interviews complete, where idx is the
+            original position index of the interview.
         
         Raises:
             Exception: If stop_on_exception is True and any interview fails
@@ -234,9 +235,9 @@ class AsyncInterviewRunner:
         async with self._interview_batch_processor() as processor:
             async for result_tuple in processor:
                 # For each result tuple in the processor
-                result, interview, _ = result_tuple
+                result, interview, idx = result_tuple
                 # Yield a new tuple to break reference to the original tuple
-                yield result, interview
+                yield result, interview, idx
                 
                 # Help garbage collection by removing references
                 del result_tuple

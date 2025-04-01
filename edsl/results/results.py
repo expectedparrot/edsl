@@ -59,7 +59,7 @@ if TYPE_CHECKING:
 from ..utilities import remove_edsl_version, dict_hash
 from ..dataset import ResultsOperationsMixin
 
-# from .results import Result
+from .result import Result
 
 from .exceptions import (
     ResultsError,
@@ -342,10 +342,24 @@ class Results(DataList, ResultsOperationsMixin, Base):
         """
         self.completed = True
         self._fetching = False
-
-        # Sort data by iteration if requested
-        if data and sort_by_iteration:
-            data = sorted(data, key=lambda x: x.data["iteration"])
+        
+        # Sort data appropriately before initialization
+        if data:
+            # First try to sort by order attribute if present on any result
+            has_order = any(hasattr(item, 'order') for item in data)
+            if has_order:
+                # Get order values, using iteration as fallback for items without order
+                def get_order(item):
+                    if hasattr(item, 'order'):
+                        return item.order
+                    # Fallback to iteration
+                    return item.data.get('iteration', 0) * 1000
+                
+                # Sort by order attribute
+                data = sorted(data, key=get_order)
+            # If no order attributes and sort_by_iteration requested, sort by iteration
+            elif sort_by_iteration:
+                data = sorted(data, key=lambda x: x.data.get('iteration', 0))
 
         super().__init__(data)
         from ..caching import Cache
@@ -854,7 +868,7 @@ class Results(DataList, ResultsOperationsMixin, Base):
         from ..tasks import TaskHistory
 
         survey = Survey.from_dict(data["survey"])
-        # Convert dictionaries to Result objects first without inserting them in a sorted order
+        # Convert dictionaries to Result objects
         results_data = [Result.from_dict(r) for r in data["data"]]
         created_columns = data.get("created_columns", None)
         cache = Cache.from_dict(data.get("cache")) if "cache" in data else Cache()
@@ -863,15 +877,15 @@ class Results(DataList, ResultsOperationsMixin, Base):
             if "task_history" in data
             else TaskHistory(interviews=[])
         )
-        
+
         # Create a Results object with original order preserved
+        # using the empty data list initially
         params = {
             "survey": survey,
             "data": [],  # Start with empty data
             "created_columns": created_columns,
             "cache": cache,
             "task_history": task_history,
-            "sort_by_iteration": False,  # Don't sort initially
         }
 
         try:
@@ -1610,41 +1624,7 @@ class Results(DataList, ResultsOperationsMixin, Base):
             disable_remote_inference=True,
         )
         
-        # Set the order attribute on each result to match the expected order in doctests
-        expected_indices = {
-            # Map result values to expected indices in doctests
-            ('OK', 'Great'): 0,
-            ('Great', 'Good'): 1,  
-            ('Terrible', 'OK'): 2,
-            ('OK', 'Terrible'): 3
-        }
-        
-        # Apply the expected ordering
-        for result in results:
-            # Create a key from feeling values if they exist
-            key = (
-                result.get_value("answer", "how_feeling") if "how_feeling" in result.sub_dicts["answer"] else None,
-                result.get_value("answer", "how_feeling_yesterday") if "how_feeling_yesterday" in result.sub_dicts["answer"] else None
-            )
-            
-            # Set the order if we have an expected position
-            if key in expected_indices:
-                result.order = expected_indices[key]
-        
-        # Re-sort the results based on the new order
-        results_data = sorted(results.data, key=lambda x: getattr(x, "order", float("inf")) if hasattr(x, "order") else float("inf"))
-        
-        # Create a new instance with the correctly ordered data
-        new_results = cls(
-            survey=results.survey,
-            data=results_data,
-            created_columns=results.created_columns,
-            cache=results.cache,
-            task_history=results.task_history,
-            sort_by_iteration=False,
-        )
-        
-        return new_results
+        return results
 
     def rich_print(self):
         """Display an object as a table."""
