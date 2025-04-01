@@ -4,7 +4,10 @@ from memory_profiler import profile
 from edsl import QuestionFreeText, QuestionList, QuestionNumerical
 from edsl import Survey,Model
 import json
-my_print = FileStore("test_img.png")
+import os
+current_dir = os.path.dirname(__file__)
+img_path = os.path.join(current_dir, "test_img.png")
+my_print = FileStore(img_path)
 
 s = Scenario({f"image_{i}": my_print for i in range(0, 10)})
 @profile
