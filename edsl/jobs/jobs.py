@@ -629,7 +629,10 @@ class Jobs(Base):
         # Create a shared function to process interview results
         async def process_interviews(interview_runner, results_obj):
             prev_interview_ref = None
-            async for result, interview in interview_runner.run():
+            async for result, interview, idx in interview_runner.run():
+                # Set the order attribute on the result for correct ordering
+                result.order = idx
+                
                 # Collect results
                 #results_obj.append(result)
                 key = results_obj.shelve_result(result)
