@@ -7,6 +7,7 @@ from IPython.display import display, HTML
 from .jobs_remote_inference_logger import JobLogger
 from .jobs_status_enums import JobsStatus
 
+
 class HTMLTableJobLogger(JobLogger):
     def __init__(self, verbose=True, **kwargs):
         super().__init__(verbose=verbose)
@@ -17,6 +18,24 @@ class HTMLTableJobLogger(JobLogger):
         self.spinner_chars = ["◐", "◓", "◑", "◒"]
         self.spinner_idx = 0
         self.messages = []  # Store message history
+        self.external_link_icon = """
+            <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="external-link-icon"
+            >
+                <path d="M15 3h6v6" />
+                <path d="M10 14 21 3" />
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+            </svg>
+        """
 
     def _get_status_icon(self, status: JobsStatus) -> str:
         """Return appropriate icon for job status"""
@@ -45,28 +64,42 @@ class HTMLTableJobLogger(JobLogger):
         short_uuid = uuid_value
         if len(uuid_value) > 12:
             short_uuid = f"{uuid_value[:8]}...{uuid_value[-4:]}"
-            
+
         return f"""
         <div class="uuid-container" title="{uuid_value}">
             <span class="uuid-code">{short_uuid}</span>
             <button class="copy-btn" onclick="navigator.clipboard.writeText('{uuid_value}').then(() => {{
                 const btn = this;
-                btn.innerHTML = '✓';
-                setTimeout(() => btn.innerHTML = '⎘', 1000);
-            }})" title="Copy to clipboard">⎘</button>
+                btn.querySelector('.copy-icon').style.display = 'none';
+                btn.querySelector('.check-icon').style.display = 'block';
+                setTimeout(() => {{
+                    btn.querySelector('.check-icon').style.display = 'none';
+                    btn.querySelector('.copy-icon').style.display = 'block';
+                }}, 1000);
+            }})" title="Copy to clipboard">
+                <svg class="copy-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                </svg>
+                <svg class="check-icon" style="display: none" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+            </button>
         </div>
         """
-        
+
     def update(self, message: str, status: JobsStatus = JobsStatus.RUNNING):
         """Update the display with new message and current JobsInfo state"""
         self.current_message = message
         # Add to message history with timestamp
-        self.messages.append({
-            "text": message,
-            "status": status,
-            "timestamp": datetime.now().strftime("%H:%M:%S")
-        })
-        
+        self.messages.append(
+            {
+                "text": message,
+                "status": status,
+                "timestamp": datetime.now().strftime("%H:%M:%S"),
+            }
+        )
+
         if self.verbose:
             self.display_handle.update(HTML(self._get_html(status)))
         else:
@@ -84,6 +117,7 @@ class HTMLTableJobLogger(JobLogger):
                 border-radius: 8px;
                 overflow: hidden;
                 box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+                color: #1a1a1a;
             }
             .jobs-header {
                 padding: 8px 12px;
@@ -194,9 +228,17 @@ class HTMLTableJobLogger(JobLogger):
                 border-bottom: 1px dotted #bfdbfe;
                 transition: border-color 0.2s;
                 font-size: 0.75em;
+                display: inline-flex;
+                align-items: center;
+                gap: 4px;
             }
             .pill-link:hover {
                 border-bottom: 1px solid #3b82f6;
+            }
+            .external-link-icon {
+                width: 12px;
+                height: 12px;
+                opacity: 0.7;
             }
             .status-banner {
                 display: flex;
@@ -249,18 +291,22 @@ class HTMLTableJobLogger(JobLogger):
                 border: none;
                 cursor: pointer;
                 margin-left: 4px;
-                padding: 1px 5px;
+                padding: 4px;
                 border-radius: 3px;
                 transition: all 0.2s ease;
-                font-size: 1em;
                 color: #4b5563;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                width: 22px;
+                height: 22px;
             }
             .copy-btn:hover {
                 background-color: #cbd5e1;
                 color: #1f2937;
             }
-            .copy-btn:hover {
-                background-color: #e2e8f0;
+            .copy-icon, .check-icon {
+                display: block;
             }
             .message-log {
                 max-height: 120px;
@@ -310,17 +356,17 @@ class HTMLTableJobLogger(JobLogger):
         url_fields = []
         uuid_fields = []
         other_fields = []
-        
+
         for field, _ in self.jobs_info.__annotations__.items():
             if field != "pretty_names":
                 value = getattr(self.jobs_info, field)
                 if not value:
                     continue
-                    
+
                 pretty_name = self.jobs_info.pretty_names.get(
                     field, field.replace("_", " ").title()
                 )
-                
+
                 if "url" in field.lower():
                     url_fields.append((field, pretty_name, value))
                 elif "uuid" in field.lower():
@@ -335,50 +381,50 @@ class HTMLTableJobLogger(JobLogger):
                 <div class="section-header">Links</div>
                 <div class="content-box">
         """
-        
+
         # Sort URLs to prioritize Results first, then Progress Bar
         results_links = []
         progress_links = []
         other_links = []
-        
+
         for field, pretty_name, value in url_fields:
             # Replace "Progress Bar" with "Progress Report"
             if "progress_bar" in field.lower():
                 pretty_name = "Progress Report URL"
-                
+
             label = pretty_name.replace(" URL", "")
-            
+
             if "result" in field.lower():
                 results_links.append((field, pretty_name, value, label))
             elif "progress" in field.lower():
                 progress_links.append((field, pretty_name, value, label))
             else:
                 other_links.append((field, pretty_name, value, label))
-        
+
         # Add results links first with special styling
         for field, pretty_name, value, label in results_links:
             content_html += f"""
             <div class="link-item results-link">
-                <a href="{value}" target="_blank" class="pill-link">{label}</a>
+                <a href="{value}" target="_blank" class="pill-link">{label}{self.external_link_icon}</a>
             </div>
             """
-        
+
         # Then add progress links with different special styling
         for field, pretty_name, value, label in progress_links:
             content_html += f"""
             <div class="link-item progress-link">
-                <a href="{value}" target="_blank" class="pill-link">{label}</a>
+                <a href="{value}" target="_blank" class="pill-link">{label}{self.external_link_icon}</a>
             </div>
             """
-        
+
         # Then add other links
         for field, pretty_name, value, label in other_links:
             content_html += f"""
             <div class="link-item">
-                <a href="{value}" target="_blank" class="pill-link">{label}</a>
+                <a href="{value}" target="_blank" class="pill-link">{label}{self.external_link_icon}</a>
             </div>
             """
-        
+
         content_html += """
                 </div>
             </div>
@@ -386,7 +432,7 @@ class HTMLTableJobLogger(JobLogger):
                 <div class="section-header">Identifiers</div>
                 <div class="content-box">
         """
-        
+
         # Sort UUIDs to prioritize Result UUID first
         uuid_fields.sort(key=lambda x: 0 if "result" in x[0].lower() else 1)
         for field, pretty_name, value in uuid_fields:
@@ -396,13 +442,13 @@ class HTMLTableJobLogger(JobLogger):
                 <span class="uuid-label">{pretty_name}:</span>{self._create_uuid_copy_button(value)}
             </div>
             """
-        
+
         content_html += """
                 </div>
             </div>
         </div>
         """
-        
+
         # Add other fields in full width if any
         if other_fields:
             content_html += "<div class='section-header'>Additional Information</div>"
@@ -419,13 +465,17 @@ class HTMLTableJobLogger(JobLogger):
         # Status banner
         status_class = {
             JobsStatus.RUNNING: "status-running",
-            JobsStatus.COMPLETED: "status-completed", 
-            JobsStatus.FAILED: "status-failed"
+            JobsStatus.COMPLETED: "status-completed",
+            JobsStatus.FAILED: "status-failed",
         }.get(current_status, "status-unknown")
-        
+
         status_icon = self._get_status_icon(current_status)
-        status_text = current_status.name.capitalize() if hasattr(current_status, 'name') else str(current_status).capitalize()
-        
+        status_text = (
+            current_status.name.capitalize()
+            if hasattr(current_status, "name")
+            else str(current_status).capitalize()
+        )
+
         status_banner = f"""
         <div class="status-banner">
             {status_icon}
@@ -443,17 +493,19 @@ class HTMLTableJobLogger(JobLogger):
                 status_color = {
                     JobsStatus.RUNNING: "#3b82f6",
                     JobsStatus.COMPLETED: "#10b981",
-                    JobsStatus.FAILED: "#ef4444"
+                    JobsStatus.FAILED: "#ef4444",
                 }.get(msg["status"], "#6b7280")
-                
-                message_items.append(f"""
+
+                message_items.append(
+                    f"""
                 <div class="message-item">
                     <span class="message-timestamp">{msg["timestamp"]}</span>
                     <span class="status-indicator" style="background-color: {status_color};"></span>
                     <div>{self._linkify(msg["text"])}</div>
                 </div>
-                """)
-            
+                """
+                )
+
             message_log = f"""
             <div class="message-log">
                 {''.join(reversed(message_items))}
