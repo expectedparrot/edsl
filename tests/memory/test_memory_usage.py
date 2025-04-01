@@ -5,11 +5,13 @@ from memory_profiler import memory_usage
 from edsl import FileStore, Scenario, Survey, Model
 from edsl import QuestionFreeText, QuestionList, QuestionNumerical
 from edsl.caching import Cache
-
+import os 
 @pytest.fixture
 def sample_image():
     """Fixture to provide a sample image for testing."""
-    return FileStore("test_img.png")
+    current_dir = os.path.dirname(__file__)
+    img_path = os.path.join(current_dir, "test_img.png")
+    return FileStore(img_path)
 
 
 @pytest.fixture
