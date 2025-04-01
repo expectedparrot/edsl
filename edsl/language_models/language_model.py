@@ -364,16 +364,16 @@ class LanguageModel(
                 )
             self._api_token = info.api_token
         return self._api_token
-        
+
     def copy(self) -> "LanguageModel":
         """Create a deep copy of this language model instance.
-        
+
         This method creates a completely independent copy of the language model
         by creating a new instance with the same parameters and copying relevant attributes.
-        
+
         Returns:
             LanguageModel: A new language model instance that is functionally identical to this one
-            
+
         Examples:
             >>> m1 = LanguageModel.example()
             >>> m2 = m1.copy()
@@ -386,33 +386,34 @@ class LanguageModel(
         try:
             # For most models, we can instantiate with the saved parameters
             new_model = self.__class__(**self.parameters)
-            
+
             # Copy all important instance attributes
             for key, value in self.__dict__.items():
                 if key not in ("_api_token",) and not key.startswith("__"):
                     setattr(new_model, key, value)
-            
+
             return new_model
         except Exception:
             # Fallback for dynamically created classes like TestServiceLanguageModel
             from ..inference_services import default
-            
+
             # If this is a test model, create a new test model instance
             if getattr(self, "_inference_service_", "") == "test":
                 service = default.get_service("test")
                 model_class = service.create_model("test")
                 new_model = model_class(**self.parameters)
-                
+
                 # Copy attributes
                 for key, value in self.__dict__.items():
                     if key not in ("_api_token",) and not key.startswith("__"):
                         setattr(new_model, key, value)
-                
+
                 return new_model
-                
+
             # If we can't create the model directly, just return a simple test model
             # This is a last resort fallback
             from ..inference_services import get_service
+
             service = get_service("test")
             model_class = service.create_model("test")
             return model_class()
