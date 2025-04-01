@@ -452,6 +452,10 @@ class Result(Base, UserDict):
 
         if hasattr(self, "interview_hash"):
             d["interview_hash"] = self.interview_hash
+            
+        # Preserve the order attribute if it exists
+        if hasattr(self, "order"):
+            d["order"] = self.order
 
         return d
 
@@ -495,6 +499,11 @@ class Result(Base, UserDict):
         )
         if "interview_hash" in json_dict:
             result.interview_hash = json_dict["interview_hash"]
+            
+        # Restore the order attribute if it exists in the dictionary
+        if "order" in json_dict:
+            result.order = json_dict["order"]
+            
         return result
 
     def __repr__(self):
