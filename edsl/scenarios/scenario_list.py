@@ -91,19 +91,17 @@ TableFormat: TypeAlias = Literal[
     "tsv",
 ]
 
+import pickle
 
 def serialize(obj):
-    """Serialize a Scenario object or other data to JSON string."""
-    return json.dumps(obj.to_dict()) if hasattr(obj, "to_dict") else json.dumps(obj)
-
+    """Serialize a Scenario object or other data to bytes using pickle."""
+    return pickle.dumps(obj)
 
 def deserialize(data):
-    """Deserialize JSON string back to a Scenario object or other data."""
-    return (
-        Scenario.from_dict(json.loads(data))
-        if isinstance(data, str)
-        else json.loads(data)
-    )
+    """Deserialize pickled bytes back to a Scenario object or other data."""
+    if isinstance(data, str):
+        return pickle.loads(data.encode())
+    return pickle.loads(data)
 
 
 class ScenarioSQLiteList(SQLiteList):
@@ -1199,7 +1197,9 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
                 f"Length of values ({len(values)}) does not match length of ScenarioList ({len(sl)})"
             )
         for i, value in enumerate(values):
-            sl[i][name] = value
+            scenario = sl[i]
+            scenario[name] = value
+            sl[i] = scenario  # Update the scenario in the list
         return sl
 
     @classmethod
@@ -1226,8 +1226,9 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         ScenarioList([Scenario({'name': 'Alice', 'age': 30}), Scenario({'name': 'Bob', 'age': 30})])
         """
         sl = self.duplicate()
-        for scenario in sl:
+        for i, scenario in enumerate(sl):
             scenario[name] = value
+            sl[i] = scenario  # Update the scenario in the list
         return sl
 
     def rename(self, replacement_dict: dict) -> ScenarioList:

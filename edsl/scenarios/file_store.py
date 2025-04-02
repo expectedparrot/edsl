@@ -576,12 +576,18 @@ class FileStore(Scenario):
         """
         Delegate pandas DataFrame methods to the underlying DataFrame if this is a CSV file
         """
-        if self.suffix == "csv":
-            # Get the pandas DataFrame
-            df = self.to_pandas()
-            # Check if the requested attribute exists in the DataFrame
-            if hasattr(df, name):
-                return getattr(df, name)
+        # Special case for pickle protocol
+        if name.startswith('__') and name.endswith('__'):
+            raise AttributeError(name)
+            
+        # Only try to access suffix if it's in our __dict__
+        if hasattr(self, '_data') and 'suffix' in self._data:
+            if self._data['suffix'] == "csv":
+                # Get the pandas DataFrame
+                df = self.to_pandas()
+                # Check if the requested attribute exists in the DataFrame
+                if hasattr(df, name):
+                    return getattr(df, name)
         # If not a CSV or attribute doesn't exist in DataFrame, raise AttributeError
         raise AttributeError(
             f"'{self.__class__.__name__}' object has no attribute '{name}'"
