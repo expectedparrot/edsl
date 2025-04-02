@@ -55,6 +55,13 @@ class SQLiteList(MutableSequence):
         return count
 
     def __getitem__(self, index):
+        if isinstance(index, slice):
+            # Handle slice object
+            start, stop, step = index.indices(len(self))
+            indices = range(start, stop, step)
+            return [self[i] for i in indices]
+            
+        # Handle integer index
         if index < 0:
             index = len(self) + index
         if not 0 <= index < len(self):
