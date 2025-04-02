@@ -45,6 +45,8 @@ class HTMLTableJobLogger(JobLogger):
             return f'<span class="status-icon status-running">{spinner}</span>'
         elif status == JobsStatus.COMPLETED:
             return '<span class="status-icon status-completed">✓</span>'
+        elif status == JobsStatus.PARTIALLY_FAILED:
+            return '<span class="status-icon status-partially-failed">✗</span>'
         elif status == JobsStatus.FAILED:
             return '<span class="status-icon status-failed">✗</span>'
         else:
@@ -250,6 +252,7 @@ class HTMLTableJobLogger(JobLogger):
             }
             .status-running { color: #3b82f6; }
             .status-completed { color: #10b981; }
+            .status-partially-failed { color: #d97706; }
             .status-failed { color: #ef4444; }
             .status-unknown { color: #6b7280; }
             .status-icon {
@@ -348,6 +351,7 @@ class HTMLTableJobLogger(JobLogger):
             }
             .status-running.badge { background-color: #dbeafe; }
             .status-completed.badge { background-color: #d1fae5; }
+            .status-partially-failed.badge { background-color: #fef3c7; }
             .status-failed.badge { background-color: #fee2e2; }
         </style>
         """
@@ -466,15 +470,18 @@ class HTMLTableJobLogger(JobLogger):
         status_class = {
             JobsStatus.RUNNING: "status-running",
             JobsStatus.COMPLETED: "status-completed",
+            JobsStatus.PARTIALLY_FAILED: "status-partially-failed",
             JobsStatus.FAILED: "status-failed",
         }.get(current_status, "status-unknown")
 
         status_icon = self._get_status_icon(current_status)
-        status_text = (
-            current_status.name.capitalize()
-            if hasattr(current_status, "name")
-            else str(current_status).capitalize()
-        )
+        status_text = current_status.name.capitalize()
+        if current_status == JobsStatus.PARTIALLY_FAILED:
+            status_text = "Partially failed"
+        elif hasattr(current_status, "name"):
+            status_text = current_status.name.capitalize()
+        else:
+            status_text = str(current_status).capitalize()
 
         status_banner = f"""
         <div class="status-banner">
@@ -493,6 +500,7 @@ class HTMLTableJobLogger(JobLogger):
                 status_color = {
                     JobsStatus.RUNNING: "#3b82f6",
                     JobsStatus.COMPLETED: "#10b981",
+                    JobsStatus.PARTIALLY_FAILED: "#f59e0b",
                     JobsStatus.FAILED: "#ef4444",
                 }.get(msg["status"], "#6b7280")
 
