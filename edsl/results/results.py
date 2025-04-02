@@ -1578,7 +1578,12 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             False
         """
         # First remove valid operators that contain =
-        cleaned = expression.replace("==", "").replace(">=", "").replace("<=", "")
+        cleaned = (
+            expression.replace("==", "")
+            .replace(">=", "")
+            .replace("<=", "")
+            .repace("!=", "")
+        )
         return "=" in cleaned
 
     @ensure_ready
