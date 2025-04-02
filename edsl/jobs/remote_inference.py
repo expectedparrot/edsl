@@ -113,7 +113,7 @@ class JobsRemoteInferenceHandler:
         logger.add_info("job_uuid", job_uuid)
 
         logger.update(
-            f"Job details are available at your Coop account {self.remote_inference_url}",
+            f"Job details are available at your Coop account. [Go to Remote Inference page]({self.remote_inference_url})",
             status=JobsStatus.RUNNING,
         )
         progress_bar_url = (
@@ -121,7 +121,7 @@ class JobsRemoteInferenceHandler:
         )
         logger.add_info("progress_bar_url", progress_bar_url)
         logger.update(
-            f"View job progress here: {progress_bar_url}", status=JobsStatus.RUNNING
+            f"View job progress [here]({progress_bar_url})", status=JobsStatus.RUNNING
         )
 
         return RemoteJobInfo(
@@ -169,7 +169,7 @@ class JobsRemoteInferenceHandler:
             message="Job cancelled by the user.", status=JobsStatus.CANCELLED
         )
         job_info.logger.update(
-            f"See {self.expected_parrot_url}/home/remote-inference for more details.",
+            f"See [Remote Inference page]({self.expected_parrot_url}/home/remote-inference) for more details.",
             status=JobsStatus.CANCELLED,
         )
 
@@ -183,7 +183,7 @@ class JobsRemoteInferenceHandler:
 
         if reason == "insufficient funds":
             job_info.logger.update(
-                f"Error: Insufficient balance to start the job. Add funds to your account here: {self.expected_parrot_url}/home/credits",
+                f"Error: Insufficient balance to start the job. Add funds to your account at the [Credits page]({self.expected_parrot_url}/home/credits)",
                 status=JobsStatus.FAILED,
             )
 
@@ -192,11 +192,11 @@ class JobsRemoteInferenceHandler:
 
         job_info.logger.update("Job failed.", status=JobsStatus.FAILED)
         job_info.logger.update(
-            f"See {self.expected_parrot_url}/home/remote-inference for more details.",
+            f"See [Remote Inference page]({self.expected_parrot_url}/home/remote-inference) for more details.",
             status=JobsStatus.FAILED,
         )
         job_info.logger.update(
-            f"Need support? Visit Discord: {RemoteJobConstants.DISCORD_URL}",
+            f"Need support? [Visit Discord]({RemoteJobConstants.DISCORD_URL})",
             status=JobsStatus.FAILED,
         )
 
@@ -224,7 +224,7 @@ class JobsRemoteInferenceHandler:
         results_url = remote_job_data.get("results_url")
         job_info.logger.add_info("results_url", results_url)
         job_info.logger.update(
-            f"Job completed and Results stored on Coop: {results_url}",
+            f"Job completed and Results stored on Coop. [View Results]({results_url})",
             status=JobsStatus.COMPLETED,
         )
         results.job_uuid = job_info.job_uuid

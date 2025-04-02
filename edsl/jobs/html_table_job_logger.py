@@ -51,11 +51,11 @@ class HTMLTableJobLogger(JobLogger):
             return '<span class="status-icon status-unknown">•</span>'
 
     def _linkify(self, text: str) -> str:
-        """Convert URLs in text to clickable links"""
-        url_pattern = r'(https?://[^\s<>"]+|www\.[^\s<>"]+)'
+        """Convert markdown-style links to HTML links"""
+        markdown_pattern = r"\[(.*?)\]\((.*?)\)"
         return re.sub(
-            url_pattern,
-            r'<a href="\1" target="_blank" class="link">\1</a>',
+            markdown_pattern,
+            r'<a href="\2" target="_blank" class="link">\1</a>',
             text,
         )
 
