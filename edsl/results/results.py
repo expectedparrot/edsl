@@ -1,7 +1,7 @@
 """The Results module provides tools for working with collections of Result objects.
 
-The Results class is the primary container for analyzing and manipulating data obtained 
-from running surveys with language models. It implements a powerful data analysis interface 
+The Results class is the primary container for analyzing and manipulating data obtained
+from running surveys with language models. It implements a powerful data analysis interface
 with methods for filtering, selecting, mutating, and visualizing your results, similar to
 data manipulation libraries like dplyr or pandas.
 
@@ -11,7 +11,7 @@ Key components:
 2. Report - A flexible reporting system for generating formatted output from Results
 3. Selectors - Tools for efficiently extracting specific data from Results
 
-The Results class is not typically instantiated directly; instead, it's returned by the 
+The Results class is not typically instantiated directly; instead, it's returned by the
 run() method of a Job object. Once you have a Results object, you can use its methods
 to analyze and extract insights from your survey data.
 
@@ -42,6 +42,7 @@ import warnings
 from collections import UserList, defaultdict
 from typing import Optional, Callable, Any, Union, List, TYPE_CHECKING
 from bisect import bisect_left
+from collections.abc import MutableSequence
 
 from ..base import Base
 from ..caching import Cache, CacheEntry
@@ -190,13 +191,7 @@ class NotReadyObject:
         return self
 
 
-from collections import UserList as DataList
-
-# from ..db_list.sqlite_list import SQLiteList as DataList
-# DataList = UserList
-
-
-class Results(DataList, ResultsOperationsMixin, Base):
+class Results(MutableSequence, ResultsOperationsMixin, Base):
     """A collection of Result objects with powerful data analysis capabilities.
 
     The Results class is the primary container for working with data from EDSL surveys.
@@ -305,13 +300,10 @@ class Results(DataList, ResultsOperationsMixin, Base):
         job_uuid: Optional[str] = None,
         total_results: Optional[int] = None,
         task_history: Optional[TaskHistory] = None,
-        sort_by_iteration: bool = False,  # Added parameter to control sorting
+        sort_by_iteration: bool = False,
+        data_class: Optional[type] = list,
     ):
         """Instantiate a Results object with a survey and a list of Result objects.
-
-        This initializes a completed Results object with the provided data.
-        For creating a not-ready Results object from a job info dictionary,
-        use the from_job_info class method instead.
 
         Args:
             survey: A Survey object containing the questions used to generate results.
@@ -322,47 +314,38 @@ class Results(DataList, ResultsOperationsMixin, Base):
             total_results: An integer representing the total number of results.
             task_history: A TaskHistory object containing information about the tasks.
             sort_by_iteration: Whether to sort data by iteration before initializing.
-
-        Examples:
-            >>> from ..results import Result
-            >>> # Create an empty Results object
-            >>> r = Results()
-            >>> r.completed
-            True
-            >>> len(r.created_columns)
-            0
-
-            >>> # Create a Results object with data
-            >>> from unittest.mock import Mock
-            >>> mock_survey = Mock()
-            >>> mock_result = Mock(spec=Result)
-            >>> r = Results(survey=mock_survey, data=[mock_result])
-            >>> len(r)
-            1
+            data_class: The class to use for the data container (default: list).
         """
         self.completed = True
         self._fetching = False
-        
-        # Sort data appropriately before initialization
-        # But only if explicitly requested or if needed for internal operations
+
+        # Determine the data class to use
+        if data is not None:
+            # Use the class of the provided data if it's not a basic list
+            self._data_class = (
+                data.__class__ if not isinstance(data, list) else data_class
+            )
+        else:
+            self._data_class = data_class
+
+        # Sort data appropriately before initialization if needed
         if data and sort_by_iteration:
             # First try to sort by order attribute if present on any result
-            has_order = any(hasattr(item, 'order') for item in data)
+            has_order = any(hasattr(item, "order") for item in data)
             if has_order:
-                # Get order values, using iteration as fallback for items without order
+
                 def get_order(item):
-                    if hasattr(item, 'order'):
+                    if hasattr(item, "order"):
                         return item.order
-                    # Fallback to iteration
-                    return item.data.get('iteration', 0) * 1000
-                
-                # Sort by order attribute
+                    return item.data.get("iteration", 0) * 1000
+
                 data = sorted(data, key=get_order)
             else:
-                # Sort by iteration if requested
-                data = sorted(data, key=lambda x: x.data.get('iteration', 0))
+                data = sorted(data, key=lambda x: x.data.get("iteration", 0))
 
-        super().__init__(data)
+        # Initialize data with the appropriate class
+        self.data = self._data_class(data or [])
+
         from ..caching import Cache
         from ..tasks import TaskHistory
         import tempfile
@@ -460,47 +443,47 @@ class Results(DataList, ResultsOperationsMixin, Base):
 
     def insert(self, item):
         """Insert a Result object into the Results list in the correct order.
-        
+
         If the Result has an 'order' attribute, it uses that for ordering.
         Otherwise, it falls back to ordering by the 'iteration' attribute.
         """
+
         def get_sort_key(result):
             if hasattr(result, "order"):
                 return result.order
             return result.data["iteration"]
-            
+
         # Find insertion point using bisect with custom key function
         index = bisect_left([get_sort_key(x) for x in self.data], get_sort_key(item))
-        
+
         # Call the parent class's insert directly
-        DataList.insert(self, index, item)
+        MutableSequence.insert(self, index, item)
 
     def append(self, item) -> None:
-        #self.insert(item)
+        # self.insert(item)
         self.data.append(item)
 
     def extend(self, other):
         """Extend the Results list with items from another iterable.
-        
+
         This method preserves ordering based on 'order' attribute if present,
         otherwise falls back to 'iteration' attribute.
         """
         # Collect all items (existing and new)
         all_items = list(self.data)
         all_items.extend(other)
-        
+
         # Sort combined list by order attribute if available, otherwise by iteration
         def get_sort_key(item):
             if hasattr(item, "order"):
                 return (0, item.order)  # Order attribute takes precedence
             return (1, item.data["iteration"])  # Iteration is secondary
-            
+
         all_items.sort(key=get_sort_key)
 
         # Clear and refill with sorted items
         self.data.clear()
-        for item in all_items:
-            DataList.append(self, item)
+        self.data.extend(all_items)
 
     def compute_job_cost(self, include_cached_responses_in_cost: bool = False) -> float:
         """Compute the cost of a completed job in USD.
@@ -526,13 +509,16 @@ class Results(DataList, ResultsOperationsMixin, Base):
             for key in result["raw_model_response"]:
                 if key.endswith("_cost"):
                     result_cost = result["raw_model_response"][key]
-                    
+
                     # Extract the question name from the key
                     question_name = key.removesuffix("_cost")
-                    
+
                     # Get cache status safely - default to False if not found
                     cache_used = False
-                    if "cache_used_dict" in result and question_name in result["cache_used_dict"]:
+                    if (
+                        "cache_used_dict" in result
+                        and question_name in result["cache_used_dict"]
+                    ):
                         cache_used = result["cache_used_dict"][question_name]
 
                     if isinstance(result_cost, (int, float)):
@@ -560,48 +546,59 @@ class Results(DataList, ResultsOperationsMixin, Base):
         """
         raise ResultsError("The code() method is not implemented for Results objects")
 
+    @ensure_ready
     def __getitem__(self, i):
-        """Get an item from the Results object by index, slice, or key.
-
-        Args:
-            i: An integer index, a slice, or a string key.
-
-        Returns:
-            The requested item, slice of results, or dictionary value.
-
-        Raises:
-            ResultsError: If the argument type is invalid for indexing.
-
-        Examples:
-            >>> from edsl.results import Results
-            >>> r = Results.example()
-            >>> # Get by integer index
-            >>> result = r[0]
-            >>> # Get by slice
-            >>> subset = r[0:2]
-            >>> len(subset) == 2
-            True
-            >>> # Get by string key
-            >>> data = r["data"]
-            >>> isinstance(data, list)
-            True
-            >>> # Invalid index type
-            >>> try:
-            ...     r[1.5]
-            ... except ResultsError:
-            ...     True
-            True
-        """
         if isinstance(i, int):
             return self.data[i]
-
         if isinstance(i, slice):
             return self.__class__(survey=self.survey, data=self.data[i])
-
         if isinstance(i, str):
             return self.to_dict()[i]
-
         raise ResultsError("Invalid argument type for indexing Results object")
+
+    @ensure_ready
+    def __setitem__(self, i, item):
+        self.data[i] = item
+
+    @ensure_ready
+    def __delitem__(self, i):
+        del self.data[i]
+
+    @ensure_ready
+    def __len__(self):
+        return len(self.data)
+
+    @ensure_ready
+    def insert(self, index, item):
+        self.data.insert(index, item)
+
+    @ensure_ready
+    def extend(self, other):
+        """Extend the Results list with items from another iterable."""
+        self.data.extend(other)
+
+    @ensure_ready
+    def extend_sorted(self, other):
+        """Extend the Results list with items from another iterable, maintaining sort order.
+
+        This method preserves ordering based on 'order' attribute if present,
+        otherwise falls back to 'iteration' attribute.
+        """
+        # Collect all items (existing and new)
+        all_items = list(self.data)
+        all_items.extend(other)
+
+        # Sort combined list by order attribute if available, otherwise by iteration
+        def get_sort_key(item):
+            if hasattr(item, "order"):
+                return (0, item.order)  # Order attribute takes precedence
+            return (1, item.data["iteration"])  # Iteration is secondary
+
+        all_items.sort(key=get_sort_key)
+
+        # Clear and refill with sorted items
+        self.data.clear()
+        self.data.extend(all_items)
 
     def __add__(self, other: Results) -> Results:
         """Add two Results objects together.
@@ -1477,6 +1474,7 @@ class Results(DataList, ResultsOperationsMixin, Base):
         Dataset([{'answer.how_feeling': ['Terrible', 'OK', 'OK', 'Great']}])
 
         """
+
         def to_numeric_if_possible(v):
             try:
                 return float(v)
@@ -1497,7 +1495,7 @@ class Results(DataList, ResultsOperationsMixin, Base):
 
         # Sort the data using the provided sort key
         new_data = sorted(self.data, key=sort_key, reverse=reverse)
-        
+
         # Create a new Results object with the sorted data
         # Pass created_columns to maintain any derived columns
         return Results(
@@ -1505,7 +1503,7 @@ class Results(DataList, ResultsOperationsMixin, Base):
             data=new_data,
             created_columns=self.created_columns,
             # Disable automatic sorting by iteration
-            sort_by_iteration=False
+            sort_by_iteration=False,
         )
 
     @ensure_ready
@@ -1628,7 +1626,7 @@ class Results(DataList, ResultsOperationsMixin, Base):
             disable_remote_cache=True,
             disable_remote_inference=True,
         )
-        
+
         return results
 
     def rich_print(self):
@@ -1900,10 +1898,45 @@ class Results(DataList, ResultsOperationsMixin, Base):
         """Return a copy of the set of shelved result keys."""
         return self._shelf_keys.copy()
 
+    @ensure_ready
+    def insert_sorted(self, item: "Result") -> None:
+        """Insert a Result object into the Results list while maintaining sort order.
+
+        Uses the 'order' attribute if present, otherwise falls back to 'iteration' attribute.
+        Utilizes bisect for efficient insertion point finding.
+
+        Args:
+            item: A Result object to insert
+
+        Examples:
+            >>> r = Results.example()
+            >>> new_result = r[0].copy()
+            >>> new_result.order = 1.5  # Insert between items
+            >>> r.insert_sorted(new_result)
+        """
+        from bisect import bisect_left
+
+        def get_sort_key(result):
+            if hasattr(result, "order"):
+                return (0, result.order)  # Order attribute takes precedence
+            return (1, result.data["iteration"])  # Iteration is secondary
+
+        # Get the sort key for the new item
+        item_key = get_sort_key(item)
+
+        # Get list of sort keys for existing items
+        keys = [get_sort_key(x) for x in self.data]
+
+        # Find insertion point
+        index = bisect_left(keys, item_key)
+
+        # Insert at the found position
+        self.data.insert(index, item)
+
     def insert_from_shelf(self) -> None:
-        """Move all shelved results into memory using the insert method.
+        """Move all shelved results into memory using insert_sorted method.
         Clears the shelf after successful insertion.
-        
+
         This method preserves the original order of results by using their 'order'
         attribute if available, which ensures consistent ordering even after
         serialization/deserialization.
@@ -1919,21 +1952,16 @@ class Results(DataList, ResultsOperationsMixin, Base):
 
         try:
             # First collect all results from shelf
-            deserialized_results = []
             with shelve.open(self._shelve_path) as shelf:
-                # Get all results first
+                # Get and insert all results first
                 for key in self._shelf_keys:
                     result_dict = shelf[key]
                     result = Result.from_dict(result_dict)
-                    deserialized_results.append(result)
-                    
-                # Now clear the shelf (in a separate loop to ensure we don't lose data on error)
+                    self.insert_sorted(result)
+
+                # Now clear the shelf
                 for key in self._shelf_keys:
                     del shelf[key]
-            
-            # Insert results (which will respect the order attribute automatically)
-            for result in deserialized_results:
-                self.insert(result)
 
             # Clear the tracking set
             self._shelf_keys.clear()
