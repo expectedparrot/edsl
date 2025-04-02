@@ -464,29 +464,20 @@ class Results(DataList, ResultsOperationsMixin, Base):
         If the Result has an 'order' attribute, it uses that for ordering.
         Otherwise, it falls back to ordering by the 'iteration' attribute.
         """
-        # Check if the item has an order attribute first
-        if hasattr(item, "order"):
-            # Find insertion point based on order attribute
-            index = 0
-            for i, result in enumerate(self.data):
-                result_order = getattr(result, "order", float("inf"))
-                if result_order > item.order:
-                    break
-                index = i + 1
-        else:
-            # Fall back to iteration-based ordering
-            item_iteration = item.data["iteration"]
-            index = 0
-            for i, result in enumerate(self.data):
-                if result.data["iteration"] > item_iteration:
-                    break
-                index = i + 1
-
+        def get_sort_key(result):
+            if hasattr(result, "order"):
+                return result.order
+            return result.data["iteration"]
+            
+        # Find insertion point using bisect with custom key function
+        index = bisect_left([get_sort_key(x) for x in self.data], get_sort_key(item))
+        
         # Call the parent class's insert directly
         DataList.insert(self, index, item)
 
-    def append(self, item):
-        self.insert(item)
+    def append(self, item) -> None:
+        #self.insert(item)
+        self.data.append(item)
 
     def extend(self, other):
         """Extend the Results list with items from another iterable.
