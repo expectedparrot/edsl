@@ -2,9 +2,23 @@ import sqlite3
 import tempfile
 import os
 import json
+from typing import Any, Callable
+
 from collections.abc import MutableSequence
 
 from ..results.result import Result
+
+
+def serialize(obj):
+    return json.dumps(obj.to_dict()) if hasattr(obj, "to_dict") else json.dumps(obj)
+
+
+def deserialize(data):
+    return (
+        Result.from_dict(json.loads(data))
+        if hasattr(Result, "from_dict")
+        else json.loads(data)
+    )
 
 
 class SQLiteList(MutableSequence):
@@ -18,14 +32,8 @@ class SQLiteList(MutableSequence):
     def __init__(
         self,
         data=None,
-        serialize=lambda obj: (
-            json.dumps(obj.to_dict()) if hasattr(obj, "to_dict") else json.dumps(obj)
-        ),
-        deserialize=lambda data: (
-            Result.from_dict(json.loads(data))
-            if hasattr(Result, "from_dict")
-            else json.loads(data)
-        ),
+        serialize: Callable[[Any], str] = serialize,
+        deserialize: Callable[[Any], str] = deserialize,
     ):
         self.serialize = serialize
         self.deserialize = deserialize
