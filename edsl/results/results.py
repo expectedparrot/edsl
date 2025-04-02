@@ -1506,6 +1506,30 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             sort_by_iteration=False,
         )
 
+    @staticmethod
+    def has_single_equals(expression: str) -> bool:
+        """Check if an expression contains a single equals sign not part of ==, >=, or <=.
+
+        Args:
+            expression: String expression to check
+
+        Returns:
+            bool: True if there is a standalone = sign
+
+        Examples:
+            >>> Results.has_single_equals("x = 1")
+            True
+            >>> Results.has_single_equals("x == 1")
+            False
+            >>> Results.has_single_equals("x >= 1")
+            False
+            >>> Results.has_single_equals("x <= 1")
+            False
+        """
+        # First remove valid operators that contain =
+        cleaned = expression.replace("==", "").replace(">=", "").replace("<=", "")
+        return "=" in cleaned
+
     @ensure_ready
     def filter(self, expression: str) -> Results:
         """Filter results based on a boolean expression.
@@ -1557,28 +1581,35 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             ...     print("ResultsFilterError: You must use '==' instead of '=' in the filter expression.")
             ResultsFilterError: You must use '==' instead of '=' in the filter expression.
         """
-
-        def has_single_equals(string):
-            if "!=" in string:
-                return False
-            if "=" in string and not (
-                "==" in string or "<=" in string or ">=" in string
-            ):
-                return True
-
-        if has_single_equals(expression):
+        if self.has_single_equals(expression):
             raise ResultsFilterError(
                 "You must use '==' instead of '=' in the filter expression."
             )
 
         try:
-            # iterates through all the results and evaluates the expression
-            new_data = []
+            # Create new Results object with same class as original but empty data
+            filtered_results = Results(
+                survey=self.survey,
+                data=[],  # Empty data list
+                created_columns=self.created_columns,
+                data_class=self._data_class,  # Preserve the original data class
+            )
+
+            # Process one result at a time
             for result in self.data:
                 evaluator = self._create_evaluator(result)
                 result.check_expression(expression)  # check expression
                 if evaluator.eval(expression):
-                    new_data.append(result)
+                    filtered_results.append(
+                        result
+                    )  # Use append method to add matching results
+
+            if len(filtered_results) == 0:
+                import warnings
+
+                warnings.warn("No results remain after applying the filter.")
+
+            return filtered_results
 
         except ValueError as e:
             raise ResultsFilterError(
@@ -1595,13 +1626,6 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
                 """However, 'how_feeling = "Great"' is not a valid expression.""",
                 """See https://docs.expectedparrot.com/en/latest/results.html#filtering-results for more details.""",
             )
-
-        if len(new_data) == 0:
-            import warnings
-
-            warnings.warn("No results remain after applying the filter.")
-
-        return Results(survey=self.survey, data=new_data, created_columns=None)
 
     @classmethod
     def example(cls, randomize: bool = False) -> Results:
