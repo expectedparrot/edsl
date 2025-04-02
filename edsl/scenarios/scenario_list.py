@@ -34,7 +34,8 @@ import os
 from io import StringIO
 import inspect
 from collections import UserList, defaultdict
-from collections.abc import Iterable
+from collections.abc import Iterable, MutableSequence
+import json
 
 from simpleeval import EvalWithCompoundTypes, NameNotDefined  # type: ignore
 from tabulate import tabulate_formats
@@ -53,9 +54,15 @@ if TYPE_CHECKING:
 
 
 from ..base import Base
-from ..utilities import remove_edsl_version, sanitize_string, is_valid_variable_name, dict_hash
+from ..utilities import (
+    remove_edsl_version,
+    sanitize_string,
+    is_valid_variable_name,
+    dict_hash,
+)
 from ..dataset import ScenarioListOperationsMixin
-#from ..db_list import SQLList
+
+from ..db_list.sqlite_list import SQLiteList
 
 from .exceptions import ScenarioError
 from .scenario import Scenario
@@ -84,44 +91,40 @@ TableFormat: TypeAlias = Literal[
     "tsv",
 ]
 
-from collections import UserList as DataList
 
-class ScenarioList(DataList, Base, ScenarioListOperationsMixin):
+def serialize(obj):
+    """Serialize a Scenario object or other data to JSON string."""
+    return json.dumps(obj.to_dict()) if hasattr(obj, "to_dict") else json.dumps(obj)
+
+
+def deserialize(data):
+    """Deserialize JSON string back to a Scenario object or other data."""
+    return (
+        Scenario.from_dict(json.loads(data))
+        if isinstance(data, str)
+        else json.loads(data)
+    )
+
+
+class ScenarioSQLiteList(SQLiteList):
+    """SQLite-backed list specifically for storing Scenario objects."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs, serialize=serialize, deserialize=deserialize)
+
+
+class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
     """
     A collection of Scenario objects with advanced operations for manipulation and analysis.
-    
-    ScenarioList provides specialized functionality for working with collections of 
-    Scenario objects. It inherits from Base to integrate with EDSL's object model and 
-    from ScenarioListOperationsMixin to provide powerful data manipulation capabilities.
-    It uses SQLList for storage, which automatically offloads data to SQLite when memory
-    usage exceeds configured thresholds.
-    
-    The class provides methods for filtering, sorting, joining, transforming, and
-    analyzing collections of Scenarios. It's designed to work seamlessly with other
-    EDSL components like Surveys, Jobs, and Questions.
-    
+
+    ScenarioList provides specialized functionality for working with collections of
+    Scenario objects. It inherits from MutableSequence to provide standard list operations,
+    from Base to integrate with EDSL's object model, and from ScenarioListOperationsMixin
+    to provide powerful data manipulation capabilities.
+
     Attributes:
-        data (SQLList): The underlying storage containing Scenario objects.
+        data (list): The underlying list containing Scenario objects.
         codebook (dict): Optional metadata describing the fields in the scenarios.
-        
-    Examples:
-        Create a ScenarioList from Scenario objects:
-        >>> from edsl.scenarios import Scenario, ScenarioList
-        >>> s1 = Scenario({"product": "apple", "price": 1.99})
-        >>> s2 = Scenario({"product": "banana", "price": 0.99})
-        >>> sl = ScenarioList([s1, s2])
-        
-        Filter scenarios based on a condition:
-        >>> cheap_fruits = sl.filter("price < 1.50")
-        >>> len(cheap_fruits)
-        1
-        >>> cheap_fruits[0]["product"]
-        'banana'
-        
-        Add a new column based on existing data:
-        >>> sl_with_tax = sl.mutate("tax = price * 0.08")
-        >>> sl_with_tax[0]["tax"]
-        0.1592
     """
 
     __documentation__ = (
@@ -129,57 +132,50 @@ class ScenarioList(DataList, Base, ScenarioListOperationsMixin):
     )
 
     def __init__(
-        self, 
-        data: Optional[list] = None, 
+        self,
+        data: Optional[list] = None,
         codebook: Optional[dict[str, str]] = None,
+        data_class: Optional[type] = ScenarioSQLiteList,
     ):
-        """
-        Initialize a new ScenarioList with optional data and codebook.
-        
-        Args:
-            data: A list of Scenario objects. If None, an empty list is used.
-            codebook: A dictionary mapping field names to descriptions or metadata.
-                     Used for documentation and to provide context for fields.
-                     
-        Examples:
-            >>> sl = ScenarioList()  # Empty list
-            >>> s1 = Scenario({"product": "apple"})
-            >>> s2 = Scenario({"product": "banana"})
-            >>> sl = ScenarioList([s1, s2])  # With data
-            
-            >>> # With a codebook
-            >>> codebook = {"product": "Fruit name", "price": "Price in USD"}
-            >>> sl = ScenarioList([s1, s2], codebook=codebook)
-            
-        """
-        self.data = data or []
+        """Initialize a new ScenarioList with optional data and codebook."""
+        self._data_class = data_class
+        self.data = self._data_class(data or [])
         self.codebook = codebook or {}
-                
-    def __len__(self) -> int:
-        """Return the number of scenarios in the list.
-        
-        Returns:
-            int: The number of scenarios in the list
-            
-        Examples:
-            >>> sl = ScenarioList([Scenario({"a": 1}), Scenario({"b": 2})])
-            >>> len(sl)
-            2
-        """
+
+    # Required MutableSequence abstract methods
+    def __getitem__(self, index):
+        """Get item at index."""
+        if isinstance(index, slice):
+            return self.__class__(list(self.data[index]), self.codebook.copy())
+        return self.data[index]
+
+    def __setitem__(self, index, value):
+        """Set item at index."""
+        self.data[index] = value
+
+    def __delitem__(self, index):
+        """Delete item at index."""
+        del self.data[index]
+
+    def __len__(self):
+        """Return number of items."""
         return len(self.data)
-        
-        
+
+    def insert(self, index, value):
+        """Insert value at index."""
+        self.data.insert(index, value)
+
     def unique(self) -> ScenarioList:
         """
         Return a new ScenarioList containing only unique Scenario objects.
-        
+
         This method removes duplicate Scenario objects based on their hash values,
         which are determined by their content. Two Scenarios with identical key-value
         pairs will have the same hash and be considered duplicates.
-        
+
         Returns:
             A new ScenarioList containing only unique Scenario objects.
-            
+
         Examples:
             >>> from edsl.scenarios import Scenario, ScenarioList
             >>> s1 = Scenario({"a": 1})
@@ -191,7 +187,7 @@ class ScenarioList(DataList, Base, ScenarioListOperationsMixin):
             2
             >>> unique_sl
             ScenarioList([Scenario({'a': 1}), Scenario({'a': 2})])
-            
+
         Notes:
             - The order of scenarios in the result is not guaranteed due to the use of sets
             - Uniqueness is determined by the Scenario's __hash__ method
@@ -203,14 +199,14 @@ class ScenarioList(DataList, Base, ScenarioListOperationsMixin):
     def has_jinja_braces(self) -> bool:
         """
         Check if any Scenario in the list contains values with Jinja template braces.
-        
+
         This property checks all Scenarios in the list to determine if any contain
         string values with Jinja template syntax ({{ and }}). This is important for
         rendering templates and avoiding conflicts with other templating systems.
-        
+
         Returns:
             True if any Scenario contains values with Jinja braces, False otherwise.
-            
+
         Examples:
             >>> from edsl.scenarios import Scenario, ScenarioList
             >>> s1 = Scenario({"text": "Plain text"})
@@ -227,15 +223,15 @@ class ScenarioList(DataList, Base, ScenarioListOperationsMixin):
     def _convert_jinja_braces(self) -> ScenarioList:
         """
         Convert Jinja braces to alternative symbols in all Scenarios in the list.
-        
+
         This method creates a new ScenarioList where all Jinja template braces
         ({{ and }}) in string values are converted to alternative symbols (<< and >>).
         This is useful when you need to prevent template processing or avoid conflicts
         with other templating systems.
-        
+
         Returns:
             A new ScenarioList with converted braces in all Scenarios.
-            
+
         Examples:
             >>> from edsl.scenarios import Scenario, ScenarioList
             >>> s = Scenario({"text": "Template with {{variable}}"})
@@ -243,7 +239,7 @@ class ScenarioList(DataList, Base, ScenarioListOperationsMixin):
             >>> converted = sl._convert_jinja_braces()
             >>> converted[0]["text"]
             'Template with <<variable>>'
-            
+
         Notes:
             - The original ScenarioList is not modified
             - This is primarily intended for internal use
@@ -474,10 +470,12 @@ class ScenarioList(DataList, Base, ScenarioListOperationsMixin):
         """
         from itertools import product
         from .scenario import Scenario
+
         if isinstance(other, Scenario):
             other = ScenarioList([other])
         elif not isinstance(other, ScenarioList):
             from .exceptions import TypeScenarioError
+
             raise TypeScenarioError(f"Cannot multiply ScenarioList with {type(other)}")
 
         new_sl = []
@@ -552,15 +550,21 @@ class ScenarioList(DataList, Base, ScenarioListOperationsMixin):
                 new_scenarios.append(new_scenario)
         return ScenarioList(new_scenarios)
 
-    def _concatenate(self, fields: List[str], output_type: str = "string", separator: str = ";", new_field_name: Optional[str] = None) -> ScenarioList:
+    def _concatenate(
+        self,
+        fields: List[str],
+        output_type: str = "string",
+        separator: str = ";",
+        new_field_name: Optional[str] = None,
+    ) -> ScenarioList:
         """Private method to handle concatenation logic for different output types.
-        
+
         :param fields: The fields to concatenate.
         :param output_type: The type of output ("string", "list", or "set").
         :param separator: The separator to use for string concatenation.
         :param new_field_name: Optional custom name for the concatenated field.
                              If None, defaults to "concat_field1_field2_..."
-        
+
         Returns:
             ScenarioList: A new ScenarioList with concatenated fields.
         """
@@ -569,7 +573,7 @@ class ScenarioList(DataList, Base, ScenarioListOperationsMixin):
             raise ScenarioError(
                 f"The 'fields' parameter must be a list of field names, not a string. Got '{fields}'."
             )
-            
+
         new_scenarios = []
         for scenario in self:
             new_scenario = scenario.copy()
@@ -579,8 +583,12 @@ class ScenarioList(DataList, Base, ScenarioListOperationsMixin):
                     values.append(new_scenario[field])
                     del new_scenario[field]
 
-            field_name = new_field_name if new_field_name is not None else f"concat_{'_'.join(fields)}"
-            
+            field_name = (
+                new_field_name
+                if new_field_name is not None
+                else f"concat_{'_'.join(fields)}"
+            )
+
             if output_type == "string":
                 # Convert all values to strings and join with separator
                 new_scenario[field_name] = separator.join(str(v) for v in values)
@@ -592,13 +600,21 @@ class ScenarioList(DataList, Base, ScenarioListOperationsMixin):
                 new_scenario[field_name] = set(values)
             else:
                 from .exceptions import ValueScenarioError
-                raise ValueScenarioError(f"Invalid output_type: {output_type}. Must be 'string', 'list', or 'set'.")
-                
+
+                raise ValueScenarioError(
+                    f"Invalid output_type: {output_type}. Must be 'string', 'list', or 'set'."
+                )
+
             new_scenarios.append(new_scenario)
 
         return ScenarioList(new_scenarios)
 
-    def concatenate(self, fields: List[str], separator: str = ";", new_field_name: Optional[str] = None) -> ScenarioList:
+    def concatenate(
+        self,
+        fields: List[str],
+        separator: str = ";",
+        new_field_name: Optional[str] = None,
+    ) -> ScenarioList:
         """Concatenate specified fields into a single string field.
 
         :param fields: The fields to concatenate.
@@ -615,9 +631,16 @@ class ScenarioList(DataList, Base, ScenarioListOperationsMixin):
             >>> s.concatenate(['a', 'b', 'c'], new_field_name='combined')
             ScenarioList([Scenario({'combined': '1;2;3'}), Scenario({'combined': '4;5;6'})])
         """
-        return self._concatenate(fields, output_type="string", separator=separator, new_field_name=new_field_name)
+        return self._concatenate(
+            fields,
+            output_type="string",
+            separator=separator,
+            new_field_name=new_field_name,
+        )
 
-    def concatenate_to_list(self, fields: List[str], new_field_name: Optional[str] = None) -> ScenarioList:
+    def concatenate_to_list(
+        self, fields: List[str], new_field_name: Optional[str] = None
+    ) -> ScenarioList:
         """Concatenate specified fields into a single list field.
 
         :param fields: The fields to concatenate.
@@ -633,9 +656,13 @@ class ScenarioList(DataList, Base, ScenarioListOperationsMixin):
             >>> s.concatenate_to_list(['a', 'b', 'c'], new_field_name='values')
             ScenarioList([Scenario({'values': [1, 2, 3]}), Scenario({'values': [4, 5, 6]})])
         """
-        return self._concatenate(fields, output_type="list", new_field_name=new_field_name)
+        return self._concatenate(
+            fields, output_type="list", new_field_name=new_field_name
+        )
 
-    def concatenate_to_set(self, fields: List[str], new_field_name: Optional[str] = None) -> ScenarioList:
+    def concatenate_to_set(
+        self, fields: List[str], new_field_name: Optional[str] = None
+    ) -> ScenarioList:
         """Concatenate specified fields into a single set field.
 
         :param fields: The fields to concatenate.
@@ -651,7 +678,9 @@ class ScenarioList(DataList, Base, ScenarioListOperationsMixin):
             >>> s.concatenate_to_set(['a', 'b', 'c'], new_field_name='unique_values')
             ScenarioList([Scenario({'unique_values': {1, 2, 3}}), Scenario({'unique_values': {4, 5, 6}})])
         """
-        return self._concatenate(fields, output_type="set", new_field_name=new_field_name)
+        return self._concatenate(
+            fields, output_type="set", new_field_name=new_field_name
+        )
 
     def unpack_dict(
         self, field: str, prefix: Optional[str] = None, drop_field: bool = False
@@ -778,8 +807,7 @@ class ScenarioList(DataList, Base, ScenarioListOperationsMixin):
         False
         """
         return ScenarioList(
-            [scenario.copy() for scenario in self],
-            codebook=self.codebook.copy()
+            [scenario.copy() for scenario in self], codebook=self.codebook.copy()
         )
 
     def filter(self, expression: str) -> ScenarioList:
@@ -804,15 +832,16 @@ class ScenarioList(DataList, Base, ScenarioListOperationsMixin):
                     keys.update(scenario.keys())
                 if keys != base_keys:
                     import warnings
+
                     warnings.warn(
                         "Ragged ScenarioList detected (different keys for different scenario entries). This may cause unexpected behavior."
                     )
         except IndexError:
             pass
-        
+
         # Create new ScenarioList with filtered data
         new_data = []
-        
+
         def create_evaluator(scenario: Scenario):
             """Create an evaluator for the given scenario."""
             return EvalWithCompoundTypes(names=scenario)
@@ -829,7 +858,7 @@ class ScenarioList(DataList, Base, ScenarioListOperationsMixin):
                 available_fields = ", ".join(first_item.keys() if first_item else [])
             except:
                 available_fields = "unknown"
-                
+
             raise ScenarioError(
                 f"Error in filter: '{e}'\n"
                 f"The expression '{expression}' refers to a field that does not exist.\n"
@@ -903,12 +932,12 @@ class ScenarioList(DataList, Base, ScenarioListOperationsMixin):
         key_name: str = "content",
     ) -> "ScenarioList":
         """Create a ScenarioList of Scenario objects from files in a directory.
-        
+
         This method scans a directory and creates a Scenario object for each file found,
         where each Scenario contains a FileStore object under the specified key.
         Optionally filters files based on a wildcard pattern. If no path is provided,
         the current working directory is used.
-        
+
         Args:
             path: The directory path to scan, optionally including a wildcard pattern.
                  If None, uses the current working directory.
@@ -918,24 +947,24 @@ class ScenarioList(DataList, Base, ScenarioListOperationsMixin):
                  - "*.txt" - scans only text files in the current working directory
             recursive: Whether to scan subdirectories recursively. Defaults to False.
             key_name: The key to use for the FileStore object in each Scenario. Defaults to "content".
-            
+
         Returns:
             A ScenarioList containing Scenario objects for all matching files, where each Scenario
             has a FileStore object under the specified key.
-            
+
         Raises:
             FileNotFoundError: If the specified directory does not exist.
-            
+
         Examples:
             # Get all files in the current directory with default key "content"
             sl = ScenarioList.from_directory()
-            
+
             # Get all Python files in a specific directory with custom key "python_file"
             sl = ScenarioList.from_directory('*.py', key_name="python_file")
-            
+
             # Get all image files in the current directory
             sl = ScenarioList.from_directory('*.png', key_name="image")
-            
+
             # Get all files recursively including subdirectories
             sl = ScenarioList.from_directory(recursive=True, key_name="document")
         """
@@ -945,28 +974,28 @@ class ScenarioList(DataList, Base, ScenarioListOperationsMixin):
             pattern = None
         else:
             # Special handling for "**" pattern which indicates recursive scanning
-            has_recursive_pattern = '**' in path if path else False
-            
+            has_recursive_pattern = "**" in path if path else False
+
             # Check if path contains any wildcard
-            if path and ('*' in path):
+            if path and ("*" in path):
                 # Handle "**/*.ext" pattern - find the directory part before the **
                 if has_recursive_pattern:
                     # Extract the base directory by finding the part before **
-                    parts = path.split('**')
+                    parts = path.split("**")
                     if parts and parts[0]:
                         # Remove trailing slash if any
-                        directory_path = parts[0].rstrip('/')
+                        directory_path = parts[0].rstrip("/")
                         if not directory_path:
                             directory_path = os.getcwd()
                         # Get the pattern after **
                         pattern = parts[1] if len(parts) > 1 else None
-                        if pattern and pattern.startswith('/'):
+                        if pattern and pattern.startswith("/"):
                             pattern = pattern[1:]  # Remove leading slash
                     else:
                         directory_path = os.getcwd()
                         pattern = None
                 # Handle case where path is just a pattern (e.g., "*.py")
-                elif os.path.dirname(path) == '':
+                elif os.path.dirname(path) == "":
                     directory_path = os.getcwd()
                     pattern = os.path.basename(path)
                 else:
@@ -979,43 +1008,44 @@ class ScenarioList(DataList, Base, ScenarioListOperationsMixin):
                 # Path is a directory with no pattern
                 directory_path = path
                 pattern = None
-                
+
         # Ensure directory exists
         if not os.path.isdir(directory_path):
             from .exceptions import FileNotFoundScenarioError
+
             raise FileNotFoundScenarioError(f"Directory not found: {directory_path}")
-        
+
         # Create a DirectoryScanner for the directory
         scanner = DirectoryScanner(directory_path)
-        
+
         # Configure wildcard pattern filtering
         suffix_allow_list = None
         example_suffix = None
-        
+
         if pattern:
-            if pattern.startswith('*.'):
+            if pattern.startswith("*."):
                 # Simple extension filter (e.g., "*.py")
                 suffix_allow_list = [pattern[2:]]
-            elif '*' in pattern:
+            elif "*" in pattern:
                 # Other wildcard patterns
                 example_suffix = pattern
             else:
                 # Handle simple non-wildcard pattern (exact match)
                 example_suffix = pattern
-        
+
         # Use scanner to find files and create FileStore objects
         file_stores = scanner.scan(
             factory=lambda path: FileStore(path),
             recursive=recursive,
             suffix_allow_list=suffix_allow_list,
-            example_suffix=example_suffix
+            example_suffix=example_suffix,
         )
-        
+
         # Convert FileStore objects to Scenario objects with the specified key
         scenarios = [Scenario({key_name: file_store}) for file_store in file_stores]
-        
+
         return cls(scenarios)
-                
+
     @classmethod
     def from_list(
         cls, name: str, values: list, func: Optional[Callable] = None
@@ -1032,8 +1062,10 @@ class ScenarioList(DataList, Base, ScenarioListOperationsMixin):
         ScenarioList([Scenario({'name': 'Alice'}), Scenario({'name': 'Bob'})])
         """
         if not func:
+
             def identity(x):
                 return x
+
             func = identity
         return cls([Scenario({name: func(value)}) for value in values])
 
@@ -1044,7 +1076,6 @@ class ScenarioList(DataList, Base, ScenarioListOperationsMixin):
         pretty_labels: Optional[dict[str, str]] = None,
     ) -> str:
         """Return the ScenarioList as a table."""
-
 
         if tablefmt is not None and tablefmt not in tabulate_formats:
             raise ValueError(
@@ -1198,7 +1229,7 @@ class ScenarioList(DataList, Base, ScenarioListOperationsMixin):
         for scenario in sl:
             scenario[name] = value
         return sl
-    
+
     def rename(self, replacement_dict: dict) -> ScenarioList:
         """Rename the fields in the scenarios.
 
@@ -1217,8 +1248,6 @@ class ScenarioList(DataList, Base, ScenarioListOperationsMixin):
             new_list.append(new_obj)
         return new_list
 
-    
-
     def replace_names(self, new_names: list) -> ScenarioList:
         """Replace the field names in the scenarios with a new list of names.
 
@@ -1232,7 +1261,7 @@ class ScenarioList(DataList, Base, ScenarioListOperationsMixin):
         """
         if not self:
             return ScenarioList([])
-            
+
         if len(new_names) != len(self[0].keys()):
             raise ScenarioError(
                 f"Length of new names ({len(new_names)}) does not match number of fields ({len(self[0].keys())})"
@@ -1260,17 +1289,19 @@ class ScenarioList(DataList, Base, ScenarioListOperationsMixin):
     #     return new_list
 
     @classmethod
-    def from_sqlite(cls, filepath: str, table: Optional[str] = None, sql_query: Optional[str] = None):
+    def from_sqlite(
+        cls, filepath: str, table: Optional[str] = None, sql_query: Optional[str] = None
+    ):
         """Create a ScenarioList from a SQLite database.
-        
+
         Args:
             filepath (str): Path to the SQLite database file
             table (Optional[str]): Name of table to query. If None, sql_query must be provided.
             sql_query (Optional[str]): SQL query to execute. Used if table is None.
-            
+
         Returns:
             ScenarioList: List of scenarios created from database rows
-            
+
         Raises:
             ValueError: If both table and sql_query are None
             sqlite3.Error: If there is an error executing the database query
@@ -1279,22 +1310,23 @@ class ScenarioList(DataList, Base, ScenarioListOperationsMixin):
 
         if table is None and sql_query is None:
             from .exceptions import ValueScenarioError
+
             raise ValueScenarioError("Either table or sql_query must be provided")
 
         try:
             with sqlite3.connect(filepath) as conn:
                 cursor = conn.cursor()
-                
+
                 if table is not None:
                     cursor.execute(f"SELECT * FROM {table}")
                 else:
                     cursor.execute(sql_query)
-                    
+
                 columns = [description[0] for description in cursor.description]
                 data = cursor.fetchall()
-                
+
             return cls([Scenario(dict(zip(columns, row))) for row in data])
-            
+
         except sqlite3.Error as e:
             raise sqlite3.Error(f"Database error occurred: {str(e)}")
 
@@ -1346,6 +1378,7 @@ class ScenarioList(DataList, Base, ScenarioListOperationsMixin):
             doc_id = url.split("/d/")[1].split("/edit")[0]
         else:
             from .exceptions import ValueScenarioError
+
             raise ValueScenarioError("Invalid Google Doc URL format.")
 
         export_url = f"https://docs.google.com/document/d/{doc_id}/export?format=docx"
@@ -1374,47 +1407,46 @@ class ScenarioList(DataList, Base, ScenarioListOperationsMixin):
         ScenarioList([Scenario({'name': 'Alice', 'age': 30, 'location': 'New York'}), Scenario({'name': 'Bob', 'age': 25, 'location': 'Los Angeles'})])
         """
         return cls([Scenario(row) for row in df.to_dict(orient="records")])
-    
 
     @classmethod
     def from_dta(cls, filepath: str, include_metadata: bool = True) -> ScenarioList:
         """Create a ScenarioList from a Stata file.
-        
+
         Args:
             filepath (str): Path to the Stata (.dta) file
             include_metadata (bool): If True, extract and preserve variable labels and value labels
                                     as additional metadata in the ScenarioList
-        
+
         Returns:
             ScenarioList: A ScenarioList containing the data from the Stata file
         """
         import pandas as pd
-        
+
         # Read the Stata file with pandas
         df = pd.read_stata(filepath)
-        
+
         # Create the basic ScenarioList
         scenario_list = cls.from_pandas(df)
-        
+
         # Extract and preserve metadata if requested
         if include_metadata:
             # Get variable labels (if any)
             variable_labels = {}
-            if hasattr(df, 'variable_labels') and df.variable_labels:
+            if hasattr(df, "variable_labels") and df.variable_labels:
                 variable_labels = df.variable_labels
-            
+
             # Get value labels (if any)
             value_labels = {}
-            if hasattr(df, 'value_labels') and df.value_labels:
+            if hasattr(df, "value_labels") and df.value_labels:
                 value_labels = df.value_labels
-            
+
             # Store the metadata in the ScenarioList's codebook
             if variable_labels or value_labels:
                 scenario_list.codebook = {
-                    'variable_labels': variable_labels,
-                    'value_labels': value_labels
+                    "variable_labels": variable_labels,
+                    "value_labels": value_labels,
                 }
-        
+
         return scenario_list
 
     @classmethod
@@ -1492,7 +1524,11 @@ class ScenarioList(DataList, Base, ScenarioListOperationsMixin):
 
     @classmethod
     def from_excel(
-        cls, filename: str, sheet_name: Optional[str] = None, skip_rows: Optional[List[int]] = None, use_codebook: bool = False
+        cls,
+        filename: str,
+        sheet_name: Optional[str] = None,
+        skip_rows: Optional[List[int]] = None,
+        use_codebook: bool = False,
     ) -> ScenarioList:
         """Create a ScenarioList from an Excel file.
 
@@ -1551,7 +1587,10 @@ class ScenarioList(DataList, Base, ScenarioListOperationsMixin):
                 for name in all_sheets.keys():
                     print(f"- {name}")
                 from .exceptions import ValueScenarioError
-                raise ValueScenarioError("Please provide a sheet name to load data from.")
+
+                raise ValueScenarioError(
+                    "Please provide a sheet name to load data from."
+                )
             else:
                 # If there is only one sheet, use it
                 sheet_name = list(all_sheets.keys())[0]
@@ -1567,23 +1606,26 @@ class ScenarioList(DataList, Base, ScenarioListOperationsMixin):
 
         if use_codebook:
             codebook = {f"col_{i}": col for i, col in enumerate(df.columns)}
-            koobedoc = {col:f"col_{i}" for i, col in enumerate(df.columns)}
+            koobedoc = {col: f"col_{i}" for i, col in enumerate(df.columns)}
 
         observations = []
         for _, row in df.iterrows():
             if use_codebook:
-                observations.append(Scenario({koobedoc.get(k):v for k,v in row.to_dict().items()}))
+                observations.append(
+                    Scenario({koobedoc.get(k): v for k, v in row.to_dict().items()})
+                )
             else:
                 observations.append(Scenario(row.to_dict()))
 
-
-        if use_codebook:    
+        if use_codebook:
             return cls(observations, codebook=codebook)
         else:
             return cls(observations)
 
     @classmethod
-    def from_google_sheet(cls, url: str, sheet_name: str = None, column_names: Optional[List[str]]= None) -> ScenarioList:
+    def from_google_sheet(
+        cls, url: str, sheet_name: str = None, column_names: Optional[List[str]] = None
+    ) -> ScenarioList:
         """Create a ScenarioList from a Google Sheet.
 
         This method downloads the Google Sheet as an Excel file, saves it to a temporary file,
@@ -1607,6 +1649,7 @@ class ScenarioList(DataList, Base, ScenarioListOperationsMixin):
             sheet_id = url.split("/d/")[1].split("/edit")[0]
         else:
             from .exceptions import ValueScenarioError
+
             raise ValueScenarioError("Invalid Google Sheet URL format.")
 
         export_url = (
@@ -1632,11 +1675,11 @@ class ScenarioList(DataList, Base, ScenarioListOperationsMixin):
                     f"Number of provided column names ({len(column_names)}) "
                     f"does not match number of columns in sheet ({len(scenario_list[0].keys())})"
                 )
-            
+
             # Create a codebook mapping original keys to new names
             original_keys = list(scenario_list[0].keys())
             codebook = dict(zip(original_keys, column_names))
-            
+
             # Return new ScenarioList with renamed columns
             return scenario_list.rename(codebook)
         else:
@@ -1678,7 +1721,7 @@ class ScenarioList(DataList, Base, ScenarioListOperationsMixin):
                 encodings_to_try = ["utf-8", "latin-1", "cp1252", "ISO-8859-1"]
                 last_exception = None
                 file_obj = None
-                
+
                 for encoding in encodings_to_try:
                     try:
                         file_obj = open(source, "r", encoding=encoding)
@@ -1691,10 +1734,13 @@ class ScenarioList(DataList, Base, ScenarioListOperationsMixin):
                         if file_obj:
                             file_obj.close()
                             file_obj = None
-                
+
                 if file_obj is None:
                     from .exceptions import ValueScenarioError
-                    raise ValueScenarioError(f"Could not decode file {source} with any of the attempted encodings. Original error: {last_exception}")
+
+                    raise ValueScenarioError(
+                        f"Could not decode file {source} with any of the attempted encodings. Original error: {last_exception}"
+                    )
 
             reader = csv.reader(file_obj, delimiter=delimiter)
             try:
@@ -1702,7 +1748,10 @@ class ScenarioList(DataList, Base, ScenarioListOperationsMixin):
                 observations = [Scenario(dict(zip(header, row))) for row in reader]
             except StopIteration:
                 from .exceptions import ValueScenarioError
-                raise ValueScenarioError(f"File {source} appears to be empty or has an invalid format")
+
+                raise ValueScenarioError(
+                    f"File {source} appears to be empty or has an invalid format"
+                )
 
         finally:
             if file_obj:
@@ -1845,52 +1894,53 @@ class ScenarioList(DataList, Base, ScenarioListOperationsMixin):
     def __len__(self) -> int:
         """Return the number of scenarios in the list."""
         return len(self.data)
-        
+
     def __iter__(self):
         """Return an iterator over the scenarios in the list."""
         return iter(self.data)
-        
+
     @property
     def is_memory_only(self) -> bool:
         """Check if the scenario list data is stored entirely in memory.
-        
+
         Returns:
             bool: True if all data is in memory, False if using SQLite backing
         """
         return getattr(self.data, "is_memory_only", True)
-        
+
     def items(self):
         """Make this class compatible with dict.items() by accessing first scenario items.
-        
+
         This ensures the class works as a drop-in replacement for UserList in code
         that expects a dictionary-like interface.
-        
+
         Returns:
             items view from the first scenario object if available, empty list otherwise
         """
         if len(self.data) > 0:
             return self.data[0].items()
         return {}.items()
-        
+
     def copy(self):
         """Create a copy of this ScenarioList.
-        
+
         Returns:
             A new ScenarioList with copies of the same scenarios
         """
         # Get copies of all scenarios
         if len(self.data) > 0:
             # If we have at least one scenario, copy the first one
-            if hasattr(self.data[0], 'copy'):
+            if hasattr(self.data[0], "copy"):
                 return self.data[0].copy()
             # Otherwise try to convert to Scenario
             from .scenario import Scenario
+
             try:
                 return Scenario(dict(self.data[0]))
             except (TypeError, ValueError):
                 # Fallback to empty scenario
                 return Scenario({})
-    
+
     def __getitem__(self, key: Union[int, slice, str]) -> Any:
         """Return the item at the given index or key.
 
@@ -1898,7 +1948,7 @@ class ScenarioList(DataList, Base, ScenarioListOperationsMixin):
         1. Integer indices to access scenarios by position
         2. Slice objects to get a range of scenarios
         3. String keys to access fields across all scenarios (returns first match)
-        
+
         Example:
         >>> s = ScenarioList([Scenario({'age': 22, 'hair': 'brown', 'height': 5.5}), Scenario({'age': 22, 'hair': 'brown', 'height': 5.5})])
         >>> s[0]
@@ -1906,15 +1956,12 @@ class ScenarioList(DataList, Base, ScenarioListOperationsMixin):
 
         >>> s[:1]
         ScenarioList([Scenario({'age': 22, 'hair': 'brown', 'height': 5.5})])
-        
+
         >>> s['age']  # Returns value from first scenario
         22
         """
         if isinstance(key, slice):
-            return ScenarioList(
-                self.data[key], 
-                codebook=self.codebook
-            )
+            return self.__class__(list(self.data[key]), self.codebook.copy())
         elif isinstance(key, int):
             return self.data[key]
         elif isinstance(key, str):
@@ -2000,7 +2047,9 @@ class ScenarioList(DataList, Base, ScenarioListOperationsMixin):
             new_scenarios.extend(replacement_scenarios)
         return ScenarioList(new_scenarios)
 
-    def collapse(self, field: str, separator: Optional[str] = None, add_count: bool = False) -> ScenarioList:
+    def collapse(
+        self, field: str, separator: Optional[str] = None, add_count: bool = False
+    ) -> ScenarioList:
         """Collapse a ScenarioList by grouping on all fields except the specified one,
         collecting the values of the specified field into a list.
 
@@ -2023,10 +2072,10 @@ class ScenarioList(DataList, Base, ScenarioListOperationsMixin):
         """
         if not self:
             return ScenarioList([])
-        
+
         # Determine all fields except the one to collapse
         id_vars = [key for key in self[0].keys() if key != field]
-        
+
         # Group the scenarios
         grouped = defaultdict(list)
         for scenario in self:
@@ -2034,7 +2083,7 @@ class ScenarioList(DataList, Base, ScenarioListOperationsMixin):
             key = tuple(scenario[id_var] for id_var in id_vars)
             # Add the value of the field to collapse to the list for this key
             grouped[key].append(scenario[field])
-        
+
         # Create a new ScenarioList with the collapsed field
         result = []
         for key, values in grouped.items():
@@ -2044,23 +2093,23 @@ class ScenarioList(DataList, Base, ScenarioListOperationsMixin):
             else:
                 new_scenario[field] = values
             if add_count:
-                new_scenario['num_collapsed_rows'] = len(values)
+                new_scenario["num_collapsed_rows"] = len(values)
             result.append(Scenario(new_scenario))
-        
+
         return ScenarioList(result)
 
     def create_comparisons(
-        self, 
-        bidirectional: bool = False, 
+        self,
+        bidirectional: bool = False,
         num_options: int = 2,
         option_prefix: str = "option_",
-        use_alphabet: bool = False
+        use_alphabet: bool = False,
     ) -> ScenarioList:
         """Create a new ScenarioList with comparisons between scenarios.
-        
+
         Each scenario in the result contains multiple original scenarios as dictionaries,
         allowing for side-by-side comparison.
-        
+
         Args:
             bidirectional (bool): If True, include both (A,B) and (B,A) comparisons.
                 If False, only include (A,B) where A comes before B in the original list.
@@ -2071,11 +2120,11 @@ class ScenarioList(DataList, Base, ScenarioListOperationsMixin):
                 Ignored if use_alphabet is True.
             use_alphabet (bool): If True, use letters as keys (A, B, C, etc.) instead of
                 the option_prefix with numbers.
-        
+
         Returns:
             ScenarioList: A new ScenarioList where each scenario contains multiple original
                 scenarios as dictionaries.
-        
+
         Example:
             >>> s = ScenarioList([
             ...     Scenario({'id': 1, 'text': 'Option A'}),
@@ -2089,22 +2138,29 @@ class ScenarioList(DataList, Base, ScenarioListOperationsMixin):
         """
         from itertools import combinations, permutations
         import string
-        
+
         if num_options < 2:
             from .exceptions import ValueScenarioError
+
             raise ValueScenarioError("num_options must be at least 2")
-        
+
         if num_options > len(self):
             from .exceptions import ValueScenarioError
-            raise ValueScenarioError(f"num_options ({num_options}) cannot exceed the number of scenarios ({len(self)})")
-        
+
+            raise ValueScenarioError(
+                f"num_options ({num_options}) cannot exceed the number of scenarios ({len(self)})"
+            )
+
         if use_alphabet and num_options > 26:
             from .exceptions import ValueScenarioError
-            raise ValueScenarioError("When using alphabet labels, num_options cannot exceed 26 (the number of letters in the English alphabet)")
-        
+
+            raise ValueScenarioError(
+                "When using alphabet labels, num_options cannot exceed 26 (the number of letters in the English alphabet)"
+            )
+
         # Convert each scenario to a dictionary
         scenario_dicts = [scenario.to_dict(add_edsl_version=False) for scenario in self]
-        
+
         # Generate combinations or permutations based on bidirectional flag
         if bidirectional:
             # For bidirectional, use permutations to get all ordered arrangements
@@ -2112,13 +2168,13 @@ class ScenarioList(DataList, Base, ScenarioListOperationsMixin):
                 # For pairwise, we can use permutations with r=2
                 scenario_groups = permutations(scenario_dicts, 2)
             else:
-                # For more than 2 options with bidirectional=True, 
+                # For more than 2 options with bidirectional=True,
                 # we need all permutations of the specified size
                 scenario_groups = permutations(scenario_dicts, num_options)
         else:
             # For unidirectional, use combinations to get unordered groups
             scenario_groups = combinations(scenario_dicts, num_options)
-        
+
         # Create new scenarios with the combinations
         result = []
         for group in scenario_groups:
@@ -2132,19 +2188,19 @@ class ScenarioList(DataList, Base, ScenarioListOperationsMixin):
                     key = f"{option_prefix}{i+1}"
                 new_scenario[key] = scenario_dict
             result.append(Scenario(new_scenario))
-        
+
         return ScenarioList(result)
 
     @classmethod
     def from_parquet(cls, filepath: str) -> ScenarioList:
         """Create a ScenarioList from a Parquet file.
-        
+
         Args:
             filepath (str): Path to the Parquet file
-            
+
         Returns:
             ScenarioList: A ScenarioList containing the data from the Parquet file
-            
+
         Example:
         >>> import pandas as pd
         >>> import tempfile
@@ -2161,7 +2217,7 @@ class ScenarioList(DataList, Base, ScenarioListOperationsMixin):
         'Alice'
         """
         import pandas as pd
-        
+
         try:
             # Try to read the Parquet file with pandas
             df = pd.read_parquet(filepath)
@@ -2176,20 +2232,20 @@ class ScenarioList(DataList, Base, ScenarioListOperationsMixin):
                 ) from e
             else:
                 raise
-        
+
         # Convert the DataFrame to a ScenarioList
         return cls.from_pandas(df)
 
-    def replace_values(self, replacements:dict) -> "ScenarioList":
+    def replace_values(self, replacements: dict) -> "ScenarioList":
         """
         Create new scenarios with values replaced according to the provided replacement dictionary.
-        
+
         Args:
             replacements (dict): Dictionary of values to replace {old_value: new_value}
-        
+
         Returns:
             ScenarioList: A new ScenarioList with replaced values
-        
+
         Examples:
             >>> scenarios = ScenarioList([
             ...     Scenario({'a': 'nan', 'b': 1}),
@@ -2216,11 +2272,10 @@ class ScenarioList(DataList, Base, ScenarioListOperationsMixin):
     @classmethod
     def from_pdf(cls, filename_or_url, collapse_pages=False):
         return PdfTools.from_pdf(filename_or_url, collapse_pages)
-    
+
     @classmethod
     def from_pdf_to_image(cls, pdf_path, image_format="jpeg"):
         return PdfTools.from_pdf_to_image(pdf_path, image_format)
-
 
 
 if __name__ == "__main__":
