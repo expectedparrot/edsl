@@ -39,7 +39,7 @@ from __future__ import annotations
 import json
 import random
 import warnings
-from collections import UserList, defaultdict
+from collections import defaultdict
 from typing import Optional, Callable, Any, Union, List, TYPE_CHECKING
 from bisect import bisect_left
 from collections.abc import MutableSequence
@@ -72,6 +72,25 @@ from .exceptions import (
     ResultsFilterError,
     ResultsDeserializationError,
 )
+
+# from ..db_list.sqlite_list import SQLiteList
+
+
+def serialize(obj):
+    return json.dumps(obj.to_dict()) if hasattr(obj, "to_dict") else json.dumps(obj)
+
+
+def deserialize(data):
+    return (
+        Result.from_dict(json.loads(data))
+        if hasattr(Result, "from_dict")
+        else json.loads(data)
+    )
+
+
+class ResultsSQLiteList(SQLiteList):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs, serialize=serialize, deserialize=deserialize)
 
 
 def ensure_fetched(method):
@@ -302,7 +321,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         total_results: Optional[int] = None,
         task_history: Optional[TaskHistory] = None,
         sort_by_iteration: bool = False,
-        data_class: Optional[type] = SQLiteList,
+        data_class: Optional[type] = ResultsSQLiteList,
     ):
         """Instantiate a Results object with a survey and a list of Result objects.
 

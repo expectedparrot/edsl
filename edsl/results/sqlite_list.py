@@ -8,6 +8,8 @@ from collections.abc import MutableSequence
 
 from ..results.result import Result
 
+from ..db_list.sqlite_list import SQLiteList
+
 
 def serialize(obj):
     return json.dumps(obj.to_dict()) if hasattr(obj, "to_dict") else json.dumps(obj)
@@ -19,6 +21,11 @@ def deserialize(data):
         if hasattr(Result, "from_dict")
         else json.loads(data)
     )
+
+
+class ResultsSQLList(SQLiteList):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs, serialize=serialize, deserialize=deserialize)
 
 
 class SQLiteList(MutableSequence):
