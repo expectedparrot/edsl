@@ -4,7 +4,7 @@ import inspect
 from typing import Optional, Callable, TYPE_CHECKING
 from .. import QuestionFreeText, Results, AgentList, ScenarioList, Scenario, Model
 from ..questions import QuestionBase
-from ..results.Result import Result
+from ..results.result import Result
 from jinja2 import Template
 from ..caching import Cache
 
@@ -124,6 +124,7 @@ What do you say next?"""
                 and "{{ round_message }}" not in next_statement_question.question_text
             ):
                 from .exceptions import ConversationValueError
+
                 raise ConversationValueError(
                     "If you pass in a per_round_message_template, you must include {{ round_message }} in the question_text."
                 )

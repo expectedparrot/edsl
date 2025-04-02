@@ -113,7 +113,7 @@ class JobsRemoteInferenceHandler:
         logger.add_info("job_uuid", job_uuid)
 
         logger.update(
-            f"Job details are available at your Coop account {self.remote_inference_url}",
+            f"Job details are available at your Coop account. [Go to Remote Inference page]({self.remote_inference_url})",
             status=JobsStatus.RUNNING,
         )
         progress_bar_url = (
@@ -121,7 +121,7 @@ class JobsRemoteInferenceHandler:
         )
         logger.add_info("progress_bar_url", progress_bar_url)
         logger.update(
-            f"View job progress here: {progress_bar_url}", status=JobsStatus.RUNNING
+            f"View job progress [here]({progress_bar_url})", status=JobsStatus.RUNNING
         )
 
         return RemoteJobInfo(
@@ -169,7 +169,7 @@ class JobsRemoteInferenceHandler:
             message="Job cancelled by the user.", status=JobsStatus.CANCELLED
         )
         job_info.logger.update(
-            f"See {self.expected_parrot_url}/home/remote-inference for more details.",
+            f"See [Remote Inference page]({self.expected_parrot_url}/home/remote-inference) for more details.",
             status=JobsStatus.CANCELLED,
         )
 
@@ -182,20 +182,43 @@ class JobsRemoteInferenceHandler:
         reason = remote_job_data.get("reason")
 
         if reason == "insufficient funds":
-            latest_error_report_url = "Error: Insufficient balance to start the job"
-            print("❌ Error: Insufficient balance to start the job")
+            job_info.logger.update(
+                f"Error: Insufficient balance to start the job. Add funds to your account at the [Credits page]({self.expected_parrot_url}/home/credits)",
+                status=JobsStatus.FAILED,
+            )
 
         if latest_error_report_url:
             job_info.logger.add_info("error_report_url", latest_error_report_url)
 
         job_info.logger.update("Job failed.", status=JobsStatus.FAILED)
         job_info.logger.update(
-            f"See {self.expected_parrot_url}/home/remote-inference for more details.",
+            f"See [Remote Inference page]({self.expected_parrot_url}/home/remote-inference) for more details.",
             status=JobsStatus.FAILED,
         )
         job_info.logger.update(
-            f"Need support? Visit Discord: {RemoteJobConstants.DISCORD_URL}",
+            f"Need support? [Visit Discord]({RemoteJobConstants.DISCORD_URL})",
             status=JobsStatus.FAILED,
+        )
+
+    def _handle_partially_failed_job(
+        self, job_info: RemoteJobInfo, remote_job_data: RemoteInferenceResponse
+    ) -> None:
+        "Handles a partially failed job by logging the error and updating the job status."
+        latest_error_report_url = remote_job_data.get("latest_error_report_url")
+
+        if latest_error_report_url:
+            job_info.logger.add_info("error_report_url", latest_error_report_url)
+
+        job_info.logger.update(
+            "Job completed with partial results.", status=JobsStatus.PARTIALLY_FAILED
+        )
+        job_info.logger.update(
+            f"See [Remote Inference page]({self.expected_parrot_url}/home/remote-inference) for more details.",
+            status=JobsStatus.PARTIALLY_FAILED,
+        )
+        job_info.logger.update(
+            f"Need support? [Visit Discord]({RemoteJobConstants.DISCORD_URL})",
+            status=JobsStatus.PARTIALLY_FAILED,
         )
 
     def _sleep_for_a_bit(self, job_info: RemoteJobInfo, status: str) -> None:
@@ -212,6 +235,7 @@ class JobsRemoteInferenceHandler:
     def _fetch_results_and_log(
         self,
         job_info: RemoteJobInfo,
+        job_status: Literal["failed", "partial_failed", "completed"],
         results_uuid: str,
         remote_job_data: RemoteInferenceResponse,
         object_fetcher: Callable,
@@ -221,10 +245,17 @@ class JobsRemoteInferenceHandler:
         results = object_fetcher(results_uuid, expected_object_type="results")
         results_url = remote_job_data.get("results_url")
         job_info.logger.add_info("results_url", results_url)
-        job_info.logger.update(
-            f"Job completed and Results stored on Coop: {results_url}",
-            status=JobsStatus.COMPLETED,
-        )
+
+        if job_status == "completed":
+            job_info.logger.update(
+                f"Job completed and Results stored on Coop. [View Results]({results_url})",
+                status=JobsStatus.COMPLETED,
+            )
+        elif job_status == "partial_failed":
+            job_info.logger.update(
+                f"View partial results [here]({results_url})",
+                status=JobsStatus.PARTIALLY_FAILED,
+            )
         results.job_uuid = job_info.job_uuid
         results.results_uuid = results_uuid
         return results
@@ -244,13 +275,16 @@ class JobsRemoteInferenceHandler:
             return None, reason
 
         elif status == "failed" or status == "completed" or status == "partial_failed":
-            if status == "failed" or status == "partial_failed":
+            if status == "failed":
                 self._handle_failed_job(job_info, remote_job_data)
+            elif status == "partial_failed":
+                self._handle_partially_failed_job(job_info, remote_job_data)
 
             results_uuid = remote_job_data.get("results_uuid")
             if results_uuid:
                 results = self._fetch_results_and_log(
                     job_info=job_info,
+                    job_status=status,
                     results_uuid=results_uuid,
                     remote_job_data=remote_job_data,
                     object_fetcher=object_fetcher,

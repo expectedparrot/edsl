@@ -153,5 +153,8 @@ def test_caching():
     #     "raw_model_response.how_are_you_raw_model_response"
     # ).first()
     results2 = QuestionFreeText.example().by(m).using(c).run(check_api_keys=False)
+    print(results1)
+    print("####")
+    print(results2)
     assert results1 == results2
     # assert results.select("raw_model_response.how_are_you_raw_model_response").first()
