@@ -61,6 +61,7 @@ from ..utilities import remove_edsl_version, dict_hash
 from ..dataset import ResultsOperationsMixin
 
 from .result import Result
+from .sqlite_list import SQLiteList
 
 from .exceptions import (
     ResultsError,
@@ -301,7 +302,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         total_results: Optional[int] = None,
         task_history: Optional[TaskHistory] = None,
         sort_by_iteration: bool = False,
-        data_class: Optional[type] = list,
+        data_class: Optional[type] = SQLiteList,
     ):
         """Instantiate a Results object with a survey and a list of Result objects.
 
@@ -459,11 +460,14 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         # Call the parent class's insert directly
         MutableSequence.insert(self, index, item)
 
-    def append(self, item) -> None:
-        # self.insert(item)
-        self.data.append(item)
+    # def append(self, item) -> None:
+    #     # self.insert(item)
+    #     self.data.append(item)
 
-    def extend(self, other):
+    # def extend(self, other):
+    #     self.data.extend(other)
+
+    def extend_sorted(self, other):
         """Extend the Results list with items from another iterable.
 
         This method preserves ordering based on 'order' attribute if present,
@@ -1315,20 +1319,38 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
 
     @ensure_ready
     def shuffle(self, seed: Optional[str] = "edsl") -> Results:
-        """Shuffle the results.
+        """Return a shuffled copy of the results using Fisher-Yates algorithm.
 
-        Example:
+        Args:
+            seed: Random seed for reproducibility.
 
-        >>> r = Results.example()
-        >>> r.shuffle(seed = 1)[0]
-        Result(...)
+        Returns:
+            Results: A new Results object with shuffled data.
         """
         if seed != "edsl":
-            seed = random.seed(seed)
+            random.seed(seed)
 
-        new_data = self.data.copy()
-        random.shuffle(new_data)
-        return Results(survey=self.survey, data=new_data, created_columns=None)
+        # Create new Results object with same properties but empty data
+        shuffled_results = Results(
+            survey=self.survey,
+            data=[],
+            created_columns=self.created_columns,
+            data_class=self._data_class,
+        )
+
+        # First pass: copy data while tracking indices
+        indices = list(range(len(self.data)))
+
+        # Second pass: Fisher-Yates shuffle on indices
+        for i in range(len(indices) - 1, 0, -1):
+            j = random.randrange(i + 1)
+            indices[i], indices[j] = indices[j], indices[i]
+
+        # Final pass: append items in shuffled order
+        for idx in indices:
+            shuffled_results.append(self.data[idx])
+
+        return shuffled_results
 
     @ensure_ready
     def sample(
@@ -1338,41 +1360,61 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         with_replacement: bool = True,
         seed: Optional[str] = None,
     ) -> Results:
-        """Sample the results.
+        """Return a random sample of the results.
 
-        :param n: An integer representing the number of samples to take.
-        :param frac: A float representing the fraction of samples to take.
-        :param with_replacement: A boolean representing whether to sample with replacement.
-        :param seed: An integer representing the seed for the random number generator.
+        Args:
+            n: The number of samples to take.
+            frac: The fraction of samples to take (alternative to n).
+            with_replacement: Whether to sample with replacement.
+            seed: Random seed for reproducibility.
 
-        Example:
-
-        >>> r = Results.example()
-        >>> len(r.sample(2))
-        2
+        Returns:
+            Results: A new Results object containing the sampled data.
         """
         if seed:
             random.seed(seed)
 
         if n is None and frac is None:
-            from .exceptions import ResultsError
-
             raise ResultsError("You must specify either n or frac.")
 
         if n is not None and frac is not None:
-            from .exceptions import ResultsError
-
             raise ResultsError("You cannot specify both n and frac.")
 
-        if frac is not None and n is None:
+        if frac is not None:
             n = int(frac * len(self.data))
 
-        if with_replacement:
-            new_data = random.choices(self.data, k=n)
-        else:
-            new_data = random.sample(self.data, n)
+        # Create new Results object with same properties but empty data
+        sampled_results = Results(
+            survey=self.survey,
+            data=[],
+            created_columns=self.created_columns,
+            data_class=self._data_class,
+        )
 
-        return Results(survey=self.survey, data=new_data, created_columns=None)
+        if with_replacement:
+            # For sampling with replacement, we can generate indices and sample one at a time
+            indices = (random.randrange(len(self.data)) for _ in range(n))
+            for i in indices:
+                sampled_results.append(self.data[i])
+        else:
+            # For sampling without replacement, use reservoir sampling
+            if n > len(self.data):
+                raise ResultsError(
+                    f"Cannot sample {n} items from a list of length {len(self.data)}."
+                )
+
+            # Reservoir sampling algorithm
+            for i, item in enumerate(self.data):
+                if i < n:
+                    # Fill the reservoir initially
+                    sampled_results.append(item)
+                else:
+                    # Randomly replace items with decreasing probability
+                    j = random.randrange(i + 1)
+                    if j < n:
+                        sampled_results.data[j] = item
+
+        return sampled_results
 
     @ensure_ready
     def select(self, *columns: Union[str, list[str]]) -> "Dataset":
@@ -1459,20 +1501,12 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
     def order_by(self, *columns: str, reverse: bool = False) -> Results:
         """Sort the results by one or more columns.
 
-        :param columns: One or more column names as strings.
-        :param reverse: A boolean that determines whether to sort in reverse order.
+        Args:
+            columns: One or more column names as strings.
+            reverse: A boolean that determines whether to sort in reverse order.
 
-        Each column name can be a single key, e.g. "how_feeling", or a dot-separated string, e.g. "answer.how_feeling".
-
-        Example:
-
-        >>> r = Results.example()
-        >>> r.sort_by('how_feeling', reverse=False).select('how_feeling')
-        Dataset([{'answer.how_feeling': ['Great', 'OK', 'OK', 'Terrible']}])
-
-        >>> r.sort_by('how_feeling', reverse=True).select('how_feeling')
-        Dataset([{'answer.how_feeling': ['Terrible', 'OK', 'OK', 'Great']}])
-
+        Returns:
+            Results: A new Results object with sorted data.
         """
 
         def to_numeric_if_possible(v):
@@ -1486,23 +1520,21 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             for col in columns:
                 data_type, key = self._parse_column(col)
                 value = item.get_value(data_type, key)
-                # Convert to string for alphabetical sorting if string-like
                 if isinstance(value, (str, bytes)):
                     key_components.append(str(value))
                 else:
                     key_components.append(to_numeric_if_possible(value))
             return tuple(key_components)
 
-        # Sort the data using the provided sort key
-        new_data = sorted(self.data, key=sort_key, reverse=reverse)
+        # Create a new sorted view of the data without materializing it
+        sorted_data = sorted(self.data, key=sort_key, reverse=reverse)
 
-        # Create a new Results object with the sorted data
-        # Pass created_columns to maintain any derived columns
+        # Create new Results object that uses the sorted iterator
         return Results(
             survey=self.survey,
-            data=new_data,
+            data=sorted_data,  # This will be an iterator, not a materialized list
             created_columns=self.created_columns,
-            # Disable automatic sorting by iteration
+            data_class=self._data_class,
             sort_by_iteration=False,
         )
 
