@@ -1582,7 +1582,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             expression.replace("==", "")
             .replace(">=", "")
             .replace("<=", "")
-            .repace("!=", "")
+            .replace("!=", "")
         )
         return "=" in cleaned
 
