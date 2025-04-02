@@ -1153,18 +1153,25 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         >>> r.add_column('a', [1,2,3, 4]).select('a')
         Dataset([{'answer.a': [1, 2, 3, 4]}])
         """
-
         assert len(values) == len(
             self.data
         ), "The number of values must match the number of results."
-        new_results = self.data.copy()
-        for i, result in enumerate(new_results):
-            result["answer"][column_name] = values[i]
-        return Results(
+
+        # Create new Results object with same properties but empty data
+        new_results = Results(
             survey=self.survey,
-            data=new_results,
+            data=[],
             created_columns=self.created_columns + [column_name],
+            data_class=self._data_class,
         )
+
+        # Process one result at a time
+        for i, result in enumerate(self.data):
+            new_result = result.copy()
+            new_result["answer"][column_name] = values[i]
+            new_results.append(new_result)
+
+        return new_results
 
     @ensure_ready
     def add_columns_from_dict(self, columns: List[dict]) -> Results:
@@ -1306,16 +1313,28 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         >>> s = Results.example()
         >>> s.rename('how_feeling', 'how_feeling_new').select('how_feeling_new')
         Dataset([{'answer.how_feeling_new': ['OK', 'Great', 'Terrible', 'OK']}])
-
-        # TODO: Should we allow renaming of scenario fields as well? Probably.
-
         """
+        # Create new Results object with same properties but empty data
+        new_results = Results(
+            survey=self.survey,
+            data=[],
+            created_columns=self.created_columns,
+            data_class=self._data_class,
+        )
 
+        # Update created_columns if old_name was in there
+        if old_name in new_results.created_columns:
+            new_results.created_columns.remove(old_name)
+            new_results.created_columns.append(new_name)
+
+        # Process one result at a time
         for obs in self.data:
-            obs["answer"][new_name] = obs["answer"][old_name]
-            del obs["answer"][old_name]
+            new_result = obs.copy()
+            new_result["answer"][new_name] = new_result["answer"][old_name]
+            del new_result["answer"][old_name]
+            new_results.append(new_result)
 
-        return self
+        return new_results
 
     @ensure_ready
     def shuffle(self, seed: Optional[str] = "edsl") -> Results:
