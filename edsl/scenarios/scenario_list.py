@@ -1932,13 +1932,13 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         """
         return cls([Scenario.example(randomize), Scenario.example(randomize)])
 
-    def __len__(self) -> int:
-        """Return the number of scenarios in the list."""
-        return len(self.data)
+    # def __len__(self) -> int:
+    #     """Return the number of scenarios in the list."""
+    #     return len(self.data)
 
-    def __iter__(self):
-        """Iterate over scenarios using streaming."""
-        return self.data.stream()
+    # def __iter__(self):
+    #     """Iterate over scenarios using streaming."""
+    #     return self.data.stream()
 
     @property
     def is_memory_only(self) -> bool:
@@ -1982,45 +1982,45 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
                 # Fallback to empty scenario
                 return Scenario({})
 
-    def __getitem__(self, key: Union[int, slice, str]) -> Any:
-        """Return the item at the given index or key.
+    # def __getitem__(self, key: Union[int, slice, str]) -> Any:
+    #     """Return the item at the given index or key.
 
-        This method handles three types of keys:
-        1. Integer indices to access scenarios by position
-        2. Slice objects to get a range of scenarios
-        3. String keys to access fields across all scenarios (returns first match)
+    #     This method handles three types of keys:
+    #     1. Integer indices to access scenarios by position
+    #     2. Slice objects to get a range of scenarios
+    #     3. String keys to access fields across all scenarios (returns first match)
 
-        Example:
-        >>> s = ScenarioList([Scenario({'age': 22, 'hair': 'brown', 'height': 5.5}), Scenario({'age': 22, 'hair': 'brown', 'height': 5.5})])
-        >>> s[0]
-        Scenario({'age': 22, 'hair': 'brown', 'height': 5.5})
+    #     Example:
+    #     >>> s = ScenarioList([Scenario({'age': 22, 'hair': 'brown', 'height': 5.5}), Scenario({'age': 22, 'hair': 'brown', 'height': 5.5})])
+    #     >>> s[0]
+    #     Scenario({'age': 22, 'hair': 'brown', 'height': 5.5})
 
-        >>> s[:1]
-        ScenarioList([Scenario({'age': 22, 'hair': 'brown', 'height': 5.5})])
+    #     >>> s[:1]
+    #     ScenarioList([Scenario({'age': 22, 'hair': 'brown', 'height': 5.5})])
 
-        >>> s['age']  # Returns value from first scenario
-        22
-        """
-        if isinstance(key, slice):
-            return self.__class__(list(self.data[key]), self.codebook.copy())
-        elif isinstance(key, int):
-            return self.data[key]
-        elif isinstance(key, str):
-            # For string keys, search in the first scenario
-            if len(self.data) > 0:
-                # Forward the key lookup to the first scenario
-                try:
-                    return self.data[0][key]
-                except (KeyError, IndexError):
-                    # If not found in first scenario, try to_dict as fallback
-                    try:
-                        return self.to_dict(add_edsl_version=False)[key]
-                    except KeyError:
-                        raise KeyError(f"Key '{key}' not found in any scenario")
-            # Empty list case
-            raise KeyError(f"Key '{key}' not found in empty ScenarioList")
-        else:
-            raise TypeError(f"Invalid key type: {type(key)}")
+    #     >>> s['age']  # Returns value from first scenario
+    #     22
+    #     """
+    #     if isinstance(key, slice):
+    #         return self.__class__(list(self.data[key]), self.codebook.copy())
+    #     elif isinstance(key, int):
+    #         return self.data[key]
+    #     elif isinstance(key, str):
+    #         # For string keys, search in the first scenario
+    #         if len(self.data) > 0:
+    #             # Forward the key lookup to the first scenario
+    #             try:
+    #                 return self.data[0][key]
+    #             except (KeyError, IndexError):
+    #                 # If not found in first scenario, try to_dict as fallback
+    #                 try:
+    #                     return self.to_dict(add_edsl_version=False)[key]
+    #                 except KeyError:
+    #                     raise KeyError(f"Key '{key}' not found in any scenario")
+    #         # Empty list case
+    #         raise KeyError(f"Key '{key}' not found in empty ScenarioList")
+    #     else:
+    #         raise TypeError(f"Invalid key type: {type(key)}")
 
     def to_agent_list(self):
         """Convert the ScenarioList to an AgentList.
@@ -2126,7 +2126,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             grouped[key].append(scenario[field])
 
         # Create a new ScenarioList with the collapsed field
-        result = []
+        new_sl = ScenarioList(data = [], codebook=self.codebook)
         for key, values in grouped.items():
             new_scenario = dict(zip(id_vars, key))
             if separator:
@@ -2135,9 +2135,10 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
                 new_scenario[field] = values
             if add_count:
                 new_scenario["num_collapsed_rows"] = len(values)
-            result.append(Scenario(new_scenario))
+            new_sl.append(Scenario(new_scenario))
 
-        return ScenarioList(result)
+        #return ScenarioList(result)
+        return new_sl
 
     def create_comparisons(
         self,
@@ -2299,7 +2300,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             >>> print(scenarios)
             ScenarioList([Scenario({'a': 'nan', 'b': 1}), Scenario({'a': 2, 'b': 'nan'})])
         """
-        new_scenarios = []
+        new_sl = ScenarioList(data=[], codebook=self.codebook)
         for scenario in self:
             new_scenario = {}
             for key, value in scenario.items():
@@ -2307,9 +2308,9 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
                     new_scenario[key] = replacements[str(value)]
                 else:
                     new_scenario[key] = value
-            new_scenarios.append(Scenario(new_scenario))
-        return ScenarioList(new_scenarios)
-
+            new_sl.append(Scenario(new_scenario))
+        return new_sl
+    
     @classmethod
     def from_pdf(cls, filename_or_url, collapse_pages=False):
         return PdfTools.from_pdf(filename_or_url, collapse_pages)
