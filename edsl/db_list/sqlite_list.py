@@ -58,8 +58,15 @@ class SQLiteList(MutableSequence):
         if isinstance(index, slice):
             # Handle slice object
             start, stop, step = index.indices(len(self))
-            indices = range(start, stop, step)
-            return [self[i] for i in indices]
+            if step == 1:  # Simple range
+                cursor = self.conn.execute(
+                    f"SELECT value FROM {self._TABLE_NAME} WHERE idx >= ? AND idx < ? ORDER BY idx",
+                    (start, stop)
+                )
+                return [self.deserialize(row[0]) for row in cursor]
+            else:  # Need to handle step
+                indices = range(start, stop, step)
+                return [self[i] for i in indices]
             
         # Handle integer index
         if index < 0:
@@ -163,6 +170,29 @@ class SQLiteList(MutableSequence):
             result.append(other[i])
 
         return result
+
+    def stream(self):
+        """Stream items from the database without loading everything into memory."""
+        cursor = self.conn.execute(f"SELECT value FROM {self._TABLE_NAME} ORDER BY idx")
+        for row in cursor:
+            yield self.deserialize(row[0])
+
+    def __iter__(self):
+        """Iterate over items using streaming."""
+        return self.stream()
+
+    def equals(self, other):
+        """Memory-efficient comparison of two SQLiteLists."""
+        if len(self) != len(other):
+            return False
+        for i in range(len(self)):
+            if self[i] != other[i]:
+                return False
+        return True
+
+    def __eq__(self, other):
+        """Use memory-efficient comparison by default."""
+        return self.equals(other)
 
 
 # Example usage
