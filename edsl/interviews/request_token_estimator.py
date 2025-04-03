@@ -21,6 +21,12 @@ VISION_MODELS = {
 
 
 def estimate_tokens(model_name, width, height):
+    if model_name == "test":
+        return 10  # for testing purposes
+
+    if "claude" in model_name:
+        total_tokens = width * height / 750
+        return total_tokens
     if model_name not in VISION_MODELS:
         raise ValueError(f"Unknown model: {model_name}")
 
@@ -58,8 +64,9 @@ class RequestTokenEstimator:
                 for file in prompt:
                     if isinstance(file, FileStore):
                         if file.is_image():
+                            model_name = self.interview.model.model
                             width, height = file.get_image_dimensions()
-                            token_usage = estimate_tokens("gpt-4o", width, height)
+                            token_usage = estimate_tokens(model_name, width, height)
                             file_tokens += token_usage
                         else:
                             file_tokens += file.size * 0.25
