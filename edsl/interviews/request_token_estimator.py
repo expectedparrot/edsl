@@ -28,7 +28,8 @@ def estimate_tokens(model_name, width, height):
         total_tokens = width * height / 750
         return total_tokens
     if model_name not in VISION_MODELS:
-        raise ValueError(f"Unknown model: {model_name}")
+        total_tokens = width * height / 750
+        return total_tokens
 
     config = VISION_MODELS[model_name]
     TILE_SIZE = 512
