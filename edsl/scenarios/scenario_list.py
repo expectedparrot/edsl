@@ -795,7 +795,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         return ScenarioList(sorted(self, key=get_sort_key, reverse=reverse))
 
     def duplicate(self) -> ScenarioList:
-        """Return a copy of the ScenarioList.
+        """Return a copy of the ScenarioList using streaming to avoid loading everything into memory.
 
         >>> sl = ScenarioList.example()
         >>> sl_copy = sl.duplicate()
@@ -804,9 +804,28 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         >>> sl is sl_copy
         False
         """
-        return ScenarioList(
-            [scenario.copy() for scenario in self], codebook=self.codebook.copy()
-        )
+        new_list = ScenarioList()
+        for scenario in self.data.stream():
+            new_list.append(scenario.copy())
+        return new_list
+
+    def __iter__(self):
+        """Iterate over scenarios using streaming."""
+        return self.data.stream()
+
+    def equals(self, other: Any) -> bool:
+        """Memory-efficient comparison of two ScenarioLists."""
+        if not isinstance(other, ScenarioList):
+            return False
+        if len(self) != len(other):
+            return False
+        if self.codebook != other.codebook:
+            return False
+        return self.data.equals(other.data)
+
+    def __eq__(self, other: Any) -> bool:
+        """Use memory-efficient comparison by default."""
+        return self.equals(other)
 
     def filter(self, expression: str) -> ScenarioList:
         """
@@ -1897,8 +1916,8 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         return len(self.data)
 
     def __iter__(self):
-        """Return an iterator over the scenarios in the list."""
-        return iter(self.data)
+        """Iterate over scenarios using streaming."""
+        return self.data.stream()
 
     @property
     def is_memory_only(self) -> bool:
