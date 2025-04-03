@@ -17,25 +17,26 @@ from .file_methods import FileMethods
 if TYPE_CHECKING:
     from .scenario_list import ScenarioList
 
+
 class FileStore(Scenario):
     """
     A specialized Scenario subclass for managing file content and metadata.
-    
+
     FileStore provides functionality for working with files in EDSL, handling various
     file formats with appropriate encoding, storage, and access methods. It extends
     Scenario to allow files to be included in surveys, questions, and other EDSL components.
-    
+
     FileStore supports multiple file formats including text, PDF, Word documents, images,
     and more. It can load files from local paths or URLs, and provides methods for
     accessing file content, extracting text, and managing file operations.
-    
+
     Key features:
     - Base64 encoding for portability and serialization
     - Lazy loading through temporary files when needed
     - Automatic MIME type detection
     - Text extraction from various file formats
     - Format-specific operations through specialized handlers
-    
+
     Attributes:
         _path (str): The original file path.
         _temp_path (str): Path to any generated temporary file.
@@ -45,7 +46,7 @@ class FileStore(Scenario):
         base64_string (str): Base64-encoded file content.
         external_locations (dict): Dictionary of external locations.
         extracted_text (str): Text extracted from the file.
-    
+
     Examples:
         >>> import tempfile
         >>> # Create a text file
@@ -53,13 +54,14 @@ class FileStore(Scenario):
         ...     _ = f.write("Hello World")
         ...     _ = f.flush()
         ...     fs = FileStore(f.name)
-        
+
         # The following example works locally but is commented out for CI environments
         # where dependencies like pandoc may not be available:
         # >>> # FileStore supports various formats
         # >>> formats = ["txt", "pdf", "docx", "pptx", "md", "py", "json", "csv", "html", "png", "db"]
         # >>> _ = [FileStore.example(format) for format in formats]
     """
+
     __documentation__ = "https://docs.expectedparrot.com/en/latest/filestore.html"
 
     def __init__(
@@ -75,11 +77,11 @@ class FileStore(Scenario):
     ):
         """
         Initialize a new FileStore object.
-        
+
         This constructor creates a FileStore object from either a file path or a base64-encoded
         string representation of file content. It handles automatic detection of file properties
         like MIME type, extracts text content when possible, and manages file encoding.
-        
+
         Args:
             path: Path to the file to load. Can be a local file path or URL.
             mime_type: MIME type of the file. If not provided, will be auto-detected.
@@ -93,7 +95,7 @@ class FileStore(Scenario):
                           text will be extracted automatically if possible.
             **kwargs: Additional keyword arguments. 'filename' can be used as an
                      alternative to 'path'.
-                     
+
         Note:
             If path is a URL (starts with http:// or https://), the file will be
             downloaded automatically.
@@ -138,15 +140,15 @@ class FileStore(Scenario):
     def path(self) -> str:
         """
         Returns a valid path to the file content, creating a temporary file if needed.
-        
+
         This property ensures that a valid file path is always available for the file
         content, even if the original file is no longer accessible or if the FileStore
         was created from a base64 string without a path. If the original path doesn't
         exist, it automatically generates a temporary file from the base64 content.
-        
+
         Returns:
             A string containing a valid file path to access the file content.
-            
+
         Examples:
             >>> import tempfile, os
             >>> with tempfile.NamedTemporaryFile(suffix=".txt", mode="w") as f:
@@ -155,8 +157,8 @@ class FileStore(Scenario):
             ...     fs = FileStore(f.name)
             ...     os.path.isfile(fs.path)
             True
-            
-            
+
+
         Notes:
             - The path may point to a temporary file that will be cleaned up when the
               Python process exits
@@ -319,9 +321,10 @@ class FileStore(Scenario):
 
         link = ConstructDownloadLink(self).html_create_link(self.path, style=None)
         return f"{parent_html}<br>{link}"
-    
+
     def download_link(self):
         from .construct_download_link import ConstructDownloadLink
+
         return ConstructDownloadLink(self).html_create_link(self.path, style=None)
 
     def encode_file_to_base64_string(self, file_path: str):
@@ -572,6 +575,53 @@ class FileStore(Scenario):
             f"Converting {self.suffix} files to pandas DataFrame is not supported"
         )
 
+    def is_image(self) -> bool:
+        """
+        Check if the file is an image by examining its MIME type.
+
+        Returns:
+            bool: True if the file is an image, False otherwise.
+
+        Examples:
+            >>> fs = FileStore.example("png")
+            >>> fs.is_image()
+            True
+            >>> fs = FileStore.example("txt")
+            >>> fs.is_image()
+            False
+        """
+        # Check if the mime type starts with 'image/'
+        return self.mime_type.startswith("image/")
+
+    def get_image_dimensions(self) -> tuple:
+        """
+        Get the dimensions (width, height) of an image file.
+
+        Returns:
+            tuple: A tuple containing the width and height of the image.
+
+        Raises:
+            ValueError: If the file is not an image or PIL is not installed.
+
+        Examples:
+            >>> fs = FileStore.example("png")
+            >>> width, height = fs.get_image_dimensions()
+            >>> isinstance(width, int) and isinstance(height, int)
+            True
+        """
+        if not self.is_image():
+            raise ValueError("This file is not an image")
+
+        try:
+            from PIL import Image
+        except ImportError:
+            raise ImportError(
+                "PIL (Pillow) is required to get image dimensions. Install it with: pip install pillow"
+            )
+
+        with Image.open(self.path) as img:
+            return img.size  # Returns (width, height)
+
     def __getattr__(self, name):
         """
         Delegate pandas DataFrame methods to the underlying DataFrame if this is a CSV file
@@ -662,13 +712,13 @@ class FileStore(Scenario):
 #         endobj
 #         xref
 #         0 7
-#         0000000000 65535 f 
-#         0000000010 00000 n 
-#         0000000053 00000 n 
-#         0000000100 00000 n 
-#         0000000173 00000 n 
-#         0000000232 00000 n 
-#         0000000272 00000 n 
+#         0000000000 65535 f
+#         0000000010 00000 n
+#         0000000053 00000 n
+#         0000000100 00000 n
+#         0000000173 00000 n
+#         0000000232 00000 n
+#         0000000272 00000 n
 #         trailer
 #         << /Size 7 /Root 1 0 R >>
 #         startxref
@@ -748,6 +798,7 @@ class FileStore(Scenario):
 
 if __name__ == "__main__":
     import doctest
+
     doctest.testmod()
 
     # formats = FileMethods.supported_file_types()
@@ -756,4 +807,3 @@ if __name__ == "__main__":
     #     fs = FileStore.example(file_type)
     #     fs.view()
     #     input("Press Enter to continue...")
-
