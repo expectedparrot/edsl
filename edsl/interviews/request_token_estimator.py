@@ -20,10 +20,66 @@ VISION_MODELS = {
 }
 
 
+def approximate_image_tokens_google(width: int, height: int) -> int:
+    """
+    Approximates the token usage for an image based on its dimensions.
+
+    This calculation is based on the rules described for Gemini 2.0 models
+    in the provided text:
+    - Images with both dimensions <= 384px cost 258 tokens.
+    - Larger images are processed in 768x768 tiles, each costing 258 tokens.
+
+    Note: This is an *approximation*. The exact cropping, scaling, and tiling
+    strategy used by the actual Gemini API might differ slightly.
+
+    Args:
+        width: The width of the image in pixels.
+        height: The height of the image in pixels.
+
+    Returns:
+        An estimated integer token count for the image.
+
+    Raises:
+        ValueError: If width or height are not positive integers.
+    """
+    SMALL_IMAGE_THRESHOLD = 384  # Max dimension for fixed token count
+    FIXED_TOKEN_COST_SMALL = 258  # Token cost for small images (<= 384x384)
+    TILE_SIZE = 768  # Dimension of tiles for larger images
+    TOKEN_COST_PER_TILE = 258  # Token cost per 768x768 tile
+    if (
+        not isinstance(width, int)
+        or not isinstance(height, int)
+        or width <= 0
+        or height <= 0
+    ):
+        raise ValueError("Image width and height must be positive integers.")
+
+    # Case 1: Small image (both dimensions <= threshold)
+    if width <= SMALL_IMAGE_THRESHOLD and height <= SMALL_IMAGE_THRESHOLD:
+        return FIXED_TOKEN_COST_SMALL
+
+    # Case 2: Larger image (at least one dimension > threshold)
+    else:
+        # Calculate how many tiles are needed to cover the width and height
+        # Use ceiling division to ensure full coverage
+        tiles_wide = math.ceil(width / TILE_SIZE)
+        tiles_high = math.ceil(height / TILE_SIZE)
+
+        # Total number of tiles is the product of tiles needed in each dimension
+        total_tiles = tiles_wide * tiles_high
+
+        # Total token cost is the number of tiles times the cost per tile
+        estimated_tokens = total_tiles * TOKEN_COST_PER_TILE
+        return estimated_tokens
+
+
 def estimate_tokens(model_name, width, height):
     if model_name == "test":
         return 10  # for testing purposes
-
+    if "gemini" in model_name:
+        out = approximate_image_tokens_google(width, height)
+        print(out)
+        return out
     if "claude" in model_name:
         total_tokens = width * height / 750
         return total_tokens
