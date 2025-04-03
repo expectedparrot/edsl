@@ -190,8 +190,18 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             - The order of scenarios in the result is not guaranteed due to the use of sets
             - Uniqueness is determined by the Scenario's __hash__ method
             - The original ScenarioList is not modified
+            - This implementation is memory efficient as it processes scenarios one at a time
         """
-        return ScenarioList(list(set(self)))
+        seen_hashes = set()
+        result = ScenarioList()
+        
+        for scenario in self.data.stream():
+            scenario_hash = hash(scenario)
+            if scenario_hash not in seen_hashes:
+                seen_hashes.add(scenario_hash)
+                result.append(scenario)
+                
+        return result
 
     @property
     def has_jinja_braces(self) -> bool:
@@ -216,7 +226,10 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             >>> sl2.has_jinja_braces
             True
         """
-        return any([scenario.has_jinja_braces for scenario in self])
+        for scenario in self:
+            if scenario.has_jinja_braces:
+                return True
+        return False
 
     def _convert_jinja_braces(self) -> ScenarioList:
         """
@@ -243,7 +256,10 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             - This is primarily intended for internal use
             - The default replacement symbols are << and >>
         """
-        return ScenarioList([scenario._convert_jinja_braces() for scenario in self])
+        converted_sl = ScenarioList()
+        for scenario in self:
+            converted_sl.append(scenario._convert_jinja_braces())
+        return converted_sl
 
     def give_valid_names(self, existing_codebook: dict = None) -> ScenarioList:
         """Give valid names to the scenario keys, using an existing codebook if provided.
@@ -265,7 +281,8 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         ScenarioList([Scenario({'custom_name': 1, 'b': 2}), Scenario({'a': 1, 'b': 1})])
         """
         codebook = existing_codebook.copy() if existing_codebook else {}
-        new_scenarios = []
+        
+        new_scenarios = ScenarioList(data = [], codebook = codebook)
 
         for scenario in self:
             new_scenario = {}
@@ -286,7 +303,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
 
             new_scenarios.append(Scenario(new_scenario))
 
-        return ScenarioList(new_scenarios, codebook)
+        return new_scenarios
 
     def unpivot(
         self,
@@ -313,7 +330,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         if value_vars is None:
             value_vars = [field for field in self[0].keys() if field not in id_vars]
 
-        new_scenarios = []
+        new_scenarios = ScenarioList(data = [], codebook = {})
         for scenario in self:
             for var in value_vars:
                 new_scenario = {id_var: scenario[id_var] for id_var in id_vars}
@@ -321,7 +338,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
                 new_scenario["value"] = scenario[var]
                 new_scenarios.append(Scenario(new_scenario))
 
-        return ScenarioList(new_scenarios)
+        return new_scenarios
 
     def pivot(
         self,
@@ -362,14 +379,11 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             value = scenario[value_name]
             pivoted_dict[id_key][variable] = value
 
-        # Convert the dict of dicts to a list of Scenarios
-        pivoted_scenarios = [
-            Scenario(dict(zip(id_vars, id_key), **values))
-            for id_key, values in pivoted_dict.items()
-        ]
-
-        return ScenarioList(pivoted_scenarios)
-
+        new_sl = ScenarioList(data = [], codebook = self.codebook)
+        for id_key, values in pivoted_dict.items():
+            new_sl.append(Scenario(dict(zip(id_vars, id_key), **values)))
+        return new_sl
+  
     def group_by(
         self, id_vars: List[str], variables: List[str], func: Callable
     ) -> ScenarioList:
@@ -410,7 +424,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
                 grouped[key][var].append(scenario[var])
 
         # Apply the function to each group
-        result = []
+        new_sl= ScenarioList(data = [], codebook = self.codebook)
         for key, group in grouped.items():
             try:
                 aggregated = func(*[group[var] for var in variables])
@@ -424,9 +438,9 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
 
             new_scenario = dict(zip(id_vars, key))
             new_scenario.update(aggregated)
-            result.append(Scenario(new_scenario))
+            new_sl.append(Scenario(new_scenario))
 
-        return ScenarioList(result)
+        return new_sl
 
     @property
     def parameters(self) -> set:
@@ -441,16 +455,45 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         if len(self) == 0:
             return set()
 
-        return set.union(*[set(s.keys()) for s in self])
+        params = set()
+        for scenario in self:
+            params.update(scenario.keys())
+        return params
 
-    def __hash__(self) -> int:
-        """Return the hash of the ScenarioList.
+    def __original_hash__(self) -> int:
+        """Return the original hash of the ScenarioList using the dictionary-based approach.
 
         >>> s = ScenarioList.example()
-        >>> hash(s)
+        >>> s.__original_hash__()
         1262252885757976162
         """
         return dict_hash(self.to_dict(sort=True, add_edsl_version=False))
+
+    def __hash__(self) -> int:
+        """Return the hash of the ScenarioList using a memory-efficient streaming approach.
+
+        >>> s = ScenarioList.example()
+        >>> hash(s)
+        1219708685929871252
+        """
+        # Start with a seed value
+        running_hash = 0
+        
+        # Use a heap to maintain sorted order as we go
+        import heapq
+        heap = []
+        
+        # Process each scenario's hash and add to heap
+        for scenario in self:
+            heapq.heappush(heap, hash(scenario))
+            
+        # Combine hashes in sorted order
+        while heap:
+            h = heapq.heappop(heap)
+            # Use a large prime number to mix the bits
+            running_hash = (running_hash * 31) ^ h
+            
+        return running_hash
 
     def __eq__(self, other: Any) -> bool:
         return hash(self) == hash(other)
@@ -476,10 +519,10 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
 
             raise TypeScenarioError(f"Cannot multiply ScenarioList with {type(other)}")
 
-        new_sl = []
-        for s1, s2 in list(product(self, other)):
+        new_sl = ScenarioList(data=[], codebook=self.codebook)
+        for s1, s2 in product(self, other):
             new_sl.append(s1 + s2)
-        return ScenarioList(new_sl)
+        return new_sl
 
     def times(self, other: ScenarioList) -> ScenarioList:
         """Takes the cross product of two ScenarioLists.
@@ -491,6 +534,8 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         >>> s1.times(s2)
         ScenarioList([Scenario({'a': 1, 'b': 1}), Scenario({'a': 1, 'b': 2}), Scenario({'a': 2, 'b': 1}), Scenario({'a': 2, 'b': 2})])
         """
+        import warnings
+        warnings.warn("times is deprecated, use * instead", DeprecationWarning)
         return self.__mul__(other)
 
     def shuffle(self, seed: Optional[str] = None) -> ScenarioList:
@@ -857,7 +902,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             pass
 
         # Create new ScenarioList with filtered data
-        new_data = []
+        new_sl = ScenarioList(data=[], codebook=self.codebook)
 
         def create_evaluator(scenario: Scenario):
             """Create an evaluator for the given scenario."""
@@ -867,7 +912,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             # Iterate through all scenarios and evaluate the expression
             for scenario in self:
                 if create_evaluator(scenario).eval(expression):
-                    new_data.append(scenario.copy())
+                    new_sl.append(scenario.copy())
         except NameNotDefined as e:
             # Get available fields for error message
             try:
@@ -886,18 +931,37 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         except Exception as e:
             raise ScenarioError(f"Error in filter. Exception:{e}")
 
-        return ScenarioList(new_data, codebook=self.codebook.copy())
+        return new_sl
 
+    @classmethod
     def from_urls(
-        self, urls: list[str], field_name: Optional[str] = "text"
+        cls, urls: list[str], field_name: Optional[str] = "text"
     ) -> ScenarioList:
         """Create a ScenarioList from a list of URLs.
 
         :param urls: A list of URLs.
         :param field_name: The name of the field to store the text from the URLs.
 
+        Example:
+            >>> urls = ["https://example.com", "https://example.org"]
+            >>> # sl = ScenarioList.from_urls(urls)
+            >>> # len(sl)
         """
-        return ScenarioList([Scenario.from_url(url, field_name) for url in urls])
+        import requests
+        from .scenario import Scenario
+
+        result = ScenarioList()
+        for url in urls:
+            try:
+                response = requests.get(url)
+                response.raise_for_status()
+                scenario = Scenario({field_name: response.text})
+                result.append(scenario)
+            except requests.RequestException as e:
+                warnings.warn(f"Failed to fetch URL {url}: {str(e)}")
+                continue
+
+        return result
 
     def select(self, *fields: str) -> ScenarioList:
         """
@@ -924,8 +988,10 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         >>> s.drop('a')
         ScenarioList([Scenario({'b': 1}), Scenario({'b': 2})])
         """
-        sl = self.duplicate()
-        return ScenarioList([scenario.drop(fields) for scenario in sl])
+        new_sl = ScenarioList(data=[], codebook=self.codebook)
+        for scenario in self:
+            new_sl.append(scenario.drop(fields))
+        return new_sl
 
     def keep(self, *fields: str) -> ScenarioList:
         """Keep only the specified fields in the scenarios.
@@ -938,8 +1004,10 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         >>> s.keep('a')
         ScenarioList([Scenario({'a': 1}), Scenario({'a': 1})])
         """
-        sl = self.duplicate()
-        return ScenarioList([scenario.keep(fields) for scenario in sl])
+        new_sl = ScenarioList(data=[], codebook=self.codebook)
+        for scenario in self:
+            new_sl.append(scenario.keep(fields))
+        return new_sl
 
     @classmethod
     def from_directory(
@@ -985,83 +1053,12 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             # Get all files recursively including subdirectories
             sl = ScenarioList.from_directory(recursive=True, key_name="document")
         """
-        # Handle default case - use current directory
-        if path is None:
-            directory_path = os.getcwd()
-            pattern = None
-        else:
-            # Special handling for "**" pattern which indicates recursive scanning
-            has_recursive_pattern = "**" in path if path else False
-
-            # Check if path contains any wildcard
-            if path and ("*" in path):
-                # Handle "**/*.ext" pattern - find the directory part before the **
-                if has_recursive_pattern:
-                    # Extract the base directory by finding the part before **
-                    parts = path.split("**")
-                    if parts and parts[0]:
-                        # Remove trailing slash if any
-                        directory_path = parts[0].rstrip("/")
-                        if not directory_path:
-                            directory_path = os.getcwd()
-                        # Get the pattern after **
-                        pattern = parts[1] if len(parts) > 1 else None
-                        if pattern and pattern.startswith("/"):
-                            pattern = pattern[1:]  # Remove leading slash
-                    else:
-                        directory_path = os.getcwd()
-                        pattern = None
-                # Handle case where path is just a pattern (e.g., "*.py")
-                elif os.path.dirname(path) == "":
-                    directory_path = os.getcwd()
-                    pattern = os.path.basename(path)
-                else:
-                    # Split into directory and pattern
-                    directory_path = os.path.dirname(path)
-                    if not directory_path:
-                        directory_path = os.getcwd()
-                    pattern = os.path.basename(path)
-            else:
-                # Path is a directory with no pattern
-                directory_path = path
-                pattern = None
-
-        # Ensure directory exists
-        if not os.path.isdir(directory_path):
-            from .exceptions import FileNotFoundScenarioError
-
-            raise FileNotFoundScenarioError(f"Directory not found: {directory_path}")
-
-        # Create a DirectoryScanner for the directory
-        scanner = DirectoryScanner(directory_path)
-
-        # Configure wildcard pattern filtering
-        suffix_allow_list = None
-        example_suffix = None
-
-        if pattern:
-            if pattern.startswith("*."):
-                # Simple extension filter (e.g., "*.py")
-                suffix_allow_list = [pattern[2:]]
-            elif "*" in pattern:
-                # Other wildcard patterns
-                example_suffix = pattern
-            else:
-                # Handle simple non-wildcard pattern (exact match)
-                example_suffix = pattern
-
-        # Use scanner to find files and create FileStore objects
-        file_stores = scanner.scan(
-            factory=lambda path: FileStore(path),
+        from .directory_scanner import DirectoryScanner
+        return DirectoryScanner.create_scenario_list(
+            path=path,
             recursive=recursive,
-            suffix_allow_list=suffix_allow_list,
-            example_suffix=example_suffix,
+            key_name=key_name
         )
-
-        # Convert FileStore objects to Scenario objects with the specified key
-        scenarios = [Scenario({key_name: file_store}) for file_store in file_stores]
-
-        return cls(scenarios)
 
     @classmethod
     def from_list(
@@ -1136,11 +1133,11 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         """
         assert set(new_order) == set(self.parameters)
 
-        new_scenarios = []
+        new_sl = ScenarioList(data=[], codebook=self.codebook)
         for scenario in self:
             new_scenario = Scenario({key: scenario[key] for key in new_order})
-            new_scenarios.append(new_scenario)
-        return ScenarioList(new_scenarios)
+            new_sl.append(new_scenario)
+        return new_sl
 
     def to_dataset(self) -> "Dataset":
         """
@@ -1180,7 +1177,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
 
         """
         new_names = new_names or [f"{field}_{i}" for i in range(len(self[0][field]))]
-        new_scenarios = []
+        new_sl = ScenarioList(data=[], codebook=self.codebook)
         for scenario in self:
             new_scenario = scenario.copy()
             if len(new_names) == 1:
@@ -1191,8 +1188,8 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
 
             if not keep_original:
                 del new_scenario[field]
-            new_scenarios.append(new_scenario)
-        return ScenarioList(new_scenarios)
+            new_sl.append(new_scenario)
+        return new_sl
 
     @classmethod
     def from_list_of_tuples(self, *names: str, values: List[tuple]) -> ScenarioList:
@@ -1210,16 +1207,17 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         >>> s.add_list('age', [30, 25])
         ScenarioList([Scenario({'name': 'Alice', 'age': 30}), Scenario({'name': 'Bob', 'age': 25})])
         """
-        sl = self.duplicate()
-        if len(values) != len(sl):
+        #sl = self.duplicate()
+        if len(values) != len(self.data):
             raise ScenarioError(
                 f"Length of values ({len(values)}) does not match length of ScenarioList ({len(sl)})"
             )
+        new_sl = ScenarioList(data=[], codebook=self.codebook)
         for i, value in enumerate(values):
-            scenario = sl[i]
+            scenario = self.data[i]
             scenario[name] = value
-            sl[i] = scenario  # Update the scenario in the list
-        return sl
+            new_sl.append(scenario)
+        return new_sl
 
     @classmethod
     def create_empty_scenario_list(cls, n: int) -> ScenarioList:
@@ -1244,11 +1242,11 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         >>> s.add_value('age', 30)
         ScenarioList([Scenario({'name': 'Alice', 'age': 30}), Scenario({'name': 'Bob', 'age': 30})])
         """
-        sl = self.duplicate()
-        for i, scenario in enumerate(sl):
+        new_sl = ScenarioList(data=[], codebook=self.codebook)
+        for scenario in self:
             scenario[name] = value
-            sl[i] = scenario  # Update the scenario in the list
-        return sl
+            new_sl.append(scenario)
+        return new_sl
 
     def rename(self, replacement_dict: dict) -> ScenarioList:
         """Rename the fields in the scenarios.
@@ -1262,11 +1260,11 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         ScenarioList([Scenario({'first_name': 'Alice', 'years': 30}), Scenario({'first_name': 'Bob', 'years': 25})])
 
         """
-        new_list = ScenarioList([])
-        for obj in self:
-            new_obj = obj.rename(replacement_dict)
-            new_list.append(new_obj)
-        return new_list
+        new_sl = ScenarioList(data = [], codebook=self.codebook)
+        for scenario in self:
+            new_scenario = scenario.rename(replacement_dict)
+            new_sl.append(new_scenario)
+        return new_sl
 
     def replace_names(self, new_names: list) -> ScenarioList:
         """Replace the field names in the scenarios with a new list of names.
@@ -1814,12 +1812,23 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         >>> s.to_dict()  # doctest: +ELLIPSIS
         {'scenarios': [{'food': 'wood chips', 'edsl_version': '...', 'edsl_class_name': 'Scenario'}, {'food': 'wood-fired pizza', 'edsl_version': '...', 'edsl_class_name': 'Scenario'}], 'edsl_version': '...', 'edsl_class_name': 'ScenarioList'}
 
+        >>> s = ScenarioList([Scenario({'food': 'wood chips'})], codebook={'food': 'description'})
+        >>> d = s.to_dict()
+        >>> 'codebook' in d
+        True
+        >>> d['codebook'] == {'food': 'description'}
+        True
         """
         if sort:
             data = sorted(self, key=lambda x: hash(x))
         else:
             data = self
+            
         d = {"scenarios": [s.to_dict(add_edsl_version=add_edsl_version) for s in data]}
+
+        # Add codebook if it exists
+        if hasattr(self, 'codebook') and self.codebook:
+            d['codebook'] = self.codebook
 
         if add_edsl_version:
             from .. import __version__
@@ -1863,10 +1872,22 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
     @classmethod
     @remove_edsl_version
     def from_dict(cls, data: dict) -> ScenarioList:
-        """Create a `ScenarioList` from a dictionary."""
+        """Create a `ScenarioList` from a dictionary.
+
+        >>> d = {'scenarios': [{'food': 'wood chips'}], 'codebook': {'food': 'description'}}
+        >>> s = ScenarioList.from_dict(d)
+        >>> s.codebook == {'food': 'description'}
+        True
+        >>> s[0]['food']
+        'wood chips'
+        """
         from .scenario import Scenario
 
-        return cls([Scenario.from_dict(s) for s in data["scenarios"]])
+        # Extract codebook if it exists
+        codebook = data.get('codebook', None)
+        
+        # Create ScenarioList with scenarios and codebook
+        return cls([Scenario.from_dict(s) for s in data["scenarios"]], codebook=codebook)
 
     @classmethod
     def from_nested_dict(cls, data: dict) -> ScenarioList:
