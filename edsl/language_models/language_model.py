@@ -708,7 +708,6 @@ class LanguageModel(
 
             TIMEOUT = float(CONFIG.get("EDSL_API_TIMEOUT"))
 
-            print("LLM model call")
             # Execute the model call with timeout
             response = await asyncio.wait_for(f(**params), timeout=TIMEOUT)
 

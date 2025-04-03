@@ -1,6 +1,39 @@
 from ..jobs.fetch_invigilator import FetchInvigilator
 from ..scenarios import FileStore
 
+import math
+
+# Model configs: base tokens and tile tokens only
+VISION_MODELS = {
+    "gpt-4o": {
+        "base_tokens": 85,
+        "tile_tokens": 170,
+    },
+    "gpt-4o-mini": {
+        "base_tokens": 2833,
+        "tile_tokens": 5667,
+    },
+    "o1": {
+        "base_tokens": 75,
+        "tile_tokens": 150,
+    },
+}
+
+
+def estimate_tokens(model_name, width, height):
+    if model_name not in VISION_MODELS:
+        raise ValueError(f"Unknown model: {model_name}")
+
+    config = VISION_MODELS[model_name]
+    TILE_SIZE = 512
+
+    tiles_x = math.ceil(width / TILE_SIZE)
+    tiles_y = math.ceil(height / TILE_SIZE)
+    total_tiles = tiles_x * tiles_y
+
+    total_tokens = config["base_tokens"] + config["tile_tokens"] * total_tiles
+    return total_tokens
+
 
 class RequestTokenEstimator:
     """Estimate the number of tokens that will be required to run the focal task."""
@@ -24,15 +57,21 @@ class RequestTokenEstimator:
             elif isinstance(prompt, list):
                 for file in prompt:
                     if isinstance(file, FileStore):
-                        file_tokens += file.size * 0.25
+                        if file.is_image():
+                            width, height = file.get_image_dimensions()
+                            token_usage = estimate_tokens("gpt-4o", width, height)
+                            file_tokens += token_usage
+                        else:
+                            file_tokens += file.size * 0.25
             else:
                 from .exceptions import InterviewTokenError
+
                 raise InterviewTokenError(f"Prompt is of type {type(prompt)}")
         result: float = len(combined_text) / 4.0 + file_tokens
         return result
 
 
-
 if __name__ == "__main__":
     import doctest
+
     doctest.testmod(optionflags=doctest.ELLIPSIS)
