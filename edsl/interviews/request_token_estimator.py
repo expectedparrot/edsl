@@ -78,7 +78,6 @@ def estimate_tokens(model_name, width, height):
         return 10  # for testing purposes
     if "gemini" in model_name:
         out = approximate_image_tokens_google(width, height)
-        print(out)
         return out
     if "claude" in model_name:
         total_tokens = width * height / 750
