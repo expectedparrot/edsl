@@ -72,6 +72,95 @@ class DirectoryScanner:
         return result
 
     @classmethod
+    def scan_directory(
+        cls,
+        directory: str,
+        pattern: str = "*",
+        recursive: bool = False,
+        metadata: bool = True,
+        ignore_dirs: List[str] = None,
+        ignore_files: List[str] = None,
+    ) -> Any:
+        """Scan a directory and create a ScenarioList from the files.
+        
+        Args:
+            directory (str): The directory path to scan
+            pattern (str): File pattern to match (e.g., "*.txt", "*.{jpg,png}")
+            recursive (bool): Whether to scan subdirectories recursively
+            metadata (bool): Whether to include file metadata in the scenarios
+            ignore_dirs (List[str]): List of directory names to ignore
+            ignore_files (List[str]): List of file patterns to ignore
+            
+        Returns:
+            ScenarioList: A ScenarioList containing one scenario per matching file
+        """
+        from .scenario_list import ScenarioList
+        
+        # Handle default values
+        ignore_dirs = ignore_dirs or []
+        ignore_files = ignore_files or []
+        
+        # Import glob for pattern matching
+        import glob
+        import fnmatch
+        
+        # Normalize directory path
+        directory = os.path.abspath(directory)
+        
+        # Prepare result container
+        scenarios = []
+        
+        # Pattern matching function
+        def matches_pattern(filename, pattern):
+            return fnmatch.fnmatch(filename, pattern)
+        
+        # File gathering function
+        def gather_files(current_dir, current_pattern):
+            # Create the full path pattern
+            path_pattern = os.path.join(current_dir, current_pattern)
+            
+            # Get all matching files
+            for file_path in glob.glob(path_pattern, recursive=recursive):
+                if os.path.isfile(file_path):
+                    # Check if file should be ignored
+                    file_name = os.path.basename(file_path)
+                    if any(matches_pattern(file_name, ignore_pattern) for ignore_pattern in ignore_files):
+                        continue
+                    
+                    # Create FileStore object
+                    file_store = FileStore(file_path)
+                    
+                    # Create scenario
+                    scenario_data = {"file": file_store}
+                    
+                    # Add metadata if requested
+                    if metadata:
+                        file_stat = os.stat(file_path)
+                        scenario_data.update({
+                            "file_path": file_path,
+                            "file_name": file_name,
+                            "file_size": file_stat.st_size,
+                            "file_created": file_stat.st_ctime,
+                            "file_modified": file_stat.st_mtime,
+                        })
+                    
+                    scenarios.append(Scenario(scenario_data))
+        
+        # Process the directory
+        if recursive:
+            for root, dirs, files in os.walk(directory):
+                # Skip ignored directories
+                dirs[:] = [d for d in dirs if d not in ignore_dirs]
+                
+                # Process files in this directory
+                gather_files(root, pattern)
+        else:
+            gather_files(directory, pattern)
+        
+        # Return as ScenarioList
+        return ScenarioList(scenarios)
+        
+    @classmethod
     def create_scenario_list(
         cls,
         path: Optional[str] = None,

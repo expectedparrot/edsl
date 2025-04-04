@@ -61,7 +61,7 @@ from ..utilities import remove_edsl_version, dict_hash
 from ..dataset import ResultsOperationsMixin
 
 from .result import Result
-from .sqlite_list import SQLiteList
+from ..db_list.sqlite_list import SQLiteList
 
 from .exceptions import (
     ResultsError,
@@ -73,25 +73,18 @@ from .exceptions import (
     ResultsDeserializationError,
 )
 
-# from ..db_list.sqlite_list import SQLiteList
 
+class ResultsSQLList(SQLiteList):
 
-def serialize(obj):
-    return json.dumps(obj.to_dict()) if hasattr(obj, "to_dict") else json.dumps(obj)
+    def serialize(self, obj):
+        return json.dumps(obj.to_dict()) if hasattr(obj, "to_dict") else json.dumps(obj)
 
-
-def deserialize(data):
-    return (
-        Result.from_dict(json.loads(data))
-        if hasattr(Result, "from_dict")
-        else json.loads(data)
-    )
-
-
-class ResultsSQLiteList(SQLiteList):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs, serialize=serialize, deserialize=deserialize)
-
+    def deserialize(self, data):
+        return (
+            Result.from_dict(json.loads(data))
+            if hasattr(Result, "from_dict")
+            else json.loads(data)
+        )
 
 def ensure_fetched(method):
     """A decorator that checks if remote data is loaded, and if not, attempts to fetch it.
@@ -321,7 +314,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         total_results: Optional[int] = None,
         task_history: Optional[TaskHistory] = None,
         sort_by_iteration: bool = False,
-        data_class: Optional[type] = ResultsSQLiteList,
+        data_class: Optional[type] = ResultsSQLList,
     ):
         """Instantiate a Results object with a survey and a list of Result objects.
 
@@ -665,9 +658,14 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
                 "The created columns are not the same so they cannot be added together."
             )
 
+        # Create a new ResultsSQLList with the combined data
+        combined_data = ResultsSQLList()
+        combined_data.extend(self.data)
+        combined_data.extend(other.data)
+
         return Results(
             survey=self.survey,
-            data=self.data + other.data,
+            data=combined_data,
             created_columns=self.created_columns,
         )
 
@@ -2162,7 +2160,6 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         from ..surveys import Survey
         from ..caching import Cache
         from ..tasks import TaskHistory
-        import sqlite3
 
         try:
             # Create a temporary directory to extract files
@@ -2191,28 +2188,9 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
                 db_path = temp_path / 'results.db'
                 if db_path.exists():
                     # Create a new ResultsSQLList instance
-                    from .sqlite_list import ResultsSQLList
                     new_db = ResultsSQLList()
-                    
-                    # Connect to the source database
-                    source_conn = sqlite3.connect(db_path)
-                    source_cursor = source_conn.cursor()
-                    
-                    # Get all data from the source database, maintaining the index
-                    source_cursor.execute(f"SELECT idx, value FROM {ResultsSQLList._TABLE_NAME} ORDER BY idx")
-                    rows = source_cursor.fetchall()
-                    
-                    # Insert data into the new database
-                    for idx, serialized_value in rows:
-                        # Deserialize the value from the source database
-                        deserialized_value = deserialize(serialized_value)
-                        # The new database will handle serialization when inserting
-                        new_db.insert(idx, deserialized_value)
-                    
-                    # Clean up
-                    source_cursor.close()
-                    source_conn.close()
-                    
+                    # Copy data from the source database
+                    new_db.copy_from(db_path)
                     # Set the new database as the results data
                     results.data = new_db
 
