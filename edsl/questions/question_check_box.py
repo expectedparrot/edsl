@@ -261,7 +261,7 @@ class CheckBoxResponseValidator(ResponseValidatorABC):
 
     Examples:
         >>> from edsl import QuestionCheckBox
-        >>> q = QuestionCheckBox.example()
+        >>> q = QuestionCheckBox.example(use_code=True)
         >>> validator = q.response_validator
 
         >>> # Fix string to list
@@ -621,7 +621,7 @@ class QuestionCheckBox(QuestionBase):
             A Pydantic model class tailored to this question's constraints.
 
         Examples:
-            >>> q = QuestionCheckBox.example()
+            >>> q = QuestionCheckBox.example(use_code=True)
             >>> model = q.create_response_model()
             >>> model(answer=[0, 2])  # Select first and third options
             ConstrainedCheckboxResponse(answer=[0, 2], comment=None, generated_tokens=None)
@@ -664,7 +664,7 @@ class QuestionCheckBox(QuestionBase):
             >>> q = QuestionCheckBox(
             ...     question_name="example",
             ...     question_text="Select options:",
-            ...     question_options=["A", "B", "C"]
+            ...     question_options=["A", "B", "C"],use_code=True
             ... )
             >>> q._translate_answer_code_to_answer([0, 2])
             ['A', 'C']
@@ -770,7 +770,7 @@ class QuestionCheckBox(QuestionBase):
     ################
     @classmethod
     @inject_exception
-    def example(cls, include_comment=False, use_code=True) -> QuestionCheckBox:
+    def example(cls, include_comment=False, use_code=False) -> QuestionCheckBox:
         """
         Create an example instance of a checkbox question.
 
