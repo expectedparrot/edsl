@@ -5,6 +5,7 @@ from io import StringIO
 from edsl.results.exceptions import (
     ResultsBadMutationstringError,
     ResultsInvalidNameError,
+    ResultsError,
 )
 
 from edsl.results import Results
@@ -181,6 +182,87 @@ class TestResults(unittest.TestCase):
                 reader = csv.reader(f)
                 rows = list(reader)
                 assert len(rows) == len(self.example_results) + 1
+
+    def test_to_disk_and_from_disk(self):
+        """Test saving and loading Results to/from disk."""
+        import tempfile
+        import os
+        import zipfile
+        import json
+
+        # Create a temporary file path
+        with tempfile.NamedTemporaryFile(suffix='.zip', delete=False) as tmp:
+            filepath = tmp.name
+
+        try:
+            # Debug original data
+            print(f"Original data length: {len(self.example_results)}")
+            print(f"Original data type: {type(self.example_results.data)}")
+            if hasattr(self.example_results.data, 'db_path'):
+                print(f"Original db_path: {self.example_results.data.db_path}")
+
+            # Save the example results to disk
+            self.example_results.to_disk(filepath)
+
+            # Verify the file was created
+            self.assertTrue(os.path.exists(filepath))
+
+            # Debug zip contents
+            with zipfile.ZipFile(filepath, 'r') as zipf:
+                print("Zip contents:", zipf.namelist())
+                if 'metadata.json' in zipf.namelist():
+                    metadata = json.loads(zipf.read('metadata.json').decode())
+                    print("Metadata:", json.dumps(metadata, indent=2))
+
+            # Load the results back
+            loaded_results = Results.from_disk(filepath)
+
+            # Debug loaded data
+            print(f"Loaded data length: {len(loaded_results)}")
+            print(f"Loaded data type: {type(loaded_results.data)}")
+            if hasattr(loaded_results.data, 'db_path'):
+                print(f"Loaded db_path: {loaded_results.data.db_path}")
+
+            # Verify the loaded results match the original
+            self.assertEqual(len(loaded_results), len(self.example_results))
+            self.assertEqual(loaded_results.survey, self.example_results.survey)
+            self.assertEqual(loaded_results.created_columns, self.example_results.created_columns)
+            self.assertEqual(loaded_results.completed, self.example_results.completed)
+
+            # Compare the first result from both
+            self.assertEqual(loaded_results[0].to_dict(), self.example_results[0].to_dict())
+
+        finally:
+            # Clean up
+            if os.path.exists(filepath):
+                os.remove(filepath)
+
+    def test_to_disk_invalid_path(self):
+        """Test error handling for invalid file path."""
+        with self.assertRaises(ResultsError):
+            self.example_results.to_disk("/nonexistent/path/results.zip")
+
+    def test_from_disk_invalid_path(self):
+        """Test error handling for loading from invalid file path."""
+        with self.assertRaises(ResultsError):
+            Results.from_disk("/nonexistent/path/results.zip")
+
+    def test_from_disk_invalid_format(self):
+        """Test error handling for loading from invalid file format."""
+        import tempfile
+        import os
+        
+        # Create a temporary file with invalid content
+        with tempfile.NamedTemporaryFile(suffix='.zip', delete=False) as tmp:
+            filepath = tmp.name
+            tmp.write(b'invalid content')
+        
+        try:
+            with self.assertRaises(ResultsError):
+                Results.from_disk(filepath)
+        finally:
+            if os.path.exists(filepath):
+                os.remove(filepath)
 
 
 if __name__ == "__main__":
