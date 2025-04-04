@@ -18,7 +18,7 @@ from .utilities import (
 )
 
 # Decorator utilities
-from .decorators import sync_wrapper, jupyter_nb_handler
+from .decorators import sync_wrapper, jupyter_nb_handler, memory_profile
 
 # Standalone utilities
 from .is_notebook import is_notebook
@@ -43,6 +43,7 @@ __all__ = [
     "is_gzipped",
     "sync_wrapper",
     "jupyter_nb_handler",
+    "memory_profile",
     "is_notebook",
     "is_valid_variable_name",
     "sanitize_string"

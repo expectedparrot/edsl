@@ -59,6 +59,7 @@ from ..utilities import (
     sanitize_string,
     is_valid_variable_name,
     dict_hash,
+    memory_profile,
 )
 from ..dataset import ScenarioListOperationsMixin
 
@@ -870,6 +871,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         """Use memory-efficient comparison by default."""
         return self.equals(other)
 
+    @memory_profile
     def filter(self, expression: str) -> ScenarioList:
         """
         Filter a list of scenarios based on an expression.
@@ -886,13 +888,22 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         try:
             first_item = self[0] if len(self) > 0 else None
             if first_item:
+                # Check for ragged keys by examining a sample of scenarios
+                # rather than iterating through all of them
+                sample_size = min(len(self), 100)  # Check at most 100 scenarios
                 base_keys = set(first_item.keys())
                 keys = set()
+                
+                # Use a counter to check only the sample_size
+                count = 0
                 for scenario in self:
                     keys.update(scenario.keys())
+                    count += 1
+                    if count >= sample_size:
+                        break
+                        
                 if keys != base_keys:
                     import warnings
-
                     warnings.warn(
                         "Ragged ScenarioList detected (different keys for different scenario entries). This may cause unexpected behavior."
                     )
@@ -907,10 +918,17 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             return EvalWithCompoundTypes(names=scenario)
 
         try:
-            # Iterate through all scenarios and evaluate the expression
+            # Process one scenario at a time to minimize memory usage
             for scenario in self:
+                # Check if scenario matches the filter expression
                 if create_evaluator(scenario).eval(expression):
-                    new_sl.append(scenario.copy())
+                    # Create a copy and immediately append to the new list
+                    scenario_copy = scenario.copy()
+                    new_sl.append(scenario_copy)
+                    
+                    # Remove reference to allow for garbage collection
+                    del scenario_copy
+                
         except NameNotDefined as e:
             # Get available fields for error message
             try:
@@ -2367,5 +2385,4 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
 
 if __name__ == "__main__":
     import doctest
-
     doctest.testmod(optionflags=doctest.ELLIPSIS)

@@ -2189,8 +2189,8 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
                 if db_path.exists():
                     # Create a new ResultsSQLList instance
                     new_db = ResultsSQLList()
-                    # Copy data from the source database
-                    new_db.copy_from(db_path)
+                    # Copy data from the source database - convert Path to string
+                    new_db.copy_from(str(db_path))
                     # Set the new database as the results data
                     results.data = new_db
 
