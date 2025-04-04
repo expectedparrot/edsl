@@ -2087,19 +2087,32 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         import os
         import tempfile
         from pathlib import Path
+        import sqlite3
+        import shutil
 
         try:
             # Create a temporary directory to store files before zipping
             with tempfile.TemporaryDirectory() as temp_dir:
                 temp_path = Path(temp_dir)
 
-                # 1. Save the SQLite database file
-                if hasattr(self.data, 'db_path'):
-                    db_path = Path(self.data.db_path)
-                    if db_path.exists():
-                        db_filename = 'results.db'
-                        db_dest = temp_path / db_filename
-                        db_dest.write_bytes(db_path.read_bytes())
+                # 1. Handle the SQLite database
+                db_path = temp_path / 'results.db'
+                
+                if isinstance(self.data, list):
+                    # If data is a list, create a new SQLiteList
+                    from .sqlite_list import SQLiteList
+                    new_db = SQLiteList()
+                    new_db.extend(self.data)
+                    shutil.copy2(new_db.db_path, db_path)
+                elif hasattr(self.data, 'db_path') and os.path.exists(self.data.db_path):
+                    # If data is already a SQLiteList, copy its database
+                    shutil.copy2(self.data.db_path, db_path)
+                else:
+                    # If no database exists, create a new one
+                    from .sqlite_list import SQLiteList
+                    new_db = SQLiteList()
+                    new_db.extend(self.data)
+                    shutil.copy2(new_db.db_path, db_path)
 
                 # 2. Create metadata.json
                 metadata = {
@@ -2149,6 +2162,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         from ..surveys import Survey
         from ..caching import Cache
         from ..tasks import TaskHistory
+        import sqlite3
 
         try:
             # Create a temporary directory to extract files
@@ -2176,9 +2190,31 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
                 # 3. Set the SQLite database path if it exists
                 db_path = temp_path / 'results.db'
                 if db_path.exists():
-                    # Create a new SQLiteList instance with the extracted database
-                    from .sqlite_list import SQLiteList
-                    results.data = SQLiteList(db_path=str(db_path))
+                    # Create a new ResultsSQLList instance
+                    from .sqlite_list import ResultsSQLList
+                    new_db = ResultsSQLList()
+                    
+                    # Connect to the source database
+                    source_conn = sqlite3.connect(db_path)
+                    source_cursor = source_conn.cursor()
+                    
+                    # Get all data from the source database, maintaining the index
+                    source_cursor.execute(f"SELECT idx, value FROM {ResultsSQLList._TABLE_NAME} ORDER BY idx")
+                    rows = source_cursor.fetchall()
+                    
+                    # Insert data into the new database
+                    for idx, serialized_value in rows:
+                        # Deserialize the value from the source database
+                        deserialized_value = deserialize(serialized_value)
+                        # The new database will handle serialization when inserting
+                        new_db.insert(idx, deserialized_value)
+                    
+                    # Clean up
+                    source_cursor.close()
+                    source_conn.close()
+                    
+                    # Set the new database as the results data
+                    results.data = new_db
 
                 results.completed = metadata['completed']
                 return results
