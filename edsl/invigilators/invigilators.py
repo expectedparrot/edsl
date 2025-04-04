@@ -399,6 +399,9 @@ class InvigilatorAI(InvigilatorBase):
                 if type(agent_response_dict.edsl_dict.answer) is str
                 or type(agent_response_dict.edsl_dict.answer) is dict
                 or type(agent_response_dict.edsl_dict.answer) is list
+                or type(agent_response_dict.edsl_dict.answer) is int
+                or type(agent_response_dict.edsl_dict.answer) is float
+                or type(agent_response_dict.edsl_dict.answer) is bool
                 else "",
                 "comment": agent_response_dict.edsl_dict.comment
                 if agent_response_dict.edsl_dict.comment
