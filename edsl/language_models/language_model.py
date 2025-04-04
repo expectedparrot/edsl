@@ -509,7 +509,9 @@ class LanguageModel(
         return self.execute_model_call(user_prompt, system_prompt)
 
     @abstractmethod
-    async def async_execute_model_call(self, user_prompt: str, system_prompt: str):
+    async def async_execute_model_call(
+        self, user_prompt: str, system_prompt: str, question_name: Optional[str] = None
+    ):
         """Execute the model call asynchronously.
 
         This abstract method must be implemented by all model subclasses
@@ -518,6 +520,7 @@ class LanguageModel(
         Args:
             user_prompt: The user message or input prompt
             system_prompt: The system message or context
+            question_name: Optional name of the question being asked (primarily used for test models)
 
         Returns:
             Coroutine that resolves to the model response
@@ -529,7 +532,7 @@ class LanguageModel(
         pass
 
     async def remote_async_execute_model_call(
-        self, user_prompt: str, system_prompt: str
+        self, user_prompt: str, system_prompt: str, question_name: Optional[str] = None
     ):
         """Execute the model call remotely through the EDSL Coop service.
 
@@ -540,6 +543,7 @@ class LanguageModel(
         Args:
             user_prompt: The user message or input prompt
             system_prompt: The system message or context
+            question_name: Optional name of the question being asked (primarily used for test models)
 
         Returns:
             Coroutine that resolves to the model response from the remote service
@@ -563,6 +567,7 @@ class LanguageModel(
         Args:
             *args: Positional arguments to pass to async_execute_model_call
             **kwargs: Keyword arguments to pass to async_execute_model_call
+                     Can include question_name for test models
 
         Returns:
             The model response
@@ -702,7 +707,9 @@ class LanguageModel(
                 "system_prompt": system_prompt,
                 "files_list": files_list,
             }
-
+            # Add question_name parameter for test models
+            if self.model == "test" and invigilator:
+                params["question_name"] = invigilator.question.question_name
             # Get timeout from configuration
             from ..config import CONFIG
 
@@ -710,7 +717,6 @@ class LanguageModel(
 
             # Execute the model call with timeout
             response = await asyncio.wait_for(f(**params), timeout=TIMEOUT)
-
             # Store the response in the cache
             new_cache_key = cache.store(
                 **cache_call_params, response=response, service=self._inference_service_
@@ -801,7 +807,6 @@ class LanguageModel(
 
         # Create structured input record
         model_inputs = ModelInputs(user_prompt=user_prompt, system_prompt=system_prompt)
-
         # Get model response (using cache if available)
         model_outputs: ModelResponse = (
             await self._async_get_intended_model_call_outcome(**params)
@@ -1046,7 +1051,12 @@ class LanguageModel(
         ]
 
         # Define a new async_execute_model_call that only reads from cache
-        async def async_execute_model_call(self, user_prompt: str, system_prompt: str):
+        async def async_execute_model_call(
+            self,
+            user_prompt: str,
+            system_prompt: str,
+            question_name: Optional[str] = None,
+        ):
             """Only use cached responses, never making new API calls."""
             cache_call_params = {
                 "model": str(self.model),
