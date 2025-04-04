@@ -85,10 +85,17 @@ class TestService(InferenceServiceABC):
                         ],
                         "usage": {"prompt_tokens": 1, "completion_tokens": 1},
                     }
-                if question_name in self._canned_response:
-                    print(self._canned_response[question_name])
+
+                response = self._canned_response
+                if isinstance(response, dict) and question_name:
+                    canned_text = response.get(
+                        question_name, f"No canned response for '{question_name}'"
+                    )
+                else:
+                    canned_text = response
+
                 return {
-                    "message": [{"text": f"{self._canned_response}"}],
+                    "message": [{"text": f"{canned_text}"}],
                     "usage": {"prompt_tokens": 1, "completion_tokens": 1},
                 }
 
