@@ -2,9 +2,8 @@ import sqlite3
 import tempfile
 import os
 import json
-from typing import Any, Callable
+from typing import Any, Callable, Iterable, Iterator, List, Optional
 from abc import ABC, abstractmethod
-
 from collections.abc import MutableSequence
 
 
@@ -39,13 +38,33 @@ class SQLiteList(MutableSequence, ABC):
 
         # Initialize with data if provided
         if data is not None:
-            for item in data:
-                self.append(item)
+            self._batch_insert(data)
 
     def _create_table_if_not_exists(self):
         query = f"CREATE TABLE IF NOT EXISTS {self._TABLE_NAME} (idx INTEGER UNIQUE, value BLOB)"
         with self.conn:
             self.conn.execute(query)
+            # Create an index for faster lookups
+            self.conn.execute(f"CREATE INDEX IF NOT EXISTS idx_index ON {self._TABLE_NAME} (idx)")
+
+    def _batch_insert(self, data: Iterable) -> None:
+        """
+        Insert items one at a time to minimize memory usage.
+        
+        Args:
+            data: Iterable containing items to insert
+        """
+        with self.conn:
+            # Use a single transaction for better performance
+            for idx, item in enumerate(data):
+                # Serialize and insert one item at a time to minimize memory usage
+                serialized = self.serialize(item)
+                self.conn.execute(
+                    f"INSERT INTO {self._TABLE_NAME} (idx, value) VALUES (?, ?)",
+                    (idx, serialized)
+                )
+                # Clear reference to allow garbage collection
+                del serialized
 
     def __len__(self):
         cursor = self.conn.execute(f"SELECT COUNT(*) FROM {self._TABLE_NAME}")
@@ -131,6 +150,38 @@ class SQLiteList(MutableSequence, ABC):
                 (index, serialized),
             )
 
+    def append(self, value):
+        """Append a value to the end of the list."""
+        index = len(self)
+        serialized = self.serialize(value)
+        with self.conn:
+            self.conn.execute(
+                f"INSERT INTO {self._TABLE_NAME} (idx, value) VALUES (?, ?)",
+                (index, serialized),
+            )
+
+    def extend(self, values: Iterable) -> None:
+        """
+        Extend the list by appending all items in the given iterable.
+        
+        Processes one item at a time to minimize memory usage.
+        
+        Args:
+            values: Iterable of values to append
+        """
+        start_idx = len(self)
+        with self.conn:
+            # Use a single transaction for efficiency
+            for i, item in enumerate(values):
+                # Serialize and insert one at a time to minimize memory usage
+                serialized = self.serialize(item)
+                self.conn.execute(
+                    f"INSERT INTO {self._TABLE_NAME} (idx, value) VALUES (?, ?)",
+                    (start_idx + i, serialized)
+                )
+                # Clear reference to allow garbage collection
+                del serialized
+
     def close(self):
         """
         Close the database connection and remove the temporary file.
@@ -151,29 +202,51 @@ class SQLiteList(MutableSequence, ABC):
     def __add__(self, other):
         """
         Concatenates two SQLiteLists and returns a new SQLiteList containing all elements.
+        Use memory-efficient copy operation.
         """
         if not isinstance(other, SQLiteList):
             raise TypeError(
                 f"unsupported operand type(s) for +: '{type(self).__name__}' and '{type(other).__name__}'"
             )
 
-        result = SQLiteList()
-
-        # Copy all items from self
-        for i in range(len(self)):
-            result.append(self[i])
-
-        # Copy all items from other
-        for i in range(len(other)):
-            result.append(other[i])
+        # Create a new instance of the same class
+        result = type(self)()
+        
+        # Use stream to copy all items from self
+        result.extend(self.stream())
+        
+        # Use stream to copy all items from other
+        result.extend(other.stream())
 
         return result
 
-    def stream(self):
+    def stream(self) -> Iterator[Any]:
         """Stream items from the database without loading everything into memory."""
         cursor = self.conn.execute(f"SELECT value FROM {self._TABLE_NAME} ORDER BY idx")
         for row in cursor:
             yield self.deserialize(row[0])
+
+    def stream_batched(self, batch_size: int = 1000) -> Iterator[List[Any]]:
+        """
+        Stream items in batches to reduce memory usage and improve performance.
+        
+        Args:
+            batch_size: Number of items to yield in each batch
+            
+        Yields:
+            Lists of deserialized items, with at most batch_size items per list
+        """
+        cursor = self.conn.execute(f"SELECT value FROM {self._TABLE_NAME} ORDER BY idx")
+        batch = []
+        
+        for row in cursor:
+            batch.append(self.deserialize(row[0]))
+            if len(batch) >= batch_size:
+                yield batch
+                batch = []
+                
+        if batch:  # Don't forget the last batch if it's not full
+            yield batch
 
     def __iter__(self):
         """Iterate over items using streaming."""
@@ -183,10 +256,27 @@ class SQLiteList(MutableSequence, ABC):
         """Memory-efficient comparison of two SQLiteLists."""
         if len(self) != len(other):
             return False
-        for i in range(len(self)):
-            if self[i] != other[i]:
-                return False
-        return True
+        
+        # Compare in batches to reduce memory usage
+        batch_size = 1000
+        self_batches = self.stream_batched(batch_size)
+        other_batches = other.stream_batched(batch_size) if hasattr(other, 'stream_batched') else None
+        
+        if other_batches:
+            # Both objects support batched streaming
+            for self_batch, other_batch in zip(self_batches, other_batches):
+                if len(self_batch) != len(other_batch):
+                    return False
+                for i in range(len(self_batch)):
+                    if self_batch[i] != other_batch[i]:
+                        return False
+            return True
+        else:
+            # Fall back to item-by-item comparison
+            for i in range(len(self)):
+                if self[i] != other[i]:
+                    return False
+            return True
 
     def __eq__(self, other):
         """Use memory-efficient comparison by default."""
@@ -202,27 +292,53 @@ class SQLiteList(MutableSequence, ABC):
             sqlite3.Error: If there's an error accessing the source database
         """
         import sqlite3
+        import time
+        import shutil
+        import tempfile
         
-        # Connect to the source database
-        source_conn = sqlite3.connect(source_db_path)
-        source_cursor = source_conn.cursor()
+        # Make a temporary copy of the source database to avoid locking issues
+        with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as temp_file:
+            temp_db_path = temp_file.name
         
         try:
-            # Get all data from the source database, maintaining the index
-            source_cursor.execute(f"SELECT idx, value FROM {self._TABLE_NAME} ORDER BY idx")
-            rows = source_cursor.fetchall()
+            # Copy the source database to a temporary file
+            shutil.copy2(source_db_path, temp_db_path)
             
-            # Insert data into this database
-            for idx, serialized_value in rows:
-                # Deserialize the value from the source database
-                deserialized_value = self.deserialize(serialized_value)
-                # This database will handle serialization when inserting
-                self.insert(idx, deserialized_value)
+            # Connect to the copied database
+            source_conn = sqlite3.connect(temp_db_path)
+            source_cursor = source_conn.cursor()
+            
+            try:
+                # Check if the table exists in the source database
+                source_cursor.execute(f"SELECT name FROM sqlite_master WHERE type='table' AND name='{self._TABLE_NAME}'")
+                if not source_cursor.fetchone():
+                    return  # Table doesn't exist in source, nothing to copy
                 
+                # Get data from source database
+                source_cursor.execute(f"SELECT idx, value FROM {self._TABLE_NAME} ORDER BY idx")
+                rows = source_cursor.fetchall()
+                
+                # Empty the current database
+                with self.conn:
+                    self.conn.execute(f"DELETE FROM {self._TABLE_NAME}")
+                
+                # Insert data into the destination database
+                with self.conn:
+                    self.conn.executemany(
+                        f"INSERT INTO {self._TABLE_NAME} (idx, value) VALUES (?, ?)",
+                        rows
+                    )
+            finally:
+                source_cursor.close()
+                source_conn.close()
         finally:
-            # Clean up
-            source_cursor.close()
-            source_conn.close()
+            # Clean up the temporary file
+            import os
+            if os.path.exists(temp_db_path):
+                try:
+                    os.unlink(temp_db_path)
+                except:
+                    pass
 
     def __del__(self):
         """Clean up the temporary file when the object is deleted."""
@@ -231,20 +347,3 @@ class SQLiteList(MutableSequence, ABC):
             os.unlink(self.db_path)
         except:
             pass
-
-
-# Example usage
-if __name__ == "__main__":
-    pass
-    # sq_list = SQLiteList()
-
-    # # Insert some values
-    # sq_list.insert(0, "apple")
-    # sq_list.insert(1, "banana")
-    # sq_list.insert(2, "cherry")
-    # sq_list.insert(len(sq_list), "date")
-
-    # print("All items:", [sq_list[i] for i in range(len(sq_list))])
-    # print("sq_list representation:", sq_list)
-
-    # sq_list.close()
