@@ -93,22 +93,20 @@ TableFormat: TypeAlias = Literal[
 
 import pickle
 
-def serialize(obj):
-    """Serialize a Scenario object or other data to bytes using pickle."""
-    return pickle.dumps(obj)
-
-def deserialize(data):
-    """Deserialize pickled bytes back to a Scenario object or other data."""
-    if isinstance(data, str):
-        return pickle.loads(data.encode())
-    return pickle.loads(data)
-
 
 class ScenarioSQLiteList(SQLiteList):
     """SQLite-backed list specifically for storing Scenario objects."""
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs, serialize=serialize, deserialize=deserialize)
+    def serialize(self, obj):
+        """Serialize a Scenario object or other data to bytes using pickle."""
+        return pickle.dumps(obj)
+
+    def deserialize(self, data):
+        """Deserialize pickled bytes back to a Scenario object or other data."""
+        if isinstance(data, str):
+            return pickle.loads(data.encode())
+        return pickle.loads(data)
+
 
 
 class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
@@ -1781,7 +1779,10 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
     @classmethod
     def from_csv(cls, source: Union[str, "ParseResult"]) -> ScenarioList:
         """Create a ScenarioList from a CSV file or URL."""
-        return cls.from_delimited_file(source, delimiter=",")
+        from .scenario_source import ScenarioSource
+        
+        # Delegate to ScenarioSource implementation
+        return ScenarioSource._from_csv(source)
 
     def left_join(self, other: ScenarioList, by: Union[str, list[str]]) -> ScenarioList:
         """Perform a left join with another ScenarioList, following SQL join semantics.
@@ -1804,7 +1805,10 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
     @classmethod
     def from_tsv(cls, source: Union[str, "ParseResult"]) -> ScenarioList:
         """Create a ScenarioList from a TSV file or URL."""
-        return cls.from_delimited_file(source, delimiter="\t")
+        from .scenario_source import ScenarioSource
+        
+        # Delegate to ScenarioSource implementation
+        return ScenarioSource._from_tsv(source)
 
     def to_dict(self, sort: bool = False, add_edsl_version: bool = True) -> dict:
         """
@@ -2313,11 +2317,50 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
     
     @classmethod
     def from_pdf(cls, filename_or_url, collapse_pages=False):
-        return PdfTools.from_pdf(filename_or_url, collapse_pages)
+        """Create a ScenarioList from a PDF file or URL."""
+        from .scenario_source import ScenarioSource
+        
+        # Delegate to ScenarioSource implementation
+        return ScenarioSource._from_pdf(filename_or_url, 
+                                       chunk_type="page" if not collapse_pages else "text", 
+                                       chunk_size=1)
 
     @classmethod
     def from_pdf_to_image(cls, pdf_path, image_format="jpeg"):
-        return PdfTools.from_pdf_to_image(pdf_path, image_format)
+        """Create a ScenarioList with images extracted from a PDF file."""
+        from .scenario_source import ScenarioSource
+        
+        # Delegate to ScenarioSource implementation
+        return ScenarioSource._from_pdf_to_image(pdf_path, 
+                                               base_width=2000, 
+                                               include_text=True)
+                                               
+    @classmethod
+    def from_source(cls, source_type: str, *args, **kwargs) -> "ScenarioList":
+        """
+        Create a ScenarioList from a specified source type.
+        
+        This method serves as the main entry point for creating ScenarioList objects,
+        providing a unified interface for various data sources.
+        
+        Args:
+            source_type: The type of source to create a ScenarioList from.
+                         Valid values include: 'urls', 'directory', 'csv', 'tsv',
+                         'excel', 'pdf', 'pdf_to_image', and others.
+            *args: Positional arguments to pass to the source-specific method.
+            **kwargs: Keyword arguments to pass to the source-specific method.
+            
+        Returns:
+            A ScenarioList object created from the specified source.
+            
+        Examples:
+            >>> # Create from CSV file
+            >>> sl_csv = ScenarioList.from_source('csv', 'data.csv')
+            >>> # Create from directory
+            >>> sl_dir = ScenarioList.from_source('directory', '/path/to/files')
+        """
+        from .scenario_source import ScenarioSource
+        return ScenarioSource.from_source(source_type, *args, **kwargs)
 
 
 if __name__ == "__main__":

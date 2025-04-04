@@ -3,33 +3,31 @@ import tempfile
 import os
 import json
 from typing import Any, Callable
+from abc import ABC, abstractmethod
 
 from collections.abc import MutableSequence
 
 
-class SQLiteList(MutableSequence):
+class SQLiteList(MutableSequence, ABC):
     """
-    A MutableSequence that stores its data in a temporary SQLite file.
+    An abstract base class for a MutableSequence that stores its data in a temporary SQLite file.
     The file is removed when close() is called.
+    Subclasses must implement serialize and deserialize methods.
     """
 
     _TABLE_NAME = "list_data"  # Class constant instead of instance parameter
 
-    def __init__(
-        self,
-        data=None,
-        serialize: Callable[[Any], str] = None,
-        deserialize: Callable[[Any], str] = None,
-    ):
+    @abstractmethod
+    def serialize(self, value: Any) -> str:
+        """Convert a value to a string for storage in SQLite."""
+        pass
 
-        if serialize is None:
-            raise ValueError("serialize function is required")
-        if deserialize is None:
-            raise ValueError("deserialize function is required")
+    @abstractmethod
+    def deserialize(self, value: str) -> Any:
+        """Convert a stored string back to its original value."""
+        pass
 
-        self.serialize = serialize
-        self.deserialize = deserialize
-
+    def __init__(self, data=None):
         # Create a temporary file for our SQLite database
         tmpfile = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
         self.db_path = tmpfile.name
@@ -159,7 +157,7 @@ class SQLiteList(MutableSequence):
                 f"unsupported operand type(s) for +: '{type(self).__name__}' and '{type(other).__name__}'"
             )
 
-        result = SQLiteList(serialize=self.serialize, deserialize=self.deserialize)
+        result = SQLiteList()
 
         # Copy all items from self
         for i in range(len(self)):
@@ -193,6 +191,46 @@ class SQLiteList(MutableSequence):
     def __eq__(self, other):
         """Use memory-efficient comparison by default."""
         return self.equals(other)
+
+    def copy_from(self, source_db_path: str) -> None:
+        """Copy data from another SQLite database file.
+        
+        Args:
+            source_db_path: Path to the source SQLite database file
+            
+        Raises:
+            sqlite3.Error: If there's an error accessing the source database
+        """
+        import sqlite3
+        
+        # Connect to the source database
+        source_conn = sqlite3.connect(source_db_path)
+        source_cursor = source_conn.cursor()
+        
+        try:
+            # Get all data from the source database, maintaining the index
+            source_cursor.execute(f"SELECT idx, value FROM {self._TABLE_NAME} ORDER BY idx")
+            rows = source_cursor.fetchall()
+            
+            # Insert data into this database
+            for idx, serialized_value in rows:
+                # Deserialize the value from the source database
+                deserialized_value = self.deserialize(serialized_value)
+                # This database will handle serialization when inserting
+                self.insert(idx, deserialized_value)
+                
+        finally:
+            # Clean up
+            source_cursor.close()
+            source_conn.close()
+
+    def __del__(self):
+        """Clean up the temporary file when the object is deleted."""
+        try:
+            self.conn.close()
+            os.unlink(self.db_path)
+        except:
+            pass
 
 
 # Example usage
