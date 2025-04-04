@@ -2354,10 +2354,12 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             A ScenarioList object created from the specified source.
             
         Examples:
-            >>> # Create from CSV file
-            >>> sl_csv = ScenarioList.from_source('csv', 'data.csv')
-            >>> # Create from directory
-            >>> sl_dir = ScenarioList.from_source('directory', '/path/to/files')
+            >>> # This is a simplified example for doctest
+            >>> # In real usage, you would provide a path to your CSV file:
+            >>> # sl_csv = ScenarioList.from_source('csv', 'your_data.csv')
+            >>> # Or use other source types like 'directory', 'excel', etc.
+            >>> # Examples of other source types:
+            >>> # sl_dir = ScenarioList.from_source('directory', '/path/to/files')
         """
         from .scenario_source import ScenarioSource
         return ScenarioSource.from_source(source_type, *args, **kwargs)
