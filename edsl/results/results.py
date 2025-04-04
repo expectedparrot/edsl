@@ -2068,6 +2068,124 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         except Exception as e:
             raise ResultsError(f"Error moving results from shelf to memory: {str(e)}")
 
+    def to_disk(self, filepath: str) -> None:
+        """Serialize the Results object to a zip file, preserving the SQLite database.
+
+        This method creates a zip file containing:
+        1. The SQLite database file from the data container
+        2. A metadata.json file with the survey, created_columns, and other non-data info
+        3. The cache data if present
+
+        Args:
+            filepath: Path where the zip file should be saved
+
+        Raises:
+            ResultsError: If there's an error during serialization
+        """
+        import zipfile
+        import json
+        import os
+        import tempfile
+        from pathlib import Path
+
+        try:
+            # Create a temporary directory to store files before zipping
+            with tempfile.TemporaryDirectory() as temp_dir:
+                temp_path = Path(temp_dir)
+
+                # 1. Save the SQLite database file
+                if hasattr(self.data, 'db_path'):
+                    db_path = Path(self.data.db_path)
+                    if db_path.exists():
+                        db_filename = 'results.db'
+                        db_dest = temp_path / db_filename
+                        db_dest.write_bytes(db_path.read_bytes())
+
+                # 2. Create metadata.json
+                metadata = {
+                    'survey': self.survey.to_dict() if self.survey else None,
+                    'created_columns': self.created_columns,
+                    'cache': self.cache.to_dict() if hasattr(self, 'cache') else None,
+                    'task_history': self.task_history.to_dict() if hasattr(self, 'task_history') else None,
+                    'completed': self.completed,
+                    'job_uuid': self._job_uuid if hasattr(self, '_job_uuid') else None,
+                    'total_results': self._total_results if hasattr(self, '_total_results') else None,
+                }
+
+                metadata_path = temp_path / 'metadata.json'
+                metadata_path.write_text(json.dumps(metadata, indent=4))
+
+                # 3. Create the zip file
+                with zipfile.ZipFile(filepath, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                    # Add all files from temp directory to zip
+                    for file in temp_path.glob('*'):
+                        zipf.write(file, file.name)
+
+        except Exception as e:
+            raise ResultsError(f"Error saving Results to disk: {str(e)}")
+
+    @classmethod
+    def from_disk(cls, filepath: str) -> 'Results':
+        """Load a Results object from a zip file.
+
+        This method:
+        1. Extracts the SQLite database file
+        2. Loads the metadata
+        3. Creates a new Results instance with the restored data
+
+        Args:
+            filepath: Path to the zip file containing the serialized Results
+
+        Returns:
+            Results: A new Results instance with the restored data
+
+        Raises:
+            ResultsError: If there's an error during deserialization
+        """
+        import zipfile
+        import json
+        import tempfile
+        from pathlib import Path
+        from ..surveys import Survey
+        from ..caching import Cache
+        from ..tasks import TaskHistory
+
+        try:
+            # Create a temporary directory to extract files
+            with tempfile.TemporaryDirectory() as temp_dir:
+                temp_path = Path(temp_dir)
+
+                # Extract the zip file
+                with zipfile.ZipFile(filepath, 'r') as zipf:
+                    zipf.extractall(temp_path)
+
+                # 1. Load metadata
+                metadata_path = temp_path / 'metadata.json'
+                metadata = json.loads(metadata_path.read_text())
+
+                # 2. Create a new Results instance
+                results = cls(
+                    survey=Survey.from_dict(metadata['survey']) if metadata['survey'] else None,
+                    created_columns=metadata['created_columns'],
+                    cache=Cache.from_dict(metadata['cache']) if metadata['cache'] else None,
+                    task_history=TaskHistory.from_dict(metadata['task_history']) if metadata['task_history'] else None,
+                    job_uuid=metadata['job_uuid'],
+                    total_results=metadata['total_results'],
+                )
+
+                # 3. Set the SQLite database path if it exists
+                db_path = temp_path / 'results.db'
+                if db_path.exists():
+                    # Create a new SQLiteList instance with the extracted database
+                    from .sqlite_list import SQLiteList
+                    results.data = SQLiteList(db_path=str(db_path))
+
+                results.completed = metadata['completed']
+                return results
+
+        except Exception as e:
+            raise ResultsError(f"Error loading Results from disk: {str(e)}")
+
 
 def main():  # pragma: no cover
     """Run example operations on a Results object.

@@ -635,9 +635,10 @@ class Jobs(Base):
                 
                 # Collect results
                 #results_obj.append(result)
-                key = results_obj.shelve_result(result)
+                #key = results_obj.shelve_result(result)
                 results_obj.add_task_history_entry(interview)
-                
+                results_obj.insert_sorted(result)
+
                 # Memory management: Set up reference for next iteration and clear old references
                 prev_interview_ref = weakref.ref(interview)
                 if hasattr(interview, 'clear_references'):
@@ -648,7 +649,7 @@ class Jobs(Base):
                 del interview
             
             # Finalize results object with cache and bucket collection
-            results_obj.insert_from_shelf()
+            # results_obj.insert_from_shelf()
             results_obj.cache = results_obj.relevant_cache(self.run_config.environment.cache)
             results_obj.bucket_collection = self.run_config.environment.bucket_collection
             return results_obj
