@@ -69,17 +69,6 @@ When you run surveys remotely, your Expected Parrot key is used by default with 
   <br>
 
 
-.. image:: static/home-keys-add-key.png
-  :alt: Add a key
-  :align: center
-  :width: 100%
-  
-
-.. raw:: html
-
-  <br>
-
-
 
 2. Store keys in a local file
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -116,7 +105,18 @@ To use this method:
   AZURE_ENDPOINT_URL_AND_KEY = https://model_1_link:api_key_1,https://model_2_link:api_key_2
 
 
-Your Expected Parrot key can be found at the `Settings <http://www.expectedparrot.com/home/settings>`_ page of your account, where you can reset it at any time. 
+Your Expected Parrot key can also be found at the `Keys <http://www.expectedparrot.com/home/keys>`_ page of your account, where you can reset it at any time:
+
+.. image:: static/home-ep-key.png
+  :alt: EP key
+  :align: center
+  :width: 100%
+
+.. raw:: html
+
+  <br>
+
+  
 This key allows you to access all available models at once and use :ref:`remote-inference` to run surveys at the Expected Parrot server. 
 It also allows you to post content to Coop, and to interact with other content that is public or shared with you.
 

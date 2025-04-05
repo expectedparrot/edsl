@@ -23,20 +23,20 @@ from ..base import RepresentationMixin
 class TaskHistory(RepresentationMixin):
     """
     Records and analyzes the execution history of tasks across multiple interviews.
-    
+
     The TaskHistory class serves as a central repository for tracking task execution
     across multiple interviews. It provides methods for:
-    
+
     1. Error Analysis - Collecting, categorizing, and reporting exceptions
     2. Execution Visualization - Generating plots of task status over time
     3. Performance Metrics - Calculating timing statistics for tasks
     4. HTML Reports - Creating detailed interactive reports of execution
-    
+
     This class is particularly useful for debugging complex interview workflows,
     identifying performance bottlenecks, and understanding patterns in task execution.
     It supports both interactive exploration in notebooks and standalone report
     generation.
-    
+
     Key features:
     - Tracks exceptions with optional traceback storage
     - Provides visualizations of task status transitions
@@ -44,7 +44,7 @@ class TaskHistory(RepresentationMixin):
     - Computes statistics across interviews (by model, question type, etc.)
     - Exports to various formats (HTML, notebook, etc.)
     """
-    
+
     def __init__(
         self,
         interviews: List["Interview"] = None,
@@ -54,13 +54,13 @@ class TaskHistory(RepresentationMixin):
     ):
         """
         Initialize a TaskHistory to track execution across multiple interviews.
-        
+
         Parameters:
             interviews: List of Interview objects to track
             include_traceback: Whether to include full exception tracebacks
             max_interviews: Maximum number of interviews to display in reports
             interviews_with_exceptions_only: If True, only track interviews with exceptions
-        
+
         Example:
             >>> _ = TaskHistory.example()  # Create a sample TaskHistory
         """
@@ -95,46 +95,53 @@ class TaskHistory(RepresentationMixin):
                 self.task_status_logs = interview.task_status_logs
                 self.model = interview.model
                 self.survey = interview.survey
-                
+
                 # Store metadata needed for serialization
                 self._interview_id = id(interview)
-                
+
             def to_dict(self, add_edsl_version=True):
                 """Create a serializable representation of the interview reference"""
                 # Create a simplified dict that has the required fields but doesn't
                 # maintain a strong reference to the original interview
                 data = {
-                    'id': self._interview_id,
-                    'type': 'InterviewReference',
-                    'exceptions': self.exceptions.to_dict() if hasattr(self.exceptions, 'to_dict') else {},
-                    'task_status_logs': {
-                        name: log.to_dict() if hasattr(log, 'to_dict') else {}
+                    "id": self._interview_id,
+                    "type": "InterviewReference",
+                    "exceptions": self.exceptions.to_dict()
+                    if hasattr(self.exceptions, "to_dict")
+                    else {},
+                    "task_status_logs": {
+                        name: log.to_dict() if hasattr(log, "to_dict") else {}
                         for name, log in self.task_status_logs.items()
-                    }
+                    },
                 }
-                
+
                 # Add model and survey info if they have to_dict methods
-                if hasattr(self.model, 'to_dict'):
-                    data['model'] = self.model.to_dict(add_edsl_version=add_edsl_version)
-                
-                if hasattr(self.survey, 'to_dict'):
-                    data['survey'] = self.survey.to_dict(add_edsl_version=add_edsl_version)
-                
+                if hasattr(self.model, "to_dict"):
+                    data["model"] = self.model.to_dict(
+                        add_edsl_version=add_edsl_version
+                    )
+
+                if hasattr(self.survey, "to_dict"):
+                    data["survey"] = self.survey.to_dict(
+                        add_edsl_version=add_edsl_version
+                    )
+
                 if add_edsl_version:
                     from edsl import __version__
-                    data['edsl_version'] = __version__
-                    
+
+                    data["edsl_version"] = __version__
+
                 return data
-            
+
             def __getattr__(self, name):
                 # Handle any missing attributes by returning None
                 # This provides compatibility with code that might access
                 # other interview attributes we haven't explicitly stored
                 return None
-        
+
         # Create a reference object instead of keeping the full interview
         interview_ref = InterviewReference(interview)
-        
+
         self.total_interviews.append(interview_ref)
         self._interviews[len(self._interviews)] = interview_ref
 
@@ -144,7 +151,6 @@ class TaskHistory(RepresentationMixin):
         from ..jobs import Jobs
 
         j = Jobs.example(throw_exception_probability=1, test_model=True)
-
 
         results = j.run(
             print_exceptions=False,
@@ -191,29 +197,33 @@ class TaskHistory(RepresentationMixin):
         interview_dicts = []
         for i in self.total_interviews:
             # Use to_dict method if available
-            if hasattr(i, 'to_dict'):
+            if hasattr(i, "to_dict"):
                 try:
                     interview_dicts.append(i.to_dict(add_edsl_version=add_edsl_version))
                 except Exception:
                     # Fallback if to_dict fails
-                    interview_dicts.append({
-                        'type': 'InterviewReference',
-                        'exceptions': getattr(i, 'exceptions', {}),
-                        'task_status_logs': getattr(i, 'task_status_logs', {})
-                    })
+                    interview_dicts.append(
+                        {
+                            "type": "InterviewReference",
+                            "exceptions": getattr(i, "exceptions", {}),
+                            "task_status_logs": getattr(i, "task_status_logs", {}),
+                        }
+                    )
             else:
                 # Fallback if no to_dict method
-                interview_dicts.append({
-                    'type': 'InterviewReference',
-                    'exceptions': getattr(i, 'exceptions', {}),
-                    'task_status_logs': getattr(i, 'task_status_logs', {})
-                })
-                
+                interview_dicts.append(
+                    {
+                        "type": "InterviewReference",
+                        "exceptions": getattr(i, "exceptions", {}),
+                        "task_status_logs": getattr(i, "task_status_logs", {}),
+                    }
+                )
+
         d = {
             "interviews": interview_dicts,
             "include_traceback": self.include_traceback,
         }
-        
+
         if add_edsl_version:
             from .. import __version__
 
@@ -229,11 +239,14 @@ class TaskHistory(RepresentationMixin):
 
         # Create an instance without interviews
         instance = cls([], include_traceback=data.get("include_traceback", False))
-        
+
         # Create a custom interview-like object for each serialized interview
         for interview_data in data.get("interviews", []):
             # Check if this is one of our InterviewReference objects
-            if isinstance(interview_data, dict) and interview_data.get("type") == "InterviewReference":
+            if (
+                isinstance(interview_data, dict)
+                and interview_data.get("type") == "InterviewReference"
+            ):
                 # Create our InterviewReference directly
                 class DeserializedInterviewRef:
                     def __init__(self, data):
@@ -241,16 +254,16 @@ class TaskHistory(RepresentationMixin):
                         self.task_status_logs = data.get("task_status_logs", {})
                         self.model = data.get("model", {})
                         self.survey = data.get("survey", {})
-                    
+
                     def to_dict(self, add_edsl_version=True):
                         return {
-                            'type': 'InterviewReference',
-                            'exceptions': self.exceptions,
-                            'task_status_logs': self.task_status_logs,
-                            'model': self.model,
-                            'survey': self.survey
+                            "type": "InterviewReference",
+                            "exceptions": self.exceptions,
+                            "task_status_logs": self.task_status_logs,
+                            "model": self.model,
+                            "survey": self.survey,
                         }
-                
+
                 # Create the reference and add it directly
                 ref = DeserializedInterviewRef(interview_data)
                 instance.total_interviews.append(ref)
@@ -259,6 +272,7 @@ class TaskHistory(RepresentationMixin):
                 # For backward compatibility, try to use Interview class
                 try:
                     from ..interviews import Interview
+
                     interview = Interview.from_dict(interview_data)
                     # This will make a reference copy through add_interview
                     instance.add_interview(interview)
@@ -268,14 +282,14 @@ class TaskHistory(RepresentationMixin):
                         def __init__(self):
                             self.exceptions = {}
                             self.task_status_logs = {}
-                        
+
                         def to_dict(self, add_edsl_version=True):
-                            return {'type': 'MinimalInterviewRef'}
-                    
+                            return {"type": "MinimalInterviewRef"}
+
                     ref = MinimalInterviewRef()
                     instance.total_interviews.append(ref)
                     instance._interviews[len(instance._interviews)] = ref
-                
+
         return instance
 
     @property
@@ -303,7 +317,9 @@ class TaskHistory(RepresentationMixin):
         updates = []
         for interview in self.total_interviews:
             # Check if task_status_logs exists and is a dictionary
-            if hasattr(interview, 'task_status_logs') and isinstance(interview.task_status_logs, dict):
+            if hasattr(interview, "task_status_logs") and isinstance(
+                interview.task_status_logs, dict
+            ):
                 for question_name, logs in interview.task_status_logs.items():
                     updates.append(logs)
         return updates
@@ -334,12 +350,15 @@ class TaskHistory(RepresentationMixin):
 
     def plotting_data(self, num_periods=100):
         updates = self.get_updates()
-        
+
         # Handle the case when updates is empty
         if not updates:
             # Return a list of dictionaries with all task statuses set to 0
-            return [{task_status: 0 for task_status in TaskStatus} for _ in range(num_periods)]
-            
+            return [
+                {task_status: 0 for task_status in TaskStatus}
+                for _ in range(num_periods)
+            ]
+
         min_t = min([update.min_time for update in updates])
         max_t = max([update.max_time for update in updates])
         delta_t = (max_t - min_t) / (num_periods * 1.0)
@@ -424,22 +443,61 @@ class TaskHistory(RepresentationMixin):
         js = env.joinpath("report.js").read_text()
         return js
 
+    # @property
+    # def exceptions_table(self) -> dict:
+    #     """Return a dictionary of exceptions organized by type, service, model, and question name."""
+    #     exceptions_table = {}
+    #     for interview in self.total_interviews:
+    #         for question_name, exceptions in interview.exceptions.items():
+    #             for exception in exceptions:
+    #                 key = (
+    #                     exception.exception.__class__.__name__,  # Exception type
+    #                     interview.model._inference_service_,  # Service
+    #                     interview.model.model,  # Model
+    #                     question_name,  # Question name
+    #                 )
+    #                 if key not in exceptions_table:
+    #                     exceptions_table[key] = 0
+    #                 exceptions_table[key] += 1
+    #     return exceptions_table
+
     @property
     def exceptions_table(self) -> dict:
-        """Return a dictionary of exceptions organized by type, service, model, and question name."""
+        """Return a dictionary of unique exceptions organized by type, service, model, and question name."""
         exceptions_table = {}
+        seen_exceptions = set()
+
         for interview in self.total_interviews:
             for question_name, exceptions in interview.exceptions.items():
                 for exception in exceptions:
-                    key = (
+                    # Create a unique identifier for this exception based on its content
+                    exception_key = (
                         exception.exception.__class__.__name__,  # Exception type
                         interview.model._inference_service_,  # Service
                         interview.model.model,  # Model
                         question_name,  # Question name
+                        exception.name,  # Exception name
+                        str(exception.traceback)[:100]
+                        if exception.traceback
+                        else "",  # Truncated traceback
                     )
-                    if key not in exceptions_table:
-                        exceptions_table[key] = 0
-                    exceptions_table[key] += 1
+
+                    # Only count if we haven't seen this exact exception before
+                    if exception_key not in seen_exceptions:
+                        seen_exceptions.add(exception_key)
+
+                        # Add to the summary table
+                        table_key = (
+                            exception.exception.__class__.__name__,  # Exception type
+                            interview.model._inference_service_,  # Service
+                            interview.model.model,  # Model
+                            question_name,  # Question name
+                        )
+
+                        if table_key not in exceptions_table:
+                            exceptions_table[table_key] = 0
+                        exceptions_table[table_key] += 1
+
         return exceptions_table
 
     @property
@@ -563,22 +621,22 @@ class TaskHistory(RepresentationMixin):
     ) -> Optional[str]:
         """
         Generate and display an interactive HTML report of task execution.
-        
+
         This method creates a comprehensive HTML report showing task execution details,
         exceptions, timing information, and statistics across all tracked interviews.
         In notebook environments, it displays an embedded preview with a link to open
         the full report in a new tab.
-        
+
         Parameters:
             filename: Path to save the HTML report (if None, a temporary file is created)
             return_link: If True, return the path to the saved HTML file
             css: Custom CSS to apply to the report (if None, uses default styling)
             cta: HTML for the "Call to Action" link text
             open_in_browser: If True, automatically open the report in the default browser
-            
+
         Returns:
             If return_link is True, returns the path to the saved HTML file; otherwise None
-            
+
         Notes:
             - In Jupyter notebooks, displays an embedded preview with a link
             - In terminal environments, saves the file and prints its location
@@ -655,12 +713,10 @@ class TaskHistory(RepresentationMixin):
         return nb
 
 
-
-
 if __name__ == "__main__":
     import doctest
 
     doctest.testmod(optionflags=doctest.ELLIPSIS)
-    
+
     # Run the reference test
     test_no_strong_reference()
