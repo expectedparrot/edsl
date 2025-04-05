@@ -260,23 +260,30 @@ class TestSurvey(unittest.TestCase):
             question_options=["Red", "Blue", "Green"],
             question_name="color",
         )
+
         a = Agent(
             traits={
                 "persona": "You are a lazy survey-taker that always selects the first option."
             }
         )
+
         s = Survey([q], questions_to_randomize=["color"])
         m = Model("test", canned_response="Red")
         jobs = s.by(a).by(m)
+
         results = jobs.run(
             n=10, disable_remote_inference=True, disable_remote_cache=True
         )
-        color_list = results.select("question_options.color")
+
+        # No need to sort manually as results are now ordered by iteration automatically
+        color_list = results.select("question_options.color").to_list()
+
 
         assert (
-            "".join(["".join(l) for l in color_list.to_list()])
+            "".join(["".join(l) for l in color_list])
             == "BlueGreenRedBlueRedGreenBlueRedGreenBlueGreenRedGreenRedBlueGreenBlueRedGreenBlueRedRedBlueGreenBlueRedGreenGreenBlueRed"
         )
+
 
 
 if __name__ == "__main__":

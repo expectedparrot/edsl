@@ -4,11 +4,14 @@ import random
 
 from ..inference_service_abc import InferenceServiceABC
 
-from ...language_models import LanguageModel
 from ...enums import InferenceServiceType
 
+# Use TYPE_CHECKING to avoid circular imports at runtime
 if TYPE_CHECKING:
-    from ....scenarios.file_store import FileStore as File
+    from ...language_models import LanguageModel
+
+if TYPE_CHECKING:
+    from ...scenarios.file_store import FileStore as File
 
 
 class TestService(InferenceServiceABC):
@@ -36,9 +39,11 @@ class TestService(InferenceServiceABC):
         return ["test"]
 
     @classmethod
-    def create_model(cls, model_name, model_class_name=None) -> LanguageModel:
+    def create_model(cls, model_name, model_class_name=None) -> 'LanguageModel':
         # Removed unused variable
 
+        # Import LanguageModel only when actually creating a model
+        from ...language_models import LanguageModel
         class TestServiceLanguageModel(LanguageModel):
             _model_ = "test"
             _parameters_ = {"temperature": 0.5}
@@ -74,9 +79,8 @@ class TestService(InferenceServiceABC):
                         p = 1
 
                     if random.random() < p:
-                        from ..exceptions import InferenceServiceError
-
-                        raise InferenceServiceError("This is a test error")
+                        from ..exceptions import InferenceServiceIntendedError
+                        raise InferenceServiceIntendedError("This is a test error")
 
                 if hasattr(self, "func"):
                     return {

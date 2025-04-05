@@ -131,10 +131,11 @@ class ScenarioSelector:
                 f"No fields matched the given patterns: {patterns}. "
                 f"Available fields are: {self.available_fields}"
             )
-
-        return self.scenario_list.__class__(
-            [scenario.select(fields_to_select) for scenario in self.scenario_list.data]
-        )
+        
+        new_sl = self.scenario_list.__class__(data=[], codebook=self.scenario_list.codebook)
+        for scenario in self.scenario_list:
+            new_sl.append(scenario.select(fields_to_select))
+        return new_sl
 
     def get_available_fields(self) -> list[str]:
         """

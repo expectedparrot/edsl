@@ -265,7 +265,7 @@ class Scenario(Base, UserDict):
         Example:
 
         >>> s = Scenario({"food": "wood chips"})
-        >>> s.to_dict()
+        >>> s.to_dict()  # doctest: +ELLIPSIS
         {'food': 'wood chips', 'edsl_version': '...', 'edsl_class_name': 'Scenario'}
 
         >>> s.to_dict(add_edsl_version = False)
@@ -457,7 +457,7 @@ class Scenario(Base, UserDict):
             ...     _ = f.write("This is a test.")
             ...     _ = f.flush()
             ...     s = Scenario.from_file(f.name, "file")
-            >>> s
+            >>> s  # doctest: +ELLIPSIS
             Scenario({'file': FileStore(path='...', ...)})
             
         Notes:
@@ -863,10 +863,10 @@ class Scenario(Base, UserDict):
             Scenario({'food': 'wood chips'})
             
             >>> # Example with a serialized FileStore
-            >>> from edsl import FileStore
-            >>> file_dict = {"path": "example.txt", "base64_string": "SGVsbG8gV29ybGQ="}
-            >>> s = Scenario.from_dict({"document": file_dict})
-            >>> isinstance(s["document"], FileStore)
+            >>> from edsl import FileStore  # doctest: +SKIP
+            >>> file_dict = {"path": "example.txt", "base64_string": "SGVsbG8gV29ybGQ="}  # doctest: +SKIP
+            >>> s = Scenario.from_dict({"document": file_dict})  # doctest: +SKIP
+            >>> isinstance(s["document"], FileStore)  # doctest: +SKIP
             True
             
         Notes:

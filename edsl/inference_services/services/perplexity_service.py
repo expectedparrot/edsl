@@ -1,7 +1,9 @@
 from typing import Any, List, Optional, TYPE_CHECKING
 from ..rate_limits_cache import rate_limits
 
-from ...language_models import LanguageModel
+# Use TYPE_CHECKING to avoid circular imports at runtime
+if TYPE_CHECKING:
+    from ...language_models import LanguageModel
 
 from .open_ai_service import OpenAIService
 
@@ -40,10 +42,12 @@ class PerplexityService(OpenAIService):
     @classmethod
     def create_model(
         cls, model_name="llama-3.1-sonar-large-128k-online", model_class_name=None
-    ) -> LanguageModel:
+    ) -> 'LanguageModel':
         if model_class_name is None:
             model_class_name = cls.to_class_name(model_name)
 
+        # Import LanguageModel only when actually creating a model
+        from ...language_models import LanguageModel
         class LLM(LanguageModel):
             """
             Child class of LanguageModel for interacting with Perplexity models

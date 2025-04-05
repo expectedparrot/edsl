@@ -129,11 +129,29 @@ benchmark-small: ## Run timing benchmarks with fewer questions
 benchmark-components: ## Run component-level benchmarks
 	python scripts/component_benchmark.py
 
+benchmark-memory: ## Run memory profiling on ScenarioList filter operation
+	python scripts/memory_profiler.py --size 1000
+
+benchmark-memory-large: ## Run memory profiling with a large dataset (5000 scenarios)
+	python scripts/memory_profiler.py --size 5000
+	
+benchmark-memory-line: ## Run line-by-line memory profiling on ScenarioList filter
+	python scripts/memory_line_profiler.py --size 20
+
+test-memory-scaling: ## Run comprehensive memory scaling tests for ScenarioList
+	RUN_MEMORY_SCALING_TEST=1 pytest -xvs tests/scenarios/test_ScenarioList_memory.py::test_scenario_list_memory_scaling
+
+test-memory: ## Run all memory tests for ScenarioList
+	pytest -xvs tests/scenarios/test_ScenarioList_memory.py
+
 benchmark-all: ## Run all performance benchmarks and generate reports
 	@echo "Running all performance benchmarks..."
 	@make benchmark-timing
 	@make benchmark-components
 	@make benchmark-timing-profile
+	@make benchmark-memory
+	@make benchmark-memory-line
+	@make test-memory
 	@make benchmark-report
 	@echo "All benchmarks complete. See benchmark_logs/reports/ for visualizations."
 
@@ -251,7 +269,7 @@ test-doctests: ## Run doctests
 	pytest --doctest-modules edsl/key_management
 	pytest --doctest-modules edsl/prompts
 	pytest --doctest-modules edsl/tasks
-	pytest --doctest-modules edsl/inference_services
+	# Reordered to avoid circular import
 	pytest --doctest-modules edsl/results
 	pytest --doctest-modules edsl/dataset
 	pytest --doctest-modules --ignore=edsl/buckets/token_bucket_client.py edsl/buckets
@@ -265,7 +283,11 @@ test-doctests: ## Run doctests
 	pytest --doctest-modules edsl/utilities
 	pytest --doctest-modules edsl/language_models
 	pytest --doctest-modules edsl/caching
+	pytest --doctest-modules edsl/inference_services
 
+test-doctests-parallel: ## Run doctests in parallel
+	make clean-test
+	python scripts/run_parallel_doctests.py
 
 test-services:
 	python integration/test_all_questions_and_models.py
