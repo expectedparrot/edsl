@@ -21,7 +21,7 @@ For each source type, follow these steps:
 - [x] `latex` - Implemented as `LaTeXSource`
 - [x] `google_doc` - Implemented as `GoogleDocSource`
 - [x] `pandas` - Implemented as `PandasSource`
-- [ ] `dta` - Implement as `StataSource`
+- [x] `dta` - Implemented as `StataSource`
 - [ ] `wikipedia` - Implement as `WikipediaSource`
 - [ ] `excel` - Implement as `ExcelSource`
 - [ ] `google_sheet` - Implement as `GoogleSheetSource`
