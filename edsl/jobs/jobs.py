@@ -32,17 +32,25 @@ from ..coop import CoopServerResponseError
 
 # Import BucketCollection with an import_module to avoid early binding
 from importlib import import_module
+
+
 def get_bucket_collection():
     buckets_module = import_module("edsl.buckets")
     return buckets_module.BucketCollection
 
+
 from ..scenarios import Scenario, ScenarioList
 from ..surveys import Survey
+
 # Use import_module to avoid circular import with interviews
 from importlib import import_module
+
+
 def get_interview():
     interviews_module = import_module("edsl.interviews.interview")
     return interviews_module.Interview
+
+
 from .exceptions import JobsValueError, JobsImplementationError
 
 from .jobs_pricing_estimation import JobsPrompts
@@ -196,6 +204,7 @@ class Jobs(Base):
         """
         from ..caching import Cache
         from ..key_management import KeyLookup
+
         BucketCollection = get_bucket_collection()
 
         if isinstance(obj, Cache):
@@ -461,7 +470,7 @@ class Jobs(Base):
         """
         if not interview_list:
             raise JobsValueError("Cannot create Jobs from empty interview list")
-            
+
         survey = interview_list[0].survey
         # get all the models
         models = list(set([interview.model for interview in interview_list]))
@@ -618,13 +627,18 @@ class Jobs(Base):
         from .results_exceptions_handler import ResultsExceptionsHandler
 
         assert isinstance(self.run_config.environment.cache, Cache)
-        
+
         # Create the RunConfig for the job
-        run_config = RunConfig(parameters=self.run_config.parameters, environment=self.run_config.environment)
-        
+        run_config = RunConfig(
+            parameters=self.run_config.parameters,
+            environment=self.run_config.environment,
+        )
+
         # Setup JobsRunnerStatus if needed
         if self.run_config.environment.jobs_runner_status is None:
-            self.run_config.environment.jobs_runner_status = JobsRunnerStatus(self, n=self.run_config.parameters.n)
+            self.run_config.environment.jobs_runner_status = JobsRunnerStatus(
+                self, n=self.run_config.parameters.n
+            )
 
         # Create a shared function to process interview results
         async def process_interviews(interview_runner, results_obj):
@@ -632,58 +646,72 @@ class Jobs(Base):
             async for result, interview, idx in interview_runner.run():
                 # Set the order attribute on the result for correct ordering
                 result.order = idx
-                
+
                 # Collect results
-                #results_obj.append(result)
-                #key = results_obj.shelve_result(result)
+                # results_obj.append(result)
+                # key = results_obj.shelve_result(result)
                 results_obj.add_task_history_entry(interview)
                 results_obj.insert_sorted(result)
 
                 # Memory management: Set up reference for next iteration and clear old references
                 prev_interview_ref = weakref.ref(interview)
-                if hasattr(interview, 'clear_references'):
+                if hasattr(interview, "clear_references"):
                     interview.clear_references()
-                
+
                 # Force garbage collection
                 del result
                 del interview
-            
+
             # Finalize results object with cache and bucket collection
             # results_obj.insert_from_shelf()
-            results_obj.cache = results_obj.relevant_cache(self.run_config.environment.cache)
-            results_obj.bucket_collection = self.run_config.environment.bucket_collection
+            results_obj.cache = results_obj.relevant_cache(
+                self.run_config.environment.cache
+            )
+            results_obj.bucket_collection = (
+                self.run_config.environment.bucket_collection
+            )
             return results_obj
 
         # Core execution logic
         interview_runner = AsyncInterviewRunner(self, run_config)
-        
+
         # Create an initial Results object with appropriate traceback settings
         results = Results(
             survey=self.survey,
             data=[],
-            task_history=TaskHistory(include_traceback=not self.run_config.parameters.progress_bar)
+            task_history=TaskHistory(
+                include_traceback=not self.run_config.parameters.progress_bar
+            ),
         )
 
         if run_job_async:
             # For async execution mode (simplified path without progress bar)
-            return await process_interviews(interview_runner, results)
+            await process_interviews(interview_runner, results)
         else:
             # For synchronous execution mode (with progress bar)
-            with ProgressBarManager(self, run_config, self.run_config.parameters) as stop_event:
+            with ProgressBarManager(
+                self, run_config, self.run_config.parameters
+            ) as stop_event:
                 try:
-                    return await process_interviews(interview_runner, results)
+                    await process_interviews(interview_runner, results)
                 except KeyboardInterrupt:
                     print("Keyboard interrupt received. Stopping gracefully...")
-                    results = Results(survey=self.survey, data=[], task_history=TaskHistory())
+                    results = Results(
+                        survey=self.survey, data=[], task_history=TaskHistory()
+                    )
                 except Exception as e:
                     if self.run_config.parameters.stop_on_exception:
                         raise
-                    results = Results(survey=self.survey, data=[], task_history=TaskHistory())
-            
+                    results = Results(
+                        survey=self.survey, data=[], task_history=TaskHistory()
+                    )
+
             # Process any exceptions in the results
             if results:
-                ResultsExceptionsHandler(results, self.run_config.parameters).handle_exceptions()
-            
+                ResultsExceptionsHandler(
+                    results, self.run_config.parameters
+                ).handle_exceptions()
+
             return results
 
     @property
@@ -696,23 +724,32 @@ class Jobs(Base):
     def _run(self, config: RunConfig) -> Union[None, "Results"]:
         """
         Shared code for run and run_async methods.
-        
+
         This method handles all pre-execution setup including:
         1. Transferring configuration settings from the input config
         2. Ensuring all required objects (agents, models, scenarios) exist
         3. Checking API keys and remote execution availability
         4. Setting up caching and bucket collections
         5. Attempting remote execution if appropriate
-        
+
         Returns:
             Tuple containing (Results, reason) if remote execution succeeds,
             or (None, reason) if local execution should proceed
         """
         # Apply configuration from input config to self.run_config
-        for attr_name in ['cache', 'jobs_runner_status', 'bucket_collection', 'key_lookup']:
+        for attr_name in [
+            "cache",
+            "jobs_runner_status",
+            "bucket_collection",
+            "key_lookup",
+        ]:
             if getattr(config.environment, attr_name) is not None:
-                setattr(self.run_config.environment, attr_name, getattr(config.environment, attr_name))
-        
+                setattr(
+                    self.run_config.environment,
+                    attr_name,
+                    getattr(config.environment, attr_name),
+                )
+
         # Replace parameters with the ones from the config
         self.run_config.parameters = config.parameters
 
@@ -723,8 +760,11 @@ class Jobs(Base):
 
         # Setup caching
         from ..caching import CacheHandler, Cache
-        
-        if self.run_config.environment.cache is None or self.run_config.environment.cache is True:
+
+        if (
+            self.run_config.environment.cache is None
+            or self.run_config.environment.cache is True
+        ):
             self.run_config.environment.cache = CacheHandler().get_cache()
         elif self.run_config.environment.cache is False:
             self.run_config.environment.cache = Cache(immediate_write=False)
@@ -739,15 +779,19 @@ class Jobs(Base):
 
         # Create bucket collection if it doesn't exist
         if self.run_config.environment.bucket_collection is None:
-            self.run_config.environment.bucket_collection = self.create_bucket_collection()
+            self.run_config.environment.bucket_collection = (
+                self.create_bucket_collection()
+            )
         else:
             # Ensure models are properly added to the bucket collection
             for model in self.models:
                 self.run_config.environment.bucket_collection.add_model(model)
 
         # Update bucket collection from key lookup if both exist
-        if (self.run_config.environment.key_lookup is not None and 
-            self.run_config.environment.bucket_collection is not None):
+        if (
+            self.run_config.environment.key_lookup is not None
+            and self.run_config.environment.bucket_collection is not None
+        ):
             self.run_config.environment.bucket_collection.update_from_key_lookup(
                 self.run_config.environment.key_lookup
             )
