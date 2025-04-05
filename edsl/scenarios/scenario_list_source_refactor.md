@@ -30,6 +30,6 @@ For each source type, follow these steps:
 - [x] `tsv` - Implemented as `TSVSource` (extending `DelimitedFileSource`)
 - [ ] `dict` - Implement as `DictSource`
 - [ ] `nested_dict` - Implement as `NestedDictSource`
-- [ ] `parquet` - Implement as `ParquetSource`
+- [x] `parquet` - Implemented as `ParquetSource`
 - [ ] `pdf` - Implement as `PDFSource`
 - [ ] `pdf_to_image` - Implement as `PDFImageSource`

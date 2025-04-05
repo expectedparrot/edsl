@@ -2124,6 +2124,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
     
 
     @classmethod
+    @deprecated_classmethod("ScenarioSource.from_source('parquet', ...)")
     def from_parquet(cls, filepath: str) -> ScenarioList:
         """Create a ScenarioList from a Parquet file.
 
@@ -2133,8 +2134,9 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         Returns:
             ScenarioList: A new ScenarioList containing the scenarios from the Parquet file.
         """
-        from .scenario_source import ScenarioSource
-        return ScenarioSource._from_parquet(filepath)
+        from .scenario_source import ParquetSource
+        source = ParquetSource(filepath)
+        return source.to_scenario_list()
 
     def replace_values(self, replacements: dict) -> "ScenarioList":
         """
