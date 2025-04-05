@@ -1465,6 +1465,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         return source.to_scenario_list()
 
     @classmethod
+    @deprecated_classmethod("ScenarioSource.from_source('pandas', ...)")
     def from_pandas(cls, df) -> ScenarioList:
         """Create a ScenarioList from a pandas DataFrame.
 
@@ -1475,7 +1476,9 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         >>> ScenarioList.from_pandas(df)
         ScenarioList([Scenario({'name': 'Alice', 'age': 30, 'location': 'New York'}), Scenario({'name': 'Bob', 'age': 25, 'location': 'Los Angeles'})])
         """
-        return cls([Scenario(row) for row in df.to_dict(orient="records")])
+        from .scenario_source import PandasSource
+        source = PandasSource(df)
+        return source.to_scenario_list()
 
     @classmethod
     def from_dta(cls, filepath: str, include_metadata: bool = True) -> ScenarioList:
