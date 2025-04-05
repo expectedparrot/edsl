@@ -25,7 +25,7 @@ For each source type, follow these steps:
 - [x] `wikipedia` - Implemented as `WikipediaSource`
 - [x] `excel` - Implemented as `ExcelSource`
 - [x] `google_sheet` - Implemented as `GoogleSheetSource`
-- [ ] `delimited_file` - Implement as `DelimitedFileSource`
+- [x] `delimited_file` - Implemented as `DelimitedFileSource`
 - [ ] `csv` - Implement as `CSVSource` (extending `DelimitedFileSource`)
 - [ ] `tsv` - Implement as `TSVSource` (extending `DelimitedFileSource`)
 - [ ] `dict` - Implement as `DictSource`

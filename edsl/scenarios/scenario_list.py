@@ -1629,78 +1629,37 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         return source.to_scenario_list()
 
     @classmethod
+    @deprecated_classmethod("ScenarioSource.from_source('delimited_file', ...)")
     def from_delimited_file(
-        cls, source: Union[str, "ParseResult"], delimiter: str = ","
+        cls, source: Union[str, "ParseResult"], delimiter: str = ",", encoding: str = "utf-8", **kwargs
     ) -> ScenarioList:
-        """Create a ScenarioList from a delimited file (CSV/TSV) or URL."""
-        import requests
-        from .scenario import Scenario
-        from urllib.parse import urlparse
+        """Create a ScenarioList from a delimited file (CSV/TSV) or URL.
+        
+        Args:
+            source: Path to a local file or URL to a remote file.
+            delimiter: The delimiter character used in the file (default is ',').
+            encoding: The file encoding to use (default is 'utf-8').
+            **kwargs: Additional parameters for csv reader.
+            
+        Returns:
+            ScenarioList: An instance of the ScenarioList class.
+        """
+        from .scenario_source import DelimitedFileSource
         from urllib.parse import ParseResult
-
-        headers = {
-            "Accept": "text/csv,application/csv,text/plain",
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-        }
-
-        def is_url(source):
-            try:
-                result = urlparse(source)
-                return all([result.scheme, result.netloc])
-            except ValueError:
-                return False
-
-        try:
-            if isinstance(source, str) and is_url(source):
-                response = requests.get(source, headers=headers)
-                response.raise_for_status()
-                file_obj = StringIO(response.text)
-            elif isinstance(source, ParseResult):
-                response = requests.get(source.geturl(), headers=headers)
-                response.raise_for_status()
-                file_obj = StringIO(response.text)
-            else:
-                # Try different encodings if the default fails
-                encodings_to_try = ["utf-8", "latin-1", "cp1252", "ISO-8859-1"]
-                last_exception = None
-                file_obj = None
-
-                for encoding in encodings_to_try:
-                    try:
-                        file_obj = open(source, "r", encoding=encoding)
-                        # Test reading a bit to verify encoding
-                        file_obj.readline()
-                        file_obj.seek(0)  # Reset file position
-                        break
-                    except UnicodeDecodeError as e:
-                        last_exception = e
-                        if file_obj:
-                            file_obj.close()
-                            file_obj = None
-
-                if file_obj is None:
-                    from .exceptions import ValueScenarioError
-
-                    raise ValueScenarioError(
-                        f"Could not decode file {source} with any of the attempted encodings. Original error: {last_exception}"
-                    )
-
-            reader = csv.reader(file_obj, delimiter=delimiter)
-            try:
-                header = next(reader)
-                observations = [Scenario(dict(zip(header, row))) for row in reader]
-            except StopIteration:
-                from .exceptions import ValueScenarioError
-
-                raise ValueScenarioError(
-                    f"File {source} appears to be empty or has an invalid format"
-                )
-
-        finally:
-            if file_obj:
-                file_obj.close()
-
-        return cls(observations)
+        
+        if isinstance(source, ParseResult):
+            # Convert ParseResult to string URL
+            file_or_url = source.geturl()
+        else:
+            file_or_url = source
+            
+        source = DelimitedFileSource(
+            file_or_url=file_or_url,
+            delimiter=delimiter,
+            encoding=encoding,
+            **kwargs
+        )
+        return source.to_scenario_list()
 
     # Convenience methods for specific file types
     @classmethod
