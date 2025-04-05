@@ -1446,6 +1446,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         return source.to_scenario_list()
 
     @classmethod
+    @deprecated_classmethod("ScenarioSource.from_source('google_doc', ...)")
     def from_google_doc(cls, url: str) -> ScenarioList:
         """Create a ScenarioList from a Google Doc.
 
@@ -1459,29 +1460,9 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             ScenarioList: An instance of the ScenarioList class.
 
         """
-        import tempfile
-        import requests
-
-        if "/edit" in url:
-            doc_id = url.split("/d/")[1].split("/edit")[0]
-        else:
-            from .exceptions import ValueScenarioError
-
-            raise ValueScenarioError("Invalid Google Doc URL format.")
-
-        export_url = f"https://docs.google.com/document/d/{doc_id}/export?format=docx"
-
-        # Download the Google Doc as a Word file (.docx)
-        response = requests.get(export_url)
-        response.raise_for_status()  # Ensure the request was successful
-
-        # Save the Word file to a temporary file
-        with tempfile.NamedTemporaryFile(suffix=".docx", delete=False) as temp_file:
-            temp_file.write(response.content)
-            temp_filename = temp_file.name
-
-        # Call the from_docx class method with the temporary file
-        return cls.from_docx(temp_filename)
+        from .scenario_source import GoogleDocSource
+        source = GoogleDocSource(url)
+        return source.to_scenario_list()
 
     @classmethod
     def from_pandas(cls, df) -> ScenarioList:
