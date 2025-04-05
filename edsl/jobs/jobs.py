@@ -706,13 +706,13 @@ class Jobs(Base):
                         survey=self.survey, data=[], task_history=TaskHistory()
                     )
 
-            # Process any exceptions in the results
-            if results:
-                ResultsExceptionsHandler(
-                    results, self.run_config.parameters
-                ).handle_exceptions()
+        # Process any exceptions in the results
+        if results:
+            ResultsExceptionsHandler(
+                results, self.run_config.parameters
+            ).handle_exceptions()
 
-            return results
+        return results
 
     @property
     def num_interviews(self):
