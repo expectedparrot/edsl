@@ -106,6 +106,15 @@ backup: ## Backup the code to `edsl/.backups/`
 	echo "Backup created: $${BACKUP_NAME}"
 
 ###############
+##@Validation Reports 🔍
+###############
+validation-report: ## Generate an HTML validation report and open it in a browser
+	python -c "from edsl.questions import generate_and_open_report; generate_and_open_report()"
+
+validation-stats: ## Show validation failure statistics
+	edsl validation stats
+
+###############
 ##@Performance Benchmarks 📊
 ###############
 benchmark-timing: ## Run timing benchmarks
@@ -272,7 +281,7 @@ test-doctests: ## Run doctests
 	# Reordered to avoid circular import
 	pytest --doctest-modules edsl/results
 	pytest --doctest-modules edsl/dataset
-	pytest --doctest-modules --ignore=edsl/buckets/token_bucket_client.py edsl/buckets
+	pytest --doctest-modules --ignore=edsl/buckets/token_bucket_client.py --ignore=edsl/buckets/token_bucket_api.py edsl/buckets
 	pytest --doctest-modules edsl/interviews
 	pytest --doctest-modules edsl/tokens
 	pytest --doctest-modules edsl/jobs/

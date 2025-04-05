@@ -136,6 +136,7 @@ from .validation_analysis import (
     suggest_fix_improvements, 
     export_improvements_report
 )
+from .validation_html_report import generate_html_report, generate_and_open_report
 
 __all__ = [
     # Exceptions
@@ -175,4 +176,6 @@ __all__ = [
     "get_validation_failure_stats",
     "suggest_fix_improvements",
     "export_improvements_report",
+    "generate_html_report",
+    "generate_and_open_report",
 ]

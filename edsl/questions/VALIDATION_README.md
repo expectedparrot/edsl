@@ -41,8 +41,24 @@ edsl validation suggest
 # Filter suggestions for a specific question type
 edsl validation suggest --type QuestionMultipleChoice
 
-# Generate a comprehensive report
+# Generate a comprehensive JSON report
 edsl validation report
+
+# Generate an HTML report and open it in browser
+edsl validation html-report
+
+# Generate HTML report without opening browser
+edsl validation html-report --no-open
+```
+
+You can also use the `make` command to generate reports:
+
+```bash
+# Generate and open HTML validation report
+make validation-report
+
+# Show validation statistics
+make validation-stats
 ```
 
 ### Programmatic Usage
@@ -56,7 +72,9 @@ from edsl.questions import (
     clear_validation_logs,
     get_validation_failure_stats,
     suggest_fix_improvements,
-    export_improvements_report
+    export_improvements_report,
+    generate_html_report,
+    generate_and_open_report
 )
 
 # Get recent validation failure logs
@@ -68,8 +86,14 @@ stats = get_validation_failure_stats()
 # Get suggestions for improving fix methods
 suggestions = suggest_fix_improvements()
 
-# Generate a report
+# Generate a JSON report
 report_path = export_improvements_report()
+
+# Generate an HTML report
+html_report_path = generate_html_report()
+
+# Generate and open HTML report in browser
+generate_and_open_report()
 ```
 
 ## Implementation Details
@@ -78,7 +102,8 @@ The validation logging system consists of the following components:
 
 1. **Validation Logger**: Logs validation failures to a local file
 2. **Validation Analysis**: Analyzes logs to identify patterns and suggest improvements
-3. **CLI Integration**: Provides command-line tools for working with validation logs
+3. **HTML Report Generator**: Creates user-friendly HTML reports with visualizations
+4. **CLI Integration**: Provides command-line tools for working with validation logs
 
 ### Log Format
 

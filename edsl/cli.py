@@ -98,6 +98,26 @@ def generate_report(
     
     report_path = export_improvements_report(output_path=output)
     console.print(f"[green]Report generated at: {report_path}[/green]")
+    
+@validation_app.command("html-report")
+def generate_html_report(
+    output: Optional[Path] = typer.Option(None, "--output", "-o", help="Output file path"),
+    open_browser: bool = typer.Option(True, "--open/--no-open", help="Open the report in a browser"),
+):
+    """Generate an HTML validation report and optionally open it in a browser."""
+    from .questions.validation_html_report import generate_html_report
+    import webbrowser
+    
+    report_path = generate_html_report(output_path=output)
+    console.print(f"[green]HTML report generated at: {report_path}[/green]")
+    
+    if open_browser:
+        try:
+            webbrowser.open(f"file://{report_path}")
+            console.print("[green]Opened report in browser[/green]")
+        except Exception as e:
+            console.print(f"[yellow]Could not open browser: {e}[/yellow]")
+            console.print(f"[yellow]Report is available at: {report_path}[/yellow]")
 
 @app.callback()
 def callback():
