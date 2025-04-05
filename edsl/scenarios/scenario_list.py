@@ -1428,31 +1428,22 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             return source.to_scenario_list()
 
     @classmethod
-    def from_latex(cls, tex_file_path: str):
-        with open(tex_file_path, "r") as file:
-            lines = file.readlines()
-
-        processed_lines = []
-        non_blank_lines = [
-            (i, line.strip()) for i, line in enumerate(lines) if line.strip()
-        ]
-
-        for index, (line_no, text) in enumerate(non_blank_lines):
-            entry = {
-                "line_no": line_no + 1,  # Using 1-based index for line numbers
-                "text": text,
-                "num_words": len(text.split()),
-                "num_chars": len(text),
-                "line_before": non_blank_lines[index - 1][1] if index > 0 else None,
-                "line_after": (
-                    non_blank_lines[index + 1][1]
-                    if index < len(non_blank_lines) - 1
-                    else None
-                ),
-            }
-            processed_lines.append(entry)
-
-        return ScenarioList([Scenario(entry) for entry in processed_lines])
+    @deprecated_classmethod("ScenarioSource.from_source('latex', ...)")
+    def from_latex(cls, tex_file_path: str, table_index: int = 0, has_header: bool = True):
+        """Create a ScenarioList from a LaTeX file.
+        
+        Args:
+            tex_file_path: The path to the LaTeX file.
+            table_index: The index of the table to extract (if multiple tables exist).
+                Default is 0 (first table).
+            has_header: Whether the table has a header row. Default is True.
+            
+        Returns:
+            ScenarioList: A new ScenarioList containing the data from the LaTeX table.
+        """
+        from .scenario_source import LaTeXSource
+        source = LaTeXSource(tex_file_path, table_index, has_header)
+        return source.to_scenario_list()
 
     @classmethod
     def from_google_doc(cls, url: str) -> ScenarioList:
