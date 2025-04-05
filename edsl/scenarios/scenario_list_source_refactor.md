@@ -20,7 +20,7 @@ For each source type, follow these steps:
 - [x] `sqlite` - Implemented as `SQLiteSource`
 - [x] `latex` - Implemented as `LaTeXSource`
 - [x] `google_doc` - Implemented as `GoogleDocSource`
-- [ ] `pandas` - Implement as `PandasSource`
+- [x] `pandas` - Implemented as `PandasSource`
 - [ ] `dta` - Implement as `StataSource`
 - [ ] `wikipedia` - Implement as `WikipediaSource`
 - [ ] `excel` - Implement as `ExcelSource`
