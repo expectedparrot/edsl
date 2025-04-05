@@ -24,10 +24,10 @@ if TYPE_CHECKING:
     from ..key_management import KeyLookup
 
 
-
 PromptType = Literal["user_prompt", "system_prompt", "encoded_image", "files_list"]
 
 NA = "Not Applicable"
+
 
 class InvigilatorBase(ABC):
     """An invigiator (someone who administers an exam) is a class that is responsible for administering a question to an agent.
@@ -261,13 +261,14 @@ class InvigilatorBase(ABC):
             current_answers=current_answers,
         )
 
+
 class InvigilatorAI(InvigilatorBase):
     """An invigilator that uses an AI model to answer questions."""
 
     def get_prompts(self) -> Dict[PromptType, "Prompt"]:
         """Return the prompts used."""
         return self.prompt_constructor.get_prompts()
-    
+
     def get_captured_variables(self) -> dict:
         """Get the captured variables."""
         return self.prompt_constructor.get_captured_variables()
@@ -281,6 +282,7 @@ class InvigilatorAI(InvigilatorBase):
         if "encoded_image" in prompts:
             params["encoded_image"] = prompts["encoded_image"]
             from .exceptions import InvigilatorNotImplementedError
+
             raise InvigilatorNotImplementedError("encoded_image not implemented")
 
         if "files_list" in prompts:
@@ -307,7 +309,8 @@ class InvigilatorAI(InvigilatorBase):
         """
         agent_response_dict: AgentResponseDict = await self.async_get_agent_response()
         self.store_response(agent_response_dict)
-        return self._extract_edsl_result_entry_and_validate(agent_response_dict)
+        out = self._extract_edsl_result_entry_and_validate(agent_response_dict)
+        return out
 
     def _remove_from_cache(self, cache_key) -> None:
         """Remove an entry from the cache."""
@@ -389,6 +392,35 @@ class InvigilatorAI(InvigilatorBase):
         edsl_dict = agent_response_dict.edsl_dict._asdict()
         exception_occurred = None
         validated = False
+
+        if agent_response_dict.model_outputs.cache_used:
+            data = {
+                "answer": agent_response_dict.edsl_dict.answer
+                if type(agent_response_dict.edsl_dict.answer) is str
+                or type(agent_response_dict.edsl_dict.answer) is dict
+                or type(agent_response_dict.edsl_dict.answer) is list
+                or type(agent_response_dict.edsl_dict.answer) is int
+                or type(agent_response_dict.edsl_dict.answer) is float
+                or type(agent_response_dict.edsl_dict.answer) is bool
+                else "",
+                "comment": agent_response_dict.edsl_dict.comment
+                if agent_response_dict.edsl_dict.comment
+                else "",
+                "generated_tokens": agent_response_dict.edsl_dict.generated_tokens,
+                "question_name": self.question.question_name,
+                "prompts": self.get_prompts(),
+                "cached_response": agent_response_dict.model_outputs.cached_response,
+                "raw_model_response": agent_response_dict.model_outputs.response,
+                "cache_used": agent_response_dict.model_outputs.cache_used,
+                "cache_key": agent_response_dict.model_outputs.cache_key,
+                "validated": True,
+                "exception_occurred": exception_occurred,
+                "cost": agent_response_dict.model_outputs.cost,
+            }
+
+            result = EDSLResultObjectInput(**data)
+            return result
+
         try:
             # if the question has jinja parameters, it is easier to make a new question with the parameters
             if self.question.parameters:
@@ -405,7 +437,7 @@ class InvigilatorAI(InvigilatorBase):
                         self.question.question_options = new_question_options
 
                 question_with_validators = self.question.render(
-                    self.scenario | prior_answers_dict | {'agent':self.agent.traits}
+                    self.scenario | prior_answers_dict | {"agent": self.agent.traits}
                 )
                 question_with_validators.use_code = self.question.use_code
             else:
@@ -426,6 +458,7 @@ class InvigilatorAI(InvigilatorBase):
             exception_occurred = non_validation_error
         finally:
             # even if validation failes, we still return the result
+
             data = {
                 "answer": answer,
                 "comment": comment,

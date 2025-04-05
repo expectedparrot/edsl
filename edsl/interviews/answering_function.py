@@ -27,11 +27,10 @@ class RetryConfig:
 
 
 class SkipHandler:
-
     def __init__(self, interview: "Interview"):
         # Store a weak reference to the interview
         self._interview_ref = weakref.ref(interview)
-        
+
         # Cache only the skip function which doesn't maintain a reference to the interview
         try:
             self.skip_function: Callable = (
@@ -48,30 +47,30 @@ class SkipHandler:
         if interview is None:
             raise RuntimeError("Interview has been garbage collected")
         return interview
-        
+
     @property
     def _to_index(self):
         return self.interview.to_index
-        
+
     @property
     def _survey(self):
         return self.interview.survey
-        
+
     @property
     def _answers(self):
         return self.interview.answers
-        
+
     @property
     def _scenario(self):
         return self.interview.scenario
-        
+
     @property
     def _agent_traits(self):
         try:
             return self.interview.agent["traits"]
         except (AttributeError, KeyError):
             return {}
-    
+
     @property
     def _skip_flags(self):
         return self.interview.skip_flags
@@ -79,26 +78,28 @@ class SkipHandler:
     def should_skip(self, current_question: "QuestionBase") -> bool:
         """Determine if the current question should be skipped."""
         current_question_index = self._to_index[current_question.question_name]
-        
+
         # Handle ScenarioList case - convert to dict first
         scenario_dict = {}
-        if hasattr(self._scenario, 'items'):
+        if hasattr(self._scenario, "items"):
             # Handle standard dict scenario
             scenario_dict = self._scenario
         else:
             # Handle ScenarioList or other scenario object
             # Access as a dict if possible, otherwise try to convert
-            scenario_dict = dict(self._scenario) if hasattr(self._scenario, '__iter__') else {}
-            
+            scenario_dict = (
+                dict(self._scenario) if hasattr(self._scenario, "__iter__") else {}
+            )
+
         combined_answers = dict(self._answers)
         combined_answers.update(scenario_dict)
         combined_answers.update(self._agent_traits)
-        
+
         return self.skip_function(current_question_index, combined_answers)
 
     def _current_info_env(self) -> dict[str, Any]:
         """
-        - The current answers are "generated_tokens" and "comment" 
+        - The current answers are "generated_tokens" and "comment"
         - The scenario should have "scenario." added to the keys
         - The agent traits should have "agent." added to the keys
         """
@@ -125,25 +126,23 @@ class SkipHandler:
 
     def cancel_skipped_questions(self, current_question: "QuestionBase") -> None:
         """Cancel the tasks for questions that should be skipped."""
-        current_question_index: int = self._to_index[
-            current_question.question_name
-        ]
+        current_question_index: int = self._to_index[current_question.question_name]
         answers = self._current_info_env()
 
         # Get the index of the next question, which could also be the end of the survey
-        next_question: Union[int, EndOfSurvey] = (
-            self._survey.rule_collection.next_question(
-                q_now=current_question_index,
-                answers=answers,
-            )
+        next_question: Union[
+            int, EndOfSurvey
+        ] = self._survey.rule_collection.next_question(
+            q_now=current_question_index,
+            answers=answers,
         )
 
         def cancel_between(start, end):
             """Cancel the tasks for questions between the start and end indices."""
             for i in range(start, end):
-                #print(f"Cancelling task {i}")
-                #self.interview.tasks[i].cancel()
-                #self.interview.tasks[i].set_result("skipped")
+                # print(f"Cancelling task {i}")
+                # self.interview.tasks[i].cancel()
+                # self.interview.tasks[i].set_result("skipped")
                 interview = self._interview_ref()
                 if interview is not None:
                     interview.skip_flags[self._survey.questions[i].question_name] = True
@@ -152,15 +151,11 @@ class SkipHandler:
                     return
 
         if (next_question_index := next_question.next_q) == EndOfSurvey:
-            cancel_between(
-                current_question_index + 1, len(self._survey.questions)
-            )
+            cancel_between(current_question_index + 1, len(self._survey.questions))
             return
 
         if next_question_index > (current_question_index + 1):
             cancel_between(current_question_index + 1, next_question_index)
-
-
 
 
 class AnswerQuestionFunctionConstructor:
@@ -170,22 +165,24 @@ class AnswerQuestionFunctionConstructor:
         # Store a weak reference to the interview
         self._interview_ref = weakref.ref(interview)
         self.key_lookup = key_lookup
-        
+
         # Store configuration settings that won't change during lifecycle
-        self._raise_validation_errors = getattr(interview, "raise_validation_errors", False)
+        self._raise_validation_errors = getattr(
+            interview, "raise_validation_errors", False
+        )
         self._stop_on_exception = getattr(interview, "stop_on_exception", False)
-        
+
         self.had_language_model_no_response_error: bool = False
 
         # Initialize fetch invigilator with the interview - this should use weakref internally
         self.invigilator_fetcher = FetchInvigilator(
             interview, key_lookup=self.key_lookup
         )
-        
+
         # In our test environment, we might not be able to create the SkipHandler
         # because example Interview might not have all required attributes
         # So we'll initialize it conditionally
-        if hasattr(interview, 'skip_flags'):
+        if hasattr(interview, "skip_flags"):
             self.skip_handler = SkipHandler(interview)
         else:
             self.skip_handler = None
@@ -197,19 +194,19 @@ class AnswerQuestionFunctionConstructor:
         if interview is None:
             raise RuntimeError("Interview has been garbage collected")
         return interview
-        
+
     @property
     def _answers(self):
         return self.interview.answers
-        
+
     @property
     def _exceptions(self):
         return self.interview.exceptions
-        
+
     @property
     def _to_index(self):
         return self.interview.to_index
-        
+
     @property
     def _skip_flags(self):
         if hasattr(self.interview, "skip_flags"):
@@ -228,20 +225,18 @@ class AnswerQuestionFunctionConstructor:
 
         # Copy to freeze the answers here for logging
         answers = copy.copy(self._answers)
-        
+
         exception_entry = InterviewExceptionEntry(
             exception=e,
             invigilator=invigilator,
             answers=answers,
         )
-        
+
         if task:
             task.task_status = TaskStatus.FAILED
 
         # Add to exceptions - need to use the interview reference here
-        interview.exceptions.add(
-            invigilator.question.question_name, exception_entry
-        )
+        interview.exceptions.add(invigilator.question.question_name, exception_entry)
 
         # Check if we should raise validation errors
         if self._raise_validation_errors and isinstance(
@@ -262,7 +257,6 @@ class AnswerQuestionFunctionConstructor:
         question: "QuestionBase",
         task=None,
     ) -> "EDSLResultObjectInput":
-
         from tenacity import (
             RetryError,
             retry,
@@ -283,10 +277,10 @@ class AnswerQuestionFunctionConstructor:
         async def attempt_answer():
             # Get a reference to the interview (may be None if it's been garbage collected)
             interview = self._interview_ref()
-            
+
             # Get the invigilator for this question
             invigilator = self.invigilator_fetcher(question)
-            
+
             # Check if interview still exists
             if interview is None:
                 # If interview is gone, we can't really process this question
@@ -362,12 +356,11 @@ class AnswerQuestionFunctionConstructor:
             return response
 
         try:
-            return await attempt_answer()
+            out = await attempt_answer()
+            return out
         except RetryError as retry_error:
             original_error = retry_error.last_attempt.exception()
             self._handle_exception(
                 original_error, self.invigilator_fetcher(question), task
             )
             raise original_error
-
-
