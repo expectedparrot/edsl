@@ -17,7 +17,7 @@ For each source type, follow these steps:
 - [x] `list` - Already implemented as `ListSource`
 - [x] `directory` - Implemented as `DirectorySource`
 - [x] `list_of_tuples` - Implemented as `TuplesSource`
-- [ ] `sqlite` - Implement as `SQLiteSource`
+- [x] `sqlite` - Implemented as `SQLiteSource`
 - [ ] `latex` - Implement as `LaTeXSource`
 - [ ] `google_doc` - Implement as `GoogleDocSource`
 - [ ] `pandas` - Implement as `PandasSource`

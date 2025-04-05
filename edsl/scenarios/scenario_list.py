@@ -1382,6 +1382,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
     #     return new_list
 
     @classmethod
+    @deprecated_classmethod("ScenarioSource.from_source('sqlite', ...)")
     def from_sqlite(
         cls, filepath: str, table: Optional[str] = None, sql_query: Optional[str] = None
     ):
@@ -1399,29 +1400,32 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             ValueError: If both table and sql_query are None
             sqlite3.Error: If there is an error executing the database query
         """
-        import sqlite3
-
+        from .scenario_source import SQLiteSource
+        
+        # Handle the case where sql_query is provided instead of table
         if table is None and sql_query is None:
             from .exceptions import ValueScenarioError
-
             raise ValueScenarioError("Either table or sql_query must be provided")
+            
+        if table is None:
+            # We need to use the old implementation for SQL queries
+            import sqlite3
 
-        try:
-            with sqlite3.connect(filepath) as conn:
-                cursor = conn.cursor()
-
-                if table is not None:
-                    cursor.execute(f"SELECT * FROM {table}")
-                else:
+            try:
+                with sqlite3.connect(filepath) as conn:
+                    cursor = conn.cursor()
                     cursor.execute(sql_query)
+                    columns = [description[0] for description in cursor.description]
+                    data = cursor.fetchall()
 
-                columns = [description[0] for description in cursor.description]
-                data = cursor.fetchall()
+                return cls([Scenario(dict(zip(columns, row))) for row in data])
 
-            return cls([Scenario(dict(zip(columns, row))) for row in data])
-
-        except sqlite3.Error as e:
-            raise sqlite3.Error(f"Database error occurred: {str(e)}")
+            except sqlite3.Error as e:
+                raise sqlite3.Error(f"Database error occurred: {str(e)}")
+        else:
+            # If a table is specified, use SQLiteSource
+            source = SQLiteSource(filepath, table)
+            return source.to_scenario_list()
 
     @classmethod
     def from_latex(cls, tex_file_path: str):
