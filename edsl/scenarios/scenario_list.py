@@ -964,7 +964,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
     def from_list(cls, field_name: str, values: list, use_indexes: bool = False) -> ScenarioList:
         """Create a ScenarioList from a list of values with a specified field name.
         
-        >>> sl = ScenarioList.from_list('text', ['a', 'b', 'c'])
+        >>> ScenarioList.from_list('text', ['a', 'b', 'c'])
         ScenarioList([Scenario({'text': 'a'}), Scenario({'text': 'b'}), Scenario({'text': 'c'})])
         """
         from .scenario_source import ListSource

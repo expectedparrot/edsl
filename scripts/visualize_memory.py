@@ -193,7 +193,7 @@ def create_html_report(df, reports):
         <h1>EDSL Memory Profiling Report</h1>
         <p>Generated: {timestamp}</p>
         <p>Total reports analyzed: {len(reports)}</p>
-        <p>Function profiled: {reports[0]['function'] if reports else 'Unknown'}</p>
+        <p>Function profiled: {reports[0].get('function', reports[0].get('file', 'Unknown')) if reports else 'Unknown'}</p>
     </div>
 
     <h2>Summary Statistics</h2>
@@ -271,26 +271,108 @@ def create_html_report(df, reports):
 
     <h2>Memory Allocation Hotspots</h2>
     <p>The following table shows the files that consistently appear in the top memory allocations:</p>
+    <style>
+        .copy-button {
+            background-color: #f1f1f1;
+            border: none;
+            color: #333;
+            padding: 4px 8px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 12px;
+            margin: 2px 2px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        .copy-button:hover {
+            background-color: #ddd;
+        }
+        .tooltip {
+            position: relative;
+            display: inline-block;
+        }
+        .tooltip .tooltiptext {
+            visibility: hidden;
+            width: 140px;
+            background-color: #555;
+            color: #fff;
+            text-align: center;
+            border-radius: 6px;
+            padding: 5px;
+            position: absolute;
+            z-index: 1;
+            bottom: 150%;
+            left: 50%;
+            margin-left: -75px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .tooltip .tooltiptext::after {
+            content: "";
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            margin-left: -5px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: #555 transparent transparent transparent;
+        }
+        .tooltip:hover .tooltiptext {
+            visibility: visible;
+            opacity: 1;
+        }
+    </style>
+    <script>
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(function() {
+                // Show tooltip
+                var tooltip = event.currentTarget.querySelector('.tooltiptext');
+                tooltip.innerHTML = "Copied!";
+                setTimeout(function() {
+                    tooltip.innerHTML = "Copy to clipboard";
+                }, 1500);
+            }, function(err) {
+                console.error('Could not copy text: ', err);
+            });
+        }
+    </script>
     <table>
         <tr>
             <th>File</th>
             <th>Frequency</th>
             <th>Average Size (KB)</th>
+            <th>Actions</th>
         </tr>
 """
 
     # Analyze top allocations across all reports
     allocation_files = {}
     allocation_sizes = {}
+    allocation_lines = {}
     
     for report in reports:
         for allocation in report.get('top_allocations', []):
-            file = allocation.get('file', '').split(':')[0].strip()
+            file_info = allocation.get('file', '')
+            file = file_info.split(':')[0].strip()
+            
+            # Extract line number if available
+            line_num = None
+            if "line" in file_info:
+                try:
+                    line_num = int(file_info.split("line")[1].strip())
+                except:
+                    pass
+                
             if file:
                 allocation_files[file] = allocation_files.get(file, 0) + 1
                 if file not in allocation_sizes:
                     allocation_sizes[file] = []
                 allocation_sizes[file].append(allocation.get('size_kb', 0))
+                
+                # Store line numbers
+                if line_num and file not in allocation_lines:
+                    allocation_lines[file] = line_num
     
     # Sort by frequency
     sorted_files = sorted(allocation_files.items(), key=lambda x: x[1], reverse=True)
@@ -299,16 +381,172 @@ def create_html_report(df, reports):
     for file, frequency in sorted_files[:10]:  # Show top 10
         if file in allocation_sizes and allocation_sizes[file]:
             avg_size = sum(allocation_sizes[file]) / len(allocation_sizes[file])
+            
+            # Get line number for display
+            line_info = ""
+            if file in allocation_lines:
+                line_info = f" line {allocation_lines[file]}"
+                
+            # Clean file path for display
+            display_path = file.replace("  File \"", "").replace("\"", "")
+            
+            # Full path for copy button
+            copy_path = display_path
+            if file in allocation_lines:
+                copy_path = f"{display_path}:{allocation_lines[file]}"
+                
             html += f"""
         <tr>
-            <td>{file}</td>
+            <td>{display_path}{line_info}</td>
             <td>{frequency} / {len(reports)} reports</td>
             <td>{avg_size:.2f}</td>
+            <td>
+                <div class="tooltip">
+                    <button class="copy-button" onclick="copyToClipboard('{copy_path}')">
+                        Copy Path
+                        <span class="tooltiptext">Copy to clipboard</span>
+                    </button>
+                </div>
+            </td>
         </tr>"""
     
     # Finish HTML
     html += """
     </table>
+    
+    <h2>Line-by-Line Memory Allocation Details</h2>
+    <p>The following table shows detailed memory allocations by line from the most recent report:</p>
+    <table id="line-details">
+        <tr>
+            <th>Rank</th>
+            <th>File & Line</th>
+            <th>Size (KB)</th>
+            <th>Actions</th>
+        </tr>
+    """
+    
+    # Add detailed line-by-line information from the most recent report
+    if reports:
+        latest_report = reports[-1]
+        for i, allocation in enumerate(latest_report.get('top_allocations', []), 1):
+            file_info = allocation.get('file', '')
+            size_kb = allocation.get('size_kb', 0)
+            
+            # Clean up the file path for display
+            display_path = file_info.replace("  File \"", "").replace("\"", "")
+            
+            # Extract path and line for the copy button
+            path_for_copy = display_path
+            if "line" in display_path:
+                parts = display_path.split("line")
+                file_path = parts[0].strip()
+                line_num = parts[1].strip() if len(parts) > 1 else ""
+                path_for_copy = f"{file_path.strip()}:{line_num}"
+            
+            html += f"""
+        <tr class="allocation-row">
+            <td>{i}</td>
+            <td>{display_path}</td>
+            <td>{size_kb:.2f}</td>
+            <td>
+                <div class="tooltip">
+                    <button class="copy-button" onclick="copyToClipboard('{path_for_copy}')">
+                        Copy Path
+                        <span class="tooltiptext">Copy to clipboard</span>
+                    </button>
+                </div>
+            </td>
+        </tr>"""
+    
+    html += """
+    </table>
+    
+    <h3>Detailed Source View</h3>
+    <p>For the top memory allocation points, here's the surrounding code context:</p>
+    <div id="source-display">
+    """
+    
+    # Add line content for the top allocations if available
+    if reports:
+        latest_report = reports[-1]
+        top_allocations = latest_report.get('top_allocations', [])
+        
+        # Only process the first 3 (most significant) allocations
+        for i, allocation in enumerate(top_allocations[:3], 1):
+            file_info = allocation.get('file', '')
+            size_kb = allocation.get('size_kb', 0)
+            
+            # Extract file path and line number
+            if "line" in file_info:
+                try:
+                    file_path = file_info.split("line")[0].replace("  File \"", "").replace("\"", "").strip()
+                    line_num = int(file_info.split("line")[1].strip())
+                    
+                    # Try to read source file if it exists
+                    try:
+                        import linecache
+                        
+                        html += f"""
+        <div class="source-section">
+            <h4>{i}. {file_path} line {line_num} ({size_kb:.2f} KB)</h4>
+            <pre class="source-code">"""
+                        
+                        # Show 5 lines before and after
+                        start_line = max(1, line_num - 5)
+                        end_line = line_num + 5
+                        
+                        for l in range(start_line, end_line + 1):
+                            line = linecache.getline(file_path, l).rstrip()
+                            # Highlight the specific line
+                            if l == line_num:
+                                html += f'<span class="highlight-line">{l}: {line}</span>\n'
+                            else:
+                                html += f'{l}: {line}\n'
+                        
+                        html += """</pre>
+            <div class="tooltip">
+                <button class="copy-button" onclick="copyToClipboard('{file_path}:{line_num}')">
+                    Copy Path
+                    <span class="tooltiptext">Copy to clipboard</span>
+                </button>
+            </div>
+        </div>"""
+                    except Exception as e:
+                        html += f"<p>Could not read source: {e}</p>"
+                except Exception:
+                    # If we can't parse the line number, just show the file info
+                    html += f"<p>{file_info} - {size_kb:.2f} KB</p>"
+            else:
+                html += f"<p>{file_info} - {size_kb:.2f} KB</p>"
+    
+    html += """
+    </div>
+
+    <style>
+    .source-section {
+        margin: 20px 0;
+        padding: 15px;
+        background-color: #f8f9fa;
+        border: 1px solid #e9ecef;
+        border-radius: 5px;
+    }
+    .source-code {
+        background-color: #f5f5f5;
+        padding: 10px;
+        border-radius: 4px;
+        font-family: monospace;
+        white-space: pre;
+        overflow-x: auto;
+    }
+    .highlight-line {
+        background-color: #ffeb3b;
+        font-weight: bold;
+        display: block;
+    }
+    .allocation-row:nth-child(-n+3) {
+        background-color: rgba(255, 235, 59, 0.2);
+    }
+    </style>
 
     <h2>Recommendations</h2>
     <ul>
