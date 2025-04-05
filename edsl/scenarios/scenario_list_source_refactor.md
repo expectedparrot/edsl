@@ -24,7 +24,7 @@ For each source type, follow these steps:
 - [x] `dta` - Implemented as `StataSource`
 - [x] `wikipedia` - Implemented as `WikipediaSource`
 - [x] `excel` - Implemented as `ExcelSource`
-- [ ] `google_sheet` - Implement as `GoogleSheetSource`
+- [x] `google_sheet` - Implemented as `GoogleSheetSource`
 - [ ] `delimited_file` - Implement as `DelimitedFileSource`
 - [ ] `csv` - Implement as `CSVSource` (extending `DelimitedFileSource`)
 - [ ] `tsv` - Implement as `TSVSource` (extending `DelimitedFileSource`)

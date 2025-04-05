@@ -1048,6 +1048,119 @@ class ExcelSource(Source):
             
             return ScenarioList(scenarios)
 
+
+class GoogleSheetSource(Source):
+    source_type = "google_sheet"
+    
+    def __init__(
+        self, 
+        url: str, 
+        sheet_name: Optional[str] = None, 
+        column_names: Optional[List[str]] = None,
+        **kwargs
+    ):
+        """
+        Initialize a GoogleSheetSource with a URL to a Google Sheet.
+        
+        Args:
+            url: The URL of the Google Sheet.
+            sheet_name: The name of the sheet to load. If None, the first sheet will be used.
+            column_names: If provided, use these names for the columns instead
+                         of the default column names from the sheet.
+            **kwargs: Additional parameters to pass to pandas.read_excel.
+        """
+        self.url = url
+        self.sheet_name = sheet_name
+        self.column_names = column_names
+        self.kwargs = kwargs
+    
+    @classmethod
+    def example(cls) -> 'GoogleSheetSource':
+        """Return an example GoogleSheetSource instance."""
+        # Use a mock instance since we can't create a real Google Sheet for testing
+        instance = cls(
+            url="https://docs.google.com/spreadsheets/d/1234567890abcdefg/edit",
+            sheet_name="Sheet1"
+        )
+        
+        # Override the to_scenario_list method just for the example
+        def mock_to_scenario_list(self):
+            from .scenario_list import ScenarioList
+            
+            # Create a simple mock ScenarioList with sample data
+            scenarios = [
+                Scenario({"name": "Alice", "age": 30, "city": "New York"}),
+                Scenario({"name": "Bob", "age": 25, "city": "San Francisco"}),
+                Scenario({"name": "Charlie", "age": 35, "city": "Boston"})
+            ]
+            return ScenarioList(scenarios)
+        
+        # Replace the method on this instance only
+        import types
+        instance.to_scenario_list = types.MethodType(mock_to_scenario_list, instance)
+        
+        return instance
+    
+    def to_scenario_list(self):
+        """Create a ScenarioList from a Google Sheet."""
+        from .scenario_list import ScenarioList
+        import tempfile
+        import requests
+        
+        # Extract the sheet ID from the URL
+        if "/edit" in self.url:
+            sheet_id = self.url.split("/d/")[1].split("/edit")[0]
+        else:
+            raise ScenarioError("Invalid Google Sheet URL format.")
+        
+        # Create the export URL for XLSX format
+        export_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=xlsx"
+        
+        try:
+            # Download the Google Sheet as an Excel file
+            response = requests.get(export_url)
+            response.raise_for_status()  # Ensure the request was successful
+            
+            # Save the Excel file to a temporary file
+            with tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False) as temp_file:
+                temp_file.write(response.content)
+                temp_filename = temp_file.name
+            
+            # Use ExcelSource to create the initial ScenarioList
+            excel_source = ExcelSource(
+                file_path=temp_filename,
+                sheet_name=self.sheet_name,
+                **self.kwargs
+            )
+            scenario_list = excel_source.to_scenario_list()
+            
+            # Apply column renaming if specified
+            if self.column_names is not None and scenario_list:
+                if len(self.column_names) != len(scenario_list[0].keys()):
+                    raise ScenarioError(
+                        f"Number of provided column names ({len(self.column_names)}) "
+                        f"does not match number of columns in sheet ({len(scenario_list[0].keys())})"
+                    )
+                
+                # Create a mapping from original keys to new names
+                original_keys = list(scenario_list[0].keys())
+                column_mapping = dict(zip(original_keys, self.column_names))
+                
+                # Create a new ScenarioList with renamed columns
+                renamed_scenarios = []
+                for scenario in scenario_list:
+                    renamed_scenario = {column_mapping.get(k, k): v for k, v in scenario.items()}
+                    renamed_scenarios.append(Scenario(renamed_scenario))
+                
+                return ScenarioList(renamed_scenarios)
+            
+            return scenario_list
+            
+        except requests.exceptions.RequestException as e:
+            raise ScenarioError(f"Error fetching the Google Sheet: {str(e)}")
+        except Exception as e:
+            raise ScenarioError(f"Error processing Google Sheet: {str(e)}")
+
 class ScenarioSource:
     """
     Factory class for creating ScenarioList objects from various sources.
@@ -1253,21 +1366,15 @@ class ScenarioSource:
         return source.to_scenario_list()
     
     @staticmethod
-    def _from_google_sheet(sheet_id: str, sheet_name: Optional[str] = None):
+    def _from_google_sheet(url: str, sheet_name: Optional[str] = None, column_names: Optional[List[str]] = None, **kwargs):
         """Create a ScenarioList from a Google Sheet."""
-        try:
-            import pandas as pd
-            import gspread
-            from oauth2client.service_account import ServiceAccountCredentials
-        except ImportError:
-            raise ImportError(
-                "Required packages not installed. Please install gspread, oauth2client, and pandas."
-            )
-            
-        # Implement Google Sheets API interaction here
-        # For now, returning an empty ScenarioList as placeholder
-        warnings.warn("from_google_sheet is not fully implemented yet")
-        return ScenarioList()
+        warnings.warn(
+            "_from_google_sheet is deprecated. Use GoogleSheetSource directly or ScenarioSource.from_source('google_sheet', ...) instead.",
+            DeprecationWarning,
+            stacklevel=2
+        )
+        source = GoogleSheetSource(url, sheet_name=sheet_name, column_names=column_names, **kwargs)
+        return source.to_scenario_list()
     
     @staticmethod
     def _from_delimited_file(
