@@ -21,9 +21,16 @@ from edsl.questions.validation_analysis import (
 @pytest.fixture
 def clean_log_file():
     """Ensure log file is clean for tests."""
+    # Make sure the log directory exists
+    os.makedirs(os.path.dirname(VALIDATION_LOG_FILE), exist_ok=True)
+    
+    # Clean up existing log file
     if os.path.exists(VALIDATION_LOG_FILE):
         os.remove(VALIDATION_LOG_FILE)
+    
     yield
+    
+    # Clean up after test
     if os.path.exists(VALIDATION_LOG_FILE):
         os.remove(VALIDATION_LOG_FILE)
 
