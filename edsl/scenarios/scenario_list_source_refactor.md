@@ -31,5 +31,5 @@ For each source type, follow these steps:
 - [ ] `dict` - Implement as `DictSource`
 - [ ] `nested_dict` - Implement as `NestedDictSource`
 - [x] `parquet` - Implemented as `ParquetSource`
-- [ ] `pdf` - Implement as `PDFSource`
-- [ ] `pdf_to_image` - Implement as `PDFImageSource`
+- [x] `pdf` - Implemented as `PDFSource`
+- [x] `pdf_to_image` - Implemented as `PDFImageSource`
