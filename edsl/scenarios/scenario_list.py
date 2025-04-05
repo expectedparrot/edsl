@@ -1663,12 +1663,66 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
 
     # Convenience methods for specific file types
     @classmethod
-    def from_csv(cls, source: Union[str, "ParseResult"]) -> ScenarioList:
-        """Create a ScenarioList from a CSV file or URL."""
-        from .scenario_source import ScenarioSource
+    @deprecated_classmethod("ScenarioSource.from_source('csv', ...)")
+    def from_csv(cls, source: Union[str, "ParseResult"], has_header: bool = True, encoding: str = "utf-8", **kwargs) -> ScenarioList:
+        """Create a ScenarioList from a CSV file or URL.
         
-        # Delegate to ScenarioSource implementation
-        return ScenarioSource._from_csv(source)
+        Args:
+            source: Path to a local file or URL to a remote file.
+            has_header: Whether the file has a header row (default is True).
+            encoding: The file encoding to use (default is 'utf-8').
+            **kwargs: Additional parameters for csv reader.
+            
+        Returns:
+            ScenarioList: An instance of the ScenarioList class.
+        """
+        from .scenario_source import CSVSource
+        from urllib.parse import ParseResult
+        
+        if isinstance(source, ParseResult):
+            # Convert ParseResult to string URL
+            file_or_url = source.geturl()
+        else:
+            file_or_url = source
+            
+        source = CSVSource(
+            file_or_url=file_or_url,
+            has_header=has_header,
+            encoding=encoding,
+            **kwargs
+        )
+        return source.to_scenario_list()
+        
+    @classmethod
+    @deprecated_classmethod("ScenarioSource.from_source('tsv', ...)")
+    def from_tsv(cls, source: Union[str, "ParseResult"], has_header: bool = True, encoding: str = "utf-8", **kwargs) -> ScenarioList:
+        """Create a ScenarioList from a TSV file or URL.
+        
+        Args:
+            source: Path to a local file or URL to a remote file.
+            has_header: Whether the file has a header row (default is True).
+            encoding: The file encoding to use (default is 'utf-8').
+            **kwargs: Additional parameters for csv reader.
+            
+        Returns:
+            ScenarioList: An instance of the ScenarioList class.
+        """
+        from .scenario_source import TSVSource
+        from urllib.parse import ParseResult
+        
+        if isinstance(source, ParseResult):
+            # Convert ParseResult to string URL
+            file_or_url = source.geturl()
+        else:
+            file_or_url = source
+            
+        source = TSVSource(
+            file_or_url=file_or_url,
+            has_header=has_header,
+            encoding=encoding,
+            **kwargs
+        )
+        return source.to_scenario_list()
 
     def left_join(self, other: ScenarioList, by: Union[str, list[str]]) -> ScenarioList:
         """Perform a left join with another ScenarioList, following SQL join semantics.
