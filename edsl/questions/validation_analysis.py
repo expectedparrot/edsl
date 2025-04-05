@@ -160,7 +160,8 @@ def export_improvements_report(output_path: Optional[Path] = None) -> Path:
         Path to the generated report
     """
     if output_path is None:
-        report_dir = Path(CONFIG.get("EDSL_LOG_DIR", Path.home() / ".edsl" / "logs"))
+        default_log_dir = Path.home() / ".edsl" / "logs"
+        report_dir = Path(CONFIG.get("EDSL_LOG_DIR", default=str(default_log_dir)))
         output_path = report_dir / "fix_methods_improvements.json"
     
     # Get stats and suggestions
