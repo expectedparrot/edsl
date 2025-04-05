@@ -1615,6 +1615,8 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         Args:
             expression: A string containing a Python expression that evaluates to a boolean.
                        The expression is applied to each Result object individually.
+                       Can be a multi-line string for better readability.
+                       Supports template-style syntax with {{ field }} notation.
 
         Returns:
             A new Results object containing only the Result objects that satisfy the expression.
@@ -1631,6 +1633,8 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             - You can use comparison operators like '==', '!=', '>', '<', '>=', '<='
             - You can use membership tests with 'in'
             - You can use string methods like '.startswith()', '.contains()', etc.
+            - The expression can be a multi-line string for improved readability
+            - You can use template-style syntax with double curly braces: {{ field }}
 
         Examples:
             >>> r = Results.example()
@@ -1647,6 +1651,17 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             >>> r.filter("agent.status == 'Joyful'").select('agent.status')
             Dataset([{'agent.status': ['Joyful', 'Joyful']}])
 
+            >>> # Using multi-line string for complex conditions
+            >>> r.filter('''
+            ...     how_feeling == 'Great' 
+            ...     or how_feeling == 'Terrible'
+            ... ''').select('how_feeling')
+            Dataset([{'answer.how_feeling': ['Great', 'Terrible']}])
+            
+            >>> # Using template-style syntax with {{}}
+            >>> r.filter("{{ answer.how_feeling }} == 'Great'").select('how_feeling')
+            Dataset([{'answer.how_feeling': ['Great']}])
+
             >>> # Common error: using = instead of ==
             >>> try:
             ...     r.filter("how_feeling = 'Great'")
@@ -1654,7 +1669,13 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             ...     print("ResultsFilterError: You must use '==' instead of '=' in the filter expression.")
             ResultsFilterError: You must use '==' instead of '=' in the filter expression.
         """
-        if self.has_single_equals(expression):
+        # Normalize expression by removing extra whitespace and newlines
+        normalized_expression = ' '.join(expression.strip().split())
+        
+        # Remove template-style syntax (double curly braces)
+        normalized_expression = normalized_expression.replace('{{', '').replace('}}', '')
+        
+        if self.has_single_equals(normalized_expression):
             raise ResultsFilterError(
                 "You must use '==' instead of '=' in the filter expression."
             )
@@ -1671,8 +1692,8 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             # Process one result at a time
             for result in self.data:
                 evaluator = self._create_evaluator(result)
-                result.check_expression(expression)  # check expression
-                if evaluator.eval(expression):
+                result.check_expression(normalized_expression)  # check expression
+                if evaluator.eval(normalized_expression):
                     filtered_results.append(
                         result
                     )  # Use append method to add matching results
@@ -1692,12 +1713,12 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             )
         except Exception as e:
             raise ResultsFilterError(
-                f"""Error in filter. Exception:{e}.""",
-                f"""The expression you provided was: {expression}.""",
-                """Please make sure that the expression is a valid Python expression that evaluates to a boolean.""",
-                """For example, 'how_feeling == "Great"' is a valid expression, as is 'how_feeling in ["Great", "Terrible"]'., """,
-                """However, 'how_feeling = "Great"' is not a valid expression.""",
-                """See https://docs.expectedparrot.com/en/latest/results.html#filtering-results for more details.""",
+                f"Error in filter. Exception:{e}.",
+                f"The expression you provided was: {expression}.",
+                "Please make sure that the expression is a valid Python expression that evaluates to a boolean.",
+                "For example, 'how_feeling == \"Great\"' is a valid expression, as is 'how_feeling in [\"Great\", \"Terrible\"]'.",
+                "However, 'how_feeling = \"Great\"' is not a valid expression.",
+                "See https://docs.expectedparrot.com/en/latest/results.html#filtering-results for more details.",
             )
 
     @classmethod

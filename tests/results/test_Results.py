@@ -81,6 +81,32 @@ class TestResults(unittest.TestCase):
             .first(),
             first_answer,
         )
+        
+    def test_multiline_filter(self):
+        """Test multi-line filter support and template syntax."""
+        r = Results.example()
+        
+        # Count the number of results with OK and Great feelings
+        ok_count = len(r.filter("how_feeling == 'OK'"))
+        great_count = len(r.filter("how_feeling == 'Great'"))
+        
+        # Test multi-line filter
+        f1 = r.filter("""
+        how_feeling == 'OK'
+        or how_feeling == 'Great'
+        """)
+        self.assertEqual(len(f1), ok_count + great_count)
+        
+        # Test template-style syntax with double curly braces
+        f2 = r.filter("{{ answer.how_feeling }} == 'OK'")
+        self.assertEqual(len(f2), ok_count)
+        
+        # Test combination of multi-line and template syntax
+        f3 = r.filter("""
+        {{ answer.how_feeling }} == 'OK' 
+        or {{ answer.how_feeling }} == 'Great'
+        """)
+        self.assertEqual(len(f3), ok_count + great_count)
 
     def test_relevant_columns(self):
         self.assertIn("answer.how_feeling", self.example_results.relevant_columns())
