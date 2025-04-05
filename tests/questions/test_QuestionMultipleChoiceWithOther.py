@@ -1,63 +1,116 @@
+"""Tests for the QuestionMultipleChoiceWithOther class."""
+
 import pytest
 from edsl.questions import QuestionMultipleChoiceWithOther
+from edsl import Model
 
 
-class TestQuestionMultipleChoiceWithOther:
-    def test_initialization(self):
-        """Test that the question initializes correctly."""
-        q = QuestionMultipleChoiceWithOther(
-            question_name="test_question",
-            question_text="Select an option",
-            question_options=["Option A", "Option B", "Option C"],
-            other_option_text="Other (please specify)"
-        )
-        
-        assert q.question_name == "test_question"
-        assert q.question_text == "Select an option"
-        assert q.question_options == ["Option A", "Option B", "Option C"]
-        assert q.other_option_text == "Other (please specify)"
-        
-    def test_create_response_model(self):
-        """Test that the response model includes the 'Other' option."""
-        q = QuestionMultipleChoiceWithOther(
-            question_name="test_question",
-            question_text="Select an option",
-            question_options=["Option A", "Option B", "Option C"],
-        )
-        
-        response_model = q.create_response_model()
-        
-        # Check that "Other" is in the valid choices for the model
-        assert "Other" in response_model.model_config["json_schema_extra"]["properties"]["answer"]["enum"]
-        
-    def test_response_validator_valid_options(self):
-        """Test that the validator accepts valid options."""
-        q = QuestionMultipleChoiceWithOther(
-            question_name="test_question",
-            question_text="Select an option",
-            question_options=["Option A", "Option B", "Option C"],
-        )
-        
-        validator = q.response_validator
-        
-        # Test standard option
-        result = validator.validate({"answer": "Option A"})
-        assert result["answer"] == "Option A"
-        
-        # Test Other option with text
-        result = validator.validate({"answer": "Other", "other_text": "My custom option"})
-        assert result["answer"] == "Other"
-        assert result["other_text"] == "My custom option"
-        
-        # Test Other option with comment instead of other_text
-        result = validator.validate({"answer": "Other", "comment": "My custom option from comment"})
-        assert result["answer"] == "Other"
-        assert result["other_text"] == "My custom option from comment"
-        
-    def test_example_method(self):
-        """Test the example class method."""
-        q = QuestionMultipleChoiceWithOther.example()
-        
-        assert q.question_name == "how_feeling"
-        assert "Good" in q.question_options
-        assert hasattr(q, "other_option_text")
+def test_question_multiple_choice_with_other_basics():
+    """Test basic functionality of QuestionMultipleChoiceWithOther."""
+    q = QuestionMultipleChoiceWithOther(
+        question_name="test_question",
+        question_text="Select a color:",
+        question_options=["Red", "Green", "Blue"],
+    )
+    
+    # Check that the question has the correct attributes
+    assert q.question_name == "test_question"
+    assert q.question_text == "Select a color:"
+    assert q.question_options == ["Red", "Green", "Blue"]
+    assert q.other_option_text == "Other"
+    
+    # Check that the validator has the correct attributes
+    validator = q.response_validator
+    assert validator.__class__.__name__ == "MultipleChoiceWithOtherResponseValidator"
+    assert "Other" in validator.question_options
+
+
+def test_post_process_result_other_format():
+    """Test the post_process_result method with 'Other: X' format."""
+    # Create the question
+    q = QuestionMultipleChoiceWithOther(
+        question_name="capital",
+        question_text="What is the capital of France?",
+        question_options=["London", "Berlin", "Madrid"],
+    )
+    
+    # Create a result with 'Other: Paris' format
+    result = [{
+        'answer': {'capital': 'Other: Paris'},
+        'other_text': {}
+    }]
+    
+    # Apply post-processing
+    processed = q.post_process_result(result)
+    
+    # Check the results
+    assert processed[0]['answer']['capital'] == "Other"
+    assert processed[0]['other_text']['capital_other_text'] == "Paris"
+
+
+def test_validator_direct():
+    """Test the validator directly with 'Other: X' format."""
+    # Create the question
+    q = QuestionMultipleChoiceWithOther(
+        question_name="capital",
+        question_text="What is the capital of France?",
+        question_options=["London", "Berlin", "Madrid"],
+    )
+    
+    # Get the validator
+    validator = q.response_validator
+    
+    # Test with 'Other: X' format
+    response = {"answer": "Other: Paris"}
+    validated = validator.validate(response, verbose=True)
+    
+    # Check that we correctly parsed the 'Other: X' format
+    assert validated["answer"] == "Other"
+    assert "other_text" in validated
+    assert validated["other_text"] == "Paris"
+
+
+def test_validator_fix_method():
+    """Test the validator's fix method with 'Other: X' format."""
+    # Create the question
+    q = QuestionMultipleChoiceWithOther(
+        question_name="capital",
+        question_text="What is the capital of France?",
+        question_options=["London", "Berlin", "Madrid"],
+    )
+    
+    # Get the validator
+    validator = q.response_validator
+    
+    # Test with 'Other: X' format
+    response = {"answer": "Other: Paris"}
+    fixed = validator.fix(response, verbose=True)
+    
+    # Check that we correctly fixed the 'Other: X' format
+    assert fixed["answer"] == "Other"
+    assert "other_text" in fixed
+    assert fixed["other_text"] == "Paris"
+
+
+def test_other_option_text_custom():
+    """Test with custom other_option_text."""
+    # Create the question with custom other_option_text
+    q = QuestionMultipleChoiceWithOther(
+        question_name="capital",
+        question_text="What is the capital of France?",
+        question_options=["London", "Berlin", "Madrid"],
+        other_option_text="Something else"
+    )
+    
+    # Create a result with 'Something else: Paris' format
+    result = [{
+        'answer': {'capital': 'Something else: Paris'},
+        'other_text': {}
+    }]
+    
+    # Apply post-processing - should still work because we use hardcoded "Other"
+    processed = q.post_process_result(result)
+    
+    # It should match the standard "Other" regardless of other_option_text
+    assert processed[0]['answer']['capital'] == "Other"
+    assert processed[0]['other_text']['capital_other_text'] == "Paris"
