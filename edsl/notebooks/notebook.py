@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 import json
+import subprocess
+import tempfile
+import os
+import shutil
 from typing import Dict, List, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -17,12 +21,56 @@ class Notebook(Base):
     """
 
     default_name = "notebook"
+    
+    @staticmethod
+    def _lint_code(code: str) -> str:
+        """
+        Lint Python code using ruff.
+        
+        :param code: The Python code to lint
+        :return: The linted code
+        """
+        try:
+            # Check if ruff is installed
+            if shutil.which("ruff") is None:
+                # If ruff is not installed, return original code
+                return code
+                
+            with tempfile.NamedTemporaryFile(mode='w+', suffix='.py', delete=False) as temp_file:
+                temp_file.write(code)
+                temp_file_path = temp_file.name
+            
+            # Run ruff to format the code
+            try:
+                result = subprocess.run(
+                    ["ruff", "format", temp_file_path], 
+                    check=True, 
+                    stdout=subprocess.PIPE, 
+                    stderr=subprocess.PIPE
+                )
+                
+                # Read the formatted code
+                with open(temp_file_path, 'r') as f:
+                    linted_code = f.read()
+                
+                return linted_code
+            except subprocess.CalledProcessError:
+                # If ruff fails, return the original code
+                return code
+            except FileNotFoundError:
+                # If ruff is not installed, return the original code
+                return code
+        finally:
+            # Clean up temporary file
+            if 'temp_file_path' in locals() and os.path.exists(temp_file_path):
+                os.unlink(temp_file_path)
 
     def __init__(
         self,
         path: Optional[str] = None,
         data: Optional[Dict] = None,
         name: Optional[str] = None,
+        lint: bool = True,
     ):
         """
         Initialize a new Notebook.
@@ -32,6 +80,7 @@ class Notebook(Base):
         :param path: A filepath from which to load the notebook.
         If no path is provided, assume this code is run in a notebook and try to load the current notebook from file.
         :param name: A name for the Notebook.
+        :param lint: Whether to lint Python code cells using ruff. Defaults to True.
         """
         import nbformat
 
@@ -54,6 +103,16 @@ class Notebook(Base):
             raise NotebookEnvironmentError(
                 "Cannot create a notebook from within itself in this development environment"
             )
+            
+        # Store the lint parameter
+        self.lint = lint
+        
+        # Apply linting to code cells if enabled
+        if self.lint and self.data and "cells" in self.data:
+            for cell in self.data["cells"]:
+                if cell.get("cell_type") == "code" and "source" in cell:
+                    # Only lint Python code cells
+                    cell["source"] = self._lint_code(cell["source"])
 
         # TODO: perhaps add sanity check function
         # 1. could check if the notebook is a valid notebook
@@ -63,7 +122,7 @@ class Notebook(Base):
         self.name = name or self.default_name
 
     @classmethod
-    def from_script(cls, path: str, name: Optional[str] = None) -> "Notebook":
+    def from_script(cls, path: str, name: Optional[str] = None, lint: bool = True) -> "Notebook":
         import nbformat
 
         # Read the script file
@@ -78,12 +137,12 @@ class Notebook(Base):
         nb.cells.append(first_cell)
 
         # Create a Notebook instance with the notebook data
-        notebook_instance = cls(nb)
+        notebook_instance = cls(data=nb, name=name, lint=lint)
 
         return notebook_instance
 
     @classmethod
-    def from_current_script(cls) -> "Notebook":
+    def from_current_script(cls, lint: bool = True) -> "Notebook":
         import inspect
         import os
 
@@ -93,7 +152,7 @@ class Notebook(Base):
         current_file_path = os.path.abspath(caller_frame[1].filename)
 
         # Use from_script to create the notebook
-        return cls.from_script(current_file_path)
+        return cls.from_script(current_file_path, lint=lint)
 
     def __eq__(self, other):
         """
@@ -114,7 +173,7 @@ class Notebook(Base):
         """
         Serialize to a dictionary.
         """
-        d = {"name": self.name, "data": self.data}
+        d = {"name": self.name, "data": self.data, "lint": self.lint}
         if add_edsl_version:
             from .. import __version__
 
@@ -124,11 +183,17 @@ class Notebook(Base):
 
     @classmethod
     @remove_edsl_version
-    def from_dict(cls, d: Dict) -> "Notebook":
+    def from_dict(cls, d: Dict, lint: bool = None) -> "Notebook":
         """
         Convert a dictionary representation of a Notebook to a Notebook object.
+        
+        :param d: Dictionary containing notebook data and name
+        :param lint: Whether to lint Python code cells. If None, uses the value from the dictionary or defaults to True.
+        :return: A new Notebook instance
         """
-        return cls(data=d["data"], name=d["name"])
+        # Use the lint parameter from the dictionary if none is provided, otherwise default to True
+        notebook_lint = lint if lint is not None else d.get("lint", True)
+        return cls(data=d["data"], name=d["name"], lint=notebook_lint)
 
     def to_file(self, path: str):
         """
@@ -205,11 +270,13 @@ class Notebook(Base):
         return table
 
     @classmethod
-    def example(cls, randomize: bool = False) -> Notebook:
+    def example(cls, randomize: bool = False, lint: bool = True) -> Notebook:
         """
         Returns an example Notebook instance.
 
         :param randomize: If True, adds a random string one of the cells' output.
+        :param lint: Whether to lint Python code cells. Defaults to True.
+        :return: An example Notebook instance
         """
         addition = "" if not randomize else str(uuid4())
         cells = [
@@ -238,7 +305,7 @@ class Notebook(Base):
             "nbformat_minor": 4,
             "cells": cells,
         }
-        return cls(data=data)
+        return cls(data=data, lint=lint)
 
     def code(self) -> List[str]:
         """
@@ -246,7 +313,7 @@ class Notebook(Base):
         """
         lines = []
         lines.append("from edsl import Notebook")  # Keep as absolute for code generation
-        lines.append(f'nb = Notebook(data={self.data}, name="""{self.name}""")')
+        lines.append(f'nb = Notebook(data={self.data}, name="""{self.name}""", lint={self.lint})')
         return lines
 
     def to_latex(self, filename: str):
