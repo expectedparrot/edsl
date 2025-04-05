@@ -86,7 +86,7 @@ class MultipleChoiceWithOtherResponseValidator(MultipleChoiceResponseValidator):
         >>> validator = q.response_validator
         >>> result = validator.validate({"answer": "Good"})
         >>> sorted(result.keys())
-        ['answer', 'comment', 'generated_tokens']
+        ['answer', 'comment', 'generated_tokens', 'other_text']
         >>> result["answer"]
         'Good'
         >>> result = validator.validate({"answer": "Other", "other_text": "Excited"})
