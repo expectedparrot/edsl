@@ -566,6 +566,82 @@ Charlie & 35 & 92 \\
             
         return ScenarioList(scenarios)
 
+
+class GoogleDocSource(Source):
+    source_type = "google_doc"
+    
+    def __init__(self, url: str):
+        """
+        Initialize a GoogleDocSource with a Google Doc URL.
+        
+        Args:
+            url: The URL to the Google Doc.
+        """
+        self.url = url
+    
+    @classmethod
+    def example(cls) -> 'GoogleDocSource':
+        """Return an example GoogleDocSource instance."""
+        # Create a mock instance that doesn't actually fetch a Google Doc
+        instance = cls(url="https://docs.google.com/document/d/1234567890abcdefghijklmnopqrstuvwxyz/edit")
+        
+        # Override the to_scenario_list method just for the example
+        def mock_to_scenario_list(self):
+            from .scenario_list import ScenarioList
+            # Create a simple mock ScenarioList with a few paragraphs
+            scenarios = [
+                Scenario({"text": "This is paragraph 1 from a sample Google Doc."}),
+                Scenario({"text": "This is paragraph 2 with some more content."}),
+                Scenario({"text": "This is the final paragraph with a conclusion."})
+            ]
+            return ScenarioList(scenarios)
+        
+        # Replace the method on this instance only
+        import types
+        instance.to_scenario_list = types.MethodType(mock_to_scenario_list, instance)
+        
+        return instance
+    
+    def to_scenario_list(self):
+        """Create a ScenarioList from a Google Doc."""
+        from .scenario_list import ScenarioList
+        import tempfile
+        import requests
+        
+        # Extract the document ID from the URL
+        if "/edit" in self.url:
+            doc_id = self.url.split("/d/")[1].split("/edit")[0]
+        else:
+            raise ScenarioError("Invalid Google Doc URL format.")
+        
+        # Create the export URL to download as DOCX
+        export_url = f"https://docs.google.com/document/d/{doc_id}/export?format=docx"
+        
+        try:
+            # Download the Google Doc as a Word file (.docx)
+            response = requests.get(export_url)
+            response.raise_for_status()  # Ensure the request was successful
+            
+            # Save the Word file to a temporary file
+            with tempfile.NamedTemporaryFile(suffix=".docx", delete=False) as temp_file:
+                temp_file.write(response.content)
+                temp_filename = temp_file.name
+            
+            # Use the DocxScenario class to process the temporary file
+            from .scenario_list import ScenarioList
+            from .DocxScenario import DocxScenario
+            
+            # Create a scenario from the DOCX file
+            docx_scenario = DocxScenario(temp_filename)
+            scenarios = [Scenario({"text": paragraph}) for paragraph in docx_scenario.paragraphs]
+            
+            return ScenarioList(scenarios)
+            
+        except requests.RequestException as e:
+            raise ScenarioError(f"Failed to fetch Google Doc: {str(e)}")
+        except Exception as e:
+            raise ScenarioError(f"Error processing Google Doc: {str(e)}")
+
 class ScenarioSource:
     """
     Factory class for creating ScenarioList objects from various sources.
@@ -712,22 +788,15 @@ class ScenarioSource:
         return source.to_scenario_list()
     
     @staticmethod
-    def _from_google_doc(doc_id: str, table_index: int = 0):
+    def _from_google_doc(url: str):
         """Create a ScenarioList from a Google Doc."""
-        from .scenario_list import ScenarioList
-        
-        try:
-            from googleapiclient.discovery import build
-            from google.oauth2 import service_account
-        except ImportError:
-            raise ImportError(
-                "The Google API Client is not installed. Please install it with `pip install google-api-python-client google-auth-httplib2 google-auth-oauthlib`"
-            )
-            
-        # Implement Google Doc API interaction here
-        # For now, returning an empty ScenarioList as placeholder
-        warnings.warn("from_google_doc is not fully implemented yet")
-        return ScenarioList()
+        warnings.warn(
+            "_from_google_doc is deprecated. Use GoogleDocSource directly or ScenarioSource.from_source('google_doc', ...) instead.",
+            DeprecationWarning,
+            stacklevel=2
+        )
+        source = GoogleDocSource(url)
+        return source.to_scenario_list()
     
     @staticmethod
     def _from_pandas(df):

@@ -19,7 +19,7 @@ For each source type, follow these steps:
 - [x] `list_of_tuples` - Implemented as `TuplesSource`
 - [x] `sqlite` - Implemented as `SQLiteSource`
 - [x] `latex` - Implemented as `LaTeXSource`
-- [ ] `google_doc` - Implement as `GoogleDocSource`
+- [x] `google_doc` - Implemented as `GoogleDocSource`
 - [ ] `pandas` - Implement as `PandasSource`
 - [ ] `dta` - Implement as `StataSource`
 - [ ] `wikipedia` - Implement as `WikipediaSource`
