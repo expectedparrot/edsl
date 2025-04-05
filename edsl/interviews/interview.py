@@ -24,10 +24,19 @@ if TYPE_CHECKING:
     from ..jobs.data_structures import RunConfig
     from .interview_status_log import InterviewStatusLog
 
-# from jobs module
-from ..buckets import ModelBuckets
+# Import data structures
 from ..jobs.data_structures import Answers
 from ..jobs.fetch_invigilator import FetchInvigilator
+
+# Use import_module to avoid circular import
+from importlib import import_module
+
+
+def get_model_buckets():
+    buckets_module = import_module("edsl.buckets.model_buckets")
+    return buckets_module.ModelBuckets
+
+
 from ..surveys import Survey
 from ..utilities.utilities import dict_hash
 
@@ -51,10 +60,10 @@ if TYPE_CHECKING:
 @dataclass
 class InterviewRunningConfig:
     """Configuration parameters for interview execution.
-    
+
     This dataclass contains settings that control how an interview is conducted,
     including error handling, caching behavior, and validation options.
-    
+
     Attributes:
         cache: Optional cache for storing and retrieving model responses
         skip_retry: Whether to skip retrying failed questions (default: False)
@@ -70,24 +79,24 @@ class InterviewRunningConfig:
 
 class Interview:
     """Manages the process of an agent answering a survey asynchronously.
-    
+
     An Interview represents a single execution unit - one agent answering one survey with one
     language model and one scenario. It handles the complete workflow of navigating through
     the survey based on skip logic, creating tasks for each question, tracking execution status,
     and collecting results.
-    
+
     The core functionality is implemented in the `async_conduct_interview` method, which
     orchestrates the asynchronous execution of all question-answering tasks while respecting
     dependencies and rate limits. The class maintains detailed state about the interview progress,
     including answers collected so far, task statuses, token usage, and any exceptions encountered.
-    
+
     Key components:
     - Task management: Creating and scheduling tasks for each question
     - Memory management: Controlling what previous answers are visible for each question
     - Exception handling: Tracking and potentially retrying failed questions
     - Status tracking: Monitoring the state of each task and the overall interview
     - Token tracking: Measuring and limiting API token usage
-    
+
     This class serves as the execution layer that translates a high-level survey definition
     into concrete API calls to language models, with support for caching and fault tolerance.
     """
@@ -116,13 +125,13 @@ class Interview:
             cache: Optional cache for storing and retrieving model responses
             skip_retry: Whether to skip retrying failed questions
             raise_validation_errors: Whether to raise exceptions for validation errors
-            
+
         The initialization process sets up the interview state including:
         1. Creating the task manager for handling question execution
         2. Initializing empty containers for answers and exceptions
         3. Setting up configuration and tracking structures
         4. Computing question indices for quick lookups
-        
+
         Examples:
             >>> i = Interview.example()
             >>> i.task_manager.task_creators
@@ -173,7 +182,7 @@ class Interview:
     @property
     def cache(self) -> "Cache":
         """Get the cache used for storing and retrieving model responses.
-        
+
         Returns:
             Cache: The cache object associated with this interview
         """
@@ -182,7 +191,7 @@ class Interview:
     @cache.setter
     def cache(self, value: "Cache") -> None:
         """Set the cache used for storing and retrieving model responses.
-        
+
         Args:
             value: The cache object to use
         """
@@ -191,7 +200,7 @@ class Interview:
     @property
     def skip_retry(self) -> bool:
         """Get whether the interview should skip retrying failed questions.
-        
+
         Returns:
             bool: True if failed questions should not be retried
         """
@@ -200,7 +209,7 @@ class Interview:
     @property
     def raise_validation_errors(self) -> bool:
         """Get whether validation errors should raise exceptions.
-        
+
         Returns:
             bool: True if validation errors should raise exceptions
         """
@@ -209,19 +218,19 @@ class Interview:
     @property
     def has_exceptions(self) -> bool:
         """Check if any exceptions have occurred during the interview.
-        
+
         Returns:
             bool: True if any exceptions have been recorded
         """
         return len(self.exceptions) > 0
 
     @property
-    def task_status_logs(self) -> 'InterviewStatusLog':
+    def task_status_logs(self) -> "InterviewStatusLog":
         """Get the complete status history for all tasks in the interview.
-        
+
         This property provides access to the status logs for all questions,
         showing how each task progressed through various states during execution.
-        
+
         Returns:
             InterviewStatusLog: Dictionary mapping question names to their status log histories
         """
@@ -230,10 +239,10 @@ class Interview:
     @property
     def token_usage(self) -> "InterviewTokenUsage":
         """Get the token usage statistics for the entire interview.
-        
+
         This tracks how many tokens were used for prompts and completions
         across all questions in the interview.
-        
+
         Returns:
             InterviewTokenUsage: Token usage statistics for the interview
         """
@@ -242,10 +251,10 @@ class Interview:
     @property
     def interview_status(self) -> InterviewStatusDictionary:
         """Get the current status summary for all tasks in the interview.
-        
+
         This provides a count of tasks in each status category (not started,
         in progress, completed, failed, etc.).
-        
+
         Returns:
             InterviewStatusDictionary: Dictionary mapping status codes to counts
         """
@@ -253,18 +262,18 @@ class Interview:
 
     def to_dict(self, include_exceptions=True, add_edsl_version=True) -> dict[str, Any]:
         """Serialize the interview to a dictionary representation.
-        
+
         This method creates a dictionary containing all the essential components
         of the interview, which can be used for hashing, serialization, and
         creating duplicate interviews.
-        
+
         Args:
             include_exceptions: Whether to include exception information (default: True)
             add_edsl_version: Whether to include EDSL version in component dicts (default: True)
-            
+
         Returns:
             dict: Dictionary representation of the interview
-            
+
         Examples:
             >>> i = Interview.example()
             >>> hash(i)
@@ -293,14 +302,14 @@ class Interview:
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> "Interview":
         """Create an Interview instance from a dictionary representation.
-        
+
         This class method deserializes an interview from a dictionary created by
         the to_dict method, recreating all components including agent, survey,
         scenario, model, and any exceptions.
-        
+
         Args:
             d: Dictionary representation of an interview
-            
+
         Returns:
             Interview: A reconstructed Interview instance
         """
@@ -342,11 +351,11 @@ class Interview:
 
     def __hash__(self) -> int:
         """Generate a hash value for the interview.
-        
+
         This hash is based on the essential components of the interview
         (agent, survey, scenario, model, and iteration) but excludes mutable
         state like exceptions to ensure consistent hashing.
-        
+
         Returns:
             int: A hash value that uniquely identifies this interview configuration
         """
@@ -354,16 +363,16 @@ class Interview:
 
     def __eq__(self, other: "Interview") -> bool:
         """Check if two interviews are equivalent.
-        
+
         Two interviews are considered equal if they have the same agent, survey,
         scenario, model, and iteration number.
-        
+
         Args:
             other: Another interview to compare with
-            
+
         Returns:
             bool: True if the interviews are equivalent, False otherwise
-            
+
         Examples:
             >>> from . import Interview
             >>> i = Interview.example()
@@ -377,46 +386,46 @@ class Interview:
     async def async_conduct_interview(
         self,
         run_config: Optional["RunConfig"] = None,
-    ) -> tuple["Answers", List[dict[str, Any]]]:
+    ) -> None:
         """Execute the interview process asynchronously.
-        
+
         This is the core method that conducts the entire interview, creating tasks
         for each question, managing dependencies between them, handling rate limits,
         and collecting results. It orchestrates the asynchronous execution of all
         question-answering tasks in the correct order based on survey rules.
-        
+
         Args:
             run_config: Optional configuration for the interview execution,
                 including parameters like stop_on_exception and environment
                 settings like bucket_collection and key_lookup
-                
+
         Returns:
             tuple: A tuple containing:
                 - Answers: Dictionary of all question answers
                 - List[dict]: List of valid results with detailed information
-                
+
         Examples:
             Basic usage:
-            
+
             >>> i = Interview.example()
-            >>> result, _ = asyncio.run(i.async_conduct_interview())
-            >>> result['q0']
+            >>> asyncio.run(i.async_conduct_interview())
+            >>> i.answers['q2']
             'yes'
-            
+
             Handling exceptions:
-            
+
             >>> i = Interview.example(throw_exception=True)
-            >>> result, _ = asyncio.run(i.async_conduct_interview())
+            >>> asyncio.run(i.async_conduct_interview())
             >>> i.exceptions
             {'q0': ...
-            
+
             Using custom configuration:
-            
+
             >>> i = Interview.example()
             >>> from edsl.jobs import RunConfig, RunParameters, RunEnvironment
             >>> run_config = RunConfig(parameters=RunParameters(), environment=RunEnvironment())
             >>> run_config.parameters.stop_on_exception = True
-            >>> result, _ = asyncio.run(i.async_conduct_interview(run_config))
+            >>> asyncio.run(i.async_conduct_interview(run_config))
         """
         from ..jobs import RunConfig, RunEnvironment, RunParameters
 
@@ -436,6 +445,7 @@ class Interview:
             model_buckets = None
 
         if model_buckets is None or hasattr(self.agent, "answer_question_directly"):
+            ModelBuckets = get_model_buckets()
             model_buckets = ModelBuckets.infinity_bucket()
 
         self.skip_flags = {q.question_name: False for q in self.survey.questions}
@@ -465,7 +475,10 @@ class Interview:
         valid_results = list(
             self._extract_valid_results(self.tasks, self.invigilators, self.exceptions)
         )
-        return self.answers, valid_results
+        self.valid_results = valid_results
+        return None
+        #
+        # return self.answers, valid_results
 
     @staticmethod
     def _extract_valid_results(
@@ -474,27 +487,27 @@ class Interview:
         exceptions: InterviewExceptionCollection,
     ) -> Generator["Answers", None, None]:
         """Extract valid results from completed tasks and handle exceptions.
-        
+
         This method processes the completed asyncio tasks, extracting successful
         results and handling any exceptions that occurred. It maintains the
         relationship between tasks, invigilators, and the questions they represent.
-        
+
         Args:
             tasks: List of asyncio tasks for each question
             invigilators: List of invigilators corresponding to each task
             exceptions: Collection for storing any exceptions that occurred
-            
+
         Yields:
             Answers: Valid results from each successfully completed task
-            
+
         Notes:
             - Tasks and invigilators must have the same length and be in the same order
             - Cancelled tasks are expected and don't trigger exception recording
             - Other exceptions are recorded in the exceptions collection
-            
+
         Examples:
             >>> i = Interview.example()
-            >>> result, _ = asyncio.run(i.async_conduct_interview())
+            >>> asyncio.run(i.async_conduct_interview())
         """
         assert len(tasks) == len(invigilators)
 
@@ -523,38 +536,77 @@ class Interview:
         for task, invigilator in zip(tasks, invigilators):
             if not task.done():
                 from edsl.interviews.exceptions import InterviewTaskError
+
                 raise InterviewTaskError(f"Task {task.get_name()} is not done.")
 
             yield handle_task(task, invigilator)
 
     def __repr__(self) -> str:
         """Generate a string representation of the interview.
-        
+
         This representation includes the key components of the interview
         (agent, survey, scenario, and model) for debugging and display purposes.
-        
+
         Returns:
             str: A string representation of the interview instance
         """
         return f"Interview(agent = {repr(self.agent)}, survey = {repr(self.survey)}, scenario = {repr(self.scenario)}, model = {repr(self.model)})"
 
+    def clear_references(self) -> None:
+        """Clear strong references to help garbage collection.
+
+        This method clears strong references to various objects that might
+        be creating reference cycles and preventing proper garbage collection.
+        Call this method when you're done with an interview and want to ensure
+        it gets properly garbage collected.
+
+        This is particularly important for large-scale operations where memory
+        usage needs to be minimized.
+        """
+        # Clear references to tasks
+        if hasattr(self, "tasks"):
+            self.tasks = None
+
+        # Clear references to invigilators
+        if hasattr(self, "invigilators"):
+            self.invigilators = None
+
+        # Clear validator references in questions
+        if hasattr(self, "survey") and self.survey:
+            for question in self.survey.questions:
+                if hasattr(question, "clear_references"):
+                    question.clear_references()
+
+        # Clear valid_results which might contain circular references
+        if hasattr(self, "valid_results"):
+            self.valid_results = None
+
+        # Clear task manager references
+        if hasattr(self, "task_manager"):
+            if hasattr(self.task_manager, "clear_references"):
+                self.task_manager.clear_references()
+            else:
+                # Clear task creators which might hold references to the interview
+                if hasattr(self.task_manager, "task_creators"):
+                    self.task_manager.task_creators = {}
+
     def duplicate(
         self, iteration: int, cache: "Cache", randomize_survey: Optional[bool] = True
     ) -> "Interview":
         """Create a duplicate of this interview with a new iteration number and cache.
-        
+
         This method creates a new Interview instance with the same components but
         a different iteration number. It can optionally randomize the survey questions
         (for surveys that support randomization) and use a different cache.
-        
+
         Args:
             iteration: The new iteration number for the duplicated interview
             cache: The cache to use for the new interview (can be None)
             randomize_survey: Whether to randomize the survey questions (default: True)
-            
+
         Returns:
             Interview: A new interview instance with updated iteration and cache
-            
+
         Examples:
             >>> i = Interview.example()
             >>> i2 = i.duplicate(1, None)
@@ -582,31 +634,31 @@ class Interview:
     @classmethod
     def example(self, throw_exception: bool = False) -> "Interview":
         """Create an example Interview instance for testing and demonstrations.
-        
+
         This method provides a convenient way to create a fully configured
         Interview instance with default components. It can be configured to
         either work normally or deliberately throw exceptions for testing
         error handling scenarios.
-        
+
         Args:
             throw_exception: If True, creates an interview that will throw
                 exceptions when run (useful for testing error handling)
-                
+
         Returns:
             Interview: A fully configured example interview instance
-            
+
         Examples:
             Creating a normal interview:
-            
+
             >>> i = Interview.example()
-            >>> result, _ = asyncio.run(i.async_conduct_interview())
-            >>> result['q0']
+            >>> asyncio.run(i.async_conduct_interview())
+            >>> i.answers['q0']
             'yes'
-            
+
             Creating an interview that will throw exceptions:
-            
+
             >>> i = Interview.example(throw_exception=True)
-            >>> result, _ = asyncio.run(i.async_conduct_interview())
+            >>> asyncio.run(i.async_conduct_interview())
             >>> i.has_exceptions
             True
         """
