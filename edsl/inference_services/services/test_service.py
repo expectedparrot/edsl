@@ -53,7 +53,6 @@ class TestService(InferenceServiceABC):
             @property
             def _canned_response(self):
                 if hasattr(self, "canned_response"):
-
                     return self.canned_response
                 else:
                     return "Hello, world X"
@@ -64,6 +63,7 @@ class TestService(InferenceServiceABC):
                 system_prompt: str,
                 # func: Optional[callable] = None,
                 files_list: Optional[List["File"]] = None,
+                question_name: Optional[str] = None,
             ) -> dict[str, Any]:
                 await asyncio.sleep(0.1)
 
@@ -75,6 +75,7 @@ class TestService(InferenceServiceABC):
 
                     if random.random() < p:
                         from ..exceptions import InferenceServiceError
+
                         raise InferenceServiceError("This is a test error")
 
                 if hasattr(self, "func"):
@@ -85,8 +86,16 @@ class TestService(InferenceServiceABC):
                         "usage": {"prompt_tokens": 1, "completion_tokens": 1},
                     }
 
+                response = self._canned_response
+                if isinstance(response, dict) and question_name:
+                    canned_text = response.get(
+                        question_name, f"No canned response for '{question_name}'"
+                    )
+                else:
+                    canned_text = response
+
                 return {
-                    "message": [{"text": f"{self._canned_response}"}],
+                    "message": [{"text": f"{canned_text}"}],
                     "usage": {"prompt_tokens": 1, "completion_tokens": 1},
                 }
 
