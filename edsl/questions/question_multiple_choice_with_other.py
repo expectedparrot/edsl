@@ -123,70 +123,52 @@ class MultipleChoiceWithOtherResponseValidator(MultipleChoiceResponseValidator):
         Validate the response according to the schema.
         
         This overrides the parent validate method to handle the "Other" option specially.
-        If the answer is "Other", the other_text field should be present.
-        If the answer is in the format "Other: X", it will be parsed and transformed.
+        If the answer is in the format "Other: X", it splits it into "Other" and the other_text.
         
         Parameters:
             response_dict: The response to validate
             verbose: Whether to print debug information
             
         Returns:
-            A validated response dict
+            A validated response dict with "Other" as the answer and other_text field set
         """
-        # Check for special format BEFORE the parent validation
-        orig_response_dict = response_dict.copy()  # Keep original for reference
+        # Keep original for reference
+        orig_response_dict = response_dict.copy()
         
         # Create a copy to avoid modifying the original that may be needed elsewhere
         response_dict = response_dict.copy()
         answer = str(response_dict.get("answer", ""))
-        has_other_format = False
         other_text = None
         
         # Check for "Other: X" format directly in the answer field
         if ":" in answer:
             parts = answer.split(":", 1)
             if len(parts) == 2 and parts[0].strip().lower() == "other":
+                # Extract the "Other" part and the custom text
                 other_text = parts[1].strip()
-                has_other_format = True
                 if verbose:
-                    print(f"Parsed 'Other: X' format. Other text: {other_text}")
+                    print(f"Detected 'Other: X' format: {answer}")
+                    print(f"Extracted other_text: {other_text}")
                 
-                # Update the response dict to split into proper fields
+                # Change answer to just "Other" for validation
                 response_dict["answer"] = "Other"
-                response_dict["other_text"] = other_text
+                
+                # Add the other_text to the response
+                if "other_text" not in response_dict or not response_dict["other_text"]:
+                    response_dict["other_text"] = other_text
         
-        # Check if this is a response with "Other" selected but missing other_text
-        elif answer == "Other" and "other_text" not in response_dict:
-            # Try to extract other_text from the comment or generated_tokens
-            if "comment" in response_dict and response_dict["comment"]:
-                other_text = response_dict["comment"]
-                has_other_format = True
-                # Move comment to other_text if "Other" is selected
-                response_dict["other_text"] = other_text
-                if verbose:
-                    print(f"Extracted other_text from comment: {other_text}")
-                    
         # Make sure "Other" is in the list of valid options for validation
         question_options = list(self.question_options)
         if "Other" not in question_options:
             question_options.append("Other")
-            
-        # Note: We cannot regenerate the response model here as the validator
-        # doesn't have access to the create_response_model method
         
-        # Now use the parent validation on our modified response
+        # Validate with the parent validator
         validated_response = super().validate(response_dict, verbose)
         
-        # If we detected "Other: X" format, ensure the other_text is in the output
-        if has_other_format and other_text:
-            # Make sure the answer is just "Other" (not "Other: X")
-            validated_response["answer"] = "Other"
-            # Add the other_text field to ensure it's returned
+        # If we extracted other_text but it wasn't set in the validated response, set it now
+        if other_text and ("other_text" not in validated_response or not validated_response["other_text"]):
             validated_response["other_text"] = other_text
             
-            if verbose:
-                print(f"Final validated response: answer='{validated_response['answer']}', other_text='{validated_response['other_text']}'")
-        
         return validated_response
     
     def fix(self, response, verbose=False):
@@ -206,15 +188,17 @@ class MultipleChoiceWithOtherResponseValidator(MultipleChoiceResponseValidator):
         # Check if this is an "Other" response with additional text
         response_text = str(response.get("answer", ""))
         
-        # Handle "Other: X" format - this is now our primary format
+        # Handle "Other: X" format - extract "Other" and other_text separately
         if ":" in response_text:
             parts = response_text.split(":", 1)
             if len(parts) == 2 and parts[0].strip().lower() == "other":
+                if verbose:
+                    print(f"Identified as 'Other: X' format: {response_text}")
+                
+                # Extract the custom text after "Other:"
                 other_text = parts[1].strip()
                 
-                if verbose:
-                    print(f"Identified as 'Other: X' format with text: {other_text}")
-                
+                # Create response with "Other" and the other_text separately
                 proposed_data = {
                     "answer": "Other",
                     "other_text": other_text,
@@ -223,14 +207,10 @@ class MultipleChoiceWithOtherResponseValidator(MultipleChoiceResponseValidator):
                 }
                 
                 try:
-                    # Make sure 'Other' is in the question options before validating
-                    # Note: We don't modify self.question_options or self.response_model here
-                    # as we don't have access to create_response_model method
-                    
                     # Validate the fixed answer
                     self.response_model.model_validate(proposed_data)
                     if verbose:
-                        print(f"Fixed answer as 'Other' with text: {other_text}")
+                        print(f"Fixed answer: Other with other_text={other_text}")
                     return proposed_data
                 except Exception as e:
                     if verbose:
@@ -251,6 +231,7 @@ class MultipleChoiceWithOtherResponseValidator(MultipleChoiceResponseValidator):
                 if verbose:
                     print(f"Extracted text after 'Other': {other_text}")
                 
+                # Create response with "Other" and the other_text separately
                 proposed_data = {
                     "answer": "Other",
                     "other_text": other_text,
@@ -259,14 +240,10 @@ class MultipleChoiceWithOtherResponseValidator(MultipleChoiceResponseValidator):
                 }
                 
                 try:
-                    # Make sure 'Other' is in the question options before validating
-                    # Note: We don't modify self.question_options or self.response_model here
-                    # as we don't have access to create_response_model method
-                    
                     # Validate the fixed answer
                     self.response_model.model_validate(proposed_data)
                     if verbose:
-                        print(f"Fixed answer as 'Other' with text: {other_text}")
+                        print(f"Fixed answer: Other with other_text={other_text}")
                     return proposed_data
                 except Exception as e:
                     if verbose:
@@ -368,7 +345,7 @@ class QuestionMultipleChoiceWithOther(QuestionBase):
         
         This method is called after the result is generated by the model
         and before it's returned to the user. It checks if the answer
-        has the "Other: X" format and splits it into separate fields.
+        has the "Other: X" format and stores the full answer.
         
         Parameters:
             result: The result object to process
@@ -393,17 +370,29 @@ class QuestionMultipleChoiceWithOther(QuestionBase):
                             # Extract the custom text
                             other_text = parts[1].strip()
                             
-                            # Set the answer to just "Other"
+                            # Set the answer to just "Other" (not the full "Other: X" format)
                             r['answer'][question_name] = "Other"
                             
-                            # Create the other_text field if it doesn't exist
+                            # Store the other_text in the result object as well as an attribute
+                            other_text_key = f"{question_name}_other_text"
                             if 'other_text' not in r:
                                 r['other_text'] = {}
+                            r['other_text'][other_text_key] = other_text
                             
-                            # Store the other_text
-                            r['other_text'][f"{question_name}_other_text"] = other_text
+                            # Store the other_text as an attribute of the question instance
+                            self._other_text = other_text
         
         return result
+        
+    @property
+    def other_text(self):
+        """
+        Get the text entered for the 'Other' option.
+        
+        Returns:
+            The text entered for the 'Other' option, or None if not applicable
+        """
+        return getattr(self, '_other_text', None)
 
     def __init__(
         self,
