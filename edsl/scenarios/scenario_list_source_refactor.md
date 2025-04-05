@@ -23,7 +23,7 @@ For each source type, follow these steps:
 - [x] `pandas` - Implemented as `PandasSource`
 - [x] `dta` - Implemented as `StataSource`
 - [x] `wikipedia` - Implemented as `WikipediaSource`
-- [ ] `excel` - Implement as `ExcelSource`
+- [x] `excel` - Implemented as `ExcelSource`
 - [ ] `google_sheet` - Implement as `GoogleSheetSource`
 - [ ] `delimited_file` - Implement as `DelimitedFileSource`
 - [ ] `csv` - Implement as `CSVSource` (extending `DelimitedFileSource`)
