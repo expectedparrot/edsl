@@ -265,6 +265,93 @@ class TestResults(unittest.TestCase):
                 os.remove(filepath)
 
 
+    def test_result_survey_response_consistency(self):
+        from edsl import (
+            QuestionFreeText,
+            QuestionMultipleChoice,
+            QuestionCheckBox,
+            QuestionLinearScale,
+            QuestionList,
+            QuestionDict,
+            QuestionNumerical,
+            Survey,
+            Model
+        )
+        from edsl.caching import Cache
+        # Define questions of each type
+        q1 = QuestionFreeText(
+            question_name="feedback",
+            question_text="What did you think about the event overall?"
+        )
+
+        q2 = QuestionMultipleChoice(
+            question_name="favorite_part",
+            question_text="What was your favorite part of the event?",
+            question_options=["Speakers", "Networking", "Workshops", "Food"]
+        )
+
+        q3 = QuestionCheckBox(
+            question_name="topics_interested",
+            question_text="Which of the following topics would you like to see more of in the future?",
+            question_options=["AI", "Climate", "Healthcare", "Finance", "Education"]
+        )
+
+        q4 = QuestionLinearScale(
+            question_name="satisfaction",
+            question_text="How satisfied were you with the event?",
+            question_options=list(range(1, 11))  # 1–10 scale
+        )
+
+        q5 = QuestionList(
+            question_name="improvements",
+            question_text="List up to three things that could be improved.",
+            max_list_items=3
+        )
+
+        q6 = QuestionDict(
+            question_name="session_feedback",
+            question_text="For each session, provide one word to describe it.",
+            answer_keys=["Keynote", "Breakout A", "Breakout B"],
+            value_types=["str", "str", "str"],
+        )
+
+        q7 = QuestionNumerical(
+            question_name="attended_events",
+            question_text="How many events like this have you attended in the past year?"
+        )
+
+        # Combine into a survey
+        survey = Survey([
+            q1, q2, q3, q4, q5, q6, q7
+        ])
+
+        # Simulate with canned responses using model.test
+        model = Model("test",canned_response={
+            "feedback": "It was insightful and well-organized.",
+            "favorite_part": "Workshops",
+            "topics_interested": ["AI", "Education"],
+            "satisfaction": 9,
+            "improvements": ["More Q&A time", "Better seating", "More snacks"],
+            "session_feedback": {
+                "Keynote": "Inspiring",
+                "Breakout A": "Confusing",
+                "Breakout B": "Engaging"
+            },
+            "attended_events": 4
+        })
+
+        c = Cache()
+        # Run the survey
+        results = survey.by(model).run(disable_remote_inference=True,cache=c)
+        r1 = results.select("feedback", "favorite_part", "topics_interested", "satisfaction", "improvements", "session_feedback", "attended_events")
+
+        results1 = survey.by(model).run(disable_remote_inference=True,cache=c)
+
+        r2 = results1.select("feedback", "favorite_part", "topics_interested", "satisfaction", "improvements", "session_feedback", "attended_events")
+
+        assert r1 == r2
+
+
 if __name__ == "__main__":
     unittest.main()
     TestResults().test_print_latest()
