@@ -1603,8 +1603,9 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         return source.to_scenario_list()
 
     @classmethod
+    @deprecated_classmethod("ScenarioSource.from_source('google_sheet', ...)")
     def from_google_sheet(
-        cls, url: str, sheet_name: str = None, column_names: Optional[List[str]] = None
+        cls, url: str, sheet_name: str = None, column_names: Optional[List[str]] = None, **kwargs
     ) -> ScenarioList:
         """Create a ScenarioList from a Google Sheet.
 
@@ -1617,53 +1618,15 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
                                         the same as from_excel regarding multiple sheets.
             column_names (List[str], optional): If provided, use these names for the columns instead
                                               of the default column names from the sheet.
+            **kwargs: Additional parameters to pass to pandas.read_excel.
 
         Returns:
             ScenarioList: An instance of the ScenarioList class.
 
         """
-        import tempfile
-        import requests
-
-        if "/edit" in url:
-            sheet_id = url.split("/d/")[1].split("/edit")[0]
-        else:
-            from .exceptions import ValueScenarioError
-
-            raise ValueScenarioError("Invalid Google Sheet URL format.")
-
-        export_url = (
-            f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=xlsx"
-        )
-
-        # Download the Google Sheet as an Excel file
-        response = requests.get(export_url)
-        response.raise_for_status()  # Ensure the request was successful
-
-        # Save the Excel file to a temporary file
-        with tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False) as temp_file:
-            temp_file.write(response.content)
-            temp_filename = temp_file.name
-
-        # First create the ScenarioList with default column names
-        scenario_list = cls.from_excel(temp_filename, sheet_name=sheet_name)
-
-        # If column_names is provided, create a new ScenarioList with the specified names
-        if column_names is not None:
-            if len(column_names) != len(scenario_list[0].keys()):
-                raise ValueError(
-                    f"Number of provided column names ({len(column_names)}) "
-                    f"does not match number of columns in sheet ({len(scenario_list[0].keys())})"
-                )
-
-            # Create a codebook mapping original keys to new names
-            original_keys = list(scenario_list[0].keys())
-            codebook = dict(zip(original_keys, column_names))
-
-            # Return new ScenarioList with renamed columns
-            return scenario_list.rename(codebook)
-        else:
-            return scenario_list
+        from .scenario_source import GoogleSheetSource
+        source = GoogleSheetSource(url, sheet_name=sheet_name, column_names=column_names, **kwargs)
+        return source.to_scenario_list()
 
     @classmethod
     def from_delimited_file(
