@@ -1281,6 +1281,106 @@ class DelimitedFileSource(Source):
         
         return ScenarioList(scenarios)
 
+
+class CSVSource(DelimitedFileSource):
+    source_type = "csv"
+    
+    def __init__(
+        self, 
+        file_or_url: str,
+        has_header: bool = True,
+        encoding: str = "utf-8",
+        **kwargs
+    ):
+        """
+        Initialize a CSVSource with a path to a CSV file or URL.
+        
+        Args:
+            file_or_url: Path to a local file or URL to a remote file.
+            has_header: Whether the file has a header row (default is True).
+            encoding: The file encoding to use (default is 'utf-8').
+            **kwargs: Additional parameters for csv reader.
+        """
+        super().__init__(
+            file_or_url=file_or_url,
+            delimiter=",",
+            has_header=has_header,
+            encoding=encoding,
+            **kwargs
+        )
+    
+    @classmethod
+    def example(cls) -> 'CSVSource':
+        """Return an example CSVSource instance."""
+        import tempfile
+        import os
+        
+        # Create a temporary CSV file with sample data
+        fd, temp_path = tempfile.mkstemp(suffix='.csv', prefix='edsl_test_')
+        os.close(fd)  # Close the file descriptor
+        
+        # Write sample data to the file
+        with open(temp_path, 'w', newline='') as f:
+            f.write("name,age,city\n")
+            f.write("Alice,30,New York\n")
+            f.write("Bob,25,San Francisco\n")
+            f.write("Charlie,35,Boston\n")
+        
+        return cls(
+            file_or_url=temp_path,
+            has_header=True
+        )
+
+
+class TSVSource(DelimitedFileSource):
+    source_type = "tsv"
+    
+    def __init__(
+        self, 
+        file_or_url: str,
+        has_header: bool = True,
+        encoding: str = "utf-8",
+        **kwargs
+    ):
+        """
+        Initialize a TSVSource with a path to a TSV file or URL.
+        
+        Args:
+            file_or_url: Path to a local file or URL to a remote file.
+            has_header: Whether the file has a header row (default is True).
+            encoding: The file encoding to use (default is 'utf-8').
+            **kwargs: Additional parameters for csv reader.
+        """
+        super().__init__(
+            file_or_url=file_or_url,
+            delimiter="\t",
+            has_header=has_header,
+            encoding=encoding,
+            **kwargs
+        )
+    
+    @classmethod
+    def example(cls) -> 'TSVSource':
+        """Return an example TSVSource instance."""
+        import tempfile
+        import os
+        
+        # Create a temporary TSV file with sample data
+        fd, temp_path = tempfile.mkstemp(suffix='.tsv', prefix='edsl_test_')
+        os.close(fd)  # Close the file descriptor
+        
+        # Write sample data to the file
+        with open(temp_path, 'w', newline='') as f:
+            f.write("name\tage\tcity\n")
+            f.write("Alice\t30\tNew York\n")
+            f.write("Bob\t25\tSan Francisco\n")
+            f.write("Charlie\t35\tBoston\n")
+        
+        return cls(
+            file_or_url=temp_path,
+            has_header=True
+        )
+
 class ScenarioSource:
     """
     Factory class for creating ScenarioList objects from various sources.
@@ -1522,12 +1622,24 @@ class ScenarioSource:
     @staticmethod
     def _from_csv(file_or_url: str, **kwargs):
         """Create a ScenarioList from a CSV file or URL."""
-        return ScenarioSource._from_delimited_file(file_or_url, delimiter=",", **kwargs)
+        warnings.warn(
+            "_from_csv is deprecated. Use CSVSource directly or ScenarioSource.from_source('csv', ...) instead.",
+            DeprecationWarning,
+            stacklevel=2
+        )
+        source = CSVSource(file_or_url=file_or_url, **kwargs)
+        return source.to_scenario_list()
     
     @staticmethod
     def _from_tsv(file_or_url: str, **kwargs):
         """Create a ScenarioList from a TSV file or URL."""
-        return ScenarioSource._from_delimited_file(file_or_url, delimiter="\t", **kwargs)
+        warnings.warn(
+            "_from_tsv is deprecated. Use TSVSource directly or ScenarioSource.from_source('tsv', ...) instead.",
+            DeprecationWarning,
+            stacklevel=2
+        )
+        source = TSVSource(file_or_url=file_or_url, **kwargs)
+        return source.to_scenario_list()
     
     @staticmethod
     def _from_dict(data: dict):

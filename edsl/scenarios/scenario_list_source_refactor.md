@@ -26,8 +26,8 @@ For each source type, follow these steps:
 - [x] `excel` - Implemented as `ExcelSource`
 - [x] `google_sheet` - Implemented as `GoogleSheetSource`
 - [x] `delimited_file` - Implemented as `DelimitedFileSource`
-- [ ] `csv` - Implement as `CSVSource` (extending `DelimitedFileSource`)
-- [ ] `tsv` - Implement as `TSVSource` (extending `DelimitedFileSource`)
+- [x] `csv` - Implemented as `CSVSource` (extending `DelimitedFileSource`)
+- [x] `tsv` - Implemented as `TSVSource` (extending `DelimitedFileSource`)
 - [ ] `dict` - Implement as `DictSource`
 - [ ] `nested_dict` - Implement as `NestedDictSource`
 - [ ] `parquet` - Implement as `ParquetSource`
