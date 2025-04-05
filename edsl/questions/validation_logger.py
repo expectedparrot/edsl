@@ -21,7 +21,11 @@ logger.setLevel(logging.INFO)
 
 # Determine log directory path
 DEFAULT_LOG_DIR = Path.home() / ".edsl" / "logs"
-LOG_DIR = Path(CONFIG.get("EDSL_LOG_DIR", default=str(DEFAULT_LOG_DIR)))
+try:
+    LOG_DIR = Path(CONFIG.get("EDSL_LOG_DIR"))
+except Exception:
+    # If EDSL_LOG_DIR is not defined, use default
+    LOG_DIR = DEFAULT_LOG_DIR
 VALIDATION_LOG_FILE = LOG_DIR / "validation_failures.log"
 
 # Create log directory if it doesn't exist
