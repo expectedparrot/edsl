@@ -1537,12 +1537,14 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             return {scenario[field]: scenario[value] for scenario in self}
 
     @classmethod
+    @deprecated_classmethod("ScenarioSource.from_source('excel', ...)")
     def from_excel(
         cls,
         filename: str,
         sheet_name: Optional[str] = None,
         skip_rows: Optional[List[int]] = None,
         use_codebook: bool = False,
+        **kwargs
     ) -> ScenarioList:
         """Create a ScenarioList from an Excel file.
 
@@ -1554,6 +1556,8 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             sheet_name (Optional[str]): Name of the sheet to load. If None and multiple sheets exist,
                                       will raise an error listing available sheets.
             skip_rows (Optional[List[int]]): List of row indices to skip (0-based). If None, all rows are included.
+            use_codebook (bool): If True, rename columns to standard format and store original names in codebook.
+            **kwargs: Additional parameters to pass to pandas.read_excel.
 
         Example:
 
@@ -1588,53 +1592,15 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         >>> scenario_list[1]['name']
         'Charlie'
         """
-        from .scenario import Scenario
-        import pandas as pd
-
-        # Get all sheets
-        all_sheets = pd.read_excel(filename, sheet_name=None)
-
-        # If no sheet_name is provided and there is more than one sheet, print available sheets
-        if sheet_name is None:
-            if len(all_sheets) > 1:
-                print("The Excel file contains multiple sheets:")
-                for name in all_sheets.keys():
-                    print(f"- {name}")
-                from .exceptions import ValueScenarioError
-
-                raise ValueScenarioError(
-                    "Please provide a sheet name to load data from."
-                )
-            else:
-                # If there is only one sheet, use it
-                sheet_name = list(all_sheets.keys())[0]
-
-        # Load the specified or determined sheet
-        df = pd.read_excel(filename, sheet_name=sheet_name)
-
-        # Skip specified rows if any
-        if skip_rows:
-            df = df.drop(skip_rows)
-            # Reset index to ensure continuous indexing
-            df = df.reset_index(drop=True)
-
-        if use_codebook:
-            codebook = {f"col_{i}": col for i, col in enumerate(df.columns)}
-            koobedoc = {col: f"col_{i}" for i, col in enumerate(df.columns)}
-
-        observations = []
-        for _, row in df.iterrows():
-            if use_codebook:
-                observations.append(
-                    Scenario({koobedoc.get(k): v for k, v in row.to_dict().items()})
-                )
-            else:
-                observations.append(Scenario(row.to_dict()))
-
-        if use_codebook:
-            return cls(observations, codebook=codebook)
-        else:
-            return cls(observations)
+        from .scenario_source import ExcelSource
+        source = ExcelSource(
+            file_path=filename, 
+            sheet_name=sheet_name, 
+            skip_rows=skip_rows, 
+            use_codebook=use_codebook,
+            **kwargs
+        )
+        return source.to_scenario_list()
 
     @classmethod
     def from_google_sheet(
