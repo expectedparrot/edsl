@@ -5,10 +5,10 @@ Respond with the code corresponding to one of the options.
 Respond with a string corresponding to one of the options.
 {% endif %}
 
-{% if other_option_text in question_options %}
-If none of the options match, select "{{ other_option_text }}" and provide your own response in the format:
-{{ other_option_text }}: [your specific response]
-{% endif %}
+If none of the options match, respond with:
+Other: [your specific response]
+
+For example: "Other: Paris" if your answer is Paris.
 
 {% if include_comment %}
 After the answer, you can put a comment explaining why you chose that option on the next line.
