@@ -970,35 +970,6 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         from .scenario_source import ListSource
         return ListSource(field_name, values, use_indexes).to_scenario_list()
     
-    # @classmethod
-    # def from_urls(
-    #     cls, urls: list[str], field_name: Optional[str] = "text"
-    # ) -> ScenarioList:
-    #     """Create a ScenarioList from a list of URLs.
-
-    #     :param urls: A list of URLs.
-    #     :param field_name: The name of the field to store the text from the URLs.
-
-    #     Example:
-    #         >>> urls = ["https://example.com", "https://example.org"]
-    #         >>> # sl = ScenarioList.from_urls(urls)
-    #         >>> # len(sl)
-    #     """
-    #     import requests
-    #     from .scenario import Scenario
-
-    #     result = ScenarioList()
-    #     for url in urls:
-    #         try:
-    #             response = requests.get(url)
-    #             response.raise_for_status()
-    #             scenario = Scenario({field_name: response.text})
-    #             result.append(scenario)
-    #         except requests.RequestException as e:
-    #             warnings.warn(f"Failed to fetch URL {url}: {str(e)}")
-    #             continue
-
-    #     return result
 
     def select(self, *fields: str) -> ScenarioList:
         """
@@ -1285,7 +1256,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         #sl = self.duplicate()
         if len(values) != len(self.data):
             raise ScenarioError(
-                f"Length of values ({len(values)}) does not match length of ScenarioList ({len(sl)})"
+                f"Length of values ({len(values)}) does not match length of ScenarioList ({len(self)})"
             )
         new_sl = ScenarioList(data=[], codebook=self.codebook)
         for i, value in enumerate(values):
@@ -1914,40 +1885,42 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
     def to_agent_list(self):
         """Convert the ScenarioList to an AgentList.
 
+        This method supports special fields that map to Agent parameters:
+        - "name": Will be used as the agent's name
+        - "agent_parameters": A dictionary containing:
+            - "instruction": The agent's instruction text
+            - "name": The agent's name (overrides the "name" field if present)
+
         Example:
+            >>> from edsl import ScenarioList, Scenario
+            >>> # Basic usage with traits
+            >>> s = ScenarioList([Scenario({'age': 22, 'hair': 'brown', 'height': 5.5})])
+            >>> al = s.to_agent_list()
+            >>> al
+            AgentList([Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5})])
 
-        >>> s = ScenarioList([Scenario({'age': 22, 'hair': 'brown', 'height': 5.5}), Scenario({'age': 22, 'hair': 'brown', 'height': 5.5})])
-        >>> s.to_agent_list()
-        AgentList([Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5}), Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5})])
+            >>> # Using agent name
+            >>> s = ScenarioList([Scenario({'name': 'Alice', 'age': 22})])
+            >>> al = s.to_agent_list()
+            >>> al[0].name
+            'Alice'
+
+            >>> # Using agent parameters for instructions
+            >>> s = ScenarioList([Scenario({
+            ...     'age': 22,
+            ...     'agent_parameters': {
+            ...         'instruction': 'You are a helpful assistant',
+            ...         'name': 'Assistant'
+            ...     }
+            ... })])
+            >>> al = s.to_agent_list()
+            >>> al[0].instruction
+            'You are a helpful assistant'
+            >>> al[0].name
+            'Assistant'
         """
-        from ..agents import AgentList, Agent
-
-        agents = []
-        for scenario in self:
-            new_scenario = scenario.copy().data
-            if "name" in new_scenario:
-                name = new_scenario.pop("name")
-                proposed_agent_name = "agent_name"
-                while proposed_agent_name not in new_scenario:
-                    proposed_agent_name += "_"
-                warnings.warn(
-                    f"The 'name' field is reserved for the agent's name---putting this value in {proposed_agent_name}"
-                )
-                new_scenario[proposed_agent_name] = name
-                new_agent = Agent(traits=new_scenario, name=name)
-            if "agent_parameters" in new_scenario:
-                agent_parameters = new_scenario.pop("agent_parameters")
-                instruction = agent_parameters.get("instruction", None)
-                name = agent_parameters.get("name", None)
-                new_agent = Agent(
-                    traits=new_scenario, name=name, instruction=instruction
-                )
-            else:
-                new_agent = Agent(traits=new_scenario)
-
-            agents.append(new_agent)
-
-        return AgentList(agents)
+        from ..agents import AgentList
+        return AgentList.from_scenario_list(self)
 
     def chunk(
         self,
