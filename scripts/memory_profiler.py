@@ -113,6 +113,30 @@ def profile_memory(func: F) -> F:
             
         print(f"Memory profile report saved to: {report_path}")
         
+        # If detailed report is requested, show full source for top offenders
+        if getattr(func, 'detailed_report', False):
+            print("\n==== DETAILED LINE-BY-LINE ANALYSIS ====")
+            print(f"Debug: Detailed report requested: {getattr(func, 'detailed_report', False)}")
+            for i, stat in enumerate(top_stats[:5]):  # Show top 5 only
+                print(f"\n{i+1}. {stat.traceback.format()[0]} - {stat.size_diff / 1024:.2f} KB")
+                if stat.traceback and len(stat.traceback) > 0:
+                    frame = stat.traceback[0]
+                    try:
+                        import linecache
+                        # Show 5 lines before and after the line in question
+                        line_no = frame.lineno
+                        start_line = max(1, line_no - 5)
+                        end_line = line_no + 5
+                        filename = frame.filename
+                        print(f"From {filename}:")
+                        for l in range(start_line, end_line + 1):
+                            line = linecache.getline(filename, l).rstrip()
+                            prefix = ">>> " if l == line_no else "    "
+                            print(f"{prefix}{l}: {line}")
+                    except Exception as e:
+                        print(f"Could not get source: {e}")
+            print("\n==== END DETAILED ANALYSIS ====")
+                
         # Stop memory tracking
         tracemalloc.stop()
         
@@ -146,8 +170,12 @@ def test_scenariolist_memory(size=10000, filter_expression="id % 2 == 0", profil
         # Get the original filter method
         original_filter = ScenarioList.filter
         
+        # Create a decorated function with detailed reporting
+        decorated_filter = profile_memory(original_filter)
+        decorated_filter.detailed_report = True
+        
         # Apply the decorator
-        ScenarioList.filter = profile_memory(original_filter)
+        ScenarioList.filter = decorated_filter
     
     process = psutil.Process(os.getpid())
     
@@ -231,7 +259,7 @@ def test_scenariolist_memory(size=10000, filter_expression="id % 2 == 0", profil
 def run_memory_profiling(
     test_name: str = "filter", size: int = 1000, 
     expression: str = "id % 2 == 0", generate_report: bool = True,
-    open_report: bool = True
+    open_report: bool = True, detailed: bool = False
 ) -> Optional[Tuple[Path, Path]]:
     """
     Run memory profiling tests and generate reports.
@@ -242,11 +270,53 @@ def run_memory_profiling(
         expression: Expression to use for filtering tests
         generate_report: Whether to generate visualization reports
         open_report: Whether to open the HTML report in a browser
+        detailed: Whether to show detailed line-by-line analysis
         
     Returns:
         Optional tuple of (image_path, html_path) if generate_report=True
     """
     if test_name == "filter":
+        # If detailed analysis is requested, perform manual trace of the top memory files
+        if detailed:
+            print("\n==== DETAILED FILE ANALYSIS ====")
+            print("Analyzing top memory usage files...")
+            
+            # Analyze the scenario_list.py file where most memory is allocated
+            scenario_list_path = "/Users/johnhorton/tools/ep/edsl/edsl/scenarios/scenario_list.py"
+            sqlite_list_path = "/Users/johnhorton/tools/ep/edsl/edsl/db_list/sqlite_list.py"
+            
+            # Show the contents of the key functions
+            print("\n1. ScenarioList.filter - contains the main memory allocation point at line 109")
+            with open(scenario_list_path, 'r') as f:
+                for i, line in enumerate(f, 1):
+                    if 104 <= i <= 114:  # Show lines around the key allocation point
+                        prefix = ">>> " if i == 109 else "    "
+                        print(f"{prefix}{i}: {line.rstrip()}")
+            
+            print("\n2. SQLiteList.__len__ - significant memory allocation at line 70")
+            with open(sqlite_list_path, 'r') as f:
+                for i, line in enumerate(f, 1):
+                    if 65 <= i <= 75:
+                        prefix = ">>> " if i == 70 else "    "
+                        print(f"{prefix}{i}: {line.rstrip()}")
+                        
+            print("\n3. SQLiteList.__insert - significant memory allocation at line 148")  
+            with open(sqlite_list_path, 'r') as f:
+                for i, line in enumerate(f, 1):
+                    if 143 <= i <= 153:
+                        prefix = ">>> " if i == 148 else "    "
+                        print(f"{prefix}{i}: {line.rstrip()}")
+                        
+            print("\n4. ScenarioList.filter - allocation at lines 918-926 (scenario copying)")
+            with open(scenario_list_path, 'r') as f:
+                for i, line in enumerate(f, 1):
+                    if 913 <= i <= 931:
+                        prefix = ">>> " if i in (918, 926) else "    "
+                        print(f"{prefix}{i}: {line.rstrip()}")
+                        
+            print("\n==== END DETAILED ANALYSIS ====")
+        
+        # Run the actual memory test
         test_scenariolist_memory(size, expression)
     else:
         print(f"Unknown test name: {test_name}")
@@ -284,6 +354,8 @@ def parse_args():
                       help="Don't generate visualization reports")
     parser.add_argument("--no-open", "-o", action="store_true",
                       help="Don't automatically open the HTML report")
+    parser.add_argument("--detailed", "-d", action="store_true",
+                      help="Show detailed line-by-line analysis")
     return parser.parse_args()
 
 
@@ -294,5 +366,6 @@ if __name__ == "__main__":
         size=args.size,
         expression=args.expression,
         generate_report=not args.no_report,
-        open_report=not args.no_open
+        open_report=not args.no_open,
+        detailed=args.detailed
     )

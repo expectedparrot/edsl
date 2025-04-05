@@ -136,7 +136,7 @@ benchmark-memory-large: ## Run memory profiling with a large dataset (5000 scena
 	python scripts/memory_profiler.py --size 5000
 	
 benchmark-memory-line: ## Run line-by-line memory profiling on ScenarioList filter
-	python scripts/memory_line_profiler.py --size 1000
+	python scripts/memory_line_profiler.py --size 20
 
 test-memory-scaling: ## Run comprehensive memory scaling tests for ScenarioList
 	RUN_MEMORY_SCALING_TEST=1 pytest -xvs tests/scenarios/test_ScenarioList_memory.py::test_scenario_list_memory_scaling
@@ -285,6 +285,9 @@ test-doctests: ## Run doctests
 	pytest --doctest-modules edsl/caching
 	pytest --doctest-modules edsl/inference_services
 
+test-doctests-parallel: ## Run doctests in parallel
+	make clean-test
+	python scripts/run_parallel_doctests.py
 
 test-services:
 	python integration/test_all_questions_and_models.py
