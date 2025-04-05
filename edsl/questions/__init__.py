@@ -34,6 +34,7 @@ Derived Question Types:
 - QuestionLinearScale: Linear scale with customizable range and labels
 - QuestionYesNo: Simple binary yes/no response
 - QuestionTopK: Selection of top K items from a list of options
+- QuestionMultipleChoiceWithOther: Multiple choice with option to specify "Other" custom response
 
 Technical Architecture:
 ---------------------
@@ -124,6 +125,7 @@ from .question_likert_five import QuestionLikertFive
 from .question_linear_scale import QuestionLinearScale
 from .question_yes_no import QuestionYesNo
 from .question_top_k import QuestionTopK
+from .question_multiple_choice_with_other import QuestionMultipleChoiceWithOther
 
 from .exceptions import QuestionScenarioRenderError
 
@@ -156,4 +158,5 @@ __all__ = [
     "QuestionTopK",
     "QuestionLikertFive",
     "QuestionYesNo",
+    "QuestionMultipleChoiceWithOther",
 ]
