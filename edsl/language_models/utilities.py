@@ -5,6 +5,7 @@ from ..surveys import Survey
 
 from .language_model import LanguageModel
 
+
 def create_survey(num_questions: int, chained: bool = True, take_scenario=False):
     from ..questions import QuestionFreeText
 
@@ -28,7 +29,6 @@ def create_survey(num_questions: int, chained: bool = True, take_scenario=False)
 def create_language_model(
     exception: Exception, fail_at_number: int, never_ending=False
 ):
-
     class LanguageModelFromUtilities(LanguageModel):
         _model_ = "test"
         _parameters_ = {"temperature": 0.5}
@@ -45,6 +45,7 @@ def create_language_model(
             user_prompt: str,
             system_prompt: str,
             files_list: Optional[List[Any]] = None,
+            question_name: Optional[str] = None,
         ) -> dict[str, Any]:
             question_number = int(
                 user_prompt.split("XX")[1]
