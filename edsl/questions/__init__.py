@@ -168,6 +168,7 @@ __all__ = [
     "QuestionLikertFive",
     "QuestionYesNo",
     "QuestionMultipleChoiceWithOther",
+    "QuestionMultipleChoiceWithOther",
     
     # Validation utilities
     "log_validation_failure",
