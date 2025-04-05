@@ -15,7 +15,8 @@ Key features include:
 from __future__ import annotations
 import functools
 import warnings
-from typing import Any, Callable, List, Literal, Optional, Type, TypeVar, Union, TYPE_CHECKING, cast
+import fnmatch
+from typing import Any, Callable, List, Literal, Optional, Type, TypeVar, Union, TYPE_CHECKING, cast, Any
 
 T = TypeVar('T')
 
@@ -58,6 +59,282 @@ from .scenario_list import ScenarioList
 from .directory_scanner import DirectoryScanner
 from .exceptions import ScenarioError
 
+from abc import ABC, abstractmethod
+
+class Source(ABC):
+    # Registry to store child classes and their source types
+    _registry: dict[str, Type['Source']] = {}
+
+    def __init_subclass__(cls, **kwargs):
+        """Automatically register subclasses with their source_type."""
+        super().__init_subclass__(**kwargs)
+        if hasattr(cls, 'source_type'):
+            Source._registry[cls.source_type] = cls
+
+    @classmethod
+    @abstractmethod
+    def example(cls) -> 'Source':
+        """
+        Return an example instance of this Source type.
+        
+        This method should return a valid instance of the Source subclass
+        that can be used for testing. The instance should be created with
+        reasonable default values that will produce a valid ScenarioList
+        when to_scenario_list() is called.
+        
+        Returns:
+            An instance of the Source subclass
+        """
+        pass
+
+    @abstractmethod
+    def to_scenario_list(self) -> ScenarioList:
+        """
+        Convert the source to a ScenarioList.
+        
+        Returns:
+            A ScenarioList containing the data from this source
+        """
+        pass
+
+    @classmethod
+    def get_source_class(cls, source_type: str) -> Type['Source']:
+        """Get the Source subclass for a given source_type."""
+        if source_type not in cls._registry:
+            raise ValueError(f"No Source subclass found for source_type: {source_type}")
+        return cls._registry[source_type]
+
+    @classmethod
+    def get_registered_types(cls) -> list[str]:
+        """Get a list of all registered source types."""
+        return list(cls._registry.keys())
+
+    @classmethod
+    def test_all_sources(cls) -> dict[str, bool]:
+        """
+        Test all registered source types by creating an example instance
+        and calling to_scenario_list() on it.
+        
+        Returns:
+            A dictionary mapping source types to boolean success values
+        """
+        results = {}
+        for source_type, source_class in cls._registry.items():
+            try:
+                # Create example instance
+                example_instance = source_class.example()
+                # Convert to scenario list
+                scenario_list = example_instance.to_scenario_list()
+                # Basic validation
+                if not isinstance(scenario_list, ScenarioList):
+                    results[source_type] = False
+                else:
+                    results[source_type] = True
+            except Exception as e:
+                results[source_type] = False
+        return results
+
+class URLSource(Source):
+    source_type = "urls"
+
+    def __init__(self, urls: list[str], field_name: str):
+        self.urls = urls
+        self.field_name = field_name
+
+    @classmethod
+    def example(cls) -> 'URLSource':
+        """Return an example URLSource instance."""
+        return cls(
+            urls=['http://www.example.com'],
+            field_name="text"
+        )
+    
+    def to_scenario_list(self) -> ScenarioList:
+        """Create a ScenarioList from a list of URLs."""
+        import requests
+        
+        result = ScenarioList()
+        for url in self.urls:
+            try:
+                response = requests.get(url)
+                response.raise_for_status()
+                scenario = Scenario({self.field_name: response.text})
+                result.append(scenario)
+            except requests.RequestException as e:
+                warnings.warn(f"Failed to fetch URL {url}: {str(e)}")
+                continue
+                
+        return result
+    
+
+class ListSource(Source):
+    source_type = "list"
+
+    def __init__(self, field_name: str, values: list, use_indexes: bool = False):
+        self.field_name = field_name
+        self.values = values
+        self.use_indexes = use_indexes
+
+    @classmethod
+    def example(cls) -> 'ListSource':
+        """Return an example ListSource instance."""
+        return cls(
+            field_name="text",
+            values=["example1", "example2", "example3"],
+            use_indexes=True
+        )
+
+    def to_scenario_list(self) -> ScenarioList:
+        """Create a ScenarioList from a list of values with a specified field name."""
+        scenarios = []
+        
+        for i, value in enumerate(self.values):
+            scenario_dict = {self.field_name: value}
+            if self.use_indexes:
+                scenario_dict["idx"] = i
+            scenarios.append(Scenario(scenario_dict))
+            
+        return ScenarioList(scenarios)
+
+
+class DirectorySource(Source):
+    source_type = "directory"
+
+    def __init__(
+        self,
+        directory: str,
+        pattern: str = "*",
+        recursive: bool = False,
+        metadata: bool = True,
+        ignore_dirs: List[str] = None,
+        ignore_files: List[str] = None,
+    ):
+        self.directory = directory
+        self.pattern = pattern
+        self.recursive = recursive
+        self.metadata = metadata
+        self.ignore_dirs = ignore_dirs or []
+        self.ignore_files = ignore_files or []
+
+    @classmethod
+    def example(cls) -> 'DirectorySource':
+        """Return an example DirectorySource instance."""
+        import tempfile
+        import os
+        
+        # Create a temporary directory for the example
+        temp_dir = tempfile.mkdtemp(prefix="edsl_test_")
+        
+        # Create some sample files in the directory
+        with open(os.path.join(temp_dir, "test1.txt"), "w") as f:
+            f.write("Sample content 1")
+        
+        with open(os.path.join(temp_dir, "test2.txt"), "w") as f:
+            f.write("Sample content 2")
+            
+        # Create a subdirectory with a file
+        subdir = os.path.join(temp_dir, "subdir")
+        os.makedirs(subdir, exist_ok=True)
+        with open(os.path.join(subdir, "test3.txt"), "w") as f:
+            f.write("Sample content 3")
+        
+        return cls(
+            directory=temp_dir,
+            pattern="*.txt",
+            recursive=True,
+            metadata=True,
+            ignore_dirs=["__pycache__"],
+            ignore_files=["*.pyc"]
+        )
+    
+    def to_scenario_list(self) -> ScenarioList:
+        """Create a ScenarioList from files in a directory."""
+        import os
+        import glob
+        
+        # Set default recursive value
+        recursive = self.recursive
+        
+        # Handle paths with wildcards properly
+        if '*' in self.directory:
+            # Handle "**/*.py" patterns (recursive wildcard)
+            if "**" in self.directory:
+                parts = self.directory.split("**")
+                directory = parts[0].rstrip("/\\")
+                if not directory:
+                    directory = os.getcwd()
+                pattern = f"**{parts[1]}" if len(parts) > 1 else "**/*"
+                # Force recursive=True for ** patterns
+                recursive = True
+            # Handle "*.txt" patterns (just wildcard with no directory)
+            elif os.path.dirname(self.directory) == "":
+                directory = os.getcwd()
+                pattern = self.directory
+            # Handle "/path/to/dir/*.py" patterns
+            else:
+                directory = os.path.dirname(self.directory)
+                pattern = os.path.basename(self.directory)
+        else:
+            directory = self.directory
+            pattern = self.pattern
+            
+        # Check if directory exists
+        if not os.path.isdir(directory):
+            from .exceptions import FileNotFoundScenarioError
+            raise FileNotFoundScenarioError(f"Directory not found: {directory}")
+            
+        # Use glob directly for ** patterns to prevent duplicates
+        if "**" in pattern:
+            from .scenario_list import ScenarioList
+            from .scenario import Scenario
+            from .file_store import FileStore
+            
+            # Handle the pattern directly with glob
+            full_pattern = os.path.join(directory, pattern)
+            file_paths = glob.glob(full_pattern, recursive=True)
+            
+            # Remove duplicates (by converting to a set and back)
+            file_paths = list(set(file_paths))
+            
+            # Create scenarios
+            scenarios = []
+            for file_path in file_paths:
+                if os.path.isfile(file_path):
+                    # Check if file should be ignored
+                    file_name = os.path.basename(file_path)
+                    if any(fnmatch.fnmatch(file_name, ignore_pattern) for ignore_pattern in self.ignore_files or []):
+                        continue
+                    
+                    # Create FileStore object
+                    file_store = FileStore(file_path)
+                    
+                    # Create scenario
+                    scenario_data = {"file": file_store}
+                    
+                    # Add metadata if requested
+                    if self.metadata:
+                        file_stat = os.stat(file_path)
+                        scenario_data.update({
+                            "file_path": file_path,
+                            "file_name": file_name,
+                            "file_size": file_stat.st_size,
+                            "file_created": file_stat.st_ctime,
+                            "file_modified": file_stat.st_mtime,
+                        })
+                    
+                    scenarios.append(Scenario(scenario_data))
+            
+            return ScenarioList(scenarios)
+        else:
+            # Use the standard scanning method for non-** patterns
+            return DirectoryScanner.scan_directory(
+                directory=directory,
+                pattern=pattern,
+                recursive=recursive,
+                metadata=self.metadata,
+                ignore_dirs=self.ignore_dirs,
+                ignore_files=self.ignore_files,
+            )
 
 class ScenarioSource:
     """
@@ -94,12 +371,18 @@ class ScenarioSource:
         Raises:
             ValueError: If the source_type is not recognized.
         """
-        method_name = f"_from_{source_type}"
-        if hasattr(ScenarioSource, method_name):
-            method = getattr(ScenarioSource, method_name)
-            return method(*args, **kwargs)
-        else:
-            raise ValueError(f"Unsupported source type: {source_type}")
+        try:
+            source_class = Source.get_source_class(source_type)
+            source_instance = source_class(*args, **kwargs)
+            return source_instance.to_scenario_list()
+        except ValueError as e:
+            # For backward compatibility, try the old method if the source_type isn't in the registry
+            method_name = f"_from_{source_type}"
+            if hasattr(ScenarioSource, method_name):
+                method = getattr(ScenarioSource, method_name)
+                return method(*args, **kwargs)
+            else:
+                raise ValueError(f"Unsupported source type: {source_type}")
     
     @staticmethod
     def _from_urls(urls: list[str], field_name: Optional[str] = "text") -> ScenarioList:
@@ -129,29 +412,33 @@ class ScenarioSource:
         ignore_files: List[str] = None,
     ) -> ScenarioList:
         """Create a ScenarioList from files in a directory."""
-        return DirectoryScanner.scan_directory(
+        warnings.warn(
+            "_from_directory is deprecated. Use DirectorySource directly or ScenarioSource.from_source('directory', ...) instead.",
+            DeprecationWarning,
+            stacklevel=2
+        )
+        source = DirectorySource(
             directory=directory,
             pattern=pattern,
             recursive=recursive,
             metadata=metadata,
-            ignore_dirs=ignore_dirs or [],
-            ignore_files=ignore_files or [],
+            ignore_dirs=ignore_dirs,
+            ignore_files=ignore_files
         )
+        return source.to_scenario_list()
     
     @staticmethod
     def _from_list(
         field_name: str, values: list, use_indexes: bool = False
     ) -> ScenarioList:
         """Create a ScenarioList from a list of values with a specified field name."""
-        scenarios = []
-        
-        for i, value in enumerate(values):
-            scenario_dict = {field_name: value}
-            if use_indexes:
-                scenario_dict["idx"] = i
-            scenarios.append(Scenario(scenario_dict))
-            
-        return ScenarioList(scenarios)
+        warnings.warn(
+            "_from_list is deprecated. Use ListSource directly or ScenarioSource.from_source('list', ...) instead.",
+            DeprecationWarning,
+            stacklevel=2
+        )
+        source = ListSource(field_name, values, use_indexes)
+        return source.to_scenario_list()
     
     @staticmethod
     def _from_list_of_tuples(
