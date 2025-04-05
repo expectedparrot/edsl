@@ -42,6 +42,11 @@ file_handler.setFormatter(formatter)
 # Add handler to logger
 logger.addHandler(file_handler)
 
+# Touch the log file to make sure it exists
+if not os.path.exists(VALIDATION_LOG_FILE):
+    with open(VALIDATION_LOG_FILE, 'a'):
+        pass
+
 
 def log_validation_failure(
     question_type: str,
@@ -75,6 +80,11 @@ def log_validation_failure(
     
     # Log as JSON for easier parsing
     logger.info(json.dumps(log_entry))
+    
+    # Write directly to the file as well to ensure it's written
+    with open(VALIDATION_LOG_FILE, "a") as f:
+        f.write(f"{datetime.datetime.now().isoformat()} - validation_failures - INFO - {json.dumps(log_entry)}\n")
+        f.flush()
 
 
 def get_validation_failure_logs(n: int = 10) -> list:
@@ -97,11 +107,21 @@ def get_validation_failure_logs(n: int = 10) -> list:
         for line in f:
             try:
                 # Skip non-JSON lines (like logger initialization)
-                if not line.strip().startswith("{"):
+                if not line.strip():
                     continue
-                log_entry = json.loads(line.split(" - ")[-1])
-                logs.append(log_entry)
-            except (json.JSONDecodeError, IndexError):
+                    
+                # Handle both the Python logging format and our direct write format
+                parts = line.strip().split(" - ")
+                if len(parts) >= 4:
+                    # Regular log line format: timestamp - name - level - message
+                    json_part = parts[-1]
+                    try:
+                        log_entry = json.loads(json_part)
+                        logs.append(log_entry)
+                    except json.JSONDecodeError:
+                        # Skip malformed JSON
+                        continue
+            except (IndexError, ValueError):
                 # Skip malformed lines
                 continue
     

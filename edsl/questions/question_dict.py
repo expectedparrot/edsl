@@ -199,9 +199,13 @@ class DictResponseValidator(ResponseValidatorABC):
                     dict_str, comment = dict_match.groups()
                     try:
                         answer_dict = ast.literal_eval(dict_str)
+                        comment_text = comment.strip()
+                        if verbose:
+                            print(f"Extracted comment: '{comment_text}'")
                         response = {
                             "answer": answer_dict,
-                            "comment": comment.strip() if comment.strip() else None
+                            "comment": comment_text if comment_text else None,
+                            "generated_tokens": response  # Store original response as generated tokens
                         }
                     except (ValueError, SyntaxError):
                         pass
@@ -261,7 +265,7 @@ class DictResponseValidator(ResponseValidatorABC):
         fixed_response = {
             "answer": fixed_answer,
             "comment": response.get("comment"),
-            "generated_tokens": response.get("generated_tokens")
+            "generated_tokens": response.get("generated_tokens") or response  # Ensure generated_tokens is captured
         }
         
         try:
