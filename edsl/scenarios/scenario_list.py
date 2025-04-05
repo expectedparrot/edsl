@@ -2172,24 +2172,30 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         return new_sl
     
     @classmethod
+    @deprecated_classmethod("ScenarioSource.from_source('pdf', ...)")
     def from_pdf(cls, filename_or_url, collapse_pages=False):
         """Create a ScenarioList from a PDF file or URL."""
-        from .scenario_source import ScenarioSource
+        from .scenario_source import PDFSource
         
-        # Delegate to ScenarioSource implementation
-        return ScenarioSource._from_pdf(filename_or_url, 
-                                       chunk_type="page" if not collapse_pages else "text", 
-                                       chunk_size=1)
+        source = PDFSource(
+            file_path=filename_or_url,
+            chunk_type="page" if not collapse_pages else "text",
+            chunk_size=1
+        )
+        return source.to_scenario_list()
 
     @classmethod
+    @deprecated_classmethod("ScenarioSource.from_source('pdf_to_image', ...)")
     def from_pdf_to_image(cls, pdf_path, image_format="jpeg"):
         """Create a ScenarioList with images extracted from a PDF file."""
-        from .scenario_source import ScenarioSource
+        from .scenario_source import PDFImageSource
         
-        # Delegate to ScenarioSource implementation
-        return ScenarioSource._from_pdf_to_image(pdf_path, 
-                                               base_width=2000, 
-                                               include_text=True)
+        source = PDFImageSource(
+            file_path=pdf_path,
+            base_width=2000,
+            include_text=True
+        )
+        return source.to_scenario_list()
                                                
     @classmethod
     def from_source(cls, source_type: str, *args, **kwargs) -> "ScenarioList":
