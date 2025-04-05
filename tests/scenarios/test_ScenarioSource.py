@@ -7,7 +7,8 @@ test all available source types.
 """
 
 import pytest
-from edsl.scenarios.scenario_source import Source, ScenarioList
+from edsl.scenarios.scenario_source import Source
+from edsl.scenarios.scenario_list import ScenarioList
 
 def test_all_source_types():
     """

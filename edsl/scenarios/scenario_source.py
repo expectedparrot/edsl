@@ -52,10 +52,10 @@ from urllib.parse import urlparse
 if TYPE_CHECKING:
     import pandas as pd
     from urllib.parse import ParseResult
+    from .scenario_list import ScenarioList
 
 # Local imports
 from .scenario import Scenario
-from .scenario_list import ScenarioList
 from .directory_scanner import DirectoryScanner
 from .exceptions import ScenarioError
 
@@ -88,7 +88,7 @@ class Source(ABC):
         pass
 
     @abstractmethod
-    def to_scenario_list(self) -> ScenarioList:
+    def to_scenario_list(self):
         """
         Convert the source to a ScenarioList.
         
@@ -118,6 +118,8 @@ class Source(ABC):
         Returns:
             A dictionary mapping source types to boolean success values
         """
+        from .scenario_list import ScenarioList
+        
         results = {}
         for source_type, source_class in cls._registry.items():
             try:
@@ -128,10 +130,12 @@ class Source(ABC):
                 # Basic validation
                 if not isinstance(scenario_list, ScenarioList):
                     results[source_type] = False
+                    print(f"Source {source_type} returned {type(scenario_list)} instead of ScenarioList")
                 else:
                     results[source_type] = True
             except Exception as e:
                 results[source_type] = False
+                print(f"Source {source_type} exception: {e}")
         return results
 
 class URLSource(Source):
@@ -149,9 +153,11 @@ class URLSource(Source):
             field_name="text"
         )
     
-    def to_scenario_list(self) -> ScenarioList:
+    def to_scenario_list(self):
         """Create a ScenarioList from a list of URLs."""
         import requests
+        
+        from .scenario_list import ScenarioList
         
         result = ScenarioList()
         for url in self.urls:
@@ -184,8 +190,10 @@ class ListSource(Source):
             use_indexes=True
         )
 
-    def to_scenario_list(self) -> ScenarioList:
+    def to_scenario_list(self):
         """Create a ScenarioList from a list of values with a specified field name."""
+        from .scenario_list import ScenarioList
+        
         scenarios = []
         
         for i, value in enumerate(self.values):
@@ -247,10 +255,12 @@ class DirectorySource(Source):
             ignore_files=["*.pyc"]
         )
     
-    def to_scenario_list(self) -> ScenarioList:
+    def to_scenario_list(self):
         """Create a ScenarioList from files in a directory."""
         import os
         import glob
+        
+        from .scenario_list import ScenarioList
         
         # Set default recursive value
         recursive = self.recursive
@@ -286,7 +296,6 @@ class DirectorySource(Source):
         # Use glob directly for ** patterns to prevent duplicates
         if "**" in pattern:
             from .scenario_list import ScenarioList
-            from .scenario import Scenario
             from .file_store import FileStore
             
             # Handle the pattern directly with glob
@@ -336,6 +345,51 @@ class DirectorySource(Source):
                 ignore_files=self.ignore_files,
             )
 
+
+class TuplesSource(Source):
+    source_type = "list_of_tuples"
+    
+    def __init__(self, field_names: list[str], values: list[tuple], use_indexes: bool = False):
+        self.field_names = field_names
+        self.values = values
+        self.use_indexes = use_indexes
+        
+        # Validate inputs
+        if not all(isinstance(v, (tuple, list)) for v in values):
+            raise ScenarioError("All values must be tuples or lists")
+    
+    @classmethod
+    def example(cls) -> 'TuplesSource':
+        """Return an example TuplesSource instance."""
+        return cls(
+            field_names=["name", "age", "city"],
+            values=[
+                ("Alice", 30, "New York"),
+                ("Bob", 25, "San Francisco"),
+                ("Charlie", 35, "Boston")
+            ],
+            use_indexes=True
+        )
+    
+    def to_scenario_list(self):
+        """Create a ScenarioList from a list of tuples with specified field names."""
+        from .scenario_list import ScenarioList
+        
+        scenarios = []
+        
+        for i, value_tuple in enumerate(self.values):
+            if len(value_tuple) != len(self.field_names):
+                raise ScenarioError(
+                    f"Tuple {i} has {len(value_tuple)} elements, but {len(self.field_names)} field names were provided."
+                )
+                
+            scenario_dict = dict(zip(self.field_names, value_tuple))
+            if self.use_indexes:
+                scenario_dict["idx"] = i
+            scenarios.append(Scenario(scenario_dict))
+            
+        return ScenarioList(scenarios)
+
 class ScenarioSource:
     """
     Factory class for creating ScenarioList objects from various sources.
@@ -349,7 +403,7 @@ class ScenarioSource:
     """
     
     @staticmethod
-    def from_source(source_type: str, *args, **kwargs) -> ScenarioList:
+    def from_source(source_type: str, *args, **kwargs):
         """
         Create a ScenarioList from a specified source type.
         
@@ -385,8 +439,10 @@ class ScenarioSource:
                 raise ValueError(f"Unsupported source type: {source_type}")
     
     @staticmethod
-    def _from_urls(urls: list[str], field_name: Optional[str] = "text") -> ScenarioList:
+    def _from_urls(urls: list[str], field_name: Optional[str] = "text"):
         """Create a ScenarioList from a list of URLs."""
+        from .scenario_list import ScenarioList
+        
         import requests
         
         result = ScenarioList()
@@ -410,7 +466,7 @@ class ScenarioSource:
         metadata: bool = True,
         ignore_dirs: List[str] = None,
         ignore_files: List[str] = None,
-    ) -> ScenarioList:
+    ):
         """Create a ScenarioList from files in a directory."""
         warnings.warn(
             "_from_directory is deprecated. Use DirectorySource directly or ScenarioSource.from_source('directory', ...) instead.",
@@ -430,7 +486,7 @@ class ScenarioSource:
     @staticmethod
     def _from_list(
         field_name: str, values: list, use_indexes: bool = False
-    ) -> ScenarioList:
+    ):
         """Create a ScenarioList from a list of values with a specified field name."""
         warnings.warn(
             "_from_list is deprecated. Use ListSource directly or ScenarioSource.from_source('list', ...) instead.",
@@ -443,28 +499,23 @@ class ScenarioSource:
     @staticmethod
     def _from_list_of_tuples(
         field_names: list[str], values: list[tuple], use_indexes: bool = False
-    ) -> ScenarioList:
+    ):
         """Create a ScenarioList from a list of tuples with specified field names."""
-        scenarios = []
-        
-        for i, value_tuple in enumerate(values):
-            if len(value_tuple) != len(field_names):
-                raise ScenarioError(
-                    f"Tuple {i} has {len(value_tuple)} elements, but {len(field_names)} field names were provided."
-                )
-                
-            scenario_dict = dict(zip(field_names, value_tuple))
-            if use_indexes:
-                scenario_dict["idx"] = i
-            scenarios.append(Scenario(scenario_dict))
-            
-        return ScenarioList(scenarios)
+        warnings.warn(
+            "_from_list_of_tuples is deprecated. Use TuplesSource directly or ScenarioSource.from_source('list_of_tuples', ...) instead.",
+            DeprecationWarning,
+            stacklevel=2
+        )
+        source = TuplesSource(field_names, values, use_indexes)
+        return source.to_scenario_list()
     
     @staticmethod
     def _from_sqlite(
         db_path: str, table: str, fields: Optional[list] = None
-    ) -> ScenarioList:
+    ):
         """Create a ScenarioList from a SQLite database."""
+        from .scenario_list import ScenarioList
+        
         import sqlite3
         
         conn = sqlite3.connect(db_path)
@@ -489,7 +540,7 @@ class ScenarioSource:
     @staticmethod
     def _from_latex(
         file_path: str, table_index: int = 0, has_header: bool = True
-    ) -> ScenarioList:
+    ):
         """Create a ScenarioList from a LaTeX file."""
         with open(file_path, "r") as f:
             content = f.read()
@@ -499,8 +550,10 @@ class ScenarioSource:
     @staticmethod
     def _parse_latex_table(
         content: str, table_index: int = 0, has_header: bool = True
-    ) -> ScenarioList:
+    ):
         """Parse LaTeX table content and create a ScenarioList."""
+        from .scenario_list import ScenarioList
+        
         import re
         
         # Find all tabular environments
@@ -548,8 +601,10 @@ class ScenarioSource:
         return ScenarioList(scenarios)
     
     @staticmethod
-    def _from_google_doc(doc_id: str, table_index: int = 0) -> ScenarioList:
+    def _from_google_doc(doc_id: str, table_index: int = 0):
         """Create a ScenarioList from a Google Doc."""
+        from .scenario_list import ScenarioList
+        
         try:
             from googleapiclient.discovery import build
             from google.oauth2 import service_account
@@ -564,8 +619,10 @@ class ScenarioSource:
         return ScenarioList()
     
     @staticmethod
-    def _from_pandas(df) -> ScenarioList:
+    def _from_pandas(df):
         """Create a ScenarioList from a pandas DataFrame."""
+        from .scenario_list import ScenarioList
+        
         import pandas as pd
         
         if not isinstance(df, pd.DataFrame):
@@ -579,7 +636,7 @@ class ScenarioSource:
         return ScenarioList(scenarios)
     
     @staticmethod
-    def _from_dta(file_path: str) -> ScenarioList:
+    def _from_dta(file_path: str):
         """Create a ScenarioList from a Stata data file."""
         try:
             import pandas as pd
@@ -592,7 +649,7 @@ class ScenarioSource:
     @staticmethod
     def _from_wikipedia(
         url: str, table_index: int = 0, header: bool = True
-    ) -> ScenarioList:
+    ):
         """Create a ScenarioList from a table on a Wikipedia page."""
         try:
             import pandas as pd
@@ -609,7 +666,7 @@ class ScenarioSource:
     @staticmethod
     def _from_excel(
         file_path: str, sheet_name: Optional[str] = None, **kwargs
-    ) -> ScenarioList:
+    ):
         """Create a ScenarioList from an Excel file."""
         try:
             import pandas as pd
@@ -620,7 +677,7 @@ class ScenarioSource:
         return ScenarioSource._from_pandas(df)
     
     @staticmethod
-    def _from_google_sheet(sheet_id: str, sheet_name: Optional[str] = None) -> ScenarioList:
+    def _from_google_sheet(sheet_id: str, sheet_name: Optional[str] = None):
         """Create a ScenarioList from a Google Sheet."""
         try:
             import pandas as pd
@@ -643,8 +700,10 @@ class ScenarioSource:
         has_header: bool = True,
         encoding: str = "utf-8",
         **kwargs,
-    ) -> ScenarioList:
+    ):
         """Create a ScenarioList from a delimited file or URL."""
+        from .scenario_list import ScenarioList
+        
         # Check if the input is a URL
         parsed_url = urlparse(file_or_url)
         if parsed_url.scheme in ("http", "https"):
@@ -699,18 +758,20 @@ class ScenarioSource:
         return ScenarioList(scenarios)
     
     @staticmethod
-    def _from_csv(file_or_url: str, **kwargs) -> ScenarioList:
+    def _from_csv(file_or_url: str, **kwargs):
         """Create a ScenarioList from a CSV file or URL."""
         return ScenarioSource._from_delimited_file(file_or_url, delimiter=",", **kwargs)
     
     @staticmethod
-    def _from_tsv(file_or_url: str, **kwargs) -> ScenarioList:
+    def _from_tsv(file_or_url: str, **kwargs):
         """Create a ScenarioList from a TSV file or URL."""
         return ScenarioSource._from_delimited_file(file_or_url, delimiter="\t", **kwargs)
     
     @staticmethod
-    def _from_dict(data: dict) -> ScenarioList:
+    def _from_dict(data: dict):
         """Create a ScenarioList from a dictionary."""
+        from .scenario_list import ScenarioList
+        
         if "scenarios" in data:
             scenarios = [Scenario(s) for s in data["scenarios"]]
             codebook = data.get("codebook", {})
@@ -735,8 +796,10 @@ class ScenarioSource:
             return ScenarioList(scenarios)
     
     @staticmethod
-    def _from_nested_dict(data: dict, id_field: Optional[str] = None) -> ScenarioList:
+    def _from_nested_dict(data: dict, id_field: Optional[str] = None):
         """Create a ScenarioList from a nested dictionary."""
+        from .scenario_list import ScenarioList
+        
         scenarios = []
         
         for key, value in data.items():
@@ -751,7 +814,7 @@ class ScenarioSource:
         return ScenarioList(scenarios)
     
     @staticmethod
-    def _from_parquet(file_path: str) -> ScenarioList:
+    def _from_parquet(file_path: str):
         """Create a ScenarioList from a Parquet file."""
         try:
             import pandas as pd
@@ -772,8 +835,9 @@ class ScenarioSource:
         chunk_type: Literal["page", "text"] = "page",
         chunk_size: int = 1,
         chunk_overlap: int = 0,
-    ) -> ScenarioList:
+    ):
         """Create a ScenarioList from a PDF file."""
+        from .scenario_list import ScenarioList
         from .scenario_list_pdf_tools import PdfTools
         
         return PdfTools.pdf_to_scenariolist(
@@ -788,8 +852,9 @@ class ScenarioSource:
         file_path: str,
         base_width: int = 2000,
         include_text: bool = True,
-    ) -> ScenarioList:
+    ):
         """Create a ScenarioList containing images extracted from a PDF file."""
+        from .scenario_list import ScenarioList
         from .scenario_list_pdf_tools import PdfTools
         
         return PdfTools.pdf_to_images(

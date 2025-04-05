@@ -37,6 +37,9 @@ from collections import UserList, defaultdict
 from collections.abc import Iterable, MutableSequence
 import json
 
+# Import for refactoring to Source classes 
+from edsl.scenarios.scenario_source import deprecated_classmethod, TuplesSource
+
 from simpleeval import EvalWithCompoundTypes, NameNotDefined  # type: ignore
 from tabulate import tabulate_formats
 
@@ -136,7 +139,9 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
     ):
         """Initialize a new ScenarioList with optional data and codebook."""
         self._data_class = data_class
-        self.data = self._data_class(data or [])
+        self.data = self._data_class([])
+        for item in data or []:
+            self.data.append(item)
         self.codebook = codebook or {}
 
     # Required MutableSequence abstract methods
@@ -194,7 +199,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         seen_hashes = set()
         result = ScenarioList()
         
-        for scenario in self.data.stream():
+        for scenario in self.data:
             scenario_hash = hash(scenario)
             if scenario_hash not in seen_hashes:
                 seen_hashes.add(scenario_hash)
@@ -849,13 +854,13 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         False
         """
         new_list = ScenarioList()
-        for scenario in self.data.stream():
+        for scenario in self.data:
             new_list.append(scenario.copy())
         return new_list
 
     def __iter__(self):
         """Iterate over scenarios using streaming."""
-        return self.data.stream()
+        return iter(self.data)
 
     def equals(self, other: Any) -> bool:
         """Memory-efficient comparison of two ScenarioLists."""
@@ -949,35 +954,51 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
 
         return new_sl
 
+
     @classmethod
-    def from_urls(
-        cls, urls: list[str], field_name: Optional[str] = "text"
-    ) -> ScenarioList:
-        """Create a ScenarioList from a list of URLs.
-
-        :param urls: A list of URLs.
-        :param field_name: The name of the field to store the text from the URLs.
-
-        Example:
-            >>> urls = ["https://example.com", "https://example.org"]
-            >>> # sl = ScenarioList.from_urls(urls)
-            >>> # len(sl)
+    def from_urls(cls, urls: list[str], field_name: Optional[str] = "text") -> ScenarioList:
+        from .scenario_source import URLSource
+        return URLSource(urls, field_name).to_scenario_list()
+    
+    @classmethod
+    def from_list(cls, field_name: str, values: list, use_indexes: bool = False) -> ScenarioList:
+        """Create a ScenarioList from a list of values with a specified field name.
+        
+        >>> sl = ScenarioList.from_list('text', ['a', 'b', 'c'])
+        ScenarioList([Scenario({'text': 'a'}), Scenario({'text': 'b'}), Scenario({'text': 'c'})])
         """
-        import requests
-        from .scenario import Scenario
+        from .scenario_source import ListSource
+        return ListSource(field_name, values, use_indexes).to_scenario_list()
+    
+    # @classmethod
+    # def from_urls(
+    #     cls, urls: list[str], field_name: Optional[str] = "text"
+    # ) -> ScenarioList:
+    #     """Create a ScenarioList from a list of URLs.
 
-        result = ScenarioList()
-        for url in urls:
-            try:
-                response = requests.get(url)
-                response.raise_for_status()
-                scenario = Scenario({field_name: response.text})
-                result.append(scenario)
-            except requests.RequestException as e:
-                warnings.warn(f"Failed to fetch URL {url}: {str(e)}")
-                continue
+    #     :param urls: A list of URLs.
+    #     :param field_name: The name of the field to store the text from the URLs.
 
-        return result
+    #     Example:
+    #         >>> urls = ["https://example.com", "https://example.org"]
+    #         >>> # sl = ScenarioList.from_urls(urls)
+    #         >>> # len(sl)
+    #     """
+    #     import requests
+    #     from .scenario import Scenario
+
+    #     result = ScenarioList()
+    #     for url in urls:
+    #         try:
+    #             response = requests.get(url)
+    #             response.raise_for_status()
+    #             scenario = Scenario({field_name: response.text})
+    #             result.append(scenario)
+    #         except requests.RequestException as e:
+    #             warnings.warn(f"Failed to fetch URL {url}: {str(e)}")
+    #             continue
+
+    #     return result
 
     def select(self, *fields: str) -> ScenarioList:
         """
@@ -1069,35 +1090,63 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             # Get all files recursively including subdirectories
             sl = ScenarioList.from_directory(recursive=True, key_name="document")
         """
-        from .directory_scanner import DirectoryScanner
-        return DirectoryScanner.create_scenario_list(
-            path=path,
-            recursive=recursive,
-            key_name=key_name
+        import warnings
+        warnings.warn(
+            "from_directory is deprecated. Use ScenarioSource.from_source('directory', ...) instead.",
+            DeprecationWarning,
+            stacklevel=2
         )
+        from .scenario_source import DirectorySource
+        
+        source = DirectorySource(
+            directory=path or os.getcwd(),
+            pattern="*",
+            recursive=recursive,
+            metadata=True
+        )
+        
+        # Get the ScenarioList with FileStore objects under "file" key
+        sl = source.to_scenario_list()
+        
+        # If the requested key is different from the default "file" key used by DirectoryScanner.scan_directory,
+        # rename the keys in all scenarios
+        if key_name != "file":
+            # Create a new ScenarioList
+            result = ScenarioList([])
+            for scenario in sl:
+                # Create a new scenario with the file under the specified key
+                new_data = {key_name: scenario["file"]}
+                # Add all other fields from the original scenario
+                for k, v in scenario.items():
+                    if k != "file":
+                        new_data[k] = v
+                result.append(Scenario(new_data))
+            return result
+            
+        return sl
 
-    @classmethod
-    def from_list(
-        cls, name: str, values: list, func: Optional[Callable] = None
-    ) -> ScenarioList:
-        """Create a ScenarioList from a list of values.
+    # @classmethod
+    # def from_list(
+    #     cls, name: str, values: list, func: Optional[Callable] = None
+    # ) -> ScenarioList:
+    #     """Create a ScenarioList from a list of values.
 
-        :param name: The name of the field.
-        :param values: The list of values.
-        :param func: An optional function to apply to the values.
+    #     :param name: The name of the field.
+    #     :param values: The list of values.
+    #     :param func: An optional function to apply to the values.
 
-        Example:
+    #     Example:
 
-        >>> ScenarioList.from_list('name', ['Alice', 'Bob'])
-        ScenarioList([Scenario({'name': 'Alice'}), Scenario({'name': 'Bob'})])
-        """
-        if not func:
+    #     >>> ScenarioList.from_list('name', ['Alice', 'Bob'])
+    #     ScenarioList([Scenario({'name': 'Alice'}), Scenario({'name': 'Bob'})])
+    #     """
+    #     if not func:
 
-            def identity(x):
-                return x
+    #         def identity(x):
+    #             return x
 
-            func = identity
-        return cls([Scenario({name: func(value)}) for value in values])
+    #         func = identity
+    #     return cls([Scenario({name: func(value)}) for value in values])
 
     def table(
         self,
@@ -1208,11 +1257,21 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         return new_sl
 
     @classmethod
-    def from_list_of_tuples(self, *names: str, values: List[tuple]) -> ScenarioList:
-        sl = ScenarioList.from_list(names[0], [value[0] for value in values])
-        for index, name in enumerate(names[1:]):
-            sl = sl.add_list(name, [value[index + 1] for value in values])
-        return sl
+    @deprecated_classmethod("ScenarioSource.from_source('list_of_tuples', ...)")
+    def from_list_of_tuples(cls, field_names: list[str], values: list[tuple], use_indexes: bool = False) -> ScenarioList:
+        """Create a ScenarioList from a list of tuples with specified field names.
+        
+        Args:
+            field_names: A list of field names for the tuples
+            values: A list of tuples with values matching the field_names
+            use_indexes: Whether to add an index field to each scenario
+            
+        Returns:
+            A ScenarioList containing the data from the tuples
+        """
+        from .scenario_source import TuplesSource
+        source = TuplesSource(field_names, values, use_indexes)
+        return source.to_scenario_list()
 
     def add_list(self, name: str, values: List[Any]) -> ScenarioList:
         """Add a list of values to a ScenarioList.
@@ -1954,22 +2013,6 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         """
         return cls([Scenario.example(randomize), Scenario.example(randomize)])
 
-    # def __len__(self) -> int:
-    #     """Return the number of scenarios in the list."""
-    #     return len(self.data)
-
-    # def __iter__(self):
-    #     """Iterate over scenarios using streaming."""
-    #     return self.data.stream()
-
-    @property
-    def is_memory_only(self) -> bool:
-        """Check if the scenario list data is stored entirely in memory.
-
-        Returns:
-            bool: True if all data is in memory, False if using SQLite backing
-        """
-        return getattr(self.data, "is_memory_only", True)
 
     def items(self):
         """Make this class compatible with dict.items() by accessing first scenario items.
@@ -2004,45 +2047,6 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
                 # Fallback to empty scenario
                 return Scenario({})
 
-    # def __getitem__(self, key: Union[int, slice, str]) -> Any:
-    #     """Return the item at the given index or key.
-
-    #     This method handles three types of keys:
-    #     1. Integer indices to access scenarios by position
-    #     2. Slice objects to get a range of scenarios
-    #     3. String keys to access fields across all scenarios (returns first match)
-
-    #     Example:
-    #     >>> s = ScenarioList([Scenario({'age': 22, 'hair': 'brown', 'height': 5.5}), Scenario({'age': 22, 'hair': 'brown', 'height': 5.5})])
-    #     >>> s[0]
-    #     Scenario({'age': 22, 'hair': 'brown', 'height': 5.5})
-
-    #     >>> s[:1]
-    #     ScenarioList([Scenario({'age': 22, 'hair': 'brown', 'height': 5.5})])
-
-    #     >>> s['age']  # Returns value from first scenario
-    #     22
-    #     """
-    #     if isinstance(key, slice):
-    #         return self.__class__(list(self.data[key]), self.codebook.copy())
-    #     elif isinstance(key, int):
-    #         return self.data[key]
-    #     elif isinstance(key, str):
-    #         # For string keys, search in the first scenario
-    #         if len(self.data) > 0:
-    #             # Forward the key lookup to the first scenario
-    #             try:
-    #                 return self.data[0][key]
-    #             except (KeyError, IndexError):
-    #                 # If not found in first scenario, try to_dict as fallback
-    #                 try:
-    #                     return self.to_dict(add_edsl_version=False)[key]
-    #                 except KeyError:
-    #                     raise KeyError(f"Key '{key}' not found in any scenario")
-    #         # Empty list case
-    #         raise KeyError(f"Key '{key}' not found in empty ScenarioList")
-    #     else:
-    #         raise TypeError(f"Invalid key type: {type(key)}")
 
     def to_agent_list(self):
         """Convert the ScenarioList to an AgentList.
@@ -2254,51 +2258,20 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             result.append(Scenario(new_scenario))
 
         return ScenarioList(result)
+    
 
     @classmethod
     def from_parquet(cls, filepath: str) -> ScenarioList:
         """Create a ScenarioList from a Parquet file.
 
         Args:
-            filepath (str): Path to the Parquet file
+            filepath (str): The path to the Parquet file.
 
         Returns:
-            ScenarioList: A ScenarioList containing the data from the Parquet file
-
-        Example:
-        >>> import pandas as pd
-        >>> import tempfile
-        >>> df = pd.DataFrame({'name': ['Alice', 'Bob'], 'age': [30, 25]})
-        >>> # The following would create and read a parquet file if dependencies are installed:
-        >>> # with tempfile.NamedTemporaryFile(suffix='.parquet', delete=False) as f:
-        >>> #     df.to_parquet(f.name)
-        >>> #     scenario_list = ScenarioList.from_parquet(f.name)
-        >>> # Instead, we'll demonstrate the equivalent result:
-        >>> scenario_list = ScenarioList.from_pandas(df)
-        >>> len(scenario_list)
-        2
-        >>> scenario_list[0]['name']
-        'Alice'
+            ScenarioList: A new ScenarioList containing the scenarios from the Parquet file.
         """
-        import pandas as pd
-
-        try:
-            # Try to read the Parquet file with pandas
-            df = pd.read_parquet(filepath)
-        except ImportError as e:
-            # Handle missing dependencies with a helpful error message
-            if "pyarrow" in str(e) or "fastparquet" in str(e):
-                raise ImportError(
-                    "Missing dependencies for Parquet support. Please install either pyarrow or fastparquet:\n"
-                    "  pip install pyarrow\n"
-                    "  or\n"
-                    "  pip install fastparquet"
-                ) from e
-            else:
-                raise
-
-        # Convert the DataFrame to a ScenarioList
-        return cls.from_pandas(df)
+        from .scenario_source import ScenarioSource
+        return ScenarioSource._from_parquet(filepath)
 
     def replace_values(self, replacements: dict) -> "ScenarioList":
         """
