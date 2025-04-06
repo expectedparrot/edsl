@@ -230,6 +230,7 @@ class DictResponseValidator(ResponseValidatorABC):
                 if verbose:
                     print(f"Exception during dictionary parsing: {e}")
 
+
         # Continue with existing fix logic
         if "answer" not in response or not isinstance(response["answer"], dict):
             if verbose:
@@ -389,7 +390,7 @@ class DictResponseValidator(ResponseValidatorABC):
         fixed_response = {
             "answer": fixed_answer,
             "comment": response.get("comment"),
-            "generated_tokens": response.get("generated_tokens")
+            "generated_tokens": response.get("generated_tokens") or response  # Ensure generated_tokens is captured
         }
         
         try:
