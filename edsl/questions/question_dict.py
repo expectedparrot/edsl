@@ -191,27 +191,156 @@ class DictResponseValidator(ResponseValidatorABC):
             'not a dictionary'
         """
         # First try to separate dictionary from trailing comment if they're on the same line
+        original_response = response
         if isinstance(response, str):
             # Try to find where the dictionary ends and comment begins
             try:
-                dict_match = re.match(r'(\{.*?\})(.*)', response.strip())
-                if dict_match:
-                    dict_str, comment = dict_match.groups()
-                    try:
-                        answer_dict = ast.literal_eval(dict_str)
-                        response = {
-                            "answer": answer_dict,
-                            "comment": comment.strip() if comment.strip() else None
-                        }
-                    except (ValueError, SyntaxError):
-                        pass
-            except Exception:
-                pass
+                # Find the first opening brace
+                response_str = response.strip()
+                if response_str.startswith('{'):
+                    # Count braces to find proper JSON ending
+                    brace_count = 0
+                    dict_end_pos = None
+                    
+                    for i, char in enumerate(response_str):
+                        if char == '{':
+                            brace_count += 1
+                        elif char == '}':
+                            brace_count -= 1
+                            if brace_count == 0:
+                                dict_end_pos = i + 1
+                                break
+                    
+                    if dict_end_pos is not None:
+                        dict_str = response_str[:dict_end_pos]
+                        comment = response_str[dict_end_pos:].strip()
+                        
+                        try:
+                            answer_dict = ast.literal_eval(dict_str)
+                            response = {
+                                "answer": answer_dict,
+                                "comment": comment if comment else None
+                            }
+                            if verbose:
+                                print(f"Successfully split answer from comment. Comment length: {len(comment) if comment else 0}")
+                        except (ValueError, SyntaxError) as e:
+                            if verbose:
+                                print(f"Failed to parse dictionary: {e}")
+            except Exception as e:
+                if verbose:
+                    print(f"Exception during dictionary parsing: {e}")
+
 
         # Continue with existing fix logic
         if "answer" not in response or not isinstance(response["answer"], dict):
             if verbose:
                 print("Cannot fix response: 'answer' field missing or not a dictionary")
+            
+            # Special case: if we have the original string response, try a more direct parsing approach
+            if isinstance(original_response, str) and original_response.strip().startswith('{'):
+                try:
+                    # Try to parse the JSON part directly, skipping nested comments
+                    response_str = original_response.strip()
+                    import json
+                    
+                    # Find where the dict ends by tracking nested braces
+                    brace_count = 0
+                    dict_end_pos = None
+                    
+                    for i, char in enumerate(response_str):
+                        if char == '{':
+                            brace_count += 1
+                        elif char == '}':
+                            brace_count -= 1
+                            if brace_count == 0:
+                                dict_end_pos = i + 1
+                                break
+                    
+                    if dict_end_pos is not None:
+                        dict_str = response_str[:dict_end_pos]
+                        comment = response_str[dict_end_pos:].strip()
+                        
+                        # Try parsing with JSON first (faster but stricter)
+                        try:
+                            dict_str = dict_str.replace("'", '"')  # Convert Python quotes to JSON quotes
+                            dict_str = dict_str.replace("False", "false").replace("True", "true")  # Fix booleans
+                            answer_dict = json.loads(dict_str)
+                        except json.JSONDecodeError:
+                            # Fall back to ast.literal_eval (safer)
+                            try:
+                                answer_dict = ast.literal_eval(dict_str)
+                            except (ValueError, SyntaxError):
+                                if verbose:
+                                    print("Could not parse the dictionary part")
+                                return original_response
+                        
+                        # Now fix types
+                        fixed_answer = {}
+                        for key, type_str in zip(self.answer_keys, getattr(self, "value_types", [])):
+                            if key in answer_dict:
+                                value = answer_dict[key]
+                                # Convert types
+                                if type_str == "int" and not isinstance(value, int):
+                                    try:
+                                        fixed_answer[key] = int(value)
+                                        if verbose:
+                                            print(f"Converted '{key}' from {type(value).__name__} to int")
+                                    except (ValueError, TypeError):
+                                        fixed_answer[key] = value
+                                
+                                elif type_str == "float" and not isinstance(value, float):
+                                    try:
+                                        fixed_answer[key] = float(value)
+                                        if verbose:
+                                            print(f"Converted '{key}' from {type(value).__name__} to float")
+                                    except (ValueError, TypeError):
+                                        fixed_answer[key] = value
+                                
+                                elif (type_str.startswith("list[") or type_str == "list") and not isinstance(value, list):
+                                    # Convert string to list by splitting
+                                    if isinstance(value, str):
+                                        items = [item.strip() for item in value.split(",")]
+                                        fixed_answer[key] = items
+                                        if verbose:
+                                            print(f"Converted '{key}' from string to list: {items}")
+                                    else:
+                                        fixed_answer[key] = value
+                                else:
+                                    fixed_answer[key] = value
+                            else:
+                                # Key not in answer, set a default
+                                if type_str == "int":
+                                    fixed_answer[key] = 0
+                                elif type_str == "float":
+                                    fixed_answer[key] = 0.0
+                                elif type_str.startswith("list") or type_str == "list":
+                                    fixed_answer[key] = []
+                                else:
+                                    fixed_answer[key] = ""
+                        
+                        # Construct final fixed response
+                        fixed_response = {
+                            "answer": fixed_answer,
+                            "comment": comment if comment else None,
+                            "generated_tokens": None
+                        }
+                        
+                        if verbose:
+                            print(f"Directly fixed response with type conversion")
+                            
+                        try:
+                            # Try to validate
+                            self.response_model.model_validate(fixed_response)
+                            if verbose:
+                                print("Successfully validated fixed response")
+                            return fixed_response
+                        except Exception as e:
+                            if verbose:
+                                print(f"Validation of direct fix failed: {e}")
+                except Exception as e:
+                    if verbose:
+                        print(f"Error during direct parsing: {e}")
+                
             return response
             
         answer_dict = response["answer"]
@@ -240,7 +369,7 @@ class DictResponseValidator(ResponseValidatorABC):
                     except (ValueError, TypeError):
                         pass
                 
-                elif type_str.startswith("list[") and not isinstance(value, list):
+                elif (type_str.startswith("list[") or type_str == "list") and not isinstance(value, list):
                     # Try to convert string to list by splitting
                     if isinstance(value, str):
                         items = [item.strip() for item in value.split(",")]
@@ -261,7 +390,7 @@ class DictResponseValidator(ResponseValidatorABC):
         fixed_response = {
             "answer": fixed_answer,
             "comment": response.get("comment"),
-            "generated_tokens": response.get("generated_tokens")
+            "generated_tokens": response.get("generated_tokens") or response  # Ensure generated_tokens is captured
         }
         
         try:
@@ -273,6 +402,37 @@ class DictResponseValidator(ResponseValidatorABC):
         except Exception as e:
             if verbose:
                 print(f"Validation failed for fixed answer: {e}")
+            
+            # If still failing, try one more time with default values for missing keys
+            if hasattr(self, "answer_keys") and hasattr(self, "value_types"):
+                for key, type_str in zip(self.answer_keys, getattr(self, "value_types", [])):
+                    if key not in fixed_answer:
+                        if type_str == "int":
+                            fixed_answer[key] = 0
+                        elif type_str == "float":
+                            fixed_answer[key] = 0.0
+                        elif type_str.startswith("list") or type_str == "list":
+                            fixed_answer[key] = []
+                        else:
+                            fixed_answer[key] = ""
+                
+                # Try again with all keys
+                fixed_response = {
+                    "answer": fixed_answer,
+                    "comment": response.get("comment"),
+                    "generated_tokens": response.get("generated_tokens")
+                }
+                
+                try:
+                    # Validate the fixed answer
+                    self.response_model.model_validate(fixed_response)
+                    if verbose:
+                        print("Successfully fixed response with defaults")
+                    return fixed_response
+                except Exception as e:
+                    if verbose:
+                        print(f"Validation still failed after adding defaults: {e}")
+            
             return response
 
     valid_examples = [
