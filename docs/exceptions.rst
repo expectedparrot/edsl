@@ -88,6 +88,27 @@ It can typically be remedied by reinstalling your virtual environment or install
 Strategies for dealing with exceptions
 --------------------------------------
 
+Show full tracebacks
+^^^^^^^^^^^^^^^^^^^
+
+By default, EDSL simplifies exception messages by hiding the full Python traceback. This makes error messages cleaner and easier to read for most users.
+
+When developing with EDSL or debugging issues, you may want to see the full traceback to better understand where the error is occurring. You can enable full tracebacks by setting the `EDSL_SHOW_FULL_TRACEBACK` environment variable:
+
+.. code-block:: python
+
+    # Option 1: Set environment variable in your Python code
+    import os
+    os.environ["EDSL_SHOW_FULL_TRACEBACK"] = "True"
+
+    # Option 2: Add to your .env file
+    # EDSL_SHOW_FULL_TRACEBACK=True
+
+The value is not case-sensitive and can be any of the following:
+
+- "True", "1", "yes", "y" to show full tracebacks
+- Any other value (including "False") to use the default behavior
+
 Re-try the question
 ^^^^^^^^^^^^^^^^^^^
 
