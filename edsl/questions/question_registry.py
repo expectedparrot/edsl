@@ -95,7 +95,7 @@ class Question(metaclass=Meta):
 
         >>> from edsl import Question
         >>> Question.list_question_types()
-        ['checkbox', 'dict', 'extract', 'free_text', 'functional', 'likert_five', 'linear_scale', 'list', 'matrix', 'multiple_choice', 'numerical', 'rank', 'top_k', 'yes_no']
+        ['checkbox', 'dict', 'extract', 'free_text', 'functional', 'likert_five', 'linear_scale', 'list', 'matrix', 'multiple_choice', 'multiple_choice_with_other', 'numerical', 'rank', 'top_k', 'yes_no']
         """
         return [
             q
@@ -154,6 +154,7 @@ def get_question_class(question_type):
 
 question_purpose = {
     "multiple_choice": "When options are known and limited",
+    "multiple_choice_with_other": "When options are known but you want to allow for custom responses",
     "free_text": "When options are unknown or unlimited",
     "checkbox": "When multiple options can be selected",
     "numerical": "When the answer is a single numerical value e.g., a float",
