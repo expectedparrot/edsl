@@ -154,6 +154,7 @@ def get_question_class(question_type):
 
 question_purpose = {
     "multiple_choice": "When options are known and limited",
+    "multiple_choice_with_other": "When options are known but you want to allow for custom responses",
     "free_text": "When options are unknown or unlimited",
     "checkbox": "When multiple options can be selected",
     "numerical": "When the answer is a single numerical value e.g., a float",
