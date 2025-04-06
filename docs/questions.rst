@@ -190,9 +190,17 @@ For example, in a rank question where the respondent must rank their top 3 favor
    )
 
 
-`use_code` - *Optional* boolean parameter of `multiple_choice` questions that adds an instruction to the `user_prompt` for the model to provide the code number of the question option that it selects as its answer (i.e., 0, 1, 2, etc.) instead of the value of the option.
-This can be useful when the question options are long or complex, or include formatting that a model may make errors in reproducing to provide an answer, resulting in a validation error that may be avoidable by returning the code number of the option instead.
+`use_code` - *Optional* boolean parameter of `multiple_choice`, `checkbox`, and `multiple_choice_with_other` questions that adds an instruction to the `user_prompt` for the model to provide the code of the question option that it selects as its answer instead of the value of the option.
+This can be useful when the question options are long or complex, or include formatting that a model may make errors in reproducing to provide an answer, resulting in a validation error that may be avoidable by returning the code of the option instead.
 The code is then translated back to the option value in the survey results.
+
+`enumeration_style` - *Optional* parameter for `multiple_choice` and `multiple_choice_with_other` questions to specify how options should be enumerated. 
+It can be set to either `"numeric"` (default) or `"letter"`. When set to `"numeric"`, options are numbered starting from the value specified in `start_index` (0, 1, 2, etc. by default). 
+When set to `"letter"`, options are lettered (A, B, C, etc.).
+
+`start_index` - *Optional* parameter for `multiple_choice`, `checkbox`, and `multiple_choice_with_other` questions to specify the starting index for numeric enumeration when `use_code=True`.
+The default is 0, which means options are numbered 0, 1, 2, etc.
+Setting it to 1 will number options as 1, 2, 3, etc.
 For example, in a multiple choice question where the agent is instructed to select a programming language we can add the `use_code` parameter and then inspect how the user prompt is modified to include *"Respond only with the code corresponding to one of the options."*
 (learn more about constructing agents in the :ref:`agents` section):
 
@@ -923,12 +931,12 @@ An example can also created using the `example` method:
    QuestionMultipleChoice.example()
 
 
-Note: Question options can be strings of any length, but if they are long or complex, it may be useful to add the `use_code` parameter to the question.
-This will add an instruction to the `user_prompt` for the model to provide the code number of the question option that it selects as its answer (i.e., 0, 1, 2, etc.) instead of the value of the option.
-This can be useful when the question options are long or complex, or include formatting that a model may make errors in reproducing to provide an answer, resulting in a validation error that may be avoidable by returning the code number of the option instead.
-The code is then translated back to the option value in the survey results.
+Question options can be strings of any length, but if they are long or complex, it may be useful to add the `use_code` parameter to the question.
+This will add an instruction to the `user_prompt` for the model to provide the code of the question option that it selects as its answer.
 
-For example, in a multiple choice question where the agent is instructed to select a programming language we can add the `use_code` parameter and then inspect how the user prompt is modified to include *"Respond only with the code corresponding to one of the options."*
+EDSL supports three ways to enumerate options in multiple choice questions:
+
+1. **Traditional 0-based numbering** (default):
 
 .. code-block:: python
 
@@ -938,7 +946,34 @@ For example, in a multiple choice question where the agent is instructed to sele
       question_name = "programming_language",
       question_text = "Which programming language do you prefer?",
       question_options = ["Python", "Java", "C++", "JavaScript"],
-      use_code = True # optional
+      use_code = True, 
+      enumeration_style = "numeric",  # default
+      start_index = 0  # default
+   )
+
+2. **1-based numbering**:
+
+.. code-block:: python
+
+   q = QuestionMultipleChoice(
+      question_name = "programming_language",
+      question_text = "Which programming language do you prefer?",
+      question_options = ["Python", "Java", "C++", "JavaScript"],
+      use_code = True,
+      enumeration_style = "numeric",
+      start_index = 1  # Start numbering from 1 instead of 0
+   )
+
+3. **Letter-based enumeration** (A, B, C, etc.):
+
+.. code-block:: python
+
+   q = QuestionMultipleChoice(
+      question_name = "programming_language",
+      question_text = "Which programming language do you prefer?",
+      question_options = ["Python", "Java", "C++", "JavaScript"],
+      use_code = True,
+      enumeration_style = "letter"  # Options presented as A, B, C, D
    )
 
 
@@ -948,6 +983,65 @@ For example, in a multiple choice question where the agent is instructed to sele
    :show-inheritance:
    :special-members: __init__
    :exclude-members: purpose, question_type, question_options, main
+
+
+QuestionMultipleChoiceWithOther class
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+A subclass of the `QuestionBase` class for creating multiple choice questions that include an "Other" option with a text field.
+It extends the functionality of `QuestionMultipleChoice` to allow respondents to select a custom response when none of the predefined options are suitable.
+It requires a list of question options like `QuestionMultipleChoice` and automatically adds an "Other" option to the list.
+Example usage:
+
+.. code-block:: python
+
+   from edsl import QuestionMultipleChoiceWithOther
+
+   q = QuestionMultipleChoiceWithOther(
+      question_name = "favorite_pet",
+      question_text = "What is your favorite type of pet?",
+      question_options = ["Dog", "Cat", "Fish", "Bird"],
+      other_option_text = "Other (please specify)"  # optional, default is "Other"
+   )
+
+Like `QuestionMultipleChoice`, the `QuestionMultipleChoiceWithOther` class also supports all enumeration styles:
+
+.. code-block:: python
+
+   # Traditional 0-based numbering
+   q = QuestionMultipleChoiceWithOther(
+      question_name = "favorite_pet",
+      question_text = "What is your favorite type of pet?",
+      question_options = ["Dog", "Cat", "Fish", "Bird"],
+      use_code = True,
+      enumeration_style = "numeric",
+      start_index = 0  # default
+   )  # Options presented as 0, 1, 2, 3, 4, with 4 being "Other"
+
+   # 1-based numbering
+   q = QuestionMultipleChoiceWithOther(
+      question_name = "favorite_pet",
+      question_text = "What is your favorite type of pet?",
+      question_options = ["Dog", "Cat", "Fish", "Bird"],
+      use_code = True,
+      enumeration_style = "numeric",
+      start_index = 1  # Start numbering from 1
+   )  # Options presented as 1, 2, 3, 4, 5, with 5 being "Other"
+
+   # Letter-based enumeration
+   q = QuestionMultipleChoiceWithOther(
+      question_name = "favorite_pet",
+      question_text = "What is your favorite type of pet?",
+      question_options = ["Dog", "Cat", "Fish", "Bird"],
+      use_code = True,
+      enumeration_style = "letter"
+   )  # Options presented as A, B, C, D, E, with E being "Other"
+
+An example can also be created using the `example` method:
+
+.. code-block:: python
+
+   QuestionMultipleChoiceWithOther.example()
 
 
 QuestionCheckBox class
@@ -970,6 +1064,32 @@ Example usage:
       "Thursday", "Friday", "Saturday", "Sunday"],
       min_selections = 2, # optional
       max_selections = 2  # optional
+   )
+
+Like QuestionMultipleChoice, CheckBox questions also support custom enumeration through the `use_code` and `start_index` parameters:
+
+.. code-block:: python
+
+   # Traditional 0-based numbering (default)
+   q = QuestionCheckBox(
+      question_name = "favorite_colors",
+      question_text = "Select 2-3 colors you like:",
+      question_options = ["Red", "Blue", "Green", "Yellow", "Purple"],
+      min_selections = 2,
+      max_selections = 3,
+      use_code = True,
+      start_index = 0  # default
+   )
+
+   # 1-based numbering
+   q = QuestionCheckBox(
+      question_name = "favorite_colors",
+      question_text = "Select 2-3 colors you like:",
+      question_options = ["Red", "Blue", "Green", "Yellow", "Purple"],
+      min_selections = 2,
+      max_selections = 3,
+      use_code = True,
+      start_index = 1  # Start numbering from 1 instead of 0
    )
 
 An example can also be created using the `example` method:

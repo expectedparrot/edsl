@@ -365,6 +365,7 @@ class QuestionMultipleChoice(QuestionBase):
         include_comment: bool = True,
         use_code: bool = False,
         enumeration_style: Literal["numeric", "letter"] = "numeric",
+        start_index: int = 0,  # Added parameter to control starting index for numeric enumeration
         answering_instructions: Optional[str] = None,
         question_presentation: Optional[str] = None,
         permissive: bool = False,
@@ -398,9 +399,13 @@ class QuestionMultipleChoice(QuestionBase):
             the option text itself. This is useful for numeric scoring or when option text is long.
             
         enumeration_style : Literal["numeric", "letter"], default="numeric"
-            Style of enumeration for options. If "numeric", options will be numbered 0, 1, 2, etc.
-            If "letter", options will be lettered A, B, C, etc. This is useful for compatibility
-            with evaluations or surveys that use letter labels.
+            Style of enumeration for options. If "numeric", options will be numbered starting at
+            start_index (default 0). If "letter", options will be lettered A, B, C, etc. 
+            This is useful for compatibility with evaluations or surveys that use letter labels.
+            
+        start_index : int, default=0
+            The starting index for numeric enumeration. If 0, options will be numbered 0, 1, 2, etc.
+            If 1, options will be numbered 1, 2, 3, etc. Only applies when enumeration_style="numeric".
             
         answering_instructions : Optional[str], default=None
             Custom instructions for how the model should answer the question. If None,
@@ -453,6 +458,7 @@ class QuestionMultipleChoice(QuestionBase):
         self._include_comment = include_comment
         self.use_code = use_code
         self.enumeration_style = enumeration_style
+        self.start_index = start_index
         self.answering_instructions = answering_instructions
         self.question_presentation = question_presentation
         self.permissive = permissive
@@ -473,9 +479,10 @@ class QuestionMultipleChoice(QuestionBase):
                     [chr(65 + i) for i in range(len(self.question_options))], self.permissive
                 )
             else:
-                # Traditional numeric responses (0, 1, 2, etc.)
+                # Numeric responses, starting at start_index (default is 0, but can be 1 or other value)
                 return create_response_model(
-                    list(range(len(self.question_options))), self.permissive
+                    list(range(self.start_index, self.start_index + len(self.question_options))), 
+                    self.permissive
                 )
         else:
             return create_response_model(self.question_options, self.permissive)
@@ -575,12 +582,15 @@ class QuestionMultipleChoice(QuestionBase):
                             f"Invalid letter code: '{answer_code}'. Valid options are A-{chr(64 + len(translated_options))}."
                         )
                 else:
-                    # Handle numeric indexes
-                    return translated_options[int(answer_code)]
+                    # Handle numeric indexes with start_index adjustment
+                    adjusted_index = int(answer_code) - self.start_index
+                    return translated_options[adjusted_index]
             except IndexError:
                 from .exceptions import QuestionValueError
+                valid_range = f"{self.start_index}-{self.start_index + len(translated_options) - 1}"
                 raise QuestionValueError(
-                    f"Answer code is out of range. The answer code index was: {int(answer_code)}. The options were: {translated_options}."
+                    f"Answer code is out of range. The answer code index was: {int(answer_code)}. "
+                    f"Valid range is {valid_range}. The options were: {translated_options}."
                 )
             except (TypeError, ValueError):
                 from .exceptions import QuestionValueError
@@ -608,6 +618,8 @@ class QuestionMultipleChoice(QuestionBase):
         <label for="{{ option }}">
         {% if enumeration_style == "letter" %}
         {{ chr(65 + loop.index0) }}. 
+        {% elif enumeration_style == "numeric" %}
+        {{ start_index + loop.index0 }}. 
         {% endif %}
         {{ option }}
         {% if option in option_labels %}
@@ -623,6 +635,7 @@ class QuestionMultipleChoice(QuestionBase):
             question_options=self.question_options,
             option_labels=option_labels,
             enumeration_style=self.enumeration_style,
+            start_index=self.start_index,
             chr=chr,  # Pass the chr function to the template
         )
         return question_html_content
@@ -632,7 +645,7 @@ class QuestionMultipleChoice(QuestionBase):
     ################
     @classmethod
     @inject_exception
-    def example(cls, include_comment=False, use_code=False, enumeration_style="numeric") -> QuestionMultipleChoice:
+    def example(cls, include_comment=False, use_code=False, enumeration_style="numeric", start_index=0) -> QuestionMultipleChoice:
         """Return an example instance."""
         return cls(
             question_text="How are you?",
@@ -641,6 +654,7 @@ class QuestionMultipleChoice(QuestionBase):
             include_comment=include_comment,
             use_code=use_code,
             enumeration_style=enumeration_style,
+            start_index=start_index,
         )
 
 

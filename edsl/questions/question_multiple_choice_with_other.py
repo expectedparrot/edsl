@@ -401,6 +401,8 @@ class QuestionMultipleChoiceWithOther(QuestionBase):
         question_options: Union[list[str], list[list], list[float], list[int]],
         include_comment: bool = True,
         use_code: bool = False,
+        enumeration_style: Literal["numeric", "letter"] = "numeric",
+        start_index: int = 0,  # Added parameter to control starting index for numeric enumeration
         answering_instructions: Optional[str] = None,
         question_presentation: Optional[str] = None,
         permissive: bool = False,
@@ -462,6 +464,8 @@ class QuestionMultipleChoiceWithOther(QuestionBase):
         # Add other specific attributes
         self._include_comment = include_comment
         self.use_code = use_code
+        self.enumeration_style = enumeration_style
+        self.start_index = start_index
         self.answering_instructions = answering_instructions
         self.question_presentation = question_presentation
         self.permissive = permissive
@@ -480,9 +484,17 @@ class QuestionMultipleChoiceWithOther(QuestionBase):
             options.append("Other")
 
         if self.use_code:
-            return create_response_model_with_other(
-                list(range(len(options))), self.permissive
-            )
+            if self.enumeration_style == "letter":
+                # Allow letter responses like 'A', 'B', 'C', etc.
+                return create_response_model_with_other(
+                    [chr(65 + i) for i in range(len(options))], self.permissive
+                )
+            else:
+                # Numeric responses, with optional start index
+                return create_response_model_with_other(
+                    list(range(self.start_index, self.start_index + len(options))), 
+                    self.permissive
+                )
         else:
             return create_response_model_with_other(options, self.permissive)
 
@@ -503,6 +515,11 @@ class QuestionMultipleChoiceWithOther(QuestionBase):
         <div>
         <input type="radio" id="{{ option }}" name="{{ question_name }}" value="{{ option }}">
         <label for="{{ option }}">
+        {% if enumeration_style == "letter" %}
+        {{ chr(65 + loop.index0) }}. 
+        {% elif enumeration_style == "numeric" %}
+        {{ start_index + loop.index0 }}. 
+        {% endif %}
         {{ option }}
         {% if option in option_labels %}
         : {{ option_labels[option] }}
@@ -513,7 +530,14 @@ class QuestionMultipleChoiceWithOther(QuestionBase):
         
         <div>
         <input type="radio" id="{{ other_option }}" name="{{ question_name }}" value="{{ other_option }}">
-        <label for="{{ other_option }}">{{ other_option }}</label>
+        <label for="{{ other_option }}">
+        {% if enumeration_style == "letter" %}
+        {{ chr(65 + question_options|length) }}. 
+        {% elif enumeration_style == "numeric" %}
+        {{ start_index + question_options|length }}. 
+        {% endif %}
+        {{ other_option }}
+        </label>
         <input type="text" id="{{ question_name }}_other_text" name="{{ question_name }}_other_text" 
                placeholder="Please specify" style="display:none;">
         </div>
@@ -535,7 +559,10 @@ class QuestionMultipleChoiceWithOther(QuestionBase):
             question_name=self.question_name,
             question_options=self.question_options,
             option_labels=option_labels,
-            other_option=self.other_option_text
+            other_option=self.other_option_text,
+            enumeration_style=self.enumeration_style,
+            start_index=self.start_index,
+            chr=chr  # Pass the chr function to the template
         )
         return question_html_content
 
@@ -573,7 +600,7 @@ class QuestionMultipleChoiceWithOther(QuestionBase):
     
     @classmethod
     @inject_exception
-    def example(cls, include_comment=False, use_code=False) -> QuestionMultipleChoiceWithOther:
+    def example(cls, include_comment=False, use_code=False, enumeration_style="numeric", start_index=0) -> QuestionMultipleChoiceWithOther:
         """Return an example instance."""
         return cls(
             question_text="How are you?",
@@ -581,6 +608,8 @@ class QuestionMultipleChoiceWithOther(QuestionBase):
             question_name="how_feeling",
             include_comment=include_comment,
             use_code=use_code,
+            enumeration_style=enumeration_style,
+            start_index=start_index,
             other_option_text="Other (please specify)"
         )
 
