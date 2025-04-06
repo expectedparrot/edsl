@@ -1,6 +1,10 @@
 {# Answering Instructions #}
 {% if use_code %}
+{% if enumeration_style == "letter" %}
+Respond only with the letter corresponding to one of the options.
+{% else %}
 Respond only with the code corresponding to one of the options.
+{% endif %}
 {% else %}
 Respond only with a string corresponding to one of the options.
 {% endif %}

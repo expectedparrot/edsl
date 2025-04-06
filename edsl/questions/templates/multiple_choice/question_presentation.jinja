@@ -2,11 +2,19 @@
 {{question_text}}
 {% if use_code %}
     {%- for option in question_options %}
+        {% if enumeration_style == "letter" %}
+{{ chr(65 + loop.index0) }}: {{option}}
+        {% else %}
 {{ loop.index0 }}: {{option}}
+        {% endif %}
     {% endfor %}
 {% else %}
     {% for option in question_options %}
+        {% if enumeration_style == "letter" %}
+{{ chr(65 + loop.index0) }}: {{option}}
+        {% else %}
 {{option}}
+        {% endif %}
     {% endfor %}
 {% endif %}
 Only 1 option may be selected.

@@ -115,6 +115,7 @@ class MultipleChoiceResponseValidator(ResponseValidatorABC):
     
     This validator ensures that the answer is one of the allowed options.
     In permissive mode, any answer is accepted.
+    Supports letter-based responses when enumeration_style is set to "letter".
     
     Examples:
         >>> from edsl.questions import QuestionMultipleChoice
@@ -130,7 +131,7 @@ class MultipleChoiceResponseValidator(ResponseValidatorABC):
         >>> result["answer"]
         'Good'
     """
-    required_params = ["question_options", "use_code"]
+    required_params = ["question_options", "use_code", "enumeration_style"]
 
     def fix(self, response, verbose=False):
         """
@@ -288,6 +289,7 @@ class QuestionMultipleChoice(QuestionBase):
     - Presents a fixed set of options to choose from
     - Enforces selection of exactly one option
     - Can use numeric codes for options (use_code=True)
+    - Can use letter-based enumeration (A, B, C, etc.) with enumeration_style="letter"
     - Supports custom instructions and presentation
     - Optional comment field for additional explanation
     - Can be configured to be permissive (accept answers outside the options)
@@ -317,6 +319,17 @@ class QuestionMultipleChoice(QuestionBase):
             question_text="Rate this product from 1 to 5",
             question_options=["Very Poor", "Poor", "Average", "Good", "Excellent"],
             use_code=True  # The answer will be 0-4 instead of the text
+        )
+        ```
+        
+        With letter enumeration:
+        
+        ```python
+        q = QuestionMultipleChoice(
+            question_name="preference",
+            question_text="Select your preferred option",
+            question_options=["First option", "Second option", "Third option", "Fourth option"],
+            enumeration_style="letter"  # Options will be presented as A, B, C, D
         )
         ```
         
@@ -351,6 +364,7 @@ class QuestionMultipleChoice(QuestionBase):
         question_options: Union[list[str], list[list], list[float], list[int]],
         include_comment: bool = True,
         use_code: bool = False,
+        enumeration_style: Literal["numeric", "letter"] = "numeric",
         answering_instructions: Optional[str] = None,
         question_presentation: Optional[str] = None,
         permissive: bool = False,
@@ -383,6 +397,11 @@ class QuestionMultipleChoice(QuestionBase):
             If True, the answer will be the index of the selected option (0-based) instead of
             the option text itself. This is useful for numeric scoring or when option text is long.
             
+        enumeration_style : Literal["numeric", "letter"], default="numeric"
+            Style of enumeration for options. If "numeric", options will be numbered 0, 1, 2, etc.
+            If "letter", options will be lettered A, B, C, etc. This is useful for compatibility
+            with evaluations or surveys that use letter labels.
+            
         answering_instructions : Optional[str], default=None
             Custom instructions for how the model should answer the question. If None,
             default instructions for multiple choice questions will be used.
@@ -412,12 +431,20 @@ class QuestionMultipleChoice(QuestionBase):
         ...     include_comment=True
         ... )
         
+        >>> q_letter = QuestionMultipleChoice(
+        ...     question_name="preference",
+        ...     question_text="Which option do you prefer?",
+        ...     question_options=["Option 1", "Option 2", "Option 3", "Option 4"],
+        ...     enumeration_style="letter"
+        ... )
+        
         Notes
         -----
         - When `use_code=True`, the answer will be the index (0-based) of the selected option
         - The `permissive` parameter is useful when you want to allow free-form responses
           while still suggesting options
         - Dynamic options can reference variables in a scenario using Jinja2 template syntax
+        - When `enumeration_style="letter"`, options will be presented as A, B, C, etc.
         """
         self.question_name = question_name
         self.question_text = question_text
@@ -425,6 +452,7 @@ class QuestionMultipleChoice(QuestionBase):
 
         self._include_comment = include_comment
         self.use_code = use_code
+        self.enumeration_style = enumeration_style
         self.answering_instructions = answering_instructions
         self.question_presentation = question_presentation
         self.permissive = permissive
@@ -439,9 +467,16 @@ class QuestionMultipleChoice(QuestionBase):
             # The replacement dict that could be from scenario, current answers, etc. to populate the response model
 
         if self.use_code:
-            return create_response_model(
-                list(range(len(self.question_options))), self.permissive
-            )
+            if self.enumeration_style == "letter":
+                # Allow letter responses like 'A', 'B', 'C', etc.
+                return create_response_model(
+                    [chr(65 + i) for i in range(len(self.question_options))], self.permissive
+                )
+            else:
+                # Traditional numeric responses (0, 1, 2, etc.)
+                return create_response_model(
+                    list(range(len(self.question_options))), self.permissive
+                )
         else:
             return create_response_model(self.question_options, self.permissive)
 
@@ -493,7 +528,7 @@ class QuestionMultipleChoice(QuestionBase):
         return translated_options
 
     def _translate_answer_code_to_answer(
-        self, answer_code: int, replacements_dict: Optional[dict] = None
+        self, answer_code: Any, replacements_dict: Optional[dict] = None
     ):
         """Translate the answer code to the actual answer.
 
@@ -508,6 +543,10 @@ class QuestionMultipleChoice(QuestionBase):
         >>> q._translate_answer_code_to_answer('Happy', {"emotion": ["Happy", "Sad"]})
         'Happy'
 
+        >>> q = QuestionMultipleChoice(question_name="preference", question_text="Which option?", question_options=["Option 1", "Option 2"], use_code=True, enumeration_style="letter")
+        >>> q._translate_answer_code_to_answer('A', {})
+        'Option 1'
+
         """
         if replacements_dict is None:
             replacements_dict = {}
@@ -517,13 +556,33 @@ class QuestionMultipleChoice(QuestionBase):
 
         if self._use_code:
             try:
-                return translated_options[int(answer_code)]
+                # Handle letter responses (A, B, C) when enumeration_style is letter
+                if self.enumeration_style == "letter" and isinstance(answer_code, str) and len(answer_code) == 1:
+                    # Convert letter to index (A=0, B=1, etc.)
+                    try:
+                        letter_code = answer_code.upper()
+                        index = ord(letter_code) - ord('A')
+                        if 0 <= index < len(translated_options):
+                            return translated_options[index]
+                        else:
+                            from .exceptions import QuestionValueError
+                            raise QuestionValueError(
+                                f"Answer letter code is out of range. The letter code was: {letter_code}. Valid options are A-{chr(64 + len(translated_options))}."
+                            )
+                    except (TypeError, ValueError):
+                        from .exceptions import QuestionValueError
+                        raise QuestionValueError(
+                            f"Invalid letter code: '{answer_code}'. Valid options are A-{chr(64 + len(translated_options))}."
+                        )
+                else:
+                    # Handle numeric indexes
+                    return translated_options[int(answer_code)]
             except IndexError:
                 from .exceptions import QuestionValueError
                 raise QuestionValueError(
                     f"Answer code is out of range. The answer code index was: {int(answer_code)}. The options were: {translated_options}."
                 )
-            except TypeError:
+            except (TypeError, ValueError):
                 from .exceptions import QuestionValueError
                 raise QuestionValueError(
                     f"The answer code was: '{answer_code}.'",
@@ -540,12 +599,16 @@ class QuestionMultipleChoice(QuestionBase):
             option_labels = self.option_labels
         else:
             option_labels = {}
-        question_html_content = Template(
-            """
+        
+        # Generate the HTML based on enumeration style
+        template_str = """
         {% for option in question_options %} 
         <div>
         <input type="radio" id="{{ option }}" name="{{ question_name }}" value="{{ option }}">
         <label for="{{ option }}">
+        {% if enumeration_style == "letter" %}
+        {{ chr(65 + loop.index0) }}. 
+        {% endif %}
         {{ option }}
         {% if option in option_labels %}
         : {{ option_labels[option] }}
@@ -554,10 +617,13 @@ class QuestionMultipleChoice(QuestionBase):
         </div>
         {% endfor %}
         """
-        ).render(
+        
+        question_html_content = Template(template_str).render(
             question_name=self.question_name,
             question_options=self.question_options,
             option_labels=option_labels,
+            enumeration_style=self.enumeration_style,
+            chr=chr,  # Pass the chr function to the template
         )
         return question_html_content
 
@@ -566,7 +632,7 @@ class QuestionMultipleChoice(QuestionBase):
     ################
     @classmethod
     @inject_exception
-    def example(cls, include_comment=False, use_code=False) -> QuestionMultipleChoice:
+    def example(cls, include_comment=False, use_code=False, enumeration_style="numeric") -> QuestionMultipleChoice:
         """Return an example instance."""
         return cls(
             question_text="How are you?",
@@ -574,6 +640,7 @@ class QuestionMultipleChoice(QuestionBase):
             question_name="how_feeling",
             include_comment=include_comment,
             use_code=use_code,
+            enumeration_style=enumeration_style,
         )
 
 
