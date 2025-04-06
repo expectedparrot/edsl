@@ -1,7 +1,7 @@
 import logging
 import math
 
-from typing import List, TYPE_CHECKING
+from typing import List, TYPE_CHECKING, Union
 
 if TYPE_CHECKING:
     from .jobs import Jobs
@@ -59,7 +59,7 @@ class PromptCostEstimator:
         except KeyError:
             return {}
 
-    def _get_highest_price_for_service(self, price_type: str) -> float | None:
+    def _get_highest_price_for_service(self, price_type: str) -> Union[float, None]:
         """Returns the highest price per token for a given service and price type (input/output).
 
         Args:
@@ -94,7 +94,7 @@ class PromptCostEstimator:
             import warnings
 
             warnings.warn(
-                "No price data available. Using default estimate for input token price: $1.00 / 1M tokens"
+                f"Price data not found for {self.inference_service}. Using default estimate for input token price: $1.00 / 1M tokens"
             )
             return self.DEFAULT_INPUT_PRICE_PER_TOKEN
 
@@ -116,7 +116,7 @@ class PromptCostEstimator:
             import warnings
 
             warnings.warn(
-                "No price data available. Using default estimate for output token price: $1.00 / 1M tokens"
+                f"Price data not found for {self.inference_service}. Using default estimate for output token price: $1.00 / 1M tokens"
             )
             return self.DEFAULT_OUTPUT_PRICE_PER_TOKEN
 
