@@ -1262,7 +1262,7 @@ QuestionList class
 ^^^^^^^^^^^^^^^^^^
 
 A subclass of the `Question` class for creating questions where the response is a list of strings.
-The maximum number of items in the list can be specified using the `max_list_items` parameter.
+The minimum and maximum numbers of items to be included in the list can be specified using the optional parameters `min_list_items` and `max_list_items`.
 Example usage:
 
 .. code-block:: python
@@ -1270,7 +1270,8 @@ Example usage:
    q = QuestionList(
       question_name = "activities",
       question_text = "What activities do you enjoy most?",
-      max_list_items = 5 # optional
+      min_list_items = 2, # optional
+      max_list_items = 5  # optional
    )
 
 An example can also be created using the `example` method:
