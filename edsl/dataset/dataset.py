@@ -503,7 +503,7 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
 
         return self
 
-    def get_sort_indices(self, lst: list[Any], reverse: bool = False, use_numpy: bool = True) -> list[int]:
+    def get_sort_indices(self, lst: list[Any], reverse: bool = False) -> list[int]:
         """
         Return the indices that would sort the list, using either numpy or pure Python.
         None values are placed at the end of the sorted list.
@@ -515,38 +515,14 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
 
         Returns:
             A list of indices that would sort the list
-        """
-        if use_numpy:
-            try:
-                import numpy as np
-                # Convert list to numpy array
-                arr = np.array(lst, dtype=object)
-                # Get mask of non-None values
-                mask = ~(arr is None)
-                # Get indices of non-None and None values
-                non_none_indices = np.where(mask)[0]
-                none_indices = np.where(~mask)[0]
-                # Sort non-None values
-                sorted_indices = non_none_indices[np.argsort(arr[mask])]
-                # Combine sorted non-None indices with None indices
-                indices = np.concatenate([sorted_indices, none_indices]).tolist()
-                if reverse:
-                    # When reversing, keep None values at end
-                    indices = sorted_indices[::-1].tolist() + none_indices.tolist()
-                return indices
-            except ImportError:
-                # Fallback to pure Python if numpy is not available
-                pass
-        
-        # Pure Python implementation
+        """        
         enumerated = list(enumerate(lst))
-        # Sort None values to end by using (is_none, value) as sort key
         sorted_pairs = sorted(enumerated, 
                             key=lambda x: (x[1] is None, x[1]), 
                             reverse=reverse)
         return [index for index, _ in sorted_pairs]
 
-    def order_by(self, sort_key: str, reverse: bool = False, use_numpy: bool = True) -> Dataset:
+    def order_by(self, sort_key: str, reverse: bool = False) -> Dataset:
         """Return a new dataset with the observations sorted by the given key.
 
         Args:
@@ -554,6 +530,7 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
             reverse: Whether to sort in reverse order
             use_numpy: Whether to use numpy for sorting (faster for large lists)
         """
+        #breakpoint()
         number_found = 0
         for obs in self.data:
             key, values = list(obs.items())[0]
@@ -566,7 +543,8 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
         elif number_found > 1:
             raise DatasetKeyError(f"Key '{sort_key}' found in more than one dictionary.")
 
-        sort_indices_list = self.get_sort_indices(relevant_values, reverse=reverse, use_numpy=use_numpy)
+        sort_indices_list = self.get_sort_indices(relevant_values, reverse=reverse)
+        print(sort_indices_list)
         new_data = []
         for observation in self.data:
             key, values = list(observation.items())[0]
