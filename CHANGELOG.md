@@ -1,6 +1,56 @@
 # Changelog
 
-## [0.1.47] - TBD
+## [0.1.54] - TBD
+### Added
+- New video file handlers: `Scenario` objects can be videos (MP4 and WebM).  
+
+- New question type `QuestionMultipleChoiceWithOther` automatically includes "Other" in the `question_options`.  
+
+- Question type `QuestionMultipleChoice` now takes an optional parameter `enumeration` that allows you to specify the enumeration of the `question_options`, e.g., ["a", "b", "c", "d", ...] instead of the default options [0, 1, 2, 3, ...]. This parameter can also be passed to new question type `QuestionMultipleChoiceWithOther`.
+
+### Changed
+- Improvements to memory handling for large survey jobs.
+
+
+## [0.1.53] - 2025-04-04
+### Changed
+- Improvements to the Job Status table and Exceptions Report.
+
+- Improved logic for computing image token usage approximation.
+
+
+## [0.1.52] - 2025-04-02
+### Changed
+- Improvements to Exceptions Report code for reproducing errors.
+
+
+## [0.1.51] - 2025-03-25
+### Changed
+- Improvements to answer validation tests.
+
+
+## [0.1.50] - 2025-03-25
+### Changed
+- Modified `ScenarioList.from_directory()` to wrap files in `Scenario` objects.
+
+
+## [0.1.49] - 2025-03-24
+### Added
+- New optional parameter for `QuestionList`: `min_list_items` allows you to specify the minimum number of items that must be returned in the answer formatted as a list. This complements existing optional parameter `max_list_items`. Example: https://docs.expectedparrot.com/en/latest/questions.html#questionlist-class 
+
+### Changed
+- Updated default prompt instructions for `QuestionRank`.
+
+- Improvements to `ScenarioList.from_csv()` to handle non-UTF-8 encoding.
+
+- Improvements to exceptions messages.
+
+
+## [0.1.48] - 2025-03-12
+### Added
+- Codebook support for `AgentList` objects. This facilitates creation of agents based on existing survey data, using a codebook for questions and responses. 
+
+## [0.1.47] - 2025-03-06
 ### Added
 - `Results` method `spot_issues()` runs a survey to spot issues and suggest revised versions of any prompts that did not generate responses in your original survey (i.e., any user/system prompts where your results show a null answer and raw model response). You can optionally pass a list of models to use to run the meta-survey instead of the default model. See details on the meta-questions that are used and how it works: https://www.expectedparrot.com/content/RobinHorton/spot-issues-notebook. 
 
