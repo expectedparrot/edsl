@@ -9,7 +9,9 @@
 - Question type `QuestionMultipleChoice` now takes an optional parameter `enumeration` that allows you to specify the enumeration of the `question_options`, e.g., ["a", "b", "c", "d", ...] instead of the default options [0, 1, 2, 3, ...]. This parameter can also be passed to new question type `QuestionMultipleChoiceWithOther`.
 
 ### Changed
-- Improvements to memory handling for large survey jobs.
+
+### Deprecated
+- Methods for auto-generating `ScenarioList` objects from different file types are now available with a single syntax: `ScenarioSource.from_source()`. For example, `sl = ScenarioSource.from_source('csv', 'my_file.csv')` is equivalent to `sl = ScenarioList.from_csv('my_file.csv')`.
 
 
 ## [0.1.53] - 2025-04-04
