@@ -1,7 +1,7 @@
 import logging
 import math
 
-from typing import List, TYPE_CHECKING, Union
+from typing import List, TYPE_CHECKING, Union, Literal
 
 if TYPE_CHECKING:
     from .jobs import Jobs
@@ -76,12 +76,14 @@ class PromptCostEstimator:
         ]
         return max(prices_for_service) if prices_for_service else None
 
-    def input_price_per_token(self):
+    def input_price_per_token(
+        self,
+    ) -> tuple[float, Literal["price_lookup", "highest_price_for_service", "default"]]:
         try:
             return (
                 self.relevant_prices["input"]["service_stated_token_price"]
                 / self.relevant_prices["input"]["service_stated_token_qty"]
-            )
+            ), "price_lookup"
         except KeyError:
             highest_price = self._get_highest_price_for_service("input")
             if highest_price is not None:
@@ -90,20 +92,22 @@ class PromptCostEstimator:
                 warnings.warn(
                     f"Price data not found for {self.key}. Using highest available input price for {self.inference_service}: ${highest_price:.6f} per token"
                 )
-                return highest_price
+                return highest_price, "highest_price_for_service"
             import warnings
 
             warnings.warn(
                 f"Price data not found for {self.inference_service}. Using default estimate for input token price: $1.00 / 1M tokens"
             )
-            return self.DEFAULT_INPUT_PRICE_PER_TOKEN
+            return self.DEFAULT_INPUT_PRICE_PER_TOKEN, "default"
 
-    def output_price_per_token(self):
+    def output_price_per_token(
+        self,
+    ) -> tuple[float, Literal["price_lookup", "highest_price_for_service", "default"]]:
         try:
             return (
                 self.relevant_prices["output"]["service_stated_token_price"]
                 / self.relevant_prices["output"]["service_stated_token_qty"]
-            )
+            ), "price_lookup"
         except KeyError:
             highest_price = self._get_highest_price_for_service("output")
             if highest_price is not None:
@@ -112,13 +116,13 @@ class PromptCostEstimator:
                 warnings.warn(
                     f"Price data not found for {self.key}. Using highest available output price for {self.inference_service}: ${highest_price:.6f} per token"
                 )
-                return highest_price
+                return highest_price, "highest_price_for_service"
             import warnings
 
             warnings.warn(
                 f"Price data not found for {self.inference_service}. Using default estimate for output token price: $1.00 / 1M tokens"
             )
-            return self.DEFAULT_OUTPUT_PRICE_PER_TOKEN
+            return self.DEFAULT_OUTPUT_PRICE_PER_TOKEN, "default"
 
     def __call__(self):
         user_prompt_chars = len(str(self.user_prompt)) * self.get_piping_multiplier(
@@ -131,13 +135,20 @@ class PromptCostEstimator:
         input_tokens = (user_prompt_chars + system_prompt_chars) // self.CHARS_PER_TOKEN
         output_tokens = math.ceil(self.OUTPUT_TOKENS_PER_INPUT_TOKEN * input_tokens)
 
+        input_price_per_token, input_price_source = self.input_price_per_token()
+        output_price_per_token, output_price_source = self.output_price_per_token()
+
         cost = (
-            input_tokens * self.input_price_per_token()
-            + output_tokens * self.output_price_per_token()
+            input_tokens * input_price_per_token
+            + output_tokens * output_price_per_token
         )
         return {
+            "input_price_source": input_price_source,
+            "input_price_per_token": input_price_per_token,
             "input_tokens": input_tokens,
+            "output_price_source": output_price_source,
             "output_tokens": output_tokens,
+            "output_price_per_token": output_price_per_token,
             "cost_usd": cost,
         }
 
