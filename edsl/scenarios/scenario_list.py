@@ -1992,7 +1992,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         for key, values in grouped.items():
             new_scenario = dict(zip(id_vars, key))
             if separator:
-                new_scenario[field] = separator.join(values)
+                new_scenario[field] = separator.join([str(x) for x in values])
             else:
                 new_scenario[field] = values
             if add_count:
