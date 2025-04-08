@@ -91,7 +91,7 @@ Frequently asked questions
 
 **Can I delete a response in the universal remote cache?** No, this is not allowed.
 
-**What happens if I delete my account?** All of your account information is deleted. Any remote cache entries that you generated will remain in the universal remote cache but information about your account will be deleted. 
+**What happens if I delete my account?** Any remote cache entries that you generated will remain in the universal remote cache. All information about your account will be deleted. 
 
 
 Legacy remote cache
