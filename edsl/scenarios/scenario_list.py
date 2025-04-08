@@ -841,7 +841,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         def get_sort_key(scenario: Any) -> tuple:
             return tuple(scenario[field] for field in fields)
 
-        return ScenarioList(sorted(self, key=get_sort_key, reverse=reverse))
+        return ScenarioList(sorted(self.data, key=get_sort_key, reverse=reverse))
 
     def duplicate(self) -> ScenarioList:
         """Return a copy of the ScenarioList using streaming to avoid loading everything into memory.
@@ -1992,7 +1992,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         for key, values in grouped.items():
             new_scenario = dict(zip(id_vars, key))
             if separator:
-                new_scenario[field] = separator.join(values)
+                new_scenario[field] = separator.join([str(x) for x in values])
             else:
                 new_scenario[field] = values
             if add_count:
