@@ -106,6 +106,10 @@ CONFIG_MAP = {
         "default": "10",  # Change to a very low threshold (10 bytes) to test SQLite offloading
         "info": "This config var determines the memory threshold in bytes before Results' SQLList offloads data to SQLite.",
     },
+    "EDSL_SHOW_FULL_TRACEBACK": {
+        "default": "False",
+        "info": "This config var determines whether to show full tracebacks for exceptions. Set to True for development/debugging.",
+    },
 }
 
 

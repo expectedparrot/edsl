@@ -163,6 +163,18 @@ logger.warning("Something unexpected but not critical")
 logger.error("Something went wrong")
 ```
 
+**Exception Handling**:
+EDSL provides simplified exception messages by default, but you can enable full tracebacks during development:
+
+```python
+# Option 1: Set environment variable before running your script
+import os
+os.environ["EDSL_SHOW_FULL_TRACEBACK"] = "True"
+
+# Option 2: Add to your .env file
+# EDSL_SHOW_FULL_TRACEBACK=True
+```
+
 **Flexibility**: 
 Choose whether to run surveys on your own computer or at the Expected Parrot server.
 
