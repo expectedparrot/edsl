@@ -459,10 +459,10 @@ class FileStore(Scenario):
 
         return temp_file.name
 
-    def view(self) -> None:
+    def view(self, width: int = None, height: int = None) -> None:
         handler = FileMethods.get_handler(self.suffix)
         if handler:
-            handler(self.path).view()
+            handler(self.path).view(width=width, height=height)
         else:
             print(f"Viewing of {self.suffix} files is not supported.")
 

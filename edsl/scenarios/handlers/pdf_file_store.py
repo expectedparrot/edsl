@@ -26,7 +26,7 @@ class PdfMethods(FileMethods):
 
         return text
 
-    def view_system(self):
+    def view_system(self, width: int = None, height: int = None):
         import subprocess
 
         if os.path.exists(self.path):
@@ -42,8 +42,11 @@ class PdfMethods(FileMethods):
         else:
             print("PDF file was not found.")
 
-    def view_notebook(self):
+    def view_notebook(self, width: int = None, height: int = None):
         from IPython.display import HTML, display
+
+        _width = width if width is not None else 800
+        _height = height if height is not None else 800
 
         with open(self.path, "rb") as f:
             base64_pdf = base64.b64encode(f.read()).decode("utf-8")
@@ -51,8 +54,8 @@ class PdfMethods(FileMethods):
         html = f"""
         <iframe
             src="data:application/pdf;base64,{base64_pdf}"
-            width="800px"
-            height="800px"
+            width="{_width}px"
+            height="{_height}px"
             type="application/pdf"
         ></iframe>
         """

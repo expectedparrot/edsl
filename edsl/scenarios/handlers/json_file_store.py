@@ -7,7 +7,7 @@ from ..file_methods import FileMethods
 class JsonMethods(FileMethods):
     suffix = "json"
 
-    def view_system(self):
+    def view_system(self, width: int = None, height: int = None):
         import os
         import subprocess
 
@@ -24,7 +24,7 @@ class JsonMethods(FileMethods):
         else:
             print("JSON file was not found.")
 
-    def view_notebook(self):
+    def view_notebook(self, width: int = None, height: int = None):
         from IPython.display import FileLink, JSON, display
         import json
 

@@ -5,7 +5,7 @@ from ..file_methods import FileMethods
 class TxtMethods(FileMethods):
     suffix = "txt"
 
-    def view_system(self):
+    def view_system(self, width: int = None, height: int = None):
         import os
         import subprocess
 
@@ -22,7 +22,7 @@ class TxtMethods(FileMethods):
         else:
             print("TXT file was not found.")
 
-    def view_notebook(self):
+    def view_notebook(self, width: int = None, height: int = None):
         from ...display import FileLink, display
 
         display(FileLink(self.path))

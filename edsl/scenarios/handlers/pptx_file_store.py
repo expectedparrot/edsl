@@ -23,7 +23,7 @@ class PptxMethods(FileMethods):
         text = "\n\n".join(full_text)
         return text
 
-    def view_system(self):
+    def view_system(self, width: int = None, height: int = None):
         import os
         import subprocess
 
@@ -40,9 +40,12 @@ class PptxMethods(FileMethods):
         else:
             print("PPTX file was not found.")
 
-    def view_notebook(self):
+    def view_notebook(self, width: int = None, height: int = None):
         from pptx import Presentation
         from IPython.display import HTML, display
+
+        _width = width if width is not None else 800
+        _height = height if height is not None else 800
 
         prs = Presentation(self.path)
 
@@ -64,7 +67,7 @@ class PptxMethods(FileMethods):
             )
 
         html = f"""
-        <div style="width: 800px; height: 800px; padding: 20px; 
+        <div style="width: {_width}px; height: {_height}px; padding: 20px; 
                    border: 1px solid #ccc; overflow-y: auto;">
             {''.join(html_content)}
         </div>

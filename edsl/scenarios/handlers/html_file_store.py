@@ -4,7 +4,7 @@ from ..file_methods import FileMethods
 class HtmlMethods(FileMethods):
     suffix = "html"
 
-    def view_system(self):
+    def view_system(self, width: int = None, height: int = None):
         import webbrowser
 
         # with open(self.path, "r") as f:
@@ -14,10 +14,12 @@ class HtmlMethods(FileMethods):
         # webbrowser.open("file://" + html_path)
         webbrowser.open("file://" + self.path)
 
-    def view_notebook(self):
+    def view_notebook(self, width: int = None, height: int = None):
         from IPython.display import IFrame, display
 
-        display(IFrame(self.path, width=800, height=800))
+        _width = width if width is not None else 800
+        _height = height if height is not None else 800
+        display(IFrame(self.path, width=_width, height=_height))
 
     def example(self):
         html_string = b"""

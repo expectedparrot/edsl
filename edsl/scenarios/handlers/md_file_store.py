@@ -5,7 +5,7 @@ from ..file_methods import FileMethods
 class MarkdownMethods(FileMethods):
     suffix = "md"
 
-    def view_system(self):
+    def view_system(self, width: int = None, height: int = None):
         import os
         import subprocess
 
@@ -22,7 +22,7 @@ class MarkdownMethods(FileMethods):
         else:
             print("Markdown file was not found.")
 
-    def view_notebook(self):
+    def view_notebook(self, width: int = None, height: int = None):
         from IPython.display import FileLink, Markdown, display
 
         # First display the content of the markdown file

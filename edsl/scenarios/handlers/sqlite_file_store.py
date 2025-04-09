@@ -46,7 +46,7 @@ class SQLiteMethods(FileMethods):
 
         return "\n".join(full_text)
 
-    def view_system(self):
+    def view_system(self, width: int = None, height: int = None):
         """
         Opens the database with the system's default SQLite viewer if available.
         """
@@ -70,12 +70,16 @@ class SQLiteMethods(FileMethods):
         else:
             print("SQLite database file was not found.")
 
-    def view_notebook(self):
+    def view_notebook(self, width: int = None, height: int = None):
         """
         Displays database contents in a Jupyter notebook.
         """
         import pandas as pd
         from IPython.display import HTML, display
+        import sqlite3
+
+        _width = width if width is not None else 800
+        _height = height if height is not None else 800
 
         with sqlite3.connect(self.path) as conn:
             # Get all table names
@@ -99,7 +103,7 @@ class SQLiteMethods(FileMethods):
 
             # Combine all tables into one scrollable div
             html = f"""
-            <div style="width: 800px; height: 800px; padding: 20px; 
+            <div style="width: {_width}px; height: {_height}px; padding: 20px; 
                        border: 1px solid #ccc; overflow-y: auto;">
                 {''.join(html_parts)}
             </div>

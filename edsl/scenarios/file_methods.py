@@ -71,18 +71,18 @@ class FileMethods(ABC):
         return list(cls._handlers.keys())
 
     @abstractmethod
-    def view_system(self):
+    def view_system(self, width: int = None, height: int = None):
         ...
 
     @abstractmethod
-    def view_notebook(self):
+    def view_notebook(self, width: int = None, height: int = None):
         ...
 
-    def view(self):
+    def view(self, width: int = None, height: int = None):
         if is_notebook():
-            self.view_notebook()
+            self.view_notebook(width=width, height=height)
         else:
-            self.view_system()
+            self.view_system(width=width, height=height)
 
     @abstractmethod
     def example(self):
