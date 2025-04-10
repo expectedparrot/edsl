@@ -220,6 +220,7 @@ class Cache(Base):
         system_prompt: str,
         user_prompt: str,
         iteration: int,
+        validated: bool = False,
     ) -> tuple(Union[None, str], str):
         """Retrieve a cached language model response if available.
 
