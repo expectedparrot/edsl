@@ -388,7 +388,7 @@ class Jobs(Base):
 
         :param iterations: the number of iterations to run
         """
-        return JobsPrompts(self).estimate_job_cost(iterations)
+        return JobsPrompts.from_jobs(self).estimate_job_cost(iterations)
 
     def estimate_job_cost_from_external_prices(
         self, price_lookup: dict, iterations: int = 1
