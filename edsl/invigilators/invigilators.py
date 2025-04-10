@@ -393,7 +393,7 @@ class InvigilatorAI(InvigilatorBase):
         exception_occurred = None
         validated = False
 
-        if agent_response_dict.model_outputs.cache_used:
+        if agent_response_dict.model_outputs.cache_used and False:
             data = {
                 "answer": agent_response_dict.edsl_dict.answer
                 if type(agent_response_dict.edsl_dict.answer) is str
