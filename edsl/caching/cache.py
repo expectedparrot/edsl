@@ -41,30 +41,31 @@ from .sql_dict import SQLiteDict
 if TYPE_CHECKING:
     from .cache_entry import CacheEntry
 
+
 class Cache(Base):
     """Cache for storing and retrieving language model responses.
-    
+
     The Cache class manages a collection of CacheEntry objects, providing methods for
     storing, retrieving, and persisting language model responses. It serves as the core
     component of EDSL's caching infrastructure, helping to reduce redundant API calls,
     save costs, and ensure reproducibility.
-    
+
     Cache can use different storage backends:
     - In-memory dictionary (default)
     - SQLite database via SQLiteDict
     - JSON lines file (.jsonl)
-    
+
     The cache operates by generating deterministic keys based on the model, parameters,
     prompts, and iteration number. This allows for efficient lookup of cached responses
     when identical requests are made.
-    
+
     Attributes:
         data (dict or SQLiteDict): The primary storage for cache entries
         new_entries (dict): Entries added in the current session
         fetched_data (dict): Entries retrieved in the current session
         filename (str, optional): Path for persistence if provided
         immediate_write (bool): Whether to update data immediately (True) or defer (False)
-        
+
     Technical Notes:
         - Can be used as a context manager to automatically persist changes on exit
         - Supports serialization/deserialization via to_dict/from_dict methods
@@ -86,25 +87,25 @@ class Cache(Base):
         verbose=False,
     ):
         """Initialize a new Cache instance.
-        
-        Creates a new cache for storing language model responses. The cache can be initialized 
+
+        Creates a new cache for storing language model responses. The cache can be initialized
         with existing data or connected to a persistent storage file.
-        
+
         Args:
             filename: Path to a persistent storage file (.jsonl or .db). If provided, the cache
                      will be initialized from this file and changes will be written back to it.
                      Cannot be used together with data parameter.
-            data: Initial cache data as a dictionary or SQLiteDict. Cannot be used together 
+            data: Initial cache data as a dictionary or SQLiteDict. Cannot be used together
                   with filename parameter.
             immediate_write: If True, new entries are immediately added to the main data store.
                             If False, they're kept separate until explicitly written.
             method: Deprecated. Legacy parameter for backward compatibility.
             verbose: If True, prints diagnostic information about cache hits and misses.
-            
+
         Raises:
-            CacheError: If both filename and data are provided, or if the filename has an 
+            CacheError: If both filename and data are provided, or if the filename has an
                        invalid extension.
-                       
+
         Implementation Notes:
             - The cache maintains separate dictionaries for tracking:
               * data: The main persistent storage
@@ -153,12 +154,12 @@ class Cache(Base):
 
     def keys(self):
         """Return a list of all cache keys.
-        
+
         Retrieves all cache keys, which are the unique identifiers for each cache entry.
-        
+
         Returns:
             list: A list of string keys in the cache
-            
+
         Examples:
             >>> from edsl import Cache
             >>> Cache.example().keys()
@@ -168,12 +169,12 @@ class Cache(Base):
 
     def values(self):
         """Return a list of all cache entry values.
-        
+
         Retrieves all CacheEntry objects stored in the cache.
-        
+
         Returns:
             list: A list of CacheEntry objects
-            
+
         Examples:
             >>> from edsl import Cache
             >>> entries = Cache.example().values()
@@ -186,10 +187,10 @@ class Cache(Base):
 
     def items(self):
         """Return an iterator of (key, value) pairs in the cache.
-        
+
         Similar to dict.items(), provides an iterator over all key-value pairs
         in the cache for easy iteration.
-        
+
         Returns:
             zip: An iterator of (key, CacheEntry) tuples
         """
@@ -221,32 +222,32 @@ class Cache(Base):
         iteration: int,
     ) -> tuple(Union[None, str], str):
         """Retrieve a cached language model response if available.
-        
+
         This method attempts to find a cached response matching the exact input parameters.
         The combination of model, parameters, prompts, and iteration creates a unique key
         that identifies a specific language model request.
-        
+
         Args:
             model: Language model identifier (e.g., "gpt-3.5-turbo")
             parameters: Model configuration parameters (e.g., temperature, max_tokens)
             system_prompt: The system instructions given to the model
             user_prompt: The user query/prompt given to the model
             iteration: The iteration number for this specific request
-            
+
         Returns:
             tuple: (response, key) where:
                 - response: The cached model output as a string, or None if not found
                 - key: The cache key string generated for this request
-                
+
         Technical Notes:
             - Uses CacheEntry.gen_key() to generate a consistent hash-based key
             - Updates self.fetched_data when a hit occurs to track cache usage
             - Optionally logs cache hit/miss when verbose=True
             - The response is returned as a JSON string for consistency
-            
+
         Examples:
             >>> c = Cache()
-            >>> c.fetch(model="gpt-3", parameters="default", system_prompt="Hello", 
+            >>> c.fetch(model="gpt-3", parameters="default", system_prompt="Hello",
             ...         user_prompt="Hi", iteration=1)[0] is None
             True
         """
@@ -278,12 +279,13 @@ class Cache(Base):
         response: dict,
         iteration: int,
         service: str,
+        validated: bool = False,
     ) -> str:
         """Store a new language model response in the cache.
-        
+
         Creates a new CacheEntry from the provided parameters and response, then
         adds it to the cache using a deterministic key derived from the input parameters.
-        
+
         Args:
             model: Language model identifier (e.g., "gpt-3.5-turbo")
             parameters: Model configuration parameters (e.g., temperature, max_tokens)
@@ -292,29 +294,30 @@ class Cache(Base):
             response: The model's response as a dictionary
             iteration: The iteration number for this specific request
             service: The service provider (e.g., "openai", "anthropic")
-            
+            validated: Whether the response has been validated (default: False)
+
         Returns:
             str: The cache key generated for this entry
-            
+
         Technical Notes:
             - Creates a new CacheEntry object to encapsulate the response and metadata
             - Adds the entry to self.new_entries to track entries added in this session
             - Adds the entry to the main data store if immediate_write=True
             - Otherwise, stores in new_entries_to_write_later for deferred writing
             - The response is stored as a JSON string for consistency and compatibility
-            
+
         Storage Behavior:
             The method's behavior depends on the immediate_write setting:
             - If True: Immediately writes to the main data store (self.data)
             - If False: Stores in a separate dict for writing later (e.g., at context exit)
-            
+
         Examples:
             >>> from edsl import Cache, Model, Question
-            >>> m = Model("test") 
+            >>> m = Model("test")
             >>> c = Cache()
             >>> len(c)
             0
-            >>> results = Question.example("free_text").by(m).run(cache=c, 
+            >>> results = Question.example("free_text").by(m).run(cache=c,
             ...         disable_remote_cache=True, disable_remote_inference=True)
             >>> len(c)
             1
@@ -329,6 +332,7 @@ class Cache(Base):
             output=json.dumps(response),
             iteration=iteration,
             service=service,
+            validated=validated,
         )
         key = entry.key
         self.new_entries[key] = entry
@@ -486,20 +490,20 @@ class Cache(Base):
 
     def __floordiv__(self, other: "Cache") -> "Cache":
         """Subtract one cache from another, returning entries unique to this cache.
-        
-        This operator implements set difference between two caches, returning a new cache 
+
+        This operator implements set difference between two caches, returning a new cache
         containing only entries that exist in this cache but not in the other cache.
         The floor division operator (//) is used as an intuitive alternative to subtraction.
-        
+
         Args:
             other: Another Cache object to subtract from this one
-            
+
         Returns:
             Cache: A new Cache containing only entries unique to this cache
-            
+
         Raises:
             CacheError: If the provided object is not a Cache instance
-            
+
         Examples:
             >>> from edsl.caching import CacheEntry
             >>> ce1 = CacheEntry.example(randomize=True)
@@ -511,7 +515,7 @@ class Cache(Base):
             1
             >>> c3.data[ce2.key] == ce2
             True
-            
+
         Technical Notes:
             - Comparison is based on cache keys, not the full entry contents
             - Returns a new Cache instance with the same immediate_write setting
@@ -534,14 +538,14 @@ class Cache(Base):
 
     def __enter__(self):
         """Set up the cache when used as a context manager.
-        
+
         Enables usage of Cache in a with statement, e.g.:
         ```python
         with Cache(filename="my_cache.db") as cache:
             # Use cache...
         # Changes automatically saved when exiting the context
         ```
-        
+
         Returns:
             Cache: The cache instance itself
         """
@@ -549,17 +553,17 @@ class Cache(Base):
 
     def __exit__(self, exc_type, exc_value, traceback):
         """Clean up and persist cache when exiting the context.
-        
+
         This method is called automatically when exiting a with block.
         It performs two key operations:
         1. Writes any deferred entries to the main data store
         2. Persists the cache to disk if a filename was provided
-        
+
         Args:
             exc_type: Exception type if an exception was raised in the with block
             exc_value: Exception value if an exception was raised
             traceback: Traceback if an exception was raised
-            
+
         Technical Notes:
             - Deferred entries (new_entries_to_write_later) are written to the main data store
             - If a filename was provided at initialization, cache is persisted to that file
@@ -573,7 +577,7 @@ class Cache(Base):
         # Persist the cache to disk if a filename was provided
         if self.filename:
             self.write(self.filename)
-            
+
         # Clean up SQLAlchemy resources
         self.close()
 
@@ -584,15 +588,15 @@ class Cache(Base):
 
     def to_dict(self, add_edsl_version=True) -> dict:
         """Serialize the cache to a dictionary for storage or transmission.
-        
+
         Converts the Cache object into a plain dictionary format that can be
         easily serialized to JSON or other formats. Each CacheEntry is also
         converted to a dictionary using its to_dict method.
-        
+
         Args:
             add_edsl_version: If True, includes the EDSL version and class name
                               in the serialized output for compatibility tracking
-                              
+
         Returns:
             dict: A dictionary representation of the cache with the structure:
                 {
@@ -602,7 +606,7 @@ class Cache(Base):
                     "edsl_version": "x.x.x",  # if add_edsl_version=True
                     "edsl_class_name": "Cache"  # if add_edsl_version=True
                 }
-                
+
         Technical Notes:
             - Used by from_dict for deserialization
             - Used by __hash__ for cache comparison
@@ -638,23 +642,23 @@ class Cache(Base):
 
     def to_dataset(self):
         return self.to_scenario_list().to_dataset()
-    
+
     def _repr_html_(self):
         """Generate an HTML representation for Jupyter notebooks.
-        
+
         This method is automatically called by Jupyter to render the object
         as HTML in notebook cells. It handles empty caches gracefully.
-        
+
         Returns:
             str: HTML representation of the object
         """
         # Get class name and documentation link
         class_name = self.__class__.__name__
         docs = getattr(self, "__documentation__", "")
-        
+
         # Create header with link to documentation
         header = f"<a href='{docs}'>{class_name}</a>"
-        
+
         # Add summary if available
         if hasattr(self, "_summary"):
             summary_dict = self._summary()
@@ -662,19 +666,22 @@ class Cache(Base):
             header = f"<p>{header}{summary_line}</p>"
         else:
             header = f"<p>{header}</p>"
-        
+
         # Handle empty cache
         if len(self.data) == 0:
             return f"{header}<p><em>Empty cache</em></p>"
-        
+
         # For non-empty caches, render the table as usual
         from edsl.dataset.display.table_display import TableDisplay
+
         try:
             return header + self.table()._repr_html_()
         except Exception:
             # Fallback if table() fails - display as dictionary
             display_dict = {"entries": len(self.data)}
-            return header + TableDisplay.from_dictionary_wide(display_dict)._repr_html_()
+            return (
+                header + TableDisplay.from_dictionary_wide(display_dict)._repr_html_()
+            )
 
     @classmethod
     @remove_edsl_version
@@ -702,26 +709,26 @@ class Cache(Base):
 
     def __add__(self, other: "Cache"):
         """Combine this cache with another, updating in-place.
-        
+
         This operator implements a set union operation between two caches, adding all
         entries from the other cache into this one. The operation modifies this cache
         in-place rather than creating a new one.
-        
+
         Args:
             other: Another Cache object to merge into this one
-            
+
         Returns:
             Cache: Self, with entries from other added
-            
+
         Raises:
             CacheError: If the provided object is not a Cache instance
-            
+
         Technical Notes:
             - Modifies this cache in-place (unlike __floordiv__ which returns a new cache)
             - If both caches have the same key, this cache's entry will be overwritten
             - Useful for merging caches from different sources
             - No special handling for conflicting entries - last one wins
-            
+
         Examples:
             >>> from edsl.caching import CacheEntry
             >>> ce1 = CacheEntry.example(randomize=True)
@@ -740,24 +747,24 @@ class Cache(Base):
 
     def close(self):
         """Explicitly close and clean up resources.
-        
+
         This method properly disposes of any SQLAlchemy engines and
         connections to prevent memory leaks.
         """
         # Clean up SQLiteDict resources if present
         if not isinstance(self.data, dict):
             # Handle SQLiteDict or other database-backed storage
-            if hasattr(self.data, 'engine') and self.data.engine:
+            if hasattr(self.data, "engine") and self.data.engine:
                 self.data.engine.dispose()
-    
+
     def __del__(self):
         """Destructor for proper resource cleanup.
-        
+
         Ensures SQLAlchemy connections are properly closed when the Cache
         object is garbage collected.
         """
         self.close()
-            
+
     def __repr__(self):
         """
         Return a string representation of the Cache object.
@@ -814,6 +821,8 @@ class Cache(Base):
         Return a subset of the Cache with the specified keys.
         """
         new_data = {k: v for k, v in self.data.items() if k in keys}
+        print("here")
+        print(new_data)
         return Cache(data=new_data)
 
     def view(self) -> None:
@@ -834,23 +843,23 @@ class Cache(Base):
     @classmethod
     def example(cls, randomize: bool = False) -> Cache:
         """Create an example Cache instance for testing and demonstration.
-        
+
         Creates a Cache object pre-populated with example CacheEntry objects.
         This method is useful for documentation, testing, and demonstration purposes.
-        
+
         Args:
             randomize: If True, creates CacheEntry objects with randomized content
                       for uniqueness. If False, uses consistent example entries.
-                      
+
         Returns:
             Cache: A new Cache object containing example CacheEntry objects
-            
+
         Technical Notes:
             - Uses CacheEntry.example() to create sample entries
             - When randomize=True, generates unique keys for each call
             - When randomize=False, produces consistent examples for doctests
             - Creates an in-memory cache (no persistent file)
-            
+
         Examples:
             >>> cache = Cache.example()
             >>> len(cache) > 0
@@ -858,7 +867,7 @@ class Cache(Base):
             >>> from edsl.caching.cache_entry import CacheEntry
             >>> all(isinstance(entry, CacheEntry) for entry in cache.values())
             True
-            
+
             >>> # Create examples with randomized content
             >>> cache1 = Cache.example(randomize=True)
             >>> cache2 = Cache.example(randomize=True)

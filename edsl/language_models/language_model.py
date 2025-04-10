@@ -732,6 +732,8 @@ class LanguageModel(
             user_prompt_with_hashes = user_prompt
 
         # Prepare parameters for cache lookup
+        if self.model == "test":
+            self.parameters.pop("canned_response", None)
         cache_call_params = {
             "model": str(self.model),
             "parameters": self.parameters,
@@ -741,10 +743,13 @@ class LanguageModel(
         }
 
         # Try to fetch from cache
+        print(cache_call_params)
         cached_response, cache_key = cache.fetch(**cache_call_params)
+        print(cache_key)
         if cache_used := cached_response is not None:
             # Cache hit - use the cached response
             response = json.loads(cached_response)
+            print(response)
         else:
             # Cache miss - make a new API call
             # Determine whether to use remote or local execution
