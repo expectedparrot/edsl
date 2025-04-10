@@ -456,8 +456,6 @@ class InvigilatorAI(InvigilatorBase):
                     entry = self.cache.data[cache_key]
                     # Set the validated flag to True
                     entry.validated = True
-                    print("here2")
-                    print("entry is", entry)
         except QuestionAnswerValidationError as e:
             answer = None
             comment = "The response was not valid."

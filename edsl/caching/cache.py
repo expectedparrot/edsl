@@ -822,8 +822,6 @@ class Cache(Base):
         Return a subset of the Cache with the specified keys.
         """
         new_data = {k: v for k, v in self.data.items() if k in keys}
-        print("here")
-        print(new_data)
         return Cache(data=new_data)
 
     def view(self) -> None:
