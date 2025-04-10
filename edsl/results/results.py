@@ -2157,6 +2157,8 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         import sqlite3
         import shutil
 
+        data_class = ResultsSQLList
+
         try:
             # Create a temporary directory to store files before zipping
             with tempfile.TemporaryDirectory() as temp_dir:
@@ -2167,8 +2169,8 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
                 
                 if isinstance(self.data, list):
                     # If data is a list, create a new SQLiteList
-                    from .sqlite_list import SQLiteList
-                    new_db = SQLiteList()
+                    #from .sqlite_list import SQLiteList
+                    new_db = data_class()
                     new_db.extend(self.data)
                     shutil.copy2(new_db.db_path, db_path)
                 elif hasattr(self.data, 'db_path') and os.path.exists(self.data.db_path):
@@ -2176,8 +2178,9 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
                     shutil.copy2(self.data.db_path, db_path)
                 else:
                     # If no database exists, create a new one
-                    from .sqlite_list import SQLiteList
-                    new_db = SQLiteList()
+                    #from .sqlite_list import SQLiteList
+                    #new_db = SQLiteList()
+                    new_db = data_class()
                     new_db.extend(self.data)
                     shutil.copy2(new_db.db_path, db_path)
 
@@ -2230,6 +2233,8 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         from ..caching import Cache
         from ..tasks import TaskHistory
 
+        data_class = ResultsSQLList
+
         try:
             # Create a temporary directory to extract files
             with tempfile.TemporaryDirectory() as temp_dir:
@@ -2257,7 +2262,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
                 db_path = temp_path / 'results.db'
                 if db_path.exists():
                     # Create a new ResultsSQLList instance
-                    new_db = ResultsSQLList()
+                    new_db = data_class()
                     # Copy data from the source database - convert Path to string
                     new_db.copy_from(str(db_path))
                     # Set the new database as the results data

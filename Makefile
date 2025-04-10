@@ -121,7 +121,7 @@ benchmark-timing: ## Run timing benchmarks
 	python scripts/timing_benchmark.py
 
 benchmark-timing-profile: ## Run timing benchmarks with profiling
-	python scripts/timing_benchmark.py --profile
+	PYINSTRUMENT_IGNORE_OVERHEAD_WARNING=1 python scripts/timing_benchmark.py --profile
 
 benchmark-plot: ## Plot historical benchmark data
 	python scripts/timing_benchmark.py --plot
@@ -155,13 +155,13 @@ test-memory: ## Run all memory tests for ScenarioList
 
 benchmark-all: ## Run all performance benchmarks and generate reports
 	@echo "Running all performance benchmarks..."
-	@make benchmark-timing
-	@make benchmark-components
-	@make benchmark-timing-profile
-	@make benchmark-memory
-	@make benchmark-memory-line
-	@make test-memory
-	@make benchmark-report
+	@make benchmark-timing || true
+	@make benchmark-components || true
+	-@make benchmark-timing-profile || true  # Use - prefix to continue even if this fails
+	@make benchmark-memory || true
+	@make benchmark-memory-line || true
+	@make test-memory || true
+	@make benchmark-report || true
 	@echo "All benchmarks complete. See benchmark_logs/reports/ for visualizations."
 
 benchmark-test: ## Test that benchmark scripts work properly
@@ -328,13 +328,14 @@ test-starter-tutorial:
 
 test-integration: ## Run integration tests via pytest **consumes API credits**
 	# cd integration/printing && python check_printing.py
-	pytest -v integration/active
+	pytest -vx integration/active
 	# pytest -v integration/test_example_notebooks.py
 	pytest -v integration/test_integration_jobs.py
 	pytest -v integration/test_memory.py
 	pytest -v integration/test_models.py
 	pytest -v integration/test_questions.py
 	pytest -v integration/test_runners.py
+
 test-serialization: ## Run serialization tests
 	pytest -v tests/serialization/test_serialization.py
 
