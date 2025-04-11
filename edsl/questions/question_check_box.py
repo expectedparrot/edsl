@@ -557,6 +557,7 @@ class QuestionCheckBox(QuestionBase):
         max_selections: Optional[int] = None,
         include_comment: bool = True,
         use_code: bool = False,
+        start_index: int = 0,  # Added parameter to control starting index for numeric enumeration
         question_presentation: Optional[str] = None,
         answering_instructions: Optional[str] = None,
         permissive: bool = False,
@@ -605,6 +606,7 @@ class QuestionCheckBox(QuestionBase):
 
         self._include_comment = include_comment
         self._use_code = use_code
+        self.start_index = start_index
         self.permissive = permissive
 
         self.question_presentation = question_presentation
@@ -635,9 +637,9 @@ class QuestionCheckBox(QuestionBase):
                 permissive=self.permissive,
             )
         else:
-            # Use option indices (0, 1, 2...) as valid choices
+            # Use option indices as valid choices, starting from start_index
             return create_checkbox_response_model(
-                list(range(len(self.question_options))),
+                list(range(self.start_index, self.start_index + len(self.question_options))),
                 min_selections=self.min_selections,
                 max_selections=self.max_selections,
                 permissive=self.permissive,
@@ -676,7 +678,9 @@ class QuestionCheckBox(QuestionBase):
         translated_codes = []
         for answer_code in answer_codes:
             if self._use_code:
-                translated_codes.append(translated_options[int(answer_code)])
+                # Adjust for start_index if needed
+                adjusted_index = int(answer_code) - self.start_index
+                translated_codes.append(translated_options[adjusted_index])
             else:
                 translated_codes.append(answer_code)
         return translated_codes
@@ -720,9 +724,9 @@ class QuestionCheckBox(QuestionBase):
                 "comment": random_string(),
             }
         else:
-            # Select a random number of indices from the range of self.question_options
+            # Select a random number of indices from the range, starting from start_index
             selected_indices = random.sample(
-                range(len(self.question_options)), num_selections
+                range(self.start_index, self.start_index + len(self.question_options)), num_selections
             )
             answer = {
                 "answer": selected_indices,
@@ -754,7 +758,11 @@ class QuestionCheckBox(QuestionBase):
         {% for option in question_options %} 
         <div>
         <input type="checkbox" id="{{ option }}" name="{{ question_name }}" value="{{ option }}">
-        <label for="{{ option }}">{{ option }}</label>
+        <label for="{{ option }}">
+        {% if use_code %}
+        {{ start_index + loop.index0 }}. 
+        {% endif %}
+        {{ option }}</label>
         </div>
         {% endfor %}
         """
@@ -762,6 +770,8 @@ class QuestionCheckBox(QuestionBase):
             instructions=instructions,
             question_name=self.question_name,
             question_options=self.question_options,
+            use_code=self._use_code,
+            start_index=self.start_index,
         )
         return question_html_content
 
@@ -770,7 +780,7 @@ class QuestionCheckBox(QuestionBase):
     ################
     @classmethod
     @inject_exception
-    def example(cls, include_comment=False, use_code=False) -> QuestionCheckBox:
+    def example(cls, include_comment=False, use_code=False, start_index=0) -> QuestionCheckBox:
         """
         Create an example instance of a checkbox question.
 
@@ -780,6 +790,7 @@ class QuestionCheckBox(QuestionBase):
         Args:
             include_comment: Whether to include a comment field with the answer.
             use_code: Whether to use indices (True) or values (False) for answer codes.
+            start_index: Starting index for numeric enumeration (default 0).
 
         Returns:
             QuestionCheckBox: An example checkbox question.
@@ -809,6 +820,7 @@ class QuestionCheckBox(QuestionBase):
             max_selections=5,
             use_code=use_code,
             include_comment=include_comment,
+            start_index=start_index,
         )
 
 
