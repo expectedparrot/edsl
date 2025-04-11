@@ -25,6 +25,7 @@ results = q.run()
 results.select("example")
 ```
 
+
 > | answer.example  |
 > |-----------------|
 > | Good            |
