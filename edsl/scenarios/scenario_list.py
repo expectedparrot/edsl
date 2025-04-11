@@ -36,6 +36,8 @@ import inspect
 from collections import UserList, defaultdict
 from collections.abc import Iterable, MutableSequence
 import json
+import pickle
+
 
 # Import for refactoring to Source classes 
 from edsl.scenarios.scenario_source import deprecated_classmethod, TuplesSource
@@ -95,7 +97,6 @@ TableFormat: TypeAlias = Literal[
     "tsv",
 ]
 
-import pickle
 
 
 class ScenarioSQLiteList(SQLiteList):
@@ -112,6 +113,10 @@ class ScenarioSQLiteList(SQLiteList):
         return pickle.loads(data)
 
 
+if use_sqlite := True:
+    data_class = ScenarioSQLiteList
+else:
+    data_class = list
 
 class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
     """
@@ -135,7 +140,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         self,
         data: Optional[list] = None,
         codebook: Optional[dict[str, str]] = None,
-        data_class: Optional[type] = ScenarioSQLiteList,
+        data_class: Optional[type] = data_class,
     ):
         """Initialize a new ScenarioList with optional data and codebook."""
         self._data_class = data_class
@@ -143,6 +148,14 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         for item in data or []:
             self.data.append(item)
         self.codebook = codebook or {}
+
+    def is_serializable(self):
+        for item in self.data:
+            try:
+                _ = json.dumps(item.to_dict())
+            except Exception as e:
+                return False
+        return True
 
     # Required MutableSequence abstract methods
     def __getitem__(self, index):
@@ -870,7 +883,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             return False
         if self.codebook != other.codebook:
             return False
-        return self.data.equals(other.data)
+        return self.data == other.data
 
     def __eq__(self, other: Any) -> bool:
         """Use memory-efficient comparison by default."""

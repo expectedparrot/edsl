@@ -323,8 +323,18 @@ def run_memory_profiling(
         return None
     
     if generate_report:
-        # Import the visualization module
-        from scripts.visualize_memory import load_memory_reports, create_memory_report
+        # Import the visualization module - use a relative import
+        # We need to import from the current directory, not as a module
+        import sys
+        import os
+        
+        # Add the current directory to sys.path if not already there
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        if current_dir not in sys.path:
+            sys.path.insert(0, current_dir)
+            
+        # Now import the module
+        from visualize_memory import load_memory_reports, create_memory_report
         
         # Load memory reports
         reports = load_memory_reports()

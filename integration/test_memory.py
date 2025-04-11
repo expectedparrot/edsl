@@ -2,7 +2,7 @@ import random
 from edsl.surveys import Survey
 from edsl.caching import Cache
 from edsl.questions import QuestionMultipleChoice
-from edsl.scenarios.ScenarioList import ScenarioList
+from edsl.scenarios import ScenarioList
 from edsl import Model
 
 c_memory = Cache()

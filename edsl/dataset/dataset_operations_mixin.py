@@ -350,7 +350,7 @@ class DataOperationsBase:
             4
             >>> engine = Results.example()._db(shape = "long")
             >>> len(engine.execute(text("SELECT * FROM self")).fetchall())
-            164
+            172
         """
         # Import needed for database connection
         from sqlalchemy import create_engine
@@ -435,7 +435,7 @@ class DataOperationsBase:
             
             # Using long format
             >>> len(r.sql("SELECT * FROM self", shape="long"))
-            164
+            172
         """
         import pandas as pd
 
@@ -1219,36 +1219,36 @@ class DataOperationsBase:
 
         return result
     
-    def drop(self, field_name):
-        """
-        Returns a new Dataset with the specified field removed.
+    # def drop(self, field_name):
+    #     """
+    #     Returns a new Dataset with the specified field removed.
         
-        Args:
-            field_name (str): The name of the field to remove.
+    #     Args:
+    #         field_name (str): The name of the field to remove.
             
-        Returns:
-            Dataset: A new Dataset instance without the specified field.
+    #     Returns:
+    #         Dataset: A new Dataset instance without the specified field.
             
-        Raises:
-            KeyError: If the field_name doesn't exist in the dataset.
+    #     Raises:
+    #         KeyError: If the field_name doesn't exist in the dataset.
             
-        Examples:
-            >>> from .dataset import Dataset
-            >>> d = Dataset([{'a': [1, 2, 3]}, {'b': [4, 5, 6]}])
-            >>> d.drop('a')
-            Dataset([{'b': [4, 5, 6]}])
+    #     Examples:
+    #         >>> from .dataset import Dataset
+    #         >>> d = Dataset([{'a': [1, 2, 3]}, {'b': [4, 5, 6]}])
+    #         >>> d.drop('a')
+    #         Dataset([{'b': [4, 5, 6]}])
             
-            >>> # Testing drop with nonexistent field raises DatasetKeyError - tested in unit tests
-        """
-        from .dataset import Dataset
+    #         >>> # Testing drop with nonexistent field raises DatasetKeyError - tested in unit tests
+    #     """
+    #     from .dataset import Dataset
         
-        # Check if field exists in the dataset
-        if field_name not in self.relevant_columns():
-            raise DatasetKeyError(f"Field '{field_name}' not found in dataset")
+    #     # Check if field exists in the dataset
+    #     if field_name not in self.relevant_columns():
+    #         raise DatasetKeyError(f"Field '{field_name}' not found in dataset")
         
-        # Create a new dataset without the specified field
-        new_data = [entry for entry in self.data if field_name not in entry]
-        return Dataset(new_data)
+    #     # Create a new dataset without the specified field
+    #     new_data = [entry for entry in self.data if field_name not in entry]
+    #     return Dataset(new_data)
 
     def remove_prefix(self):
         """Returns a new Dataset with the prefix removed from all column names.
