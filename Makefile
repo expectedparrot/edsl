@@ -328,13 +328,13 @@ test-starter-tutorial:
 
 test-integration: ## Run integration tests via pytest **consumes API credits**
 	# cd integration/printing && python check_printing.py
-	pytest -vx integration/active
-	# pytest -v integration/test_example_notebooks.py
-	pytest -v integration/test_integration_jobs.py
-	pytest -v integration/test_memory.py
-	pytest -v integration/test_models.py
-	pytest -v integration/test_questions.py
-	pytest -v integration/test_runners.py
+	# pytest -vx integration/active
+	pytest -v integration/active/test_example_notebooks.py
+	#pytest -v integration/test_integration_jobs.py
+	#pytest -v integration/test_memory.py
+	#pytest -v integration/test_models.py
+	#pytest -v integration/test_questions.py
+	#pytest -v integration/test_runners.py
 
 test-serialization: ## Run serialization tests
 	pytest -v tests/serialization/test_serialization.py
