@@ -1048,6 +1048,7 @@ class DataOperationsBase:
             - All dictionaries in the field must have compatible structures
             - If a dictionary is missing a key, the corresponding value will be None
             - Non-dictionary values in the field will cause a warning
+            - If the field is unambiguous but unprefixed, it will work with just the field name
             
         Examples:
             >>> from edsl.dataset import Dataset
@@ -1064,6 +1065,10 @@ class DataOperationsBase:
             >>> d = Dataset([{'a': [{'a': 1, 'b': 2}]}, {'c': [5]}])
             >>> d.flatten('a', keep_original=True)
             Dataset([{'a': [{'a': 1, 'b': 2}]}, {'c': [5]}, {'a.a': [1]}, {'a.b': [2]}])
+            
+            # Can also use unambiguous unprefixed field name
+            >>> Dataset([{'answer.pros_cons': [{'pros': ['Safety'], 'cons': ['Cost']}]}]).flatten('pros_cons')
+            Dataset([{'answer.pros_cons.pros': [['Safety']]}, {'answer.pros_cons.cons': [['Cost']]}])
         """
         from ..dataset import Dataset
 
@@ -1071,40 +1076,71 @@ class DataOperationsBase:
         if not self.data:
             return self.copy()
         
-        # Find all columns that contain the field
-        matching_entries = []
+        # First try direct match with the exact field name
+        field_entry = None
         for entry in self.data:
             col_name = next(iter(entry.keys()))
-            if field == col_name or (
-                '.' in col_name and 
-                (col_name.endswith('.' + field) or col_name.startswith(field + '.'))
-            ):
-                matching_entries.append(entry)
+            if field == col_name:
+                field_entry = entry
+                break
         
-        # Check if the field is ambiguous
-        if len(matching_entries) > 1:
-            matching_cols = [next(iter(entry.keys())) for entry in matching_entries]
-            from .exceptions import DatasetValueError
-            raise DatasetValueError(
-                f"Ambiguous field name '{field}'. It matches multiple columns: {matching_cols}. "
-                f"Please specify the full column name to flatten."
-            )
-
+        # If not found, try to match by unprefixed name
+        if field_entry is None:
+            # Find any columns that have field as their unprefixed name
+            candidates = []
+            for entry in self.data:
+                col_name = next(iter(entry.keys()))
+                if '.' in col_name:
+                    prefix, col_field = col_name.split('.', 1)
+                    if col_field == field:
+                        candidates.append(entry)
+            
+            # If we found exactly one match by unprefixed name, use it
+            if len(candidates) == 1:
+                field_entry = candidates[0]
+            # If we found multiple matches, it's ambiguous
+            elif len(candidates) > 1:
+                matching_cols = [next(iter(entry.keys())) for entry in candidates]
+                from .exceptions import DatasetValueError
+                raise DatasetValueError(
+                    f"Ambiguous field name '{field}'. It matches multiple columns: {matching_cols}. "
+                    f"Please specify the full column name to flatten."
+                )
+            # If no candidates by unprefixed name, check partial matches
+            else:
+                partial_matches = []
+                for entry in self.data:
+                    col_name = next(iter(entry.keys()))
+                    if '.' in col_name and (
+                        col_name.endswith('.' + field) or 
+                        col_name.startswith(field + '.')
+                    ):
+                        partial_matches.append(entry)
+                
+                # If we found exactly one partial match, use it
+                if len(partial_matches) == 1:
+                    field_entry = partial_matches[0]
+                # If we found multiple partial matches, it's ambiguous
+                elif len(partial_matches) > 1:
+                    matching_cols = [next(iter(entry.keys())) for entry in partial_matches]
+                    from .exceptions import DatasetValueError
+                    raise DatasetValueError(
+                        f"Ambiguous field name '{field}'. It matches multiple columns: {matching_cols}. "
+                        f"Please specify the full column name to flatten."
+                    )
+        
         # Get the number of observations
         num_observations = self.num_observations()
 
-        # Find the column to flatten
-        field_entry = None
-        for entry in self.data:
-            if field in entry:
-                field_entry = entry
-                break
-
+        # If we still haven't found the field, it's not in the dataset
         if field_entry is None:
             warnings.warn(
                 f"Field '{field}' not found in dataset, returning original dataset"
             )
             return self.copy()
+        
+        # Get the actual field name as it appears in the data
+        actual_field = next(iter(field_entry.keys()))
 
         # Create new dictionary for flattened data
         flattened_data = []
@@ -1112,14 +1148,14 @@ class DataOperationsBase:
         # Copy all existing columns except the one we're flattening (if keep_original is False)
         for entry in self.data:
             col_name = next(iter(entry.keys()))
-            if col_name != field or keep_original:
+            if col_name != actual_field or keep_original:
                 flattened_data.append(entry.copy())
 
         # Get field data and make sure it's valid
-        field_values = field_entry[field]
+        field_values = field_entry[actual_field]
         if not all(isinstance(item, dict) for item in field_values if item is not None):
             warnings.warn(
-                f"Field '{field}' contains non-dictionary values that cannot be flattened"
+                f"Field '{actual_field}' contains non-dictionary values that cannot be flattened"
             )
             return self.copy()
 
@@ -1139,7 +1175,7 @@ class DataOperationsBase:
                 new_values.append(value)
 
             # Add this as a new column
-            flattened_data.append({f"{field}.{key}": new_values})
+            flattened_data.append({f"{actual_field}.{key}": new_values})
 
         # Return a new Dataset with the flattened data
         return Dataset(flattened_data)
