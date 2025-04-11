@@ -4,9 +4,15 @@
 ### Added
 - New video file handlers: `Scenario` objects can be videos (MP4 and WebM).  
 
-- New question type `QuestionMultipleChoiceWithOther` automatically includes "Other" in the `question_options`.  
+- New question type `QuestionMultipleChoiceWithOther` automatically includes "Other" in the `question_options` and has the following default instructions: "If none of the provided options apply, select "Other" and provide your specific response.
+Only 1 option may be selected.
+Respond with a string corresponding to one of the options.
+If none of the options match, respond with:
+Other: [your specific response]
+For example: "Other: Paris" if your answer is Paris.
+After the answer, you can put a comment explaining why you chose that option on the next line."
 
-- Question type `QuestionMultipleChoice` now takes an optional parameter `enumeration` that allows you to specify the enumeration of the `question_options`, e.g., ["a", "b", "c", "d", ...] instead of the default options [0, 1, 2, 3, ...]. This parameter can also be passed to new question type `QuestionMultipleChoiceWithOther`.
+- Question type `QuestionMultipleChoice` now takes an optional parameter `enumeration_style` that allows you to specify "numeric" (default) or "letter" options (["A", "B", "C", "D"]). This parameter can also be passed to new question type `QuestionMultipleChoiceWithOther`.
 
 ### Changed
 
