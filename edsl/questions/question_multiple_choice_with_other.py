@@ -7,9 +7,7 @@ from pydantic import BaseModel, Field
 from .question_base import QuestionBase
 from .descriptors import QuestionOptionsDescriptor
 from .decorators import inject_exception
-from .response_validator_abc import ResponseValidatorABC
-from .question_multiple_choice import BaseMultipleChoiceResponse, MultipleChoiceResponseValidator
-from pydantic import BaseModel, Field
+from .question_multiple_choice import MultipleChoiceResponseValidator
 
 # Create a custom response model for MultipleChoiceWithOther
 class BaseMultipleChoiceWithOtherResponse(BaseModel):

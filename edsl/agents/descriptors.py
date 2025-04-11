@@ -5,6 +5,14 @@ from .exceptions import AgentNameError, AgentTraitKeyError
 
 
 def convert_agent_name(x):
+    """Convert various types to appropriate agent name types.
+    
+    Args:
+        x: The input value to convert to a proper agent name type
+        
+    Returns:
+        int, str, or None: The properly typed agent name
+    """
     # potentially a numpy int64
     import numpy as np
 
@@ -19,30 +27,73 @@ def convert_agent_name(x):
 
 
 class NameDescriptor:
-    """Valid agent name descriptor."""
+    """Valid agent name descriptor.
+    
+    This descriptor handles the 'name' attribute of Agent objects, ensuring 
+    proper type conversion and validation.
+    """
 
     def __get__(self, instance, owner):
-        """Return the value of the attribute."""
+        """Return the value of the attribute.
+        
+        Args:
+            instance: The instance object
+            owner: The class
+            
+        Returns:
+            The name value for the agent
+        """
         return instance.__dict__[self.name]
 
     def __set__(self, instance, name: str) -> None:
-        """Set the value of the attribute."""
+        """Set the value of the attribute.
+        
+        Args:
+            instance: The instance object
+            name: The name to set
+        """
         instance.__dict__[self.name] = convert_agent_name(name)
 
     def __set_name__(self, owner, name: str) -> None:
-        """Set the name of the attribute."""
+        """Set the name of the attribute in the instance's dictionary.
+        
+        Args:
+            owner: The class
+            name: The name of the attribute
+        """
         self.name = "_" + name
 
 
 class TraitsDescriptor:
-    """Traits descriptor."""
+    """Traits descriptor.
+    
+    This descriptor handles the 'traits' attribute of Agent objects, ensuring
+    that trait keys are valid Python identifiers and validating inputs.
+    """
 
     def __get__(self, instance, owner):
-        """Return the value of the attribute."""
+        """Return the value of the attribute.
+        
+        Args:
+            instance: The instance object
+            owner: The class
+            
+        Returns:
+            dict: The traits dictionary
+        """
         return instance.__dict__[self.name]
 
     def __set__(self, instance, traits_dict: Dict[str, str]) -> None:
-        """Set the value of the attribute."""
+        """Set the value of the attribute.
+        
+        Args:
+            instance: The instance object
+            traits_dict: Dictionary of traits to set
+            
+        Raises:
+            AgentNameError: If 'name' is used as a trait key
+            AgentTraitKeyError: If a trait key is not a valid Python identifier
+        """
         from ..utilities.utilities import is_valid_variable_name
 
         for key, value in traits_dict.items():
@@ -62,7 +113,12 @@ class TraitsDescriptor:
         instance.__dict__[self.name] = traits_dict
 
     def __set_name__(self, owner, name: str) -> None:
-        """Set the name of the attribute."""
+        """Set the name of the attribute in the instance's dictionary.
+        
+        Args:
+            owner: The class
+            name: The name of the attribute
+        """
         self.name = name
 
 
@@ -76,7 +132,7 @@ class CodebookDescriptor:
     For example, a trait key like 'age' might have a codebook description of
     'Age in years', making prompts more natural and clear.
     
-    Example:
+    Examples:
         >>> # Agent would typically be imported from edsl.agents
         >>> # For doctests, we'll just demonstrate the descriptor behavior
         >>> class TestObject:
@@ -122,17 +178,39 @@ class CodebookDescriptor:
 
 
 class InstructionDescriptor:
-    """ABC for something."""
+    """Descriptor for the Agent's instruction attribute.
+    
+    This descriptor handles the 'instruction' attribute of Agent objects,
+    tracking whether a custom instruction has been set.
+    """
 
     def __get__(self, instance, owner):
-        """Return the value of the attribute."""
+        """Return the value of the attribute.
+        
+        Args:
+            instance: The instance object
+            owner: The class
+            
+        Returns:
+            str: The instruction for the agent
+        """
         return instance.__dict__[self.name]
 
     def __set__(self, instance, instruction) -> None:
-        """Set the value of the attribute."""
+        """Set the value of the attribute.
+        
+        Args:
+            instance: The instance object
+            instruction: The instruction to set
+        """
         instance.__dict__[self.name] = instruction
         instance.set_instructions = instruction != instance.default_instruction
 
     def __set_name__(self, owner, name: str) -> None:
-        """Set the name of the attribute."""
+        """Set the name of the attribute in the instance's dictionary.
+        
+        Args:
+            owner: The class
+            name: The name of the attribute
+        """
         self.name = "_" + name

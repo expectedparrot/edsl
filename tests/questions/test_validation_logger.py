@@ -3,7 +3,6 @@
 import json
 import os
 import pytest
-from unittest.mock import patch
 
 from edsl.questions.validation_logger import (
     log_validation_failure,

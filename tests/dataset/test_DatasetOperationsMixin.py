@@ -1,7 +1,6 @@
 import pytest
 from edsl.dataset import Dataset
 from edsl.dataset.exceptions import DatasetValueError, DatasetKeyError, DatasetTypeError
-from edsl.results import Results
 
 
 class TestDatasetOperationsMixin:

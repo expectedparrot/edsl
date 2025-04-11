@@ -1,5 +1,5 @@
 from collections import UserDict
-from typing import DefaultDict, Union, Optional
+from typing import DefaultDict, Optional
 
 from ..tokens import InterviewTokenUsage
 

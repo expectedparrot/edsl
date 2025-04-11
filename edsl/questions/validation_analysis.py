@@ -7,7 +7,7 @@ and suggest improvements to the fix methods for various question types.
 import collections
 import json
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 
 from ..config import CONFIG
 from .validation_logger import get_validation_failure_logs

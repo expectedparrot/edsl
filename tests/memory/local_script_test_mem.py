@@ -3,7 +3,6 @@ from edsl import QuestionFreeText, QuestionList
 from edsl import Survey, Model
 import json
 import time
-from memory_profiler import memory_usage
 
 import os
 current_dir = os.path.dirname(__file__)
@@ -13,7 +12,6 @@ my_print = FileStore(img_path)
 s = Scenario({f"image_{i}": my_print for i in range(0, 10)})
 
 def print_memory(label):
-    from memory_profiler import memory_usage
     mem = memory_usage(-1, interval=0.1, timeout=1)
     print(f"[MEM] {label}: {mem[0]:.2f} MiB")
 

@@ -1,6 +1,6 @@
 # edsl/plugins/text_plugins.py
 import pluggy
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 
 # Define a hook implementation marker
 hookimpl = pluggy.HookimplMarker("edsl")

@@ -6,13 +6,11 @@ This script provides line-by-line memory profiling for specific functions
 in the EDSL codebase, focusing on the ScenarioList.filter method.
 """
 
-import os
 import sys
 import argparse
 import subprocess
 import webbrowser
 import tempfile
-import shutil
 from pathlib import Path
 
 def run_memory_line_profiler(
@@ -173,7 +171,7 @@ if __name__ == "__main__":
 """)
         
         # Run the memory profiler
-        print(f"Running line-by-line memory profiling on ScenarioList.filter...")
+        print("Running line-by-line memory profiling on ScenarioList.filter...")
         print(f"Parameters: size={size}, expression='{expression}'")
         
         with open(text_output, 'w') as f:

@@ -741,19 +741,21 @@ class Agent(Base):
     ) -> Agent:
         """Rename a trait.
 
-        :param old_name_or_dict: The old name of the trait or a dictionary of old names and new names.
-        :param new_name: The new name of the trait.
+        Args:
+            old_name_or_dict: The old name of the trait or a dictionary of old names and new names.
+            new_name: The new name of the trait.
 
-        Example usage:
+        Returns:
+            Agent: A new Agent with the renamed trait(s).
+            
+        Examples:
+            >>> a = Agent(traits = {"age": 10, "hair": "brown", "height": 5.5})
+            >>> newa = a.rename("age", "years")
+            >>> newa == Agent(traits = {'years': 10, 'hair': 'brown', 'height': 5.5})
+            True
 
-        >>> a = Agent(traits = {"age": 10, "hair": "brown", "height": 5.5})
-        >>> newa = a.rename("age", "years")
-        >>> newa == Agent(traits = {'years': 10, 'hair': 'brown', 'height': 5.5})
-        True
-
-        >>> newa.rename({'years': 'smage'}) == Agent(traits = {'smage': 10, 'hair': 'brown', 'height': 5.5})
-        True
-
+            >>> newa.rename({'years': 'smage'}) == Agent(traits = {'smage': 10, 'hair': 'brown', 'height': 5.5})
+            True
         """
         self._check_before_modifying_traits()
         if isinstance(old_name_or_dict, dict) and new_name:
@@ -850,18 +852,21 @@ class Agent(Base):
     ) -> None:
         """Add a method to the agent that can answer a particular question type.
         https://docs.expectedparrot.com/en/latest/agents.html#agent-direct-answering-methods
-
-        :param method: A method that can answer a question directly.
-        :param validate_response: Whether to validate the response.
-        :param translate_response: Whether to translate the response.
-
-        Example usage:
-
-        >>> a = Agent()
-        >>> def f(self, question, scenario): return "I am a direct answer."
-        >>> a.add_direct_question_answering_method(f)
-        >>> a.answer_question_directly(question = None, scenario = None)
-        'I am a direct answer.'
+        
+        Args:
+            method: A method that can answer a question directly.
+            validate_response: Whether to validate the response.
+            translate_response: Whether to translate the response.
+        
+        Raises:
+            AgentDirectAnswerFunctionError: If the method doesn't have the required parameters.
+        
+        Examples:
+            >>> a = Agent()
+            >>> def f(self, question, scenario): return "I am a direct answer."
+            >>> a.add_direct_question_answering_method(f)
+            >>> a.answer_question_directly(question = None, scenario = None)
+            'I am a direct answer.'
         """
         if hasattr(self, "answer_question_directly"):
 
@@ -1268,11 +1273,15 @@ class Agent(Base):
     def from_dict(cls, agent_dict: dict[str, Union[dict, bool]]) -> Agent:
         """Deserialize from a dictionary.
 
-        Example usage:
-
-        >>> Agent.from_dict({'name': "Steve", 'traits': {'age': 10, 'hair': 'brown', 'height': 5.5}})
-        Agent(name = \"""Steve\""", traits = {'age': 10, 'hair': 'brown', 'height': 5.5})
-
+        Args:
+            agent_dict: A dictionary representation of an Agent.
+            
+        Returns:
+            Agent: A new Agent instance created from the dictionary.
+            
+        Examples:
+            >>> Agent.from_dict({'name': "Steve", 'traits': {'age': 10, 'hair': 'brown', 'height': 5.5}})
+            Agent(name = \"""Steve\""", traits = {'age': 10, 'hair': 'brown', 'height': 5.5})
         """
         if "traits" in agent_dict:
             return cls(
@@ -1296,10 +1305,19 @@ class Agent(Base):
         return table_data, column_names
 
     def add_trait(self, trait_name_or_dict: str, value: Optional[Any] = None) -> Agent:
-        """Adds a trait to an agent and returns that agent
-        >>> a = Agent(traits = {"age": 10, "hair": "brown", "height": 5.5})
-        >>> a.add_trait("weight", 150)
-        Agent(traits = {'age': 10, 'hair': 'brown', 'height': 5.5, 'weight': 150})
+        """Adds a trait to an agent and returns that agent.
+        
+        Args:
+            trait_name_or_dict: The name of the trait or a dictionary of traits to add.
+            value: The value of the trait (if trait_name_or_dict is a string).
+            
+        Returns:
+            Agent: A new Agent with the added trait(s).
+            
+        Examples:
+            >>> a = Agent(traits = {"age": 10, "hair": "brown", "height": 5.5})
+            >>> a.add_trait("weight", 150)
+            Agent(traits = {'age': 10, 'hair': 'brown', 'height': 5.5, 'weight': 150})
         """
         if isinstance(trait_name_or_dict, dict) and value is None:
             newagent = self.duplicate()
@@ -1321,11 +1339,16 @@ class Agent(Base):
     def remove_trait(self, trait: str) -> Agent:
         """Remove a trait from the agent.
 
-        Example usage:
-
-        >>> a = Agent(traits = {"age": 10, "hair": "brown", "height": 5.5})
-        >>> a.remove_trait("age")
-        Agent(traits = {'hair': 'brown', 'height': 5.5})
+        Args:
+            trait: The name of the trait to remove.
+            
+        Returns:
+            Agent: A new Agent without the specified trait.
+            
+        Examples:
+            >>> a = Agent(traits = {"age": 10, "hair": "brown", "height": 5.5})
+            >>> a.remove_trait("age")
+            Agent(traits = {'hair': 'brown', 'height': 5.5})
         """
         newagent = self.duplicate()
         newagent.traits = {k: v for k, v in self.traits.items() if k != trait}
@@ -1334,11 +1357,16 @@ class Agent(Base):
     def translate_traits(self, values_codebook: dict) -> Agent:
         """Translate traits to a new codebook.
 
-        >>> a = Agent(traits = {"age": 10, "hair": 1, "height": 5.5})
-        >>> a.translate_traits({"hair": {1:"brown"}})
-        Agent(traits = {'age': 10, 'hair': 'brown', 'height': 5.5})
-
-        :param values_codebook: The new codebook.
+        Args:
+            values_codebook: The new codebook.
+            
+        Returns:
+            Agent: A new Agent with the translated traits.
+            
+        Examples:
+            >>> a = Agent(traits = {"age": 10, "hair": 1, "height": 5.5})
+            >>> a.translate_traits({"hair": {1:"brown"}})
+            Agent(traits = {'age': 10, 'hair': 'brown', 'height': 5.5})
         """
         new_traits = {}
         for key, value in self.traits.items():
@@ -1355,10 +1383,15 @@ class Agent(Base):
         """
         Returns an example Agent instance.
 
-        :param randomize: If True, adds a random string to the value of an example key.
-
-        >>> Agent.example()
-        Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5})
+        Args:
+            randomize: If True, adds a random string to the value of an example key.
+            
+        Returns:
+            Agent: An example Agent instance.
+            
+        Examples:
+            >>> Agent.example()
+            Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5})
         """
         addition = "" if not randomize else str(uuid4())
         return cls(traits={"age": 22, "hair": f"brown{addition}", "height": 5.5})

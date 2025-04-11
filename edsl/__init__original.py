@@ -1,13 +1,9 @@
 import os
-import time
 import importlib
-import pkgutil
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ROOT_DIR = os.path.dirname(BASE_DIR)
 
-from edsl.__version__ import __version__
-from edsl.config import Config, CONFIG
 
 # Initialize and expose logger
 from edsl import logger

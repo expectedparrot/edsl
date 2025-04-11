@@ -75,7 +75,6 @@ class WebmMethods(FileMethods):
         Returns:
             str: Path to the created example WebM file
         """
-        import os
         import subprocess
         
         # Create a temporary file for the output

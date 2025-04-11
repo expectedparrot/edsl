@@ -12,7 +12,6 @@ Results are saved to a log file for historical tracking.
 
 import time
 import datetime
-import os
 import json
 import argparse
 from pathlib import Path
@@ -38,7 +37,6 @@ def timed(func):
 @timed
 def benchmark_import():
     """Benchmark the time it takes to import edsl."""
-    import edsl
     return None
 
 
@@ -83,7 +81,6 @@ def render_survey_prompts(survey):
 def run_survey_with_test_model(survey, num_questions=10):
     """Run a survey with a test model and measure performance."""
     from edsl import Survey
-    from edsl import Model
     
     # Use a subset of questions if needed
     if len(survey.questions) > num_questions:

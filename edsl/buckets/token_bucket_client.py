@@ -442,7 +442,6 @@ class TokenBucketClient:
 
         # Import here to avoid loading matplotlib until needed
         from matplotlib import pyplot as plt
-        from matplotlib.figure import Figure
         
         # Create the plot
         fig = plt.figure(figsize=(10, 6))

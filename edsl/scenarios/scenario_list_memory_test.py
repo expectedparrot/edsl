@@ -7,7 +7,7 @@ import os
 import psutil
 import time
 import json
-from typing import Dict, List, Any, Tuple
+from typing import Dict, List
 import matplotlib.pyplot as plt
 
 def get_memory_usage() -> float:
@@ -53,7 +53,7 @@ def run_memory_test(sizes: List[int], item_size_kb: int = 10) -> Dict[str, Dict[
         gc.collect()
         time.sleep(1)  # Give system time to stabilize
         
-        baseline_mem = log_memory(f"Baseline memory")
+        baseline_mem = log_memory("Baseline memory")
         results["baseline"][size] = baseline_mem
         
         # Create test data
@@ -75,7 +75,7 @@ def run_memory_test(sizes: List[int], item_size_kb: int = 10) -> Dict[str, Dict[
         after_raw_mem = log_memory("Memory after creating raw data")
         
         # Create ScenarioList
-        print(f"Creating ScenarioList...")
+        print("Creating ScenarioList...")
         start_time = time.time()
         sl = ScenarioList(scenarios)
         creation_time = time.time() - start_time
@@ -88,7 +88,7 @@ def run_memory_test(sizes: List[int], item_size_kb: int = 10) -> Dict[str, Dict[
         print(f"Creation time: {creation_time:.2f} seconds")
         
         # Filter ScenarioList
-        print(f"Filtering ScenarioList...")
+        print("Filtering ScenarioList...")
         start_time = time.time()
         filtered = sl.filter("id % 2 == 0")
         filter_time = time.time() - start_time

@@ -41,8 +41,8 @@ import random
 import warnings
 from collections import defaultdict
 from typing import Optional, Callable, Any, Union, List, TYPE_CHECKING
-from bisect import bisect_left
 from collections.abc import MutableSequence
+from bisect import bisect_left
 
 from ..base import Base
 from ..caching import Cache, CacheEntry
@@ -2080,7 +2080,6 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             >>> new_result.order = 1.5  # Insert between items
             >>> r.insert_sorted(new_result)
         """
-        from bisect import bisect_left
 
         def get_sort_key(result):
             if hasattr(result, "order"):
@@ -2154,7 +2153,6 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         import os
         import tempfile
         from pathlib import Path
-        import sqlite3
         import shutil
 
         data_class = ResultsSQLList

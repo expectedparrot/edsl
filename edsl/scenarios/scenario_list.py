@@ -27,20 +27,18 @@ from typing import (
     Literal,
     TYPE_CHECKING,
 )
-import warnings
-import csv
 import random
 import os
-from io import StringIO
 import inspect
-from collections import UserList, defaultdict
+from collections import defaultdict
 from collections.abc import Iterable, MutableSequence
 import json
 import pickle
+import warnings
 
 
 # Import for refactoring to Source classes 
-from edsl.scenarios.scenario_source import deprecated_classmethod, TuplesSource
+from edsl.scenarios.scenario_source import deprecated_classmethod
 
 from simpleeval import EvalWithCompoundTypes, NameNotDefined  # type: ignore
 from tabulate import tabulate_formats
@@ -72,9 +70,6 @@ from ..db_list.sqlite_list import SQLiteList
 
 from .exceptions import ScenarioError
 from .scenario import Scenario
-from .scenario_list_pdf_tools import PdfTools
-from .directory_scanner import DirectoryScanner
-from .file_store import FileStore
 
 
 if TYPE_CHECKING:
@@ -119,17 +114,38 @@ else:
     data_class = list
 
 class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
-    """
-    A collection of Scenario objects with advanced operations for manipulation and analysis.
+    """A collection of Scenario objects with advanced operations for manipulation and analysis.
 
-    ScenarioList provides specialized functionality for working with collections of
-    Scenario objects. It inherits from MutableSequence to provide standard list operations,
-    from Base to integrate with EDSL's object model, and from ScenarioListOperationsMixin
-    to provide powerful data manipulation capabilities.
+    ScenarioList extends the functionality of a simple list of Scenario objects by providing
+    powerful operations for data manipulation, filtering, transformation, and analysis.
+    It serves as a bridge between individual Scenarios and higher-level EDSL components like
+    Surveys and Jobs.
 
     Attributes:
         data (list): The underlying list containing Scenario objects.
         codebook (dict): Optional metadata describing the fields in the scenarios.
+
+    Key Features:
+        - Collection operations (filtering, sorting, sampling, and iteration)
+        - Data manipulation (transformation, joining, grouping, pivoting)
+        - Format conversion (to/from pandas, CSV, Excel, etc.)
+        - Advanced selection and retrieval mechanisms
+        - Integration with other EDSL components
+
+    Example:
+        >>> # Create a simple ScenarioList
+        >>> s = ScenarioList([
+        ...     Scenario({'name': 'Alice', 'age': 30}),
+        ...     Scenario({'name': 'Bob', 'age': 25})
+        ... ])
+        >>> # Filter scenarios
+        >>> adults = s.filter('age >= 30')
+        >>> adults
+        ScenarioList([Scenario({'name': 'Alice', 'age': 30})])
+        >>> # Add a new field
+        >>> with_location = s.add_value('location', 'New York')
+        >>> with_location
+        ScenarioList([Scenario({'name': 'Alice', 'age': 30, 'location': 'New York'}), Scenario({'name': 'Bob', 'age': 25, 'location': 'New York'})])
     """
 
     __documentation__ = (
@@ -153,31 +169,74 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         for item in self.data:
             try:
                 _ = json.dumps(item.to_dict())
-            except Exception as e:
+            except Exception:
                 return False
         return True
 
     # Required MutableSequence abstract methods
     def __getitem__(self, index):
-        """Get item at index."""
+        """Get item at index.
+        
+        >>> s = ScenarioList([Scenario({'a': 1}), Scenario({'a': 2}), Scenario({'a': 3})])
+        >>> s[0]
+        Scenario({'a': 1})
+        >>> s[1:]
+        ScenarioList([Scenario({'a': 2}), Scenario({'a': 3})])
+        >>> s[-1]
+        Scenario({'a': 3})
+        """
         if isinstance(index, slice):
             return self.__class__(list(self.data[index]), self.codebook.copy())
         return self.data[index]
 
     def __setitem__(self, index, value):
-        """Set item at index."""
+        """Set item at index.
+        
+        >>> s = ScenarioList([Scenario({'a': 1}), Scenario({'a': 2})])
+        >>> s[0] = Scenario({'a': 3})
+        >>> s[0]
+        Scenario({'a': 3})
+        >>> s[1] = Scenario({'a': 4})
+        >>> s == ScenarioList([Scenario({'a': 3}), Scenario({'a': 4})])
+        True
+        """
         self.data[index] = value
 
     def __delitem__(self, index):
-        """Delete item at index."""
+        """Delete item at index.
+        
+        >>> s = ScenarioList([Scenario({'a': 1}), Scenario({'a': 2}), Scenario({'a': 3})])
+        >>> del s[1]
+        >>> s == ScenarioList([Scenario({'a': 1}), Scenario({'a': 3})])
+        True
+        >>> len(s)
+        2
+        """
         del self.data[index]
 
     def __len__(self):
-        """Return number of items."""
+        """Return number of items.
+        
+        >>> s = ScenarioList([Scenario({'a': 1}), Scenario({'a': 2})])
+        >>> len(s)
+        2
+        >>> s = ScenarioList([])
+        >>> len(s)
+        0
+        """
         return len(self.data)
 
     def insert(self, index, value):
-        """Insert value at index."""
+        """Insert value at index.
+        
+        >>> s = ScenarioList([Scenario({'a': 1}), Scenario({'a': 2})])
+        >>> s.insert(1, Scenario({'a': 3}))
+        >>> s == ScenarioList([Scenario({'a': 1}), Scenario({'a': 3}), Scenario({'a': 2})])
+        True
+        >>> s.insert(0, Scenario({'a': 4}))
+        >>> s == ScenarioList([Scenario({'a': 4}), Scenario({'a': 1}), Scenario({'a': 3}), Scenario({'a': 2})])
+        True
+        """
         self.data.insert(index, value)
 
     def unique(self) -> ScenarioList:
@@ -282,20 +341,21 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         """Give valid names to the scenario keys, using an existing codebook if provided.
 
         Args:
-            existing_codebook (dict, optional): Existing mapping of original keys to valid names.
+            existing_codebook: Existing mapping of original keys to valid names.
                 Defaults to None.
 
         Returns:
             ScenarioList: A new ScenarioList with valid variable names and updated codebook.
 
-        >>> s = ScenarioList([Scenario({'a': 1, 'b': 2}), Scenario({'a': 1, 'b': 1})])
-        >>> s.give_valid_names()
-        ScenarioList([Scenario({'a': 1, 'b': 2}), Scenario({'a': 1, 'b': 1})])
-        >>> s = ScenarioList([Scenario({'are you there John?': 1, 'b': 2}), Scenario({'a': 1, 'b': 1})])
-        >>> s.give_valid_names()
-        ScenarioList([Scenario({'john': 1, 'b': 2}), Scenario({'a': 1, 'b': 1})])
-        >>> s.give_valid_names({'are you there John?': 'custom_name'})
-        ScenarioList([Scenario({'custom_name': 1, 'b': 2}), Scenario({'a': 1, 'b': 1})])
+        Examples:
+            >>> s = ScenarioList([Scenario({'a': 1, 'b': 2}), Scenario({'a': 1, 'b': 1})])
+            >>> s.give_valid_names()
+            ScenarioList([Scenario({'a': 1, 'b': 2}), Scenario({'a': 1, 'b': 1})])
+            >>> s = ScenarioList([Scenario({'are you there John?': 1, 'b': 2}), Scenario({'a': 1, 'b': 1})])
+            >>> s.give_valid_names()
+            ScenarioList([Scenario({'john': 1, 'b': 2}), Scenario({'a': 1, 'b': 1})])
+            >>> s.give_valid_names({'are you there John?': 'custom_name'})
+            ScenarioList([Scenario({'custom_name': 1, 'b': 2}), Scenario({'a': 1, 'b': 1})])
         """
         codebook = existing_codebook.copy() if existing_codebook else {}
         
@@ -330,17 +390,20 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         """
         Unpivot the ScenarioList, allowing for id variables to be specified.
 
-        Parameters:
-        id_vars (list): Fields to use as identifier variables (kept in each entry)
-        value_vars (list): Fields to unpivot. If None, all fields not in id_vars will be used.
+        Args:
+            id_vars: Fields to use as identifier variables (kept in each entry)
+            value_vars: Fields to unpivot. If None, all fields not in id_vars will be used.
+
+        Returns:
+            ScenarioList: A new ScenarioList with the data in long format.
 
         Example:
-        >>> s = ScenarioList([
-        ...     Scenario({'id': 1, 'year': 2020, 'a': 10, 'b': 20}),
-        ...     Scenario({'id': 2, 'year': 2021, 'a': 15, 'b': 25})
-        ... ])
-        >>> s.unpivot(id_vars=['id', 'year'], value_vars=['a', 'b'])
-        ScenarioList([Scenario({'id': 1, 'year': 2020, 'variable': 'a', 'value': 10}), Scenario({'id': 1, 'year': 2020, 'variable': 'b', 'value': 20}), Scenario({'id': 2, 'year': 2021, 'variable': 'a', 'value': 15}), Scenario({'id': 2, 'year': 2021, 'variable': 'b', 'value': 25})])
+            >>> s = ScenarioList([
+            ...     Scenario({'id': 1, 'year': 2020, 'a': 10, 'b': 20}),
+            ...     Scenario({'id': 2, 'year': 2021, 'a': 15, 'b': 25})
+            ... ])
+            >>> s.unpivot(id_vars=['id', 'year'], value_vars=['a', 'b'])
+            ScenarioList([Scenario({'id': 1, 'year': 2020, 'variable': 'a', 'value': 10}), Scenario({'id': 1, 'year': 2020, 'variable': 'b', 'value': 20}), Scenario({'id': 2, 'year': 2021, 'variable': 'a', 'value': 15}), Scenario({'id': 2, 'year': 2021, 'variable': 'b', 'value': 25})])
         """
         if id_vars is None:
             id_vars = []
@@ -366,20 +429,23 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         """
         Pivot the ScenarioList from long to wide format.
 
-        Parameters:
-        id_vars (list): Fields to use as identifier variables
-        var_name (str): Name of the variable column (default: 'variable')
-        value_name (str): Name of the value column (default: 'value')
+        Args:
+            id_vars: Fields to use as identifier variables
+            var_name: Name of the variable column (default: 'variable')
+            value_name: Name of the value column (default: 'value')
+
+        Returns:
+            ScenarioList: A new ScenarioList with the data in wide format.
 
         Example:
-        >>> s = ScenarioList([
-        ...     Scenario({'id': 1, 'year': 2020, 'variable': 'a', 'value': 10}),
-        ...     Scenario({'id': 1, 'year': 2020, 'variable': 'b', 'value': 20}),
-        ...     Scenario({'id': 2, 'year': 2021, 'variable': 'a', 'value': 15}),
-        ...     Scenario({'id': 2, 'year': 2021, 'variable': 'b', 'value': 25})
-        ... ])
-        >>> s.pivot(id_vars=['id', 'year'])
-        ScenarioList([Scenario({'id': 1, 'year': 2020, 'a': 10, 'b': 20}), Scenario({'id': 2, 'year': 2021, 'a': 15, 'b': 25})])
+            >>> s = ScenarioList([
+            ...     Scenario({'id': 1, 'year': 2020, 'variable': 'a', 'value': 10}),
+            ...     Scenario({'id': 1, 'year': 2020, 'variable': 'b', 'value': 20}),
+            ...     Scenario({'id': 2, 'year': 2021, 'variable': 'a', 'value': 15}),
+            ...     Scenario({'id': 2, 'year': 2021, 'variable': 'b', 'value': 25})
+            ... ])
+            >>> s.pivot(id_vars=['id', 'year'])
+            ScenarioList([Scenario({'id': 1, 'year': 2020, 'a': 10, 'b': 20}), Scenario({'id': 2, 'year': 2021, 'a': 15, 'b': 25})])
         """
         pivoted_dict = {}
 
@@ -407,24 +473,25 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         """
         Group the ScenarioList by id_vars and apply a function to the specified variables.
 
-        :param id_vars: Fields to use as identifier variables
-        :param variables: Fields to group and aggregate
-        :param func: Function to apply to the grouped variables
+        Args:
+            id_vars: Fields to use as identifier variables
+            variables: Fields to group and aggregate
+            func: Function to apply to the grouped variables
 
         Returns:
-        ScenarioList: A new ScenarioList with the grouped and aggregated results
+            ScenarioList: A new ScenarioList with the grouped and aggregated results
 
         Example:
-        >>> def avg_sum(a, b):
-        ...     return {'avg_a': sum(a) / len(a), 'sum_b': sum(b)}
-        >>> s = ScenarioList([
-        ...     Scenario({'group': 'A', 'year': 2020, 'a': 10, 'b': 20}),
-        ...     Scenario({'group': 'A', 'year': 2021, 'a': 15, 'b': 25}),
-        ...     Scenario({'group': 'B', 'year': 2020, 'a': 12, 'b': 22}),
-        ...     Scenario({'group': 'B', 'year': 2021, 'a': 17, 'b': 27})
-        ... ])
-        >>> s.group_by(id_vars=['group'], variables=['a', 'b'], func=avg_sum)
-        ScenarioList([Scenario({'group': 'A', 'avg_a': 12.5, 'sum_b': 45}), Scenario({'group': 'B', 'avg_a': 14.5, 'sum_b': 49})])
+            >>> def avg_sum(a, b):
+            ...     return {'avg_a': sum(a) / len(a), 'sum_b': sum(b)}
+            >>> s = ScenarioList([
+            ...     Scenario({'group': 'A', 'year': 2020, 'a': 10, 'b': 20}),
+            ...     Scenario({'group': 'A', 'year': 2021, 'a': 15, 'b': 25}),
+            ...     Scenario({'group': 'B', 'year': 2020, 'a': 12, 'b': 22}),
+            ...     Scenario({'group': 'B', 'year': 2021, 'a': 17, 'b': 27})
+            ... ])
+            >>> s.group_by(id_vars=['group'], variables=['a', 'b'], func=avg_sum)
+            ScenarioList([Scenario({'group': 'A', 'avg_a': 12.5, 'sum_b': 45}), Scenario({'group': 'B', 'avg_a': 14.5, 'sum_b': 49})])
         """
         # Check if the function is compatible with the specified variables
         func_params = inspect.signature(func).parameters
@@ -513,9 +580,61 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         return running_hash
 
     def __eq__(self, other: Any) -> bool:
-        return hash(self) == hash(other)
+        """Memory-efficient comparison of two ScenarioLists.
+
+        Performs a structural comparison between two ScenarioLists, checking for:
+        1. Type equality (both must be ScenarioLists)
+        2. Length equality
+        3. Codebook equality
+        4. Element-by-element equality of scenarios
+
+        Args:
+            other: The object to compare with this ScenarioList.
+
+        Returns:
+            bool: True if the ScenarioLists are equal, False otherwise.
+
+        Examples:
+            >>> s1 = ScenarioList([Scenario({'a': 1}), Scenario({'b': 2})])
+            >>> s2 = ScenarioList([Scenario({'a': 1}), Scenario({'b': 2})])
+            >>> s1.equals(s2)
+            True
+            >>> s3 = ScenarioList([Scenario({'a': 1}), Scenario({'b': 3})])  # Different value
+            >>> s1.equals(s3)
+            False
+            >>> s4 = [Scenario({'a': 1}), Scenario({'b': 2})]  # List, not ScenarioList
+            >>> s1.equals(s4)
+            False
+            >>> # Test with codebooks
+            >>> s5 = ScenarioList([Scenario({'a': 1})], codebook={'a': 'test'})
+            >>> s6 = ScenarioList([Scenario({'a': 1})], codebook={'a': 'test'})
+            >>> s5.equals(s6)
+            True
+            >>> s7 = ScenarioList([Scenario({'a': 1})], codebook={'a': 'different'})
+            >>> s5.equals(s7)
+            False
+        """
+        if not isinstance(other, ScenarioList):
+            return False
+        if len(self) != len(other):
+            return False
+        if self.codebook != other.codebook:
+            return False
+        return self.data == other.data
 
     def __repr__(self):
+        """Return string representation of the ScenarioList.
+        
+        >>> s = ScenarioList([Scenario({'a': 1}), Scenario({'b': 2})])
+        >>> repr(s)
+        "ScenarioList([Scenario({'a': 1}), Scenario({'b': 2})])"
+        >>> s = ScenarioList([])
+        >>> repr(s)
+        'ScenarioList([])'
+        >>> s = ScenarioList([Scenario({'complex': {'nested': 'value'}})])
+        >>> repr(s)
+        "ScenarioList([Scenario({'complex': {'nested': 'value'}})])"
+        """
         return f"ScenarioList({list(self.data)})"
 
     def __mul__(self, other: ScenarioList) -> ScenarioList:
@@ -551,7 +670,6 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         >>> s1.times(s2)
         ScenarioList([Scenario({'a': 1, 'b': 1}), Scenario({'a': 1, 'b': 2}), Scenario({'a': 2, 'b': 1}), Scenario({'a': 2, 'b': 2})])
         """
-        import warnings
         warnings.warn("times is deprecated, use * instead", DeprecationWarning)
         return self.__mul__(other)
 
@@ -619,11 +737,12 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
     ) -> ScenarioList:
         """Private method to handle concatenation logic for different output types.
 
-        :param fields: The fields to concatenate.
-        :param output_type: The type of output ("string", "list", or "set").
-        :param separator: The separator to use for string concatenation.
-        :param new_field_name: Optional custom name for the concatenated field.
-                             If None, defaults to "concat_field1_field2_..."
+        Args:
+            fields: The fields to concatenate.
+            output_type: The type of output ("string", "list", or "set").
+            separator: The separator to use for string concatenation.
+            new_field_name: Optional custom name for the concatenated field.
+                If None, defaults to "concat_field1_field2_..."
 
         Returns:
             ScenarioList: A new ScenarioList with concatenated fields.
@@ -677,14 +796,15 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
     ) -> ScenarioList:
         """Concatenate specified fields into a single string field.
 
-        :param fields: The fields to concatenate.
-        :param separator: The separator to use.
-        :param new_field_name: Optional custom name for the concatenated field.
+        Args:
+            fields: The fields to concatenate.
+            separator: The separator to use.
+            new_field_name: Optional custom name for the concatenated field.
 
         Returns:
             ScenarioList: A new ScenarioList with concatenated fields.
 
-        Example:
+        Examples:
             >>> s = ScenarioList([Scenario({'a': 1, 'b': 2, 'c': 3}), Scenario({'a': 4, 'b': 5, 'c': 6})])
             >>> s.concatenate(['a', 'b', 'c'])
             ScenarioList([Scenario({'concat_a_b_c': '1;2;3'}), Scenario({'concat_a_b_c': '4;5;6'})])
@@ -703,13 +823,14 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
     ) -> ScenarioList:
         """Concatenate specified fields into a single list field.
 
-        :param fields: The fields to concatenate.
-        :param new_field_name: Optional custom name for the concatenated field.
+        Args:
+            fields: The fields to concatenate.
+            new_field_name: Optional custom name for the concatenated field.
 
         Returns:
             ScenarioList: A new ScenarioList with fields concatenated into a list.
 
-        Example:
+        Examples:
             >>> s = ScenarioList([Scenario({'a': 1, 'b': 2, 'c': 3}), Scenario({'a': 4, 'b': 5, 'c': 6})])
             >>> s.concatenate_to_list(['a', 'b', 'c'])
             ScenarioList([Scenario({'concat_a_b_c': [1, 2, 3]}), Scenario({'concat_a_b_c': [4, 5, 6]})])
@@ -725,13 +846,14 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
     ) -> ScenarioList:
         """Concatenate specified fields into a single set field.
 
-        :param fields: The fields to concatenate.
-        :param new_field_name: Optional custom name for the concatenated field.
+        Args:
+            fields: The fields to concatenate.
+            new_field_name: Optional custom name for the concatenated field.
 
         Returns:
             ScenarioList: A new ScenarioList with fields concatenated into a set.
 
-        Example:
+        Examples:
             >>> s = ScenarioList([Scenario({'a': 1, 'b': 2, 'c': 3}), Scenario({'a': 4, 'b': 5, 'c': 6})])
             >>> s.concatenate_to_set(['a', 'b', 'c'])
             ScenarioList([Scenario({'concat_a_b_c': {1, 2, 3}}), Scenario({'concat_a_b_c': {4, 5, 6}})])
@@ -747,17 +869,20 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
     ) -> ScenarioList:
         """Unpack a dictionary field into separate fields.
 
-        :param field: The field to unpack.
-        :param prefix: An optional prefix to add to the new fields.
-        :param drop_field: Whether to drop the original field.
+        Args:
+            field: The field to unpack.
+            prefix: An optional prefix to add to the new fields.
+            drop_field: Whether to drop the original field.
 
-        Example:
+        Returns:
+            ScenarioList: A new ScenarioList with the dictionary field unpacked.
 
-        >>> s = ScenarioList([Scenario({'a': 1, 'b': {'c': 2, 'd': 3}})])
-        >>> s.unpack_dict('b')
-        ScenarioList([Scenario({'a': 1, 'b': {'c': 2, 'd': 3}, 'c': 2, 'd': 3})])
-        >>> s.unpack_dict('b', prefix='new_')
-        ScenarioList([Scenario({'a': 1, 'b': {'c': 2, 'd': 3}, 'new_c': 2, 'new_d': 3})])
+        Examples:
+            >>> s = ScenarioList([Scenario({'a': 1, 'b': {'c': 2, 'd': 3}})])
+            >>> s.unpack_dict('b')
+            ScenarioList([Scenario({'a': 1, 'b': {'c': 2, 'd': 3}, 'c': 2, 'd': 3})])
+            >>> s.unpack_dict('b', prefix='new_')
+            ScenarioList([Scenario({'a': 1, 'b': {'c': 2, 'd': 3}, 'new_c': 2, 'new_d': 3})])
         """
         new_scenarios = []
         for scenario in self:
@@ -777,14 +902,18 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
     ) -> ScenarioList:
         """Transform a field using a function.
 
-        :param field: The field to transform.
-        :param func: The function to apply to the field.
-        :param new_name: An optional new name for the transformed field.
+        Args:
+            field: The field to transform.
+            func: The function to apply to the field.
+            new_name: An optional new name for the transformed field.
 
-        >>> s = ScenarioList([Scenario({'a': 1, 'b': 2}), Scenario({'a': 1, 'b': 1})])
-        >>> s.transform('b', lambda x: x + 1)
-        ScenarioList([Scenario({'a': 1, 'b': 3}), Scenario({'a': 1, 'b': 2})])
+        Returns:
+            ScenarioList: A new ScenarioList with the transformed field.
 
+        Examples:
+            >>> s = ScenarioList([Scenario({'a': 1, 'b': 2}), Scenario({'a': 1, 'b': 1})])
+            >>> s.transform('b', lambda x: x + 1)
+            ScenarioList([Scenario({'a': 1, 'b': 3}), Scenario({'a': 1, 'b': 2})])
         """
         new_scenarios = []
         for scenario in self:
@@ -799,15 +928,17 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         """
         Return a new ScenarioList with a new variable added.
 
-        :param new_var_string: A string with the new variable assignment.
-        :param functions_dict: A dictionary of functions to use in the assignment.
+        Args:
+            new_var_string: A string with the new variable assignment.
+            functions_dict: A dictionary of functions to use in the assignment.
+
+        Returns:
+            ScenarioList: A new ScenarioList with the added variable.
 
         Example:
-
-        >>> s = ScenarioList([Scenario({'a': 1, 'b': 2}), Scenario({'a': 1, 'b': 1})])
-        >>> s.mutate("c = a + b")
-        ScenarioList([Scenario({'a': 1, 'b': 2, 'c': 3}), Scenario({'a': 1, 'b': 1, 'c': 2})])
-
+            >>> s = ScenarioList([Scenario({'a': 1, 'b': 2}), Scenario({'a': 1, 'b': 1})])
+            >>> s.mutate("c = a + b")
+            ScenarioList([Scenario({'a': 1, 'b': 2, 'c': 3}), Scenario({'a': 1, 'b': 1, 'c': 2})])
         """
         if "=" not in new_var_string:
             raise ScenarioError(
@@ -842,13 +973,17 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
     def order_by(self, *fields: str, reverse: bool = False) -> ScenarioList:
         """Order the scenarios by one or more fields.
 
-        :param fields: The fields to order by.
-        :param reverse: Whether to reverse the order.
+        Args:
+            *fields: The fields to order by.
+            reverse: Whether to reverse the order.
+        
+        Returns:
+            ScenarioList: A new ScenarioList with scenarios ordered by the specified fields.
+        
         Example:
-
-        >>> s = ScenarioList([Scenario({'a': 1, 'b': 2}), Scenario({'a': 1, 'b': 1})])
-        >>> s.order_by('b', 'a')
-        ScenarioList([Scenario({'a': 1, 'b': 1}), Scenario({'a': 1, 'b': 2})])
+            >>> s = ScenarioList([Scenario({'a': 1, 'b': 2}), Scenario({'a': 1, 'b': 1})])
+            >>> s.order_by('b', 'a')
+            ScenarioList([Scenario({'a': 1, 'b': 1}), Scenario({'a': 1, 'b': 2})])
         """
 
         def get_sort_key(scenario: Any) -> tuple:
@@ -872,11 +1007,44 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         return new_list
 
     def __iter__(self):
-        """Iterate over scenarios using streaming."""
+        """Iterate over scenarios."""
         return iter(self.data)
 
     def equals(self, other: Any) -> bool:
-        """Memory-efficient comparison of two ScenarioLists."""
+        """Memory-efficient comparison of two ScenarioLists.
+
+        Performs a structural comparison between two ScenarioLists, checking for:
+        1. Type equality (both must be ScenarioLists)
+        2. Length equality
+        3. Codebook equality
+        4. Element-by-element equality of scenarios
+
+        Args:
+            other: The object to compare with this ScenarioList.
+
+        Returns:
+            bool: True if the ScenarioLists are equal, False otherwise.
+
+        Examples:
+            >>> s1 = ScenarioList([Scenario({'a': 1}), Scenario({'b': 2})])
+            >>> s2 = ScenarioList([Scenario({'a': 1}), Scenario({'b': 2})])
+            >>> s1.equals(s2)
+            True
+            >>> s3 = ScenarioList([Scenario({'a': 1}), Scenario({'b': 3})])  # Different value
+            >>> s1.equals(s3)
+            False
+            >>> s4 = [Scenario({'a': 1}), Scenario({'b': 2})]  # List, not ScenarioList
+            >>> s1.equals(s4)
+            False
+            >>> # Test with codebooks
+            >>> s5 = ScenarioList([Scenario({'a': 1})], codebook={'a': 'test'})
+            >>> s6 = ScenarioList([Scenario({'a': 1})], codebook={'a': 'test'})
+            >>> s5.equals(s6)
+            True
+            >>> s7 = ScenarioList([Scenario({'a': 1})], codebook={'a': 'different'})
+            >>> s5.equals(s7)
+            False
+        """
         if not isinstance(other, ScenarioList):
             return False
         if len(self) != len(other):
@@ -894,13 +1062,16 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         """
         Filter a list of scenarios based on an expression.
 
-        :param expression: The expression to filter by.
+        Args:
+            expression: The expression to filter by.
+
+        Returns:
+            ScenarioList: A new ScenarioList containing only scenarios that match the filter expression.
 
         Example:
-
-        >>> s = ScenarioList([Scenario({'a': 1, 'b': 1}), Scenario({'a': 1, 'b': 2})])
-        >>> s.filter("b == 2")
-        ScenarioList([Scenario({'a': 1, 'b': 2})])
+            >>> s = ScenarioList([Scenario({'a': 1, 'b': 1}), Scenario({'a': 1, 'b': 2})])
+            >>> s.filter("b == 2")
+            ScenarioList([Scenario({'a': 1, 'b': 2})])
         """
         # Get first item to check keys if available
         try:
@@ -986,15 +1157,18 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
 
     def select(self, *fields: str) -> ScenarioList:
         """
-        Selects scenarios with only the references fields.
+        Selects scenarios with only the referenced fields.
 
-        :param fields: The fields to select.
+        Args:
+            *fields: The fields to select.
+
+        Returns:
+            ScenarioList: A new ScenarioList containing only the specified fields.
 
         Example:
-
-        >>> s = ScenarioList([Scenario({'a': 1, 'b': 1}), Scenario({'a': 1, 'b': 2})])
-        >>> s.select('a')
-        ScenarioList([Scenario({'a': 1}), Scenario({'a': 1})])
+            >>> s = ScenarioList([Scenario({'a': 1, 'b': 1}), Scenario({'a': 1, 'b': 2})])
+            >>> s.select('a')
+            ScenarioList([Scenario({'a': 1}), Scenario({'a': 1})])
         """
         from .scenario_selector import ScenarioSelector
 
@@ -1003,11 +1177,16 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
     def drop(self, *fields: str) -> ScenarioList:
         """Drop fields from the scenarios.
 
-        Example:
+        Args:
+            *fields: The fields to drop.
 
-        >>> s = ScenarioList([Scenario({'a': 1, 'b': 1}), Scenario({'a': 1, 'b': 2})])
-        >>> s.drop('a')
-        ScenarioList([Scenario({'b': 1}), Scenario({'b': 2})])
+        Returns:
+            ScenarioList: A new ScenarioList with the specified fields removed.
+
+        Example:
+            >>> s = ScenarioList([Scenario({'a': 1, 'b': 1}), Scenario({'a': 1, 'b': 2})])
+            >>> s.drop('a')
+            ScenarioList([Scenario({'b': 1}), Scenario({'b': 2})])
         """
         new_sl = ScenarioList(data=[], codebook=self.codebook)
         for scenario in self:
@@ -1017,13 +1196,16 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
     def keep(self, *fields: str) -> ScenarioList:
         """Keep only the specified fields in the scenarios.
 
-        :param fields: The fields to keep.
+        Args:
+            *fields: The fields to keep.
+
+        Returns:
+            ScenarioList: A new ScenarioList with only the specified fields.
 
         Example:
-
-        >>> s = ScenarioList([Scenario({'a': 1, 'b': 1}), Scenario({'a': 1, 'b': 2})])
-        >>> s.keep('a')
-        ScenarioList([Scenario({'a': 1}), Scenario({'a': 1})])
+            >>> s = ScenarioList([Scenario({'a': 1, 'b': 1}), Scenario({'a': 1, 'b': 2})])
+            >>> s.keep('a')
+            ScenarioList([Scenario({'a': 1}), Scenario({'a': 1})])
         """
         new_sl = ScenarioList(data=[], codebook=self.codebook)
         for scenario in self:
@@ -1046,16 +1228,16 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
 
         Args:
             path: The directory path to scan, optionally including a wildcard pattern.
-                 If None, uses the current working directory.
-                 Examples:
-                 - "/path/to/directory" - scans all files in the directory
-                 - "/path/to/directory/*.py" - scans only Python files in the directory
-                 - "*.txt" - scans only text files in the current working directory
+                If None, uses the current working directory.
+                Examples:
+                - "/path/to/directory" - scans all files in the directory
+                - "/path/to/directory/*.py" - scans only Python files in the directory
+                - "*.txt" - scans only text files in the current working directory
             recursive: Whether to scan subdirectories recursively. Defaults to False.
             key_name: The key to use for the FileStore object in each Scenario. Defaults to "content".
 
         Returns:
-            A ScenarioList containing Scenario objects for all matching files, where each Scenario
+            ScenarioList: A collection containing Scenario objects for all matching files, where each Scenario
             has a FileStore object under the specified key.
 
         Raises:
@@ -1074,7 +1256,6 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             # Get all files recursively including subdirectories
             sl = ScenarioList.from_directory(recursive=True, key_name="document")
         """
-        import warnings
         warnings.warn(
             "from_directory is deprecated. Use ScenarioSource.from_source('directory', ...) instead.",
             DeprecationWarning,
@@ -1138,7 +1319,16 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         tablefmt: Optional[TableFormat] = None,
         pretty_labels: Optional[dict[str, str]] = None,
     ) -> str:
-        """Return the ScenarioList as a table."""
+        """Return the ScenarioList as a formatted table.
+        
+        Args:
+            *fields: Fields to include in the table. If not specified, all fields will be used.
+            tablefmt: Table format to use (e.g., 'plain', 'github', 'grid', etc.). See tabulate_formats for valid options.
+            pretty_labels: Dictionary mapping field names to display labels.
+            
+        Returns:
+            str: A string representation of the table.
+        """
 
         if tablefmt is not None and tablefmt not in tabulate_formats:
             raise ValueError(
@@ -1150,17 +1340,25 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         )
 
     def tree(self, node_list: Optional[List[str]] = None) -> str:
-        """Return the ScenarioList as a tree.
+        """Return the ScenarioList as a hierarchical tree.
 
-        :param node_list: The list of nodes to include in the tree.
+        Args:
+            node_list: The list of nodes to include in the tree. If None, all fields will be used.
+            
+        Returns:
+            str: A string representation of the tree structure.
         """
         return self.to_dataset().tree(node_list)
 
     def _summary(self) -> dict:
-        """Return a summary of the ScenarioList.
+        """Return a summary of the ScenarioList with basic statistics.
 
-        >>> ScenarioList.example()._summary()
-        {'scenarios': 2, 'keys': ['persona']}
+        Returns:
+            dict: A dictionary containing the number of scenarios and the keys present.
+            
+        Example:
+            >>> ScenarioList.example()._summary()
+            {'scenarios': 2, 'keys': ['persona']}
         """
         d = {
             "scenarios": len(self),
@@ -1216,14 +1414,20 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
     ) -> ScenarioList:
         """Unpack a field into multiple fields.
 
-        Example:
+        Args:
+            field: The field containing iterable values to unpack.
+            new_names: Optional list of names for the unpacked fields. If None, names like field_0, field_1 will be used.
+            keep_original: Whether to keep the original field in the result. Defaults to True.
 
-        >>> s = ScenarioList([Scenario({'a': 1, 'b': [2, True]}), Scenario({'a': 3, 'b': [3, False]})])
-        >>> s.unpack('b')
-        ScenarioList([Scenario({'a': 1, 'b': [2, True], 'b_0': 2, 'b_1': True}), Scenario({'a': 3, 'b': [3, False], 'b_0': 3, 'b_1': False})])
-        >>> s.unpack('b', new_names=['c', 'd'], keep_original=False)
-        ScenarioList([Scenario({'a': 1, 'c': 2, 'd': True}), Scenario({'a': 3, 'c': 3, 'd': False})])
+        Returns:
+            ScenarioList: A new ScenarioList with the field unpacked into multiple fields.
 
+        Examples:
+            >>> s = ScenarioList([Scenario({'a': 1, 'b': [2, True]}), Scenario({'a': 3, 'b': [3, False]})])
+            >>> s.unpack('b')
+            ScenarioList([Scenario({'a': 1, 'b': [2, True], 'b_0': 2, 'b_1': True}), Scenario({'a': 3, 'b': [3, False], 'b_0': 3, 'b_1': False})])
+            >>> s.unpack('b', new_names=['c', 'd'], keep_original=False)
+            ScenarioList([Scenario({'a': 1, 'c': 2, 'd': True}), Scenario({'a': 3, 'c': 3, 'd': False})])
         """
         new_names = new_names or [f"{field}_{i}" for i in range(len(self[0][field]))]
         new_sl = ScenarioList(data=[], codebook=self.codebook)
@@ -1260,11 +1464,17 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
     def add_list(self, name: str, values: List[Any]) -> ScenarioList:
         """Add a list of values to a ScenarioList.
 
-        Example:
+        Args:
+            name: The name of the field to add.
+            values: The values to add for each scenario. Must match the length of the ScenarioList.
 
-        >>> s = ScenarioList([Scenario({'name': 'Alice'}), Scenario({'name': 'Bob'})])
-        >>> s.add_list('age', [30, 25])
-        ScenarioList([Scenario({'name': 'Alice', 'age': 30}), Scenario({'name': 'Bob', 'age': 25})])
+        Returns:
+            ScenarioList: A new ScenarioList with the added field.
+
+        Example:
+            >>> s = ScenarioList([Scenario({'name': 'Alice'}), Scenario({'name': 'Bob'})])
+            >>> s.add_list('age', [30, 25])
+            ScenarioList([Scenario({'name': 'Alice', 'age': 30}), Scenario({'name': 'Bob', 'age': 25})])
         """
         #sl = self.duplicate()
         if len(values) != len(self.data):
@@ -1295,11 +1505,17 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
     def add_value(self, name: str, value: Any) -> ScenarioList:
         """Add a value to all scenarios in a ScenarioList.
 
-        Example:
+        Args:
+            name: The name of the field to add.
+            value: The value to add to all scenarios.
 
-        >>> s = ScenarioList([Scenario({'name': 'Alice'}), Scenario({'name': 'Bob'})])
-        >>> s.add_value('age', 30)
-        ScenarioList([Scenario({'name': 'Alice', 'age': 30}), Scenario({'name': 'Bob', 'age': 30})])
+        Returns:
+            ScenarioList: A new ScenarioList with the added field containing the same value for all scenarios.
+
+        Example:
+            >>> s = ScenarioList([Scenario({'name': 'Alice'}), Scenario({'name': 'Bob'})])
+            >>> s.add_value('age', 30)
+            ScenarioList([Scenario({'name': 'Alice', 'age': 30}), Scenario({'name': 'Bob', 'age': 30})])
         """
         new_sl = ScenarioList(data=[], codebook=self.codebook)
         for scenario in self:
@@ -1310,14 +1526,16 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
     def rename(self, replacement_dict: dict) -> ScenarioList:
         """Rename the fields in the scenarios.
 
-        :param replacement_dict: A dictionary with the old names as keys and the new names as values.
+        Args:
+            replacement_dict: A dictionary with the old names as keys and the new names as values.
+
+        Returns:
+            ScenarioList: A new ScenarioList with renamed fields.
 
         Example:
-
-        >>> s = ScenarioList([Scenario({'name': 'Alice', 'age': 30}), Scenario({'name': 'Bob', 'age': 25})])
-        >>> s.rename({'name': 'first_name', 'age': 'years'})
-        ScenarioList([Scenario({'first_name': 'Alice', 'years': 30}), Scenario({'first_name': 'Bob', 'years': 25})])
-
+            >>> s = ScenarioList([Scenario({'name': 'Alice', 'age': 30}), Scenario({'name': 'Bob', 'age': 25})])
+            >>> s.rename({'name': 'first_name', 'age': 'years'})
+            ScenarioList([Scenario({'first_name': 'Alice', 'years': 30}), Scenario({'first_name': 'Bob', 'years': 25})])
         """
         new_sl = ScenarioList(data = [], codebook=self.codebook)
         for scenario in self:
@@ -1328,13 +1546,16 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
     def replace_names(self, new_names: list) -> ScenarioList:
         """Replace the field names in the scenarios with a new list of names.
 
-        :param new_names: A list of new field names to use.
+        Args:
+            new_names: A list of new field names to use.
+
+        Returns:
+            ScenarioList: A new ScenarioList with renamed fields according to the provided list.
 
         Example:
-
-        >>> s = ScenarioList([Scenario({'name': 'Alice', 'age': 30}), Scenario({'name': 'Bob', 'age': 25})])
-        >>> s.replace_names(['first_name', 'years'])
-        ScenarioList([Scenario({'first_name': 'Alice', 'years': 30}), Scenario({'first_name': 'Bob', 'years': 25})])
+            >>> s = ScenarioList([Scenario({'name': 'Alice', 'age': 30}), Scenario({'name': 'Bob', 'age': 25})])
+            >>> s.replace_names(['first_name', 'years'])
+            ScenarioList([Scenario({'first_name': 'Alice', 'years': 30}), Scenario({'first_name': 'Bob', 'years': 25})])
         """
         if not self:
             return ScenarioList([])
@@ -1348,22 +1569,6 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         replacement_dict = dict(zip(old_names, new_names))
         return self.rename(replacement_dict)
 
-    ## NEEDS TO BE FIXED
-    # def new_column_names(self, new_names: List[str]) -> ScenarioList:
-    #     """Rename the fields in the scenarios.
-
-    #     Example:
-
-    #     >>> s = ScenarioList([Scenario({'name': 'Alice', 'age': 30}), Scenario({'name': 'Bob', 'age': 25})])
-    #     >>> s.new_column_names(['first_name', 'years'])
-    #     ScenarioList([Scenario({'first_name': 'Alice', 'years': 30}), Scenario({'first_name': 'Bob', 'years': 25})])
-
-    #     """
-    #     new_list = ScenarioList([])
-    #     for obj in self:
-    #         new_obj = obj.new_column_names(new_names)
-    #         new_list.append(new_obj)
-    #     return new_list
 
     @classmethod
     @deprecated_classmethod("ScenarioSource.from_source('sqlite', ...)")
@@ -1504,16 +1709,20 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         return source.to_scenario_list()
 
     def to_key_value(self, field: str, value=None) -> Union[dict, set]:
-        """Return the set of values in the field.
+        """Return the set of values in the field or a dictionary mapping keys to values.
 
-        :param field: The field to extract values from.
-        :param value: An optional field to use as the value in the key-value pair.
+        Args:
+            field: The field to extract values from.
+            value: An optional field to use as the value in the key-value pair.
+
+        Returns:
+            Union[dict, set]: If value is specified, returns a dictionary mapping field values to
+            value field values. Otherwise, returns a set of unique values from the field.
 
         Example:
-
-        >>> s = ScenarioList([Scenario({'name': 'Alice'}), Scenario({'name': 'Bob'})])
-        >>> s.to_key_value('name') == {'Alice', 'Bob'}
-        True
+            >>> s = ScenarioList([Scenario({'name': 'Alice'}), Scenario({'name': 'Bob'})])
+            >>> s.to_key_value('name') == {'Alice', 'Bob'}
+            True
         """
         if value is None:
             return {scenario[field] for scenario in self}
@@ -1715,18 +1924,24 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             other: The ScenarioList to join with
             by: String or list of strings representing the key(s) to join on. Cannot be empty.
 
-        >>> s1 = ScenarioList([Scenario({'name': 'Alice', 'age': 30}), Scenario({'name': 'Bob', 'age': 25})])
-        >>> s2 = ScenarioList([Scenario({'name': 'Alice', 'location': 'New York'}), Scenario({'name': 'Charlie', 'location': 'Los Angeles'})])
-        >>> s3 = s1.left_join(s2, 'name')
-        >>> s3 == ScenarioList([Scenario({'age': 30, 'location': 'New York', 'name': 'Alice'}), Scenario({'age': 25, 'location': None, 'name': 'Bob'})])
-        True
+        Returns:
+            ScenarioList: A new ScenarioList with the results of the left join operation.
+
+        Example:
+            >>> s1 = ScenarioList([Scenario({'name': 'Alice', 'age': 30}), Scenario({'name': 'Bob', 'age': 25})])
+            >>> s2 = ScenarioList([Scenario({'name': 'Alice', 'location': 'New York'}), Scenario({'name': 'Charlie', 'location': 'Los Angeles'})])
+            >>> s3 = s1.left_join(s2, 'name')
+            >>> s3 == ScenarioList([Scenario({'age': 30, 'location': 'New York', 'name': 'Alice'}), Scenario({'age': 25, 'location': None, 'name': 'Bob'})])
+            True
         """
         from .scenario_join import ScenarioJoin
 
         sj = ScenarioJoin(self, other)
         return sj.left_join(by)
 
+    
     @classmethod
+    @deprecated_classmethod("ScenarioSource.from_source('tsv', ...)")
     def from_tsv(cls, source: Union[str, "ParseResult"]) -> ScenarioList:
         """Create a ScenarioList from a TSV file or URL."""
         from .scenario_source import ScenarioSource
@@ -1793,9 +2008,24 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         ScenarioList([Scenario({'name': 'Alice'}), Scenario({'name': 'Bob'})])
 
         """
-        from .scenario import Scenario
+        warnings.warn("ScenarioList.gen is deprecated. Use ScenarioList.from_list_of_dicts instead.", DeprecationWarning)
+        return cls.from_list_of_dicts(scenario_dicts_list)
+#        from .scenario import Scenario
+#        return cls([Scenario(s) for s in scenario_dicts_list])
+    
+    @classmethod
+    def from_list_of_dicts(cls, scenario_dicts_list: List[dict]) -> ScenarioList: 
+        """Create a `ScenarioList` from a list of dictionaries.
 
+        Example:
+
+        >>> ScenarioList.from_list_of_dicts([{'name': 'Alice'}, {'name': 'Bob'}])
+        ScenarioList([Scenario({'name': 'Alice'}), Scenario({'name': 'Bob'})])
+        """
+        from .scenario import Scenario
         return cls([Scenario(s) for s in scenario_dicts_list])
+
+
 
     @classmethod
     @remove_edsl_version
@@ -1856,7 +2086,11 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         """
         Return an example ScenarioList instance.
 
-        :params randomize: If True, use Scenario's randomize method to randomize the values.
+        Args:
+            randomize: If True, use Scenario's randomize method to randomize the values.
+
+        Returns:
+            ScenarioList: An example ScenarioList containing two example Scenarios.
         """
         return cls([Scenario.example(randomize), Scenario.example(randomize)])
 
@@ -1978,13 +2212,13 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             ScenarioList: A new ScenarioList with the specified field collapsed into lists
 
         Example:
-        >>> s = ScenarioList([
-        ...     Scenario({'category': 'fruit', 'color': 'red', 'item': 'apple'}),
-        ...     Scenario({'category': 'fruit', 'color': 'red', 'item': 'cherry'}),
-        ...     Scenario({'category': 'vegetable', 'color': 'green', 'item': 'spinach'})
-        ... ])
-        >>> s.collapse('item', add_count=True)
-        ScenarioList([Scenario({'category': 'fruit', 'color': 'red', 'item': ['apple', 'cherry'], 'num_collapsed_rows': 2}), Scenario({'category': 'vegetable', 'color': 'green', 'item': ['spinach'], 'num_collapsed_rows': 1})])
+            >>> s = ScenarioList([
+            ...     Scenario({'category': 'fruit', 'color': 'red', 'item': 'apple'}),
+            ...     Scenario({'category': 'fruit', 'color': 'red', 'item': 'cherry'}),
+            ...     Scenario({'category': 'vegetable', 'color': 'green', 'item': 'spinach'})
+            ... ])
+            >>> s.collapse('item', add_count=True)
+            ScenarioList([Scenario({'category': 'fruit', 'color': 'red', 'item': ['apple', 'cherry'], 'num_collapsed_rows': 2}), Scenario({'category': 'vegetable', 'color': 'green', 'item': ['spinach'], 'num_collapsed_rows': 1})])
         """
         if not self:
             return ScenarioList([])

@@ -84,7 +84,6 @@ def test_QuestionRank_construction():
     invalid_question = valid_question.copy()
 
     with pytest.raises(Exception):
-        from edsl.questions.settings import Settings
 
         invalid_question.update(
             {

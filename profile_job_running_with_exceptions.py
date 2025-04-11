@@ -3,11 +3,8 @@ from memory_profiler import profile
 from edsl.language_models.price_manager import PriceManager
 from edsl.language_models.registry import RegisterLanguageModelsMeta
 import gc
-import sys
 import psutil
-import weakref
 import objgraph
-import tracemalloc
 import inspect
 
 def print_memory_info():
@@ -50,9 +47,9 @@ def print_memory_info():
                             for ref in refs[:2]:  # Look at first couple of referrers
                                 ref_type = type(ref).__name__
                                 if ref_type == 'ScenarioList':
-                                    print(f"    Referenced by: ScenarioList")
+                                    print("    Referenced by: ScenarioList")
                                 elif ref_type == 'Results':
-                                    print(f"    Referenced by: Results")
+                                    print("    Referenced by: Results")
                                 elif ref_type != 'list' and ref_type != 'dict':
                                     print(f"    Referenced by: {ref_type}")
                         
@@ -96,11 +93,11 @@ def print_memory_info():
                         try:
                             chains = objgraph.find_backref_chain(obj, objgraph.is_proper_module, max_depth=5)
                             if chains:
-                                print(f"    Reference chain:")
+                                print("    Reference chain:")
                                 for j, node in enumerate(chains):
                                     print(f"      {j}: {type(node).__name__}")
                             else:
-                                print(f"    No reference chains found")
+                                print("    No reference chains found")
                         except Exception as e:
                             print(f"    Error finding references: {e}")
         except Exception as e:

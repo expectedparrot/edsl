@@ -10,8 +10,6 @@ share the same rate limit buckets.
 from typing import TYPE_CHECKING, Dict, List, Tuple
 from collections import UserDict
 from threading import RLock
-import functools
-import inspect
 
 # Import the synchronized_class decorator directly
 from ..jobs.decorators import synchronized_class
@@ -283,7 +281,6 @@ class BucketCollection(UserDict):
             >>> # Now you can display or save these plots
         """
         # Import Figure only for type checking when the function is called
-        from matplotlib.figure import Figure
         
         plots = {}
         for model in self:

@@ -4,7 +4,6 @@ EDSL Command Line Interface.
 This module provides the main entry point for the EDSL command-line tool.
 """
 
-import sys
 import typer
 import json
 from pathlib import Path

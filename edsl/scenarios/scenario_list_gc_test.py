@@ -5,7 +5,6 @@ Test script to investigate garbage collection behavior with ScenarioList.
 import gc
 import os
 import psutil
-import sys
 import pickle
 import tracemalloc
 from typing import Dict, List, Any

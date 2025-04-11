@@ -163,7 +163,6 @@ class ModelBuckets:
             >>> ## Now you can display or save these plots
         """
         # Import Figure only for type checking when the function is called
-        from matplotlib.figure import Figure
         
         plot1 = self.requests_bucket.visualize()
         plot2 = self.tokens_bucket.visualize()

@@ -1,7 +1,5 @@
 import sys
 from IPython.core.interactiveshell import InteractiveShell
-from IPython.display import HTML, display
-from pathlib import Path
 import traceback
 
 # Example logger import

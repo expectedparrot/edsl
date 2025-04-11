@@ -132,7 +132,6 @@ def benchmark_question_types():
 def benchmark_large_survey_dag():
     """Benchmark creating a large survey with a complex DAG."""
     from edsl import Survey, QuestionMultipleChoice
-    from edsl.surveys import Rule
     
     # Create 100 questions
     questions = []

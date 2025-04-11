@@ -1,7 +1,6 @@
 import pytest
 
 from edsl.tasks import TaskStatus
-from edsl.jobs import Jobs
 from edsl.tasks import TaskHistory
 
 @pytest.fixture
@@ -12,8 +11,6 @@ def sample_task_history():
     we'll create a TaskHistory with some mock interviews directly to ensure
     we have interviews with exceptions.
     """
-    from edsl.interviews import Interview
-    from edsl.interviews.exception_tracking import InterviewExceptionCollection, InterviewExceptionEntry
     from edsl.agents import Agent
     from edsl.language_models import Model
     from edsl.surveys import Survey

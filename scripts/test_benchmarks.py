@@ -7,8 +7,6 @@ This script runs a minimal version of the benchmarks to verify they work correct
 
 import time
 import os
-import sys
-import argparse
 from pathlib import Path
 
 

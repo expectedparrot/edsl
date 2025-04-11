@@ -13,8 +13,7 @@ from typing import Dict, List, Optional
 from ..config import CONFIG
 from .validation_analysis import (
     get_validation_failure_stats,
-    suggest_fix_improvements,
-    export_improvements_report
+    suggest_fix_improvements
 )
 from .validation_logger import get_validation_failure_logs
 
@@ -264,7 +263,7 @@ def _generate_suggestions_content(suggestions: Dict) -> str:
     content = []
     
     for question_type, question_suggestions in suggestions.items():
-        content.append(f"<div class='card'>")
+        content.append("<div class='card'>")
         content.append(f"<div class='card-header'>{question_type}</div>")
         
         for suggestion in question_suggestions:
@@ -313,7 +312,7 @@ def _generate_examples_content(logs: List[Dict]) -> str:
         invalid_data = example_log.get("invalid_data", {})
         model_schema = example_log.get("model_schema", {})
         
-        content.append(f"<div class='card'>")
+        content.append("<div class='card'>")
         content.append(f"<div class='card-header'>{question_type}</div>")
         
         content.append(

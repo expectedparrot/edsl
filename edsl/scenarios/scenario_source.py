@@ -16,7 +16,9 @@ from __future__ import annotations
 import functools
 import warnings
 import fnmatch
-from typing import Any, Callable, List, Literal, Optional, Type, TypeVar, Union, TYPE_CHECKING, cast, Any
+import os
+
+from typing import Callable, List, Literal, Optional, Type, TypeVar, TYPE_CHECKING, Any
 
 T = TypeVar('T')
 
@@ -42,17 +44,12 @@ def deprecated_classmethod(alternative: str) -> Callable[[Callable[..., T]], Cal
         return wrapper
     return decorator
 
-import os
 import csv
-import json
-import warnings
 from io import StringIO
 from urllib.parse import urlparse
 
 if TYPE_CHECKING:
-    import pandas as pd
-    from urllib.parse import ParseResult
-    from .scenario_list import ScenarioList
+    pass
 
 # Local imports
 from .scenario import Scenario
@@ -228,7 +225,6 @@ class DirectorySource(Source):
     def example(cls) -> 'DirectorySource':
         """Return an example DirectorySource instance."""
         import tempfile
-        import os
         
         # Create a temporary directory for the example
         temp_dir = tempfile.mkdtemp(prefix="edsl_test_")
@@ -257,7 +253,6 @@ class DirectorySource(Source):
     
     def to_scenario_list(self):
         """Create a ScenarioList from files in a directory."""
-        import os
         import glob
         
         from .scenario_list import ScenarioList
@@ -404,7 +399,6 @@ class SQLiteSource(Source):
         """Return an example SQLiteSource instance."""
         import sqlite3
         import tempfile
-        import os
         
         # Create a temporary SQLite database for the example
         fd, temp_path = tempfile.mkstemp(suffix='.db', prefix='edsl_test_')
@@ -484,7 +478,6 @@ class LaTeXSource(Source):
     def example(cls) -> 'LaTeXSource':
         """Return an example LaTeXSource instance."""
         import tempfile
-        import os
         
         # Create a temporary LaTeX file with a sample table
         fd, temp_path = tempfile.mkstemp(suffix='.tex', prefix='edsl_test_')
@@ -729,8 +722,6 @@ class StataSource(Source):
     @classmethod
     def example(cls) -> 'StataSource':
         """Return an example StataSource instance."""
-        import tempfile
-        import os
         
         # Since we can't easily create a real Stata file for testing,
         # we'll create a mock instance with an override
@@ -937,7 +928,6 @@ class ExcelSource(Source):
     def example(cls) -> 'ExcelSource':
         """Return an example ExcelSource instance."""
         import tempfile
-        import os
         
         try:
             import pandas as pd
@@ -1193,7 +1183,6 @@ class DelimitedFileSource(Source):
     def example(cls) -> 'DelimitedFileSource':
         """Return an example DelimitedFileSource instance."""
         import tempfile
-        import os
         
         # Create a temporary CSV file with sample data
         fd, temp_path = tempfile.mkstemp(suffix='.csv', prefix='edsl_test_')
@@ -1249,7 +1238,7 @@ class DelimitedFileSource(Source):
                     except UnicodeDecodeError:
                         continue
                 else:
-                    raise ScenarioError(f"Failed to decode file with any of the attempted encodings")
+                    raise ScenarioError("Failed to decode file with any of the attempted encodings")
             except Exception as e:
                 raise ScenarioError(f"Failed to read file: {str(e)}")
         
@@ -1313,7 +1302,6 @@ class CSVSource(DelimitedFileSource):
     def example(cls) -> 'CSVSource':
         """Return an example CSVSource instance."""
         import tempfile
-        import os
         
         # Create a temporary CSV file with sample data
         fd, temp_path = tempfile.mkstemp(suffix='.csv', prefix='edsl_test_')
@@ -1363,7 +1351,6 @@ class TSVSource(DelimitedFileSource):
     def example(cls) -> 'TSVSource':
         """Return an example TSVSource instance."""
         import tempfile
-        import os
         
         # Create a temporary TSV file with sample data
         fd, temp_path = tempfile.mkstemp(suffix='.tsv', prefix='edsl_test_')
@@ -1397,7 +1384,6 @@ class ParquetSource(Source):
     def example(cls) -> 'ParquetSource':
         """Return an example ParquetSource instance."""
         import tempfile
-        import os
         
         try:
             import pandas as pd
@@ -1671,7 +1657,7 @@ class ScenarioSource:
             source_class = Source.get_source_class(source_type)
             source_instance = source_class(*args, **kwargs)
             return source_instance.to_scenario_list()
-        except ValueError as e:
+        except ValueError:
             # For backward compatibility, try the old method if the source_type isn't in the registry
             method_name = f"_from_{source_type}"
             if hasattr(ScenarioSource, method_name):

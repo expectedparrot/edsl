@@ -1,5 +1,4 @@
 import unittest
-import random
 import tempfile
 import os
 from edsl.agents import Agent

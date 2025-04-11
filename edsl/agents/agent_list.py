@@ -24,6 +24,9 @@ from .agent import Agent
 
 from .exceptions import AgentListError
 
+if TYPE_CHECKING:
+    from ..scenarios import ScenarioList
+
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
@@ -125,6 +128,13 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
 
         Args:
             field_name: The name of the field to drop.
+
+        Examples:
+            >>> from edsl import Agent
+            >>> al = AgentList([Agent(traits = {'age': 22, 'hair': 'brown'}),
+            ...                Agent(traits = {'age': 23, 'hair': 'black'})])
+            >>> al.drop('age')
+            AgentList([Agent(traits = {'hair': 'brown'}), Agent(traits = {'hair': 'black'})])
         """
         return AgentList([a.drop(field_name) for a in self.data])
 
@@ -250,26 +260,31 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
     def from_csv(cls, file_path: str, name_field: Optional[str] = None, codebook: Optional[dict[str, str]] = None):
         """Load AgentList from a CSV file.
 
-        >>> import csv
-        >>> import os
-        >>> with open('/tmp/agents.csv', 'w') as f:
-        ...     writer = csv.writer(f)
-        ...     _ = writer.writerow(['age', 'hair', 'height'])
-        ...     _ = writer.writerow([22, 'brown', 5.5])
-        >>> al = AgentList.from_csv('/tmp/agents.csv')
-        >>> al
-        AgentList([Agent(traits = {'age': '22', 'hair': 'brown', 'height': '5.5'})])
-        >>> al = AgentList.from_csv('/tmp/agents.csv', name_field='hair')
-        >>> al
-        AgentList([Agent(name = \"""brown\""", traits = {'age': '22', 'height': '5.5'})])
-        >>> al = AgentList.from_csv('/tmp/agents.csv', codebook={'age': 'Age in years'})
-        >>> al[0].codebook
-        {'age': 'Age in years'}
-        >>> os.remove('/tmp/agents.csv')
-
-        :param file_path: The path to the CSV file.
-        :param name_field: The name of the field to use as the agent name.
-        :param codebook: Optional dictionary mapping trait names to descriptions.
+        Args:
+            file_path: The path to the CSV file.
+            name_field: The name of the field to use as the agent name.
+            codebook: Optional dictionary mapping trait names to descriptions.
+        
+        Returns:
+            AgentList: A new AgentList created from the CSV file.
+            
+        Examples:
+            >>> import csv
+            >>> import os
+            >>> with open('/tmp/agents.csv', 'w') as f:
+            ...     writer = csv.writer(f)
+            ...     _ = writer.writerow(['age', 'hair', 'height'])
+            ...     _ = writer.writerow([22, 'brown', 5.5])
+            >>> al = AgentList.from_csv('/tmp/agents.csv')
+            >>> al
+            AgentList([Agent(traits = {'age': '22', 'hair': 'brown', 'height': '5.5'})])
+            >>> al = AgentList.from_csv('/tmp/agents.csv', name_field='hair')
+            >>> al
+            AgentList([Agent(name = \"""brown\""", traits = {'age': '22', 'height': '5.5'})])
+            >>> al = AgentList.from_csv('/tmp/agents.csv', codebook={'age': 'Age in years'})
+            >>> al[0].codebook
+            {'age': 'Age in years'}
+            >>> os.remove('/tmp/agents.csv')
         """
         from .agent import Agent
 
@@ -291,13 +306,15 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
 
     def translate_traits(self, codebook: dict[str, str]):
         """Translate traits to a new codebook.
+        
+        Args:
+            codebook: The new codebook.
 
-        :param codebook: The new codebook.
-
-        >>> al = AgentList.example()
-        >>> codebook = {'hair': {'brown':'Secret word for green'}}
-        >>> al.translate_traits(codebook)
-        AgentList([Agent(traits = {'age': 22, 'hair': 'Secret word for green', 'height': 5.5}), Agent(traits = {'age': 22, 'hair': 'Secret word for green', 'height': 5.5})])
+        Examples:
+            >>> al = AgentList.example()
+            >>> codebook = {'hair': {'brown':'Secret word for green'}}
+            >>> al.translate_traits(codebook)
+            AgentList([Agent(traits = {'age': 22, 'hair': 'Secret word for green', 'height': 5.5}), Agent(traits = {'age': 22, 'hair': 'Secret word for green', 'height': 5.5})])
         """
         new_agents = []
         for agent in self.data:
@@ -307,11 +324,14 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
     def remove_trait(self, trait: str):
         """Remove traits from the AgentList.
 
-        :param traits: The traits to remove.
-        >>> from edsl import Agent
-        >>> al = AgentList([Agent({'age': 22, 'hair': 'brown', 'height': 5.5}), Agent({'age': 22, 'hair': 'brown', 'height': 5.5})])
-        >>> al.remove_trait('age')
-        AgentList([Agent(traits = {'hair': 'brown', 'height': 5.5}), Agent(traits = {'hair': 'brown', 'height': 5.5})])
+        Args:
+            trait: The trait to remove.
+            
+        Examples:
+            >>> from edsl import Agent
+            >>> al = AgentList([Agent({'age': 22, 'hair': 'brown', 'height': 5.5}), Agent({'age': 22, 'hair': 'brown', 'height': 5.5})])
+            >>> al.remove_trait('age')
+            AgentList([Agent(traits = {'hair': 'brown', 'height': 5.5}), Agent(traits = {'hair': 'brown', 'height': 5.5})])
         """
         agents = []
         new_al = self.duplicate()
@@ -322,18 +342,23 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
     def add_trait(self, trait: str, values: List[Any]) -> AgentList:
         """Adds a new trait to every agent, with values taken from values.
 
-        :param trait: The name of the trait.
-        :param values: The valeues(s) of the trait. If a single value is passed, it is used for all agents.
-
-        >>> al = AgentList.example()
-        >>> new_al = al.add_trait('new_trait', 1)
-        >>> new_al.select('new_trait').to_scenario_list().to_list()
-        [1, 1]
-        >>> al.add_trait('new_trait', [1, 2, 3])
-        Traceback (most recent call last):
-        ...
-        edsl.agents.exceptions.AgentListError: The passed values have to be the same length as the agent list.
-        ...
+        Args:
+            trait: The name of the trait.
+            values: The value(s) of the trait. If a single value is passed, it is used for all agents.
+        
+        Returns:
+            AgentList: A new AgentList with the added trait.
+            
+        Examples:
+            >>> al = AgentList.example()
+            >>> new_al = al.add_trait('new_trait', 1)
+            >>> new_al.select('new_trait').to_scenario_list().to_list()
+            [1, 1]
+            >>> al.add_trait('new_trait', [1, 2, 3])
+            Traceback (most recent call last):
+            ...
+            edsl.agents.exceptions.AgentListError: The passed values have to be the same length as the agent list.
+            ...
         """
         if not is_iterable(values):
             new_agents = []
@@ -359,7 +384,8 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
     def get_codebook(file_path: str):
         """Return the codebook for a CSV file.
 
-        :param file_path: The path to the CSV file.
+        Args:
+            file_path: The path to the CSV file.
         """
         with open(file_path, "r") as f:
             reader = csv.DictReader(f)
@@ -435,15 +461,19 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
     def set_codebook(self, codebook: dict[str, str]) -> AgentList:
         """Set the codebook for the AgentList.
 
-        >>> from edsl import Agent
-        >>> a = Agent(traits = {'hair': 'brown'})
-        >>> al = AgentList([a, a])
-        >>> _ = al.set_codebook({'hair': "Color of hair on driver's license"})
-        >>> al[0].codebook
-        {'hair': "Color of hair on driver's license"}
-
-
-        :param codebook: The codebook.
+        Args:
+            codebook: The codebook.
+            
+        Returns:
+            AgentList: Self, with the codebook set.
+            
+        Examples:
+            >>> from edsl import Agent
+            >>> a = Agent(traits = {'hair': 'brown'})
+            >>> al = AgentList([a, a])
+            >>> _ = al.set_codebook({'hair': "Color of hair on driver's license"})
+            >>> al[0].codebook
+            {'hair': "Color of hair on driver's license"}
         """
         for agent in self.data:
             agent.codebook = codebook
@@ -541,15 +571,20 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         """
         Returns an example AgentList instance.
 
-        :param randomize: If True, uses Agent's randomize method.
-        :param codebook: Optional dictionary mapping trait names to descriptions.
-        
-        >>> al = AgentList.example()
-        >>> al
-        AgentList([Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5}), Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5})])
-        >>> al = AgentList.example(codebook={'age': 'Age in years'})
-        >>> al[0].codebook
-        {'age': 'Age in years'}
+        Args:
+            randomize: If True, uses Agent's randomize method.
+            codebook: Optional dictionary mapping trait names to descriptions.
+            
+        Returns:
+            AgentList: An example AgentList instance.
+            
+        Examples:
+            >>> al = AgentList.example()
+            >>> al
+            AgentList([Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5}), Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5})])
+            >>> al = AgentList.example(codebook={'age': 'Age in years'})
+            >>> al[0].codebook
+            {'age': 'Age in years'}
         """
         from .agent import Agent
 
@@ -564,15 +599,20 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
     def from_list(self, trait_name: str, values: List[Any], codebook: Optional[dict[str, str]] = None) -> "AgentList":
         """Create an AgentList from a list of values.
 
-        :param trait_name: The name of the trait.
-        :param values: A list of values.
-        :param codebook: Optional dictionary mapping trait names to descriptions.
-
-        >>> AgentList.from_list('age', [22, 23])
-        AgentList([Agent(traits = {'age': 22}), Agent(traits = {'age': 23})])
-        >>> al = AgentList.from_list('age', [22], codebook={'age': 'Age in years'})
-        >>> al[0].codebook
-        {'age': 'Age in years'}
+        Args:
+            trait_name: The name of the trait.
+            values: A list of values.
+            codebook: Optional dictionary mapping trait names to descriptions.
+            
+        Returns:
+            AgentList: A new AgentList with the given trait values.
+            
+        Examples:
+            >>> AgentList.from_list('age', [22, 23])
+            AgentList([Agent(traits = {'age': 22}), Agent(traits = {'age': 23})])
+            >>> al = AgentList.from_list('age', [22], codebook={'age': 'Age in years'})
+            >>> al[0].codebook
+            {'age': 'Age in years'}
         """
         from .agent import Agent
 
@@ -584,7 +624,15 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         return agent_list
 
     def __mul__(self, other: AgentList) -> AgentList:
-        """Takes the cross product of two AgentLists."""
+        """Takes the cross product of two AgentLists.
+
+        Examples:
+            >>> from edsl import Agent, AgentList
+            >>> al1 = AgentList([Agent(traits = {'age': 22}), Agent(traits = {'age': 23})])
+            >>> al2 = AgentList([Agent(traits = {'hair': 'brown'}), Agent(traits = {'hair': 'black'})])
+            >>> al1 * al2  # Cross product of the two AgentLists
+            AgentList([Agent(traits = {'age': 22, 'hair': 'brown'}), Agent(traits = {'age': 22, 'hair': 'black'}), Agent(traits = {'age': 23, 'hair': 'brown'}), Agent(traits = {'age': 23, 'hair': 'black'})])
+        """
         new_sl = []
         for s1, s2 in list(product(self, other)):
             new_sl.append(s1 + s2)
@@ -611,6 +659,12 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
     @classmethod
     def from_scenario_list(cls, scenario_list: "ScenarioList") -> "AgentList":
         """Create an AgentList from a ScenarioList.
+        
+        Args:
+            scenario_list: A ScenarioList instance to convert to an AgentList.
+            
+        Returns:
+            AgentList: A new AgentList created from the ScenarioList.
 
         This method supports special fields that map to Agent parameters:
         - "name": Will be used as the agent's name

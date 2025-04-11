@@ -10,7 +10,6 @@ from contextlib import asynccontextmanager
 from typing import List, Generator, Tuple, TYPE_CHECKING, AsyncIterator
 from dataclasses import dataclass
 import asyncio
-from ..data_transfer_models import EDSLResultObjectInput
 
 from ..results import Result
 from ..interviews import Interview
@@ -129,7 +128,7 @@ class AsyncInterviewRunner:
             )
             # Return tuple that keeps the interview reference
             return (result, interview, idx)
-        except Exception as e:
+        except Exception:
             if self.run_config.parameters.stop_on_exception:
                 raise
             # Could log the error here if needed

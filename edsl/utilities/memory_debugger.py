@@ -8,11 +8,10 @@ import time
 import types
 import inspect
 import webbrowser
-from pathlib import Path
 import base64
 import html
 from datetime import datetime
-from typing import Any, Set, List, Dict, Optional, Tuple, Union
+from typing import Any, Set, List, Dict, Tuple
 
 # Try to import objgraph, which is only available as a dev dependency
 try:
@@ -691,16 +690,16 @@ class MemoryDebugger:
             f.write(f"# Memory Debug Report for {type(self.target_obj)}\n\n")
             f.write(f"Generated: {time.strftime('%Y-%m-%d %H:%M:%S')}\n\n")
             f.write(f"HTML Report: [View HTML Report]({html_filename})\n\n")
-            f.write(f"Visualizations:\n")
+            f.write("Visualizations:\n")
             f.write(f"- [Outgoing References Graph]({outgoing_refs_filename}) - Objects referenced by the target\n")
             f.write(f"- [Incoming References Graph]({incoming_refs_filename}) - Objects that reference the target\n\n")
             
             # Capture reference count
-            f.write(f"## Reference Count\n")
+            f.write("## Reference Count\n")
             f.write(f"Current reference count: {sys.getrefcount(self.target_obj)}\n\n")
             
             # Capture referrers
-            f.write(f"## Objects Referring to Target\n")
+            f.write("## Objects Referring to Target\n")
             referrers = gc.get_referrers(self.target_obj)
             for ref in referrers:
                 if isinstance(ref, (types.FrameType, types.FunctionType)):
@@ -708,7 +707,7 @@ class MemoryDebugger:
                 f.write(f"- Type: {type(ref)}\n")
             
             # Capture reference cycles
-            f.write(f"\n## Reference Cycles\n")
+            f.write("\n## Reference Cycles\n")
             
             # Get all reference cycle information (capture stdout for the detailed info)
             import io

@@ -592,7 +592,6 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
         """
         from ..surveys import Survey
         from ..questions import QuestionBase
-        from ..jobs import Jobs
 
         if isinstance(survey_or_question, Survey):
             return survey_or_question.by(self.to_scenario_list())

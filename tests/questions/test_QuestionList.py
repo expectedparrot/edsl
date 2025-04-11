@@ -1,5 +1,4 @@
 import pytest
-import uuid
 from edsl.questions.exceptions import (
     QuestionAnswerValidationError,
 )

@@ -5,7 +5,6 @@ These tests focus on edge cases in answer validation that
 were problematic before the fix.
 """
 import pytest
-from edsl.questions.question_multiple_choice import MultipleChoiceResponseValidator, create_response_model
 from edsl.questions import QuestionMultipleChoice
 
 

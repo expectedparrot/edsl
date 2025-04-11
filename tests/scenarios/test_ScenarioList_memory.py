@@ -3,7 +3,6 @@ import os
 import pytest
 import psutil
 import numpy as np
-import tempfile
 from edsl.scenarios import Scenario, ScenarioList
 
 

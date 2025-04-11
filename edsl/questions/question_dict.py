@@ -15,7 +15,6 @@ from typing import Union, Optional, Dict, List, Any, Type
 from pydantic import BaseModel, Field, create_model
 from jinja2 import Environment, FileSystemLoader, TemplateNotFound
 from pathlib import Path
-import re
 import ast
 
 from .question_base import QuestionBase
@@ -326,7 +325,7 @@ class DictResponseValidator(ResponseValidatorABC):
                         }
                         
                         if verbose:
-                            print(f"Directly fixed response with type conversion")
+                            print("Directly fixed response with type conversion")
                             
                         try:
                             # Try to validate

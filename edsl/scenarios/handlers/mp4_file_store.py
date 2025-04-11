@@ -74,7 +74,6 @@ class Mp4Methods(FileMethods):
         Returns:
             str: Path to the created example MP4 file
         """
-        import os
         import subprocess
         
         # Create a temporary file for the output

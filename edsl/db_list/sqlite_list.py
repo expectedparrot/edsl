@@ -1,8 +1,7 @@
 import sqlite3
 import tempfile
 import os
-import json
-from typing import Any, Callable, Iterable, Iterator, List, Optional
+from typing import Any, Iterable, Iterator, List
 from abc import ABC, abstractmethod
 from collections.abc import MutableSequence
 
@@ -292,7 +291,6 @@ class SQLiteList(MutableSequence, ABC):
             sqlite3.Error: If there's an error accessing the source database
         """
         import sqlite3
-        import time
         import shutil
         import tempfile
         

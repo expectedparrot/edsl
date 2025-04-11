@@ -17,7 +17,7 @@ who need to run complex simulations with language models.
 """
 from __future__ import annotations
 import asyncio
-from typing import Optional, Union, TypeVar, Callable, cast
+from typing import Optional, Union
 
 from typing import (
     Literal,
@@ -43,7 +43,6 @@ from ..scenarios import Scenario, ScenarioList
 from ..surveys import Survey
 
 # Use import_module to avoid circular import with interviews
-from importlib import import_module
 
 
 def get_interview():
@@ -611,16 +610,10 @@ class Jobs(Base):
     async def _execute_with_remote_cache(self, run_job_async: bool) -> Results:
         """Core interview execution logic for jobs execution."""
         # Import needed modules inline to avoid early binding
-        import os
-        import time
-        import gc
         import weakref
-        import asyncio
         from ..caching import Cache
-        from ..results import Results, Result
+        from ..results import Results
         from ..tasks import TaskHistory
-        from ..utilities.decorators import jupyter_nb_handler
-        from ..utilities.memory_debugger import MemoryDebugger
         from .jobs_runner_status import JobsRunnerStatus
         from .async_interview_runner import AsyncInterviewRunner
         from .progress_bar_manager import ProgressBarManager
@@ -699,7 +692,7 @@ class Jobs(Base):
                     results = Results(
                         survey=self.survey, data=[], task_history=TaskHistory()
                     )
-                except Exception as e:
+                except Exception:
                     if self.run_config.parameters.stop_on_exception:
                         raise
                     results = Results(

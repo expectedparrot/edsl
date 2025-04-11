@@ -8,21 +8,14 @@ updating, and removing EDSL plugins.
 import sys
 import argparse
 import textwrap
-from typing import Optional, List, Dict, Any, Tuple
-from dataclasses import asdict
-import os
+from typing import Optional, List
 import re
 
 from .plugin_host import PluginHost, get_plugin_manager
 from .exceptions import (
-    PluginException, 
-    PluginNotFoundError, 
-    PluginInstallationError,
-    GitHubRepoError,
-    InvalidPluginError
+    PluginException
 )
 from .plugins_registry import (
-    AvailablePlugin,
     get_available_plugins,
     search_plugins, 
     get_plugin_details,
