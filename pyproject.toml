@@ -13,7 +13,7 @@ keywords = [ "LLM", "social science", "surveys", "user research",]
 license = "MIT"
 name = "edsl"
 readme = "README.md"
-version = "0.1.54.dev1"
+version = "0.1.55.dev1"
 
 [tool.poetry.scripts]
 edsl = "edsl.cli:main"
