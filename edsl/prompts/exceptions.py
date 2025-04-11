@@ -9,6 +9,13 @@ class PromptError(BaseException):
     """
     relevant_doc = "https://docs.expectedparrot.com/en/latest/prompts.html"
 
+class MissingVariableError(PromptError):
+    """
+    Exception raised when a required variable is missing from the prompt.
+    """
+    def __init__(self, message="Required variable is missing from the prompt", **kwargs):
+        super().__init__(message, **kwargs)
+
 
 class TemplateRenderError(PromptError):
     """

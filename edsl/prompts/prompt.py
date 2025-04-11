@@ -7,7 +7,7 @@ from functools import lru_cache
 
 from jinja2 import Environment, meta, Undefined
 
-from .exceptions import TemplateRenderError, PromptValueError, PromptImplementationError
+from .exceptions import TemplateRenderError, PromptValueError, PromptImplementationError, MissingVariableError
 from ..base import PersistenceMixin, RepresentationMixin
 
 logger = logging.getLogger(__name__)
@@ -289,8 +289,7 @@ class Prompt(PersistenceMixin, RepresentationMixin):
             result.captured_variables = captured_vars
             return result
         except Exception as e:
-            print(f"Error rendering prompt: {e}")
-            return self
+            raise MissingVariableError(f"Error rendering prompt: {e}. Original text: {self.text}.")
 
     @staticmethod
     def _render(

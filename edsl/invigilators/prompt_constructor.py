@@ -414,7 +414,7 @@ class PromptConstructor:
         if self.memory_plan is not None:
             memory_prompt += self.create_memory_prompt(
                 self.question.question_name
-            ).render(self.scenario | self.prior_answers_dict())
+            ).render(self.scenario | self.prior_answers_dict() | {'scenario': self.scenario})
         return memory_prompt
 
     def create_memory_prompt(self, question_name: str) -> Prompt:
