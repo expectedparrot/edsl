@@ -1068,7 +1068,7 @@ class DataOperationsBase:
             
             # Can also use unambiguous unprefixed field name
             >>> Dataset([{'answer.pros_cons': [{'pros': ['Safety'], 'cons': ['Cost']}]}]).flatten('pros_cons')
-            Dataset([{'answer.pros_cons.pros': [['Safety']]}, {'answer.pros_cons.cons': [['Cost']]}])
+            Dataset([{'answer.pros_cons.cons': [['Cost']]}, {'answer.pros_cons.pros': [['Safety']]}])
         """
         from ..dataset import Dataset
 
@@ -1166,6 +1166,7 @@ class DataOperationsBase:
                 all_keys.update(item.keys())
 
         # Create new columns for each key
+        new_columns = {}
         for key in sorted(all_keys):  # Sort for consistent output
             new_values = []
             for i in range(num_observations):
@@ -1173,9 +1174,13 @@ class DataOperationsBase:
                 if i < len(field_values) and isinstance(field_values[i], dict):
                     value = field_values[i].get(key, None)
                 new_values.append(value)
-
-            # Add this as a new column
-            flattened_data.append({f"{actual_field}.{key}": new_values})
+            
+            # Store the key and values in a sorted dictionary
+            new_columns[f"{actual_field}.{key}"] = new_values
+        
+        # Add columns in alphabetical order
+        for key in sorted(new_columns.keys()):
+            flattened_data.append({key: new_columns[key]})
 
         # Return a new Dataset with the flattened data
         return Dataset(flattened_data)
