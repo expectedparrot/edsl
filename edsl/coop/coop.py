@@ -44,6 +44,7 @@ class RemoteInferenceResponse(TypedDict):
     reason: str
     credits_consumed: float
     version: str
+    job_json_string: Optional[str]
 
 
 class RemoteInferenceCreationInfo(TypedDict):
@@ -1142,7 +1143,10 @@ class Coop(CoopFunctionsMixin):
         )
 
     def remote_inference_get(
-        self, job_uuid: Optional[str] = None, results_uuid: Optional[str] = None
+        self,
+        job_uuid: Optional[str] = None,
+        results_uuid: Optional[str] = None,
+        include_json_string: Optional[bool] = False,
     ) -> RemoteInferenceResponse:
         """
         Get the status and details of a remote inference job.
@@ -1154,6 +1158,7 @@ class Coop(CoopFunctionsMixin):
             job_uuid (str, optional): The UUID of the remote job to check
             results_uuid (str, optional): The UUID of the results associated with the job
                 (can be used if you only have the results UUID)
+            include_json_string (bool, optional): If True, include the json string for the job in the response
 
         Returns:
             RemoteInferenceResponse: Information about the job including:
@@ -1166,6 +1171,7 @@ class Coop(CoopFunctionsMixin):
                 - reason: Reason for failure (if applicable)
                 - credits_consumed: Credits used for the job execution
                 - version: EDSL version used for the job
+                - job_json_string: The json string for the job (if include_json_string is True)
 
         Raises:
             ValueError: If neither job_uuid nor results_uuid is provided
@@ -1227,6 +1233,9 @@ class Coop(CoopFunctionsMixin):
                 "reason": data.get("latest_failure_reason"),
                 "credits_consumed": data.get("price"),
                 "version": data.get("version"),
+                "job_json_string": (
+                    data.get("job_json_string") if include_json_string else None
+                ),
             }
         )
 
