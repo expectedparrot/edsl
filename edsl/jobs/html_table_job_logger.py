@@ -362,7 +362,11 @@ class HTMLTableJobLogger(JobLogger):
         other_fields = []
 
         for field, _ in self.jobs_info.__annotations__.items():
-            if field != "pretty_names":
+            if field not in [
+                "pretty_names",
+                "completed_interviews",
+                "failed_interviews",
+            ]:
                 value = getattr(self.jobs_info, field)
                 if not value:
                     continue
@@ -522,6 +526,14 @@ class HTMLTableJobLogger(JobLogger):
 
         display_style = "block" if self.is_expanded else "none"
 
+        header_status_text = status_text
+        if (
+            current_status == JobsStatus.PARTIALLY_FAILED
+            and self.jobs_info.completed_interviews is not None
+            and self.jobs_info.failed_interviews is not None
+        ):
+            header_status_text += f" ({self.jobs_info.completed_interviews:,} completed, {self.jobs_info.failed_interviews:,} failed)"
+
         return f"""
         {css}
         <div class="jobs-container">
@@ -539,7 +551,7 @@ class HTMLTableJobLogger(JobLogger):
                     <span id="arrow-{self.log_id}" class="expand-toggle">{'&#8963;' if self.is_expanded else '&#8964;'}</span>
                     Job Status 🦜
                 </div>
-                <div class="{status_class}">{status_text}</div>
+                <div class="{status_class}">{header_status_text}</div>
             </div>
             <div id="content-{self.log_id}" class="jobs-content" style="display: {display_style};">
                 {content_html}
