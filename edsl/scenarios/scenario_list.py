@@ -36,6 +36,8 @@ import inspect
 from collections import UserList, defaultdict
 from collections.abc import Iterable, MutableSequence
 import json
+import pickle
+
 
 # Import for refactoring to Source classes 
 from edsl.scenarios.scenario_source import deprecated_classmethod, TuplesSource
@@ -95,7 +97,6 @@ TableFormat: TypeAlias = Literal[
     "tsv",
 ]
 
-import pickle
 
 
 class ScenarioSQLiteList(SQLiteList):
@@ -112,6 +113,10 @@ class ScenarioSQLiteList(SQLiteList):
         return pickle.loads(data)
 
 
+if use_sqlite := True:
+    data_class = ScenarioSQLiteList
+else:
+    data_class = list
 
 class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
     """
@@ -135,12 +140,24 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         self,
         data: Optional[list] = None,
         codebook: Optional[dict[str, str]] = None,
-        data_class: Optional[type] = ScenarioSQLiteList,
+        data_class: Optional[type] = data_class,
     ):
         """Initialize a new ScenarioList with optional data and codebook."""
         self._data_class = data_class
         self.data = self._data_class([])
+        warned = False
         for item in data or []:
+            try: 
+                _ = json.dumps(item.to_dict())
+            except:
+                import warnings 
+                if not warned:
+                    warnings.warn( 
+                        f"One or more items in the data list are not JSON serializable. "
+                        "This would prevent running a job that uses this ScenarioList."
+                        "One solution is to use 'str(item)' to convert the item to a string before adding."
+                    )
+                    warned = True
             self.data.append(item)
         self.codebook = codebook or {}
 
@@ -870,7 +887,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             return False
         if self.codebook != other.codebook:
             return False
-        return self.data.equals(other.data)
+        return self.data == other.data
 
     def __eq__(self, other: Any) -> bool:
         """Use memory-efficient comparison by default."""
