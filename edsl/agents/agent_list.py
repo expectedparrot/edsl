@@ -47,13 +47,13 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
     with methods for filtering, transforming, and analyzing collections of agents.
 
 
-    >>> AgentList.example().to_scenario_list()
+    >>> AgentList.example().to_scenario_list().drop('agent_parameters')
     ScenarioList([Scenario({'age': 22, 'hair': 'brown', 'height': 5.5}), Scenario({'age': 22, 'hair': 'brown', 'height': 5.5})])
 
     >>> AgentList.example().to_dataset()
     Dataset([{'age': [22, 22]}, {'hair': ['brown', 'brown']}, {'height': [5.5, 5.5]}])
 
-    >>> AgentList.example().to_pandas()
+    >>> AgentList.example().select('age', 'hair', 'height').to_pandas()
        age   hair  height
     0   22  brown     5.5
     1   22  brown     5.5
@@ -119,6 +119,14 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         if seed:
             random.seed(seed)
         return AgentList(random.sample(self.data, n))
+    
+    def drop(self, field_name: str) -> AgentList:
+        """Drop a field from the AgentList.
+
+        Args:
+            field_name: The name of the field to drop.
+        """
+        return AgentList([a.drop(field_name) for a in self.data])
 
     def duplicate(self) -> AgentList:
         """Create a deep copy of the AgentList.
@@ -478,7 +486,7 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
             >>> al.to_dataset()
             Dataset([{'age': [22, 22]}, {'hair': ['brown', 'brown']}, {'height': [5.5, 5.5]}])
             >>> al.to_dataset(traits_only=False)  # doctest: +NORMALIZE_WHITESPACE
-            Dataset([{'age': [22, 22]}, {'hair': ['brown', 'brown']}, {'height': [5.5, 5.5]}, {'agent_parameters': [{'instruction': 'You are answering questions as if you were a human. Do not break character.', 'agent_name': None}, {'instruction': 'You are answering questions as if you were a human. Do not break character.', 'agent_name': None}]}])
+            Dataset([{'age': [22, 22]}, {'hair': ['brown', 'brown']}, {'height': [5.5, 5.5]}, {'agent_parameters': [{'instruction': 'You are answering questions as if you were a human. Do not break character.', 'agent_name': None, 'traits_presentation_template': 'Your traits: {{traits}}'}, {'instruction': 'You are answering questions as if you were a human. Do not break character.', 'agent_name': None, 'traits_presentation_template': 'Your traits: {{traits}}'}]}])
         """
         from ..dataset import Dataset
 
@@ -495,7 +503,7 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
                 data[trait_key].append(agent.traits.get(trait_key, None))
             if not traits_only:
                 data["agent_parameters"].append(
-                    {"instruction": agent.instruction, "agent_name": agent.name}
+                    {"instruction": agent.instruction, "agent_name": agent.name, "traits_presentation_template": agent.traits_presentation_template}
                 )
         return Dataset([{key: entry} for key, entry in data.items()])
 
