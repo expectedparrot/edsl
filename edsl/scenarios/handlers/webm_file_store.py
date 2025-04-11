@@ -12,7 +12,7 @@ class WebmMethods(FileMethods):
     """
     suffix = "webm"
 
-    def view_system(self):
+    def view_system(self, width: int = None, height: int = None):
         """
         Open the WebM file with the system's default video player.
         """
@@ -32,13 +32,16 @@ class WebmMethods(FileMethods):
         else:
             print("WebM file was not found.")
 
-    def view_notebook(self):
+    def view_notebook(self, width: int = None, height: int = None):
         """
         Display the WebM video in a Jupyter notebook using IPython's HTML display.
         """
         from IPython.display import HTML, display
         import base64
         
+        _width = width if width is not None else 640
+        _height = height if height is not None else 360
+
         # Read the video file and encode it as base64
         with open(self.path, 'rb') as f:
             video_data = f.read()
@@ -47,7 +50,7 @@ class WebmMethods(FileMethods):
         
         # Create an HTML5 video element with the base64-encoded video
         video_html = f"""
-        <video width="640" height="360" controls>
+        <video width="{_width}" height="{_height}" controls>
             <source src="data:video/webm;base64,{video_base64}" type="video/webm">
             Your browser does not support the video tag.
         </video>

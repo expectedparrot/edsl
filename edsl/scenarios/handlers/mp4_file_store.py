@@ -11,7 +11,7 @@ class Mp4Methods(FileMethods):
     """
     suffix = "mp4"
 
-    def view_system(self):
+    def view_system(self, width: int = None, height: int = None):
         """
         Open the MP4 file with the system's default video player.
         """
@@ -31,12 +31,15 @@ class Mp4Methods(FileMethods):
         else:
             print("MP4 file was not found.")
 
-    def view_notebook(self):
+    def view_notebook(self, width: int = None, height: int = None):
         """
         Display the MP4 video in a Jupyter notebook using IPython's HTML display.
         """
         from IPython.display import HTML, display
         import base64
+        
+        _width = width if width is not None else 640
+        _height = height if height is not None else 360
         
         # Read the video file and encode it as base64
         with open(self.path, 'rb') as f:
@@ -46,7 +49,7 @@ class Mp4Methods(FileMethods):
         
         # Create an HTML5 video element with the base64-encoded video
         video_html = f"""
-        <video width="640" height="360" controls>
+        <video width="{_width}" height="{_height}" controls>
             <source src="data:video/mp4;base64,{video_base64}" type="video/mp4">
             Your browser does not support the video tag.
         </video>
