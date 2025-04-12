@@ -314,7 +314,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         total_results: Optional[int] = None,
         task_history: Optional[TaskHistory] = None,
         sort_by_iteration: bool = False,
-        data_class: Optional[type] = ResultsSQLList,
+        data_class: Optional[type] = list, #ResultsSQLList,
     ):
         """Instantiate a Results object with a survey and a list of Result objects.
 
@@ -432,6 +432,32 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         return self._fetch_list("answer", question_name)
 
     def _summary(self) -> dict:
+        """Return a dictionary containing summary statistics about the Results object.
+
+        The summary includes:
+        - Number of observations (results)
+        - Number of unique agents
+        - Number of unique models
+        - Number of unique scenarios
+        - Number of questions in the survey
+        - Survey question names (truncated for readability)
+
+        Returns:
+            dict: A dictionary containing the summary statistics
+
+        Examples:
+            >>> from edsl.results import Results
+            >>> r = Results.example()
+            >>> summary = r._summary()
+            >>> isinstance(summary, dict)
+            True
+            >>> all(key in summary for key in ['observations', 'agents', 'models', 'scenarios', 'questions', 'Survey question names'])
+            True
+            >>> summary['observations'] > 0
+            True
+            >>> summary['questions'] > 0
+            True
+        """
         import reprlib
 
         d = {
@@ -444,7 +470,22 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         }
         return d
 
-    def _cache_keys(self):
+    def _cache_keys(self) -> List[str]:# -> list:
+        """Return a list of all cache keys from the results.
+
+        This method collects all cache keys by iterating through each result in the data
+        and extracting the values from the 'cache_keys' dictionary. These keys can be used
+        to identify cached responses and manage the cache effectively.
+
+        Returns:
+            List[str]: A list of cache keys from all results.
+
+        Examples:
+            >>> from edsl.results import Results
+            >>> r = Results.example()
+            >>> all([type(s) == str for s in r._cache_keys()])
+            True
+        """
         cache_keys = []
         for result in self:
             cache_keys.extend(list(result["cache_keys"].values()))
@@ -454,30 +495,36 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         cache_keys = self._cache_keys()
         return cache.subset(cache_keys)
 
-    def insert(self, item):
-        """Insert a Result object into the Results list in the correct order.
+    # def insert(self, item):
+    #     """Insert a Result object into the Results list in the correct order.
 
-        If the Result has an 'order' attribute, it uses that for ordering.
-        Otherwise, it falls back to ordering by the 'iteration' attribute.
-        """
+    #     If the Result has an 'order' attribute, it uses that for ordering.
+    #     Otherwise, it falls back to ordering by the 'iteration' attribute.
 
-        def get_sort_key(result):
-            if hasattr(result, "order"):
-                return result.order
-            return result.data["iteration"]
+    #     >>> from edsl.results import Result
+    #     >>> rnew = Result.example()
+    #     >>> results = Results.example()
+    #     >>> results.insert(rnew)
+    #     >>> results[0] == rnew
+    #     True
+    #     >>> results = Results.example()
+    #     >>> rnew.order = 100
+    #     >>> results.insert(rnew)
+    #     >>> results[-1] == rnew  # The new result is at the end
+    #     True
+    #     """
 
-        # Find insertion point using bisect with custom key function
-        index = bisect_left([get_sort_key(x) for x in self.data], get_sort_key(item))
+    #     def get_sort_key(result):
+    #         if hasattr(result, "order"):
+    #             return result.order
+    #         return result.data["iteration"]
 
-        # Call the parent class's insert directly
-        MutableSequence.insert(self, index, item)
+    #     # Find insertion point using bisect with custom key function
+    #     index = bisect_left([get_sort_key(x) for x in self.data], get_sort_key(item))
 
-    # def append(self, item) -> None:
-    #     # self.insert(item)
-    #     self.data.append(item)
+    #     # Call the parent class's insert directly
+    #     MutableSequence.insert(self, index, item)
 
-    # def extend(self, other):
-    #     self.data.extend(other)
 
     def extend_sorted(self, other):
         """Extend the Results list with items from another iterable.
@@ -659,7 +706,8 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             )
 
         # Create a new ResultsSQLList with the combined data
-        combined_data = ResultsSQLList()
+        #combined_data = ResultsSQLList()
+        combined_data = self._data_class()
         combined_data.extend(self.data)
         combined_data.extend(other.data)
 
@@ -2109,6 +2157,8 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         import sqlite3
         import shutil
 
+        data_class = ResultsSQLList
+
         try:
             # Create a temporary directory to store files before zipping
             with tempfile.TemporaryDirectory() as temp_dir:
@@ -2119,8 +2169,8 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
                 
                 if isinstance(self.data, list):
                     # If data is a list, create a new SQLiteList
-                    from .sqlite_list import SQLiteList
-                    new_db = SQLiteList()
+                    #from .sqlite_list import SQLiteList
+                    new_db = data_class()
                     new_db.extend(self.data)
                     shutil.copy2(new_db.db_path, db_path)
                 elif hasattr(self.data, 'db_path') and os.path.exists(self.data.db_path):
@@ -2128,8 +2178,9 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
                     shutil.copy2(self.data.db_path, db_path)
                 else:
                     # If no database exists, create a new one
-                    from .sqlite_list import SQLiteList
-                    new_db = SQLiteList()
+                    #from .sqlite_list import SQLiteList
+                    #new_db = SQLiteList()
+                    new_db = data_class()
                     new_db.extend(self.data)
                     shutil.copy2(new_db.db_path, db_path)
 
@@ -2182,6 +2233,8 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         from ..caching import Cache
         from ..tasks import TaskHistory
 
+        data_class = ResultsSQLList
+
         try:
             # Create a temporary directory to extract files
             with tempfile.TemporaryDirectory() as temp_dir:
@@ -2209,7 +2262,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
                 db_path = temp_path / 'results.db'
                 if db_path.exists():
                     # Create a new ResultsSQLList instance
-                    new_db = ResultsSQLList()
+                    new_db = data_class()
                     # Copy data from the source database - convert Path to string
                     new_db.copy_from(str(db_path))
                     # Set the new database as the results data
