@@ -3,7 +3,7 @@ import base64
 import json
 import requests
 
-from typing import Any, Optional, Union, Literal, TypedDict, TYPE_CHECKING
+from typing import Any, Optional, Union, Literal, List, TypedDict, TYPE_CHECKING
 from uuid import UUID
 
 from .. import __version__
@@ -19,6 +19,7 @@ from .exceptions import (
     CoopInvalidURLError,
     CoopNoUUIDError,
     CoopServerResponseError,
+    CoopValueError,
 )
 from .utils import (
     EDSLObject,
@@ -244,7 +245,7 @@ class Coop(CoopFunctionsMixin):
 
         if response.status_code >= 400:
             try:
-                message = response.json().get("detail")
+                message = str(response.json().get("detail"))
             except json.JSONDecodeError:
                 raise CoopServerResponseError(
                     f"Server returned status code {response.status_code}."
@@ -671,38 +672,131 @@ class Coop(CoopFunctionsMixin):
             object.initialize_cache_from_results()
         return object
 
-    def get_all(self, object_type: ObjectType) -> list[dict[str, Any]]:
+    def _validate_object_types(
+        self, object_type: ObjectType | List[ObjectType]
+    ) -> List[ObjectType]:
+        """
+        Validate object types and return a list of valid types.
+
+        Args:
+            object_type: Single object type or list of object types to validate
+
+        Returns:
+            List of validated object types
+
+        Raises:
+            CoopValueError: If any object type is invalid
+        """
+        valid_object_types = ObjectRegistry.object_type_to_edsl_class.keys()
+        if isinstance(object_type, list):
+            invalid_types = [t for t in object_type if t not in valid_object_types]
+            if invalid_types:
+                raise CoopValueError(
+                    f"Invalid object type(s): {invalid_types}. "
+                    f"Valid types are: {list(valid_object_types)}"
+                )
+            return object_type
+        else:
+            if object_type not in valid_object_types:
+                raise CoopValueError(
+                    f"Invalid object type: {object_type}. "
+                    f"Valid types are: {list(valid_object_types)}"
+                )
+            return [object_type]
+
+    def _validate_visibility_types(
+        self, visibility: VisibilityType | List[VisibilityType]
+    ) -> List[VisibilityType]:
+        """
+        Validate visibility types and return a list of valid types.
+
+        Args:
+            visibility: Single visibility type or list of visibility types to validate
+
+        Returns:
+            List of validated visibility types
+
+        Raises:
+            CoopValueError: If any visibility type is invalid
+        """
+        valid_visibility_types = ["private", "public", "unlisted"]
+        if isinstance(visibility, list):
+            invalid_visibilities = [
+                v for v in visibility if v not in valid_visibility_types
+            ]
+            if invalid_visibilities:
+                raise CoopValueError(
+                    f"Invalid visibility type(s): {invalid_visibilities}. "
+                    f"Valid types are: {valid_visibility_types}"
+                )
+            return visibility
+        else:
+            if visibility not in valid_visibility_types:
+                raise CoopValueError(
+                    f"Invalid visibility type: {visibility}. "
+                    f"Valid types are: {valid_visibility_types}"
+                )
+            return [visibility]
+
+    def list(
+        self,
+        object_type: ObjectType | List[ObjectType] | None = None,
+        visibility: VisibilityType | List[VisibilityType] | None = None,
+        search_query: str | None = None,
+        page: int = 1,
+        page_size: int = 10,
+        sort_ascending: bool = False,
+    ) -> List[dict[str, Any]]:
         """
         Retrieve all objects of a certain type associated with the user.
+
+        Notes:
+        - search_query only works with the description field.
+        - If sort_ascending is False, then the most recently created objects are returned first.
         """
-        edsl_class = ObjectRegistry.object_type_to_edsl_class.get(object_type)
+
+        if page < 1:
+            raise CoopValueError("The page must be greater than or equal to 1.")
+        if page_size < 1:
+            raise CoopValueError("The page size must be greater than or equal to 1.")
+        if page_size > 100:
+            raise CoopValueError("The page size must be less than or equal to 100.")
+
+        params = {
+            "page": page,
+            "page_size": page_size,
+            "sort_ascending": sort_ascending,
+        }
+        if object_type:
+            params["type"] = self._validate_object_types(object_type)
+        if visibility:
+            params["visibility"] = self._validate_visibility_types(visibility)
+        if search_query:
+            params["search_query"] = search_query
+
         response = self._send_server_request(
-            uri="api/v0/objects",
+            uri="api/v0/object/list",
             method="GET",
-            params={"type": object_type},
+            params=params,
         )
         self._resolve_server_response(response)
+        content = response.json()
         objects = []
-        for o in response.json():
-            json_string = o.get("json_string")
-            ## check if load from bucket needed.
-            if "load_from:" in json_string[0:12]:
-                load_link = json_string.split("load_from:")[1]
-                object_data = requests.get(load_link)
-                self._resolve_gcs_response(object_data)
-                json_string = object_data.text
-
-            json_string = json.loads(json_string)
+        for o in content:
             object = {
-                "object": edsl_class.from_dict(json_string),
                 "uuid": o.get("uuid"),
-                "version": o.get("version"),
+                "object_type": o.get("object_type"),
+                "alias": o.get("alias"),
+                "owner_username": o.get("owner_username"),
                 "description": o.get("description"),
                 "visibility": o.get("visibility"),
+                "version": o.get("version"),
                 "url": f"{self.url}/content/{o.get('uuid')}",
                 "alias_url": self._get_alias_url(
                     o.get("owner_username"), o.get("alias")
                 ),
+                "last_updated_ts": o.get("last_updated_ts"),
+                "created_ts": o.get("created_ts"),
             }
             objects.append(object)
 
@@ -880,7 +974,7 @@ class Coop(CoopFunctionsMixin):
     def remote_cache_get(
         self,
         job_uuid: Optional[Union[str, UUID]] = None,
-    ) -> list[CacheEntry]:
+    ) -> List[CacheEntry]:
         """
         Get all remote cache entries.
 
@@ -909,8 +1003,8 @@ class Coop(CoopFunctionsMixin):
 
     def remote_cache_get_by_key(
         self,
-        select_keys: Optional[list[str]] = None,
-    ) -> list[CacheEntry]:
+        select_keys: Optional[List[str]] = None,
+    ) -> List[CacheEntry]:
         """
         Get all remote cache entries.
 
@@ -939,9 +1033,9 @@ class Coop(CoopFunctionsMixin):
 
     def legacy_remote_cache_get(
         self,
-        exclude_keys: Optional[list[str]] = None,
-        select_keys: Optional[list[str]] = None,
-    ) -> list[CacheEntry]:
+        exclude_keys: Optional[List[str]] = None,
+        select_keys: Optional[List[str]] = None,
+    ) -> List[CacheEntry]:
         """
         Get all remote cache entries.
 
@@ -969,7 +1063,7 @@ class Coop(CoopFunctionsMixin):
 
     def legacy_remote_cache_get_diff(
         self,
-        client_cacheentry_keys: list[str],
+        client_cacheentry_keys: List[str],
     ) -> dict:
         """
         Get the difference between local and remote cache entries for a user.
@@ -1239,7 +1333,7 @@ class Coop(CoopFunctionsMixin):
             }
         )
 
-    def get_running_jobs(self) -> list[str]:
+    def get_running_jobs(self) -> List[str]:
         """
         Get a list of currently running job IDs.
 
@@ -1452,7 +1546,7 @@ class Coop(CoopFunctionsMixin):
         data = response.json()
         return ServiceToModelsMapping(data)
 
-    def fetch_working_models(self) -> list[dict]:
+    def fetch_working_models(self) -> List[dict]:
         """
         Fetch a list of working models from Coop.
 
