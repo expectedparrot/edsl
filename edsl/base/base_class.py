@@ -18,11 +18,13 @@ import json
 from typing import Any, Optional, Union
 from uuid import UUID
 import difflib
-from typing import Dict, Tuple
+from typing import Dict, Literal, Tuple
 from collections import UserList
 import inspect
 
 from .. import logger
+
+VisibilityType = Literal["private", "public", "unlisted"]
 
 
 class BaseException(Exception):
@@ -253,6 +255,36 @@ class PersistenceMixin:
         object_type = ObjectRegistry.get_object_type_by_edsl_class(cls)
 
         return coop.get(url_or_uuid, expected_object_type=object_type)
+
+    @classmethod
+    def list(
+        cls,
+        visibility: Optional[VisibilityType] = None,
+        search_query: Optional[str] = None,
+        page: int = 1,
+        page_size: int = 10,
+        sort_ascending: bool = False,
+    ):
+        """List objects from coop.
+
+        Notes:
+        - search_query only works with the description field.
+        - If sort_ascending is False, then the most recently created objects are returned first.
+        """
+        from edsl.coop import Coop
+        from edsl.coop import ObjectRegistry
+
+        object_type = ObjectRegistry.get_object_type_by_edsl_class(cls)
+
+        coop = Coop()
+        return coop.list(
+            object_type,
+            visibility,
+            search_query,
+            page,
+            page_size,
+            sort_ascending,
+        )
 
     @classmethod
     def delete(cls, url_or_uuid: Union[str, UUID]) -> None:
