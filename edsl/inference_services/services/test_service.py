@@ -14,6 +14,18 @@ if TYPE_CHECKING:
     from ...scenarios.file_store import FileStore as File
 
 
+from edsl import Model
+from edsl.questions import (
+    QuestionMultipleChoice,
+    QuestionCheckBox,
+    QuestionLinearScale,
+    QuestionList,
+    QuestionDict,
+    QuestionNumerical,
+    QuestionFreeText,
+)
+
+
 class TestService(InferenceServiceABC):
     """OpenAI service class."""
 
@@ -39,11 +51,12 @@ class TestService(InferenceServiceABC):
         return ["test"]
 
     @classmethod
-    def create_model(cls, model_name, model_class_name=None) -> 'LanguageModel':
+    def create_model(cls, model_name, model_class_name=None) -> "LanguageModel":
         # Removed unused variable
 
         # Import LanguageModel only when actually creating a model
         from ...language_models import LanguageModel
+
         class TestServiceLanguageModel(LanguageModel):
             _model_ = "test"
             _parameters_ = {"temperature": 0.5}
@@ -80,6 +93,7 @@ class TestService(InferenceServiceABC):
 
                     if random.random() < p:
                         from ..exceptions import InferenceServiceIntendedError
+
                         raise InferenceServiceIntendedError("This is a test error")
 
                 if hasattr(self, "func"):
@@ -102,5 +116,52 @@ class TestService(InferenceServiceABC):
                     "message": [{"text": f"{canned_text}"}],
                     "usage": {"prompt_tokens": 1, "completion_tokens": 1},
                 }
+
+            def create_canned_response(self, survey):
+                canned_response = {}
+
+                for q in survey.questions:
+                    name = q.question_name
+
+                    if isinstance(q, QuestionMultipleChoice):
+                        # Return first option
+                        canned_response[name] = q.question_options[0]
+
+                    elif isinstance(q, QuestionCheckBox):
+                        # Return first two options as a list
+                        canned_response[name] = q.question_options[:2]
+
+                    elif isinstance(q, QuestionLinearScale):
+                        # Return middle of the scale
+                        values = q.question_options
+                        if isinstance(values, list) and all(
+                            isinstance(i, int) for i in values
+                        ):
+                            mid = values[len(values) // 2]
+                            canned_response[name] = mid
+                        else:
+                            canned_response[name] = 5  # default fallback
+
+                    elif isinstance(q, QuestionNumerical):
+                        # Return a fixed float value
+                        canned_response[name] = 42.0
+
+                    elif isinstance(q, QuestionList):
+                        # Return a list of simple strings
+                        canned_response[name] = [f"{name} item 1", f"{name} item 2"]
+
+                    elif isinstance(q, QuestionDict):
+                        # Return a dict with keys from question_dict_keys if present
+                        keys = getattr(q, "question_dict_keys", ["field1", "field2"])
+                        canned_response[name] = {k: f"{k} value" for k in keys}
+
+                    elif isinstance(q, QuestionFreeText):
+                        # Return a string
+                        canned_response[name] = f"This is a canned answer for {name}."
+
+                    else:
+                        # Fallback: simple string
+                        canned_response[name] = f"Canned fallback for {name}"
+                self.canned_response = canned_response
 
         return TestServiceLanguageModel
