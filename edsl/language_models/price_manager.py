@@ -20,22 +20,23 @@ class PriceManager:
         # Only initialize once, even if __init__ is called multiple times
         if not self._is_initialized:
             self._is_initialized = True
+            print("Price manager initialize")
             self.refresh_prices()
-            
+
     @classmethod
     def get_instance(cls):
         """Get the singleton instance, creating it if necessary."""
         if cls._instance is None or cls._instance() is None:
             return cls()
         return cls._instance()
-            
+
     @classmethod
     def reset(cls):
         """Reset the singleton instance to clean up resources."""
         cls._instance = None
         cls._is_initialized = False
         cls._price_lookup = {}
-            
+
     def __del__(self):
         """Ensure proper cleanup when the instance is garbage collected."""
         try:
