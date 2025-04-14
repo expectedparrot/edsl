@@ -293,7 +293,7 @@ class PersistenceMixin:
                 from edsl.base.exceptions import BaseValueError
 
                 raise BaseValueError(
-                    "The visibility parameteris not supported for remote inference jobs."
+                    "The visibility parameter is not supported for remote inference jobs."
                 )
             return coop.remote_inference_list(
                 job_status,
