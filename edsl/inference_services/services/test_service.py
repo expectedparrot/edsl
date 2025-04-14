@@ -117,7 +117,7 @@ class TestService(InferenceServiceABC):
                     "usage": {"prompt_tokens": 1, "completion_tokens": 1},
                 }
 
-            def create_canned_response(self, survey):
+            def set_canned_response(self, survey: "Survey") -> None:
                 canned_response = {}
 
                 for q in survey.questions:
@@ -152,7 +152,7 @@ class TestService(InferenceServiceABC):
 
                     elif isinstance(q, QuestionDict):
                         # Return a dict with keys from question_dict_keys if present
-                        keys = getattr(q, "question_dict_keys", ["field1", "field2"])
+                        keys = getattr(q, "answer_keys", ["field1", "field2"])
                         canned_response[name] = {k: f"{k} value" for k in keys}
 
                     elif isinstance(q, QuestionFreeText):
