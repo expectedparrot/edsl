@@ -14,18 +14,6 @@ if TYPE_CHECKING:
     from ...scenarios.file_store import FileStore as File
 
 
-from edsl import Model
-from edsl.questions import (
-    QuestionMultipleChoice,
-    QuestionCheckBox,
-    QuestionLinearScale,
-    QuestionList,
-    QuestionDict,
-    QuestionNumerical,
-    QuestionFreeText,
-)
-
-
 class TestService(InferenceServiceABC):
     """OpenAI service class."""
 
@@ -118,6 +106,17 @@ class TestService(InferenceServiceABC):
                 }
 
             def set_canned_response(self, survey: "Survey") -> None:
+                from edsl import Model
+                from edsl.questions import (
+                    QuestionMultipleChoice,
+                    QuestionCheckBox,
+                    QuestionLinearScale,
+                    QuestionList,
+                    QuestionDict,
+                    QuestionNumerical,
+                    QuestionFreeText,
+                )
+
                 canned_response = {}
 
                 for q in survey.questions:
