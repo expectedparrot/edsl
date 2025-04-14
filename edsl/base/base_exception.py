@@ -1,4 +1,5 @@
 import sys
+import os
 from IPython.core.interactiveshell import InteractiveShell
 from IPython.display import HTML, display
 from pathlib import Path
@@ -134,7 +135,7 @@ class BaseException(Exception):
 
         # Wrap in a function so we can pass it to set_custom_exc.
         def _ipython_custom_exc(shell, etype, evalue, tb, tb_offset=None):
-            if issubclass(etype, BaseException) and cls.suppress_traceback:
+            if issubclass(etype, BaseException) and not cls._should_show_full_traceback():
                 # Show custom message only if not silent
                 if not getattr(evalue, "silent", False):
                     # Try HTML display first; fall back to stderr
@@ -166,7 +167,7 @@ class BaseException(Exception):
         original_excepthook = sys.excepthook
 
         def _custom_excepthook(exc_type, exc_value, exc_traceback):
-            if issubclass(exc_type, BaseException) and cls.suppress_traceback:
+            if issubclass(exc_type, BaseException) and not cls._should_show_full_traceback():
                 # Show custom message only if not silent
                 if not getattr(exc_value, "silent", False):
                     # try:
@@ -202,3 +203,20 @@ class BaseException(Exception):
             return True
         except NameError:
             return False
+            
+    @classmethod
+    def _should_show_full_traceback(cls) -> bool:
+        """
+        Determines whether to show full tracebacks based on the EDSL_SHOW_FULL_TRACEBACK 
+        environment variable.
+        
+        Returns:
+            bool: True if full tracebacks should be shown, False otherwise
+        """
+        # Check environment variable (can be set directly or via .env)
+        env_var = os.environ.get("EDSL_SHOW_FULL_TRACEBACK")
+        if env_var is not None:
+            return env_var.lower() in ("true", "1", "yes", "y")
+            
+        # Default to the class attribute if nothing else is set
+        return not cls.suppress_traceback
