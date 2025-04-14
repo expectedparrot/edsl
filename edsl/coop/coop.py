@@ -748,7 +748,7 @@ class Coop(CoopFunctionsMixin):
         sort_ascending: bool = False,
     ) -> List[dict[str, Any]]:
         """
-        Retrieve all objects of a certain type associated with the user.
+        Retrieve objects either owned by the user or shared with them.
 
         Notes:
         - search_query only works with the description field.
@@ -1333,6 +1333,104 @@ class Coop(CoopFunctionsMixin):
             }
         )
 
+    def _validate_remote_job_status_types(
+        self, status: RemoteJobStatus | List[RemoteJobStatus]
+    ) -> List[RemoteJobStatus]:
+        """
+        Validate visibility types and return a list of valid types.
+
+        Args:
+            visibility: Single visibility type or list of visibility types to validate
+
+        Returns:
+            List of validated visibility types
+
+        Raises:
+            CoopValueError: If any visibility type is invalid
+        """
+        valid_status_types = [
+            "queued",
+            "running",
+            "completed",
+            "failed",
+            "cancelled",
+            "cancelling",
+            "partial_failed",
+        ]
+        if isinstance(status, list):
+            invalid_statuses = [s for s in status if s not in valid_status_types]
+            if invalid_statuses:
+                raise CoopValueError(
+                    f"Invalid status type(s): {invalid_statuses}. "
+                    f"Valid types are: {valid_status_types}"
+                )
+            return status
+        else:
+            if status not in valid_status_types:
+                raise CoopValueError(
+                    f"Invalid status type: {status}. "
+                    f"Valid types are: {valid_status_types}"
+                )
+            return [status]
+
+    def remote_inference_list(
+        self,
+        status: RemoteJobStatus | List[RemoteJobStatus] | None = None,
+        search_query: str | None = None,
+        page: int = 1,
+        page_size: int = 10,
+        sort_ascending: bool = False,
+    ) -> List[dict[str, Any]]:
+        """
+        Retrieve jobs owned by the user.
+
+        Notes:
+        - search_query only works with the description field.
+        - If sort_ascending is False, then the most recently created jobs are returned first.
+        """
+
+        if page < 1:
+            raise CoopValueError("The page must be greater than or equal to 1.")
+        if page_size < 1:
+            raise CoopValueError("The page size must be greater than or equal to 1.")
+        if page_size > 100:
+            raise CoopValueError("The page size must be less than or equal to 100.")
+
+        params = {
+            "page": page,
+            "page_size": page_size,
+            "sort_ascending": sort_ascending,
+        }
+        if status:
+            params["status"] = self._validate_remote_job_status_types(status)
+        if search_query:
+            params["search_query"] = search_query
+
+        response = self._send_server_request(
+            uri="api/v0/remote-inference/list",
+            method="GET",
+            params=params,
+        )
+        self._resolve_server_response(response)
+        content = response.json()
+        jobs = []
+        for o in content:
+            job = {
+                "uuid": o.get("uuid"),
+                "description": o.get("description"),
+                "status": o.get("status"),
+                "cost_credits": o.get("cost_credits"),
+                "iterations": o.get("iterations"),
+                "results_uuid": o.get("results_uuid"),
+                "latest_error_report_uuid": o.get("latest_error_report_uuid"),
+                "latest_failure_reason": o.get("latest_failure_reason"),
+                "version": o.get("version"),
+                "created_ts": o.get("created_ts"),
+            }
+            jobs.append(job)
+
+        return jobs
+
     def get_running_jobs(self) -> List[str]:
         """
         Get a list of currently running job IDs.
@@ -1707,7 +1805,7 @@ def main():
     coop.get(response.get("uuid"), expected_object_type="question")
     coop.get(response.get("url"))
     coop.create(QuestionMultipleChoice.example())
-    coop.get_all("question")
+    coop.list("question")
     coop.patch(response.get("uuid"), visibility="private")
     coop.patch(response.get("uuid"), description="hey")
     coop.patch(response.get("uuid"), value=QuestionFreeText.example())
@@ -1742,7 +1840,7 @@ def main():
     for object_type, cls in OBJECTS:
         print(f"Testing {object_type} objects")
         # 1. Delete existing objects
-        existing_objects = coop.get_all(object_type)
+        existing_objects = coop.list(object_type)
         for item in existing_objects:
             coop.delete(item.get("uuid"))
         # 2. Create new objects
@@ -1754,7 +1852,7 @@ def main():
             cls.example(), visibility="unlisted", description="hey"
         )
         # 3. Retrieve all objects
-        objects = coop.get_all(object_type)
+        objects = coop.list(object_type)
         assert len(objects) == 4
         # 4. Try to retrieve an item that does not exist
         try:
@@ -1773,7 +1871,7 @@ def main():
         # 7. Delete all objects
         for item in objects:
             coop.delete(item.get("uuid"))
-        assert len(coop.get_all(object_type)) == 0
+        assert len(coop.list(object_type)) == 0
 
     ##############
     # C. Remote Cache
