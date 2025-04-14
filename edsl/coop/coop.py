@@ -677,7 +677,7 @@ class Coop(CoopFunctionsMixin):
         """
         edsl_class = ObjectRegistry.object_type_to_edsl_class.get(object_type)
         response = self._send_server_request(
-            uri="api/v0/objects",
+            uri="api/v0/object/list",
             method="GET",
             params={"type": object_type},
         )
