@@ -268,13 +268,13 @@ class PersistenceMixin:
     @classmethod
     def list(
         cls,
-        visibility: VisibilityType | List[VisibilityType] | None = None,
-        job_status: RemoteJobStatus | List[RemoteJobStatus] | None = None,
-        search_query: str | None = None,
+        visibility: Union[VisibilityType, List[VisibilityType], None] = None,
+        job_status: Union[RemoteJobStatus, List[RemoteJobStatus], None] = None,
+        search_query: Union[str, None] = None,
         page: int = 1,
         page_size: int = 10,
         sort_ascending: bool = False,
-    ):
+    ) -> List[dict]:
         """List objects from coop.
 
         Notes:
