@@ -151,9 +151,33 @@ class TestService(InferenceServiceABC):
                         canned_response[name] = [f"{name} item 1", f"{name} item 2"]
 
                     elif isinstance(q, QuestionDict):
-                        # Return a dict with keys from question_dict_keys if present
+                        # Handle response types for each key
                         keys = getattr(q, "answer_keys", ["field1", "field2"])
-                        canned_response[name] = {k: f"{k} value" for k in keys}
+                        value_types = getattr(q, "value_types", [])
+                        canned_response[name] = {}
+
+                        for i, key in enumerate(keys):
+                            # Check the type for each key and generate the appropriate response
+                            response_type = (
+                                value_types[i] if i < len(value_types) else "string"
+                            )  # Default to "string" if not provided
+
+                            if "str" in response_type:
+                                canned_response[name][key] = f"{key} value"
+                            elif "int" in response_type:
+                                canned_response[name][
+                                    key
+                                ] = 42  # Example integer response
+                            elif "float" in response_type:
+                                canned_response[name][
+                                    key
+                                ] = 42.0  # Example float response
+                            elif "bool" in response_type:
+                                canned_response[name][
+                                    key
+                                ] = True  # Example boolean response
+                            else:
+                                canned_response[name][key] = f"{key} unknown type"
 
                     elif isinstance(q, QuestionFreeText):
                         # Return a string
@@ -162,6 +186,7 @@ class TestService(InferenceServiceABC):
                     else:
                         # Fallback: simple string
                         canned_response[name] = f"Canned fallback for {name}"
+
                 self.canned_response = canned_response
 
         return TestServiceLanguageModel
