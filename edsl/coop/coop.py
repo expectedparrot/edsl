@@ -673,7 +673,7 @@ class Coop(CoopFunctionsMixin):
         return object
 
     def _validate_object_types(
-        self, object_type: ObjectType | List[ObjectType]
+        self, object_type: Union[ObjectType, List[ObjectType]]
     ) -> List[ObjectType]:
         """
         Validate object types and return a list of valid types.
@@ -705,7 +705,7 @@ class Coop(CoopFunctionsMixin):
             return [object_type]
 
     def _validate_visibility_types(
-        self, visibility: VisibilityType | List[VisibilityType]
+        self, visibility: Union[VisibilityType, List[VisibilityType]]
     ) -> List[VisibilityType]:
         """
         Validate visibility types and return a list of valid types.
@@ -740,9 +740,9 @@ class Coop(CoopFunctionsMixin):
 
     def list(
         self,
-        object_type: ObjectType | List[ObjectType] | None = None,
-        visibility: VisibilityType | List[VisibilityType] | None = None,
-        search_query: str | None = None,
+        object_type: Union[ObjectType, List[ObjectType], None] = None,
+        visibility: Union[VisibilityType, List[VisibilityType], None] = None,
+        search_query: Union[str, None] = None,
         page: int = 1,
         page_size: int = 10,
         sort_ascending: bool = False,
@@ -1131,7 +1131,7 @@ class Coop(CoopFunctionsMixin):
         )
 
     def _validate_remote_job_status_types(
-        self, status: RemoteJobStatus | List[RemoteJobStatus]
+        self, status: Union[RemoteJobStatus, List[RemoteJobStatus]]
     ) -> List[RemoteJobStatus]:
         """
         Validate visibility types and return a list of valid types.
@@ -1172,8 +1172,8 @@ class Coop(CoopFunctionsMixin):
 
     def remote_inference_list(
         self,
-        status: RemoteJobStatus | List[RemoteJobStatus] | None = None,
-        search_query: str | None = None,
+        status: Union[RemoteJobStatus, List[RemoteJobStatus], None] = None,
+        search_query: Union[str, None] = None,
         page: int = 1,
         page_size: int = 10,
         sort_ascending: bool = False,
