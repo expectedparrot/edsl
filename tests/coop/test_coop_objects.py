@@ -16,10 +16,10 @@ def coop_object_api_workflows(object_type, object_examples):
     coop = Coop(api_key="b")
 
     # 1. Ensure we are starting with a clean state
-    objects = coop.get_all(object_type)
+    objects = coop.list(object_type)
     for object in objects:
         coop.delete(object.get("uuid"))
-    objects = coop.get_all(object_type)
+    objects = coop.list(object_type)
     assert objects == [], "Expected no objects in the database."
 
     # 2. Test object creation and retrieval
@@ -27,10 +27,12 @@ def coop_object_api_workflows(object_type, object_examples):
     for object, visibility in object_examples:
         response = coop.create(object, visibility=visibility)
         if object_type == "results":
-            remote_ojbect = coop.get(response.get("uuid"))
-            remote_ojbect.cache=object.cache 
-            
-            assert remote_ojbect == object, "Expected object to be the same as the one created. "
+            remote_object = coop.get(response.get("uuid"))
+            remote_object.cache = object.cache
+
+            assert (
+                remote_object == object
+            ), "Expected object to be the same as the one created. "
         else:
             assert (
                 coop.get(response.get("uuid")) == object
@@ -43,12 +45,13 @@ def coop_object_api_workflows(object_type, object_examples):
     for i, response in enumerate(responses):
         object, visibility = object_examples[i]
         if visibility != "private":
-            remote_ojbect = coop2.get(response.get("uuid"))
+            remote_object = coop2.get(response.get("uuid"))
             if object_type == "results":
-                remote_ojbect.cache=object.cache
-            assert remote_ojbect == object
+                remote_object.cache = object.cache
+            assert remote_object == object
         else:
             from edsl.coop.exceptions import CoopServerResponseError
+
             with pytest.raises(CoopServerResponseError):
                 coop2.get(response.get("uuid"))
 
@@ -66,7 +69,7 @@ def coop_object_api_workflows(object_type, object_examples):
         assert response.get("status") == "success"
 
     # 5. Cleanup
-    for object in coop.get_all(object_type):
+    for object in coop.list(object_type):
         response = coop.delete(object.get("uuid"))
         assert response.get("status") == "success"
 
