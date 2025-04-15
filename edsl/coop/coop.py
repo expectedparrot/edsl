@@ -684,17 +684,17 @@ class Coop(CoopFunctionsMixin):
         self._resolve_server_response(response)
         objects = []
         for o in response.json():
-            json_string = o.get("json_string")
-            ## check if load from bucket needed.
-            if "load_from:" in json_string[0:12]:
-                load_link = json_string.split("load_from:")[1]
-                object_data = requests.get(load_link)
-                self._resolve_gcs_response(object_data)
-                json_string = object_data.text
+            # json_string = o.get("json_string")
+            # ## check if load from bucket needed.
+            # if "load_from:" in json_string[0:12]:
+            #     load_link = json_string.split("load_from:")[1]
+            #     object_data = requests.get(load_link)
+            #     self._resolve_gcs_response(object_data)
+            #     json_string = object_data.text
 
-            json_string = json.loads(json_string)
+            # json_string = json.loads(json_string)
             object = {
-                "object": edsl_class.from_dict(json_string),
+                # "object": edsl_class.from_dict(json_string),
                 "uuid": o.get("uuid"),
                 "version": o.get("version"),
                 "description": o.get("description"),
