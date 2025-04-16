@@ -4,7 +4,7 @@ from ..file_methods import FileMethods
 class CsvMethods(FileMethods):
     suffix = "csv"
 
-    def view_system(self):
+    def view_system(self, width: int = None, height: int = None):
         import os
         import subprocess
 
@@ -21,7 +21,7 @@ class CsvMethods(FileMethods):
         else:
             print("CSV file was not found.")
 
-    def view_notebook(self):
+    def view_notebook(self, width: int = None, height: int = None):
         import pandas as pd
         from IPython.display import display
 

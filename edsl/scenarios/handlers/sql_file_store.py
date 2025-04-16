@@ -9,7 +9,7 @@ from ..file_methods import FileMethods
 class SqlMethods(FileMethods):
     suffix = "sql"
 
-    def view_system(self):
+    def view_system(self, width: int = None, height: int = None):
         import os
         import subprocess
 
@@ -26,7 +26,7 @@ class SqlMethods(FileMethods):
         else:
             print("SQL file was not found.")
 
-    def view_notebook(self):
+    def view_notebook(self, width: int = None, height: int = None):
         from IPython.display import FileLink, display, HTML
         import pygments
         from pygments.lexers import SqlLexer
