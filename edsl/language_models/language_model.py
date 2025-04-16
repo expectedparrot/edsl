@@ -732,6 +732,8 @@ class LanguageModel(
             user_prompt_with_hashes = user_prompt
 
         # Prepare parameters for cache lookup
+        if self.model == "test":
+            self.parameters.pop("canned_response", None)
         cache_call_params = {
             "model": str(self.model),
             "parameters": self.parameters,
