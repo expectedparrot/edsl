@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.1.54] - TBD
+## [0.1.55] - TBD
 ### Added
 - New video file handlers: `Scenario` objects can be videos (MP4 and WebM).  
 
@@ -14,8 +14,8 @@ After the answer, you can put a comment explaining why you chose that option on 
 
 - Question type `QuestionMultipleChoice` now takes an optional parameter `enumeration_style` that allows you to specify "numeric" (default) or "letter" options (["A", "B", "C", "D"]). This parameter can also be passed to new question type `QuestionMultipleChoiceWithOther`.
 
-### Changed
 
+## [0.1.54] - 2025-04-11
 ### Deprecated
 - Methods for auto-generating `ScenarioList` objects from different file types are now available with a single syntax: `ScenarioSource.from_source()`. For example, `sl = ScenarioSource.from_source('csv', 'my_file.csv')` is equivalent to `sl = ScenarioList.from_csv('my_file.csv')`.
 
