@@ -19,7 +19,6 @@ class PriceManager:
         """Initialize the singleton instance only once."""
         if not self._is_initialized:
             self._is_initialized = True
-            print("Price manager initialized.")
             self.refresh_prices()
 
     @classmethod
