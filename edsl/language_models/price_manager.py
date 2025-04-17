@@ -1,5 +1,4 @@
 from typing import Dict, Tuple, Union
-import weakref
 
 
 class PriceManager:
@@ -8,27 +7,27 @@ class PriceManager:
     _is_initialized = False
 
     def __new__(cls):
-        if cls._instance is None or cls._instance() is None:
+        if cls._instance is None:
             instance = super(PriceManager, cls).__new__(cls)
-            instance._price_lookup = {}  # Move to instance attribute
+            instance._price_lookup = {}  # Instance-specific attribute
             instance._is_initialized = False
-            cls._instance = weakref.ref(instance)
+            cls._instance = instance  # Store the instance directly
             return instance
-        return cls._instance()
+        return cls._instance
 
     def __init__(self):
-        # Only initialize once, even if __init__ is called multiple times
+        """Initialize the singleton instance only once."""
         if not self._is_initialized:
             self._is_initialized = True
-            print("Price manager initialize")
+            print("Price manager initialized.")
             self.refresh_prices()
 
     @classmethod
     def get_instance(cls):
         """Get the singleton instance, creating it if necessary."""
-        if cls._instance is None or cls._instance() is None:
-            return cls()
-        return cls._instance()
+        if cls._instance is None:
+            cls()  # Create the instance if it doesn't exist
+        return cls._instance
 
     @classmethod
     def reset(cls):
@@ -40,17 +39,12 @@ class PriceManager:
     def __del__(self):
         """Ensure proper cleanup when the instance is garbage collected."""
         try:
-            # Clean up resources, if any
-            self._price_lookup = {}
+            self._price_lookup = {}  # Clean up resources
         except:
-            # Ignore errors during cleanup
-            pass
+            pass  # Ignore any cleanup errors
 
     def refresh_prices(self) -> None:
-        """
-        Fetch fresh prices from the Coop service and update the internal price lookup.
-
-        """
+        """Fetch fresh prices and update the internal price lookup."""
         from edsl.coop import Coop
 
         c = Coop()
@@ -60,43 +54,18 @@ class PriceManager:
             print(f"Error fetching prices: {str(e)}")
 
     def get_price(self, inference_service: str, model: str) -> Dict:
-        """
-        Get the price information for a specific service and model combination.
-        If no specific price is found, returns a fallback price.
-
-        Args:
-            inference_service (str): The name of the inference service
-            model (str): The model identifier
-
-        Returns:
-            Dict: Price information (either actual or fallback prices)
-        """
+        """Get the price information for a specific service and model."""
         key = (inference_service, model)
         return self._price_lookup.get(key) or self._get_fallback_price(
             inference_service
         )
 
     def get_all_prices(self) -> Dict[Tuple[str, str], Dict]:
-        """
-        Get the complete price lookup dictionary.
-
-        Returns:
-            Dict[Tuple[str, str], Dict]: The complete price lookup dictionary
-        """
+        """Get the complete price lookup dictionary."""
         return self._price_lookup.copy()
 
     def _get_fallback_price(self, inference_service: str) -> Dict:
-        """
-        Get fallback prices for a service.
-        - First fallback: The highest input and output prices for that service from the price lookup.
-        - Second fallback: $1.00 per million tokens (for both input and output).
-
-        Args:
-            inference_service (str): The inference service name
-
-        Returns:
-            Dict: Price information
-        """
+        """Get fallback prices for a service."""
         service_prices = [
             prices
             for (service, _), prices in self._price_lookup.items()
@@ -106,18 +75,12 @@ class PriceManager:
         input_tokens_per_usd = [
             float(p["input"]["one_usd_buys"]) for p in service_prices if "input" in p
         ]
-        if input_tokens_per_usd:
-            min_input_tokens = min(input_tokens_per_usd)
-        else:
-            min_input_tokens = 1_000_000
+        min_input_tokens = min(input_tokens_per_usd, default=1_000_000)
 
         output_tokens_per_usd = [
             float(p["output"]["one_usd_buys"]) for p in service_prices if "output" in p
         ]
-        if output_tokens_per_usd:
-            min_output_tokens = min(output_tokens_per_usd)
-        else:
-            min_output_tokens = 1_000_000
+        min_output_tokens = min(output_tokens_per_usd, default=1_000_000)
 
         return {
             "input": {"one_usd_buys": min_input_tokens},
@@ -132,19 +95,7 @@ class PriceManager:
         input_token_name: str,
         output_token_name: str,
     ) -> Union[float, str]:
-        """
-        Calculate the total cost for a model usage based on input and output tokens.
-
-        Args:
-            inference_service (str): The inference service identifier
-            model (str): The model identifier
-            usage (Dict[str, Union[str, int]]): Dictionary containing token usage information
-            input_token_name (str): Key name for input tokens in the usage dict
-            output_token_name (str): Key name for output tokens in the usage dict
-
-        Returns:
-            Union[float, str]: Total cost if calculation successful, error message string if not
-        """
+        """Calculate the total cost for a model usage."""
         relevant_prices = self.get_price(inference_service, model)
 
         # Extract token counts
@@ -166,31 +117,22 @@ class PriceManager:
             return f"Could not fetch prices from {relevant_prices} - {e}"
 
         # Calculate input cost
-        if inverse_input_price == "infinity":
-            input_cost = 0
-        else:
-            try:
-                input_cost = input_tokens / float(inverse_input_price)
-            except Exception as e:
-                return f"Could not compute input price - {e}."
+        input_cost = (
+            0
+            if inverse_input_price == "infinity"
+            else input_tokens / float(inverse_input_price)
+        )
 
         # Calculate output cost
-        if inverse_output_price == "infinity":
-            output_cost = 0
-        else:
-            try:
-                output_cost = output_tokens / float(inverse_output_price)
-            except Exception as e:
-                return f"Could not compute output price - {e}"
+        output_cost = (
+            0
+            if inverse_output_price == "infinity"
+            else output_tokens / float(inverse_output_price)
+        )
 
         return input_cost + output_cost
 
     @property
     def is_initialized(self) -> bool:
-        """
-        Check if the PriceManager has been initialized.
-
-        Returns:
-            bool: True if initialized, False otherwise
-        """
+        """Check if the PriceManager has been initialized."""
         return self._is_initialized
