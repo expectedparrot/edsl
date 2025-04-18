@@ -15,7 +15,7 @@ JSON/YAML serialization, file persistence, pretty printing, and object compariso
 from abc import ABC, abstractmethod, ABCMeta
 import gzip
 import json
-from typing import Any, Optional, Union
+from typing import Any, Optional, Union, TYPE_CHECKING
 from uuid import UUID
 import difflib
 from typing import Dict, Literal, List, Tuple
@@ -23,6 +23,9 @@ from collections import UserList
 import inspect
 
 from .. import logger
+
+if TYPE_CHECKING:
+    from ..scenarios.coop_objects import CoopObjects
 
 VisibilityType = Literal["private", "public", "unlisted"]
 RemoteJobStatus = Literal[
@@ -274,7 +277,7 @@ class PersistenceMixin:
         page: int = 1,
         page_size: int = 10,
         sort_ascending: bool = False,
-    ) -> List[dict]:
+    ) -> "CoopObjects":
         """List objects from coop.
 
         Notes:
