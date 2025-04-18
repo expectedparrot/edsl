@@ -14,6 +14,8 @@ from ..caching import CacheEntry
 if TYPE_CHECKING:
     from ..jobs import Jobs
     from ..surveys import Survey
+    from ..scenarios.coop_jobs_objects import CoopJobsObjects
+    from ..scenarios.coop_regular_objects import CoopRegularObjects
 
 from .exceptions import (
     CoopInvalidURLError,
@@ -746,7 +748,7 @@ class Coop(CoopFunctionsMixin):
         page: int = 1,
         page_size: int = 10,
         sort_ascending: bool = False,
-    ) -> List[dict[str, Any]]:
+    ) -> "CoopRegularObjects":
         """
         Retrieve objects either owned by the user or shared with them.
 
@@ -754,6 +756,8 @@ class Coop(CoopFunctionsMixin):
         - search_query only works with the description field.
         - If sort_ascending is False, then the most recently created objects are returned first.
         """
+        from ..scenarios import Scenario
+        from ..scenarios.coop_regular_objects import CoopRegularObjects
 
         if page < 1:
             raise CoopValueError("The page must be greater than or equal to 1.")
@@ -783,24 +787,26 @@ class Coop(CoopFunctionsMixin):
         content = response.json()
         objects = []
         for o in content:
-            object = {
-                "uuid": o.get("uuid"),
-                "object_type": o.get("object_type"),
-                "alias": o.get("alias"),
-                "owner_username": o.get("owner_username"),
-                "description": o.get("description"),
-                "visibility": o.get("visibility"),
-                "version": o.get("version"),
-                "url": f"{self.url}/content/{o.get('uuid')}",
-                "alias_url": self._get_alias_url(
-                    o.get("owner_username"), o.get("alias")
-                ),
-                "last_updated_ts": o.get("last_updated_ts"),
-                "created_ts": o.get("created_ts"),
-            }
+            object = Scenario(
+                {
+                    "uuid": o.get("uuid"),
+                    "object_type": o.get("object_type"),
+                    "alias": o.get("alias"),
+                    "owner_username": o.get("owner_username"),
+                    "description": o.get("description"),
+                    "visibility": o.get("visibility"),
+                    "version": o.get("version"),
+                    "url": f"{self.url}/content/{o.get('uuid')}",
+                    "alias_url": self._get_alias_url(
+                        o.get("owner_username"), o.get("alias")
+                    ),
+                    "last_updated_ts": o.get("last_updated_ts"),
+                    "created_ts": o.get("created_ts"),
+                }
+            )
             objects.append(object)
 
-        return objects
+        return CoopRegularObjects(objects)
 
     def delete(self, url_or_uuid: Union[str, UUID]) -> dict:
         """
@@ -1177,7 +1183,7 @@ class Coop(CoopFunctionsMixin):
         page: int = 1,
         page_size: int = 10,
         sort_ascending: bool = False,
-    ) -> List[dict[str, Any]]:
+    ) -> "CoopJobsObjects":
         """
         Retrieve jobs owned by the user.
 
@@ -1185,6 +1191,8 @@ class Coop(CoopFunctionsMixin):
         - search_query only works with the description field.
         - If sort_ascending is False, then the most recently created jobs are returned first.
         """
+        from ..scenarios import Scenario
+        from ..scenarios.coop_jobs_objects import CoopJobsObjects
 
         if page < 1:
             raise CoopValueError("The page must be greater than or equal to 1.")
@@ -1212,21 +1220,23 @@ class Coop(CoopFunctionsMixin):
         content = response.json()
         jobs = []
         for o in content:
-            job = {
-                "uuid": o.get("uuid"),
-                "description": o.get("description"),
-                "status": o.get("status"),
-                "cost_credits": o.get("cost_credits"),
-                "iterations": o.get("iterations"),
-                "results_uuid": o.get("results_uuid"),
-                "latest_error_report_uuid": o.get("latest_error_report_uuid"),
-                "latest_failure_reason": o.get("latest_failure_reason"),
-                "version": o.get("version"),
-                "created_ts": o.get("created_ts"),
-            }
+            job = Scenario(
+                {
+                    "uuid": o.get("uuid"),
+                    "description": o.get("description"),
+                    "status": o.get("status"),
+                    "cost_credits": o.get("cost_credits"),
+                    "iterations": o.get("iterations"),
+                    "results_uuid": o.get("results_uuid"),
+                    "latest_error_report_uuid": o.get("latest_error_report_uuid"),
+                    "latest_failure_reason": o.get("latest_failure_reason"),
+                    "version": o.get("version"),
+                    "created_ts": o.get("created_ts"),
+                }
+            )
             jobs.append(job)
 
-        return jobs
+        return CoopJobsObjects(jobs)
 
     def get_running_jobs(self) -> List[str]:
         """
