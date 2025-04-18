@@ -43,10 +43,13 @@ class TestBaseModels:
                 "AgentTraits",
                 "RunParameters",
                 "SQLList",
+                "CoopObjects",
+                "CoopJobsObjects",
+                "CoopRegularObjects",
             ]
 
         from edsl.base.exceptions import BaseNotImplementedError
-        
+
         methods = [
             "example",
             "to_dict",
