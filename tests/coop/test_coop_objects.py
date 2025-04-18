@@ -20,7 +20,7 @@ def coop_object_api_workflows(object_type, object_examples):
     for object in objects:
         coop.delete(object.get("uuid"))
     objects = coop.list(object_type)
-    assert objects == [], "Expected no objects in the database."
+    assert objects == ScenarioList([]), "Expected no objects in the database."
 
     # 2. Test object creation and retrieval
     responses = []
