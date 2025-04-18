@@ -160,6 +160,11 @@ def create_file_operations_test(child_class):
 
 # Dynamically adding test methods for each question type
 for child_class_name, child_class in RegisterSubclassesMeta._registry.items():
+
+    # Skip testing abstract base classes
+    if child_class_name in ["CoopObjects"]:
+        continue
+
     base_test_method_name = f"test_Base_{child_class_name}"
     base_test_method = create_test_function(child_class)
     setattr(TestBaseModels, base_test_method_name, base_test_method)

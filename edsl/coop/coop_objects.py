@@ -10,8 +10,10 @@ class CoopObjects(ScenarioList, ABC):
     for working with collections of Coop objects.
     """
 
-    def __init__(self, data: Optional[list] = None):
-        super().__init__(data)
+    def __init__(
+        self, data: Optional[list] = None, codebook: Optional[dict[str, str]] = None
+    ):
+        super().__init__(data, codebook)
 
     @abstractmethod
     def fetch(self) -> List:
