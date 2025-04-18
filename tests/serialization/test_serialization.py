@@ -6,6 +6,7 @@ from edsl.base import RegisterSubclassesMeta
 from edsl.coop.utils import ObjectRegistry
 from edsl.questions import RegisterQuestionsMeta
 
+
 def test_serialization():
     # get all filenames in tests/serialization/data -- just use full path
     path = "tests/serialization/data"
@@ -19,7 +20,7 @@ def test_serialization():
 
     # get all EDSL classes that you'd like to test
     subclass_registry = RegisterSubclassesMeta.get_registry(
-        exclude_classes=["AgentTraits", "RunParameters"]
+        exclude_classes=["AgentTraits", "RunParameters", "CoopObjects"]
     )
     questions_registry = RegisterQuestionsMeta.get_registered_classes()
     object_registry = ObjectRegistry.get_registry(
@@ -120,6 +121,7 @@ def test_serialization_coverage():
             "PNGFileStore",
             "SQLiteFileStore",
             "RunParameters",
+            "CoopObjects",
         ]
     )
 

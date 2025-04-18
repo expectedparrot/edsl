@@ -15,14 +15,28 @@ JSON/YAML serialization, file persistence, pretty printing, and object compariso
 from abc import ABC, abstractmethod, ABCMeta
 import gzip
 import json
-from typing import Any, Optional, Union
+from typing import Any, Optional, Union, TYPE_CHECKING
 from uuid import UUID
 import difflib
-from typing import Dict, Tuple
+from typing import Dict, Literal, List, Tuple
 from collections import UserList
 import inspect
 
 from .. import logger
+
+if TYPE_CHECKING:
+    from ..coop.coop_objects import CoopObjects
+
+VisibilityType = Literal["private", "public", "unlisted"]
+RemoteJobStatus = Literal[
+    "queued",
+    "running",
+    "completed",
+    "failed",
+    "cancelled",
+    "cancelling",
+    "partial_failed",
+]
 
 
 class BaseException(Exception):
@@ -253,6 +267,62 @@ class PersistenceMixin:
         object_type = ObjectRegistry.get_object_type_by_edsl_class(cls)
 
         return coop.get(url_or_uuid, expected_object_type=object_type)
+
+    @classmethod
+    def list(
+        cls,
+        visibility: Union[VisibilityType, List[VisibilityType], None] = None,
+        job_status: Union[RemoteJobStatus, List[RemoteJobStatus], None] = None,
+        search_query: Union[str, None] = None,
+        page: int = 1,
+        page_size: int = 10,
+        sort_ascending: bool = False,
+    ) -> "CoopObjects":
+        """List objects from coop.
+
+        Notes:
+        - The visibility parameter is not supported for remote inference jobs.
+        - The job_status parameter is not supported for objects.
+        - search_query only works with the description field.
+        - If sort_ascending is False, then the most recently created objects are returned first.
+        """
+        from edsl.coop import Coop
+        from edsl.coop import ObjectRegistry
+        from edsl.jobs import Jobs
+
+        coop = Coop()
+        if issubclass(cls, Jobs):
+            if visibility is not None:
+                from edsl.base.exceptions import BaseValueError
+
+                raise BaseValueError(
+                    "The visibility parameter is not supported for remote inference jobs."
+                )
+            return coop.remote_inference_list(
+                job_status,
+                search_query,
+                page,
+                page_size,
+                sort_ascending,
+            )
+
+        if job_status is not None:
+            from edsl.base.exceptions import BaseValueError
+
+            raise BaseValueError(
+                "The job_status parameter is not supported for objects."
+            )
+
+        object_type = ObjectRegistry.get_object_type_by_edsl_class(cls)
+
+        return coop.list(
+            object_type,
+            visibility,
+            search_query,
+            page,
+            page_size,
+            sort_ascending,
+        )
 
     @classmethod
     def delete(cls, url_or_uuid: Union[str, UUID]) -> None:
