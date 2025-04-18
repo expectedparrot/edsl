@@ -25,7 +25,7 @@ import inspect
 from .. import logger
 
 if TYPE_CHECKING:
-    from ..scenarios.coop_objects import CoopObjects
+    from ..coop.coop_objects import CoopObjects
 
 VisibilityType = Literal["private", "public", "unlisted"]
 RemoteJobStatus = Literal[
