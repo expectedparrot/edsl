@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import Optional, List
-from .scenario_list import ScenarioList
+from ..scenarios import ScenarioList
 
 
 class CoopObjects(ScenarioList, ABC):

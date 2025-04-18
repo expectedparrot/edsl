@@ -14,8 +14,6 @@ from ..caching import CacheEntry
 if TYPE_CHECKING:
     from ..jobs import Jobs
     from ..surveys import Survey
-    from ..scenarios.coop_jobs_objects import CoopJobsObjects
-    from ..scenarios.coop_regular_objects import CoopRegularObjects
 
 from .exceptions import (
     CoopInvalidURLError,
@@ -32,6 +30,8 @@ from .utils import (
 )
 
 from .coop_functions import CoopFunctionsMixin
+from .coop_regular_objects import CoopRegularObjects
+from .coop_jobs_objects import CoopJobsObjects
 from .ep_key_handling import ExpectedParrotKeyHandler
 
 from ..inference_services.data_structures import ServiceToModelsMapping
@@ -757,7 +757,6 @@ class Coop(CoopFunctionsMixin):
         - If sort_ascending is False, then the most recently created objects are returned first.
         """
         from ..scenarios import Scenario
-        from ..scenarios.coop_regular_objects import CoopRegularObjects
 
         if page < 1:
             raise CoopValueError("The page must be greater than or equal to 1.")
@@ -1192,7 +1191,6 @@ class Coop(CoopFunctionsMixin):
         - If sort_ascending is False, then the most recently created jobs are returned first.
         """
         from ..scenarios import Scenario
-        from ..scenarios.coop_jobs_objects import CoopJobsObjects
 
         if page < 1:
             raise CoopValueError("The page must be greater than or equal to 1.")
