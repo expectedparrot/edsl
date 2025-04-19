@@ -49,6 +49,7 @@ from ..data_transfer_models import (
 )
 
 if TYPE_CHECKING:
+    from .price_manager import ResponseCost
     from ..caching import Cache
     from ..scenarios import FileStore
     from ..questions import QuestionBase
@@ -726,13 +727,18 @@ class LanguageModel(
         # Calculate cost for the response
         cost = self.cost(response)
         # Return a structured response with metadata
-        return ModelResponse(
+        response = ModelResponse(
             response=response,
             cache_used=cache_used,
             cache_key=cache_key,
             cached_response=cached_response,
-            cost=cost,
+            input_tokens=cost.input_tokens,
+            output_tokens=cost.output_tokens,
+            input_cost=cost.input_cost,
+            output_cost=cost.output_cost,
+            total_cost=cost.total_cost,
         )
+        return response
 
     _get_intended_model_call_outcome = sync_wrapper(
         _async_get_intended_model_call_outcome
@@ -825,7 +831,7 @@ class LanguageModel(
 
     get_response = sync_wrapper(async_get_response)
 
-    def cost(self, raw_response: dict[str, Any]) -> Union[float, str]:
+    def cost(self, raw_response: dict[str, Any]) -> ResponseCost:
         """Calculate the monetary cost of a model API call.
 
         This method extracts token usage information from the response and
@@ -836,7 +842,7 @@ class LanguageModel(
             raw_response: The complete response dictionary from the model API
 
         Returns:
-            Union[float, str]: The calculated cost in dollars, or an error message
+            ResponseCost: Object containing token counts and total cost
         """
         # Extract token usage data from the response
         usage = self.get_usage_dict(raw_response)
@@ -1067,13 +1073,25 @@ class LanguageModel(
             }
             cached_response, cache_key = cache.fetch(**cache_call_params)
             response = json.loads(cached_response)
-            cost = 0
+
+            try:
+                usage = self.get_usage_dict(response)
+                input_tokens = int(usage[self.input_token_name])
+                output_tokens = int(usage[self.output_token_name])
+            except Exception as e:
+                print(f"Could not fetch tokens from model response: {e}")
+                input_tokens = None
+                output_tokens = None
             return ModelResponse(
                 response=response,
                 cache_used=True,
                 cache_key=cache_key,
                 cached_response=cached_response,
-                cost=cost,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                input_cost=0,
+                output_cost=0,
+                total_cost=0,
             )
 
         # Bind the new method to the copied instance
