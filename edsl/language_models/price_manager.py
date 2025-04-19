@@ -11,11 +11,11 @@ class ResponseCost:
     All other fields will be None.
     """
 
-    input_tokens: int | None = None
-    output_tokens: int | None = None
-    input_cost: float | None = None
-    output_cost: float | None = None
-    total_cost: float | str | None = None
+    input_tokens: Union[int, None] = None
+    output_tokens: Union[int, None] = None
+    input_cost: Union[float, None] = None
+    output_cost: Union[float, None] = None
+    total_cost: Union[float, str, None] = None
 
 
 class PriceManager:
