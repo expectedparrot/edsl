@@ -13,8 +13,6 @@ class ResponseCost:
 
     input_tokens: Union[int, None] = None
     output_tokens: Union[int, None] = None
-    input_cost: Union[float, None] = None
-    output_cost: Union[float, None] = None
     total_cost: Union[float, str, None] = None
 
 
@@ -118,7 +116,7 @@ class PriceManager:
         model: str,
         input_tokens: int,
         output_tokens: int,
-    ) -> Tuple[float, float, float]:
+    ) -> float:
         """
         Calculate the total cost for a model usage based on input and output tokens.
 
@@ -131,8 +129,6 @@ class PriceManager:
         try:
             inverse_output_price = relevant_prices["output"]["one_usd_buys"]
             inverse_input_price = relevant_prices["input"]["one_usd_buys"]
-            input_price = 1.0 / inverse_input_price
-            output_price = 1.0 / inverse_output_price
         except Exception as e:
             if "output" not in relevant_prices:
                 raise KeyError(
@@ -162,7 +158,7 @@ class PriceManager:
             except Exception as e:
                 raise Exception(f"Could not compute output price - {e}")
 
-        return input_cost + output_cost, input_cost, output_cost
+        return input_cost + output_cost
 
     def calculate_cost(
         self,
@@ -194,7 +190,7 @@ class PriceManager:
             )
 
         try:
-            total_cost, input_cost, output_cost = self._calculate_total_cost(
+            total_cost = self._calculate_total_cost(
                 inference_service, model, input_tokens, output_tokens
             )
         except Exception as e:
@@ -203,8 +199,6 @@ class PriceManager:
         return ResponseCost(
             input_tokens=input_tokens,
             output_tokens=output_tokens,
-            input_cost=input_cost,
-            output_cost=output_cost,
             total_cost=total_cost,
         )
 

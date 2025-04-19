@@ -28,8 +28,6 @@ class ModelResponse(NamedTuple):
     cached_response: Optional[Dict[str, Any]] = None
     input_tokens: Optional[int] = None
     output_tokens: Optional[int] = None
-    input_cost: Optional[float] = None
-    output_cost: Optional[float] = None
     total_cost: Optional[Union[float, str]] = None
 
 
@@ -53,8 +51,6 @@ class EDSLResultObjectInput(NamedTuple):
     exception_occurred: Exception = None
     input_tokens: Optional[int] = None
     output_tokens: Optional[int] = None
-    input_cost: Optional[float] = None
-    output_cost: Optional[float] = None
     total_cost: Optional[Union[float, str]] = None
 
 

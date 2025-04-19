@@ -652,12 +652,6 @@ class Result(Base, UserDict):
                 raw_model_results_dictionary[question_name + "_output_tokens"] = (
                     result.output_tokens
                 )
-                raw_model_results_dictionary[question_name + "_input_cost"] = (
-                    result.input_cost
-                )
-                raw_model_results_dictionary[question_name + "_output_cost"] = (
-                    result.output_cost
-                )
                 raw_model_results_dictionary[question_name + "_cost"] = (
                     result.total_cost
                 )
