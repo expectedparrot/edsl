@@ -20,6 +20,7 @@ The Result class inherits from both Base (for serialization) and UserDict (for
 dictionary-like behavior), allowing it to be accessed like a dictionary while
 maintaining a rich object model.
 """
+
 from __future__ import annotations
 import inspect
 from collections import UserDict
@@ -39,6 +40,7 @@ if TYPE_CHECKING:
 
 QuestionName = str
 AnswerValue = Any
+
 
 class AgentNamer:
     """Maintains a registry of agent names to ensure unique naming."""
@@ -61,20 +63,20 @@ agent_namer = AgentNamer().get_name
 class Result(Base, UserDict):
     """
     The Result class captures the complete data from one agent interview.
-    
+
     A Result object stores the agent, scenario, language model, and all answers
     provided during an interview, along with metadata such as token usage,
     caching information, and raw model responses. It provides a rich interface
     for accessing this data and supports serialization for storage and retrieval.
-    
+
     Key features:
-    
+
     - Dictionary-like access to all data through the UserDict interface
     - Properties for convenient access to common attributes (agent, scenario, model, answer)
     - Rich data structure with sub-dictionaries for organization
     - Support for scoring results against reference answers
     - Serialization to/from dictionaries for storage
-    
+
     Results are typically created by the Jobs system when running interviews and
     collected into a Results collection for analysis. You rarely need to create
     Result objects manually.
@@ -260,6 +262,7 @@ class Result(Base, UserDict):
         for key in self.problem_keys:
             if key in expression and key + "." not in expression:
                 from .exceptions import ResultsColumnNotFoundError
+
                 raise ResultsColumnNotFoundError(
                     f"Key by itself {key} is problematic. Use the full key {key + '.' + key} name instead."
                 )
@@ -268,6 +271,7 @@ class Result(Base, UserDict):
     def code(self):
         """Return a string of code that can be used to recreate the Result object."""
         from .exceptions import ResultsError
+
         raise ResultsError("The code() method is not implemented for Result objects")
 
     @property
@@ -316,7 +320,7 @@ class Result(Base, UserDict):
 
     def get_value(self, data_type: str, key: str) -> Any:
         """Return the value for a given data type and key.
-        
+
         This method provides a consistent way to access values across different
         sub-dictionaries in the Result object. It's particularly useful when you
         need to programmatically access values without knowing which data type
@@ -331,7 +335,7 @@ class Result(Base, UserDict):
 
         Returns:
             The value associated with the key in the specified data type
-        
+
         Examples:
             >>> r = Result.example()
             >>> r.get_value("answer", "how_feeling")
@@ -344,15 +348,15 @@ class Result(Base, UserDict):
     @property
     def key_to_data_type(self) -> dict[str, str]:
         """A mapping of attribute names to their container data types.
-        
+
         This property returns a dictionary that maps each attribute name (like 'how_feeling')
         to its containing data type or category (like 'answer'). This is useful for
         determining which part of the Result object a particular attribute belongs to,
         especially when working with data programmatically.
-        
+
         If a key name appears in multiple data types, the property will automatically
         rename the conflicting keys by appending the data type name to avoid ambiguity.
-        
+
         Returns:
             A dictionary mapping attribute names to their data types
 
@@ -435,7 +439,7 @@ class Result(Base, UserDict):
                         else prompt_obj.to_dict()
                     )
                 d[key] = new_prompt_dict
-            
+
         if self.indices is not None:
             d["indices"] = self.indices
 
@@ -488,7 +492,7 @@ class Result(Base, UserDict):
             comments_dict=json_dict.get("comments_dict", {}),
             cache_used_dict=json_dict.get("cache_used_dict", {}),
             cache_keys=json_dict.get("cache_keys", {}),
-            indices = json_dict.get("indices", None)
+            indices=json_dict.get("indices", None),
         )
         return result
 
@@ -508,14 +512,14 @@ class Result(Base, UserDict):
         from .results import Results
 
         return Results.example()[0]
-    
+
     def score_with_answer_key(self, answer_key: dict) -> dict[str, int]:
         """Score the result against a reference answer key.
-        
-        This method evaluates the correctness of answers by comparing them to a 
-        provided answer key. It returns a dictionary with counts of correct, 
+
+        This method evaluates the correctness of answers by comparing them to a
+        provided answer key. It returns a dictionary with counts of correct,
         incorrect, and missing answers.
-        
+
         The answer key can contain either single values or lists of acceptable values.
         If a list is provided, the answer is considered correct if it matches any
         value in the list.
@@ -527,7 +531,7 @@ class Result(Base, UserDict):
         Returns:
             A dictionary with keys 'correct', 'incorrect', and 'missing', indicating
             the counts of each answer type.
-            
+
         Examples:
             >>> Result.example()['answer']
             {'how_feeling': 'OK', 'how_feeling_yesterday': 'Great'}
@@ -536,21 +540,24 @@ class Result(Base, UserDict):
             >>> answer_key = {'how_feeling': 'OK', 'how_feeling_yesterday': 'Great'}
             >>> Result.example().score_with_answer_key(answer_key)
             {'correct': 2, 'incorrect': 0, 'missing': 0}
-            
+
             >>> # Using answer key with multiple acceptable answers
             >>> answer_key = {'how_feeling': 'OK', 'how_feeling_yesterday': ['Great', 'Good']}
             >>> Result.example().score_with_answer_key(answer_key)
             {'correct': 2, 'incorrect': 0, 'missing': 0}
         """
-        final_scores = {'correct': 0, 'incorrect': 0, 'missing': 0}
+        final_scores = {"correct": 0, "incorrect": 0, "missing": 0}
         for question_name, answer in self.answer.items():
             if question_name in answer_key:
-                if answer == answer_key[question_name] or answer in answer_key[question_name]:
-                    final_scores['correct'] += 1
+                if (
+                    answer == answer_key[question_name]
+                    or answer in answer_key[question_name]
+                ):
+                    final_scores["correct"] += 1
                 else:
-                    final_scores['incorrect'] += 1
+                    final_scores["incorrect"] += 1
             else:
-                final_scores['missing'] += 1
+                final_scores["missing"] += 1
 
         return final_scores
 
@@ -570,6 +577,7 @@ class Result(Base, UserDict):
                 params[k] = v.default
             else:
                 from .exceptions import ResultsError
+
                 raise ResultsError(f"Parameter {k} not found in Result object")
         return scoring_function(**params)
 
@@ -638,16 +646,30 @@ class Result(Base, UserDict):
                 raw_model_results_dictionary[question_name + "_raw_model_response"] = (
                     result.raw_model_response
                 )
-                raw_model_results_dictionary[question_name + "_cost"] = result.cost
-                one_use_buys = (
+                raw_model_results_dictionary[question_name + "_input_tokens"] = (
+                    result.input_tokens
+                )
+                raw_model_results_dictionary[question_name + "_output_tokens"] = (
+                    result.output_tokens
+                )
+                raw_model_results_dictionary[question_name + "_input_cost"] = (
+                    result.input_cost
+                )
+                raw_model_results_dictionary[question_name + "_output_cost"] = (
+                    result.output_cost
+                )
+                raw_model_results_dictionary[question_name + "_cost"] = (
+                    result.total_cost
+                )
+                one_usd_buys = (
                     "NA"
-                    if isinstance(result.cost, str)
-                    or result.cost == 0
-                    or result.cost is None
-                    else 1.0 / result.cost
+                    if isinstance(result.total_cost, str)
+                    or result.total_cost == 0
+                    or result.total_cost is None
+                    else 1.0 / result.total_cost
                 )
                 raw_model_results_dictionary[question_name + "_one_usd_buys"] = (
-                    one_use_buys
+                    one_usd_buys
                 )
                 cache_used_dictionary[question_name] = result.cache_used
 

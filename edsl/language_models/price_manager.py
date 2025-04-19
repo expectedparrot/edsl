@@ -1,4 +1,21 @@
+from dataclasses import dataclass
 from typing import Dict, Tuple, Union
+
+
+@dataclass
+class ResponseCost:
+    """
+    Class for storing the cost and token usage of a language model response.
+
+    If an error occurs when computing the cost, the total_cost will contain a string with the error message.
+    All other fields will be None.
+    """
+
+    input_tokens: int | None = None
+    output_tokens: int | None = None
+    input_cost: float | None = None
+    output_cost: float | None = None
+    total_cost: float | str | None = None
 
 
 class PriceManager:
@@ -95,6 +112,58 @@ class PriceManager:
             "output": {"one_usd_buys": min_output_tokens},
         }
 
+    def _calculate_total_cost(
+        self,
+        inference_service: str,
+        model: str,
+        input_tokens: int,
+        output_tokens: int,
+    ) -> Tuple[float, float, float]:
+        """
+        Calculate the total cost for a model usage based on input and output tokens.
+
+        Returns:
+            float: Total cost
+        """
+        relevant_prices = self.get_price(inference_service, model)
+
+        # Extract price information
+        try:
+            inverse_output_price = relevant_prices["output"]["one_usd_buys"]
+            inverse_input_price = relevant_prices["input"]["one_usd_buys"]
+            input_price = 1.0 / inverse_input_price
+            output_price = 1.0 / inverse_output_price
+        except Exception as e:
+            if "output" not in relevant_prices:
+                raise KeyError(
+                    f"Could not fetch prices from {relevant_prices} - {e}; Missing 'output' key."
+                )
+            if "input" not in relevant_prices:
+                raise KeyError(
+                    f"Could not fetch prices from {relevant_prices} - {e}; Missing 'input' key."
+                )
+            raise Exception(f"Could not fetch prices from {relevant_prices} - {e}")
+
+        # Calculate input cost
+        if inverse_input_price == "infinity":
+            input_cost = 0
+        else:
+            try:
+                input_cost = input_tokens / float(inverse_input_price)
+            except Exception as e:
+                raise Exception(f"Could not compute input price - {e}")
+
+        # Calculate output cost
+        if inverse_output_price == "infinity":
+            output_cost = 0
+        else:
+            try:
+                output_cost = output_tokens / float(inverse_output_price)
+            except Exception as e:
+                raise Exception(f"Could not compute output price - {e}")
+
+        return input_cost + output_cost, input_cost, output_cost
+
     def calculate_cost(
         self,
         inference_service: str,
@@ -102,9 +171,9 @@ class PriceManager:
         usage: Dict[str, Union[str, int]],
         input_token_name: str,
         output_token_name: str,
-    ) -> Union[float, str]:
+    ) -> ResponseCost:
         """
-        Calculate the total cost for a model usage based on input and output tokens.
+        Calculate the cost and token usage for a model response.
 
         Args:
             inference_service (str): The inference service identifier
@@ -114,47 +183,30 @@ class PriceManager:
             output_token_name (str): Key name for output tokens in the usage dict
 
         Returns:
-            Union[float, str]: Total cost if calculation successful, error message string if not
+            ResponseCost: Object containing token counts and total cost
         """
-        relevant_prices = self.get_price(inference_service, model)
-
-        # Extract token counts
         try:
             input_tokens = int(usage[input_token_name])
             output_tokens = int(usage[output_token_name])
         except Exception as e:
-            return f"Could not fetch tokens from model response: {e}"
+            return ResponseCost(
+                total_cost=f"Could not fetch tokens from model response: {e}",
+            )
 
-        # Extract price information
         try:
-            inverse_output_price = relevant_prices["output"]["one_usd_buys"]
-            inverse_input_price = relevant_prices["input"]["one_usd_buys"]
+            total_cost, input_cost, output_cost = self._calculate_total_cost(
+                inference_service, model, input_tokens, output_tokens
+            )
         except Exception as e:
-            if "output" not in relevant_prices:
-                return f"Could not fetch prices from {relevant_prices} - {e}; Missing 'output' key."
-            if "input" not in relevant_prices:
-                return f"Could not fetch prices from {relevant_prices} - {e}; Missing 'input' key."
-            return f"Could not fetch prices from {relevant_prices} - {e}"
+            return ResponseCost(total_cost=f"{e}")
 
-        # Calculate input cost
-        if inverse_input_price == "infinity":
-            input_cost = 0
-        else:
-            try:
-                input_cost = input_tokens / float(inverse_input_price)
-            except Exception as e:
-                return f"Could not compute input price - {e}."
-
-        # Calculate output cost
-        if inverse_output_price == "infinity":
-            output_cost = 0
-        else:
-            try:
-                output_cost = output_tokens / float(inverse_output_price)
-            except Exception as e:
-                return f"Could not compute output price - {e}"
-
-        return input_cost + output_cost
+        return ResponseCost(
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            input_cost=input_cost,
+            output_cost=output_cost,
+            total_cost=total_cost,
+        )
 
     @property
     def is_initialized(self) -> bool:

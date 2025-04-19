@@ -1,10 +1,11 @@
 from collections import UserDict
-from typing import NamedTuple, Dict, Optional, Any
+from typing import NamedTuple, Dict, Optional, Any, Union
 from dataclasses import dataclass, fields
 
 
 class ModelInputs(NamedTuple):
     "This is what was send by the agent to the model"
+
     user_prompt: str
     system_prompt: str
     encoded_image: Optional[str] = None
@@ -12,6 +13,7 @@ class ModelInputs(NamedTuple):
 
 class EDSLOutput(NamedTuple):
     "This is the edsl dictionary that is returned by the model"
+
     answer: Any
     generated_tokens: str
     comment: Optional[str] = None
@@ -19,11 +21,16 @@ class EDSLOutput(NamedTuple):
 
 class ModelResponse(NamedTuple):
     "This is the metadata that is returned by the model and includes info about the cache"
+
     response: dict
     cache_used: bool
     cache_key: str
     cached_response: Optional[Dict[str, Any]] = None
-    cost: Optional[float] = None
+    input_tokens: Optional[int] = None
+    output_tokens: Optional[int] = None
+    input_cost: Optional[float] = None
+    output_cost: Optional[float] = None
+    total_cost: Optional[Union[float, str]] = None
 
 
 class AgentResponseDict(NamedTuple):
@@ -44,7 +51,11 @@ class EDSLResultObjectInput(NamedTuple):
     comment: str
     validated: bool = False
     exception_occurred: Exception = None
-    cost: Optional[float] = None
+    input_tokens: Optional[int] = None
+    output_tokens: Optional[int] = None
+    input_cost: Optional[float] = None
+    output_cost: Optional[float] = None
+    total_cost: Optional[Union[float, str]] = None
 
 
 @dataclass
