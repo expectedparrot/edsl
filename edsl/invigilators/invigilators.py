@@ -422,6 +422,8 @@ class InvigilatorAI(InvigilatorBase):
                 "exception_occurred": exception_occurred,
                 "input_tokens": agent_response_dict.model_outputs.input_tokens,
                 "output_tokens": agent_response_dict.model_outputs.output_tokens,
+                "input_price_per_million_tokens": agent_response_dict.model_outputs.input_price_per_million_tokens,
+                "output_price_per_million_tokens": agent_response_dict.model_outputs.output_price_per_million_tokens,
                 "total_cost": agent_response_dict.model_outputs.total_cost,
             }
 
@@ -480,6 +482,8 @@ class InvigilatorAI(InvigilatorBase):
                 "exception_occurred": exception_occurred,
                 "input_tokens": agent_response_dict.model_outputs.input_tokens,
                 "output_tokens": agent_response_dict.model_outputs.output_tokens,
+                "input_price_per_million_tokens": agent_response_dict.model_outputs.input_price_per_million_tokens,
+                "output_price_per_million_tokens": agent_response_dict.model_outputs.output_price_per_million_tokens,
                 "total_cost": agent_response_dict.model_outputs.total_cost,
             }
             result = EDSLResultObjectInput(**data)

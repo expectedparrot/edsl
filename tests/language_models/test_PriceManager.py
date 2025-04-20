@@ -88,6 +88,8 @@ def test_cost_calculation(price_manager):
     )
     assert cost.input_tokens == 1000
     assert cost.output_tokens == 1000
+    assert round(cost.input_price_per_million_tokens) == 10
+    assert round(cost.output_price_per_million_tokens) == 25
     assert round(cost.total_cost, 3) == 0.035
 
 
@@ -101,6 +103,8 @@ def test_cost_calculation_known_service(price_manager):
     )
     assert cost.input_tokens == 1000
     assert cost.output_tokens == 1000
+    assert round(cost.input_price_per_million_tokens) == 10
+    assert round(cost.output_price_per_million_tokens) == 50
     assert round(cost.total_cost, 3) == 0.060
 
 
@@ -114,4 +118,6 @@ def test_cost_calculation_unknown_service(price_manager):
     )
     assert cost.input_tokens == 1000
     assert cost.output_tokens == 1000
+    assert round(cost.input_price_per_million_tokens) == 1
+    assert round(cost.output_price_per_million_tokens) == 1
     assert round(cost.total_cost, 3) == 0.002
