@@ -975,7 +975,25 @@ class LanguageModel(
             data["model"], service_name=data.get("inference_service", None)
         )
 
-        # Create and return a new instance
+        # Handle canned_response in parameters for test models
+        if (
+            data["model"] == "test"
+            and "parameters" in data
+            and "canned_response" in data["parameters"]
+        ):
+            # Extract canned_response from parameters to set as a direct attribute
+            canned_response = data["parameters"]["canned_response"]
+            params_copy = data.copy()
+
+            # Direct attribute will be set during initialization
+            # Add it as a top-level parameter for model initialization
+            if isinstance(params_copy, dict) and "parameters" in params_copy:
+                params_copy["canned_response"] = canned_response
+
+            # Create the instance with canned_response as a direct parameter
+            return model_class(**params_copy)
+
+        # For non-test models or test models without canned_response
         return model_class(**data)
 
     def __repr__(self) -> str:
