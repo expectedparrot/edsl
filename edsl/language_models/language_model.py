@@ -732,11 +732,12 @@ class LanguageModel(
             user_prompt_with_hashes = user_prompt
 
         # Prepare parameters for cache lookup
+        cache_parameters = self.parameters.copy()
         if self.model == "test":
-            self.parameters.pop("canned_response", None)
+            cache_parameters.pop("canned_response", None)
         cache_call_params = {
             "model": str(self.model),
-            "parameters": self.parameters,
+            "parameters": cache_parameters,
             "system_prompt": system_prompt,
             "user_prompt": user_prompt_with_hashes,
             "iteration": iteration,
@@ -928,9 +929,15 @@ class LanguageModel(
             {'model': '...', 'parameters': {'temperature': ..., 'max_tokens': ..., 'top_p': ..., 'frequency_penalty': ..., 'presence_penalty': ..., 'logprobs': False, 'top_logprobs': ...}, 'inference_service': 'openai', 'edsl_version': '...', 'edsl_class_name': 'LanguageModel'}
         """
         # Build the base dictionary with essential model information
+        parameters = self.parameters.copy()
+
+        # For test models, ensure canned_response is included in serialization
+        if self.model == "test" and hasattr(self, "canned_response"):
+            parameters["canned_response"] = self.canned_response
+
         d = {
             "model": self.model,
-            "parameters": self.parameters,
+            "parameters": parameters,
             "inference_service": self._inference_service_,
         }
 
