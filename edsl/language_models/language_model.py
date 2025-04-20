@@ -734,6 +734,8 @@ class LanguageModel(
             cached_response=cached_response,
             input_tokens=cost.input_tokens,
             output_tokens=cost.output_tokens,
+            input_price_per_million_tokens=cost.input_price_per_million_tokens,
+            output_price_per_million_tokens=cost.output_price_per_million_tokens,
             total_cost=cost.total_cost,
         )
         return response
@@ -1087,6 +1089,8 @@ class LanguageModel(
                 cached_response=cached_response,
                 input_tokens=input_tokens,
                 output_tokens=output_tokens,
+                input_price_per_million_tokens=0,
+                output_price_per_million_tokens=0,
                 total_cost=0,
             )
 
