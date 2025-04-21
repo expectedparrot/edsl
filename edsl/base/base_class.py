@@ -807,8 +807,11 @@ class HashingMixin:
 
         # when retrieving the object from remote inference the hash might be different for entire
         # results but for individual results it is the same
+        print("debug", object_type)
         if object_type == "results":
-            return hash(str(sorted(self.hashes)))
+            print("debug hash value for res", str(sorted(self.hashes)))
+            hash_value = str(hash(str(sorted(self.hashes))))
+            return hash_value
 
         return str(dict_hash(self.to_dict(add_edsl_version=False)))
 
