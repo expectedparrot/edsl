@@ -1495,6 +1495,28 @@ class Coop(CoopFunctionsMixin):
         data = response.json()
         return data
 
+    def get_uuid_from_hash(self, hash_value: str) -> str:
+        """
+        Retrieve the UUID for an object based on its hash.
+
+        This method calls the remote endpoint to get the UUID associated with an object hash.
+
+        Args:
+            hash_value (str): The hash value of the object to look up
+
+        Returns:
+            str: The UUID of the object if found
+
+        Raises:
+            CoopServerResponseError: If the object is not found or there's an error
+                                   communicating with the server
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/object/hash/{hash_value}", method="GET"
+        )
+        self._resolve_server_response(response)
+        return response.json().get("uuid")
+
     def _display_login_url(
         self, edsl_auth_token: str, link_description: Optional[str] = None
     ):

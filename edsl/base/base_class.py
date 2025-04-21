@@ -827,6 +827,31 @@ class Base(
     and capabilities across the framework.
     """
 
+    def get_uuid(self) -> str:
+        """
+        Get the UUID of this object from the Expected Parrot cloud service based on its hash.
+
+        This method calculates the hash of the object and queries the cloud service
+        to find if there's an uploaded version with the same content. If found,
+        it returns the UUID of that object.
+
+        Returns:
+            str: The UUID of the object in the cloud service if found
+
+        Raises:
+            CoopServerResponseError: If the object is not found or there's an error
+                                   communicating with the server
+        """
+        from edsl.coop import Coop
+        from edsl.utilities.utilities import dict_hash
+
+        # Calculate the hash of the object
+        object_hash = str(dict_hash(self.to_dict(add_edsl_version=False)))
+
+        # Query the cloud service to get the UUID based on the hash
+        coop = Coop()
+        return coop.get_uuid_from_hash(object_hash)
+
     def keys(self):
         """Get the key names in the object's dictionary representation.
 
