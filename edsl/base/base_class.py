@@ -794,6 +794,16 @@ class HashingMixin:
 
         return dict_hash(self.to_dict(add_edsl_version=False))
 
+    def get_hash(self) -> str:
+        """Get a string hash representation of this object based on its content.
+
+        Returns:
+            str: A string representation of the hash value
+        """
+        from edsl.utilities.utilities import dict_hash
+
+        return str(dict_hash(self.to_dict(add_edsl_version=False)))
+
     def __eq__(self, other):
         """Compare this object with another for equality.
 
