@@ -1,10 +1,49 @@
-# Expected Parrot Domain-Specific Language (EDSL)
-
-The Expected Parrot Domain-Specific Language (EDSL) package makes it easy to conduct computational social science and market research with AI. Use it to design surveys and experiments, collect responses from humans and large language models, and perform data labeling and many other research tasks. Results are formatted as specified datasets and come with built-in methods for analyzing, visualizing and sharing. 
-
 <p align="right">
   <img src="https://github.com/expectedparrot/edsl/blob/main/static/logo.png?raw=true" alt="edsl.png" width="100"/>
 </p>
+
+# Expected Parrot Domain-Specific Language (EDSL)
+
+EDSL makes it easy to conduct computational social science and market research with AI. Use it to design and run surveys and experiments with many AI agents and large language models at once, or to perform complex data labeling and other research tasks. Results are formatted as specified datasets that can be replicated at no cost, and come with built-in methods for analysis, visualization and collaboration. 
+
+## Getting started
+
+1. Run `pip install edsl` to install the package. See <a href="https://www.expectedparrot.com/getting-started" target="_blank" rel="noopener noreferrer">instructions</a>.
+
+2. <a href="https://www.expectedparrot.com/login" target="_blank" rel="noopener noreferrer">Create an account</a> to run surveys at the Expected Parrot server and access a <a href="https://docs.expectedparrot.com/en/latest/remote_caching.html" target="_blank" rel="noopener noreferrer">universal remote cache</a> of stored responses for reproducing results.
+
+3. Choose whether to use your own keys for language models or get an Expected Parrot key to access all available models at once. Securely <a href="https://www.expectedparrot.com/getting-started/edsl-api-keys" target="_blank" rel="noopener noreferrer">manage keys</a>,  expenses and usage for your team from your account.
+
+4. Run the <a href="https://docs.expectedparrot.com/en/latest/starter_tutorial.html" target="_blank" rel="noopener noreferrer">starter tutorial</a> and explore other demo notebooks for a variety of use cases. 
+
+5. Share workflows and survey results at <a href="https://www.expectedparrot.com/content/explore" target="_blank" rel="noopener noreferrer">Coop</a>: a free platform for creating and sharing AI research.
+
+6. Join our <a href="https://discord.com/invite/mxAYkjfy9m" target="_blank" rel="noopener noreferrer">Discord</a> for updates and discussions! 
+
+## Code & Docs
+- <a href="https://github.com/expectedparrot/edsl" target="_blank" rel="noopener noreferrer">GitHub</a>
+- <a href="https://pypi.org/project/edsl/" target="_blank" rel="noopener noreferrer">PyPI</a>
+- <a href="https://docs.expectedparrot.com" target="_blank" rel="noopener noreferrer">Documentation</a>
+
+## Requirements
+- Python 3.9 - 3.12
+- API keys for language models. You can use your own keys or an Expected Parrot key that provides access to all available models.
+See instructions on <a href="https://docs.expectedparrot.com/en/latest/api_keys.html" target="_blank" rel="noopener noreferrer">managing keys</a> and <a href="https://www.expectedparrot.com/models" target="_blank" rel="noopener noreferrer">model pricing and performance</a> information.
+
+## Coop
+An integrated platform for running experiments, sharing workflows and launching hybrid human/AI surveys.
+- <a href="https://www.expectedparrot.com/login" target="_blank" rel="noopener noreferrer">Login / Signup</a>
+- <a href="https://www.expectedparrot.com/content/explore" target="_blank" rel="noopener noreferrer">Explore</a>
+
+## Community
+- <a href="https://blog.expectedparrot.com" target="_blank" rel="noopener noreferrer">Blog</a>
+- <a href="https://discord.com/invite/mxAYkjfy9m" target="_blank" rel="noopener noreferrer">Discord</a>
+- <a href="https://x.com/ExpectedParrot" target="_blank" rel="noopener noreferrer">Twitter</a>
+- <a href="https://www.linkedin.com/company/expectedparrot/" target="_blank" rel="noopener noreferrer">LinkedIn</a>
+
+## Contact
+- <a href="mailto:info@expectedparrot.com" target="_blank" rel="noopener noreferrer">Email</a>
+
 
 ## Features 
 
@@ -32,14 +71,14 @@ results.select("example")
 <br>
 
 **Parameterized prompts**: 
-Easily parameterize and control prompts with "<a href="https://docs.expectedparrot.com/en/latest/scenarios.html" target="_blank" rel="noopener noreferrer">scenarios</a>" of data automatically imported from many sources (CSV, PDF, PNG, etc.)(<a href="https://www.expectedparrot.com/content/7bb9ec2e-827b-4867-ac02-33163df1a1d1" target="_blank" rel="noopener noreferrer">view at Coop</a>):
+Easily parameterize and control prompts with "<a href="https://docs.expectedparrot.com/en/latest/scenarios.html" target="_blank" rel="noopener noreferrer">scenarios</a>" of data automatically imported from many sources (CSV, PDF, PNG, etc.) (<a href="https://www.expectedparrot.com/content/7bb9ec2e-827b-4867-ac02-33163df1a1d1" target="_blank" rel="noopener noreferrer">view at Coop</a>):
 
 ```python
 from edsl import ScenarioList, QuestionLinearScale
 
 q = QuestionLinearScale(
   question_name = "example",
-  question_text = "How much do you enjoy {{ activity }}?",
+  question_text = "How much do you enjoy {{ scenario.activity }}?",
   question_options = [1,2,3,4,5,],
   option_labels = {1:"Not at all", 5:"Very much"}
 )
@@ -80,12 +119,12 @@ results.select("persona", "example")
 > | agent.persona  | answer.example                              |
 > |----------------|---------------------------------------------|
 > | botanist       | ['Green', 'Earthy Brown', 'Sunset Orange']  |
-> | detective      | ['Gray', 'Black', 'Navy Blye']              |
+> | detective      | ['Gray', 'Black', 'Navy Blue']              |
 
 <br>
 
 **Simplified access to LLMs**: 
-Choose whether to use your own keys for LLMs, or access all <a href="https://www.expectedparrot.com/getting-started/coop-pricing" target="_blank" rel="noopener noreferrer">available models</a> with an Expected Parrot API key. Run surveys with many models at once and compare responses at a convenient inferface (<a href="https://www.expectedparrot.com/content/044465f0-b87f-430d-a3b9-4fd3b8560299" target="_blank" rel="noopener noreferrer">view at Coop</a>)
+Choose whether to use your own API keys for LLMs, or access all <a href="https://www.expectedparrot.com/models" target="_blank" rel="noopener noreferrer">available models</a> with an Expected Parrot key. Run surveys with many models at once and compare responses at a convenient inferface (<a href="https://www.expectedparrot.com/content/044465f0-b87f-430d-a3b9-4fd3b8560299" target="_blank" rel="noopener noreferrer">view at Coop</a>)
 
 ```python
 from edsl import Model, ModelList, QuestionFreeText
@@ -142,27 +181,6 @@ results.select("color", "flower")
 **Caching**: 
 API calls to LLMs are cached automatically, allowing you to retrieve responses to questions that have already been run and reproduce experiments at no cost. Learn more about how the <a href="https://docs.expectedparrot.com/en/latest/remote_caching.html" target="_blank" rel="noopener noreferrer">universal remote cache</a> works.
 
-**Logging**:
-EDSL includes a comprehensive logging system to help with debugging and monitoring. Control log levels and see important information about operations:
-
-```python
-from edsl import logger
-import logging
-
-# Set the logging level
-logger.set_level(logging.DEBUG)  # Show all log messages
-
-# Get a module-specific logger
-my_logger = logger.get_logger(__name__)
-my_logger.info("This is a module-specific log message")
-
-# Log messages at different levels
-logger.debug("Detailed debugging information")
-logger.info("General information about operation")
-logger.warning("Something unexpected but not critical")
-logger.error("Something went wrong")
-```
-
 **Flexibility**: 
 Choose whether to run surveys on your own computer or at the Expected Parrot server.
 
@@ -172,47 +190,3 @@ Easily share workflows and projects privately or publicly at Coop: an integrated
 **Built-in tools for analyis**: 
 Analyze results as specified datasets from your account or workspace. Easily import data to use with your surveys and export results.
 
-## Getting started
-
-1. Run `pip install edsl` to install the package.
-
-2. <a href="https://www.expectedparrot.com/login" target="_blank" rel="noopener noreferrer">Create an account</a> to run surveys at the Expected Parrot server and access a <a href="https://docs.expectedparrot.com/en/latest/remote_caching.html" target="_blank" rel="noopener noreferrer">universal remote cache</a> of stored responses for reproducing results.
-
-3. Choose whether to use your own keys for language models or get an Expected Parrot key to access all available models at once. Securely <a href="https://docs.expectedparrot.com/en/latest/api_keys.html" target="_blank" rel="noopener noreferrer">manage keys</a>, share expenses and track usage for your team from your account.
-
-4. Run the <a href="https://docs.expectedparrot.com/en/latest/starter_tutorial.html" target="_blank" rel="noopener noreferrer">starter tutorial</a> and explore other demo notebooks. 
-
-5. Share workflows and survey results at <a href="https://www.expectedparrot.com/content/explore" target="_blank" rel="noopener noreferrer">Coop</a>
-
-6. Join our <a href="https://discord.com/invite/mxAYkjfy9m" target="_blank" rel="noopener noreferrer">Discord</a> for updates and discussions! Request new features!
-
-## Code & Docs
-- <a href="https://pypi.org/project/edsl/" target="_blank" rel="noopener noreferrer">PyPI</a>
-- <a href="https://github.com/expectedparrot/edsl" target="_blank" rel="noopener noreferrer">GitHub</a>
-- <a href="https://docs.expectedparrot.com" target="_blank" rel="noopener noreferrer">Documentation</a>
-
-## Requirements
-- Python 3.9 - 3.12
-- API keys for language models. You can use your own keys or an Expected Parrot key that provides access to all available models.
-See instructions on <a href="https://docs.expectedparrot.com/en/latest/api_keys.html" target="_blank" rel="noopener noreferrer">managing keys</a> and <a href="https://www.expectedparrot.com/getting-started/coop-pricing" target="_blank" rel="noopener noreferrer">model pricing and performance</a> information.
-
-## Developer Notes
-
-### Running Tests
-- Unit tests: `python -m pytest tests/`  
-- Integration tests: `python -m pytest integration/`
-- Doctests: `python run_doctests.py` (use `-v` flag for verbose output)
-
-## Coop
-An integrated platform for running experiments, sharing workflows and launching hybrid human/AI surveys.
-- <a href="https://www.expectedparrot.com/login" target="_blank" rel="noopener noreferrer">Login / Signup</a>
-- <a href="https://www.expectedparrot.com/content/explore" target="_blank" rel="noopener noreferrer">Explore</a>
-
-## Community
-- <a href="https://discord.com/invite/mxAYkjfy9m" target="_blank" rel="noopener noreferrer">Discord</a>
-- <a href="https://x.com/ExpectedParrot" target="_blank" rel="noopener noreferrer">Twitter</a>
-- <a href="https://www.linkedin.com/company/expectedparrot/" target="_blank" rel="noopener noreferrer">LinkedIn</a>
-- <a href="https://blog.expectedparrot.com" target="_blank" rel="noopener noreferrer">Blog</a>.
-
-## Contact
-- <a href="mailto:info@expectedparrot.com" target="_blank" rel="noopener noreferrer">Email</a>.

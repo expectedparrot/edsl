@@ -15,30 +15,46 @@ JSON/YAML serialization, file persistence, pretty printing, and object compariso
 from abc import ABC, abstractmethod, ABCMeta
 import gzip
 import json
-from typing import Any, Optional, Union
+from typing import Any, Optional, Union, TYPE_CHECKING
 from uuid import UUID
 import difflib
-from typing import Dict, Tuple
+from typing import Dict, Literal, List, Tuple
 from collections import UserList
 import inspect
 
 from .. import logger
 
+if TYPE_CHECKING:
+    from ..coop.coop_objects import CoopObjects
+
+VisibilityType = Literal["private", "public", "unlisted"]
+RemoteJobStatus = Literal[
+    "queued",
+    "running",
+    "completed",
+    "failed",
+    "cancelled",
+    "cancelling",
+    "partial_failed",
+]
+
+
 class BaseException(Exception):
     """Base exception class for all EDSL exceptions.
-    
+
     This class extends the standard Python Exception class to provide more helpful error messages
     by including links to relevant documentation and example notebooks when available.
-    
+
     Attributes:
         relevant_doc: URL to documentation explaining this type of exception
         relevant_notebook: Optional URL to a notebook with usage examples
     """
+
     relevant_doc = "https://docs.expectedparrot.com/"
 
     def __init__(self, message, *, show_docs=True, log_level="error"):
         """Initialize a new BaseException with formatted error message.
-        
+
         Args:
             message: The primary error message
             show_docs: If True, append documentation links to the error message
@@ -61,7 +77,7 @@ class BaseException(Exception):
         # Join with double newlines for clear separation
         final_message = "\n\n".join(formatted_message)
         super().__init__(final_message)
-        
+
         # Log the exception
         if log_level == "debug":
             logger.debug(f"{self.__class__.__name__}: {message}")
@@ -100,7 +116,7 @@ class DisplayYAML:
 
 class PersistenceMixin:
     """Mixin for saving and loading objects to and from files.
-    
+
     This mixin provides methods for serializing objects to various formats (JSON, YAML),
     saving to and loading from files, and interacting with cloud storage. It enables
     persistence operations like duplicating objects and uploading/downloading from the
@@ -109,21 +125,21 @@ class PersistenceMixin:
 
     def duplicate(self, add_edsl_version=False):
         """Create and return a deep copy of the object.
-        
+
         Args:
             add_edsl_version: Whether to include EDSL version information in the duplicated object
-            
+
         Returns:
             A new instance of the same class with identical properties
         """
         return self.from_dict(self.to_dict(add_edsl_version=False))
-    
+
     @classmethod
     def help(cls):
         """Display the class documentation string.
-        
+
         This is a convenience method to quickly access the docstring of the class.
-        
+
         Returns:
             None, but prints the class docstring to stdout
         """
@@ -137,16 +153,16 @@ class PersistenceMixin:
         expected_parrot_url: Optional[str] = None,
     ):
         """Upload this object to the EDSL cooperative platform.
-        
+
         This method serializes the object and posts it to the EDSL coop service,
         making it accessible to others or for your own use across sessions.
-        
+
         Args:
             description: Optional text description of the object
             alias: Optional human-readable identifier for the object
             visibility: Access level setting ("private", "unlisted", or "public")
             expected_parrot_url: Optional custom URL for the coop service
-            
+
         Returns:
             The response from the coop service containing the object's unique identifier
         """
@@ -157,13 +173,13 @@ class PersistenceMixin:
 
     def to_yaml(self, add_edsl_version=False, filename: str = None) -> Union[str, None]:
         """Convert the object to YAML format.
-        
+
         Serializes the object to YAML format and optionally writes it to a file.
-        
+
         Args:
             add_edsl_version: Whether to include EDSL version information
             filename: If provided, write the YAML to this file path
-            
+
         Returns:
             str: The YAML string representation if no filename is provided
             None: If written to file
@@ -180,16 +196,16 @@ class PersistenceMixin:
     @classmethod
     def from_yaml(cls, yaml_str: Optional[str] = None, filename: Optional[str] = None):
         """Create an instance from YAML data.
-        
+
         Deserializes a YAML string or file into a new instance of the class.
-        
+
         Args:
             yaml_str: YAML string containing object data
             filename: Path to a YAML file containing object data
-            
+
         Returns:
             A new instance of the class populated with the deserialized data
-            
+
         Raises:
             BaseValueError: If neither yaml_str nor filename is provided
         """
@@ -204,14 +220,15 @@ class PersistenceMixin:
             return cls.from_dict(d)
         else:
             from edsl.base.exceptions import BaseValueError
+
             raise BaseValueError("Either yaml_str or filename must be provided.")
 
     def create_download_link(self):
         """Generate a downloadable link for this object.
-        
+
         Creates a temporary file containing the serialized object and generates
         a download link that can be shared with others.
-        
+
         Returns:
             str: A URL that can be used to download the object
         """
@@ -236,11 +253,76 @@ class PersistenceMixin:
         """
         from edsl.coop import Coop
         from edsl.coop import ObjectRegistry
+        from edsl.jobs import Jobs
 
-        object_type = ObjectRegistry.get_object_type_by_edsl_class(cls)
         coop = Coop()
 
+        if issubclass(cls, Jobs):
+            job_status = coop.remote_inference_get(
+                job_uuid=str(url_or_uuid), include_json_string=True
+            )
+            job_dict = json.loads(job_status.get("job_json_string"))
+            return cls.from_dict(job_dict)
+
+        object_type = ObjectRegistry.get_object_type_by_edsl_class(cls)
+
         return coop.get(url_or_uuid, expected_object_type=object_type)
+
+    @classmethod
+    def list(
+        cls,
+        visibility: Union[VisibilityType, List[VisibilityType], None] = None,
+        job_status: Union[RemoteJobStatus, List[RemoteJobStatus], None] = None,
+        search_query: Union[str, None] = None,
+        page: int = 1,
+        page_size: int = 10,
+        sort_ascending: bool = False,
+    ) -> "CoopObjects":
+        """List objects from coop.
+
+        Notes:
+        - The visibility parameter is not supported for remote inference jobs.
+        - The job_status parameter is not supported for objects.
+        - search_query only works with the description field.
+        - If sort_ascending is False, then the most recently created objects are returned first.
+        """
+        from edsl.coop import Coop
+        from edsl.coop import ObjectRegistry
+        from edsl.jobs import Jobs
+
+        coop = Coop()
+        if issubclass(cls, Jobs):
+            if visibility is not None:
+                from edsl.base.exceptions import BaseValueError
+
+                raise BaseValueError(
+                    "The visibility parameter is not supported for remote inference jobs."
+                )
+            return coop.remote_inference_list(
+                job_status,
+                search_query,
+                page,
+                page_size,
+                sort_ascending,
+            )
+
+        if job_status is not None:
+            from edsl.base.exceptions import BaseValueError
+
+            raise BaseValueError(
+                "The job_status parameter is not supported for objects."
+            )
+
+        object_type = ObjectRegistry.get_object_type_by_edsl_class(cls)
+
+        return coop.list(
+            object_type,
+            visibility,
+            search_query,
+            page,
+            page_size,
+            sort_ascending,
+        )
 
     @classmethod
     def delete(cls, url_or_uuid: Union[str, UUID]) -> None:
@@ -369,20 +451,20 @@ class PersistenceMixin:
         Serializes the object to JSON and writes it to the specified file.
         By default, the file will be compressed using gzip. File extensions
         are handled automatically.
-        
+
         Args:
             filename: Path where the file should be saved
             compress: If True, compress the file using gzip (default: True)
-            
+
         Returns:
             None
-            
+
         Examples:
             >>> obj.save("my_object.json.gz")  # Compressed
             >>> obj.save("my_object.json", compress=False)  # Uncompressed
         """
         logger.debug(f"Saving {self.__class__.__name__} to file: {filename}")
-        
+
         if filename.endswith("json.gz"):
             filename = filename[:-8]
         if filename.endswith("json"):
@@ -397,20 +479,24 @@ class PersistenceMixin:
                 full_file_name = filename + ".json"
                 with open(filename + ".json", "w") as f:
                     f.write(json.dumps(self.to_dict()))
-                    
-            logger.info(f"Successfully saved {self.__class__.__name__} to {full_file_name}")
+
+            logger.info(
+                f"Successfully saved {self.__class__.__name__} to {full_file_name}"
+            )
             print("Saved to", full_file_name)
         except Exception as e:
-            logger.error(f"Failed to save {self.__class__.__name__} to {filename}: {str(e)}")
+            logger.error(
+                f"Failed to save {self.__class__.__name__} to {filename}: {str(e)}"
+            )
             raise
 
     @staticmethod
     def open_compressed_file(filename):
         """Read and parse a compressed JSON file.
-        
+
         Args:
             filename: Path to a gzipped JSON file
-            
+
         Returns:
             dict: The parsed JSON content
         """
@@ -423,10 +509,10 @@ class PersistenceMixin:
     @staticmethod
     def open_regular_file(filename):
         """Read and parse an uncompressed JSON file.
-        
+
         Args:
             filename: Path to a JSON file
-            
+
         Returns:
             dict: The parsed JSON content
         """
@@ -437,21 +523,21 @@ class PersistenceMixin:
     @classmethod
     def load(cls, filename):
         """Load the object from a JSON file (compressed or uncompressed).
-        
+
         This method deserializes an object from a file, automatically detecting
         whether the file is compressed with gzip or not.
-        
+
         Args:
             filename: Path to the file to load
-            
+
         Returns:
             An instance of the class populated with data from the file
-            
+
         Raises:
             Various exceptions may be raised if the file doesn't exist or contains invalid data
         """
         logger.debug(f"Loading {cls.__name__} from file: {filename}")
-        
+
         try:
             if filename.endswith("json.gz"):
                 d = cls.open_compressed_file(filename)
@@ -461,10 +547,14 @@ class PersistenceMixin:
                 logger.debug(f"Loaded regular file {filename}")
             else:
                 try:
-                    logger.debug(f"Attempting to load as compressed file: {filename}.json.gz")
+                    logger.debug(
+                        f"Attempting to load as compressed file: {filename}.json.gz"
+                    )
                     d = cls.open_compressed_file(filename + ".json.gz")
                 except Exception as e:
-                    logger.debug(f"Failed to load as compressed file, trying regular: {e}")
+                    logger.debug(
+                        f"Failed to load as compressed file, trying regular: {e}"
+                    )
                     d = cls.open_regular_file(filename + ".json")
                 # finally:
                 #    raise ValueError("File must be a json or json.gz file")
@@ -478,7 +568,7 @@ class PersistenceMixin:
 
 class RegisterSubclassesMeta(ABCMeta):
     """Metaclass for automatically registering all subclasses.
-    
+
     This metaclass maintains a registry of all classes that inherit from Base,
     allowing for dynamic discovery of available classes and capabilities like
     automatic deserialization. When a new class is defined with Base as its
@@ -489,7 +579,7 @@ class RegisterSubclassesMeta(ABCMeta):
 
     def __init__(cls, name, bases, nmspc):
         """Register the class in the registry upon creation.
-        
+
         Args:
             name: The name of the class being created
             bases: The base classes of the class being created
@@ -502,10 +592,10 @@ class RegisterSubclassesMeta(ABCMeta):
     @staticmethod
     def get_registry(exclude_classes: Optional[list] = None):
         """Get the registry of all registered subclasses.
-        
+
         Args:
             exclude_classes: Optional list of class names to exclude from the result
-            
+
         Returns:
             dict: A dictionary mapping class names to class objects
         """
@@ -520,20 +610,20 @@ class RegisterSubclassesMeta(ABCMeta):
 
 class DiffMethodsMixin:
     """Mixin that adds the ability to compute differences between objects.
-    
+
     This mixin provides operator overloads that enable convenient comparison and
     differencing between objects of the same class.
     """
-    
+
     def __sub__(self, other):
         """Calculate the difference between this object and another.
-        
+
         This overloads the subtraction operator (-) to provide an intuitive way
         to compare objects and find their differences.
-        
+
         Args:
             other: Another object to compare against this one
-            
+
         Returns:
             BaseDiff: An object representing the differences between the two objects
         """
@@ -544,10 +634,10 @@ class DiffMethodsMixin:
 
 def is_iterable(obj):
     """Check if an object is iterable.
-    
+
     Args:
         obj: The object to check
-        
+
     Returns:
         bool: True if the object is iterable, False otherwise
     """
@@ -560,15 +650,15 @@ def is_iterable(obj):
 
 class RepresentationMixin:
     """Mixin that provides rich display and representation capabilities.
-    
+
     This mixin enhances objects with methods for displaying their contents in various
     formats including JSON, HTML tables, and rich terminal output. It improves the
     user experience when working with EDSL objects in notebooks and terminals.
     """
-    
+
     def json(self):
         """Get a parsed JSON representation of this object.
-        
+
         Returns:
             dict: The object's data as a Python dictionary
         """
@@ -576,7 +666,7 @@ class RepresentationMixin:
 
     def to_dataset(self):
         """Convert this object to a Dataset for advanced data operations.
-        
+
         Returns:
             Dataset: A Dataset object containing this object's data
         """
@@ -586,7 +676,7 @@ class RepresentationMixin:
 
     def view(self):
         """Display an interactive visualization of this object.
-        
+
         Returns:
             The result of the dataset's view method
         """
@@ -597,10 +687,10 @@ class RepresentationMixin:
 
     def display_dict(self):
         """Create a flattened dictionary representation for display purposes.
-        
+
         This method creates a flattened view of nested structures using colon notation
         in keys to represent hierarchy.
-        
+
         Returns:
             dict: A flattened dictionary suitable for display
         """
@@ -619,10 +709,10 @@ class RepresentationMixin:
 
     def print(self, format="rich"):
         """Print a formatted table representation of this object.
-        
+
         Args:
             format: The output format (currently only 'rich' is supported)
-            
+
         Returns:
             None, but prints a formatted table to the console
         """
@@ -641,15 +731,15 @@ class RepresentationMixin:
 
     def _repr_html_(self):
         """Generate an HTML representation for Jupyter notebooks.
-        
+
         This method is automatically called by Jupyter to render the object
         as HTML in notebook cells.
-        
+
         Returns:
             str: HTML representation of the object
         """
         from edsl.dataset.display.table_display import TableDisplay
-        
+
         if hasattr(self, "_summary"):
             summary_dict = self._summary()
             summary_line = "".join([f" {k}: {v};" for k, v in summary_dict.items()])
@@ -665,7 +755,9 @@ class RepresentationMixin:
         else:
             class_name = self.__class__.__name__
             documentation = getattr(self, "__documentation__", "")
-            summary_line = "<p>" + f"<a href='{documentation}'>{class_name}</a>" + "</p>"
+            summary_line = (
+                "<p>" + f"<a href='{documentation}'>{class_name}</a>" + "</p>"
+            )
             display_dict = self.display_dict()
             return (
                 summary_line
@@ -674,7 +766,7 @@ class RepresentationMixin:
 
     def __str__(self):
         """Return the string representation of the object.
-        
+
         Returns:
             str: String representation of the object
         """
@@ -683,18 +775,18 @@ class RepresentationMixin:
 
 class HashingMixin:
     """Mixin that provides consistent hashing and equality operations.
-    
+
     This mixin implements __hash__ and __eq__ methods to enable using EDSL objects
     in sets and as dictionary keys. The hash is based on the object's serialized content,
     so two objects with identical content will be considered equal.
     """
-    
+
     def __hash__(self) -> int:
         """Generate a hash value for this object based on its content.
-        
+
         The hash is computed from the serialized dictionary representation of the object,
         excluding any version information.
-        
+
         Returns:
             int: A hash value for the object
         """
@@ -704,13 +796,13 @@ class HashingMixin:
 
     def __eq__(self, other):
         """Compare this object with another for equality.
-        
+
         Two objects are considered equal if they have the same hash value,
         which means they have identical content.
-        
+
         Args:
             other: Another object to compare with this one
-            
+
         Returns:
             bool: True if the objects are equal, False otherwise
         """
@@ -726,21 +818,21 @@ class Base(
     metaclass=RegisterSubclassesMeta,
 ):
     """Base class for all classes in the EDSL package.
-    
+
     This abstract base class combines several mixins to provide a rich set of functionality
     to all EDSL objects. It defines the core interface that all EDSL objects must implement,
     including serialization, deserialization, and code generation.
-    
+
     All EDSL classes should inherit from this class to ensure consistent behavior
     and capabilities across the framework.
     """
 
     def keys(self):
         """Get the key names in the object's dictionary representation.
-        
+
         This method returns all the keys in the serialized form of the object,
         excluding metadata keys like version information.
-        
+
         Returns:
             list: A list of key names
         """
@@ -753,7 +845,7 @@ class Base(
 
     def values(self):
         """Get the values in the object's dictionary representation.
-        
+
         Returns:
             set: A set containing all the values in the object
         """
@@ -764,19 +856,20 @@ class Base(
     @abstractmethod
     def example():
         """Create an example instance of this class.
-        
+
         This method should be implemented by all subclasses to provide
         a convenient way to create example objects for testing and demonstration.
-        
+
         Returns:
             An instance of the class with sample data
         """
         from edsl.base.exceptions import BaseNotImplementedError
+
         raise BaseNotImplementedError("This method is not implemented yet.")
-    
+
     def json(self):
         """Get a formatted JSON representation of this object.
-        
+
         Returns:
             DisplayJSON: A displayable JSON representation
         """
@@ -784,30 +877,30 @@ class Base(
 
     def yaml(self):
         """Get a formatted YAML representation of this object.
-        
+
         Returns:
             DisplayYAML: A displayable YAML representation
         """
         return DisplayYAML(self.to_dict(add_edsl_version=False))
 
-
     @abstractmethod
     def to_dict():
         """Serialize this object to a dictionary.
-        
+
         This method must be implemented by all subclasses to provide a
         standard way to serialize objects to dictionaries. The dictionary
         should contain all the data needed to reconstruct the object.
-        
+
         Returns:
             dict: A dictionary representation of the object
         """
         from edsl.base.exceptions import BaseNotImplementedError
+
         raise BaseNotImplementedError("This method is not implemented yet.")
 
     def to_json(self):
         """Serialize this object to a JSON string.
-        
+
         Returns:
             str: A JSON string representation of the object
         """
@@ -815,11 +908,11 @@ class Base(
 
     def store(self, d: dict, key_name: Optional[str] = None):
         """Store this object in a dictionary with an optional key.
-        
+
         Args:
             d: The dictionary in which to store the object
             key_name: Optional key to use (defaults to the length of the dictionary)
-            
+
         Returns:
             None
         """
@@ -832,39 +925,41 @@ class Base(
     @abstractmethod
     def from_dict():
         """Create an instance from a dictionary.
-        
+
         This class method must be implemented by all subclasses to provide a
         standard way to deserialize objects from dictionaries.
-        
+
         Returns:
             An instance of the class populated with data from the dictionary
         """
         from edsl.base.exceptions import BaseNotImplementedError
+
         raise BaseNotImplementedError("This method is not implemented yet.")
 
     @abstractmethod
     def code():
         """Generate Python code that recreates this object.
-        
+
         This method must be implemented by all subclasses to provide a way to
         generate executable Python code that can recreate the object.
-        
+
         Returns:
             str: Python code that, when executed, creates an equivalent object
         """
         from edsl.base.exceptions import BaseNotImplementedError
+
         raise BaseNotImplementedError("This method is not implemented yet.")
 
     def show_methods(self, show_docstrings=True):
         """Display all public methods available on this object.
-        
+
         This utility method helps explore the capabilities of an object by listing
         all its public methods and optionally their documentation.
-        
+
         Args:
             show_docstrings: If True, print method names with docstrings;
                             if False, return the list of method names
-                            
+
         Returns:
             None or list: If show_docstrings is True, prints methods and returns None.
                          If show_docstrings is False, returns a list of method names.
@@ -883,14 +978,14 @@ class Base(
 
 class BaseDiffCollection(UserList):
     """A collection of difference objects that can be applied in sequence.
-    
+
     This class represents a series of differences between objects that can be
     applied sequentially to transform one object into another through several steps.
     """
-    
+
     def __init__(self, diffs=None):
         """Initialize a new BaseDiffCollection.
-        
+
         Args:
             diffs: Optional list of BaseDiff objects to include in the collection
         """
@@ -900,10 +995,10 @@ class BaseDiffCollection(UserList):
 
     def apply(self, obj: Any):
         """Apply all diffs in the collection to an object in sequence.
-        
+
         Args:
             obj: The object to transform
-            
+
         Returns:
             The transformed object after applying all diffs
         """
@@ -913,10 +1008,10 @@ class BaseDiffCollection(UserList):
 
     def add_diff(self, diff) -> "BaseDiffCollection":
         """Add a new diff to the collection.
-        
+
         Args:
             diff: The BaseDiff object to add
-            
+
         Returns:
             BaseDiffCollection: self, for method chaining
         """
@@ -926,14 +1021,14 @@ class BaseDiffCollection(UserList):
 
 class DummyObject:
     """A simple class that can be used to wrap a dictionary for diffing purposes.
-    
+
     This utility class is used internally to compare dictionaries by adapting them
     to the same interface as EDSL objects.
     """
-    
+
     def __init__(self, object_dict):
         """Initialize a new DummyObject.
-        
+
         Args:
             object_dict: A dictionary to wrap
         """
@@ -941,7 +1036,7 @@ class DummyObject:
 
     def to_dict(self):
         """Get the wrapped dictionary.
-        
+
         Returns:
             dict: The wrapped dictionary
         """
@@ -950,20 +1045,20 @@ class DummyObject:
 
 class BaseDiff:
     """Represents the differences between two EDSL objects.
-    
+
     This class computes and stores the differences between two objects in terms of:
     - Added keys/values (present in obj2 but not in obj1)
     - Removed keys/values (present in obj1 but not in obj2)
     - Modified keys/values (present in both but with different values)
-    
+
     The differences can be displayed for inspection or applied to transform objects.
     """
-    
+
     def __init__(
         self, obj1: Any, obj2: Any, added=None, removed=None, modified=None, level=0
     ):
         """Initialize a new BaseDiff between two objects.
-        
+
         Args:
             obj1: The first object (considered the "from" object)
             obj2: The second object (considered the "to" object)
@@ -991,7 +1086,7 @@ class BaseDiff:
 
     def __bool__(self):
         """Determine if there are any differences between the objects.
-        
+
         Returns:
             bool: True if there are differences, False if objects are identical
         """
@@ -1000,7 +1095,7 @@ class BaseDiff:
     @property
     def added(self):
         """Get keys and values present in obj2 but not in obj1.
-        
+
         Returns:
             dict: Keys and values that were added
         """
@@ -1010,12 +1105,12 @@ class BaseDiff:
 
     def __add__(self, other):
         """Apply this diff to another object.
-        
+
         This overloads the + operator to allow applying diffs with a natural syntax.
-        
+
         Args:
             other: The object to apply the diff to
-            
+
         Returns:
             The transformed object
         """
@@ -1024,7 +1119,7 @@ class BaseDiff:
     @added.setter
     def added(self, value):
         """Set the added keys/values.
-        
+
         Args:
             value: Dict of added keys/values or None to compute automatically
         """
@@ -1033,7 +1128,7 @@ class BaseDiff:
     @property
     def removed(self):
         """Get keys and values present in obj1 but not in obj2.
-        
+
         Returns:
             dict: Keys and values that were removed
         """
@@ -1044,7 +1139,7 @@ class BaseDiff:
     @removed.setter
     def removed(self, value):
         """Set the removed keys/values.
-        
+
         Args:
             value: Dict of removed keys/values or None to compute automatically
         """
@@ -1053,7 +1148,7 @@ class BaseDiff:
     @property
     def modified(self):
         """Get keys present in both objects but with different values.
-        
+
         Returns:
             dict: Keys and their old/new values that were modified
         """
@@ -1064,7 +1159,7 @@ class BaseDiff:
     @modified.setter
     def modified(self, value):
         """Set the modified keys/values.
-        
+
         Args:
             value: Dict of modified keys/values or None to compute automatically
         """
@@ -1072,7 +1167,7 @@ class BaseDiff:
 
     def _find_added(self) -> Dict[Any, Any]:
         """Find keys that exist in obj2 but not in obj1.
-        
+
         Returns:
             dict: Keys and values that were added
         """
@@ -1080,7 +1175,7 @@ class BaseDiff:
 
     def _find_removed(self) -> Dict[Any, Any]:
         """Find keys that exist in obj1 but not in obj2.
-        
+
         Returns:
             dict: Keys and values that were removed
         """
@@ -1088,10 +1183,10 @@ class BaseDiff:
 
     def _find_modified(self) -> Dict[Any, Tuple[Any, Any, str]]:
         """Find keys that exist in both objects but have different values.
-        
+
         The difference calculation is type-aware and handles strings, dictionaries,
         and lists specially to provide more detailed difference information.
-        
+
         Returns:
             dict: Keys mapped to tuples of (old_value, new_value, diff_details)
         """
@@ -1122,10 +1217,10 @@ class BaseDiff:
     @staticmethod
     def is_json(string_that_could_be_json: str) -> bool:
         """Check if a string is valid JSON.
-        
+
         Args:
             string_that_could_be_json: The string to check
-            
+
         Returns:
             bool: True if the string is valid JSON, False otherwise
         """
@@ -1137,11 +1232,11 @@ class BaseDiff:
 
     def _diff_dicts(self, dict1: Dict[str, Any], dict2: Dict[str, Any]) -> "BaseDiff":
         """Calculate the differences between two dictionaries.
-        
+
         Args:
             dict1: The first dictionary
             dict2: The second dictionary
-            
+
         Returns:
             BaseDiff: A difference object between the dictionaries
         """
@@ -1150,14 +1245,14 @@ class BaseDiff:
 
     def _diff_strings(self, str1: str, str2: str) -> str:
         """Calculate the differences between two strings.
-        
+
         If both strings are valid JSON, they are compared as dictionaries.
         Otherwise, they are compared line by line.
-        
+
         Args:
             str1: The first string
             str2: The second string
-            
+
         Returns:
             Union[BaseDiff, Iterable[str]]: A diff object or line-by-line differences
         """
@@ -1169,13 +1264,13 @@ class BaseDiff:
 
     def apply(self, obj: Any):
         """Apply this diff to transform an object.
-        
+
         This method applies the computed differences to an object, adding new keys,
         removing deleted keys, and updating modified values.
-        
+
         Args:
             obj: The object to transform
-            
+
         Returns:
             The transformed object
         """
@@ -1191,7 +1286,7 @@ class BaseDiff:
 
     def to_dict(self) -> Dict[str, Any]:
         """Serialize this difference object to a dictionary.
-        
+
         Returns:
             dict: A dictionary representation of the differences
         """
@@ -1208,12 +1303,12 @@ class BaseDiff:
     @classmethod
     def from_dict(cls, diff_dict: Dict[str, Any], obj1: Any, obj2: Any):
         """Create a BaseDiff from a dictionary representation.
-        
+
         Args:
             diff_dict: Dictionary containing the difference data
             obj1: The first object
             obj2: The second object
-            
+
         Returns:
             BaseDiff: A new difference object
         """
@@ -1228,14 +1323,14 @@ class BaseDiff:
 
     class Results(UserList):
         """Helper class for storing and formatting difference results.
-        
+
         This class extends UserList to provide indentation and formatting
         capabilities when displaying differences.
         """
-        
+
         def __init__(self, prepend=" ", level=0):
             """Initialize a new Results collection.
-            
+
             Args:
                 prepend: The string to use for indentation
                 level: The nesting level
@@ -1246,7 +1341,7 @@ class BaseDiff:
 
         def append(self, item):
             """Add an item to the results with proper indentation.
-            
+
             Args:
                 item: The string to add
             """
@@ -1254,7 +1349,7 @@ class BaseDiff:
 
     def __str__(self):
         """Generate a human-readable string representation of the differences.
-        
+
         Returns:
             str: A formatted string showing the differences
         """
@@ -1285,7 +1380,7 @@ class BaseDiff:
 
     def __repr__(self):
         """Generate a developer-friendly string representation.
-        
+
         Returns:
             str: A representation that can be used to recreate the object
         """
@@ -1296,19 +1391,21 @@ class BaseDiff:
 
     def add_diff(self, diff) -> "BaseDiffCollection":
         """Combine this diff with another into a collection.
-        
+
         Args:
             diff: Another BaseDiff object
-            
+
         Returns:
             BaseDiffCollection: A collection containing both diffs
         """
         from edsl.base import BaseDiffCollection
+
         return BaseDiffCollection([self, diff])
 
 
 if __name__ == "__main__":
-    import doctest 
+    import doctest
+
     doctest.testmod()
 
     from edsl import Question
@@ -1319,7 +1416,7 @@ if __name__ == "__main__":
     diff1 = q_ft - q_mc
     assert q_ft == q_mc + diff1
     assert q_ft == diff1.apply(q_mc)
-    
+
     # ## Test chain of diffs
     q0 = Question.example("free_text")
     q1 = q0.copy()

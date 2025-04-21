@@ -50,7 +50,7 @@ def _parse_type_string(type_str: str) -> Any:
         return List[Any]
     elif type_str.startswith("list["):
         # e.g. "list[str]" or "list[int]" etc.
-        inner = type_str[len("list["):-1].strip()
+        inner = type_str[len("list[") : -1].strip()
         return List[_parse_type_string(inner)]
     # If none matched, return a very permissive type or raise an error
     return Any
@@ -73,15 +73,15 @@ def create_dict_response(
     # 1) Build the 'answer' submodel fields
     #    Each key is required (using `...`), with the associated type from value_types.
     field_definitions = {}
+    if len(value_types) == 0:
+        value_types = ["str"] * len(answer_keys)  # Default to str if no types provided
     for key, t_str in zip(answer_keys, value_types):
         python_type = _parse_type_string(t_str)
         field_definitions[key] = (python_type, Field(...))
 
     # Use Pydantic's create_model to construct an "AnswerSubModel" with these fields
     AnswerSubModel = create_model(
-        "AnswerSubModel",
-        __base__=BaseModel,
-        **field_definitions
+        "AnswerSubModel", __base__=BaseModel, **field_definitions
     )
 
     # 2) Define the top-level model with `answer` + optional `comment`
@@ -101,12 +101,12 @@ def create_dict_response(
 class DictResponseValidator(ResponseValidatorABC):
     """
     Validator for dictionary responses with specific keys and value types.
-    
+
     This validator ensures that:
     1. All required keys are present in the answer
     2. Each value has the correct type as specified
     3. Extra keys are forbidden unless permissive=True
-    
+
     Examples:
         >>> from edsl.questions import QuestionDict
         >>> q = QuestionDict(
@@ -118,7 +118,7 @@ class DictResponseValidator(ResponseValidatorABC):
         >>> validator = q.response_validator
         >>> result = validator.validate({
         ...     "answer": {
-        ...         "name": "Pancakes", 
+        ...         "name": "Pancakes",
         ...         "ingredients": ["flour", "milk", "eggs"],
         ...         "steps": ["Mix", "Cook", "Serve"]
         ...     }
@@ -126,12 +126,13 @@ class DictResponseValidator(ResponseValidatorABC):
         >>> sorted(result.keys())
         ['answer', 'comment', 'generated_tokens']
     """
+
     required_params = ["answer_keys", "permissive"]
 
     def fix(self, response, verbose=False):
         """
         Attempt to fix an invalid dictionary response.
-        
+
         Examples:
             >>> # Set up validator with proper response model
             >>> from pydantic import BaseModel, create_model, Field
@@ -150,7 +151,7 @@ class DictResponseValidator(ResponseValidatorABC):
             ...     permissive=False
             ... )
             >>> validator.value_types = ["str", "int"]
-            
+
             # Fix dictionary with comment on same line
             >>> response = "{'name': 'john', 'age': 23} Here you go."
             >>> result = validator.fix(response)
@@ -158,13 +159,13 @@ class DictResponseValidator(ResponseValidatorABC):
             {'name': 'john', 'age': 23}
             >>> result['comment']
             'Here you go.'
-            
+
             # Fix type conversion (string to int)
             >>> response = {"answer": {"name": "john", "age": "23"}}
             >>> result = validator.fix(response)
             >>> dict(result['answer'])  # Convert to dict for consistent output
             {'name': 'john', 'age': 23}
-            
+
             # Fix list from comma-separated string
             >>> AnswerModel2 = create_model('AnswerModel2', name=(str, ...), hobbies=(List[str], ...))
             >>> ResponseModel2 = create_model(
@@ -183,7 +184,7 @@ class DictResponseValidator(ResponseValidatorABC):
             >>> result = validator.fix(response)
             >>> dict(result['answer'])  # Convert to dict for consistent output
             {'name': 'john', 'hobbies': ['reading', 'gaming', 'coding']}
-            
+
             # Handle invalid input gracefully
             >>> response = "not a dictionary"
             >>> validator.fix(response)
@@ -196,32 +197,34 @@ class DictResponseValidator(ResponseValidatorABC):
             try:
                 # Find the first opening brace
                 response_str = response.strip()
-                if response_str.startswith('{'):
+                if response_str.startswith("{"):
                     # Count braces to find proper JSON ending
                     brace_count = 0
                     dict_end_pos = None
-                    
+
                     for i, char in enumerate(response_str):
-                        if char == '{':
+                        if char == "{":
                             brace_count += 1
-                        elif char == '}':
+                        elif char == "}":
                             brace_count -= 1
                             if brace_count == 0:
                                 dict_end_pos = i + 1
                                 break
-                    
+
                     if dict_end_pos is not None:
                         dict_str = response_str[:dict_end_pos]
                         comment = response_str[dict_end_pos:].strip()
-                        
+
                         try:
                             answer_dict = ast.literal_eval(dict_str)
                             response = {
                                 "answer": answer_dict,
-                                "comment": comment if comment else None
+                                "comment": comment if comment else None,
                             }
                             if verbose:
-                                print(f"Successfully split answer from comment. Comment length: {len(comment) if comment else 0}")
+                                print(
+                                    f"Successfully split answer from comment. Comment length: {len(comment) if comment else 0}"
+                                )
                         except (ValueError, SyntaxError) as e:
                             if verbose:
                                 print(f"Failed to parse dictionary: {e}")
@@ -229,40 +232,45 @@ class DictResponseValidator(ResponseValidatorABC):
                 if verbose:
                     print(f"Exception during dictionary parsing: {e}")
 
-
         # Continue with existing fix logic
         if "answer" not in response or not isinstance(response["answer"], dict):
             if verbose:
                 print("Cannot fix response: 'answer' field missing or not a dictionary")
-            
+
             # Special case: if we have the original string response, try a more direct parsing approach
-            if isinstance(original_response, str) and original_response.strip().startswith('{'):
+            if isinstance(
+                original_response, str
+            ) and original_response.strip().startswith("{"):
                 try:
                     # Try to parse the JSON part directly, skipping nested comments
                     response_str = original_response.strip()
                     import json
-                    
+
                     # Find where the dict ends by tracking nested braces
                     brace_count = 0
                     dict_end_pos = None
-                    
+
                     for i, char in enumerate(response_str):
-                        if char == '{':
+                        if char == "{":
                             brace_count += 1
-                        elif char == '}':
+                        elif char == "}":
                             brace_count -= 1
                             if brace_count == 0:
                                 dict_end_pos = i + 1
                                 break
-                    
+
                     if dict_end_pos is not None:
                         dict_str = response_str[:dict_end_pos]
                         comment = response_str[dict_end_pos:].strip()
-                        
+
                         # Try parsing with JSON first (faster but stricter)
                         try:
-                            dict_str = dict_str.replace("'", '"')  # Convert Python quotes to JSON quotes
-                            dict_str = dict_str.replace("False", "false").replace("True", "true")  # Fix booleans
+                            dict_str = dict_str.replace(
+                                "'", '"'
+                            )  # Convert Python quotes to JSON quotes
+                            dict_str = dict_str.replace("False", "false").replace(
+                                "True", "true"
+                            )  # Fix booleans
                             answer_dict = json.loads(dict_str)
                         except json.JSONDecodeError:
                             # Fall back to ast.literal_eval (safer)
@@ -272,10 +280,12 @@ class DictResponseValidator(ResponseValidatorABC):
                                 if verbose:
                                     print("Could not parse the dictionary part")
                                 return original_response
-                        
+
                         # Now fix types
                         fixed_answer = {}
-                        for key, type_str in zip(self.answer_keys, getattr(self, "value_types", [])):
+                        for key, type_str in zip(
+                            self.answer_keys, getattr(self, "value_types", [])
+                        ):
                             if key in answer_dict:
                                 value = answer_dict[key]
                                 # Convert types
@@ -283,25 +293,37 @@ class DictResponseValidator(ResponseValidatorABC):
                                     try:
                                         fixed_answer[key] = int(value)
                                         if verbose:
-                                            print(f"Converted '{key}' from {type(value).__name__} to int")
+                                            print(
+                                                f"Converted '{key}' from {type(value).__name__} to int"
+                                            )
                                     except (ValueError, TypeError):
                                         fixed_answer[key] = value
-                                
-                                elif type_str == "float" and not isinstance(value, float):
+
+                                elif type_str == "float" and not isinstance(
+                                    value, float
+                                ):
                                     try:
                                         fixed_answer[key] = float(value)
                                         if verbose:
-                                            print(f"Converted '{key}' from {type(value).__name__} to float")
+                                            print(
+                                                f"Converted '{key}' from {type(value).__name__} to float"
+                                            )
                                     except (ValueError, TypeError):
                                         fixed_answer[key] = value
-                                
-                                elif (type_str.startswith("list[") or type_str == "list") and not isinstance(value, list):
+
+                                elif (
+                                    type_str.startswith("list[") or type_str == "list"
+                                ) and not isinstance(value, list):
                                     # Convert string to list by splitting
                                     if isinstance(value, str):
-                                        items = [item.strip() for item in value.split(",")]
+                                        items = [
+                                            item.strip() for item in value.split(",")
+                                        ]
                                         fixed_answer[key] = items
                                         if verbose:
-                                            print(f"Converted '{key}' from string to list: {items}")
+                                            print(
+                                                f"Converted '{key}' from string to list: {items}"
+                                            )
                                     else:
                                         fixed_answer[key] = value
                                 else:
@@ -316,14 +338,14 @@ class DictResponseValidator(ResponseValidatorABC):
                                     fixed_answer[key] = []
                                 else:
                                     fixed_answer[key] = ""
-                        
+
                         # Construct final fixed response
                         fixed_response = {
                             "answer": fixed_answer,
                             "comment": comment if comment else None,
-                            "generated_tokens": None
+                            "generated_tokens": None,
                         }
-                        
+
                         if verbose:
                             print("Directly fixed response with type conversion")
                             
@@ -339,12 +361,12 @@ class DictResponseValidator(ResponseValidatorABC):
                 except Exception as e:
                     if verbose:
                         print(f"Error during direct parsing: {e}")
-                
+
             return response
-            
+
         answer_dict = response["answer"]
         fixed_answer = {}
-        
+
         # Try to convert values to expected types
         for key, type_str in zip(self.answer_keys, getattr(self, "value_types", [])):
             if key in answer_dict:
@@ -354,21 +376,27 @@ class DictResponseValidator(ResponseValidatorABC):
                     try:
                         fixed_answer[key] = int(value)
                         if verbose:
-                            print(f"Converted '{key}' from {type(value).__name__} to int")
+                            print(
+                                f"Converted '{key}' from {type(value).__name__} to int"
+                            )
                         continue
                     except (ValueError, TypeError):
                         pass
-                
+
                 elif type_str == "float" and not isinstance(value, float):
                     try:
                         fixed_answer[key] = float(value)
                         if verbose:
-                            print(f"Converted '{key}' from {type(value).__name__} to float")
+                            print(
+                                f"Converted '{key}' from {type(value).__name__} to float"
+                            )
                         continue
                     except (ValueError, TypeError):
                         pass
-                
-                elif (type_str.startswith("list[") or type_str == "list") and not isinstance(value, list):
+
+                elif (
+                    type_str.startswith("list[") or type_str == "list"
+                ) and not isinstance(value, list):
                     # Try to convert string to list by splitting
                     if isinstance(value, str):
                         items = [item.strip() for item in value.split(",")]
@@ -376,22 +404,23 @@ class DictResponseValidator(ResponseValidatorABC):
                         if verbose:
                             print(f"Converted '{key}' from string to list: {items}")
                         continue
-                
+
                 # If no conversion needed or possible, keep original
                 fixed_answer[key] = value
-        
+
         # Preserve any keys we didn't try to fix
         for key, value in answer_dict.items():
             if key not in fixed_answer:
                 fixed_answer[key] = value
-        
+
         # Return fixed response
         fixed_response = {
             "answer": fixed_answer,
             "comment": response.get("comment"),
-            "generated_tokens": response.get("generated_tokens") or response  # Ensure generated_tokens is captured
+            "generated_tokens": response.get("generated_tokens")
+            or response,  # Ensure generated_tokens is captured
         }
-        
+
         try:
             # Validate the fixed answer
             self.response_model.model_validate(fixed_response)
@@ -401,10 +430,12 @@ class DictResponseValidator(ResponseValidatorABC):
         except Exception as e:
             if verbose:
                 print(f"Validation failed for fixed answer: {e}")
-            
+
             # If still failing, try one more time with default values for missing keys
             if hasattr(self, "answer_keys") and hasattr(self, "value_types"):
-                for key, type_str in zip(self.answer_keys, getattr(self, "value_types", [])):
+                for key, type_str in zip(
+                    self.answer_keys, getattr(self, "value_types", [])
+                ):
                     if key not in fixed_answer:
                         if type_str == "int":
                             fixed_answer[key] = 0
@@ -414,14 +445,14 @@ class DictResponseValidator(ResponseValidatorABC):
                             fixed_answer[key] = []
                         else:
                             fixed_answer[key] = ""
-                
+
                 # Try again with all keys
                 fixed_response = {
                     "answer": fixed_answer,
                     "comment": response.get("comment"),
-                    "generated_tokens": response.get("generated_tokens")
+                    "generated_tokens": response.get("generated_tokens"),
                 }
-                
+
                 try:
                     # Validate the fixed answer
                     self.response_model.model_validate(fixed_response)
@@ -431,7 +462,7 @@ class DictResponseValidator(ResponseValidatorABC):
                 except Exception as e:
                     if verbose:
                         print(f"Validation still failed after adding defaults: {e}")
-            
+
             return response
 
     valid_examples = [
@@ -440,12 +471,12 @@ class DictResponseValidator(ResponseValidatorABC):
                 "answer": {
                     "name": "Hot Chocolate",
                     "num_ingredients": 5,
-                    "ingredients": ["milk", "cocoa", "sugar"]
+                    "ingredients": ["milk", "cocoa", "sugar"],
                 }
             },
             {
                 "answer_keys": ["name", "num_ingredients", "ingredients"],
-                "value_types": ["str", "int", "list[str]"]
+                "value_types": ["str", "int", "list[str]"],
             },
         )
     ]
@@ -459,7 +490,7 @@ class DictResponseValidator(ResponseValidatorABC):
             {"answer": {"ingredients": "milk"}},  # Should be a list
             {"answer_keys": ["ingredients"], "value_types": ["list[str]"]},
             "Key 'ingredients' should be a list, got str",
-        )
+        ),
     ]
 
 
@@ -532,7 +563,9 @@ class QuestionDict(QuestionBase):
             raise QuestionCreationValidationError(
                 "Length of value_types must match length of answer_keys."
             )
-        if self.value_descriptions and len(self.value_descriptions) != len(self.answer_keys):
+        if self.value_descriptions and len(self.value_descriptions) != len(
+            self.answer_keys
+        ):
             raise QuestionCreationValidationError(
                 "Length of value_descriptions must match length of answer_keys."
             )
@@ -545,7 +578,7 @@ class QuestionDict(QuestionBase):
         return create_dict_response(
             answer_keys=self.answer_keys,
             value_types=self.value_types or [],
-            permissive=self.permissive
+            permissive=self.permissive,
         )
 
     def _get_default_answer(self) -> Dict[str, Any]:
@@ -556,7 +589,7 @@ class QuestionDict(QuestionBase):
                 "title": "Sample Recipe",
                 "ingredients": ["ingredient1", "ingredient2"],
                 "num_ingredients": 2,
-                "instructions": "Sample instructions"
+                "instructions": "Sample instructions",
             }
 
         answer = {}
@@ -564,7 +597,7 @@ class QuestionDict(QuestionBase):
             t_str = type_str.lower()
             if t_str.startswith("list["):
                 # e.g. list[str], list[int], etc.
-                inner = t_str[len("list["):-1].strip()
+                inner = t_str[len("list[") : -1].strip()
                 if inner == "str":
                     answer[key] = ["sample_string"]
                 elif inner == "int":
@@ -604,7 +637,9 @@ class QuestionDict(QuestionBase):
             return f"Template {template_name} not found in {template_dir}."
 
     @staticmethod
-    def _normalize_value_types(value_types: Optional[List[Union[str, type]]]) -> Optional[List[str]]:
+    def _normalize_value_types(
+        value_types: Optional[List[Union[str, type]]]
+    ) -> Optional[List[str]]:
         """
         Convert all value_types to string representations (e.g. "int", "list[str]", etc.).
         This logic is similar to your original approach but expanded to handle
@@ -645,7 +680,7 @@ class QuestionDict(QuestionBase):
         }
 
     @classmethod
-    def from_dict(cls, data: dict) -> 'QuestionDict':
+    def from_dict(cls, data: dict) -> "QuestionDict":
         """Recreate from a dictionary."""
         return cls(
             question_name=data["question_name"],
@@ -659,7 +694,7 @@ class QuestionDict(QuestionBase):
 
     @classmethod
     @inject_exception
-    def example(cls) -> 'QuestionDict':
+    def example(cls) -> "QuestionDict":
         """Return an example question."""
         return cls(
             question_name="example",
@@ -670,16 +705,13 @@ class QuestionDict(QuestionBase):
                 "The title of the recipe.",
                 "A list of ingredients.",
                 "The number of ingredients.",
-                "The instructions for making the recipe."
+                "The instructions for making the recipe.",
             ],
         )
 
     def _simulate_answer(self) -> dict:
         """Simulate an answer for the question."""
-        return {
-            "answer": self._get_default_answer(),
-            "comment": None
-        }
+        return {"answer": self._get_default_answer(), "comment": None}
 
 
 if __name__ == "__main__":

@@ -250,7 +250,17 @@ class TaskHistory(RepresentationMixin):
                 # Create our InterviewReference directly
                 class DeserializedInterviewRef:
                     def __init__(self, data):
-                        self.exceptions = data.get("exceptions", {})
+                        # Convert exceptions dictionary to InterviewExceptionCollection
+                        from ..interviews.exception_tracking import (
+                            InterviewExceptionCollection,
+                        )
+
+                        exceptions_data = data.get("exceptions", {})
+                        self.exceptions = (
+                            InterviewExceptionCollection.from_dict(exceptions_data)
+                            if exceptions_data
+                            else InterviewExceptionCollection()
+                        )
                         self.task_status_logs = data.get("task_status_logs", {})
                         self.model = data.get("model", {})
                         self.survey = data.get("survey", {})
@@ -258,7 +268,9 @@ class TaskHistory(RepresentationMixin):
                     def to_dict(self, add_edsl_version=True):
                         return {
                             "type": "InterviewReference",
-                            "exceptions": self.exceptions,
+                            "exceptions": self.exceptions.to_dict()
+                            if hasattr(self.exceptions, "to_dict")
+                            else self.exceptions,
                             "task_status_logs": self.task_status_logs,
                             "model": self.model,
                             "survey": self.survey,
@@ -280,7 +292,11 @@ class TaskHistory(RepresentationMixin):
                     # If we can't deserialize properly, add a minimal placeholder
                     class MinimalInterviewRef:
                         def __init__(self):
-                            self.exceptions = {}
+                            from ..interviews.exception_tracking import (
+                                InterviewExceptionCollection,
+                            )
+
+                            self.exceptions = InterviewExceptionCollection()
                             self.task_status_logs = {}
 
                         def to_dict(self, add_edsl_version=True):
