@@ -21,6 +21,7 @@ import difflib
 from typing import Dict, Literal, List, Tuple
 from collections import UserList
 import inspect
+import hashlib
 
 from .. import logger
 
@@ -807,10 +808,10 @@ class HashingMixin:
 
         # when retrieving the object from remote inference the hash might be different for entire
         # results but for individual results it is the same
-        print("debug", object_type)
+
         if object_type == "results":
-            print("debug hash value for res", str(sorted(self.hashes)))
-            hash_value = str(hash(str(sorted(self.hashes))))
+            joined_hashes = ",".join(map(str, sorted(self.hashes)))
+            hash_value = hash(int(hashlib.md5(joined_hashes.encode()).hexdigest(), 16))
             return hash_value
 
         return str(dict_hash(self.to_dict(add_edsl_version=False)))
@@ -864,10 +865,9 @@ class Base(
                                    communicating with the server
         """
         from edsl.coop import Coop
-        from edsl.utilities.utilities import dict_hash
 
         # Calculate the hash of the object
-        object_hash = str(dict_hash(self.to_dict(add_edsl_version=False)))
+        object_hash = self.get_hash()
 
         # Query the cloud service to get the UUID based on the hash
         coop = Coop()
