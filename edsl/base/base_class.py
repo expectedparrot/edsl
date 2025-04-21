@@ -801,6 +801,14 @@ class HashingMixin:
             str: A string representation of the hash value
         """
         from edsl.utilities.utilities import dict_hash
+        from edsl.coop import ObjectRegistry
+
+        object_type = ObjectRegistry.get_object_type_by_edsl_class(self)
+
+        # when retrieving the object from remote inference the hash might be different for entire
+        # results but for individual results it is the same
+        if object_type == "results":
+            return hash(str(sorted(self.hashes))), type(self.hashes)
 
         return str(dict_hash(self.to_dict(add_edsl_version=False)))
 
