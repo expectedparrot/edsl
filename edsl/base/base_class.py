@@ -811,7 +811,9 @@ class HashingMixin:
 
         if object_type == "results":
             joined_hashes = ",".join(map(str, sorted(self.hashes)))
-            hash_value = hash(int(hashlib.md5(joined_hashes.encode()).hexdigest(), 16))
+            hash_value = str(
+                hash(int(hashlib.md5(joined_hashes.encode()).hexdigest(), 16))
+            )
             return hash_value
 
         return str(dict_hash(self.to_dict(add_edsl_version=False)))
