@@ -5,10 +5,10 @@ from edsl.results import Results
 from edsl.jobs import Jobs
 from edsl.scenarios import ScenarioList
 from edsl.notebooks import Notebook
-
+import pytest
 class TestCoopUUIDFromObjectHash(unittest.TestCase):
     """Test getting UUID from object hash for various EDSL objects."""
-
+    @pytest.mark.coop
     def test_push_get_uuid_pull(self):
         """Test pushing objects to remote, getting their UUIDs, and pulling them back."""
         # Create test objects
