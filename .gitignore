@@ -37,6 +37,7 @@ test_dir
 tests/temp_outputs
 tests/assets
 venv
+probable_junk/
 # exceptions
 !edsl/utilities/data/*.json
 !.vscode/settings.json

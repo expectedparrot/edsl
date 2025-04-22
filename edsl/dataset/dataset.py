@@ -127,29 +127,85 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
     def keys(self) -> list[str]:
         """Return the keys of the dataset.
 
-        >>> d = Dataset([{'a.b':[1,2,3,4]}])
-        >>> d.keys()
-        ['a.b']
-
-        >>> d = Dataset([{'a.b':[1,2,3,4]}, {'c.d':[5,6,7,8]}])
-        >>> d.keys()
-        ['a.b', 'c.d']
-
-
-        ['a.b']
+        Examples:
+            >>> d = Dataset([{'a': [1, 2, 3, 4]}, {'b': [5, 6, 7, 8]}])
+            >>> d.keys()
+            ['a', 'b']
+            
+            >>> d = Dataset([{'x.y': [1, 2]}, {'z.w': [3, 4]}])
+            >>> d.keys()
+            ['x.y', 'z.w']
         """
         return [list(o.keys())[0] for o in self]
 
-    def filter(self, expression):
+    def filter(self, expression) -> "Dataset":
+        """Filter the dataset based on a boolean expression.
+
+        Args:
+            expression: A string expression that evaluates to a boolean value.
+                       Can reference column names in the dataset.
+
+        Examples:
+            >>> d = Dataset([{'a': [1, 2, 3, 4]}, {'b': [5, 6, 7, 8]}])
+            >>> d.filter('a > 2').data
+            [{'a': [3, 4]}, {'b': [7, 8]}]
+            
+            >>> d = Dataset([{'x': ['a', 'b', 'c']}, {'y': [1, 2, 3]}])
+            >>> d.filter('y < 3').data
+            [{'x': ['a', 'b']}, {'y': [1, 2]}]
+        """
         return self.to_scenario_list().filter(expression).to_dataset()
     
     def mutate(self, new_var_string: str, functions_dict: Optional[dict[str, Callable]] = None) -> "Dataset":
+        """Create new columns by applying functions to existing columns.
+
+        Args:
+            new_var_string: A string expression defining the new variable.
+                           Can reference existing column names.
+            functions_dict: Optional dictionary of custom functions to use in the expression.
+
+        Examples:
+            >>> d = Dataset([{'a': [1, 2, 3]}, {'b': [4, 5, 6]}])
+            >>> d.mutate('c = a + b').data
+            [{'a': [1, 2, 3]}, {'b': [4, 5, 6]}, {'c': [5, 7, 9]}]
+            
+            >>> d = Dataset([{'x': [1, 2, 3]}])
+            >>> d.mutate('y = x * 2').data
+            [{'x': [1, 2, 3]}, {'y': [2, 4, 6]}]
+        """
         return self.to_scenario_list().mutate(new_var_string, functions_dict).to_dataset()
     
-    def collapse(self, field:str, separator: Optional[str] = None) -> "Dataset":
+    def collapse(self, field: str, separator: Optional[str] = None) -> "Dataset":
+        """Collapse multiple values in a field into a single value using a separator.
+
+        Args:
+            field: The name of the field to collapse.
+            separator: Optional string to use as a separator between values.
+                      Defaults to a space if not specified.
+
+        Examples:
+            >>> d = Dataset([{'words': [['hello', 'world'], ['good', 'morning']]}])
+            >>> d.collapse('words').data
+            [{'words': [[['hello', 'world'], ['good', 'morning']]]}]
+            
+            >>> d = Dataset([{'numbers': [1, 2, 3]}])
+            >>> d.collapse('numbers', separator=',').data
+            [{'numbers': ['1,2,3']}]
+        """
         return self.to_scenario_list().collapse(field, separator).to_dataset()
 
     def long(self, exclude_fields: list[str] = None) -> Dataset:
+        """Convert the dataset from wide to long format.
+
+        Examples:
+            >>> d = Dataset([{'a': [1, 2], 'b': [3, 4]}])
+            >>> d.long().data
+            [{'row': [0, 0, 1, 1]}, {'key': ['a', 'b', 'a', 'b']}, {'value': [1, 3, 2, 4]}]
+            
+            >>> d = Dataset([{'x': [1, 2], 'y': [3, 4], 'z': [5, 6]}])
+            >>> d.long(exclude_fields=['z']).data
+            [{'row': [0, 0, 1, 1]}, {'key': ['x', 'y', 'x', 'y']}, {'value': [1, 3, 2, 4]}, {'z': [5, 5, 6, 6]}]
+        """
         headers, data = self._tabular()
         exclude_fields = exclude_fields or []
 
@@ -185,14 +241,14 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
         """
         Convert a long-format dataset (with row, key, value columns) to wide format.
 
-        Expected input format:
-        - A dataset with three columns containing dictionaries:
-          - row: list of row indices
-          - key: list of column names
-          - value: list of values
-
-        Returns:
-        - Dataset: A new dataset with columns corresponding to unique keys
+        Examples:
+            >>> d = Dataset([{'row': [0, 0, 1, 1]}, {'key': ['a', 'b', 'a', 'b']}, {'value': [1, 3, 2, 4]}])
+            >>> d.wide().data
+            [{'a': [1, 2]}, {'b': [3, 4]}]
+            
+            >>> d = Dataset([{'row': [0, 0, 1, 1]}, {'key': ['x', 'y', 'x', 'y']}, {'value': [1, 3, 2, 4]}, {'z': [5, 5, 6, 6]}])
+            >>> d.wide().data
+            [{'x': [1, 2]}, {'y': [3, 4]}, {'z': [5, 6]}]
         """
         # Extract the component arrays
         row_dict = next(col for col in self if "row" in col)
@@ -219,22 +275,84 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
             output_row_idx = unique_rows.index(row_idx)
             result[key][output_row_idx] = value
 
+        # Add any additional columns that weren't part of the key-value transformation
+        additional_columns = []
+        for col in self:
+            col_key = list(col.keys())[0]
+            if col_key not in ['row', 'key', 'value']:
+                # Get unique values for this column
+                unique_values = []
+                for row_idx in unique_rows:
+                    # Find the first occurrence of this row index
+                    for i, r in enumerate(rows):
+                        if r == row_idx:
+                            unique_values.append(col[col_key][i])
+                            break
+                additional_columns.append({col_key: unique_values})
+
         # Convert to list of column dictionaries format
-        return Dataset([{key: values} for key, values in result.items()])
+        result_columns = [{key: values} for key, values in result.items()]
+        return Dataset(result_columns + additional_columns)
 
     def __repr__(self) -> str:
-        """Return a string representation of the dataset."""
+        """Return a string representation of the dataset.
+
+        Examples:
+            >>> d = Dataset([{'a': [1, 2, 3]}, {'b': [4, 5, 6]}])
+            >>> repr(d)
+            "Dataset([{'a': [1, 2, 3]}, {'b': [4, 5, 6]}])"
+            
+            >>> d = Dataset([{'x': ['a', 'b']}])
+            >>> repr(d)
+            "Dataset([{'x': ['a', 'b']}])"
+        """
         return f"Dataset({self.data})"
 
     def write(self, filename: str, tablefmt: Optional[str] = None) -> None:
+        """Write the dataset to a file in the specified format.
+
+        Args:
+            filename: The name of the file to write to.
+            tablefmt: Optional format for the table (e.g., 'csv', 'html', 'latex').
+        """
         return self.table(tablefmt=tablefmt).write(filename)
 
     def _repr_html_(self):
-        # headers, data = self._tabular()
+        """Return an HTML representation of the dataset for Jupyter notebooks.
+
+        Examples:
+            >>> d = Dataset([{'a': [1, 2, 3]}, {'b': [4, 5, 6]}])
+            >>> html = d._repr_html_()
+            >>> isinstance(html, str)
+            True
+            >>> '<table' in html
+            True
+        """
         return self.table(print_parameters=self.print_parameters)._repr_html_()
-        # return TableDisplay(headers=headers, data=data, raw_data_set=self)
 
     def _tabular(self) -> tuple[list[str], list[list[Any]]]:
+        """Convert the dataset to a tabular format (headers and rows).
+
+        Returns:
+            A tuple containing:
+            - List of column headers
+            - List of rows, where each row is a list of values
+
+        Examples:
+            >>> d = Dataset([{'a': [1, 2, 3]}, {'b': [4, 5, 6]}])
+            >>> headers, rows = d._tabular()
+            >>> headers
+            ['a', 'b']
+            >>> rows
+            [[1, 4], [2, 5], [3, 6]]
+            
+            >>> d = Dataset([{'x': ['a', 'b']}, {'y': [1, 2]}])
+            >>> headers, rows = d._tabular()
+            >>> headers
+            ['x', 'y']
+            >>> rows
+            [['a', 1], ['b', 2]]
+        """
         # Extract headers
         headers = []
         for entry in self.data:
@@ -261,9 +379,20 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
     def _key_to_value(self, key: str) -> Any:
         """Retrieve the value associated with the given key from the dataset.
 
-        >>> d = Dataset([{'a.b':[1,2,3,4]}])
-        >>> d._key_to_value('a.b')
-        [1, 2, 3, 4]
+        Args:
+            key: The key to look up in the dataset.
+
+        Returns:
+            The list of values associated with the key.
+
+        Examples:
+            >>> d = Dataset([{'a.b': [1, 2, 3, 4]}])
+            >>> d._key_to_value('a.b')
+            [1, 2, 3, 4]
+            
+            >>> d = Dataset([{'x.y': [1, 2]}, {'z.w': [3, 4]}])
+            >>> d._key_to_value('w')
+            [3, 4]
         """
         potential_matches = []
         for data_dict in self.data:
@@ -287,11 +416,15 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
     def first(self) -> dict[str, Any]:
         """Get the first value of the first key in the first dictionary.
 
-        >>> d = Dataset([{'a.b':[1,2,3,4]}])
-        >>> d.first()
-        1
+        Examples:
+            >>> d = Dataset([{'a': [1, 2, 3, 4]}, {'b': [5, 6, 7, 8]}])
+            >>> d.first()
+            1
+            
+            >>> d = Dataset([{'x': ['first', 'second']}])
+            >>> d.first()
+            'first'
         """
-
         def get_values(d):
             """Get the values of the first key in the dictionary."""
             return list(d.values())[0]
@@ -299,9 +432,27 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
         return get_values(self.data[0])[0]
 
     def latex(self, **kwargs):
+        """Return a LaTeX representation of the dataset.
+
+        Args:
+            **kwargs: Additional arguments to pass to the table formatter.
+
+      
+        """
         return self.table().latex()
 
     def remove_prefix(self) -> Dataset:
+        """Remove the prefix from column names that contain dots.
+
+        Examples:
+            >>> d = Dataset([{'a.b': [1, 2, 3]}, {'c.d': [4, 5, 6]}])
+            >>> d.remove_prefix().data
+            [{'b': [1, 2, 3]}, {'d': [4, 5, 6]}]
+            
+            >>> d = Dataset([{'x.y.z': [1, 2]}, {'a.b.c': [3, 4]}])
+            >>> d.remove_prefix().data
+            [{'y': [1, 2]}, {'b': [3, 4]}]
+        """
         new_data = []
         for observation in self.data:
             key, values = list(observation.items())[0]
@@ -323,6 +474,17 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
                 
         Returns:
             TableDisplay object
+
+        Examples:
+            >>> d = Dataset([{'a': [1, 2, 3]}, {'b': [4, 5, 6]}])
+            >>> display = d.print(format='rich')
+            >>> display is not None
+            True
+            
+            >>> d = Dataset([{'long_column_name': [1, 2]}])
+            >>> display = d.print(pretty_labels={'long_column_name': 'Short'})
+            >>> display is not None
+            True
         """
         if "format" in kwargs:
             if kwargs["format"] not in ["html", "markdown", "rich", "latex"]:
@@ -342,6 +504,17 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
         return self.table(tablefmt=tablefmt)
 
     def rename(self, rename_dic) -> Dataset:
+        """Rename columns in the dataset according to the provided dictionary.
+
+        Examples:
+            >>> d = Dataset([{'a': [1, 2, 3]}, {'b': [4, 5, 6]}])
+            >>> d.rename({'a': 'x', 'b': 'y'}).data
+            [{'x': [1, 2, 3]}, {'y': [4, 5, 6]}]
+            
+            >>> d = Dataset([{'old_name': [1, 2]}])
+            >>> d.rename({'old_name': 'new_name'}).data
+            [{'new_name': [1, 2]}]
+        """
         new_data = []
         for observation in self.data:
             key, values = list(observation.items())[0]
@@ -350,9 +523,20 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
         return Dataset(new_data)
 
     def merge(self, other: Dataset, by_x, by_y) -> Dataset:
-        """Merge the dataset with another dataset on the given keys.""
+        """Merge the dataset with another dataset on the given keys.
 
-        merged_df = df1.merge(df2, how="left", on=["key1", "key2"])
+        Examples:
+            >>> d1 = Dataset([{'key': [1, 2, 3]}, {'value1': ['a', 'b', 'c']}])
+            >>> d2 = Dataset([{'key': [2, 3, 4]}, {'value2': ['x', 'y', 'z']}])
+            >>> merged = d1.merge(d2, 'key', 'key')
+            >>> len(merged.data[0]['key'])
+            3
+            
+            >>> d1 = Dataset([{'id': [1, 2]}, {'name': ['Alice', 'Bob']}])
+            >>> d2 = Dataset([{'id': [2, 3]}, {'age': [25, 30]}])
+            >>> merged = d1.merge(d2, 'id', 'id')
+            >>> len(merged.data[0]['id'])
+            2
         """
         df1 = self.to_pandas()
         df2 = other.to_pandas()
@@ -360,17 +544,23 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
         return Dataset.from_pandas_dataframe(merged_df)
 
     def to(self, survey_or_question: Union["Survey", "QuestionBase"]) -> "Job":
-        """Return a new dataset with the observations transformed by the given survey or question.
-        
-        >>> d = Dataset([{'person_name':["John"]}])
-        >>> from edsl import QuestionFreeText 
-        >>> q = QuestionFreeText(question_text = "How are you, {{ person_name ?}}?", question_name = "how_feeling")
-        >>> jobs = d.to(q)
-        >>> isinstance(jobs, object)
-        True
+        """Transform the dataset using a survey or question.
+
+        Args:
+            survey_or_question: Either a Survey or QuestionBase object to apply to the dataset.
+
+        Examples:
+            >>> from edsl import QuestionFreeText
+            >>> from edsl.jobs import Jobs
+            >>> d = Dataset([{'name': ['Alice', 'Bob']}])
+            >>> q = QuestionFreeText(question_text="How are you, {{ name }}?", question_name="how_feeling")
+            >>> job = d.to(q)
+            >>> isinstance(job, Jobs)
+            True
         """
         from ..surveys import Survey
         from ..questions import QuestionBase
+        from ..jobs import Jobs
 
         if isinstance(survey_or_question, Survey):
             return survey_or_question.by(self.to_scenario_list())
@@ -380,15 +570,14 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
     def select(self, *keys) -> Dataset:
         """Return a new dataset with only the selected keys.
 
-        :param keys: The keys to select.
-
-        >>> d = Dataset([{'a.b':[1,2,3,4]}, {'c.d':[5,6,7,8]}])
-        >>> d.select('a.b')
-        Dataset([{'a.b': [1, 2, 3, 4]}])
-
-        >>> d.select('a.b', 'c.d')
-        Dataset([{'a.b': [1, 2, 3, 4]}, {'c.d': [5, 6, 7, 8]}])
-
+        Examples:
+            >>> d = Dataset([{'a': [1, 2, 3, 4]}, {'b': [5, 6, 7, 8]}, {'c': [9, 10, 11, 12]}])
+            >>> d.select('a', 'c').data
+            [{'a': [1, 2, 3, 4]}, {'c': [9, 10, 11, 12]}]
+            
+            >>> d = Dataset([{'x': [1, 2]}, {'y': [3, 4]}])
+            >>> d.select('x').data
+            [{'x': [1, 2]}]
         """
         for key in keys:
             if key not in self.keys():
@@ -410,9 +599,14 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
     def to_json(self):
         """Return a JSON representation of the dataset.
 
-        >>> d = Dataset([{'a.b':[1,2,3,4]}])
-        >>> d.to_json()
-        [{'a.b': [1, 2, 3, 4]}]
+        Examples:
+            >>> d = Dataset([{'a': [1, 2, 3]}, {'b': [4, 5, 6]}])
+            >>> d.to_json()
+            [{'a': [1, 2, 3]}, {'b': [4, 5, 6]}]
+            
+            >>> d = Dataset([{'x': ['a', 'b']}])
+            >>> d.to_json()
+            [{'x': ['a', 'b']}]
         """
         return json.loads(
             json.dumps(self.data)
@@ -421,9 +615,16 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
     def shuffle(self, seed=None) -> Dataset:
         """Return a new dataset with the observations shuffled.
 
-        >>> d = Dataset([{'a.b':[1,2,3,4]}])
-        >>> d.shuffle(seed=0)
-        Dataset([{'a.b': [3, 1, 2, 4]}])
+        Examples:
+            >>> d = Dataset([{'a': [1, 2, 3, 4]}, {'b': [5, 6, 7, 8]}])
+            >>> shuffled = d.shuffle(seed=42)
+            >>> len(shuffled.data[0]['a']) == len(d.data[0]['a'])
+            True
+            
+            >>> d = Dataset([{'x': ['a', 'b', 'c']}])
+            >>> shuffled = d.shuffle(seed=123)
+            >>> set(shuffled.data[0]['x']) == set(d.data[0]['x'])
+            True
         """
         if seed is not None:
             random.seed(seed)
@@ -455,14 +656,16 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
     ) -> Dataset:
         """Return a new dataset with a sample of the observations.
 
-        :param n: The number of samples to take.
-        :param frac: The fraction of samples to take.
-        :param with_replacement: Whether to sample with replacement.
-        :param seed: The seed for the random number generator.
-
-        >>> d = Dataset([{'a.b':[1,2,3,4]}])
-        >>> d.sample(n=2, seed=0, with_replacement=True)
-        Dataset([{'a.b': [4, 4]}])
+        Examples:
+            >>> d = Dataset([{'a': [1, 2, 3, 4, 5]}, {'b': [6, 7, 8, 9, 10]}])
+            >>> sampled = d.sample(n=3, seed=42)
+            >>> len(sampled.data[0]['a'])
+            3
+            
+            >>> d = Dataset([{'x': ['a', 'b', 'c', 'd']}])
+            >>> sampled = d.sample(frac=0.5, seed=123)
+            >>> len(sampled.data[0]['x'])
+            2
         """
         if seed is not None:
             random.seed(seed)
@@ -503,7 +706,7 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
 
         return self
 
-    def get_sort_indices(self, lst: list[Any], reverse: bool = False, use_numpy: bool = True) -> list[int]:
+    def get_sort_indices(self, lst: list[Any], reverse: bool = False) -> list[int]:
         """
         Return the indices that would sort the list, using either numpy or pure Python.
         None values are placed at the end of the sorted list.
@@ -515,44 +718,35 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
 
         Returns:
             A list of indices that would sort the list
-        """
-        if use_numpy:
-            try:
-                import numpy as np
-                # Convert list to numpy array
-                arr = np.array(lst, dtype=object)
-                # Get mask of non-None values
-                mask = ~(arr is None)
-                # Get indices of non-None and None values
-                non_none_indices = np.where(mask)[0]
-                none_indices = np.where(~mask)[0]
-                # Sort non-None values
-                sorted_indices = non_none_indices[np.argsort(arr[mask])]
-                # Combine sorted non-None indices with None indices
-                indices = np.concatenate([sorted_indices, none_indices]).tolist()
-                if reverse:
-                    # When reversing, keep None values at end
-                    indices = sorted_indices[::-1].tolist() + none_indices.tolist()
-                return indices
-            except ImportError:
-                # Fallback to pure Python if numpy is not available
-                pass
-        
-        # Pure Python implementation
+        """        
         enumerated = list(enumerate(lst))
-        # Sort None values to end by using (is_none, value) as sort key
         sorted_pairs = sorted(enumerated, 
                             key=lambda x: (x[1] is None, x[1]), 
                             reverse=reverse)
         return [index for index, _ in sorted_pairs]
 
-    def order_by(self, sort_key: str, reverse: bool = False, use_numpy: bool = True) -> Dataset:
+    def order_by(self, sort_key: str, reverse: bool = False) -> Dataset:
         """Return a new dataset with the observations sorted by the given key.
 
         Args:
             sort_key: The key to sort the observations by
             reverse: Whether to sort in reverse order
-            use_numpy: Whether to use numpy for sorting (faster for large lists)
+
+        Examples:
+            >>> d = Dataset([{'a': [3, 1, 4, 1, 5]}, {'b': ['x', 'y', 'z', 'w', 'v']}])
+            >>> sorted_d = d.order_by('a')
+            >>> sorted_d.data
+            [{'a': [1, 1, 3, 4, 5]}, {'b': ['y', 'w', 'x', 'z', 'v']}]
+            
+            >>> d = Dataset([{'a': [3, 1, 4, 1, 5]}, {'b': ['x', 'y', 'z', 'w', 'v']}])
+            >>> sorted_d = d.order_by('a', reverse=True)
+            >>> sorted_d.data
+            [{'a': [5, 4, 3, 1, 1]}, {'b': ['v', 'z', 'x', 'y', 'w']}]
+            
+            >>> d = Dataset([{'a': [3, None, 1, 4, None]}, {'b': ['x', 'y', 'z', 'w', 'v']}])
+            >>> sorted_d = d.order_by('a')
+            >>> sorted_d.data
+            [{'a': [1, 3, 4, None, None]}, {'b': ['z', 'x', 'w', 'y', 'v']}]
         """
         number_found = 0
         for obs in self.data:
@@ -566,7 +760,7 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
         elif number_found > 1:
             raise DatasetKeyError(f"Key '{sort_key}' found in more than one dictionary.")
 
-        sort_indices_list = self.get_sort_indices(relevant_values, reverse=reverse, use_numpy=use_numpy)
+        sort_indices_list = self.get_sort_indices(relevant_values, reverse=reverse)
         new_data = []
         for observation in self.data:
             key, values = list(observation.items())[0]
@@ -663,15 +857,26 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
             data=data, headers=headers, tablefmt=tablefmt, raw_data_set=self
         )
 
-    def summary(self):
-        return Dataset([{"num_observations": [len(self)], "keys": [self.keys()]}])
+    def summary(self) -> "Dataset":
+        """Return a summary of the dataset.
+
+        Examples:
+            >>> d = Dataset([{'a': [1, 2, 3]}, {'b': [4, 5, 6]}])
+            >>> d.summary().data
+            [{'num_observations': [3]}, {'keys': [['a', 'b']]}]
+        """
+        return Dataset([{"num_observations": [len(self)]}, {"keys": [self.keys()]}])
 
     @classmethod
-    def example(self, n: int = None):
+    def example(self, n: int = None) -> "Dataset":
         """Return an example dataset.
 
-        >>> Dataset.example()
-        Dataset([{'a': [1, 2, 3, 4]}, {'b': [4, 3, 2, 1]}])
+        Examples:
+            >>> Dataset.example()
+            Dataset([{'a': [1, 2, 3, 4]}, {'b': [4, 3, 2, 1]}])
+            
+            >>> Dataset.example(n=2)
+            Dataset([{'a': [1, 1]}, {'b': [2, 2]}])
         """
         if n is None:
             return Dataset([{"a": [1, 2, 3, 4]}, {"b": [4, 3, 2, 1]}])
@@ -691,6 +896,15 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
     def to_dict(self) -> dict:
         """
         Convert the dataset to a dictionary.
+
+        Examples:
+            >>> d = Dataset([{'a': [1, 2, 3]}, {'b': [4, 5, 6]}])
+            >>> d.to_dict()
+            {'data': [{'a': [1, 2, 3]}, {'b': [4, 5, 6]}]}
+            
+            >>> d = Dataset([{'x': ['a', 'b']}])
+            >>> d.to_dict()
+            {'data': [{'x': ['a', 'b']}]}
         """
         return {'data': self.data}
 
@@ -698,6 +912,17 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
     def from_dict(cls, data: dict) -> 'Dataset':
         """
         Convert a dictionary to a dataset.
+
+        Examples:
+            >>> d = Dataset.from_dict({'data': [{'a': [1, 2, 3]}, {'b': [4, 5, 6]}]})
+            >>> isinstance(d, Dataset)
+            True
+            >>> d.data
+            [{'a': [1, 2, 3]}, {'b': [4, 5, 6]}]
+            
+            >>> d = Dataset.from_dict({'data': [{'x': ['a', 'b']}]})
+            >>> d.data
+            [{'x': ['a', 'b']}]
         """
         return cls(data['data'])
 
@@ -708,6 +933,15 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
         Args:
             output_file (str): Path to save the Word document
             title (str, optional): Title for the document
+
+        Examples:
+            >>> import tempfile
+            >>> d = Dataset([{'a': [1, 2, 3]}, {'b': [4, 5, 6]}])
+            >>> with tempfile.NamedTemporaryFile(suffix='.docx') as tmp:
+            ...     d.to_docx(tmp.name, title='Test Document')
+            ...     import os
+            ...     os.path.exists(tmp.name)
+            True
         """
         from docx import Document
         from docx.shared import Inches
@@ -762,11 +996,14 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
         Returns:
             A new Dataset with the expanded rows
             
-        Example:
-            >>> from edsl.dataset import Dataset
+        Examples:
             >>> d = Dataset([{'a': [[1, 2, 3], [4, 5, 6]]}, {'b': ['x', 'y']}])
-            >>> d.expand('a')
-            Dataset([{'a': [1, 2, 3, 4, 5, 6]}, {'b': ['x', 'x', 'x', 'y', 'y', 'y']}])
+            >>> d.expand('a').data
+            [{'a': [1, 2, 3, 4, 5, 6]}, {'b': ['x', 'x', 'x', 'y', 'y', 'y']}]
+            
+            >>> d = Dataset([{'items': [['apple', 'banana'], ['orange']]}, {'id': [1, 2]}])
+            >>> d.expand('items', number_field=True).data
+            [{'items': ['apple', 'banana', 'orange']}, {'id': [1, 1, 2]}, {'items_number': [1, 2, 1]}]
         """
         from collections.abc import Iterable
         

@@ -4,11 +4,14 @@ import random
 
 from ..inference_service_abc import InferenceServiceABC
 
-from ...language_models import LanguageModel
 from ...enums import InferenceServiceType
 
+# Use TYPE_CHECKING to avoid circular imports at runtime
 if TYPE_CHECKING:
-    from ....scenarios.file_store import FileStore as File
+    from ...language_models import LanguageModel
+
+if TYPE_CHECKING:
+    from ...scenarios.file_store import FileStore as File
 
 
 class TestService(InferenceServiceABC):
@@ -36,8 +39,11 @@ class TestService(InferenceServiceABC):
         return ["test"]
 
     @classmethod
-    def create_model(cls, model_name, model_class_name=None) -> LanguageModel:
+    def create_model(cls, model_name, model_class_name=None) -> "LanguageModel":
         # Removed unused variable
+
+        # Import LanguageModel only when actually creating a model
+        from ...language_models import LanguageModel
 
         class TestServiceLanguageModel(LanguageModel):
             _model_ = "test"
@@ -74,9 +80,9 @@ class TestService(InferenceServiceABC):
                         p = 1
 
                     if random.random() < p:
-                        from ..exceptions import InferenceServiceError
+                        from ..exceptions import InferenceServiceIntendedError
 
-                        raise InferenceServiceError("This is a test error")
+                        raise InferenceServiceIntendedError("This is a test error")
 
                 if hasattr(self, "func"):
                     return {
@@ -98,5 +104,88 @@ class TestService(InferenceServiceABC):
                     "message": [{"text": f"{canned_text}"}],
                     "usage": {"prompt_tokens": 1, "completion_tokens": 1},
                 }
+
+            def set_canned_response(self, survey: "Survey") -> None:
+                from edsl import Model
+                from edsl.questions import (
+                    QuestionMultipleChoice,
+                    QuestionCheckBox,
+                    QuestionLinearScale,
+                    QuestionList,
+                    QuestionDict,
+                    QuestionNumerical,
+                    QuestionFreeText,
+                )
+
+                canned_response = {}
+
+                for q in survey.questions:
+                    name = q.question_name
+
+                    if isinstance(q, QuestionMultipleChoice):
+                        # Return first option
+                        canned_response[name] = q.question_options[0]
+
+                    elif isinstance(q, QuestionCheckBox):
+                        # Return first two options as a list
+                        canned_response[name] = q.question_options[:2]
+
+                    elif isinstance(q, QuestionLinearScale):
+                        # Return middle of the scale
+                        values = q.question_options
+                        if isinstance(values, list) and all(
+                            isinstance(i, int) for i in values
+                        ):
+                            mid = values[len(values) // 2]
+                            canned_response[name] = mid
+                        else:
+                            canned_response[name] = 5  # default fallback
+
+                    elif isinstance(q, QuestionNumerical):
+                        # Return a fixed float value
+                        canned_response[name] = 42.0
+
+                    elif isinstance(q, QuestionList):
+                        # Return a list of simple strings
+                        canned_response[name] = [f"{name} item 1", f"{name} item 2"]
+
+                    elif isinstance(q, QuestionDict):
+                        # Handle response types for each key
+                        keys = getattr(q, "answer_keys", ["field1", "field2"])
+                        value_types = getattr(q, "value_types", [])
+                        canned_response[name] = {}
+
+                        for i, key in enumerate(keys):
+                            # Check the type for each key and generate the appropriate response
+                            response_type = (
+                                value_types[i] if i < len(value_types) else "string"
+                            )  # Default to "string" if not provided
+
+                            if "str" in response_type:
+                                canned_response[name][key] = f"{key} value"
+                            elif "int" in response_type:
+                                canned_response[name][
+                                    key
+                                ] = 42  # Example integer response
+                            elif "float" in response_type:
+                                canned_response[name][
+                                    key
+                                ] = 42.0  # Example float response
+                            elif "bool" in response_type:
+                                canned_response[name][
+                                    key
+                                ] = True  # Example boolean response
+                            else:
+                                canned_response[name][key] = f"{key} unknown type"
+
+                    elif isinstance(q, QuestionFreeText):
+                        # Return a string
+                        canned_response[name] = f"This is a canned answer for {name}."
+
+                    else:
+                        # Fallback: simple string
+                        canned_response[name] = f"Canned fallback for {name}"
+
+                self.canned_response = canned_response
 
         return TestServiceLanguageModel

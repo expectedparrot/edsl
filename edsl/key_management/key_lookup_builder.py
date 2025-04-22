@@ -2,6 +2,7 @@ from typing import Optional, TYPE_CHECKING
 import os
 from functools import lru_cache
 import textwrap
+import requests
 
 if TYPE_CHECKING:
     from ..coop import Coop
@@ -255,7 +256,11 @@ class KeyLookupBuilder:
         return dict(list(os.environ.items()))
 
     def _coop_key_value_pairs(self):
-        return dict(list(self.coop.fetch_rate_limit_config_vars().items()))
+        try:
+            return dict(list(self.coop.fetch_rate_limit_config_vars().items()))
+        except requests.ConnectionError:
+            # If connection fails, return empty dict instead of raising error
+            return {}
 
     def _config_key_value_pairs(self):
         from ..config import CONFIG

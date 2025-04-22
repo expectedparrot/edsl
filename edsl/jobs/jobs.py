@@ -18,7 +18,6 @@ who need to run complex simulations with language models.
 from __future__ import annotations
 import asyncio
 from typing import Optional, Union, TypeVar, Callable, cast
-from functools import wraps
 
 from typing import (
     Literal,
@@ -31,10 +30,27 @@ from ..base import Base
 from ..utilities import remove_edsl_version
 from ..coop import CoopServerResponseError
 
-from ..buckets import BucketCollection
+# Import BucketCollection with an import_module to avoid early binding
+from importlib import import_module
+
+
+def get_bucket_collection():
+    buckets_module = import_module("edsl.buckets")
+    return buckets_module.BucketCollection
+
+
 from ..scenarios import Scenario, ScenarioList
 from ..surveys import Survey
-from ..interviews import Interview
+
+# Use import_module to avoid circular import with interviews
+from importlib import import_module
+
+
+def get_interview():
+    interviews_module = import_module("edsl.interviews.interview")
+    return interviews_module.Interview
+
+
 from .exceptions import JobsValueError, JobsImplementationError
 
 from .jobs_pricing_estimation import JobsPrompts
@@ -42,6 +58,7 @@ from .remote_inference import JobsRemoteInferenceHandler
 from .jobs_checks import JobsChecks
 from .data_structures import RunEnvironment, RunParameters, RunConfig
 from .check_survey_scenario_compatibility import CheckSurveyScenarioCompatibility
+from .decorators import with_config
 
 
 if TYPE_CHECKING:
@@ -57,65 +74,6 @@ if TYPE_CHECKING:
     from ..key_management import KeyLookup
 
 VisibilityType = Literal["private", "public", "unlisted"]
-
-
-try:
-    from typing import ParamSpec
-except ImportError:
-    from typing_extensions import ParamSpec
-
-
-P = ParamSpec("P")
-T = TypeVar("T")
-
-
-def with_config(f: Callable[P, T]) -> Callable[P, T]:
-    """
-    Decorator that processes function parameters to match the RunConfig dataclass structure.
-
-    This decorator is used primarily with the run() and run_async() methods to provide
-    a consistent interface for job configuration while maintaining a clean API.
-
-    The decorator:
-    1. Extracts environment-related parameters into a RunEnvironment instance
-    2. Extracts execution-related parameters into a RunParameters instance
-    3. Combines both into a single RunConfig object
-    4. Passes this RunConfig to the decorated function as a keyword argument
-
-    Parameters:
-        f (Callable): The function to decorate, typically run() or run_async()
-
-    Returns:
-        Callable: A wrapped function that accepts all RunConfig parameters directly
-
-    Example:
-        @with_config
-        def run(self, *, config: RunConfig) -> Results:
-            # Function can now access config.parameters and config.environment
-    """
-    parameter_fields = {
-        name: field.default
-        for name, field in RunParameters.__dataclass_fields__.items()
-    }
-    environment_fields = {
-        name: field.default
-        for name, field in RunEnvironment.__dataclass_fields__.items()
-    }
-    # Combined fields dict used for reference during development
-    # combined = {**parameter_fields, **environment_fields}
-
-    @wraps(f)
-    def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
-        environment = RunEnvironment(
-            **{k: v for k, v in kwargs.items() if k in environment_fields}
-        )
-        parameters = RunParameters(
-            **{k: v for k, v in kwargs.items() if k in parameter_fields}
-        )
-        config = RunConfig(environment=environment, parameters=parameters)
-        return f(*args, config=config)
-
-    return cast(Callable[P, T], wrapper)
 
 
 class Jobs(Base):
@@ -220,7 +178,7 @@ class Jobs(Base):
         self.run_config.add_cache(cache)
         return self
 
-    def using_bucket_collection(self, bucket_collection: "BucketCollection") -> Jobs:
+    def using_bucket_collection(self, bucket_collection) -> Jobs:
         """
         Add a BucketCollection to the job.
 
@@ -238,7 +196,7 @@ class Jobs(Base):
         self.run_config.add_key_lookup(key_lookup)
         return self
 
-    def using(self, obj: Union[Cache, BucketCollection, KeyLookup]) -> Jobs:
+    def using(self, obj) -> Jobs:
         """
         Add a Cache, BucketCollection, or KeyLookup to the job.
 
@@ -246,6 +204,8 @@ class Jobs(Base):
         """
         from ..caching import Cache
         from ..key_management import KeyLookup
+
+        BucketCollection = get_bucket_collection()
 
         if isinstance(obj, Cache):
             self.using_cache(obj)
@@ -428,7 +388,7 @@ class Jobs(Base):
 
         :param iterations: the number of iterations to run
         """
-        return JobsPrompts(self).estimate_job_cost(iterations)
+        return JobsPrompts.from_jobs(self).estimate_job_cost(iterations)
 
     def estimate_job_cost_from_external_prices(
         self, price_lookup: dict, iterations: int = 1
@@ -453,7 +413,7 @@ class Jobs(Base):
         self.models = self.models or [Model()]
         self.scenarios = self.scenarios or [Scenario()]
 
-    def generate_interviews(self) -> Generator[Interview, None, None]:
+    def generate_interviews(self) -> Generator:
         """
         Generate interviews.
 
@@ -485,7 +445,7 @@ class Jobs(Base):
             filename=filename
         )
 
-    def interviews(self) -> list[Interview]:
+    def interviews(self) -> list:
         """
         Return a list of :class:`edsl.jobs.interviews.Interview` objects.
 
@@ -508,6 +468,9 @@ class Jobs(Base):
         This is useful when you have, say, a list of failed interviews and you want to create
         a new job with only those interviews.
         """
+        if not interview_list:
+            raise JobsValueError("Cannot create Jobs from empty interview list")
+
         survey = interview_list[0].survey
         # get all the models
         models = list(set([interview.model for interview in interview_list]))
@@ -516,7 +479,7 @@ class Jobs(Base):
         jobs._interviews = interview_list
         return jobs
 
-    def create_bucket_collection(self) -> BucketCollection:
+    def create_bucket_collection(self):
         """
         Create a collection of buckets for each model.
 
@@ -529,6 +492,7 @@ class Jobs(Base):
         >>> bc
         BucketCollection(...)
         """
+        BucketCollection = get_bucket_collection()
         bc = BucketCollection.from_models(self.models)
 
         if self.run_config.environment.key_lookup is not None:
@@ -645,19 +609,109 @@ class Jobs(Base):
             jc.check_api_keys()
 
     async def _execute_with_remote_cache(self, run_job_async: bool) -> Results:
-        # Remote cache usage determination happens inside this method
-        # use_remote_cache = self.use_remote_cache()
-
-        from .jobs_runner_asyncio import JobsRunnerAsyncio
+        """Core interview execution logic for jobs execution."""
+        # Import needed modules inline to avoid early binding
+        import os
+        import time
+        import gc
+        import weakref
+        import asyncio
         from ..caching import Cache
+        from ..results import Results, Result
+        from ..tasks import TaskHistory
+        from ..utilities.decorators import jupyter_nb_handler
+        from ..utilities.memory_debugger import MemoryDebugger
+        from .jobs_runner_status import JobsRunnerStatus
+        from .async_interview_runner import AsyncInterviewRunner
+        from .progress_bar_manager import ProgressBarManager
+        from .results_exceptions_handler import ResultsExceptionsHandler
 
         assert isinstance(self.run_config.environment.cache, Cache)
 
-        runner = JobsRunnerAsyncio(self, environment=self.run_config.environment)
+        # Create the RunConfig for the job
+        run_config = RunConfig(
+            parameters=self.run_config.parameters,
+            environment=self.run_config.environment,
+        )
+
+        # Setup JobsRunnerStatus if needed
+        if self.run_config.environment.jobs_runner_status is None:
+            self.run_config.environment.jobs_runner_status = JobsRunnerStatus(
+                self, n=self.run_config.parameters.n
+            )
+
+        # Create a shared function to process interview results
+        async def process_interviews(interview_runner, results_obj):
+            prev_interview_ref = None
+            async for result, interview, idx in interview_runner.run():
+                # Set the order attribute on the result for correct ordering
+                result.order = idx
+
+                # Collect results
+                # results_obj.append(result)
+                # key = results_obj.shelve_result(result)
+                results_obj.add_task_history_entry(interview)
+                results_obj.insert_sorted(result)
+
+                # Memory management: Set up reference for next iteration and clear old references
+                prev_interview_ref = weakref.ref(interview)
+                if hasattr(interview, "clear_references"):
+                    interview.clear_references()
+
+                # Force garbage collection
+                del result
+                del interview
+
+            # Finalize results object with cache and bucket collection
+            # results_obj.insert_from_shelf()
+            results_obj.cache = results_obj.relevant_cache(
+                self.run_config.environment.cache
+            )
+            results_obj.bucket_collection = (
+                self.run_config.environment.bucket_collection
+            )
+            return results_obj
+
+        # Core execution logic
+        interview_runner = AsyncInterviewRunner(self, run_config)
+
+        # Create an initial Results object with appropriate traceback settings
+        results = Results(
+            survey=self.survey,
+            data=[],
+            task_history=TaskHistory(
+                include_traceback=not self.run_config.parameters.progress_bar
+            ),
+        )
+
         if run_job_async:
-            results = await runner.run_async(self.run_config.parameters)
+            # For async execution mode (simplified path without progress bar)
+            await process_interviews(interview_runner, results)
         else:
-            results = runner.run(self.run_config.parameters)
+            # For synchronous execution mode (with progress bar)
+            with ProgressBarManager(
+                self, run_config, self.run_config.parameters
+            ) as stop_event:
+                try:
+                    await process_interviews(interview_runner, results)
+                except KeyboardInterrupt:
+                    print("Keyboard interrupt received. Stopping gracefully...")
+                    results = Results(
+                        survey=self.survey, data=[], task_history=TaskHistory()
+                    )
+                except Exception as e:
+                    if self.run_config.parameters.stop_on_exception:
+                        raise
+                    results = Results(
+                        survey=self.survey, data=[], task_history=TaskHistory()
+                    )
+
+        # Process any exceptions in the results
+        if results:
+            ResultsExceptionsHandler(
+                results, self.run_config.parameters
+            ).handle_exceptions()
+
         return results
 
     @property
@@ -668,55 +722,72 @@ class Jobs(Base):
             return len(self) * self.run_config.parameters.n
 
     def _run(self, config: RunConfig) -> Union[None, "Results"]:
-        "Shared code for run and run_async"
-        if config.environment.cache is not None:
-            self.run_config.environment.cache = config.environment.cache
-        if config.environment.jobs_runner_status is not None:
-            self.run_config.environment.jobs_runner_status = (
-                config.environment.jobs_runner_status
-            )
+        """
+        Shared code for run and run_async methods.
 
-        if config.environment.bucket_collection is not None:
-            self.run_config.environment.bucket_collection = (
-                config.environment.bucket_collection
-            )
+        This method handles all pre-execution setup including:
+        1. Transferring configuration settings from the input config
+        2. Ensuring all required objects (agents, models, scenarios) exist
+        3. Checking API keys and remote execution availability
+        4. Setting up caching and bucket collections
+        5. Attempting remote execution if appropriate
 
-        if config.environment.key_lookup is not None:
-            self.run_config.environment.key_lookup = config.environment.key_lookup
+        Returns:
+            Tuple containing (Results, reason) if remote execution succeeds,
+            or (None, reason) if local execution should proceed
+        """
+        # Apply configuration from input config to self.run_config
+        for attr_name in [
+            "cache",
+            "jobs_runner_status",
+            "bucket_collection",
+            "key_lookup",
+        ]:
+            if getattr(config.environment, attr_name) is not None:
+                setattr(
+                    self.run_config.environment,
+                    attr_name,
+                    getattr(config.environment, attr_name),
+                )
 
-        # replace the parameters with the ones from the config
+        # Replace parameters with the ones from the config
         self.run_config.parameters = config.parameters
 
+        # Make sure all required objects exist
         self.replace_missing_objects()
-
         self._prepare_to_run()
         self._check_if_remote_keys_ok()
+
+        # Setup caching
+        from ..caching import CacheHandler, Cache
 
         if (
             self.run_config.environment.cache is None
             or self.run_config.environment.cache is True
         ):
-            from ..caching import CacheHandler
-
             self.run_config.environment.cache = CacheHandler().get_cache()
-
-        if self.run_config.environment.cache is False:
-            from ..caching import Cache
-
+        elif self.run_config.environment.cache is False:
             self.run_config.environment.cache = Cache(immediate_write=False)
 
-        # first try to run the job remotely
+        # Try to run the job remotely first
         results, reason = self._remote_results(config)
         if results is not None:
             return results, reason
 
+        # If we need to run locally, ensure keys and resources are ready
         self._check_if_local_keys_ok()
 
-        if config.environment.bucket_collection is None:
+        # Create bucket collection if it doesn't exist
+        if self.run_config.environment.bucket_collection is None:
             self.run_config.environment.bucket_collection = (
                 self.create_bucket_collection()
             )
+        else:
+            # Ensure models are properly added to the bucket collection
+            for model in self.models:
+                self.run_config.environment.bucket_collection.add_model(model)
 
+        # Update bucket collection from key lookup if both exist
         if (
             self.run_config.environment.key_lookup is not None
             and self.run_config.environment.bucket_collection is not None
@@ -756,6 +827,8 @@ class Jobs(Base):
             cache (Cache, optional): Cache object to store results
             bucket_collection (BucketCollection, optional): Object to track API calls
             key_lookup (KeyLookup, optional): Object to manage API keys
+            memory_threshold (int, optional): Memory threshold in bytes for the Results object's SQLList,
+                controlling when data is offloaded to SQLite storage
 
         Returns:
             Results: A Results object containing all responses and metadata
@@ -814,6 +887,8 @@ class Jobs(Base):
             cache (Cache, optional): Cache object to store results
             bucket_collection (BucketCollection, optional): Object to track API calls
             key_lookup (KeyLookup, optional): Object to manage API keys
+            memory_threshold (int, optional): Memory threshold in bytes for the Results object's SQLList,
+                controlling when data is offloaded to SQLite storage
 
         Returns:
             Results: A Results object containing all responses and metadata
@@ -991,16 +1066,17 @@ class Jobs(Base):
 
         base_survey = Survey(questions=[q1, q2])
 
-        scenario_list = ScenarioList(
-            [
-                Scenario({"period": f"morning{addition}"}),
-                Scenario({"period": "afternoon"}),
-            ]
-        )
+        scenarios = [
+            Scenario({"period": f"morning{addition}"}),
+            Scenario({"period": "afternoon"}),
+        ]
+        scenario_list = ScenarioList(data=scenarios)
         if test_model:
             job = base_survey.by(m).by(scenario_list).by(joy_agent, sad_agent)
         else:
             job = base_survey.by(scenario_list).by(joy_agent, sad_agent)
+
+        assert len(scenario_list) == 2
 
         return job
 
