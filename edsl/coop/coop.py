@@ -503,6 +503,10 @@ class Coop(CoopFunctionsMixin):
         """
         object_type = ObjectRegistry.get_object_type_by_edsl_class(object)
         object_dict = object.to_dict()
+
+        # Get the object hash
+        object_hash = object.get_hash() if hasattr(object, "get_hash") else None
+
         if object_type == "scenario" and self._scenario_is_file_store(object_dict):
             file_store_metadata = {
                 "suffix": object_dict["suffix"],
@@ -528,6 +532,7 @@ class Coop(CoopFunctionsMixin):
                 "file_store_metadata": file_store_metadata,
                 "visibility": visibility,
                 "version": self._edsl_version,
+                "object_hash": object_hash,  # Include the object hash in the payload
             },
         )
         self._resolve_server_response(response)
@@ -1494,6 +1499,28 @@ class Coop(CoopFunctionsMixin):
         self._resolve_server_response(response)
         data = response.json()
         return data
+
+    def get_uuid_from_hash(self, hash_value: str) -> str:
+        """
+        Retrieve the UUID for an object based on its hash.
+
+        This method calls the remote endpoint to get the UUID associated with an object hash.
+
+        Args:
+            hash_value (str): The hash value of the object to look up
+
+        Returns:
+            str: The UUID of the object if found
+
+        Raises:
+            CoopServerResponseError: If the object is not found or there's an error
+                                   communicating with the server
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/object/hash/{hash_value}", method="GET"
+        )
+        self._resolve_server_response(response)
+        return response.json().get("uuid")
 
     def _display_login_url(
         self, edsl_auth_token: str, link_description: Optional[str] = None

@@ -113,13 +113,18 @@ class JobsRemoteInferenceHandler:
         )
         logger.add_info("job_uuid", job_uuid)
 
+        remote_inference_url = self.remote_inference_url
+        if "localhost" in remote_inference_url:
+            remote_inference_url = remote_inference_url.replace("8000", "1234")
         logger.update(
-            f"Job details are available at your Coop account. [Go to Remote Inference page]({self.remote_inference_url})",
+            f"Job details are available at your Coop account. [Go to Remote Inference page]({remote_inference_url})",
             status=JobsStatus.RUNNING,
         )
         progress_bar_url = (
             f"{self.expected_parrot_url}/home/remote-job-progress/{job_uuid}"
         )
+        if "localhost" in progress_bar_url:
+            progress_bar_url = progress_bar_url.replace("8000", "1234")
         logger.add_info("progress_bar_url", progress_bar_url)
         logger.update(
             f"View job progress [here]({progress_bar_url})", status=JobsStatus.RUNNING
@@ -270,6 +275,8 @@ class JobsRemoteInferenceHandler:
         job_info.logger.add_info("results_uuid", results_uuid)
         results = object_fetcher(results_uuid, expected_object_type="results")
         results_url = remote_job_data.get("results_url")
+        if "localhost" in results_url:
+            results_url = results_url.replace("8000", "1234")
         job_info.logger.add_info("results_url", results_url)
 
         if job_status == "completed":
