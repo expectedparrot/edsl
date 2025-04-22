@@ -2,7 +2,12 @@ from typing import Optional, Dict, Type
 from abc import ABC, abstractmethod
 import importlib.metadata
 import importlib.util
+import mimetypes
 from ..utilities import is_notebook
+
+# Register MIME types for video formats if they aren't already
+mimetypes.add_type('video/mp4', '.mp4')
+mimetypes.add_type('video/webm', '.webm')
 
 
 class FileMethods(ABC):

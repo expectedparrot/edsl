@@ -18,6 +18,11 @@ class RegisterLanguageModelsMeta(ABCMeta):
 
     _registry = {}  # Initialize the registry as a dictionary
     REQUIRED_CLASS_ATTRIBUTES = ["_model_", "_parameters_", "_inference_service_"]
+    
+    @classmethod
+    def clear_registry(cls):
+        """Clear the registry to prevent memory leaks."""
+        cls._registry = {}
 
     def __init__(cls, name, bases, dct):
         """Register the class in the registry if it has a _model_ attribute."""

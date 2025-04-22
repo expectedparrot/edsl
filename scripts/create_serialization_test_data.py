@@ -13,6 +13,7 @@ from tests.serialization.cases.RegisterSerializationCasesMeta import (
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s\t%(message)s")
 
+
 def create_serialization_test_data(start_new_version=False):
     if ".dev" in edsl_version:
         version = edsl_version.split(".dev")[0]
@@ -47,9 +48,10 @@ def create_serialization_test_data(start_new_version=False):
     # B. Proceed with creating serialization test data
     data = []
 
-
     # Collect all registered classes
-    subclass_registry = RegisterSubclassesMeta.get_registry()
+    subclass_registry = RegisterSubclassesMeta.get_registry(
+        exclude_classes=["CoopObjects"]
+    )
     questions_registry = RegisterQuestionsMeta.get_registered_classes()
     object_registry = ObjectRegistry.get_registry(
         subclass_registry=subclass_registry, exclude_classes=["QuestionBase", "Study"]
@@ -91,6 +93,7 @@ def create_serialization_test_data(start_new_version=False):
         json.dump(data_to_write, f)
     logging.info(f"Serialization test data written to `{current_path}`.")
     logging.info("!!! DO NOT FORGET TO FORCE PUSH IT TO THE REPO !!!")
+
 
 if __name__ == "__main__":
     start_new_version = "--start_new_version" in sys.argv
