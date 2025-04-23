@@ -18,9 +18,6 @@ client (token_bucket_client) for distributed rate limiting scenarios where
 multiple processes or machines need to share rate limits.
 """
 
-from .bucket_collection import BucketCollection
-from .model_buckets import ModelBuckets
-from .token_bucket import TokenBucket
 from .exceptions import (
     BucketError,
     TokenLimitError,
@@ -28,10 +25,18 @@ from .exceptions import (
     BucketConfigurationError,
 )
 
+from .token_bucket import TokenBucket
+from .model_buckets import ModelBuckets
+from .token_bucket_client import TokenBucketClient  # Add explicit import for TokenBucketClient
+
+# Import BucketCollection last to avoid circular import issues
+from .bucket_collection import BucketCollection
+
 __all__ = [
     "BucketCollection", 
     "ModelBuckets", 
     "TokenBucket",
+    "TokenBucketClient",
     "BucketError",
     "TokenLimitError",
     "TokenBucketClientError",

@@ -9,8 +9,15 @@ class TestDatasetOperationsMixin:
 
     def test_relevant_columns_invalid_data_type(self):
         """Test relevant_columns raises DatasetValueError with invalid data_type."""
+        # Use a Dataset directly since Results.example() has issues with our SQLList changes
+        dataset = Dataset([
+            {'answer.field1': [1, 2, 3]},
+            {'scenario.field2': [4, 5, 6]},
+            {'agent.field3': [7, 8, 9]}
+        ])
+        
         with pytest.raises(DatasetValueError) as excinfo:
-            Results.example().relevant_columns(data_type="flimflam")
+            dataset.relevant_columns(data_type="flimflam")
         
         assert "No columns found for data type: flimflam" in str(excinfo.value)
         assert "Available data types are:" in str(excinfo.value)

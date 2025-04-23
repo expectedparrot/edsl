@@ -140,9 +140,68 @@ def test_notebook_serialization():
 def test_notebook_code():
     """Tests notebook code."""
 
-    notebook = Notebook.example()
+    # Use lint=False to ensure consistent results regardless of whether ruff is installed
+    notebook = Notebook.example(lint=False)
     code = [
         "from edsl import Notebook",
-        "nb = Notebook(data={'metadata': {}, 'nbformat': 4, 'nbformat_minor': 4, 'cells': [{'cell_type': 'markdown', 'metadata': {}, 'source': '# Test notebook'}, {'cell_type': 'code', 'execution_count': 1, 'metadata': {}, 'outputs': [{'name': 'stdout', 'output_type': 'stream', 'text': 'Hello world!\\n'}], 'source': 'print(\"Hello world!\")'}]}, name=\"\"\"notebook\"\"\")",
+        "nb = Notebook(data={'metadata': {}, 'nbformat': 4, 'nbformat_minor': 4, 'cells': [{'cell_type': 'markdown', 'metadata': {}, 'source': '# Test notebook'}, {'cell_type': 'code', 'execution_count': 1, 'metadata': {}, 'outputs': [{'name': 'stdout', 'output_type': 'stream', 'text': 'Hello world!\\n'}], 'source': 'print(\"Hello world!\")'}]}, name=\"\"\"notebook\"\"\", lint=False)",
     ]
     assert code == notebook.code()
+
+
+def test_notebook_linting_parameter():
+    """Tests that notebook linting parameter is respected."""
+    import subprocess
+    import shutil
+    import copy
+    
+    # Create a notebook with badly formatted Python code
+    # Must be exactly as shown to match original format
+    bad_python_code = """def bad_function(  x,y ):
+    z=x+     y
+    return      z"""
+    
+    cells = [
+        {
+            "cell_type": "markdown",
+            "metadata": {},
+            "source": "# Test notebook with bad code",
+        },
+        {
+            "cell_type": "code",
+            "execution_count": 1,
+            "metadata": {},
+            "outputs": [],
+            "source": bad_python_code,
+        },
+    ]
+    data = {
+        "metadata": {},
+        "nbformat": 4,
+        "nbformat_minor": 4,
+        "cells": cells,
+    }
+    
+    # Make sure we preserve the original data when we make copies
+    original_data = copy.deepcopy(data)
+    
+    # Check if ruff is installed and available
+    ruff_installed = shutil.which("ruff") is not None
+    
+    # Test with linting enabled (default)
+    notebook_with_lint = Notebook(data=copy.deepcopy(original_data))
+    
+    # Test with linting disabled
+    notebook_without_lint = Notebook(data=copy.deepcopy(original_data), lint=False)
+    
+    # Code differences should be apparent in the assertions below
+    
+    # If ruff is installed, linting should change the code when enabled
+    if ruff_installed:
+        assert notebook_with_lint.data["cells"][1]["source"] != bad_python_code
+    
+    # Verify linting parameter works:
+    # When linting is disabled, code should match original
+    # This check exercises the lint=False parameter
+    assert notebook_without_lint.lint is False  # Check the lint parameter was set correctly
+    assert notebook_without_lint.data["cells"][1]["source"] == bad_python_code

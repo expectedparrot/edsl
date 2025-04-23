@@ -1691,6 +1691,28 @@ class Survey(Base):
             scenario, filename, return_link, css, cta, include_question_name
         )
 
+    def copy(self) -> "Survey":
+        """Create a deep copy of the survey using serialization.
+        
+        This method creates a completely independent copy of the survey by serializing
+        and then deserializing it. This ensures all components are properly copied
+        and maintains consistency with the survey's serialization format.
+        
+        Returns:
+            Survey: A new Survey instance that is a deep copy of the original.
+            
+        Examples:
+            >>> s = Survey.example()
+            >>> s2 = s.copy()
+            >>> s == s2
+            True
+            >>> s is s2
+            False
+            >>> s.questions[0] is s2.questions[0]
+            False
+        """
+        return Survey.from_dict(self.to_dict())
+
 
 def main():
     """Run the example survey."""

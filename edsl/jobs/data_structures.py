@@ -1,11 +1,11 @@
-from typing import Optional, Literal, TYPE_CHECKING
+from typing import Optional, Literal, TYPE_CHECKING, Any
 from dataclasses import dataclass, asdict
 from collections import UserDict
 from ..data_transfer_models import EDSLResultObjectInput
 
 # from edsl.data_transfer_models import VisibilityType
 from ..caching import Cache
-from ..buckets import BucketCollection
+# Import BucketCollection lazily to avoid circular imports
 from ..key_management import KeyLookup
 from ..base import Base
 
@@ -14,6 +14,7 @@ from .jobs_runner_status import JobsRunnerStatus
 if TYPE_CHECKING:
     from ..questions.question_base import QuestionBase
     from ..surveys import Survey
+    from ..buckets import BucketCollection
 
 VisibilityType = Literal["private", "public", "unlisted"]
 
@@ -33,7 +34,7 @@ class RunEnvironment:
         jobs_runner_status (JobsRunnerStatus, optional): Tracker for job execution progress
     """
     cache: Optional[Cache] = None
-    bucket_collection: Optional[BucketCollection] = None
+    bucket_collection: Optional[Any] = None  # Using Any to avoid circular import of BucketCollection
     key_lookup: Optional[KeyLookup] = None
     jobs_runner_status: Optional["JobsRunnerStatus"] = None
 
@@ -82,6 +83,7 @@ class RunParameters(Base):
     disable_remote_inference: bool = False
     job_uuid: Optional[str] = None
     fresh: bool = False  # if True, will not use cache and will save new results to cache
+    memory_threshold: Optional[int] = None  # Threshold in bytes for Results SQLList memory management
 
     def to_dict(self, add_edsl_version=False) -> dict:
         d = asdict(self)
@@ -131,7 +133,7 @@ class RunConfig:
         """
         self.environment = environment
 
-    def add_bucket_collection(self, bucket_collection: BucketCollection) -> None:
+    def add_bucket_collection(self, bucket_collection: "BucketCollection") -> None:
         """
         Set or replace the bucket collection in the environment.
         

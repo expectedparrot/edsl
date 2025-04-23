@@ -2,7 +2,7 @@
 A Scenario is a dictionary-like object that stores key-value pairs for parameterizing questions.
 
 Scenarios are a fundamental concept in EDSL, providing a mechanism to parameterize
-questions with dynamic values. Each Scenario contains key-value pairs that can be 
+questions with dynamic values. Each Scenario contains key-value pairs that can be
 referenced within question templates using Jinja syntax. This allows for creating
 questions that vary based on the specific scenario being presented.
 
@@ -33,36 +33,35 @@ if TYPE_CHECKING:
     from ..dataset import Dataset
 
 
-
 class Scenario(Base, UserDict):
     """
     A dictionary-like object that stores key-value pairs for parameterizing questions.
-    
+
     A Scenario inherits from both the EDSL Base class and Python's UserDict, allowing
     it to function as a dictionary while providing additional functionality. Scenarios
     are used to parameterize questions by providing variable data that can be referenced
     within question templates using Jinja syntax.
-    
+
     Scenarios can be created directly with dictionary data or constructed from various
     sources using class methods (from_file, from_url, from_pdf, etc.). They support
     operations like addition (combining scenarios) and multiplication (creating cross
     products with other scenarios or scenario lists).
-    
+
     Attributes:
         data (dict): The underlying dictionary data.
         name (str, optional): A name for the scenario.
-    
+
     Examples:
         Create a simple scenario:
         >>> s = Scenario({"product": "coffee", "price": 4.99})
-        
+
         Combine scenarios:
         >>> s1 = Scenario({"product": "coffee"})
         >>> s2 = Scenario({"price": 4.99})
         >>> s3 = s1 + s2
         >>> s3
         Scenario({'product': 'coffee', 'price': 4.99})
-        
+
         Create a scenario from a file:
         >>> import tempfile
         >>> with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as f:
@@ -96,14 +95,18 @@ class Scenario(Base, UserDict):
                 data = dict(data)
             except Exception as e:
                 raise ScenarioError(
-                    f"You must pass in a dictionary to initialize a Scenario. You passed in {data}" +   "Exception message:" + str(e),
+                    f"You must pass in a dictionary to initialize a Scenario. You passed in {data}"
+                    + "Exception message:"
+                    + str(e),
                 )
 
         super().__init__()
         self.data = data if data is not None else {}
         self.name = name
 
-    def __mul__(self, scenario_list_or_scenario: Union["ScenarioList", "Scenario"]) -> "ScenarioList":
+    def __mul__(
+        self, scenario_list_or_scenario: Union["ScenarioList", "Scenario"]
+    ) -> "ScenarioList":
         """Takes the cross product of a Scenario with another Scenario or ScenarioList.
 
         Args:
@@ -125,12 +128,15 @@ class Scenario(Base, UserDict):
             True
         """
         from .scenario_list import ScenarioList
+
         if isinstance(scenario_list_or_scenario, ScenarioList):
             return scenario_list_or_scenario * self
         elif isinstance(scenario_list_or_scenario, Scenario):
             return ScenarioList([self]) * scenario_list_or_scenario
         else:
-            raise TypeError(f"Cannot multiply Scenario with {type(scenario_list_or_scenario)}")
+            raise TypeError(
+                f"Cannot multiply Scenario with {type(scenario_list_or_scenario)}"
+            )
 
     def replicate(self, n: int) -> "ScenarioList":
         """Replicate a scenario n times to return a ScenarioList.
@@ -258,14 +264,13 @@ class Scenario(Base, UserDict):
         """Display a scenario as a table."""
         return self.to_dataset().table(tablefmt=tablefmt)
 
-
     def to_dict(self, add_edsl_version: bool = True) -> dict:
         """Convert a scenario to a dictionary.
 
         Example:
 
         >>> s = Scenario({"food": "wood chips"})
-        >>> s.to_dict()
+        >>> s.to_dict()  # doctest: +ELLIPSIS
         {'food': 'wood chips', 'edsl_version': '...', 'edsl_class_name': 'Scenario'}
 
         >>> s.to_dict(add_edsl_version = False)
@@ -273,10 +278,11 @@ class Scenario(Base, UserDict):
 
         """
         from edsl.scenarios import FileStore
+        from edsl.prompts import Prompt
 
         d = self.data.copy()
         for key, value in d.items():
-            if isinstance(value, FileStore):
+            if isinstance(value, FileStore) or isinstance(value, Prompt):
                 d[key] = value.to_dict(add_edsl_version=add_edsl_version)
         if add_edsl_version:
             from edsl import __version__
@@ -363,36 +369,38 @@ class Scenario(Base, UserDict):
         return self.select(list_of_keys)
 
     @classmethod
-    def from_url(cls, url: str, field_name: Optional[str] = "text", testing: bool = False) -> "Scenario":
+    def from_url(
+        cls, url: str, field_name: Optional[str] = "text", testing: bool = False
+    ) -> "Scenario":
         """
         Creates a Scenario from the content of a URL.
-        
-        This method fetches content from a web URL and creates a Scenario containing the URL 
+
+        This method fetches content from a web URL and creates a Scenario containing the URL
         and the extracted text. When available, BeautifulSoup is used for better HTML parsing
         and text extraction, otherwise a basic requests approach is used.
-        
+
         Args:
             url: The URL to fetch content from.
             field_name: The key name to use for storing the extracted text in the Scenario.
                         Defaults to "text".
             testing: If True, uses a simplified requests method instead of BeautifulSoup.
                     This is primarily for testing purposes.
-                    
+
         Returns:
             A Scenario containing the URL and extracted text.
-            
+
         Raises:
             requests.exceptions.RequestException: If the URL cannot be accessed.
-            
+
         Examples:
             >>> s = Scenario.from_url("https://example.com", testing=True)
             >>> "url" in s and "text" in s
             True
-            
+
             >>> s = Scenario.from_url("https://example.com", field_name="content", testing=True)
             >>> "url" in s and "content" in s
             True
-            
+
         Notes:
             - The method attempts to use BeautifulSoup and fake_useragent for better
               HTML parsing and to mimic a real browser.
@@ -409,24 +417,33 @@ class Scenario(Base, UserDict):
             try:
                 from bs4 import BeautifulSoup
                 from fake_useragent import UserAgent
-                
+
                 # Configure request headers to appear more like a regular browser
                 ua = UserAgent()
                 headers = {
-                    'User-Agent': ua.random,
-                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-                    'Accept-Language': 'en-US,en;q=0.5'
+                    "User-Agent": ua.random,
+                    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                    "Accept-Language": "en-US,en;q=0.5",
                 }
 
                 response = requests.get(url, headers=headers)
-                soup = BeautifulSoup(response.content, 'html.parser')
-                
+                soup = BeautifulSoup(response.content, "html.parser")
+
                 # Get text content while preserving some structure
-                text = ' '.join([p.get_text(strip=True) for p in soup.find_all(['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'])])
+                text = " ".join(
+                    [
+                        p.get_text(strip=True)
+                        for p in soup.find_all(
+                            ["p", "h1", "h2", "h3", "h4", "h5", "h6"]
+                        )
+                    ]
+                )
 
             except ImportError:
                 # Fallback to basic requests if BeautifulSoup/fake_useragent not available
-                print("BeautifulSoup/fake_useragent not available. Falling back to basic requests.")
+                print(
+                    "BeautifulSoup/fake_useragent not available. Falling back to basic requests."
+                )
                 response = requests.get(url)
                 text = response.text
 
@@ -436,33 +453,33 @@ class Scenario(Base, UserDict):
     def from_file(cls, file_path: str, field_name: str) -> "Scenario":
         """
         Creates a Scenario containing a FileStore object from a file.
-        
+
         This method creates a Scenario with a single key-value pair where the value
         is a FileStore object that encapsulates the specified file. The FileStore
         handles appropriate file loading, encoding, and extraction based on the file type.
-        
+
         Args:
             file_path: Path to the file to be incorporated into the Scenario.
             field_name: Key name to use for storing the FileStore in the Scenario.
-            
+
         Returns:
             A Scenario containing a FileStore object linked to the specified file.
-            
+
         Raises:
             FileNotFoundError: If the specified file does not exist.
-            
+
         Examples:
             >>> import tempfile
             >>> with tempfile.NamedTemporaryFile(suffix=".txt", mode="w") as f:
             ...     _ = f.write("This is a test.")
             ...     _ = f.flush()
             ...     s = Scenario.from_file(f.name, "file")
-            >>> s
+            >>> s  # doctest: +ELLIPSIS
             Scenario({'file': FileStore(path='...', ...)})
-            
+
         Notes:
             - The FileStore object handles various file formats differently
-            - FileStore provides methods to access file content, extract text, 
+            - FileStore provides methods to access file content, extract text,
               and manage file operations appropriate to the file type
         """
         from edsl.scenarios import FileStore
@@ -476,30 +493,30 @@ class Scenario(Base, UserDict):
     ) -> "Scenario":
         """
         Creates a Scenario containing an image file as a FileStore object.
-        
+
         This method creates a Scenario with a single key-value pair where the value
         is a FileStore object that encapsulates the specified image file. The image
         is stored as a base64-encoded string, allowing it to be easily serialized
         and transmitted.
-        
+
         Args:
             image_path: Path to the image file to be incorporated into the Scenario.
             image_name: Key name to use for storing the FileStore in the Scenario.
                        If not provided, uses the filename without extension.
-            
+
         Returns:
             A Scenario containing a FileStore object with the image data.
-            
+
         Raises:
             FileNotFoundError: If the specified image file does not exist.
-            
+
         Examples:
             >>> import os
             >>> # Assuming an image file exists
             >>> if os.path.exists("image.jpg"):
             ...     s = Scenario.from_image("image.jpg")
             ...     s_named = Scenario.from_image("image.jpg", "picture")
-            
+
         Notes:
             - The resulting FileStore can be displayed in notebooks or used in questions
             - Supported image formats include JPG, PNG, GIF, etc.
@@ -517,27 +534,27 @@ class Scenario(Base, UserDict):
     def from_pdf(cls, pdf_path: str) -> "Scenario":
         """
         Creates a Scenario containing text extracted from a PDF file.
-        
+
         This method extracts text and metadata from a PDF file and creates a Scenario
         containing this information. It uses the PdfExtractor class which provides
         access to text content, metadata, and structure from PDF files.
-        
+
         Args:
             pdf_path: Path to the PDF file to extract content from.
-            
+
         Returns:
             A Scenario containing extracted text and metadata from the PDF.
-            
+
         Raises:
             FileNotFoundError: If the specified PDF file does not exist.
             ImportError: If the required PDF extraction libraries are not installed.
-            
+
         Examples:
             >>> import os
             >>> # Assuming a PDF file exists
             >>> if os.path.exists("document.pdf"):
             ...     s = Scenario.from_pdf("document.pdf")
-            
+
         Notes:
             - The returned Scenario contains various keys with PDF content and metadata
             - PDF extraction requires the PyMuPDF library
@@ -545,6 +562,7 @@ class Scenario(Base, UserDict):
         """
         try:
             from edsl.scenarios.PdfExtractor import PdfExtractor
+
             extractor = PdfExtractor(pdf_path)
             return Scenario(extractor.get_pdf_dict())
         except ImportError as e:
@@ -558,31 +576,31 @@ class Scenario(Base, UserDict):
     def from_html(cls, url: str, field_name: Optional[str] = None) -> "Scenario":
         """
         Creates a Scenario containing both HTML content and extracted text from a URL.
-        
+
         This method fetches HTML content from a URL, extracts readable text from it,
         and creates a Scenario containing the original URL, the raw HTML, and the
         extracted text. Unlike from_url, this method preserves the raw HTML content.
-        
+
         Args:
             url: URL to fetch HTML content from.
             field_name: Key name to use for the extracted text in the Scenario.
                        If not provided, defaults to "text".
-            
+
         Returns:
             A Scenario containing the URL, raw HTML, and extracted text.
-            
+
         Raises:
             requests.exceptions.RequestException: If the URL cannot be accessed.
-            
+
         Examples:
             >>> s = Scenario.from_html("https://example.com")
             >>> all(key in s for key in ["url", "html", "text"])
             True
-            
+
             >>> s = Scenario.from_html("https://example.com", field_name="content")
             >>> all(key in s for key in ["url", "html", "content"])
             True
-            
+
         Notes:
             - Uses BeautifulSoup for HTML parsing when available
             - Stores both the raw HTML and the extracted text
@@ -599,17 +617,17 @@ class Scenario(Base, UserDict):
     def fetch_html(url: str) -> Optional[str]:
         """
         Fetches HTML content from a URL with robust error handling and retries.
-        
+
         This method creates a session with configurable retries to fetch HTML content
         from a URL. It uses a realistic user agent to avoid being blocked by websites
         that filter bot traffic.
-        
+
         Args:
             url: The URL to fetch HTML content from.
-            
+
         Returns:
             The HTML content as a string, or None if the request failed.
-            
+
         Raises:
             requests.exceptions.RequestException: If a request error occurs.
         """
@@ -642,71 +660,71 @@ class Scenario(Base, UserDict):
     def extract_text(html: Optional[str]) -> str:
         """
         Extracts readable text from HTML content using BeautifulSoup.
-        
+
         This method parses HTML content and extracts the readable text while
         removing HTML tags and script content.
-        
+
         Args:
             html: The HTML content to extract text from.
-            
+
         Returns:
             The extracted text content as a string. Returns an empty string
             if the input is None or if parsing fails.
         """
         if html is None:
             return ""
-            
+
         try:
             from bs4 import BeautifulSoup
+
             soup = BeautifulSoup(html, "html.parser")
-            
+
             # Remove script and style elements that might contain non-readable content
             for element in soup(["script", "style"]):
                 element.extract()
-                
+
             text = soup.get_text()
-            
+
             # Normalize whitespace
             lines = (line.strip() for line in text.splitlines())
             chunks = (phrase.strip() for line in lines for phrase in line.split("  "))
-            text = '\n'.join(chunk for chunk in chunks if chunk)
-            
+            text = "\n".join(chunk for chunk in chunks if chunk)
+
             return text
         except Exception as e:
             print(f"Error extracting text from HTML: {e}")
             return ""
 
-
     @classmethod
     def from_pdf_to_image(cls, pdf_path: str, image_format: str = "jpeg") -> "Scenario":
         """
         Converts each page of a PDF into an image and creates a Scenario containing them.
-        
+
         This method takes a PDF file, converts each page to an image in the specified
         format, and creates a Scenario containing the original file path and FileStore
         objects for each page image. This is particularly useful for visualizing PDF
         content or for image-based processing of PDF documents.
-        
+
         Args:
             pdf_path: Path to the PDF file to convert to images.
             image_format: Format of the output images (default is 'jpeg').
                          Other formats include 'png', 'tiff', etc.
-            
+
         Returns:
             A Scenario containing the original PDF file path and FileStore objects
             for each page image, with keys like "page_0", "page_1", etc.
-            
+
         Raises:
             FileNotFoundError: If the specified PDF file does not exist.
             ImportError: If pdf2image is not installed.
-            
+
         Examples:
             >>> import os
             >>> # Assuming a PDF file exists
             >>> if os.path.exists("document.pdf"):
             ...     s = Scenario.from_pdf_to_image("document.pdf")
             ...     s_png = Scenario.from_pdf_to_image("document.pdf", "png")
-            
+
         Notes:
             - Requires the pdf2image library which depends on poppler
             - Creates a separate image for each page of the PDF
@@ -729,6 +747,7 @@ class Scenario(Base, UserDict):
                 image.save(image_path, image_format.upper())
 
                 from edsl.scenarios import FileStore
+
                 scenario_dict[f"page_{i}"] = FileStore(image_path)
 
             scenario = Scenario(scenario_dict)
@@ -739,21 +758,21 @@ class Scenario(Base, UserDict):
     def from_docx(cls, docx_path: str) -> "Scenario":
         """
         Creates a Scenario containing text extracted from a Microsoft Word document.
-        
+
         This method extracts text and structure from a DOCX file and creates a Scenario
-        containing this information. It uses the DocxScenario class to handle the 
+        containing this information. It uses the DocxScenario class to handle the
         extraction process and maintain document structure where possible.
-        
+
         Args:
             docx_path: Path to the DOCX file to extract content from.
-            
+
         Returns:
             A Scenario containing the file path and extracted text from the DOCX file.
-            
+
         Raises:
             FileNotFoundError: If the specified DOCX file does not exist.
             ImportError: If the python-docx library is not installed.
-            
+
         Examples:
             >>> from docx import Document
             >>> doc = Document()
@@ -764,7 +783,7 @@ class Scenario(Base, UserDict):
             >>> s
             Scenario({'file_path': 'test.docx', 'text': 'EDSL Survey\\nThis is a test.'})
             >>> import os; os.remove("test.docx")
-            
+
         Notes:
             - The returned Scenario typically contains the file path and extracted text
             - The extraction process attempts to maintain document structure
@@ -784,12 +803,12 @@ class Scenario(Base, UserDict):
     ) -> "ScenarioList":
         """
         Splits a text field into chunks of a specified size, creating a ScenarioList.
-        
+
         This method takes a field containing text and divides it into smaller chunks
         based on either word count or line count. It's particularly useful for processing
         large text documents in manageable pieces, such as for summarization, analysis,
         or when working with models that have token limits.
-        
+
         Args:
             field: The key name of the field in the Scenario to split.
             num_words: The number of words to include in each chunk. Mutually exclusive
@@ -800,16 +819,16 @@ class Scenario(Base, UserDict):
                              with a "_original" suffix.
             hash_original: If True and include_original is True, stores a hash of the
                           original text instead of the full text.
-        
+
         Returns:
             A ScenarioList containing multiple Scenarios, each with a chunk of the
             original text. Each Scenario includes the chunk text, chunk index, character
             count, and word count.
-            
+
         Raises:
             ValueError: If neither num_words nor num_lines is specified, or if both are.
             KeyError: If the specified field doesn't exist in the Scenario.
-            
+
         Examples:
             Split by lines (1 line per chunk):
             >>> s = Scenario({"text": "This is a test.\\nThis is a test.\\n\\nThis is a test."})
@@ -828,7 +847,7 @@ class Scenario(Base, UserDict):
             Use a hash of the original text:
             >>> s.chunk("text", num_words=1, include_original=True, hash_original=True)
             ScenarioList([Scenario({'text': 'Hello', 'text_chunk': 0, 'text_char_count': 5, 'text_word_count': 1, 'text_original': 'b10a8db164e0754105b7a99be72e3fe5'}), Scenario({'text': 'World', 'text_chunk': 1, 'text_char_count': 5, 'text_word_count': 1, 'text_original': 'b10a8db164e0754105b7a99be72e3fe5'})])
-            
+
         Notes:
             - Either num_words or num_lines must be specified, but not both
             - Each chunk is assigned a sequential index in the 'text_chunk' field
@@ -847,28 +866,28 @@ class Scenario(Base, UserDict):
     def from_dict(cls, d: dict) -> "Scenario":
         """
         Creates a Scenario from a dictionary, with special handling for FileStore objects.
-        
+
         This method creates a Scenario using the provided dictionary. It has special handling
         for dictionary values that represent serialized FileStore objects, which it will
         deserialize back into proper FileStore instances.
-        
+
         Args:
             d: A dictionary to convert to a Scenario.
-            
+
         Returns:
             A new Scenario containing the provided dictionary data.
-            
+
         Examples:
             >>> Scenario.from_dict({"food": "wood chips"})
             Scenario({'food': 'wood chips'})
-            
+
             >>> # Example with a serialized FileStore
-            >>> from edsl import FileStore
-            >>> file_dict = {"path": "example.txt", "base64_string": "SGVsbG8gV29ybGQ="}
-            >>> s = Scenario.from_dict({"document": file_dict})
-            >>> isinstance(s["document"], FileStore)
+            >>> from edsl import FileStore  # doctest: +SKIP
+            >>> file_dict = {"path": "example.txt", "base64_string": "SGVsbG8gV29ybGQ="}  # doctest: +SKIP
+            >>> s = Scenario.from_dict({"document": file_dict})  # doctest: +SKIP
+            >>> isinstance(s["document"], FileStore)  # doctest: +SKIP
             True
-            
+
         Notes:
             - Any dictionary values that match the FileStore format will be converted to FileStore objects
             - The method detects FileStore objects by looking for "base64_string" and "path" keys

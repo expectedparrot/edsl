@@ -481,6 +481,35 @@ class Agent(Base):
             new_agent.dynamic_traits_function = dynamic_traits_function
             
         return new_agent
+        
+    def copy(self) -> Agent:
+        """Create a deep copy of this agent using serialization/deserialization.
+        
+        This method uses to_dict/from_dict to create a completely independent copy
+        of the agent, including all its traits, codebook, instructions, and special
+        functions like dynamic traits and direct answering methods.
+        
+        Returns:
+            Agent: A new agent instance that is functionally identical to this one
+            
+        Examples:
+            >>> a = Agent(traits={"age": 10, "hair": "brown"}, 
+            ...           codebook={'age': 'Their age is'})
+            >>> a2 = a.copy()
+            >>> a2 == a  # Functionally equivalent
+            True
+            >>> id(a) == id(a2)  # But different objects
+            False
+            
+            Copy preserves direct answering methods:
+            
+            >>> def f(self, question, scenario): return "I am a direct answer."
+            >>> a.add_direct_question_answering_method(f)
+            >>> a2 = a.copy()
+            >>> a2.answer_question_directly(None, None)
+            'I am a direct answer.'
+        """
+        return self.duplicate()
 
     @property
     def agent_persona(self) -> Prompt:

@@ -40,10 +40,12 @@ __all__ = [
     'TaskHistoryError'
 ]
 
-from .task_history import TaskHistory
-from .question_task_creator import QuestionTaskCreator
-from .task_creators import TaskCreators
+# Import TaskStatus first to prevent circular imports
 from .task_status_enum import TaskStatus, TaskStatusDescriptor
+from .task_history import TaskHistory
+from .task_creators import TaskCreators
+# Import question_task_creator last since it depends on other modules
+from .question_task_creator import QuestionTaskCreator
 from .exceptions import (
     TaskError,
     TaskStatusError,
