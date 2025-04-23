@@ -355,7 +355,6 @@ Note that the cost of a result for a question is specific to the components (sce
 Creating tables by selecting columns
 ------------------------------------
 
-
 Each of these columns can be accessed directly by calling the `select()` method and passing the column names.
 Alternatively, we can specify the columns to exclude by calling the `drop()` method.
 These methods can be chained together to display the specified columns in a table format.
@@ -862,6 +861,111 @@ This will return a table of the flattened results:
     - ['1 cup milk (dairy or non-dairy)', '1 tablespoon unsweetened cocoa powder', '1-2 tablespoons sugar (or to taste)', 'Pinch of salt']
     - ['Combine milk, cocoa powder, sugar, and salt in a small saucepan.', 'Heat over medium heat, stirring constantly, until the mixture is smooth and heated through.', 'Do not boil.', 'Pour into a mug and enjoy!']
 
+
+Retrieving results 
+------------------
+
+We can retrieve details about results posted to Coop by calling the `list()` method on the `Results` class.
+For example, the following code will return information about the 10 most recent results posted to Coop:
+
+.. code-block:: python
+
+  from edsl import Results
+
+  results = Results.list()
+
+
+The following information will be returned:
+
+.. list-table::
+  :header-rows: 1
+
+  * - Column
+    - Description
+  * - last_updated_ts
+    - The timestamp when the result was last updated.
+  * - alias
+    - The alias for the results.
+  * - uuid
+    - The UUID of the results.
+  * - version
+    - The version of the result.
+  * - created_ts
+    - The timestamp when the results were created.
+  * - visibility
+    - The visibility of the results (public, private or unlisted).
+  * - description
+    - A description of the results, if any.
+  * - url
+    - The URL to access the results.
+  * - object_type
+    - The type of object (e.g., Results).
+  * - owner_username
+    - The username of the owner of the results.
+  * - alias_url
+    - The URL for the alias, if any.
+
+
+To access the next page of results, you can specify the page= parameter:
+
+.. code-block:: python
+
+  results = Results.list(page=2)
+
+
+This will return the next page of results, with the same columns as above.
+
+.. code-block:: python
+
+  from edsl import Results
+
+  # Retrieve the first 2 pages of results and collect their UUIDs
+  uuids = []
+  for i in range(1, 3):
+    results = Results.list(page=i)
+    uuids.extend(list(results.to_key_value("uuid")))
+
+
+If you have a predetermined number of objects, you can also use page_size= to specify the number of objects per page (up to 100 objects):
+
+.. code-block:: python
+
+  results = Results.list(page_size=5)
+
+
+This will return the first 5 results, with the same columns as above.
+
+By default, the most recently created objects are returned first. You can reverse this by specifying sort_ascending=True:
+
+.. code-block:: python
+
+  from edsl import Results
+
+  # Retrieve the first 10 results, sorted in ascending order by creation time
+  results = Results.list(sort_ascending=True)
+
+
+You can also filter objects by description using the search_query parameter:
+
+.. code-block:: python
+
+  from edsl import Results
+
+  # Retrieve results with a description containing the word "testing"
+  results = Results.list(search_query="testing")
+
+
+If you want not just the metadata, but the actual object, you can call .fetch() on the metadata list:
+
+.. code-block:: python
+
+  from edsl import Results
+
+  # Retrieve the first 10 results and fetch the actual objects
+  results = Results.list().fetch()
+
+
+The `list()` method can also be called on `Agent` and `Jobs` objects, and the `Coop` client object (to retrieve details of objects of any type).
 
 
 Generating a report
