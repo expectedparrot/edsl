@@ -1,18 +1,30 @@
 # Changelog
 
-## [0.1.55] - TBD
+## [0.1.56] - TBD
 ### Added
 - New video file handlers: `Scenario` objects can be videos (MP4 and WebM).  
 
-- New question type `QuestionMultipleChoiceWithOther` automatically includes "Other" in the `question_options` and has the following default instructions: "If none of the provided options apply, select "Other" and provide your specific response.
-Only 1 option may be selected.
-Respond with a string corresponding to one of the options.
-If none of the options match, respond with:
-Other: [your specific response]
-For example: "Other: Paris" if your answer is Paris.
-After the answer, you can put a comment explaining why you chose that option on the next line."
+- New question type `QuestionMultipleChoiceWithOther` automatically includes "Other" in the `question_options` and corresponding modified default instructions.
 
 - Question type `QuestionMultipleChoice` now takes an optional parameter `enumeration_style` that allows you to specify "numeric" (default) or "letter" options (["A", "B", "C", "D"]). This parameter can also be passed to new question type `QuestionMultipleChoiceWithOther`.
+
+
+## [0.1.55] - 2025-04-23
+### Added
+- Method `get_uuid()` retrieves the Coop UUID for the relevant object, if it exists.
+
+- Method `list()` retrieves details of objects of the relevant type that you have posted to Coop. By default, it returns information about the 10 most recently created objects. Optional parameters:
+
+* `page=` specifies the pagination (e.g., `page=2` will return the next 10 objects) 
+* `page_size=` specifies the number of objects to return (10 by default, and up to 100)
+* `search_query` returns objects based on the description (if any)
+
+The `list()` method is available for all EDSL object types (`Agent`, `Scenario`, `Jobs`, `Results`, `Notebook`, etc.), as well as the `Coop` client object. For example, `Results.list()` will return details on the 10 most recent results and `Coop().list(page_size=5)` will return details on the 5 most recent objects of any type.
+
+- Method `fetch()` can be combined with the `list()` method to retrieve objects of the relevant type that you have posted to Coop. By default, it returns the 10 most recently created objects. For example: `Results.list().fetch()` will return the 10 most recently created results. The `fetch()` method is available for all EDSL object types (`Agent`, `Scenario`, `Jobs`, `Results`, `Notebook`, etc.), and the `Coop` client object.
+
+- Method `fetch_results()` is a special method of `Jobs` objects that can be combined with the `list()` method to retrieve results of your jobs. For example: `results = Jobs.list(page_size=2).fetch_results()` will retrieve the results for your 2 most recent jobs.
+
 
 
 ## [0.1.54] - 2025-04-11
