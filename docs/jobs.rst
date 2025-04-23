@@ -154,22 +154,22 @@ This will return the following information:
   :header-rows: 1
 
   * - user_prompt	
-    - system_prompt	
-    - interview_index	
-    - question_name	
-    - scenario_index	
-    - agent_index	
-    - model	
-    - estimated_cost	
-    - cache_keys
-  * - What is your favorite color?	
+    - What is your favorite color?
+  * - system_prompt	
     - You are answering questions as if you were a human. Do not break character.Your traits: {'persona': 'You are an artist.'}	
+  * - interview_index	
     - 0	
+  * - question_name	
     - example	
-    - 0	
-    - 0	
-    - gpt-4o	
-    - 0.000373	
+  * - scenario_index	
+    - 0
+  * - agent_index	
+    - 0
+  * - model	
+    - gpt-4o
+  * - estimated_cost	
+    - 0.000373
+  * - cache_keys
     - ['e549b646508cfd459f88379649ebe8ba']
 
 
