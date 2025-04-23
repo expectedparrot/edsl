@@ -162,8 +162,7 @@ This will return the following information:
     - model	
     - estimated_cost	
     - cache_keys
-  * - 0	
-    - What is your favorite color?	
+  * - What is your favorite color?	
     - You are answering questions as if you were a human. Do not break character.Your traits: {'persona': 'You are an artist.'}	
     - 0	
     - example	
