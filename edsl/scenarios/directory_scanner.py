@@ -1,258 +1,258 @@
 """
-The DirectoryScanner module provides functionality for finding and processing files in directories.
+DirectoryScanner provides functionality for scanning directories and creating ScenarioLists from files.
 
-This module implements the DirectoryScanner class, which is designed to scan directories
-for files matching specific criteria and process them using a factory function. It supports
-recursive scanning, filtering by file extensions, and both eager and lazy iteration over
-the matching files.
+This module contains the DirectoryScanner class which handles scanning directories,
+filtering files based on patterns, and creating Scenario objects from files.
 """
 
-from dataclasses import dataclass
-from typing import Optional, List, Iterator, TypeVar, Callable
 import os
+from typing import Optional, List, Callable, Any
+from .scenario import Scenario
+from .file_store import FileStore
+from .exceptions import FileNotFoundScenarioError
 
-# Generic type variable for the factory function's return type
-T = TypeVar("T")
-
-
-@dataclass
 class DirectoryScanner:
-    """
-    A utility class for finding and processing files in directories.
-    
-    DirectoryScanner provides methods to scan directories for files that match specific
-    criteria, such as file extensions. It can process matching files using a factory
-    function that converts file paths to objects of a specified type.
-    
-    The scanner supports both eager (scan) and lazy (iter_scan) iteration, recursive
-    directory traversal, and flexible filtering based on file extensions.
-    
-    Attributes:
-        directory_path: The path to the directory to scan.
-        
-    Examples:
-        >>> import tempfile
-        >>> import os
-        >>> # Create a temporary directory with some files
-        >>> with tempfile.TemporaryDirectory() as tmpdir:
-        ...     # Create a few files with different extensions
-        ...     _ = open(os.path.join(tmpdir, "file1.txt"), "w").write("content")
-        ...     _ = open(os.path.join(tmpdir, "file2.txt"), "w").write("content")
-        ...     _ = open(os.path.join(tmpdir, "image.jpg"), "w").write("content")
-        ...     # Create a scanner and find all text files
-        ...     scanner = DirectoryScanner(tmpdir)
-        ...     txt_files = scanner.scan(lambda path: path, suffix_allow_list=["txt"])
-        ...     len(txt_files)
-        ...     # Use a factory to process files
-        ...     def get_filename(path):
-        ...         return os.path.basename(path)
-        ...     filenames = scanner.scan(get_filename)
-        ...     sorted(filenames)
-        2
-        ['file1.txt', 'file2.txt', 'image.jpg']
-    """
+    """A class for scanning directories and creating ScenarioLists from files."""
 
-    directory_path: str
+    def __init__(self, directory_path: str):
+        """Initialize the DirectoryScanner with a directory path.
+
+        Args:
+            directory_path (str): The path to the directory to scan.
+
+        Raises:
+            FileNotFoundScenarioError: If the specified directory does not exist.
+        """
+        self.directory_path = directory_path
+        if not os.path.isdir(directory_path):
+            raise FileNotFoundScenarioError(f"Directory not found: {directory_path}")
 
     def scan(
         self,
-        factory: Callable[[str], T],
+        factory: Callable[[str], Any] = FileStore,
         recursive: bool = False,
         suffix_allow_list: Optional[List[str]] = None,
-        suffix_exclude_list: Optional[List[str]] = None,
         example_suffix: Optional[str] = None,
-        include_no_extension: bool = True,
-    ) -> List[T]:
-        """
-        Eagerly scan directory and return a list of objects created by the factory function.
-        
-        This method performs a scan of the directory, filtering files based on the provided
-        criteria, and applies the factory function to each matching file path. It returns
-        a complete list of processed results.
-        
+    ) -> List[Any]:
+        """Scan the directory and create objects from files.
+
         Args:
-            factory: A callable that takes a file path string and returns an object of type T.
-                    This is applied to each matching file path.
-            recursive: If True, traverses subdirectories recursively. If False, only scans
-                      the top-level directory.
-            suffix_allow_list: A list of file extensions (without dots) to include.
-                              If provided, only files with these extensions are included.
-            suffix_exclude_list: A list of file extensions to exclude. This takes precedence
-                                over suffix_allow_list.
-            example_suffix: If provided, only include files ending with this exact suffix.
-                           This checks the entire filename, not just the extension.
-            include_no_extension: Whether to include files without extensions. Defaults to True.
-            
+            factory (Callable[[str], Any]): A function that creates objects from file paths.
+                Defaults to FileStore.
+            recursive (bool): Whether to scan subdirectories recursively.
+            suffix_allow_list (Optional[List[str]]): List of file extensions to include.
+            example_suffix (Optional[str]): Example suffix pattern for filtering.
+
         Returns:
-            A list of objects created by applying the factory function to each matching file path.
-            
-        Examples:
-            >>> import tempfile
-            >>> import os
-            >>> with tempfile.TemporaryDirectory() as tmpdir:
-            ...     # Create test files
-            ...     _ = open(os.path.join(tmpdir, "doc1.txt"), "w").write("content")
-            ...     _ = open(os.path.join(tmpdir, "doc2.md"), "w").write("content")
-            ...     os.mkdir(os.path.join(tmpdir, "subdir"))
-            ...     _ = open(os.path.join(tmpdir, "subdir", "doc3.txt"), "w").write("content")
-            ...     # Scan for text files only
-            ...     scanner = DirectoryScanner(tmpdir)
-            ...     paths = scanner.scan(lambda p: p, suffix_allow_list=["txt"])
-            ...     len(paths)
-            ...     # Recursive scan for all files
-            ...     all_paths = scanner.scan(lambda p: p, recursive=True)
-            ...     len(all_paths)
-            ...     # Exclude specific extensions
-            ...     no_md = scanner.scan(lambda p: p, recursive=True, suffix_exclude_list=["md"])
-            ...     len(no_md)
-            1
-            3
-            2
-            
-        Notes:
-            - This method is eager and collects all results into memory. For large directories,
-              consider using iter_scan instead.
-            - The filtering logic applies filters in this order: exclude list, example suffix,
-              allow list, and no extension.
+            List[Any]: List of objects created by the factory function.
         """
-        return list(
-            self.iter_scan(
-                factory,
-                recursive=recursive,
-                suffix_allow_list=suffix_allow_list,
-                suffix_exclude_list=suffix_exclude_list,
-                example_suffix=example_suffix,
-                include_no_extension=include_no_extension,
-            )
-        )
-
-    def iter_scan(
-        self,
-        factory: Callable[[str], T],
-        recursive: bool = False,
-        suffix_allow_list: Optional[List[str]] = None,
-        suffix_exclude_list: Optional[List[str]] = None,
-        example_suffix: Optional[str] = None,
-        include_no_extension: bool = True,
-    ) -> Iterator[T]:
-        """
-        Lazily scan directory and yield objects created by the factory function.
+        result = []
         
-        This method performs a lazy scan of the directory, filtering files based on the provided
-        criteria, and applies the factory function to each matching file path. It yields
-        results one by one, allowing for memory-efficient processing of large directories.
-        
-        Args:
-            factory: A callable that takes a file path string and returns an object of type T.
-                    This is applied to each matching file path.
-            recursive: If True, traverses subdirectories recursively. If False, only scans
-                      the top-level directory.
-            suffix_allow_list: A list of file extensions (without dots) to include.
-                              If provided, only files with these extensions are included.
-            suffix_exclude_list: A list of file extensions to exclude. This takes precedence
-                                over suffix_allow_list.
-            example_suffix: If provided, only include files ending with this exact suffix.
-                           This checks the entire filename, not just the extension.
-            include_no_extension: Whether to include files without extensions. Defaults to True.
-            
-        Yields:
-            Objects created by applying the factory function to each matching file path,
-            yielded one at a time.
-            
-        Examples:
-            >>> import tempfile
-            >>> import os
-            >>> with tempfile.TemporaryDirectory() as tmpdir:
-            ...     # Create test files
-            ...     _ = open(os.path.join(tmpdir, "doc1.txt"), "w").write("content")
-            ...     _ = open(os.path.join(tmpdir, "doc2.md"), "w").write("content")
-            ...     # Process files lazily
-            ...     scanner = DirectoryScanner(tmpdir)
-            ...     for path in scanner.iter_scan(lambda p: p):
-            ...         # Process each file path without loading all into memory
-            ...         file_exists = os.path.exists(path)
-            ...         assert file_exists
-            
-        Notes:
-            - This method is lazy and yields results as they are processed, making it
-              suitable for memory-efficient processing of large directories.
-            - The filtering logic is identical to the scan method.
-        """
-
-        def should_include_file(filepath: str) -> bool:
-            """
-            Determine if a file should be included based on filtering criteria.
-            
-            This helper function applies all the filtering rules to determine
-            if a given file path should be included in the results.
-            
-            Args:
-                filepath: The path to the file to check.
-                
-            Returns:
-                True if the file should be included, False otherwise.
-            """
-            # Get filename and extension
-            basename = os.path.basename(filepath)
-            _, ext = os.path.splitext(filepath)
-            ext = ext[1:] if ext else ""  # Remove leading dot from extension
-            
-            # Skip system files like .DS_Store by default
-            if basename == '.DS_Store':
-                return False
-            
-            # If there's a specific allow list and we have a wildcard filter
+        def should_include_file(filename: str) -> bool:
             if suffix_allow_list:
-                # Only include files with the allowed extensions
-                return ext in suffix_allow_list
-            
-            # Check exclusions (they take precedence)
-            if suffix_exclude_list and ext in suffix_exclude_list:
-                return False
-
-            # Check example suffix if specified
+                return any(filename.endswith(f".{suffix}") for suffix in suffix_allow_list)
             if example_suffix:
-                # Handle wildcard patterns
-                if '*' in example_suffix:
-                    import fnmatch
-                    basename = os.path.basename(filepath)
-                    # Try to match just the filename if the pattern doesn't contain path separators
-                    if '/' not in example_suffix and '\\' not in example_suffix:
-                        if not fnmatch.fnmatch(basename, example_suffix):
-                            return False
-                    else:
-                        # Match the full path
-                        if not fnmatch.fnmatch(filepath, example_suffix):
-                            return False
-                elif not filepath.endswith(example_suffix):
-                    return False
-                
-            # Handle no extension case
-            if not ext:
-                return include_no_extension
-
+                if example_suffix.startswith("*."):
+                    return filename.endswith(example_suffix[1:])
+                # Handle other wildcard patterns if needed
             return True
 
-        def iter_files() -> Iterator[str]:
-            """
-            Generate paths to all files in the directory, optionally recursively.
-            
-            This helper function yields file paths from the directory, handling
-            the recursive option appropriately.
-            
-            Yields:
-                Paths to files in the directory.
-            """
-            if recursive:
-                for root, _, files in os.walk(self.directory_path):
-                    for file in files:
-                        yield os.path.join(root, file)
-            else:
-                for file in os.listdir(self.directory_path):
-                    file_path = os.path.join(self.directory_path, file)
-                    if os.path.isfile(file_path):
-                        yield file_path
+        def scan_dir(current_path: str):
+            for entry in os.scandir(current_path):
+                if entry.is_file() and should_include_file(entry.name):
+                    try:
+                        result.append(factory(entry.path))
+                    except Exception as e:
+                        import warnings
+                        warnings.warn(f"Failed to process file {entry.path}: {str(e)}")
+                elif entry.is_dir() and recursive:
+                    scan_dir(entry.path)
 
-        for file_path in iter_files():
-            if should_include_file(file_path):
-                yield factory(file_path)
+        scan_dir(self.directory_path)
+        return result
+
+    @classmethod
+    def scan_directory(
+        cls,
+        directory: str,
+        pattern: str = "*",
+        recursive: bool = False,
+        metadata: bool = True,
+        ignore_dirs: List[str] = None,
+        ignore_files: List[str] = None,
+    ) -> Any:
+        """Scan a directory and create a ScenarioList from the files.
+        
+        Args:
+            directory (str): The directory path to scan
+            pattern (str): File pattern to match (e.g., "*.txt", "*.{jpg,png}")
+            recursive (bool): Whether to scan subdirectories recursively
+            metadata (bool): Whether to include file metadata in the scenarios
+            ignore_dirs (List[str]): List of directory names to ignore
+            ignore_files (List[str]): List of file patterns to ignore
+            
+        Returns:
+            ScenarioList: A ScenarioList containing one scenario per matching file
+        """
+        from .scenario_list import ScenarioList
+        
+        # Handle default values
+        ignore_dirs = ignore_dirs or []
+        ignore_files = ignore_files or []
+        
+        # Import glob for pattern matching
+        import glob
+        import fnmatch
+        
+        # Normalize directory path
+        directory = os.path.abspath(directory)
+        
+        # Prepare result container
+        scenarios = []
+        
+        # Pattern matching function
+        def matches_pattern(filename, pattern):
+            return fnmatch.fnmatch(filename, pattern)
+        
+        # File gathering function
+        def gather_files(current_dir, current_pattern):
+            # Create the full path pattern
+            path_pattern = os.path.join(current_dir, current_pattern)
+            
+            # Get all matching files
+            for file_path in glob.glob(path_pattern, recursive=recursive):
+                if os.path.isfile(file_path):
+                    # Check if file should be ignored
+                    file_name = os.path.basename(file_path)
+                    if any(matches_pattern(file_name, ignore_pattern) for ignore_pattern in ignore_files):
+                        continue
+                    
+                    # Create FileStore object
+                    file_store = FileStore(file_path)
+                    
+                    # Create scenario
+                    scenario_data = {"file": file_store}
+                    
+                    # Add metadata if requested
+                    if metadata:
+                        file_stat = os.stat(file_path)
+                        scenario_data.update({
+                            "file_path": file_path,
+                            "file_name": file_name,
+                            "file_size": file_stat.st_size,
+                            "file_created": file_stat.st_ctime,
+                            "file_modified": file_stat.st_mtime,
+                        })
+                    
+                    scenarios.append(Scenario(scenario_data))
+        
+        # Process the directory
+        if recursive:
+            for root, dirs, files in os.walk(directory):
+                # Skip ignored directories
+                dirs[:] = [d for d in dirs if d not in ignore_dirs]
+                
+                # Process files in this directory
+                gather_files(root, pattern)
+        else:
+            gather_files(directory, pattern)
+        
+        # Return as ScenarioList
+        return ScenarioList(scenarios)
+        
+    @classmethod
+    def create_scenario_list(
+        cls,
+        path: Optional[str] = None,
+        recursive: bool = False,
+        key_name: str = "content",
+        factory: Callable[[str], Any] = FileStore,
+        suffix_allow_list: Optional[List[str]] = None,
+        example_suffix: Optional[str] = None,
+    ) -> Any:
+        """Create a ScenarioList from files in a directory.
+
+        Args:
+            path (Optional[str]): The directory path to scan, optionally including a wildcard pattern.
+            recursive (bool): Whether to scan subdirectories recursively.
+            key_name (str): The key to use for the FileStore object in each Scenario.
+            factory (Callable[[str], Any]): Factory function to create objects from files.
+            suffix_allow_list (Optional[List[str]]): List of file extensions to include.
+            example_suffix (Optional[str]): Example suffix pattern for filtering.
+
+        Returns:
+            ScenarioList: A ScenarioList containing Scenario objects for all matching files.
+
+        Raises:
+            FileNotFoundScenarioError: If the specified directory does not exist.
+        """
+        # Import here to avoid circular import
+        from .scenario_list import ScenarioList
+        
+        # Handle default case - use current directory
+        if path is None:
+            directory_path = os.getcwd()
+            pattern = None
+        else:
+            # Special handling for "**" pattern which indicates recursive scanning
+            has_recursive_pattern = "**" in path if path else False
+
+            # Check if path contains any wildcard
+            if path and ("*" in path):
+                # Handle "**/*.ext" pattern - find the directory part before the **
+                if has_recursive_pattern:
+                    # Extract the base directory by finding the part before **
+                    parts = path.split("**")
+                    if parts and parts[0]:
+                        # Remove trailing slash if any
+                        directory_path = parts[0].rstrip("/")
+                        if not directory_path:
+                            directory_path = os.getcwd()
+                        # Get the pattern after **
+                        pattern = parts[1] if len(parts) > 1 else None
+                        if pattern and pattern.startswith("/"):
+                            pattern = pattern[1:]  # Remove leading slash
+                    else:
+                        directory_path = os.getcwd()
+                        pattern = None
+                # Handle case where path is just a pattern (e.g., "*.py")
+                elif os.path.dirname(path) == "":
+                    directory_path = os.getcwd()
+                    pattern = os.path.basename(path)
+                else:
+                    # Split into directory and pattern
+                    directory_path = os.path.dirname(path)
+                    if not directory_path:
+                        directory_path = os.getcwd()
+                    pattern = os.path.basename(path)
+            else:
+                # Path is a directory with no pattern
+                directory_path = path
+                pattern = None
+
+        # Create scanner and get file stores
+        scanner = cls(directory_path)
+        
+        # Configure suffix filtering
+        if pattern:
+            if pattern.startswith("*."):
+                suffix_allow_list = [pattern[2:]]
+            elif "*" in pattern:
+                example_suffix = pattern
+            else:
+                example_suffix = pattern
+
+        # Use scanner to find files and create objects
+        file_stores = scanner.scan(
+            factory=factory,
+            recursive=recursive,
+            suffix_allow_list=suffix_allow_list,
+            example_suffix=example_suffix,
+        )
+
+        # Convert to ScenarioList
+        result = ScenarioList()
+        for file_store in file_stores:
+            result.append(Scenario({key_name: file_store}))
+            
+        return result

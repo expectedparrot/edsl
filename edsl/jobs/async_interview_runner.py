@@ -5,8 +5,9 @@ This module provides functionality to run multiple interviews in parallel
 with controlled concurrency, supporting both error handling and result collection.
 """
 
-from collections.abc import AsyncGenerator
-from typing import List, Generator, Tuple, TYPE_CHECKING
+from collections.abc import AsyncGenerator, AsyncIterator
+from contextlib import asynccontextmanager
+from typing import List, Generator, Tuple, TYPE_CHECKING, AsyncIterator
 from dataclasses import dataclass
 import asyncio
 from ..data_transfer_models import EDSLResultObjectInput
@@ -22,19 +23,15 @@ if TYPE_CHECKING:
     from ..jobs import Jobs
 
 @dataclass
-class InterviewResult:
-    """Container for the result of an interview along with metadata.
+class InterviewBatch:
+    """Container for a batch of interviews being processed."""
+    chunks: List[Tuple[int, Interview]]
+    results: List[Tuple[Result, Interview, int]]
+    failed: List[Tuple[int, Interview, Exception]]
 
-    Attributes:
-        result: The Result object containing the interview answers
-        interview: The Interview object used to conduct the interview
-        order: The original position of this interview in the processing queue
-    """
-
-    result: Result
-    interview: Interview
-    order: int
-
+    @classmethod
+    def create(cls, chunks: List[Tuple[int, Interview]]) -> 'InterviewBatch':
+        return cls(chunks=chunks, results=[], failed=[])
 
 class AsyncInterviewRunner:
     """
@@ -67,6 +64,110 @@ class AsyncInterviewRunner:
         self.jobs = jobs
         self.run_config = run_config
         self._initialized = asyncio.Event()
+
+    @asynccontextmanager
+    async def _manage_tasks(self, tasks: List[asyncio.Task]) -> AsyncIterator[None]:
+        """Context manager for handling task lifecycle and cleanup."""
+        try:
+            yield
+        finally:
+            for task in tasks:
+                if not task.done():
+                    task.cancel()
+
+    @asynccontextmanager
+    async def _interview_batch_processor(self) -> AsyncIterator[AsyncGenerator[tuple[Result, Interview, int], None]]:
+        """Context manager for processing batches of interviews.
+        
+        Handles initialization, cleanup, and error management for the entire
+        interview processing lifecycle.
+        """
+        self._initialized.set()
+        self._current_idx = 0
+        interview_generator = self._expand_interviews()
+        
+        try:
+            async def process_batches() -> AsyncGenerator[tuple[Result, Interview, int], None]:
+                while True:
+                    chunk = self._get_next_chunk(interview_generator)
+                    if not chunk:
+                        break
+                    
+                    async with self._process_chunk(chunk) as results:
+                        for result_tuple in results:
+                            # Yield the full tuple (result, interview, idx)
+                            yield result_tuple
+                    
+                    # Clean up chunk to help with garbage collection
+                    for idx, interview in chunk:
+                        # Explicitly clear any interview references when done with the chunk
+                        if hasattr(interview, 'clear_references'):
+                            interview.clear_references()
+                    del chunk
+            
+            yield process_batches()
+            
+        finally:
+            # Cleanup code to help garbage collection
+            self._current_idx = 0
+            self._initialized.clear()
+            # Clear the generator to avoid references
+            if 'interview_generator' in locals():
+                del interview_generator
+
+    async def _run_single_interview(
+        self, interview: Interview, idx: int
+    ) -> Tuple[Result, Interview, int]:
+        """Execute a single interview with error handling."""
+        try:
+            await interview.async_conduct_interview(self.run_config)
+            # Create result and explicitly break reference to interview
+            result = Result.from_interview(interview)
+            # Update the status
+            self.run_config.environment.jobs_runner_status.add_completed_interview(
+                interview
+            )
+            # Return tuple that keeps the interview reference
+            return (result, interview, idx)
+        except Exception as e:
+            if self.run_config.parameters.stop_on_exception:
+                raise
+            # Could log the error here if needed
+            return None
+
+    @asynccontextmanager
+    async def _process_chunk(
+        self, chunk: List[Tuple[int, Interview]]
+    ) -> AsyncIterator[List[Tuple[Result, Interview, int]]]:
+        """Process a chunk of interviews concurrently."""
+        tasks = [
+            asyncio.create_task(self._run_single_interview(interview, idx))
+            for idx, interview in chunk
+        ]
+                
+        async with self._manage_tasks(tasks):
+            results = await asyncio.gather(
+                *tasks,
+                return_exceptions=not self.run_config.parameters.stop_on_exception
+            )
+            # Filter out None results and yield a new list to avoid keeping the original tuple references
+            valid_results = []
+            for r in results:
+                if r is not None:
+                    result, interview, idx = r
+                    # Create a new tuple to break reference to the original
+                    new_tuple = (result, interview, idx)
+                    valid_results.append(new_tuple)
+                    
+                    # Clear original tuple to help GC
+                    del r
+            
+            yield valid_results
+            
+            # Manually clean up the valid_results list and its contents to help garbage collection
+            for tup in valid_results:
+                del tup
+            del valid_results
 
     def _expand_interviews(self) -> Generator["Interview", None, None]:
         """
@@ -101,104 +202,45 @@ class AsyncInterviewRunner:
                     interview.cache = self.run_config.environment.cache
                     yield interview
 
-    async def _conduct_interview(
-        self, interview: "Interview"
-    ) -> Tuple["Result", "Interview"]:
-        """
-        Asynchronously conduct a single interview.
-
-        This method performs the interview and creates a Result object with
-        the extracted answers and model responses.
-
-        Args:
-            interview: The interview to conduct
-
-        Returns:
-            Tuple containing the Result object and the Interview object
-
-        Notes:
-            'extracted_answers' contains the processed and validated answers
-            from the interview, which may differ from the raw model output.
-        """
-        extracted_answers: dict[str, str]
-        model_response_objects: List[EDSLResultObjectInput]
-
-        extracted_answers, model_response_objects = (
-            await interview.async_conduct_interview(self.run_config)
-        )
-        result = Result.from_interview(
-            interview=interview,
-            extracted_answers=extracted_answers,
-            model_response_objects=model_response_objects,
-        )
-        return result, interview
-
-    async def run(
+    def _get_next_chunk(
         self,
-    ) -> AsyncGenerator[tuple[Result, Interview], None]:
+        gen: Generator[Interview, None, None]
+    ) -> List[Tuple[int, Interview]]:
+        """Take interviews from the generator up to MAX_CONCURRENT."""
+        chunk = []
+        while len(chunk) < self.MAX_CONCURRENT:
+            try:
+                interview = next(gen)
+                chunk.append((self._current_idx, interview))
+                self._current_idx += 1
+            except StopIteration:
+                break
+        return chunk
+
+    async def run(self) -> AsyncGenerator[tuple[Result, Interview, int], None]:
         """
         Run all interviews asynchronously and yield results as they complete.
 
-        This method processes interviews in chunks based on MAX_CONCURRENT,
-        maintaining controlled concurrency while yielding results as soon as
+        This method orchestrates the parallel execution of interviews while
+        maintaining controlled concurrency. Results are yielded as soon as
         they become available.
 
         Yields:
-            Tuples of (Result, Interview) as interviews complete
-
-        Notes:
-            - Uses structured concurrency patterns for proper resource management
-            - Handles exceptions according to the run configuration
-            - Ensures task cleanup even in case of failures
+            Tuples of (Result, Interview, idx) as interviews complete, where idx is the
+            original position index of the interview.
+        
+        Raises:
+            Exception: If stop_on_exception is True and any interview fails
         """
-        interviews = list(self._expand_interviews())
-        self._initialized.set()
-
-        async def _process_single_interview(
-            interview: Interview, idx: int
-        ) -> InterviewResult:
-            try:
-                result, interview = await self._conduct_interview(interview)
-                self.run_config.environment.jobs_runner_status.add_completed_interview(
-                    interview
-                )
-                result.order = idx
-                return InterviewResult(result, interview, idx)
-            except Exception:
-                if self.run_config.parameters.stop_on_exception:
-                    raise
-                return None
-
-        # Process interviews in chunks
-        for i in range(0, len(interviews), self.MAX_CONCURRENT):
-            chunk = interviews[i : i + self.MAX_CONCURRENT]
-            tasks = [
-                asyncio.create_task(_process_single_interview(interview, idx))
-                for idx, interview in enumerate(chunk, start=i)
-            ]
-
-            try:
-                # Wait for all tasks in the chunk to complete
-                results = await asyncio.gather(
-                    *tasks,
-                    return_exceptions=not self.run_config.parameters.stop_on_exception
-                )
-
-                # Process successful results
-                for result in (r for r in results if r is not None):
-                    yield result.result, result.interview
-
-            except Exception:
-                if self.run_config.parameters.stop_on_exception:
-                    raise
-                continue
-
-            finally:
-                # Clean up any remaining tasks
-                for task in tasks:
-                    if not task.done():
-                        task.cancel()
-
+        async with self._interview_batch_processor() as processor:
+            async for result_tuple in processor:
+                # For each result tuple in the processor
+                result, interview, idx = result_tuple
+                # Yield a new tuple to break reference to the original tuple
+                yield result, interview, idx
+                
+                # Help garbage collection by removing references
+                del result_tuple
 
 if __name__ == "__main__":
     import doctest

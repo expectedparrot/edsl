@@ -1,6 +1,67 @@
 from functools import wraps
 from threading import RLock
 import inspect
+from typing import Optional, Union, TypeVar, Callable, cast
+
+try:
+    from typing import ParamSpec
+except ImportError:
+    from typing_extensions import ParamSpec
+    
+from ..jobs.data_structures import RunEnvironment, RunParameters, RunConfig
+
+
+P = ParamSpec("P")
+T = TypeVar("T")
+
+
+def with_config(f: Callable[P, T]) -> Callable[P, T]:
+    """
+    Decorator that processes function parameters to match the RunConfig dataclass structure.
+
+    This decorator is used primarily with the run() and run_async() methods to provide
+    a consistent interface for job configuration while maintaining a clean API.
+
+    The decorator:
+    1. Extracts environment-related parameters into a RunEnvironment instance
+    2. Extracts execution-related parameters into a RunParameters instance
+    3. Combines both into a single RunConfig object
+    4. Passes this RunConfig to the decorated function as a keyword argument
+
+    Parameters:
+        f (Callable): The function to decorate, typically run() or run_async()
+
+    Returns:
+        Callable: A wrapped function that accepts all RunConfig parameters directly
+
+    Example:
+        @with_config
+        def run(self, *, config: RunConfig) -> Results:
+            # Function can now access config.parameters and config.environment
+    """
+    parameter_fields = {
+        name: field.default
+        for name, field in RunParameters.__dataclass_fields__.items()
+    }
+    environment_fields = {
+        name: field.default
+        for name, field in RunEnvironment.__dataclass_fields__.items()
+    }
+    # Combined fields dict used for reference during development
+    # combined = {**parameter_fields, **environment_fields}
+
+    @wraps(f)
+    def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
+        environment = RunEnvironment(
+            **{k: v for k, v in kwargs.items() if k in environment_fields}
+        )
+        parameters = RunParameters(
+            **{k: v for k, v in kwargs.items() if k in parameter_fields}
+        )
+        config = RunConfig(environment=environment, parameters=parameters)
+        return f(*args, config=config)
+
+    return cast(Callable[P, T], wrapper)
 
 
 def synchronized_class(wrapped_class):

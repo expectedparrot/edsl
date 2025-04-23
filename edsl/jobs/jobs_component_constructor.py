@@ -1,6 +1,6 @@
 from typing import Union, Sequence, TYPE_CHECKING
 from .exceptions import JobsValueError
-
+from ..scenarios import ScenarioList
 if TYPE_CHECKING:
     from ..agents import Agent
     from ..language_models import LanguageModel
@@ -96,7 +96,7 @@ class JobsComponentConstructor:
             >>> did_user_pass_a_sequence(1)
             False
             """
-            return len(args) == 1 and isinstance(args[0], Sequence)
+            return len(args) == 1 and (isinstance(args[0], Sequence) or isinstance(args[0], ScenarioList))
 
         if did_user_pass_a_sequence(args):
             container_class = JobsComponentConstructor._get_container_class(args[0][0])

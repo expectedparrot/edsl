@@ -7,7 +7,6 @@ instance contains two TokenBucket instances - one for requests and one for token
 """
 
 from typing import TYPE_CHECKING, Tuple
-from matplotlib.figure import Figure
 
 if TYPE_CHECKING:
     from .token_bucket import TokenBucket
@@ -147,7 +146,7 @@ class ModelBuckets:
             ),
         )
 
-    def visualize(self) -> Tuple[Figure, Figure]:
+    def visualize(self) -> Tuple["Figure", "Figure"]:
         """
         Create visualizations of token usage over time for both buckets.
         
@@ -163,6 +162,9 @@ class ModelBuckets:
             >>> ## request_plot, token_plot = buckets.visualize()
             >>> ## Now you can display or save these plots
         """
+        # Import Figure only for type checking when the function is called
+        from matplotlib.figure import Figure
+        
         plot1 = self.requests_bucket.visualize()
         plot2 = self.tokens_bucket.visualize()
         return plot1, plot2

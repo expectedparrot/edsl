@@ -30,6 +30,8 @@ class JobsInfo:
     error_report_url: str = None
     results_uuid: str = None
     results_url: str = None
+    completed_interviews: int = None
+    failed_interviews: int = None
 
     pretty_names = {
         "job_uuid": "Job UUID",
@@ -53,6 +55,8 @@ class JobLogger(ABC):
             "error_report_url",
             "results_uuid",
             "results_url",
+            "completed_interviews",
+            "failed_interviews",
         ],
         value: str,
     ):

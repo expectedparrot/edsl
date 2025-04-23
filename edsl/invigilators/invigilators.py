@@ -447,6 +447,15 @@ class InvigilatorAI(InvigilatorBase):
             answer = self._determine_answer(validated_edsl_dict["answer"])
             comment = validated_edsl_dict.get("comment", "")
             validated = True
+
+            # Update the cache entry to mark it as validated if we have a cache and a key
+            if self.cache and agent_response_dict.model_outputs.cache_key:
+                cache_key = agent_response_dict.model_outputs.cache_key
+                if cache_key in self.cache.data:
+                    # Get the entry from the cache
+                    entry = self.cache.data[cache_key]
+                    # Set the validated flag to True
+                    entry.validated = True
         except QuestionAnswerValidationError as e:
             answer = None
             comment = "The response was not valid."
