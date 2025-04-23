@@ -6,8 +6,10 @@ from ..utilities import PrettyList
 from ..config import CONFIG
 from .exceptions import LanguageModelValueError
 
+# Import only what's needed initially to avoid circular imports
 from ..inference_services import (InferenceServicesCollection, 
-                                  AvailableModels, InferenceServiceABC, InferenceServiceError, default)
+                                  AvailableModels, InferenceServiceABC, InferenceServiceError)
+# The 'default' import will be imported lazily when needed
 
 from ..enums import InferenceServiceLiteral
 
@@ -20,7 +22,10 @@ def get_model_class(
     registry: Optional[InferenceServicesCollection] = None,
     service_name: Optional[InferenceServiceLiteral] = None,
 ):
-    registry = registry or default
+    if registry is None:
+        # Import default lazily only when needed
+        from ..inference_services import default as inference_default
+        registry = inference_default
     try:
         factory = registry.create_model_factory(model_name, service_name=service_name)
         return factory
@@ -54,7 +59,9 @@ class Model(metaclass=Meta):
     def get_registry(cls) -> InferenceServicesCollection:
         """Get the current registry or initialize with default if None"""
         if cls._registry is None:
-            cls._registry = default
+            # Import default lazily only when needed
+            from ..inference_services import default as inference_default
+            cls._registry = inference_default
         return cls._registry
 
     @classmethod

@@ -10,11 +10,14 @@ share the same rate limit buckets.
 from typing import TYPE_CHECKING, Dict, List, Tuple
 from collections import UserDict
 from threading import RLock
-from matplotlib.figure import Figure
+import functools
+import inspect
+
+# Import the synchronized_class decorator directly
+from ..jobs.decorators import synchronized_class
 
 from .token_bucket import TokenBucket
 from .model_buckets import ModelBuckets
-from ..jobs.decorators import synchronized_class
 
 if TYPE_CHECKING:
     from ..language_models import LanguageModel
@@ -262,7 +265,7 @@ class BucketCollection(UserDict):
                     )
                     self.services_to_buckets[service].tokens_bucket = new_tokens_bucket
 
-    def visualize(self) -> Dict["LanguageModel", Tuple[Figure, Figure]]:
+    def visualize(self) -> Dict["LanguageModel", Tuple["Figure", "Figure"]]:
         """
         Visualize the token and request buckets for all models.
         
@@ -279,6 +282,9 @@ class BucketCollection(UserDict):
             >>> plots = bucket_collection.visualize()
             >>> # Now you can display or save these plots
         """
+        # Import Figure only for type checking when the function is called
+        from matplotlib.figure import Figure
+        
         plots = {}
         for model in self:
             plots[model] = self[model].visualize()

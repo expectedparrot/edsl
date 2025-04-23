@@ -99,8 +99,9 @@ def test_bucket_collection(create_survey):
 
     bc = jobs.run_config.environment.bucket_collection
     bucket_list = list(bc.values())
-
-    bucket_list[0].requests_bucket.bucket_type == "requests"
+    
+    assert len(bucket_list) > 0, "Bucket collection should not be empty"
+    assert bucket_list[0].requests_bucket.bucket_type == "requests"
 
 
 @pytest.mark.parametrize("fail_at_number, chained", [(6, False), (10, True)])

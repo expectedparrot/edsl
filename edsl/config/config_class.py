@@ -58,6 +58,10 @@ CONFIG_MAP = {
         "default": "True",
         "info": "This config var determines whether to fetch prices for tokens used in remote inference",
     },
+    "EDSL_LOG_DIR": {
+        "default": str(os.path.join(platformdirs.user_data_dir('edsl'), 'logs')),
+        "info": "This config var determines the directory where logs are stored.",
+    },
     "EDSL_LOG_LEVEL": {
         "default": "ERROR",
         "info": "This config var determines the logging level for the EDSL package (DEBUG, INFO, WARNING, ERROR, CRITICAL).",
@@ -89,6 +93,18 @@ CONFIG_MAP = {
     "EDSL_REMOTE_TOKEN_BUCKET_URL": {
         "default": "None",
         "info": "This config var holds the URL of the remote token bucket server.",
+    },
+    "EDSL_SQLLIST_MEMORY_THRESHOLD": {
+        "default": "10",  # Change to a very low threshold (10 bytes) to test SQLite offloading
+        "info": "This config var determines the memory threshold in bytes before SQLList offloads data to SQLite.",
+    },
+    "EDSL_SQLLIST_DB_PATH": {
+        "default": f"sqlite:///{os.path.join(platformdirs.user_cache_dir('edsl'), 'sql_list_data.db')}",
+        "info": "This config var determines the default database path for SQLList instances.",
+    },
+    "EDSL_RESULTS_MEMORY_THRESHOLD": {
+        "default": "10",  # Change to a very low threshold (10 bytes) to test SQLite offloading
+        "info": "This config var determines the memory threshold in bytes before Results' SQLList offloads data to SQLite.",
     },
 }
 

@@ -1,3 +1,9 @@
+"""
+EDSL: Experimental Design Specification Language
+
+EDSL is a Python library for conducting virtual social science experiments, surveys, 
+and interviews with large language models.
+"""
 import os
 import time
 import importlib
@@ -15,7 +21,7 @@ from edsl import logger
 # Set up logger with configuration from environment/config
 # (We'll configure the logger after CONFIG is initialized below)
 
-__all__ = ["logger"]
+__all__ = ["logger", "Config", "CONFIG", "__version__"]
 
 # Define modules to import
 modules_to_import = [
@@ -31,6 +37,7 @@ modules_to_import = [
     "coop",
     "instructions",
     "jobs",
+    "base",
     "conversation",
 ]
 

@@ -592,6 +592,111 @@ class FileStore(Scenario):
         """
         # Check if the mime type starts with 'image/'
         return self.mime_type.startswith("image/")
+        
+    def is_video(self) -> bool:
+        """
+        Check if the file is a video by examining its MIME type.
+        
+        Returns:
+            bool: True if the file is a video, False otherwise.
+            
+        Examples:
+            >>> fs = FileStore.example("mp4")
+            >>> fs.is_video()
+            True
+            >>> fs = FileStore.example("webm")
+            >>> fs.is_video()
+            True
+            >>> fs = FileStore.example("txt")
+            >>> fs.is_video()
+            False
+        """
+        # Check if the mime type starts with 'video/'
+        return self.mime_type.startswith("video/")
+        
+    def get_video_metadata(self) -> dict:
+        """
+        Get metadata about a video file such as duration, dimensions, codec, etc.
+        Uses FFmpeg to extract the information if available.
+        
+        Returns:
+            dict: A dictionary containing video metadata, or a dictionary with
+                 error information if metadata extraction fails.
+                 
+        Raises:
+            ValueError: If the file is not a video.
+            
+        Example:
+            >>> fs = FileStore.example("mp4")
+            >>> metadata = fs.get_video_metadata()
+            >>> isinstance(metadata, dict)
+            True
+        """
+        if not self.is_video():
+            raise ValueError("This file is not a video")
+            
+        # We'll try to use ffprobe (part of ffmpeg) to get metadata
+        import subprocess
+        import json
+        
+        try:
+            # Run ffprobe to get video metadata in JSON format
+            result = subprocess.run(
+                [
+                    "ffprobe", "-v", "quiet", "-print_format", "json",
+                    "-show_format", "-show_streams", self.path
+                ],
+                capture_output=True, text=True, check=True
+            )
+            
+            # Parse the JSON output
+            metadata = json.loads(result.stdout)
+            
+            # Extract some common useful fields into a more user-friendly format
+            simplified = {
+                "format": metadata.get("format", {}).get("format_name", "unknown"),
+                "duration_seconds": float(metadata.get("format", {}).get("duration", 0)),
+                "size_bytes": int(metadata.get("format", {}).get("size", 0)),
+                "bit_rate": int(metadata.get("format", {}).get("bit_rate", 0)),
+                "streams": len(metadata.get("streams", [])),
+            }
+            
+            # Add video stream info if available
+            video_streams = [s for s in metadata.get("streams", []) if s.get("codec_type") == "video"]
+            if video_streams:
+                video = video_streams[0]  # Get the first video stream
+                simplified["video"] = {
+                    "codec": video.get("codec_name", "unknown"),
+                    "width": video.get("width", 0),
+                    "height": video.get("height", 0),
+                    "frame_rate": eval(video.get("r_frame_rate", "0/1")),  # Convert "30/1" to 30.0
+                    "pixel_format": video.get("pix_fmt", "unknown"),
+                }
+            
+            # Add audio stream info if available
+            audio_streams = [s for s in metadata.get("streams", []) if s.get("codec_type") == "audio"]
+            if audio_streams:
+                audio = audio_streams[0]  # Get the first audio stream
+                simplified["audio"] = {
+                    "codec": audio.get("codec_name", "unknown"),
+                    "channels": audio.get("channels", 0),
+                    "sample_rate": audio.get("sample_rate", "unknown"),
+                }
+                
+            # Return both the complete metadata and simplified version
+            return {
+                "simplified": simplified,
+                "full": metadata
+            }
+            
+        except (subprocess.SubprocessError, FileNotFoundError, json.JSONDecodeError) as e:
+            # If ffprobe is not available or fails, return basic info
+            return {
+                "error": str(e),
+                "format": self.suffix,
+                "mime_type": self.mime_type,
+                "size_bytes": self.size,
+            }
 
     def get_image_dimensions(self) -> tuple:
         """
@@ -626,12 +731,18 @@ class FileStore(Scenario):
         """
         Delegate pandas DataFrame methods to the underlying DataFrame if this is a CSV file
         """
-        if self.suffix == "csv":
-            # Get the pandas DataFrame
-            df = self.to_pandas()
-            # Check if the requested attribute exists in the DataFrame
-            if hasattr(df, name):
-                return getattr(df, name)
+        # Special case for pickle protocol
+        if name.startswith("__") and name.endswith("__"):
+            raise AttributeError(name)
+
+        # Only try to access suffix if it's in our __dict__
+        if hasattr(self, "_data") and "suffix" in self._data:
+            if self._data["suffix"] == "csv":
+                # Get the pandas DataFrame
+                df = self.to_pandas()
+                # Check if the requested attribute exists in the DataFrame
+                if hasattr(df, name):
+                    return getattr(df, name)
         # If not a CSV or attribute doesn't exist in DataFrame, raise AttributeError
         raise AttributeError(
             f"'{self.__class__.__name__}' object has no attribute '{name}'"
