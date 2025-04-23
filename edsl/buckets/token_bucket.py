@@ -80,8 +80,8 @@ class TokenBucket:
             'local-rate-limit'
         """
         if remote_url is not None:
-            # Import here to avoid circular imports
-            from ..buckets import TokenBucketClient
+            # Import the client directly from its module to avoid circular imports
+            from .token_bucket_client import TokenBucketClient
 
             return TokenBucketClient(
                 bucket_name=bucket_name,

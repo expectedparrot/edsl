@@ -363,6 +363,23 @@ class SQLiteDict:
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}(db_path={self.db_path!r})"
+        
+    def close(self):
+        """Close database connections and clean up resources.
+        
+        This method properly disposes of the SQLAlchemy engine,
+        closing all connections in the pool to prevent memory leaks.
+        """
+        if hasattr(self, 'engine') and self.engine:
+            self.engine.dispose()
+            
+    def __del__(self):
+        """Destructor for proper resource cleanup.
+        
+        Ensures SQLAlchemy connections are properly closed when the
+        object is garbage collected.
+        """
+        self.close()
 
     @classmethod
     def example(cls) -> SQLiteDict:

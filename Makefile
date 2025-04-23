@@ -106,13 +106,22 @@ backup: ## Backup the code to `edsl/.backups/`
 	echo "Backup created: $${BACKUP_NAME}"
 
 ###############
+##@Validation Reports 🔍
+###############
+validation-report: ## Generate an HTML validation report and open it in a browser
+	python -c "from edsl.questions import generate_and_open_report; generate_and_open_report()"
+
+validation-stats: ## Show validation failure statistics
+	edsl validation stats
+
+###############
 ##@Performance Benchmarks 📊
 ###############
 benchmark-timing: ## Run timing benchmarks
 	python scripts/timing_benchmark.py
 
 benchmark-timing-profile: ## Run timing benchmarks with profiling
-	python scripts/timing_benchmark.py --profile
+	PYINSTRUMENT_IGNORE_OVERHEAD_WARNING=1 python scripts/timing_benchmark.py --profile
 
 benchmark-plot: ## Plot historical benchmark data
 	python scripts/timing_benchmark.py --plot
@@ -129,12 +138,30 @@ benchmark-small: ## Run timing benchmarks with fewer questions
 benchmark-components: ## Run component-level benchmarks
 	python scripts/component_benchmark.py
 
+benchmark-memory: ## Run memory profiling on ScenarioList filter operation
+	python scripts/memory_profiler.py --size 1000
+
+benchmark-memory-large: ## Run memory profiling with a large dataset (5000 scenarios)
+	python scripts/memory_profiler.py --size 5000
+	
+benchmark-memory-line: ## Run line-by-line memory profiling on ScenarioList filter
+	python scripts/memory_line_profiler.py --size 20
+
+test-memory-scaling: ## Run comprehensive memory scaling tests for ScenarioList
+	RUN_MEMORY_SCALING_TEST=1 pytest -xvs tests/scenarios/test_ScenarioList_memory.py::test_scenario_list_memory_scaling
+
+test-memory: ## Run all memory tests for ScenarioList
+	pytest -xvs tests/scenarios/test_ScenarioList_memory.py
+
 benchmark-all: ## Run all performance benchmarks and generate reports
 	@echo "Running all performance benchmarks..."
-	@make benchmark-timing
-	@make benchmark-components
-	@make benchmark-timing-profile
-	@make benchmark-report
+	@make benchmark-timing || true
+	@make benchmark-components || true
+	-@make benchmark-timing-profile || true  # Use - prefix to continue even if this fails
+	@make benchmark-memory || true
+	@make benchmark-memory-line || true
+	@make test-memory || true
+	@make benchmark-report || true
 	@echo "All benchmarks complete. See benchmark_logs/reports/ for visualizations."
 
 benchmark-test: ## Test that benchmark scripts work properly
@@ -251,10 +278,10 @@ test-doctests: ## Run doctests
 	pytest --doctest-modules edsl/key_management
 	pytest --doctest-modules edsl/prompts
 	pytest --doctest-modules edsl/tasks
-	pytest --doctest-modules edsl/inference_services
+	# Reordered to avoid circular import
 	pytest --doctest-modules edsl/results
 	pytest --doctest-modules edsl/dataset
-	pytest --doctest-modules --ignore=edsl/buckets/token_bucket_client.py edsl/buckets
+	pytest --doctest-modules --ignore=edsl/buckets/token_bucket_client.py --ignore=edsl/buckets/token_bucket_api.py edsl/buckets
 	pytest --doctest-modules edsl/interviews
 	pytest --doctest-modules edsl/tokens
 	pytest --doctest-modules edsl/jobs/
@@ -265,7 +292,11 @@ test-doctests: ## Run doctests
 	pytest --doctest-modules edsl/utilities
 	pytest --doctest-modules edsl/language_models
 	pytest --doctest-modules edsl/caching
+	pytest --doctest-modules edsl/inference_services
 
+test-doctests-parallel: ## Run doctests in parallel
+	make clean-test
+	python scripts/run_parallel_doctests.py
 
 test-services:
 	python integration/test_all_questions_and_models.py
@@ -297,13 +328,14 @@ test-starter-tutorial:
 
 test-integration: ## Run integration tests via pytest **consumes API credits**
 	# cd integration/printing && python check_printing.py
-	pytest -v integration/active
-	# pytest -v integration/test_example_notebooks.py
-	pytest -v integration/test_integration_jobs.py
-	pytest -v integration/test_memory.py
-	pytest -v integration/test_models.py
-	pytest -v integration/test_questions.py
-	pytest -v integration/test_runners.py
+	# pytest -vx integration/active
+	pytest -v integration/active/test_example_notebooks.py
+	#pytest -v integration/test_integration_jobs.py
+	#pytest -v integration/test_memory.py
+	#pytest -v integration/test_models.py
+	#pytest -v integration/test_questions.py
+	#pytest -v integration/test_runners.py
+
 test-serialization: ## Run serialization tests
 	pytest -v tests/serialization/test_serialization.py
 

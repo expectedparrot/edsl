@@ -52,4 +52,4 @@ def test_notebook_execution(notebook_path):
 
 
 if __name__ == "__main__":
-    pytest.main([__file__])
+    pytest.main(["-x", __file__])

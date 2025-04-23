@@ -73,9 +73,19 @@ def test_write_to_db(cache_example):
     # assert os.path.exists(CONFIG.get("EDSL_DATABASE_PATH").replace("sqlite:///", ""))
 
 
-# def test_html(cache_example):
-#     cache = cache_example
-#     assert cache._repr_html_() == cache_example._repr_html_()
+def test_html_empty_cache(cache_empty):
+    """Test that an empty cache can generate HTML representation without errors."""
+    # This should not raise an exception
+    html = cache_empty._repr_html_()
+    # Check that the HTML contains the expected text for an empty cache
+    assert "Empty cache" in html
+    
+def test_html_non_empty_cache(cache_example):
+    """Test that a non-empty cache can generate HTML representation."""
+    # This should not raise an exception
+    html = cache_example._repr_html_()
+    # Check that the HTML doesn't contain the empty cache message
+    assert "Empty cache" not in html
 
 
 def test_fetch_existing_entry(cache_example):

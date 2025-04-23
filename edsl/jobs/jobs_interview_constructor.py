@@ -50,6 +50,8 @@ class InterviewsConstructor:
                 },
             )
 
+
 if __name__ == "__main__":
+    #test_gc()
     import doctest
     doctest.testmod()

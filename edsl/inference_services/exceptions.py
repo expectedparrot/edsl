@@ -36,6 +36,17 @@ class InferenceServiceError(BaseException):
     relevant_doc = "https://docs.expectedparrot.com/en/latest/remote_inference.html"
 
 
+
+
+class InferenceServiceIntendedError(InferenceServiceError):
+    """
+    Test error - this is an error thrown on purpose to test the error handling in the framework.
+
+    """
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/language_models.html#model-parameters"
+
+
+
 class InferenceServiceValueError(InferenceServiceError):
     """
     Exception raised when invalid values are provided to inference services.
