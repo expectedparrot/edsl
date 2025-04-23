@@ -122,6 +122,11 @@ def test_serialization_coverage():
             "SQLiteFileStore",
             "RunParameters",
             "CoopObjects",
+            "CoopRegularObjects",
+            "CoopJobsObjects",
+            "QuestionMultipleChoiceWithOther"
+
+            
         ]
     )
 
