@@ -138,15 +138,12 @@ class PriceManager:
 
     def get_price_per_million_tokens(
         self,
-        inference_service: str,
-        model: str,
+        relevant_prices: Dict,
         token_type: Literal["input", "output"],
     ) -> Dict:
         """
         Get the price per million tokens for a specific service, model, and token type.
         """
-        relevant_prices = self.get_price(inference_service, model)
-
         service_price = relevant_prices[token_type]["service_stated_token_price"]
         service_qty = relevant_prices[token_type]["service_stated_token_qty"]
 
@@ -161,8 +158,7 @@ class PriceManager:
 
     def _calculate_total_cost(
         self,
-        inference_service: str,
-        model: str,
+        relevant_prices: Dict,
         input_tokens: int,
         output_tokens: int,
     ) -> float:
@@ -172,8 +168,6 @@ class PriceManager:
         Returns:
             float: Total cost
         """
-        relevant_prices = self.get_price(inference_service, model)
-
         # Extract price information
         try:
             inverse_output_price = relevant_prices["output"]["one_usd_buys"]
@@ -239,11 +233,18 @@ class PriceManager:
             )
 
         try:
+            relevant_prices = self.get_price(inference_service, model)
+        except Exception as e:
+            return ResponseCost(
+                total_cost=f"Could not fetch prices from {inference_service} - {model}: {e}",
+            )
+
+        try:
             input_price_per_million_tokens = self.get_price_per_million_tokens(
-                inference_service, model, "input"
+                relevant_prices, "input"
             )
             output_price_per_million_tokens = self.get_price_per_million_tokens(
-                inference_service, model, "output"
+                relevant_prices, "output"
             )
         except Exception as e:
             return ResponseCost(
@@ -252,7 +253,7 @@ class PriceManager:
 
         try:
             total_cost = self._calculate_total_cost(
-                inference_service, model, input_tokens, output_tokens
+                relevant_prices, input_tokens, output_tokens
             )
         except Exception as e:
             return ResponseCost(total_cost=f"{e}")

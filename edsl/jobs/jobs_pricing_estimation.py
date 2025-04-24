@@ -1,7 +1,8 @@
 import logging
 import math
 
-from typing import List, TYPE_CHECKING, Union, Literal
+from typing import List, TYPE_CHECKING, Union, Literal, Dict
+from collections import namedtuple
 
 if TYPE_CHECKING:
     from .jobs import Jobs
@@ -20,8 +21,8 @@ logger = logging.getLogger(__name__)
 
 class PromptCostEstimator:
 
-    DEFAULT_INPUT_PRICE_PER_TOKEN = 0.000001
-    DEFAULT_OUTPUT_PRICE_PER_TOKEN = 0.000001
+    DEFAULT_INPUT_PRICE_PER_MILLION_TOKENS = 1.0
+    DEFAULT_OUTPUT_PRICE_PER_MILLION_TOKENS = 1.0
     CHARS_PER_TOKEN = 4
     OUTPUT_TOKENS_PER_INPUT_TOKEN = 0.75
     PIPING_MULTIPLIER = 2
@@ -48,81 +49,90 @@ class PromptCostEstimator:
             return PromptCostEstimator.PIPING_MULTIPLIER
         return 1
 
-    @property
-    def key(self):
-        return (self.inference_service, self.model)
-
-    @property
-    def relevant_prices(self):
-        try:
-            return self.price_lookup[self.key]
-        except KeyError:
-            return {}
-
-    def _get_highest_price_for_service(self, price_type: str) -> Union[float, None]:
-        """Returns the highest price per token for a given service and price type (input/output).
+    def _get_fallback_price(self, inference_service: str) -> Dict:
+        """
+        Get fallback prices for a service.
+        - First fallback: The highest input and output prices for that service from the price lookup.
+        - Second fallback: $1.00 per million tokens (for both input and output).
 
         Args:
-            price_type: Either "input" or "output"
+            inference_service (str): The inference service name
 
         Returns:
-            float | None: The highest price per token for the service, or None if not found
+            Dict: Price information
         """
-        prices_for_service = [
-            prices[price_type]["service_stated_token_price"]
-            / prices[price_type]["service_stated_token_qty"]
+        PriceEntry = namedtuple("PriceEntry", ["tokens_per_usd", "price_info"])
+
+        service_prices = [
+            prices
             for (service, _), prices in self.price_lookup.items()
-            if service == self.inference_service and price_type in prices
+            if service == inference_service
         ]
-        return max(prices_for_service) if prices_for_service else None
 
-    def input_price_per_token(
+        default_input_price_info = {
+            "one_usd_buys": 1_000_000,
+            "service_stated_token_qty": 1_000_000,
+            "service_stated_token_price": self.DEFAULT_INPUT_PRICE_PER_MILLION_TOKENS,
+        }
+        default_output_price_info = {
+            "one_usd_buys": 1_000_000,
+            "service_stated_token_qty": 1_000_000,
+            "service_stated_token_price": self.DEFAULT_OUTPUT_PRICE_PER_MILLION_TOKENS,
+        }
+
+        # Find the most expensive price entries (lowest tokens per USD)
+        input_price_info = default_input_price_info
+        output_price_info = default_output_price_info
+
+        input_prices = [
+            PriceEntry(float(p["input"]["one_usd_buys"]), p["input"])
+            for p in service_prices
+            if "input" in p
+        ]
+        if input_prices:
+            input_price_info = min(
+                input_prices, key=lambda price: price.tokens_per_usd
+            ).price_info
+
+        output_prices = [
+            PriceEntry(float(p["output"]["one_usd_buys"]), p["output"])
+            for p in service_prices
+            if "output" in p
+        ]
+        if output_prices:
+            output_price_info = min(
+                output_prices, key=lambda price: price.tokens_per_usd
+            ).price_info
+
+        return {
+            "input": input_price_info,
+            "output": output_price_info,
+        }
+
+    def get_price(self, inference_service: str, model: str) -> Dict:
+        """Get the price information for a specific service and model."""
+        key = (inference_service, model)
+        return self.price_lookup.get(key) or self._get_fallback_price(inference_service)
+
+    def get_price_per_million_tokens(
         self,
-    ) -> tuple[float, Literal["price_lookup", "highest_price_for_service", "default"]]:
-        try:
-            return (
-                self.relevant_prices["input"]["service_stated_token_price"]
-                / self.relevant_prices["input"]["service_stated_token_qty"]
-            ), "price_lookup"
-        except KeyError:
-            highest_price = self._get_highest_price_for_service("input")
-            if highest_price is not None:
-                import warnings
+        relevant_prices: Dict,
+        token_type: Literal["input", "output"],
+    ) -> Dict:
+        """
+        Get the price per million tokens for a specific service, model, and token type.
+        """
+        service_price = relevant_prices[token_type]["service_stated_token_price"]
+        service_qty = relevant_prices[token_type]["service_stated_token_qty"]
 
-                warnings.warn(
-                    f"Price data not found for {self.key}. Using highest available input price for {self.inference_service}: ${highest_price:.6f} per token"
-                )
-                return highest_price, "highest_price_for_service"
-            import warnings
-
-            warnings.warn(
-                f"Price data not found for {self.inference_service}. Using default estimate for input token price: $1.00 / 1M tokens"
-            )
-            return self.DEFAULT_INPUT_PRICE_PER_TOKEN, "default"
-
-    def output_price_per_token(
-        self,
-    ) -> tuple[float, Literal["price_lookup", "highest_price_for_service", "default"]]:
-        try:
-            return (
-                self.relevant_prices["output"]["service_stated_token_price"]
-                / self.relevant_prices["output"]["service_stated_token_qty"]
-            ), "price_lookup"
-        except KeyError:
-            highest_price = self._get_highest_price_for_service("output")
-            if highest_price is not None:
-                import warnings
-
-                warnings.warn(
-                    f"Price data not found for {self.key}. Using highest available output price for {self.inference_service}: ${highest_price:.6f} per token"
-                )
-                return highest_price, "highest_price_for_service"
-            import warnings
-
-            warnings.warn(
-                f"Price data not found for {self.inference_service}. Using default estimate for output token price: $1.00 / 1M tokens"
-            )
-            return self.DEFAULT_OUTPUT_PRICE_PER_TOKEN, "default"
+        if service_qty == 1_000_000:
+            price_per_million_tokens = service_price
+        elif service_qty == 1_000:
+            price_per_million_tokens = service_price * 1_000
+        else:
+            price_per_token = service_price / service_qty
+            price_per_million_tokens = round(price_per_token * 1_000_000, 10)
+        return price_per_million_tokens
 
     def __call__(self):
         user_prompt_chars = len(str(self.user_prompt)) * self.get_piping_multiplier(
@@ -135,20 +145,28 @@ class PromptCostEstimator:
         input_tokens = (user_prompt_chars + system_prompt_chars) // self.CHARS_PER_TOKEN
         output_tokens = math.ceil(self.OUTPUT_TOKENS_PER_INPUT_TOKEN * input_tokens)
 
-        input_price_per_token, input_price_source = self.input_price_per_token()
-        output_price_per_token, output_price_source = self.output_price_per_token()
+        relevant_prices = self.get_price(self.inference_service, self.model)
 
-        cost = (
-            input_tokens * input_price_per_token
-            + output_tokens * output_price_per_token
+        input_price_per_million_tokens = self.get_price_per_million_tokens(
+            relevant_prices, "input"
         )
+        output_price_per_million_tokens = self.get_price_per_million_tokens(
+            relevant_prices, "output"
+        )
+
+        input_price_per_token = input_price_per_million_tokens / 1_000_000
+        output_price_per_token = output_price_per_million_tokens / 1_000_000
+
+        input_cost = input_tokens * input_price_per_token
+        output_cost = output_tokens * output_price_per_token
+        cost = input_cost + output_cost
         return {
-            "input_price_source": input_price_source,
-            "input_price_per_token": input_price_per_token,
+            "input_price_per_million_tokens": input_price_per_million_tokens,
+            "output_price_per_million_tokens": output_price_per_million_tokens,
             "input_tokens": input_tokens,
-            "output_price_source": output_price_source,
             "output_tokens": output_tokens,
-            "output_price_per_token": output_price_per_token,
+            "input_cost_usd": input_cost,
+            "output_cost_usd": output_cost,
             "cost_usd": cost,
         }
 
@@ -328,6 +346,26 @@ class JobsPrompts:
             "model": model,
         }
 
+    def process_token_type(self, item: dict, token_type: str) -> tuple:
+        """
+        Helper function to process a single token type (input or output) for price estimation.
+        """
+        price = item[f"estimated_{token_type}_price_per_million_tokens"]
+        tokens = item[f"estimated_{token_type}_tokens"]
+        cost = item[f"estimated_{token_type}_cost_usd"]
+
+        return (
+            (item["inference_service"], item["model"], token_type, price),
+            {
+                "inference_service": item["inference_service"],
+                "model": item["model"],
+                "token_type": token_type,
+                "price_per_million_tokens": price,
+                "tokens": tokens,
+                "cost_usd": cost,
+            },
+        )
+
     def estimate_job_cost_from_external_prices(
         self, price_lookup: dict, iterations: int = 1
     ) -> dict:
@@ -341,9 +379,9 @@ class JobsPrompts:
         - 1 token = 4 characters.
         - For each prompt, output tokens = input tokens * 0.75, rounded up to the nearest integer.
         """
-        interviews = self.interviews
+        # Collect all prompt data
         data = []
-        for interview in interviews:
+        for interview in self.interviews:
             invigilators = [
                 FetchInvigilator(interview)(question)
                 for question in self.survey.questions
@@ -354,59 +392,62 @@ class JobsPrompts:
                     **prompt_details, price_lookup=price_lookup
                 )
                 price_estimates = {
+                    "estimated_input_price_per_million_tokens": prompt_cost[
+                        "input_price_per_million_tokens"
+                    ],
+                    "estimated_output_price_per_million_tokens": prompt_cost[
+                        "output_price_per_million_tokens"
+                    ],
                     "estimated_input_tokens": prompt_cost["input_tokens"],
                     "estimated_output_tokens": prompt_cost["output_tokens"],
+                    "estimated_input_cost_usd": prompt_cost["input_cost_usd"],
+                    "estimated_output_cost_usd": prompt_cost["output_cost_usd"],
                     "estimated_cost_usd": prompt_cost["cost_usd"],
                 }
-                data.append({**price_estimates, **prompt_details})
+                data.append(
+                    {
+                        **prompt_details,
+                        **price_estimates,
+                    }
+                )
 
-        model_groups = {}
+        # Group by service, model, token type, and price
+        detailed_groups = {}
         for item in data:
-            key = (item["inference_service"], item["model"])
-            if key not in model_groups:
-                model_groups[key] = {
-                    "inference_service": item["inference_service"],
-                    "model": item["model"],
-                    "estimated_cost_usd": 0,
-                    "estimated_input_tokens": 0,
-                    "estimated_output_tokens": 0,
-                }
+            for token_type in ["input", "output"]:
+                key, group_data = self.process_token_type(item, token_type)
+                if key not in detailed_groups:
+                    detailed_groups[key] = group_data
+                else:
+                    detailed_groups[key]["tokens"] += group_data["tokens"]
+                    detailed_groups[key]["cost_usd"] += group_data["cost_usd"]
 
-            # Accumulate values
-            model_groups[key]["estimated_cost_usd"] += item["estimated_cost_usd"]
-            model_groups[key]["estimated_input_tokens"] += item[
-                "estimated_input_tokens"
-            ]
-            model_groups[key]["estimated_output_tokens"] += item[
-                "estimated_output_tokens"
-            ]
-
-        # Apply iterations and convert to list
-        estimated_costs_by_model = []
-        for group_data in model_groups.values():
-            group_data["estimated_cost_usd"] *= iterations
-            group_data["estimated_input_tokens"] *= iterations
-            group_data["estimated_output_tokens"] *= iterations
-            estimated_costs_by_model.append(group_data)
+        # Apply iterations and prepare final output
+        detailed_costs = []
+        for group in detailed_groups.values():
+            group["tokens"] *= iterations
+            group["cost_usd"] *= iterations
+            detailed_costs.append(group)
 
         # Calculate totals
-        estimated_total_cost = sum(
-            model["estimated_cost_usd"] for model in estimated_costs_by_model
-        )
+        estimated_total_cost = sum(group["cost_usd"] for group in detailed_costs)
         estimated_total_input_tokens = sum(
-            model["estimated_input_tokens"] for model in estimated_costs_by_model
+            group["tokens"]
+            for group in detailed_costs
+            if group["token_type"] == "input"
         )
         estimated_total_output_tokens = sum(
-            model["estimated_output_tokens"] for model in estimated_costs_by_model
+            group["tokens"]
+            for group in detailed_costs
+            if group["token_type"] == "output"
         )
 
         output = {
             "estimated_total_cost_usd": estimated_total_cost,
             "estimated_total_input_tokens": estimated_total_input_tokens,
             "estimated_total_output_tokens": estimated_total_output_tokens,
-            "model_costs": estimated_costs_by_model,
+            "detailed_costs": detailed_costs,
         }
-
         return output
 
     def estimate_job_cost(self, iterations: int = 1) -> dict:
