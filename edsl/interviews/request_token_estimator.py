@@ -124,6 +124,14 @@ class RequestTokenEstimator:
                             width, height = file.get_image_dimensions()
                             token_usage = estimate_tokens(model_name, width, height)
                             file_tokens += token_usage
+                        if file.is_video():
+                            model_name = self.interview.model.model
+                            duration = file.get_video_metadata()["simplified"][
+                                "duration_seconds"
+                            ]
+                            file_tokens += (
+                                duration * 295
+                            )  # (295 tokens per second for video + audio)
                         else:
                             file_tokens += file.size * 0.25
             else:
