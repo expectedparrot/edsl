@@ -263,13 +263,10 @@ class ServiceDefinition(DictSerializable):
                         f"Expected '{param_def.type}', got '{type(actual_value).__name__}'"
                     )
 
-    def _prepare_call(self, **kwargs: Any) -> Dict[str, Any]:
-        """Prepares the payload for the API call, serializing EDSL objects and including defaults.
+    def _prepare_parameters(self, **kwargs: Any) -> Dict[str, Any]:
+        """Prepares the dictionary of parameters for the API call, serializing EDSL objects and including defaults.
         Assumes parameters have been validated by validate_call_parameters.
         """
-        if not self._base_url:
-            raise ValueError(f"Service '{self.name}' cannot be called. Configuration missing (base_url).")
-
         # Prepare payload, serializing EDSL objects and including defaults
         call_params = {}
         edsl_registry = RegisterSubclassesMeta.get_registry() # Get the registry
@@ -298,18 +295,13 @@ class ServiceDefinition(DictSerializable):
                  # Use default value if provided parameter is missing
                  call_params[param_name] = param_def.default_value
 
-        payload = {
-            "service": self.name,
-            "params": call_params
-        }
-
-        if self._ep_api_token:
-            payload["ep_api_token"] = self._ep_api_token
-
-        return payload
+        return call_params
 
     def _make_api_call(self, payload: Dict[str, Any]) -> requests.Response:
-        """Makes the API request and returns the response object."""
+        """Makes the API request to the gateway and returns the response object."""
+        if not self._base_url:
+            raise ValueError(f"Service '{self.name}' cannot be called via the gateway. Configuration missing (base_url).")
+
         url = f"{self._base_url.rstrip('/')}/service/"
         try:
             response = requests.post(url, json=payload)
@@ -418,7 +410,7 @@ class ServiceDefinition(DictSerializable):
 
     def __call__(self, **kwargs: Any) -> Any:
         """
-        Executes the API call for this service using provided parameters.
+        Executes the API call **via the gateway** for this service using provided parameters.
         Validates parameters, prepares payload, executes the call, and deserializes the response.
 
         Args:
@@ -428,14 +420,71 @@ class ServiceDefinition(DictSerializable):
             The API response, potentially deserialized based on service definition.
 
         Raises:
-            ValueError: If validation fails (missing/incorrect params) or if internal configuration (_base_url) is not set.
+            ValueError: If validation fails (missing/incorrect params) or if internal configuration (_base_url) is not set for gateway call.
             requests.exceptions.RequestException: If the API call fails.
             json.JSONDecodeError: If the response is not valid JSON.
         """
-        self.validate_call_parameters(kwargs) # Add validation step
-        payload = self._prepare_call(**kwargs)
+        self.validate_call_parameters(kwargs)
+        prepared_params = self._prepare_parameters(**kwargs)
+
+        # Construct the payload specific to the gateway's /service/ endpoint
+        payload = {
+            "service": self.name,
+            "params": prepared_params
+        }
+        if self._ep_api_token:
+            payload["ep_api_token"] = self._ep_api_token
+
         response = self._make_api_call(payload)
         return self._deserialize_response(response)
+
+    def call_directly(self, **kwargs: Any) -> Any:
+        """
+        Executes the API call **directly** to the service's endpoint using provided parameters.
+        Validates parameters, prepares payload, constructs headers, executes the call, and deserializes the response.
+
+        Args:
+            **kwargs: Parameters for the service call.
+
+        Returns:
+            The API response, potentially deserialized based on service definition.
+
+        Raises:
+            ValueError: If validation fails (missing/incorrect params) or if the endpoint is not defined.
+            requests.exceptions.RequestException: If the API call fails.
+            json.JSONDecodeError: If the response is not valid JSON.
+        """
+        if not self.endpoint:
+            raise ValueError(f"Service '{self.name}' cannot be called directly. 'endpoint' is not defined.")
+
+        self.validate_call_parameters(kwargs)
+        prepared_params = self._prepare_parameters(**kwargs)
+
+        headers = {"Content-Type": "application/json"}
+        if self._ep_api_token:
+            headers["Authorization"] = f"Bearer {self._ep_api_token}"
+
+        url = self.endpoint
+        response = None # Initialize response to None for broader scope in error handling
+        try:
+            # Make the direct POST request
+            response = requests.post(url, json=prepared_params, headers=headers)
+            response.raise_for_status() # Raise HTTPError for bad responses (4xx or 5xx)
+            return self._deserialize_response(response)
+        except requests.exceptions.RequestException as e:
+            error_message = f"Error calling service '{self.name}' directly at {url}: {e}"
+            if response is not None:
+                error_message += f"\nResponse status: {response.status_code}"
+                try:
+                    error_message += f"\nResponse content: {response.text}"
+                except Exception:
+                    error_message += "\nResponse content could not be read."
+            print(error_message)
+            raise e # Re-raise the exception
+        except json.JSONDecodeError as e:
+            # Handle JSON decoding errors specifically from _deserialize_response
+            print(f"Error decoding JSON response from direct call to service '{self.name}' at {url}: {e}")
+            raise e # Re-raise
 
 
 if __name__ == "__main__":
