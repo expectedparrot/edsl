@@ -10,8 +10,9 @@ from .dependencies import get_http_client
 
 
 ## TODO: This should be a list of all the services.
-example_service = ServiceDefinition.example()
-services_list: List[ServiceDefinition] = [example_service]
+
+services_list: List[ServiceDefinition] = [ServiceDefinition.example(), 
+                                          ServiceDefinition.example_with_running()]
 
 # Define the ServiceRegistry class
 class ServiceRegistry(UserDict):
