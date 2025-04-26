@@ -130,6 +130,7 @@ Working with Results
 - :ref:`results`: Access built-in methods for analyzing survey results as datasets.
 - :ref:`dataset`: Work with tabular data using the versatile Dataset class.
 - :ref:`caching`: Learn about caching and sharing results.
+- :ref:`costs`: See how to estimate costs for running surveys and track actual costs for each question and model that you use.
 - :ref:`exceptions`: Identify and handle exceptions in running surveys.
 - :ref:`token_usage`: Monitor token limits and usage for language models.
 
