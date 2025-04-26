@@ -449,7 +449,7 @@ class JobsPrompts:
 
         # Calculate totals
         estimated_total_cost_usd = sum(group["cost_usd"] for group in detailed_costs)
-        estimated_total_cost_credits = sum(
+        credits_hold = sum(
             group["cost_credits"] for group in detailed_costs
         )
         estimated_total_input_tokens = sum(
@@ -465,7 +465,7 @@ class JobsPrompts:
 
         output = {
             "estimated_total_cost_usd": estimated_total_cost_usd,
-            "estimated_total_cost_credits": estimated_total_cost_credits,
+            "credits_hold": credits_hold,
             "estimated_total_input_tokens": estimated_total_input_tokens,
             "estimated_total_output_tokens": estimated_total_output_tokens,
             "detailed_costs": detailed_costs,

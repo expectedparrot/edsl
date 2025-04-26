@@ -90,7 +90,7 @@ def test_job_cost_estimation():
     cost = estimated_cost_dct["estimated_total_cost_usd"]
     assert cost == 27
 
-    cost_credits = estimated_cost_dct["estimated_total_cost_credits"]
+    cost_credits = estimated_cost_dct["credits_hold"]
     assert cost_credits == 2_700
 
 
@@ -117,7 +117,7 @@ def test_job_cost_estimation_with_iterations():
     cost = estimated_cost_dct["estimated_total_cost_usd"]
     assert cost == 54
 
-    cost_credits = estimated_cost_dct["estimated_total_cost_credits"]
+    cost_credits = estimated_cost_dct["credits_hold"]
     assert cost_credits == 5_400
 
 
@@ -143,7 +143,7 @@ def test_job_cost_estimation_with_piping():
     cost = estimated_cost_dct["estimated_total_cost_usd"]
     assert cost > 30  #  # 7 + 20 + 6 + 15
 
-    cost_credits = estimated_cost_dct["estimated_total_cost_credits"]
+    cost_credits = estimated_cost_dct["credits_hold"]
     assert cost_credits > 3_000
 
 
@@ -171,7 +171,7 @@ def test_job_cost_estimation_with_piping_and_iterations():
     cost = estimated_cost_dct["estimated_total_cost_usd"]
     assert cost > 60  # 96
 
-    cost_credits = estimated_cost_dct["estimated_total_cost_credits"]
+    cost_credits = estimated_cost_dct["credits_hold"]
     assert cost_credits > 6_000
 
 
