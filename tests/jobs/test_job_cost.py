@@ -169,30 +169,36 @@ def test_prompt_cost_estimation_with_fallback_to_highest_service_price():
             "input": {
                 "service_stated_token_qty": 1,
                 "service_stated_token_price": 1,
+                "one_usd_buys": 1,
             },
             "output": {
                 "service_stated_token_qty": 1,
                 "service_stated_token_price": 2,
+                "one_usd_buys": 0.5,
             },
         },
         ("service1", "model2"): {
             "input": {
                 "service_stated_token_qty": 1,
                 "service_stated_token_price": 3,
+                "one_usd_buys": 0.33,
             },
             "output": {
                 "service_stated_token_qty": 1,
                 "service_stated_token_price": 4,
+                "one_usd_buys": 0.25,
             },
         },
         ("service2", "model1"): {
             "input": {
                 "service_stated_token_qty": 1,
                 "service_stated_token_price": 5,
+                "one_usd_buys": 0.2,
             },
             "output": {
                 "service_stated_token_qty": 1,
                 "service_stated_token_price": 6,
+                "one_usd_buys": 0.1667,
             },
         },
     }
