@@ -254,6 +254,7 @@ Links
    notebooks/piping_comments.ipynb
    notebooks/looping_and_piping.ipynb
    notebooks/answering_instructions_example.ipynb
+   notebooks/video_scenario_example.ipynb
    notebooks/image_scenario_example.ipynb
    notebooks/analyze_customer_call.ipynb
    notebooks/updating_agents.ipynb
