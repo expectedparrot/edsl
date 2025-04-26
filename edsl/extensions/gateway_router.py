@@ -57,7 +57,13 @@ class ExternalServiceHandler:
         if self.ep_api_token:
             headers["Authorization"] = f"Bearer {self.ep_api_token}"
 
+        # Prepare the payload - REMOVED token addition here
+        payload = params.copy()
+        # REMOVED: if self.ep_api_token:
+        # REMOVED:     payload["ep_api_token"] = self.ep_api_token
+
         try:
+            # Send the original params, not the modified payload
             response = await self.http_client.post(self.endpoint_url, json=params, headers=headers)
 
             if response.status_code >= 400:

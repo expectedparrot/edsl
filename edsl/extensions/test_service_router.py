@@ -1,7 +1,8 @@
 # test_service_router.py
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Header
 from pydantic import BaseModel
 from typing import Optional, Dict, Any
+import os # Added for environment variable handling
 
 # Import Survey to create the example response
 from edsl import Survey
@@ -44,18 +45,35 @@ async def create_survey_endpoint(request_body: TestCreateSurveyRequest) -> Dict[
     return response_data 
 
 @router.post("/test_run_survey", tags=["Test Services"])
-async def run_survey_endpoint(request_body: TestRunSurveyRequest) -> Dict[str, Any]:
+async def run_survey_endpoint(
+    request_body: TestRunSurveyRequest,
+    authorization: Optional[str] = Header(None)
+) -> Dict[str, Any]:
     """
     Simulated external service endpoint for 'run_survey'.
     Receives forwarded parameters and returns a dummy success response.
+    Reads API key from the Authorization header.
     """
     print(f"--- Test Service Endpoint Received Request ---")
     print(f"Received survey data (structure): {request_body.model_dump_json(indent=2)}")
+    print(f"Received Authorization header: {authorization}")
+
+    # Extract and validate API key from header
+    ep_api_token = None
+    if authorization and authorization.startswith("Bearer "):
+        ep_api_token = authorization.split("Bearer ")[1]
+
+    if not ep_api_token:
+        raise HTTPException(status_code=401, detail="Missing or invalid Bearer token in Authorization header") # Changed to 401 Unauthorized
+    else:
+        # Set environment variable if key is present
+        print(f"Setting EXPECTED_PARROT_KEY environment variable.")
+        os.environ["EXPECTED_PARROT_KEY"] = ep_api_token
 
     # Simulate processing and return a dummy 'results' dictionary
     from edsl import Survey
     survey = Survey.from_dict(request_body.survey)
-    results = survey.run()
+    results = survey.run(disable_remote_inference = False)
     response_data = {
         "results": results.to_dict()
         }
