@@ -1,4 +1,5 @@
 """Module for creating Invigilators, which are objects to administer a question to an Agent."""
+
 from abc import ABC, abstractmethod
 import asyncio
 from typing import Coroutine, Dict, Any, Optional, TYPE_CHECKING
@@ -395,17 +396,21 @@ class InvigilatorAI(InvigilatorBase):
 
         if agent_response_dict.model_outputs.cache_used and False:
             data = {
-                "answer": agent_response_dict.edsl_dict.answer
-                if type(agent_response_dict.edsl_dict.answer) is str
-                or type(agent_response_dict.edsl_dict.answer) is dict
-                or type(agent_response_dict.edsl_dict.answer) is list
-                or type(agent_response_dict.edsl_dict.answer) is int
-                or type(agent_response_dict.edsl_dict.answer) is float
-                or type(agent_response_dict.edsl_dict.answer) is bool
-                else "",
-                "comment": agent_response_dict.edsl_dict.comment
-                if agent_response_dict.edsl_dict.comment
-                else "",
+                "answer": (
+                    agent_response_dict.edsl_dict.answer
+                    if type(agent_response_dict.edsl_dict.answer) is str
+                    or type(agent_response_dict.edsl_dict.answer) is dict
+                    or type(agent_response_dict.edsl_dict.answer) is list
+                    or type(agent_response_dict.edsl_dict.answer) is int
+                    or type(agent_response_dict.edsl_dict.answer) is float
+                    or type(agent_response_dict.edsl_dict.answer) is bool
+                    else ""
+                ),
+                "comment": (
+                    agent_response_dict.edsl_dict.comment
+                    if agent_response_dict.edsl_dict.comment
+                    else ""
+                ),
                 "generated_tokens": agent_response_dict.edsl_dict.generated_tokens,
                 "question_name": self.question.question_name,
                 "prompts": self.get_prompts(),
@@ -415,7 +420,11 @@ class InvigilatorAI(InvigilatorBase):
                 "cache_key": agent_response_dict.model_outputs.cache_key,
                 "validated": True,
                 "exception_occurred": exception_occurred,
-                "cost": agent_response_dict.model_outputs.cost,
+                "input_tokens": agent_response_dict.model_outputs.input_tokens,
+                "output_tokens": agent_response_dict.model_outputs.output_tokens,
+                "input_price_per_million_tokens": agent_response_dict.model_outputs.input_price_per_million_tokens,
+                "output_price_per_million_tokens": agent_response_dict.model_outputs.output_price_per_million_tokens,
+                "total_cost": agent_response_dict.model_outputs.total_cost,
             }
 
             result = EDSLResultObjectInput(**data)
@@ -480,7 +489,11 @@ class InvigilatorAI(InvigilatorBase):
                 "cache_key": agent_response_dict.model_outputs.cache_key,
                 "validated": validated,
                 "exception_occurred": exception_occurred,
-                "cost": agent_response_dict.model_outputs.cost,
+                "input_tokens": agent_response_dict.model_outputs.input_tokens,
+                "output_tokens": agent_response_dict.model_outputs.output_tokens,
+                "input_price_per_million_tokens": agent_response_dict.model_outputs.input_price_per_million_tokens,
+                "output_price_per_million_tokens": agent_response_dict.model_outputs.output_price_per_million_tokens,
+                "total_cost": agent_response_dict.model_outputs.total_cost,
             }
             result = EDSLResultObjectInput(**data)
             return result

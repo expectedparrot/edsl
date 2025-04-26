@@ -1,4 +1,22 @@
-from typing import Dict, Tuple, Union
+from dataclasses import dataclass
+from typing import Dict, Literal, Tuple, Union
+from collections import namedtuple
+
+
+@dataclass
+class ResponseCost:
+    """
+    Class for storing the cost and token usage of a language model response.
+
+    If an error occurs when computing the cost, the total_cost will contain a string with the error message.
+    All other fields will be None.
+    """
+
+    input_tokens: Union[int, None] = None
+    output_tokens: Union[int, None] = None
+    input_price_per_million_tokens: Union[float, None] = None
+    output_price_per_million_tokens: Union[float, None] = None
+    total_cost: Union[float, str, None] = None
 
 
 class PriceManager:
@@ -64,27 +82,126 @@ class PriceManager:
         return self._price_lookup.copy()
 
     def _get_fallback_price(self, inference_service: str) -> Dict:
-        """Get fallback prices for a service."""
+        """
+        Get fallback prices for a service.
+        - First fallback: The highest input and output prices for that service from the price lookup.
+        - Second fallback: $1.00 per million tokens (for both input and output).
+
+        Args:
+            inference_service (str): The inference service name
+
+        Returns:
+            Dict: Price information
+        """
+        PriceEntry = namedtuple("PriceEntry", ["tokens_per_usd", "price_info"])
+
         service_prices = [
             prices
             for (service, _), prices in self._price_lookup.items()
             if service == inference_service
         ]
 
-        input_tokens_per_usd = [
-            float(p["input"]["one_usd_buys"]) for p in service_prices if "input" in p
-        ]
-        min_input_tokens = min(input_tokens_per_usd, default=1_000_000)
+        default_price_info = {
+            "one_usd_buys": 1_000_000,
+            "service_stated_token_qty": 1_000_000,
+            "service_stated_token_price": 1.0,
+        }
 
-        output_tokens_per_usd = [
-            float(p["output"]["one_usd_buys"]) for p in service_prices if "output" in p
+        # Find the most expensive price entries (lowest tokens per USD)
+        input_price_info = default_price_info
+        output_price_info = default_price_info
+
+        input_prices = [
+            PriceEntry(float(p["input"]["one_usd_buys"]), p["input"])
+            for p in service_prices
+            if "input" in p
         ]
-        min_output_tokens = min(output_tokens_per_usd, default=1_000_000)
+        if input_prices:
+            input_price_info = min(
+                input_prices, key=lambda price: price.tokens_per_usd
+            ).price_info
+
+        output_prices = [
+            PriceEntry(float(p["output"]["one_usd_buys"]), p["output"])
+            for p in service_prices
+            if "output" in p
+        ]
+        if output_prices:
+            output_price_info = min(
+                output_prices, key=lambda price: price.tokens_per_usd
+            ).price_info
 
         return {
-            "input": {"one_usd_buys": min_input_tokens},
-            "output": {"one_usd_buys": min_output_tokens},
+            "input": input_price_info,
+            "output": output_price_info,
         }
+
+    def get_price_per_million_tokens(
+        self,
+        relevant_prices: Dict,
+        token_type: Literal["input", "output"],
+    ) -> Dict:
+        """
+        Get the price per million tokens for a specific service, model, and token type.
+        """
+        service_price = relevant_prices[token_type]["service_stated_token_price"]
+        service_qty = relevant_prices[token_type]["service_stated_token_qty"]
+
+        if service_qty == 1_000_000:
+            price_per_million_tokens = service_price
+        elif service_qty == 1_000:
+            price_per_million_tokens = service_price * 1_000
+        else:
+            price_per_token = service_price / service_qty
+            price_per_million_tokens = round(price_per_token * 1_000_000, 10)
+        return price_per_million_tokens
+
+    def _calculate_total_cost(
+        self,
+        relevant_prices: Dict,
+        input_tokens: int,
+        output_tokens: int,
+    ) -> float:
+        """
+        Calculate the total cost for a model usage based on input and output tokens.
+
+        Returns:
+            float: Total cost
+        """
+        # Extract price information
+        try:
+            inverse_output_price = relevant_prices["output"]["one_usd_buys"]
+            inverse_input_price = relevant_prices["input"]["one_usd_buys"]
+        except Exception as e:
+            if "output" not in relevant_prices:
+                raise KeyError(
+                    f"Could not fetch prices from {relevant_prices} - {e}; Missing 'output' key."
+                )
+            if "input" not in relevant_prices:
+                raise KeyError(
+                    f"Could not fetch prices from {relevant_prices} - {e}; Missing 'input' key."
+                )
+            raise Exception(f"Could not fetch prices from {relevant_prices} - {e}")
+
+        # Calculate input cost
+        if inverse_input_price == "infinity":
+            input_cost = 0
+        else:
+            try:
+                input_cost = input_tokens / float(inverse_input_price)
+            except Exception as e:
+                raise Exception(f"Could not compute input price - {e}")
+
+        # Calculate output cost
+        if inverse_output_price == "infinity":
+            output_cost = 0
+        else:
+            try:
+                output_cost = output_tokens / float(inverse_output_price)
+            except Exception as e:
+                raise Exception(f"Could not compute output price - {e}")
+
+        return input_cost + output_cost
 
     def calculate_cost(
         self,
@@ -93,43 +210,61 @@ class PriceManager:
         usage: Dict[str, Union[str, int]],
         input_token_name: str,
         output_token_name: str,
-    ) -> Union[float, str]:
-        """Calculate the total cost for a model usage."""
-        relevant_prices = self.get_price(inference_service, model)
+    ) -> ResponseCost:
+        """
+        Calculate the cost and token usage for a model response.
 
-        # Extract token counts
+        Args:
+            inference_service (str): The inference service identifier
+            model (str): The model identifier
+            usage (Dict[str, Union[str, int]]): Dictionary containing token usage information
+            input_token_name (str): Key name for input tokens in the usage dict
+            output_token_name (str): Key name for output tokens in the usage dict
+
+        Returns:
+            ResponseCost: Object containing token counts and total cost
+        """
         try:
             input_tokens = int(usage[input_token_name])
             output_tokens = int(usage[output_token_name])
         except Exception as e:
-            return f"Could not fetch tokens from model response: {e}"
+            return ResponseCost(
+                total_cost=f"Could not fetch tokens from model response: {e}",
+            )
 
-        # Extract price information
         try:
-            inverse_output_price = relevant_prices["output"]["one_usd_buys"]
-            inverse_input_price = relevant_prices["input"]["one_usd_buys"]
+            relevant_prices = self.get_price(inference_service, model)
         except Exception as e:
-            if "output" not in relevant_prices:
-                return f"Could not fetch prices from {relevant_prices} - {e}; Missing 'output' key."
-            if "input" not in relevant_prices:
-                return f"Could not fetch prices from {relevant_prices} - {e}; Missing 'input' key."
-            return f"Could not fetch prices from {relevant_prices} - {e}"
+            return ResponseCost(
+                total_cost=f"Could not fetch prices from {inference_service} - {model}: {e}",
+            )
 
-        # Calculate input cost
-        input_cost = (
-            0
-            if inverse_input_price == "infinity"
-            else input_tokens / float(inverse_input_price)
+        try:
+            input_price_per_million_tokens = self.get_price_per_million_tokens(
+                relevant_prices, "input"
+            )
+            output_price_per_million_tokens = self.get_price_per_million_tokens(
+                relevant_prices, "output"
+            )
+        except Exception as e:
+            return ResponseCost(
+                total_cost=f"Could not compute price per million tokens: {e}",
+            )
+
+        try:
+            total_cost = self._calculate_total_cost(
+                relevant_prices, input_tokens, output_tokens
+            )
+        except Exception as e:
+            return ResponseCost(total_cost=f"{e}")
+
+        return ResponseCost(
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            input_price_per_million_tokens=input_price_per_million_tokens,
+            output_price_per_million_tokens=output_price_per_million_tokens,
+            total_cost=total_cost,
         )
-
-        # Calculate output cost
-        output_cost = (
-            0
-            if inverse_output_price == "infinity"
-            else output_tokens / float(inverse_output_price)
-        )
-
-        return input_cost + output_cost
 
     @property
     def is_initialized(self) -> bool:

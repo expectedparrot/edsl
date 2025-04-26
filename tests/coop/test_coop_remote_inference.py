@@ -23,7 +23,8 @@ def test_coop_remote_inference_cost():
     coop = Coop(api_key="b")
     job = Jobs.example()
     cost = coop.remote_inference_cost(job)
-    assert cost == {"credits": 0.77, "usd": 0.007670000000000002}
+    assert cost["credits"] == 0.77
+    assert cost["usd"] == pytest.approx(0.00767)
     survey = Survey(
         questions=[
             QuestionMultipleChoice.example(),
@@ -35,15 +36,18 @@ def test_coop_remote_inference_cost():
     models = [Model("gpt-4o")]
     job = survey.by(models)
     cost = coop.remote_inference_cost(job)
-    assert cost == {"credits": 0.17, "usd": 0.0016225000000000002}
+    assert cost["credits"] == 0.17
+    assert cost["usd"] == pytest.approx(0.0016225)
     survey = Survey(
         questions=[
             QuestionMultipleChoice.example(),
         ]
     )
     cost = coop.remote_inference_cost(survey)
-    assert cost == {"credits": 0.04, "usd": 0.00038500000000000003}
+    assert cost["credits"] == 0.04
+    assert cost["usd"] == pytest.approx(0.000385)
     from edsl.coop.exceptions import CoopTypeError
+
     with pytest.raises(CoopTypeError):
         # Not valid input - we raise CoopTypeError from EDSL
         agent = Agent.example()
