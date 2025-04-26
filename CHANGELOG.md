@@ -7,13 +7,15 @@
 - Question type `QuestionMultipleChoice` now takes an optional parameter `enumeration_style` that allows you to specify "numeric" (default) or "letter" options (["A", "B", "C", "D"]). This parameter can also be passed to new question type `QuestionMultipleChoiceWithOther`.
 
 
-## [0.1.56] - TBD
+## [0.1.56] - 2025-04-26
 ### Added
-- Video file handlers: `Scenario` objects can now be videos (MP4 and WebM).  
+- Video file handlers: `Scenario` objects can now be videos (MP4 and WebM). Example: https://www.expectedparrot.com/content/RobinHorton/video-scenarios-notebook
 
-- `Results` objects now include separate fields for input tokens, output tokens, input tokens cost, output tokens cost and total cost for each `Result`. This information is also available in the `raw_model_response` fields. 
+- `Results` objects now include separate fields for input tokens, output tokens, input tokens cost, output tokens cost and total cost for each `Result`. These fields all have the `raw_model_response` prefix. 
 
 - `Jobs` method `estimate_job_cost()` now also includes estimated input tokens, output tokens, input tokens cost, output tokens cost and total cost for each model.
+
+- New documentation page on estimating and tracking costs: https://docs.expectedparrot.com/en/latest/costs.html
 
 
 ## [0.1.55] - 2025-04-23
