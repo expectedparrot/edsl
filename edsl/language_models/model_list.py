@@ -151,6 +151,16 @@ class ModelList(Base, UserList):
         """
 
         return cls([Model.example(randomize) for _ in range(3)])
+    
+    @classmethod
+    def all(cls) -> "ModelList":
+        """
+        Returns all available models.
+        """
+        model_list = ModelList()
+        for model_name, service_name in Model.available():
+            model_list.append(Model(model_name, service_name=service_name))
+        return model_list
 
 
 if __name__ == "__main__":
