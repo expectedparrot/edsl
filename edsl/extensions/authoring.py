@@ -196,6 +196,33 @@ class ServiceDefinition(DictSerializable):
         data = yaml.safe_load(yaml_data)
         return cls.from_dict(data)
 
+    @classmethod
+    def example_with_running(cls) -> 'ServiceDefinition':
+        """Returns an example instance of a service for running a survey."""
+        return cls(
+            name="run_survey",
+            description="runs a survey",
+            parameters={
+                "survey": ParameterDefinition(
+                    type="Survey", # Assuming Survey is a known type or will be registered
+                    required=True,
+                    description="The EDSL survey object to run"
+                )
+            },
+            cost=CostDefinition(
+                unit="ep_credits",
+                per_call_cost=50, # Example cost
+                uses_client_ep_key=True # Assuming running a survey needs API key
+            ),
+            service_returns={
+                'results': ReturnDefinition( # Example return
+                    type="dict",
+                    description="A dictionary containing the survey results"
+                )
+            },
+            endpoint="http://localhost:8000/test_run_survey" # Example endpoint
+        )
+
     def validate_call_parameters(self, params: Dict[str, Any]):
         """Validates that all required parameters are present and of the correct type for a call.
 
@@ -237,27 +264,38 @@ class ServiceDefinition(DictSerializable):
                     )
 
     def _prepare_call(self, **kwargs: Any) -> Dict[str, Any]:
-        """Validates parameters and prepares the payload for the API call."""
+        """Prepares the payload for the API call, serializing EDSL objects and including defaults.
+        Assumes parameters have been validated by validate_call_parameters.
+        """
         if not self._base_url:
             raise ValueError(f"Service '{self.name}' cannot be called. Configuration missing (base_url).")
 
-        # Validate parameter types and presence using the new method
-        # Note: _prepare_call primarily focuses on building the payload now,
-        # assuming validation might happen earlier or separately if needed.
-        # We'll keep the simple missing check here for direct calls via __call__
-        missing_params = []
-        for param_name, param_def in self.parameters.items():
-            if param_def.required and param_name not in kwargs and param_def.default_value is MISSING:
-                missing_params.append(param_name)
-        if missing_params:
-            raise ValueError(f"Missing required parameters for service '{self.name}': {', '.join(missing_params)}")
-
-        # Prepare payload, including defaults if not provided
+        # Prepare payload, serializing EDSL objects and including defaults
         call_params = {}
+        edsl_registry = RegisterSubclassesMeta.get_registry() # Get the registry
+
         for param_name, param_def in self.parameters.items():
             if param_name in kwargs:
-                call_params[param_name] = kwargs[param_name]
+                value = kwargs[param_name]
+                expected_type_str = param_def.type
+
+                # Check if the expected type is a registered EDSL type
+                if expected_type_str in edsl_registry:
+                    target_cls = edsl_registry[expected_type_str]
+                    # Check if the provided value is an instance of this EDSL type
+                    # and has a 'to_dict' method. Validation should have already ensured type match.
+                    if isinstance(value, target_cls) and hasattr(value, 'to_dict'):
+                        call_params[param_name] = value.to_dict() # Serialize
+                    else:
+                        # This case *shouldn't* happen if validate_call_parameters was called first
+                        # and the registry/type definitions are consistent.
+                        # Passing as-is might be risky. Assuming validation covers mismatches.
+                        call_params[param_name] = value
+                else:
+                    # Not an EDSL type, pass as-is
+                    call_params[param_name] = value
             elif param_def.default_value is not MISSING:
+                 # Use default value if provided parameter is missing
                  call_params[param_name] = param_def.default_value
 
         payload = {
@@ -381,7 +419,7 @@ class ServiceDefinition(DictSerializable):
     def __call__(self, **kwargs: Any) -> Any:
         """
         Executes the API call for this service using provided parameters.
-        Orchestrates preparation, execution, and deserialization.
+        Validates parameters, prepares payload, executes the call, and deserializes the response.
 
         Args:
             **kwargs: Parameters for the service call.
@@ -390,10 +428,11 @@ class ServiceDefinition(DictSerializable):
             The API response, potentially deserialized based on service definition.
 
         Raises:
-            ValueError: If required parameters are missing or if internal configuration (_base_url) is not set.
+            ValueError: If validation fails (missing/incorrect params) or if internal configuration (_base_url) is not set.
             requests.exceptions.RequestException: If the API call fails.
             json.JSONDecodeError: If the response is not valid JSON.
         """
+        self.validate_call_parameters(kwargs) # Add validation step
         payload = self._prepare_call(**kwargs)
         response = self._make_api_call(payload)
         return self._deserialize_response(response)

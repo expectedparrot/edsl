@@ -13,6 +13,12 @@ class TestCreateSurveyRequest(BaseModel):
     population: str
     num_questions: Optional[int] = 10 # Match default from ServiceDefinition
 
+# Define the expected input model for the test run service
+# based on ServiceDefinition.example_with_running()
+# We'll accept a dictionary for the survey for simplicity in the test endpoint
+class TestRunSurveyRequest(BaseModel):
+    survey: Dict[str, Any] # Represents the serialized Survey object
+
 # Create the router
 router = APIRouter()
 
@@ -35,4 +41,26 @@ async def create_survey_endpoint(request_body: TestCreateSurveyRequest) -> Dict[
     print(f"--- Test Service Endpoint Sending Response ---")
     print(f"Response data: {response_data}")
     
+    return response_data 
+
+@router.post("/test_run_survey", tags=["Test Services"])
+async def run_survey_endpoint(request_body: TestRunSurveyRequest) -> Dict[str, Any]:
+    """
+    Simulated external service endpoint for 'run_survey'.
+    Receives forwarded parameters and returns a dummy success response.
+    """
+    print(f"--- Test Service Endpoint Received Request ---")
+    print(f"Received survey data (structure): {request_body.model_dump_json(indent=2)}")
+
+    # Simulate processing and return a dummy 'results' dictionary
+    from edsl import Survey
+    survey = Survey.from_dict(request_body.survey)
+    results = survey.run()
+    response_data = {
+        "results": results.to_dict()
+        }
+
+    print(f"--- Test Service Endpoint Sending Response ---")
+    print(f"Response data: {response_data}")
+
     return response_data 
