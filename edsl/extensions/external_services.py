@@ -2,15 +2,19 @@ import requests
 import json
 import os
 from edsl import Survey
-from typing import Optional, List, Dict, Any, Callable, Type, Tuple # Added Type, Tuple
-from collections import UserDict # Added UserDict
-from .authoring import ServiceDefinition # Import ServiceDefinition
+from typing import Optional, List, Dict, Any, Callable, Type, Tuple
+from collections import UserDict
+from .authoring import ServiceDefinition
+# Import loaders from the new module
+from .service_loaders import ServiceLoader, APIServiceLoader, GithubYamlLoader
 
 # Attempt to import Survey, but make it optional
 try:
     from edsl import Survey
 except ImportError:
     Survey = None
+
+# --- Service Display Function ---
 
 def default_services_display_func(services: List[ServiceDefinition]) -> None:
     """Default function to display a list of services (name and description)."""
@@ -24,63 +28,96 @@ def default_services_display_func(services: List[ServiceDefinition]) -> None:
             # print(f"Error displaying service '{getattr(service, "name", "Unknown")}': {e}")
             pass
 
+
 class ExternalServices(UserDict):
     """
     Client for interacting with the EDSL external services API gateway.
     Acts as a dictionary where keys are service names and values are callable functions
     that execute the corresponding service API call.
 
-    Service configurations are fetched lazily upon first access to a service or listing.
+    Service configurations are loaded lazily using a configured ServiceLoader.
     Implemented as a singleton to ensure configurations are fetched only once.
     """
     _instance = None
     _initialized = False
     _fetched = False # Track if services have been fetched
+    _loader: Optional[ServiceLoader] = None # Store the loader instance
 
     def __new__(cls, *args, **kwargs):
         if cls._instance is None:
             cls._instance = super(ExternalServices, cls).__new__(cls)
         return cls._instance
 
-    def __init__(self, base_url: Optional[str] = None, ep_api_token: Optional[str] = None):
+    def __init__(self,
+                 loader: Optional[ServiceLoader] = None,
+                 base_url: Optional[str] = None, # Keep for API loader default and fallback
+                 ep_api_token: Optional[str] = None):
         """
         Initializes the ExternalServices client singleton.
-        Subsequent calls will return the existing instance without re-initializing
-        unless base_url or ep_api_token is provided and differs.
 
         Args:
-            base_url (str, optional): The base URL of the API gateway. Required on first init.
-            ep_api_token (str, optional): The Expected Parrot API token.
+            loader (ServiceLoader, optional): The loader instance to use for fetching service definitions.
+                                              If None, defaults to APIServiceLoader using base_url.
+            base_url (str, optional): The base URL for the API gateway. Required if loader is None or is APIServiceLoader
+                                      and wasn't initialized with a URL. Also used to configure services.
+            ep_api_token (str, optional): The Expected Parrot API token. Used to configure services.
         """
         # Prevent re-initialization if already done with compatible settings
         if self._initialized:
             update_needed = False
-            if base_url is not None and base_url != self.base_url:
+            # Check if loader type/config changed OR base_url/token changed
+            if loader and loader != self._loader: # Check if loader instance itself changed
+                 update_needed = True
+            elif base_url is not None and base_url != getattr(self, 'base_url', None): # Use getattr for safety
                 update_needed = True
-            if ep_api_token is not None and ep_api_token != self.ep_api_token:
-                 update_needed = True # Corrected logic to check if token differs
-            
+            elif ep_api_token is not None and ep_api_token != getattr(self, 'ep_api_token', None):
+                update_needed = True
+
             if not update_needed:
-                return # No changes needed
+                 print("ExternalServices already initialized with compatible configuration.")
+                 return # No changes needed
             else:
                 # If config changes, we need to refetch services
                 self._fetched = False
                 self.data.clear() # Clear old prepared services
-                print("ExternalServices re-initialized with new configuration. Services will be re-fetched.")
+                print("ExternalServices configuration changed. Services will be re-fetched.")
 
-        if base_url is None and not hasattr(self, 'base_url'):
-            raise ValueError("base_url must be provided on first initialization.")
+        # Determine the loader
+        if loader:
+             self._loader = loader
+        elif base_url:
+             # Default to APIServiceLoader if no loader provided but base_url is
+             self._loader = APIServiceLoader(base_url=base_url)
+             print(f"No loader provided, defaulting to APIServiceLoader with base_url: {base_url}")
+        elif hasattr(self, '_loader') and self._loader:
+             # Keep existing loader if no new one is provided and base_url isn't changing it
+             pass
+        else:
+             # This case should ideally not be hit if initialized properly before
+             raise ValueError("A ServiceLoader instance or base_url (for default API loader) must be provided.")
 
         # Initialize UserDict
         super().__init__()
 
+        # Store base_url and token for configuring ServiceDefinition objects later
         # Update config only if new values are provided or it's the first init
+        # Important: These are stored on ExternalServices, not necessarily tied to the loader's source URL
         if base_url is not None:
             self.base_url = base_url.rstrip('/')
+        elif not hasattr(self, 'base_url'):
+             # Try to infer from loader if it's API based and URL is missing
+             if isinstance(self._loader, APIServiceLoader):
+                 self.base_url = self._loader.base_url # Use loader's URL as the service base URL
+             else:
+                 # Cannot infer base_url, needed for service calls even with other loaders
+                 raise ValueError("base_url must be provided, even when using non-API loaders, to configure service calls.")
+
+
         if ep_api_token is not None:
             self.ep_api_token = ep_api_token
         elif not hasattr(self, 'ep_api_token'):
-            self.ep_api_token = None
+            self.ep_api_token = None # Default to None if not provided and not set
+
 
         # Don't fetch here; fetch lazily on first access or list
         self._initialized = True
@@ -92,40 +129,50 @@ class ExternalServices(UserDict):
             self._fetched = True
 
     def _fetch_and_prepare_services(self) -> None:
-        """Internal method to fetch service configurations, prepare callables, and store them."""
-        url = f"{self.base_url}/services"
-        print(f"Fetching service configurations from {url}...") # Notify user
-        try:
-            response = requests.get(url)
-            response.raise_for_status()
-            data = response.json()
-            services_list = data.get("services", [])
-
-            if not services_list:
-                 print("Warning: No services found at the specified endpoint.")
-
-            # Populate the dictionary with ServiceDefinition objects
-            for service_data in services_list:
-                try:
-                    service_def = ServiceDefinition.from_dict(service_data)
-                    # Set internal config on the definition object
-                    service_def._base_url = self.base_url
-                    service_def._ep_api_token = self.ep_api_token
-                    # Store the configured ServiceDefinition object
-                    self.data[service_def.name] = service_def
-                except Exception as e:
-                    print(f"Error processing service definition for '{service_data.get('name', 'Unknown')}': {e}")
-                    # print(f"Service data: {service_data}") # Optional: for debugging
-
-        except requests.exceptions.RequestException as e:
-            print(f"Error fetching service configurations: {e}. Services will be unavailable.")
-            # Ensure data is clear if fetch fails
-            self.data.clear()
-        except json.JSONDecodeError as e:
-             print(f"Error decoding JSON response from {url}: {e}. Services will be unavailable.")
+        """Internal method to fetch service configurations using the loader, prepare callables, and store them."""
+        if not self._loader:
+             print("Error: No service loader configured. Cannot fetch services.")
              self.data.clear()
+             return
 
-    def __getitem__(self, key: str) -> Callable[..., Any]:
+        print(f"Using loader: {type(self._loader).__name__}")
+        services_data_list = self._loader.load_services() # Use the loader
+
+        # Clear existing data before loading new definitions
+        self.data.clear()
+
+        if not services_data_list:
+             print("Warning: Loader returned no service definitions.")
+             return # _fetched remains False if loading failed/returned empty
+
+        # Populate the dictionary with ServiceDefinition objects
+        for service_data in services_data_list:
+            if not isinstance(service_data, dict):
+                 print(f"Warning: Skipping invalid service data item (not a dictionary): {service_data}")
+                 continue
+            try:
+                service_def = ServiceDefinition.from_dict(service_data)
+                # Set internal config on the definition object using ExternalServices config
+                # IMPORTANT: Use the base_url and token stored in ExternalServices,
+                #            regardless of the loader type, as this determines where the calls go.
+                service_def._base_url = getattr(self, 'base_url', None) # Use stored base_url
+                service_def._ep_api_token = getattr(self, 'ep_api_token', None) # Use stored token
+
+                if not service_def._base_url:
+                     print(f"Warning: No base_url configured in ExternalServices. Service '{service_def.name}' may not be callable.")
+
+                # Store the configured ServiceDefinition object
+                self.data[service_def.name] = service_def
+            except Exception as e:
+                print(f"Error processing service definition for '{service_data.get('name', 'Unknown')}': {e}")
+                # print(f"Service data: {service_data}") # Optional: for debugging
+
+        # If loading succeeded (even if zero services were defined), mark as fetched.
+        self._fetched = True
+        print(f"Finished processing {len(self.data)} service definitions.")
+
+
+    def __getitem__(self, key: str) -> ServiceDefinition: # Return type is ServiceDefinition
         """Accesses a ServiceDefinition object by name, which is callable."""
         self._ensure_services_fetched() # Fetch on first access
         try:
@@ -159,65 +206,100 @@ class ExternalServices(UserDict):
             except Exception as e:
                  print(f"Error in services_display_func: {e}") # Log error
 
-# Configuration at the bottom remains largely the same
-API_BASE_URL = os.getenv("EDSL_API_URL", "http://localhost:8000") # Use env var with fallback
-EP_API_TOKEN = os.getenv("EXPECTED_PARROT_API_KEY")
+# --- Configuration and Instantiation ---
 
-# Instantiate the client (gets the singleton instance)
-# Provide config on first instantiation or if changes are needed
+# Configuration: Choose your loader here!
+
+# Option 1: API Loader (Original Behavior)
+# API_BASE_URL = os.getenv("EDSL_API_URL", "http://localhost:8000") # Use env var with fallback
+# EP_API_TOKEN = os.getenv("EXPECTED_PARROT_API_KEY")
+# api_loader = APIServiceLoader(base_url=API_BASE_URL)
+# extensions = ExternalServices(loader=api_loader, base_url=API_BASE_URL, ep_api_token=EP_API_TOKEN)
+
+# Option 2: GitHub YAML Loader (Example)
+# GITHUB_TOKEN = os.getenv("GITHUB_TOKEN") # Optional: for private repos or rate limits
+# REPO_OWNER = "expectedparrot"
+# REPO_NAME = "edsl"
+# DIRECTORY_PATH = "extensions/services" # Example path - ADJUST AS NEEDED
+# # You still need a base_url for the actual service calls, even if definitions come from GitHub
+# SERVICE_EXECUTION_BASE_URL = os.getenv("EDSL_API_URL", "http://localhost:8000") # Where the services *run*
+# 
+# github_loader = GithubYamlLoader(
+#      repo_owner=REPO_OWNER,
+#      repo_name=REPO_NAME,
+#      directory_path=DIRECTORY_PATH,
+#      github_token=GITHUB_TOKEN
+# )
+# extensions = ExternalServices(loader=github_loader, base_url=SERVICE_EXECUTION_BASE_URL, ep_api_token=EP_API_TOKEN)
+
+# Option 3: Default to API Loader via base_url (requires base_url to be set)
+API_BASE_URL = os.getenv("EDSL_API_URL", "http://localhost:8000")
+EP_API_TOKEN = os.getenv("EXPECTED_PARROT_API_KEY")
 extensions = ExternalServices(base_url=API_BASE_URL, ep_api_token=EP_API_TOKEN)
-     
+
 
 if __name__ == "__main__":
     # Instantiate the client using the global 'extensions' instance
-    service_client = extensions 
-    
+    # The configuration above determines which loader is used
+    service_client = extensions
+
     # List available services (triggers config fetch AND displays them)
-    print("Listing available services:")
+    print("\nListing available services:")
     service_client.list()
     print("--- End of service listing ---")
-    
-    # Example usage: Call the generate_survey_external service using dict access
-    print("\n=== Calling 'generate_survey_external' Service ===")
-    overall_question = "What is the parrot situation in Aruba?"
-    population = "Residents of Aruba"
 
-    try:
-        # Access the callable ServiceDefinition object
-        generate_survey_service = service_client["generate_survey_external"]
-        # Call the object directly with parameters
-        survey_response = generate_survey_service(
-            overall_question=overall_question,
-            population=population
-        )
+    # Example usage: Call a service (assuming one is defined, e.g., 'generate_survey_external')
+    # This part remains the same, relying on the __getitem__ access
+    if "generate_survey_external" in service_client:
+         print("\n=== Calling 'generate_survey_external' Service ===")
+         overall_question = "What is the parrot situation in Aruba?"
+         population = "Residents of Aruba"
 
-        # Check the response type
-        if survey_response:
-            print("\nService call successful!")
-            if isinstance(survey_response, Survey):
-                 print("Response deserialized into Survey object:")
-                 print(survey_response) # Relies on Survey.__str__ or __repr__
-            elif isinstance(survey_response, dict):
-                print("Response received as dictionary:")
-                print(json.dumps(survey_response, indent=2))
+         try:
+            # Access the callable ServiceDefinition object
+            generate_survey_service = service_client["generate_survey_external"]
+            # Call the object directly with parameters
+            survey_response = generate_survey_service(
+                overall_question=overall_question,
+                population=population
+            )
+
+            # Check the response type (same logic as before)
+            if survey_response:
+                print("\nService call successful!")
+                if isinstance(survey_response, Survey):
+                    print("Response deserialized into Survey object:")
+                    print(survey_response) # Relies on Survey.__str__ or __repr__
+                elif isinstance(survey_response, dict):
+                    print("Response received as dictionary:")
+                    print(json.dumps(survey_response, indent=2))
+                else:
+                    print("Response received (unknown type):")
+                    print(survey_response)
+
             else:
-                 print("Response received (unknown type):")
-                 print(survey_response)
-            
-            # Example check if it returned a dict (like the simulator)
-            if isinstance(survey_response, dict) and survey_response.get("survey_id") == "simulated_survey_123":
-                 print("\nSuccessfully received expected response from the simulator.")
+                print("\nService call returned None or empty response.")
 
-        else:
-            print("\nService call returned None or empty response.")
+         except KeyError as e: # Should not happen if check above passes, but good practice
+            print(f"\nError: {e}")
+         except requests.exceptions.RequestException as e:
+            print(f"\nAPI Request Error: {e}") # Catch request errors from __call__
+         except ValueError as e:
+             print(f"\nError: Invalid parameters provided - {e}")
+         except Exception as e:
+            print(f"\nAn unexpected error occurred during service call: {e}")
+    else:
+         print("\n'generate_survey_external' service not found with the current loader configuration.")
 
-    except KeyError as e:
-        print(f"\nError: {e}")
-    except requests.exceptions.RequestException as e:
-        print(f"\nAPI Request Error: {e}") # Catch request errors from __call__
-    except ValueError as e:
-         print(f"\nError: Invalid parameters provided - {e}")
-    except Exception as e:
-        print(f"\nAn unexpected error occurred during service call: {e}")
+    # Example: Demonstrate fetching a different service if available
+    if "another_service_example" in service_client:
+         print("\n=== Calling 'another_service_example' Service ===")
+         try:
+            # Assuming 'another_service_example' takes 'input_text'
+            another_service = service_client["another_service_example"]
+            result = another_service(input_text="Hello from EDSL!")
+            print("Result from 'another_service_example':", result)
+         except Exception as e:
+            print(f"Error calling 'another_service_example': {e}")
 
 
