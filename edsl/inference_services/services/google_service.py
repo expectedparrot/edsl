@@ -7,11 +7,13 @@ from google.api_core.exceptions import InvalidArgument
 
 # from ...exceptions.general import MissingAPIKeyError
 from ..inference_service_abc import InferenceServiceABC
+
 # Use TYPE_CHECKING to avoid circular imports at runtime
 if TYPE_CHECKING:
     from ...language_models import LanguageModel
     from ....scenarios.file_store import FileStore as Files
-#from ...coop import Coop
+# from ...coop import Coop
+import asyncio
 
 safety_settings = [
     {
@@ -61,7 +63,7 @@ class GoogleService(InferenceServiceABC):
     @classmethod
     def create_model(
         cls, model_name: str = "gemini-pro", model_class_name=None
-    ) -> 'LanguageModel':
+    ) -> "LanguageModel":
         if model_class_name is None:
             model_class_name = cls.to_class_name(model_name)
 
@@ -138,6 +140,7 @@ class GoogleService(InferenceServiceABC):
                     gen_ai_file = google.generativeai.types.file_types.File(
                         file.external_locations["google"]
                     )
+
                     combined_prompt.append(gen_ai_file)
 
                 try:
