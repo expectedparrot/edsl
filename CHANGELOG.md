@@ -1,12 +1,19 @@
 # Changelog
 
-## [0.1.56] - TBD
+## [0.1.57] - TBD
 ### Added
-- New video file handlers: `Scenario` objects can be videos (MP4 and WebM).  
-
 - New question type `QuestionMultipleChoiceWithOther` automatically includes "Other" in the `question_options` and corresponding modified default instructions.
 
 - Question type `QuestionMultipleChoice` now takes an optional parameter `enumeration_style` that allows you to specify "numeric" (default) or "letter" options (["A", "B", "C", "D"]). This parameter can also be passed to new question type `QuestionMultipleChoiceWithOther`.
+
+
+## [0.1.56] - TBD
+### Added
+- Video file handlers: `Scenario` objects can now be videos (MP4 and WebM).  
+
+- `Results` objects now include separate fields for input tokens, output tokens, input tokens cost, output tokens cost and total cost for each `Result`. This information is also available in the `raw_model_response` fields. 
+
+- `Jobs` method `estimate_job_cost()` now also includes estimated input tokens, output tokens, input tokens cost, output tokens cost and total cost for each model.
 
 
 ## [0.1.55] - 2025-04-23
