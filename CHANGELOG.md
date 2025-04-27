@@ -13,7 +13,7 @@
 
 - `Results` objects now include separate fields for input tokens, output tokens, input tokens cost, output tokens cost and total cost for each `Result`. These fields all have the `raw_model_response` prefix. 
 
-- `Jobs` method `estimate_job_cost()` now also includes estimated input tokens, output tokens, input tokens cost, output tokens cost and total cost for each model.
+- `Jobs` method `estimate_job_cost()` now also includes estimated input tokens, output tokens, input tokens cost, output tokens cost and total cost for each model, and credits to be placed on hold while the job is running.
 
 - New documentation page on estimating and tracking costs: https://docs.expectedparrot.com/en/latest/costs.html
 
