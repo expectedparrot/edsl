@@ -1256,13 +1256,13 @@ class Coop(CoopFunctionsMixin):
         self, input: Union["Jobs", "Survey"], iterations: int = 1
     ) -> int:
         """
-        Get the cost of a remote inference job.
+        Get the estimated cost in credits of a remote inference job.
 
         :param input: The EDSL job to send to the server.
 
         >>> job = Jobs.example()
         >>> coop.remote_inference_cost(input=job)
-        {'credits': 0.77, 'usd': 0.0076950000000000005}
+        {'credits_hold': 0.77, 'usd': 0.0076950000000000005}
         """
         from ..jobs import Jobs
         from ..surveys import Survey
@@ -1290,7 +1290,7 @@ class Coop(CoopFunctionsMixin):
         self._resolve_server_response(response)
         response_json = response.json()
         return {
-            "credits": response_json.get("cost_in_credits"),
+            "credits_hold": response_json.get("cost_in_credits"),
             "usd": response_json.get("cost_in_usd"),
         }
 
