@@ -239,6 +239,7 @@ Links
    :hidden:
 
    coop
+   costs
    credits
    filestore
    notebooks
