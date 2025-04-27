@@ -2045,6 +2045,15 @@ pygments==2.19.1 ; python_full_version >= "3.9.1" and python_version < "3.13" \
 pylint==3.3.6 ; python_full_version >= "3.9.1" and python_version < "3.13" \
     --hash=sha256:8b7c2d3e86ae3f94fb27703d521dd0b9b6b378775991f504d7c3a6275aa0a6a6 \
     --hash=sha256:b634a041aac33706d56a0d217e6587228c66427e20ec21a019bc4cdee48c040a
+pymupdf==1.25.5 ; python_full_version >= "3.9.1" and python_version < "3.13" \
+    --hash=sha256:5a35e2725fae0ab57f058dff77615c15eb5961eac50ba04f41ebc792cd8facad \
+    --hash=sha256:5f96311cacd13254c905f6654a004a0a2025b71cabc04fda667f5472f72c15a0 \
+    --hash=sha256:65e18ddb37fe8ec4edcdbebe9be3a8486b6a2f42609d0a142677e42f3a0614f8 \
+    --hash=sha256:6ed7fc25271004d6d3279c20a80cb2bb4cda3efa9f9088dcc07cd790eca0bc63 \
+    --hash=sha256:7f44bc3d03ea45b2f68c96464f96105e8c7908896f2fb5e8c04f1fb8dae7981e \
+    --hash=sha256:cde4e1c9cfb09c0e1e9c2b7f4b787dd6bb34a32cfe141a4675e24af7c0c25dd3 \
+    --hash=sha256:d94b800e9501929c42283d39bc241001dd87fdeea297b5cb40d5b5714534452f \
+    --hash=sha256:ee22155d3a634642d76553204867d862ae1bdd9f7cf70c0797d8127ebee6bed5
 pyparsing==3.2.3 ; python_full_version >= "3.9.1" and python_version < "3.13" \
     --hash=sha256:a749938e02d6fd0b59b356ca504a24982314bb090c383e3cf201c95ef7e2bfcf \
     --hash=sha256:b9c13f1ab8b3b542f72e28f634bad4de758ab3ce4546e4301970ad6fa77c38be
