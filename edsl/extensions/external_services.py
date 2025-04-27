@@ -9,10 +9,7 @@ from .authoring import ServiceDefinition
 from .service_loaders import ServiceLoader, APIServiceLoader, GithubYamlLoader
 
 # Attempt to import Survey, but make it optional
-try:
-    from edsl import Survey
-except ImportError:
-    Survey = None
+from edsl import Survey
 
 # --- Service Display Function ---
 
@@ -51,7 +48,8 @@ class ExternalServices(UserDict):
     def __init__(self,
                  loader: Optional[ServiceLoader] = None,
                  base_url: Optional[str] = None, # Keep for API loader default and fallback
-                 ep_api_token: Optional[str] = None):
+                 ep_api_token: Optional[str] = None, 
+                 loader: Optional[ServiceLoader] = None):
         """
         Initializes the ExternalServices client singleton.
 
@@ -85,16 +83,19 @@ class ExternalServices(UserDict):
         # Determine the loader
         if loader:
              self._loader = loader
-        elif base_url:
-             # Default to APIServiceLoader if no loader provided but base_url is
-             self._loader = APIServiceLoader(base_url=base_url)
-             print(f"No loader provided, defaulting to APIServiceLoader with base_url: {base_url}")
-        elif hasattr(self, '_loader') and self._loader:
-             # Keep existing loader if no new one is provided and base_url isn't changing it
-             pass
         else:
-             # This case should ideally not be hit if initialized properly before
-             raise ValueError("A ServiceLoader instance or base_url (for default API loader) must be provided.")
+            self._loader = GithubYamlLoader()
+            
+        # elif base_url:
+        #      # Default to APIServiceLoader if no loader provided but base_url is
+        #      self._loader = GithubYamlLoader()
+        #      print(f"No loader provided, defaulting to APIServiceLoader with base_url: {base_url}")
+        # elif hasattr(self, '_loader') and self._loader:
+        #      # Keep existing loader if no new one is provided and base_url isn't changing it
+        #      pass
+        # else:
+        #      # This case should ideally not be hit if initialized properly before
+        #      raise ValueError("A ServiceLoader instance or base_url (for default API loader) must be provided.")
 
         # Initialize UserDict
         super().__init__()
