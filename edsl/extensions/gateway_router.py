@@ -5,14 +5,46 @@ import httpx
 import traceback
 from collections import UserDict
 
-from .authoring import ServiceDefinition
+from .authoring import ServiceDefinition, ParameterDefinition, CostDefinition, ReturnDefinition
 from .dependencies import get_http_client
 
 
 ## TODO: This should be a list of all the services.
 
-services_list: List[ServiceDefinition] = [ServiceDefinition.example(), 
-                                          ServiceDefinition.example_with_running()]
+autostudy = ServiceDefinition(
+    name = 'create_survey',
+    description = 'Generate a survey automatically from an overall research question and target population.',
+    parameters = {
+        'overall_question': ParameterDefinition(
+            type='str',
+            required=True,
+            description='The main research question the survey aims to address'
+            ),
+        'population': ParameterDefinition(
+            type='str',
+            required=True,
+            description='Description of the target population for the survey'
+            ),
+     },
+     cost=CostDefinition(
+        unit="ep_credits",
+        per_call_cost=100,
+        uses_client_ep_key=True # Assuming it requires API key
+     ),
+    service_returns={
+        'survey': ReturnDefinition(
+            type="Survey", # Assuming it returns an EDSL Survey object
+            coopr_url=True, # Assuming it returns a Coopr URL
+            description="An EDSL survey object"
+        )
+    },
+    endpoint = 'http://localhost:8001/create_survey' 
+)
+
+services_list: List[ServiceDefinition] = [
+    #ServiceDefinition.example(), 
+    #                                      ServiceDefinition.example_with_running(),
+                                          autostudy] # Added autostudy to the list
 
 # Define the ServiceRegistry class
 class ServiceRegistry(UserDict):
@@ -64,6 +96,7 @@ class ExternalServiceHandler:
 
         try:
             # Send the original params, not the modified payload
+            print(f"Sending request to {self.endpoint_url} with params: {params}")
             response = await self.http_client.post(self.endpoint_url, json=params, headers=headers)
 
             if response.status_code >= 400:
@@ -77,6 +110,8 @@ class ExternalServiceHandler:
 
         except httpx.RequestError as e:
             print(f"External service request failed for {self.service_def.name} at {self.endpoint_url}: {e}")
+            print(f"Error details: {e}")
+
             raise HTTPException(status_code=503, detail=f"Error connecting to external service '{self.service_def.name}': {str(e)}")
         except Exception as e:
             print(f"Error processing external service response for {self.service_def.name}: {e}")
