@@ -48,8 +48,7 @@ class ExternalServices(UserDict):
     def __init__(self,
                  loader: Optional[ServiceLoader] = None,
                  base_url: Optional[str] = None, # Keep for API loader default and fallback
-                 ep_api_token: Optional[str] = None, 
-                 loader: Optional[ServiceLoader] = None):
+                 ep_api_token: Optional[str] = None):
         """
         Initializes the ExternalServices client singleton.
 
@@ -86,16 +85,6 @@ class ExternalServices(UserDict):
         else:
             self._loader = GithubYamlLoader()
             
-        # elif base_url:
-        #      # Default to APIServiceLoader if no loader provided but base_url is
-        #      self._loader = GithubYamlLoader()
-        #      print(f"No loader provided, defaulting to APIServiceLoader with base_url: {base_url}")
-        # elif hasattr(self, '_loader') and self._loader:
-        #      # Keep existing loader if no new one is provided and base_url isn't changing it
-        #      pass
-        # else:
-        #      # This case should ideally not be hit if initialized properly before
-        #      raise ValueError("A ServiceLoader instance or base_url (for default API loader) must be provided.")
 
         # Initialize UserDict
         super().__init__()
@@ -206,32 +195,6 @@ class ExternalServices(UserDict):
                 services_display_func(service_definitions)
             except Exception as e:
                  print(f"Error in services_display_func: {e}") # Log error
-
-# --- Configuration and Instantiation ---
-
-# Configuration: Choose your loader here!
-
-# Option 1: API Loader (Original Behavior)
-# API_BASE_URL = os.getenv("EDSL_API_URL", "http://localhost:8000") # Use env var with fallback
-# EP_API_TOKEN = os.getenv("EXPECTED_PARROT_API_KEY")
-# api_loader = APIServiceLoader(base_url=API_BASE_URL)
-# extensions = ExternalServices(loader=api_loader, base_url=API_BASE_URL, ep_api_token=EP_API_TOKEN)
-
-# Option 2: GitHub YAML Loader (Example)
-# GITHUB_TOKEN = os.getenv("GITHUB_TOKEN") # Optional: for private repos or rate limits
-# REPO_OWNER = "expectedparrot"
-# REPO_NAME = "edsl"
-# DIRECTORY_PATH = "extensions/services" # Example path - ADJUST AS NEEDED
-# # You still need a base_url for the actual service calls, even if definitions come from GitHub
-# SERVICE_EXECUTION_BASE_URL = os.getenv("EDSL_API_URL", "http://localhost:8000") # Where the services *run*
-# 
-# github_loader = GithubYamlLoader(
-#      repo_owner=REPO_OWNER,
-#      repo_name=REPO_NAME,
-#      directory_path=DIRECTORY_PATH,
-#      github_token=GITHUB_TOKEN
-# )
-# extensions = ExternalServices(loader=github_loader, base_url=SERVICE_EXECUTION_BASE_URL, ep_api_token=EP_API_TOKEN)
 
 # Option 3: Default to API Loader via base_url (requires base_url to be set)
 API_BASE_URL = os.getenv("EDSL_API_URL", "http://localhost:8000")
