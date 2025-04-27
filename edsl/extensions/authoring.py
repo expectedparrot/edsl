@@ -1,12 +1,12 @@
 from abc import ABC
 from dataclasses import dataclass, field, asdict, fields, MISSING
-from typing import Optional, Dict, Any, TypeVar, Type, Callable
+from typing import Optional, Dict, Any, TypeVar, Type, Callable, List
 import yaml  # Import the yaml library
 import requests # Added for __call__
 #import doctest
+from pydantic import create_model, Field, BaseModel
 
 import json
-import requests
 
 from edsl import Survey # Assume Survey is always available
 from edsl.base import RegisterSubclassesMeta
@@ -486,6 +486,133 @@ class ServiceDefinition(DictSerializable):
             print(f"Error decoding JSON response from direct call to service '{self.name}' at {url}: {e}")
             raise e # Re-raise
 
+    def validate_service_output(self, output_data: Dict[str, Any]):
+        """
+        Validates the structure and types of the service output dictionary against the 'service_returns' definition.
+
+        Args:
+            output_data: The dictionary returned by the service implementation.
+
+        Raises:
+            ValueError: If a required return key is missing.
+            TypeError: If the type of a returned value does not match the expected type.
+        """
+        if not isinstance(output_data, dict):
+             raise TypeError(f"Service output must be a dictionary, but got {type(output_data).__name__}.")
+
+        edsl_registry = RegisterSubclassesMeta.get_registry()
+        TYPE_MAP = {
+            "str": str, "string": str,
+            "int": int, "integer": int,
+            "float": float, "number": float,
+            "bool": bool, "boolean": bool,
+            "list": list, "array": list,
+            "dict": dict, "object": dict,
+            # Add other basic types if necessary
+        }
+
+        for return_key, return_def in self.service_returns.items():
+            # Check if the key exists in the output
+            if return_key not in output_data:
+                raise ValueError(f"Missing expected return key in service output: '{return_key}'")
+
+            actual_value = output_data[return_key]
+            expected_type_str = return_def.type
+
+            # Type Validation
+            expected_python_type = TYPE_MAP.get(expected_type_str.lower())
+
+            if expected_type_str in edsl_registry:
+                # For EDSL objects defined in returns, we expect a dictionary representation
+                if not isinstance(actual_value, dict):
+                    raise TypeError(
+                        f"Type mismatch for return key '{return_key}'. "
+                        f"Expected a dictionary representation of EDSL type '{expected_type_str}', "
+                        f"but got type '{type(actual_value).__name__}'."
+                    )
+                # Optional: Could add deeper validation by attempting from_dict, but risks complexity.
+                # try:
+                #     target_cls = edsl_registry[expected_type_str]
+                #     target_cls.from_dict(actual_value) # Try deserialization
+                # except Exception as e:
+                #     raise TypeError(f"Type mismatch for return key '{return_key}'. Value {actual_value} "
+                #                     f"is not a valid dictionary representation for EDSL type '{expected_type_str}'. Error: {e}")
+
+            elif expected_python_type:
+                # Basic Python types
+                # Special case: allow int for float/number
+                if expected_python_type in (float,) and isinstance(actual_value, int):
+                    pass # Allow int where float/number is expected
+                elif not isinstance(actual_value, expected_python_type):
+                    raise TypeError(
+                        f"Type mismatch for return key '{return_key}'. "
+                        f"Expected type '{expected_type_str}' (mapped to {expected_python_type.__name__}), "
+                        f"but got type '{type(actual_value).__name__}'."
+                    )
+            else:
+                # Type not found in basic map or EDSL registry - treat as Any/pass validation for now
+                # Or raise an error if strict validation is required for all defined types.
+                print(f"Warning: Unknown type '{expected_type_str}' for return key '{return_key}'. Skipping type validation.")
+
+    def get_pydantic_model(self) -> Type[BaseModel]:
+        """Dynamically creates a Pydantic model for the service parameters."""
+        fields_definitions = {}
+        edsl_registry = RegisterSubclassesMeta.get_registry()
+
+        TYPE_MAP = {
+            "str": str,
+            "string": str,
+            "int": int,
+            "integer": int,
+            "float": float,
+            "number": float,
+            "bool": bool,
+            "boolean": bool,
+            "list": List[Any],
+            "array": List[Any],
+            "dict": Dict[str, Any],
+            "object": Dict[str, Any],
+        }
+
+        for param_name, param_def in self.parameters.items():
+            type_str = param_def.type
+            python_type = TYPE_MAP.get(type_str.lower())
+
+            # If not a basic type, check if it's a known EDSL type (expect dict)
+            if python_type is None and type_str in edsl_registry:
+                python_type = Dict[str, Any] # Expect serialized dict for EDSL objects
+            elif python_type is None:
+                python_type = Any # Default to Any if type is unknown
+
+            default_value = param_def.default_value
+            description = param_def.description
+
+            if default_value is not MISSING:
+                # Parameter has a default value
+                field_definition = Field(default=default_value, description=description)
+                type_annotation = python_type
+            else:
+                # Parameter does not have a default value
+                if param_def.required:
+                    # Required parameter
+                    field_definition = Field(description=description)
+                    type_annotation = python_type
+                else:
+                    # Optional parameter (required=False, no default)
+                    field_definition = Field(default=None, description=description)
+                    type_annotation = Optional[python_type]
+
+            fields_definitions[param_name] = (type_annotation, field_definition)
+
+        # Create a suitable model name
+        model_name = f"{self.name.replace('_', ' ').title().replace(' ', '')}Parameters"
+        # Dynamically create the Pydantic model
+        pydantic_model = create_model(
+            model_name,
+            **fields_definitions,
+            __base__=BaseModel
+        )
+        return pydantic_model
 
 if __name__ == "__main__":
     import doctest
@@ -497,3 +624,51 @@ if __name__ == "__main__":
     # Optional: exit with non-zero status if tests fail
     #if results.failed > 0:
     #    exit(1)
+
+
+from fastapi import HTTPException
+
+def extract_bearer_token(authorization: str | None) -> str:
+    if authorization and authorization.startswith("Bearer "):
+        return authorization.removeprefix("Bearer ").strip()
+    raise HTTPException(401, "Missing or invalid Bearer token")
+
+
+from fastapi import APIRouter, Header, HTTPException
+from typing import Callable, Optional, Any, Dict
+
+def register_service(
+    router: APIRouter,
+    service_name: str,
+    service_def,
+) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+    """
+    Usage:
+        @register_service(router, "create_survey", extensions["create_survey"])
+        async def create_survey_logic(overall_question, population, ep_api_token):
+            ...
+    """
+    request_model  = service_def.get_request_model()
+    response_model = service_def.get_response_model()  # optional but nice
+
+    def decorator(fn: Callable[..., Any]):
+        route_path = f"/{service_name}"
+
+        @router.post(route_path, response_model=response_model)   # type: ignore[arg-type]
+        async def _endpoint(
+            request_body: request_model,                        # type: ignore[arg-type]
+            authorization: Optional[str] = Header(None),
+        ) -> Dict[str, Any]:
+            token = extract_bearer_token(authorization)
+            # Forward each field of the request body as a positional argument
+            # -- or use **request_body.model_dump() as kwargs, if preferred.
+            result = await fn(*request_body.model_dump().values(), ep_api_token=token)
+
+            # Plug into your standard output validator
+            service_def.validate_service_output(result)
+            return result
+
+        _endpoint.__name__ = f"{service_name}_endpoint"   # keeps FastAPI happy
+        return _endpoint
+
+    return decorator
