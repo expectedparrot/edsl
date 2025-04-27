@@ -8,10 +8,22 @@ from pydantic import create_model, Field, BaseModel
 
 import json
 
-from edsl import Survey # Assume Survey is always available
-from edsl.base import RegisterSubclassesMeta
+from ..surveys import Survey # Assume Survey is always available
+from ..base import RegisterSubclassesMeta
+
+from .exceptions import (
+    ExtensionError,
+    ServiceConnectionError,
+    ServiceResponseError,
+    ServiceConfigurationError,
+    ServiceParameterValidationError,
+    ServiceDeserializationError,
+    ServiceOutputValidationError
+)
 
 T = TypeVar('T', bound='DictSerializable')
+
+# Removed Exception Classes (moved to exceptions.py)
 
 class DictSerializable(ABC):
     """Abstract base class for dataclasses that can be converted to/from dictionaries."""
@@ -227,12 +239,12 @@ class ServiceDefinition(DictSerializable):
         """Validates that all required parameters are present and of the correct type for a call.
 
         Raises:
-            ValueError: If validation fails (missing required param or type mismatch).
+            ServiceParameterValidationError: If validation fails (missing required param or type mismatch).
         """
         for param_name, param_def in self.parameters.items():
             # Check for missing required parameters (only if no default is defined)
             if param_def.required and param_name not in params and param_def.default_value is MISSING:
-                 raise ValueError(f"Missing required parameter: {param_name}")
+                 raise ServiceParameterValidationError(f"Missing required parameter: {param_name}")
 
             # Check type if parameter is provided
             if param_name in params:
@@ -258,7 +270,7 @@ class ServiceDefinition(DictSerializable):
                 # Add more complex type checks if needed (e.g., for custom EDSL objects)
 
                 if type_mismatch:
-                    raise ValueError(
+                    raise ServiceParameterValidationError(
                         f"Parameter '{param_name}' has incorrect type. "
                         f"Expected '{param_def.type}', got '{type(actual_value).__name__}'"
                     )
@@ -300,30 +312,47 @@ class ServiceDefinition(DictSerializable):
     def _make_api_call(self, payload: Dict[str, Any]) -> requests.Response:
         """Makes the API request to the gateway and returns the response object."""
         if not self._base_url:
-            raise ValueError(f"Service '{self.name}' cannot be called via the gateway. Configuration missing (base_url).")
+            # Raise ServiceConfigurationError for missing base_url
+            raise ServiceConfigurationError(f"Service '{self.name}' cannot be called via the gateway. Configuration missing (base_url).")
 
         url = f"{self._base_url.rstrip('/')}/service/"
+        response = None # Initialize response to None
         try:
             response = requests.post(url, json=payload)
-            response.raise_for_status()
+            response.raise_for_status() # Raises HTTPError for 4xx/5xx
             return response
+        except requests.exceptions.HTTPError as e:
+            # Raise ServiceResponseError for bad status codes
+            error_message = f"Error calling service '{self.name}' at {url}. Server returned status {e.response.status_code}."
+            try:
+                error_message += f" Response: {e.response.text}"
+            except Exception:
+                error_message += " Response content could not be read."
+            print(error_message) # Keep print for logging, but raise specific error
+            raise ServiceResponseError(error_message) from e
+        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
+            # Raise ServiceConnectionError for connection issues
+            error_message = f"Error connecting to service '{self.name}' at {url}: {e}"
+            print(error_message)
+            raise ServiceConnectionError(error_message) from e
         except requests.exceptions.RequestException as e:
-            error_message = f"Error calling service '{self.name}' at {url}: {e}"
-            if response is not None:
-                error_message += f"\nResponse status: {response.status_code}"
+            # Catch other potential request errors (e.g., invalid URL, too many redirects)
+            error_message = f"Error during request for service '{self.name}' at {url}: {e}"
+            if response is not None: # This part might be less relevant now if HTTPError is caught first
+                error_message += f"\nResponse status (potentially before error): {response.status_code}"
                 try:
                     error_message += f"\nResponse content: {response.text}"
                 except Exception:
                     error_message += "\nResponse content could not be read."
             print(error_message)
-            raise e # Re-raise the exception
+            # Use ServiceConnectionError as a general category for request issues
+            raise ServiceConnectionError(error_message) from e
 
     def _deserialize_single_value(self, return_key: str, return_def: ReturnDefinition, response_data: Dict[str, Any]) -> Any:
         """Deserializes a single value from the response data based on its definition."""
         raw_value = response_data.get(return_key)
         if raw_value is None:
-            print(f"Warning: Expected return key '{return_key}' not found in response for service '{self.name}'. Returning None.")
-            return None
+            raise ServiceDeserializationError(f"Expected return key '{return_key}' not found in response for service '{self.name}'.")
 
         return_type_str = return_def.type
         edsl_registry = RegisterSubclassesMeta.get_registry()
@@ -332,31 +361,30 @@ class ServiceDefinition(DictSerializable):
         if return_type_str in edsl_registry:
             target_cls = edsl_registry[return_type_str]
             try:
+                # Ensure raw_value is a dict for from_dict
+                if not isinstance(raw_value, dict):
+                     raise ServiceDeserializationError(f"Expected dict for EDSL type '{return_type_str}' key '{return_key}', got {type(raw_value).__name__}.")
                 return target_cls.from_dict(raw_value)
             except Exception as e:
-                print(f"Warning: Failed to deserialize response key '{return_key}' into {target_cls.__name__} for service '{self.name}'. Returning raw data. Error: {e}")
-                print(f"Raw value for '{return_key}': {raw_value}")
-                return raw_value
+                msg = f"Failed to deserialize response key '{return_key}' into {target_cls.__name__} for service '{self.name}'. Error: {e}"
+                raise ServiceDeserializationError(msg) from e
         # Check standard Python types
-        elif return_type_str == 'str':
+        elif return_type_str in ('str', 'string'):
             try:
                 return str(raw_value)
-            except ValueError:
-                print(f"Warning: Could not convert value for key '{return_key}' to str. Returning raw value.")
-                return raw_value
-        elif return_type_str == 'int':
+            except ValueError as e:
+                raise ServiceDeserializationError(f"Could not convert value for key '{return_key}' to str.") from e
+        elif return_type_str in ('int', 'integer'):
             try:
                 return int(raw_value)
-            except ValueError:
-                print(f"Warning: Could not convert value for key '{return_key}' to int. Returning raw value.")
-                return raw_value
-        elif return_type_str == 'float':
+            except (ValueError, TypeError) as e:
+                raise ServiceDeserializationError(f"Could not convert value for key '{return_key}' to int.") from e
+        elif return_type_str in ('float', 'number'):
             try:
                 return float(raw_value)
-            except ValueError:
-                print(f"Warning: Could not convert value for key '{return_key}' to float. Returning raw value.")
-                return raw_value
-        elif return_type_str == 'bool':
+            except (ValueError, TypeError) as e:
+                raise ServiceDeserializationError(f"Could not convert value for key '{return_key}' to float.") from e
+        elif return_type_str in ('bool', 'boolean'):
             # Handle potential string representations of bool
             if isinstance(raw_value, str):
                 if raw_value.lower() == 'true':
@@ -365,50 +393,63 @@ class ServiceDefinition(DictSerializable):
                     return False
             try:
                 return bool(raw_value)
-            except ValueError:
-                print(f"Warning: Could not convert value for key '{return_key}' to bool. Returning raw value.")
-                return raw_value
-        elif return_type_str == 'list':
+            except ValueError as e:
+                raise ServiceDeserializationError(f"Could not convert value for key '{return_key}' to bool.") from e
+        elif return_type_str in ('list', 'array'):
              try:
+                # Ensure it's actually list-like, basic check
+                if not isinstance(raw_value, list):
+                    raise TypeError # Caught below
                 return list(raw_value)
-             except TypeError:
-                print(f"Warning: Could not convert value for key '{return_key}' to list. Returning raw value.")
-                return raw_value
-        elif return_type_str == 'dict':
+             except TypeError as e:
+                raise ServiceDeserializationError(f"Could not convert value for key '{return_key}' to list.") from e
+        elif return_type_str in ('dict', 'object'):
              try:
+                 # Ensure it's actually dict-like, basic check
+                if not isinstance(raw_value, dict):
+                    raise TypeError # Caught below
                 return dict(raw_value)
-             except (TypeError, ValueError):
-                print(f"Warning: Could not convert value for key '{return_key}' to dict. Returning raw value.")
-                return raw_value
+             except (TypeError, ValueError) as e:
+                raise ServiceDeserializationError(f"Could not convert value for key '{return_key}' to dict.") from e
         else:
-            # Type not recognized
-            print(f"Warning: Unrecognized return type '{return_type_str}' for key '{return_key}' in service '{self.name}'. Returning raw value.")
-            return raw_value
+            # Type not recognized - raise an error instead of returning raw value
+            raise ServiceDeserializationError(f"Unrecognized return type '{return_type_str}' defined for key '{return_key}' in service '{self.name}'.")
 
     def _deserialize_response(self, response: requests.Response) -> Any:
         """Deserializes the API response based on the service definition."""
         try:
             response_data = response.json()
         except json.JSONDecodeError as e:
-            print(f"Error decoding JSON response from service '{self.name}': {e}")
-            raise e # Re-raise
+            msg = f"Error decoding JSON response from service '{self.name}'. Response text: {response.text[:500]}..."
+            # print(msg) # Keep print for logging maybe?
+            raise ServiceResponseError(msg) from e # Re-raise
 
         # If no specific returns defined, return the raw data
         if not self.service_returns:
+             # Perhaps raise an error or warning if returns ARE expected but none defined?
+             # For now, returning raw data is the existing behavior.
              return response_data
 
         deserialized_results = {}
-        for return_key, return_def in self.service_returns.items():
-            deserialized_value = self._deserialize_single_value(return_key, return_def, response_data)
-            # We store the result even if it's None (due to missing key or deserialization failure)
-            # to indicate that we attempted to process this key.
-            deserialized_results[return_key] = deserialized_value
+        try:
+            for return_key, return_def in self.service_returns.items():
+                deserialized_value = self._deserialize_single_value(return_key, return_def, response_data)
+                # We store the result even if it's None (due to missing key or deserialization failure)
+                # to indicate that we attempted to process this key.
+                deserialized_results[return_key] = deserialized_value
+        except ServiceDeserializationError as e:
+             # Catch errors from _deserialize_single_value and re-raise
+             raise e
+        except Exception as e:
+             # Catch unexpected errors during deserialization loop
+             raise ServiceDeserializationError(f"Unexpected error during response deserialization for service '{self.name}': {e}") from e
+
 
         # Always return a dictionary, even if only one item was expected/processed.
         # This provides a consistent return structure.
         return deserialized_results
 
-    def __call__(self, **kwargs: Any) -> Any:
+    def call_via_gateway(self, **kwargs: Any) -> Any:
         """
         Executes the API call **via the gateway** for this service using provided parameters.
         Validates parameters, prepares payload, executes the call, and deserializes the response.
@@ -420,13 +461,15 @@ class ServiceDefinition(DictSerializable):
             The API response, potentially deserialized based on service definition.
 
         Raises:
-            ValueError: If validation fails (missing/incorrect params) or if internal configuration (_base_url) is not set for gateway call.
-            requests.exceptions.RequestException: If the API call fails.
-            json.JSONDecodeError: If the response is not valid JSON.
+            ServiceParameterValidationError: If validation fails (missing/incorrect params).
+            ServiceConfigurationError: If internal configuration (_base_url) is not set.
+            ServiceConnectionError: If the API call fails due to connection issues.
+            ServiceResponseError: If the API call returns an error status or invalid JSON.
+            ServiceDeserializationError: If the response cannot be deserialized correctly.
         """
+        # Validation raises ServiceParameterValidationError
         self.validate_call_parameters(kwargs)
         prepared_params = self._prepare_parameters(**kwargs)
-
         # Construct the payload specific to the gateway's /service/ endpoint
         payload = {
             "service": self.name,
@@ -435,8 +478,61 @@ class ServiceDefinition(DictSerializable):
         if self._ep_api_token:
             payload["ep_api_token"] = self._ep_api_token
 
+        # _make_api_call raises ServiceConfigurationError, ServiceConnectionError, ServiceResponseError
         response = self._make_api_call(payload)
+        # _deserialize_response raises ServiceResponseError, ServiceDeserializationError
         return self._deserialize_response(response)
+
+    def __call__(self, **kwargs: Any) -> Any:
+        """
+        Executes the service call, trying the gateway first and falling back to a direct call.
+
+        Args:
+            **kwargs: Parameters for the service call.
+
+        Returns:
+            The API response, potentially deserialized based on service definition.
+
+        Raises:
+            ServiceParameterValidationError: If validation fails.
+            ServiceConfigurationError: If essential configuration is missing for both methods.
+            ServiceConnectionError: If both gateway and direct calls fail due to connection issues.
+            ServiceResponseError: If both calls fail due to response issues (status, JSON).
+            ServiceDeserializationError: If deserialization fails after a successful call.
+            ExtensionError: For unexpected errors during the call process.
+        """
+        gateway_error = None
+        try:
+            # Attempt to call via the gateway first
+            print(f"Attempting to call service '{self.name}' via gateway...")
+            # This call can raise ServiceParameterValidationError, ServiceConfigurationError,
+            # ServiceConnectionError, ServiceResponseError, ServiceDeserializationError
+            return self.call_via_gateway(**kwargs)
+        # Catch the specific errors we expect from call_via_gateway
+        except (ServiceParameterValidationError, ServiceConfigurationError, ServiceConnectionError, ServiceResponseError, ServiceDeserializationError, ExtensionError) as e_gateway:
+            gateway_error = e_gateway # Store the gateway error
+            print(f"Gateway call failed for service '{self.name}': {e_gateway}")
+            print(f"Falling back to direct call for service '{self.name}'...")
+            try:
+                # Fallback to direct call
+                # This call can also raise the same set of specific errors
+                return self.call_directly(**kwargs)
+            # Catch specific errors from call_directly
+            except (ServiceParameterValidationError, ServiceConfigurationError, ServiceConnectionError, ServiceResponseError, ServiceDeserializationError, ExtensionError) as e_direct:
+                print(f"Direct call also failed for service '{self.name}': {e_direct}")
+                # If both fail, raise the original gateway error,
+                # preserving the direct call error as the cause/context for why the fallback failed.
+                raise gateway_error from e_direct # Swapped: gateway_error is primary, e_direct is the cause
+            except Exception as e_direct_unexpected:
+                # Catch any other unexpected error from direct call
+                print(f"Unexpected error during direct call for service '{self.name}': {e_direct_unexpected}")
+                # Raise generic ExtensionError, chained from the direct call error, which is chained from the gateway error (if exists)
+                raise ExtensionError(f"Direct call failed unexpectedly for {self.name}") from e_direct_unexpected
+        except Exception as e_gateway_unexpected:
+             # Catch any other unexpected error from gateway call
+             print(f"Unexpected error during gateway call for service '{self.name}': {e_gateway_unexpected}")
+             # Raise generic ExtensionError, chained from the gateway error
+             raise ExtensionError(f"Gateway call failed unexpectedly for {self.name}") from e_gateway_unexpected
 
     def call_directly(self, **kwargs: Any) -> Any:
         """
@@ -450,13 +546,16 @@ class ServiceDefinition(DictSerializable):
             The API response, potentially deserialized based on service definition.
 
         Raises:
-            ValueError: If validation fails (missing/incorrect params) or if the endpoint is not defined.
-            requests.exceptions.RequestException: If the API call fails.
-            json.JSONDecodeError: If the response is not valid JSON.
+            ServiceParameterValidationError: If validation fails (missing/incorrect params).
+            ServiceConfigurationError: If the endpoint is not defined.
+            ServiceConnectionError: If the API call fails due to connection issues.
+            ServiceResponseError: If the API call returns an error status or invalid JSON.
+            ServiceDeserializationError: If the response cannot be deserialized correctly.
         """
         if not self.endpoint:
-            raise ValueError(f"Service '{self.name}' cannot be called directly. 'endpoint' is not defined.")
+            raise ServiceConfigurationError(f"Service '{self.name}' cannot be called directly. 'endpoint' is not defined.")
 
+        # Validation raises ServiceParameterValidationError
         self.validate_call_parameters(kwargs)
         prepared_params = self._prepare_parameters(**kwargs)
 
@@ -470,21 +569,42 @@ class ServiceDefinition(DictSerializable):
             # Make the direct POST request
             response = requests.post(url, json=prepared_params, headers=headers)
             response.raise_for_status() # Raise HTTPError for bad responses (4xx or 5xx)
+
+            # Deserialize response, catching potential errors
+            # _deserialize_response raises ServiceResponseError (for JSON decode), ServiceDeserializationError
             return self._deserialize_response(response)
+
+        except requests.exceptions.HTTPError as e:
+            # Raise ServiceResponseError for bad status codes
+            error_message = f"Error calling service '{self.name}' directly at {url}. Server returned status {e.response.status_code}."
+            try:
+                error_message += f" Response: {e.response.text}"
+            except Exception:
+                error_message += " Response content could not be read."
+            print(error_message) # Keep print for logging
+            raise ServiceResponseError(error_message) from e
+        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
+            # Raise ServiceConnectionError for connection issues
+            error_message = f"Error connecting to service '{self.name}' directly at {url}: {e}"
+            print(error_message)
+            raise ServiceConnectionError(error_message) from e
         except requests.exceptions.RequestException as e:
-            error_message = f"Error calling service '{self.name}' directly at {url}: {e}"
+            # Catch other potential request errors
+            error_message = f"Error during direct request for service '{self.name}' at {url}: {e}"
             if response is not None:
-                error_message += f"\nResponse status: {response.status_code}"
+                error_message += f"\nResponse status (potentially before error): {response.status_code}"
                 try:
                     error_message += f"\nResponse content: {response.text}"
                 except Exception:
                     error_message += "\nResponse content could not be read."
             print(error_message)
-            raise e # Re-raise the exception
-        except json.JSONDecodeError as e:
-            # Handle JSON decoding errors specifically from _deserialize_response
-            print(f"Error decoding JSON response from direct call to service '{self.name}' at {url}: {e}")
-            raise e # Re-raise
+            raise ServiceConnectionError(error_message) from e
+        except (ServiceResponseError, ServiceDeserializationError) as e:
+            # Re-raise errors from _deserialize_response
+            raise e
+        except Exception as e:
+            # Catch any other unexpected errors during the process
+            raise ExtensionError(f"Unexpected error during direct call for service '{self.name}': {e}") from e
 
     def validate_service_output(self, output_data: Dict[str, Any]):
         """
@@ -494,10 +614,11 @@ class ServiceDefinition(DictSerializable):
             output_data: The dictionary returned by the service implementation.
 
         Raises:
-            ValueError: If a required return key is missing.
-            TypeError: If the type of a returned value does not match the expected type.
+            TypeError: If the output_data is not a dictionary.
+            ServiceOutputValidationError: If a required return key is missing or a value has the wrong type.
         """
         if not isinstance(output_data, dict):
+             # Keep TypeError for the overall output structure being wrong
              raise TypeError(f"Service output must be a dictionary, but got {type(output_data).__name__}.")
 
         edsl_registry = RegisterSubclassesMeta.get_registry()
@@ -514,7 +635,8 @@ class ServiceDefinition(DictSerializable):
         for return_key, return_def in self.service_returns.items():
             # Check if the key exists in the output
             if return_key not in output_data:
-                raise ValueError(f"Missing expected return key in service output: '{return_key}'")
+                # Changed ValueError to ServiceOutputValidationError
+                raise ServiceOutputValidationError(f"Missing expected return key in service output: '{return_key}'")
 
             actual_value = output_data[return_key]
             expected_type_str = return_def.type
@@ -525,18 +647,14 @@ class ServiceDefinition(DictSerializable):
             if expected_type_str in edsl_registry:
                 # For EDSL objects defined in returns, we expect a dictionary representation
                 if not isinstance(actual_value, dict):
-                    raise TypeError(
+                    # Changed TypeError to ServiceOutputValidationError
+                    raise ServiceOutputValidationError(
                         f"Type mismatch for return key '{return_key}'. "
                         f"Expected a dictionary representation of EDSL type '{expected_type_str}', "
                         f"but got type '{type(actual_value).__name__}'."
                     )
-                # Optional: Could add deeper validation by attempting from_dict, but risks complexity.
-                # try:
-                #     target_cls = edsl_registry[expected_type_str]
-                #     target_cls.from_dict(actual_value) # Try deserialization
-                # except Exception as e:
-                #     raise TypeError(f"Type mismatch for return key '{return_key}'. Value {actual_value} "
-                #                     f"is not a valid dictionary representation for EDSL type '{expected_type_str}'. Error: {e}")
+                # Optional: Deeper validation (as before)
+                # ...
 
             elif expected_python_type:
                 # Basic Python types
@@ -544,17 +662,19 @@ class ServiceDefinition(DictSerializable):
                 if expected_python_type in (float,) and isinstance(actual_value, int):
                     pass # Allow int where float/number is expected
                 elif not isinstance(actual_value, expected_python_type):
-                    raise TypeError(
+                    # Changed TypeError to ServiceOutputValidationError
+                    raise ServiceOutputValidationError(
                         f"Type mismatch for return key '{return_key}'. "
                         f"Expected type '{expected_type_str}' (mapped to {expected_python_type.__name__}), "
                         f"but got type '{type(actual_value).__name__}'."
                     )
             else:
-                # Type not found in basic map or EDSL registry - treat as Any/pass validation for now
-                # Or raise an error if strict validation is required for all defined types.
-                print(f"Warning: Unknown type '{expected_type_str}' for return key '{return_key}'. Skipping type validation.")
+                # Type not found in basic map or EDSL registry
+                # Changed from print warning to raising an error
+                raise ServiceOutputValidationError(f"Unknown type '{expected_type_str}' defined for return key '{return_key}'. Cannot validate.")
+                # print(f"Warning: Unknown type '{expected_type_str}' for return key '{return_key}'. Skipping type validation.")
 
-    def get_pydantic_model(self) -> Type[BaseModel]:
+    def get_request_model(self) -> Type[BaseModel]:
         """Dynamically creates a Pydantic model for the service parameters."""
         fields_definitions = {}
         edsl_registry = RegisterSubclassesMeta.get_registry()
@@ -614,16 +734,53 @@ class ServiceDefinition(DictSerializable):
         )
         return pydantic_model
 
-if __name__ == "__main__":
-    import doctest
-    doctest.testmod(optionflags=doctest.ELLIPSIS)
-    # print(create_survey_service)
-    # Run doctests
-    #results = doctest.testmod()
-    #print(f"Doctest results: {results}")
-    # Optional: exit with non-zero status if tests fail
-    #if results.failed > 0:
-    #    exit(1)
+    def get_response_model(self) -> Type[BaseModel]:
+        """Dynamically creates a Pydantic model for the service return values."""
+        fields_definitions = {}
+        edsl_registry = RegisterSubclassesMeta.get_registry()
+
+        TYPE_MAP = {
+            "str": str,
+            "string": str,
+            "int": int,
+            "integer": int,
+            "float": float,
+            "number": float,
+            "bool": bool,
+            "boolean": bool,
+            "list": List[Any],
+            "array": List[Any],
+            "dict": Dict[str, Any],
+            "object": Dict[str, Any],
+        }
+
+        for return_key, return_def in self.service_returns.items():
+            type_str = return_def.type
+            python_type = TYPE_MAP.get(type_str.lower())
+
+            # Check EDSL types (expect dict representation in response)
+            if python_type is None and type_str in edsl_registry:
+                python_type = Dict[str, Any]
+            elif python_type is None:
+                python_type = Any # Default to Any if type is unknown
+
+            description = return_def.description
+
+            # All return fields are effectively required in the response model
+            field_definition = Field(description=description)
+            type_annotation = python_type
+
+            fields_definitions[return_key] = (type_annotation, field_definition)
+
+        # Create a suitable model name
+        model_name = f"{self.name.replace('_', ' ').title().replace(' ', '')}Response"
+        # Dynamically create the Pydantic model
+        pydantic_model = create_model(
+            model_name,
+            **fields_definitions,
+            __base__=BaseModel
+        )
+        return pydantic_model
 
 
 from fastapi import HTTPException
@@ -649,7 +806,7 @@ def register_service(
             ...
     """
     request_model  = service_def.get_request_model()
-    response_model = service_def.get_response_model()  # optional but nice
+    response_model = service_def.get_response_model()
 
     def decorator(fn: Callable[..., Any]):
         route_path = f"/{service_name}"
@@ -672,3 +829,16 @@ def register_service(
         return _endpoint
 
     return decorator
+
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod(optionflags=doctest.ELLIPSIS)
+    # print(create_survey_service)
+    # Run doctests
+    #results = doctest.testmod()
+    #print(f"Doctest results: {results}")
+    # Optional: exit with non-zero status if tests fail
+    #if results.failed > 0:
+    #    exit(1)
+
