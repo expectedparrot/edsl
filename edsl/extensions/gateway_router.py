@@ -7,44 +7,9 @@ from collections import UserDict
 
 from .authoring import ServiceDefinition, ParameterDefinition, CostDefinition, ReturnDefinition
 from .dependencies import get_http_client
+from .service_loaders import GithubYamlLoader # Import the loader
 
-
-## TODO: This should be a list of all the services.
-
-autostudy = ServiceDefinition(
-    name = 'create_survey',
-    description = 'Generate a survey automatically from an overall research question and target population.',
-    parameters = {
-        'overall_question': ParameterDefinition(
-            type='str',
-            required=True,
-            description='The main research question the survey aims to address'
-            ),
-        'population': ParameterDefinition(
-            type='str',
-            required=True,
-            description='Description of the target population for the survey'
-            ),
-     },
-     cost=CostDefinition(
-        unit="ep_credits",
-        per_call_cost=100,
-        uses_client_ep_key=True # Assuming it requires API key
-     ),
-    service_returns={
-        'survey': ReturnDefinition(
-            type="Survey", # Assuming it returns an EDSL Survey object
-            coopr_url=True, # Assuming it returns a Coopr URL
-            description="An EDSL survey object"
-        )
-    },
-    endpoint = 'http://localhost:8001/create_survey' 
-)
-
-services_list: List[ServiceDefinition] = [
-    #ServiceDefinition.example(), 
-    #                                      ServiceDefinition.example_with_running(),
-                                          autostudy] # Added autostudy to the list
+services_list: List[ServiceDefinition] = GithubYamlLoader().load_services()
 
 # Define the ServiceRegistry class
 class ServiceRegistry(UserDict):
