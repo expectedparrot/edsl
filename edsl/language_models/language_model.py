@@ -1019,7 +1019,7 @@ class LanguageModel(
 
         # Combine model name and parameters
         return (
-            f"Model(model_name = '{self.model}'"
+            f"Model(model_name = '{self.model}', service_name = '{self._inference_service_}'"
             + (f", {param_string}" if param_string else "")
             + ")"
         )
