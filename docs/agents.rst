@@ -89,11 +89,12 @@ Output:
 
 .. list-table::
    :header-rows: 1
+   :widths: 30 70
 
    * - user_prompt
      - system_prompt
    * - What is your favorite food?
-     - ou are answering questions as if you were a human. Do not break character. Your traits: {'first_name': 'Ada', 'persona': 'You are an expert in machine learning.', 'age': 45, 'home_state': 'Massachusetts'}
+     - You are answering questions as if you were a human. Do not break character. Your traits: {'first_name': 'Ada', 'persona': 'You are an expert in machine learning.', 'age': 45, 'home_state': 'Massachusetts'}
 
 
 Note that trying to create two agents with the same name or trying to use a key "name" in the `traits` will raise an error.
@@ -317,6 +318,7 @@ Giving an agent instructions
 ----------------------------
 
 In addition to traits, agents can be given detailed instructions on how to answer questions.
+The `instruction` parameter can be used to omit or modify the default instructions that are used with agent traits in the system prompt.
 
 For example:
 
@@ -336,7 +338,32 @@ Output:
 
 
 When the agent is assigned to a survey, the special instruction will be added to the prompts for generating responses.
-The instructions are stored in the `instruction` field of the agent and can be accessed directly in results.
+We can create a `Job` object to inspect the prompts (user and system) that will be used to generate responses:
+
+.. code-block:: python
+
+    from edsl import QuestionFreeText
+
+    q = QuestionFreeText(
+        question_name = "favorite_food",
+        question_text = "What is your favorite food?"
+    )
+
+    job = q.by(a)  # using the agent created above
+    job.prompts().select("user_prompt", "system_prompt")
+
+
+Output:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 30 70
+
+   * - user_prompt
+     - system_prompt
+   * - What is your favorite food?
+     - Answer in German. Your traits: {'age': 10}. Answer in German.
+
 
 Learn more about how to use instructions in the :ref:`prompts` section.
 
@@ -389,6 +416,39 @@ Output:
 .. code-block:: text
 
     The age of the agent is 22.
+
+
+We can also use the `traits_presentation_template` together with an `instruction` and inspect the prompts:
+
+.. code-block:: python
+
+    from edsl import Agent, QuestionFreeText
+
+    a = Agent(
+        traits = {"age": 10}, 
+        traits_presentation_template = "(You are {{ age }} years old.)",
+        instruction = "Answer in German."
+    )
+
+    q = QuestionFreeText(
+        question_name = "favorite_food",
+        question_text = "What is your favorite food?"
+    )
+
+    job = q.by(a)  
+    job.prompts().select("user_prompt", "system_prompt")
+
+
+Output:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 30 70
+
+   * - user_prompt
+     - system_prompt
+   * - What is your favorite food?
+     - Answer in German.(You are 10 years old.)
 
 
 Note that it can be helpful to include traits mentioned in the persona as independent keys and values in order to analyze survey results by those dimensions individually.
