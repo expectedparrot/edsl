@@ -1633,7 +1633,7 @@ class Coop(CoopFunctionsMixin):
             >>> print(f"Gift successful! You have {result['remaining_credits']} credits left.")
         """
         response = self._send_server_request(
-            uri="api/v0/users/gift",
+            uri="api/users/gift",
             method="POST",
             payload={
                 "credits_gifted": credits_gifted,
