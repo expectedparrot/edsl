@@ -244,7 +244,6 @@ class Coop(CoopFunctionsMixin):
         #         print(
         #             "Please upgrade your EDSL version to access our latest features. Open your terminal and run `pip install --upgrade edsl`"
         #         )
-
         if response.status_code >= 400:
             try:
                 message = str(response.json().get("detail"))
@@ -1641,6 +1640,29 @@ class Coop(CoopFunctionsMixin):
                 "gift_note": gift_note,
             },
         )
+        self._resolve_server_response(response)
+        return response.json()
+
+    def get_balance(self) -> dict:
+        """
+        Get the current credit balance for the authenticated user.
+
+        This method retrieves the user's current credit balance information from
+        the Expected Parrot platform.
+
+        Returns:
+            dict: Information about the user's credit balance, including:
+                - credits: The current number of credits in the user's account
+                - usage_history: Recent credit usage if available
+
+        Raises:
+            CoopServerResponseError: If there's an error communicating with the server
+
+        Example:
+            >>> balance = coop.get_balance()
+            >>> print(f"You have {balance['credits']} credits available.")
+        """
+        response = self._send_server_request(uri="api/users/get_balance", method="GET")
         self._resolve_server_response(response)
         return response.json()
 
