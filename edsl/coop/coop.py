@@ -1556,6 +1556,11 @@ class Coop(CoopFunctionsMixin):
                     f"[#38bdf8][link={url}][underline]Log in and automatically store key[/underline][/link][/#38bdf8]"
                 )
 
+        print("Logging in will activate the following features:")
+        print("  - Remote inference: Runs jobs remotely on the Expected Parrot server.")
+        print("  - Remote logging: Sends error messages to the Expected Parrot server.")
+        print("\n")
+
     def _get_api_key(self, edsl_auth_token: str):
         """
         Given an EDSL auth token, find the corresponding user's API key.
