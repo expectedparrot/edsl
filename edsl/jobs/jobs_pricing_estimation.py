@@ -366,6 +366,20 @@ class JobsPrompts:
             },
         )
 
+    @staticmethod
+    def usd_to_credits(usd: float) -> float:
+        """Converts USD to credits."""
+        cents = usd * 100
+        credits_per_cent = 1
+        credits = cents * credits_per_cent
+
+        # Round up to the nearest hundredth of a credit
+        minicredits = math.ceil(credits * 100)
+
+        # Convert back to credits
+        credits = round(minicredits / 100, 2)
+        return credits
+
     def estimate_job_cost_from_external_prices(
         self, price_lookup: dict, iterations: int = 1
     ) -> dict:
@@ -429,8 +443,15 @@ class JobsPrompts:
             group["cost_usd"] *= iterations
             detailed_costs.append(group)
 
+        # Convert to credits
+        for group in detailed_costs:
+            group["credits_hold"] = self.usd_to_credits(group["cost_usd"])
+
         # Calculate totals
-        estimated_total_cost = sum(group["cost_usd"] for group in detailed_costs)
+        estimated_total_cost_usd = sum(group["cost_usd"] for group in detailed_costs)
+        total_credits_hold = sum(
+            group["credits_hold"] for group in detailed_costs
+        )
         estimated_total_input_tokens = sum(
             group["tokens"]
             for group in detailed_costs
@@ -443,7 +464,8 @@ class JobsPrompts:
         )
 
         output = {
-            "estimated_total_cost_usd": estimated_total_cost,
+            "estimated_total_cost_usd": estimated_total_cost_usd,
+            "total_credits_hold": total_credits_hold,
             "estimated_total_input_tokens": estimated_total_input_tokens,
             "estimated_total_output_tokens": estimated_total_output_tokens,
             "detailed_costs": detailed_costs,
