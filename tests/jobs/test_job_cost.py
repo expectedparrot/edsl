@@ -90,6 +90,9 @@ def test_job_cost_estimation():
     cost = estimated_cost_dct["estimated_total_cost_usd"]
     assert cost == 27
 
+    total_credits_hold = estimated_cost_dct["total_credits_hold"]
+    assert total_credits_hold == 2_700
+
 
 def test_job_cost_estimation_with_iterations():
     q0 = QuestionFreeText(
@@ -114,6 +117,9 @@ def test_job_cost_estimation_with_iterations():
     cost = estimated_cost_dct["estimated_total_cost_usd"]
     assert cost == 54
 
+    total_credits_hold = estimated_cost_dct["total_credits_hold"]
+    assert total_credits_hold == 5_400
+
 
 def test_job_cost_estimation_with_piping():
     q0 = QuestionFreeText(
@@ -136,6 +142,9 @@ def test_job_cost_estimation_with_piping():
 
     cost = estimated_cost_dct["estimated_total_cost_usd"]
     assert cost > 30  #  # 7 + 20 + 6 + 15
+
+    total_credits_hold = estimated_cost_dct["total_credits_hold"]
+    assert total_credits_hold > 3_000
 
 
 def test_job_cost_estimation_with_piping_and_iterations():
@@ -161,6 +170,9 @@ def test_job_cost_estimation_with_piping_and_iterations():
 
     cost = estimated_cost_dct["estimated_total_cost_usd"]
     assert cost > 60  # 96
+
+    total_credits_hold = estimated_cost_dct["total_credits_hold"]
+    assert total_credits_hold > 6_000
 
 
 def test_prompt_cost_estimation_with_fallback_to_highest_service_price():
