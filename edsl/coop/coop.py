@@ -1600,6 +1600,50 @@ class Coop(CoopFunctionsMixin):
         # Add API key to environment
         load_dotenv()
 
+    def gift_credits(
+        self, credits_gifted: int, recipient_username: str, gift_note: str = None
+    ) -> dict:
+        """
+        Gift credits to another user.
+
+        This method transfers a specified number of credits from the authenticated user's
+        account to another user's account on the Expected Parrot platform.
+
+        Parameters:
+            credits_gifted (int): The number of credits to gift to the recipient
+            recipient_username (str): The username of the recipient
+            gift_note (str, optional): A personal note to include with the gift
+
+        Returns:
+            dict: Information about the gift transaction, including:
+                - success: Whether the transaction was successful
+                - transaction_id: A unique identifier for the transaction
+                - remaining_credits: The number of credits remaining in the sender's account
+
+        Raises:
+            CoopServerResponseError: If there's an error communicating with the server
+                or if the gift criteria aren't met (e.g., insufficient credits)
+
+        Example:
+            >>> result = coop.gift_credits(
+            ...     credits_gifted=100,
+            ...     recipient_username="friend_username",
+            ...     gift_note="Thanks for your help!"
+            ... )
+            >>> print(f"Gift successful! You have {result['remaining_credits']} credits left.")
+        """
+        response = self._send_server_request(
+            uri="api/v0/users/gift",
+            method="POST",
+            payload={
+                "credits_gifted": credits_gifted,
+                "recipient_username": recipient_username,
+                "gift_note": gift_note,
+            },
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
 
 def main():
     """
