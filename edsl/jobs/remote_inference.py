@@ -206,36 +206,28 @@ class JobsRemoteInferenceHandler:
             status=JobsStatus.FAILED,
         )
 
-    def _handle_partially_failed_job_interview_details(
+    def _update_interview_numbers(
         self, job_info: RemoteJobInfo, remote_job_data: RemoteInferenceResponse
     ) -> None:
-        "Extracts the interview details from the remote job data."
-        try:
-            # Job details is a string of the form "64 out of 1,758 interviews failed"
-            job_details = remote_job_data.get("latest_failure_description")
-
-            text_without_commas = job_details.replace(",", "")
-
-            # Find all numbers in the text
-            numbers = [int(num) for num in re.findall(r"\d+", text_without_commas)]
-
-            failed = numbers[0]
-            total = numbers[1]
-            completed = total - failed
-
-            job_info.logger.add_info("completed_interviews", completed)
-            job_info.logger.add_info("failed_interviews", failed)
-        # This is mainly helpful metadata, and any errors here should not stop the code
-        except:
-            pass
+        "Updates the interview numbers in the job info."
+        status_metadata = remote_job_data.get("status_metadata", {})
+        completed_interviews = status_metadata.get("completed_interviews", 0)
+        interviews_with_exceptions = status_metadata.get("has_exceptions", 0)
+        interviews_without_exceptions = (
+            completed_interviews - interviews_with_exceptions
+        )
+        job_info.logger.add_info("completed_interviews", interviews_without_exceptions)
+        job_info.logger.add_info("failed_interviews", interviews_with_exceptions)
 
     def _handle_partially_failed_job(
         self, job_info: RemoteJobInfo, remote_job_data: RemoteInferenceResponse
     ) -> None:
         "Handles a partially failed job by logging the error and updating the job status."
-        self._handle_partially_failed_job_interview_details(job_info, remote_job_data)
+        self._update_interview_numbers(job_info, remote_job_data)
 
-        latest_error_report_url = remote_job_data.get("latest_error_report_url")
+        latest_error_report_url = remote_job_data.get("status_metadata", {}).get(
+            "latest_error_report_url"
+        )
 
         if latest_error_report_url:
             job_info.logger.add_info("error_report_url", latest_error_report_url)
@@ -328,6 +320,7 @@ class JobsRemoteInferenceHandler:
                 return None, reason
 
         else:
+            self._update_interview_numbers(job_info, remote_job_data)
             self._sleep_for_a_bit(job_info, status)
             return "continue", reason
 
