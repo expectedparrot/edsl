@@ -11,15 +11,7 @@ from uuid import UUID
 
 if TYPE_CHECKING:
     from .jobs import Jobs
-
-
-@dataclass
-class ModelInfo:
-    model_name: str
-    TPM_limit_k: float
-    RPM_limit_k: float
-    num_tasks_waiting: int
-    token_usage_info: dict
+    from ..interviews import Interview
 
 
 class StatisticsTracker:
@@ -32,9 +24,14 @@ class StatisticsTracker:
         self.interviews_with_exceptions = 0
         self.total_exceptions = 0
         self.unfixed_exceptions = 0
+        self.exceptions_counter = defaultdict(int)
 
     def add_completed_interview(
-        self, model: str, num_exceptions: int = 0, num_unfixed: int = 0
+        self,
+        model: str,
+        exceptions: list[dict],
+        num_exceptions: int = 0,
+        num_unfixed: int = 0,
     ):
         self.completed_count += 1
         self.completed_by_model[model] += 1
@@ -42,6 +39,15 @@ class StatisticsTracker:
         self.unfixed_exceptions += num_unfixed
         if num_exceptions > 0:
             self.interviews_with_exceptions += 1
+
+        for exception in exceptions:
+            key = (
+                exception["exception_type"],
+                exception["inference_service"],
+                exception["model"],
+                exception["question_name"],
+            )
+            self.exceptions_counter[key] += 1
 
     def get_elapsed_time(self) -> float:
         return time.time() - self.start_time
@@ -150,6 +156,21 @@ class JobsRunnerStatusBase(ABC):
                 if self.stats_tracker.completed_count >= self.num_total_interviews
                 else "running"
             ),
+            "exceptions_counter": [
+                {
+                    "exception_type": exception_type,
+                    "inference_service": inference_service,
+                    "model": model,
+                    "question_name": question_name,
+                    "count": count,
+                }
+                for (
+                    exception_type,
+                    inference_service,
+                    model,
+                    question_name,
+                ), count in self.stats_tracker.exceptions_counter.items()
+            ],
         }
 
         model_queues = {}
@@ -188,10 +209,11 @@ class JobsRunnerStatusBase(ABC):
         status_dict["language_model_queues"] = model_queues
         return status_dict
 
-    def add_completed_interview(self, interview):
+    def add_completed_interview(self, interview: "Interview"):
         """Records a completed interview without storing the full interview data."""
         self.stats_tracker.add_completed_interview(
             model=interview.model.model,
+            exceptions=interview.exceptions.list(),
             num_exceptions=interview.exceptions.num_exceptions(),
             num_unfixed=interview.exceptions.num_unfixed_exceptions(),
         )
