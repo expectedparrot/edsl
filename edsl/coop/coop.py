@@ -37,17 +37,63 @@ from .ep_key_handling import ExpectedParrotKeyHandler
 from ..inference_services.data_structures import ServiceToModelsMapping
 
 
+class InterviewDetails(TypedDict):
+    total_interviews: int
+    completed_interviews: int
+    interviews_with_exceptions: int
+
+
+class JobRunExpense(TypedDict):
+    service: str
+    model: str
+    input_tokens: int
+    output_tokens: int
+    cost_credits: float
+
+
+class RunningJobMetadata(TypedDict):
+    interview_details: Optional[InterviewDetails]
+
+
+class FailedJobMetadata(TypedDict):
+    failure_reason: Optional[Literal["error", "insufficient funds"]]
+    failure_description: Optional[str]
+
+
+class CompletedJobMetadata(TypedDict):
+    interview_details: Optional[InterviewDetails]
+    cost_credits: Optional[float]
+    expenses: Optional[List[JobRunExpense]]
+
+
+class PartiallyFailedJobMetadata(TypedDict):
+    interview_details: Optional[InterviewDetails]
+    error_report_uuid: Optional[str]
+    error_report_url: Optional[str]
+    cost_credits: Optional[float]
+    expenses: Optional[List[JobRunExpense]]
+
+
+class EmptyMetadata(TypedDict):
+    pass
+
+
 class RemoteInferenceResponse(TypedDict):
     job_uuid: str
     results_uuid: str
-    results_url: str
-    latest_error_report_uuid: str
-    latest_error_report_url: str
-    status: str
-    reason: str
-    credits_consumed: float
-    version: str
     job_json_string: Optional[str]
+    status: RemoteJobStatus
+    status_metadata: Union[
+        RunningJobMetadata,
+        FailedJobMetadata,
+        CompletedJobMetadata,
+        PartiallyFailedJobMetadata,
+        EmptyMetadata,
+    ]
+    description: Optional[str]
+    version: str
+    visibility: VisibilityType
+    results_url: str
 
 
 class RemoteInferenceCreationInfo(TypedDict):
@@ -1097,6 +1143,8 @@ class Coop(CoopFunctionsMixin):
             params = {"job_uuid": job_uuid}
         else:
             params = {"results_uuid": results_uuid}
+        if include_json_string:
+            params["include_json_string"] = include_json_string
 
         response = self._send_server_request(
             uri="api/v0/remote-inference",
@@ -1107,35 +1155,34 @@ class Coop(CoopFunctionsMixin):
         data = response.json()
 
         results_uuid = data.get("results_uuid")
-        latest_error_report_uuid = data.get("latest_error_report_uuid")
 
         if results_uuid is None:
             results_url = None
         else:
             results_url = f"{self.url}/content/{results_uuid}"
 
-        if latest_error_report_uuid is None:
-            latest_error_report_url = None
-        else:
-            latest_error_report_url = (
-                f"{self.url}/home/remote-inference/error/{latest_error_report_uuid}"
-            )
+        status_metadata = data.get("status_metadata", {})
+        status_metadata.pop("status")
+        if data.get("status") == "partial_failed":
+            latest_error_report_uuid = status_metadata.get("error_report_uuid")
+            if latest_error_report_uuid is None:
+                latest_error_report_url = None
+                status_metadata["error_report_url"] = None
+            else:
+                latest_error_report_url = (
+                    f"{self.url}/home/remote-inference/error/{latest_error_report_uuid}"
+                )
+                status_metadata["error_report_url"] = latest_error_report_url
 
         return RemoteInferenceResponse(
             **{
                 "job_uuid": data.get("job_uuid"),
                 "results_uuid": results_uuid,
                 "results_url": results_url,
-                "latest_error_report_uuid": latest_error_report_uuid,
-                "latest_error_report_url": latest_error_report_url,
-                "latest_failure_description": data.get("latest_failure_details"),
                 "status": data.get("status"),
-                "reason": data.get("latest_failure_reason"),
-                "credits_consumed": data.get("price"),
                 "version": data.get("version"),
-                "job_json_string": (
-                    data.get("job_json_string") if include_json_string else None
-                ),
+                "job_json_string": data.get("job_json_string"),
+                "status_metadata": status_metadata,
             }
         )
 

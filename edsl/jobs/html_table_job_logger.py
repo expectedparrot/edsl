@@ -528,8 +528,7 @@ class HTMLTableJobLogger(JobLogger):
 
         header_status_text = status_text
         if (
-            current_status == JobsStatus.PARTIALLY_FAILED
-            and self.jobs_info.completed_interviews is not None
+            self.jobs_info.completed_interviews is not None
             and self.jobs_info.failed_interviews is not None
         ):
             header_status_text += f" ({self.jobs_info.completed_interviews:,} completed, {self.jobs_info.failed_interviews:,} failed)"
