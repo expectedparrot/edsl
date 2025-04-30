@@ -985,6 +985,53 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
         # Save the document
         doc.save(output_file)
 
+    def unique(self) -> "Dataset":
+        """
+        Remove duplicate rows from the dataset.
+        
+        Returns:
+            A new Dataset with duplicate rows removed.
+            
+        Examples:
+            >>> d = Dataset([{'a': [1, 2, 3, 1]}, {'b': [4, 5, 6, 4]}])
+            >>> d.unique().data
+            [{'a': [1, 2, 3]}, {'b': [4, 5, 6]}]
+            
+            >>> d = Dataset([{'x': ['a', 'b', 'a']}, {'y': [1, 2, 1]}])
+            >>> d.unique().data
+            [{'x': ['a', 'b']}, {'y': [1, 2]}]
+            
+            >>> # Dataset with a single column
+            >>> Dataset([{'value': [1, 2, 3, 2, 1, 3]}]).unique().data
+            [{'value': [1, 2, 3]}]
+        """
+        # Convert data to tuples for each row to make them hashable
+        rows = []
+        for i in range(len(self)):
+            row = tuple(entry[list(entry.keys())[0]][i] for entry in self.data)
+            rows.append(row)
+        
+        # Keep track of unique rows and their indices
+        unique_rows = []
+        indices = []
+        
+        # Use a set to track seen rows
+        seen = set()
+        for i, row in enumerate(rows):
+            if row not in seen:
+                seen.add(row)
+                unique_rows.append(row)
+                indices.append(i)
+        
+        # Create a new dataset with only the unique rows
+        new_data = []
+        for entry in self.data:
+            key, values = list(entry.items())[0]
+            new_values = [values[i] for i in indices]
+            new_data.append({key: new_values})
+            
+        return Dataset(new_data)
+
     def expand(self, field: str, number_field: bool = False) -> "Dataset":
         """
         Expand a field containing lists into multiple rows.
