@@ -244,7 +244,6 @@ class Coop(CoopFunctionsMixin):
         #         print(
         #             "Please upgrade your EDSL version to access our latest features. Open your terminal and run `pip install --upgrade edsl`"
         #         )
-
         if response.status_code >= 400:
             try:
                 message = str(response.json().get("detail"))
@@ -1599,6 +1598,76 @@ class Coop(CoopFunctionsMixin):
 
         # Add API key to environment
         load_dotenv()
+
+    def transfer_credits(
+        self,
+        credits_transferred: int,
+        recipient_username: str,
+        transfer_note: str = None,
+    ) -> dict:
+        """
+        Transfer credits to another user.
+
+        This method transfers a specified number of credits from the authenticated user's
+        account to another user's account on the Expected Parrot platform.
+
+        Parameters:
+            credits_transferred (int): The number of credits to transfer to the recipient
+            recipient_username (str): The username of the recipient
+            transfer_note (str, optional): A personal note to include with the transfer
+
+        Returns:
+            dict: Information about the transfer transaction, including:
+                - success: Whether the transaction was successful
+                - transaction_id: A unique identifier for the transaction
+                - remaining_credits: The number of credits remaining in the sender's account
+
+        Raises:
+            CoopServerResponseError: If there's an error communicating with the server
+                or if the transfer criteria aren't met (e.g., insufficient credits)
+
+        Example:
+            >>> result = coop.transfer_credits(
+            ...     credits_transferred=100,
+            ...     recipient_username="friend_username",
+            ...     transfer_note="Thanks for your help!"
+            ... )
+            >>> print(f"Transfer successful! You have {result['remaining_credits']} credits left.")
+        """
+        response = self._send_server_request(
+            uri="api/users/gift",
+            method="POST",
+            payload={
+                "credits_gifted": credits_transferred,
+                "recipient_username": recipient_username,
+                "gift_note": transfer_note,
+            },
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
+    def get_balance(self) -> dict:
+        """
+        Get the current credit balance for the authenticated user.
+
+        This method retrieves the user's current credit balance information from
+        the Expected Parrot platform.
+
+        Returns:
+            dict: Information about the user's credit balance, including:
+                - credits: The current number of credits in the user's account
+                - usage_history: Recent credit usage if available
+
+        Raises:
+            CoopServerResponseError: If there's an error communicating with the server
+
+        Example:
+            >>> balance = coop.get_balance()
+            >>> print(f"You have {balance['credits']} credits available.")
+        """
+        response = self._send_server_request(uri="api/users/get_balance", method="GET")
+        self._resolve_server_response(response)
+        return response.json()
 
 
 def main():
