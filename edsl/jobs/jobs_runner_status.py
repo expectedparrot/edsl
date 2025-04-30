@@ -29,6 +29,7 @@ class StatisticsTracker:
         self.completed_count = 0
         self.completed_by_model = defaultdict(int)
         self.distinct_models = distinct_models
+        self.interviews_with_exceptions = 0
         self.total_exceptions = 0
         self.unfixed_exceptions = 0
 
@@ -39,6 +40,8 @@ class StatisticsTracker:
         self.completed_by_model[model] += 1
         self.total_exceptions += num_exceptions
         self.unfixed_exceptions += num_unfixed
+        if num_exceptions > 0:
+            self.interviews_with_exceptions += 1
 
     def get_elapsed_time(self) -> float:
         return time.time() - self.start_time
@@ -88,9 +91,7 @@ class JobsRunnerStatusBase(ABC):
         ]
         self.num_total_interviews = n * len(self.jobs)
 
-        self.distinct_models = list(
-            set(model.model for model in self.jobs.models)
-        )
+        self.distinct_models = list(set(model.model for model in self.jobs.models))
 
         self.stats_tracker = StatisticsTracker(
             total_interviews=self.num_total_interviews,
@@ -130,6 +131,7 @@ class JobsRunnerStatusBase(ABC):
         status_dict = {
             "overall_progress": {
                 "completed": self.stats_tracker.completed_count,
+                "has_exceptions": self.stats_tracker.interviews_with_exceptions,
                 "total": self.num_total_interviews,
                 "percent": (
                     (
@@ -152,12 +154,17 @@ class JobsRunnerStatusBase(ABC):
 
         model_queues = {}
         # Check if bucket collection exists and is not empty
-        if (hasattr(self.jobs, 'run_config') and 
-            hasattr(self.jobs.run_config, 'environment') and 
-            hasattr(self.jobs.run_config.environment, 'bucket_collection') and 
-            self.jobs.run_config.environment.bucket_collection):
-            
-            for model, bucket in self.jobs.run_config.environment.bucket_collection.items():
+        if (
+            hasattr(self.jobs, "run_config")
+            and hasattr(self.jobs.run_config, "environment")
+            and hasattr(self.jobs.run_config.environment, "bucket_collection")
+            and self.jobs.run_config.environment.bucket_collection
+        ):
+
+            for (
+                model,
+                bucket,
+            ) in self.jobs.run_config.environment.bucket_collection.items():
                 model_name = model.model
                 model_queues[model_name] = {
                     "language_model_name": model_name,
@@ -166,7 +173,9 @@ class JobsRunnerStatusBase(ABC):
                         "requested": bucket.requests_bucket.num_requests,
                         "tokens_returned": bucket.requests_bucket.tokens_returned,
                         "target_rate": round(bucket.requests_bucket.target_rate, 1),
-                        "current_rate": round(bucket.requests_bucket.get_throughput(), 1),
+                        "current_rate": round(
+                            bucket.requests_bucket.get_throughput(), 1
+                        ),
                     },
                     "tokens_bucket": {
                         "completed": bucket.tokens_bucket.num_released,
