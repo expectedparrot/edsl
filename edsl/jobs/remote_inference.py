@@ -210,9 +210,13 @@ class JobsRemoteInferenceHandler:
         self, job_info: RemoteJobInfo, remote_job_data: RemoteInferenceResponse
     ) -> None:
         "Updates the interview numbers in the job info."
-        status_metadata = remote_job_data.get("status_metadata", {})
-        completed_interviews = status_metadata.get("completed_interviews", 0)
-        interviews_with_exceptions = status_metadata.get("has_exceptions", 0)
+        interview_details = remote_job_data.get("status_metadata", {}).get(
+            "interview_details", {}
+        )
+        completed_interviews = interview_details.get("completed_interviews", 0)
+        interviews_with_exceptions = interview_details.get(
+            "interviews_with_exceptions", 0
+        )
         interviews_without_exceptions = (
             completed_interviews - interviews_with_exceptions
         )

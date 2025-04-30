@@ -1162,7 +1162,7 @@ class Coop(CoopFunctionsMixin):
             results_url = f"{self.url}/content/{results_uuid}"
 
         status_metadata = data.get("status_metadata", {})
-        status_metadata.pop("status")
+        status_metadata.pop("status", None)
         if data.get("status") == "partial_failed":
             latest_error_report_uuid = status_metadata.get("error_report_uuid")
             if latest_error_report_uuid is None:
