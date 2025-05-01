@@ -142,6 +142,20 @@ class HTMLTableJobLogger(JobLogger):
             exc.exception_count for exc in self.jobs_info.exception_summary
         )
 
+        # Generate exception rows HTML before the return
+        exception_rows = "".join(
+            f"""
+            <tr>
+                <td>{exc.exception_type or '-'}</td>
+                <td>{exc.inference_service or '-'}</td>
+                <td>{exc.model or '-'}</td>
+                <td>{exc.question_name or '-'}</td>
+                <td class='exception-count'>{exc.exception_count:,}</td>
+            </tr>
+        """
+            for exc in self.jobs_info.exception_summary
+        )
+
         # Get the error report URL if it exists
         error_report_url = getattr(self.jobs_info, "error_report_url", None)
         error_report_link = (
@@ -176,15 +190,7 @@ class HTMLTableJobLogger(JobLogger):
                         </tr>
                     </thead>
                     <tbody>
-                        {''.join(f"""
-                            <tr>
-                                <td>{exc.exception_type or '-'}</td>
-                                <td>{exc.inference_service or '-'}</td>
-                                <td>{exc.model or '-'}</td>
-                                <td>{exc.question_name or '-'}</td>
-                                <td class='exception-count'>{exc.exception_count:,}</td>
-                            </tr>
-                        """ for exc in self.jobs_info.exception_summary)}
+                        {exception_rows}
                     </tbody>
                 </table>
             </div>
