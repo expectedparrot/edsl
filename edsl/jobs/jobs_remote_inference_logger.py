@@ -28,6 +28,8 @@ class JobsInfo:
     job_uuid: str = None
     progress_bar_url: str = None
     error_report_url: str = None
+    remote_inference_url: str = None
+    remote_cache_url: str = None
     results_uuid: str = None
     results_url: str = None
     completed_interviews: int = None
@@ -39,6 +41,8 @@ class JobsInfo:
         "error_report_url": "Exceptions Report URL",
         "results_uuid": "Results UUID",
         "results_url": "Results URL",
+        "remote_inference_url": "Remote Jobs",
+        "remote_cache_url": "Remote Cache",
     }
 
 

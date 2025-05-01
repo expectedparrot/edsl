@@ -94,6 +94,12 @@ class JobsRemoteInferenceHandler:
             "Remote inference activated. Sending job to server...",
             status=JobsStatus.QUEUED,
         )
+        logger.add_info(
+            "remote_inference_url", f"{self.expected_parrot_url}/home/remote-inference"
+        )
+        logger.add_info(
+            "remote_cache_url", f"{self.expected_parrot_url}/home/remote-cache"
+        )
         remote_job_creation_data = coop.remote_inference_create(
             self.jobs,
             description=remote_inference_description,
@@ -183,7 +189,9 @@ class JobsRemoteInferenceHandler:
         self, job_info: RemoteJobInfo, remote_job_data: RemoteInferenceResponse
     ) -> None:
         "Handles a failed job by logging the error and updating the job status."
-        latest_error_report_url = remote_job_data.get("latest_error_report_url")
+        error_report_url = remote_job_data.get("status_metadata", {}).get(
+            "error_report_url"
+        )
 
         reason = remote_job_data.get("reason")
 
@@ -193,8 +201,8 @@ class JobsRemoteInferenceHandler:
                 status=JobsStatus.FAILED,
             )
 
-        if latest_error_report_url:
-            job_info.logger.add_info("error_report_url", latest_error_report_url)
+        if error_report_url:
+            job_info.logger.add_info("error_report_url", error_report_url)
 
         job_info.logger.update("Job failed.", status=JobsStatus.FAILED)
         job_info.logger.update(
@@ -227,14 +235,12 @@ class JobsRemoteInferenceHandler:
         self, job_info: RemoteJobInfo, remote_job_data: RemoteInferenceResponse
     ) -> None:
         "Handles a partially failed job by logging the error and updating the job status."
-        self._update_interview_numbers(job_info, remote_job_data)
-
-        latest_error_report_url = remote_job_data.get("status_metadata", {}).get(
-            "latest_error_report_url"
+        error_report_url = remote_job_data.get("status_metadata", {}).get(
+            "error_report_url"
         )
 
-        if latest_error_report_url:
-            job_info.logger.add_info("error_report_url", latest_error_report_url)
+        if error_report_url:
+            job_info.logger.add_info("error_report_url", error_report_url)
 
         job_info.logger.update(
             "Job completed with partial results.", status=JobsStatus.PARTIALLY_FAILED
@@ -276,6 +282,8 @@ class JobsRemoteInferenceHandler:
         job_info.logger.add_info("results_url", results_url)
 
         if job_status == "completed":
+            job_info.logger.add_info("completed_interviews", len(results))
+            job_info.logger.add_info("failed_interviews", 0)
             job_info.logger.update(
                 f"Job completed and Results stored on Coop. [View Results]({results_url})",
                 status=JobsStatus.COMPLETED,
@@ -298,6 +306,7 @@ class JobsRemoteInferenceHandler:
     ) -> Union[None, "Results", Literal["continue"]]:
         """Makes one attempt to fetch and process a remote job's status and results."""
         remote_job_data = remote_job_data_fetcher(job_info.job_uuid)
+        self._update_interview_numbers(job_info, remote_job_data)
         status = remote_job_data.get("status")
         reason = remote_job_data.get("reason")
         if status == "cancelled":
@@ -324,7 +333,6 @@ class JobsRemoteInferenceHandler:
                 return None, reason
 
         else:
-            self._update_interview_numbers(job_info, remote_job_data)
             self._sleep_for_a_bit(job_info, status)
             return "continue", reason
 
