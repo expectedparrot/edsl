@@ -15,14 +15,12 @@ if TYPE_CHECKING:
 from .fetch_invigilator import FetchInvigilator
 from ..caching import CacheEntry
 from ..dataset import Dataset
+from ..language_models.price_manager import PriceRetriever
 
 logger = logging.getLogger(__name__)
 
 
 class PromptCostEstimator:
-
-    DEFAULT_INPUT_PRICE_PER_MILLION_TOKENS = 1.0
-    DEFAULT_OUTPUT_PRICE_PER_MILLION_TOKENS = 1.0
     CHARS_PER_TOKEN = 4
     OUTPUT_TOKENS_PER_INPUT_TOKEN = 0.75
     PIPING_MULTIPLIER = 2
@@ -37,7 +35,7 @@ class PromptCostEstimator:
     ):
         self.system_prompt = system_prompt
         self.user_prompt = user_prompt
-        self.price_lookup = price_lookup
+        self.price_retriever = PriceRetriever(price_lookup)
         self.inference_service = inference_service
         self.model = model
 
@@ -48,91 +46,6 @@ class PromptCostEstimator:
         if "{{" in prompt and "}}" in prompt:
             return PromptCostEstimator.PIPING_MULTIPLIER
         return 1
-
-    def _get_fallback_price(self, inference_service: str) -> Dict:
-        """
-        Get fallback prices for a service.
-        - First fallback: The highest input and output prices for that service from the price lookup.
-        - Second fallback: $1.00 per million tokens (for both input and output).
-
-        Args:
-            inference_service (str): The inference service name
-
-        Returns:
-            Dict: Price information
-        """
-        PriceEntry = namedtuple("PriceEntry", ["tokens_per_usd", "price_info"])
-
-        service_prices = [
-            prices
-            for (service, _), prices in self.price_lookup.items()
-            if service == inference_service
-        ]
-
-        default_input_price_info = {
-            "one_usd_buys": 1_000_000,
-            "service_stated_token_qty": 1_000_000,
-            "service_stated_token_price": self.DEFAULT_INPUT_PRICE_PER_MILLION_TOKENS,
-        }
-        default_output_price_info = {
-            "one_usd_buys": 1_000_000,
-            "service_stated_token_qty": 1_000_000,
-            "service_stated_token_price": self.DEFAULT_OUTPUT_PRICE_PER_MILLION_TOKENS,
-        }
-
-        # Find the most expensive price entries (lowest tokens per USD)
-        input_price_info = default_input_price_info
-        output_price_info = default_output_price_info
-
-        input_prices = [
-            PriceEntry(float(p["input"]["one_usd_buys"]), p["input"])
-            for p in service_prices
-            if "input" in p
-        ]
-        if input_prices:
-            input_price_info = min(
-                input_prices, key=lambda price: price.tokens_per_usd
-            ).price_info
-
-        output_prices = [
-            PriceEntry(float(p["output"]["one_usd_buys"]), p["output"])
-            for p in service_prices
-            if "output" in p
-        ]
-        if output_prices:
-            output_price_info = min(
-                output_prices, key=lambda price: price.tokens_per_usd
-            ).price_info
-
-        return {
-            "input": input_price_info,
-            "output": output_price_info,
-        }
-
-    def get_price(self, inference_service: str, model: str) -> Dict:
-        """Get the price information for a specific service and model."""
-        key = (inference_service, model)
-        return self.price_lookup.get(key) or self._get_fallback_price(inference_service)
-
-    def get_price_per_million_tokens(
-        self,
-        relevant_prices: Dict,
-        token_type: Literal["input", "output"],
-    ) -> Dict:
-        """
-        Get the price per million tokens for a specific service, model, and token type.
-        """
-        service_price = relevant_prices[token_type]["service_stated_token_price"]
-        service_qty = relevant_prices[token_type]["service_stated_token_qty"]
-
-        if service_qty == 1_000_000:
-            price_per_million_tokens = service_price
-        elif service_qty == 1_000:
-            price_per_million_tokens = service_price * 1_000
-        else:
-            price_per_token = service_price / service_qty
-            price_per_million_tokens = round(price_per_token * 1_000_000, 10)
-        return price_per_million_tokens
 
     def __call__(self):
         user_prompt_chars = len(str(self.user_prompt)) * self.get_piping_multiplier(
@@ -145,13 +58,15 @@ class PromptCostEstimator:
         input_tokens = (user_prompt_chars + system_prompt_chars) // self.CHARS_PER_TOKEN
         output_tokens = math.ceil(self.OUTPUT_TOKENS_PER_INPUT_TOKEN * input_tokens)
 
-        relevant_prices = self.get_price(self.inference_service, self.model)
-
-        input_price_per_million_tokens = self.get_price_per_million_tokens(
-            relevant_prices, "input"
+        relevant_prices = self.price_retriever.get_price(
+            self.inference_service, self.model
         )
-        output_price_per_million_tokens = self.get_price_per_million_tokens(
-            relevant_prices, "output"
+
+        input_price_per_million_tokens = (
+            self.price_retriever.get_price_per_million_tokens(relevant_prices, "input")
+        )
+        output_price_per_million_tokens = (
+            self.price_retriever.get_price_per_million_tokens(relevant_prices, "output")
         )
 
         input_price_per_token = input_price_per_million_tokens / 1_000_000
@@ -449,9 +364,7 @@ class JobsPrompts:
 
         # Calculate totals
         estimated_total_cost_usd = sum(group["cost_usd"] for group in detailed_costs)
-        total_credits_hold = sum(
-            group["credits_hold"] for group in detailed_costs
-        )
+        total_credits_hold = sum(group["credits_hold"] for group in detailed_costs)
         estimated_total_input_tokens = sum(
             group["tokens"]
             for group in detailed_costs
