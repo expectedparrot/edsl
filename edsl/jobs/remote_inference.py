@@ -5,7 +5,7 @@ from ..coop import CoopServerResponseError
 from ..coop.utils import VisibilityType
 from ..coop.coop import RemoteInferenceResponse, RemoteInferenceCreationInfo
 from .jobs_status_enums import JobsStatus
-from .jobs_remote_inference_logger import JobLogger
+from .jobs_remote_inference_logger import JobLogger, JobRunExceptionCounter
 from .exceptions import RemoteInferenceError
 
 
@@ -189,7 +189,7 @@ class JobsRemoteInferenceHandler:
         self, job_info: RemoteJobInfo, remote_job_data: RemoteInferenceResponse
     ) -> None:
         "Handles a failed job by logging the error and updating the job status."
-        error_report_url = remote_job_data.get("status_metadata", {}).get(
+        error_report_url = remote_job_data.get("latest_job_run_details", {}).get(
             "error_report_url"
         )
 
@@ -214,13 +214,12 @@ class JobsRemoteInferenceHandler:
             status=JobsStatus.FAILED,
         )
 
-    def _update_interview_numbers(
+    def _update_interview_details(
         self, job_info: RemoteJobInfo, remote_job_data: RemoteInferenceResponse
     ) -> None:
-        "Updates the interview numbers in the job info."
-        interview_details = remote_job_data.get("status_metadata", {}).get(
-            "interview_details", {}
-        )
+        "Updates the interview details in the job info."
+        latest_job_run_details = remote_job_data.get("latest_job_run_details", {})
+        interview_details = latest_job_run_details.get("interview_details", {}) or {}
         completed_interviews = interview_details.get("completed_interviews", 0)
         interviews_with_exceptions = interview_details.get(
             "interviews_with_exceptions", 0
@@ -231,11 +230,25 @@ class JobsRemoteInferenceHandler:
         job_info.logger.add_info("completed_interviews", interviews_without_exceptions)
         job_info.logger.add_info("failed_interviews", interviews_with_exceptions)
 
+        exception_summary = interview_details.get("exception_summary", []) or []
+        if exception_summary:
+            job_run_exception_counters = []
+            for exception in exception_summary:
+                exception_counter = JobRunExceptionCounter(
+                    exception_type=exception.get("exception_type"),
+                    inference_service=exception.get("inference_service"),
+                    model=exception.get("model"),
+                    question_name=exception.get("question_name"),
+                    exception_count=exception.get("exception_count"),
+                )
+                job_run_exception_counters.append(exception_counter)
+            job_info.logger.add_info("exception_summary", job_run_exception_counters)
+
     def _handle_partially_failed_job(
         self, job_info: RemoteJobInfo, remote_job_data: RemoteInferenceResponse
     ) -> None:
         "Handles a partially failed job by logging the error and updating the job status."
-        error_report_url = remote_job_data.get("status_metadata", {}).get(
+        error_report_url = remote_job_data.get("latest_job_run_details", {}).get(
             "error_report_url"
         )
 
@@ -306,7 +319,7 @@ class JobsRemoteInferenceHandler:
     ) -> Union[None, "Results", Literal["continue"]]:
         """Makes one attempt to fetch and process a remote job's status and results."""
         remote_job_data = remote_job_data_fetcher(job_info.job_uuid)
-        self._update_interview_numbers(job_info, remote_job_data)
+        self._update_interview_details(job_info, remote_job_data)
         status = remote_job_data.get("status")
         reason = remote_job_data.get("reason")
         if status == "cancelled":
