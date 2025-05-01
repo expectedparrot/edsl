@@ -168,7 +168,9 @@ class Coop(CoopFunctionsMixin):
             and "json_string" in payload
             and payload.get("json_string") is not None
         ):
-            timeout = max(40, (len(payload.get("json_string", "")) // (1024 * 1024)))
+            timeout = max(
+                60, 2 * (len(payload.get("json_string", "")) // (1024 * 1024))
+            )
         try:
             if method in ["GET", "DELETE"]:
                 response = requests.request(
