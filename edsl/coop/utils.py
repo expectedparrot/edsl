@@ -1,3 +1,4 @@
+import math
 from typing import Literal, Optional, Type, Union
 
 from ..agents import Agent, AgentList
@@ -197,3 +198,65 @@ class ObjectRegistry:
             if (class_name := o["edsl_class"].__name__) not in subclass_registry
             and class_name not in exclude_classes
         }
+
+
+class CostConverter:
+    CENTS_PER_CREDIT = 1
+
+    @staticmethod
+    def _credits_to_minicredits(credits: float) -> float:
+        """
+        Converts credits to minicredits.
+
+        Current conversion: minicredits = credits * 100
+        """
+
+        return credits * 100
+
+    @staticmethod
+    def _minicredits_to_credits(minicredits: float) -> float:
+        """
+        Converts minicredits to credits.
+
+        Current conversion: credits = minicredits / 100
+        """
+
+        return minicredits / 100
+
+    def _usd_to_minicredits(self, usd: float) -> float:
+        """Converts USD to minicredits."""
+
+        cents = usd * 100
+        credits_per_cent = 1 / int(self.CENTS_PER_CREDIT)
+
+        credits = cents * credits_per_cent
+
+        minicredits = self._credits_to_minicredits(credits)
+
+        return minicredits
+
+    def _minicredits_to_usd(self, minicredits: float) -> float:
+        """Converts minicredits to USD."""
+
+        credits = self._minicredits_to_credits(minicredits)
+
+        cents_per_credit = int(self.CENTS_PER_CREDIT)
+
+        cents = credits * cents_per_credit
+        usd = cents / 100
+
+        return usd
+
+    def usd_to_credits(self, usd: float) -> float:
+        """Converts USD to credits."""
+
+        minicredits = math.ceil(self._usd_to_minicredits(usd))
+        credits = self._minicredits_to_credits(minicredits)
+        return round(credits, 2)
+
+    def credits_to_usd(self, credits: float) -> float:
+        """Converts credits to USD."""
+
+        minicredits = math.ceil(self._credits_to_minicredits(credits))
+        usd = self._minicredits_to_usd(minicredits)
+        return usd

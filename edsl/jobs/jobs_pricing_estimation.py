@@ -13,6 +13,7 @@ if TYPE_CHECKING:
     from ..invigilators.invigilator_base import Invigilator
 
 from .fetch_invigilator import FetchInvigilator
+from ..coop.utils import CostConverter
 from ..caching import CacheEntry
 from ..dataset import Dataset
 from ..language_models.price_manager import PriceRetriever
@@ -281,20 +282,6 @@ class JobsPrompts:
             },
         )
 
-    @staticmethod
-    def usd_to_credits(usd: float) -> float:
-        """Converts USD to credits."""
-        cents = usd * 100
-        credits_per_cent = 1
-        credits = cents * credits_per_cent
-
-        # Round up to the nearest hundredth of a credit
-        minicredits = math.ceil(credits * 100)
-
-        # Convert back to credits
-        credits = round(minicredits / 100, 2)
-        return credits
-
     def estimate_job_cost_from_external_prices(
         self, price_lookup: dict, iterations: int = 1
     ) -> dict:
@@ -359,8 +346,9 @@ class JobsPrompts:
             detailed_costs.append(group)
 
         # Convert to credits
+        converter = CostConverter()
         for group in detailed_costs:
-            group["credits_hold"] = self.usd_to_credits(group["cost_usd"])
+            group["credits_hold"] = converter.usd_to_credits(group["cost_usd"])
 
         # Calculate totals
         estimated_total_cost_usd = sum(group["cost_usd"] for group in detailed_costs)
