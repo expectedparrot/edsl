@@ -648,6 +648,12 @@ class HTMLTableJobLogger(JobLogger):
             .model-costs-table td.cost-value {
                 text-align: right;  /* Right align the token counts and cost values */
             }
+            .code-text {
+                font-family: monospace;
+                background-color: #f8fafc;
+                padding: 1px 4px;
+                border-radius: 3px;
+            }
         </style>
         """
 
@@ -757,9 +763,11 @@ class HTMLTableJobLogger(JobLogger):
         uuid_fields.sort(key=lambda x: 0 if "result" in x[0].lower() else 1)
         for field, pretty_name, value in uuid_fields:
             if "result" in field.lower():
-                helper_text = "Use Results.pull(uuid) to fetch results."
+                helper_text = "Use <span class='code-text'>Results.pull(uuid)</span> to fetch results."
             elif "job" in field.lower():
-                helper_text = "Use Jobs.pull(uuid) to fetch job."
+                helper_text = (
+                    "Use <span class='code-text'>Jobs.pull(uuid)</span> to fetch job."
+                )
             else:
                 helper_text = ""
 
