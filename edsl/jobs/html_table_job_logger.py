@@ -133,9 +133,66 @@ class HTMLTableJobLogger(JobLogger):
             }}
         """
 
+    def _build_exceptions_table(self) -> str:
+        """Generate HTML for the exceptions summary table section."""
+        if not self.jobs_info.exception_summary:
+            return ""
+
+        total_exceptions = sum(
+            exc.exception_count for exc in self.jobs_info.exception_summary
+        )
+
+        # Get the error report URL if it exists
+        error_report_url = getattr(self.jobs_info, "error_report_url", None)
+        error_report_link = (
+            f"""
+            <div style="margin-bottom: 12px; font-size: 0.85em;">
+                <a href="{error_report_url}" target="_blank" class="pill-link">
+                    View full exceptions report{self.external_link_icon}
+                </a>
+            </div>
+            """
+            if error_report_url
+            else ""
+        )
+
+        return f"""
+        <div class="exception-section">
+            <div class="exception-header" onclick="{self._collapse(f'exception-content-{self.log_id}', f'exception-arrow-{self.log_id}')}">
+                <span id="exception-arrow-{self.log_id}" class="expand-toggle">&#8963;</span>
+                <span>Exception Summary ({total_exceptions:,} total)</span>
+                <span style="flex-grow: 1;"></span>
+            </div>
+            <div id="exception-content-{self.log_id}" class="exception-content">
+                {error_report_link}
+                <table class='exception-table'>
+                    <thead>
+                        <tr>
+                            <th>Exception Type</th>
+                            <th>Service</th>
+                            <th>Model</th>
+                            <th>Question</th>
+                            <th>Count</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {''.join(f"""
+                            <tr>
+                                <td>{exc.exception_type or '-'}</td>
+                                <td>{exc.inference_service or '-'}</td>
+                                <td>{exc.model or '-'}</td>
+                                <td>{exc.question_name or '-'}</td>
+                                <td class='exception-count'>{exc.exception_count:,}</td>
+                            </tr>
+                        """ for exc in self.jobs_info.exception_summary)}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        """
+
     def _get_html(self, current_status: JobsStatus = JobsStatus.RUNNING) -> str:
         """Generate the complete HTML display with modern design"""
-        # CSS for modern styling
         css = """
         <style>
             .jobs-container {
@@ -190,7 +247,7 @@ class HTMLTableJobLogger(JobLogger):
                 border-bottom: 1px solid #cbd5e1;
                 font-size: 0.85em;
             }
-            .two-column-grid {
+            .three-column-grid {
                 display: flex;
                 flex-wrap: wrap;
                 gap: 1px;
@@ -199,11 +256,15 @@ class HTMLTableJobLogger(JobLogger):
             .column {
                 background-color: white;
             }
-            .column:first-child {
+            .column:nth-child(1) {  /* Job Links */
                 flex: 1;
                 min-width: 150px;
             }
-            .column:last-child {
+            .column:nth-child(2) {  /* Content */
+                flex: 1;
+                min-width: 150px;
+            }
+            .column:nth-child(3) {  /* Identifiers */
                 flex: 2;
                 min-width: 300px;
             }
@@ -399,9 +460,53 @@ class HTMLTableJobLogger(JobLogger):
             .status-partially-failed.badge { background-color: #fef3c7; }
             .status-failed.badge { background-color: #fee2e2; }
             .helper-text {
-                color: #6b7280;
+                color: #4b5563;
                 font-size: 0.75em;
                 text-align: left;
+            }
+            /* Exception table styles */
+            .exception-section {
+                border-top: 1px solid #edf2f7;
+            }
+            .exception-header {
+                padding: 8px 12px;
+                background-color: #f7fafc;
+                display: flex;
+                align-items: center;
+                cursor: pointer;
+                font-size: 0.85em;
+                font-weight: 500;
+                user-select: none;  /* Prevent text selection */
+            }
+            .exception-content {
+                padding: 12px;
+            }
+            .exception-table {
+                width: 100%;
+                border-collapse: collapse;
+                margin: 0;
+                font-size: 0.85em;
+            }
+            .exception-table th {
+                background-color: #f1f5f9;
+                color: #475569;
+                font-weight: 500;
+                text-align: left;
+                padding: 8px 12px;
+                border-bottom: 2px solid #e2e8f0;
+            }
+            .exception-table td {
+                padding: 6px 12px;
+                border-bottom: 1px solid #e2e8f0;
+                color: #1f2937;
+                text-align: left;  /* Ensure left alignment */
+            }
+            .exception-table tr:last-child td {
+                border-bottom: none;
+            }
+            .exception-count {
+                font-weight: 500;
+                color: #ef4444;
             }
         </style>
         """
@@ -416,6 +521,7 @@ class HTMLTableJobLogger(JobLogger):
                 "pretty_names",
                 "completed_interviews",
                 "failed_interviews",
+                "exception_summary",
             ]:
                 value = getattr(self.jobs_info, field)
                 if not value:
@@ -432,15 +538,15 @@ class HTMLTableJobLogger(JobLogger):
                 else:
                     other_fields.append((field, pretty_name, value))
 
-        # Build a two-column layout with links and UUIDs
+        # Build a three-column layout
         content_html = """
-        <div class="two-column-grid">
+        <div class="three-column-grid">
             <div class="column">
-                <div class="section-header">Links</div>
+                <div class="section-header">Job Links</div>
                 <div class="content-box">
         """
 
-        # Sort URLs to prioritize Results first, then Progress Bar
+        # Sort URLs to prioritize Results first, then Progress
         results_links = []
         progress_links = []
         remote_links = []
@@ -462,7 +568,7 @@ class HTMLTableJobLogger(JobLogger):
             else:
                 other_links.append((field, pretty_name, value, label))
 
-        # Add results links first with special styling
+        # Add results and progress links to first column
         for field, pretty_name, value, label in results_links:
             content_html += f"""
             <div class="link-item results-link" style="display: flex; align-items: center; justify-content: space-between;">
@@ -480,19 +586,19 @@ class HTMLTableJobLogger(JobLogger):
             </div>
             """
 
-        # Add remote inference and cache links
-        for field, pretty_name, value, label in remote_links:
+        # Close first column and start second column
+        content_html += """
+                </div>
+            </div>
+            <div class="column">
+                <div class="section-header">Content</div>
+                <div class="content-box">
+        """
+
+        # Add remote links to middle column
+        for field, pretty_name, value, label in remote_links + other_links:
             content_html += f"""
             <div class="link-item remote-link" style="display: flex; align-items: center; justify-content: space-between;">
-                <a href="{value}" target="_blank" class="pill-link">{label}{self.external_link_icon}</a>
-                {self._create_copy_button(value)}
-            </div>
-            """
-
-        # Then add other links
-        for field, pretty_name, value, label in other_links:
-            content_html += f"""
-            <div class="link-item" style="display: flex; align-items: center; justify-content: space-between;">
                 <a href="{value}" target="_blank" class="pill-link">{label}{self.external_link_icon}</a>
                 {self._create_copy_button(value)}
             </div>
@@ -516,7 +622,6 @@ class HTMLTableJobLogger(JobLogger):
             else:
                 helper_text = ""
 
-            # Create single-line UUID displays
             content_html += f"""
             <div class="uuid-item">
                 <span class="uuid-label">{pretty_name}:</span>{self._create_uuid_copy_button(value, helper_text)}
@@ -610,6 +715,15 @@ class HTMLTableJobLogger(JobLogger):
         ):
             header_status_text += f" ({self.jobs_info.completed_interviews:,} completed, {self.jobs_info.failed_interviews:,} failed)"
 
+        # Generate the main content first (status banner and message log)
+        main_content = f"""
+            {content_html}
+            {status_banner}
+            {message_log}
+            {self._build_exceptions_table()}
+        """
+
+        # Return the complete HTML
         return f"""
         {css}
         <div class="jobs-container">
@@ -621,9 +735,7 @@ class HTMLTableJobLogger(JobLogger):
                 <div class="{status_class}">{header_status_text}</div>
             </div>
             <div id="content-{self.log_id}" class="jobs-content" style="display: {display_style};">
-                {content_html}
-                {status_banner}
-                {message_log}
+                {main_content}
             </div>
         </div>
         """

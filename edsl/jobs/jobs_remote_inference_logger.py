@@ -24,6 +24,15 @@ class LogMessage:
 
 
 @dataclass
+class JobRunExceptionCounter:
+    exception_type: str = None
+    inference_service: str = None
+    model: str = None
+    question_name: str = None
+    exception_count: int = None
+
+
+@dataclass
 class JobsInfo:
     job_uuid: str = None
     progress_bar_url: str = None
@@ -34,6 +43,7 @@ class JobsInfo:
     results_url: str = None
     completed_interviews: int = None
     failed_interviews: int = None
+    exception_summary: list[JobRunExceptionCounter] = None
 
     pretty_names = {
         "job_uuid": "Job UUID",
