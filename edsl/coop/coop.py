@@ -37,18 +37,27 @@ from .ep_key_handling import ExpectedParrotKeyHandler
 from ..inference_services.data_structures import ServiceToModelsMapping
 
 
-class InterviewDetails(TypedDict):
-    total_interviews: int
-    completed_interviews: int
-    interviews_with_exceptions: int
-
-
 class JobRunExpense(TypedDict):
     service: str
     model: str
     input_tokens: int
     output_tokens: int
     cost_credits: float
+
+
+class JobRunExceptionCounter(TypedDict):
+    exception_type: str
+    inference_service: str
+    model: str
+    question_name: str
+    exception_count: int
+
+
+class InterviewDetails(TypedDict):
+    total_interviews: int
+    completed_interviews: int
+    interviews_with_exceptions: int
+    exception_counters: List[JobRunExceptionCounter]
 
 
 class RunningJobMetadata(TypedDict):
@@ -63,6 +72,7 @@ class FailedJobMetadata(TypedDict):
 class CompletedJobMetadata(TypedDict):
     interview_details: Optional[InterviewDetails]
     cost_credits: Optional[float]
+    cost_usd: Optional[float]
     expenses: Optional[List[JobRunExpense]]
 
 
@@ -71,6 +81,7 @@ class PartiallyFailedJobMetadata(TypedDict):
     error_report_uuid: Optional[str]
     error_report_url: Optional[str]
     cost_credits: Optional[float]
+    cost_usd: Optional[float]
     expenses: Optional[List[JobRunExpense]]
 
 
@@ -1109,15 +1120,12 @@ class Coop(CoopFunctionsMixin):
         Returns:
             RemoteInferenceResponse: Information about the job including:
                 - job_uuid: The unique identifier for the job
-                - results_uuid: The UUID of the results (if job is completed)
-                - results_url: URL to access the results (if available)
-                - latest_error_report_uuid: UUID of error report (if job failed)
-                - latest_error_report_url: URL to access error details (if available)
+                - results_uuid: The UUID of the results
+                - results_url: URL to access the results
                 - status: Current status ("queued", "running", "completed", "failed")
-                - reason: Reason for failure (if applicable)
-                - credits_consumed: Credits used for the job execution
                 - version: EDSL version used for the job
                 - job_json_string: The json string for the job (if include_json_string is True)
+                - status_metadata: Metadata about the job status
 
         Raises:
             ValueError: If neither job_uuid nor results_uuid is provided

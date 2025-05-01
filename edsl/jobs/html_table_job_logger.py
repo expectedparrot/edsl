@@ -1,6 +1,7 @@
 import re
 import uuid
 from datetime import datetime
+from typing import Union
 
 from IPython.display import display, HTML
 
@@ -61,16 +62,28 @@ class HTMLTableJobLogger(JobLogger):
             text,
         )
 
-    def _create_uuid_copy_button(self, uuid_value: str) -> str:
+    def _create_uuid_copy_button(
+        self, uuid_value: str, helper_text: Union[str, None] = None
+    ) -> str:
         """Create a UUID display with click-to-copy functionality"""
         short_uuid = uuid_value
         if len(uuid_value) > 12:
             short_uuid = f"{uuid_value[:8]}...{uuid_value[-4:]}"
 
         return f"""
-        <div class="uuid-container" title="{uuid_value}">
-            <span class="uuid-code">{short_uuid}</span>
-            <button class="copy-btn" onclick="navigator.clipboard.writeText('{uuid_value}').then(() => {{
+        <div class="uuid-container-wrapper">
+            <div class="uuid-container" title="{uuid_value}">
+                <span class="uuid-code">{short_uuid}</span>
+                {self._create_copy_button(uuid_value)}
+            </div>
+            {f'<div class="helper-text">{helper_text}</div>' if helper_text else ''}
+        </div>
+        """
+
+    def _create_copy_button(self, value: str) -> str:
+        """Create a button with click-to-copy functionality"""
+        return f"""
+            <button class="copy-btn" onclick="navigator.clipboard.writeText('{value}').then(() => {{
                 const btn = this;
                 btn.querySelector('.copy-icon').style.display = 'none';
                 btn.querySelector('.check-icon').style.display = 'block';
@@ -87,7 +100,6 @@ class HTMLTableJobLogger(JobLogger):
                     <polyline points="20 6 9 17 4 12"></polyline>
                 </svg>
             </button>
-        </div>
         """
 
     def update(self, message: str, status: JobsStatus = JobsStatus.RUNNING):
@@ -106,6 +118,20 @@ class HTMLTableJobLogger(JobLogger):
             self.display_handle.update(HTML(self._get_html(status)))
         else:
             return None
+
+    def _collapse(self, content_id: str, arrow_id: str) -> str:
+        """Generate the onclick JavaScript for collapsible sections"""
+        return f"""
+            const content = document.getElementById('{content_id}');
+            const arrow = document.getElementById('{arrow_id}');
+            if (content.style.display === 'none') {{
+                content.style.display = 'block';
+                arrow.innerHTML = '&#8963;';
+            }} else {{
+                content.style.display = 'none';
+                arrow.innerHTML = '&#8964;';
+            }}
+        """
 
     def _get_html(self, current_status: JobsStatus = JobsStatus.RUNNING) -> str:
         """Generate the complete HTML display with modern design"""
@@ -131,6 +157,8 @@ class HTMLTableJobLogger(JobLogger):
                 justify-content: space-between;
                 font-weight: 500;
                 font-size: 0.9em;
+                flex-wrap: wrap;
+                gap: 8px;
             }
             .jobs-content {
                 background: white;
@@ -185,6 +213,7 @@ class HTMLTableJobLogger(JobLogger):
             .link-item {
                 padding: 3px 0;
                 border-bottom: 1px solid #f1f5f9;
+                font-size: 0.9em;
             }
             .link-item:last-child {
                 border-bottom: none;
@@ -203,11 +232,18 @@ class HTMLTableJobLogger(JobLogger):
             .progress-link .pill-link:hover {
                 border-bottom-color: #3b82f6;
             }
+            .remote-link .pill-link {
+                color: #4b5563;
+                font-weight: 500;
+            }
+            .remote-link .pill-link:hover {
+                border-bottom-color: #4b5563;
+            }
             .uuid-item {
                 padding: 3px 0;
                 border-bottom: 1px solid #f1f5f9;
                 display: flex;
-                align-items: center;
+                align-items: flex-start;
             }
             .uuid-item:last-child {
                 border-bottom: none;
@@ -224,12 +260,10 @@ class HTMLTableJobLogger(JobLogger):
                 line-height: 1.5;
             }
             .pill-link {
-                color: #3b82f6;
                 font-weight: 500;
                 text-decoration: none;
                 border-bottom: 1px dotted #bfdbfe;
                 transition: border-color 0.2s;
-                font-size: 0.75em;
                 display: inline-flex;
                 align-items: center;
                 gap: 4px;
@@ -245,13 +279,16 @@ class HTMLTableJobLogger(JobLogger):
             .status-banner {
                 display: flex;
                 align-items: center;
+                flex-wrap: wrap;
+                gap: 8px;
                 padding: 5px 12px;
                 background-color: #f7fafc;
                 border-top: 1px solid #edf2f7;
                 font-size: 0.85em;
+                cursor: pointer;
             }
             .status-running { color: #3b82f6; }
-            .status-completed { color: #10b981; }
+            .status-completed { color: #059669; }
             .status-partially-failed { color: #d97706; }
             .status-failed { color: #ef4444; }
             .status-unknown { color: #6b7280; }
@@ -273,6 +310,14 @@ class HTMLTableJobLogger(JobLogger):
             .link:hover {
                 border-bottom: 1px solid #3b82f6;
             }
+            .uuid-container-wrapper {
+                display: flex;
+                flex-direction: column;
+                align-items: stretch;
+                gap: 4px;
+                flex: 1;
+                padding-bottom: 4px;
+            }            
             .uuid-container {
                 display: flex;
                 align-items: center;
@@ -281,7 +326,7 @@ class HTMLTableJobLogger(JobLogger):
                 padding: 2px 6px;
                 font-family: monospace;
                 font-size: 0.75em;
-                flex: 1;
+                width: 100%;  /* Make sure it fills the width */
             }
             .uuid-code {
                 color: #4b5563;
@@ -353,6 +398,11 @@ class HTMLTableJobLogger(JobLogger):
             .status-completed.badge { background-color: #d1fae5; }
             .status-partially-failed.badge { background-color: #fef3c7; }
             .status-failed.badge { background-color: #fee2e2; }
+            .helper-text {
+                color: #6b7280;
+                font-size: 0.75em;
+                text-align: left;
+            }
         </style>
         """
 
@@ -393,6 +443,7 @@ class HTMLTableJobLogger(JobLogger):
         # Sort URLs to prioritize Results first, then Progress Bar
         results_links = []
         progress_links = []
+        remote_links = []
         other_links = []
 
         for field, pretty_name, value in url_fields:
@@ -404,32 +455,46 @@ class HTMLTableJobLogger(JobLogger):
 
             if "result" in field.lower():
                 results_links.append((field, pretty_name, value, label))
-            elif "progress" in field.lower():
+            elif "progress" in field.lower() or "error_report" in field.lower():
                 progress_links.append((field, pretty_name, value, label))
+            elif "remote_cache" in field.lower() or "remote_inference" in field.lower():
+                remote_links.append((field, pretty_name, value, label))
             else:
                 other_links.append((field, pretty_name, value, label))
 
         # Add results links first with special styling
         for field, pretty_name, value, label in results_links:
             content_html += f"""
-            <div class="link-item results-link">
+            <div class="link-item results-link" style="display: flex; align-items: center; justify-content: space-between;">
                 <a href="{value}" target="_blank" class="pill-link">{label}{self.external_link_icon}</a>
+                {self._create_copy_button(value)}
             </div>
             """
 
         # Then add progress links with different special styling
         for field, pretty_name, value, label in progress_links:
             content_html += f"""
-            <div class="link-item progress-link">
+            <div class="link-item progress-link" style="display: flex; align-items: center; justify-content: space-between;">
                 <a href="{value}" target="_blank" class="pill-link">{label}{self.external_link_icon}</a>
+                {self._create_copy_button(value)}
+            </div>
+            """
+
+        # Add remote inference and cache links
+        for field, pretty_name, value, label in remote_links:
+            content_html += f"""
+            <div class="link-item remote-link" style="display: flex; align-items: center; justify-content: space-between;">
+                <a href="{value}" target="_blank" class="pill-link">{label}{self.external_link_icon}</a>
+                {self._create_copy_button(value)}
             </div>
             """
 
         # Then add other links
         for field, pretty_name, value, label in other_links:
             content_html += f"""
-            <div class="link-item">
+            <div class="link-item" style="display: flex; align-items: center; justify-content: space-between;">
                 <a href="{value}" target="_blank" class="pill-link">{label}{self.external_link_icon}</a>
+                {self._create_copy_button(value)}
             </div>
             """
 
@@ -444,10 +509,17 @@ class HTMLTableJobLogger(JobLogger):
         # Sort UUIDs to prioritize Result UUID first
         uuid_fields.sort(key=lambda x: 0 if "result" in x[0].lower() else 1)
         for field, pretty_name, value in uuid_fields:
+            if "result" in field.lower():
+                helper_text = "Use Results.pull(uuid) to fetch results."
+            elif "job" in field.lower():
+                helper_text = "Use Jobs.pull(uuid) to fetch job."
+            else:
+                helper_text = ""
+
             # Create single-line UUID displays
             content_html += f"""
             <div class="uuid-item">
-                <span class="uuid-label">{pretty_name}:</span>{self._create_uuid_copy_button(value)}
+                <span class="uuid-label">{pretty_name}:</span>{self._create_uuid_copy_button(value, helper_text)}
             </div>
             """
 
@@ -470,7 +542,7 @@ class HTMLTableJobLogger(JobLogger):
                 """
             content_html += "</table>"
 
-        # Status banner
+        # Status banner and message log
         status_class = {
             JobsStatus.RUNNING: "status-running",
             JobsStatus.COMPLETED: "status-completed",
@@ -488,9 +560,14 @@ class HTMLTableJobLogger(JobLogger):
             status_text = str(current_status).capitalize()
 
         status_banner = f"""
-        <div class="status-banner">
-            {status_icon}
-            <strong>Status:</strong>&nbsp;<span class="badge {status_class}">{status_text}</span>
+        <div class="status-banner" onclick="{self._collapse(f'message-log-{self.log_id}', f'message-arrow-{self.log_id}')}">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span id="message-arrow-{self.log_id}" class="expand-toggle">&#8963;</span>
+                <div style="display: flex; align-items: center;">
+                    {status_icon}
+                    <strong>Status:</strong>&nbsp;<span class="badge {status_class}">{status_text}</span>
+                </div>
+            </div>
             <span style="flex-grow: 1;"></span>
             <span>Last updated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</span>
         </div>
@@ -519,7 +596,7 @@ class HTMLTableJobLogger(JobLogger):
                 )
 
             message_log = f"""
-            <div class="message-log">
+            <div id="message-log-{self.log_id}" class="message-log">
                 {''.join(reversed(message_items))}
             </div>
             """
@@ -536,16 +613,7 @@ class HTMLTableJobLogger(JobLogger):
         return f"""
         {css}
         <div class="jobs-container">
-            <div class="jobs-header" onclick="
-                const content = document.getElementById('content-{self.log_id}');
-                const arrow = document.getElementById('arrow-{self.log_id}');
-                if (content.style.display === 'none') {{
-                    content.style.display = 'block';
-                    arrow.innerHTML = '&#8963;';
-                }} else {{
-                    content.style.display = 'none';
-                    arrow.innerHTML = '&#8964;';
-                }}">
+            <div class="jobs-header" onclick="{self._collapse(f'content-{self.log_id}', f'arrow-{self.log_id}')}">
                 <div>
                     <span id="arrow-{self.log_id}" class="expand-toggle">{'&#8963;' if self.is_expanded else '&#8964;'}</span>
                     Job Status 🦜
