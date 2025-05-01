@@ -197,6 +197,83 @@ class HTMLTableJobLogger(JobLogger):
         </div>
         """
 
+    def _build_model_costs_table(self) -> str:
+        """Generate HTML for the model costs summary table section."""
+        if not hasattr(self.jobs_info, "model_costs") or not self.jobs_info.model_costs:
+            return ""
+
+        # Calculate totals
+        total_input_tokens = sum(
+            cost.input_tokens or 0 for cost in self.jobs_info.model_costs
+        )
+        total_output_tokens = sum(
+            cost.output_tokens or 0 for cost in self.jobs_info.model_costs
+        )
+        total_input_cost = sum(
+            cost.input_cost_usd or 0 for cost in self.jobs_info.model_costs
+        )
+        total_output_cost = sum(
+            cost.output_cost_usd or 0 for cost in self.jobs_info.model_costs
+        )
+        total_cost = total_input_cost + total_output_cost
+
+        # Generate cost rows HTML with class names for right alignment
+        cost_rows = "".join(
+            f"""
+            <tr>
+                <td>{cost.service or '-'}</td>
+                <td>{cost.model or '-'}</td>
+                <td class='token-count'>{cost.input_tokens:,}</td>
+                <td class='cost-value'>${cost.input_cost_usd:.4f}</td>
+                <td class='token-count'>{cost.output_tokens:,}</td>
+                <td class='cost-value'>${cost.output_cost_usd:.4f}</td>
+                <td class='cost-value'>${(cost.input_cost_usd or 0) + (cost.output_cost_usd or 0):.4f}</td>
+            </tr>
+            """
+            for cost in self.jobs_info.model_costs
+        )
+
+        # Add total row with the same alignment classes
+        total_row = f"""
+            <tr class='totals-row'>
+                <td colspan='2'><strong>Totals</strong></td>
+                <td class='token-count'>{total_input_tokens:,}</td>
+                <td class='cost-value'>${total_input_cost:.4f}</td>
+                <td class='token-count'>{total_output_tokens:,}</td>
+                <td class='cost-value'>${total_output_cost:.4f}</td>
+                <td class='cost-value'>${total_cost:.4f}</td>
+            </tr>
+        """
+
+        return f"""
+        <div class="model-costs-section">
+            <div class="model-costs-header" onclick="{self._collapse(f'model-costs-content-{self.log_id}', f'model-costs-arrow-{self.log_id}')}">
+                <span id="model-costs-arrow-{self.log_id}" class="expand-toggle">&#8963;</span>
+                <span>Model Costs (${total_cost:.4f} total)</span>
+                <span style="flex-grow: 1;"></span>
+            </div>
+            <div id="model-costs-content-{self.log_id}" class="model-costs-content">
+                <table class='model-costs-table'>
+                    <thead>
+                        <tr>
+                            <th>Service</th>
+                            <th>Model</th>
+                            <th class="cost-header">Input Tokens</th>
+                            <th class="cost-header">Input Cost</th>
+                            <th class="cost-header">Output Tokens</th>
+                            <th class="cost-header">Output Cost</th>
+                            <th class="cost-header">Total Cost</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {cost_rows}
+                        {total_row}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        """
+
     def _get_html(self, current_status: JobsStatus = JobsStatus.RUNNING) -> str:
         """Generate the complete HTML display with modern design"""
         css = """
@@ -514,6 +591,63 @@ class HTMLTableJobLogger(JobLogger):
                 font-weight: 500;
                 color: #ef4444;
             }
+            /* Model costs table styles */
+            .model-costs-section {
+                border-top: 1px solid #edf2f7;
+            }
+            .model-costs-header {
+                padding: 8px 12px;
+                background-color: #f7fafc;
+                display: flex;
+                align-items: center;
+                cursor: pointer;
+                font-size: 0.85em;
+                font-weight: 500;
+                user-select: none;
+            }
+            .model-costs-content {
+                padding: 12px;
+            }
+            .model-costs-table {
+                width: 100%;
+                border-collapse: collapse;
+                margin: 0;
+                font-size: 0.85em;
+            }
+            .model-costs-table th {
+                background-color: #f1f5f9;
+                color: #475569;
+                font-weight: 500;
+                text-align: left;  /* Default left alignment */
+                padding: 8px 12px;
+                border-bottom: 2px solid #e2e8f0;
+            }
+            .model-costs-table th.cost-header {  /* New class for cost headers */
+                text-align: right;
+            }
+            .model-costs-table td {
+                padding: 6px 12px;
+                border-bottom: 1px solid #e2e8f0;
+                color: #1f2937;
+                text-align: left;  /* Ensure left alignment for all cells by default */
+            }
+            .model-costs-table tr:last-child td {
+                border-bottom: none;
+            }
+            .token-count td, .cost-value td {  /* Override for specific columns that need right alignment */
+                text-align: right;
+            }
+            .totals-row {
+                background-color: #f8fafc;
+            }
+            .totals-row td {
+                border-top: 2px solid #e2e8f0;
+            }
+            /* Model costs table styles */
+            .model-costs-table td.token-count,
+            .model-costs-table td.cost-value {
+                text-align: right;  /* Right align the token counts and cost values */
+            }
         </style>
         """
 
@@ -528,6 +662,7 @@ class HTMLTableJobLogger(JobLogger):
                 "completed_interviews",
                 "failed_interviews",
                 "exception_summary",
+                "model_costs",
             ]:
                 value = getattr(self.jobs_info, field)
                 if not value:
@@ -721,11 +856,12 @@ class HTMLTableJobLogger(JobLogger):
         ):
             header_status_text += f" ({self.jobs_info.completed_interviews:,} completed, {self.jobs_info.failed_interviews:,} failed)"
 
-        # Generate the main content first (status banner and message log)
+        # Add model costs table before exceptions table
         main_content = f"""
             {content_html}
             {status_banner}
             {message_log}
+            {self._build_model_costs_table()}
             {self._build_exceptions_table()}
         """
 

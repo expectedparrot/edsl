@@ -33,6 +33,16 @@ class JobRunExceptionCounter:
 
 
 @dataclass
+class ModelCost:
+    service: str = None
+    model: str = None
+    input_tokens: int = None
+    input_cost_usd: float = None
+    output_tokens: int = None
+    output_cost_usd: float = None
+
+
+@dataclass
 class JobsInfo:
     job_uuid: str = None
     progress_bar_url: str = None
@@ -44,6 +54,7 @@ class JobsInfo:
     completed_interviews: int = None
     failed_interviews: int = None
     exception_summary: list[JobRunExceptionCounter] = None
+    model_costs: list[ModelCost] = None
 
     pretty_names = {
         "job_uuid": "Job UUID",
@@ -71,6 +82,8 @@ class JobLogger(ABC):
             "results_url",
             "completed_interviews",
             "failed_interviews",
+            "model_costs",
+            "exception_summary",
         ],
         value: str,
     ):
