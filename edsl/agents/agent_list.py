@@ -47,9 +47,9 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
     with methods for filtering, transforming, and analyzing collections of agents.
 
 
-    >>> AgentList.example().to_scenario_list().drop('agent_parameters')
-    ScenarioList([Scenario({'age': 22, 'hair': 'brown', 'height': 5.5}), Scenario({'age': 22, 'hair': 'brown', 'height': 5.5})])
-
+    >>> AgentList.example().to_scenario_list().drop('age')
+    ScenarioList([Scenario({'hair': 'brown', 'height': 5.5}), Scenario({'hair': 'brown', 'height': 5.5})])
+    
     >>> AgentList.example().to_dataset()
     Dataset([{'age': [22, 22]}, {'hair': ['brown', 'brown']}, {'height': [5.5, 5.5]}])
 
