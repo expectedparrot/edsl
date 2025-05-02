@@ -145,21 +145,17 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         """Initialize a new ScenarioList with optional data and codebook."""
         self._data_class = data_class
         self.data = self._data_class([])
-        warned = False
         for item in data or []:
-            try: 
-                _ = json.dumps(item.to_dict())
-            except:
-                import warnings 
-                if not warned:
-                    warnings.warn( 
-                        f"One or more items in the data list are not JSON serializable. "
-                        "This would prevent running a job that uses this ScenarioList."
-                        "One solution is to use 'str(item)' to convert the item to a string before adding."
-                    )
-                    warned = True
             self.data.append(item)
         self.codebook = codebook or {}
+
+    def is_serializable(self):
+        for item in self.data:
+            try:
+                _ = json.dumps(item.to_dict())
+            except Exception as e:
+                return False
+        return True
 
     # Required MutableSequence abstract methods
     def __getitem__(self, index):
