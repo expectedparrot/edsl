@@ -40,6 +40,8 @@ class ModelCost:
     input_cost_usd: float = None
     output_tokens: int = None
     output_cost_usd: float = None
+    input_cost_credits_with_cache: int = None
+    output_cost_credits_with_cache: int = None
 
 
 @dataclass
