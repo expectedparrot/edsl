@@ -24,6 +24,11 @@ class InterviewExceptionEntry:
         self.answers = answers
 
     @property
+    def exception_type(self) -> str:
+        """Return the type of the exception."""
+        return type(self.exception).__name__
+
+    @property
     def question_type(self) -> str:
         """Return the type of the question that failed."""
         return self.invigilator.question.question_type
@@ -238,6 +243,27 @@ class InterviewExceptionCollection(UserDict):
     def num_unfixed_exceptions(self) -> int:
         """Return the number of unfixed exceptions."""
         return sum(len(v) for v in self.unfixed_exceptions().values())
+
+    def list(self) -> list[dict]:
+        """
+        Return a list of exception dicts with the following metadata:
+        - exception_type: the type of the exception
+        - inference_service: the inference service used
+        - model: the model used
+        - question_name: the name of the question that failed
+        """
+        exception_list = []
+        for question_name, exceptions in self.data.items():
+            for exception in exceptions:
+                exception_list.append(
+                    {
+                        "exception_type": exception.exception_type,
+                        "inference_service": exception.invigilator.model._inference_service_,
+                        "model": exception.invigilator.model.model,
+                        "question_name": question_name,
+                    }
+                )
+        return exception_list
 
     def num_unfixed(self) -> int:
         """Return a list of unfixed questions."""

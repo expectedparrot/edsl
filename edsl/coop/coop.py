@@ -37,17 +37,59 @@ from .ep_key_handling import ExpectedParrotKeyHandler
 from ..inference_services.data_structures import ServiceToModelsMapping
 
 
+class JobRunExpense(TypedDict):
+    service: str
+    model: str
+    token_type: Literal["input", "output"]
+    price_per_million_tokens: float
+    tokens_count: int
+    cost_credits: float
+    cost_usd: float
+
+
+class JobRunExceptionCounter(TypedDict):
+    exception_type: str
+    inference_service: str
+    model: str
+    question_name: str
+    exception_count: int
+
+
+class JobRunInterviewDetails(TypedDict):
+    total_interviews: int
+    completed_interviews: int
+    interviews_with_exceptions: int
+    exception_summary: List[JobRunExceptionCounter]
+
+
+class LatestJobRunDetails(TypedDict):
+
+    # For running, completed, and partially failed jobs
+    interview_details: Optional[JobRunInterviewDetails] = None
+
+    # For failed jobs only
+    failure_reason: Optional[Literal["error", "insufficient funds"]] = None
+    failure_description: Optional[str] = None
+
+    # For partially failed jobs only
+    error_report_uuid: Optional[UUID] = None
+
+    # For completed and partially failed jobs
+    cost_credits: Optional[float] = None
+    cost_usd: Optional[float] = None
+    expenses: Optional[list[JobRunExpense]] = None
+
+
 class RemoteInferenceResponse(TypedDict):
     job_uuid: str
     results_uuid: str
-    results_url: str
-    latest_error_report_uuid: str
-    latest_error_report_url: str
-    status: str
-    reason: str
-    credits_consumed: float
-    version: str
     job_json_string: Optional[str]
+    status: RemoteJobStatus
+    latest_job_run_details: LatestJobRunDetails
+    description: Optional[str]
+    version: str
+    visibility: VisibilityType
+    results_url: str
 
 
 class RemoteInferenceCreationInfo(TypedDict):
@@ -168,7 +210,9 @@ class Coop(CoopFunctionsMixin):
             and "json_string" in payload
             and payload.get("json_string") is not None
         ):
-            timeout = max(40, (len(payload.get("json_string", "")) // (1024 * 1024)))
+            timeout = max(
+                60, 2 * (len(payload.get("json_string", "")) // (1024 * 1024))
+            )
         try:
             if method in ["GET", "DELETE"]:
                 response = requests.request(
@@ -244,7 +288,6 @@ class Coop(CoopFunctionsMixin):
         #         print(
         #             "Please upgrade your EDSL version to access our latest features. Open your terminal and run `pip install --upgrade edsl`"
         #         )
-
         if response.status_code >= 400:
             try:
                 message = str(response.json().get("detail"))
@@ -1063,16 +1106,36 @@ class Coop(CoopFunctionsMixin):
 
         Returns:
             RemoteInferenceResponse: Information about the job including:
-                - job_uuid: The unique identifier for the job
-                - results_uuid: The UUID of the results (if job is completed)
-                - results_url: URL to access the results (if available)
-                - latest_error_report_uuid: UUID of error report (if job failed)
-                - latest_error_report_url: URL to access error details (if available)
-                - status: Current status ("queued", "running", "completed", "failed")
-                - reason: Reason for failure (if applicable)
-                - credits_consumed: Credits used for the job execution
-                - version: EDSL version used for the job
-                - job_json_string: The json string for the job (if include_json_string is True)
+                job_uuid: The unique identifier for the job
+                results_uuid: The UUID of the results
+                results_url: URL to access the results
+                status: Current status ("queued", "running", "completed", "failed")
+                version: EDSL version used for the job
+                job_json_string: The json string for the job (if include_json_string is True)
+                latest_job_run_details: Metadata about the job status
+                    interview_details: Metadata about the job interview status (for jobs that have reached running status)
+                        total_interviews: The total number of interviews in the job
+                        completed_interviews: The number of completed interviews
+                        interviews_with_exceptions: The number of completed interviews that have exceptions
+                        exception_counters: A list of exception counts for the job
+                            exception_type: The type of exception
+                            inference_service: The inference service
+                            model: The model
+                            question_name: The name of the question
+                            exception_count: The number of exceptions
+                    failure_reason: The reason the job failed (failed jobs only)
+                    failure_description: The description of the failure (failed jobs only)
+                    error_report_uuid: The UUID of the error report (partially failed jobs only)
+                    cost_credits: The cost of the job run in credits
+                    cost_usd: The cost of the job run in USD
+                    expenses: The expenses incurred by the job run
+                        service: The service
+                        model: The model
+                        token_type: The type of token (input or output)
+                        price_per_million_tokens: The price per million tokens
+                        tokens_count: The number of tokens consumed
+                        cost_credits: The cost of the service/model/token type combination in credits
+                        cost_usd: The cost of the service/model/token type combination in USD
 
         Raises:
             ValueError: If neither job_uuid nor results_uuid is provided
@@ -1098,6 +1161,8 @@ class Coop(CoopFunctionsMixin):
             params = {"job_uuid": job_uuid}
         else:
             params = {"results_uuid": results_uuid}
+        if include_json_string:
+            params["include_json_string"] = include_json_string
 
         response = self._send_server_request(
             uri="api/v0/remote-inference",
@@ -1108,35 +1173,32 @@ class Coop(CoopFunctionsMixin):
         data = response.json()
 
         results_uuid = data.get("results_uuid")
-        latest_error_report_uuid = data.get("latest_error_report_uuid")
 
         if results_uuid is None:
             results_url = None
         else:
             results_url = f"{self.url}/content/{results_uuid}"
 
-        if latest_error_report_uuid is None:
-            latest_error_report_url = None
-        else:
-            latest_error_report_url = (
-                f"{self.url}/home/remote-inference/error/{latest_error_report_uuid}"
-            )
+        latest_job_run_details = data.get("latest_job_run_details", {})
+        if data.get("status") == "partial_failed":
+            latest_error_report_uuid = latest_job_run_details.get("error_report_uuid")
+            if latest_error_report_uuid is None:
+                latest_job_run_details["error_report_url"] = None
+            else:
+                latest_error_report_url = (
+                    f"{self.url}/home/remote-inference/error/{latest_error_report_uuid}"
+                )
+                latest_job_run_details["error_report_url"] = latest_error_report_url
 
         return RemoteInferenceResponse(
             **{
                 "job_uuid": data.get("job_uuid"),
                 "results_uuid": results_uuid,
                 "results_url": results_url,
-                "latest_error_report_uuid": latest_error_report_uuid,
-                "latest_error_report_url": latest_error_report_url,
-                "latest_failure_description": data.get("latest_failure_details"),
                 "status": data.get("status"),
-                "reason": data.get("latest_failure_reason"),
-                "credits_consumed": data.get("price"),
                 "version": data.get("version"),
-                "job_json_string": (
-                    data.get("job_json_string") if include_json_string else None
-                ),
+                "job_json_string": data.get("job_json_string"),
+                "latest_job_run_details": latest_job_run_details,
             }
         )
 
@@ -1556,6 +1618,11 @@ class Coop(CoopFunctionsMixin):
                     f"[#38bdf8][link={url}][underline]Log in and automatically store key[/underline][/link][/#38bdf8]"
                 )
 
+        print("Logging in will activate the following features:")
+        print("  - Remote inference: Runs jobs remotely on the Expected Parrot server.")
+        print("  - Remote logging: Sends error messages to the Expected Parrot server.")
+        print("\n")
+
     def _get_api_key(self, edsl_auth_token: str):
         """
         Given an EDSL auth token, find the corresponding user's API key.
@@ -1599,6 +1666,76 @@ class Coop(CoopFunctionsMixin):
 
         # Add API key to environment
         load_dotenv()
+
+    def transfer_credits(
+        self,
+        credits_transferred: int,
+        recipient_username: str,
+        transfer_note: str = None,
+    ) -> dict:
+        """
+        Transfer credits to another user.
+
+        This method transfers a specified number of credits from the authenticated user's
+        account to another user's account on the Expected Parrot platform.
+
+        Parameters:
+            credits_transferred (int): The number of credits to transfer to the recipient
+            recipient_username (str): The username of the recipient
+            transfer_note (str, optional): A personal note to include with the transfer
+
+        Returns:
+            dict: Information about the transfer transaction, including:
+                - success: Whether the transaction was successful
+                - transaction_id: A unique identifier for the transaction
+                - remaining_credits: The number of credits remaining in the sender's account
+
+        Raises:
+            CoopServerResponseError: If there's an error communicating with the server
+                or if the transfer criteria aren't met (e.g., insufficient credits)
+
+        Example:
+            >>> result = coop.transfer_credits(
+            ...     credits_transferred=100,
+            ...     recipient_username="friend_username",
+            ...     transfer_note="Thanks for your help!"
+            ... )
+            >>> print(f"Transfer successful! You have {result['remaining_credits']} credits left.")
+        """
+        response = self._send_server_request(
+            uri="api/users/gift",
+            method="POST",
+            payload={
+                "credits_gifted": credits_transferred,
+                "recipient_username": recipient_username,
+                "gift_note": transfer_note,
+            },
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
+    def get_balance(self) -> dict:
+        """
+        Get the current credit balance for the authenticated user.
+
+        This method retrieves the user's current credit balance information from
+        the Expected Parrot platform.
+
+        Returns:
+            dict: Information about the user's credit balance, including:
+                - credits: The current number of credits in the user's account
+                - usage_history: Recent credit usage if available
+
+        Raises:
+            CoopServerResponseError: If there's an error communicating with the server
+
+        Example:
+            >>> balance = coop.get_balance()
+            >>> print(f"You have {balance['credits']} credits available.")
+        """
+        response = self._send_server_request(uri="api/users/get_balance", method="GET")
+        self._resolve_server_response(response)
+        return response.json()
 
 
 def main():
