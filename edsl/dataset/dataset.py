@@ -1086,6 +1086,48 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
         
         return Dataset(new_data)
 
+    def unique(self) -> "Dataset":
+        """Return a new dataset with only unique observations.
+        
+        Examples:
+            >>> d = Dataset([{'a': [1, 2, 2, 3]}, {'b': [4, 5, 5, 6]}])
+            >>> d.unique().data
+            [{'a': [1, 2, 3]}, {'b': [4, 5, 6]}]
+            
+            >>> d = Dataset([{'x': ['a', 'a', 'b']}, {'y': [1, 1, 2]}])
+            >>> d.unique().data
+            [{'x': ['a', 'b']}, {'y': [1, 2]}]
+        """
+        # Get all column names and values
+        headers, data = self._tabular()
+        
+        # Create a list of unique rows
+        unique_rows = []
+        seen = set()
+        
+        for row in data:
+            # Convert the row to a hashable representation for comparison
+            # We need to handle potential unhashable types
+            try:
+                row_key = tuple(map(lambda x: str(x) if isinstance(x, (list, dict)) else x, row))
+                if row_key not in seen:
+                    seen.add(row_key)
+                    unique_rows.append(row)
+            except:
+                # Fallback for complex objects: compare based on string representation
+                row_str = str(row)
+                if row_str not in seen:
+                    seen.add(row_str)
+                    unique_rows.append(row)
+        
+        # Create a new dataset with unique combinations
+        new_data = []
+        for i, header in enumerate(headers):
+            values = [row[i] for row in unique_rows]
+            new_data.append({header: values})
+        
+        return Dataset(new_data)
+
 
 if __name__ == "__main__":
     import doctest
