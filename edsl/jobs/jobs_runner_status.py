@@ -11,15 +11,7 @@ from uuid import UUID
 
 if TYPE_CHECKING:
     from .jobs import Jobs
-
-
-@dataclass
-class ModelInfo:
-    model_name: str
-    TPM_limit_k: float
-    RPM_limit_k: float
-    num_tasks_waiting: int
-    token_usage_info: dict
+    from ..interviews import Interview
 
 
 class StatisticsTracker:
@@ -29,16 +21,33 @@ class StatisticsTracker:
         self.completed_count = 0
         self.completed_by_model = defaultdict(int)
         self.distinct_models = distinct_models
+        self.interviews_with_exceptions = 0
         self.total_exceptions = 0
         self.unfixed_exceptions = 0
+        self.exceptions_counter = defaultdict(int)
 
     def add_completed_interview(
-        self, model: str, num_exceptions: int = 0, num_unfixed: int = 0
+        self,
+        model: str,
+        exceptions: list[dict],
+        num_exceptions: int = 0,
+        num_unfixed: int = 0,
     ):
         self.completed_count += 1
         self.completed_by_model[model] += 1
         self.total_exceptions += num_exceptions
         self.unfixed_exceptions += num_unfixed
+        if num_exceptions > 0:
+            self.interviews_with_exceptions += 1
+
+        for exception in exceptions:
+            key = (
+                exception["exception_type"],
+                exception["inference_service"],
+                exception["model"],
+                exception["question_name"],
+            )
+            self.exceptions_counter[key] += 1
 
     def get_elapsed_time(self) -> float:
         return time.time() - self.start_time
@@ -88,9 +97,7 @@ class JobsRunnerStatusBase(ABC):
         ]
         self.num_total_interviews = n * len(self.jobs)
 
-        self.distinct_models = list(
-            set(model.model for model in self.jobs.models)
-        )
+        self.distinct_models = list(set(model.model for model in self.jobs.models))
 
         self.stats_tracker = StatisticsTracker(
             total_interviews=self.num_total_interviews,
@@ -130,6 +137,7 @@ class JobsRunnerStatusBase(ABC):
         status_dict = {
             "overall_progress": {
                 "completed": self.stats_tracker.completed_count,
+                "has_exceptions": self.stats_tracker.interviews_with_exceptions,
                 "total": self.num_total_interviews,
                 "percent": (
                     (
@@ -148,16 +156,36 @@ class JobsRunnerStatusBase(ABC):
                 if self.stats_tracker.completed_count >= self.num_total_interviews
                 else "running"
             ),
+            "exceptions_counter": [
+                {
+                    "exception_type": exception_type,
+                    "inference_service": inference_service,
+                    "model": model,
+                    "question_name": question_name,
+                    "count": count,
+                }
+                for (
+                    exception_type,
+                    inference_service,
+                    model,
+                    question_name,
+                ), count in self.stats_tracker.exceptions_counter.items()
+            ],
         }
 
         model_queues = {}
         # Check if bucket collection exists and is not empty
-        if (hasattr(self.jobs, 'run_config') and 
-            hasattr(self.jobs.run_config, 'environment') and 
-            hasattr(self.jobs.run_config.environment, 'bucket_collection') and 
-            self.jobs.run_config.environment.bucket_collection):
-            
-            for model, bucket in self.jobs.run_config.environment.bucket_collection.items():
+        if (
+            hasattr(self.jobs, "run_config")
+            and hasattr(self.jobs.run_config, "environment")
+            and hasattr(self.jobs.run_config.environment, "bucket_collection")
+            and self.jobs.run_config.environment.bucket_collection
+        ):
+
+            for (
+                model,
+                bucket,
+            ) in self.jobs.run_config.environment.bucket_collection.items():
                 model_name = model.model
                 model_queues[model_name] = {
                     "language_model_name": model_name,
@@ -166,7 +194,9 @@ class JobsRunnerStatusBase(ABC):
                         "requested": bucket.requests_bucket.num_requests,
                         "tokens_returned": bucket.requests_bucket.tokens_returned,
                         "target_rate": round(bucket.requests_bucket.target_rate, 1),
-                        "current_rate": round(bucket.requests_bucket.get_throughput(), 1),
+                        "current_rate": round(
+                            bucket.requests_bucket.get_throughput(), 1
+                        ),
                     },
                     "tokens_bucket": {
                         "completed": bucket.tokens_bucket.num_released,
@@ -179,10 +209,11 @@ class JobsRunnerStatusBase(ABC):
         status_dict["language_model_queues"] = model_queues
         return status_dict
 
-    def add_completed_interview(self, interview):
+    def add_completed_interview(self, interview: "Interview"):
         """Records a completed interview without storing the full interview data."""
         self.stats_tracker.add_completed_interview(
             model=interview.model.model,
+            exceptions=interview.exceptions.list(),
             num_exceptions=interview.exceptions.num_exceptions(),
             num_unfixed=interview.exceptions.num_unfixed_exceptions(),
         )
