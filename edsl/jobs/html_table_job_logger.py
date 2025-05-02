@@ -468,7 +468,7 @@ class HTMLTableJobLogger(JobLogger):
                 background-color: #f8fafc;
                 border-radius: 3px;
                 padding: 2px 6px;
-                font-family: monospace;
+                font-family: "SF Mono", "Cascadia Mono", monospace;
                 font-size: 0.75em;
                 width: 100%;  /* Make sure it fills the width */
             }
@@ -649,7 +649,7 @@ class HTMLTableJobLogger(JobLogger):
                 text-align: right;  /* Right align the token counts and cost values */
             }
             .code-text {
-                font-family: monospace;
+                font-family: "SF Mono", "Cascadia Mono", monospace;
                 background-color: #f8fafc;
                 padding: 1px 4px;
                 border-radius: 3px;
