@@ -3,7 +3,7 @@ import base64
 import json
 import requests
 
-from typing import Any, Optional, Union, Literal, TypedDict, TYPE_CHECKING
+from typing import Any, Optional, Union, Literal, List, TypedDict, TYPE_CHECKING
 from uuid import UUID
 
 from .. import __version__
@@ -19,6 +19,7 @@ from .exceptions import (
     CoopInvalidURLError,
     CoopNoUUIDError,
     CoopServerResponseError,
+    CoopValueError,
 )
 from .utils import (
     EDSLObject,
@@ -29,21 +30,66 @@ from .utils import (
 )
 
 from .coop_functions import CoopFunctionsMixin
+from .coop_regular_objects import CoopRegularObjects
+from .coop_jobs_objects import CoopJobsObjects
 from .ep_key_handling import ExpectedParrotKeyHandler
 
 from ..inference_services.data_structures import ServiceToModelsMapping
 
 
+class JobRunExpense(TypedDict):
+    service: str
+    model: str
+    token_type: Literal["input", "output"]
+    price_per_million_tokens: float
+    tokens_count: int
+    cost_credits: float
+    cost_usd: float
+
+
+class JobRunExceptionCounter(TypedDict):
+    exception_type: str
+    inference_service: str
+    model: str
+    question_name: str
+    exception_count: int
+
+
+class JobRunInterviewDetails(TypedDict):
+    total_interviews: int
+    completed_interviews: int
+    interviews_with_exceptions: int
+    exception_summary: List[JobRunExceptionCounter]
+
+
+class LatestJobRunDetails(TypedDict):
+
+    # For running, completed, and partially failed jobs
+    interview_details: Optional[JobRunInterviewDetails] = None
+
+    # For failed jobs only
+    failure_reason: Optional[Literal["error", "insufficient funds"]] = None
+    failure_description: Optional[str] = None
+
+    # For partially failed jobs only
+    error_report_uuid: Optional[UUID] = None
+
+    # For completed and partially failed jobs
+    cost_credits: Optional[float] = None
+    cost_usd: Optional[float] = None
+    expenses: Optional[list[JobRunExpense]] = None
+
+
 class RemoteInferenceResponse(TypedDict):
     job_uuid: str
     results_uuid: str
-    results_url: str
-    latest_error_report_uuid: str
-    latest_error_report_url: str
-    status: str
-    reason: str
-    credits_consumed: float
+    job_json_string: Optional[str]
+    status: RemoteJobStatus
+    latest_job_run_details: LatestJobRunDetails
+    description: Optional[str]
     version: str
+    visibility: VisibilityType
+    results_url: str
 
 
 class RemoteInferenceCreationInfo(TypedDict):
@@ -164,7 +210,9 @@ class Coop(CoopFunctionsMixin):
             and "json_string" in payload
             and payload.get("json_string") is not None
         ):
-            timeout = max(40, (len(payload.get("json_string", "")) // (1024 * 1024)))
+            timeout = max(
+                60, 2 * (len(payload.get("json_string", "")) // (1024 * 1024))
+            )
         try:
             if method in ["GET", "DELETE"]:
                 response = requests.request(
@@ -240,10 +288,9 @@ class Coop(CoopFunctionsMixin):
         #         print(
         #             "Please upgrade your EDSL version to access our latest features. Open your terminal and run `pip install --upgrade edsl`"
         #         )
-
         if response.status_code >= 400:
             try:
-                message = response.json().get("detail")
+                message = str(response.json().get("detail"))
             except json.JSONDecodeError:
                 raise CoopServerResponseError(
                     f"Server returned status code {response.status_code}."
@@ -499,6 +546,10 @@ class Coop(CoopFunctionsMixin):
         """
         object_type = ObjectRegistry.get_object_type_by_edsl_class(object)
         object_dict = object.to_dict()
+
+        # Get the object hash
+        object_hash = object.get_hash() if hasattr(object, "get_hash") else None
+
         if object_type == "scenario" and self._scenario_is_file_store(object_dict):
             file_store_metadata = {
                 "suffix": object_dict["suffix"],
@@ -524,6 +575,7 @@ class Coop(CoopFunctionsMixin):
                 "file_store_metadata": file_store_metadata,
                 "visibility": visibility,
                 "version": self._edsl_version,
+                "object_hash": object_hash,  # Include the object hash in the payload
             },
         )
         self._resolve_server_response(response)
@@ -670,42 +722,138 @@ class Coop(CoopFunctionsMixin):
             object.initialize_cache_from_results()
         return object
 
-    def get_all(self, object_type: ObjectType) -> list[dict[str, Any]]:
+    def _validate_object_types(
+        self, object_type: Union[ObjectType, List[ObjectType]]
+    ) -> List[ObjectType]:
         """
-        Retrieve all objects of a certain type associated with the user.
+        Validate object types and return a list of valid types.
+
+        Args:
+            object_type: Single object type or list of object types to validate
+
+        Returns:
+            List of validated object types
+
+        Raises:
+            CoopValueError: If any object type is invalid
         """
-        edsl_class = ObjectRegistry.object_type_to_edsl_class.get(object_type)
+        valid_object_types = ObjectRegistry.object_type_to_edsl_class.keys()
+        if isinstance(object_type, list):
+            invalid_types = [t for t in object_type if t not in valid_object_types]
+            if invalid_types:
+                raise CoopValueError(
+                    f"Invalid object type(s): {invalid_types}. "
+                    f"Valid types are: {list(valid_object_types)}"
+                )
+            return object_type
+        else:
+            if object_type not in valid_object_types:
+                raise CoopValueError(
+                    f"Invalid object type: {object_type}. "
+                    f"Valid types are: {list(valid_object_types)}"
+                )
+            return [object_type]
+
+    def _validate_visibility_types(
+        self, visibility: Union[VisibilityType, List[VisibilityType]]
+    ) -> List[VisibilityType]:
+        """
+        Validate visibility types and return a list of valid types.
+
+        Args:
+            visibility: Single visibility type or list of visibility types to validate
+
+        Returns:
+            List of validated visibility types
+
+        Raises:
+            CoopValueError: If any visibility type is invalid
+        """
+        valid_visibility_types = ["private", "public", "unlisted"]
+        if isinstance(visibility, list):
+            invalid_visibilities = [
+                v for v in visibility if v not in valid_visibility_types
+            ]
+            if invalid_visibilities:
+                raise CoopValueError(
+                    f"Invalid visibility type(s): {invalid_visibilities}. "
+                    f"Valid types are: {valid_visibility_types}"
+                )
+            return visibility
+        else:
+            if visibility not in valid_visibility_types:
+                raise CoopValueError(
+                    f"Invalid visibility type: {visibility}. "
+                    f"Valid types are: {valid_visibility_types}"
+                )
+            return [visibility]
+
+    def list(
+        self,
+        object_type: Union[ObjectType, List[ObjectType], None] = None,
+        visibility: Union[VisibilityType, List[VisibilityType], None] = None,
+        search_query: Union[str, None] = None,
+        page: int = 1,
+        page_size: int = 10,
+        sort_ascending: bool = False,
+    ) -> "CoopRegularObjects":
+        """
+        Retrieve objects either owned by the user or shared with them.
+
+        Notes:
+        - search_query only works with the description field.
+        - If sort_ascending is False, then the most recently created objects are returned first.
+        """
+        from ..scenarios import Scenario
+
+        if page < 1:
+            raise CoopValueError("The page must be greater than or equal to 1.")
+        if page_size < 1:
+            raise CoopValueError("The page size must be greater than or equal to 1.")
+        if page_size > 100:
+            raise CoopValueError("The page size must be less than or equal to 100.")
+
+        params = {
+            "page": page,
+            "page_size": page_size,
+            "sort_ascending": sort_ascending,
+        }
+        if object_type:
+            params["type"] = self._validate_object_types(object_type)
+        if visibility:
+            params["visibility"] = self._validate_visibility_types(visibility)
+        if search_query:
+            params["search_query"] = search_query
+
         response = self._send_server_request(
-            uri="api/v0/objects",
+            uri="api/v0/object/list",
             method="GET",
-            params={"type": object_type},
+            params=params,
         )
         self._resolve_server_response(response)
+        content = response.json()
         objects = []
-        for o in response.json():
-            json_string = o.get("json_string")
-            ## check if load from bucket needed.
-            if "load_from:" in json_string[0:12]:
-                load_link = json_string.split("load_from:")[1]
-                object_data = requests.get(load_link)
-                self._resolve_gcs_response(object_data)
-                json_string = object_data.text
-
-            json_string = json.loads(json_string)
-            object = {
-                "object": edsl_class.from_dict(json_string),
-                "uuid": o.get("uuid"),
-                "version": o.get("version"),
-                "description": o.get("description"),
-                "visibility": o.get("visibility"),
-                "url": f"{self.url}/content/{o.get('uuid')}",
-                "alias_url": self._get_alias_url(
-                    o.get("owner_username"), o.get("alias")
-                ),
-            }
+        for o in content:
+            object = Scenario(
+                {
+                    "uuid": o.get("uuid"),
+                    "object_type": o.get("object_type"),
+                    "alias": o.get("alias"),
+                    "owner_username": o.get("owner_username"),
+                    "description": o.get("description"),
+                    "visibility": o.get("visibility"),
+                    "version": o.get("version"),
+                    "url": f"{self.url}/content/{o.get('uuid')}",
+                    "alias_url": self._get_alias_url(
+                        o.get("owner_username"), o.get("alias")
+                    ),
+                    "last_updated_ts": o.get("last_updated_ts"),
+                    "created_ts": o.get("created_ts"),
+                }
+            )
             objects.append(object)
 
-        return objects
+        return CoopRegularObjects(objects)
 
     def delete(self, url_or_uuid: Union[str, UUID]) -> dict:
         """
@@ -793,93 +941,10 @@ class Coop(CoopFunctionsMixin):
     ################
     # Remote Cache
     ################
-    # def remote_cache_create(
-    #     self,
-    #     cache_entry: CacheEntry,
-    #     visibility: VisibilityType = "private",
-    #     description: Optional[str] = None,
-    # ) -> dict:
-    #     """
-    #     Create a single remote cache entry.
-    #     If an entry with the same key already exists in the database, update it instead.
-
-    #     :param cache_entry: The cache entry to send to the server.
-    #     :param visibility: The visibility of the cache entry.
-    #     :param optional description: A description for this entry in the remote cache.
-
-    #     >>> entry = CacheEntry.example()
-    #     >>> coop.remote_cache_create(cache_entry=entry)
-    #     {'status': 'success', 'created_entry_count': 1, 'updated_entry_count': 0}
-    #     """
-    #     response = self._send_server_request(
-    #         uri="api/v0/remote-cache",
-    #         method="POST",
-    #         payload={
-    #             "json_string": json.dumps(cache_entry.to_dict()),
-    #             "version": self._edsl_version,
-    #             "visibility": visibility,
-    #             "description": description,
-    #         },
-    #     )
-    #     self._resolve_server_response(response)
-    #     response_json = response.json()
-    #     created_entry_count = response_json.get("created_entry_count", 0)
-    #     if created_entry_count > 0:
-    #         self.remote_cache_create_log(
-    #             response,
-    #             description="Upload new cache entries to server",
-    #             cache_entry_count=created_entry_count,
-    #         )
-    #     return response.json()
-
-    # def remote_cache_create_many(
-    #     self,
-    #     cache_entries: list[CacheEntry],
-    #     visibility: VisibilityType = "private",
-    #     description: Optional[str] = None,
-    # ) -> dict:
-    #     """
-    #     Create many remote cache entries.
-    #     If an entry with the same key already exists in the database, update it instead.
-
-    #     :param cache_entries: The list of cache entries to send to the server.
-    #     :param visibility: The visibility of the cache entries.
-    #     :param optional description: A description for these entries in the remote cache.
-
-    #     >>> entries = [CacheEntry.example(randomize=True) for _ in range(10)]
-    #     >>> coop.remote_cache_create_many(cache_entries=entries)
-    #     {'status': 'success', 'created_entry_count': 10, 'updated_entry_count': 0}
-    #     """
-    #     payload = [
-    #         {
-    #             "json_string": json.dumps(c.to_dict()),
-    #             "version": self._edsl_version,
-    #             "visibility": visibility,
-    #             "description": description,
-    #         }
-    #         for c in cache_entries
-    #     ]
-    #     response = self._send_server_request(
-    #         uri="api/v0/remote-cache/many",
-    #         method="POST",
-    #         payload=payload,
-    #         timeout=40,
-    #     )
-    #     self._resolve_server_response(response)
-    #     response_json = response.json()
-    #     created_entry_count = response_json.get("created_entry_count", 0)
-    #     if created_entry_count > 0:
-    #         self.remote_cache_create_log(
-    #             response,
-    #             description="Upload new cache entries to server",
-    #             cache_entry_count=created_entry_count,
-    #         )
-    #     return response.json()
-
     def remote_cache_get(
         self,
         job_uuid: Optional[Union[str, UUID]] = None,
-    ) -> list[CacheEntry]:
+    ) -> List[CacheEntry]:
         """
         Get all remote cache entries.
 
@@ -908,8 +973,8 @@ class Coop(CoopFunctionsMixin):
 
     def remote_cache_get_by_key(
         self,
-        select_keys: Optional[list[str]] = None,
-    ) -> list[CacheEntry]:
+        select_keys: Optional[List[str]] = None,
+    ) -> List[CacheEntry]:
         """
         Get all remote cache entries.
 
@@ -935,126 +1000,6 @@ class Coop(CoopFunctionsMixin):
             CacheEntry.from_dict(json.loads(v.get("json_string")))
             for v in response.json()
         ]
-
-    def legacy_remote_cache_get(
-        self,
-        exclude_keys: Optional[list[str]] = None,
-        select_keys: Optional[list[str]] = None,
-    ) -> list[CacheEntry]:
-        """
-        Get all remote cache entries.
-
-        :param optional select_keys: Only return CacheEntry objects with these keys.
-        :param optional exclude_keys: Exclude CacheEntry objects with these keys.
-
-        >>> coop.legacy_remote_cache_get()
-        [CacheEntry(...), CacheEntry(...), ...]
-        """
-        if exclude_keys is None:
-            exclude_keys = []
-        if select_keys is None:
-            select_keys = []
-        response = self._send_server_request(
-            uri="api/v0/remote-cache/legacy/get-many",
-            method="POST",
-            payload={"exclude_keys": exclude_keys, "selected_keys": select_keys},
-            timeout=40,
-        )
-        self._resolve_server_response(response)
-        return [
-            CacheEntry.from_dict(json.loads(v.get("json_string")))
-            for v in response.json()
-        ]
-
-    def legacy_remote_cache_get_diff(
-        self,
-        client_cacheentry_keys: list[str],
-    ) -> dict:
-        """
-        Get the difference between local and remote cache entries for a user.
-        """
-        response = self._send_server_request(
-            uri="api/v0/remote-cache/legacy/get-diff",
-            method="POST",
-            payload={"keys": client_cacheentry_keys},
-            timeout=40,
-        )
-        self._resolve_server_response(response)
-        response_json = response.json()
-        response_dict = {
-            "client_missing_cacheentries": [
-                CacheEntry.from_dict(json.loads(c.get("json_string")))
-                for c in response_json.get("client_missing_cacheentries", [])
-            ],
-            "server_missing_cacheentry_keys": response_json.get(
-                "server_missing_cacheentry_keys", []
-            ),
-        }
-        downloaded_entry_count = len(response_dict["client_missing_cacheentries"])
-        if downloaded_entry_count > 0:
-            self.legacy_remote_cache_create_log(
-                response,
-                description="Download missing cache entries to client",
-                cache_entry_count=downloaded_entry_count,
-            )
-        return response_dict
-
-    def legacy_remote_cache_clear(self) -> dict:
-        """
-        Clear all remote cache entries.
-
-        >>> entries = [CacheEntry.example(randomize=True) for _ in range(10)]
-        >>> coop.legacy_remote_cache_create_many(cache_entries=entries)
-        >>> coop.legacy_remote_cache_clear()
-        {'status': 'success', 'deleted_entry_count': 10}
-        """
-        response = self._send_server_request(
-            uri="api/v0/remote-cache/legacy/delete-all",
-            method="DELETE",
-        )
-        self._resolve_server_response(response)
-        response_json = response.json()
-        deleted_entry_count = response_json.get("deleted_entry_count", 0)
-        if deleted_entry_count > 0:
-            self.legacy_remote_cache_create_log(
-                response,
-                description="Clear cache entries",
-                cache_entry_count=deleted_entry_count,
-            )
-        return response.json()
-
-    def legacy_remote_cache_create_log(
-        self, response: requests.Response, description: str, cache_entry_count: int
-    ) -> Union[dict, None]:
-        """
-        If a remote cache action has been completed successfully,
-        log the action.
-        """
-        if 200 <= response.status_code < 300:
-            log_response = self._send_server_request(
-                uri="api/v0/remote-cache-log/legacy",
-                method="POST",
-                payload={
-                    "description": description,
-                    "cache_entry_count": cache_entry_count,
-                },
-            )
-            self._resolve_server_response(log_response)
-            return response.json()
-
-    def legacy_remote_cache_clear_log(self) -> dict:
-        """
-        Clear all remote cache log entries.
-
-        >>> coop.legacy_remote_cache_clear_log()
-        {'status': 'success'}
-        """
-        response = self._send_server_request(
-            uri="api/v0/remote-cache-log/legacy/delete-all",
-            method="DELETE",
-        )
-        self._resolve_server_response(response)
-        return response.json()
 
     def remote_inference_create(
         self,
@@ -1142,7 +1087,10 @@ class Coop(CoopFunctionsMixin):
         )
 
     def remote_inference_get(
-        self, job_uuid: Optional[str] = None, results_uuid: Optional[str] = None
+        self,
+        job_uuid: Optional[str] = None,
+        results_uuid: Optional[str] = None,
+        include_json_string: Optional[bool] = False,
     ) -> RemoteInferenceResponse:
         """
         Get the status and details of a remote inference job.
@@ -1154,18 +1102,40 @@ class Coop(CoopFunctionsMixin):
             job_uuid (str, optional): The UUID of the remote job to check
             results_uuid (str, optional): The UUID of the results associated with the job
                 (can be used if you only have the results UUID)
+            include_json_string (bool, optional): If True, include the json string for the job in the response
 
         Returns:
             RemoteInferenceResponse: Information about the job including:
-                - job_uuid: The unique identifier for the job
-                - results_uuid: The UUID of the results (if job is completed)
-                - results_url: URL to access the results (if available)
-                - latest_error_report_uuid: UUID of error report (if job failed)
-                - latest_error_report_url: URL to access error details (if available)
-                - status: Current status ("queued", "running", "completed", "failed")
-                - reason: Reason for failure (if applicable)
-                - credits_consumed: Credits used for the job execution
-                - version: EDSL version used for the job
+                job_uuid: The unique identifier for the job
+                results_uuid: The UUID of the results
+                results_url: URL to access the results
+                status: Current status ("queued", "running", "completed", "failed")
+                version: EDSL version used for the job
+                job_json_string: The json string for the job (if include_json_string is True)
+                latest_job_run_details: Metadata about the job status
+                    interview_details: Metadata about the job interview status (for jobs that have reached running status)
+                        total_interviews: The total number of interviews in the job
+                        completed_interviews: The number of completed interviews
+                        interviews_with_exceptions: The number of completed interviews that have exceptions
+                        exception_counters: A list of exception counts for the job
+                            exception_type: The type of exception
+                            inference_service: The inference service
+                            model: The model
+                            question_name: The name of the question
+                            exception_count: The number of exceptions
+                    failure_reason: The reason the job failed (failed jobs only)
+                    failure_description: The description of the failure (failed jobs only)
+                    error_report_uuid: The UUID of the error report (partially failed jobs only)
+                    cost_credits: The cost of the job run in credits
+                    cost_usd: The cost of the job run in USD
+                    expenses: The expenses incurred by the job run
+                        service: The service
+                        model: The model
+                        token_type: The type of token (input or output)
+                        price_per_million_tokens: The price per million tokens
+                        tokens_count: The number of tokens consumed
+                        cost_credits: The cost of the service/model/token type combination in credits
+                        cost_usd: The cost of the service/model/token type combination in USD
 
         Raises:
             ValueError: If neither job_uuid nor results_uuid is provided
@@ -1191,6 +1161,8 @@ class Coop(CoopFunctionsMixin):
             params = {"job_uuid": job_uuid}
         else:
             params = {"results_uuid": results_uuid}
+        if include_json_string:
+            params["include_json_string"] = include_json_string
 
         response = self._send_server_request(
             uri="api/v0/remote-inference",
@@ -1201,35 +1173,137 @@ class Coop(CoopFunctionsMixin):
         data = response.json()
 
         results_uuid = data.get("results_uuid")
-        latest_error_report_uuid = data.get("latest_error_report_uuid")
 
         if results_uuid is None:
             results_url = None
         else:
             results_url = f"{self.url}/content/{results_uuid}"
 
-        if latest_error_report_uuid is None:
-            latest_error_report_url = None
-        else:
-            latest_error_report_url = (
-                f"{self.url}/home/remote-inference/error/{latest_error_report_uuid}"
-            )
+        latest_job_run_details = data.get("latest_job_run_details", {})
+        if data.get("status") == "partial_failed":
+            latest_error_report_uuid = latest_job_run_details.get("error_report_uuid")
+            if latest_error_report_uuid is None:
+                latest_job_run_details["error_report_url"] = None
+            else:
+                latest_error_report_url = (
+                    f"{self.url}/home/remote-inference/error/{latest_error_report_uuid}"
+                )
+                latest_job_run_details["error_report_url"] = latest_error_report_url
 
         return RemoteInferenceResponse(
             **{
                 "job_uuid": data.get("job_uuid"),
                 "results_uuid": results_uuid,
                 "results_url": results_url,
-                "latest_error_report_uuid": latest_error_report_uuid,
-                "latest_error_report_url": latest_error_report_url,
                 "status": data.get("status"),
-                "reason": data.get("latest_failure_reason"),
-                "credits_consumed": data.get("price"),
                 "version": data.get("version"),
+                "job_json_string": data.get("job_json_string"),
+                "latest_job_run_details": latest_job_run_details,
             }
         )
 
-    def get_running_jobs(self) -> list[str]:
+    def _validate_remote_job_status_types(
+        self, status: Union[RemoteJobStatus, List[RemoteJobStatus]]
+    ) -> List[RemoteJobStatus]:
+        """
+        Validate visibility types and return a list of valid types.
+
+        Args:
+            visibility: Single visibility type or list of visibility types to validate
+
+        Returns:
+            List of validated visibility types
+
+        Raises:
+            CoopValueError: If any visibility type is invalid
+        """
+        valid_status_types = [
+            "queued",
+            "running",
+            "completed",
+            "failed",
+            "cancelled",
+            "cancelling",
+            "partial_failed",
+        ]
+        if isinstance(status, list):
+            invalid_statuses = [s for s in status if s not in valid_status_types]
+            if invalid_statuses:
+                raise CoopValueError(
+                    f"Invalid status type(s): {invalid_statuses}. "
+                    f"Valid types are: {valid_status_types}"
+                )
+            return status
+        else:
+            if status not in valid_status_types:
+                raise CoopValueError(
+                    f"Invalid status type: {status}. "
+                    f"Valid types are: {valid_status_types}"
+                )
+            return [status]
+
+    def remote_inference_list(
+        self,
+        status: Union[RemoteJobStatus, List[RemoteJobStatus], None] = None,
+        search_query: Union[str, None] = None,
+        page: int = 1,
+        page_size: int = 10,
+        sort_ascending: bool = False,
+    ) -> "CoopJobsObjects":
+        """
+        Retrieve jobs owned by the user.
+
+        Notes:
+        - search_query only works with the description field.
+        - If sort_ascending is False, then the most recently created jobs are returned first.
+        """
+        from ..scenarios import Scenario
+
+        if page < 1:
+            raise CoopValueError("The page must be greater than or equal to 1.")
+        if page_size < 1:
+            raise CoopValueError("The page size must be greater than or equal to 1.")
+        if page_size > 100:
+            raise CoopValueError("The page size must be less than or equal to 100.")
+
+        params = {
+            "page": page,
+            "page_size": page_size,
+            "sort_ascending": sort_ascending,
+        }
+        if status:
+            params["status"] = self._validate_remote_job_status_types(status)
+        if search_query:
+            params["search_query"] = search_query
+
+        response = self._send_server_request(
+            uri="api/v0/remote-inference/list",
+            method="GET",
+            params=params,
+        )
+        self._resolve_server_response(response)
+        content = response.json()
+        jobs = []
+        for o in content:
+            job = Scenario(
+                {
+                    "uuid": o.get("uuid"),
+                    "description": o.get("description"),
+                    "status": o.get("status"),
+                    "cost_credits": o.get("cost_credits"),
+                    "iterations": o.get("iterations"),
+                    "results_uuid": o.get("results_uuid"),
+                    "latest_error_report_uuid": o.get("latest_error_report_uuid"),
+                    "latest_failure_reason": o.get("latest_failure_reason"),
+                    "version": o.get("version"),
+                    "created_ts": o.get("created_ts"),
+                }
+            )
+            jobs.append(job)
+
+        return CoopJobsObjects(jobs)
+
+    def get_running_jobs(self) -> List[str]:
         """
         Get a list of currently running job IDs.
 
@@ -1244,13 +1318,13 @@ class Coop(CoopFunctionsMixin):
         self, input: Union["Jobs", "Survey"], iterations: int = 1
     ) -> int:
         """
-        Get the cost of a remote inference job.
+        Get the estimated cost in credits of a remote inference job.
 
         :param input: The EDSL job to send to the server.
 
         >>> job = Jobs.example()
         >>> coop.remote_inference_cost(input=job)
-        {'credits': 0.77, 'usd': 0.0076950000000000005}
+        {'credits_hold': 0.77, 'usd': 0.0076950000000000005}
         """
         from ..jobs import Jobs
         from ..surveys import Survey
@@ -1278,7 +1352,7 @@ class Coop(CoopFunctionsMixin):
         self._resolve_server_response(response)
         response_json = response.json()
         return {
-            "credits": response_json.get("cost_in_credits"),
+            "credits_hold": response_json.get("cost_in_credits"),
             "usd": response_json.get("cost_in_usd"),
         }
 
@@ -1442,7 +1516,7 @@ class Coop(CoopFunctionsMixin):
         data = response.json()
         return ServiceToModelsMapping(data)
 
-    def fetch_working_models(self) -> list[dict]:
+    def fetch_working_models(self) -> List[dict]:
         """
         Fetch a list of working models from Coop.
 
@@ -1488,6 +1562,28 @@ class Coop(CoopFunctionsMixin):
         data = response.json()
         return data
 
+    def get_uuid_from_hash(self, hash_value: str) -> str:
+        """
+        Retrieve the UUID for an object based on its hash.
+
+        This method calls the remote endpoint to get the UUID associated with an object hash.
+
+        Args:
+            hash_value (str): The hash value of the object to look up
+
+        Returns:
+            str: The UUID of the object if found
+
+        Raises:
+            CoopServerResponseError: If the object is not found or there's an error
+                                   communicating with the server
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/object/hash/{hash_value}", method="GET"
+        )
+        self._resolve_server_response(response)
+        return response.json().get("uuid")
+
     def _display_login_url(
         self, edsl_auth_token: str, link_description: Optional[str] = None
     ):
@@ -1521,6 +1617,11 @@ class Coop(CoopFunctionsMixin):
                 rich_print(
                     f"[#38bdf8][link={url}][underline]Log in and automatically store key[/underline][/link][/#38bdf8]"
                 )
+
+        print("Logging in will activate the following features:")
+        print("  - Remote inference: Runs jobs remotely on the Expected Parrot server.")
+        print("  - Remote logging: Sends error messages to the Expected Parrot server.")
+        print("\n")
 
     def _get_api_key(self, edsl_auth_token: str):
         """
@@ -1566,6 +1667,76 @@ class Coop(CoopFunctionsMixin):
         # Add API key to environment
         load_dotenv()
 
+    def transfer_credits(
+        self,
+        credits_transferred: int,
+        recipient_username: str,
+        transfer_note: str = None,
+    ) -> dict:
+        """
+        Transfer credits to another user.
+
+        This method transfers a specified number of credits from the authenticated user's
+        account to another user's account on the Expected Parrot platform.
+
+        Parameters:
+            credits_transferred (int): The number of credits to transfer to the recipient
+            recipient_username (str): The username of the recipient
+            transfer_note (str, optional): A personal note to include with the transfer
+
+        Returns:
+            dict: Information about the transfer transaction, including:
+                - success: Whether the transaction was successful
+                - transaction_id: A unique identifier for the transaction
+                - remaining_credits: The number of credits remaining in the sender's account
+
+        Raises:
+            CoopServerResponseError: If there's an error communicating with the server
+                or if the transfer criteria aren't met (e.g., insufficient credits)
+
+        Example:
+            >>> result = coop.transfer_credits(
+            ...     credits_transferred=100,
+            ...     recipient_username="friend_username",
+            ...     transfer_note="Thanks for your help!"
+            ... )
+            >>> print(f"Transfer successful! You have {result['remaining_credits']} credits left.")
+        """
+        response = self._send_server_request(
+            uri="api/users/gift",
+            method="POST",
+            payload={
+                "credits_gifted": credits_transferred,
+                "recipient_username": recipient_username,
+                "gift_note": transfer_note,
+            },
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
+    def get_balance(self) -> dict:
+        """
+        Get the current credit balance for the authenticated user.
+
+        This method retrieves the user's current credit balance information from
+        the Expected Parrot platform.
+
+        Returns:
+            dict: Information about the user's credit balance, including:
+                - credits: The current number of credits in the user's account
+                - usage_history: Recent credit usage if available
+
+        Raises:
+            CoopServerResponseError: If there's an error communicating with the server
+
+        Example:
+            >>> balance = coop.get_balance()
+            >>> print(f"You have {balance['credits']} credits available.")
+        """
+        response = self._send_server_request(uri="api/users/get_balance", method="GET")
+        self._resolve_server_response(response)
+        return response.json()
+
 
 def main():
     """
@@ -1603,7 +1774,7 @@ def main():
     coop.get(response.get("uuid"), expected_object_type="question")
     coop.get(response.get("url"))
     coop.create(QuestionMultipleChoice.example())
-    coop.get_all("question")
+    coop.list("question")
     coop.patch(response.get("uuid"), visibility="private")
     coop.patch(response.get("uuid"), description="hey")
     coop.patch(response.get("uuid"), value=QuestionFreeText.example())
@@ -1638,7 +1809,7 @@ def main():
     for object_type, cls in OBJECTS:
         print(f"Testing {object_type} objects")
         # 1. Delete existing objects
-        existing_objects = coop.get_all(object_type)
+        existing_objects = coop.list(object_type)
         for item in existing_objects:
             coop.delete(item.get("uuid"))
         # 2. Create new objects
@@ -1650,7 +1821,7 @@ def main():
             cls.example(), visibility="unlisted", description="hey"
         )
         # 3. Retrieve all objects
-        objects = coop.get_all(object_type)
+        objects = coop.list(object_type)
         assert len(objects) == 4
         # 4. Try to retrieve an item that does not exist
         try:
@@ -1669,7 +1840,7 @@ def main():
         # 7. Delete all objects
         for item in objects:
             coop.delete(item.get("uuid"))
-        assert len(coop.get_all(object_type)) == 0
+        assert len(coop.list(object_type)) == 0
 
     ##############
     # C. Remote Cache
