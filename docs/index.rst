@@ -130,6 +130,7 @@ Working with Results
 - :ref:`results`: Access built-in methods for analyzing survey results as datasets.
 - :ref:`dataset`: Work with tabular data using the versatile Dataset class.
 - :ref:`caching`: Learn about caching and sharing results.
+- :ref:`costs`: See how to estimate costs for running surveys and track actual costs for each question and model that you use.
 - :ref:`exceptions`: Identify and handle exceptions in running surveys.
 - :ref:`token_usage`: Monitor token limits and usage for language models.
 
@@ -238,6 +239,7 @@ Links
    :hidden:
 
    coop
+   costs
    credits
    filestore
    notebooks
@@ -254,6 +256,7 @@ Links
    notebooks/piping_comments.ipynb
    notebooks/looping_and_piping.ipynb
    notebooks/answering_instructions_example.ipynb
+   notebooks/video_scenario_example.ipynb
    notebooks/image_scenario_example.ipynb
    notebooks/analyze_customer_call.ipynb
    notebooks/updating_agents.ipynb

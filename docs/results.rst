@@ -30,14 +30,14 @@ To construct a survey we start by creating questions:
 
   q1 = QuestionLinearScale(
     question_name = "important",
-    question_text = "On a scale from 1 to 5, how important to you is {{ topic }}?",
+    question_text = "On a scale from 1 to 5, how important to you is {{ scenario.topic }}?",
     question_options = [0, 1, 2, 3, 4, 5],
     option_labels = {0:"Not at all important", 5:"Very important"}
   )
 
   q2 = QuestionMultipleChoice(
     question_name = "read",
-    question_text = "Have you read any books about {{ topic }}?",
+    question_text = "Have you read any books about {{ scenario.topic }}?",
     question_options = ["Yes", "No", "I do not know"]
   )
 
@@ -148,10 +148,14 @@ Output:
     - {'persona': 'student'}
   * - scenario:topic
     - climate change
+  * - scenario:scenario_index
+    - 0
   * - model:model
     - gemini-1.5-flash
   * - model:parameters
     - {'temperature': 0.5, 'topP': 1, 'topK': 1, 'maxOutputTokens': 2048, 'stopSequences': []}
+  * - model:inference_service
+    - google
   * - iteration
     - 0
   * - answer:important
@@ -167,33 +171,68 @@ Output:
   * - prompt:read_system_prompt
     - {'text': "You are answering questions as if you were a human. Do not break character. Your traits: {'persona': 'student'}", 'class_name': 'Prompt'}
   * - raw_model_response:important_raw_model_response
-    - {'candidates': [{'content': {'parts': [{'text': "5\n\nIt's, like, a huge deal. The future of the planet is at stake, you know? We're talking about everything from extreme weather to rising sea levels – it affects everyone, and it's something we all need to be seriously concerned about.\n"}], 'role': 'model'}, 'finish_reason': 1, 'safety_ratings': [{'category': 8, 'probability': 1, 'blocked': False}, {'category': 10, 'probability': 1, 'blocked': False}, {'category': 7, 'probability': 1, 'blocked': False}, {'category': 9, 'probability': 1, 'blocked': False}], 'avg_logprobs': -0.19062816490561274, 'token_count': 0, 'grounding_attributions': []}], 'usage_metadata': {'prompt_token_count': 129, 'candidates_token_count': 59, 'total_token_count': 188, 'cached_content_token_count': 0}}
+    - {'candidates': [{'content': {'parts': [{'text': "5\n\nIt's, like, a huge deal!  The future of the planet is at stake, and that affects everything –  from the environment to the economy to, you know, my future.  It's definitely something I worry about.\n"}], 'role': 'model'}, 'finish_reason': 1, 'safety_ratings': [{'category': 8, 'probability': 1, 'blocked': False}, {'category': 10, 'probability': 1, 'blocked': False}, {'category': 7, 'probability': 1, 'blocked': False}, {'category': 9, 'probability': 1, 'blocked': False}], 'avg_logprobs': -0.2145003372768186, 'token_count': 0, 'grounding_attributions': []}], 'usage_metadata': {'prompt_token_count': 128, 'candidates_token_count': 53, 'total_token_count': 181, 'cached_content_token_count': 0}, 'model_version': 'gemini-1.5-flash'}
+  * - raw_model_response:important_input_tokens
+    - 128
+  * - raw_model_response:important_output_tokens
+    - 53
+  * - raw_model_response:important_input_price_per_million_tokens
+    - 0.075000
+  * - raw_model_response:important_output_price_per_million_tokens
+    - 0.300000
   * - raw_model_response:important_cost
-    - 0.000027
+    - 0.000025
   * - raw_model_response:important_one_usd_buys
-    - 36529.685735
+    - 39215.691903
   * - raw_model_response:read_raw_model_response
-    - {'candidates': [{'content': {'parts': [{'text': "Yes\n\nI've read a few articles and some chapters from textbooks for my environmental science class, which touched upon climate change. It's not exactly the same as reading a whole book dedicated to the topic, but it counts, right?\n"}], 'role': 'model'}, 'finish_reason': 1, 'safety_ratings': [{'category': 8, 'probability': 1, 'blocked': False}, {'category': 10, 'probability': 1, 'blocked': False}, {'category': 7, 'probability': 1, 'blocked': False}, {'category': 9, 'probability': 1, 'blocked': False}], 'avg_logprobs': -0.13118227790383732, 'token_count': 0, 'grounding_attributions': []}], 'usage_metadata': {'prompt_token_count': 96, 'candidates_token_count': 51, 'total_token_count': 147, 'cached_content_token_count': 0}}
+    - {'candidates': [{'content': {'parts': [{'text': "Yes\n\nI've read a few articles and some chapters from textbooks for my environmental science classes, which covered climate change extensively.  It's not quite the same as reading a whole book dedicated to the topic, but I've definitely learned about it.\n"}], 'role': 'model'}, 'finish_reason': 1, 'safety_ratings': [{'category': 8, 'probability': 1, 'blocked': False}, {'category': 10, 'probability': 1, 'blocked': False}, {'category': 7, 'probability': 1, 'blocked': False}, {'category': 9, 'probability': 1, 'blocked': False}], 'avg_logprobs': -0.15844399840743453, 'token_count': 0, 'grounding_attributions': []}], 'usage_metadata': {'prompt_token_count': 95, 'candidates_token_count': 54, 'total_token_count': 149, 'cached_content_token_count': 0}, 'model_version': 'gemini-1.5-flash'}
+  * - raw_model_response:read_input_tokens
+    - 95
+  * - raw_model_response:read_output_tokens
+    - 54
+  * - raw_model_response:read_input_price_per_million_tokens
+    - 0.075000
+  * - raw_model_response:read_output_price_per_million_tokens
+    - 0.300000
   * - raw_model_response:read_cost
-    - 0.000022
+    - 0.000023
   * - raw_model_response:read_one_usd_buys
-    - 44444.451200
+    - 42872.461058
   * - question_to_attributes:important
     - {'question_text': 'On a scale from 1 to 5, how important to you is {{ topic }}?', 'question_type': 'linear_scale', 'question_options': [0, 1, 2, 3, 4, 5]}
   * - question_to_attributes:read
     - {'question_text': 'Have you read any books about {{ topic }}?', 'question_type': 'multiple_choice', 'question_options': ['Yes', 'No', 'I do not know']}
   * - generated_tokens:important_generated_tokens
-    - 5 It's, like, a huge deal. The future of the planet is at stake, you know? We're talking about everything from extreme weather to rising sea levels – it affects everyone, and it's something we all need to be seriously concerned about.
+    - 5 
+    
+      It's, like, a huge deal!  The future of the planet is at stake, and that affects everything –  from the environment to the economy to, you know, my future.  It's definitely something I worry about.
   * - generated_tokens:read_generated_tokens
-    - Yes I've read a few articles and some chapters from textbooks for my environmental science class, which touched upon climate change. It's not exactly the same as reading a whole book dedicated to the topic, but it counts, right?
+    - Yes 
+    
+      I've read a few articles and some chapters from textbooks for my environmental science classes, which covered climate change extensively.  It's not quite the same as reading a whole book dedicated to the topic, but I've definitely learned about it.
   * - comments_dict:important_comment
-    - It's, like, a huge deal. The future of the planet is at stake, you know? We're talking about everything from extreme weather to rising sea levels – it affects everyone, and it's something we all need to be seriously concerned about.
+    - It's, like, a huge deal!  The future of the planet is at stake, and that affects everything –  from the environment to the economy to, you know, my future.  It's definitely something I worry about.
   * - comments_dict:read_comment
-    - I've read a few articles and some chapters from textbooks for my environmental science class, which touched upon climate change. It's not exactly the same as reading a whole book dedicated to the topic, but it counts, right?
+    - I've read a few articles and some chapters from textbooks for my environmental science classes, which covered climate change extensively.  It's not quite the same as reading a whole book dedicated to the topic, but I've definitely learned about it.
   * - cache_keys:important	
     - 98d6961d0529335b74f2363ba9b7a8de
   * - cache_keys:read	
     - 12af825953d89c1f776bd3af40e37cfb
+  * - cache_used:important
+    - False
+  * - cache_used:read
+    - False
+  * indices:agent
+    - 0
+  * indices:model
+    - 0
+  * indices:scenario
+    - 0
+  * interview_hash
+    - 1563541154566694327
+  * order
+    - 0
+  
 
 
 Results components
@@ -210,9 +249,8 @@ We can see a list of these components by calling the `columns` method:
 The following list will be returned for the results generated by the above code:
 
 .. list-table::
-  :header-rows: 1
 
-  * - 0
+  * - agent.agent_index
     - agent.agent_instruction                        
     - agent.agent_name                               
     - agent.persona                                  
@@ -250,10 +288,18 @@ The following list will be returned for the results generated by the above code:
     - question_type.important_question_type          
     - question_type.read_question_type               
     - raw_model_response.important_cost              
-    - raw_model_response.important_one_usd_buys      
+    - raw_model_response.important_input_price_per_million_tokens
+    - raw_model_response.important_input_tokens
+    - raw_model_response.important_one_usd_buys
+    - raw_model_response.important_output_price_per_million_tokens
+    - raw_model_response.important_output_tokens      
     - raw_model_response.important_raw_model_response
     - raw_model_response.read_cost                   
-    - raw_model_response.read_one_usd_buys           
+    - raw_model_response.read_input_price_per_million_tokens
+    - raw_model_response.read_input_tokens
+    - raw_model_response.read_one_usd_buys     
+    - raw_model_response.read_output_price_per_million_tokens
+    - raw_model_response.read_output_tokens      
     - raw_model_response.read_raw_model_response   
     - scenario.scenario_index  
     - scenario.topic                                 
@@ -264,6 +310,7 @@ If the survey was run multiple times (`run(n=<integer>)`) then the `iteration.it
 
 *Agent* information:
 
+* **agent.agent_index**: The index of the agent in the `AgentList` used to create the survey.
 * **agent.instruction**: The instruction for the agent. This field is the optional instruction that was passed to the agent when it was created.
 * **agent.agent_name**: This field is always included in any `Results` object. It contains a unique identifier for each `Agent` that can be specified when an agent is is created (`Agent(name=<name>, traits={<traits_dict>})`). If not specified, it is added automatically when results are generated (in the form `Agent_0`, etc.).
 * **agent.persona**: Each of the `traits` that we pass to an agent is represented in a column of the results. Our example code created a "persona" trait for each agent, so our results include a "persona" column for this information. Note that the keys for the traits dictionary should be a valid Python keys.
@@ -338,10 +385,18 @@ For more details about prompts, please see the :ref:`prompts` section.
 *Raw model response* information:
 
 * **raw_model_response.important_cost**: The cost of the result for the `important` question, applying the token quanities & prices.
+* **raw_model_response.important_input_price_per_million_tokenss**: The price per million input tokens for the `important` question for the relevant model.
+* **raw_model_response.important_input_tokens**: The number of input tokens for the `important` question for the relevant model.
 * **raw_model_response.important_one_usd_buys**: The number of identical results for the `important` question that 1USD would cover. 
+* **raw_model_response.important_output_price_per_million_tokens**: The price per million output tokens for the `important` question for the relevant model.
+* **raw_model_response.important_output_tokens**: The number of output tokens for the `important` question for the relevant model.
 * **raw_model_response.important_raw_model_response**: The raw model response for the `important` question.
 * **raw_model_response.read_cost**: The cost of the result for the `read` question, applying the token quanities & prices.
+* **raw_model_response.read_input_price_per_million_tokens**: The price per million input tokens for the `read` question for the relevant model.
+* **raw_model_response.read_input_tokens**: The number of input tokens for the `read` question for the relevant model.
 * **raw_model_response.read_one_usd_buys**: The number of identical results for the `read` question that 1USD would cover.
+* **raw_model_response.read_output_price_per_million_tokens**: The price per million output tokens for the `read` question for the relevant model.
+* **raw_model_response.read_output_tokens**: The number of output tokens for the `read` question for the relevant model.
 * **raw_model_response.read_raw_model_response**: The raw model response for the `read` question.
 
 Note that the cost of a result for a question is specific to the components (scenario, agent, model used with it). 
@@ -354,7 +409,6 @@ Note that the cost of a result for a question is specific to the components (sce
 
 Creating tables by selecting columns
 ------------------------------------
-
 
 Each of these columns can be accessed directly by calling the `select()` method and passing the column names.
 Alternatively, we can specify the columns to exclude by calling the `drop()` method.
@@ -517,8 +571,8 @@ The following table will be printed:
   * - LLM
     - Agent
     - Topic
-    - Have you read any books about {{ topic }}?
-    - On a scale from 1 to 5, how important to you is {{ topic }}?
+    - Have you read any books about {{ scenario.topic }}?
+    - On a scale from 1 to 5, how important to you is {{ scenario.topic }}?
   * - gpt-4o
     - student
     - climate change
@@ -586,7 +640,7 @@ This will return an abbreviated table:
     - comment.important_comment
   * - climate change
     - 5
-    - It's, like, a huge deal. The future of the planet is at stake, and that affects everything – from the environment to the economy to social justice. It's something I worry about a lot.
+    - It's, like, a huge deal. The future of the planet is at stake, and that affects everything - from the environment to the economy to social justice. It's something I worry about a lot.
   * - climate change
     - 5
     - As a student, I'm really concerned about climate change because it affects our future and the planet we'll inherit. It's crucial to understand and address it to ensure a sustainable world for generations to come.
@@ -863,6 +917,111 @@ This will return a table of the flattened results:
     - ['Combine milk, cocoa powder, sugar, and salt in a small saucepan.', 'Heat over medium heat, stirring constantly, until the mixture is smooth and heated through.', 'Do not boil.', 'Pour into a mug and enjoy!']
 
 
+Retrieving results 
+------------------
+
+We can retrieve details about results posted to Coop by calling the `list()` method on the `Results` class.
+For example, the following code will return information about the 10 most recent results posted to Coop:
+
+.. code-block:: python
+
+  from edsl import Results
+
+  results = Results.list()
+
+
+The following information will be returned:
+
+.. list-table::
+  :header-rows: 1
+
+  * - Column
+    - Description
+  * - last_updated_ts
+    - The timestamp when the result was last updated.
+  * - alias
+    - The alias for the results.
+  * - uuid
+    - The UUID of the results.
+  * - version
+    - The version of the result.
+  * - created_ts
+    - The timestamp when the results were created.
+  * - visibility
+    - The visibility of the results (public, private or unlisted).
+  * - description
+    - A description of the results, if any.
+  * - url
+    - The URL to access the results.
+  * - object_type
+    - The type of object (e.g., Results).
+  * - owner_username
+    - The username of the owner of the results.
+  * - alias_url
+    - The URL for the alias, if any.
+
+
+To access the next page of results, you can specify the page= parameter:
+
+.. code-block:: python
+
+  results = Results.list(page=2)
+
+
+This will return the next page of results, with the same columns as above.
+
+.. code-block:: python
+
+  from edsl import Results
+
+  # Retrieve the first 2 pages of results and collect their UUIDs
+  uuids = []
+  for i in range(1, 3):
+    results = Results.list(page=i)
+    uuids.extend(list(results.to_key_value("uuid")))
+
+
+If you have a predetermined number of objects, you can also use page_size= to specify the number of objects per page (up to 100 objects):
+
+.. code-block:: python
+
+  results = Results.list(page_size=5)
+
+
+This will return the first 5 results, with the same columns as above.
+
+By default, the most recently created objects are returned first. You can reverse this by specifying sort_ascending=True:
+
+.. code-block:: python
+
+  from edsl import Results
+
+  # Retrieve the first 10 results, sorted in ascending order by creation time
+  results = Results.list(sort_ascending=True)
+
+
+You can also filter objects by description using the search_query parameter:
+
+.. code-block:: python
+
+  from edsl import Results
+
+  # Retrieve results with a description containing the word "testing"
+  results = Results.list(search_query="testing")
+
+
+If you want not just the metadata, but the actual object, you can call .fetch() on the metadata list:
+
+.. code-block:: python
+
+  from edsl import Results
+
+  # Retrieve the first 10 results and fetch the actual objects
+  results = Results.list().fetch()
+
+
+The `list()` method can also be called on `Agent` and `Jobs` objects, and the `Coop` client object (to retrieve details of objects of any type).
+
 
 Generating a report
 -------------------
@@ -883,8 +1042,8 @@ For example, the following code will generate a report of the first 4 results:
   s = ScenarioList.from_list("language", ["German", "Dutch", "French", "English"])
 
   q = QuestionFreeText(
-      question_name = "poem",
-      question_text = "Please write me a short poem about winter in {{ language }}."
+    question_name = "poem",
+    question_text = "Please write me a short poem about winter in {{ language }}."
   )
 
   r = q.by(s).by(m).run()

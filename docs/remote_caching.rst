@@ -24,11 +24,14 @@ You can access them at your `Cache <https://www.expectedparrot.com/home/remote-c
 Universal remote cache 
 ----------------------
 
-The universal remote cache is a shared resource that is available to all users.
-It contains responses to all questions that have been run at the Expected Parrot server.
-When you run a survey at the Expectecd Parrot server your survey results will draw from the universal remote cache.
-If your survey includes a question that has been run before, the stored response is retrieved from the universal remote cache and included in your results, at no cost to you.
-If a question has not been run before, a new response is generated and included in your results and added to the universal remote cache.
+The universal remote cache is a collection of all the unique prompts that have been sent to any language models via the Expected Parrot server, and the responses that were returned. 
+It is a shared resource that is available to all users for free. 
+
+When you run a survey at the Expected Parrot server your survey results will draw from the universal remote cache by default.
+This means that if your survey includes any prompts that have been run before, the stored response to those prompts is retrieved from the universal remote cache and included in your results, at no cost to you.
+If a set of prompts has not been run before, then a new response is generated, included in your results and added to the universal remote cache.
+
+(By "prompts" we mean a unique user prompt for a question together with a unique system prompt for an agent, if one was used with the question.)
 
 
 Fresh responses 
@@ -36,6 +39,7 @@ Fresh responses
 
 If you want to draw fresh responses, you can pass a parameter `fresh=True` to the `run()` method. 
 Your results object will still have a cache automatically attached to it, and the universal remote cache will be updated with any new responses that are generated.
+(There can be multiple stored responses for a set of prompts if fresh responses are specified for a survey.)
 
 
 Features of the universal remote cache 
@@ -87,7 +91,7 @@ Frequently asked questions
 
 **Can I delete a response in the universal remote cache?** No, this is not allowed.
 
-**What happens if I delete my account?** All of your account information is deleted. Any remote cache entries that you generated will remain in the universal remote cache but information about your account will be deleted. 
+**What happens if I delete my account?** Any remote cache entries that you generated will remain in the universal remote cache. All information about your account will be deleted. 
 
 
 Legacy remote cache

@@ -1,6 +1,7 @@
 import re
 import uuid
 from datetime import datetime
+from typing import Union
 
 from IPython.display import display, HTML
 
@@ -61,16 +62,28 @@ class HTMLTableJobLogger(JobLogger):
             text,
         )
 
-    def _create_uuid_copy_button(self, uuid_value: str) -> str:
+    def _create_uuid_copy_button(
+        self, uuid_value: str, helper_text: Union[str, None] = None
+    ) -> str:
         """Create a UUID display with click-to-copy functionality"""
         short_uuid = uuid_value
         if len(uuid_value) > 12:
             short_uuid = f"{uuid_value[:8]}...{uuid_value[-4:]}"
 
         return f"""
-        <div class="uuid-container" title="{uuid_value}">
-            <span class="uuid-code">{short_uuid}</span>
-            <button class="copy-btn" onclick="navigator.clipboard.writeText('{uuid_value}').then(() => {{
+        <div class="uuid-container-wrapper">
+            <div class="uuid-container" title="{uuid_value}">
+                <span class="uuid-code">{short_uuid}</span>
+                {self._create_copy_button(uuid_value)}
+            </div>
+            {f'<div class="helper-text">{helper_text}</div>' if helper_text else ''}
+        </div>
+        """
+
+    def _create_copy_button(self, value: str) -> str:
+        """Create a button with click-to-copy functionality"""
+        return f"""
+            <button class="copy-btn" onclick="navigator.clipboard.writeText('{value}').then(() => {{
                 const btn = this;
                 btn.querySelector('.copy-icon').style.display = 'none';
                 btn.querySelector('.check-icon').style.display = 'block';
@@ -87,7 +100,6 @@ class HTMLTableJobLogger(JobLogger):
                     <polyline points="20 6 9 17 4 12"></polyline>
                 </svg>
             </button>
-        </div>
         """
 
     def update(self, message: str, status: JobsStatus = JobsStatus.RUNNING):
@@ -107,9 +119,163 @@ class HTMLTableJobLogger(JobLogger):
         else:
             return None
 
+    def _collapse(self, content_id: str, arrow_id: str) -> str:
+        """Generate the onclick JavaScript for collapsible sections"""
+        return f"""
+            const content = document.getElementById('{content_id}');
+            const arrow = document.getElementById('{arrow_id}');
+            if (content.style.display === 'none') {{
+                content.style.display = 'block';
+                arrow.innerHTML = '&#8963;';
+            }} else {{
+                content.style.display = 'none';
+                arrow.innerHTML = '&#8964;';
+            }}
+        """
+
+    def _build_exceptions_table(self) -> str:
+        """Generate HTML for the exceptions summary table section."""
+        if not self.jobs_info.exception_summary:
+            return ""
+
+        total_exceptions = sum(
+            exc.exception_count for exc in self.jobs_info.exception_summary
+        )
+
+        # Generate exception rows HTML before the return
+        exception_rows = "".join(
+            f"""
+            <tr>
+                <td>{exc.exception_type or '-'}</td>
+                <td>{exc.inference_service or '-'}</td>
+                <td>{exc.model or '-'}</td>
+                <td>{exc.question_name or '-'}</td>
+                <td class='exception-count'>{exc.exception_count:,}</td>
+            </tr>
+        """
+            for exc in self.jobs_info.exception_summary
+        )
+
+        # Get the error report URL if it exists
+        error_report_url = getattr(self.jobs_info, "error_report_url", None)
+        error_report_link = (
+            f"""
+            <div style="margin-bottom: 12px; font-size: 0.85em;">
+                <a href="{error_report_url}" target="_blank" class="pill-link">
+                    View full exceptions report{self.external_link_icon}
+                </a>
+            </div>
+            """
+            if error_report_url
+            else ""
+        )
+
+        return f"""
+        <div class="exception-section">
+            <div class="exception-header" onclick="{self._collapse(f'exception-content-{self.log_id}', f'exception-arrow-{self.log_id}')}">
+                <span id="exception-arrow-{self.log_id}" class="expand-toggle">&#8963;</span>
+                <span>Exception Summary ({total_exceptions:,} total)</span>
+                <span style="flex-grow: 1;"></span>
+            </div>
+            <div id="exception-content-{self.log_id}" class="exception-content">
+                {error_report_link}
+                <table class='exception-table'>
+                    <thead>
+                        <tr>
+                            <th>Exception Type</th>
+                            <th>Service</th>
+                            <th>Model</th>
+                            <th>Question</th>
+                            <th>Count</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {exception_rows}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        """
+
+    def _build_model_costs_table(self) -> str:
+        """Generate HTML for the model costs summary table section."""
+        if not hasattr(self.jobs_info, "model_costs") or not self.jobs_info.model_costs:
+            return ""
+
+        # Calculate totals
+        total_input_tokens = sum(
+            cost.input_tokens or 0 for cost in self.jobs_info.model_costs
+        )
+        total_output_tokens = sum(
+            cost.output_tokens or 0 for cost in self.jobs_info.model_costs
+        )
+        total_input_cost = sum(
+            cost.input_cost_usd or 0 for cost in self.jobs_info.model_costs
+        )
+        total_output_cost = sum(
+            cost.output_cost_usd or 0 for cost in self.jobs_info.model_costs
+        )
+        total_cost = total_input_cost + total_output_cost
+
+        # Generate cost rows HTML with class names for right alignment
+        cost_rows = "".join(
+            f"""
+            <tr>
+                <td>{cost.service or '-'}</td>
+                <td>{cost.model or '-'}</td>
+                <td class='token-count'>{cost.input_tokens:,}</td>
+                <td class='cost-value'>${cost.input_cost_usd:.4f}</td>
+                <td class='token-count'>{cost.output_tokens:,}</td>
+                <td class='cost-value'>${cost.output_cost_usd:.4f}</td>
+                <td class='cost-value'>${(cost.input_cost_usd or 0) + (cost.output_cost_usd or 0):.4f}</td>
+            </tr>
+            """
+            for cost in self.jobs_info.model_costs
+        )
+
+        # Add total row with the same alignment classes
+        total_row = f"""
+            <tr class='totals-row'>
+                <td colspan='2'><strong>Totals</strong></td>
+                <td class='token-count'>{total_input_tokens:,}</td>
+                <td class='cost-value'>${total_input_cost:.4f}</td>
+                <td class='token-count'>{total_output_tokens:,}</td>
+                <td class='cost-value'>${total_output_cost:.4f}</td>
+                <td class='cost-value'>${total_cost:.4f}</td>
+            </tr>
+        """
+
+        return f"""
+        <div class="model-costs-section">
+            <div class="model-costs-header" onclick="{self._collapse(f'model-costs-content-{self.log_id}', f'model-costs-arrow-{self.log_id}')}">
+                <span id="model-costs-arrow-{self.log_id}" class="expand-toggle">&#8963;</span>
+                <span>Model Costs (${total_cost:.4f} total)</span>
+                <span style="flex-grow: 1;"></span>
+            </div>
+            <div id="model-costs-content-{self.log_id}" class="model-costs-content">
+                <table class='model-costs-table'>
+                    <thead>
+                        <tr>
+                            <th>Service</th>
+                            <th>Model</th>
+                            <th class="cost-header">Input Tokens</th>
+                            <th class="cost-header">Input Cost</th>
+                            <th class="cost-header">Output Tokens</th>
+                            <th class="cost-header">Output Cost</th>
+                            <th class="cost-header">Total Cost</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {cost_rows}
+                        {total_row}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        """
+
     def _get_html(self, current_status: JobsStatus = JobsStatus.RUNNING) -> str:
         """Generate the complete HTML display with modern design"""
-        # CSS for modern styling
         css = """
         <style>
             .jobs-container {
@@ -131,6 +297,8 @@ class HTMLTableJobLogger(JobLogger):
                 justify-content: space-between;
                 font-weight: 500;
                 font-size: 0.9em;
+                flex-wrap: wrap;
+                gap: 8px;
             }
             .jobs-content {
                 background: white;
@@ -162,7 +330,7 @@ class HTMLTableJobLogger(JobLogger):
                 border-bottom: 1px solid #cbd5e1;
                 font-size: 0.85em;
             }
-            .two-column-grid {
+            .three-column-grid {
                 display: flex;
                 flex-wrap: wrap;
                 gap: 1px;
@@ -171,11 +339,15 @@ class HTMLTableJobLogger(JobLogger):
             .column {
                 background-color: white;
             }
-            .column:first-child {
+            .column:nth-child(1) {  /* Job Links */
                 flex: 1;
                 min-width: 150px;
             }
-            .column:last-child {
+            .column:nth-child(2) {  /* Content */
+                flex: 1;
+                min-width: 150px;
+            }
+            .column:nth-child(3) {  /* Identifiers */
                 flex: 2;
                 min-width: 300px;
             }
@@ -185,6 +357,7 @@ class HTMLTableJobLogger(JobLogger):
             .link-item {
                 padding: 3px 0;
                 border-bottom: 1px solid #f1f5f9;
+                font-size: 0.9em;
             }
             .link-item:last-child {
                 border-bottom: none;
@@ -203,11 +376,18 @@ class HTMLTableJobLogger(JobLogger):
             .progress-link .pill-link:hover {
                 border-bottom-color: #3b82f6;
             }
+            .remote-link .pill-link {
+                color: #4b5563;
+                font-weight: 500;
+            }
+            .remote-link .pill-link:hover {
+                border-bottom-color: #4b5563;
+            }
             .uuid-item {
                 padding: 3px 0;
                 border-bottom: 1px solid #f1f5f9;
                 display: flex;
-                align-items: center;
+                align-items: flex-start;
             }
             .uuid-item:last-child {
                 border-bottom: none;
@@ -224,12 +404,10 @@ class HTMLTableJobLogger(JobLogger):
                 line-height: 1.5;
             }
             .pill-link {
-                color: #3b82f6;
                 font-weight: 500;
                 text-decoration: none;
                 border-bottom: 1px dotted #bfdbfe;
                 transition: border-color 0.2s;
-                font-size: 0.75em;
                 display: inline-flex;
                 align-items: center;
                 gap: 4px;
@@ -245,13 +423,16 @@ class HTMLTableJobLogger(JobLogger):
             .status-banner {
                 display: flex;
                 align-items: center;
+                flex-wrap: wrap;
+                gap: 8px;
                 padding: 5px 12px;
                 background-color: #f7fafc;
                 border-top: 1px solid #edf2f7;
                 font-size: 0.85em;
+                cursor: pointer;
             }
             .status-running { color: #3b82f6; }
-            .status-completed { color: #10b981; }
+            .status-completed { color: #059669; }
             .status-partially-failed { color: #d97706; }
             .status-failed { color: #ef4444; }
             .status-unknown { color: #6b7280; }
@@ -273,15 +454,23 @@ class HTMLTableJobLogger(JobLogger):
             .link:hover {
                 border-bottom: 1px solid #3b82f6;
             }
+            .uuid-container-wrapper {
+                display: flex;
+                flex-direction: column;
+                align-items: stretch;
+                gap: 4px;
+                flex: 1;
+                padding-bottom: 4px;
+            }            
             .uuid-container {
                 display: flex;
                 align-items: center;
                 background-color: #f8fafc;
                 border-radius: 3px;
                 padding: 2px 6px;
-                font-family: monospace;
+                font-family: "SF Mono", "Cascadia Mono", monospace;
                 font-size: 0.75em;
-                flex: 1;
+                width: 100%;  /* Make sure it fills the width */
             }
             .uuid-code {
                 color: #4b5563;
@@ -353,6 +542,118 @@ class HTMLTableJobLogger(JobLogger):
             .status-completed.badge { background-color: #d1fae5; }
             .status-partially-failed.badge { background-color: #fef3c7; }
             .status-failed.badge { background-color: #fee2e2; }
+            .helper-text {
+                color: #4b5563;
+                font-size: 0.75em;
+                text-align: left;
+            }
+            /* Exception table styles */
+            .exception-section {
+                border-top: 1px solid #edf2f7;
+            }
+            .exception-header {
+                padding: 8px 12px;
+                background-color: #f7fafc;
+                display: flex;
+                align-items: center;
+                cursor: pointer;
+                font-size: 0.85em;
+                font-weight: 500;
+                user-select: none;  /* Prevent text selection */
+            }
+            .exception-content {
+                padding: 12px;
+            }
+            .exception-table {
+                width: 100%;
+                border-collapse: collapse;
+                margin: 0;
+                font-size: 0.85em;
+            }
+            .exception-table th {
+                background-color: #f1f5f9;
+                color: #475569;
+                font-weight: 500;
+                text-align: left;
+                padding: 8px 12px;
+                border-bottom: 2px solid #e2e8f0;
+            }
+            .exception-table td {
+                padding: 6px 12px;
+                border-bottom: 1px solid #e2e8f0;
+                color: #1f2937;
+                text-align: left;  /* Ensure left alignment */
+            }
+            .exception-table tr:last-child td {
+                border-bottom: none;
+            }
+            .exception-count {
+                font-weight: 500;
+                color: #ef4444;
+            }
+            /* Model costs table styles */
+            .model-costs-section {
+                border-top: 1px solid #edf2f7;
+            }
+            .model-costs-header {
+                padding: 8px 12px;
+                background-color: #f7fafc;
+                display: flex;
+                align-items: center;
+                cursor: pointer;
+                font-size: 0.85em;
+                font-weight: 500;
+                user-select: none;
+            }
+            .model-costs-content {
+                padding: 12px;
+            }
+            .model-costs-table {
+                width: 100%;
+                border-collapse: collapse;
+                margin: 0;
+                font-size: 0.85em;
+            }
+            .model-costs-table th {
+                background-color: #f1f5f9;
+                color: #475569;
+                font-weight: 500;
+                text-align: left;  /* Default left alignment */
+                padding: 8px 12px;
+                border-bottom: 2px solid #e2e8f0;
+            }
+            .model-costs-table th.cost-header {  /* New class for cost headers */
+                text-align: right;
+            }
+            .model-costs-table td {
+                padding: 6px 12px;
+                border-bottom: 1px solid #e2e8f0;
+                color: #1f2937;
+                text-align: left;  /* Ensure left alignment for all cells by default */
+            }
+            .model-costs-table tr:last-child td {
+                border-bottom: none;
+            }
+            .token-count td, .cost-value td {  /* Override for specific columns that need right alignment */
+                text-align: right;
+            }
+            .totals-row {
+                background-color: #f8fafc;
+            }
+            .totals-row td {
+                border-top: 2px solid #e2e8f0;
+            }
+            /* Model costs table styles */
+            .model-costs-table td.token-count,
+            .model-costs-table td.cost-value {
+                text-align: right;  /* Right align the token counts and cost values */
+            }
+            .code-text {
+                font-family: "SF Mono", "Cascadia Mono", monospace;
+                background-color: #f8fafc;
+                padding: 1px 4px;
+                border-radius: 3px;
+            }
         </style>
         """
 
@@ -362,7 +663,13 @@ class HTMLTableJobLogger(JobLogger):
         other_fields = []
 
         for field, _ in self.jobs_info.__annotations__.items():
-            if field != "pretty_names":
+            if field not in [
+                "pretty_names",
+                "completed_interviews",
+                "failed_interviews",
+                "exception_summary",
+                "model_costs",
+            ]:
                 value = getattr(self.jobs_info, field)
                 if not value:
                     continue
@@ -378,17 +685,18 @@ class HTMLTableJobLogger(JobLogger):
                 else:
                     other_fields.append((field, pretty_name, value))
 
-        # Build a two-column layout with links and UUIDs
+        # Build a three-column layout
         content_html = """
-        <div class="two-column-grid">
+        <div class="three-column-grid">
             <div class="column">
-                <div class="section-header">Links</div>
+                <div class="section-header">Job Links</div>
                 <div class="content-box">
         """
 
-        # Sort URLs to prioritize Results first, then Progress Bar
+        # Sort URLs to prioritize Results first, then Progress
         results_links = []
         progress_links = []
+        remote_links = []
         other_links = []
 
         for field, pretty_name, value in url_fields:
@@ -400,32 +708,46 @@ class HTMLTableJobLogger(JobLogger):
 
             if "result" in field.lower():
                 results_links.append((field, pretty_name, value, label))
-            elif "progress" in field.lower():
+            elif "progress" in field.lower() or "error_report" in field.lower():
                 progress_links.append((field, pretty_name, value, label))
+            elif "remote_cache" in field.lower() or "remote_inference" in field.lower():
+                remote_links.append((field, pretty_name, value, label))
             else:
                 other_links.append((field, pretty_name, value, label))
 
-        # Add results links first with special styling
+        # Add results and progress links to first column
         for field, pretty_name, value, label in results_links:
             content_html += f"""
-            <div class="link-item results-link">
+            <div class="link-item results-link" style="display: flex; align-items: center; justify-content: space-between;">
                 <a href="{value}" target="_blank" class="pill-link">{label}{self.external_link_icon}</a>
+                {self._create_copy_button(value)}
             </div>
             """
 
         # Then add progress links with different special styling
         for field, pretty_name, value, label in progress_links:
             content_html += f"""
-            <div class="link-item progress-link">
+            <div class="link-item progress-link" style="display: flex; align-items: center; justify-content: space-between;">
                 <a href="{value}" target="_blank" class="pill-link">{label}{self.external_link_icon}</a>
+                {self._create_copy_button(value)}
             </div>
             """
 
-        # Then add other links
-        for field, pretty_name, value, label in other_links:
+        # Close first column and start second column
+        content_html += """
+                </div>
+            </div>
+            <div class="column">
+                <div class="section-header">Content</div>
+                <div class="content-box">
+        """
+
+        # Add remote links to middle column
+        for field, pretty_name, value, label in remote_links + other_links:
             content_html += f"""
-            <div class="link-item">
+            <div class="link-item remote-link" style="display: flex; align-items: center; justify-content: space-between;">
                 <a href="{value}" target="_blank" class="pill-link">{label}{self.external_link_icon}</a>
+                {self._create_copy_button(value)}
             </div>
             """
 
@@ -440,10 +762,18 @@ class HTMLTableJobLogger(JobLogger):
         # Sort UUIDs to prioritize Result UUID first
         uuid_fields.sort(key=lambda x: 0 if "result" in x[0].lower() else 1)
         for field, pretty_name, value in uuid_fields:
-            # Create single-line UUID displays
+            if "result" in field.lower():
+                helper_text = "Use <span class='code-text'>Results.pull(uuid)</span> to fetch results."
+            elif "job" in field.lower():
+                helper_text = (
+                    "Use <span class='code-text'>Jobs.pull(uuid)</span> to fetch job."
+                )
+            else:
+                helper_text = ""
+
             content_html += f"""
             <div class="uuid-item">
-                <span class="uuid-label">{pretty_name}:</span>{self._create_uuid_copy_button(value)}
+                <span class="uuid-label">{pretty_name}:</span>{self._create_uuid_copy_button(value, helper_text)}
             </div>
             """
 
@@ -466,7 +796,7 @@ class HTMLTableJobLogger(JobLogger):
                 """
             content_html += "</table>"
 
-        # Status banner
+        # Status banner and message log
         status_class = {
             JobsStatus.RUNNING: "status-running",
             JobsStatus.COMPLETED: "status-completed",
@@ -484,9 +814,14 @@ class HTMLTableJobLogger(JobLogger):
             status_text = str(current_status).capitalize()
 
         status_banner = f"""
-        <div class="status-banner">
-            {status_icon}
-            <strong>Status:</strong>&nbsp;<span class="badge {status_class}">{status_text}</span>
+        <div class="status-banner" onclick="{self._collapse(f'message-log-{self.log_id}', f'message-arrow-{self.log_id}')}">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span id="message-arrow-{self.log_id}" class="expand-toggle">&#8963;</span>
+                <div style="display: flex; align-items: center;">
+                    {status_icon}
+                    <strong>Status:</strong>&nbsp;<span class="badge {status_class}">{status_text}</span>
+                </div>
+            </div>
             <span style="flex-grow: 1;"></span>
             <span>Last updated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</span>
         </div>
@@ -515,36 +850,42 @@ class HTMLTableJobLogger(JobLogger):
                 )
 
             message_log = f"""
-            <div class="message-log">
+            <div id="message-log-{self.log_id}" class="message-log">
                 {''.join(reversed(message_items))}
             </div>
             """
 
         display_style = "block" if self.is_expanded else "none"
 
+        header_status_text = status_text
+        if (
+            self.jobs_info.completed_interviews is not None
+            and self.jobs_info.failed_interviews is not None
+        ):
+            header_status_text += f" ({self.jobs_info.completed_interviews:,} completed, {self.jobs_info.failed_interviews:,} failed)"
+
+        # Add model costs table before exceptions table
+        main_content = f"""
+            {content_html}
+            {status_banner}
+            {message_log}
+            {self._build_model_costs_table()}
+            {self._build_exceptions_table()}
+        """
+
+        # Return the complete HTML
         return f"""
         {css}
         <div class="jobs-container">
-            <div class="jobs-header" onclick="
-                const content = document.getElementById('content-{self.log_id}');
-                const arrow = document.getElementById('arrow-{self.log_id}');
-                if (content.style.display === 'none') {{
-                    content.style.display = 'block';
-                    arrow.innerHTML = '&#8963;';
-                }} else {{
-                    content.style.display = 'none';
-                    arrow.innerHTML = '&#8964;';
-                }}">
+            <div class="jobs-header" onclick="{self._collapse(f'content-{self.log_id}', f'arrow-{self.log_id}')}">
                 <div>
                     <span id="arrow-{self.log_id}" class="expand-toggle">{'&#8963;' if self.is_expanded else '&#8964;'}</span>
                     Job Status 🦜
                 </div>
-                <div class="{status_class}">{status_text}</div>
+                <div class="{status_class}">{header_status_text}</div>
             </div>
             <div id="content-{self.log_id}" class="jobs-content" style="display: {display_style};">
-                {content_html}
-                {status_banner}
-                {message_log}
+                {main_content}
             </div>
         </div>
         """

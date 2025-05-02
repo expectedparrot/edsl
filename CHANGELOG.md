@@ -1,15 +1,42 @@
 # Changelog
 
-## [0.1.54] - TBD
+## [0.1.57] - TBD
 ### Added
-- New video file handlers: `Scenario` objects can be videos (MP4 and WebM).  
+- New question type `QuestionMultipleChoiceWithOther` automatically includes "Other" in the `question_options` and corresponding modified default instructions.
 
-- New question type `QuestionMultipleChoiceWithOther` automatically includes "Other" in the `question_options`.  
+- Question type `QuestionMultipleChoice` now takes an optional parameter `enumeration_style` that allows you to specify "numeric" (default) or "letter" options (["A", "B", "C", "D"]). This parameter can also be passed to new question type `QuestionMultipleChoiceWithOther`.
 
-- Question type `QuestionMultipleChoice` now takes an optional parameter `enumeration` that allows you to specify the enumeration of the `question_options`, e.g., ["a", "b", "c", "d", ...] instead of the default options [0, 1, 2, 3, ...]. This parameter can also be passed to new question type `QuestionMultipleChoiceWithOther`.
 
-### Changed
+## [0.1.56] - 2025-04-26
+### Added
+- Video file handlers: `Scenario` objects can now be videos (MP4 and WebM). Example: https://www.expectedparrot.com/content/RobinHorton/video-scenarios-notebook
 
+- `Results` objects now include separate fields for input tokens, output tokens, input tokens cost, output tokens cost and total cost for each `Result`. These fields all have the `raw_model_response` prefix. 
+
+- `Jobs` method `estimate_job_cost()` now also includes estimated input tokens, output tokens, input tokens cost, output tokens cost and total cost for each model, and credits to be placed on hold while the job is running.
+
+- New documentation page on estimating and tracking costs: https://docs.expectedparrot.com/en/latest/costs.html
+
+
+## [0.1.55] - 2025-04-23
+### Added
+- Method `get_uuid()` retrieves the Coop UUID for the relevant object, if it exists.
+
+- Method `list()` retrieves details of objects of the relevant type that you have posted to Coop. By default, it returns information about the 10 most recently created objects. Optional parameters:
+
+* `page=` specifies the pagination (e.g., `page=2` will return the next 10 objects) 
+* `page_size=` specifies the number of objects to return (10 by default, and up to 100)
+* `search_query` returns objects based on the description (if any)
+
+The `list()` method is available for all EDSL object types (`Agent`, `Scenario`, `Jobs`, `Results`, `Notebook`, etc.), as well as the `Coop` client object. For example, `Results.list()` will return details on the 10 most recent results and `Coop().list(page_size=5)` will return details on the 5 most recent objects of any type.
+
+- Method `fetch()` can be combined with the `list()` method to retrieve objects of the relevant type that you have posted to Coop. By default, it returns the 10 most recently created objects. For example: `Results.list().fetch()` will return the 10 most recently created results. The `fetch()` method is available for all EDSL object types (`Agent`, `Scenario`, `Jobs`, `Results`, `Notebook`, etc.), and the `Coop` client object.
+
+- Method `fetch_results()` is a special method of `Jobs` objects that can be combined with the `list()` method to retrieve results of your jobs. For example: `results = Jobs.list(page_size=2).fetch_results()` will retrieve the results for your 2 most recent jobs.
+
+
+
+## [0.1.54] - 2025-04-11
 ### Deprecated
 - Methods for auto-generating `ScenarioList` objects from different file types are now available with a single syntax: `ScenarioSource.from_source()`. For example, `sl = ScenarioSource.from_source('csv', 'my_file.csv')` is equivalent to `sl = ScenarioList.from_csv('my_file.csv')`.
 

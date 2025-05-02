@@ -1,3 +1,4 @@
+import math
 from typing import Literal, Optional, Type, Union
 
 from ..agents import Agent, AgentList
@@ -45,6 +46,9 @@ RemoteJobStatus = Literal[
     "running",
     "completed",
     "failed",
+    "cancelled",
+    "cancelling",
+    "partial_failed",
 ]
 
 VisibilityType = Literal[
@@ -57,18 +61,18 @@ VisibilityType = Literal[
 class ObjectRegistry:
     """
     Registry that maps between EDSL class types and their cloud storage object types.
-    
+
     This utility class maintains a bidirectional mapping between EDSL Python classes
     (like Survey, Agent, Results) and their corresponding object type identifiers
     used in the cloud storage system. It enables the proper serialization,
     deserialization, and type checking for objects stored in Expected Parrot's
     cloud services.
-    
+
     The registry is used by the Coop client to:
     1. Determine the correct object type when uploading EDSL objects
     2. Instantiate the correct class when downloading objects
     3. Validate that retrieved objects match expected types
-    
+
     Attributes:
         objects (list): List of mappings between object types and EDSL classes
         object_type_to_edsl_class (dict): Maps object type strings to EDSL classes
@@ -88,7 +92,7 @@ class ObjectRegistry:
         {"object_type": "scenario_list", "edsl_class": ScenarioList},
         {"object_type": "survey", "edsl_class": Survey},
     ]
-    
+
     # Create mappings for efficient lookups
     object_type_to_edsl_class = {o["object_type"]: o["edsl_class"] for o in objects}
     edsl_class_to_object_type = {
@@ -99,19 +103,19 @@ class ObjectRegistry:
     def get_object_type_by_edsl_class(cls, edsl_object: EDSLObject) -> ObjectType:
         """
         Get the object type identifier for an EDSL class or instance.
-        
+
         This method determines the appropriate object type string for a given EDSL class
         or instance, which is needed when storing the object in the cloud.
-        
+
         Parameters:
             edsl_object (EDSLObject): An EDSL class (type) or instance
-            
+
         Returns:
             ObjectType: The corresponding object type string (e.g., "survey", "agent")
-            
+
         Raises:
             ValueError: If no mapping exists for the provided object
-            
+
         Notes:
             - Special handling for Question classes, which all map to "question"
             - Works with both class types and instances
@@ -121,15 +125,16 @@ class ObjectRegistry:
             edsl_class_name = edsl_object.__name__
         else:
             edsl_class_name = type(edsl_object).__name__
-            
+
         # Special handling for question classes
         if edsl_class_name.startswith("Question"):
             edsl_class_name = "QuestionBase"
-            
+
         # Look up the object type
         object_type = cls.edsl_class_to_object_type.get(edsl_class_name)
         if object_type is None:
             from .exceptions import CoopValueError
+
             raise CoopValueError(f"Object type not found for {edsl_object=}")
         return object_type
 
@@ -137,22 +142,23 @@ class ObjectRegistry:
     def get_edsl_class_by_object_type(cls, object_type: ObjectType) -> EDSLObject:
         """
         Get the EDSL class for a given object type identifier.
-        
+
         This method returns the appropriate EDSL class for a given object type string,
         which is needed when retrieving objects from the cloud.
-        
+
         Parameters:
             object_type (ObjectType): The object type string (e.g., "survey", "agent")
-            
+
         Returns:
             EDSLObject: The corresponding EDSL class
-            
+
         Raises:
             ValueError: If no mapping exists for the provided object type
         """
         EDSL_class = cls.object_type_to_edsl_class.get(object_type)
         if EDSL_class is None:
             from .exceptions import CoopValueError
+
             raise CoopValueError(f"EDSL class not found for {object_type=}")
         return EDSL_class
 
@@ -164,18 +170,18 @@ class ObjectRegistry:
     ) -> dict:
         """
         Get a filtered registry of EDSL classes.
-        
+
         This method returns a dictionary of EDSL classes, optionally excluding
         classes that are already registered elsewhere or explicitly excluded.
-        
+
         Parameters:
             subclass_registry (dict, optional): Dictionary of classes to exclude
                 because they are already registered elsewhere
             exclude_classes (list, optional): List of class names to explicitly exclude
-            
+
         Returns:
             dict: Dictionary mapping class names to EDSL classes
-            
+
         Notes:
             - This method is useful for building registries of classes that
               can be serialized and stored in the cloud
@@ -192,3 +198,65 @@ class ObjectRegistry:
             if (class_name := o["edsl_class"].__name__) not in subclass_registry
             and class_name not in exclude_classes
         }
+
+
+class CostConverter:
+    CENTS_PER_CREDIT = 1
+
+    @staticmethod
+    def _credits_to_minicredits(credits: float) -> float:
+        """
+        Converts credits to minicredits.
+
+        Current conversion: minicredits = credits * 100
+        """
+
+        return credits * 100
+
+    @staticmethod
+    def _minicredits_to_credits(minicredits: float) -> float:
+        """
+        Converts minicredits to credits.
+
+        Current conversion: credits = minicredits / 100
+        """
+
+        return minicredits / 100
+
+    def _usd_to_minicredits(self, usd: float) -> float:
+        """Converts USD to minicredits."""
+
+        cents = usd * 100
+        credits_per_cent = 1 / int(self.CENTS_PER_CREDIT)
+
+        credits = cents * credits_per_cent
+
+        minicredits = self._credits_to_minicredits(credits)
+
+        return minicredits
+
+    def _minicredits_to_usd(self, minicredits: float) -> float:
+        """Converts minicredits to USD."""
+
+        credits = self._minicredits_to_credits(minicredits)
+
+        cents_per_credit = int(self.CENTS_PER_CREDIT)
+
+        cents = credits * cents_per_credit
+        usd = cents / 100
+
+        return usd
+
+    def usd_to_credits(self, usd: float) -> float:
+        """Converts USD to credits."""
+
+        minicredits = math.ceil(self._usd_to_minicredits(usd))
+        credits = self._minicredits_to_credits(minicredits)
+        return round(credits, 2)
+
+    def credits_to_usd(self, credits: float) -> float:
+        """Converts credits to USD."""
+
+        minicredits = math.ceil(self._credits_to_minicredits(credits))
+        usd = self._minicredits_to_usd(minicredits)
+        return usd

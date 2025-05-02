@@ -294,10 +294,23 @@ class FileStore(Scenario):
 
     def upload_google(self, refresh: bool = False) -> None:
         import google.generativeai as genai
+        import google
 
-        genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
-        google_info = genai.upload_file(self.path, mime_type=self.mime_type)
-        self.external_locations["google"] = google_info.to_dict()
+        try:
+            genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
+            google_info = genai.upload_file(self.path, mime_type=self.mime_type)
+            self.external_locations["google"] = google_info.to_dict()
+            while True:
+                file_metadata = genai.get_file(name=google_info.name)
+                file_state = file_metadata.state
+
+                if file_state == 2:  # "ACTIVE":
+                    break
+                elif file_state == 10:  # "FAILED":
+                    break
+        except Exception as e:
+            print(f"Error uploading to Google: {e}")
+            raise
 
     @classmethod
     @remove_edsl_version
@@ -592,14 +605,14 @@ class FileStore(Scenario):
         """
         # Check if the mime type starts with 'image/'
         return self.mime_type.startswith("image/")
-        
+
     def is_video(self) -> bool:
         """
         Check if the file is a video by examining its MIME type.
-        
+
         Returns:
             bool: True if the file is a video, False otherwise.
-            
+
         Examples:
             >>> fs = FileStore.example("mp4")
             >>> fs.is_video()
@@ -613,19 +626,19 @@ class FileStore(Scenario):
         """
         # Check if the mime type starts with 'video/'
         return self.mime_type.startswith("video/")
-        
+
     def get_video_metadata(self) -> dict:
         """
         Get metadata about a video file such as duration, dimensions, codec, etc.
         Uses FFmpeg to extract the information if available.
-        
+
         Returns:
             dict: A dictionary containing video metadata, or a dictionary with
                  error information if metadata extraction fails.
-                 
+
         Raises:
             ValueError: If the file is not a video.
-            
+
         Example:
             >>> fs = FileStore.example("mp4")
             >>> metadata = fs.get_video_metadata()
@@ -634,47 +647,63 @@ class FileStore(Scenario):
         """
         if not self.is_video():
             raise ValueError("This file is not a video")
-            
+
         # We'll try to use ffprobe (part of ffmpeg) to get metadata
         import subprocess
         import json
-        
+
         try:
             # Run ffprobe to get video metadata in JSON format
             result = subprocess.run(
                 [
-                    "ffprobe", "-v", "quiet", "-print_format", "json",
-                    "-show_format", "-show_streams", self.path
+                    "ffprobe",
+                    "-v",
+                    "quiet",
+                    "-print_format",
+                    "json",
+                    "-show_format",
+                    "-show_streams",
+                    self.path,
                 ],
-                capture_output=True, text=True, check=True
+                capture_output=True,
+                text=True,
+                check=True,
             )
-            
+
             # Parse the JSON output
             metadata = json.loads(result.stdout)
-            
+
             # Extract some common useful fields into a more user-friendly format
             simplified = {
                 "format": metadata.get("format", {}).get("format_name", "unknown"),
-                "duration_seconds": float(metadata.get("format", {}).get("duration", 0)),
+                "duration_seconds": float(
+                    metadata.get("format", {}).get("duration", 0)
+                ),
                 "size_bytes": int(metadata.get("format", {}).get("size", 0)),
                 "bit_rate": int(metadata.get("format", {}).get("bit_rate", 0)),
                 "streams": len(metadata.get("streams", [])),
             }
-            
+
             # Add video stream info if available
-            video_streams = [s for s in metadata.get("streams", []) if s.get("codec_type") == "video"]
+            video_streams = [
+                s for s in metadata.get("streams", []) if s.get("codec_type") == "video"
+            ]
             if video_streams:
                 video = video_streams[0]  # Get the first video stream
                 simplified["video"] = {
                     "codec": video.get("codec_name", "unknown"),
                     "width": video.get("width", 0),
                     "height": video.get("height", 0),
-                    "frame_rate": eval(video.get("r_frame_rate", "0/1")),  # Convert "30/1" to 30.0
+                    "frame_rate": eval(
+                        video.get("r_frame_rate", "0/1")
+                    ),  # Convert "30/1" to 30.0
                     "pixel_format": video.get("pix_fmt", "unknown"),
                 }
-            
+
             # Add audio stream info if available
-            audio_streams = [s for s in metadata.get("streams", []) if s.get("codec_type") == "audio"]
+            audio_streams = [
+                s for s in metadata.get("streams", []) if s.get("codec_type") == "audio"
+            ]
             if audio_streams:
                 audio = audio_streams[0]  # Get the first audio stream
                 simplified["audio"] = {
@@ -682,14 +711,15 @@ class FileStore(Scenario):
                     "channels": audio.get("channels", 0),
                     "sample_rate": audio.get("sample_rate", "unknown"),
                 }
-                
+
             # Return both the complete metadata and simplified version
-            return {
-                "simplified": simplified,
-                "full": metadata
-            }
-            
-        except (subprocess.SubprocessError, FileNotFoundError, json.JSONDecodeError) as e:
+            return {"simplified": simplified, "full": metadata}
+
+        except (
+            subprocess.SubprocessError,
+            FileNotFoundError,
+            json.JSONDecodeError,
+        ) as e:
             # If ffprobe is not available or fails, return basic info
             return {
                 "error": str(e),

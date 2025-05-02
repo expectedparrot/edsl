@@ -75,7 +75,6 @@ from .exceptions import (
 
 
 class ResultsSQLList(SQLiteList):
-
     def serialize(self, obj):
         return json.dumps(obj.to_dict()) if hasattr(obj, "to_dict") else json.dumps(obj)
 
@@ -85,6 +84,7 @@ class ResultsSQLList(SQLiteList):
             if hasattr(Result, "from_dict")
             else json.loads(data)
         )
+
 
 def ensure_fetched(method):
     """A decorator that checks if remote data is loaded, and if not, attempts to fetch it.
@@ -314,7 +314,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         total_results: Optional[int] = None,
         task_history: Optional[TaskHistory] = None,
         sort_by_iteration: bool = False,
-        data_class: Optional[type] = list, #ResultsSQLList,
+        data_class: Optional[type] = list,  # ResultsSQLList,
     ):
         """Instantiate a Results object with a survey and a list of Result objects.
 
@@ -470,7 +470,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         }
         return d
 
-    def _cache_keys(self) -> List[str]:# -> list:
+    def _cache_keys(self) -> List[str]:  # -> list:
         """Return a list of all cache keys from the results.
 
         This method collects all cache keys by iterating through each result in the data
@@ -524,7 +524,6 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
 
     #     # Call the parent class's insert directly
     #     MutableSequence.insert(self, index, item)
-
 
     def extend_sorted(self, other):
         """Extend the Results list with items from another iterable.
@@ -706,7 +705,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             )
 
         # Create a new ResultsSQLList with the combined data
-        #combined_data = ResultsSQLList()
+        # combined_data = ResultsSQLList()
         combined_data = self._data_class()
         combined_data.extend(self.data)
         combined_data.extend(other.data)
@@ -873,7 +872,12 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
 
     def __hash__(self) -> int:
         return dict_hash(
-            self.to_dict(sort=True, add_edsl_version=False, include_cache_info=False)
+            self.to_dict(
+                sort=True,
+                add_edsl_version=False,
+                include_cache=False,
+                include_cache_info=False,
+            )
         )
 
     @property
@@ -1701,11 +1705,11 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
 
             >>> # Using multi-line string for complex conditions
             >>> r.filter('''
-            ...     how_feeling == 'Great' 
+            ...     how_feeling == 'Great'
             ...     or how_feeling == 'Terrible'
             ... ''').select('how_feeling')
             Dataset([{'answer.how_feeling': ['Great', 'Terrible']}])
-            
+
             >>> # Using template-style syntax with {{}}
             >>> r.filter("{{ answer.how_feeling }} == 'Great'").select('how_feeling')
             Dataset([{'answer.how_feeling': ['Great']}])
@@ -1718,11 +1722,13 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             ResultsFilterError: You must use '==' instead of '=' in the filter expression.
         """
         # Normalize expression by removing extra whitespace and newlines
-        normalized_expression = ' '.join(expression.strip().split())
-        
+        normalized_expression = " ".join(expression.strip().split())
+
         # Remove template-style syntax (double curly braces)
-        normalized_expression = normalized_expression.replace('{{', '').replace('}}', '')
-        
+        normalized_expression = normalized_expression.replace("{{", "").replace(
+            "}}", ""
+        )
+
         if self.has_single_equals(normalized_expression):
             raise ResultsFilterError(
                 "You must use '==' instead of '=' in the filter expression."
@@ -1764,7 +1770,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
                 f"Error in filter. Exception:{e}.",
                 f"The expression you provided was: {expression}.",
                 "Please make sure that the expression is a valid Python expression that evaluates to a boolean.",
-                "For example, 'how_feeling == \"Great\"' is a valid expression, as is 'how_feeling in [\"Great\", \"Terrible\"]'.",
+                'For example, \'how_feeling == "Great"\' is a valid expression, as is \'how_feeling in ["Great", "Terrible"]\'.',
                 "However, 'how_feeling = \"Great\"' is not a valid expression.",
                 "See https://docs.expectedparrot.com/en/latest/results.html#filtering-results for more details.",
             )
@@ -2165,50 +2171,56 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
                 temp_path = Path(temp_dir)
 
                 # 1. Handle the SQLite database
-                db_path = temp_path / 'results.db'
-                
+                db_path = temp_path / "results.db"
+
                 if isinstance(self.data, list):
                     # If data is a list, create a new SQLiteList
-                    #from .sqlite_list import SQLiteList
+                    # from .sqlite_list import SQLiteList
                     new_db = data_class()
                     new_db.extend(self.data)
                     shutil.copy2(new_db.db_path, db_path)
-                elif hasattr(self.data, 'db_path') and os.path.exists(self.data.db_path):
+                elif hasattr(self.data, "db_path") and os.path.exists(
+                    self.data.db_path
+                ):
                     # If data is already a SQLiteList, copy its database
                     shutil.copy2(self.data.db_path, db_path)
                 else:
                     # If no database exists, create a new one
-                    #from .sqlite_list import SQLiteList
-                    #new_db = SQLiteList()
+                    # from .sqlite_list import SQLiteList
+                    # new_db = SQLiteList()
                     new_db = data_class()
                     new_db.extend(self.data)
                     shutil.copy2(new_db.db_path, db_path)
 
                 # 2. Create metadata.json
                 metadata = {
-                    'survey': self.survey.to_dict() if self.survey else None,
-                    'created_columns': self.created_columns,
-                    'cache': self.cache.to_dict() if hasattr(self, 'cache') else None,
-                    'task_history': self.task_history.to_dict() if hasattr(self, 'task_history') else None,
-                    'completed': self.completed,
-                    'job_uuid': self._job_uuid if hasattr(self, '_job_uuid') else None,
-                    'total_results': self._total_results if hasattr(self, '_total_results') else None,
+                    "survey": self.survey.to_dict() if self.survey else None,
+                    "created_columns": self.created_columns,
+                    "cache": self.cache.to_dict() if hasattr(self, "cache") else None,
+                    "task_history": self.task_history.to_dict()
+                    if hasattr(self, "task_history")
+                    else None,
+                    "completed": self.completed,
+                    "job_uuid": self._job_uuid if hasattr(self, "_job_uuid") else None,
+                    "total_results": self._total_results
+                    if hasattr(self, "_total_results")
+                    else None,
                 }
 
-                metadata_path = temp_path / 'metadata.json'
+                metadata_path = temp_path / "metadata.json"
                 metadata_path.write_text(json.dumps(metadata, indent=4))
 
                 # 3. Create the zip file
-                with zipfile.ZipFile(filepath, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                with zipfile.ZipFile(filepath, "w", zipfile.ZIP_DEFLATED) as zipf:
                     # Add all files from temp directory to zip
-                    for file in temp_path.glob('*'):
+                    for file in temp_path.glob("*"):
                         zipf.write(file, file.name)
 
         except Exception as e:
             raise ResultsError(f"Error saving Results to disk: {str(e)}")
 
     @classmethod
-    def from_disk(cls, filepath: str) -> 'Results':
+    def from_disk(cls, filepath: str) -> "Results":
         """Load a Results object from a zip file.
 
         This method:
@@ -2241,25 +2253,31 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
                 temp_path = Path(temp_dir)
 
                 # Extract the zip file
-                with zipfile.ZipFile(filepath, 'r') as zipf:
+                with zipfile.ZipFile(filepath, "r") as zipf:
                     zipf.extractall(temp_path)
 
                 # 1. Load metadata
-                metadata_path = temp_path / 'metadata.json'
+                metadata_path = temp_path / "metadata.json"
                 metadata = json.loads(metadata_path.read_text())
 
                 # 2. Create a new Results instance
                 results = cls(
-                    survey=Survey.from_dict(metadata['survey']) if metadata['survey'] else None,
-                    created_columns=metadata['created_columns'],
-                    cache=Cache.from_dict(metadata['cache']) if metadata['cache'] else None,
-                    task_history=TaskHistory.from_dict(metadata['task_history']) if metadata['task_history'] else None,
-                    job_uuid=metadata['job_uuid'],
-                    total_results=metadata['total_results'],
+                    survey=Survey.from_dict(metadata["survey"])
+                    if metadata["survey"]
+                    else None,
+                    created_columns=metadata["created_columns"],
+                    cache=Cache.from_dict(metadata["cache"])
+                    if metadata["cache"]
+                    else None,
+                    task_history=TaskHistory.from_dict(metadata["task_history"])
+                    if metadata["task_history"]
+                    else None,
+                    job_uuid=metadata["job_uuid"],
+                    total_results=metadata["total_results"],
                 )
 
                 # 3. Set the SQLite database path if it exists
-                db_path = temp_path / 'results.db'
+                db_path = temp_path / "results.db"
                 if db_path.exists():
                     # Create a new ResultsSQLList instance
                     new_db = data_class()
@@ -2268,7 +2286,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
                     # Set the new database as the results data
                     results.data = new_db
 
-                results.completed = metadata['completed']
+                results.completed = metadata["completed"]
                 return results
 
         except Exception as e:

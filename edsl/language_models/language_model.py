@@ -49,6 +49,7 @@ from ..data_transfer_models import (
 )
 
 if TYPE_CHECKING:
+    from .price_manager import ResponseCost
     from ..caching import Cache
     from ..scenarios import FileStore
     from ..questions import QuestionBase
@@ -732,9 +733,12 @@ class LanguageModel(
             user_prompt_with_hashes = user_prompt
 
         # Prepare parameters for cache lookup
+        cache_parameters = self.parameters.copy()
+        if self.model == "test":
+            cache_parameters.pop("canned_response", None)
         cache_call_params = {
             "model": str(self.model),
-            "parameters": self.parameters,
+            "parameters": cache_parameters,
             "system_prompt": system_prompt,
             "user_prompt": user_prompt_with_hashes,
             "iteration": iteration,
@@ -779,13 +783,18 @@ class LanguageModel(
         # Calculate cost for the response
         cost = self.cost(response)
         # Return a structured response with metadata
-        return ModelResponse(
+        response = ModelResponse(
             response=response,
             cache_used=cache_used,
             cache_key=cache_key,
             cached_response=cached_response,
-            cost=cost,
+            input_tokens=cost.input_tokens,
+            output_tokens=cost.output_tokens,
+            input_price_per_million_tokens=cost.input_price_per_million_tokens,
+            output_price_per_million_tokens=cost.output_price_per_million_tokens,
+            total_cost=cost.total_cost,
         )
+        return response
 
     _get_intended_model_call_outcome = sync_wrapper(
         _async_get_intended_model_call_outcome
@@ -878,7 +887,7 @@ class LanguageModel(
 
     get_response = sync_wrapper(async_get_response)
 
-    def cost(self, raw_response: dict[str, Any]) -> Union[float, str]:
+    def cost(self, raw_response: dict[str, Any]) -> ResponseCost:
         """Calculate the monetary cost of a model API call.
 
         This method extracts token usage information from the response and
@@ -889,7 +898,7 @@ class LanguageModel(
             raw_response: The complete response dictionary from the model API
 
         Returns:
-            Union[float, str]: The calculated cost in dollars, or an error message
+            ResponseCost: Object containing token counts and total cost
         """
         # Extract token usage data from the response
         usage = self.get_usage_dict(raw_response)
@@ -926,9 +935,15 @@ class LanguageModel(
             {'model': '...', 'parameters': {'temperature': ..., 'max_tokens': ..., 'top_p': ..., 'frequency_penalty': ..., 'presence_penalty': ..., 'logprobs': False, 'top_logprobs': ...}, 'inference_service': 'openai', 'edsl_version': '...', 'edsl_class_name': 'LanguageModel'}
         """
         # Build the base dictionary with essential model information
+        parameters = self.parameters.copy()
+
+        # For test models, ensure canned_response is included in serialization
+        if self.model == "test" and hasattr(self, "canned_response"):
+            parameters["canned_response"] = self.canned_response
+
         d = {
             "model": self.model,
-            "parameters": self.parameters,
+            "parameters": parameters,
             "inference_service": self._inference_service_,
         }
 
@@ -966,7 +981,25 @@ class LanguageModel(
             data["model"], service_name=data.get("inference_service", None)
         )
 
-        # Create and return a new instance
+        # Handle canned_response in parameters for test models
+        if (
+            data["model"] == "test"
+            and "parameters" in data
+            and "canned_response" in data["parameters"]
+        ):
+            # Extract canned_response from parameters to set as a direct attribute
+            canned_response = data["parameters"]["canned_response"]
+            params_copy = data.copy()
+
+            # Direct attribute will be set during initialization
+            # Add it as a top-level parameter for model initialization
+            if isinstance(params_copy, dict) and "parameters" in params_copy:
+                params_copy["canned_response"] = canned_response
+
+            # Create the instance with canned_response as a direct parameter
+            return model_class(**params_copy)
+
+        # For non-test models or test models without canned_response
         return model_class(**data)
 
     def __repr__(self) -> str:
@@ -986,7 +1019,7 @@ class LanguageModel(
 
         # Combine model name and parameters
         return (
-            f"Model(model_name = '{self.model}'"
+            f"Model(model_name = '{self.model}', service_name = '{self._inference_service_}'"
             + (f", {param_string}" if param_string else "")
             + ")"
         )
@@ -1120,13 +1153,25 @@ class LanguageModel(
             }
             cached_response, cache_key = cache.fetch(**cache_call_params)
             response = json.loads(cached_response)
-            cost = 0
+
+            try:
+                usage = self.get_usage_dict(response)
+                input_tokens = int(usage[self.input_token_name])
+                output_tokens = int(usage[self.output_token_name])
+            except Exception as e:
+                print(f"Could not fetch tokens from model response: {e}")
+                input_tokens = None
+                output_tokens = None
             return ModelResponse(
                 response=response,
                 cache_used=True,
                 cache_key=cache_key,
                 cached_response=cached_response,
-                cost=cost,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                input_price_per_million_tokens=0,
+                output_price_per_million_tokens=0,
+                total_cost=0,
             )
 
         # Bind the new method to the copied instance

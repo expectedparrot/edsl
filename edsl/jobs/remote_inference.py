@@ -1,10 +1,12 @@
+import re
+import math
 from typing import Optional, Union, Literal, TYPE_CHECKING, NewType, Callable, Any
 from dataclasses import dataclass
 from ..coop import CoopServerResponseError
-from ..coop.utils import VisibilityType
+from ..coop.utils import VisibilityType, CostConverter
 from ..coop.coop import RemoteInferenceResponse, RemoteInferenceCreationInfo
 from .jobs_status_enums import JobsStatus
-from .jobs_remote_inference_logger import JobLogger
+from .jobs_remote_inference_logger import JobLogger, JobRunExceptionCounter, ModelCost
 from .exceptions import RemoteInferenceError
 
 
@@ -93,6 +95,12 @@ class JobsRemoteInferenceHandler:
             "Remote inference activated. Sending job to server...",
             status=JobsStatus.QUEUED,
         )
+        logger.add_info(
+            "remote_inference_url", f"{self.expected_parrot_url}/home/remote-inference"
+        )
+        logger.add_info(
+            "remote_cache_url", f"{self.expected_parrot_url}/home/remote-cache"
+        )
         remote_job_creation_data = coop.remote_inference_create(
             self.jobs,
             description=remote_inference_description,
@@ -112,13 +120,18 @@ class JobsRemoteInferenceHandler:
         )
         logger.add_info("job_uuid", job_uuid)
 
+        remote_inference_url = self.remote_inference_url
+        if "localhost" in remote_inference_url:
+            remote_inference_url = remote_inference_url.replace("8000", "1234")
         logger.update(
-            f"Job details are available at your Coop account. [Go to Remote Inference page]({self.remote_inference_url})",
+            f"Job details are available at your Coop account. [Go to Remote Inference page]({remote_inference_url})",
             status=JobsStatus.RUNNING,
         )
         progress_bar_url = (
             f"{self.expected_parrot_url}/home/remote-job-progress/{job_uuid}"
         )
+        if "localhost" in progress_bar_url:
+            progress_bar_url = progress_bar_url.replace("8000", "1234")
         logger.add_info("progress_bar_url", progress_bar_url)
         logger.update(
             f"View job progress [here]({progress_bar_url})", status=JobsStatus.RUNNING
@@ -177,7 +190,9 @@ class JobsRemoteInferenceHandler:
         self, job_info: RemoteJobInfo, remote_job_data: RemoteInferenceResponse
     ) -> None:
         "Handles a failed job by logging the error and updating the job status."
-        latest_error_report_url = remote_job_data.get("latest_error_report_url")
+        error_report_url = remote_job_data.get("latest_job_run_details", {}).get(
+            "error_report_url"
+        )
 
         reason = remote_job_data.get("reason")
 
@@ -187,8 +202,8 @@ class JobsRemoteInferenceHandler:
                 status=JobsStatus.FAILED,
             )
 
-        if latest_error_report_url:
-            job_info.logger.add_info("error_report_url", latest_error_report_url)
+        if error_report_url:
+            job_info.logger.add_info("error_report_url", error_report_url)
 
         job_info.logger.update("Job failed.", status=JobsStatus.FAILED)
         job_info.logger.update(
@@ -200,14 +215,46 @@ class JobsRemoteInferenceHandler:
             status=JobsStatus.FAILED,
         )
 
+    def _update_interview_details(
+        self, job_info: RemoteJobInfo, remote_job_data: RemoteInferenceResponse
+    ) -> None:
+        "Updates the interview details in the job info."
+        latest_job_run_details = remote_job_data.get("latest_job_run_details", {})
+        interview_details = latest_job_run_details.get("interview_details", {}) or {}
+        completed_interviews = interview_details.get("completed_interviews", 0)
+        interviews_with_exceptions = interview_details.get(
+            "interviews_with_exceptions", 0
+        )
+        interviews_without_exceptions = (
+            completed_interviews - interviews_with_exceptions
+        )
+        job_info.logger.add_info("completed_interviews", interviews_without_exceptions)
+        job_info.logger.add_info("failed_interviews", interviews_with_exceptions)
+
+        exception_summary = interview_details.get("exception_summary", []) or []
+        if exception_summary:
+            job_run_exception_counters = []
+            for exception in exception_summary:
+                exception_counter = JobRunExceptionCounter(
+                    exception_type=exception.get("exception_type"),
+                    inference_service=exception.get("inference_service"),
+                    model=exception.get("model"),
+                    question_name=exception.get("question_name"),
+                    exception_count=exception.get("exception_count"),
+                )
+                job_run_exception_counters.append(exception_counter)
+            job_info.logger.add_info("exception_summary", job_run_exception_counters)
+
     def _handle_partially_failed_job(
         self, job_info: RemoteJobInfo, remote_job_data: RemoteInferenceResponse
     ) -> None:
         "Handles a partially failed job by logging the error and updating the job status."
-        latest_error_report_url = remote_job_data.get("latest_error_report_url")
+        error_report_url = remote_job_data.get("latest_job_run_details", {}).get(
+            "error_report_url"
+        )
 
-        if latest_error_report_url:
-            job_info.logger.add_info("error_report_url", latest_error_report_url)
+        if error_report_url:
+            job_info.logger.add_info("error_report_url", error_report_url)
 
         job_info.logger.update(
             "Job completed with partial results.", status=JobsStatus.PARTIALLY_FAILED
@@ -232,6 +279,128 @@ class JobsRemoteInferenceHandler:
         )
         time.sleep(self.poll_interval)
 
+    def _get_expenses_from_results(
+        self, results: "Results", include_cached_responses_in_cost: bool = False
+    ) -> dict:
+        """
+        Calculates expenses from Results object.
+
+        Args:
+            results: Results object containing model responses
+            include_cached_responses_in_cost: Whether to include cached responses in cost calculation
+
+        Returns:
+            Dictionary mapping ExpenseKey to TokenExpense information
+        """
+        expenses = {}
+
+        for result in results:
+            raw_response = result["raw_model_response"]
+
+            # Process each cost field in the response
+            for key in raw_response:
+                if not key.endswith("_cost"):
+                    continue
+
+                result_cost = raw_response[key]
+                if not isinstance(result_cost, (int, float)):
+                    continue
+
+                question_name = key.removesuffix("_cost")
+                cache_used = result["cache_used_dict"][question_name]
+
+                # Skip if we're excluding cached responses and this was cached
+                if not include_cached_responses_in_cost and cache_used:
+                    continue
+
+                # Get expense keys for input and output tokens
+                input_key = (
+                    result["model"]._inference_service_,
+                    result["model"].model,
+                    "input",
+                    raw_response[f"{question_name}_input_price_per_million_tokens"],
+                )
+                output_key = (
+                    result["model"]._inference_service_,
+                    result["model"].model,
+                    "output",
+                    raw_response[f"{question_name}_output_price_per_million_tokens"],
+                )
+
+                # Update input token expenses
+                if input_key not in expenses:
+                    expenses[input_key] = {
+                        "tokens": 0,
+                        "cost_usd": 0,
+                    }
+
+                input_price_per_million_tokens = input_key[3]
+                input_tokens = raw_response[f"{question_name}_input_tokens"]
+                input_cost = (input_price_per_million_tokens / 1_000_000) * input_tokens
+
+                expenses[input_key]["tokens"] += input_tokens
+                expenses[input_key]["cost_usd"] += input_cost
+
+                # Update output token expenses
+                if output_key not in expenses:
+                    expenses[output_key] = {
+                        "tokens": 0,
+                        "cost_usd": 0,
+                    }
+
+                output_price_per_million_tokens = output_key[3]
+                output_tokens = raw_response[f"{question_name}_output_tokens"]
+                output_cost = (
+                    output_price_per_million_tokens / 1_000_000
+                ) * output_tokens
+
+                expenses[output_key]["tokens"] += output_tokens
+                expenses[output_key]["cost_usd"] += output_cost
+
+        expenses_by_model = {}
+        for expense_key, expense_usage in expenses.items():
+            service, model, token_type, _ = expense_key
+            model_key = (service, model)
+
+            if model_key not in expenses_by_model:
+                expenses_by_model[model_key] = {
+                    "service": service,
+                    "model": model,
+                    "input_tokens": 0,
+                    "input_cost_usd": 0,
+                    "output_tokens": 0,
+                    "output_cost_usd": 0,
+                }
+
+            if token_type == "input":
+                expenses_by_model[model_key]["input_tokens"] += expense_usage["tokens"]
+                expenses_by_model[model_key]["input_cost_usd"] += expense_usage[
+                    "cost_usd"
+                ]
+            elif token_type == "output":
+                expenses_by_model[model_key]["output_tokens"] += expense_usage["tokens"]
+                expenses_by_model[model_key]["output_cost_usd"] += expense_usage[
+                    "cost_usd"
+                ]
+
+        converter = CostConverter()
+        for model_key, model_cost_dict in expenses_by_model.items():
+            input_cost = model_cost_dict["input_cost_usd"]
+            output_cost = model_cost_dict["output_cost_usd"]
+            model_cost_dict["input_cost_credits"] = converter.usd_to_credits(input_cost)
+            model_cost_dict["output_cost_credits"] = converter.usd_to_credits(
+                output_cost
+            )
+            # Convert back to USD (to get the rounded value)
+            model_cost_dict["input_cost_usd"] = converter.credits_to_usd(
+                model_cost_dict["input_cost_credits"]
+            )
+            model_cost_dict["output_cost_usd"] = converter.credits_to_usd(
+                model_cost_dict["output_cost_credits"]
+            )
+
+        return list(expenses_by_model.values())
+
     def _fetch_results_and_log(
         self,
         job_info: RemoteJobInfo,
@@ -243,10 +412,30 @@ class JobsRemoteInferenceHandler:
         "Fetches the results object and logs the results URL."
         job_info.logger.add_info("results_uuid", results_uuid)
         results = object_fetcher(results_uuid, expected_object_type="results")
+
+        model_cost_dicts = self._get_expenses_from_results(results)
+
+        model_costs = [
+            ModelCost(
+                service=model_cost_dict.get("service"),
+                model=model_cost_dict.get("model"),
+                input_tokens=model_cost_dict.get("input_tokens"),
+                input_cost_usd=model_cost_dict.get("input_cost_usd"),
+                output_tokens=model_cost_dict.get("output_tokens"),
+                output_cost_usd=model_cost_dict.get("output_cost_usd"),
+            )
+            for model_cost_dict in model_cost_dicts
+        ]
+        job_info.logger.add_info("model_costs", model_costs)
+
         results_url = remote_job_data.get("results_url")
+        if "localhost" in results_url:
+            results_url = results_url.replace("8000", "1234")
         job_info.logger.add_info("results_url", results_url)
 
         if job_status == "completed":
+            job_info.logger.add_info("completed_interviews", len(results))
+            job_info.logger.add_info("failed_interviews", 0)
             job_info.logger.update(
                 f"Job completed and Results stored on Coop. [View Results]({results_url})",
                 status=JobsStatus.COMPLETED,
@@ -256,6 +445,7 @@ class JobsRemoteInferenceHandler:
                 f"View partial results [here]({results_url})",
                 status=JobsStatus.PARTIALLY_FAILED,
             )
+
         results.job_uuid = job_info.job_uuid
         results.results_uuid = results_uuid
         return results
@@ -268,6 +458,7 @@ class JobsRemoteInferenceHandler:
     ) -> Union[None, "Results", Literal["continue"]]:
         """Makes one attempt to fetch and process a remote job's status and results."""
         remote_job_data = remote_job_data_fetcher(job_info.job_uuid)
+        self._update_interview_details(job_info, remote_job_data)
         status = remote_job_data.get("status")
         reason = remote_job_data.get("reason")
         if status == "cancelled":
