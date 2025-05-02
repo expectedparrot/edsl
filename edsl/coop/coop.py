@@ -37,17 +37,59 @@ from .ep_key_handling import ExpectedParrotKeyHandler
 from ..inference_services.data_structures import ServiceToModelsMapping
 
 
+class JobRunExpense(TypedDict):
+    service: str
+    model: str
+    token_type: Literal["input", "output"]
+    price_per_million_tokens: float
+    tokens_count: int
+    cost_credits: float
+    cost_usd: float
+
+
+class JobRunExceptionCounter(TypedDict):
+    exception_type: str
+    inference_service: str
+    model: str
+    question_name: str
+    exception_count: int
+
+
+class JobRunInterviewDetails(TypedDict):
+    total_interviews: int
+    completed_interviews: int
+    interviews_with_exceptions: int
+    exception_summary: List[JobRunExceptionCounter]
+
+
+class LatestJobRunDetails(TypedDict):
+
+    # For running, completed, and partially failed jobs
+    interview_details: Optional[JobRunInterviewDetails] = None
+
+    # For failed jobs only
+    failure_reason: Optional[Literal["error", "insufficient funds"]] = None
+    failure_description: Optional[str] = None
+
+    # For partially failed jobs only
+    error_report_uuid: Optional[UUID] = None
+
+    # For completed and partially failed jobs
+    cost_credits: Optional[float] = None
+    cost_usd: Optional[float] = None
+    expenses: Optional[list[JobRunExpense]] = None
+
+
 class RemoteInferenceResponse(TypedDict):
     job_uuid: str
     results_uuid: str
-    results_url: str
-    latest_error_report_uuid: str
-    latest_error_report_url: str
-    status: str
-    reason: str
-    credits_consumed: float
-    version: str
     job_json_string: Optional[str]
+    status: RemoteJobStatus
+    latest_job_run_details: LatestJobRunDetails
+    description: Optional[str]
+    version: str
+    visibility: VisibilityType
+    results_url: str
 
 
 class RemoteInferenceCreationInfo(TypedDict):
@@ -1064,16 +1106,36 @@ class Coop(CoopFunctionsMixin):
 
         Returns:
             RemoteInferenceResponse: Information about the job including:
-                - job_uuid: The unique identifier for the job
-                - results_uuid: The UUID of the results (if job is completed)
-                - results_url: URL to access the results (if available)
-                - latest_error_report_uuid: UUID of error report (if job failed)
-                - latest_error_report_url: URL to access error details (if available)
-                - status: Current status ("queued", "running", "completed", "failed")
-                - reason: Reason for failure (if applicable)
-                - credits_consumed: Credits used for the job execution
-                - version: EDSL version used for the job
-                - job_json_string: The json string for the job (if include_json_string is True)
+                job_uuid: The unique identifier for the job
+                results_uuid: The UUID of the results
+                results_url: URL to access the results
+                status: Current status ("queued", "running", "completed", "failed")
+                version: EDSL version used for the job
+                job_json_string: The json string for the job (if include_json_string is True)
+                latest_job_run_details: Metadata about the job status
+                    interview_details: Metadata about the job interview status (for jobs that have reached running status)
+                        total_interviews: The total number of interviews in the job
+                        completed_interviews: The number of completed interviews
+                        interviews_with_exceptions: The number of completed interviews that have exceptions
+                        exception_counters: A list of exception counts for the job
+                            exception_type: The type of exception
+                            inference_service: The inference service
+                            model: The model
+                            question_name: The name of the question
+                            exception_count: The number of exceptions
+                    failure_reason: The reason the job failed (failed jobs only)
+                    failure_description: The description of the failure (failed jobs only)
+                    error_report_uuid: The UUID of the error report (partially failed jobs only)
+                    cost_credits: The cost of the job run in credits
+                    cost_usd: The cost of the job run in USD
+                    expenses: The expenses incurred by the job run
+                        service: The service
+                        model: The model
+                        token_type: The type of token (input or output)
+                        price_per_million_tokens: The price per million tokens
+                        tokens_count: The number of tokens consumed
+                        cost_credits: The cost of the service/model/token type combination in credits
+                        cost_usd: The cost of the service/model/token type combination in USD
 
         Raises:
             ValueError: If neither job_uuid nor results_uuid is provided
@@ -1099,6 +1161,8 @@ class Coop(CoopFunctionsMixin):
             params = {"job_uuid": job_uuid}
         else:
             params = {"results_uuid": results_uuid}
+        if include_json_string:
+            params["include_json_string"] = include_json_string
 
         response = self._send_server_request(
             uri="api/v0/remote-inference",
@@ -1109,35 +1173,32 @@ class Coop(CoopFunctionsMixin):
         data = response.json()
 
         results_uuid = data.get("results_uuid")
-        latest_error_report_uuid = data.get("latest_error_report_uuid")
 
         if results_uuid is None:
             results_url = None
         else:
             results_url = f"{self.url}/content/{results_uuid}"
 
-        if latest_error_report_uuid is None:
-            latest_error_report_url = None
-        else:
-            latest_error_report_url = (
-                f"{self.url}/home/remote-inference/error/{latest_error_report_uuid}"
-            )
+        latest_job_run_details = data.get("latest_job_run_details", {})
+        if data.get("status") == "partial_failed":
+            latest_error_report_uuid = latest_job_run_details.get("error_report_uuid")
+            if latest_error_report_uuid is None:
+                latest_job_run_details["error_report_url"] = None
+            else:
+                latest_error_report_url = (
+                    f"{self.url}/home/remote-inference/error/{latest_error_report_uuid}"
+                )
+                latest_job_run_details["error_report_url"] = latest_error_report_url
 
         return RemoteInferenceResponse(
             **{
                 "job_uuid": data.get("job_uuid"),
                 "results_uuid": results_uuid,
                 "results_url": results_url,
-                "latest_error_report_uuid": latest_error_report_uuid,
-                "latest_error_report_url": latest_error_report_url,
-                "latest_failure_description": data.get("latest_failure_details"),
                 "status": data.get("status"),
-                "reason": data.get("latest_failure_reason"),
-                "credits_consumed": data.get("price"),
                 "version": data.get("version"),
-                "job_json_string": (
-                    data.get("job_json_string") if include_json_string else None
-                ),
+                "job_json_string": data.get("job_json_string"),
+                "latest_job_run_details": latest_job_run_details,
             }
         )
 
