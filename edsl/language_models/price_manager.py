@@ -19,56 +19,12 @@ class ResponseCost:
     total_cost: Union[float, str, None] = None
 
 
-class PriceManager:
-    _instance = None
-    _price_lookup: Dict[Tuple[str, str], Dict] = {}
-    _is_initialized = False
+class PriceRetriever:
+    DEFAULT_INPUT_PRICE_PER_MILLION_TOKENS = 1.0
+    DEFAULT_OUTPUT_PRICE_PER_MILLION_TOKENS = 1.0
 
-    def __new__(cls):
-        if cls._instance is None:
-            instance = super(PriceManager, cls).__new__(cls)
-            instance._price_lookup = {}  # Instance-specific attribute
-            instance._is_initialized = False
-            cls._instance = instance  # Store the instance directly
-            return instance
-        return cls._instance
-
-    def __init__(self):
-        """Initialize the singleton instance only once."""
-        if not self._is_initialized:
-            self._is_initialized = True
-            self.refresh_prices()
-
-    @classmethod
-    def get_instance(cls):
-        """Get the singleton instance, creating it if necessary."""
-        if cls._instance is None:
-            cls()  # Create the instance if it doesn't exist
-        return cls._instance
-
-    @classmethod
-    def reset(cls):
-        """Reset the singleton instance to clean up resources."""
-        cls._instance = None
-        cls._is_initialized = False
-        cls._price_lookup = {}
-
-    def __del__(self):
-        """Ensure proper cleanup when the instance is garbage collected."""
-        try:
-            self._price_lookup = {}  # Clean up resources
-        except:
-            pass  # Ignore any cleanup errors
-
-    def refresh_prices(self) -> None:
-        """Fetch fresh prices and update the internal price lookup."""
-        from edsl.coop import Coop
-
-        c = Coop()
-        try:
-            self._price_lookup = c.fetch_prices()
-        except Exception as e:
-            print(f"Error fetching prices: {str(e)}")
+    def __init__(self, price_lookup: Dict[Tuple[str, str], Dict]):
+        self._price_lookup = price_lookup
 
     def get_price(self, inference_service: str, model: str) -> Dict:
         """Get the price information for a specific service and model."""
@@ -76,10 +32,6 @@ class PriceManager:
         return self._price_lookup.get(key) or self._get_fallback_price(
             inference_service
         )
-
-    def get_all_prices(self) -> Dict[Tuple[str, str], Dict]:
-        """Get the complete price lookup dictionary."""
-        return self._price_lookup.copy()
 
     def _get_fallback_price(self, inference_service: str) -> Dict:
         """
@@ -101,15 +53,21 @@ class PriceManager:
             if service == inference_service
         ]
 
-        default_price_info = {
+        default_input_price_info = {
             "one_usd_buys": 1_000_000,
             "service_stated_token_qty": 1_000_000,
-            "service_stated_token_price": 1.0,
+            "service_stated_token_price": self.DEFAULT_INPUT_PRICE_PER_MILLION_TOKENS,
+        }
+
+        default_output_price_info = {
+            "one_usd_buys": 1_000_000,
+            "service_stated_token_qty": 1_000_000,
+            "service_stated_token_price": self.DEFAULT_OUTPUT_PRICE_PER_MILLION_TOKENS,
         }
 
         # Find the most expensive price entries (lowest tokens per USD)
-        input_price_info = default_price_info
-        output_price_info = default_price_info
+        input_price_info = default_input_price_info
+        output_price_info = default_output_price_info
 
         input_prices = [
             PriceEntry(float(p["input"]["one_usd_buys"]), p["input"])
@@ -155,6 +113,82 @@ class PriceManager:
             price_per_token = service_price / service_qty
             price_per_million_tokens = round(price_per_token * 1_000_000, 10)
         return price_per_million_tokens
+
+
+class PriceManager:
+    _instance = None
+    _price_lookup: Dict[Tuple[str, str], Dict] = {}
+    _is_initialized = False
+
+    def __new__(cls):
+        if cls._instance is None:
+            instance = super(PriceManager, cls).__new__(cls)
+            instance._price_lookup = {}  # Instance-specific attribute
+            instance._is_initialized = False
+            cls._instance = instance  # Store the instance directly
+            return instance
+        return cls._instance
+
+    def __init__(self):
+        """Initialize the singleton instance only once."""
+        if not self._is_initialized:
+            self._is_initialized = True
+            self.refresh_prices()
+
+    @classmethod
+    def get_instance(cls):
+        """Get the singleton instance, creating it if necessary."""
+        if cls._instance is None:
+            cls()  # Create the instance if it doesn't exist
+        return cls._instance
+
+    @classmethod
+    def reset(cls):
+        """Reset the singleton instance to clean up resources."""
+        cls._instance = None
+        cls._is_initialized = False
+        cls._price_lookup = {}
+
+    def __del__(self):
+        """Ensure proper cleanup when the instance is garbage collected."""
+        try:
+            self._price_lookup = {}  # Clean up resources
+        except:
+            pass  # Ignore any cleanup errors
+
+    @property
+    def price_retriever(self):
+        return PriceRetriever(self._price_lookup)
+
+    def refresh_prices(self) -> None:
+        """Fetch fresh prices and update the internal price lookup."""
+        from edsl.coop import Coop
+
+        c = Coop()
+        try:
+            self._price_lookup = c.fetch_prices()
+        except Exception as e:
+            print(f"Error fetching prices: {str(e)}")
+
+    def get_price(self, inference_service: str, model: str) -> Dict:
+        """Get the price information for a specific service and model."""
+        return self.price_retriever.get_price(inference_service, model)
+
+    def get_all_prices(self) -> Dict[Tuple[str, str], Dict]:
+        """Get the complete price lookup dictionary."""
+        return self._price_lookup.copy()
+
+    def get_price_per_million_tokens(
+        self,
+        relevant_prices: Dict,
+        token_type: Literal["input", "output"],
+    ) -> Dict:
+        """
+        Get the price per million tokens for a specific service, model, and token type.
+        """
+        return self.price_retriever.get_price_per_million_tokens(
+            relevant_prices, token_type
+        )
 
     def _calculate_total_cost(
         self,
