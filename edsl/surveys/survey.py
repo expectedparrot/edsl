@@ -384,6 +384,10 @@ class Survey(Base):
         if question_name not in self.question_name_to_index:
             raise SurveyError(f"Question name {question_name} not found in survey.")
         return self.questions[self.question_name_to_index[question_name]]
+    
+    def get(self, question_name: str) -> QuestionBase:
+        """Return the question object given the question name."""
+        return self._get_question_by_name(question_name)
 
     def question_names_to_questions(self) -> dict:
         """Return a dictionary mapping question names to question attributes."""
