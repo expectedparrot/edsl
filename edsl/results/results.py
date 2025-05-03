@@ -315,6 +315,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         task_history: Optional[TaskHistory] = None,
         sort_by_iteration: bool = False,
         data_class: Optional[type] = list,  # ResultsSQLList,
+        scenarios: Optional[list["Scenario"]] = None,
     ):
         """Instantiate a Results object with a survey and a list of Result objects.
 
@@ -328,9 +329,16 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             task_history: A TaskHistory object containing information about the tasks.
             sort_by_iteration: Whether to sort data by iteration before initializing.
             data_class: The class to use for the data container (default: list).
+            scenarios: A list of Scenario objects used in the results.
         """
         self.completed = True
         self._fetching = False
+
+        # Store scenarios by index for efficient lookup
+        self._scenarios_by_index = {}
+        if scenarios:
+            for i, scenario in enumerate(scenarios):
+                self._scenarios_by_index[i] = scenario
 
         # Determine the data class to use
         if data is not None:
@@ -359,6 +367,16 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         # Initialize data with the appropriate class
         self.data = self._data_class(data or [])
 
+        # If we have data but no scenarios, extract scenarios from results
+        # This handles backward compatibility with older code
+        if data and not scenarios:
+            self._extract_scenarios_from_results()
+
+        # Set parent Results reference on each Result
+        for result in self.data:
+            if hasattr(result, "set_parent_results"):
+                result.set_parent_results(self)
+
         from ..caching import Cache
         from ..tasks import TaskHistory
         import tempfile
@@ -380,6 +398,58 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
 
         if hasattr(self, "_add_output_functions"):
             self._add_output_functions()
+
+    def _extract_scenarios_from_results(self):
+        """Extract unique scenarios from results for backward compatibility."""
+        from ..scenarios import Scenario
+
+        # Track scenarios by their hash to avoid duplicates
+        scenario_dict = {}
+
+        for result in self.data:
+            # For backward compatibility with old Result objects
+            if "scenario" in result.data and result.data["scenario"] is not None:
+                scenario = result.data["scenario"]
+                scenario_hash = hash(scenario)
+
+                # Get scenario index from indices if available, or from scenario_index attribute
+                scenario_index = None
+                if (
+                    hasattr(result, "indices")
+                    and result.indices
+                    and "scenario" in result.indices
+                ):
+                    scenario_index = result.indices["scenario"]
+                elif hasattr(result, "scenario_index"):
+                    scenario_index = result.scenario_index
+
+                # Only store if we have an index
+                if scenario_index is not None:
+                    if scenario_index not in self._scenarios_by_index:
+                        self._scenarios_by_index[scenario_index] = scenario
+
+                    # Store by hash as well for deduplication
+                    scenario_dict[scenario_hash] = (scenario_index, scenario)
+
+    def get_scenario_by_index(self, index: int) -> Optional["Scenario"]:
+        """Get a scenario by its index.
+
+        Args:
+            index: The index of the scenario to retrieve.
+
+        Returns:
+            The Scenario object with the given index, or None if not found.
+        """
+        return self._scenarios_by_index.get(index, None)
+
+    @property
+    def scenarios_dict(self) -> dict[int, "Scenario"]:
+        """Get a dictionary of scenarios by index.
+
+        Returns:
+            A dictionary mapping scenario indices to Scenario objects.
+        """
+        return self._scenarios_by_index
 
     def add_task_history_entry(self, interview: "Interview") -> None:
         self.task_history.add_interview(interview)
@@ -786,6 +856,19 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         else:
             data = [result for result in self.data]
 
+        # Serialize scenarios separately to avoid duplication
+        scenarios_list = []
+        if hasattr(self, "_scenarios_by_index") and self._scenarios_by_index:
+            # Create a list of (index, scenario_dict) tuples
+            scenario_items = sorted(self._scenarios_by_index.items())
+            scenarios_list = [
+                {
+                    "index": idx,
+                    "scenario": scenario.to_dict(add_edsl_version=add_edsl_version),
+                }
+                for idx, scenario in scenario_items
+            ]
+
         d = {
             "data": [
                 result.to_dict(
@@ -796,7 +879,9 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             ],
             "survey": self.survey.to_dict(add_edsl_version=add_edsl_version),
             "created_columns": self.created_columns,
+            "scenarios": scenarios_list,  # Add the scenarios list to the serialized data
         }
+
         if include_cache:
             d.update(
                 {
@@ -928,6 +1013,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         from ..caching import Cache
         from .result import Result
         from ..tasks import TaskHistory
+        from ..scenarios import Scenario
 
         survey = Survey.from_dict(data["survey"])
         # Convert dictionaries to Result objects
@@ -939,6 +1025,14 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             if "task_history" in data
             else TaskHistory(interviews=[])
         )
+
+        # Deserialize scenarios if present
+        scenarios_by_index = {}
+        if "scenarios" in data and data["scenarios"]:
+            for scenario_data in data["scenarios"]:
+                idx = scenario_data["index"]
+                scenario = Scenario.from_dict(scenario_data["scenario"])
+                scenarios_by_index[idx] = scenario
 
         # Create a Results object with original order preserved
         # using the empty data list initially
@@ -952,9 +1046,19 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
 
         try:
             results = cls(**params)
+
+            # Set up the scenarios by index
+            results._scenarios_by_index = scenarios_by_index
+
             # Add each result individually to respect order attributes
             for result in results_data:
                 results.append(result)
+
+            # Connect results to the parent Results object
+            for result in results.data:
+                if hasattr(result, "set_parent_results"):
+                    result.set_parent_results(results)
+
         except Exception as e:
             raise ResultsDeserializationError(f"Error in Results.from_dict: {e}")
         return results
@@ -1069,17 +1173,25 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         return hash(self) == hash(other)
 
     @property
-    def scenarios(self) -> ScenarioList:
+    def scenarios(self) -> "ScenarioList":
         """Return a list of all of the scenarios in the Results.
+
+        This now returns the unique scenario objects from the _scenarios_by_index dictionary,
+        rather than potentially duplicating scenarios from each Result.
 
         Example:
 
         >>> r = Results.example()
         >>> r.scenarios
-        ScenarioList([Scenario({'period': 'morning', 'scenario_index': 0}), Scenario({'period': 'afternoon', 'scenario_index': 1}), Scenario({'period': 'morning', 'scenario_index': 0}), Scenario({'period': 'afternoon', 'scenario_index': 1})])
+        ScenarioList([Scenario({'period': 'morning', 'scenario_index': 0}), Scenario({'period': 'afternoon', 'scenario_index': 1})])
         """
         from ..scenarios import ScenarioList
 
+        # If we have _scenarios_by_index populated, use it
+        if hasattr(self, "_scenarios_by_index") and self._scenarios_by_index:
+            return ScenarioList(list(self._scenarios_by_index.values()))
+
+        # For backward compatibility with old Results objects
         return ScenarioList([r.scenario for r in self.data])
 
     @property

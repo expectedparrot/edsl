@@ -682,6 +682,7 @@ class Jobs(Base):
             task_history=TaskHistory(
                 include_traceback=not self.run_config.parameters.progress_bar
             ),
+            scenarios=self.scenarios,
         )
 
         if run_job_async:
@@ -697,13 +698,19 @@ class Jobs(Base):
                 except KeyboardInterrupt:
                     print("Keyboard interrupt received. Stopping gracefully...")
                     results = Results(
-                        survey=self.survey, data=[], task_history=TaskHistory()
+                        survey=self.survey,
+                        data=[],
+                        task_history=TaskHistory(),
+                        scenarios=self.scenarios,
                     )
                 except Exception as e:
                     if self.run_config.parameters.stop_on_exception:
                         raise
                     results = Results(
-                        survey=self.survey, data=[], task_history=TaskHistory()
+                        survey=self.survey,
+                        data=[],
+                        task_history=TaskHistory(),
+                        scenarios=self.scenarios,
                     )
 
         # Process any exceptions in the results

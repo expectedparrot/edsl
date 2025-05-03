@@ -85,10 +85,10 @@ class Result(Base, UserDict):
     def __init__(
         self,
         agent: "Agent",
-        scenario: "Scenario",
-        model: "LanguageModel",
-        iteration: int,
-        answer: dict[QuestionName, AnswerValue],
+        scenario: Optional["Scenario"] = None,
+        model: "LanguageModel" = None,
+        iteration: int = 0,
+        answer: dict[QuestionName, AnswerValue] = None,
         prompt: dict[QuestionName, str] = None,
         raw_model_response: Optional[dict] = None,
         survey: Optional["Survey"] = None,
@@ -98,11 +98,12 @@ class Result(Base, UserDict):
         cache_used_dict: Optional[dict[QuestionName, bool]] = None,
         indices: Optional[dict] = None,
         cache_keys: Optional[dict[QuestionName, str]] = None,
+        scenario_index: Optional[int] = None,
     ):
         """Initialize a Result object.
 
         :param agent: The Agent object.
-        :param scenario: The Scenario object.
+        :param scenario: The Scenario object (deprecated, use scenario_index instead).
         :param model: The LanguageModel object.
         :param iteration: The iteration number.
         :param answer: The answer string.
@@ -114,14 +115,30 @@ class Result(Base, UserDict):
         :param comments_dict: A dictionary of comments.
         :param cache_used_dict: A dictionary of cache usage.
         :param indices: A dictionary of indices.
+        :param scenario_index: The index of the scenario in the Results object.
 
         """
+        if answer is None:
+            answer = {}
+
         self.question_to_attributes = (
             question_to_attributes or self._create_question_to_attributes(survey)
         )
+
+        # If indices is provided but scenario_index is not, extract it from indices
+        if indices and scenario_index is None and "scenario" in indices:
+            scenario_index = indices["scenario"]
+
+        # Store scenario_index directly
+        self._scenario_index = scenario_index
+
+        # For backward compatibility, create _scenario_data if scenario is provided
+        self._scenario_data = (
+            scenario.to_dict(add_edsl_version=False) if scenario else None
+        )
+
         data = {
             "agent": agent,
-            "scenario": scenario,
             "model": model,
             "iteration": iteration,
             "answer": answer,
@@ -164,8 +181,52 @@ class Result(Base, UserDict):
 
     @property
     def scenario(self) -> "Scenario":
-        """Return the Scenario object."""
-        return self.data["scenario"]
+        """Return the Scenario object.
+
+        Note: In newer versions, this property may return a cached scenario object
+        or retrieve it from the parent Results object if available.
+        """
+        # For backward compatibility: If the scenario was stored directly
+        if "scenario" in self.data:
+            return self.data["scenario"]
+
+        # If we have cached scenario data but no parent Results reference
+        if self._scenario_data:
+            from ..scenarios import Scenario
+
+            return Scenario.from_dict(self._scenario_data)
+
+        # Try to get it from the parent Results object
+        if hasattr(self, "_parent_results"):
+            return self._parent_results.get_scenario_by_index(self._scenario_index)
+
+        # Fall back to stub scenario with just the index
+        from ..scenarios import Scenario
+
+        return Scenario({"scenario_index": self._scenario_index})
+
+    @property
+    def scenario_index(self) -> Optional[int]:
+        """Return the index of the scenario in the parent Results object."""
+        # First check direct attribute
+        if hasattr(self, "_scenario_index") and self._scenario_index is not None:
+            return self._scenario_index
+        # Then check indices
+        if hasattr(self, "indices") and self.indices and "scenario" in self.indices:
+            return self.indices["scenario"]
+        # Lastly, if we have a scenario object with scenario_index inside
+        if "scenario" in self.data and hasattr(self.data["scenario"], "scenario_index"):
+            return self.data["scenario"]["scenario_index"]
+        return None
+
+    def set_parent_results(self, results: "Results") -> None:
+        """Set a reference to the parent Results object.
+
+        This enables scenario lookup by index rather than storing the full scenario.
+
+        :param results: The parent Results object containing the scenarios.
+        """
+        self._parent_results = results
 
     @property
     def model(self) -> "LanguageModel":
@@ -218,9 +279,9 @@ class Result(Base, UserDict):
             if question_name in self.question_to_attributes:
                 for dictionary_name in sub_dicts_needing_new_keys:
                     new_key = question_name + "_" + dictionary_name
-                    sub_dicts_needing_new_keys[dictionary_name][new_key] = (
-                        self.question_to_attributes[question_name][dictionary_name]
-                    )
+                    sub_dicts_needing_new_keys[dictionary_name][
+                        new_key
+                    ] = self.question_to_attributes[question_name][dictionary_name]
 
         new_cache_dict = {
             f"{k}_cache_used": v for k, v in self.data["cache_used_dict"].items()
@@ -228,11 +289,43 @@ class Result(Base, UserDict):
 
         cache_keys = {f"{k}_cache_key": v for k, v in self.data["cache_keys"].items()}
 
+        # Create a basic scenario dictionary with at least the scenario_index
+        scenario_dict = (
+            {"scenario_index": self.scenario_index}
+            if self.scenario_index is not None
+            else {}
+        )
+
+        # If we have actual scenario data (for backward compatibility), use it
+        if "scenario" in self.data:
+            # If it's a dictionary, use it directly
+            if isinstance(self.data["scenario"], dict):
+                scenario_dict.update(self.data["scenario"])
+            # If it's a Scenario object, get its dictionary representation
+            elif hasattr(self.data["scenario"], "to_dict"):
+                scenario_dict.update(
+                    self.data["scenario"].to_dict(add_edsl_version=False)
+                )
+        # If we have cached scenario data, use it
+        elif hasattr(self, "_scenario_data") and self._scenario_data:
+            scenario_dict.update(self._scenario_data)
+        # Try to get scenario from parent Results (minimal data)
+        elif hasattr(self, "_parent_results") and self.scenario_index is not None:
+            try:
+                scenario = self._parent_results.get_scenario_by_index(
+                    self.scenario_index
+                )
+                if scenario:
+                    scenario_dict.update(scenario.to_dict(add_edsl_version=False))
+            except Exception:
+                # Fallback to just the index if we can't get the scenario
+                pass
+
         d = {
             **self._create_agent_sub_dict(self.data["agent"]),
             **self._create_model_sub_dict(self.data["model"]),
             **self._iteration_sub_dict(self.data["iteration"]),
-            "scenario": self.data["scenario"],
+            "scenario": scenario_dict,
             "answer": self.data["answer"],
             "prompt": self.data["prompt"],
             "comment": self.data["comments_dict"],
@@ -244,10 +337,15 @@ class Result(Base, UserDict):
             "cache_used": new_cache_dict,
             "cache_keys": cache_keys,
         }
+
+        # Add indices if available
         if hasattr(self, "indices") and self.indices is not None:
-            d["agent"].update({"agent_index": self.indices["agent"]})
-            d["scenario"].update({"scenario_index": self.indices["scenario"]})
-            d["model"].update({"model_index": self.indices["model"]})
+            if "agent" in self.indices:
+                d["agent"].update({"agent_index": self.indices["agent"]})
+            if "scenario" in self.indices:
+                d["scenario"].update({"scenario_index": self.indices["scenario"]})
+            if "model" in self.indices:
+                d["model"].update({"model_index": self.indices["model"]})
 
         return d
 
@@ -428,6 +526,10 @@ class Result(Base, UserDict):
 
         d = {}
         for key, value in self.items():
+            # Skip scenario (we'll handle it separately) to avoid duplicating large scenario objects
+            if key == "scenario":
+                continue
+
             d[key] = convert_value(value, add_edsl_version=add_edsl_version)
 
             if key == "prompt":
@@ -439,6 +541,18 @@ class Result(Base, UserDict):
                         else prompt_obj.to_dict()
                     )
                 d[key] = new_prompt_dict
+
+        # Add scenario_index directly instead of the full scenario
+        if hasattr(self, "_scenario_index") and self._scenario_index is not None:
+            d["scenario_index"] = self._scenario_index
+        # For backward compatibility, add scenario data if we have it
+        elif hasattr(self, "_scenario_data") and self._scenario_data:
+            d["_scenario_data"] = self._scenario_data
+        # Last resort, use the full scenario from data if it exists
+        elif "scenario" in self.data and self.data["scenario"] is not None:
+            d["scenario"] = convert_value(
+                self.data["scenario"], add_edsl_version=add_edsl_version
+            )
 
         if self.indices is not None:
             d["indices"] = self.indices
@@ -456,7 +570,7 @@ class Result(Base, UserDict):
 
         if hasattr(self, "interview_hash"):
             d["interview_hash"] = self.interview_hash
-            
+
         # Preserve the order attribute if it exists
         if hasattr(self, "order"):
             d["order"] = self.order
@@ -484,13 +598,38 @@ class Result(Base, UserDict):
         for prompt_name, prompt_obj in prompt_data.items():
             prompt_d[prompt_name] = Prompt.from_dict(prompt_obj)
 
+        # Handle scenario reconstruction
+        scenario = None
+        scenario_index = None
+        scenario_data = None
+
+        # Check for scenario_index
+        if "scenario_index" in json_dict:
+            scenario_index = json_dict["scenario_index"]
+        # Check for scenario data in indices
+        elif (
+            "indices" in json_dict
+            and json_dict["indices"]
+            and "scenario" in json_dict["indices"]
+        ):
+            scenario_index = json_dict["indices"]["scenario"]
+        # Check for cached scenario data
+        if "_scenario_data" in json_dict:
+            scenario_data = json_dict["_scenario_data"]
+        # If full scenario is provided (backwards compatibility)
+        elif "scenario" in json_dict:
+            scenario = Scenario.from_dict(json_dict["scenario"])
+            # Extract scenario_index if not already done
+            if scenario_index is None and hasattr(scenario, "scenario_index"):
+                scenario_index = scenario.scenario_index
+
         result = Result(
             agent=Agent.from_dict(json_dict["agent"]),
-            scenario=Scenario.from_dict(json_dict["scenario"]),
+            scenario=scenario,  # May be None if using scenario_index
             model=LanguageModel.from_dict(json_dict["model"]),
             iteration=json_dict["iteration"],
             answer=json_dict["answer"],
-            prompt=prompt_d,  # json_dict["prompt"],
+            prompt=prompt_d,
             raw_model_response=json_dict.get(
                 "raw_model_response", {"raw_model_response": "No raw model response"}
             ),
@@ -500,14 +639,20 @@ class Result(Base, UserDict):
             cache_used_dict=json_dict.get("cache_used_dict", {}),
             cache_keys=json_dict.get("cache_keys", {}),
             indices=json_dict.get("indices", None),
+            scenario_index=scenario_index,
         )
+
+        # Store cached scenario data if available
+        if scenario_data:
+            result._scenario_data = scenario_data
+
         if "interview_hash" in json_dict:
             result.interview_hash = json_dict["interview_hash"]
-            
+
         # Restore the order attribute if it exists in the dictionary
         if "order" in json_dict:
             result.order = json_dict["order"]
-            
+
         return result
 
     def __repr__(self):
@@ -599,9 +744,13 @@ class Result(Base, UserDict):
     def from_interview(cls, interview) -> Result:
         """Return a Result object from an interview dictionary, ensuring no reference to the original interview is maintained."""
         # Copy the valid results to avoid maintaining references
-        model_response_objects = list(interview.valid_results) if hasattr(interview, 'valid_results') else []
+        model_response_objects = (
+            list(interview.valid_results) if hasattr(interview, "valid_results") else []
+        )
         # Create a copy of the answers
-        extracted_answers = dict(interview.answers) if hasattr(interview, 'answers') else {}
+        extracted_answers = (
+            dict(interview.answers) if hasattr(interview, "answers") else {}
+        )
 
         def get_question_results(
             model_response_objects,
@@ -646,12 +795,12 @@ class Result(Base, UserDict):
         def get_prompt_dictionary(answer_key_names, question_name_to_prompts):
             prompt_dictionary = {}
             for answer_key_name in answer_key_names:
-                prompt_dictionary[answer_key_name + "_user_prompt"] = (
-                    question_name_to_prompts[answer_key_name]["user_prompt"]
-                )
-                prompt_dictionary[answer_key_name + "_system_prompt"] = (
-                    question_name_to_prompts[answer_key_name]["system_prompt"]
-                )
+                prompt_dictionary[
+                    answer_key_name + "_user_prompt"
+                ] = question_name_to_prompts[answer_key_name]["user_prompt"]
+                prompt_dictionary[
+                    answer_key_name + "_system_prompt"
+                ] = question_name_to_prompts[answer_key_name]["system_prompt"]
             return prompt_dictionary
 
         def get_raw_model_results_and_cache_used_dictionary(model_response_objects):
@@ -659,24 +808,24 @@ class Result(Base, UserDict):
             cache_used_dictionary = {}
             for result in model_response_objects:
                 question_name = result.question_name
-                raw_model_results_dictionary[question_name + "_raw_model_response"] = (
-                    result.raw_model_response
-                )
-                raw_model_results_dictionary[question_name + "_input_tokens"] = (
-                    result.input_tokens
-                )
-                raw_model_results_dictionary[question_name + "_output_tokens"] = (
-                    result.output_tokens
-                )
+                raw_model_results_dictionary[
+                    question_name + "_raw_model_response"
+                ] = result.raw_model_response
+                raw_model_results_dictionary[
+                    question_name + "_input_tokens"
+                ] = result.input_tokens
+                raw_model_results_dictionary[
+                    question_name + "_output_tokens"
+                ] = result.output_tokens
                 raw_model_results_dictionary[
                     question_name + "_input_price_per_million_tokens"
                 ] = result.input_price_per_million_tokens
                 raw_model_results_dictionary[
                     question_name + "_output_price_per_million_tokens"
                 ] = result.output_price_per_million_tokens
-                raw_model_results_dictionary[question_name + "_cost"] = (
-                    result.total_cost
-                )
+                raw_model_results_dictionary[
+                    question_name + "_cost"
+                ] = result.total_cost
                 one_usd_buys = (
                     "NA"
                     if isinstance(result.total_cost, str)
@@ -684,49 +833,79 @@ class Result(Base, UserDict):
                     or result.total_cost is None
                     else 1.0 / result.total_cost
                 )
-                raw_model_results_dictionary[question_name + "_one_usd_buys"] = (
-                    one_usd_buys
-                )
+                raw_model_results_dictionary[
+                    question_name + "_one_usd_buys"
+                ] = one_usd_buys
                 cache_used_dictionary[question_name] = result.cache_used
 
             return raw_model_results_dictionary, cache_used_dictionary
 
         # Save essential information from the interview before clearing references
-        agent_copy = interview.agent.copy() if hasattr(interview, 'agent') else None
-        scenario_copy = interview.scenario.copy() if hasattr(interview, 'scenario') else None
-        model_copy = interview.model.copy() if hasattr(interview, 'model') else None
-        iteration = interview.iteration if hasattr(interview, 'iteration') else 0
-        survey_copy = interview.survey.copy() if hasattr(interview, 'survey') and interview.survey else None
-        indices_copy = dict(interview.indices) if hasattr(interview, 'indices') and interview.indices else None
-        initial_hash = interview.initial_hash if hasattr(interview, 'initial_hash') else hash(interview)
+        agent_copy = interview.agent.copy() if hasattr(interview, "agent") else None
+        scenario_copy = (
+            interview.scenario.copy() if hasattr(interview, "scenario") else None
+        )
+        model_copy = interview.model.copy() if hasattr(interview, "model") else None
+        iteration = interview.iteration if hasattr(interview, "iteration") else 0
+        survey_copy = (
+            interview.survey.copy()
+            if hasattr(interview, "survey") and interview.survey
+            else None
+        )
+        indices_copy = (
+            dict(interview.indices)
+            if hasattr(interview, "indices") and interview.indices
+            else None
+        )
+        initial_hash = (
+            interview.initial_hash
+            if hasattr(interview, "initial_hash")
+            else hash(interview)
+        )
+
+        # Get scenario_index if available
+        scenario_index = None
+        if indices_copy and "scenario" in indices_copy:
+            scenario_index = indices_copy["scenario"]
 
         # Process data to create dictionaries needed for Result
         question_results = get_question_results(model_response_objects)
         answer_key_names = list(question_results.keys())
-        generated_tokens_dict = get_generated_tokens_dict(answer_key_names) if answer_key_names else {}
+        generated_tokens_dict = (
+            get_generated_tokens_dict(answer_key_names) if answer_key_names else {}
+        )
         comments_dict = get_comments_dict(answer_key_names) if answer_key_names else {}
-        
+
         # Get answers that are in the question results
         answer_dict = {}
         for k in answer_key_names:
             if k in extracted_answers:
                 answer_dict[k] = extracted_answers[k]
-        
+
         cache_keys = get_cache_keys(model_response_objects)
 
         question_name_to_prompts = get_question_name_to_prompts(model_response_objects)
-        prompt_dictionary = get_prompt_dictionary(
-            answer_key_names, question_name_to_prompts
-        ) if answer_key_names else {}
-        
-        raw_model_results_dictionary, cache_used_dictionary = (
-            get_raw_model_results_and_cache_used_dictionary(model_response_objects)
+        prompt_dictionary = (
+            get_prompt_dictionary(answer_key_names, question_name_to_prompts)
+            if answer_key_names
+            else {}
         )
 
-        # Create the Result object with all copied data
+        (
+            raw_model_results_dictionary,
+            cache_used_dictionary,
+        ) = get_raw_model_results_and_cache_used_dictionary(model_response_objects)
+
+        # Save scenario data for backward compatibility
+        scenario_data = (
+            scenario_copy.to_dict(add_edsl_version=False) if scenario_copy else None
+        )
+
+        # Create the Result object with all copied data - using scenario_index instead of full scenario
         result = cls(
             agent=agent_copy,
-            scenario=scenario_copy,
+            # Only pass scenario for backward compatibility, preferring scenario_index
+            scenario=None,  # We use scenario_index instead
             model=model_copy,
             iteration=iteration,
             answer=answer_dict,
@@ -738,22 +917,27 @@ class Result(Base, UserDict):
             cache_used_dict=cache_used_dictionary,
             indices=indices_copy,
             cache_keys=cache_keys,
+            scenario_index=scenario_index,
         )
-        
+
+        # Store the scenario data for backward compatibility
+        if scenario_data:
+            result._scenario_data = scenario_data
+
         # Store only the hash, not the interview
         result.interview_hash = initial_hash
-        
+
         # Clear references to help garbage collection of the interview
-        if hasattr(interview, 'clear_references'):
+        if hasattr(interview, "clear_references"):
             interview.clear_references()
-            
+
         # Clear local references to help with garbage collection
         del model_response_objects
         del extracted_answers
         del question_results
         del answer_key_names
         del question_name_to_prompts
-        
+
         return result
 
 

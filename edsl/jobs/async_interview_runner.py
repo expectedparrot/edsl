@@ -22,16 +22,19 @@ config = Config()
 if TYPE_CHECKING:
     from ..jobs import Jobs
 
+
 @dataclass
 class InterviewBatch:
     """Container for a batch of interviews being processed."""
+
     chunks: List[Tuple[int, Interview]]
     results: List[Tuple[Result, Interview, int]]
     failed: List[Tuple[int, Interview, Exception]]
 
     @classmethod
-    def create(cls, chunks: List[Tuple[int, Interview]]) -> 'InterviewBatch':
+    def create(cls, chunks: List[Tuple[int, Interview]]) -> "InterviewBatch":
         return cls(chunks=chunks, results=[], failed=[])
+
 
 class AsyncInterviewRunner:
     """
@@ -76,43 +79,48 @@ class AsyncInterviewRunner:
                     task.cancel()
 
     @asynccontextmanager
-    async def _interview_batch_processor(self) -> AsyncIterator[AsyncGenerator[tuple[Result, Interview, int], None]]:
+    async def _interview_batch_processor(
+        self,
+    ) -> AsyncIterator[AsyncGenerator[tuple[Result, Interview, int], None]]:
         """Context manager for processing batches of interviews.
-        
+
         Handles initialization, cleanup, and error management for the entire
         interview processing lifecycle.
         """
         self._initialized.set()
         self._current_idx = 0
         interview_generator = self._expand_interviews()
-        
+
         try:
-            async def process_batches() -> AsyncGenerator[tuple[Result, Interview, int], None]:
+
+            async def process_batches() -> AsyncGenerator[
+                tuple[Result, Interview, int], None
+            ]:
                 while True:
                     chunk = self._get_next_chunk(interview_generator)
                     if not chunk:
                         break
-                    
+
                     async with self._process_chunk(chunk) as results:
                         for result_tuple in results:
                             # Yield the full tuple (result, interview, idx)
                             yield result_tuple
-                    
+
                     # Clean up chunk to help with garbage collection
                     for idx, interview in chunk:
                         # Explicitly clear any interview references when done with the chunk
-                        if hasattr(interview, 'clear_references'):
+                        if hasattr(interview, "clear_references"):
                             interview.clear_references()
                     del chunk
-            
+
             yield process_batches()
-            
+
         finally:
             # Cleanup code to help garbage collection
             self._current_idx = 0
             self._initialized.clear()
             # Clear the generator to avoid references
-            if 'interview_generator' in locals():
+            if "interview_generator" in locals():
                 del interview_generator
 
     async def _run_single_interview(
@@ -123,6 +131,16 @@ class AsyncInterviewRunner:
             await interview.async_conduct_interview(self.run_config)
             # Create result and explicitly break reference to interview
             result = Result.from_interview(interview)
+
+            # Add scenario_index explicitly if not already set
+            if (
+                hasattr(interview, "indices")
+                and interview.indices
+                and "scenario" in interview.indices
+                and not hasattr(result, "_scenario_index")
+            ):
+                result._scenario_index = interview.indices["scenario"]
+
             # Update the status
             self.run_config.environment.jobs_runner_status.add_completed_interview(
                 interview
@@ -144,7 +162,7 @@ class AsyncInterviewRunner:
             asyncio.create_task(self._run_single_interview(interview, idx))
             for idx, interview in chunk
         ]
-                
+
         async with self._manage_tasks(tasks):
             results = await asyncio.gather(
                 *tasks,
@@ -158,12 +176,12 @@ class AsyncInterviewRunner:
                     # Create a new tuple to break reference to the original
                     new_tuple = (result, interview, idx)
                     valid_results.append(new_tuple)
-                    
+
                     # Clear original tuple to help GC
                     del r
-            
+
             yield valid_results
-            
+
             # Manually clean up the valid_results list and its contents to help garbage collection
             for tup in valid_results:
                 del tup
@@ -203,8 +221,7 @@ class AsyncInterviewRunner:
                     yield interview
 
     def _get_next_chunk(
-        self,
-        gen: Generator[Interview, None, None]
+        self, gen: Generator[Interview, None, None]
     ) -> List[Tuple[int, Interview]]:
         """Take interviews from the generator up to MAX_CONCURRENT."""
         chunk = []
@@ -228,7 +245,7 @@ class AsyncInterviewRunner:
         Yields:
             Tuples of (Result, Interview, idx) as interviews complete, where idx is the
             original position index of the interview.
-        
+
         Raises:
             Exception: If stop_on_exception is True and any interview fails
         """
@@ -238,9 +255,10 @@ class AsyncInterviewRunner:
                 result, interview, idx = result_tuple
                 # Yield a new tuple to break reference to the original tuple
                 yield result, interview, idx
-                
+
                 # Help garbage collection by removing references
                 del result_tuple
+
 
 if __name__ == "__main__":
     import doctest
