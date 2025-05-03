@@ -217,6 +217,17 @@ class HTMLTableJobLogger(JobLogger):
         )
         total_cost = total_input_cost + total_output_cost
 
+        # Calculate credit totals
+        total_input_credits = sum(
+            cost.input_cost_credits_with_cache or 0
+            for cost in self.jobs_info.model_costs
+        )
+        total_output_credits = sum(
+            cost.output_cost_credits_with_cache or 0
+            for cost in self.jobs_info.model_costs
+        )
+        total_credits = total_input_credits + total_output_credits
+
         # Generate cost rows HTML with class names for right alignment
         cost_rows = "".join(
             f"""
@@ -228,6 +239,7 @@ class HTMLTableJobLogger(JobLogger):
                 <td class='token-count'>{cost.output_tokens:,}</td>
                 <td class='cost-value'>${cost.output_cost_usd:.4f}</td>
                 <td class='cost-value'>${(cost.input_cost_usd or 0) + (cost.output_cost_usd or 0):.4f}</td>
+                <td class='cost-value'>{(cost.input_cost_credits_with_cache or 0) + (cost.output_cost_credits_with_cache or 0):,.2f}</td>
             </tr>
             """
             for cost in self.jobs_info.model_costs
@@ -242,6 +254,7 @@ class HTMLTableJobLogger(JobLogger):
                 <td class='token-count'>{total_output_tokens:,}</td>
                 <td class='cost-value'>${total_output_cost:.4f}</td>
                 <td class='cost-value'>${total_cost:.4f}</td>
+                <td class='cost-value'>{total_credits:,.2f}</td>
             </tr>
         """
 
@@ -249,7 +262,7 @@ class HTMLTableJobLogger(JobLogger):
         <div class="model-costs-section">
             <div class="model-costs-header" onclick="{self._collapse(f'model-costs-content-{self.log_id}', f'model-costs-arrow-{self.log_id}')}">
                 <span id="model-costs-arrow-{self.log_id}" class="expand-toggle">&#8963;</span>
-                <span>Model Costs (${total_cost:.4f} total)</span>
+                <span>Model Costs (${total_cost:.4f} / {total_credits:,.2f} credits total)</span>
                 <span style="flex-grow: 1;"></span>
             </div>
             <div id="model-costs-content-{self.log_id}" class="model-costs-content">
@@ -263,6 +276,7 @@ class HTMLTableJobLogger(JobLogger):
                             <th class="cost-header">Output Tokens</th>
                             <th class="cost-header">Output Cost</th>
                             <th class="cost-header">Total Cost</th>
+                            <th class="cost-header">Total Credits</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -270,6 +284,9 @@ class HTMLTableJobLogger(JobLogger):
                         {total_row}
                     </tbody>
                 </table>
+                <p style="font-style: italic; margin-top: 8px; font-size: 0.85em; color: #4b5563;">
+                    You can obtain the total credit cost by multiplying the total USD cost by 100. A lower credit cost indicates that you saved money by retrieving responses from the universal remote cache.
+                </p>
             </div>
         </div>
         """
