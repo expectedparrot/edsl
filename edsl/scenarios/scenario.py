@@ -938,6 +938,44 @@ class Scenario(Base, UserDict):
         # return f"Scenario({self.data})"
         return lines
 
+    def offload_base64_string(self) -> "Scenario":
+        """
+        Replaces base64_string content with 'offloaded' in all FileStore objects within this Scenario.
+
+        This method reduces memory usage when working with large files by removing the base64-encoded
+        file content from memory. The FileStore objects will still maintain other metadata, but the
+        actual file content will need to be reloaded from disk if needed again.
+
+        Returns:
+            Scenario: The modified Scenario with offloaded base64 strings
+
+        Examples:
+            >>> from edsl.scenarios import FileStore, Scenario
+            >>> import tempfile
+            >>> with tempfile.NamedTemporaryFile(suffix=".txt", mode="w") as f:
+            ...     _ = f.write("Hello World")
+            ...     _ = f.flush()
+            ...     s = Scenario({"document": FileStore(f.name)})
+            >>> "base64_string" in s["document"] and s["document"]["base64_string"] != "offloaded"
+            True
+            >>> s2 = s.offload_base64_string()
+            >>> s2["document"]["base64_string"] == "offloaded"
+            True
+        """
+        from edsl.scenarios import FileStore
+
+        # Create a copy to avoid modifying the original
+        new_scenario = Scenario(self.data.copy())
+
+        # Look through all items for FileStore objects
+        for key, value in new_scenario.items():
+            if isinstance(value, FileStore):
+                # Replace the base64_string in both the attribute and the data dictionary
+                value.base64_string = "offloaded"
+                value.data["base64_string"] = "offloaded"
+
+        return new_scenario
+
 
 if __name__ == "__main__":
     import doctest

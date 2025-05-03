@@ -103,6 +103,8 @@ class InvigilatorBase(ABC):
 
         def serialize_attribute(attr):
             value = getattr(self, attr)
+            if attr == "scenario":
+                value = value.offload_base64_string()
             if value is None:
                 return None
             if hasattr(value, "to_dict"):
