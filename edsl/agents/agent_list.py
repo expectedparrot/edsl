@@ -91,6 +91,28 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         if codebook is not None:
             self.set_codebook(codebook)
 
+    def set_instruction(self, instruction: str) -> None:
+        """Set the instruction for all agents in the list.
+
+        Args:
+            instruction: The instruction to set.
+        """
+        for agent in self.data:
+            agent.instruction = instruction
+        
+        return None
+    
+    def set_traits_presentation_template(self, traits_presentation_template: str) -> None:
+        """Set the traits presentation template for all agents in the list.
+
+        Args:
+            traits_presentation_template: The traits presentation template to set.
+        """
+        for agent in self.data:
+            agent.traits_presentation_template = traits_presentation_template
+        
+        return None
+
     def shuffle(self, seed: Optional[str] = None) -> AgentList:
         """Randomly shuffle the agents in place.
 
