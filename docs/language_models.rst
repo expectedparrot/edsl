@@ -6,7 +6,6 @@ Language Models
 Language models are used to generate responses to survey questions.
 EDSL works with many models from a variety of popular inference service providers, including Anthropic, Azure, Bedrock, Deep Infra, DeepSeek, Google, Mistral, OpenAI, Perplexity and Together.
 Current model pricing and performance information can be found at the Coop `model pricing and performance page <https://www.expectedparrot.com/getting-started/models>`_.
-.. The same information can also be retrieved at your workspace by running the `Model.check_working_models()` method (see example code below).
 
 We also recommend checking providers' websites for the most up-to-date information on models and service providers' terms of use.
 Links to providers' websites can be found at the models page.
@@ -14,7 +13,6 @@ If you need assistance checking whether a model is working or to report a missin
 
 This page provides examples of methods for specifying models for surveys using the `Model` and `ModelList` classes.
 
-.. A `notebook of code examples <>`_ is also available at Coop.
 
 
 API keys 
@@ -82,7 +80,6 @@ Output:
 
 .. Output (this list will vary based on the models that have been used when the code is run):
 
-.. list-table::
 ..   :header-rows: 1
 
 ..   * - Model Name
