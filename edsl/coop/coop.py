@@ -567,6 +567,7 @@ class Coop(CoopFunctionsMixin):
                     json.dumps(
                         object_dict,
                         default=self._json_handle_none,
+                        allow_nan=False,
                     )
                     if object_type != "scenario"
                     else ""
@@ -585,6 +586,7 @@ class Coop(CoopFunctionsMixin):
             json_data = json.dumps(
                 object_dict,
                 default=self._json_handle_none,
+                allow_nan=False,
             )
             headers = {"Content-Type": "application/json"}
             if response_json.get("upload_signed_url"):
@@ -928,6 +930,7 @@ class Coop(CoopFunctionsMixin):
                     json.dumps(
                         value.to_dict(),
                         default=self._json_handle_none,
+                        allow_nan=False,
                     )
                     if value
                     else None
