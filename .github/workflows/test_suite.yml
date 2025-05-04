@@ -6,7 +6,11 @@ on:
   workflow_dispatch:
 
 jobs:
+  matrix:
+    uses: ./.github/workflows/python-matrix.yml
+
   test:
+    needs: matrix
     if: |
       !contains(github.event.head_commit.message || '', 'no-test') &&
       !contains(github.event.pull_request.title || '', 'no-test')
@@ -14,7 +18,7 @@ jobs:
     timeout-minutes: 120    # Changed to 120 minutes
     strategy:
       matrix:
-        python-version: ["3.13", "3.12", "3.11", "3.10", "3.9"]      
+        python-version: ${{ fromJson(needs.matrix.outputs.matrix) }}
     env:
       POETRY_VERSION: "1.7.1"
     steps:

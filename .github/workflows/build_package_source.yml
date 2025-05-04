@@ -15,14 +15,18 @@ env:
   POETRY_VERSION: "1.7.1"
 
 jobs:
+  matrix:
+    uses: ./.github/workflows/python-matrix.yml
+
   build:
+    needs: matrix
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
+        python-version: ${{ fromJson(needs.matrix.outputs.matrix) }}
         exclude:
           - os: macos-latest
             python-version: "3.9"
