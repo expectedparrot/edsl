@@ -10,6 +10,7 @@ from .. import __version__
 
 from ..config import CONFIG
 from ..caching import CacheEntry
+from ..scenarios import ScenarioList
 
 if TYPE_CHECKING:
     from ..jobs import Jobs
@@ -1388,11 +1389,52 @@ class Coop(CoopFunctionsMixin):
         self._resolve_server_response(response)
         response_json = response.json()
         return {
-            "name": response_json.get("project_name"),
+            "project_name": response_json.get("project_name"),
             "uuid": response_json.get("uuid"),
             "admin_url": f"{self.url}/home/projects/{response_json.get('uuid')}",
             "respondent_url": f"{self.url}/respond/{response_json.get('uuid')}",
         }
+
+    def get_project(
+        self,
+        project_uuid: str,
+    ) -> dict:
+        """
+        Get a project from Coop.
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/projects/{project_uuid}",
+            method="GET",
+        )
+        self._resolve_server_response(response)
+        response_json = response.json()
+        return {
+            "project_name": response_json.get("project_name"),
+            "project_job_uuids": response_json.get("job_uuids"),
+        }
+
+    def get_project_human_responses(
+        self,
+        project_uuid: str,
+    ) -> ScenarioList:
+        """
+        Get human responses for a project from Coop.
+        Returns a ScenarioList where each key is a question name and each value is a question response.
+        """
+        from ..scenarios import Scenario
+
+        response = self._send_server_request(
+            uri=f"api/v0/projects/{project_uuid}/human-responses",
+            method="GET",
+        )
+        self._resolve_server_response(response)
+        response_json = response.json()
+        human_responses = response_json.get("human_responses", [])
+        human_response_scenarios = []
+        for response in human_responses:
+            response_dict = json.loads(response.get("response_json_string"))
+            human_response_scenarios.append(Scenario(response_dict))
+        return ScenarioList(human_response_scenarios)
 
     def __repr__(self):
         """Return a string representation of the client."""
