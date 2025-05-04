@@ -4,11 +4,11 @@ Language Models
 ===============
 
 Language models are used to generate responses to survey questions.
-EDSL works with many models from a variety of popular inference service providers, including Anthropic, Azure, Bedrock, Deep Infra, DeepSeek, Google, Mistral, OpenAI, Perplexity and Together.
+EDSL works with many models from a variety of popular inference service providers, including Anthropic, Azure, Bedrock, Deep Infra, DeepSeek, Google, Mistral, OpenAI, Perplexity, Together and Xai.
 Current model pricing and performance information can be found at the Coop `model pricing and performance page <https://www.expectedparrot.com/getting-started/models>`_.
 
 We also recommend checking providers' websites for the most up-to-date information on models and service providers' terms of use.
-Links to providers' websites can be found at the models page.
+Links to providers' websites can be found at the `models page <https://www.expectedparrot.com/getting-started/models>`_.
 If you need assistance checking whether a model is working or to report a missing model or price, please send a message to info@expectedparrot.com or post a message on `Discord <https://discord.com/invite/mxAYkjfy9m>`_.
 
 This page provides examples of methods for specifying models for surveys using the `Model` and `ModelList` classes.
