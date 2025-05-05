@@ -1,10 +1,30 @@
 # Changelog
 
-## [0.1.57] - TBD
+
+## [0.1.60] - TBD
 ### Added
 - New question type `QuestionMultipleChoiceWithOther` automatically includes "Other" in the `question_options` and corresponding modified default instructions.
 
 - Question type `QuestionMultipleChoice` now takes an optional parameter `enumeration_style` that allows you to specify "numeric" (default) or "letter" options (["A", "B", "C", "D"]). This parameter can also be passed to new question type `QuestionMultipleChoiceWithOther`.
+
+## [0.1.59] - TBD
+### Added
+- More support for using data from Wikipedia in scenarios:
+```
+sl = (ScenarioList
+    .from_source("wikipedia", "https://en.wikipedia.org/wiki/Turing_Award", 1) 
+    .give_valid_names() # use valid Python identifiers for keys
+    .augment_with_wikipedia("recipient") # search query
+)
+```
+
+
+## [0.1.58] - 2025-05-02
+### Added
+- Improvements to the job status table to include more details on exceptions and costs.
+
+## [0.1.57] - 2025-04-29
+### Added
 
 
 ## [0.1.56] - 2025-04-26
