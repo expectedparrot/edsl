@@ -11,6 +11,8 @@
 
 ## [0.1.59] - TBD
 ### Added
+- EDSL is now compatible with Python 3.13
+
 - More support for using data from Wikipedia in scenarios:
 ```
 sl = (ScenarioList
