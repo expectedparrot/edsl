@@ -2,6 +2,7 @@ import aiohttp
 import base64
 import json
 import requests
+import time
 
 from typing import Any, Optional, Union, Literal, List, TypedDict, TYPE_CHECKING
 from uuid import UUID
@@ -10,11 +11,12 @@ from .. import __version__
 
 from ..config import CONFIG
 from ..caching import CacheEntry
-from ..scenarios import ScenarioList
 
 if TYPE_CHECKING:
     from ..jobs import Jobs
+    from ..scenarios import ScenarioList
     from ..surveys import Survey
+    from ..results import Results
 
 from .exceptions import (
     CoopInvalidURLError,
@@ -1416,12 +1418,17 @@ class Coop(CoopFunctionsMixin):
     def get_project_human_responses(
         self,
         project_uuid: str,
-    ) -> ScenarioList:
+    ) -> Union["Results", "ScenarioList"]:
         """
-        Get human responses for a project from Coop.
-        Returns a ScenarioList where each key is a question name and each value is a question response.
+        Return a Results object with the human responses for a project.
+
+        If generating the Results object fails, a ScenarioList will be returned instead.
         """
-        from ..scenarios import Scenario
+        from ..agents import Agent, AgentList
+        from ..caching import Cache
+        from ..language_models import Model
+        from ..scenarios import Scenario, ScenarioList
+        from ..surveys import Survey
 
         response = self._send_server_request(
             uri=f"api/v0/projects/{project_uuid}/human-responses",
@@ -1430,11 +1437,61 @@ class Coop(CoopFunctionsMixin):
         self._resolve_server_response(response)
         response_json = response.json()
         human_responses = response_json.get("human_responses", [])
-        human_response_scenarios = []
-        for response in human_responses:
-            response_dict = json.loads(response.get("response_json_string"))
-            human_response_scenarios.append(Scenario(response_dict))
-        return ScenarioList(human_response_scenarios)
+
+        try:
+            agent_list = AgentList()
+
+            for response in human_responses:
+                response_uuid = response.get("response_uuid")
+                if response_uuid is None:
+                    raise RuntimeError(
+                        "One of your responses is missing a unique identifier."
+                    )
+
+                response_dict = json.loads(response.get("response_json_string"))
+
+                a = Agent(name=response_uuid, instruction="")
+
+                def create_answer_function(response_data):
+                    def f(self, question, scenario):
+                        return response_data.get(question.question_name, None)
+
+                    return f
+
+                a.add_direct_question_answering_method(
+                    create_answer_function(response_dict)
+                )
+                agent_list.append(a)
+
+            survey_json_string = response_json.get("survey_json_string")
+            survey = Survey.from_dict(json.loads(survey_json_string))
+
+            model = Model("test")
+            results = (
+                survey.by(agent_list)
+                .by(model)
+                .run(
+                    cache=Cache(),
+                    disable_remote_cache=True,
+                    disable_remote_inference=True,
+                    print_exceptions=False,
+                )
+            )
+            return results
+        except Exception:
+            human_response_scenarios = []
+            for response in human_responses:
+                response_uuid = response.get("response_uuid")
+                if response_uuid is None:
+                    raise RuntimeError(
+                        "One of your responses is missing a unique identifier."
+                    )
+
+                response_dict = json.loads(response.get("response_json_string"))
+                response_dict["agent_name"] = response_uuid
+                scenario = Scenario(response_dict)
+                human_response_scenarios.append(scenario)
+            return ScenarioList(human_response_scenarios)
 
     def __repr__(self):
         """Return a string representation of the client."""
