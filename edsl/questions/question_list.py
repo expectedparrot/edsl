@@ -395,7 +395,7 @@ class QuestionList(QuestionBase):
 
         self.include_comment = include_comment
         self.answering_instructions = answering_instructions
-        self.question_presentations = question_presentation
+        self.question_presentation = question_presentation
 
     def create_response_model(self):
         return create_model(self.min_list_items, self.max_list_items, self.permissive)
