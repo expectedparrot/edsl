@@ -299,23 +299,24 @@ class ListResponseValidator(ResponseValidatorABC):
         # This method can now be removed since validation is handled in the Pydantic model
         pass
 
-    def fix(self, response, verbose=False):
+    def fix(self, response, verbose=False) -> dict[str, Any]:
         """
         Fix common issues in list responses by splitting strings into lists.
         
         Examples:
             >>> from edsl import QuestionList
-            >>> q = QuestionList.example(min_list_items=2, max_list_items=4)
-            >>> validator = q.response_validator
+            >>> q_constrained = QuestionList.example(min_list_items=2, max_list_items=4)
+            >>> validator_constrained = q_constrained.response_validator
             
+            >>> q_permissive = QuestionList.example(permissive=True)
+            >>> validator_permissive = q_permissive.response_validator
+
             >>> # Fix a string that should be a list
             >>> bad_response = {"answer": "apple,banana,cherry"}
-            >>> try:
-            ...     validator.validate(bad_response)
-            ... except Exception:
-            ...     fixed = validator.fix(bad_response)
-            ...     validated = validator.validate(fixed)
-            ...     validated  # Show full response
+            >>> fixed = validator_constrained.fix(bad_response)
+            >>> fixed
+            {'answer': ['apple', 'banana', 'cherry']}
+            >>> validator_constrained.validate(fixed)  # Show full response after validation
             {'answer': ['apple', 'banana', 'cherry'], 'comment': None, 'generated_tokens': None}
 
             >>> # Fix using generated_tokens when answer is invalid
@@ -323,12 +324,10 @@ class ListResponseValidator(ResponseValidatorABC):
             ...     "answer": None,
             ...     "generated_tokens": "pizza, pasta, salad"
             ... }
-            >>> try:
-            ...     validator.validate(bad_response)
-            ... except Exception:
-            ...     fixed = validator.fix(bad_response)
-            ...     validated = validator.validate(fixed)
-            ...     validated
+            >>> fixed = validator_constrained.fix(bad_response)
+            >>> fixed
+            {'answer': ['pizza', ' pasta', ' salad']}
+            >>> validator_constrained.validate(fixed)
             {'answer': ['pizza', ' pasta', ' salad'], 'comment': None, 'generated_tokens': None}
 
             >>> # Preserve comments during fixing
@@ -336,17 +335,74 @@ class ListResponseValidator(ResponseValidatorABC):
             ...     "answer": "red,blue,green",
             ...     "comment": "These are colors"
             ... }
-            >>> fixed = validator.fix(bad_response)
-            >>> fixed == {
+            >>> fixed_output = validator_constrained.fix(bad_response)
+            >>> fixed_output
+            {'answer': ['red', 'blue', 'green'], 'comment': 'These are colors'}
+            >>> validated_output = validator_constrained.validate(fixed_output)
+            >>> validated_output == {
             ...     "answer": ["red", "blue", "green"],
-            ...     "comment": "These are colors"
+            ...     "comment": "These are colors",
+            ...     "generated_tokens": None
             ... }
             True
+
+            >>> # Fix an empty string answer
+            >>> bad_response = {"answer": ""}
+            >>> fixed = validator_constrained.fix(bad_response)
+            >>> fixed
+            {'answer': []}
+            >>> validator_permissive.validate(fixed)
+            {'answer': [], 'comment': None, 'generated_tokens': None}
+
+            >>> # Fix a single item string answer (no commas)
+            >>> bad_response = {"answer": "single_item"}
+            >>> fixed = validator_constrained.fix(bad_response)
+            >>> fixed
+            {'answer': ['single_item']}
+            >>> validator_permissive.validate(fixed)
+            {'answer': ['single_item'], 'comment': None, 'generated_tokens': None}
+
+            >>> # Fix when answer is None and no generated_tokens
+            >>> bad_response = {"answer": None}
+            >>> fixed = validator_constrained.fix(bad_response)
+            >>> fixed
+            {'answer': []}
+            >>> validator_permissive.validate(fixed)
+            {'answer': [], 'comment': None, 'generated_tokens': None}
+
+            >>> # Fix when answer key is missing but generated_tokens is present
+            >>> bad_response = {"generated_tokens": "token1,token2"}
+            >>> fixed = validator_constrained.fix(bad_response)
+            >>> fixed
+            {'answer': ['token1', 'token2']}
+            >>> validator_constrained.validate(fixed) # 2 items, OK for constrained validator
+            {'answer': ['token1', 'token2'], 'comment': None, 'generated_tokens': None}
+
+            >>> # Fix when answer key is missing and generated_tokens is an empty string
+            >>> bad_response = {"generated_tokens": ""}
+            >>> fixed = validator_constrained.fix(bad_response)
+            >>> fixed
+            {'answer': []}
+            >>> validator_permissive.validate(fixed)
+            {'answer': [], 'comment': None, 'generated_tokens': None}
+            
+            >>> # Fix when answer key is missing and generated_tokens is a single item
+            >>> bad_response = {"generated_tokens": "single_token"}
+            >>> fixed = validator_constrained.fix(bad_response)
+            >>> fixed
+            {'answer': ['single_token']}
+            >>> validator_permissive.validate(fixed)
+            {'answer': ['single_token'], 'comment': None, 'generated_tokens': None}
         """
         if verbose:
             print(f"Fixing list response: {response}")
         answer = str(response.get("answer") or response.get("generated_tokens", ""))
-        result = {"answer": answer.split(",")}
+        if "," in answer:
+            result = {"answer": answer.split(",")}
+        elif answer == "":
+            result = {"answer": []}
+        else:
+            result = {"answer": [answer]}
         if "comment" in response:
             result["comment"] = response["comment"]
         return result
