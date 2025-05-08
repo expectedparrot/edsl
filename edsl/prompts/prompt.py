@@ -290,6 +290,7 @@ class Prompt(PersistenceMixin, RepresentationMixin):
             return result
         except Exception as e:
             print(f"Error rendering prompt: {e}")
+            raise e
             return self
 
     @staticmethod

@@ -1,7 +1,16 @@
 import asyncio
 import aiohttp
 import time
+import re
 from typing import List
+
+def clean_text(text):
+    """Clean text by jinja2 braces
+    If the text contains {{ or }} then replace it with the empty string
+    """
+    return re.sub(r'({{.*?}})', '', text)
+
+
 async def fetch_wikipedia_content_async(search_terms: List[str], concurrency_limit=20):
     """
     Asynchronously fetch Wikipedia content for multiple search terms.
@@ -66,7 +75,7 @@ async def fetch_wikipedia_content_async(search_terms: List[str], concurrency_lim
                 result = {
                     "title": page_data.get("title", ""),
                     "page_id": page_id,
-                    "content": page_data.get("extract", ""),
+                    "content": clean_text(page_data.get("extract", "")),
                     "url": page_data.get("fullurl", ""),
                     "last_modified": page_data.get("touched", "")
                 }
