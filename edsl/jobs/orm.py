@@ -13,16 +13,16 @@ from datetime import datetime
 from typing import Dict, List, Optional, Union, Any, Type
 
 from sqlalchemy import Column, Integer, String, Text, Float, ForeignKey, DateTime, Table, Boolean, JSON
-from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, Session, backref
-
-# Create base class for declarative models
-Base = declarative_base()
 
 # Import domain models
 from .jobs import Jobs
 from .data_structures import RunConfig, RunEnvironment, RunParameters
 from ..base.exceptions import BaseException
+from ..base.db_manager import get_db_manager
+
+# Use Base from the central DB Manager
+Base = get_db_manager().base
 
 
 class JobsOrmException(BaseException):
@@ -608,3 +608,74 @@ def print_sql_schema(engine):
         print(f"\n-- Table: {table.name}")
         print(CreateTable(table).compile(engine))
     print("--- End of SQL Schema ---")
+
+
+# Add these models to the db_manager's registry
+def register_models():
+    """Register Jobs ORM models with the central DBManager."""
+    db_manager = get_db_manager()
+    db_manager.register_module_models('jobs', {
+        'SQLJob': SQLJob,
+        'SQLJobParameter': SQLJobParameter,
+    })
+    return db_manager
+
+
+# Initialize tables - this will be called when the module is imported
+db_manager = register_models()
+
+
+# Implement the to_db and from_db methods for Jobs
+def to_db_impl(job, db_connection):
+    """Implement to_db method for Jobs class.
+    
+    Args:
+        job: The Jobs object to store
+        db_connection: Database connection object
+        
+    Returns:
+        int: ID of the stored job
+    """
+    with db_connection.session_scope() as session:
+        job_orm = save_job(session, job)
+        return job_orm.id
+
+
+def from_db_impl(cls, db_connection, identifier):
+    """Implement from_db method for Jobs class.
+    
+    Args:
+        cls: The Jobs class
+        db_connection: Database connection object
+        identifier: ID of the job to retrieve
+        
+    Returns:
+        Jobs: The retrieved Jobs object
+    """
+    with db_connection.session_scope() as session:
+        return load_job(session, identifier)
+
+
+# Attach these functions to the Jobs class
+def attach_db_methods():
+    """Attach to_db and from_db methods to the Jobs class."""
+    from .jobs import Jobs
+    
+    # Add to_db method to Jobs class
+    def to_db(self, db_connection):
+        return to_db_impl(self, db_connection)
+        
+    # Add from_db method to Jobs class
+    @classmethod
+    def from_db(cls, db_connection, identifier):
+        return from_db_impl(cls, db_connection, identifier)
+    
+    # Attach methods to the Jobs class
+    Jobs.to_db = to_db
+    Jobs.from_db = from_db
+    
+    return Jobs
+
+
+# Initialize the Jobs class with DB methods
+Jobs = attach_db_methods()

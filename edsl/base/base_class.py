@@ -968,6 +968,42 @@ class Base(
         from edsl.base.exceptions import BaseNotImplementedError
 
         raise BaseNotImplementedError("This method is not implemented yet.")
+        
+    @abstractmethod
+    def to_db(self, db_connection):
+        """Serialize this object to a database.
+        
+        This method must be implemented by subclasses to provide a
+        standard way to persist objects to a database.
+        
+        Args:
+            db_connection: A database connection object that can store EDSL objects
+            
+        Returns:
+            Any: An identifier or reference to the persisted object
+        """
+        from edsl.base.exceptions import BaseNotImplementedError
+
+        raise BaseNotImplementedError("This method is not implemented yet.")
+        
+    @classmethod
+    @abstractmethod
+    def from_db(cls, db_connection, identifier):
+        """Create an instance from a database.
+        
+        This class method must be implemented by subclasses to provide a
+        standard way to deserialize objects from a database.
+        
+        Args:
+            db_connection: A database connection object that can store EDSL objects
+            identifier: An identifier or reference to retrieve the object
+            
+        Returns:
+            An instance of the class populated with data from the database
+        """
+        from edsl.base.exceptions import BaseNotImplementedError
+        
+        raise BaseNotImplementedError("This method is not implemented yet.")
 
     @abstractmethod
     def code():
