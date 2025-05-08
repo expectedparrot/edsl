@@ -13,6 +13,7 @@ from .question_list import QuestionList
 from .question_check_box import QuestionCheckBox
 from .question_dict import QuestionDict
 from .question_yes_no import QuestionYesNo
+from .question_top_k import QuestionTopK
 from ..prompts import Prompt
 
 
@@ -322,6 +323,44 @@ class SQLQuestionYesNo(SQLQuestion):
             # permissive is not explicitly part of QuestionYesNo constructor, but handled by SQLQuestion base
         )
 
+class SQLQuestionTopK(SQLQuestion):
+    __mapper_args__ = {'polymorphic_identity': 'top_k'}
+
+    @classmethod
+    def from_question(cls, question: QuestionTopK) -> SQLQuestionTopK:
+        # QuestionTopK inherits from QuestionCheckBox
+        db_question_instance = cls(
+            question_name=question.question_name,
+            question_text=question.question_text,
+            answering_instructions=_serialize_prompt_field(question.answering_instructions),
+            question_presentation=_serialize_prompt_field(question.question_presentation),
+            min_selections=question.min_selections,
+            max_selections=question.max_selections,
+            include_comment=question.include_comment, # Direct attribute from QuestionTopK/CheckBox
+            use_code=question.use_code,             # Direct attribute from QuestionTopK/CheckBox
+            permissive=getattr(question, 'permissive', False) # TopK doesn't usually use permissive, default to False
+        )
+        current_options = question.question_options
+        db_question_instance.options_relation = [
+            SQLQuestionOption(option_value=str(opt_val)) for opt_val in current_options
+        ]
+        return db_question_instance
+
+    def to_question(self) -> QuestionTopK:
+        options = [opt.option_value for opt in self.options_relation]
+        return QuestionTopK(
+            question_name=self.question_name,
+            question_text=self.question_text,
+            question_options=options,
+            min_selections=self.min_selections,
+            max_selections=self.max_selections,
+            answering_instructions=_deserialize_prompt_field(self.answering_instructions),
+            question_presentation=_deserialize_prompt_field(self.question_presentation),
+            include_comment=self.include_comment,
+            use_code=self.use_code
+            # Permissive is not explicitly part of QuestionTopK constructor but handled by SQLQuestion base if needed.
+        )
+
 # Example usage (optional, for demonstration)
 def example_sqlalchemy_usage():
     engine = create_engine('sqlite:///:memory:')
@@ -396,6 +435,18 @@ def example_sqlalchemy_usage():
     )
     session.add(SQLQuestionYesNo.from_question(original_yn_question))
     
+    # QuestionTopK
+    original_top_k_question = QuestionTopK(
+        question_name="top_3_movies",
+        question_text="Select your top 3 favorite movies from this list:",
+        question_options=["Movie A", "Movie B", "Movie C", "Movie D", "Movie E"],
+        min_selections=3,
+        max_selections=3,
+        include_comment=True,
+        use_code=False
+    )
+    session.add(SQLQuestionTopK.from_question(original_top_k_question))
+    
     session.commit()
 
     retrieved_sql_ft = session.query(SQLQuestionFreeText).filter_by(question_name="favorite_food").first()
@@ -457,6 +508,15 @@ def example_sqlalchemy_usage():
         assert retrieved_edsl_yn.include_comment == original_yn_question.include_comment
         assert retrieved_sql_yn.use_code == False # Should be False for YesNo
         print(f"YesNo OK: {retrieved_edsl_yn.question_name}")
+
+    retrieved_sql_top_k = session.query(SQLQuestionTopK).filter_by(question_name="top_3_movies").first()
+    if retrieved_sql_top_k:
+        retrieved_edsl_top_k = retrieved_sql_top_k.to_question()
+        assert retrieved_edsl_top_k.question_options == original_top_k_question.question_options
+        assert retrieved_edsl_top_k.min_selections == original_top_k_question.min_selections
+        assert retrieved_edsl_top_k.max_selections == original_top_k_question.max_selections
+        assert retrieved_edsl_top_k.use_code == original_top_k_question.use_code
+        print(f"TopK OK: {retrieved_edsl_top_k.question_name}")
 
     all_questions_from_db = session.query(SQLQuestion).all()
     print(f"\nTotal questions in DB: {len(all_questions_from_db)}")
