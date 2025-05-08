@@ -1,17 +1,9 @@
 # Changelog
 
 
-## [0.1.60] - TBD
-### Added
-- Added Python 3.13 support.
-
-- New question type `QuestionMultipleChoiceWithOther` automatically includes "Other" in the `question_options` and corresponding modified default instructions.
-
-- Question type `QuestionMultipleChoice` now takes an optional parameter `enumeration_style` that allows you to specify "numeric" (default) or "letter" options (["A", "B", "C", "D"]). This parameter can also be passed to new question type `QuestionMultipleChoiceWithOther`.
-
 ## [0.1.59] - TBD
 ### Added
-- EDSL is now compatible with Python 3.13
+- Added Python 3.13 support.
 
 - More support for using data from Wikipedia in scenarios:
 ```
@@ -22,13 +14,16 @@ sl = (ScenarioList
 )
 ```
 
+### Fixed
+- Bug impacting caching of prompts using video scenarios.
+
 
 ## [0.1.58] - 2025-05-02
 ### Added
 - Improvements to the job status table to include more details on exceptions and costs.
 
+
 ## [0.1.57] - 2025-04-29
-### Added
 
 
 ## [0.1.56] - 2025-04-26
