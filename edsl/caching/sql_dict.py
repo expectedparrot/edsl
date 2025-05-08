@@ -13,7 +13,7 @@ from typing import Any, Generator, Optional, Union, Dict, TypeVar
 
 from ..config import CONFIG
 from .cache_entry import CacheEntry
-from .orm import Data
+# Import Data from orm inside methods to avoid circular imports
 
 T = TypeVar('T')
 
@@ -263,6 +263,8 @@ class SQLiteDict:
         True
         """
         with self.Session() as db:
+            from .orm import Data
+            
             for instance in db.query(Data).all():
                 yield CacheEntry.from_dict(json.loads(instance.value))
 
@@ -276,6 +278,8 @@ class SQLiteDict:
         True
         """
         with self.Session() as db:
+            from .orm import Data
+            
             for instance in db.query(Data).all():
                 yield (instance.key, CacheEntry.from_dict(json.loads(instance.value)))
 
@@ -321,6 +325,8 @@ class SQLiteDict:
         False
         """
         with self.Session() as db:
+            from .orm import Data
+            
             return db.query(Data).filter_by(key=key).first() is not None
 
     def __iter__(self) -> Generator[str, None, None]:
@@ -333,6 +339,8 @@ class SQLiteDict:
         True
         """
         with self.Session() as db:
+            from .orm import Data
+            
             for instance in db.query(Data).all():
                 yield instance.key
 
@@ -348,6 +356,8 @@ class SQLiteDict:
         1
         """
         with self.Session() as db:
+            from .orm import Data
+            
             return db.query(Data).count()
 
     def keys(self) -> Generator[str, None, None]:
