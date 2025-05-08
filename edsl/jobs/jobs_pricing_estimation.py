@@ -88,7 +88,6 @@ class PromptCostEstimator:
 
 
 class JobsPrompts:
-
     relevant_keys = [
         "user_prompt",
         "system_prompt",
@@ -171,13 +170,18 @@ class JobsPrompts:
         cost = prompt_cost["cost_usd"]
 
         # Generate cache keys for each iteration
+        files_list = prompts.get("files_list", None)
+        if files_list:
+            files_hash = "+".join([str(hash(file)) for file in files_list])
+            user_prompt_with_hashes = user_prompt + f" {files_hash}"
         cache_keys = []
+
         for iteration in range(iterations):
             cache_key = CacheEntry.gen_key(
                 model=model,
                 parameters=invigilator.model.parameters,
                 system_prompt=system_prompt,
-                user_prompt=user_prompt,
+                user_prompt=user_prompt_with_hashes if files_list else user_prompt,
                 iteration=iteration,
             )
             cache_keys.append(cache_key)
