@@ -43,6 +43,7 @@ class TaskHistory(RepresentationMixin):
     - Generates interactive HTML reports with filtering and drill-down
     - Computes statistics across interviews (by model, question type, etc.)
     - Exports to various formats (HTML, notebook, etc.)
+    - Memory optimization via offloading of large file content
     """
 
     def __init__(
@@ -191,8 +192,22 @@ class TaskHistory(RepresentationMixin):
         """Return a string representation of the TaskHistory."""
         return f"TaskHistory(interviews={self.total_interviews})."
 
-    def to_dict(self, add_edsl_version=True):
-        """Return the TaskHistory as a dictionary."""
+    def to_dict(self, add_edsl_version=True, offload_content=True):
+        """
+        Return the TaskHistory as a dictionary.
+
+        Parameters:
+            add_edsl_version: Whether to include EDSL version in the output
+            offload_content: Whether to offload large file content like videos and images
+                            to reduce memory usage
+
+        Returns:
+            A dictionary representation of this TaskHistory instance
+        """
+        # Offload large file content if requested
+        if offload_content:
+            self.offload_files_content()
+
         # Serialize each interview object
         interview_dicts = []
         for i in self.total_interviews:
@@ -727,6 +742,46 @@ class TaskHistory(RepresentationMixin):
         nb.cells[0].source = ""
 
         return nb
+
+    def offload_files_content(self):
+        """
+        Offload large file content from scenarios in interview exceptions.
+
+        This method iterates over all the interview exceptions and calls the offload method
+        for any scenario components in the invigilator. This significantly reduces memory usage
+        by replacing base64-encoded content with a placeholder string, while preserving the
+        structure of the scenarios.
+
+        Returns:
+            self: Returns the TaskHistory instance for method chaining
+
+        This is particularly useful for TaskHistory instances containing interviews with
+        large file content, such as videos, images, or other binary data.
+        """
+        for interview in self.total_interviews:
+            if not hasattr(interview, "exceptions") or not interview.exceptions:
+                continue
+
+            for question_name, exceptions in interview.exceptions.items():
+                for exception in exceptions:
+                    # Check if exception has an invigilator with scenario
+                    if hasattr(exception, "invigilator") and exception.invigilator:
+                        if (
+                            hasattr(exception.invigilator, "scenario")
+                            and exception.invigilator.scenario
+                        ):
+                            # Call the offload method on the scenario
+                            if hasattr(exception.invigilator.scenario, "offload"):
+                                try:
+                                    # Replace the original scenario with the offloaded version
+                                    exception.invigilator.scenario = (
+                                        exception.invigilator.scenario.offload()
+                                    )
+                                except Exception as e:
+                                    # Silently continue if offloading fails for any reason
+                                    pass
+
+        return self
 
 
 if __name__ == "__main__":
