@@ -783,6 +783,79 @@ class TaskHistory(RepresentationMixin):
 
         return self
 
+    def deduplicate_and_clean_interviews(self):
+        """
+        Deduplicates exception entries in this task history to reduce memory usage.
+
+        This method removes duplicate error messages across interviews while preserving
+        the first occurrence of each unique error. This significantly reduces the size
+        of serialized task history data, especially for jobs with many similar errors.
+
+        Returns:
+            self: Returns the TaskHistory instance for method chaining.
+
+        Example:
+            >>> task_history = TaskHistory.example()
+            >>> task_history.deduplicate_and_clean_interviews()
+        """
+        seen = set()
+        cleaned_interviews = []
+
+        for interview in self.total_interviews:
+            # Skip if interview has no exceptions
+            if not hasattr(interview, "exceptions") or not interview.exceptions:
+                continue
+
+            keep_interview = False
+
+            # For each exception in the interview, check if we've seen it before
+            for question_name, exceptions in interview.exceptions.items():
+                filtered_exceptions = []
+
+                for exception in exceptions:
+                    # Get the exception message (may require different access based on structure)
+                    if hasattr(exception, "exception") and hasattr(
+                        exception.exception, "args"
+                    ):
+                        message = (
+                            str(exception.exception.args[0])
+                            if exception.exception.args
+                            else ""
+                        )
+                    else:
+                        message = str(exception)
+
+                    # Create a unique key for this exception
+                    key = (question_name, message)
+
+                    # Only keep exceptions we haven't seen before
+                    if key not in seen:
+                        seen.add(key)
+                        filtered_exceptions.append(exception)
+
+                # If we kept any exceptions for this question, update the interview
+                if filtered_exceptions:
+                    keep_interview = True
+                    interview.exceptions[question_name] = filtered_exceptions
+                else:
+                    # Remove the question from exceptions if all its exceptions were duplicates
+                    if question_name in interview.exceptions:
+                        del interview.exceptions[question_name]
+
+            # Only keep the interview if it still has exceptions after filtering
+            if keep_interview:
+                cleaned_interviews.append(interview)
+
+        # Replace the total_interviews with our cleaned list
+        self.total_interviews = cleaned_interviews
+
+        # Rebuild the _interviews dictionary
+        self._interviews = {
+            index: interview for index, interview in enumerate(self.total_interviews)
+        }
+
+        return self
+
 
 if __name__ == "__main__":
     import doctest
