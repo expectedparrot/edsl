@@ -13,11 +13,10 @@ from datetime import datetime
 from typing import Dict, List, Optional, Union, Any, Type
 
 from sqlalchemy import Column, Integer, String, Text, Float, ForeignKey, DateTime, Table, Boolean
-from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, Session, backref
 
-# Create base class for declarative models
-Base = declarative_base()
+# Import the shared Base
+from ..base.sql_model_base import Base
 
 # Import base exception
 from ..base.exceptions import BaseException

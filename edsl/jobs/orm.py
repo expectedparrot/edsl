@@ -22,7 +22,8 @@ from ..base.exceptions import BaseException
 from ..base.db_manager import get_db_manager
 
 # Use Base from the central DB Manager
-Base = get_db_manager().base
+#Base = get_db_manager().base
+from ..base.sql_model_base import Base
 
 
 class JobsOrmException(BaseException):

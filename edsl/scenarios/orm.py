@@ -17,7 +17,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, Session, backref
 
 # Create base class for declarative models
-Base = declarative_base()
+from edsl.base.sql_model_base import Base
 
 # Import domain models for conversion
 from .scenario import Scenario

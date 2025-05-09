@@ -16,12 +16,14 @@ from .db_manager import DBManager, get_db_manager
 
 # List of modules with ORM implementations
 ORM_MODULES = [
-#    "edsl.jobs.orm",
-#    "edsl.scenarios.orm",  # Assuming this exists
+    "edsl.jobs.orm",
+    "edsl.scenarios.orm",  # Assuming this exists
     "edsl.agents.orm",     # Assuming this exists
-#    "edsl.language_models.orm",  # Assuming this exists
-#    "edsl.results.orm",    # Result and Results ORM
-#    "edsl.caching.orm"     # Cache and CacheEntry ORM
+    "edsl.language_models.orm",  # Assuming this exists
+    "edsl.results.orm",    # Result and Results ORM
+    "edsl.caching.orm",     # Cache and CacheEntry ORM
+    "edsl.surveys.orm",
+    "edsl.questions.orm"
 ]
 
 

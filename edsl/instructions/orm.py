@@ -7,7 +7,6 @@ using SQLAlchemy ORM.
 
 from typing import Optional, List, Dict, Any, Union, cast
 from sqlalchemy import Column, Integer, String, Float, Boolean, ForeignKey, JSON
-from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, Session
 import json
 
@@ -15,7 +14,8 @@ from .instruction import Instruction
 from .change_instruction import ChangeInstruction
 from .exceptions import InstructionError, InstructionValueError
 
-Base = declarative_base()
+# Import the shared Base
+from ..base.sql_model_base import Base
 
 
 class SQLInstruction(Base):

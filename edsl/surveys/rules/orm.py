@@ -1,14 +1,14 @@
 """SQLAlchemy ORM models for Rule and RuleCollection."""
 
 from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, JSON, Table
-from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 from typing import Optional, List, Dict, Any, Union
 import json
 
 from ..base import EndOfSurvey
 
-Base = declarative_base()
+# Import the shared Base
+from ...base.sql_model_base import Base
 
 class SQLRule(Base):
     """SQLAlchemy ORM model for Rule."""
