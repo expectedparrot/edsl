@@ -211,27 +211,27 @@ class SQLiteDict:
     ) -> None:
         """
         Updates the dictionary with values from another dictionary or SQLiteDict.
-        
+
         This method adds entries from another dictionary or SQLiteDict to this
         SQLiteDict. It optionally overwrites existing entries and uses batched
         transactions for efficiency when updating many entries.
-        
+
         Args:
             new_d: The dictionary or SQLiteDict containing entries to add
             overwrite: If True, overwrites existing entries; if False, keeps
                        existing entries unchanged (default: False)
             max_batch_size: Maximum number of entries to update in a single
                            database transaction (default: 100)
-                           
+
         Raises:
             ValueError: If new_d is not a dict or SQLiteDict
-            
+
         Example:
             >>> d = SQLiteDict.example()
             >>> d.update({"foo": CacheEntry.example()})
             >>> d["foo"] == CacheEntry.example()
             True
-        
+
         Note:
             For large updates, the batched transaction approach helps prevent
             the database from being locked for too long.
@@ -243,6 +243,8 @@ class SQLiteDict:
             )
         current_batch = 0
         with self.Session() as db:
+            from .orm import Data
+
             for key, value in new_d.items():
                 if current_batch == max_batch_size:
                     db.commit()
@@ -305,6 +307,8 @@ class SQLiteDict:
         'missing'
         """
         with self.Session() as db:
+            from .orm import Data
+
             instance = db.query(Data).filter_by(key=key).one_or_none()
             if instance:
                 db.delete(instance)

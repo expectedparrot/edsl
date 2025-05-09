@@ -1098,12 +1098,13 @@ class Jobs(Base):
             
         Examples:
             >>> from edsl import Survey, Agent, Model
+            >>> from edsl.language_models import LanguageModel
             >>> from edsl.questions import QuestionFreeText
             >>> from edsl.base.db_manager import DBManager
             >>> q = QuestionFreeText(question_name="q1", question_text="What is your name?")
             >>> s = Survey([q])
             >>> a = Agent.example()
-            >>> m = Model.example(test_model=True)
+            >>> m = LanguageModel.example(test_model=True)
             >>> job = s.by(a).by(m)
             >>> db = DBManager()
             >>> job_id = job.to_db(db) # doctest: +SKIP

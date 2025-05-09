@@ -326,6 +326,34 @@ class Notebook(Base):
 
         NotebookToLaTeX(self).convert(filename)
 
+    def to_db(self, db_connection):
+        """
+        Serialize this Notebook to a database.
+
+        :param db_connection: A database connection object
+        :return: An identifier for the persisted notebook
+        """
+        from edsl.base.exceptions import BaseNotImplementedError
+
+        # For now, raise a not implemented error since Notebooks are not meant
+        # to be stored in the database at this time
+        raise BaseNotImplementedError("Database persistence is not implemented for Notebook objects")
+
+    @classmethod
+    def from_db(cls, db_connection, identifier):
+        """
+        Create a Notebook instance from a database.
+
+        :param db_connection: A database connection object
+        :param identifier: An identifier to retrieve the notebook
+        :return: A Notebook instance with data from the database
+        """
+        from edsl.base.exceptions import BaseNotImplementedError
+
+        # For now, raise a not implemented error since Notebooks are not meant
+        # to be loaded from the database at this time
+        raise BaseNotImplementedError("Database persistence is not implemented for Notebook objects")
+
 
 if __name__ == "__main__":
     from .. import Notebook
