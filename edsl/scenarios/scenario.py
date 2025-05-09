@@ -264,8 +264,58 @@ class Scenario(Base, UserDict):
         """Display a scenario as a table."""
         return self.to_dataset().table(tablefmt=tablefmt)
 
-    def to_dict(self, add_edsl_version: bool = True) -> dict:
+    def offload(self) -> "Scenario":
+        """
+        Returns a copy of the scenario with any base64_string fields replaced with 'offloaded'.
+
+        This is useful for reducing memory usage by offloading large base64-encoded content
+        while preserving the structure of the scenario.
+
+        Returns:
+            A new Scenario with base64_string fields replaced with 'offloaded'.
+
+        Example:
+
+        >>> from edsl.scenarios import FileStore
+        >>> import tempfile
+        >>> with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as f:
+        ...     _ = f.write("Hello World")
+        ...     data_path = f.name
+        >>> s = Scenario.from_file(data_path, "document")
+        >>> offloaded_s = s.offload()
+        >>> import os
+        >>> os.unlink(data_path)  # Clean up temp file
+        """
+        from edsl.scenarios import FileStore
+        from edsl.prompts import Prompt
+
+        new_scenario = Scenario()
+        for key, value in self.items():
+            if isinstance(value, FileStore):
+                # Create a copy of the FileStore
+                file_store_dict = value.to_dict()
+                if "base64_string" in file_store_dict:
+                    file_store_dict["base64_string"] = "offloaded"
+                new_scenario[key] = FileStore.from_dict(file_store_dict)
+            elif isinstance(value, dict) and "base64_string" in value:
+                # If it's a regular dict with base64_string
+                value_copy = value.copy()
+                value_copy["base64_string"] = "offloaded"
+                new_scenario[key] = value_copy
+            else:
+                new_scenario[key] = value
+
+        return new_scenario
+
+    def to_dict(
+        self, add_edsl_version: bool = True, offload_base64: bool = False
+    ) -> dict:
         """Convert a scenario to a dictionary.
+
+        Args:
+            add_edsl_version: If True, adds the EDSL version to the returned dictionary.
+            offload_base64: If True, replaces any base64_string fields with 'offloaded'
+                           to reduce memory usage.
 
         Example:
 
@@ -283,7 +333,15 @@ class Scenario(Base, UserDict):
         d = self.data.copy()
         for key, value in d.items():
             if isinstance(value, FileStore) or isinstance(value, Prompt):
-                d[key] = value.to_dict(add_edsl_version=add_edsl_version)
+                value_dict = value.to_dict(add_edsl_version=add_edsl_version)
+                if (
+                    offload_base64
+                    and isinstance(value_dict, dict)
+                    and "base64_string" in value_dict
+                ):
+                    value_dict["base64_string"] = "offloaded"
+                d[key] = value_dict
+
         if add_edsl_version:
             from edsl import __version__
 
