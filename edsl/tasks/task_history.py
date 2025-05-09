@@ -794,9 +794,6 @@ class TaskHistory(RepresentationMixin):
         Returns:
             self: Returns the TaskHistory instance for method chaining.
 
-        Example:
-            >>> task_history = TaskHistory.example()
-            >>> task_history.deduplicate_and_clean_interviews()
         """
         seen = set()
         cleaned_interviews = []
