@@ -192,7 +192,7 @@ class TaskHistory(RepresentationMixin):
         """Return a string representation of the TaskHistory."""
         return f"TaskHistory(interviews={self.total_interviews})."
 
-    def to_dict(self, add_edsl_version=True, offload_content=True):
+    def to_dict(self, add_edsl_version=True, offload_content=False):
         """
         Return the TaskHistory as a dictionary.
 
@@ -793,7 +793,6 @@ class TaskHistory(RepresentationMixin):
 
         Returns:
             self: Returns the TaskHistory instance for method chaining.
-
         """
         seen = set()
         cleaned_interviews = []
@@ -804,39 +803,56 @@ class TaskHistory(RepresentationMixin):
                 continue
 
             keep_interview = False
+            questions_to_modify = {}
+            questions_to_remove = []
 
-            # For each exception in the interview, check if we've seen it before
-            for question_name, exceptions in interview.exceptions.items():
-                filtered_exceptions = []
+            # First pass: Collect all modifications without changing the dictionary
+            if hasattr(interview.exceptions, "items"):
+                for question_name, exceptions in list(interview.exceptions.items()):
+                    filtered_exceptions = []
 
-                for exception in exceptions:
-                    # Get the exception message (may require different access based on structure)
-                    if hasattr(exception, "exception") and hasattr(
-                        exception.exception, "args"
-                    ):
-                        message = (
-                            str(exception.exception.args[0])
-                            if exception.exception.args
-                            else ""
-                        )
+                    for exception in exceptions:
+                        # Get the exception message (may require different access based on structure)
+                        if hasattr(exception, "exception") and hasattr(
+                            exception.exception, "args"
+                        ):
+                            message = (
+                                str(exception.exception.args[0])
+                                if exception.exception.args
+                                else ""
+                            )
+                        else:
+                            message = str(exception)
+
+                        # Create a unique key for this exception
+                        key = (question_name, message)
+
+                        # Only keep exceptions we haven't seen before
+                        if key not in seen:
+                            seen.add(key)
+                            filtered_exceptions.append(exception)
+
+                    # Track what should happen to this question's exceptions
+                    if filtered_exceptions:
+                        keep_interview = True
+                        questions_to_modify[question_name] = filtered_exceptions
                     else:
-                        message = str(exception)
+                        questions_to_remove.append(question_name)
 
-                    # Create a unique key for this exception
-                    key = (question_name, message)
-
-                    # Only keep exceptions we haven't seen before
-                    if key not in seen:
-                        seen.add(key)
-                        filtered_exceptions.append(exception)
-
-                # If we kept any exceptions for this question, update the interview
-                if filtered_exceptions:
-                    keep_interview = True
+            # Second pass: Apply all modifications safely
+            if hasattr(interview.exceptions, "items"):
+                # Add/replace filtered exceptions
+                for question_name, filtered_exceptions in questions_to_modify.items():
                     interview.exceptions[question_name] = filtered_exceptions
-                else:
-                    # Remove the question from exceptions if all its exceptions were duplicates
-                    if question_name in interview.exceptions:
+
+                # Remove questions with all duplicate exceptions
+                for question_name in questions_to_remove:
+                    if hasattr(interview.exceptions, "pop"):
+                        interview.exceptions.pop(question_name, None)
+                    elif (
+                        hasattr(interview.exceptions, "__delitem__")
+                        and question_name in interview.exceptions
+                    ):
                         del interview.exceptions[question_name]
 
             # Only keep the interview if it still has exceptions after filtering
