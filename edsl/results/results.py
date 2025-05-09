@@ -232,6 +232,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         - Converting to other formats (dataset, table, pandas DataFrame)
         - Serialization for storage and retrieval
         - Support for remote execution and result retrieval
+        - Database persistence via SQLAlchemy ORM
 
     Results objects have a hierarchical structure with the following components:
         1. Each Results object contains multiple Result objects
@@ -2291,6 +2292,47 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
 
         except Exception as e:
             raise ResultsError(f"Error loading Results from disk: {str(e)}")
+    
+    def to_db(self, db_manager) -> int:
+        """Save this Results collection to the database and return its ID.
+        
+        This method implements the Base.to_db interface for database persistence.
+        
+        Args:
+            db_manager: The database manager to use for the operation
+            
+        Returns:
+            int: The database ID of the saved Results collection
+            
+        Raises:
+            Exception: If an error occurs during database operations
+        """
+        from .orm import save_results
+        
+        with db_manager.session_scope() as session:
+            results_orm = save_results(session, self)
+            return results_orm.id
+            
+    @classmethod
+    def from_db(cls, db_manager, results_id: int) -> Optional["Results"]:
+        """Load a Results collection from the database by its ID.
+        
+        This method implements the Base.from_db interface for database persistence.
+        
+        Args:
+            db_manager: The database manager to use for the operation
+            results_id: The database ID of the Results collection to load
+            
+        Returns:
+            Results: The loaded Results object, or None if not found
+            
+        Raises:
+            Exception: If an error occurs during database operations
+        """
+        from .orm import load_results
+        
+        with db_manager.session_scope() as session:
+            return load_results(session, results_id)
 
 
 def main():  # pragma: no cover

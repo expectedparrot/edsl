@@ -11,13 +11,13 @@ import json
 import pickle
 
 from sqlalchemy import create_engine, Column, String, Integer, MetaData, Table, inspect
-from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.pool import NullPool
 
 from .. import logger
 from ..base import Base as EDSLBase
 from ..base.exceptions import BaseValueError
+from .sql_model_base import Base as SharedBase
 
 
 class DBManager:
@@ -30,7 +30,6 @@ class DBManager:
     Attributes:
         engine: SQLAlchemy engine instance
         session_factory: SQLAlchemy sessionmaker instance
-        base: SQLAlchemy declarative base
         initialized_models: A dictionary of initialized ORM models by module
     """
     
@@ -57,9 +56,6 @@ class DBManager:
         
         # Create session factory
         self.session_factory = sessionmaker(bind=self.engine)
-        
-        # Create declarative base
-        self.base = declarative_base()
         
         # Track initialized models by module name
         self.initialized_models = {}
@@ -90,8 +86,45 @@ class DBManager:
         
         This should be called after all modules have registered their models.
         """
-        self.base.metadata.create_all(self.engine)
-        logger.debug("All database tables created")
+        known_tables_before = list(SharedBase.metadata.tables.keys())
+        # print(f"DBManager: INSIDE initialize_tables(). Tables known to SharedBase.metadata: {known_tables_before}") # Removed
+
+        if not known_tables_before:
+            # print("DBManager: WARNING - No tables found in SharedBase.metadata. No tables will be created.") # Removed
+            logger.warning("DBManager: No tables found in SharedBase.metadata during initialize_tables. No tables will be created.") # Restored logger
+            return
+
+        # print(f"DBManager: Attempting to create {len(known_tables_before)} tables using a single connection...") # Removed
+        logger.debug(f"DBManager: Attempting to create {len(known_tables_before)} tables using a single connection...") # Restored logger
+        
+        connection = None
+        try:
+            connection = self.engine.connect()
+            # print(f"DBManager: Connection acquired: {connection}") # Removed
+            logger.debug(f"DBManager: Connection acquired for table creation: {connection}") # Restored logger
+
+            SharedBase.metadata.create_all(bind=connection)
+            # print("DBManager: SharedBase.metadata.create_all(bind=connection) EXECUTED.") # Removed
+            logger.debug("DBManager: SharedBase.metadata.create_all(bind=connection) executed.") # Restored logger
+
+            # inspector = inspect(connection)
+            # tables_immediately_after_create = inspector.get_table_names()
+            # print(f"DBManager: Tables found by inspector (on same connection) IMMEDIATELY AFTER create_all: {tables_immediately_after_create}") # Removed
+            # if not tables_immediately_after_create and known_tables_before:
+            #     print("DBManager: ALARM - create_all executed on connection, but inspector found no tables on THE SAME connection immediately after.") # Removed
+            # elif tables_immediately_after_create:
+            #     print(f"DBManager: SUCCESS - Inspector found tables on same connection: {tables_immediately_after_create}") # Removed
+
+        except Exception as e:
+            # print(f"DBManager: EXCEPTION during table creation or inspection: {e}") # Removed
+            logger.error(f"DBManager: EXCEPTION during table creation: {e}", exc_info=True) # Restored logger, added exc_info
+            # import traceback # Not needed if using logger.error with exc_info=True
+            # print(traceback.format_exc())
+        finally:
+            if connection:
+                connection.close()
+                # print("DBManager: Connection closed.") # Removed
+                logger.debug("DBManager: Connection for table creation closed.") # Restored logger
     
     def register_module_models(self, module_name: str, models: Dict[str, Any]):
         """Register ORM models for a specific module.

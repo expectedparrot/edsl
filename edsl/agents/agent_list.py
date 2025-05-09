@@ -581,6 +581,39 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
             agent_list.set_codebook(codebook)
             
         return agent_list
+        
+    def to_db(self, session) -> int:
+        """Serialize this agent list to a database.
+        
+        Persists the agent list to a SQLAlchemy database session using the ORM model.
+        
+        Args:
+            session: A SQLAlchemy database session
+            
+        Returns:
+            int: The database ID of the persisted agent list
+        """
+        from .orm import SQLAgentList, save_agent_list
+        
+        agent_list_orm = save_agent_list(session, self)
+        return agent_list_orm.id
+        
+    @classmethod
+    def from_db(cls, session, identifier):
+        """Create an AgentList instance from a database record.
+        
+        Retrieves and deserializes an agent list from a SQLAlchemy database session.
+        
+        Args:
+            session: A SQLAlchemy database session
+            identifier: The database ID of the agent list to retrieve
+            
+        Returns:
+            AgentList: An instance loaded from the database, or None if not found
+        """
+        from .orm import load_agent_list
+        
+        return load_agent_list(session, identifier)
 
     @classmethod
     def from_list(self, trait_name: str, values: List[Any], codebook: Optional[dict[str, str]] = None) -> "AgentList":

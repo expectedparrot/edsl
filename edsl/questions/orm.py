@@ -2,8 +2,12 @@ from __future__ import annotations
 import json
 
 from sqlalchemy import create_engine, Column, Integer, String, Text, Boolean, ForeignKey, Float
-from sqlalchemy.orm import declarative_base, sessionmaker, relationship
+# from sqlalchemy.orm import declarative_base # Remove local Base definition
+from sqlalchemy.orm import sessionmaker, relationship
 from sqlalchemy.schema import CreateTable
+
+# Import the shared Base
+from ..base.sql_model_base import Base
 
 # Import the EDSL Question types for type hinting and conversion
 from .question_free_text import QuestionFreeText
@@ -17,8 +21,8 @@ from .question_top_k import QuestionTopK
 from ..prompts import Prompt
 
 
-# Define the base for declarative models
-Base = declarative_base()
+# Define the base for declarative models --> REMOVED
+# Base = declarative_base()
 
 class SQLQuestionOption(Base):
     __tablename__ = 'question_options'

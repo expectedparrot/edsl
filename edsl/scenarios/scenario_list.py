@@ -2237,6 +2237,65 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         """
         from .scenario_source import ScenarioSource
         return ScenarioSource.from_source(source_type, *args, **kwargs)
+        
+    def to_db(self, session):
+        """Serialize this object to a database.
+        
+        This method persists the ScenarioList object to a database using the ORM implementation.
+        
+        Args:
+            session: A SQLAlchemy session object for database operations
+            
+        Returns:
+            SQLScenarioList: The database ORM model representing this ScenarioList
+            
+        Examples:
+            >>> from sqlalchemy import create_engine
+            >>> from sqlalchemy.orm import sessionmaker
+            >>> engine = create_engine('sqlite:///:memory:')
+            >>> from edsl.scenarios.orm import Base
+            >>> Base.metadata.create_all(engine)
+            >>> Session = sessionmaker(bind=engine)
+            >>> session = Session()
+            >>> sl = ScenarioList([Scenario({"food": "pizza"})])
+            >>> orm_obj = sl.to_db(session)
+            >>> session.commit()
+            >>> orm_obj.id is not None
+            True
+        """
+        from .orm import SQLScenarioList, save_scenario_list
+        return save_scenario_list(session, self)
+    
+    @classmethod
+    def from_db(cls, session, scenario_list_id):
+        """Create an instance from a database.
+        
+        This class method creates a ScenarioList instance from data stored in the database.
+        
+        Args:
+            session: A SQLAlchemy session object for database operations
+            scenario_list_id: The ID of the scenario list in the database
+            
+        Returns:
+            ScenarioList: A reconstructed ScenarioList object from the database
+            
+        Examples:
+            >>> from sqlalchemy import create_engine
+            >>> from sqlalchemy.orm import sessionmaker
+            >>> engine = create_engine('sqlite:///:memory:')
+            >>> from edsl.scenarios.orm import Base
+            >>> Base.metadata.create_all(engine)
+            >>> Session = sessionmaker(bind=engine)
+            >>> session = Session()
+            >>> sl = ScenarioList([Scenario({"food": "pizza"})])
+            >>> orm_obj = sl.to_db(session)
+            >>> session.commit()
+            >>> sl2 = ScenarioList.from_db(session, orm_obj.id)
+            >>> len(sl2) == len(sl)
+            True
+        """
+        from .orm import load_scenario_list
+        return load_scenario_list(session, scenario_list_id)
 
 
 if __name__ == "__main__":

@@ -104,6 +104,38 @@ class RunParameters(Base):
     @classmethod
     def example(cls) -> "RunConfig":
         return cls()
+        
+    def to_db(self, db_connection):
+        """Serialize this object to a database.
+        
+        This method is part of the Base class abstract method implementation
+        for database persistence.
+        
+        Args:
+            db_connection: Database connection object
+            
+        Returns:
+            dict: A serialized representation suitable for database storage
+        """
+        return self.to_dict()
+    
+    @classmethod
+    def from_db(cls, db_connection, data):
+        """Create an instance from database data.
+        
+        This class method is part of the Base class abstract method implementation
+        for database persistence.
+        
+        Args:
+            db_connection: Database connection object
+            data: The serialized data from the database
+            
+        Returns:
+            RunParameters: A new instance with the data from the database
+        """
+        if isinstance(data, dict):
+            return cls.from_dict(data)
+        return cls.from_dict({"n": 1})
 
 
 @dataclass

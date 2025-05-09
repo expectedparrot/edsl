@@ -937,6 +937,65 @@ class Scenario(Base, UserDict):
         lines.append(f"s = Scenario({self.data})")
         # return f"Scenario({self.data})"
         return lines
+        
+    def to_db(self, session):
+        """Serialize this object to a database.
+        
+        This method persists the Scenario object to a database using the ORM implementation.
+        
+        Args:
+            session: A SQLAlchemy session object for database operations
+            
+        Returns:
+            SQLScenario: The database ORM model representing this Scenario
+            
+        Examples:
+            >>> from sqlalchemy import create_engine
+            >>> from sqlalchemy.orm import sessionmaker
+            >>> engine = create_engine('sqlite:///:memory:')
+            >>> from edsl.scenarios.orm import Base
+            >>> Base.metadata.create_all(engine)
+            >>> Session = sessionmaker(bind=engine)
+            >>> session = Session()
+            >>> s = Scenario({"food": "pizza"})
+            >>> orm_obj = s.to_db(session)
+            >>> session.commit()
+            >>> orm_obj.id is not None
+            True
+        """
+        from .orm import SQLScenario, save_scenario
+        return save_scenario(session, self)
+    
+    @classmethod
+    def from_db(cls, session, scenario_id):
+        """Create an instance from a database.
+        
+        This class method creates a Scenario instance from data stored in the database.
+        
+        Args:
+            session: A SQLAlchemy session object for database operations
+            scenario_id: The ID of the scenario in the database
+            
+        Returns:
+            Scenario: A reconstructed Scenario object from the database
+            
+        Examples:
+            >>> from sqlalchemy import create_engine
+            >>> from sqlalchemy.orm import sessionmaker
+            >>> engine = create_engine('sqlite:///:memory:')
+            >>> from edsl.scenarios.orm import Base
+            >>> Base.metadata.create_all(engine)
+            >>> Session = sessionmaker(bind=engine)
+            >>> session = Session()
+            >>> s = Scenario({"food": "pizza"})
+            >>> orm_obj = s.to_db(session)
+            >>> session.commit()
+            >>> s2 = Scenario.from_db(session, orm_obj.id)
+            >>> s2["food"]
+            'pizza'
+        """
+        from .orm import load_scenario
+        return load_scenario(session, scenario_id)
 
 
 if __name__ == "__main__":

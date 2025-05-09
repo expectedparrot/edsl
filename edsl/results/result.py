@@ -76,6 +76,7 @@ class Result(Base, UserDict):
     - Rich data structure with sub-dictionaries for organization
     - Support for scoring results against reference answers
     - Serialization to/from dictionaries for storage
+    - Database persistence via SQLAlchemy ORM
 
     Results are typically created by the Jobs system when running interviews and
     collected into a Results collection for analysis. You rarely need to create
@@ -755,6 +756,47 @@ class Result(Base, UserDict):
         del question_name_to_prompts
         
         return result
+        
+    def to_db(self, db_manager) -> int:
+        """Save this Result to the database and return its ID.
+        
+        This method implements the Base.to_db interface for database persistence.
+        
+        Args:
+            db_manager: The database manager to use for the operation
+            
+        Returns:
+            int: The database ID of the saved Result
+            
+        Raises:
+            Exception: If an error occurs during database operations
+        """
+        from .orm import save_result
+        
+        with db_manager.session_scope() as session:
+            result_orm = save_result(session, self)
+            return result_orm.id
+            
+    @classmethod
+    def from_db(cls, db_manager, result_id: int) -> Optional["Result"]:
+        """Load a Result from the database by its ID.
+        
+        This method implements the Base.from_db interface for database persistence.
+        
+        Args:
+            db_manager: The database manager to use for the operation
+            result_id: The database ID of the Result to load
+            
+        Returns:
+            Result: The loaded Result object, or None if not found
+            
+        Raises:
+            Exception: If an error occurs during database operations
+        """
+        from .orm import load_result
+        
+        with db_manager.session_scope() as session:
+            return load_result(session, result_id)
 
 
 if __name__ == "__main__":

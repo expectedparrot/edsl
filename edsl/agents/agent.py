@@ -108,32 +108,65 @@ class DirectAnswerMethod(Protocol):
 
 class AgentTraits(Scenario):
     """A class representing the traits of an agent.
-    
+
     AgentTraits inherits from Scenario to provide a structured way to store and
     access agent characteristics. This allows agent traits to be handled consistently
     throughout the EDSL framework, including for presentation in prompts.
-    
+
     Attributes:
         data: Dictionary containing the agent's traits as key-value pairs
     """
 
     def __repr__(self):
         """Generate a string representation of the agent traits.
-        
+
         Returns:
             str: String representation of the agent traits dictionary
         """
         return f"{self.data}"
 
+    def to_db(self, session) -> int:
+        """Serialize this agent traits object to a database.
+
+        Persists the agent traits to a SQLAlchemy database session using the ORM model.
+
+        Args:
+            session: A SQLAlchemy database session
+
+        Returns:
+            int: The database ID of the persisted agent traits
+        """
+        from .orm import SQLAgentTraits, save_agent_traits
+
+        agent_traits_orm = save_agent_traits(session, self)
+        return agent_traits_orm.id
+
+    @classmethod
+    def from_db(cls, session, identifier):
+        """Create an AgentTraits instance from a database record.
+
+        Retrieves and deserializes agent traits from a SQLAlchemy database session.
+
+        Args:
+            session: A SQLAlchemy database session
+            identifier: The database ID of the agent traits to retrieve
+
+        Returns:
+            AgentTraits: An instance loaded from the database, or None if not found
+        """
+        from .orm import load_agent_traits
+
+        return load_agent_traits(session, identifier)
+
 
 class Agent(Base):
     """A class representing an AI agent with customizable traits that can answer questions.
-    
+
     An Agent in EDSL represents an entity with specific characteristics (traits) that can
     answer questions through various mechanisms. Agents can use language models to generate
     responses based on their traits, directly answer questions through custom functions, or
     dynamically adjust their traits based on the questions being asked.
-    
+
     Key capabilities:
     - Store and manage agent characteristics (traits)
     - Provide instructions on how the agent should answer
@@ -141,7 +174,7 @@ class Agent(Base):
     - Integration with multiple question types and language models
     - Combine agents to create more complex personas
     - Customize agent behavior through direct answering methods
-    
+
     Agents are used in conjunction with Questions, Scenarios, and Surveys to create
     structured interactions with language models.
     """
@@ -152,18 +185,18 @@ class Agent(Base):
 
     # Trait storage using descriptors for validation and management
     _traits = TraitsDescriptor()
-    
+
     # Codebook maps trait keys to human-readable descriptions
     # This improves prompt readability and LLM understanding
     # Example: {'age': 'Age in years'} → "Age in years: 30" instead of "age: 30"
     codebook = CodebookDescriptor()
-    
+
     # Instructions for how the agent should answer questions
     instruction = InstructionDescriptor()
-    
+
     # Optional name identifier for the agent
     name = NameDescriptor()
-    
+
     # Default values for function-related attributes
     dynamic_traits_function_name = ""
     answer_question_directly_function_name = ""
@@ -197,50 +230,50 @@ class Agent(Base):
             dynamic_traits_function_name: Name of the dynamic traits function
             answer_question_directly_source_code: Source code for direct question answering method
             answer_question_directly_function_name: Name of the direct answering function
-            
+
         The Agent class brings together several key concepts:
-        
+
         Traits
         ------
         Traits are key-value pairs that define an agent's characteristics. These are used
         to construct a prompt that guides the language model on how to respond.
-        
+
         Example:
         >>> a = Agent(traits={"age": 10, "hair": "brown", "height": 5.5})
         >>> a.traits
         {'age': 10, 'hair': 'brown', 'height': 5.5}
-        
+
         Traits Presentation
         ------------------
         The traits_presentation_template controls how traits are formatted in prompts.
         It uses Jinja2 templating to insert trait values.
-        
+
         Example:
         >>> a = Agent(traits={"age": 10}, traits_presentation_template="I am a {{age}} year old.")
         >>> repr(a.agent_persona)
         'Prompt(text=\"""I am a {{age}} year old.\""")'
-        
+
         Codebooks
         ---------
         Codebooks provide human-readable descriptions for traits in prompts.
-        
+
         Example:
         >>> traits = {"age": 10, "hair": "brown", "height": 5.5}
         >>> codebook = {'age': 'Their age is'}
-        >>> a = Agent(traits=traits, codebook=codebook, 
+        >>> a = Agent(traits=traits, codebook=codebook,
         ...           traits_presentation_template="This agent is Dave. {{codebook['age']}} {{age}}")
         >>> d = a.traits | {'codebook': a.codebook}
         >>> a.agent_persona.render(d)
         Prompt(text=\"""This agent is Dave. Their age is 10\""")
-        
+
         Instructions
         ------------
         Instructions guide how the agent should answer questions. If not provided,
         a default instruction is used.
-        
+
         >>> Agent.default_instruction
         'You are answering questions as if you were a human. Do not break character.'
-        
+
         For details on how these components are used to construct prompts, see
         :py:class:`edsl.agents.Invigilator.InvigilatorBase`.
         """
@@ -260,7 +293,7 @@ class Agent(Base):
 
     def _initialize_basic_attributes(self, traits, name, codebook) -> None:
         """Initialize the basic attributes of the agent.
-        
+
         Args:
             traits: Dictionary of agent characteristics
             name: Name identifier for the agent
@@ -272,9 +305,9 @@ class Agent(Base):
 
     def _initialize_instruction(self, instruction) -> None:
         """Initialize the instruction for how the agent should answer questions.
-        
+
         If no instruction is provided, uses the default instruction.
-        
+
         Args:
             instruction: Directive for how the agent should answer questions
         """
@@ -291,43 +324,43 @@ class Agent(Base):
         self, traits_presentation_template
     ) -> None:
         """Initialize the template for presenting agent traits in prompts.
-        
+
         This method sets up how the agent's traits will be formatted in language model prompts.
         The template is a Jinja2 template string that can reference trait values and other
         agent properties.
-        
+
         If no template is provided:
-        - If a codebook exists, the method creates a template that displays each trait with its 
+        - If a codebook exists, the method creates a template that displays each trait with its
           codebook description instead of the raw key names (e.g., "Age in years: 30" instead of "age: 30")
         - Without a codebook, it uses a default template that displays all traits as a dictionary
-        
+
         Custom templates always take precedence over automatically generated ones, giving users
         complete control over how traits are presented.
-        
+
         Args:
             traits_presentation_template: Optional Jinja2 template string for formatting traits.
                 If not provided, a default template will be generated.
-                
+
         Examples:
             With no template or codebook, traits are shown as a dictionary:
-            
+
             >>> agent = Agent(traits={"age": 25, "occupation": "engineer"})
             >>> str(agent.prompt().text)
             'Your traits: {\'age\': 25, \'occupation\': \'engineer\'}'
-            
+
             With a codebook but no custom template, traits are shown with descriptions:
-            
+
             >>> codebook = {"age": "Age in years", "occupation": "Current profession"}
             >>> agent = Agent(traits={"age": 25, "occupation": "engineer"}, codebook=codebook)
             >>> print(agent.prompt().text)  # doctest: +NORMALIZE_WHITESPACE
             Your traits:
             Age in years: 25
             Current profession: engineer
-            
+
             With a custom template, that format is used regardless of codebook:
-            
+
             >>> template = "Person: {{age}} years old, works as {{occupation}}"
-            >>> agent = Agent(traits={"age": 25, "occupation": "engineer"}, 
+            >>> agent = Agent(traits={"age": 25, "occupation": "engineer"},
             ...               codebook=codebook, traits_presentation_template=template)
             >>> str(agent.prompt().text)
             'Person: 25 years old, works as engineer'
@@ -344,17 +377,21 @@ class Agent(Base):
                 for trait_key in self.traits.keys():
                     if trait_key in self.codebook:
                         # Use codebook description if available
-                        traits_lines.append(f"{self.codebook[trait_key]}: {{{{ {trait_key} }}}}")
+                        traits_lines.append(
+                            f"{self.codebook[trait_key]}: {{{{ {trait_key} }}}}"
+                        )
                     else:
                         # Fall back to raw key for traits without codebook entries
                         traits_lines.append(f"{trait_key}: {{{{ {trait_key} }}}}")
-                
+
                 # Join all trait lines with newlines
-                self.traits_presentation_template = "Your traits:\n" + "\n".join(traits_lines)
+                self.traits_presentation_template = "Your traits:\n" + "\n".join(
+                    traits_lines
+                )
             else:
                 # Use the standard dictionary format if no codebook
                 self.traits_presentation_template = "Your traits: {{traits}}"
-                
+
             self.set_traits_presentation_template = False
 
     def _initialize_dynamic_traits_function(
@@ -364,11 +401,11 @@ class Agent(Base):
         dynamic_traits_function_name,
     ) -> None:
         """Initialize a function that can dynamically modify agent traits based on questions.
-        
+
         This allows traits to change based on the question being asked, enabling
         more sophisticated agent behaviors. The function can be provided directly
         or as source code that will be compiled.
-        
+
         Args:
             dynamic_traits_function: Function object that returns a dictionary of traits
             dynamic_traits_function_source_code: Source code string for the function
@@ -395,11 +432,11 @@ class Agent(Base):
         answer_question_directly_function_name,
     ) -> None:
         """Initialize a method for the agent to directly answer questions without using an LLM.
-        
+
         This allows creating agents that answer programmatically rather than through
         language model generation. The direct answering method can be provided as
         source code that will be compiled and bound to this agent instance.
-        
+
         Args:
             answer_question_directly_source_code: Source code for the direct answering method
             answer_question_directly_function_name: Name to assign to the method
@@ -426,48 +463,50 @@ class Agent(Base):
             self.traits_presentation_template = "Your traits: {{traits}}"
             self.set_traits_presentation_template = False
 
-
     def drop(self, field_name: str) -> Agent:
         """Drop a field from the agent.
-        
+
         Args:
             field_name: The name of the field to drop.
         """
         d = self.to_dict()
-        if field_name in d['traits']:
-            d['traits'].pop(field_name)
+        if field_name in d["traits"]:
+            d["traits"].pop(field_name)
         elif field_name in d:
             d.pop(field_name)
         else:
-            raise AgentErrors((f"Field '{field_name}' not found in agent"
-                               f"Available fields: {d.keys()}"
-                               f"Available traits: {d['traits'].keys()}"
-                              ))
+            raise AgentErrors(
+                (
+                    f"Field '{field_name}' not found in agent"
+                    f"Available fields: {d.keys()}"
+                    f"Available traits: {d['traits'].keys()}"
+                )
+            )
         return Agent.from_dict(d)
 
     def duplicate(self) -> Agent:
         """Create a deep copy of this agent with all its traits and capabilities.
-        
+
         This method creates a completely independent copy of the agent, including
         all its traits, codebook, instructions, and special functions like dynamic
         traits and direct answering methods.
-        
+
         Returns:
             Agent: A new agent instance that is functionally identical to this one
-            
+
         Examples:
             Create a duplicate agent and verify it's equal but not the same object:
-            
-            >>> a = Agent(traits={"age": 10, "hair": "brown", "height": 5.5}, 
+
+            >>> a = Agent(traits={"age": 10, "hair": "brown", "height": 5.5},
             ...           codebook={'age': 'Their age is'})
             >>> a2 = a.duplicate()
             >>> a2 == a  # Functionally equivalent
             True
             >>> id(a) == id(a2)  # But different objects
             False
-            
+
             Duplicating preserves direct answering methods:
-            
+
             >>> def f(self, question, scenario): return "I am a direct answer."
             >>> a.add_direct_question_answering_method(f)
             >>> hasattr(a, "answer_question_directly")
@@ -475,53 +514,53 @@ class Agent(Base):
             >>> a2 = a.duplicate()
             >>> a2.answer_question_directly(None, None)
             'I am a direct answer.'
-            
+
             Duplicating preserves custom instructions:
-            
+
             >>> a = Agent(traits={'age': 10}, instruction="Have fun!")
             >>> a2 = a.duplicate()
             >>> a2.instruction
             'Have fun!'
         """
         new_agent = Agent.from_dict(self.to_dict())
-        
+
         # Transfer direct answering method if present
         if hasattr(self, "answer_question_directly"):
             answer_question_directly = self.answer_question_directly
+
             def newf(self, question, scenario):
-                return answer_question_directly(
-                    question, scenario
-                )
+                return answer_question_directly(question, scenario)
+
             new_agent.add_direct_question_answering_method(newf)
-            
+
         # Transfer dynamic traits function if present
         if hasattr(self, "dynamic_traits_function"):
             dynamic_traits_function = self.dynamic_traits_function
             new_agent.dynamic_traits_function = dynamic_traits_function
-            
+
         return new_agent
-        
+
     def copy(self) -> Agent:
         """Create a deep copy of this agent using serialization/deserialization.
-        
+
         This method uses to_dict/from_dict to create a completely independent copy
         of the agent, including all its traits, codebook, instructions, and special
         functions like dynamic traits and direct answering methods.
-        
+
         Returns:
             Agent: A new agent instance that is functionally identical to this one
-            
+
         Examples:
-            >>> a = Agent(traits={"age": 10, "hair": "brown"}, 
+            >>> a = Agent(traits={"age": 10, "hair": "brown"},
             ...           codebook={'age': 'Their age is'})
             >>> a2 = a.copy()
             >>> a2 == a  # Functionally equivalent
             True
             >>> id(a) == id(a2)  # But different objects
             False
-            
+
             Copy preserves direct answering methods:
-            
+
             >>> def f(self, question, scenario): return "I am a direct answer."
             >>> a.add_direct_question_answering_method(f)
             >>> a2 = a.copy()
@@ -533,11 +572,11 @@ class Agent(Base):
     @property
     def agent_persona(self) -> Prompt:
         """Get the agent's persona template as a Prompt object.
-        
+
         This property provides access to the template that formats the agent's traits
         for presentation in prompts. The template is wrapped in a Prompt object
         that supports rendering with variable substitution.
-        
+
         Returns:
             Prompt: A prompt object containing the traits presentation template
         """
@@ -547,49 +586,49 @@ class Agent(Base):
 
     def prompt(self) -> str:
         """Generate a formatted prompt containing the agent's traits.
-        
+
         This method renders the agent's traits presentation template with the
         agent's traits and codebook, creating a formatted prompt that can be
         used in language model requests.
-        
+
         The method is dynamic and responsive to changes in the agent's state:
-        
+
         1. If a custom template was explicitly set during initialization, it will be used
         2. If using the default template and the codebook has been updated since
            initialization, this method will recreate the template to reflect the current
            codebook values
         3. The template is rendered with access to all trait values, the complete traits
            dictionary, and the codebook
-           
+
         The template rendering makes the following variables available:
         - All individual trait keys (e.g., {{age}}, {{occupation}})
         - The full traits dictionary as {{traits}}
         - The codebook as {{codebook}}
-        
+
         Returns:
             Prompt: A Prompt object containing the rendered template
-            
+
         Raises:
             QuestionScenarioRenderError: If any template variables remain undefined
-            
+
         Examples:
             Basic trait rendering without a codebook:
-            
+
             >>> agent = Agent(traits={"age": 10, "hair": "brown", "height": 5.5})
             >>> agent.prompt()
             Prompt(text=\"""Your traits: {'age': 10, 'hair': 'brown', 'height': 5.5}\""")
-            
+
             Trait rendering with a codebook (more readable format):
-            
+
             >>> codebook = {"age": "Age in years", "hair": "Hair color"}
             >>> agent = Agent(traits={"age": 10, "hair": "brown"}, codebook=codebook)
             >>> print(agent.prompt().text)  # doctest: +NORMALIZE_WHITESPACE
             Your traits:
             Age in years: 10
             Hair color: brown
-            
+
             Adding a codebook after initialization updates the rendering:
-            
+
             >>> agent = Agent(traits={"age": 30, "occupation": "doctor"})
             >>> initial_prompt = agent.prompt()
             >>> "Your traits: {" in initial_prompt.text
@@ -600,11 +639,11 @@ class Agent(Base):
             True
             >>> "Profession: doctor" in updated_prompt.text
             True
-            
+
             Custom templates can reference any trait directly:
-            
+
             >>> template = "Profile: {{age}} year old {{occupation}}"
-            >>> agent = Agent(traits={"age": 45, "occupation": "teacher"}, 
+            >>> agent = Agent(traits={"age": 45, "occupation": "teacher"},
             ...               traits_presentation_template=template)
             >>> agent.prompt().text
             'Profile: 45 year old teacher'
@@ -617,19 +656,23 @@ class Agent(Base):
             for trait_key in self.traits.keys():
                 if trait_key in self.codebook:
                     # Use codebook description if available
-                    traits_lines.append(f"{self.codebook[trait_key]}: {{{{ {trait_key} }}}}")
+                    traits_lines.append(
+                        f"{self.codebook[trait_key]}: {{{{ {trait_key} }}}}"
+                    )
                 else:
                     # Fall back to raw key for traits without codebook entries
                     traits_lines.append(f"{trait_key}: {{{{ {trait_key} }}}}")
-            
+
             # Join all trait lines with newlines
-            self.traits_presentation_template = "Your traits:\n" + "\n".join(traits_lines)
-            
+            self.traits_presentation_template = "Your traits:\n" + "\n".join(
+                traits_lines
+            )
+
         # Create a dictionary with traits, a reference to all traits, and the codebook
         replacement_dict = (
             self.traits | {"traits": self.traits} | {"codebook": self.codebook}
         )
-        
+
         # Check for any undefined variables in the template
         if undefined := self.agent_persona.undefined_template_variables(
             replacement_dict
@@ -642,23 +685,23 @@ class Agent(Base):
 
     def _check_dynamic_traits_function(self) -> None:
         """Validate that the dynamic traits function has the correct signature.
-        
+
         This method checks if the dynamic traits function (if present) has the correct
         parameter list. The function should either take no parameters or a single
         parameter named 'question'.
-        
+
         Raises:
             AgentDynamicTraitsFunctionError: If the function signature is invalid
-            
+
         Examples:
             Valid function with 'question' parameter:
-            
+
             >>> def f(question): return {"age": 10, "hair": "brown", "height": 5.5}
             >>> a = Agent(dynamic_traits_function=f)
             >>> a._check_dynamic_traits_function()
-            
+
             Invalid function with extra parameters:
-            
+
             >>> def g(question, poo): return {"age": 10, "hair": "brown", "height": 5.5}
             >>> a = Agent(dynamic_traits_function=g)
             Traceback (most recent call last):
@@ -667,7 +710,7 @@ class Agent(Base):
         """
         if self.has_dynamic_traits_function:
             sig = inspect.signature(self.dynamic_traits_function)
-            
+
             if "question" in sig.parameters:
                 # If it has 'question' parameter, it should be the only one
                 if len(sig.parameters) > 1:
@@ -685,15 +728,15 @@ class Agent(Base):
     @property
     def traits(self) -> dict[str, str]:
         """Get the agent's traits, potentially using dynamic generation.
-        
+
         This property provides access to the agent's traits, either from the stored
         traits dictionary or by calling a dynamic traits function if one is defined.
         If a dynamic traits function is used, it may take the current question as a
         parameter to generate context-aware traits.
-        
+
         Returns:
             dict: Dictionary of agent traits (key-value pairs)
-            
+
         Examples:
             >>> a = Agent(traits={"age": 10, "hair": "brown", "height": 5.5})
             >>> a.traits
@@ -702,7 +745,7 @@ class Agent(Base):
         if self.has_dynamic_traits_function:
             # Check if the function expects a question parameter
             sig = inspect.signature(self.dynamic_traits_function)
-            
+
             if "question" in sig.parameters:
                 # Call with the current question
                 return self.dynamic_traits_function(question=self.current_question)
@@ -986,7 +1029,9 @@ class Agent(Base):
 
     answer_question = sync_wrapper(async_answer_question)
 
-    def _get_invigilator_class(self, question: "QuestionBase") -> Type["InvigilatorBase"]:
+    def _get_invigilator_class(
+        self, question: "QuestionBase"
+    ) -> Type["InvigilatorBase"]:
         """Get the invigilator class for a question.
 
         This method returns the invigilator class that should be used to answer a question.
@@ -1173,54 +1218,42 @@ class Agent(Base):
 
     @property
     def data(self) -> dict:
-        """Format the data for serialization.
-
-        TODO: Warn if has dynamic traits function or direct answer function that cannot be serialized.
-        TODO: Add ability to have coop-hosted functions that are serializable.
+        """Format the data for serialization for __repr__ and __eq__.
+        This should generally include only core identifying attributes that are not default.
         """
-
         raw_data = {
             k.replace("_", "", 1): v
             for k, v in self.__dict__.items()
-            if k.startswith("_")
+            if k.startswith("_") and k != "_orm_id"
         }
 
-        if hasattr(self, "set_instructions"):
-            if not self.set_instructions:
-                raw_data.pop("instruction")
-        if self.codebook == {}:
-            raw_data.pop("codebook")
-        if self.name is None:
-            raw_data.pop("name")
+        # Ensure 'traits' is properly extracted and is a dict
+        # Priority to self.__dict__["_traits"] as the direct attribute
+        if "_traits" in self.__dict__ and isinstance(self.__dict__["_traits"], AgentTraits):
+            raw_data["traits"] = dict(self.__dict__["_traits"].data)
+        elif "traits" in raw_data and isinstance(raw_data["traits"], AgentTraits):
+            # Fallback if _traits was in raw_data from comprehension (less likely for AgentTraits)
+            raw_data["traits"] = dict(raw_data["traits"].data)
+        elif "traits" not in raw_data: # Fallback if _traits is missing somehow
+             raw_data["traits"] = {}
+        else: # Ensure it's a dict if it was already there (e.g. simple dict from deserialization)
+            raw_data["traits"] = dict(raw_data["traits"])
 
-        if hasattr(self, "dynamic_traits_function"):
-            raw_data.pop(
-                "dynamic_traits_function", None
-            )  # in case dynamic_traits_function will appear with _ in self.__dict__
-            dynamic_traits_func = self.dynamic_traits_function
-            if dynamic_traits_func:
-                func = inspect.getsource(dynamic_traits_func)
-                raw_data["dynamic_traits_function_source_code"] = func
-                raw_data["dynamic_traits_function_name"] = (
-                    self.dynamic_traits_function_name
-                )
-        if hasattr(self, "answer_question_directly"):
-            raw_data.pop(
-                "answer_question_directly", None
-            )  # in case answer_question_directly will appear with _ in self.__dict__
-            answer_question_directly_func = self.answer_question_directly
+        # Conditionally remove instruction if it wasn't explicitly set by the user
+        if hasattr(self, "set_instructions") and not self.set_instructions:
+            raw_data.pop("instruction", None)
+        
+        # Conditionally remove traits_presentation_template if it wasn't explicitly set
+        if hasattr(self, "set_traits_presentation_template") and not self.set_traits_presentation_template:
+            raw_data.pop("traits_presentation_template", None)
+        
+        # Remove name if it is None
+        if raw_data.get("name") is None:
+            raw_data.pop("name", None)
 
-            if (
-                answer_question_directly_func
-                and raw_data.get("answer_question_directly_source_code", None) is not None
-            ):
-                raw_data["answer_question_directly_source_code"] = inspect.getsource(
-                    answer_question_directly_func
-                )
-                raw_data["answer_question_directly_function_name"] = (
-                    self.answer_question_directly_function_name
-                )
-        raw_data["traits"] = dict(raw_data["traits"])
+        # Remove codebook if it is an empty dictionary
+        if raw_data.get("codebook") == {}:
+            raw_data.pop("codebook", None)
 
         return raw_data
 
@@ -1231,8 +1264,39 @@ class Agent(Base):
         2067581884874391607
         """
         return dict_hash(self.to_dict(add_edsl_version=False))
+        
+    def to_db(self, session) -> int:
+        """Serialize this agent object to a database.
+        
+        Persists the agent to a SQLAlchemy database session using the ORM model.
+        
+        Args:
+            session: A SQLAlchemy database session
+            
+        Returns:
+            int: The database ID of the persisted agent
 
-    def to_dict(self, add_edsl_version=True, full_dict=False) -> dict[str, Union[dict, bool]]:
+        >>> import os
+        >>> from ..base.db_init import create_test_session
+        >>> session, db_manager, temp_db_path = create_test_session()
+        >>> a = Agent.example() # This creates age: 22
+        >>> agent_id = a.to_db(session)
+        >>> loaded_agent = Agent.from_db(session, agent_id)
+        >>> print(loaded_agent) # Expected output after fixes
+        Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5})
+        >>> print(a == loaded_agent)
+        True
+        >>> session.close()
+        >>> os.remove(temp_db_path)
+        """
+        from .orm import save_agent
+        
+        agent_orm = save_agent(session, self)
+        return agent_orm.id
+
+    def to_dict(
+        self, add_edsl_version=True, full_dict=False
+    ) -> dict[str, Union[dict, bool]]:
         """Serialize to a dictionary with EDSL info.
 
         Example usage:
@@ -1263,6 +1327,23 @@ class Agent(Base):
 
         return d
 
+    @classmethod
+    def from_db(cls, session, identifier) -> Optional[Agent]:
+        """Create an Agent instance from a database record.
+        
+        Retrieves and deserializes an agent from a SQLAlchemy database session.
+        
+        Args:
+            session: A SQLAlchemy database session
+            identifier: The database ID of the agent to retrieve
+            
+        Returns:
+            Agent: An instance loaded from the database, or None if not found
+        """
+        from .orm import load_agent
+        
+        return load_agent(session, identifier)
+        
     @classmethod
     @remove_edsl_version
     def from_dict(cls, agent_dict: dict[str, Union[dict, bool]]) -> Agent:

@@ -141,6 +141,60 @@ class ModelList(Base, UserList):
 
     def code(self):
         pass
+        
+    def to_db(self, session):
+        """Serialize this object to a database.
+        
+        This method persists the ModelList object to a database using the ORM implementation.
+        
+        Args:
+            session: A SQLAlchemy session object for database operations
+            
+        Returns:
+            The database ORM model representing this ModelList
+            
+        Examples:
+            >>> from sqlalchemy import create_engine
+            >>> from sqlalchemy.orm import sessionmaker
+            >>> from edsl import Model
+            >>> engine = create_engine('sqlite:///:memory:')
+            >>> from edsl.language_models.orm import Base
+            >>> Base.metadata.create_all(engine) # doctest: +SKIP
+            >>> Session = sessionmaker(bind=engine)
+            >>> session = Session() # doctest: +SKIP
+            >>> ml = ModelList([Model.example()])
+            >>> orm_obj = ml.to_db(session) # doctest: +SKIP
+        """
+        from ..language_models.orm import save_model_list
+        return save_model_list(session, self)
+    
+    @classmethod
+    def from_db(cls, session, model_list_id):
+        """Create an instance from a database.
+        
+        This class method creates a ModelList instance from data stored in the database.
+        
+        Args:
+            session: A SQLAlchemy session object for database operations
+            model_list_id: The ID of the model list in the database
+            
+        Returns:
+            ModelList: A reconstructed ModelList object from the database
+            
+        Examples:
+            >>> from sqlalchemy import create_engine
+            >>> from sqlalchemy.orm import sessionmaker
+            >>> engine = create_engine('sqlite:///:memory:')
+            >>> from edsl.language_models.orm import Base
+            >>> Base.metadata.create_all(engine) # doctest: +SKIP
+            >>> Session = sessionmaker(bind=engine)
+            >>> session = Session() # doctest: +SKIP
+            >>> ml = ModelList([Model.example()])
+            >>> orm_obj = ml.to_db(session) # doctest: +SKIP
+            >>> ml2 = ModelList.from_db(session, orm_obj.id) # doctest: +SKIP
+        """
+        from ..language_models.orm import load_model_list
+        return load_model_list(session, model_list_id)
 
     @classmethod
     def example(cls, randomize: bool = False) -> "ModelList":
