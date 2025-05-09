@@ -26,6 +26,7 @@ from ..language_models import LanguageModel
 from ..agents import Agent
 from ..scenarios import Scenario
 from ..surveys import Survey
+from ..prompts import Prompt # Assuming this is the correct path for Prompt
 
 
 class ResultsOrmException(BaseException):
@@ -97,6 +98,8 @@ class SQLResult(Base):
             return 'int', str(value)
         elif isinstance(value, float):
             return 'float', str(value)
+        elif isinstance(value, Prompt): # Handle Prompt objects
+            return 'prompt_text', value.text # Assuming Prompt has a .text attribute
         elif isinstance(value, dict):
             try:
                 return 'json', json.dumps(value)
@@ -131,6 +134,8 @@ class SQLResult(Base):
                 return float(value_text)
             elif value_type == 'bool':
                 return value_text.lower() == 'true'
+            elif value_type == 'prompt_text': # Handle Prompt objects
+                return Prompt(text=value_text) # Assuming Prompt can be reconstructed this way
             elif value_type == 'json':
                 return json.loads(value_text)
             elif value_type == 'json_list':
@@ -343,7 +348,7 @@ class SQLResults(Base):
                 survey_id = results_obj.survey._orm_id
             else:
                 from edsl.surveys.orm import SQLSurvey
-                survey_orm = SQLSurvey.from_survey(results_obj.survey, session)
+                survey_orm = SQLSurvey.from_model(results_obj.survey) #, session)
                 session.add(survey_orm)
                 session.flush()
                 survey_id = survey_orm.id

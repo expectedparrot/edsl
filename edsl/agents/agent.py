@@ -158,6 +158,7 @@ class AgentTraits(Scenario):
 
         return load_agent_traits(session, identifier)
 
+from .orm import SQLAgent
 
 class Agent(Base):
     """A class representing an AI agent with customizable traits that can answer questions.
@@ -178,6 +179,8 @@ class Agent(Base):
     Agents are used in conjunction with Questions, Scenarios, and Surveys to create
     structured interactions with language models.
     """
+
+    orm_class = SQLAgent
 
     __documentation__ = "https://docs.expectedparrot.com/en/latest/agents.html"
 
@@ -1265,7 +1268,7 @@ class Agent(Base):
         """
         return dict_hash(self.to_dict(add_edsl_version=False))
         
-    def to_db(self, session) -> int:
+    def to_db_old(self, session) -> int:
         """Serialize this agent object to a database.
         
         Persists the agent to a SQLAlchemy database session using the ORM model.

@@ -20,10 +20,16 @@ from sqlalchemy.orm import relationship, Session, backref
 # Import the shared Base
 from ..base.sql_model_base import Base
 
-# Import domain models for conversion
-from .agent import Agent, AgentTraits
-from .agent_list import AgentList
+# Import domain models for conversion - REMOVE THESE
+# from .agent import Agent, AgentTraits
+# from .agent_list import AgentList
 from ..base.exceptions import BaseException
+
+    
+#from_edsl_object
+#to_edsl_object
+# to_db
+# from_db
 
 
 class AgentOrmException(BaseException):
@@ -71,9 +77,10 @@ class SQLAgentTraits(Base):
         """Return string representation of the AgentTraits object."""
         return f"<SQLAgentTraits(id={self.id}, entries_count={len(self.trait_entries) if self.trait_entries else 0})>"
 
-    def to_agent_traits(self) -> AgentTraits:
+    def to_edsl_object(self) -> 'AgentTraits':
         """Convert this ORM model to an AgentTraits domain object."""
         # Extract traits data
+        from .agent import AgentTraits  # Add local import
         traits_data = {}
         for entry in self.trait_entries:
             value = SQLAgent.deserialize_value(entry.value_type, entry.value_text)
@@ -86,11 +93,13 @@ class SQLAgentTraits(Base):
         return traits
 
     @classmethod
-    def from_agent_traits(
-        cls, agent_traits: AgentTraits, session: Optional[Session] = None
+    def from_edsl_object(
+        cls, agent_traits: 'AgentTraits', session: Optional[Session] = None
     ) -> "SQLAgentTraits":
         """Create an ORM model from an AgentTraits domain object."""
         # Create the base record
+        from .agent import AgentTraits # Add local import
+
         orm_traits = cls()
 
         # Add to session if provided to get ID
@@ -262,9 +271,11 @@ class SQLAgent(Base):
             print(f"Error deserializing value of type {value_type}: {e}")
             return None
 
-    def to_agent(self) -> Agent:
+    def to_edsl_object(self) -> 'Agent':
         """Convert this ORM model to an Agent domain object."""
         # Extract traits
+        from .agent import Agent # Add local import
+
         traits = {}
         for trait in self.traits:
             value = self.deserialize_value(trait.value_type, trait.value_text)
@@ -320,9 +331,11 @@ class SQLAgent(Base):
         return agent
 
     @classmethod
-    def from_agent(cls, agent: Agent, session: Optional[Session] = None) -> SQLAgent:
+    def from_edsl_object(cls, agent: 'Agent', session: Optional[Session] = None) -> 'SQLAgent':
         """Create an ORM model from an Agent domain object."""
         # Create the base record
+        from .agent import Agent # Add local import
+
         orm_agent = cls(
             name=agent.name,
             instruction=agent.instruction if hasattr(agent, 'set_instructions') and agent.set_instructions else None,
@@ -417,10 +430,13 @@ class SQLAgentList(Base):
         else:
             self.codebook_json = None
 
-    def to_agent_list(self) -> AgentList:
+    def to_edsl_object(self) -> 'AgentList':
         """Convert this ORM model to an AgentList domain object."""
         # Convert all agents
-        agents = [agent.to_agent() for agent in self.agents]
+        from .agent_list import AgentList # Add local import
+        from .agent import Agent # Potentially needed if agent.to_agent() is not enough
+
+        agents = [agent.to_edsl_object() for agent in self.agents]
 
         # Create the AgentList
         agent_list = AgentList(agents, codebook=self.codebook)
@@ -428,9 +444,12 @@ class SQLAgentList(Base):
         return agent_list
 
     @classmethod
-    def from_agent_list(cls, agent_list: AgentList, session: Session) -> SQLAgentList:
+    def from_edsl_object(cls, agent_list: 'AgentList', session: Session) -> 'SQLAgentList':
         """Create an ORM model from an AgentList domain object."""
         # Create the base record
+        from .agent_list import AgentList # Add local import
+        from .agent import Agent # Add local import
+
         orm_list = cls()
 
         # Store codebook if shared across agents
@@ -444,6 +463,8 @@ class SQLAgentList(Base):
             # Only include codebook if it's non-empty and consistent across all agents
             if all_same and first_codebook:
                 orm_list.codebook = first_codebook
+            else:
+                orm_list.codebook = None
 
         # Add to session to get ID
         session.add(orm_list)
@@ -458,7 +479,7 @@ class SQLAgentList(Base):
 
             # Create new agent ORM if needed
             if not agent_orm:
-                agent_orm = SQLAgent.from_agent(agent, session)
+                agent_orm = SQLAgent.from_edsl_object(agent, session)
 
             # Add association with position
             stmt = agent_list_agent_association.insert().values(
@@ -469,9 +490,11 @@ class SQLAgentList(Base):
         return orm_list
 
 
-def save_agent(session: Session, agent: Agent) -> SQLAgent:
+def save_agent(session: Session, agent: 'Agent') -> 'SQLAgent':
     """Save an Agent to the database."""
     # Check if the agent already exists
+    from .agent import Agent # Add local import
+
     if hasattr(agent, "_orm_id") and agent._orm_id:
         # Try to update the existing agent
         update_success = update_agent(session, agent._orm_id, agent)
@@ -481,7 +504,7 @@ def save_agent(session: Session, agent: Agent) -> SQLAgent:
             return agent_orm
 
     # Create new agent (or recreate if update failed)
-    agent_orm = SQLAgent.from_agent(agent)
+    agent_orm = SQLAgent.from_edsl_object(agent)
     session.add(agent_orm)
     session.flush()
 
@@ -491,8 +514,9 @@ def save_agent(session: Session, agent: Agent) -> SQLAgent:
     return agent_orm
 
 
-def update_agent(session: Session, agent_id: int, agent: Agent) -> bool:
+def update_agent(session: Session, agent_id: int, agent: 'Agent') -> bool:
     """Update an existing agent in the database."""
+    from .agent import Agent # Add local import
     agent_orm = session.get(SQLAgent, agent_id)
     if not agent_orm:
         return False
@@ -560,9 +584,10 @@ def update_agent(session: Session, agent_id: int, agent: Agent) -> bool:
     return True
 
 
-def save_agent_list(session: Session, agent_list: AgentList) -> SQLAgentList:
+def save_agent_list(session: Session, agent_list: 'AgentList') -> 'SQLAgentList':
     """Save an AgentList to the database."""
     # Check if the agent list already exists
+    from .agent_list import AgentList # Add local import
     agent_list_orm = None
     if hasattr(agent_list, "_orm_id") and agent_list._orm_id:
         agent_list_orm = session.get(SQLAgentList, agent_list._orm_id)
@@ -629,21 +654,25 @@ def save_agent_list(session: Session, agent_list: AgentList) -> SQLAgentList:
     return agent_list_orm
 
 
-def load_agent(session: Session, agent_id: int) -> Optional[Agent]:
+def load_agent(session: Session, agent_id: int) -> Optional['Agent']:
     """Load an Agent from the database by ID."""
+    from .agent import Agent # Add local import
     agent_orm = session.get(SQLAgent, agent_id)
     if agent_orm:
-        agent = agent_orm.to_agent()
+        agent = agent_orm.to_edsl_object()
         agent._orm_id = agent_orm.id
         return agent
     return None
 
 
-def load_agent_list(session: Session, agent_list_id: int) -> Optional[AgentList]:
+def load_agent_list(session: Session, agent_list_id: int) -> Optional['AgentList']:
     """Load an AgentList from the database by ID."""
+    from .agent_list import AgentList # Add local import
+    from .agent import Agent # Add local import for agent_list[i]._orm_id = agent_orm.id
+
     agent_list_orm = session.get(SQLAgentList, agent_list_id)
     if agent_list_orm:
-        agent_list = agent_list_orm.to_agent_list()
+        agent_list = agent_list_orm.to_edsl_object()
         agent_list._orm_id = agent_list_orm.id
 
         # Set the _orm_id on each agent
@@ -657,6 +686,7 @@ def load_agent_list(session: Session, agent_list_id: int) -> Optional[AgentList]
 
 def delete_agent(session: Session, agent_id: int) -> bool:
     """Delete an Agent from the database."""
+    # No domain model import needed here
     agent_orm = session.get(SQLAgent, agent_id)
     if agent_orm:
         session.delete(agent_orm)
@@ -673,9 +703,10 @@ def delete_agent_list(session: Session, agent_list_id: int) -> bool:
     return False
 
 
-def save_agent_traits(session: Session, agent_traits: AgentTraits) -> SQLAgentTraits:
+def save_agent_traits(session: Session, agent_traits: 'AgentTraits') -> 'SQLAgentTraits':
     """Save an AgentTraits object to the database."""
     # Check if the agent traits already exists
+    from .agent import AgentTraits # Add local import
     if hasattr(agent_traits, "_orm_id") and agent_traits._orm_id:
         # Try to update the existing agent traits
         update_success = update_agent_traits(
@@ -687,7 +718,7 @@ def save_agent_traits(session: Session, agent_traits: AgentTraits) -> SQLAgentTr
             return agent_traits_orm
 
     # Create new agent traits (or recreate if update failed)
-    agent_traits_orm = SQLAgentTraits.from_agent_traits(agent_traits, session)
+    agent_traits_orm = SQLAgentTraits.from_edsl_object(agent_traits, session)
     session.add(agent_traits_orm)
     session.flush()
 
@@ -698,9 +729,10 @@ def save_agent_traits(session: Session, agent_traits: AgentTraits) -> SQLAgentTr
 
 
 def update_agent_traits(
-    session: Session, agent_traits_id: int, agent_traits: AgentTraits
+    session: Session, agent_traits_id: int, agent_traits: 'AgentTraits'
 ) -> bool:
     """Update an existing agent traits object in the database."""
+    from .agent import AgentTraits # Add local import
     agent_traits_orm = session.get(SQLAgentTraits, agent_traits_id)
     if not agent_traits_orm:
         return False
@@ -723,11 +755,12 @@ def update_agent_traits(
     return True
 
 
-def load_agent_traits(session: Session, agent_traits_id: int) -> Optional[AgentTraits]:
+def load_agent_traits(session: Session, agent_traits_id: int) -> Optional['AgentTraits']:
     """Load an AgentTraits object from the database by ID."""
+    from .agent import AgentTraits # Add local import
     agent_traits_orm = session.get(SQLAgentTraits, agent_traits_id)
     if agent_traits_orm:
-        agent_traits = agent_traits_orm.to_agent_traits()
+        agent_traits = agent_traits_orm.to_edsl_object()
         agent_traits._orm_id = agent_traits_orm.id
         return agent_traits
     return None
@@ -735,6 +768,7 @@ def load_agent_traits(session: Session, agent_traits_id: int) -> Optional[AgentT
 
 def delete_agent_traits(session: Session, agent_traits_id: int) -> bool:
     """Delete an AgentTraits object from the database."""
+    # No domain model import needed here
     agent_traits_orm = session.get(SQLAgentTraits, agent_traits_id)
     if agent_traits_orm:
         session.delete(agent_traits_orm)
