@@ -25,17 +25,97 @@ from ..base.sql_model_base import Base
 # from .agent_list import AgentList
 from ..base.exceptions import BaseException
 
-    
-#from_edsl_object
-#to_edsl_object
-# to_db
-# from_db
-
 
 class AgentOrmException(BaseException):
     """Exception raised for errors in the Agent ORM operations."""
 
     pass
+
+
+class CrudHelper:
+    """
+    A helper class to encapsulate common CRUD operations for ORM objects
+    that can be mapped to EDSL domain objects.
+    """
+
+    def __init__(self, session: Session, orm_class: Type[Base]):
+        """
+        Initialize the CrudHelper.
+
+        Args:
+            session: The SQLAlchemy session.
+            orm_class: The SQLAlchemy ORM class (e.g., SQLAgent).
+        """
+        self.session = session
+        self.orm_class = orm_class
+
+    def load_object(self, object_id: int) -> Optional[Any]:
+        """
+        Load an ORM object from the database by ID and convert it to its EDSL domain object.
+
+        Args:
+            object_id: The ID of the object to load.
+
+        Returns:
+            The EDSL domain object if found, otherwise None.
+        """
+        orm_object = self.session.get(self.orm_class, object_id)
+        if orm_object:
+            if hasattr(orm_object, "to_edsl_object"):
+                edsl_object = orm_object.to_edsl_object()
+                if hasattr(edsl_object, "_orm_id"):
+                    edsl_object._orm_id = orm_object.id
+                return edsl_object
+            else:
+                print(
+                    f"Warning: {self.orm_class.__name__} does not have to_edsl_object method."
+                )
+                return orm_object
+        return None
+
+    def delete_object(self, object_id: int) -> bool:
+        """
+        Delete an ORM object from the database by ID.
+
+        Args:
+            object_id: The ID of the object to delete.
+
+        Returns:
+            True if the object was deleted, False otherwise.
+        """
+        orm_object = self.session.get(self.orm_class, object_id)
+        if orm_object:
+            self.session.delete(orm_object)
+            return True
+        return False
+
+    def list_objects(
+        self,
+        formatter: callable[[Base], Dict[str, Any]],
+        order_by_attribute: Optional[str] = "created_at",
+        limit: int = 100,
+        offset: int = 0,
+    ) -> List[Dict[str, Any]]:
+        """
+        List ORM objects from the database with pagination and custom formatting.
+
+        Args:
+            formatter: A callable that takes an ORM object and returns a dictionary.
+            order_by_attribute: The attribute name to order by (descending).
+                                 Defaults to 'created_at'. If None, no ordering.
+            limit: The maximum number of items to return.
+            offset: The number of items to skip.
+
+        Returns:
+            A list of dictionaries representing the ORM objects.
+        """
+        query = self.session.query(self.orm_class)
+        if order_by_attribute and hasattr(self.orm_class, order_by_attribute):
+            query = query.order_by(getattr(self.orm_class, order_by_attribute).desc())
+
+        orm_objects = query.limit(limit).offset(offset).all()
+
+        return [formatter(obj) for obj in orm_objects]
 
 
 # Many-to-many relationship between AgentList and Agent
@@ -80,7 +160,7 @@ class SQLAgentTraits(Base):
     def to_edsl_object(self) -> 'AgentTraits':
         """Convert this ORM model to an AgentTraits domain object."""
         # Extract traits data
-        from .agent import AgentTraits  # Add local import
+        from ..agents.agent import AgentTraits  # Add local import
         traits_data = {}
         for entry in self.trait_entries:
             value = SQLAgent.deserialize_value(entry.value_type, entry.value_text)
@@ -98,7 +178,7 @@ class SQLAgentTraits(Base):
     ) -> "SQLAgentTraits":
         """Create an ORM model from an AgentTraits domain object."""
         # Create the base record
-        from .agent import AgentTraits # Add local import
+        from ..agents import AgentTraits # Add local import
 
         orm_traits = cls()
 
@@ -274,7 +354,7 @@ class SQLAgent(Base):
     def to_edsl_object(self) -> 'Agent':
         """Convert this ORM model to an Agent domain object."""
         # Extract traits
-        from .agent import Agent # Add local import
+        from ..agents import Agent # Add local import
 
         traits = {}
         for trait in self.traits:
@@ -295,6 +375,7 @@ class SQLAgent(Base):
             traits_presentation_template=self.traits_presentation_template,
             codebook=codebook,
         )
+        agent._orm_id = self.id # Ensure the EDSL object gets its ORM ID
 
         # Handle dynamic traits function
         if (
@@ -334,7 +415,7 @@ class SQLAgent(Base):
     def from_edsl_object(cls, agent: 'Agent', session: Optional[Session] = None) -> 'SQLAgent':
         """Create an ORM model from an Agent domain object."""
         # Create the base record
-        from .agent import Agent # Add local import
+        from ..agents import Agent # Add local import
 
         orm_agent = cls(
             name=agent.name,
@@ -433,8 +514,8 @@ class SQLAgentList(Base):
     def to_edsl_object(self) -> 'AgentList':
         """Convert this ORM model to an AgentList domain object."""
         # Convert all agents
-        from .agent_list import AgentList # Add local import
-        from .agent import Agent # Potentially needed if agent.to_agent() is not enough
+        from ..agents import AgentList # Add local import
+        from ..agents import Agent # Potentially needed if agent.to_agent() is not enough
 
         agents = [agent.to_edsl_object() for agent in self.agents]
 
@@ -447,8 +528,8 @@ class SQLAgentList(Base):
     def from_edsl_object(cls, agent_list: 'AgentList', session: Session) -> 'SQLAgentList':
         """Create an ORM model from an AgentList domain object."""
         # Create the base record
-        from .agent_list import AgentList # Add local import
-        from .agent import Agent # Add local import
+        from ..agents.agent_list import AgentList # Add local import
+        from ..agents.agent import Agent # Add local import
 
         orm_list = cls()
 
@@ -655,52 +736,30 @@ def save_agent_list(session: Session, agent_list: 'AgentList') -> 'SQLAgentList'
 
 
 def load_agent(session: Session, agent_id: int) -> Optional['Agent']:
-    """Load an Agent from the database by ID."""
-    from .agent import Agent # Add local import
-    agent_orm = session.get(SQLAgent, agent_id)
-    if agent_orm:
-        agent = agent_orm.to_edsl_object()
-        agent._orm_id = agent_orm.id
-        return agent
-    return None
+    """Load an Agent from the database by ID using CrudHelper."""
+    from .agent import Agent # Add local import # Still needed for return type hint
+    helper = CrudHelper(session, SQLAgent)
+    return helper.load_object(agent_id)
 
 
 def load_agent_list(session: Session, agent_list_id: int) -> Optional['AgentList']:
-    """Load an AgentList from the database by ID."""
-    from .agent_list import AgentList # Add local import
-    from .agent import Agent # Add local import for agent_list[i]._orm_id = agent_orm.id
-
-    agent_list_orm = session.get(SQLAgentList, agent_list_id)
-    if agent_list_orm:
-        agent_list = agent_list_orm.to_edsl_object()
-        agent_list._orm_id = agent_list_orm.id
-
-        # Set the _orm_id on each agent
-        for i, agent_orm in enumerate(agent_list_orm.agents):
-            if i < len(agent_list):
-                agent_list[i]._orm_id = agent_orm.id
-
-        return agent_list
-    return None
+    """Load an AgentList from the database by ID using CrudHelper."""
+    from .agent_list import AgentList # Add local import for type hint
+    helper = CrudHelper(session, SQLAgentList)
+    return helper.load_object(agent_list_id)
 
 
 def delete_agent(session: Session, agent_id: int) -> bool:
-    """Delete an Agent from the database."""
+    """Delete an Agent from the database using CrudHelper."""
     # No domain model import needed here
-    agent_orm = session.get(SQLAgent, agent_id)
-    if agent_orm:
-        session.delete(agent_orm)
-        return True
-    return False
+    helper = CrudHelper(session, SQLAgent)
+    return helper.delete_object(agent_id)
 
 
 def delete_agent_list(session: Session, agent_list_id: int) -> bool:
-    """Delete an AgentList from the database."""
-    agent_list_orm = session.get(SQLAgentList, agent_list_id)
-    if agent_list_orm:
-        session.delete(agent_list_orm)
-        return True
-    return False
+    """Delete an AgentList from the database using CrudHelper."""
+    helper = CrudHelper(session, SQLAgentList)
+    return helper.delete_object(agent_list_id)
 
 
 def save_agent_traits(session: Session, agent_traits: 'AgentTraits') -> 'SQLAgentTraits':
@@ -756,77 +815,62 @@ def update_agent_traits(
 
 
 def load_agent_traits(session: Session, agent_traits_id: int) -> Optional['AgentTraits']:
-    """Load an AgentTraits object from the database by ID."""
-    from .agent import AgentTraits # Add local import
-    agent_traits_orm = session.get(SQLAgentTraits, agent_traits_id)
-    if agent_traits_orm:
-        agent_traits = agent_traits_orm.to_edsl_object()
-        agent_traits._orm_id = agent_traits_orm.id
-        return agent_traits
-    return None
+    """Load an AgentTraits object from the database by ID using CrudHelper."""
+    from .agent import AgentTraits # Add local import for type hint
+    helper = CrudHelper(session, SQLAgentTraits)
+    return helper.load_object(agent_traits_id)
 
 
 def delete_agent_traits(session: Session, agent_traits_id: int) -> bool:
-    """Delete an AgentTraits object from the database."""
+    """Delete an AgentTraits object from the database using CrudHelper."""
     # No domain model import needed here
-    agent_traits_orm = session.get(SQLAgentTraits, agent_traits_id)
-    if agent_traits_orm:
-        session.delete(agent_traits_orm)
-        return True
-    return False
+    helper = CrudHelper(session, SQLAgentTraits)
+    return helper.delete_object(agent_traits_id)
 
 
 def list_agent_traits(
     session: Session, limit: int = 100, offset: int = 0
 ) -> List[Dict[str, Any]]:
-    """List agent traits objects in the database with pagination."""
-    traits = (
-        session.query(SQLAgentTraits)
-        .order_by(SQLAgentTraits.created_at.desc())
-        .limit(limit)
-        .offset(offset)
-        .all()
+    """List agent traits objects in the database with pagination using CrudHelper."""
+    helper = CrudHelper(session, SQLAgentTraits)
+    return helper.list_objects(
+        formatter=lambda t: {
+            "id": t.id,
+            "created_at": t.created_at,
+            "entry_count": len(t.trait_entries),
+        },
+        limit=limit,
+        offset=offset,
     )
-    return [
-        {"id": t.id, "created_at": t.created_at, "entry_count": len(t.trait_entries)}
-        for t in traits
-    ]
 
 
 def list_agents(
     session: Session, limit: int = 100, offset: int = 0
 ) -> List[Dict[str, Any]]:
-    """List agents in the database with pagination."""
-    agents = (
-        session.query(SQLAgent)
-        .order_by(SQLAgent.created_at.desc())
-        .limit(limit)
-        .offset(offset)
-        .all()
+    """List agents in the database with pagination using CrudHelper."""
+    helper = CrudHelper(session, SQLAgent)
+    return helper.list_objects(
+        formatter=lambda a: {"id": a.id, "name": a.name, "created_at": a.created_at},
+        limit=limit,
+        offset=offset,
     )
-    return [{"id": a.id, "name": a.name, "created_at": a.created_at} for a in agents]
 
 
 def list_agent_lists(
     session: Session, limit: int = 100, offset: int = 0
 ) -> List[Dict[str, Any]]:
-    """List agent lists in the database with pagination."""
-    lists = (
-        session.query(SQLAgentList)
-        .order_by(SQLAgentList.created_at.desc())
-        .limit(limit)
-        .offset(offset)
-        .all()
-    )
-    return [
-        {
+    """List agent lists in the database with pagination using CrudHelper."""
+    helper = CrudHelper(session, SQLAgentList)
+    return helper.list_objects(
+        formatter=lambda l: {
             "id": l.id,
             "name": l.name,
             "created_at": l.created_at,
             "agent_count": len(l.agents),
-        }
-        for l in lists
-    ]
+        },
+        limit=limit,
+        offset=offset,
+    )
 
 
 def print_sql_schema(engine):
