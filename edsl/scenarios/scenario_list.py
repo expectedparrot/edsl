@@ -2247,7 +2247,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             session: A SQLAlchemy session object for database operations
             
         Returns:
-            SQLScenarioList: The database ORM model representing this ScenarioList
+            int: The database ID of the persisted scenario list
             
         Examples:
             >>> from sqlalchemy import create_engine
@@ -2260,11 +2260,31 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             >>> sl = ScenarioList([Scenario({"food": "pizza"})])
             >>> orm_obj = sl.to_db(session)
             >>> session.commit()
-            >>> orm_obj.id is not None
+            >>> isinstance(orm_obj, int)
             True
+            
+        >>> import os
+        >>> from ..base.db_init import create_test_session
+        >>> session, db_manager, temp_db_path = create_test_session()
+        >>> s1 = Scenario({"food": "pizza", "price": 12.99})
+        >>> s2 = Scenario({"food": "salad", "price": 8.99})
+        >>> sl = ScenarioList([s1, s2])
+        >>> scenario_list_id = sl.to_db(session)
+        >>> loaded_sl = ScenarioList.from_db(session, scenario_list_id)
+        >>> print(loaded_sl[0])
+        Scenario({'food': 'pizza', 'price': 12.99})
+        >>> print(loaded_sl[1])
+        Scenario({'food': 'salad', 'price': 8.99})
+        >>> print(len(loaded_sl))
+        2
+        >>> print(sl == loaded_sl)
+        True
+        >>> session.close()
+        >>> os.remove(temp_db_path)
         """
         from .orm import SQLScenarioList, save_scenario_list
-        return save_scenario_list(session, self)
+        orm_obj = save_scenario_list(session, self)
+        return orm_obj.id
     
     @classmethod
     def from_db(cls, session, scenario_list_id):
@@ -2288,9 +2308,9 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             >>> Session = sessionmaker(bind=engine)
             >>> session = Session()
             >>> sl = ScenarioList([Scenario({"food": "pizza"})])
-            >>> orm_obj = sl.to_db(session)
+            >>> scenario_list_id = sl.to_db(session)
             >>> session.commit()
-            >>> sl2 = ScenarioList.from_db(session, orm_obj.id)
+            >>> sl2 = ScenarioList.from_db(session, scenario_list_id)
             >>> len(sl2) == len(sl)
             True
         """

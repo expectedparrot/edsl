@@ -592,6 +592,19 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
             
         Returns:
             int: The database ID of the persisted agent list
+            
+        >>> import os
+        >>> from ..base.db_init import create_test_session
+        >>> session, db_manager, temp_db_path = create_test_session()
+        >>> agents = AgentList.example()  # Creates two agents with the same traits
+        >>> agent_list_id = agents.to_db(session)
+        >>> loaded_agents = AgentList.from_db(session, agent_list_id)
+        >>> print(loaded_agents)  # Expected output after fixes
+        AgentList([Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5}), Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5})])
+        >>> print(agents == loaded_agents)
+        True
+        >>> session.close()
+        >>> os.remove(temp_db_path)
         """
         from .orm import SQLAgentList, save_agent_list
         

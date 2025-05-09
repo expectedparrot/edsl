@@ -246,7 +246,7 @@ def save_scenario(session: Session, scenario: Scenario) -> SQLScenario:
         update_success = update_scenario(session, scenario._orm_id, scenario)
         if update_success:
             # Get the updated scenario
-            scenario_orm = session.query(SQLScenario).get(scenario._orm_id)
+            scenario_orm = session.get(SQLScenario, scenario._orm_id)
             return scenario_orm
     
     # Create new scenario (or recreate if update failed)
@@ -326,7 +326,7 @@ def save_scenario_list(session: Session, scenario_list: ScenarioList) -> SQLScen
 
 def update_scenario(session: Session, scenario_id: int, scenario: Scenario) -> bool:
     """Update an existing scenario in the database."""
-    scenario_orm = session.query(SQLScenario).get(scenario_id)
+    scenario_orm = session.get(SQLScenario, scenario_id)
     if not scenario_orm:
         return False
     
@@ -353,7 +353,8 @@ def update_scenario(session: Session, scenario_id: int, scenario: Scenario) -> b
 
 def load_scenario(session: Session, scenario_id: int) -> Optional[Scenario]:
     """Load a Scenario from the database by ID."""
-    scenario_orm = session.query(SQLScenario).get(scenario_id)
+    # Updated to use newer SQLAlchemy API pattern that's compatible with SQLAlchemy 2.0
+    scenario_orm = session.get(SQLScenario, scenario_id)
     if scenario_orm:
         scenario = scenario_orm.to_scenario()
         scenario._orm_id = scenario_orm.id
@@ -363,7 +364,8 @@ def load_scenario(session: Session, scenario_id: int) -> Optional[Scenario]:
 
 def load_scenario_list(session: Session, scenario_list_id: int) -> Optional[ScenarioList]:
     """Load a ScenarioList from the database by ID."""
-    scenario_list_orm = session.query(SQLScenarioList).get(scenario_list_id)
+    # Updated to use newer SQLAlchemy API pattern that's compatible with SQLAlchemy 2.0
+    scenario_list_orm = session.get(SQLScenarioList, scenario_list_id)
     if scenario_list_orm:
         scenario_list = scenario_list_orm.to_scenario_list()
         scenario_list._orm_id = scenario_list_orm.id
@@ -379,7 +381,7 @@ def load_scenario_list(session: Session, scenario_list_id: int) -> Optional[Scen
 
 def delete_scenario(session: Session, scenario_id: int) -> bool:
     """Delete a Scenario from the database."""
-    scenario_orm = session.query(SQLScenario).get(scenario_id)
+    scenario_orm = session.get(SQLScenario, scenario_id)
     if scenario_orm:
         session.delete(scenario_orm)
         return True
@@ -388,7 +390,7 @@ def delete_scenario(session: Session, scenario_id: int) -> bool:
 
 def delete_scenario_list(session: Session, scenario_list_id: int) -> bool:
     """Delete a ScenarioList from the database."""
-    scenario_list_orm = session.query(SQLScenarioList).get(scenario_list_id)
+    scenario_list_orm = session.get(SQLScenarioList, scenario_list_id)
     if scenario_list_orm:
         session.delete(scenario_list_orm)
         return True

@@ -947,7 +947,7 @@ class Scenario(Base, UserDict):
             session: A SQLAlchemy session object for database operations
             
         Returns:
-            SQLScenario: The database ORM model representing this Scenario
+            int: The database ID of the persisted scenario
             
         Examples:
             >>> from sqlalchemy import create_engine
@@ -960,11 +960,25 @@ class Scenario(Base, UserDict):
             >>> s = Scenario({"food": "pizza"})
             >>> orm_obj = s.to_db(session)
             >>> session.commit()
-            >>> orm_obj.id is not None
+            >>> isinstance(orm_obj, int)
             True
+            
+        >>> import os
+        >>> from ..base.db_init import create_test_session
+        >>> session, db_manager, temp_db_path = create_test_session()
+        >>> s = Scenario({"food": "pizza", "price": 12.99})
+        >>> scenario_id = s.to_db(session)
+        >>> loaded_scenario = Scenario.from_db(session, scenario_id)
+        >>> print(loaded_scenario)
+        Scenario({'food': 'pizza', 'price': 12.99})
+        >>> print(s == loaded_scenario)
+        True
+        >>> session.close()
+        >>> os.remove(temp_db_path)
         """
         from .orm import SQLScenario, save_scenario
-        return save_scenario(session, self)
+        orm_obj = save_scenario(session, self)
+        return orm_obj.id
     
     @classmethod
     def from_db(cls, session, scenario_id):
@@ -988,9 +1002,9 @@ class Scenario(Base, UserDict):
             >>> Session = sessionmaker(bind=engine)
             >>> session = Session()
             >>> s = Scenario({"food": "pizza"})
-            >>> orm_obj = s.to_db(session)
+            >>> scenario_id = s.to_db(session)
             >>> session.commit()
-            >>> s2 = Scenario.from_db(session, orm_obj.id)
+            >>> s2 = Scenario.from_db(session, scenario_id)
             >>> s2["food"]
             'pizza'
         """
