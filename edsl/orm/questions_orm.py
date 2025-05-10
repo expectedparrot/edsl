@@ -1,5 +1,6 @@
 from __future__ import annotations
 import json
+import re
 
 from sqlalchemy import create_engine, Column, Integer, String, Text, Boolean, ForeignKey, Float
 from sqlalchemy.orm import sessionmaker, relationship, Mapped, mapped_column
@@ -17,7 +18,15 @@ from ..questions import (
     QuestionCheckBox,
     QuestionDict,
     QuestionYesNo,
-    QuestionTopK
+    QuestionTopK,
+    QuestionBudget,
+    QuestionExtract,
+    QuestionLikertFive,
+    QuestionLinearScale,
+    QuestionMatrix,
+    QuestionMultipleChoiceWithOther,
+    QuestionRank,
+    QuestionFunctional
 )
 
 # Define the base for declarative models --> REMOVED
@@ -62,11 +71,27 @@ class QuestionMappedObject(Base):
     max_list_items: Mapped[int | None] = mapped_column(nullable=True)
     min_selections: Mapped[int | None] = mapped_column(nullable=True) # CheckBox
     max_selections: Mapped[int | None] = mapped_column(nullable=True) # CheckBox
+    budget_sum: Mapped[int | None] = mapped_column(nullable=True) # Specific to Budget
 
     # JSON-encoded lists for QuestionDict
     answer_keys_json: Mapped[str | None] = mapped_column(Text, nullable=True)
     value_types_json: Mapped[str | None] = mapped_column(Text, nullable=True)
     value_descriptions_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # JSON-encoded template for QuestionExtract
+    answer_template_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # JSON-encoded option labels for QuestionLinearScale and others
+    option_labels_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # Other option text for QuestionMultipleChoiceWithOther
+    other_option_text: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    other_instructions: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # For QuestionFunctional
+    function_source_code: Mapped[str | None] = mapped_column(Text, nullable=True)
+    function_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    requires_loop: Mapped[bool] = mapped_column(default=False, nullable=False)
 
     __mapper_args__ = {
         'polymorphic_identity': 'question_base',  # Identity for the base class
@@ -519,12 +544,372 @@ def print_sql_schema(engine):
         print(CreateTable(table).compile(engine))
     print("--- End of SQL Schema ---")
 
+class QuestionExtractMappedObject(QuestionMappedObject):
+    __mapper_args__ = {
+        'polymorphic_identity': 'extract',
+    }
+    edsl_class = QuestionExtract
+
+    @classmethod
+    def from_edsl_object(cls, question: QuestionExtract) -> "QuestionExtractMappedObject":
+        db_question_instance = cls(
+            question_name=question.question_name,
+            question_text=question.question_text,
+            answering_instructions=str(question.answering_instructions) if question.answering_instructions is not None else None,
+            question_presentation=str(question.question_presentation) if question.question_presentation is not None else None,
+            answer_template_json=json.dumps(question.answer_template) if question.answer_template else None
+        )
+        return db_question_instance
+
+    def to_edsl_object(self) -> QuestionExtract:
+        answer_template = json.loads(self.answer_template_json) if self.answer_template_json else {}
+        return QuestionExtract(
+            question_name=self.question_name,
+            question_text=self.question_text,
+            answer_template=answer_template,
+            answering_instructions=self.answering_instructions,
+            question_presentation=self.question_presentation
+        )
+
+
+class QuestionLikertFiveMappedObject(QuestionMultipleChoiceMappedObject):
+    __mapper_args__ = {
+        'polymorphic_identity': 'likert_five',
+    }
+    edsl_class = QuestionLikertFive
+
+    @classmethod
+    def from_edsl_object(cls, question: QuestionLikertFive) -> "QuestionLikertFiveMappedObject":
+        db_question_instance = cls(
+            question_name=question.question_name,
+            question_text=question.question_text,
+            answering_instructions=str(question.answering_instructions) if question.answering_instructions is not None else None,
+            question_presentation=str(question.question_presentation) if question.question_presentation is not None else None,
+            include_comment=question._include_comment,
+            use_code=False  # LikertFive always uses use_code=False
+        )
+        # Store options - use custom options if provided, or default likert options
+        current_options = question.question_options
+        db_question_instance.options_relation = [
+            QuestionOptionMappedObject(option_value=str(opt_val)) for opt_val in current_options
+        ]
+        return db_question_instance
+
+    def to_edsl_object(self) -> QuestionLikertFive:
+        options = [opt.option_value for opt in self.options_relation]
+        return QuestionLikertFive(
+            question_name=self.question_name,
+            question_text=self.question_text,
+            question_options=options,
+            include_comment=self.include_comment,
+            answering_instructions=self.answering_instructions,
+            question_presentation=self.question_presentation
+        )
+
+
+class QuestionLinearScaleMappedObject(QuestionMultipleChoiceMappedObject):
+    __mapper_args__ = {
+        'polymorphic_identity': 'linear_scale',
+    }
+    edsl_class = QuestionLinearScale
+
+    @classmethod
+    def from_edsl_object(cls, question: QuestionLinearScale) -> "QuestionLinearScaleMappedObject":
+        db_question_instance = cls(
+            question_name=question.question_name,
+            question_text=question.question_text,
+            answering_instructions=str(question.answering_instructions) if question.answering_instructions is not None else None,
+            question_presentation=str(question.question_presentation) if question.question_presentation is not None else None,
+            include_comment=question._include_comment,
+            use_code=False  # LinearScale uses use_code=False
+        )
+
+        # Store option labels as JSON
+        if question.option_labels:
+            # Convert keys to strings since JSON keys must be strings
+            str_option_labels = {str(k): v for k, v in question.option_labels.items()}
+            db_question_instance.option_labels_json = json.dumps(str_option_labels)
+
+        # Store question options
+        current_options = question.question_options
+        db_question_instance.options_relation = [
+            QuestionOptionMappedObject(option_value=str(opt_val)) for opt_val in current_options
+        ]
+        return db_question_instance
+
+    def to_edsl_object(self) -> QuestionLinearScale:
+        options = [int(opt.option_value) for opt in self.options_relation]  # Convert to integers
+
+        # Convert option labels from JSON
+        option_labels = None
+        if self.option_labels_json:
+            str_option_labels = json.loads(self.option_labels_json)
+            # Convert keys back to integers
+            option_labels = {int(k): v for k, v in str_option_labels.items()}
+
+        return QuestionLinearScale(
+            question_name=self.question_name,
+            question_text=self.question_text,
+            question_options=options,
+            option_labels=option_labels,
+            include_comment=self.include_comment,
+            answering_instructions=self.answering_instructions,
+            question_presentation=self.question_presentation
+        )
+
 if __name__ == "__main__":
     print("Running SQLAlchemy ORM example...")
-    engine = create_engine('sqlite:///:memory:') 
+    engine = create_engine('sqlite:///:memory:')
     Base.metadata.create_all(engine)
     print_sql_schema(engine)
-    
+
     print("\nRunning full example_sqlalchemy_usage now...")
     example_sqlalchemy_usage()
     print("SQLAlchemy ORM example completed.")
+
+class QuestionBudgetMappedObject(QuestionMappedObject):
+    __mapper_args__ = {
+        'polymorphic_identity': 'budget',
+    }
+    edsl_class = QuestionBudget
+
+    @classmethod
+    def from_edsl_object(cls, question: QuestionBudget) -> "QuestionBudgetMappedObject":
+        db_question_instance = cls(
+            question_name=question.question_name,
+            question_text=question.question_text,
+            answering_instructions=str(question.answering_instructions) if question.answering_instructions is not None else None,
+            question_presentation=str(question.question_presentation) if question.question_presentation is not None else None,
+            include_comment=question.include_comment,
+            permissive=question.permissive
+        )
+        # Add budget_sum column value
+        db_question_instance.budget_sum = question.budget_sum
+
+        # Store options
+        current_options = question.question_options
+        db_question_instance.options_relation = [
+            QuestionOptionMappedObject(option_value=str(opt_val)) for opt_val in current_options
+        ]
+        return db_question_instance
+
+    def to_edsl_object(self) -> QuestionBudget:
+        options = [opt.option_value for opt in self.options_relation]
+        return QuestionBudget(
+            question_name=self.question_name,
+            question_text=self.question_text,
+            question_options=options,
+            budget_sum=self.budget_sum,
+            include_comment=self.include_comment,
+            answering_instructions=self.answering_instructions,
+            question_presentation=self.question_presentation,
+            permissive=self.permissive
+        )
+
+
+class QuestionMatrixMappedObject(QuestionMappedObject):
+    __mapper_args__ = {
+        'polymorphic_identity': 'matrix',
+    }
+    edsl_class = QuestionMatrix
+
+    @classmethod
+    def from_edsl_object(cls, question: QuestionMatrix) -> "QuestionMatrixMappedObject":
+        db_question_instance = cls(
+            question_name=question.question_name,
+            question_text=question.question_text,
+            answering_instructions=str(question.answering_instructions) if question.answering_instructions is not None else None,
+            question_presentation=str(question.question_presentation) if question.question_presentation is not None else None,
+            include_comment=question.include_comment,
+            permissive=question.permissive
+        )
+
+        # For matrix, we need to store both question_items (rows) and question_options (columns)
+        # Store question_items in options_relation with a prefix to distinguish them
+        for item in question.question_items:
+            db_question_instance.options_relation.append(
+                QuestionOptionMappedObject(option_value=f"ITEM:{item}")
+            )
+
+        # Store question_options in options_relation with a prefix to distinguish them
+        for option in question.question_options:
+            db_question_instance.options_relation.append(
+                QuestionOptionMappedObject(option_value=f"OPTION:{option}")
+            )
+
+        # Store option labels as JSON if present
+        if question.option_labels:
+            # Convert keys to strings since JSON keys must be strings
+            str_option_labels = {str(k): v for k, v in question.option_labels.items()}
+            db_question_instance.option_labels_json = json.dumps(str_option_labels)
+
+        return db_question_instance
+
+    def to_edsl_object(self) -> QuestionMatrix:
+        # Extract question_items and question_options from options_relation
+        question_items = []
+        question_options = []
+
+        for opt in self.options_relation:
+            value = opt.option_value
+            if value.startswith("ITEM:"):
+                question_items.append(value[5:])  # Remove "ITEM:" prefix
+            elif value.startswith("OPTION:"):
+                option_val = value[7:]  # Remove "OPTION:" prefix
+                # Try to convert numeric strings to their appropriate types
+                try:
+                    if option_val.isdigit():
+                        question_options.append(int(option_val))
+                    elif re.match(r'^-?\d+(\.\d+)?$', option_val):
+                        question_options.append(float(option_val))
+                    else:
+                        question_options.append(option_val)
+                except (ValueError, TypeError):
+                    question_options.append(option_val)
+
+        # Convert option labels from JSON if present
+        option_labels = None
+        if self.option_labels_json:
+            str_option_labels = json.loads(self.option_labels_json)
+            # Convert keys back to appropriate types (int, float, or string)
+            option_labels = {}
+            for k, v in str_option_labels.items():
+                # Try to convert keys to the appropriate type
+                try:
+                    if k.isdigit():
+                        option_labels[int(k)] = v
+                    elif re.match(r'^-?\d+(\.\d+)?$', k):
+                        option_labels[float(k)] = v
+                    else:
+                        option_labels[k] = v
+                except (ValueError, TypeError):
+                    option_labels[k] = v
+
+        return QuestionMatrix(
+            question_name=self.question_name,
+            question_text=self.question_text,
+            question_items=question_items,
+            question_options=question_options,
+            option_labels=option_labels,
+            include_comment=self.include_comment,
+            answering_instructions=self.answering_instructions,
+            question_presentation=self.question_presentation,
+            permissive=self.permissive
+        )
+
+
+class QuestionMultipleChoiceWithOtherMappedObject(QuestionMultipleChoiceMappedObject):
+    __mapper_args__ = {
+        'polymorphic_identity': 'multiple_choice_with_other',
+    }
+    edsl_class = QuestionMultipleChoiceWithOther
+
+    @classmethod
+    def from_edsl_object(cls, question: QuestionMultipleChoiceWithOther) -> "QuestionMultipleChoiceWithOtherMappedObject":
+        db_question_instance = cls(
+            question_name=question.question_name,
+            question_text=question.question_text,
+            answering_instructions=str(question.answering_instructions) if question.answering_instructions is not None else None,
+            question_presentation=str(question.question_presentation) if question.question_presentation is not None else None,
+            include_comment=question._include_comment,
+            use_code=question.use_code,
+            permissive=question.permissive,
+            other_option_text=question.other_option_text,
+            other_instructions=question.other_instructions
+        )
+
+        # Store options (excluding the automatically added "Other" option)
+        options = [opt for opt in question.question_options if opt != "Other"]
+        db_question_instance.options_relation = [
+            QuestionOptionMappedObject(option_value=str(opt_val)) for opt_val in options
+        ]
+
+        return db_question_instance
+
+    def to_edsl_object(self) -> QuestionMultipleChoiceWithOther:
+        options = [opt.option_value for opt in self.options_relation]
+
+        return QuestionMultipleChoiceWithOther(
+            question_name=self.question_name,
+            question_text=self.question_text,
+            question_options=options,
+            include_comment=self.include_comment,
+            use_code=self.use_code,
+            answering_instructions=self.answering_instructions,
+            question_presentation=self.question_presentation,
+            permissive=self.permissive,
+            other_option_text=self.other_option_text if self.other_option_text else "Other",
+            other_instructions=self.other_instructions
+        )
+
+
+class QuestionRankMappedObject(QuestionMappedObject):
+    __mapper_args__ = {
+        'polymorphic_identity': 'rank',
+    }
+    edsl_class = QuestionRank
+
+    @classmethod
+    def from_edsl_object(cls, question: QuestionRank) -> "QuestionRankMappedObject":
+        db_question_instance = cls(
+            question_name=question.question_name,
+            question_text=question.question_text,
+            answering_instructions=str(question.answering_instructions) if question.answering_instructions is not None else None,
+            question_presentation=str(question.question_presentation) if question.question_presentation is not None else None,
+            include_comment=question.include_comment,
+            use_code=question.use_code,
+            permissive=question.permissive,
+            min_selections=question.num_selections,  # Store num_selections in min_selections field
+            max_selections=question.num_selections   # Store num_selections in max_selections too for consistency
+        )
+
+        # Store question options
+        current_options = question.question_options
+        db_question_instance.options_relation = [
+            QuestionOptionMappedObject(option_value=str(opt_val)) for opt_val in current_options
+        ]
+
+        return db_question_instance
+
+    def to_edsl_object(self) -> QuestionRank:
+        options = [opt.option_value for opt in self.options_relation]
+
+        return QuestionRank(
+            question_name=self.question_name,
+            question_text=self.question_text,
+            question_options=options,
+            num_selections=self.min_selections,  # Use min_selections for num_selections
+            include_comment=self.include_comment,
+            use_code=self.use_code,
+            answering_instructions=self.answering_instructions,
+            question_presentation=self.question_presentation,
+            permissive=self.permissive
+        )
+
+
+class QuestionFunctionalMappedObject(QuestionMappedObject):
+    __mapper_args__ = {
+        'polymorphic_identity': 'functional',
+    }
+    edsl_class = QuestionFunctional
+
+    @classmethod
+    def from_edsl_object(cls, question: QuestionFunctional) -> "QuestionFunctionalMappedObject":
+        db_question_instance = cls(
+            question_name=question.question_name,
+            question_text=question.question_text,
+            function_name=question.function_name,
+            function_source_code=question.function_source_code,
+            requires_loop=question.requires_loop
+        )
+
+        return db_question_instance
+
+    def to_edsl_object(self) -> QuestionFunctional:
+        return QuestionFunctional(
+            question_name=self.question_name,
+            question_text=self.question_text,
+            function_name=self.function_name,
+            function_source_code=self.function_source_code,
+            requires_loop=self.requires_loop
+        )
