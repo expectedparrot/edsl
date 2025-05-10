@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from ..surveys.survey import Survey
     from ..surveys.memory.memory_plan import MemoryPlan
+    # EDSL RuleCollection type hint
     from ..surveys.rules.rule_collection import RuleCollection
     # EDSL Instruction types
     from ..instructions import Instruction, ChangeInstruction
@@ -28,6 +29,10 @@ from .questions_orm import (
 # EDSL Survey specific types
 from ..surveys.survey import PseudoIndices
 from ..instructions import Instruction, ChangeInstruction
+# Import EDSL RuleCollection for type hinting and conversion logic
+from ..surveys.rules.rule_collection import RuleCollection
+# Import ORM object for RuleCollection
+from .rules_orm import RuleCollectionMappedObject
 
 from edsl.questions import (
     QuestionFreeText, QuestionMultipleChoice, QuestionNumerical, QuestionList,
@@ -126,20 +131,6 @@ class QuestionGroupMappedObject(Base):
 
     def __repr__(self):
         return f"QuestionGroupMappedObject(id={self.id}, group_name='{self.group_name}', range=({self.start_index}, {self.end_index}))"
-
-
-class RuleReferenceMappedObject(Base):
-    __tablename__ = "rule_reference"
-
-    id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    rule_collection_id: Mapped[int] = mapped_column()
-    survey_id: Mapped[int] = mapped_column(ForeignKey("survey.id", ondelete="CASCADE"))
-
-    # Relationship to survey
-    survey: Mapped["SurveyMappedObject"] = relationship(back_populates="rule_reference")
-
-    def __repr__(self):
-        return f"RuleReferenceMappedObject(id={self.id}, rule_collection_id={self.rule_collection_id})"
 
 
 # ORM classes for Instructions (to replace instruction_data JSON)
@@ -244,10 +235,17 @@ class SurveyMappedObject(Base, TimestampMixin):
         cascade="all, delete-orphan"
     )
 
-    rule_reference: Mapped[Optional["RuleReferenceMappedObject"]] = relationship(
-        uselist=False,
-        back_populates="survey",
-        cascade="all, delete-orphan"
+    # Direct relationship to RuleCollectionMappedObject
+    rule_collection_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("rule_collections.id", name="fk_survey_rule_collection_id", ondelete="SET NULL"), 
+        nullable=True
+    )
+    rule_collection: Mapped[Optional["RuleCollectionMappedObject"]] = relationship(
+        "RuleCollectionMappedObject",
+        cascade="all, delete-orphan", # If Survey is deleted, delete associated RuleCollection
+        single_parent=True,          # Establishes this as the parent for cascade purposes
+        uselist=False,               # One-to-one relationship
+        lazy="selectin"              # Or "joined" if preferred
     )
 
     question_associations: Mapped[List["SurveyQuestionAssociation"]] = relationship(
@@ -342,11 +340,16 @@ class SurveyMappedObject(Base, TimestampMixin):
                 )
                 survey_mapped_obj.question_groups.append(group_orm)
         
-        # Handle RuleReference (if exists and edsl_object has rule_collection with an ID)
-        # This part is stubbed out in the original, will leave as is unless RuleCollection ORM is defined
-        # if edsl_object.rule_collection and hasattr(edsl_object.rule_collection, 'id'): # Assuming rule_collection might have an ID
-        #     rule_ref_orm = RuleReferenceMappedObject(rule_collection_id=edsl_object.rule_collection.id)
-        #     survey_mapped_obj.rule_reference = rule_ref_orm
+        # Handle RuleCollection directly
+        if edsl_object.rule_collection:
+            if isinstance(edsl_object.rule_collection, RuleCollection):
+                orm_rc = RuleCollectionMappedObject.from_edsl_object(edsl_object.rule_collection)
+                survey_mapped_obj.rule_collection = orm_rc
+            else:
+                print(f"Warning: survey.rule_collection is not an EDSL RuleCollection instance. Type: {type(edsl_object.rule_collection)}. Skipping rule collection persistence.")
+                survey_mapped_obj.rule_collection = None
+        else:
+            survey_mapped_obj.rule_collection = None
 
         return survey_mapped_obj
 
@@ -379,10 +382,15 @@ class SurveyMappedObject(Base, TimestampMixin):
             if assoc.pseudo_index_value is not None:
                 pseudo_indices_dict[edsl_question.question_name] = assoc.pseudo_index_value
         
+        # Reconstruct RuleCollection
+        edsl_rc = None
+        if self.rule_collection: # Direct link to RuleCollectionMappedObject
+            edsl_rc = self.rule_collection.to_edsl_object()
+
         survey = Survey(
             questions=edsl_questions_list, # Populate with reconstructed EDSL questions
             memory_plan=memory_plan,
-            rule_collection=None,  # Rule collection should be loaded separately if implemented
+            rule_collection=edsl_rc, # Assign reconstructed EDSL RuleCollection
             question_groups=question_groups,
             questions_to_randomize=questions_to_randomize_list # Populate reconstructed list
         )
@@ -400,6 +408,8 @@ class SurveyMappedObject(Base, TimestampMixin):
             reconstructed_instructions[instr_orm_obj.name] = edsl_instr
         survey._instruction_names_to_instructions = reconstructed_instructions
         
+        # survey.rule_collection is already set during Survey initialization above
+
         # Ensure memory plan has the correct survey question names (if memory plan and survey questions exist)
         # This logic might need re-evaluation if survey_question_names on MemoryPlan is sourced differently
         if survey.memory_plan and edsl_questions_list:
@@ -429,6 +439,8 @@ if __name__ == "__main__":
     # from ..surveys.memory.memory_plan import MemoryPlan 
     # from ..surveys.memory.memory import Memory # If direct Memory object comparison is needed.
     from ..questions import QuestionFreeText # For example test
+    # Import EDSL RuleCollection for testing
+    from ..surveys.rules.rule_collection import RuleCollection
 
     # Create a test session
     db, _, _ = create_test_session()
@@ -449,6 +461,16 @@ if __name__ == "__main__":
         for name, instr in original_edsl_survey._instruction_names_to_instructions.items()
     }
     print(f"  Instructions (summary): {original_instructions_dict_for_print}")
+
+    # Add a rule collection to the example survey for thorough testing
+    if not original_edsl_survey.rule_collection:
+        original_edsl_survey.rule_collection = RuleCollection.example()
+        print(f"  Added example RuleCollection with {len(list(original_edsl_survey.rule_collection))} rules.")
+
+    if original_edsl_survey.rule_collection:
+        print(f"  Original RuleCollection has {len(list(original_edsl_survey.rule_collection))} rules. Num questions: {original_edsl_survey.rule_collection.num_questions}")
+    else:
+        print(f"  Original RuleCollection: None")
 
 
     # 2. Convert to ORM object and prepare for saving (including related objects)
@@ -474,7 +496,8 @@ if __name__ == "__main__":
     # Note: RuleCollection / RuleReference is not explicitly handled here for roundtrip testing
     # as Survey.to_edsl_object sets rule_collection=None.
     # If Survey.example() includes rules that should be persisted and restored via SurveyMappedObject's
-    # rule_reference, this part might need enhancement based on RuleCollection's ORM structure.
+    # rule_collection, this part might need enhancement based on RuleCollection's ORM structure.
+    # UPDATE: rule_collection is now handled directly.
 
     # 3. Add to DB session, commit, and refresh to get ID and other DB-generated values
     db.add(orm_survey_to_save)
@@ -491,6 +514,11 @@ if __name__ == "__main__":
         db.refresh(assoc_orm)
         if assoc_orm.question: # Question might be eager loaded, but refresh if needed
             db.refresh(assoc_orm.question)
+    # Refresh the directly linked rule_collection and its rules
+    if orm_survey_to_save.rule_collection:
+        db.refresh(orm_survey_to_save.rule_collection)
+        for rule_orm_obj in orm_survey_to_save.rule_collection.rules:
+            db.refresh(rule_orm_obj)
 
 
     saved_survey_id = orm_survey_to_save.id
@@ -501,6 +529,9 @@ if __name__ == "__main__":
     for qg_orm in orm_survey_to_save.question_groups:
         db.refresh(qg_orm) # Refresh to get its ID
         print(f"Saved QuestionGroup ORM object with ID: {qg_orm.id}, Group Name: {qg_orm.group_name}")
+    if orm_survey_to_save.rule_collection:
+        rc_orm = orm_survey_to_save.rule_collection
+        print(f"Saved RuleCollection ORM object with ID: {rc_orm.id} containing {len(rc_orm.rules)} rules.")
 
 
     # 4. Retrieve the ORM object from the DB
@@ -517,6 +548,11 @@ if __name__ == "__main__":
             print(f"Retrieved QuestionGroup ORM: {qg_orm}")
         print(f"Retrieved {len(retrieved_orm_survey.instructions)} instructions.")
         print(f"Retrieved {len(retrieved_orm_survey.question_associations)} question associations.")
+        if retrieved_orm_survey.rule_collection:
+            retr_rc_orm = retrieved_orm_survey.rule_collection
+            print(f"Retrieved RuleCollection ORM object: {retr_rc_orm} with {len(retr_rc_orm.rules)} rules.")
+        else:
+            print(f"Retrieved RuleCollection ORM object: None")
 
 
         # 5. Convert back to EDSL Survey object
@@ -541,6 +577,10 @@ if __name__ == "__main__":
         else:
             print("  Memory Plan: None")
         print(f"  Question Groups: {retrieved_edsl_survey.question_groups}")
+        if retrieved_edsl_survey.rule_collection:
+            print(f"  Retrieved RuleCollection has {len(list(retrieved_edsl_survey.rule_collection))} rules. Num questions: {retrieved_edsl_survey.rule_collection.num_questions}")
+        else:
+            print(f"  Retrieved RuleCollection: None")
 
 
         # 6. Assert identity (or equivalence for relevant parts)
@@ -610,8 +650,42 @@ if __name__ == "__main__":
         assert original_edsl_survey.question_groups == retrieved_edsl_survey.question_groups, "Question groups mismatch"
         print("Assertion successful: question_groups match.")
 
+        # Compare RuleCollection
+        if original_edsl_survey.rule_collection:
+            assert retrieved_edsl_survey.rule_collection is not None, "RuleCollection became None after roundtrip"
+            orig_rc = original_edsl_survey.rule_collection
+            retr_rc = retrieved_edsl_survey.rule_collection
+            assert orig_rc.num_questions == retr_rc.num_questions, \
+                f"RuleCollection num_questions mismatch. Original: {orig_rc.num_questions}, Retrieved: {retr_rc.num_questions}"
+            assert len(list(orig_rc)) == len(list(retr_rc)), \
+                f"RuleCollection rule count mismatch. Original: {len(list(orig_rc))}, Retrieved: {len(list(retr_rc))}"
+            
+            # For a more robust comparison, iterate through rules and compare their attributes or to_dict()
+            # This assumes EDSL Rule objects have a meaningful way to be compared (e.g., __eq__ or to_dict())
+            # and that their order within the RuleCollection is consistent or can be made consistent (e.g., by sorting).
+            # Example:
+            try:
+                # Attempt to convert rules to dictionaries if Rule has to_dict()
+                # And sort them by priority (or another unique key) for comparison
+                orig_rules_list = sorted([rule.to_dict() for rule in orig_rc], key=lambda x: x.get('priority', 0))
+                retr_rules_list = sorted([rule.to_dict() for rule in retr_rc], key=lambda x: x.get('priority', 0))
+                assert orig_rules_list == retr_rules_list, "RuleCollection rules content mismatch (based on to_dict)"
+            except AttributeError:
+                # Fallback if Rule.to_dict() is not available: compare string representations
+                print("Warning: EDSL Rule.to_dict() not found. Comparing rules by repr.")
+                orig_rules_repr = sorted([repr(r) for r in orig_rc])
+                retr_rules_repr = sorted([repr(r) for r in retr_rc])
+                assert orig_rules_repr == retr_rules_repr, "RuleCollection rules content mismatch (based on repr)"
+
+            print("Assertion successful: RuleCollection content matches.")
+        elif retrieved_edsl_survey.rule_collection is not None:
+            assert False, "RuleCollection appeared after roundtrip, but original was None"
+        else:
+            print("Assertion successful: RuleCollection correctly None on both sides.")
+
         print("\nSUCCESS: Original EDSL survey's ORM-mapped attributes are identical to the retrieved and reconstructed EDSL survey.")
         print("Note: Survey.questions list is now part of this ORM roundtrip test.")
-        print("Note: Rule collection is still not part of this specific test (see comments in code).")
+        print("Note: Rule collection is now part of this specific test.")
+        # print("Note: Rule collection is still not part of this specific test (see comments in code).")
 
     db.close()
