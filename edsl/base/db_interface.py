@@ -47,40 +47,48 @@ class EDSLDB:
     
     def save(self, obj: EDSLBase) -> Any:
         """Save an EDSL object to the database.
-        
+
         Args:
             obj: The EDSL object to save
-            
+
         Returns:
             The object identifier in the database
-            
+
         Raises:
-            DBInterfaceException: If the object doesn't implement to_db
+            DBInterfaceException: If the object doesn't have an orm_class
         """
-        if not hasattr(obj, 'to_db'):
+        if not hasattr(obj, 'orm_class') or obj.orm_class is None:
             raise DBInterfaceException(
-                f"Object of type {type(obj).__name__} does not implement to_db method")
-        
-        return obj.to_db(self.db_manager)
-    
+                f"Object of type {type(obj).__name__} does not have an orm_class attribute")
+
+        with self.db_manager.session_scope() as session:
+            orm_object = obj.to_orm()
+            session.add(orm_object)
+            session.flush()  # To get the ID
+            return orm_object.id
+
     def load(self, obj_class: Type[T], identifier: Any) -> Optional[T]:
         """Load an EDSL object from the database.
-        
+
         Args:
             obj_class: The class of the object to load
             identifier: The database identifier for the object
-            
+
         Returns:
             The loaded object, or None if not found
-            
+
         Raises:
-            DBInterfaceException: If the class doesn't implement from_db
+            DBInterfaceException: If the class doesn't have an orm_class
         """
-        if not hasattr(obj_class, 'from_db'):
+        if not hasattr(obj_class, 'orm_class') or obj_class.orm_class is None:
             raise DBInterfaceException(
-                f"Class {obj_class.__name__} does not implement from_db method")
-        
-        return obj_class.from_db(self.db_manager, identifier)
+                f"Class {obj_class.__name__} does not have an orm_class attribute")
+
+        with self.db_manager.session_scope() as session:
+            orm_object = session.query(obj_class.orm_class).get(identifier)
+            if orm_object is None:
+                return None
+            return obj_class.from_orm(orm_object)
     
     def save_all(self, objects: List[EDSLBase]) -> List[Any]:
         """Save multiple EDSL objects to the database.

@@ -1717,64 +1717,6 @@ class Survey(Base):
         """
         return Survey.from_dict(self.to_dict())
         
-    def to_db(self, session):
-        """Serialize this object to a database.
-        
-        This method persists the Survey object to a database using the ORM implementation.
-        
-        Args:
-            session: A SQLAlchemy session object for database operations
-            
-        Returns:
-            SQLSurvey: The database ORM model representing this Survey
-            
-        Examples:
-            >>> from sqlalchemy import create_engine
-            >>> from sqlalchemy.orm import sessionmaker
-            >>> engine = create_engine('sqlite:///:memory:')
-            >>> from edsl.surveys.orm import Base
-            >>> Base.metadata.create_all(engine)
-            >>> Session = sessionmaker(bind=engine)
-            >>> session = Session()
-            >>> s = Survey.example()
-            >>> orm_obj = s.to_db(session)
-            >>> session.commit()
-            >>> orm_obj.id is not None
-            True
-        """
-        from .orm import SQLSurvey, save_survey
-        return save_survey(session, self)
-    
-    @classmethod
-    def from_db(cls, session, survey_id):
-        """Create an instance from a database.
-        
-        This class method creates a Survey instance from data stored in the database.
-        
-        Args:
-            session: A SQLAlchemy session object for database operations
-            survey_id: The ID of the survey in the database
-            
-        Returns:
-            Survey: A reconstructed Survey object from the database
-            
-        Examples:
-            >>> from sqlalchemy import create_engine
-            >>> from sqlalchemy.orm import sessionmaker
-            >>> engine = create_engine('sqlite:///:memory:')
-            >>> from edsl.surveys.orm import Base
-            >>> Base.metadata.create_all(engine)
-            >>> Session = sessionmaker(bind=engine)
-            >>> session = Session()
-            >>> s = Survey.example()
-            >>> orm_obj = s.to_db(session)
-            >>> session.commit()
-            >>> s2 = Survey.from_db(session, orm_obj.id)
-            >>> len(s2) == len(s)
-            True
-        """
-        from .orm import load_survey
-        return load_survey(session, survey_id)
 
 
 def main():

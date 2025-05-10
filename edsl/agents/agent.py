@@ -1232,34 +1232,6 @@ class Agent(Base):
         """
         return dict_hash(self.to_dict(add_edsl_version=False))
         
-    def to_db_old(self, session) -> int:
-        """Serialize this agent object to a database.
-        
-        Persists the agent to a SQLAlchemy database session using the ORM model.
-        
-        Args:
-            session: A SQLAlchemy database session
-            
-        Returns:
-            int: The database ID of the persisted agent
-
-        >>> import os
-        >>> from ..base.db_init import create_test_session
-        >>> session, db_manager, temp_db_path = create_test_session()
-        >>> a = Agent.example() # This creates age: 22
-        >>> agent_id = a.to_db(session)
-        >>> loaded_agent = Agent.from_db(session, agent_id)
-        >>> print(loaded_agent) # Expected output after fixes
-        Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5})
-        >>> print(a == loaded_agent)
-        True
-        >>> session.close()
-        >>> os.remove(temp_db_path)
-        """
-        from .orm import save_agent
-        
-        agent_orm = save_agent(session, self)
-        return agent_orm.id
 
     def to_dict(
         self, add_edsl_version=True, full_dict=False
@@ -1294,22 +1266,6 @@ class Agent(Base):
 
         return d
 
-    @classmethod
-    def from_db(cls, session, identifier) -> Optional[Agent]:
-        """Create an Agent instance from a database record.
-        
-        Retrieves and deserializes an agent from a SQLAlchemy database session.
-        
-        Args:
-            session: A SQLAlchemy database session
-            identifier: The database ID of the agent to retrieve
-            
-        Returns:
-            Agent: An instance loaded from the database, or None if not found
-        """
-        from .orm import load_agent
-        
-        return load_agent(session, identifier)
         
     @classmethod
     @remove_edsl_version

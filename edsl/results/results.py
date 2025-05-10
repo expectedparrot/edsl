@@ -2293,56 +2293,6 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         except Exception as e:
             raise ResultsError(f"Error loading Results from disk: {str(e)}")
     
-    def to_db(self, session) -> int:
-        """Save this Results collection to the database and return its ID.
-        
-        This method implements the Base.to_db interface for database persistence.
-        
-        Args:
-            db_manager: The database manager to use for the operation
-            
-        Returns:
-            int: The database ID of the saved Results collection
-            
-        Raises:
-            Exception: If an error occurs during database operations
-
-        >>> from edsl.base.db_init import create_test_session
-        >>> session, _, _ = create_test_session()
-        >>> id = Results.example().to_db(session)
-        >>> print(id)
-        1
-        """
-        from .orm import save_results
-        
-        results_orm = save_results(session, self)
-        return results_orm.id
-            
-    @classmethod
-    def from_db(cls, session, results_id: int) -> Optional["Results"]:
-        """Load a Results collection from the database by its ID.
-        
-        This method implements the Base.from_db interface for database persistence.
-        
-        Args:
-            db_manager: The database manager to use for the operation
-            results_id: The database ID of the Results collection to load
-            
-        Returns:
-            Results: The loaded Results object, or None if not found
-            
-        Raises:
-            Exception: If an error occurs during database operations
-
-        >>> from edsl.base.db_init import create_test_session
-        >>> session, _, _ = create_test_session()
-        >>> results = Results.example()
-        >>> id = results.to_db(session)
-        >>> new_results = Results.from_db(session, id)
-        >>> assert results == new_results
-        """
-        from .orm import load_results
-        return load_results(session, results_id)
 
 
 def main():  # pragma: no cover
@@ -2365,42 +2315,16 @@ def main():  # pragma: no cover
 
 if __name__ == "__main__":
     import doctest
-    import os # Added for os.remove
-    from edsl.base.db_init import create_test_session # Added import
 
     # Run doctests
     doctest.testmod(optionflags=doctest.ELLIPSIS)
 
-    # Create a test database session and get the database path
-    session, db_manager, db_path = create_test_session()
-    
-    print(f"Test database created at: {db_path}")
+    # Create an example Results object
+    results = Results.example()
+    print("Example Results object created.")
 
-    try:
-        # Create an example Results object
-        results = Results.example()
-        print("Example Results object created.")
-
-        # Save the Results object to the test database
-        results_id = results.to_db(session)
-        session.commit() # Commit the session to save changes
-        print(f"Results object saved to database with ID: {results_id}")
-
-        # Print command to open the database with sqlite3
-        print(f"To inspect the database, run: sqlite3 {db_path}")
-        
-        # Placeholder for user to interact with the database
-        input("Press Enter to close the database and delete the temporary file...")
-
-    finally:
-        # Close the session
-        session.close()
-        # Delete the temporary database file
-        if db_path and os.path.exists(db_path):
-            os.remove(db_path)
-            print(f"Temporary database file {db_path} deleted.")
-
-    
+    # Run the main function to demonstrate functionalities
+    main()
 
 
     

@@ -1084,54 +1084,6 @@ class Jobs(Base):
     def code(self):
         """Return the code to create this instance."""
         raise JobsImplementationError("Code generation not implemented yet")
-        
-    def to_db(self, db_connection):
-        """Serialize this object to a database.
-        
-        This method persists the Jobs object to a database using the ORM implementation.
-        
-        Args:
-            db_connection: A database connection object for database operations
-            
-        Returns:
-            int: The ID of the persisted object in the database
-            
-        Examples:
-            >>> from edsl import Survey, Agent, Model
-            >>> from edsl.language_models import LanguageModel
-            >>> from edsl.questions import QuestionFreeText
-            >>> from edsl.base.db_manager import DBManager
-            >>> q = QuestionFreeText(question_name="q1", question_text="What is your name?")
-            >>> s = Survey([q])
-            >>> a = Agent.example()
-            >>> m = LanguageModel.example(test_model=True)
-            >>> job = s.by(a).by(m)
-            >>> db = DBManager()
-            >>> job_id = job.to_db(db) # doctest: +SKIP
-        """
-        from .orm import to_db_impl
-        return to_db_impl(self, db_connection)
-    
-    @classmethod
-    def from_db(cls, db_connection, identifier):
-        """Create an instance from a database.
-        
-        This class method creates a Jobs instance from data stored in the database.
-        
-        Args:
-            db_connection: A database connection object for database operations
-            identifier: The ID of the job in the database
-            
-        Returns:
-            Jobs: A reconstructed Jobs object from the database
-            
-        Examples:
-            >>> from edsl.base.db_manager import DBManager
-            >>> db = DBManager()
-            >>> job = Jobs.from_db(db, 1) # doctest: +SKIP
-        """
-        from .orm import from_db_impl
-        return from_db_impl(cls, db_connection, identifier)
 
 
 def main():

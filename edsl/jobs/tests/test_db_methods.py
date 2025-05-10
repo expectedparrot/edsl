@@ -1,7 +1,8 @@
-"""Tests for the to_db and from_db methods of the Jobs class.
+"""Tests for the ORM implementation functions of the Jobs class.
 
-This module tests the implementation of the to_db and from_db abstract methods
-from the Base class in the Jobs domain object.
+This module tests the implementation of ORM functionality for Jobs objects.
+Note: The to_db and from_db methods have been removed from classes, and these
+tests now focus on the direct ORM implementation functions.
 """
 
 import unittest

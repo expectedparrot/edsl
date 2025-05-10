@@ -971,83 +971,22 @@ class Base(
 
         raise BaseNotImplementedError("This method is not implemented yet.")
     
-    def to_db(self, session):
-        """Serialize this object to a database.
-        
-        This method must be implemented by subclasses to provide a
-        standard way to persist objects to a database.
-        """
-        if self.orm_class is None:
-            raise BaseNotImplementedError("Every EDSL object must have an orm_class attribute.")
-        
-        orm_object = self.orm_class.from_edsl_object(self)
-        return orm_object.to_db(session)
-    
     def to_orm(self):
         """Serialize this object to an ORM object.
         """
         if self.orm_class is None:
             raise BaseNotImplementedError("Every EDSL object must have an orm_class attribute.")
-        
+
         return self.orm_class.from_edsl_object(self)
-    
+
     @classmethod
     def from_orm(cls, orm_object):
         """Deserialize this object from an ORM object.
         """
         if cls.orm_class is None:
             raise BaseNotImplementedError("Every EDSL object must have an orm_class attribute.")
-        
-        return orm_object.to_edsl_object()
-    
-    @classmethod
-    def from_db(cls, session, identifier):
-        """Deserialize this object from a database.
-        
-        This method must be implemented by subclasses to provide a
-        standard way to deserialize objects from a database.
-        """
-        if cls.orm_class is None:
-            raise BaseNotImplementedError("Every EDSL object must have an orm_class attribute.")
-        
-        orm_object = cls.orm_class.from_db(session, identifier)
-        return orm_object.to_edsl_object()
-        
-    # @abstractmethod
-    # def to_db(self, db_connection):
-    #     """Serialize this object to a database.
-        
-    #     This method must be implemented by subclasses to provide a
-    #     standard way to persist objects to a database.
-        
-    #     Args:
-    #         db_connection: A database connection object that can store EDSL objects
-            
-    #     Returns:
-    #         Any: An identifier or reference to the persisted object
-    #     """
-    #     from edsl.base.exceptions import BaseNotImplementedError
 
-    #     raise BaseNotImplementedError("This method is not implemented yet.")
-        
-    @classmethod
-    @abstractmethod
-    def from_db(cls, db_connection, identifier):
-        """Create an instance from a database.
-        
-        This class method must be implemented by subclasses to provide a
-        standard way to deserialize objects from a database.
-        
-        Args:
-            db_connection: A database connection object that can store EDSL objects
-            identifier: An identifier or reference to retrieve the object
-            
-        Returns:
-            An instance of the class populated with data from the database
-        """
-        from edsl.base.exceptions import BaseNotImplementedError
-        
-        raise BaseNotImplementedError("This method is not implemented yet.")
+        return orm_object.to_edsl_object()
 
     @abstractmethod
     def code():
