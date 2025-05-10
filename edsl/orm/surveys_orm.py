@@ -103,7 +103,7 @@ class BaseInstructionMapped(InstructionMappedObject):
 
     def to_edsl_object(self) -> 'Instruction':
         """Converts this BaseInstructionMapped ORM object back into an EDSL Instruction object."""
-        return Instruction(text=self.instruction_text)
+        return Instruction(name=self.name or "instruction", text=self.instruction_text)
 
 
 class ChangeInstructionMapped(InstructionMappedObject):
@@ -129,12 +129,13 @@ class ChangeInstructionMapped(InstructionMappedObject):
         """Converts this ChangeInstructionMapped ORM object back into an EDSL ChangeInstruction object."""
         new_val = json.loads(self.new_value_json) if self.new_value_json else None
         old_val = json.loads(self.old_value_json) if self.old_value_json else None
-        return ChangeInstruction(
-            text=self.instruction_text,
-            variable_name=self.variable_name,
-            new_value=new_val,
-            old_value=old_val
-        )
+        
+        # Based on the ChangeInstruction constructor which expects keep and drop parameters
+        # We'll need to convert our stored values appropriately
+        keep = new_val if new_val is not None else []
+        drop = old_val if old_val is not None else []
+        
+        return ChangeInstruction(keep=keep, drop=drop)
 
 
 # Association table for Survey <-> Question link

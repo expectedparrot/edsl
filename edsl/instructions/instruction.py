@@ -22,6 +22,19 @@ class Instruction(RepresentationMixin):
     def __repr__(self):
         return """Instruction(name="{}", text="{}")""".format(self.name, self.text)
 
+    def __eq__(self, other):
+        """Compare two Instruction instances by their attributes rather than identity.
+        
+        Two Instruction instances are equal if they have the same name and text.
+        """
+        if not isinstance(other, Instruction):
+            return NotImplemented
+        return (
+            self.name == other.name and
+            self.text == other.text and
+            self.preamble == other.preamble
+        )
+
     @classmethod
     def example(cls) -> "Instruction":
         return cls(name="example", text="This is an example instruction.")

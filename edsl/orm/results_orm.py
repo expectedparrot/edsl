@@ -30,7 +30,8 @@ from ..language_models import LanguageModel
 # ..agents import Agent # Not directly used here anymore for type hint
 from ..scenarios import Scenario
 from ..surveys import Survey
-from ..prompts import Prompt # Assuming this is the correct path for Prompt
+# Import Prompt for type checking (not for instantiation)
+from ..prompts import Prompt
 
 # Import MappedObject types for relationships in from_edsl_object methods
 from edsl.orm.agents_orm import AgentMappedObject
@@ -136,8 +137,8 @@ class ResultMappedObject(Base): # Renamed class
             return 'int', str(value)
         elif isinstance(value, float):
             return 'float', str(value)
-        elif isinstance(value, Prompt): # Handle Prompt objects
-            return 'prompt_text', value.text # Assuming Prompt has a .text attribute
+        elif isinstance(value, Prompt):  # Handle Prompt objects for backward compatibility
+            return 'str', value.text  # Store just the text as a string
         elif isinstance(value, dict):
             try:
                 return 'json', json.dumps(value)
@@ -172,8 +173,8 @@ class ResultMappedObject(Base): # Renamed class
                 return float(value_text)
             elif value_type == 'bool':
                 return value_text.lower() == 'true'
-            elif value_type == 'prompt_text': # Handle Prompt objects
-                return Prompt(text=value_text) # Assuming Prompt can be reconstructed this way
+            elif value_type == 'prompt_text':  # Handle old prompt_text values for backward compatibility
+                return value_text  # Return just the string
             elif value_type == 'json':
                 return json.loads(value_text)
             elif value_type == 'json_list':

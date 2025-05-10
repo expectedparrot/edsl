@@ -183,6 +183,22 @@ class Rule:
         """Return a string representation of the rule."""
         return self.__repr__()
 
+    def __eq__(self, other):
+        """Compare Rule instances by value rather than by identity.
+        
+        Two Rule instances are equal if all their attributes are equal.
+        """
+        if not isinstance(other, Rule):
+            return NotImplemented
+        return (
+            self.current_q == other.current_q and
+            self.expression == other.expression and
+            self.next_q == other.next_q and
+            self.priority == other.priority and
+            self.question_name_to_index == other.question_name_to_index and
+            self.before_rule == other.before_rule
+        )
+
     @property
     def question_index_to_name(self):
         """Reverse the dictionary do we can look up questions by name.

@@ -19,8 +19,6 @@ from ..questions import (
     QuestionYesNo,
     QuestionTopK
 )
-from ..prompts import Prompt
-
 
 # Define the base for declarative models --> REMOVED
 # Base = declarative_base()
@@ -48,7 +46,7 @@ class QuestionMappedObject(Base):
     question_name: Mapped[str] = mapped_column(nullable=False, index=True)
     question_text: Mapped[str] = mapped_column(Text, nullable=False)
     answering_instructions: Mapped[str | None] = mapped_column(Text, nullable=True)
-    question_presentation: Mapped[str | None] = mapped_column(Text, nullable=True) # Stores JSON string if Prompt, else raw string
+    question_presentation: Mapped[str | None] = mapped_column(Text, nullable=True) # Stores raw string
 
     # Discriminator column: stores the type of question
     question_type: Mapped[str] = mapped_column(String(50), index=True)
@@ -82,23 +80,6 @@ class QuestionMappedObject(Base):
     def __repr__(self):
         return f"<QuestionMappedObject(id={self.id}, name='{self.question_name}', type='{self.question_type}')>"
 
-# Helper function for JSON serialization/deserialization of Prompt objects
-def _serialize_prompt_field(prompt_field):
-    if prompt_field is not None:
-        if hasattr(prompt_field, 'to_dict'):
-            return json.dumps(prompt_field.to_dict())
-        return str(prompt_field)
-    return None
-
-def _deserialize_prompt_field(json_string_field):
-    if json_string_field is not None:
-        try:
-            data_dict = json.loads(json_string_field)
-            return Prompt.from_dict(data_dict)
-        except (json.JSONDecodeError, TypeError):
-            return json_string_field
-    return None
-
 # Specific model for FreeText questions, inheriting from QuestionMappedObject
 class QuestionFreeTextMappedObject(QuestionMappedObject):
     __mapper_args__ = {
@@ -111,16 +92,16 @@ class QuestionFreeTextMappedObject(QuestionMappedObject):
         return cls(
             question_name=question.question_name,
             question_text=question.question_text,
-            answering_instructions=_serialize_prompt_field(question.answering_instructions),
-            question_presentation=_serialize_prompt_field(question.question_presentation)
+            answering_instructions=str(question.answering_instructions) if question.answering_instructions is not None else None,
+            question_presentation=str(question.question_presentation) if question.question_presentation is not None else None
         )
 
     def to_edsl_object(self) -> QuestionFreeText:
         return QuestionFreeText(
             question_name=self.question_name,
             question_text=self.question_text,
-            answering_instructions=_deserialize_prompt_field(self.answering_instructions),
-            question_presentation=_deserialize_prompt_field(self.question_presentation)
+            answering_instructions=self.answering_instructions,
+            question_presentation=self.question_presentation
         )
 
 class QuestionMultipleChoiceMappedObject(QuestionMappedObject):
@@ -134,8 +115,8 @@ class QuestionMultipleChoiceMappedObject(QuestionMappedObject):
         db_question_instance = cls(
             question_name=question.question_name,
             question_text=question.question_text,
-            answering_instructions=_serialize_prompt_field(question.answering_instructions),
-            question_presentation=_serialize_prompt_field(question.question_presentation),
+            answering_instructions=str(question.answering_instructions) if question.answering_instructions is not None else None,
+            question_presentation=str(question.question_presentation) if question.question_presentation is not None else None,
             include_comment=question._include_comment,
             use_code=question.use_code,
             permissive=question.permissive
@@ -154,8 +135,8 @@ class QuestionMultipleChoiceMappedObject(QuestionMappedObject):
             question_options=options,
             include_comment=self.include_comment,
             use_code=self.use_code,
-            answering_instructions=_deserialize_prompt_field(self.answering_instructions),
-            question_presentation=_deserialize_prompt_field(self.question_presentation),
+            answering_instructions=self.answering_instructions,
+            question_presentation=self.question_presentation,
             permissive=self.permissive
         )
 
@@ -170,8 +151,8 @@ class QuestionNumericalMappedObject(QuestionMappedObject):
         return cls(
             question_name=question.question_name,
             question_text=question.question_text,
-            answering_instructions=_serialize_prompt_field(question.answering_instructions),
-            question_presentation=_serialize_prompt_field(question.question_presentation),
+            answering_instructions=str(question.answering_instructions) if question.answering_instructions is not None else None,
+            question_presentation=str(question.question_presentation) if question.question_presentation is not None else None,
             min_value=question.min_value,
             max_value=question.max_value,
             include_comment=question.include_comment,
@@ -184,8 +165,8 @@ class QuestionNumericalMappedObject(QuestionMappedObject):
             question_text=self.question_text,
             min_value=self.min_value,
             max_value=self.max_value,
-            answering_instructions=_deserialize_prompt_field(self.answering_instructions),
-            question_presentation=_deserialize_prompt_field(self.question_presentation),
+            answering_instructions=self.answering_instructions,
+            question_presentation=self.question_presentation,
             include_comment=self.include_comment,
             permissive=self.permissive
         )
@@ -201,8 +182,8 @@ class QuestionListMappedObject(QuestionMappedObject):
         return cls(
             question_name=question.question_name,
             question_text=question.question_text,
-            answering_instructions=_serialize_prompt_field(question.answering_instructions),
-            question_presentation=_serialize_prompt_field(question.question_presentation),
+            answering_instructions=str(question.answering_instructions) if question.answering_instructions is not None else None,
+            question_presentation=str(question.question_presentation) if question.question_presentation is not None else None,
             min_list_items=question.min_list_items,
             max_list_items=question.max_list_items,
             include_comment=question.include_comment,
@@ -215,8 +196,8 @@ class QuestionListMappedObject(QuestionMappedObject):
             question_text=self.question_text,
             min_list_items=self.min_list_items,
             max_list_items=self.max_list_items,
-            answering_instructions=_deserialize_prompt_field(self.answering_instructions),
-            question_presentation=_deserialize_prompt_field(self.question_presentation),
+            answering_instructions=self.answering_instructions,
+            question_presentation=self.question_presentation,
             include_comment=self.include_comment,
             permissive=self.permissive
         )
@@ -232,8 +213,8 @@ class QuestionCheckBoxMappedObject(QuestionMappedObject):
         db_question_instance = cls(
             question_name=question.question_name,
             question_text=question.question_text,
-            answering_instructions=_serialize_prompt_field(question.answering_instructions),
-            question_presentation=_serialize_prompt_field(question.question_presentation),
+            answering_instructions=str(question.answering_instructions) if question.answering_instructions is not None else None,
+            question_presentation=str(question.question_presentation) if question.question_presentation is not None else None,
             min_selections=question.min_selections,
             max_selections=question.max_selections,
             include_comment=question._include_comment,
@@ -254,8 +235,8 @@ class QuestionCheckBoxMappedObject(QuestionMappedObject):
             question_options=options,
             min_selections=self.min_selections,
             max_selections=self.max_selections,
-            answering_instructions=_deserialize_prompt_field(self.answering_instructions),
-            question_presentation=_deserialize_prompt_field(self.question_presentation),
+            answering_instructions=self.answering_instructions,
+            question_presentation=self.question_presentation,
             include_comment=self.include_comment,
             use_code=self.use_code,
             permissive=self.permissive
@@ -272,8 +253,8 @@ class QuestionDictMappedObject(QuestionMappedObject):
         return cls(
             question_name=question.question_name,
             question_text=question.question_text,
-            answering_instructions=_serialize_prompt_field(question.answering_instructions),
-            question_presentation=_serialize_prompt_field(question.question_presentation),
+            answering_instructions=str(question.answering_instructions) if question.answering_instructions is not None else None,
+            question_presentation=str(question.question_presentation) if question.question_presentation is not None else None,
             answer_keys_json=json.dumps(question.answer_keys or []),
             value_types_json=json.dumps(question.value_types or []),
             value_descriptions_json=json.dumps(question.value_descriptions or []),
@@ -288,8 +269,8 @@ class QuestionDictMappedObject(QuestionMappedObject):
             answer_keys=json.loads(self.answer_keys_json) if self.answer_keys_json else [],
             value_types=json.loads(self.value_types_json) if self.value_types_json else [],
             value_descriptions=json.loads(self.value_descriptions_json) if self.value_descriptions_json else [],
-            answering_instructions=_deserialize_prompt_field(self.answering_instructions),
-            question_presentation=_deserialize_prompt_field(self.question_presentation),
+            answering_instructions=self.answering_instructions,
+            question_presentation=self.question_presentation,
             include_comment=self.include_comment,
             permissive=self.permissive
         )
@@ -305,8 +286,8 @@ class QuestionYesNoMappedObject(QuestionMappedObject):
         db_question_instance = cls(
             question_name=question.question_name,
             question_text=question.question_text,
-            answering_instructions=_serialize_prompt_field(question.answering_instructions),
-            question_presentation=_serialize_prompt_field(question.question_presentation),
+            answering_instructions=str(question.answering_instructions) if question.answering_instructions is not None else None,
+            question_presentation=str(question.question_presentation) if question.question_presentation is not None else None,
             include_comment=question.include_comment, 
             use_code=False, 
             permissive=getattr(question, 'permissive', False) 
@@ -323,8 +304,8 @@ class QuestionYesNoMappedObject(QuestionMappedObject):
             question_name=self.question_name,
             question_text=self.question_text,
             question_options=options,
-            answering_instructions=_deserialize_prompt_field(self.answering_instructions),
-            question_presentation=_deserialize_prompt_field(self.question_presentation),
+            answering_instructions=self.answering_instructions,
+            question_presentation=self.question_presentation,
             include_comment=self.include_comment
         )
 
@@ -337,8 +318,8 @@ class QuestionTopKMappedObject(QuestionMappedObject):
         db_question_instance = cls(
             question_name=question.question_name,
             question_text=question.question_text,
-            answering_instructions=_serialize_prompt_field(question.answering_instructions),
-            question_presentation=_serialize_prompt_field(question.question_presentation),
+            answering_instructions=str(question.answering_instructions) if question.answering_instructions is not None else None,
+            question_presentation=str(question.question_presentation) if question.question_presentation is not None else None,
             min_selections=question.min_selections,
             max_selections=question.max_selections,
             include_comment=question.include_comment, 
@@ -359,8 +340,8 @@ class QuestionTopKMappedObject(QuestionMappedObject):
             question_options=options,
             min_selections=self.min_selections,
             max_selections=self.max_selections,
-            answering_instructions=_deserialize_prompt_field(self.answering_instructions),
-            question_presentation=_deserialize_prompt_field(self.question_presentation),
+            answering_instructions=self.answering_instructions,
+            question_presentation=self.question_presentation,
             include_comment=self.include_comment,
             use_code=self.use_code
         )
@@ -375,7 +356,7 @@ def example_sqlalchemy_usage():
     original_ft_question = QuestionFreeText(
         question_name="favorite_food",
         question_text="What is your favorite food?",
-        answering_instructions=Prompt(text="Be brief and honest.") 
+        answering_instructions="Be brief and honest."
     )
     session.add(QuestionFreeTextMappedObject.from_edsl_object(original_ft_question))
     
@@ -456,7 +437,7 @@ def example_sqlalchemy_usage():
     if retrieved_sql_ft:
         retrieved_edsl_ft = retrieved_sql_ft.to_edsl_object()
         assert retrieved_edsl_ft.question_text == original_ft_question.question_text
-        assert retrieved_edsl_ft.answering_instructions.text == original_ft_question.answering_instructions.text 
+        assert retrieved_edsl_ft.answering_instructions == original_ft_question.answering_instructions
         print(f"FT OK: {retrieved_edsl_ft.question_name}")
 
     retrieved_sql_mc = session.query(QuestionMultipleChoiceMappedObject).filter_by(question_name="preferred_activity").first()
