@@ -33,89 +33,15 @@ from ..instructions import Instruction, ChangeInstruction
 from ..surveys.rules.rule_collection import RuleCollection
 # Import ORM object for RuleCollection
 from .rules_orm import RuleCollectionMappedObject
+# Import new ORM definitions for Memory and MemoryPlan
+from .memory_orm import MemoryMappedObject
+from .memory_orm import MemoryPlanMappedObject as OrmMemoryPlan
+from .memory_orm import MemoryPlanEntryMappedObject as OrmMemoryPlanEntry
 
 from edsl.questions import (
     QuestionFreeText, QuestionMultipleChoice, QuestionNumerical, QuestionList,
     QuestionCheckBox, QuestionDict, QuestionYesNo, QuestionTopK, Question
 )
-
-class MemoryItem(Base):
-    __tablename__ = "memory_items"
-    id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    memory_plan_id: Mapped[int] = mapped_column(ForeignKey("memory_plan.id"))
-    focal_question_name: Mapped[str] = mapped_column()
-    prior_questions: Mapped[List[str]] = mapped_column(JSON)  # Using JSON to store list of question names
-
-    memory_plan: Mapped["MemoryPlanMappedObject"] = relationship(back_populates="memories")
-
-    def __repr__(self):
-        return f"MemoryItem(id={self.id}, focal_question_name='{self.focal_question_name}', prior_questions={self.prior_questions})"
-
-    def to_edsl_object(self) -> 'MemoryPlan':
-        from ..surveys.memory.memory_plan import MemoryPlan
-        from ..surveys.memory.memory import Memory
-
-        memory_plan = MemoryPlan()
-        # Ensure survey_question_names and question_texts are lists, even if None from DB
-        memory_plan.survey_question_names = list(self.survey_question_names) if self.survey_question_names is not None else []
-        memory_plan.question_texts = list(self.question_texts) if self.question_texts is not None else []
-
-        # Add each memory to the memory plan
-        memory = Memory(prior_questions=self.prior_questions)
-        memory_plan[self.focal_question_name] = memory
-
-        return memory_plan
-
-
-class MemoryPlanMappedObject(Base, TimestampMixin):
-    __tablename__ = "memory_plan"
-
-    id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    survey_id: Mapped[Optional[int]] = mapped_column(ForeignKey("survey.id"), nullable=True)
-
-    # Store question names and texts as JSON
-    survey_question_names: Mapped[List[str]] = mapped_column(JSON, default=list)
-    question_texts: Mapped[List[str]] = mapped_column(JSON, default=list)
-
-    # Relationships
-    survey: Mapped["SurveyMappedObject"] = relationship(back_populates="memory_plan")
-    memories: Mapped[List["MemoryItem"]] = relationship(
-        "MemoryItem",
-        back_populates="memory_plan",
-        cascade="all, delete-orphan"
-    )
-
-    def __repr__(self):
-        memory_count = len(self.memories) if self.memories else 0
-        return f"MemoryPlanMappedObject(id={self.id}, memory_count={memory_count})"
-
-    @classmethod
-    def from_edsl_object(cls, memory_plan: 'MemoryPlan', survey_id: Optional[int] = None) -> 'MemoryPlanMappedObject':
-        # Ensure we have proper lists for the JSON columns
-        survey_question_names = list(memory_plan.survey_question_names) if memory_plan.survey_question_names else []
-        question_texts = list(memory_plan.question_texts) if memory_plan.question_texts else []
-
-        return cls(
-            survey_id=survey_id,
-            survey_question_names=survey_question_names,
-            question_texts=question_texts
-        )
-
-    def to_edsl_object(self) -> 'MemoryPlan':
-        from ..surveys.memory.memory_plan import MemoryPlan
-        from ..surveys.memory.memory import Memory
-
-        memory_plan = MemoryPlan()
-        memory_plan.survey_question_names = list(self.survey_question_names) if self.survey_question_names else []
-        memory_plan.question_texts = list(self.question_texts) if self.question_texts else []
-
-        # Add each memory to the memory plan
-        for memory_item in self.memories:
-            memory = Memory(prior_questions=memory_item.prior_questions)
-            memory_plan[memory_item.focal_question_name] = memory
-
-        return memory_plan
-
 
 class QuestionGroupMappedObject(Base):
     __tablename__ = "question_group"
@@ -224,10 +150,14 @@ class SurveyMappedObject(Base, TimestampMixin):
     # Removed: instruction_data: Mapped[Dict[str, Dict]] = mapped_column(JSON, default=dict)
 
     # Relationships
-    memory_plan: Mapped[Optional["MemoryPlanMappedObject"]] = relationship(
+    memory_plan_id: Mapped[Optional[int]] = mapped_column(ForeignKey("memory_plan.id", name="fk_survey_memory_plan_id", ondelete="SET NULL"), nullable=True)
+    memory_plan: Mapped[Optional["OrmMemoryPlan"]] = relationship(
+        OrmMemoryPlan,  # Use the class object directly instead of the string "OrmMemoryPlan"
+        foreign_keys=[memory_plan_id],
         uselist=False,
-        back_populates="survey",
-        cascade="all, delete-orphan"
+        cascade="all, delete-orphan",
+        single_parent=True,  # Added to clarify ownership for delete-orphan cascade
+        lazy="selectin" # Or "joined" if preferred
     )
 
     question_groups: Mapped[List["QuestionGroupMappedObject"]] = relationship(
@@ -325,10 +255,14 @@ class SurveyMappedObject(Base, TimestampMixin):
             created_associations.append(assoc)
         survey_mapped_obj.question_associations = created_associations
         
-        # Handle MemoryPlan (if exists) - This part seems okay, just ensure it gets linked if created
+        # Handle MemoryPlan (if exists)
         if edsl_object.memory_plan:
-            memory_plan_orm = MemoryPlanMappedObject.from_edsl_object(edsl_object.memory_plan)
-            survey_mapped_obj.memory_plan = memory_plan_orm # Link it to the survey
+            # Convert EDSL MemoryPlan to OrmMemoryPlan using its from_edsl_object
+            # This OrmMemoryPlan will be managed by SQLAlchemy session through cascade
+            memory_plan_orm = OrmMemoryPlan.from_edsl_object(edsl_object.memory_plan)
+            survey_mapped_obj.memory_plan = memory_plan_orm # Assign the ORM object
+        else:
+            survey_mapped_obj.memory_plan = None
 
         # Handle QuestionGroups (if exists) - This part seems okay
         if hasattr(edsl_object, 'question_groups') and edsl_object.question_groups:
@@ -358,7 +292,8 @@ class SurveyMappedObject(Base, TimestampMixin):
         from ..surveys.survey import Survey, PseudoIndices
         # Instructions already imported
 
-        memory_plan = self.memory_plan.to_edsl_object() if self.memory_plan else None
+        # Convert OrmMemoryPlan back to EDSL MemoryPlan
+        memory_plan_edsl = self.memory_plan.to_edsl_object() if self.memory_plan else None
 
         question_groups = {}
         for group in self.question_groups:
@@ -389,7 +324,7 @@ class SurveyMappedObject(Base, TimestampMixin):
 
         survey = Survey(
             questions=edsl_questions_list, # Populate with reconstructed EDSL questions
-            memory_plan=memory_plan,
+            memory_plan=memory_plan_edsl, # Assign reconstructed EDSL MemoryPlan
             rule_collection=edsl_rc, # Assign reconstructed EDSL RuleCollection
             question_groups=question_groups,
             questions_to_randomize=questions_to_randomize_list # Populate reconstructed list
