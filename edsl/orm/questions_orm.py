@@ -2,70 +2,71 @@ from __future__ import annotations
 import json
 
 from sqlalchemy import create_engine, Column, Integer, String, Text, Boolean, ForeignKey, Float
-# from sqlalchemy.orm import declarative_base # Remove local Base definition
-from sqlalchemy.orm import sessionmaker, relationship
+from sqlalchemy.orm import sessionmaker, relationship, Mapped, mapped_column
 from sqlalchemy.schema import CreateTable
 
 # Import the shared Base
 from ..base.sql_model_base import Base
 
 # Import the EDSL Question types for type hinting and conversion
-from .question_free_text import QuestionFreeText
-from .question_multiple_choice import QuestionMultipleChoice
-from .question_numerical import QuestionNumerical
-from .question_list import QuestionList
-from .question_check_box import QuestionCheckBox
-from .question_dict import QuestionDict
-from .question_yes_no import QuestionYesNo
-from .question_top_k import QuestionTopK
+from ..questions import (
+    QuestionFreeText,
+    QuestionMultipleChoice,
+    QuestionNumerical,
+    QuestionList,
+    QuestionCheckBox,
+    QuestionDict,
+    QuestionYesNo,
+    QuestionTopK
+)
 from ..prompts import Prompt
 
 
 # Define the base for declarative models --> REMOVED
 # Base = declarative_base()
 
-class SQLQuestionOption(Base):
+class QuestionOptionMappedObject(Base):
     __tablename__ = 'question_options'
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    question_id = Column(Integer, ForeignKey('questions.id', ondelete="CASCADE"), nullable=False)
-    option_value = Column(Text, nullable=False) # Using Text to accommodate potentially longer option strings
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    question_id: Mapped[int] = mapped_column(ForeignKey('questions.id', ondelete="CASCADE"), nullable=False)
+    option_value: Mapped[str] = mapped_column(Text, nullable=False) # Using Text to accommodate potentially longer option strings
 
-    # Relationship back to the SQLQuestion. Each option belongs to one question.
-    question = relationship("SQLQuestion", back_populates="options_relation")
+    # Relationship back to the QuestionMappedObject. Each option belongs to one question.
+    question: Mapped["QuestionMappedObject"] = relationship(back_populates="options_relation")
 
     def __repr__(self):
-        return f"<SQLQuestionOption(id={self.id}, value='{self.option_value[:20]}...')>"
+        return f"<QuestionOptionMappedObject(id={self.id}, value='{self.option_value[:20]}...')>"
 
 # Base model for all questions, using Single Table Inheritance
-class SQLQuestion(Base):
+class QuestionMappedObject(Base):
     __tablename__ = 'questions'  # Single table for all question types
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    question_name = Column(String, nullable=False, index=True)
-    question_text = Column(Text, nullable=False)
-    answering_instructions = Column(Text, nullable=True)
-    question_presentation = Column(Text, nullable=True) # Stores JSON string if Prompt, else raw string
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    question_name: Mapped[str] = mapped_column(nullable=False, index=True)
+    question_text: Mapped[str] = mapped_column(Text, nullable=False)
+    answering_instructions: Mapped[str | None] = mapped_column(Text, nullable=True)
+    question_presentation: Mapped[str | None] = mapped_column(Text, nullable=True) # Stores JSON string if Prompt, else raw string
 
     # Discriminator column: stores the type of question
-    question_type_on_table = Column(String(50), index=True)
+    question_type_on_table: Mapped[str] = mapped_column(String(50), index=True)
 
     # Columns that are specific to some question types but part of the single table
     # Defaults are important here for types that don't use these fields.
-    include_comment = Column(Boolean, default=True, nullable=False)
-    use_code = Column(Boolean, default=False, nullable=False) # Specific to MultipleChoice
-    permissive = Column(Boolean, default=False, nullable=False)
-    min_value = Column(Float, nullable=True) # Specific to Numerical
-    max_value = Column(Float, nullable=True) # Specific to Numerical
-    min_list_items = Column(Integer, nullable=True)
-    max_list_items = Column(Integer, nullable=True)
-    min_selections = Column(Integer, nullable=True) # CheckBox
-    max_selections = Column(Integer, nullable=True) # CheckBox
+    include_comment: Mapped[bool] = mapped_column(default=True, nullable=False)
+    use_code: Mapped[bool] = mapped_column(default=False, nullable=False) # Specific to MultipleChoice
+    permissive: Mapped[bool] = mapped_column(default=False, nullable=False)
+    min_value: Mapped[float | None] = mapped_column(nullable=True) # Specific to Numerical
+    max_value: Mapped[float | None] = mapped_column(nullable=True) # Specific to Numerical
+    min_list_items: Mapped[int | None] = mapped_column(nullable=True)
+    max_list_items: Mapped[int | None] = mapped_column(nullable=True)
+    min_selections: Mapped[int | None] = mapped_column(nullable=True) # CheckBox
+    max_selections: Mapped[int | None] = mapped_column(nullable=True) # CheckBox
 
     # JSON-encoded lists for QuestionDict
-    answer_keys_json = Column(Text, nullable=True)
-    value_types_json = Column(Text, nullable=True)
-    value_descriptions_json = Column(Text, nullable=True)
+    answer_keys_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    value_types_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    value_descriptions_json: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     __mapper_args__ = {
         'polymorphic_identity': 'question_base',  # Identity for the base class
@@ -74,10 +75,10 @@ class SQLQuestion(Base):
 
     # Relationship to options, relevant for question types like multiple_choice
     # cascade="all, delete-orphan" means options are deleted when the question is deleted.
-    options_relation = relationship("SQLQuestionOption", back_populates="question", cascade="all, delete-orphan", lazy="selectin")
+    options_relation: Mapped[list["QuestionOptionMappedObject"]] = relationship("QuestionOptionMappedObject", back_populates="question", cascade="all, delete-orphan", lazy="selectin")
 
     def __repr__(self):
-        return f"<SQLQuestion(id={self.id}, name='{self.question_name}', type='{self.question_type_on_table}')>"
+        return f"<QuestionMappedObject(id={self.id}, name='{self.question_name}', type='{self.question_type_on_table}')>"
 
 # Helper function for JSON serialization/deserialization of Prompt objects
 def _serialize_prompt_field(prompt_field):
@@ -96,14 +97,14 @@ def _deserialize_prompt_field(json_string_field):
             return json_string_field
     return None
 
-# Specific model for FreeText questions, inheriting from SQLQuestion
-class SQLQuestionFreeText(SQLQuestion):
+# Specific model for FreeText questions, inheriting from QuestionMappedObject
+class QuestionFreeTextMappedObject(QuestionMappedObject):
     __mapper_args__ = {
         'polymorphic_identity': 'free_text',
     }
 
     @classmethod
-    def from_question(cls, question: QuestionFreeText) -> SQLQuestionFreeText:
+    def from_edsl_object(cls, question: QuestionFreeText) -> QuestionFreeTextMappedObject:
         return cls(
             question_name=question.question_name,
             question_text=question.question_text,
@@ -111,7 +112,7 @@ class SQLQuestionFreeText(SQLQuestion):
             question_presentation=_serialize_prompt_field(question.question_presentation)
         )
 
-    def to_question(self) -> QuestionFreeText:
+    def to_edsl_object(self) -> QuestionFreeText:
         return QuestionFreeText(
             question_name=self.question_name,
             question_text=self.question_text,
@@ -119,16 +120,13 @@ class SQLQuestionFreeText(SQLQuestion):
             question_presentation=_deserialize_prompt_field(self.question_presentation)
         )
 
-class SQLQuestionMultipleChoice(SQLQuestion):
+class QuestionMultipleChoiceMappedObject(QuestionMappedObject):
     __mapper_args__ = {
         'polymorphic_identity': 'multiple_choice',
     }
-    # Specific attributes like include_comment, use_code, permissive are now in SQLQuestion base
-    # with defaults, so they don't need to be redefined here unless their defaults differ for MC.
-    # The EDSL QuestionMultipleChoice has specific values for these which will be set.
 
     @classmethod
-    def from_question(cls, question: QuestionMultipleChoice) -> SQLQuestionMultipleChoice:
+    def from_edsl_object(cls, question: QuestionMultipleChoice) -> QuestionMultipleChoiceMappedObject:
         db_question_instance = cls(
             question_name=question.question_name,
             question_text=question.question_text,
@@ -140,11 +138,11 @@ class SQLQuestionMultipleChoice(SQLQuestion):
         )
         current_options = question.question_options
         db_question_instance.options_relation = [
-            SQLQuestionOption(option_value=str(opt_val)) for opt_val in current_options
+            QuestionOptionMappedObject(option_value=str(opt_val)) for opt_val in current_options
         ]
         return db_question_instance
 
-    def to_question(self) -> QuestionMultipleChoice:
+    def to_edsl_object(self) -> QuestionMultipleChoice:
         options = [opt.option_value for opt in self.options_relation]
         return QuestionMultipleChoice(
             question_name=self.question_name,
@@ -157,15 +155,13 @@ class SQLQuestionMultipleChoice(SQLQuestion):
             permissive=self.permissive
         )
 
-class SQLQuestionNumerical(SQLQuestion):
+class QuestionNumericalMappedObject(QuestionMappedObject):
     __mapper_args__ = {
         'polymorphic_identity': 'numerical',
     }
-    # Specific attributes like min_value, max_value, include_comment, permissive are in SQLQuestion base
-    # with defaults/nullable as appropriate.
 
     @classmethod
-    def from_question(cls, question: QuestionNumerical) -> SQLQuestionNumerical:
+    def from_edsl_object(cls, question: QuestionNumerical) -> QuestionNumericalMappedObject:
         return cls(
             question_name=question.question_name,
             question_text=question.question_text,
@@ -177,7 +173,7 @@ class SQLQuestionNumerical(SQLQuestion):
             permissive=question.permissive
         )
 
-    def to_question(self) -> QuestionNumerical:
+    def to_edsl_object(self) -> QuestionNumerical:
         return QuestionNumerical(
             question_name=self.question_name,
             question_text=self.question_text,
@@ -189,13 +185,13 @@ class SQLQuestionNumerical(SQLQuestion):
             permissive=self.permissive
         )
 
-class SQLQuestionList(SQLQuestion):
+class QuestionListMappedObject(QuestionMappedObject):
     __mapper_args__ = {
         'polymorphic_identity': 'list',
     }
 
     @classmethod
-    def from_question(cls, question: QuestionList) -> SQLQuestionList:
+    def from_edsl_object(cls, question: QuestionList) -> QuestionListMappedObject:
         return cls(
             question_name=question.question_name,
             question_text=question.question_text,
@@ -207,7 +203,7 @@ class SQLQuestionList(SQLQuestion):
             permissive=question.permissive
         )
 
-    def to_question(self) -> QuestionList:
+    def to_edsl_object(self) -> QuestionList:
         return QuestionList(
             question_name=self.question_name,
             question_text=self.question_text,
@@ -219,13 +215,13 @@ class SQLQuestionList(SQLQuestion):
             permissive=self.permissive
         )
 
-class SQLQuestionCheckBox(SQLQuestion):
+class QuestionCheckBoxMappedObject(QuestionMappedObject):
     __mapper_args__ = {
         'polymorphic_identity': 'checkbox',
     }
 
     @classmethod
-    def from_question(cls, question: QuestionCheckBox) -> SQLQuestionCheckBox:
+    def from_edsl_object(cls, question: QuestionCheckBox) -> QuestionCheckBoxMappedObject:
         db_question_instance = cls(
             question_name=question.question_name,
             question_text=question.question_text,
@@ -239,11 +235,11 @@ class SQLQuestionCheckBox(SQLQuestion):
         )
         current_options = question.question_options
         db_question_instance.options_relation = [
-            SQLQuestionOption(option_value=str(opt_val)) for opt_val in current_options
+            QuestionOptionMappedObject(option_value=str(opt_val)) for opt_val in current_options
         ]
         return db_question_instance
 
-    def to_question(self) -> QuestionCheckBox:
+    def to_edsl_object(self) -> QuestionCheckBox:
         options = [opt.option_value for opt in self.options_relation]
         return QuestionCheckBox(
             question_name=self.question_name,
@@ -258,13 +254,13 @@ class SQLQuestionCheckBox(SQLQuestion):
             permissive=self.permissive
         )
 
-class SQLQuestionDict(SQLQuestion):
+class QuestionDictMappedObject(QuestionMappedObject):
     __mapper_args__ = {
         'polymorphic_identity': 'dict',
     }
 
     @classmethod
-    def from_question(cls, question: QuestionDict) -> SQLQuestionDict:
+    def from_edsl_object(cls, question: QuestionDict) -> QuestionDictMappedObject:
         return cls(
             question_name=question.question_name,
             question_text=question.question_text,
@@ -277,7 +273,7 @@ class SQLQuestionDict(SQLQuestion):
             permissive=question.permissive
         )
 
-    def to_question(self) -> QuestionDict:
+    def to_edsl_object(self) -> QuestionDict:
         return QuestionDict(
             question_name=self.question_name,
             question_text=self.question_text,
@@ -290,31 +286,29 @@ class SQLQuestionDict(SQLQuestion):
             permissive=self.permissive
         )
 
-class SQLQuestionYesNo(SQLQuestion):
+class QuestionYesNoMappedObject(QuestionMappedObject):
     __mapper_args__ = {
         'polymorphic_identity': 'yes_no',
     }
 
     @classmethod
-    def from_question(cls, question: QuestionYesNo) -> SQLQuestionYesNo:
-        # QuestionYesNo inherits from QuestionMultipleChoice, so its attributes are similar.
-        # EDSL QuestionYesNo defaults use_code=False.
+    def from_edsl_object(cls, question: QuestionYesNo) -> QuestionYesNoMappedObject:
         db_question_instance = cls(
             question_name=question.question_name,
             question_text=question.question_text,
             answering_instructions=_serialize_prompt_field(question.answering_instructions),
             question_presentation=_serialize_prompt_field(question.question_presentation),
-            include_comment=question.include_comment, # Direct attribute from QuestionYesNo __init__
-            use_code=False, # Explicitly False for Yes/No as per EDSL class
-            permissive=getattr(question, 'permissive', False) # Get permissive if it exists, else default
+            include_comment=question.include_comment, 
+            use_code=False, 
+            permissive=getattr(question, 'permissive', False) 
         )
-        current_options = question.question_options # Should be ['No', 'Yes'] or similar
+        current_options = question.question_options 
         db_question_instance.options_relation = [
-            SQLQuestionOption(option_value=str(opt_val)) for opt_val in current_options
+            QuestionOptionMappedObject(option_value=str(opt_val)) for opt_val in current_options
         ]
         return db_question_instance
 
-    def to_question(self) -> QuestionYesNo:
+    def to_edsl_object(self) -> QuestionYesNo:
         options = [opt.option_value for opt in self.options_relation]
         return QuestionYesNo(
             question_name=self.question_name,
@@ -323,16 +317,13 @@ class SQLQuestionYesNo(SQLQuestion):
             answering_instructions=_deserialize_prompt_field(self.answering_instructions),
             question_presentation=_deserialize_prompt_field(self.question_presentation),
             include_comment=self.include_comment
-            # use_code is implicitly False when creating QuestionYesNo
-            # permissive is not explicitly part of QuestionYesNo constructor, but handled by SQLQuestion base
         )
 
-class SQLQuestionTopK(SQLQuestion):
+class QuestionTopKMappedObject(QuestionMappedObject):
     __mapper_args__ = {'polymorphic_identity': 'top_k'}
 
     @classmethod
-    def from_question(cls, question: QuestionTopK) -> SQLQuestionTopK:
-        # QuestionTopK inherits from QuestionCheckBox
+    def from_edsl_object(cls, question: QuestionTopK) -> QuestionTopKMappedObject:
         db_question_instance = cls(
             question_name=question.question_name,
             question_text=question.question_text,
@@ -340,17 +331,17 @@ class SQLQuestionTopK(SQLQuestion):
             question_presentation=_serialize_prompt_field(question.question_presentation),
             min_selections=question.min_selections,
             max_selections=question.max_selections,
-            include_comment=question.include_comment, # Direct attribute from QuestionTopK/CheckBox
-            use_code=question.use_code,             # Direct attribute from QuestionTopK/CheckBox
-            permissive=getattr(question, 'permissive', False) # TopK doesn't usually use permissive, default to False
+            include_comment=question.include_comment, 
+            use_code=question.use_code,             
+            permissive=getattr(question, 'permissive', False) 
         )
         current_options = question.question_options
         db_question_instance.options_relation = [
-            SQLQuestionOption(option_value=str(opt_val)) for opt_val in current_options
+            QuestionOptionMappedObject(option_value=str(opt_val)) for opt_val in current_options
         ]
         return db_question_instance
 
-    def to_question(self) -> QuestionTopK:
+    def to_edsl_object(self) -> QuestionTopK:
         options = [opt.option_value for opt in self.options_relation]
         return QuestionTopK(
             question_name=self.question_name,
@@ -362,7 +353,6 @@ class SQLQuestionTopK(SQLQuestion):
             question_presentation=_deserialize_prompt_field(self.question_presentation),
             include_comment=self.include_comment,
             use_code=self.use_code
-            # Permissive is not explicitly part of QuestionTopK constructor but handled by SQLQuestion base if needed.
         )
 
 # Example usage (optional, for demonstration)
@@ -375,17 +365,17 @@ def example_sqlalchemy_usage():
     original_ft_question = QuestionFreeText(
         question_name="favorite_food",
         question_text="What is your favorite food?",
-        answering_instructions=Prompt(text="Be brief and honest.") # Test with Prompt object
+        answering_instructions=Prompt(text="Be brief and honest.") 
     )
-    session.add(SQLQuestionFreeText.from_question(original_ft_question))
+    session.add(QuestionFreeTextMappedObject.from_edsl_object(original_ft_question))
     
     original_mc_question = QuestionMultipleChoice(
         question_name="preferred_activity",
         question_text="Which activity do you prefer?",
         question_options=["Reading", "Hiking", "Gaming"],
-        include_comment=False # Test non-default
+        include_comment=False 
     )
-    session.add(SQLQuestionMultipleChoice.from_question(original_mc_question))
+    session.add(QuestionMultipleChoiceMappedObject.from_edsl_object(original_mc_question))
 
     original_num_question = QuestionNumerical(
         question_name="estimated_age",
@@ -395,7 +385,7 @@ def example_sqlalchemy_usage():
         include_comment=True,
         permissive=False
     )
-    session.add(SQLQuestionNumerical.from_question(original_num_question))
+    session.add(QuestionNumericalMappedObject.from_edsl_object(original_num_question))
     
     original_list_question = QuestionList(
         question_name="grocery_items",
@@ -406,7 +396,7 @@ def example_sqlalchemy_usage():
         permissive=False,
         answering_instructions="List up to 5 items."
     )
-    session.add(SQLQuestionList.from_question(original_list_question))
+    session.add(QuestionListMappedObject.from_edsl_object(original_list_question))
     
     original_cb_question = QuestionCheckBox(
         question_name="preferred_languages",
@@ -419,7 +409,7 @@ def example_sqlalchemy_usage():
         permissive=False,
         answering_instructions="Select up to 3."
     )
-    session.add(SQLQuestionCheckBox.from_question(original_cb_question))
+    session.add(QuestionCheckBoxMappedObject.from_edsl_object(original_cb_question))
     
     original_dict_question = QuestionDict(
         question_name="user_profile",
@@ -430,16 +420,15 @@ def example_sqlalchemy_usage():
         include_comment=True,
         permissive=False
     )
-    session.add(SQLQuestionDict.from_question(original_dict_question))
+    session.add(QuestionDictMappedObject.from_edsl_object(original_dict_question))
     
     original_yn_question = QuestionYesNo(
         question_name="is_sky_blue",
         question_text="Is the sky blue?",
         include_comment=False
     )
-    session.add(SQLQuestionYesNo.from_question(original_yn_question))
+    session.add(QuestionYesNoMappedObject.from_edsl_object(original_yn_question))
     
-    # QuestionTopK
     original_top_k_question = QuestionTopK(
         question_name="top_3_movies",
         question_text="Select your top 3 favorite movies from this list:",
@@ -449,80 +438,80 @@ def example_sqlalchemy_usage():
         include_comment=True,
         use_code=False
     )
-    session.add(SQLQuestionTopK.from_question(original_top_k_question))
+    session.add(QuestionTopKMappedObject.from_edsl_object(original_top_k_question))
     
     session.commit()
 
-    retrieved_sql_ft = session.query(SQLQuestionFreeText).filter_by(question_name="favorite_food").first()
+    retrieved_sql_ft = session.query(QuestionFreeTextMappedObject).filter_by(question_name="favorite_food").first()
     if retrieved_sql_ft:
-        retrieved_edsl_ft = retrieved_sql_ft.to_question()
+        retrieved_edsl_ft = retrieved_sql_ft.to_edsl_object()
         assert retrieved_edsl_ft.question_text == original_ft_question.question_text
-        assert retrieved_edsl_ft.answering_instructions.text == original_ft_question.answering_instructions.text # Verify Prompt
+        assert retrieved_edsl_ft.answering_instructions.text == original_ft_question.answering_instructions.text 
         print(f"FT OK: {retrieved_edsl_ft.question_name}")
 
-    retrieved_sql_mc = session.query(SQLQuestionMultipleChoice).filter_by(question_name="preferred_activity").first()
+    retrieved_sql_mc = session.query(QuestionMultipleChoiceMappedObject).filter_by(question_name="preferred_activity").first()
     if retrieved_sql_mc:
-        retrieved_edsl_mc = retrieved_sql_mc.to_question()
+        retrieved_edsl_mc = retrieved_sql_mc.to_edsl_object()
         assert retrieved_edsl_mc.question_options == original_mc_question.question_options
-        assert retrieved_edsl_mc._include_comment == original_mc_question._include_comment # Accessing EDSL attribute
-        assert retrieved_sql_mc.include_comment == original_mc_question._include_comment # Checking DB value directly
+        assert retrieved_edsl_mc._include_comment == original_mc_question._include_comment 
+        assert retrieved_sql_mc.include_comment == original_mc_question._include_comment 
         print(f"MC OK: {retrieved_edsl_mc.question_name}, Include Comment: {retrieved_edsl_mc._include_comment}")
 
-    retrieved_sql_num = session.query(SQLQuestionNumerical).filter_by(question_name="estimated_age").first()
+    retrieved_sql_num = session.query(QuestionNumericalMappedObject).filter_by(question_name="estimated_age").first()
     if retrieved_sql_num:
-        retrieved_edsl_num = retrieved_sql_num.to_question()
+        retrieved_edsl_num = retrieved_sql_num.to_edsl_object()
         assert retrieved_edsl_num.min_value == original_num_question.min_value
         assert retrieved_edsl_num.max_value == original_num_question.max_value
         assert retrieved_edsl_num.include_comment == original_num_question.include_comment
-        assert retrieved_sql_num.include_comment == original_num_question.include_comment # DB value
+        assert retrieved_sql_num.include_comment == original_num_question.include_comment 
         print(f"Num OK: {retrieved_edsl_num.question_name}, Min: {retrieved_edsl_num.min_value}")
 
-    retrieved_sql_list = session.query(SQLQuestionList).filter_by(question_name="grocery_items").first()
+    retrieved_sql_list = session.query(QuestionListMappedObject).filter_by(question_name="grocery_items").first()
     if retrieved_sql_list:
-        retrieved_edsl_list = retrieved_sql_list.to_question()
+        retrieved_edsl_list = retrieved_sql_list.to_edsl_object()
         assert retrieved_edsl_list.min_list_items == original_list_question.min_list_items
         assert retrieved_edsl_list.max_list_items == original_list_question.max_list_items
         assert retrieved_edsl_list.include_comment == original_list_question.include_comment
         assert retrieved_sql_list.permissive == original_list_question.permissive
         print(f"List OK: {retrieved_edsl_list.question_name}, Min items: {retrieved_edsl_list.min_list_items}")
 
-    retrieved_sql_cb = session.query(SQLQuestionCheckBox).filter_by(question_name="preferred_languages").first()
+    retrieved_sql_cb = session.query(QuestionCheckBoxMappedObject).filter_by(question_name="preferred_languages").first()
     if retrieved_sql_cb:
-        retrieved_edsl_cb = retrieved_sql_cb.to_question()
+        retrieved_edsl_cb = retrieved_sql_cb.to_edsl_object()
         assert retrieved_edsl_cb.question_options == original_cb_question.question_options
         assert retrieved_edsl_cb.min_selections == original_cb_question.min_selections
         assert retrieved_edsl_cb.max_selections == original_cb_question.max_selections
-        assert retrieved_edsl_cb._include_comment == original_cb_question._include_comment # EDSL uses _include_comment
-        assert retrieved_edsl_cb._use_code == original_cb_question._use_code          # EDSL uses _use_code
+        assert retrieved_edsl_cb._include_comment == original_cb_question._include_comment 
+        assert retrieved_edsl_cb._use_code == original_cb_question._use_code          
         assert retrieved_edsl_cb.permissive == original_cb_question.permissive
         print(f"CB OK: {retrieved_edsl_cb.question_name}, Min sel: {retrieved_edsl_cb.min_selections}")
 
-    retrieved_sql_dict = session.query(SQLQuestionDict).filter_by(question_name="user_profile").first()
+    retrieved_sql_dict = session.query(QuestionDictMappedObject).filter_by(question_name="user_profile").first()
     if retrieved_sql_dict:
-        retrieved_edsl_dict = retrieved_sql_dict.to_question()
+        retrieved_edsl_dict = retrieved_sql_dict.to_edsl_object()
         assert retrieved_edsl_dict.answer_keys == original_dict_question.answer_keys
         assert retrieved_edsl_dict.value_types == original_dict_question.value_types
         assert retrieved_edsl_dict.value_descriptions == original_dict_question.value_descriptions
         print(f"Dict OK: {retrieved_edsl_dict.question_name}")
 
-    retrieved_sql_yn = session.query(SQLQuestionYesNo).filter_by(question_name="is_sky_blue").first()
+    retrieved_sql_yn = session.query(QuestionYesNoMappedObject).filter_by(question_name="is_sky_blue").first()
     if retrieved_sql_yn:
-        retrieved_edsl_yn = retrieved_sql_yn.to_question()
+        retrieved_edsl_yn = retrieved_sql_yn.to_edsl_object()
         assert retrieved_edsl_yn.question_options == original_yn_question.question_options
         assert retrieved_edsl_yn.include_comment == original_yn_question.include_comment
-        assert retrieved_sql_yn.use_code == False # Should be False for YesNo
+        assert retrieved_sql_yn.use_code == False 
         print(f"YesNo OK: {retrieved_edsl_yn.question_name}")
 
-    retrieved_sql_top_k = session.query(SQLQuestionTopK).filter_by(question_name="top_3_movies").first()
+    retrieved_sql_top_k = session.query(QuestionTopKMappedObject).filter_by(question_name="top_3_movies").first()
     if retrieved_sql_top_k:
-        retrieved_edsl_top_k = retrieved_sql_top_k.to_question()
+        retrieved_edsl_top_k = retrieved_sql_top_k.to_edsl_object()
         assert retrieved_edsl_top_k.question_options == original_top_k_question.question_options
         assert retrieved_edsl_top_k.min_selections == original_top_k_question.min_selections
         assert retrieved_edsl_top_k.max_selections == original_top_k_question.max_selections
         assert retrieved_edsl_top_k.use_code == original_top_k_question.use_code
         print(f"TopK OK: {retrieved_edsl_top_k.question_name}")
 
-    all_questions_from_db = session.query(SQLQuestion).all()
+    all_questions_from_db = session.query(QuestionMappedObject).all()
     print(f"\nTotal questions in DB: {len(all_questions_from_db)}")
     for q_instance in all_questions_from_db:
         print(f"  - ID: {q_instance.id}, Name: {q_instance.question_name}, Type: {q_instance.question_type_on_table}")

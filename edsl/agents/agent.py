@@ -125,40 +125,6 @@ class AgentTraits(Scenario):
         """
         return f"{self.data}"
 
-    def to_db(self, session) -> int:
-        """Serialize this agent traits object to a database.
-
-        Persists the agent traits to a SQLAlchemy database session using the ORM model.
-
-        Args:
-            session: A SQLAlchemy database session
-
-        Returns:
-            int: The database ID of the persisted agent traits
-        """
-        from .orm import SQLAgentTraits, save_agent_traits
-
-        agent_traits_orm = save_agent_traits(session, self)
-        return agent_traits_orm.id
-
-    @classmethod
-    def from_db(cls, session, identifier):
-        """Create an AgentTraits instance from a database record.
-
-        Retrieves and deserializes agent traits from a SQLAlchemy database session.
-
-        Args:
-            session: A SQLAlchemy database session
-            identifier: The database ID of the agent traits to retrieve
-
-        Returns:
-            AgentTraits: An instance loaded from the database, or None if not found
-        """
-        from .orm import load_agent_traits
-
-        return load_agent_traits(session, identifier)
-
-from .orm import SQLAgent
 
 class Agent(Base):
     """A class representing an AI agent with customizable traits that can answer questions.
@@ -179,8 +145,6 @@ class Agent(Base):
     Agents are used in conjunction with Questions, Scenarios, and Surveys to create
     structured interactions with language models.
     """
-
-    orm_class = SQLAgent
 
     __documentation__ = "https://docs.expectedparrot.com/en/latest/agents.html"
 
