@@ -270,26 +270,59 @@ class TaskHistory(RepresentationMixin):
                             InterviewExceptionCollection,
                         )
 
+                        # Store the original data in full
+                        self._original_data = data
+
+                        # Preserve the original interview id
+                        self._interview_id = data.get("id", None)
+
+                        # Store exceptions using the original data structure
+                        # This ensures when we re-serialize, we keep original data intact
+                        self._exceptions_data = data.get("exceptions", {})
+
+                        # Create the InterviewExceptionCollection for runtime use
                         exceptions_data = data.get("exceptions", {})
                         self.exceptions = (
                             InterviewExceptionCollection.from_dict(exceptions_data)
                             if exceptions_data
                             else InterviewExceptionCollection()
                         )
+
+                        # Store other fields
                         self.task_status_logs = data.get("task_status_logs", {})
                         self.model = data.get("model", {})
                         self.survey = data.get("survey", {})
 
                     def to_dict(self, add_edsl_version=True):
-                        return {
+                        # Use the original exceptions data structure when serializing again
+                        # This preserves all exception details exactly as they were
+                        data = {
                             "type": "InterviewReference",
-                            "exceptions": self.exceptions.to_dict()
-                            if hasattr(self.exceptions, "to_dict")
-                            else self.exceptions,
+                            "exceptions": self._exceptions_data
+                            if hasattr(self, "_exceptions_data")
+                            else (
+                                self.exceptions.to_dict()
+                                if hasattr(self.exceptions, "to_dict")
+                                else self.exceptions
+                            ),
                             "task_status_logs": self.task_status_logs,
                             "model": self.model,
                             "survey": self.survey,
                         }
+
+                        # Preserve the original interview id if it exists
+                        if self._interview_id:
+                            data["id"] = self._interview_id
+
+                        # Preserve original version info
+                        if (
+                            add_edsl_version
+                            and hasattr(self, "_original_data")
+                            and "edsl_version" in self._original_data
+                        ):
+                            data["edsl_version"] = self._original_data["edsl_version"]
+
+                        return data
 
                 # Create the reference and add it directly
                 ref = DeserializedInterviewRef(interview_data)

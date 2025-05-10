@@ -16,8 +16,9 @@ class InterviewExceptionEntry:
         invigilator: "InvigilatorBase",
         traceback_format="text",
         answers=None,
+        time=None,  # Added time parameter for deserialization
     ):
-        self.time = datetime.datetime.now().isoformat()
+        self.time = time or datetime.datetime.now().isoformat()
         self.exception = exception
         self.invigilator = invigilator
         self.traceback_format = traceback_format
@@ -130,7 +131,12 @@ class InterviewExceptionEntry:
         'Traceback (most recent call last):...'
         """
         e = self.exception
-        tb_str = "".join(traceback.format_exception(type(e), e, e.__traceback__))
+        # Check if the exception has a traceback attribute
+        if hasattr(e, "__traceback__") and e.__traceback__:
+            tb_str = "".join(traceback.format_exception(type(e), e, e.__traceback__))
+        else:
+            # Use the message as traceback if no traceback available
+            tb_str = f"Exception: {str(e)}"
         return tb_str
 
     @property
@@ -144,14 +150,19 @@ class InterviewExceptionEntry:
 
         console = Console(file=html_output, record=True)
 
-        tb = Traceback.from_exception(
-            type(self.exception),
-            self.exception,
-            self.exception.__traceback__,
-            show_locals=True,
-        )
-        console.print(tb)
-        return html_output.getvalue()
+        # Check if the exception has a traceback attribute
+        if hasattr(self.exception, "__traceback__") and self.exception.__traceback__:
+            tb = Traceback.from_exception(
+                type(self.exception),
+                self.exception,
+                self.exception.__traceback__,
+                show_locals=True,
+            )
+            console.print(tb)
+            return html_output.getvalue()
+        else:
+            # Return a simple string if no traceback available
+            return f"<pre>Exception: {str(self.exception)}</pre>"
 
     @staticmethod
     def serialize_exception(exception: Exception) -> dict:
@@ -160,14 +171,25 @@ class InterviewExceptionEntry:
         >>> entry = InterviewExceptionEntry.example()
         >>> _ = entry.serialize_exception(entry.exception)
         """
-        return {
-            "type": type(exception).__name__,
-            "message": str(exception),
-            "traceback": "".join(
+        # Store the original exception type for proper reconstruction
+        exception_type = type(exception).__name__
+        module_name = getattr(type(exception), "__module__", "builtins")
+
+        # Extract traceback if available
+        if hasattr(exception, "__traceback__") and exception.__traceback__:
+            tb_str = "".join(
                 traceback.format_exception(
                     type(exception), exception, exception.__traceback__
                 )
-            ),
+            )
+        else:
+            tb_str = f"Exception: {str(exception)}"
+
+        return {
+            "type": exception_type,
+            "module": module_name,
+            "message": str(exception),
+            "traceback": tb_str,
         }
 
     @staticmethod
@@ -177,11 +199,31 @@ class InterviewExceptionEntry:
         >>> entry = InterviewExceptionEntry.example()
         >>> _ = entry.deserialize_exception(entry.to_dict()["exception"])
         """
+        exception_type = data.get("type", "Exception")
+        module_name = data.get("module", "builtins")
+        message = data.get("message", "")
+
         try:
-            exception_class = globals()[data["type"]]
-        except KeyError:
-            exception_class = Exception
-        return exception_class(data["message"])
+            # Try to import the module and get the exception class
+            # if module_name != "builtins":
+            #     import importlib
+
+            #     module = importlib.import_module(module_name)
+            #     exception_class = getattr(module, exception_type, Exception)
+            # else:
+            #     # Look for exception in builtins
+            import builtins
+
+            exception_class = getattr(builtins, exception_type, Exception)
+
+        except (ImportError, AttributeError):
+            # Fall back to a generic Exception but preserve the type name
+            exception = Exception(message)
+            exception.__class__.__name__ = exception_type
+            return exception
+
+        # Create instance of the original exception type if possible
+        return exception_class(message)
 
     def to_dict(self) -> dict:
         """Return the exception as a dictionary.
@@ -221,7 +263,11 @@ class InterviewExceptionEntry:
             invigilator = None
         else:
             invigilator = InvigilatorAI.from_dict(data["invigilator"])
-        return cls(exception=exception, invigilator=invigilator)
+
+        # Use the original timestamp from serialization
+        time = data.get("time")
+
+        return cls(exception=exception, invigilator=invigilator, time=time)
 
 
 class InterviewExceptionCollection(UserDict):
