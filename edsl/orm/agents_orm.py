@@ -5,9 +5,8 @@ import tempfile
 import os
 
 from typing import TYPE_CHECKING
-if TYPE_CHECKING:
-    from ..agents.agent import Agent
-    from ..agents.agent_list import AgentList
+from ..agents.agent import Agent
+from ..agents.agent_list import AgentList
 
 from .sql_base import Base, TimestampMixin
 

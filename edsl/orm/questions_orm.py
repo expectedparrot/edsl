@@ -6,7 +6,7 @@ from sqlalchemy.orm import sessionmaker, relationship, Mapped, mapped_column
 from sqlalchemy.schema import CreateTable
 
 # Import the shared Base
-from ..base.sql_model_base import Base
+from .sql_base import Base
 
 # Import the EDSL Question types for type hinting and conversion
 from ..questions import (
@@ -29,7 +29,7 @@ class QuestionOptionMappedObject(Base):
     __tablename__ = 'question_options'
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    question_id: Mapped[int] = mapped_column(ForeignKey('questions.id', ondelete="CASCADE"), nullable=False)
+    question_id: Mapped[int] = mapped_column(ForeignKey('question.id', ondelete="CASCADE"), nullable=False)
     option_value: Mapped[str] = mapped_column(Text, nullable=False) # Using Text to accommodate potentially longer option strings
 
     # Relationship back to the QuestionMappedObject. Each option belongs to one question.
@@ -40,7 +40,7 @@ class QuestionOptionMappedObject(Base):
 
 # Base model for all questions, using Single Table Inheritance
 class QuestionMappedObject(Base):
-    __tablename__ = 'questions'  # Single table for all question types
+    __tablename__ = 'question'  # Single table for all question types
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     question_name: Mapped[str] = mapped_column(nullable=False, index=True)
@@ -49,7 +49,7 @@ class QuestionMappedObject(Base):
     question_presentation: Mapped[str | None] = mapped_column(Text, nullable=True) # Stores JSON string if Prompt, else raw string
 
     # Discriminator column: stores the type of question
-    question_type_on_table: Mapped[str] = mapped_column(String(50), index=True)
+    question_type: Mapped[str] = mapped_column(String(50), index=True)
 
     # Columns that are specific to some question types but part of the single table
     # Defaults are important here for types that don't use these fields.
@@ -70,7 +70,7 @@ class QuestionMappedObject(Base):
 
     __mapper_args__ = {
         'polymorphic_identity': 'question_base',  # Identity for the base class
-        'polymorphic_on': question_type_on_table  # Column used for discrimination
+        'polymorphic_on': question_type  # Column used for discrimination
     }
 
     # Relationship to options, relevant for question types like multiple_choice
@@ -78,7 +78,7 @@ class QuestionMappedObject(Base):
     options_relation: Mapped[list["QuestionOptionMappedObject"]] = relationship("QuestionOptionMappedObject", back_populates="question", cascade="all, delete-orphan", lazy="selectin")
 
     def __repr__(self):
-        return f"<QuestionMappedObject(id={self.id}, name='{self.question_name}', type='{self.question_type_on_table}')>"
+        return f"<QuestionMappedObject(id={self.id}, name='{self.question_name}', type='{self.question_type}')>"
 
 # Helper function for JSON serialization/deserialization of Prompt objects
 def _serialize_prompt_field(prompt_field):
@@ -514,7 +514,7 @@ def example_sqlalchemy_usage():
     all_questions_from_db = session.query(QuestionMappedObject).all()
     print(f"\nTotal questions in DB: {len(all_questions_from_db)}")
     for q_instance in all_questions_from_db:
-        print(f"  - ID: {q_instance.id}, Name: {q_instance.question_name}, Type: {q_instance.question_type_on_table}")
+        print(f"  - ID: {q_instance.id}, Name: {q_instance.question_name}, Type: {q_instance.question_type}")
         print(f"    DB values: include_comment={q_instance.include_comment}, permissive={q_instance.permissive}, use_code={q_instance.use_code}, min_val={q_instance.min_value}, min_list={q_instance.min_list_items}, min_sel={q_instance.min_selections}")
 
     session.close()
