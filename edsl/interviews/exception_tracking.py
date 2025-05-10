@@ -205,16 +205,16 @@ class InterviewExceptionEntry:
 
         try:
             # Try to import the module and get the exception class
-            if module_name != "builtins":
-                import importlib
+            # if module_name != "builtins":
+            #     import importlib
 
-                module = importlib.import_module(module_name)
-                exception_class = getattr(module, exception_type, Exception)
-            else:
-                # Look for exception in builtins
-                import builtins
+            #     module = importlib.import_module(module_name)
+            #     exception_class = getattr(module, exception_type, Exception)
+            # else:
+            #     # Look for exception in builtins
+            import builtins
 
-                exception_class = getattr(builtins, exception_type, Exception)
+            exception_class = getattr(builtins, exception_type, Exception)
 
         except (ImportError, AttributeError):
             # Fall back to a generic Exception but preserve the type name
