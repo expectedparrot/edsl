@@ -26,7 +26,6 @@ from .questions_orm import (
 )
 # EDSL Survey specific types
 from ..surveys.survey import PseudoIndices
-from ..instructions import Instruction, ChangeInstruction
 # Import EDSL RuleCollection for type hinting and conversion logic
 from ..surveys.rules.rule_collection import RuleCollection
 # Import ORM object for RuleCollection
@@ -58,14 +57,13 @@ class QuestionGroupMappedObject(Base):
         return f"QuestionGroupMappedObject(id={self.id}, group_name='{self.group_name}', range=({self.start_index}, {self.end_index}))"
 
 
-# ORM classes for Instructions (to replace instruction_data JSON)
+# ORM classes for Instructions
 class InstructionMappedObject(Base):
-    __tablename__ = "survey_instructions"
+    __tablename__ = "instruction"
     edsl_class = None
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    survey_id: Mapped[int] = mapped_column(ForeignKey("survey.id", ondelete="CASCADE"))
-    name: Mapped[str] = mapped_column(index=True) # Name of the instruction
+    name: Mapped[Optional[str]] = mapped_column(index=True, nullable=True)  # Optional internal name
     instruction_text: Mapped[str] = mapped_column(Text)
 
     # For ChangeInstruction, these will be populated. Nullable for base Instruction.
@@ -75,15 +73,16 @@ class InstructionMappedObject(Base):
 
     instruction_type: Mapped[str] = mapped_column(String(50)) # Discriminator: 'base_instruction' or 'change_instruction'
 
-    survey: Mapped["SurveyMappedObject"] = relationship(back_populates="instructions")
+    # Many-to-many relationship with surveys through the association table
+    survey_associations: Mapped[List["SurveyInstructionAssociation"]] = relationship(
+        back_populates="instruction",
+        cascade="all, delete-orphan",
+        lazy="selectin"
+    )
 
     __mapper_args__ = {
         'polymorphic_on': instruction_type
     }
-
-    def to_edsl(self) -> Union[Instruction, ChangeInstruction]:
-        # This method should be overridden by subclasses
-        raise NotImplementedError
 
 
 class BaseInstructionMapped(InstructionMappedObject):
@@ -91,25 +90,34 @@ class BaseInstructionMapped(InstructionMappedObject):
     edsl_class = Instruction
 
     @classmethod
-    def from_edsl(cls, name: str, edsl_instr: 'Instruction') -> 'BaseInstructionMapped':
+    def from_edsl_object(cls, edsl_instr: 'Instruction') -> 'BaseInstructionMapped':
+        # Set a default internal name based on a preview of the text
+        preview = edsl_instr.text[:20] + "..." if len(edsl_instr.text) > 20 else edsl_instr.text
+        internal_name = f"base_instruction_{preview}"
+        
         return cls(
-            name=name,
+            name=internal_name,
             instruction_text=edsl_instr.text,
             instruction_type='base_instruction'
         )
 
-    def to_edsl(self) -> 'Instruction':
+    def to_edsl_object(self) -> 'Instruction':
+        """Converts this BaseInstructionMapped ORM object back into an EDSL Instruction object."""
         return Instruction(text=self.instruction_text)
 
 
 class ChangeInstructionMapped(InstructionMappedObject):
     __mapper_args__ = {'polymorphic_identity': 'change_instruction'}
-    edsl_class = ChangeInstruction
+    edsl_class = None # For now, because we don't have a ChangeInstruction class in EDSL
 
     @classmethod
-    def from_edsl(cls, name: str, edsl_instr: 'ChangeInstruction') -> 'ChangeInstructionMapped':
+    def from_edsl_object(cls, edsl_instr: 'ChangeInstruction') -> 'ChangeInstructionMapped':
+        # Set a default internal name based on variable name and preview
+        preview = edsl_instr.text[:15] + "..." if len(edsl_instr.text) > 15 else edsl_instr.text
+        internal_name = f"change_{edsl_instr.variable_name}_{preview}"
+        
         return cls(
-            name=name,
+            name=internal_name,
             instruction_text=edsl_instr.text,
             variable_name=edsl_instr.variable_name,
             new_value_json=json.dumps(edsl_instr.new_value),
@@ -117,7 +125,8 @@ class ChangeInstructionMapped(InstructionMappedObject):
             instruction_type='change_instruction'
         )
 
-    def to_edsl(self) -> 'ChangeInstruction':
+    def to_edsl_object(self) -> 'ChangeInstruction':
+        """Converts this ChangeInstructionMapped ORM object back into an EDSL ChangeInstruction object."""
         new_val = json.loads(self.new_value_json) if self.new_value_json else None
         old_val = json.loads(self.old_value_json) if self.old_value_json else None
         return ChangeInstruction(
@@ -143,6 +152,21 @@ class SurveyQuestionAssociation(Base):
 
     survey: Mapped["SurveyMappedObject"] = relationship(back_populates="question_associations")
     question: Mapped["QuestionMappedObject"] = relationship(lazy="joined") # Eager load question with association
+
+
+# Association table for Survey <-> Instruction link
+class SurveyInstructionAssociation(Base):
+    __tablename__ = "survey_instruction_association"
+    edsl_class = None
+    
+    survey_id: Mapped[int] = mapped_column(ForeignKey("survey.id", ondelete="CASCADE"), primary_key=True)
+    instruction_id: Mapped[int] = mapped_column(ForeignKey("instruction.id", ondelete="CASCADE"), primary_key=True)
+    
+    # The name used for this instruction within this specific survey
+    instruction_name: Mapped[str] = mapped_column(index=True)
+    
+    survey: Mapped["SurveyMappedObject"] = relationship(back_populates="instruction_associations")
+    instruction: Mapped["InstructionMappedObject"] = relationship(back_populates="survey_associations", lazy="joined")
 
 
 class SurveyMappedObject(Base, TimestampMixin):
@@ -191,8 +215,7 @@ class SurveyMappedObject(Base, TimestampMixin):
         lazy="selectin" # Good for loading questions with the survey
     )
 
-    instructions: Mapped[List["InstructionMappedObject"]] = relationship(
-        "InstructionMappedObject", # Use the base class name string
+    instruction_associations: Mapped[List["SurveyInstructionAssociation"]] = relationship(
         back_populates="survey",
         cascade="all, delete-orphan",
         lazy="selectin"
@@ -211,18 +234,25 @@ class SurveyMappedObject(Base, TimestampMixin):
         )
 
         # Handle Instructions
-        created_instructions = []
+        created_instruction_associations = []
         for name, edsl_instr_obj in edsl_object._instruction_names_to_instructions.items():
             if isinstance(edsl_instr_obj, ChangeInstruction):
-                instr_orm = ChangeInstructionMapped.from_edsl(name, edsl_instr_obj)
+                instr_orm = ChangeInstructionMapped.from_edsl_object(edsl_instr_obj)
             elif isinstance(edsl_instr_obj, Instruction): # Must be after ChangeInstruction
-                instr_orm = BaseInstructionMapped.from_edsl(name, edsl_instr_obj)
+                instr_orm = BaseInstructionMapped.from_edsl_object(edsl_instr_obj)
             else:
                 # This case should ideally not happen if _instruction_names_to_instructions is well-typed
                 print(f"Warning: Skipping unknown instruction type: {type(edsl_instr_obj)} for '{name}'")
                 continue
-            created_instructions.append(instr_orm)
-        survey_mapped_obj.instructions = created_instructions
+
+            # Create an association between the survey and instruction
+            assoc = SurveyInstructionAssociation(
+                instruction=instr_orm,
+                instruction_name=name
+            )
+            created_instruction_associations.append(assoc)
+        
+        survey_mapped_obj.instruction_associations = created_instruction_associations
 
         # Handle Questions
         created_associations = []
@@ -343,10 +373,12 @@ class SurveyMappedObject(Base, TimestampMixin):
 
         # Reconstruct instructions
         reconstructed_instructions = {}
-        for instr_orm_obj in self.instructions: # List[InstructionMappedObject]
-            # Polymorphic loading ensures instr_orm_obj is BaseInstructionMapped or ChangeInstructionMapped
-            edsl_instr = instr_orm_obj.to_edsl() # Calls the correct to_edsl method
-            reconstructed_instructions[instr_orm_obj.name] = edsl_instr
+        for assoc in self.instruction_associations:
+            # assoc.instruction is an InstructionMappedObject (e.g. BaseInstructionMapped)
+            # Its to_edsl_object() method returns the EDSL Instruction object.
+            # SQLAlchemy's polymorphic loading ensures assoc.instruction is the correct subclass.
+            edsl_instr = assoc.instruction.to_edsl_object()
+            reconstructed_instructions[assoc.instruction_name] = edsl_instr
         survey._instruction_names_to_instructions = reconstructed_instructions
         
         # survey.rule_collection is already set during Survey initialization above

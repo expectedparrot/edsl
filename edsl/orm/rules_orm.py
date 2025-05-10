@@ -18,7 +18,7 @@ class RuleMappedObject(Base):
     """SQLAlchemy ORM model for a Rule, compatible with SQLAlchemy 2.0."""
     
     __tablename__ = "rule"
-    edsl_class = Rule
+    edsl_class = None
     
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     current_q: Mapped[int] = mapped_column(Integer, nullable=False)

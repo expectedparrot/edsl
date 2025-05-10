@@ -31,8 +31,8 @@ class CacheOrmException(Exception): # Corrected inheritance
 
 
 class CacheEntryMappedObject(Base):
-    """SQLAlchemy ORM model for CacheEntry."""
-    edsl_class = CacheEntry
+    """SQLAlchemy ORM model for CacheEntry (not meant to be persisted standalone)."""
+    edsl_class = None
     
     __tablename__ = "cache_entry"
     
