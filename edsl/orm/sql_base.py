@@ -6,7 +6,21 @@ from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy import DateTime, func
 
 class Base(DeclarativeBase):
-    pass
+    _registry = {}
+    _edsl_registry = {}
+
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        cls._registry[cls.__name__] = cls
+
+        if not hasattr(cls, "edsl_class"):
+            raise AttributeError(
+                f"Class {cls.__name__} must define an 'edsl_class' attribute."
+            )
+
+        edsl_class_value = getattr(cls, "edsl_class")
+        if edsl_class_value is not None:
+            Base._edsl_registry[edsl_class_value] = cls.__name__
 
 class TimestampMixin:
     """Mixin to add created_at and updated_at timestamps to a model."""

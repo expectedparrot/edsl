@@ -49,6 +49,7 @@ class ResultsOrmException(BaseException):
 
 class ResultCollectionAssociation(Base):
     __tablename__ = "results_collection_result_association"
+    edsl_class = None
     results_collection_id: Mapped[int] = mapped_column(ForeignKey("results.id", ondelete="CASCADE"), primary_key=True)
     result_id: Mapped[int] = mapped_column(ForeignKey("result.id", ondelete="CASCADE"), primary_key=True)
     position: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -65,6 +66,7 @@ class ResultDataMappedObject(Base): # Renamed class
     """SQLAlchemy ORM model for storing key-value pairs of a Result's data."""
     
     __tablename__ = "result_data" # Table name is already singular
+    edsl_class = None
     
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     result_id: Mapped[int] = mapped_column(ForeignKey("result.id", ondelete="CASCADE")) # nullable=False is implied by Mapped[int]
@@ -91,6 +93,7 @@ class ResultMappedObject(Base): # Renamed class
     """SQLAlchemy ORM model for Result metadata."""
     
     __tablename__ = "result" # Renamed table
+    edsl_class = Result
     
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     agent_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("agent.id", use_alter=True, name="fk_result_agent_id"), nullable=True)
@@ -295,6 +298,7 @@ class ResultsMappedObject(Base): # Renamed class
     """SQLAlchemy ORM model for Results collections."""
     
     __tablename__ = "results" # Renamed table
+    edsl_class = Results
     
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     survey_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("survey.id", use_alter=True, name="fk_results_collection_survey_id"), nullable=True) # Reference to survey in Survey table

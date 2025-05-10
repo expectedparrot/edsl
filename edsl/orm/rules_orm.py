@@ -10,15 +10,15 @@ from ..surveys.base import EndOfSurvey
 from .sql_base import Base
 
 # Forward declaration for EDSL type hints
-if False:  # TYPE_CHECKING replacement for models not yet defined
-    from ..rules.rule import Rule
-    from ..rules.rule_collection import RuleCollection
+from ..surveys.rules.rule import Rule
+from ..surveys.rules.rule_collection import RuleCollection
 
 
 class RuleMappedObject(Base):
     """SQLAlchemy ORM model for a Rule, compatible with SQLAlchemy 2.0."""
     
     __tablename__ = "rule"
+    edsl_class = Rule
     
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     current_q: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -79,6 +79,7 @@ class RuleCollectionMappedObject(Base):
     """SQLAlchemy ORM model for a RuleCollection, compatible with SQLAlchemy 2.0."""
     
     __tablename__ = "rule_collections"
+    edsl_class = RuleCollection
     
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     num_questions: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)

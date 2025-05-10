@@ -1,4 +1,4 @@
-from .agent_orm import AgentMappedObject, AgentListMappedObject
+from .agents_orm import AgentMappedObject, AgentListMappedObject
 
 from ..agents.agent import Agent
 from ..agents.agent_list import AgentList

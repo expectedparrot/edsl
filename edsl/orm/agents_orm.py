@@ -12,6 +12,8 @@ from .sql_base import Base, TimestampMixin
 
 
 class TraitItem(Base):
+    edsl_class = None
+
     __tablename__ = "agent_trait_items"
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     agent_id: Mapped[int] = mapped_column(ForeignKey("agent.id"))
@@ -24,6 +26,8 @@ class TraitItem(Base):
         return f"TraitItem(id={self.id}, key='{self.key}', value='{self.value}')"
 
 class CodebookItem(Base):
+    edsl_class = None
+
     __tablename__ = "agent_codebook_items"
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     agent_id: Mapped[int] = mapped_column(ForeignKey("agent.id"))
@@ -36,6 +40,8 @@ class CodebookItem(Base):
         return f"CodebookItem(id={self.id}, key='{self.key}', value='{self.value}')"
 
 class AgentMappedObject(Base, TimestampMixin):
+    edsl_class = Agent
+
     __tablename__ = "agent"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
@@ -112,6 +118,8 @@ class AgentMappedObject(Base, TimestampMixin):
         return f"AgentMappedObject(id={self.id}, name='{self.name}')"
 
 class AgentListMappedObject(Base, TimestampMixin):
+    edsl_class = AgentList
+
     __tablename__ = "agent_list"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)

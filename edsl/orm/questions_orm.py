@@ -27,6 +27,7 @@ from ..prompts import Prompt
 
 class QuestionOptionMappedObject(Base):
     __tablename__ = 'question_options'
+    edsl_class = None
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     question_id: Mapped[int] = mapped_column(ForeignKey('question.id', ondelete="CASCADE"), nullable=False)
@@ -41,6 +42,7 @@ class QuestionOptionMappedObject(Base):
 # Base model for all questions, using Single Table Inheritance
 class QuestionMappedObject(Base):
     __tablename__ = 'question'  # Single table for all question types
+    edsl_class = None
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     question_name: Mapped[str] = mapped_column(nullable=False, index=True)
@@ -102,6 +104,7 @@ class QuestionFreeTextMappedObject(QuestionMappedObject):
     __mapper_args__ = {
         'polymorphic_identity': 'free_text',
     }
+    edsl_class = QuestionFreeText
 
     @classmethod
     def from_edsl_object(cls, question: QuestionFreeText) -> QuestionFreeTextMappedObject:
@@ -124,6 +127,7 @@ class QuestionMultipleChoiceMappedObject(QuestionMappedObject):
     __mapper_args__ = {
         'polymorphic_identity': 'multiple_choice',
     }
+    edsl_class = QuestionMultipleChoice
 
     @classmethod
     def from_edsl_object(cls, question: QuestionMultipleChoice) -> QuestionMultipleChoiceMappedObject:
@@ -159,6 +163,7 @@ class QuestionNumericalMappedObject(QuestionMappedObject):
     __mapper_args__ = {
         'polymorphic_identity': 'numerical',
     }
+    edsl_class = QuestionNumerical
 
     @classmethod
     def from_edsl_object(cls, question: QuestionNumerical) -> QuestionNumericalMappedObject:
@@ -189,6 +194,7 @@ class QuestionListMappedObject(QuestionMappedObject):
     __mapper_args__ = {
         'polymorphic_identity': 'list',
     }
+    edsl_class = QuestionList
 
     @classmethod
     def from_edsl_object(cls, question: QuestionList) -> QuestionListMappedObject:
@@ -219,6 +225,7 @@ class QuestionCheckBoxMappedObject(QuestionMappedObject):
     __mapper_args__ = {
         'polymorphic_identity': 'checkbox',
     }
+    edsl_class = QuestionCheckBox
 
     @classmethod
     def from_edsl_object(cls, question: QuestionCheckBox) -> QuestionCheckBoxMappedObject:
@@ -258,6 +265,7 @@ class QuestionDictMappedObject(QuestionMappedObject):
     __mapper_args__ = {
         'polymorphic_identity': 'dict',
     }
+    edsl_class = QuestionDict
 
     @classmethod
     def from_edsl_object(cls, question: QuestionDict) -> QuestionDictMappedObject:
@@ -290,6 +298,7 @@ class QuestionYesNoMappedObject(QuestionMappedObject):
     __mapper_args__ = {
         'polymorphic_identity': 'yes_no',
     }
+    edsl_class = QuestionYesNo
 
     @classmethod
     def from_edsl_object(cls, question: QuestionYesNo) -> QuestionYesNoMappedObject:
@@ -321,6 +330,7 @@ class QuestionYesNoMappedObject(QuestionMappedObject):
 
 class QuestionTopKMappedObject(QuestionMappedObject):
     __mapper_args__ = {'polymorphic_identity': 'top_k'}
+    edsl_class = QuestionTopK
 
     @classmethod
     def from_edsl_object(cls, question: QuestionTopK) -> QuestionTopKMappedObject:

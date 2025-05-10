@@ -40,6 +40,7 @@ class JobsMappedObject(Base, TimestampMixin):
     """SQLAlchemy ORM model for Jobs, reflecting Jobs.to_dict() structure."""
     
     __tablename__ = "jobs"
+    edsl_class = Jobs
     
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     

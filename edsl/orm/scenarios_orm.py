@@ -4,16 +4,15 @@ from typing import Optional, Dict, Any, List
 import tempfile
 import os
 
-from typing import TYPE_CHECKING
-if TYPE_CHECKING:
-    from ..scenarios.scenario import Scenario
-    from ..scenarios.scenario_list import ScenarioList
+from ..scenarios.scenario import Scenario
+from ..scenarios.scenario_list import ScenarioList
 
 from .sql_base import Base, TimestampMixin
 
 
 class ScenarioItem(Base):
     __tablename__ = "scenario_items"
+    edsl_class = None
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     scenario_id: Mapped[int] = mapped_column(ForeignKey("scenario.id"))
     key: Mapped[str] = mapped_column()
@@ -27,6 +26,7 @@ class ScenarioItem(Base):
 
 class ScenarioMappedObject(Base, TimestampMixin):
     __tablename__ = "scenario"
+    edsl_class = Scenario
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     name: Mapped[Optional[str]] = mapped_column(nullable=True)
@@ -83,6 +83,7 @@ class ScenarioMappedObject(Base, TimestampMixin):
 
 class ScenarioListMappedObject(Base, TimestampMixin):
     __tablename__ = "scenario_list"
+    edsl_class = ScenarioList
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     name: Mapped[Optional[str]] = mapped_column(Text, nullable=True)

@@ -8,6 +8,7 @@ from .sql_base import Base, TimestampMixin
 
 class NotebookMappedObject(Base, TimestampMixin):
     __tablename__ = "notebooks"  # Table name, e.g., "notebooks"
+    edsl_class = Notebook
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     name: Mapped[Optional[str]] = mapped_column(Text, nullable=True)

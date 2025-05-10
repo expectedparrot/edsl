@@ -2,16 +2,15 @@ from sqlalchemy import Column, Integer, Text, JSON, DateTime, func, ForeignKey, 
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from typing import Optional, Dict, Any, List
 
-from typing import TYPE_CHECKING
-if TYPE_CHECKING:
-    from ..language_models.language_model import LanguageModel
-    from ..language_models.model_list import ModelList
+from ..language_models.language_model import LanguageModel
+from ..language_models.model_list import ModelList
 
 from .sql_base import Base, TimestampMixin
 
 
 class ModelParameter(Base):
     __tablename__ = "language_model_parameters"
+    edsl_class = None
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     model_id: Mapped[int] = mapped_column(ForeignKey("language_model.id"))
     key: Mapped[str] = mapped_column()
@@ -25,6 +24,7 @@ class ModelParameter(Base):
 
 class LanguageModelMappedObject(Base, TimestampMixin):
     __tablename__ = "language_model"
+    edsl_class = LanguageModel
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     model_name: Mapped[str] = mapped_column()
@@ -109,6 +109,7 @@ class LanguageModelMappedObject(Base, TimestampMixin):
 
 class ModelListMappedObject(Base, TimestampMixin):
     __tablename__ = "model_list"
+    edsl_class = ModelList
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     name: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # Optional name for the list
