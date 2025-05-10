@@ -2237,6 +2237,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         """
         from .scenario_source import ScenarioSource
         return ScenarioSource.from_source(source_type, *args, **kwargs)
+        
 
 
 if __name__ == "__main__":

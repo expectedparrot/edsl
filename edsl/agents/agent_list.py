@@ -581,6 +581,7 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
             agent_list.set_codebook(codebook)
             
         return agent_list
+        
 
     @classmethod
     def from_list(self, trait_name: str, values: List[Any], codebook: Optional[dict[str, str]] = None) -> "AgentList":

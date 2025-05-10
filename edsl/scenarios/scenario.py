@@ -995,6 +995,7 @@ class Scenario(Base, UserDict):
         lines.append(f"s = Scenario({self.data})")
         # return f"Scenario({self.data})"
         return lines
+        
 
 
 if __name__ == "__main__":

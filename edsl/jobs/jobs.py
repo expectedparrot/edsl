@@ -29,6 +29,7 @@ from typing import (
 from ..base import Base
 from ..utilities import remove_edsl_version
 from ..coop import CoopServerResponseError
+from ..base.db_manager import get_db_manager
 
 # Import BucketCollection with an import_module to avoid early binding
 from importlib import import_module

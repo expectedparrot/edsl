@@ -141,6 +141,7 @@ class ModelList(Base, UserList):
 
     def code(self):
         pass
+        
 
     @classmethod
     def example(cls, randomize: bool = False) -> "ModelList":

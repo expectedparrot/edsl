@@ -1716,6 +1716,7 @@ class Survey(Base):
             False
         """
         return Survey.from_dict(self.to_dict())
+        
 
 
 def main():

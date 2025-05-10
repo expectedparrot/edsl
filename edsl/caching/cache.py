@@ -416,6 +416,7 @@ class Cache(Base):
         path = CACHE_PATH.replace("sqlite:///", "")
         # db_path = os.path.join(os.path.dirname(path), "data.db")
         return cls.from_sqlite_db(path)
+        
 
     @classmethod
     def from_jsonl(cls, jsonlfile: str, db_path: Optional[str] = None) -> Cache:

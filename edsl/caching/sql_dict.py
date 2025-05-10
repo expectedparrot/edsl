@@ -13,7 +13,7 @@ from typing import Any, Generator, Optional, Union, Dict, TypeVar
 
 from ..config import CONFIG
 from .cache_entry import CacheEntry
-from .orm import Data
+# Import Data from orm inside methods to avoid circular imports
 
 T = TypeVar('T')
 
@@ -211,27 +211,27 @@ class SQLiteDict:
     ) -> None:
         """
         Updates the dictionary with values from another dictionary or SQLiteDict.
-        
+
         This method adds entries from another dictionary or SQLiteDict to this
         SQLiteDict. It optionally overwrites existing entries and uses batched
         transactions for efficiency when updating many entries.
-        
+
         Args:
             new_d: The dictionary or SQLiteDict containing entries to add
             overwrite: If True, overwrites existing entries; if False, keeps
                        existing entries unchanged (default: False)
             max_batch_size: Maximum number of entries to update in a single
                            database transaction (default: 100)
-                           
+
         Raises:
             ValueError: If new_d is not a dict or SQLiteDict
-            
+
         Example:
             >>> d = SQLiteDict.example()
             >>> d.update({"foo": CacheEntry.example()})
             >>> d["foo"] == CacheEntry.example()
             True
-        
+
         Note:
             For large updates, the batched transaction approach helps prevent
             the database from being locked for too long.
@@ -243,6 +243,8 @@ class SQLiteDict:
             )
         current_batch = 0
         with self.Session() as db:
+            from .orm import Data
+
             for key, value in new_d.items():
                 if current_batch == max_batch_size:
                     db.commit()
@@ -263,6 +265,8 @@ class SQLiteDict:
         True
         """
         with self.Session() as db:
+            from .orm import Data
+            
             for instance in db.query(Data).all():
                 yield CacheEntry.from_dict(json.loads(instance.value))
 
@@ -276,6 +280,8 @@ class SQLiteDict:
         True
         """
         with self.Session() as db:
+            from .orm import Data
+            
             for instance in db.query(Data).all():
                 yield (instance.key, CacheEntry.from_dict(json.loads(instance.value)))
 
@@ -301,6 +307,8 @@ class SQLiteDict:
         'missing'
         """
         with self.Session() as db:
+            from .orm import Data
+
             instance = db.query(Data).filter_by(key=key).one_or_none()
             if instance:
                 db.delete(instance)
@@ -321,6 +329,8 @@ class SQLiteDict:
         False
         """
         with self.Session() as db:
+            from .orm import Data
+            
             return db.query(Data).filter_by(key=key).first() is not None
 
     def __iter__(self) -> Generator[str, None, None]:
@@ -333,6 +343,8 @@ class SQLiteDict:
         True
         """
         with self.Session() as db:
+            from .orm import Data
+            
             for instance in db.query(Data).all():
                 yield instance.key
 
@@ -348,6 +360,8 @@ class SQLiteDict:
         1
         """
         with self.Session() as db:
+            from .orm import Data
+            
             return db.query(Data).count()
 
     def keys(self) -> Generator[str, None, None]:

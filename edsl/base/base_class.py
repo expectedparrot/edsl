@@ -836,6 +836,8 @@ class Base(
     and capabilities across the framework.
     """
 
+    orm_class = None
+
     def get_uuid(self) -> str:
         """
         Get the UUID of this object from the Expected Parrot cloud service based on its hash.
@@ -968,6 +970,23 @@ class Base(
         from edsl.base.exceptions import BaseNotImplementedError
 
         raise BaseNotImplementedError("This method is not implemented yet.")
+    
+    def to_orm(self):
+        """Serialize this object to an ORM object.
+        """
+        if self.orm_class is None:
+            raise BaseNotImplementedError("Every EDSL object must have an orm_class attribute.")
+
+        return self.orm_class.from_edsl_object(self)
+
+    @classmethod
+    def from_orm(cls, orm_object):
+        """Deserialize this object from an ORM object.
+        """
+        if cls.orm_class is None:
+            raise BaseNotImplementedError("Every EDSL object must have an orm_class attribute.")
+
+        return orm_object.to_edsl_object()
 
     @abstractmethod
     def code():

@@ -327,6 +327,7 @@ class Notebook(Base):
         NotebookToLaTeX(self).convert(filename)
 
 
+
 if __name__ == "__main__":
     from .. import Notebook
     notebook = Notebook.example()

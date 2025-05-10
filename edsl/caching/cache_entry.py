@@ -392,6 +392,41 @@ class CacheEntry(RepresentationMixin):
         _ = input.pop("timestamp")
         input["response"] = input.pop("output")
         return input
+        
+    @classmethod
+    def from_orm(cls, entry_id: int) -> Optional["CacheEntry"]:
+        """
+        Load a CacheEntry from the database using ORM.
+        
+        Args:
+            entry_id: The ID of the entry to load
+            
+        Returns:
+            A CacheEntry object loaded from the database, or None if not found
+            
+        Raises:
+            Exception: If the entry cannot be loaded due to an error
+        """
+        from ..base.db_manager import get_db_manager
+        
+        try:
+            # Get a DB session
+            db_manager = get_db_manager()
+            session = db_manager.get_session()
+            
+            # Import SQLCacheEntry 
+            from .orm import SQLCacheEntry
+            
+            # Load the entry
+            entry_orm = session.get(SQLCacheEntry, entry_id)
+            if not entry_orm:
+                return None
+                
+            # Convert to domain object
+            entry = entry_orm.to_cache_entry()
+            return entry
+        except Exception as e:
+            raise Exception(f"Error loading cache entry from ORM: {e}")
 
 
 def main() -> None:

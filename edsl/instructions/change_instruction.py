@@ -25,6 +25,18 @@ class ChangeInstruction:
     def __str__(self):
         return self.text
 
+    def __eq__(self, other):
+        """Compare two ChangeInstruction instances by their attributes rather than identity.
+        
+        Two ChangeInstruction instances are equal if they have the same keep and drop lists.
+        """
+        if not isinstance(other, ChangeInstruction):
+            return NotImplemented
+        return (
+            self.keep == other.keep and
+            self.drop == other.drop
+        )
+
     def to_dict(self, add_edsl_version=True):
         d = {
             "keep": self.keep,

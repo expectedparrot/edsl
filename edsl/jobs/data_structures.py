@@ -104,6 +104,7 @@ class RunParameters(Base):
     @classmethod
     def example(cls) -> "RunConfig":
         return cls()
+        
 
 
 @dataclass

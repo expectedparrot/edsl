@@ -232,6 +232,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         - Converting to other formats (dataset, table, pandas DataFrame)
         - Serialization for storage and retrieval
         - Support for remote execution and result retrieval
+        - Database persistence via SQLAlchemy ORM
 
     Results objects have a hierarchical structure with the following components:
         1. Each Results object contains multiple Result objects
@@ -2291,6 +2292,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
 
         except Exception as e:
             raise ResultsError(f"Error loading Results from disk: {str(e)}")
+    
 
 
 def main():  # pragma: no cover
@@ -2314,4 +2316,15 @@ def main():  # pragma: no cover
 if __name__ == "__main__":
     import doctest
 
+    # Run doctests
     doctest.testmod(optionflags=doctest.ELLIPSIS)
+
+    # Create an example Results object
+    results = Results.example()
+    print("Example Results object created.")
+
+    # Run the main function to demonstrate functionalities
+    main()
+
+
+    

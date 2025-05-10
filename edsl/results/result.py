@@ -76,6 +76,7 @@ class Result(Base, UserDict):
     - Rich data structure with sub-dictionaries for organization
     - Support for scoring results against reference answers
     - Serialization to/from dictionaries for storage
+    - Database persistence via SQLAlchemy ORM
 
     Results are typically created by the Jobs system when running interviews and
     collected into a Results collection for analysis. You rarely need to create
@@ -755,6 +756,7 @@ class Result(Base, UserDict):
         del question_name_to_prompts
         
         return result
+        
 
 
 if __name__ == "__main__":
