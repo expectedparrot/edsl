@@ -3,10 +3,10 @@ from sqlalchemy.orm import Mapped, mapped_column
 from typing import Optional, Dict, Any
 
 from ..notebooks import Notebook
-from .sql_base import Base, TimestampMixin
+from .sql_base import Base, TimestampMixin, UUIDTrackable
 
 
-class NotebookMappedObject(Base, TimestampMixin):
+class NotebookMappedObject(Base, TimestampMixin, UUIDTrackable):
     __tablename__ = "notebooks"  # Table name, e.g., "notebooks"
     edsl_class = Notebook
 

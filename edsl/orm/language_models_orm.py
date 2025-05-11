@@ -5,7 +5,7 @@ from typing import Optional, Dict, Any, List
 from ..language_models.language_model import LanguageModel
 from ..language_models.model_list import ModelList
 
-from .sql_base import Base, TimestampMixin
+from .sql_base import Base, TimestampMixin, UUIDTrackable
 
 
 class ModelParameter(Base):
@@ -22,7 +22,7 @@ class ModelParameter(Base):
         return f"ModelParameter(id={self.id}, key='{self.key}', value='{self.value}')"
 
 
-class LanguageModelMappedObject(Base, TimestampMixin):
+class LanguageModelMappedObject(Base, TimestampMixin, UUIDTrackable):
     __tablename__ = "language_model"
     edsl_class = LanguageModel
 
@@ -107,7 +107,7 @@ class LanguageModelMappedObject(Base, TimestampMixin):
         return f"LanguageModelMappedObject(id={self.id}, model_name='{self.model_name}', service='{self.inference_service}')"
 
 
-class ModelListMappedObject(Base, TimestampMixin):
+class ModelListMappedObject(Base, TimestampMixin, UUIDTrackable):
     __tablename__ = "model_list"
     edsl_class = ModelList
 

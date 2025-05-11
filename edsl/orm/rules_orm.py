@@ -7,14 +7,14 @@ from typing import Optional, List, Dict, Any, Union
 from ..surveys.base import EndOfSurvey
 
 # Import the shared Base
-from .sql_base import Base
+from .sql_base import Base, UUIDTrackable
 
 # Forward declaration for EDSL type hints
 from ..surveys.rules.rule import Rule
 from ..surveys.rules.rule_collection import RuleCollection
 
 
-class RuleMappedObject(Base):
+class RuleMappedObject(Base, UUIDTrackable):
     """SQLAlchemy ORM model for a Rule, compatible with SQLAlchemy 2.0."""
     
     __tablename__ = "rule"
@@ -75,7 +75,7 @@ class RuleMappedObject(Base):
         )
 
 
-class RuleCollectionMappedObject(Base):
+class RuleCollectionMappedObject(Base, UUIDTrackable):
     """SQLAlchemy ORM model for a RuleCollection, compatible with SQLAlchemy 2.0."""
     
     __tablename__ = "rule_collections"

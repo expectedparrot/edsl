@@ -20,7 +20,7 @@ from sqlalchemy.orm import configure_mappers
 # Import the shared Base
 #from ..base.sql_model_base import Base
 #from .sql_model_base import Base
-from .sql_base import Base
+from .sql_base import Base, UUIDTrackable
 
 # Import domain models for conversion
 from ..results import Result
@@ -90,7 +90,7 @@ class ResultDataMappedObject(Base): # Renamed class
         return f"<ResultDataMappedObject(id={self.id}, result_id={self.result_id}, data_type='{self.data_type}', key='{self.key}')>" # Renamed class
 
 
-class ResultMappedObject(Base): # Renamed class
+class ResultMappedObject(Base, UUIDTrackable): # Renamed class
     """SQLAlchemy ORM model for Result metadata."""
     
     __tablename__ = "result" # Renamed table
@@ -295,7 +295,7 @@ class ResultMappedObject(Base): # Renamed class
         return orm_result
 
 
-class ResultsMappedObject(Base): # Renamed class
+class ResultsMappedObject(Base, UUIDTrackable): # Renamed class
     """SQLAlchemy ORM model for Results collections."""
     
     __tablename__ = "results" # Renamed table

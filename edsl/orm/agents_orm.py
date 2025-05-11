@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 from ..agents.agent import Agent
 from ..agents.agent_list import AgentList
 
-from .sql_base import Base, TimestampMixin
+from .sql_base import Base, TimestampMixin, UUIDTrackable
 
 
 class TraitItem(Base):
@@ -39,7 +39,7 @@ class CodebookItem(Base):
     def __repr__(self):
         return f"CodebookItem(id={self.id}, key='{self.key}', value='{self.value}')"
 
-class AgentMappedObject(Base, TimestampMixin):
+class AgentMappedObject(UUIDTrackable, Base, TimestampMixin):
     edsl_class = Agent
 
     __tablename__ = "agent"
@@ -117,7 +117,7 @@ class AgentMappedObject(Base, TimestampMixin):
     def __repr__(self) -> str:
         return f"AgentMappedObject(id={self.id}, name='{self.name}')"
 
-class AgentListMappedObject(Base, TimestampMixin):
+class AgentListMappedObject(Base, UUIDTrackable, TimestampMixin):
     edsl_class = AgentList
 
     __tablename__ = "agent_list"
@@ -177,28 +177,46 @@ if __name__ == "__main__":
     from ..agents.agent import Agent
     from ..agents.agent_list import AgentList
 
-    new_agent_orm = AgentMappedObject.from_edsl_object(Agent.example())
+    from uuid import UUID
+    from .sql_base import UUIDLookup, create_orm
+
+    agent_uuid = UUID("123e4567-e89b-12d3-a456-426614174000")
+
+    agent_example = Agent.example()
+
+    new_agent_orm = create_orm(agent_example, existing_uuid=agent_uuid)
+    #new_agent_orm = AgentMappedObject.from_edsl_object(agent_example)
+    #new_agent_orm.uuid = agent_uuid
+
     db, _, _ = create_test_session()
 
     db.add(new_agent_orm)
     db.commit()
     db.refresh(new_agent_orm)
 
-    print(f"Created agent: {new_agent_orm}")
+    retrieved_agent_orm = UUIDLookup.resolve(db, agent_uuid)
+    retrieved_agent = retrieved_agent_orm.to_edsl_object()
+    assert retrieved_agent == agent_example
 
-    retrieved_agent = db.query(AgentMappedObject).filter(AgentMappedObject.name == "Test Agent").first()
-    if retrieved_agent:
-        print(f"Retrieved agent: {retrieved_agent}")
-        print(f"Created at: {retrieved_agent.created_at}")
-        print("Traits:")
-        for trait in retrieved_agent.traits:
-            print(f"  {trait.key}: {trait.value} (created at: {trait.created_at})")
-        print("Codebook:")
-        for item in retrieved_agent.codebook:
-            print(f"  {item.key}: {item.value} (created at: {item.created_at})")
+    # print(retrieved_agent)          # ↪ AgentMappedObject instance
 
-    print("\\n--- Testing AgentListMappedObject ---")
-    # 1. Create an EDSL AgentList
+    # print(f"Created agent: {new_agent_orm}")
+
+    # retrieved_agent = db.query(AgentMappedObject).filter(AgentMappedObject.name == "Test Agent").first()
+    # if retrieved_agent:
+    #     print(f"Retrieved agent: {retrieved_agent}")
+    #     print(f"Created at: {retrieved_agent.created_at}")
+    #     print("Traits:")
+    #     for trait in retrieved_agent.traits:
+    #         print(f"  {trait.key}: {trait.value} (created at: {trait.created_at})")
+    #     print("Codebook:")
+    #     for item in retrieved_agent.codebook:
+    #         print(f"  {item.key}: {item.value} (created at: {item.created_at})")
+
+
+ 
+    # print("\\n--- Testing AgentListMappedObject ---")
+    # # 1. Create an EDSL AgentList
     # example_agent_list_edsl = AgentList.example() # AgentList is imported at the top
     # example_agent_list_edsl.set_instruction("Instruction for all agents in the list.")
     # # Add a named agent to the list for variety
@@ -210,53 +228,53 @@ if __name__ == "__main__":
     #agent_list_orm = AgentListMappedObject.from_edsl_object(example_agent_list_edsl, name="MyExampleAgentList")
 
 
-    example_agent_list = AgentList.pull("542ed9c1-abfb-4d14-ab0b-15f6ea4bd7dc")
-    agent_list_orm = AgentListMappedObject.from_edsl_object(example_agent_list, name="MyExampleAgentList")
+    # example_agent_list = AgentList.pull("542ed9c1-abfb-4d14-ab0b-15f6ea4bd7dc")
+    # agent_list_orm = AgentListMappedObject.from_edsl_object(example_agent_list, name="MyExampleAgentList")
     
-    # 3. Add to DB, commit, refresh
-    db.add(agent_list_orm)
-    db.commit()
-    db.refresh(agent_list_orm)
-    print(f"Created AgentListMappedObject: {agent_list_orm}")
+    # # 3. Add to DB, commit, refresh
+    # db.add(agent_list_orm)
+    # db.commit()
+    # db.refresh(agent_list_orm)
+    # print(f"Created AgentListMappedObject: {agent_list_orm}")
 
-    print("Number of agents in the list: ", len(agent_list_orm.agents))
+    # print("Number of agents in the list: ", len(agent_list_orm.agents))
 
-    # if agent_list_orm.agents:
-    #     for agent_obj in agent_list_orm.agents:
-    #         print(f"  Contained agent: {agent_obj} (Created at: {agent_obj.created_at})")
-    #         print(f"    Agent's list ID: {agent_obj.agent_list_id}")
+    # # if agent_list_orm.agents:
+    # #     for agent_obj in agent_list_orm.agents:
+    # #         print(f"  Contained agent: {agent_obj} (Created at: {agent_obj.created_at})")
+    # #         print(f"    Agent's list ID: {agent_obj.agent_list_id}")
 
 
-    # 4. Retrieve the AgentListMappedObject from DB
-    retrieved_agent_list_orm = db.query(AgentListMappedObject).filter(AgentListMappedObject.name == "MyExampleAgentList").first()
-    if retrieved_agent_list_orm:
-        print(f"Retrieved AgentListMappedObject: {retrieved_agent_list_orm}")
-        print(f"  Created at: {retrieved_agent_list_orm.created_at}")
-        print(f"  Number of agents: {len(retrieved_agent_list_orm.agents)}")
-        # for agent_obj in retrieved_agent_list_orm.agents:
-        #     print(f"    Agent in list: {agent_obj.name}, Traits: {[t.key for t in agent_obj.traits]}")
+    # # 4. Retrieve the AgentListMappedObject from DB
+    # retrieved_agent_list_orm = db.query(AgentListMappedObject).filter(AgentListMappedObject.name == "MyExampleAgentList").first()
+    # if retrieved_agent_list_orm:
+    #     print(f"Retrieved AgentListMappedObject: {retrieved_agent_list_orm}")
+    #     print(f"  Created at: {retrieved_agent_list_orm.created_at}")
+    #     print(f"  Number of agents: {len(retrieved_agent_list_orm.agents)}")
+    #     # for agent_obj in retrieved_agent_list_orm.agents:
+    #     #     print(f"    Agent in list: {agent_obj.name}, Traits: {[t.key for t in agent_obj.traits]}")
 
-        # 5. Convert back to EDSL AgentList
-        reconstituted_agent_list_edsl = retrieved_agent_list_orm.to_edsl_object()
-        #print(f"Reconstituted EDSL AgentList: {reconstituted_agent_list_edsl}")
+    #     # 5. Convert back to EDSL AgentList
+    #     reconstituted_agent_list_edsl = retrieved_agent_list_orm.to_edsl_object()
+    #     #print(f"Reconstituted EDSL AgentList: {reconstituted_agent_list_edsl}")
         
-        # Verify content (simple check, more thorough checks might compare .to_dict())
-        assert len(reconstituted_agent_list_edsl) == len(example_agent_list)
-        # Check if instructions were propagated (Agent.to_edsl_object needs to handle instruction)
-        if reconstituted_agent_list_edsl and reconstituted_agent_list_edsl.data and reconstituted_agent_list_edsl[0].instruction:
-             print(f"  Instruction of first agent in reconstituted list: {reconstituted_agent_list_edsl[0].instruction}")
+    #     # Verify content (simple check, more thorough checks might compare .to_dict())
+    #     assert len(reconstituted_agent_list_edsl) == len(example_agent_list)
+    #     # Check if instructions were propagated (Agent.to_edsl_object needs to handle instruction)
+    #     if reconstituted_agent_list_edsl and reconstituted_agent_list_edsl.data and reconstituted_agent_list_edsl[0].instruction:
+    #          print(f"  Instruction of first agent in reconstituted list: {reconstituted_agent_list_edsl[0].instruction}")
         
-        # Verify equality based on to_dict representation (more robust)
-        # Note: AgentList.to_dict() might have ordering issues if not handled,
-        # and hash differences for unsaved EDSL objects vs. reconstituted ones.
-        # For a strict test, ensure `to_dict` is canonical (e.g., sorted traits).
-        # The AgentList.__eq__ method already uses to_dict with sorting.
-        if example_agent_list == reconstituted_agent_list_edsl:
-            print("Original and reconstituted EDSL AgentLists are equal.")
-        else:
-            print("Original and reconstituted EDSL AgentLists are NOT equal. Further checks needed.")
-            # print("Original dict:", example_agent_list_edsl.to_dict(add_edsl_version=False, sorted=True))
-            # print("Reconstituted dict:", reconstituted_agent_list_edsl.to_dict(add_edsl_version=False, sorted=True))
+    #     # Verify equality based on to_dict representation (more robust)
+    #     # Note: AgentList.to_dict() might have ordering issues if not handled,
+    #     # and hash differences for unsaved EDSL objects vs. reconstituted ones.
+    #     # For a strict test, ensure `to_dict` is canonical (e.g., sorted traits).
+    #     # The AgentList.__eq__ method already uses to_dict with sorting.
+    #     if example_agent_list == reconstituted_agent_list_edsl:
+    #         print("Original and reconstituted EDSL AgentLists are equal.")
+    #     else:
+    #         print("Original and reconstituted EDSL AgentLists are NOT equal. Further checks needed.")
+    #         # print("Original dict:", example_agent_list_edsl.to_dict(add_edsl_version=False, sorted=True))
+    #         # print("Reconstituted dict:", reconstituted_agent_list_edsl.to_dict(add_edsl_version=False, sorted=True))
 
 
-    db.close()
+    # db.close()

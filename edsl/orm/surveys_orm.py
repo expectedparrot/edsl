@@ -15,7 +15,7 @@ from ..questions import (
     QuestionCheckBox, QuestionDict, QuestionYesNo, QuestionTopK, Question
 )
 
-from .sql_base import Base, TimestampMixin
+from .sql_base import Base, TimestampMixin, UUIDTrackable
 # ORM Question Mapped Object types from questions_orm.py
 from .questions_orm import (
     QuestionMappedObject, # Base ORM question class
@@ -85,7 +85,7 @@ class InstructionMappedObject(Base):
     }
 
 
-class BaseInstructionMapped(InstructionMappedObject):
+class BaseInstructionMapped(InstructionMappedObject, UUIDTrackable):
     __mapper_args__ = {'polymorphic_identity': 'base_instruction'}
     edsl_class = Instruction
 
@@ -170,7 +170,7 @@ class SurveyInstructionAssociation(Base):
     instruction: Mapped["InstructionMappedObject"] = relationship(back_populates="survey_associations", lazy="joined")
 
 
-class SurveyMappedObject(Base, TimestampMixin):
+class SurveyMappedObject(Base, TimestampMixin, UUIDTrackable):
     __tablename__ = "survey"
     edsl_class = Survey
 

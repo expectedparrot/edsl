@@ -7,7 +7,7 @@ import os
 from ..scenarios.scenario import Scenario
 from ..scenarios.scenario_list import ScenarioList
 
-from .sql_base import Base, TimestampMixin
+from .sql_base import Base, TimestampMixin, UUIDTrackable
 
 
 class ScenarioItem(Base):
@@ -24,7 +24,7 @@ class ScenarioItem(Base):
         return f"ScenarioItem(id={self.id}, key='{self.key}', value='{self.value}')"
 
 
-class ScenarioMappedObject(Base, TimestampMixin):
+class ScenarioMappedObject(Base, TimestampMixin, UUIDTrackable):
     __tablename__ = "scenario"
     edsl_class = Scenario
 
@@ -81,7 +81,7 @@ class ScenarioMappedObject(Base, TimestampMixin):
         return f"ScenarioMappedObject(id={self.id}, name='{self.name}')"
 
 
-class ScenarioListMappedObject(Base, TimestampMixin):
+class ScenarioListMappedObject(Base, TimestampMixin, UUIDTrackable):
     __tablename__ = "scenario_list"
     edsl_class = ScenarioList
 
@@ -124,7 +124,7 @@ class ScenarioListMappedObject(Base, TimestampMixin):
 
 
 if __name__ == "__main__":
-    from .sql_base import create_test_session
+    from .sql_base import create_test_session, create_orm
     from ..scenarios.scenario import Scenario
     from ..scenarios.scenario_list import ScenarioList
     
@@ -133,7 +133,9 @@ if __name__ == "__main__":
     
     # Test Scenario ORM
     test_scenario = Scenario({"product": "coffee", "price": 4.99}, name="Test Scenario")
-    scenario_orm = ScenarioMappedObject.from_edsl_object(test_scenario)
+
+
+    scenario_orm = create_orm(test_scenario)
     
     db.add(scenario_orm)
     db.commit()

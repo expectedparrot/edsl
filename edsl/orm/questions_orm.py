@@ -7,7 +7,7 @@ from sqlalchemy.orm import sessionmaker, relationship, Mapped, mapped_column
 from sqlalchemy.schema import CreateTable
 
 # Import the shared Base
-from .sql_base import Base
+from .sql_base import Base, UUIDTrackable
 
 # Import the EDSL Question types for type hinting and conversion
 from ..questions import (
@@ -32,7 +32,7 @@ from ..questions import (
 # Define the base for declarative models --> REMOVED
 # Base = declarative_base()
 
-class QuestionOptionMappedObject(Base):
+class QuestionOptionMappedObject(UUIDTrackable, Base):
     __tablename__ = 'question_options'
     edsl_class = None
 
@@ -47,7 +47,7 @@ class QuestionOptionMappedObject(Base):
         return f"<QuestionOptionMappedObject(id={self.id}, value='{self.option_value[:20]}...')>"
 
 # Base model for all questions, using Single Table Inheritance
-class QuestionMappedObject(Base):
+class QuestionMappedObject(UUIDTrackable, Base):
     __tablename__ = 'question'  # Single table for all question types
     edsl_class = None
 

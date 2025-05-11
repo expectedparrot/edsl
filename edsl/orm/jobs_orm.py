@@ -25,7 +25,7 @@ from ..jobs.data_structures import RunConfig, RunParameters, RunEnvironment # Fo
 
 from ..base.exceptions import BaseException
 
-from .sql_base import Base, TimestampMixin
+from .sql_base import Base, TimestampMixin, UUIDTrackable
 from .surveys_orm import SurveyMappedObject
 from .scenarios_orm import ScenarioListMappedObject
 from .agents_orm import AgentListMappedObject
@@ -36,7 +36,7 @@ class JobsOrmException(BaseException):
     pass
 
 
-class JobsMappedObject(Base, TimestampMixin):
+class JobsMappedObject(Base, TimestampMixin, UUIDTrackable):
     """SQLAlchemy ORM model for Jobs, reflecting Jobs.to_dict() structure."""
     
     __tablename__ = "jobs"

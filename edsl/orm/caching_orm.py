@@ -20,7 +20,7 @@ from sqlalchemy.orm import relationship, Session, backref, mapped_column, Mapped
 
 #from .sql_model_base import Base
 # Import base exception
-from .sql_base import Base
+from .sql_base import Base, UUIDTrackable
 
 from edsl.base.exceptions import BaseException
 from edsl.caching import CacheEntry, Cache # Ensure Cache is imported
@@ -108,7 +108,7 @@ class CacheEntryMappedObject(Base):
         )
 
 
-class CacheMappedObject(Base):
+class CacheMappedObject(Base, UUIDTrackable):
     """SQLAlchemy ORM model for Cache."""
     edsl_class = Cache
     __tablename__ = "cache"
