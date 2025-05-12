@@ -816,7 +816,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             )
 
         if self.task_history.has_unfixed_exceptions or include_task_history:
-            d.update({"task_history": self.task_history.to_dict()})
+            d.update({"task_history": self.task_history.to_dict(offload_content=True)})
 
         if add_edsl_version:
             from .. import __version__
