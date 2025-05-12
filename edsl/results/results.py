@@ -771,6 +771,10 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
     def to_dataset(self) -> "Dataset":
         return self.select()
 
+    def optimzie_scenarios(self):
+        for result in self.data:
+            result.scenario.offload(inplace=True)
+
     def to_dict(
         self,
         sort: bool = False,
@@ -778,9 +782,12 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         include_cache: bool = True,
         include_task_history: bool = False,
         include_cache_info: bool = True,
+        offload_scenarios: bool = True,
     ) -> dict[str, Any]:
         from ..caching import Cache
 
+        if offload_scenarios:
+            self.optimzie_scenarios()
         if sort:
             data = sorted([result for result in self.data], key=lambda x: hash(x))
         else:
