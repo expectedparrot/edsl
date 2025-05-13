@@ -446,9 +446,7 @@ class FileStore(Scenario):
         if suffix is None:
             suffix = self.suffix
         if self.binary:
-            file_like_object = self.base64_to_file(
-                self["base64_string"], is_binary=True
-            )
+            file_like_object = self.base64_to_file(self.base64_string, is_binary=True)
         else:
             file_like_object = self.base64_to_text_file(self.base64_string)
 
@@ -765,15 +763,13 @@ class FileStore(Scenario):
         if name.startswith("__") and name.endswith("__"):
             raise AttributeError(name)
 
-        # Only try to access suffix if it's in our __dict__
-        if hasattr(self, "_data") and "suffix" in self._data:
-            if self._data["suffix"] == "csv":
-                # Get the pandas DataFrame
-                df = self.to_pandas()
-                # Check if the requested attribute exists in the DataFrame
-                if hasattr(df, name):
-                    return getattr(df, name)
-        # If not a CSV or attribute doesn't exist in DataFrame, raise AttributeError
+        # Check for _data directly in __dict__ to avoid recursion
+        _data = self.__dict__.get("_data", None)
+        if _data and _data.get("suffix") == "csv":
+            df = self.to_pandas()
+            if hasattr(df, name):
+                return getattr(df, name)
+
         raise AttributeError(
             f"'{self.__class__.__name__}' object has no attribute '{name}'"
         )
