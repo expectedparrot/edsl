@@ -26,7 +26,7 @@ EDSL makes it easy to conduct computational social science and market research w
 - <a href="https://docs.expectedparrot.com" target="_blank" rel="noopener noreferrer">Documentation</a>
 
 ## Requirements
-- Python 3.9 - 3.12
+- Python 3.9 - 3.13
 - API keys for language models. You can use your own keys or an Expected Parrot key that provides access to all available models.
 See instructions on <a href="https://docs.expectedparrot.com/en/latest/api_keys.html" target="_blank" rel="noopener noreferrer">managing keys</a> and <a href="https://www.expectedparrot.com/models" target="_blank" rel="noopener noreferrer">model pricing and performance</a> information.
 
