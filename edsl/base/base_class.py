@@ -1051,6 +1051,18 @@ class BaseDiffCollection(UserList):
         self.append(diff)
         return self
 
+    def html(self, title: str = "EDSL Object Diff (Collection)", collapse_large_sections: bool = True) -> str:
+        """Return an HTML document combining all diffs in the collection."""
+        from edsl.base.diff_html import DiffHTMLExplorer
+
+        return DiffHTMLExplorer(self, title=title, collapse_large_sections=collapse_large_sections).generate_html()
+
+    def _repr_html_(self):  # pragma: no cover
+        try:
+            return self.html()
+        except Exception:
+            return f"<pre>{str(self)}</pre>"
+
 
 class DummyObject:
     """A simple class that can be used to wrap a dictionary for diffing purposes.
@@ -1434,6 +1446,32 @@ class BaseDiff:
         from edsl.base import BaseDiffCollection
 
         return BaseDiffCollection([self, diff])
+
+    def html(self, title: str = "EDSL Object Diff", collapse_large_sections: bool = True) -> str:
+        """Return a self-contained HTML document visualising this diff.
+
+        This is a convenience wrapper around
+        :class:`edsl.base.diff_html.DiffHTMLExplorer` so that users can simply do::
+
+            diff = obj1 - obj2
+            diff_html = diff.html()
+
+        The string that is returned can be saved to disk or displayed inside a
+        Jupyter notebook (thanks to the :pycode:`_repr_html_` implementation).
+        """
+        from edsl.base.diff_html import DiffHTMLExplorer
+
+        return DiffHTMLExplorer(self, title=title, collapse_large_sections=collapse_large_sections).generate_html()
+
+    # ------------------------------------------------------------------
+    # Jupyter representation
+    # ------------------------------------------------------------------
+    def _repr_html_(self):  # pragma: no cover
+        try:
+            return self.html()
+        except Exception:
+            # Fallback to plain string if something goes wrong during HTML generation
+            return f"<pre>{str(self)}</pre>"
 
 
 if __name__ == "__main__":

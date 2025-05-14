@@ -978,8 +978,11 @@ class LanguageModel(
 
         # Determine the appropriate model class
         model_class = get_model_class(
-            data["model"], service_name=data.get("inference_service", None)
+            data["model"], service_name=data.get("inference_service", "test")
         )
+
+        if model_class is None:
+            raise ValueError(f"Model class not found for model: {data['model']}")
 
         # Handle canned_response in parameters for test models
         if (

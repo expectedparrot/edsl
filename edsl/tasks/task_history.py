@@ -7,7 +7,7 @@ visualization and reporting to help users understand task execution patterns and
 issues.
 """
 
-from typing import List, Optional, TYPE_CHECKING
+from typing import List, Optional, TYPE_CHECKING, Any, Dict
 
 if TYPE_CHECKING:
     from ..interviews import Interview
@@ -257,6 +257,8 @@ class TaskHistory(RepresentationMixin):
 
         # Create a custom interview-like object for each serialized interview
         for interview_data in data.get("interviews", []):
+            # Restore option_labels integer keys that were stringified by JSON
+            interview_data = _restore_option_labels_keys(interview_data)
             # Check if this is one of our InterviewReference objects
             if (
                 isinstance(interview_data, dict)
@@ -901,6 +903,50 @@ class TaskHistory(RepresentationMixin):
         }
 
         return self
+
+    def __eq__(self, other):
+        """Compare two TaskHistory objects for equality based on their serialized content.
+
+        Two TaskHistory instances are considered equal if their ``to_dict``
+        representations are identical (ignoring EDSL version metadata).
+        """
+        if not isinstance(other, TaskHistory):
+            return False
+        # Compare the dictionary representations without version metadata for a stable comparison.
+        return self.to_dict(add_edsl_version=False) == other.to_dict(add_edsl_version=False)
+
+
+# ---------------------------------------------------------------------------
+# Utility: restore integer keys in option_labels after JSON round-trip
+# ---------------------------------------------------------------------------
+
+def _restore_option_labels_keys(obj: Any) -> Any:
+    """Recursively convert numeric string keys in *option_labels* mappings back
+    to integers.
+
+    ``QuestionLinearScale`` and similar objects use integer keys in
+    ``option_labels``.  After JSON serialisation those keys become strings.
+    When a *TaskHistory* blob is loaded from a ``.json`` file we repair the
+    structure here so that subsequent equality checks and diff operations see
+    the original data.
+    """
+
+    if isinstance(obj, dict):
+        new: Dict[Any, Any] = {}
+        for k, v in obj.items():
+            if k == "option_labels" and isinstance(v, dict):
+                fixed: Dict[Any, Any] = {
+                    (int(key) if isinstance(key, str) and key.isdigit() else key): val
+                    for key, val in v.items()
+                }
+                new[k] = fixed
+            else:
+                new[k] = _restore_option_labels_keys(v)
+        return new
+    elif isinstance(obj, list):
+        return [_restore_option_labels_keys(item) for item in obj]
+    else:
+        return obj
 
 
 if __name__ == "__main__":

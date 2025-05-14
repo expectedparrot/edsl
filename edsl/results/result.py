@@ -140,7 +140,7 @@ class Result(Base, UserDict):
             self._combined_dict,
             self._problem_keys,
         ) = self._compute_combined_dict_and_problem_keys()
-
+        
     @staticmethod
     def _create_question_to_attributes(survey):
         """Create a dictionary of question attributes."""

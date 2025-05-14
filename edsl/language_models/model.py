@@ -87,6 +87,7 @@ class Model(metaclass=Meta):
 
         # Check if we're in a notebook environment
         try:
+            from IPython import get_ipython
             get_ipython()
             print(message)
             return None
@@ -124,7 +125,10 @@ class Model(metaclass=Meta):
             )
             return factory(*args, **kwargs)
         except (InferenceServiceError, Exception) as e:
-            return cls._handle_model_error(model_name, e)
+            cls._handle_model_error(model_name, e)
+            return cls.get_registry().create_model_factory(
+                model_name, service_name="test"
+            )
 
     @classmethod
     def add_model(cls, service_name, model_name) -> None:
