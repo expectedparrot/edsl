@@ -2,6 +2,7 @@ import aiohttp
 import base64
 import json
 import requests
+import time
 
 from typing import Any, Optional, Union, Literal, List, TypedDict, TYPE_CHECKING
 from uuid import UUID
@@ -13,7 +14,9 @@ from ..caching import CacheEntry
 
 if TYPE_CHECKING:
     from ..jobs import Jobs
+    from ..scenarios import ScenarioList
     from ..surveys import Survey
+    from ..results import Results
 
 from .exceptions import (
     CoopInvalidURLError,
@@ -567,6 +570,7 @@ class Coop(CoopFunctionsMixin):
                     json.dumps(
                         object_dict,
                         default=self._json_handle_none,
+                        allow_nan=False,
                     )
                     if object_type != "scenario"
                     else ""
@@ -585,6 +589,7 @@ class Coop(CoopFunctionsMixin):
             json_data = json.dumps(
                 object_dict,
                 default=self._json_handle_none,
+                allow_nan=False,
             )
             headers = {"Content-Type": "application/json"}
             if response_json.get("upload_signed_url"):
@@ -928,6 +933,7 @@ class Coop(CoopFunctionsMixin):
                     json.dumps(
                         value.to_dict(),
                         default=self._json_handle_none,
+                        allow_nan=False,
                     )
                     if value
                     else None
@@ -1385,11 +1391,107 @@ class Coop(CoopFunctionsMixin):
         self._resolve_server_response(response)
         response_json = response.json()
         return {
-            "name": response_json.get("project_name"),
+            "project_name": response_json.get("project_name"),
             "uuid": response_json.get("uuid"),
             "admin_url": f"{self.url}/home/projects/{response_json.get('uuid')}",
             "respondent_url": f"{self.url}/respond/{response_json.get('uuid')}",
         }
+
+    def get_project(
+        self,
+        project_uuid: str,
+    ) -> dict:
+        """
+        Get a project from Coop.
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/projects/{project_uuid}",
+            method="GET",
+        )
+        self._resolve_server_response(response)
+        response_json = response.json()
+        return {
+            "project_name": response_json.get("project_name"),
+            "project_job_uuids": response_json.get("job_uuids"),
+        }
+
+    def get_project_human_responses(
+        self,
+        project_uuid: str,
+    ) -> Union["Results", "ScenarioList"]:
+        """
+        Return a Results object with the human responses for a project.
+
+        If generating the Results object fails, a ScenarioList will be returned instead.
+        """
+        from ..agents import Agent, AgentList
+        from ..caching import Cache
+        from ..language_models import Model
+        from ..scenarios import Scenario, ScenarioList
+        from ..surveys import Survey
+
+        response = self._send_server_request(
+            uri=f"api/v0/projects/{project_uuid}/human-responses",
+            method="GET",
+        )
+        self._resolve_server_response(response)
+        response_json = response.json()
+        human_responses = response_json.get("human_responses", [])
+
+        try:
+            agent_list = AgentList()
+
+            for response in human_responses:
+                response_uuid = response.get("response_uuid")
+                if response_uuid is None:
+                    raise RuntimeError(
+                        "One of your responses is missing a unique identifier."
+                    )
+
+                response_dict = json.loads(response.get("response_json_string"))
+
+                a = Agent(name=response_uuid, instruction="")
+
+                def create_answer_function(response_data):
+                    def f(self, question, scenario):
+                        return response_data.get(question.question_name, None)
+
+                    return f
+
+                a.add_direct_question_answering_method(
+                    create_answer_function(response_dict)
+                )
+                agent_list.append(a)
+
+            survey_json_string = response_json.get("survey_json_string")
+            survey = Survey.from_dict(json.loads(survey_json_string))
+
+            model = Model("test")
+            results = (
+                survey.by(agent_list)
+                .by(model)
+                .run(
+                    cache=Cache(),
+                    disable_remote_cache=True,
+                    disable_remote_inference=True,
+                    print_exceptions=False,
+                )
+            )
+            return results
+        except Exception:
+            human_response_scenarios = []
+            for response in human_responses:
+                response_uuid = response.get("response_uuid")
+                if response_uuid is None:
+                    raise RuntimeError(
+                        "One of your responses is missing a unique identifier."
+                    )
+
+                response_dict = json.loads(response.get("response_json_string"))
+                response_dict["agent_name"] = response_uuid
+                scenario = Scenario(response_dict)
+                human_response_scenarios.append(scenario)
+            return ScenarioList(human_response_scenarios)
 
     def __repr__(self):
         """Return a string representation of the client."""
