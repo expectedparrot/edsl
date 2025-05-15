@@ -4,17 +4,15 @@ Language Models
 ===============
 
 Language models are used to generate responses to survey questions.
-EDSL works with many models from a variety of popular inference service providers, including Anthropic, Azure, Bedrock, Deep Infra, DeepSeek, Google, Mistral, OpenAI, Perplexity and Together.
-Current model pricing and performance information can be found at the Coop `model pricing page <https://www.expectedparrot.com/getting-started/coop-pricing>`_.
-The same information can also be retrieved at your workspace by running the `Model.check_working_models()` method (see example code below).
+EDSL works with many models from a variety of popular inference service providers, including Anthropic, Azure, Bedrock, Deep Infra, DeepSeek, Google, Mistral, OpenAI, Perplexity, Together and Xai.
+Current model pricing and performance information can be found at the Coop `model pricing and performance page <https://www.expectedparrot.com/getting-started/models>`_.
 
 We also recommend checking providers' websites for the most up-to-date information on models and service providers' terms of use.
-Links to providers' websites can be found at the Coop model pricing page.
+Links to providers' websites can be found at the `models page <https://www.expectedparrot.com/getting-started/models>`_.
 If you need assistance checking whether a model is working or to report a missing model or price, please send a message to info@expectedparrot.com or post a message on `Discord <https://discord.com/invite/mxAYkjfy9m>`_.
 
 This page provides examples of methods for specifying models for surveys using the `Model` and `ModelList` classes.
 
-.. A `notebook of code examples <>`_ is also available at Coop.
 
 
 API keys 
@@ -32,9 +30,9 @@ The following code will return a table of inference service providers:
 
 .. code-block:: python
 
-   from edsl import Model
+  from edsl import Model
 
-   Model.services()
+  Model.services()
 
 
 Output:
@@ -55,99 +53,71 @@ Output:
    * - openai
    * - perplexity
    * - together
+   * - xai
 
 
-Available models
-----------------
+.. Available models
+.. ----------------
 
-The following code will return a table of models for all service providers that have been used with EDSL (output omitted here for brevity).
+.. The following code will return a table of models for all service providers that have been used with EDSL (output omitted here for brevity).
 
-This list should be used together with the `model pricing page <https://www.expectedparrot.com/getting-started/coop-pricing>`_ to check current model performance with test survey questions.
-We also recommend running your own test questions with any models that you want to use before running a large survey.
-
-.. code-block:: python
-
-   from edsl import Model
-
-   Model.available()
-
-
-To see a list of all models for a specific service, pass the service name as an argument:
-
-.. code-block:: python
-
-   Model.available(service = "google")
-
-
-Output (this list will vary based on the models that have been used when the code is run):
-
-.. list-table::
-   :header-rows: 1
-
-   * - Model Name
-     - Service Name
-   * - gemini-pro
-     - google
-   * - gemini-1.0-pro
-     - google
-   * - gemini-1.0-flash
-     - google
-   * - gemini-1.0-flash-8b
-     - google
-   * - gemini-1.5-pro
-     - google
-   * - gemini-2.0-flash
-     - google
-
-
-
-Check working models 
---------------------
-
-You can check current performance and pricing for models by running the following code:
-
-.. code-block:: python
-
-  from edsl import Model
-
-  Model.check_working_models()
-
-
-This will return the same information available at the `model pricing page <https://www.expectedparrot.com/getting-started/coop-pricing>`_: *Service, Model, Works with text, Works with images, Price per 1M input tokens (USD), Price per 1M output tokens (USD)*.
-It can also be used to check a particular service provider (output omitted here for brevity):
-
-.. code-block:: python
-
-  from edsl import Model
-
-  Model.check_working_models(service = "google")
-
-
-
-.. Check models 
-.. ------------
-
-.. The following code checks for models where API keys have been stored locally:
+.. This list should be used together with the `model pricing page <https://www.expectedparrot.com/getting-started/models>`_ to check current model performance with test survey questions.
+.. We also recommend running your own test questions with any models that you want to use before running a large survey.
 
 .. .. code-block:: python
 
-..    from edsl import Model
-   
-..    Model.check_models()
+..   from edsl import Model
+
+..   Model.available()
 
 
-.. This will return a list of the available models and a confirmation message whether a valid key exists.
-.. The output will look like this (note that the keys are not shown):
+.. To see a list of all models for a specific service, pass the service name as an argument:
 
-.. .. code-block:: text
+.. .. code-block:: python
 
-..    Checking all available models...
-
-..    Now checking: <model name>
-..    OK!
+..    Model.available(service = "google")
 
 
-.. Etc.
+.. Output (this list will vary based on the models that have been used when the code is run):
+
+..   :header-rows: 1
+
+..   * - Model Name
+..     - Service Name
+..   * - gemini-pro
+..     - google
+..   * - gemini-1.0-pro
+..     - google
+..   * - gemini-1.0-flash
+..     - google
+..   * - gemini-1.0-flash-8b
+..     - google
+..   * - gemini-1.5-pro
+..     - google
+..   * - gemini-2.0-flash
+..     - google
+
+
+.. Check working models 
+.. --------------------
+
+.. You can check current performance and pricing for models by running the following code:
+
+.. .. code-block:: python
+
+..   from edsl import Model
+
+..   Model.check_working_models()
+
+
+.. This will return the same information available at the `model pricing page <https://www.expectedparrot.com/getting-started/models>`_: *Service, Model, Works with text, Works with images, Price per 1M input tokens (USD), Price per 1M output tokens (USD)*.
+.. It can also be used to check a particular service provider (output omitted here for brevity):
+
+.. .. code-block:: python
+
+..   from edsl import Model
+
+..   Model.check_working_models(service = "google")
 
 
 Specifying a model
@@ -155,6 +125,7 @@ Specifying a model
 
 To specify a model to use with a survey, create a `Model` object and pass it the name of the model.
 You can optionally set other model parameters at the same time (temperature, etc.). 
+You will sometimes need to specify the name of the service provider as well (for instance, if the model is hosted by multiple service providers).
 
 For example, the following code creates a `Model` object for `gpt-4o` with default model parameters that we can inspect:
 
@@ -163,6 +134,15 @@ For example, the following code creates a `Model` object for `gpt-4o` with defau
   from edsl import Model
 
   m = Model("gpt-4o")
+
+
+This is equivalent:
+
+.. code-block:: python
+
+  from edsl import Model
+
+  m = Model(model = "gpt-4o", service_name = "openai")
   m
 
 
@@ -202,7 +182,7 @@ Here we also specify the temperature when creating the `Model` object:
 
   from edsl import Model
 
-  m = Model("gpt-4o", temperature = 1.0)
+  m = Model("gpt-4o", service_name = "openai", temperature = 1.0)
   m
 
 
@@ -245,7 +225,10 @@ For example, the following code creates a `Model` for each of `gpt-4o` and `gemi
 
   from edsl import Model, ModelList
 
-  ml = ModelList([Model("gpt-4o"), Model("gemini-1.5-flash")])
+  ml = ModelList([
+    Model("gpt-4o", service_name = "openai"), 
+    Model("gemini-1.5-flash", service_name = "google")
+  ])
 
 
 This code is equivalent to the following:
@@ -327,36 +310,36 @@ For example, the following code specifies that a survey will be run with each of
 
 .. code-block:: python
 
-   from edsl import Model, QuestionFreeText, Survey
+  from edsl import Model, QuestionFreeText, Survey
 
-   m = [Model("gpt-4o"), Model("gemini-1.5-flash")]
+  m = [Model("gpt-4o", service_name = "openai"), Model("gemini-1.5-flash", service_name = "google")]
 
-   q = QuestionFreeText(
-      question_name = "example",
-      question_text = "What is the capital of France?"
-   )
+  q = QuestionFreeText(
+    question_name = "example",
+    question_text = "What is the capital of France?"
+  )
 
-   survey = Survey(questions = [q])
+  survey = Survey(questions = [q])
 
-   results = survey.by(m).run()
+  results = survey.by(m).run()
 
 
 This code uses `ModelList` instead of a list of `Model` objects:
 
 .. code-block:: python
 
-   from edsl import Model, ModelList, QuestionFreeText, Survey
+  from edsl import Model, ModelList, QuestionFreeText, Survey
 
-   ml = ModelList(Model(model) for model in ["gpt-4o", "gemini-1.5-flash"])
+  ml = ModelList(Model(model) for model in ["gpt-4o", "gemini-1.5-flash"])
 
-   q = QuestionFreeText(
-      question_name = "example",
-      question_text = "What is the capital of France?"
-   )
+  q = QuestionFreeText(
+    question_name = "example",
+    question_text = "What is the capital of France?"
+  )
 
-   survey = Survey(questions = [q])
+  survey = Survey(questions = [q])
 
-   results = survey.by(ml).run()
+  results = survey.by(ml).run()
 
 
 This will generate a result for each question in the survey with each model.
@@ -366,12 +349,12 @@ The following commands are equivalent:
 
 .. code-block:: python
 
-   # add code for creating survey, scenarios, agents, models here ...
+  # add code for creating survey, scenarios, agents, models here ...
 
-   results = survey.by(scenarios).by(agents).by(models).run()
+  results = survey.by(scenarios).by(agents).by(models).run()
 
-   # this is equivalent:
-   results = survey.by(models).by(agents).by(scenarios).run()
+  # this is equivalent:
+  results = survey.by(models).by(agents).by(scenarios).run()
 
 
 Default model
@@ -384,17 +367,17 @@ For example, the following code runs the above survey with the default model (an
 
 .. code-block:: python
 
-   results = survey.run() # using the survey from above
+  results = survey.run() # using the survey from above
 
-   # this is equivalent
-   results = survey.by(Model()).run()
+  # this is equivalent
+  results = survey.by(Model()).run()
 
 
 We can verify the model that was used:
 
 .. code-block:: python
 
-   results.select("model.model") # selecting only the model name
+  results.select("model.model") # selecting only the model name
 
 
 Output:
@@ -415,7 +398,7 @@ For example, we can verify the default model when running a survey without speci
 
 .. code-block:: python
 
-   results.models # using the results from above
+  results.models # using the results from above
 
 
 This will return the same information as running `results.select("model.model")` in the example above.

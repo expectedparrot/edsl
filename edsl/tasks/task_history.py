@@ -43,6 +43,7 @@ class TaskHistory(RepresentationMixin):
     - Generates interactive HTML reports with filtering and drill-down
     - Computes statistics across interviews (by model, question type, etc.)
     - Exports to various formats (HTML, notebook, etc.)
+    - Memory optimization via offloading of large file content
     """
 
     def __init__(
@@ -191,8 +192,22 @@ class TaskHistory(RepresentationMixin):
         """Return a string representation of the TaskHistory."""
         return f"TaskHistory(interviews={self.total_interviews})."
 
-    def to_dict(self, add_edsl_version=True):
-        """Return the TaskHistory as a dictionary."""
+    def to_dict(self, add_edsl_version=True, offload_content=False):
+        """
+        Return the TaskHistory as a dictionary.
+
+        Parameters:
+            add_edsl_version: Whether to include EDSL version in the output
+            offload_content: Whether to offload large file content like videos and images
+                            to reduce memory usage
+
+        Returns:
+            A dictionary representation of this TaskHistory instance
+        """
+        # Offload large file content if requested
+        if offload_content:
+            self.offload_files_content()
+
         # Serialize each interview object
         interview_dicts = []
         for i in self.total_interviews:
@@ -255,26 +270,59 @@ class TaskHistory(RepresentationMixin):
                             InterviewExceptionCollection,
                         )
 
+                        # Store the original data in full
+                        self._original_data = data
+
+                        # Preserve the original interview id
+                        self._interview_id = data.get("id", None)
+
+                        # Store exceptions using the original data structure
+                        # This ensures when we re-serialize, we keep original data intact
+                        self._exceptions_data = data.get("exceptions", {})
+
+                        # Create the InterviewExceptionCollection for runtime use
                         exceptions_data = data.get("exceptions", {})
                         self.exceptions = (
                             InterviewExceptionCollection.from_dict(exceptions_data)
                             if exceptions_data
                             else InterviewExceptionCollection()
                         )
+
+                        # Store other fields
                         self.task_status_logs = data.get("task_status_logs", {})
                         self.model = data.get("model", {})
                         self.survey = data.get("survey", {})
 
                     def to_dict(self, add_edsl_version=True):
-                        return {
+                        # Use the original exceptions data structure when serializing again
+                        # This preserves all exception details exactly as they were
+                        data = {
                             "type": "InterviewReference",
-                            "exceptions": self.exceptions.to_dict()
-                            if hasattr(self.exceptions, "to_dict")
-                            else self.exceptions,
+                            "exceptions": self._exceptions_data
+                            if hasattr(self, "_exceptions_data")
+                            else (
+                                self.exceptions.to_dict()
+                                if hasattr(self.exceptions, "to_dict")
+                                else self.exceptions
+                            ),
                             "task_status_logs": self.task_status_logs,
                             "model": self.model,
                             "survey": self.survey,
                         }
+
+                        # Preserve the original interview id if it exists
+                        if self._interview_id:
+                            data["id"] = self._interview_id
+
+                        # Preserve original version info
+                        if (
+                            add_edsl_version
+                            and hasattr(self, "_original_data")
+                            and "edsl_version" in self._original_data
+                        ):
+                            data["edsl_version"] = self._original_data["edsl_version"]
+
+                        return data
 
                 # Create the reference and add it directly
                 ref = DeserializedInterviewRef(interview_data)
@@ -727,6 +775,132 @@ class TaskHistory(RepresentationMixin):
         nb.cells[0].source = ""
 
         return nb
+
+    def offload_files_content(self):
+        """
+        Offload large file content from scenarios in interview exceptions.
+
+        This method iterates over all the interview exceptions and calls the offload method
+        for any scenario components in the invigilator. This significantly reduces memory usage
+        by replacing base64-encoded content with a placeholder string, while preserving the
+        structure of the scenarios.
+
+        Returns:
+            self: Returns the TaskHistory instance for method chaining
+
+        This is particularly useful for TaskHistory instances containing interviews with
+        large file content, such as videos, images, or other binary data.
+        """
+        for interview in self.total_interviews:
+            if not hasattr(interview, "exceptions") or not interview.exceptions:
+                continue
+
+            for question_name, exceptions in interview.exceptions.items():
+                for exception in exceptions:
+                    # Check if exception has an invigilator with scenario
+                    if hasattr(exception, "invigilator") and exception.invigilator:
+                        if (
+                            hasattr(exception.invigilator, "scenario")
+                            and exception.invigilator.scenario
+                        ):
+                            # Call the offload method on the scenario
+                            if hasattr(exception.invigilator.scenario, "offload"):
+                                try:
+                                    # Replace the original scenario with the offloaded version
+                                    exception.invigilator.scenario = (
+                                        exception.invigilator.scenario.offload()
+                                    )
+                                except Exception as e:
+                                    # Silently continue if offloading fails for any reason
+                                    pass
+
+        return self
+
+    def deduplicate_and_clean_interviews(self):
+        """
+        Deduplicates exception entries in this task history to reduce memory usage.
+
+        This method removes duplicate error messages across interviews while preserving
+        the first occurrence of each unique error. This significantly reduces the size
+        of serialized task history data, especially for jobs with many similar errors.
+
+        Returns:
+            self: Returns the TaskHistory instance for method chaining.
+        """
+        seen = set()
+        cleaned_interviews = []
+
+        for interview in self.total_interviews:
+            # Skip if interview has no exceptions
+            if not hasattr(interview, "exceptions") or not interview.exceptions:
+                continue
+
+            keep_interview = False
+            questions_to_modify = {}
+            questions_to_remove = []
+
+            # First pass: Collect all modifications without changing the dictionary
+            if hasattr(interview.exceptions, "items"):
+                for question_name, exceptions in list(interview.exceptions.items()):
+                    filtered_exceptions = []
+
+                    for exception in exceptions:
+                        # Get the exception message (may require different access based on structure)
+                        if hasattr(exception, "exception") and hasattr(
+                            exception.exception, "args"
+                        ):
+                            message = (
+                                str(exception.exception.args[0])
+                                if exception.exception.args
+                                else ""
+                            )
+                        else:
+                            message = str(exception)
+
+                        # Create a unique key for this exception
+                        key = (question_name, message)
+
+                        # Only keep exceptions we haven't seen before
+                        if key not in seen:
+                            seen.add(key)
+                            filtered_exceptions.append(exception)
+
+                    # Track what should happen to this question's exceptions
+                    if filtered_exceptions:
+                        keep_interview = True
+                        questions_to_modify[question_name] = filtered_exceptions
+                    else:
+                        questions_to_remove.append(question_name)
+
+            # Second pass: Apply all modifications safely
+            if hasattr(interview.exceptions, "items"):
+                # Add/replace filtered exceptions
+                for question_name, filtered_exceptions in questions_to_modify.items():
+                    interview.exceptions[question_name] = filtered_exceptions
+
+                # Remove questions with all duplicate exceptions
+                for question_name in questions_to_remove:
+                    if hasattr(interview.exceptions, "pop"):
+                        interview.exceptions.pop(question_name, None)
+                    elif (
+                        hasattr(interview.exceptions, "__delitem__")
+                        and question_name in interview.exceptions
+                    ):
+                        del interview.exceptions[question_name]
+
+            # Only keep the interview if it still has exceptions after filtering
+            if keep_interview:
+                cleaned_interviews.append(interview)
+
+        # Replace the total_interviews with our cleaned list
+        self.total_interviews = cleaned_interviews
+
+        # Rebuild the _interviews dictionary
+        self._interviews = {
+            index: interview for index, interview in enumerate(self.total_interviews)
+        }
+
+        return self
 
 
 if __name__ == "__main__":
