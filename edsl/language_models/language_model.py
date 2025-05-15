@@ -799,7 +799,6 @@ class LanguageModel(
                 size_adjustment = total_size_mb * 10
 
                 # Cap the maximum timeout adjustment at 5 minutes (300 seconds)
-                print("total size", total_size_mb)
                 size_adjustment = min(size_adjustment, 300)
 
                 TIMEOUT = base_timeout + size_adjustment
