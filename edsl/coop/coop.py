@@ -66,7 +66,6 @@ class JobRunInterviewDetails(TypedDict):
 
 
 class LatestJobRunDetails(TypedDict):
-
     # For running, completed, and partially failed jobs
     interview_details: Optional[JobRunInterviewDetails] = None
 
@@ -1685,6 +1684,78 @@ class Coop(CoopFunctionsMixin):
         )
         self._resolve_server_response(response)
         return response.json().get("uuid")
+
+    def new_pull(self, object_uuid: str) -> dict:
+        """
+        Generate a signed URL for pulling an object directly from Google Cloud Storage.
+
+        This method gets a signed URL that allows direct download access to the object from
+        Google Cloud Storage, which is more efficient for large files.
+
+        Parameters:
+            object_uuid (str): The UUID of the object to download
+
+        Returns:
+            dict: A response containing the signed_url for direct download
+
+        Raises:
+            CoopServerResponseError: If there's an error communicating with the server
+            HTTPException: If the object or object files are not found
+
+        Example:
+            >>> response = coop.new_pull("123e4567-e89b-12d3-a456-426614174000")
+            >>> print(f"Download URL: {response['signed_url']}")
+            >>> # Use the signed_url to download the object directly
+        """
+        # Send the request to the API endpoint
+        response = self._send_server_request(
+            uri="api/v0/object/pull",
+            method="POST",
+            payload={"object_uuid": object_uuid},
+        )
+
+        # Handle any errors in the response
+        self._resolve_server_response(response)
+
+        # Return the response containing the signed URL
+        return response.json()
+
+    def new_push(self, object: ObjectType) -> dict:
+        """
+        Generate a signed URL for pushing an object directly to Google Cloud Storage.
+
+        This method gets a signed URL that allows direct upload access to Google Cloud Storage,
+        which is more efficient for large files.
+
+        Parameters:
+            object_type (ObjectType): The type of object to be uploaded
+
+        Returns:
+            dict: A response containing the signed_url for direct upload and optionally a job_id
+
+        Raises:
+            CoopServerResponseError: If there's an error communicating with the server
+
+        Example:
+            >>> response = coop.new_push("scenario")
+            >>> print(f"Upload URL: {response['signed_url']}")
+            >>> # Use the signed_url to upload the object directly
+        """
+
+        object_type = ObjectRegistry.get_object_type_by_edsl_class(object)
+
+        # Send the request to the API endpoint
+        response = self._send_server_request(
+            uri="api/v0/object/push",
+            method="POST",
+            payload={"object_type": object_type},
+        )
+
+        # Handle any errors in the response
+        # self._resolve_server_response(response)
+
+        # Return the response containing the signed URL
+        return response.json()
 
     def _display_login_url(
         self, edsl_auth_token: str, link_description: Optional[str] = None
