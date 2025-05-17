@@ -1883,7 +1883,6 @@ class Coop(CoopFunctionsMixin):
             payload={"object_type": object_type},
         )
         response_json = response.json()
-        print("Response JSON: ", response_json)
         if response_json.get("signed_url") is not None:
             signed_url = response_json.get("signed_url")
         else:
@@ -1891,7 +1890,6 @@ class Coop(CoopFunctionsMixin):
 
             raise CoopResponseError("No signed url was provided received")
 
-        print(object_dict)
         json_data = json.dumps(
             object_dict,
             default=self._json_handle_none,
@@ -1907,7 +1905,12 @@ class Coop(CoopFunctionsMixin):
         # self._resolve_server_response(response)
 
         # Return the response containing the signed URL
-        return {"signed_url": signed_url}
+        object_uuid = response_json.get("object_uuid", None)
+        if object_uuid is None:
+            from .exceptions import CoopResponseError
+
+            raise CoopResponseError("No object uuid was provided received")
+        return {"object_uuid": object_uuid}
 
     def _display_login_url(
         self, edsl_auth_token: str, link_description: Optional[str] = None
