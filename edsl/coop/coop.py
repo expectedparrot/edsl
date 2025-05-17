@@ -1713,14 +1713,20 @@ class Coop(CoopFunctionsMixin):
             method="POST",
             payload={"object_uuid": object_uuid},
         )
-
+        print(response.json())
         # Handle any errors in the response
         self._resolve_server_response(response)
 
         # Return the response containing the signed URL
         return response.json()
 
-    def new_push(self, object: ObjectType) -> dict:
+    def new_push(
+        self,
+        object: EDSLObject,
+        description: Optional[str] = None,
+        alias: Optional[str] = None,
+        visibility: Optional[VisibilityType] = "unlisted",
+    ) -> dict:
         """
         Generate a signed URL for pushing an object directly to Google Cloud Storage.
 
@@ -1743,19 +1749,39 @@ class Coop(CoopFunctionsMixin):
         """
 
         object_type = ObjectRegistry.get_object_type_by_edsl_class(object)
-
+        object_dict = object.to_dict()
         # Send the request to the API endpoint
         response = self._send_server_request(
             uri="api/v0/object/push",
             method="POST",
             payload={"object_type": object_type},
         )
+        response_json = response.json()
+        print("Response JSON: ", response_json)
+        if response_json.get("signed_url") is not None:
+            signed_url = response_json.get("signed_url")
+        else:
+            from .exceptions import CoopResponseError
 
+            raise CoopResponseError("No signed url was provided received")
+
+        print(object_dict)
+        json_data = json.dumps(
+            object_dict,
+            default=self._json_handle_none,
+            allow_nan=False,
+        )
+        response = requests.put(
+            signed_url,
+            data=json_data.encode(),
+            headers={"Content-Type": "application/json"},
+        )
+        self._resolve_gcs_response(response)
         # Handle any errors in the response
         # self._resolve_server_response(response)
 
         # Return the response containing the signed URL
-        return response.json()
+        return {"signed_url": signed_url}
 
     def _display_login_url(
         self, edsl_auth_token: str, link_description: Optional[str] = None
