@@ -325,9 +325,13 @@ class PersistenceMixin:
             >>> # Use the signed_url to download the object directly
         """
         from edsl.coop import Coop
+        from edsl.coop import ObjectRegistry
 
         coop = Coop(url=expected_parrot_url)
-        return coop.new_pull(object_uuid)
+
+        object_type = ObjectRegistry.get_object_type_by_edsl_class(cls)
+
+        return coop.new_pull(object_uuid, object_type)
 
     @classmethod
     def list(
