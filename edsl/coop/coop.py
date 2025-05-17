@@ -1685,7 +1685,9 @@ class Coop(CoopFunctionsMixin):
         self._resolve_server_response(response)
         return response.json().get("uuid")
 
-    def new_pull(self, object_uuid: str) -> dict:
+    def new_pull(
+        self, object_uuid: str, expected_object_type: Optional[ObjectType] = None
+    ) -> dict:
         """
         Generate a signed URL for pulling an object directly from Google Cloud Storage.
 
@@ -1713,12 +1715,26 @@ class Coop(CoopFunctionsMixin):
             method="POST",
             payload={"object_uuid": object_uuid},
         )
-        print(response.json())
+        print(response.text)
         # Handle any errors in the response
         self._resolve_server_response(response)
+        if "signed_url" not in response.json():
+            from .exceptions import CoopResponseError
 
+            raise CoopResponseError("No signed url was provided received")
+        signed_url = response.json().get("signed_url")
+        response = requests.get(signed_url)
+
+        self._resolve_gcs_response(response)
+
+        object_dict = response.json()
+        if expected_object_type is not None:
+            edsl_class = ObjectRegistry.get_edsl_class_by_object_type(
+                expected_object_type
+            )
+            edsl_object = edsl_class.from_dict(object_dict)
         # Return the response containing the signed URL
-        return response.json()
+        return edsl_object
 
     def new_push(
         self,
