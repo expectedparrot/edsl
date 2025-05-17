@@ -174,6 +174,9 @@ class PersistenceMixin:
 
     def new_push(
         self,
+        description: Optional[str] = None,
+        alias: Optional[str] = None,
+        visibility: Optional[str] = "unlisted",
         expected_parrot_url: Optional[str] = None,
     ) -> dict:
         """
@@ -198,7 +201,7 @@ class PersistenceMixin:
         from edsl.coop import Coop
 
         c = Coop(url=expected_parrot_url)
-        return c.new_push(self)
+        return c.new_push(self, description, alias, visibility)
 
     def to_yaml(self, add_edsl_version=False, filename: str = None) -> Union[str, None]:
         """Convert the object to YAML format.
