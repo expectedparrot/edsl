@@ -11,6 +11,8 @@ if TYPE_CHECKING:
     from ...language_models import LanguageModel
 from ..rate_limits_cache import rate_limits
 
+# Default to completions API but can use responses API with parameter
+
 if TYPE_CHECKING:
     from ....scenarios.file_store import FileStore as Files
     from ....invigilators.invigilator_base import InvigilatorBase as InvigilatorAI
@@ -33,7 +35,7 @@ class OpenAIServiceV2(InferenceServiceABC):
     _async_client_instances: Dict[APIToken, openai.AsyncOpenAI] = {}
 
     # sequence to extract text from response.output
-    key_sequence = ["output", 0, "content", 0, "text"]
+    key_sequence = ["output", 1, "content", 0, "text"]
     usage_sequence = ["usage"]
     input_token_name = "prompt_tokens"
     output_token_name = "completion_tokens"
@@ -107,7 +109,6 @@ class OpenAIServiceV2(InferenceServiceABC):
         cls,
         model_name: str,
         model_class_name: str | None = None,
-        api_mode: str = "completions",
     ) -> LanguageModel:
         if model_class_name is None:
             model_class_name = cls.to_class_name(model_name)
@@ -125,7 +126,7 @@ class OpenAIServiceV2(InferenceServiceABC):
             _model_ = model_name
             _parameters_ = {
                 "temperature": 0.5,
-                "max_tokens": 1000,
+                "max_tokens": 2000,
                 "top_p": 1,
                 "frequency_penalty": 0,
                 "presence_penalty": 0,
@@ -198,69 +199,26 @@ class OpenAIServiceV2(InferenceServiceABC):
                     "temperature": self.temperature,
                     "max_tokens": self.max_tokens,
                     "top_p": self.top_p,
-                    "logprobs": self.logprobs,
-                    "top_logprobs": self.top_logprobs if self.logprobs else None,
+                    # "logprobs": self.logprobs,
+                    # "top_logprobs": self.top_logprobs if self.logprobs else None,
                     "store": False,
+                    "reasoning": {"summary": "auto"},
                 }
                 # adjust for o1/o3 models if needed
                 if any(tag in self.model for tag in ["o1", "o3"]):
                     params.pop("max_tokens")
-                    params["max_completion_tokens"] = self.max_tokens
+                    params["max_output_tokens"] = self.max_tokens
                     params["temperature"] = 1
 
                 client = self.async_client()
                 try:
-                    if self.api_mode == "responses":
-                        response = await client.responses.create(**params)
-                    else:  # default to completions
-                        # Adjust parameters for completions API format
-                        completion_params = {
-                            "model": self.model,
-                            "messages": params["input"],
-                            "temperature": params["temperature"],
-                            "max_tokens": params.get(
-                                "max_tokens", params.get("max_completion_tokens", 1000)
-                            ),
-                            "top_p": params["top_p"],
-                        }
-                        # Only add if logprobs is True
-                        if params.get("logprobs"):
-                            completion_params["logprobs"] = params["logprobs"]
-                            if params.get("top_logprobs"):
-                                completion_params["top_logprobs"] = params[
-                                    "top_logprobs"
-                                ]
+                    response = await client.responses.create(**params)
 
-                        response = await client.chat.completions.create(
-                            **completion_params
-                        )
                 except Exception as e:
                     return {"message": str(e)}
 
                 # convert to dict
                 response_dict = response.model_dump()
-
-                # If using completions API, transform the response to match the responses API format
-                if self.api_mode != "responses":
-                    try:
-                        # Extract the text from the completions API response
-                        content = response_dict["choices"][0]["message"]["content"]
-
-                        # Create a response format that matches the responses API
-                        response_dict = {
-                            "output": [
-                                {
-                                    "content": [{"text": content}],
-                                }
-                            ],
-                            "usage": response_dict.get("usage", {}),
-                        }
-                    except (KeyError, IndexError) as e:
-                        print(
-                            f"Error transforming completions response: {e}", flush=True
-                        )
-
-                print(response_dict, flush=True)
                 return response_dict
 
         LLM.__name__ = model_class_name
