@@ -469,6 +469,39 @@ class QuestionBase(
             candidate_data["function_source_code"] = inspect.getsource(func)
 
         return candidate_data
+    
+    def time_to_read_in_seconds(self, words_per_second: float = 3.3, chars_per_word = 5.5) -> float:
+        """Estimates the time to taken to read the question.
+        
+        In the future, could you textstat pacakage to do a complexity-adjusted score. 
+        """
+        num_chars = 0 
+        num_chars += len(self.question_text)
+        if hasattr(self, "question_options"):
+            for option in self.question_options: 
+                num_chars += len(option)
+        if hasattr(self, "option_labels"):
+            for label in self.option_labels:
+                num_chars += len(label)
+        return (num_chars * chars_per_word) / words_per_second 
+ 
+    def time_to_answer_in_seconds(self, thinking_multiplier: float = .10, 
+                                avg_paragraph_size_in_words:float = 100, 
+                                avg_words_per_sentence: float = 10, 
+                                typing_speed_wpm:float = 40,
+                                click_time: float = 5, 
+                                ) -> float: 
+        thinking_time = thinking_multiplier * self.time_to_read_in_seconds()
+        if self.question_type == "free_text":
+            writing_time = (avg_paragraph_size_in_words / typing_speed_wpm) * 60
+        elif self.question_type == "list":
+            writing_time = avg_words_per_sentence * 10
+        else:
+            writing_time = click_time 
+        return thinking_time + writing_time
+
+    def estimated_time_to_complete_in_seconds(self) -> float:
+        return self.time_to_answer_in_seconds() + self.time_to_read_in_seconds()
 
     def to_dict(self, add_edsl_version: bool = True):
         """Convert the question to a dictionary that includes the question type (used in deserialization).

@@ -1,4 +1,3 @@
-
 """
 The coop module provides connectivity with Expected Parrot's cloud services.
 
@@ -31,6 +30,11 @@ Examples:
 from .utils import EDSLObject, ObjectType, VisibilityType, ObjectRegistry
 from .coop import Coop
 from .exceptions import CoopServerResponseError
+from .coop import (
+    get_default_respondent_arrival_rate_per_sec,
+    get_default_mean_log_wage,
+    get_default_sigma_log_wage,
+)
 
 __all__ = [
     "Coop", 
@@ -43,5 +47,8 @@ __all__ = [
     "get_available_plugins", 
     "search_plugins", 
     "get_plugin_details",
-    "PluginRegistryError"
+    "PluginRegistryError",
+    "get_default_respondent_arrival_rate_per_sec",
+    "get_default_mean_log_wage",
+    "get_default_sigma_log_wage",
 ]

@@ -284,6 +284,27 @@ class TestSurvey(unittest.TestCase):
             == "BlueGreenRedBlueRedGreenBlueRedGreenBlueGreenRedGreenRedBlueGreenBlueRedGreenBlueRedRedBlueGreenBlueRedGreenGreenBlueRed"
         )
 
+    def test_price_monotonicity_in_time(self):
+        """Price should increase as the deadline gets tighter (holding responses constant)."""
+        s = self.gen_survey()
+        price_long = s.estimated_per_survey_price(target_num_responses=50, time_until_finish=120)
+        price_medium = s.estimated_per_survey_price(target_num_responses=50, time_until_finish=60)
+        price_short = s.estimated_per_survey_price(target_num_responses=50, time_until_finish=10)
+        self.assertLess(price_long, price_medium)
+        self.assertLess(price_medium, price_short)
+
+    def test_price_monotonicity_in_responses(self):
+        """Price should increase with the number of required responses (holding time constant)."""
+        s = self.gen_survey()
+        price_few = s.estimated_per_survey_price(target_num_responses=50, time_until_finish=100)
+        price_many = s.estimated_per_survey_price(target_num_responses=100, time_until_finish=100)
+        self.assertLess(price_few, price_many)
+
+    def test_price_impossible_case(self):
+        """An impossible target should raise a ValueError."""
+        s = self.gen_survey()
+        with self.assertRaises(ValueError):
+            s.estimated_per_survey_price(target_num_responses=150, time_until_finish=10)
 
 
 if __name__ == "__main__":

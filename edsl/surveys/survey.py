@@ -240,6 +240,159 @@ class Survey(Base):
 
         self._exporter = SurveyExport(self)
 
+    def estimated_per_survey_price(self, 
+                        target_num_responses: int, 
+                        time_until_finish: float, 
+                        respondent_arrival_rate_per_sec: Optional[float] = None, 
+                        mean_log_wage: Optional[float] = None, 
+                        sigma_log_wage: Optional[float] = None, 
+                        time_units: str = "minutes", 
+                        ):
+        """
+        This function uses the inverse CDF of the log normal distribution to estimate survey price.
+        
+        Args:
+            time_until_finish: Target time to complete survey collection
+            respondent_arrival_rate_per_sec: Rate of respondent arrivals per second
+            mean_log_wage: Mean of log wage distribution
+            sigma_log_wage: Standard deviation of log wage distribution
+            time_units: Units for time_until_finish ("minutes" or "hours")
+            
+        Returns:
+            float: Estimated price per survey needed to complete collection by target time
+
+        Examples
+        --------
+        Basic sanity-check using the built-in example survey::
+
+            >>> from edsl.surveys import Survey
+            >>> s = Survey.example()
+            >>> p = s.estimated_per_survey_price(target_num_responses=100, time_until_finish=60)
+            >>> isinstance(p, float) and p > 0
+            True
+
+        You can specify the deadline in days as well::
+
+            >>> _ = s.estimated_per_survey_price(target_num_responses=100, time_until_finish=2, time_units="days")
+        """
+        import math 
+        from scipy.stats import norm
+
+        if respondent_arrival_rate_per_sec is None:
+            from edsl.coop import get_default_respondent_arrival_rate_per_sec
+            respondent_arrival_rate_per_sec = get_default_respondent_arrival_rate_per_sec()
+        if mean_log_wage is None: 
+            from edsl.coop import get_default_mean_log_wage
+            mean_log_wage = get_default_mean_log_wage()
+        if sigma_log_wage is None: 
+            from edsl.coop import get_default_sigma_log_wage
+            sigma_log_wage = get_default_sigma_log_wage()
+
+        def inverse_cdf(p):
+            return math.exp(mean_log_wage + sigma_log_wage * norm.ppf(p))
+
+        if time_units == "minutes":
+            time_goal = time_until_finish * 60  # mins → secs
+        elif time_units == "hours":
+            time_goal = time_until_finish * 3600  # hrs → secs
+        elif time_units == "days":
+            time_goal = time_until_finish * 86400  # days → secs
+        else:
+            raise ValueError("Unrecognized time units (use 'minutes', 'hours', or 'days')")
+
+        # Calculate number of responses needed
+        survey_time = self.estimated_time_to_complete_in_minutes() * 60  # Convert to seconds
+        
+        # Calculate acceptance probability needed
+        p_accept_needed = target_num_responses / (time_goal * respondent_arrival_rate_per_sec)
+        
+        if p_accept_needed > 1:
+            raise ValueError("Target completion time impossible with given arrival rate")
+            
+        # Calculate required wage using inverse CDF
+        required_wage = inverse_cdf(p_accept_needed)
+        
+        # Convert to per-survey price
+        price_per_survey = (required_wage / 3600) * survey_time  # Convert hourly wage to per-second
+        
+        return price_per_survey
+
+    def estimated_time_to_complete_in_minutes(self) -> float:
+        """Estimate the total time (in minutes) a respondent will need to finish
+        the survey.
+
+        The estimate now **includes survey instructions** in addition to questions.
+        Time is accumulated as follows:
+
+        1. For any object that already exposes
+           ``estimated_time_to_complete_in_seconds`` (all question types – and any
+           future instruction-like objects that implement it) we rely on that
+           value directly.
+        2. For plain ``Instruction`` objects we assume no typing/answering time –
+           only time to read the instruction text **plus** its preamble.  Reading
+           time is calculated with the same heuristic used by
+           ``QuestionBase.time_to_read_in_seconds``:
+
+               (num_chars * CHARS_PER_WORD) / WORDS_PER_SECOND
+
+           where ``CHARS_PER_WORD = 5.5`` and ``WORDS_PER_SECOND = 3.3``.
+        3. ``ChangeInstruction`` objects are not displayed to respondents and are
+           therefore ignored.
+
+        Returns
+        -------
+        float
+            Estimated number of minutes required to complete the survey.
+
+        Examples
+        --------
+        A survey containing one instruction and one multiple-choice question:
+
+        >>> from edsl import QuestionMultipleChoice, Instruction, Survey
+        >>> q = QuestionMultipleChoice(question_text="Do you like cats?", question_options=["yes", "no"], question_name="q0")
+        >>> i = Instruction(name="intro", text="Please answer carefully.")
+        >>> s = Survey([i, q])
+        >>> round(s.estimated_time_to_complete_in_minutes(), 2)
+        2.59
+
+        The method always returns a non-negative float:
+
+        >>> from edsl.surveys import Survey
+        >>> Survey.example().estimated_time_to_complete_in_minutes() >= 0
+        True
+        """
+
+        # Average reading-speed heuristic – kept in-sync with
+        # QuestionBase.time_to_read_in_seconds for consistency.
+        WORDS_PER_SECOND: float = 3.3
+        CHARS_PER_WORD: float = 5.5
+
+        total_seconds: float = 0.0
+
+        # Iterate over questions *and* instructions in their displayed order.
+        for item in self._recombined_questions_and_instructions():
+
+            # Any object that already implements the estimate method can be used
+            # directly (covers QuestionBase and any future Instruction variants
+            # that implement it).
+            if hasattr(item, "estimated_time_to_complete_in_seconds"):
+                total_seconds += item.estimated_time_to_complete_in_seconds()  # type: ignore[attr-defined]
+                continue
+
+            # Fallback for Instruction-like objects that provide ``text`` but no
+            # explicit timing helpers.  Skip ChangeInstruction objects, since they
+            # are never shown to respondents.
+            from ..instructions import Instruction, ChangeInstruction  # local import to avoid circular refs during module init
+
+            if isinstance(item, Instruction):
+                num_chars: int = len(item.text) + len(getattr(item, "preamble", ""))
+                total_seconds += (num_chars * CHARS_PER_WORD) / WORDS_PER_SECOND
+            elif isinstance(item, ChangeInstruction):
+                # ChangeInstructions alter instruction visibility and are not
+                # shown directly to respondents → no additional time cost.
+                continue
+
+        return total_seconds / 60.0
 
     # In survey.py
     @property
