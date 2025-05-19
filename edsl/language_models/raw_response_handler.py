@@ -1,5 +1,5 @@
 import json
-from typing import Optional, Any
+from typing import Optional, Any, List
 from .exceptions import (
     LanguageModelBadResponseError,
     LanguageModelTypeError,
@@ -55,9 +55,10 @@ def _extract_item_from_raw_response(data, sequence):
 class RawResponseHandler:
     """Class to handle raw responses from language models."""
 
-    def __init__(self, key_sequence: list, usage_sequence: Optional[list] = None):
+    def __init__(self, key_sequence: list, usage_sequence: Optional[list] = None, reasoning_sequence: Optional[list] = None):
         self.key_sequence = key_sequence
         self.usage_sequence = usage_sequence
+        self.reasoning_sequence = reasoning_sequence
 
     def get_generated_token_string(self, raw_response):
         return _extract_item_from_raw_response(raw_response, self.key_sequence)
@@ -67,6 +68,53 @@ class RawResponseHandler:
             return {}
         return _extract_item_from_raw_response(raw_response, self.usage_sequence)
 
+    def get_reasoning_summary(self, raw_response):
+        """
+        Extract reasoning summary from the model response.
+        
+        Handles various response structures:
+        1. Standard path extraction using self.reasoning_sequence
+        2. Direct access to output[0]['summary'] for OpenAI responses
+        3. List responses where the first item contains the output structure
+        """
+        if self.reasoning_sequence is None:
+            return None
+            
+        try:
+            # First try the standard extraction path
+            summary_data = _extract_item_from_raw_response(raw_response, self.reasoning_sequence)
+            
+            # If summary_data is a list of dictionaries with 'text' and 'type' fields
+            # (as in OpenAI's response format), combine them into a single string
+            if isinstance(summary_data, list) and all(isinstance(item, dict) and 'text' in item for item in summary_data):
+                return '\n\n'.join(item['text'] for item in summary_data)
+            
+            return summary_data
+        except Exception:
+            # Fallback approaches for different response structures
+            try:
+                # Case 1: Direct dict with 'output' field (common OpenAI format)
+                if isinstance(raw_response, dict) and 'output' in raw_response:
+                    output = raw_response['output']
+                    if isinstance(output, list) and len(output) > 0 and 'summary' in output[0]:
+                        summary_data = output[0]['summary']
+                        if isinstance(summary_data, list) and all(isinstance(item, dict) and 'text' in item for item in summary_data):
+                            return '\n\n'.join(item['text'] for item in summary_data)
+                
+                # Case 2: List where the first item is a dict with 'output' field
+                if isinstance(raw_response, list) and len(raw_response) > 0:
+                    first_item = raw_response[0]
+                    if isinstance(first_item, dict) and 'output' in first_item:
+                        output = first_item['output']
+                        if isinstance(output, list) and len(output) > 0 and 'summary' in output[0]:
+                            summary_data = output[0]['summary']
+                            if isinstance(summary_data, list) and all(isinstance(item, dict) and 'text' in item for item in summary_data):
+                                return '\n\n'.join(item['text'] for item in summary_data)
+            except Exception:
+                pass
+            
+            return None
+
     def parse_response(self, raw_response: dict[str, Any]) -> Any:
         """Parses the API response and returns the response text."""
 
@@ -74,6 +122,7 @@ class RawResponseHandler:
 
         generated_token_string = self.get_generated_token_string(raw_response)
         last_newline = generated_token_string.rfind("\n")
+        reasoning_summary = self.get_reasoning_summary(raw_response)
 
         if last_newline == -1:
             # There is no comment
@@ -81,12 +130,14 @@ class RawResponseHandler:
                 "answer": self.convert_answer(generated_token_string),
                 "generated_tokens": generated_token_string,
                 "comment": None,
+                "reasoning_summary": reasoning_summary,
             }
         else:
             edsl_dict = {
                 "answer": self.convert_answer(generated_token_string[:last_newline]),
-                "comment": generated_token_string[last_newline + 1 :].strip(),
+                "comment": generated_token_string[last_newline + 1:].strip(),
                 "generated_tokens": generated_token_string,
+                "reasoning_summary": reasoning_summary,
             }
         return EDSLOutput(**edsl_dict)
 

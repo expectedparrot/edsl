@@ -37,6 +37,8 @@ class OpenAIServiceV2(InferenceServiceABC):
     # sequence to extract text from response.output
     key_sequence = ["output", 1, "content", 0, "text"]
     usage_sequence = ["usage"]
+    # sequence to extract reasoning summary from response.output
+    reasoning_sequence = ["output", 0, "summary"]
     input_token_name = "prompt_tokens"
     output_token_name = "completion_tokens"
 
@@ -120,6 +122,7 @@ class OpenAIServiceV2(InferenceServiceABC):
 
             key_sequence = cls.key_sequence
             usage_sequence = cls.usage_sequence
+            reasoning_sequence = cls.reasoning_sequence
             input_token_name = cls.input_token_name
             output_token_name = cls.output_token_name
             _inference_service_ = cls._inference_service_
@@ -223,3 +226,11 @@ class OpenAIServiceV2(InferenceServiceABC):
 
         LLM.__name__ = model_class_name
         return LLM
+
+    @staticmethod
+    def _create_reasoning_sequence():
+        """Create the reasoning sequence for extracting reasoning summaries from model responses."""
+        # For OpenAI responses, the reasoning summary is typically found at:
+        # ["output", 0, "summary"]
+        # This is the path to the 'summary' field in the first item of the 'output' array
+        return ["output", 0, "summary"]
