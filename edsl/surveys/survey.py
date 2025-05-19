@@ -275,8 +275,8 @@ class Survey(Base):
 
             >>> _ = s.estimated_per_survey_price(target_num_responses=100, time_until_finish=2, time_units="days")
         """
-        import math 
-        from scipy.stats import norm
+        import math
+        from statistics import NormalDist
 
         if respondent_arrival_rate_per_sec is None:
             from edsl.coop import get_default_respondent_arrival_rate_per_sec
@@ -288,8 +288,11 @@ class Survey(Base):
             from edsl.coop import get_default_sigma_log_wage
             sigma_log_wage = get_default_sigma_log_wage()
 
-        def inverse_cdf(p):
-            return math.exp(mean_log_wage + sigma_log_wage * norm.ppf(p))
+        nd = NormalDist(mu=0, sigma=1)
+
+        def inverse_cdf(p: float) -> float:
+            """Inverse CDF of log-normal using only the std-lib."""
+            return math.exp(mean_log_wage + sigma_log_wage * nd.inv_cdf(p))
 
         if time_units == "minutes":
             time_goal = time_until_finish * 60  # mins → secs
