@@ -41,10 +41,13 @@ def _extract_item_from_raw_response(data, sequence):
             current_data = current_data[key]
         except Exception as e:
             path = " -> ".join(map(str, sequence[: i + 1]))
-            if "error" in data:
-                msg = data["error"]
+            
+            # Create a safe error message that won't be None
+            if "error" in data and data["error"] is not None:
+                msg = str(data["error"])
             else:
                 msg = f"Error accessing path: {path}. {str(e)}. Full response is: '{data}'"
+                
             raise LanguageModelBadResponseError(message=msg, response_json=data)
     if isinstance(current_data, str):
         return current_data.strip()
@@ -61,12 +64,74 @@ class RawResponseHandler:
         self.reasoning_sequence = reasoning_sequence
 
     def get_generated_token_string(self, raw_response):
-        return _extract_item_from_raw_response(raw_response, self.key_sequence)
+        try:
+            return _extract_item_from_raw_response(raw_response, self.key_sequence)
+        except (LanguageModelKeyError, LanguageModelIndexError, LanguageModelTypeError, LanguageModelBadResponseError) as e:
+            # For non-reasoning models or reasoning models with different response formats,
+            # try to extract text directly from common response formats
+            if isinstance(raw_response, dict):
+                # Responses API format for non-reasoning models
+                if 'output' in raw_response and isinstance(raw_response['output'], list):
+                    # Try to get first message content
+                    if len(raw_response['output']) > 0:
+                        item = raw_response['output'][0]
+                        if isinstance(item, dict) and 'content' in item:
+                            if isinstance(item['content'], list) and len(item['content']) > 0:
+                                first_content = item['content'][0]
+                                if isinstance(first_content, dict) and 'text' in first_content:
+                                    return first_content['text']
+                            elif isinstance(item['content'], str):
+                                return item['content']
+                
+                # OpenAI completions format
+                if 'choices' in raw_response and isinstance(raw_response['choices'], list) and len(raw_response['choices']) > 0:
+                    choice = raw_response['choices'][0]
+                    if isinstance(choice, dict):
+                        if 'text' in choice:
+                            return choice['text']
+                        elif 'message' in choice and isinstance(choice['message'], dict) and 'content' in choice['message']:
+                            return choice['message']['content']
+                
+                # Text directly in response
+                if 'text' in raw_response:
+                    return raw_response['text']
+                elif 'content' in raw_response:
+                    return raw_response['content']
+                
+                # Error message - try to return a coherent error for debugging
+                if 'message' in raw_response:
+                    return f"[ERROR: {raw_response['message']}]"
+            
+            # If we get a string directly, return it
+            if isinstance(raw_response, str):
+                return raw_response
+            
+            # As a last resort, convert the whole response to string
+            try:
+                return f"[ERROR: Could not extract text. Raw response: {str(raw_response)}]"
+            except:
+                return "[ERROR: Could not extract text from response]"
 
     def get_usage_dict(self, raw_response):
         if self.usage_sequence is None:
             return {}
-        return _extract_item_from_raw_response(raw_response, self.usage_sequence)
+        try:
+            return _extract_item_from_raw_response(raw_response, self.usage_sequence)
+        except (LanguageModelKeyError, LanguageModelIndexError, LanguageModelTypeError, LanguageModelBadResponseError):
+            # For non-reasoning models, try to extract usage from common response formats
+            if isinstance(raw_response, dict):
+                # Standard OpenAI usage format
+                if 'usage' in raw_response:
+                    return raw_response['usage']
+                
+                # Look for nested usage info
+                if 'choices' in raw_response and len(raw_response['choices']) > 0:
+                    choice = raw_response['choices'][0]
+                    if isinstance(choice, dict) and 'usage' in choice:
+                        return choice['usage']
+            
+            # If no usage info found, return empty dict
+            return {}
 
     def get_reasoning_summary(self, raw_response):
         """

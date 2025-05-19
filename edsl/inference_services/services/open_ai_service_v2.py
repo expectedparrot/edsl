@@ -196,21 +196,28 @@ class OpenAIServiceV2(InferenceServiceABC):
                 else:
                     messages = [{"role": "user", "content": content}]
 
+                # All OpenAI models with the responses API use these base parameters
                 params = {
                     "model": self.model,
                     "input": messages,
                     "temperature": self.temperature,
-                    "max_tokens": self.max_tokens,
                     "top_p": self.top_p,
-                    # "logprobs": self.logprobs,
-                    # "top_logprobs": self.top_logprobs if self.logprobs else None,
                     "store": False,
-                    "reasoning": {"summary": "auto"},
                 }
-                # adjust for o1/o3 models if needed
-                if any(tag in self.model for tag in ["o1", "o3"]):
-                    params.pop("max_tokens")
-                    params["max_output_tokens"] = self.max_tokens
+                
+                # Check if this is a reasoning model (o-series models)
+                is_reasoning_model = any(tag in self.model for tag in ["o1", "o1-mini", "o3", "o3-mini", "o1-pro", "o4-mini"])
+                
+                # Only add reasoning parameter for reasoning models
+                if is_reasoning_model:
+                    params["reasoning"] = {"summary": "auto"}
+                
+                # For all models using the responses API, use max_output_tokens
+                # instead of max_tokens (which is for the completions API)
+                params["max_output_tokens"] = self.max_tokens
+                
+                # Specifically for o-series, we also set temperature to 1
+                if is_reasoning_model:
                     params["temperature"] = 1
 
                 client = self.async_client()
