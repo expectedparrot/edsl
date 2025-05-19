@@ -363,13 +363,35 @@ class KeyLookupBuilder:
         >>> builder._add_api_key("OPENAI_API_KEY", "sk-1234", "env")
         >>> 'sk-1234' == builder.key_data["openai"][-1].value
         True
+        >>> 'sk-1234' == builder.key_data["openai_v2"][-1].value
+        True
         """
         service = api_keyname_to_service[key]
         new_entry = APIKeyEntry(service=service, name=key, value=value, source=source)
-        if service not in self.key_data:
-            self.key_data[service] = [new_entry]
+        
+        # Special case for OPENAI_API_KEY - add to both openai and openai_v2
+        if key == "OPENAI_API_KEY":
+            # Add to openai service
+            openai_service = "openai"
+            openai_entry = APIKeyEntry(service=openai_service, name=key, value=value, source=source)
+            if openai_service not in self.key_data:
+                self.key_data[openai_service] = [openai_entry]
+            else:
+                self.key_data[openai_service].append(openai_entry)
+                
+            # Add to openai_v2 service
+            openai_v2_service = "openai_v2"
+            openai_v2_entry = APIKeyEntry(service=openai_v2_service, name=key, value=value, source=source)
+            if openai_v2_service not in self.key_data:
+                self.key_data[openai_v2_service] = [openai_v2_entry]
+            else:
+                self.key_data[openai_v2_service].append(openai_v2_entry)
         else:
-            self.key_data[service].append(new_entry)
+            # Normal case for all other API keys
+            if service not in self.key_data:
+                self.key_data[service] = [new_entry]
+            else:
+                self.key_data[service].append(new_entry)
 
     def update_from_dict(self, d: dict) -> None:
         """
