@@ -186,6 +186,9 @@ class RawResponseHandler:
         from edsl.data_transfer_models import EDSLOutput
 
         generated_token_string = self.get_generated_token_string(raw_response)
+        # Ensure generated_token_string is a string before using string methods
+        if not isinstance(generated_token_string, str):
+            generated_token_string = str(generated_token_string)
         last_newline = generated_token_string.rfind("\n")
         reasoning_summary = self.get_reasoning_summary(raw_response)
 
