@@ -273,6 +273,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         "generated_tokens",
         "cache_used",
         "cache_keys",
+        "reasoning_summary",
     ]
 
     @classmethod
