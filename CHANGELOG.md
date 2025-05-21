@@ -1,27 +1,22 @@
 # Changelog
 
-
-## [0.1.59] - TBD
+## [0.1.60] - 2025-05-21
 ### Added
-- Added Python 3.13 support.
+- Support for OpenAI repsponse api. Now the jobs responses have acces to the model reasoning summaries
+- Example notebook for the new functionality: https://www.expectedparrot.com/content/arulm/getting-reasoning-summaries-from-thinking-models
 
-- More support for using data from Wikipedia in scenarios:
-```
-sl = (ScenarioList
-    .from_source("wikipedia", "https://en.wikipedia.org/wiki/Turing_Award", 1) 
-    .give_valid_names() # use valid Python identifiers for keys
-    .augment_with_wikipedia("recipient") # search query
-)
-```
-
+## [0.1.59] - 2025-05-15
+### Added
+- Added a drop method to the Agent class for removing specific fields, and updated the to_dict method to optionally include all fields. [1] [2]
+- Enhanced the AgentList class with methods to set instructions and traits presentation templates for all agents, and added a drop method to remove fields across the list. [1] [2]
+- Updated the to_dataset method in AgentList to include traits_presentation_template in the agent_parameters when traits_only is set to False. 
 ### Fixed
-- Bug impacting caching of prompts using video scenarios.
-
+- Fix error in computing the remote inference cache key for files.
+- Fix timeout issues when running jobs with videos.
 
 ## [0.1.58] - 2025-05-02
 ### Added
 - Improvements to the job status table to include more details on exceptions and costs.
-
 
 ## [0.1.57] - 2025-04-29
 
