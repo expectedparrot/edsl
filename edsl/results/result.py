@@ -95,6 +95,7 @@ class Result(Base, UserDict):
         question_to_attributes: Optional[dict[QuestionName, Any]] = None,
         generated_tokens: Optional[dict] = None,
         comments_dict: Optional[dict] = None,
+        reasoning_summaries_dict: Optional[dict] = None,
         cache_used_dict: Optional[dict[QuestionName, bool]] = None,
         indices: Optional[dict] = None,
         cache_keys: Optional[dict[QuestionName, str]] = None,
@@ -112,6 +113,7 @@ class Result(Base, UserDict):
         :param question_to_attributes: A dictionary of question attributes.
         :param generated_tokens: A dictionary of generated tokens.
         :param comments_dict: A dictionary of comments.
+        :param reasoning_summaries_dict: A dictionary of reasoning summaries.
         :param cache_used_dict: A dictionary of cache usage.
         :param indices: A dictionary of indices.
 
@@ -130,6 +132,7 @@ class Result(Base, UserDict):
             "question_to_attributes": self.question_to_attributes,
             "generated_tokens": generated_tokens or {},
             "comments_dict": comments_dict or {},
+            "reasoning_summaries_dict": reasoning_summaries_dict or {},
             "cache_used_dict": cache_used_dict or {},
             "cache_keys": cache_keys or {},
         }
@@ -236,6 +239,7 @@ class Result(Base, UserDict):
             "answer": self.data["answer"],
             "prompt": self.data["prompt"],
             "comment": self.data["comments_dict"],
+            "reasoning_summary": self.data["reasoning_summaries_dict"],
             "generated_tokens": self.data["generated_tokens"],
             "raw_model_response": self.data["raw_model_response"],
             "question_text": sub_dicts_needing_new_keys["question_text"],
@@ -497,6 +501,7 @@ class Result(Base, UserDict):
             question_to_attributes=json_dict.get("question_to_attributes", None),
             generated_tokens=json_dict.get("generated_tokens", {}),
             comments_dict=json_dict.get("comments_dict", {}),
+            reasoning_summaries_dict=json_dict.get("reasoning_summaries_dict", {}),
             cache_used_dict=json_dict.get("cache_used_dict", {}),
             cache_keys=json_dict.get("cache_keys", {}),
             indices=json_dict.get("indices", None),
@@ -631,6 +636,36 @@ class Result(Base, UserDict):
             }
             return comments_dict
 
+        def get_reasoning_summaries_dict(answer_key_names) -> dict[str, Any]:
+            reasoning_summaries_dict = {}
+            for k in answer_key_names:
+                reasoning_summary = question_results[k].reasoning_summary
+                
+                # If reasoning summary is None but we have a raw model response, try to extract it
+                if reasoning_summary is None and hasattr(question_results[k], 'raw_model_response'):
+                    try:
+                        # Get the model class to access the reasoning_sequence
+                        model_class = interview.model.__class__ if hasattr(interview, 'model') else None
+                        
+                        if model_class and hasattr(model_class, 'reasoning_sequence'):
+                            from ..language_models.raw_response_handler import RawResponseHandler
+                            
+                            # Create a handler with the model's reasoning sequence
+                            handler = RawResponseHandler(
+                                key_sequence=model_class.key_sequence if hasattr(model_class, 'key_sequence') else None,
+                                usage_sequence=model_class.usage_sequence if hasattr(model_class, 'usage_sequence') else None, 
+                                reasoning_sequence=model_class.reasoning_sequence
+                            )
+                            
+                            # Try to extract the reasoning summary
+                            reasoning_summary = handler.get_reasoning_summary(question_results[k].raw_model_response)
+                    except Exception:
+                        # If extraction fails, keep it as None
+                        pass
+                        
+                reasoning_summaries_dict[k + "_reasoning_summary"] = reasoning_summary
+            return reasoning_summaries_dict
+
         def get_question_name_to_prompts(
             model_response_objects,
         ) -> dict[str, dict[str, str]]:
@@ -705,6 +740,7 @@ class Result(Base, UserDict):
         answer_key_names = list(question_results.keys())
         generated_tokens_dict = get_generated_tokens_dict(answer_key_names) if answer_key_names else {}
         comments_dict = get_comments_dict(answer_key_names) if answer_key_names else {}
+        reasoning_summaries_dict = get_reasoning_summaries_dict(answer_key_names) if answer_key_names else {}
         
         # Get answers that are in the question results
         answer_dict = {}
@@ -735,6 +771,7 @@ class Result(Base, UserDict):
             survey=survey_copy,
             generated_tokens=generated_tokens_dict,
             comments_dict=comments_dict,
+            reasoning_summaries_dict=reasoning_summaries_dict,
             cache_used_dict=cache_used_dictionary,
             indices=indices_copy,
             cache_keys=cache_keys,
