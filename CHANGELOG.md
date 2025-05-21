@@ -2,7 +2,7 @@
 
 ## [0.1.60] - 2025-05-21
 ### Added
-- Support for OpenAI repsponse api. Now the jobs responses have acces to the model reasoning summaries
+- Support for the OpenAI response API has been added. Job responses now have access to model reasoning summaries.
 - Example notebook for the new functionality: https://www.expectedparrot.com/content/arulm/getting-reasoning-summaries-from-thinking-models
 
 ## [0.1.59] - 2025-05-15
