@@ -213,6 +213,9 @@ class Answers(UserDict):
         if comment:
             self[question.question_name + "_comment"] = comment
 
+        if getattr(response, "reasoning_summary", None):
+            self[question.question_name + "_reasoning_summary"] = response.reasoning_summary
+
     def replace_missing_answers_with_none(self, survey: "Survey") -> None:
         """
         Replace missing answers with None for all questions in the survey.
