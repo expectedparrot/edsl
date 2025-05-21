@@ -264,8 +264,48 @@ class Scenario(Base, UserDict):
         """Display a scenario as a table."""
         return self.to_dataset().table(tablefmt=tablefmt)
 
-    def to_dict(self, add_edsl_version: bool = True) -> dict:
+    def offload(self, inplace=False) -> "Scenario":
+        """
+        Offloads base64-encoded content from the scenario by replacing 'base64_string'
+        fields with 'offloaded'. This reduces memory usage.
+
+        Args:
+            inplace (bool): If True, modify the current scenario. If False, return a new one.
+
+        Returns:
+            Scenario: The modified scenario (either self or a new instance).
+        """
+        from edsl.scenarios import FileStore
+        from edsl.prompts import Prompt
+
+        target = self if inplace else Scenario()
+
+        for key, value in self.items():
+            if isinstance(value, FileStore):
+                file_store_dict = value.to_dict()
+                if "base64_string" in file_store_dict:
+                    file_store_dict["base64_string"] = "offloaded"
+                modified_value = FileStore.from_dict(file_store_dict)
+            elif isinstance(value, dict) and "base64_string" in value:
+                value_copy = value.copy()
+                value_copy["base64_string"] = "offloaded"
+                modified_value = value_copy
+            else:
+                modified_value = value
+
+            target[key] = modified_value
+
+        return target
+
+    def to_dict(
+        self, add_edsl_version: bool = True, offload_base64: bool = False
+    ) -> dict:
         """Convert a scenario to a dictionary.
+
+        Args:
+            add_edsl_version: If True, adds the EDSL version to the returned dictionary.
+            offload_base64: If True, replaces any base64_string fields with 'offloaded'
+                           to reduce memory usage.
 
         Example:
 
@@ -283,7 +323,15 @@ class Scenario(Base, UserDict):
         d = self.data.copy()
         for key, value in d.items():
             if isinstance(value, FileStore) or isinstance(value, Prompt):
-                d[key] = value.to_dict(add_edsl_version=add_edsl_version)
+                value_dict = value.to_dict(add_edsl_version=add_edsl_version)
+                if (
+                    offload_base64
+                    and isinstance(value_dict, dict)
+                    and "base64_string" in value_dict
+                ):
+                    value_dict["base64_string"] = "offloaded"
+                d[key] = value_dict
+
         if add_edsl_version:
             from edsl import __version__
 
