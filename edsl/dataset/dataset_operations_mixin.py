@@ -357,7 +357,7 @@ class DataOperationsBase:
             4
             >>> engine = Results.example()._db(shape = "long")
             >>> len(engine.execute(text("SELECT * FROM self")).fetchall())
-            204
+            212
         """
         # Import needed for database connection
         from sqlalchemy import create_engine
@@ -442,7 +442,7 @@ class DataOperationsBase:
 
             # Using long format
             >>> len(r.sql("SELECT * FROM self", shape="long"))
-            204
+            212
         """
         import pandas as pd
 
