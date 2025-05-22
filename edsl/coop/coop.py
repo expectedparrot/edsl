@@ -3,6 +3,7 @@ import base64
 import json
 import requests
 import time
+import math
 
 from typing import Any, Optional, Union, Literal, List, TypedDict, TYPE_CHECKING
 from uuid import UUID
@@ -1838,6 +1839,32 @@ class Coop(CoopFunctionsMixin):
         response = self._send_server_request(uri="api/users/get_balance", method="GET")
         self._resolve_server_response(response)
         return response.json()
+
+
+def get_default_respondent_arrival_rate_per_sec() -> float:
+    """Return the default assumed respondent arrival rate (per second).
+
+    Eventually this will be fetched from Expected Parrot's API; for now it is
+    a fixed constant used throughout EDSL for pricing calculations.
+    """
+
+    return 0.2  # respondents / second
+
+
+def get_default_mean_log_wage() -> float:
+    """Return the default mean of the natural-log wage distribution.
+
+    The current implementation corresponds to a median hourly wage of roughly
+    $12 (because median = exp(mean_log_wage)).
+    """
+
+    return math.log(12)
+
+
+def get_default_sigma_log_wage() -> float:
+    """Return the default standard deviation (sigma) of the log-wage distribution."""
+
+    return 0.45
 
 
 def main():
