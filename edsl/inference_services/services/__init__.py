@@ -8,6 +8,7 @@ from .groq_service import GroqService
 from .mistral_ai_service import MistralAIService
 from .ollama_service import OllamaService
 from .open_ai_service import OpenAIService
+from .open_ai_service_v2 import OpenAIServiceV2
 from .perplexity_service import PerplexityService
 from .test_service import TestService
 from .together_ai_service import TogetherAIService
@@ -24,8 +25,9 @@ __all__ = [
     "MistralAIService",
     "OllamaService",
     "OpenAIService",
+    "OpenAIServiceV2",
     "PerplexityService",
     "TestService",
     "TogetherAIService",
     "XAIService",
-] 
+]
