@@ -56,6 +56,9 @@ Output:
    * - xai
 
 
+*Note*: We recently added support for OpenAI reasoning models. See an example notebook for usage `here <https://www.expectedparrot.com/content/RobinHorton/reasoning-model-example>`_.
+Use `service_name = "openai_v2"` when using these models.
+
 .. Available models
 .. ----------------
 
