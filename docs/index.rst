@@ -285,6 +285,7 @@ Links
    :caption: Notebooks
    :hidden:
 
+   notebooks/reasoning_model_example.ipynb
    notebooks/next_token_probs.ipynb
    notebooks/summarizing_transcripts.ipynb
    notebooks/analyze_evaluations.ipynb
