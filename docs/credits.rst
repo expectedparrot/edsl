@@ -43,7 +43,6 @@ To purchase credits, navigate to the `Credits <https://www.expectedparrot.com/ho
 
 *Note:*
 Payments are processed by Stripe. 
-You may be charged payment processing fees when purchasing credits.
 
 
 Using credits
