@@ -174,7 +174,8 @@ class LanguageModel(
         """
         key_sequence = cls.key_sequence
         usage_sequence = cls.usage_sequence if hasattr(cls, "usage_sequence") else None
-        return RawResponseHandler(key_sequence, usage_sequence)
+        reasoning_sequence = cls.reasoning_sequence if hasattr(cls, "reasoning_sequence") else None
+        return RawResponseHandler(key_sequence, usage_sequence, reasoning_sequence)
 
     def __init__(
         self,
