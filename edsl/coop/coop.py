@@ -1901,15 +1901,22 @@ class Coop(CoopFunctionsMixin):
             headers={"Content-Type": "application/json"},
         )
         self._resolve_gcs_response(response)
-        # Handle any errors in the response
-        # self._resolve_server_response(response)
 
-        # Return the response containing the signed URL
+        # Send confirmation that upload was completed
         object_uuid = response_json.get("object_uuid", None)
         if object_uuid is None:
             from .exceptions import CoopResponseError
 
             raise CoopResponseError("No object uuid was provided received")
+
+        # Confirm the upload completion
+        confirm_response = self._send_server_request(
+            uri="api/v0/object/confirm-upload",
+            method="POST",
+            payload={"object_uuid": object_uuid},
+        )
+        self._resolve_server_response(confirm_response)
+
         return {"object_uuid": object_uuid}
 
     def _display_login_url(
