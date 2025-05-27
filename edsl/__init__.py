@@ -39,6 +39,7 @@ modules_to_import = [
     "jobs",
     "base",
     "conversation",
+    "extensions",
 ]
 
 # Dynamically import modules and extend __all__
