@@ -233,6 +233,7 @@ Links
    :hidden:
 
    results
+   humanize
    dataset
    data
    exceptions
@@ -291,6 +292,7 @@ Links
    :caption: Notebooks
    :hidden:
 
+   notebooks/data_labeling_validation_example.ipynb
    notebooks/reasoning_model_example.ipynb
    notebooks/next_token_probs.ipynb
    notebooks/summarizing_transcripts.ipynb
