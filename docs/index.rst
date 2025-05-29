@@ -5,11 +5,11 @@ Expected Parrot: Tools for AI-Powered Research
 
 Expected Parrot delivers powerful tools for conducting research with human and artificial intelligences.
 
-This page provides documentation for **Expected Parrot Domain-Specific Language (EDSL)**, a Python package for performing research with AI agents and language models,
-and **Coop**, a platform for creating, storing and sharing AI-based research projects.
+This page provides documentation for **Expected Parrot Domain-Specific Language (EDSL)**, an open-source Python package for performing research with AI agents and language models,
+and **Coop**, a platform for creating, storing and sharing AI research projects.
 
 * EDSL is available to download from `PyPI <https://pypi.org/project/edsl/>`_ (run `pip install edsl`). The source code is available at `GitHub <https://github.com/expectedparrot/edsl>`_.
-* `Create an account <https://www.expectedparrot.com/login>`_ to post and share content, run surveys and store results at the Expected Parrot survey. Learn more about `how it works <https://docs.expectedparrot.com/en/latest/coop.html>`_ and start `exploring <https://www.expectedparrot.com/content/explore>`_.
+* `Create an account <https://www.expectedparrot.com/login>`_ to post and share content, run surveys with LLMs and humans, and store results at the Expected Parrot server. Learn more about `how it works <https://docs.expectedparrot.com/en/latest/coop.html>`_ and start `exploring <https://www.expectedparrot.com/content/explore>`_.
 
 
 Key features 
@@ -94,6 +94,10 @@ Please see the links in the steps below for more details:
    Read the :ref:`starter_tutorial` and `download a notebook <https://www.expectedparrot.com/content/179b3a78-2505-4568-acd9-c09d18953288>`_ to create a survey and run it.
    See examples for many use cases and `tips <https://docs.expectedparrot.com/en/latest/checklist.html>`_ on using EDSL effectively in the documentation.
 
+5. **Validate with real respondents.**
+
+   You can run surveys with real respondents using the Coop platform or at your workspace.
+   Learn about methods for generating web-based surveys and collecting responses in the :ref:`survey_builder` and :ref:`humanize` sections.
 
 Join our `Discord channel <https://discord.com/invite/mxAYkjfy9m>`_ to ask questions and chat with other users!
 
@@ -142,6 +146,7 @@ Coop
 It is fully integrated with EDSL and provides access to special features for working with AI agents and language models, free storage and collaboration tools, including:
 
 - :ref:`survey_builder`: A user-friendly no-code interface for creating surveys and gathering responses from humans and AI agents.
+- :ref:`humanize`: Generate web-based surveys and collect responses from human respondents.
 - :ref:`remote_inference`: Access all available language models and run surveys at the Expected Parrot server. 
 - :ref:`remote_caching`: Automatically store results and API calls at the Expected Parrot server. 
 - :ref:`notebooks` & :ref:`colab_notebooks`: Easily post and share `.ipynb` and `.py` files to the Coop and access with Colab. 
@@ -173,6 +178,7 @@ Examples of special methods and use cases for EDSL, including:
 - Conducting agent conversations
 - Converting surveys into EDSL
 - Cognitive testing 
+- Validating LLM answers with humans
 - Research methods
 
  
@@ -227,6 +233,7 @@ Links
    :hidden:
 
    results
+   humanize
    dataset
    data
    exceptions
@@ -285,6 +292,8 @@ Links
    :caption: Notebooks
    :hidden:
 
+   notebooks/data_labeling_validation_example.ipynb
+   notebooks/reasoning_model_example.ipynb
    notebooks/next_token_probs.ipynb
    notebooks/summarizing_transcripts.ipynb
    notebooks/analyze_evaluations.ipynb
