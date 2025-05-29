@@ -5,7 +5,7 @@ from ..file_methods import FileMethods
 class JpegMethods(FileMethods):
     suffix = "jpeg"
 
-    def view_system(self):
+    def view_system(self, width: int = None, height: int = None):
         import os
         import subprocess
 
@@ -22,10 +22,10 @@ class JpegMethods(FileMethods):
         else:
             print("JPEG file was not found.")
 
-    def view_notebook(self):
+    def view_notebook(self, width: int = None, height: int = None):
         from IPython.display import Image, display
 
-        display(Image(filename=self.path))
+        display(Image(filename=self.path, width=width, height=height))
 
     def example(self):
         import matplotlib.pyplot as plt
