@@ -1877,13 +1877,23 @@ class Coop(CoopFunctionsMixin):
 
         object_type = ObjectRegistry.get_object_type_by_edsl_class(object)
         object_dict = object.to_dict()
+        object_hash = object.get_hash() if hasattr(object, "get_hash") else None
+
         # Send the request to the API endpoint
         response = self._send_server_request(
             uri="api/v0/object/push",
             method="POST",
-            payload={"object_type": object_type},
+            payload={
+                "object_type": object_type,
+                "description": description,
+                "alias": alias,
+                "visibility": visibility,
+                "object_hash": object_hash,
+                "version": self._edsl_version,
+            },
         )
         response_json = response.json()
+        print(response_json)
         if response_json.get("signed_url") is not None:
             signed_url = response_json.get("signed_url")
         else:
