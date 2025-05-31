@@ -564,6 +564,7 @@ class Jobs(Base):
             remote_inference_description=self.run_config.parameters.remote_inference_description,
             remote_inference_results_visibility=self.run_config.parameters.remote_inference_results_visibility,
             fresh=self.run_config.parameters.fresh,
+            new_format=self.run_config.parameters.new_format,
         )
         return job_info
 
@@ -829,6 +830,7 @@ class Jobs(Base):
             key_lookup (KeyLookup, optional): Object to manage API keys
             memory_threshold (int, optional): Memory threshold in bytes for the Results object's SQLList,
                 controlling when data is offloaded to SQLite storage
+            new_format (bool): If True, uses remote_inference_create method, if False uses old_remote_inference_create method (default: True)
 
         Returns:
             Results: A Results object containing all responses and metadata
@@ -889,6 +891,7 @@ class Jobs(Base):
             key_lookup (KeyLookup, optional): Object to manage API keys
             memory_threshold (int, optional): Memory threshold in bytes for the Results object's SQLList,
                 controlling when data is offloaded to SQLite storage
+            new_format (bool): If True, uses remote_inference_create method, if False uses old_remote_inference_create method (default: True)
 
         Returns:
             Results: A Results object containing all responses and metadata
