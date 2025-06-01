@@ -305,6 +305,8 @@ Links
    :caption: Notebooks
    :hidden:
 
+   notebooks/human-results-example-notebook.ipynb
+   notebooks/coop-project-example.ipynb
    notebooks/data_labeling_validation_example.ipynb
    notebooks/reasoning_model_example.ipynb
    notebooks/next_token_probs.ipynb
