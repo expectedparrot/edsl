@@ -141,8 +141,10 @@ Working with Results
 
 Validating with Humans
 ----------------------
+
 - :ref:`humanize`: Generate web-based surveys and collect responses from human respondents.
 - :ref:`prolific`: Launch surveys as studies on Prolific, a platform for recruiting human participants for research studies.
+- :ref:`survey_builder`: A user-friendly no-code interface for creating surveys and gathering responses from humans and AI agents.
 
 
 Coop 
@@ -151,7 +153,6 @@ Coop
 `Coop <https://www.expectedparrot.com/content/explore>`_ is a platform for creating, storing and sharing AI-based research.
 It is fully integrated with EDSL and provides access to special features for working with AI agents and language models, free storage and collaboration tools, including:
 
-- :ref:`survey_builder`: A user-friendly no-code interface for creating surveys and gathering responses from humans and AI agents.
 - :ref:`remote_inference`: Access all available language models and run surveys at the Expected Parrot server. 
 - :ref:`remote_caching`: Automatically store results and API calls at the Expected Parrot server. 
 - :ref:`notebooks` & :ref:`colab_notebooks`: Easily post and share `.ipynb` and `.py` files to the Coop and access with Colab. 
