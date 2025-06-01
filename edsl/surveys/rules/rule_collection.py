@@ -311,6 +311,15 @@ class RuleCollection(UserList):
                     children_to_parents[focal_q].add(q)
 
         return DAG(dict(sorted(children_to_parents.items())))
+    
+    def __eq__(self, other_rules) -> bool:
+        """Check if two RuleCollection objects are equal.
+
+        :param other_rules: The other RuleCollection object to compare against.
+
+        :return: True if the two RuleCollection objects are equal, False otherwise.
+        """
+        return self.to_dict() == other_rules.to_dict()
 
     def detect_cycles(self):
         """

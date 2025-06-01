@@ -49,9 +49,28 @@ def time_all_functions(module_or_class):
             setattr(module_or_class, name, time_it(obj))
 
 
+def _canonicalise(obj):
+    """Recursively coerce integral floats to int so that 2 and 2.0 look the same."""
+    if isinstance(obj, dict):
+        return {k: _canonicalise(v) for k, v in obj.items()}
+    if isinstance(obj, list):        # handle lists / tuples, etc.
+        return [_canonicalise(v) for v in obj]
+    if isinstance(obj, float) and obj.is_integer():
+        return int(obj)              # 2.0  ->  2
+    return obj                       # leave everything else unchanged
+
+
+def new_dict_hash(data: dict) -> int:
+    canonical = _canonicalise(data)
+    # JSON string with stable key-order & no extra whitespace
+    json_bytes = json.dumps(canonical, sort_keys=True, separators=(",", ":")).encode()
+    return int.from_bytes(hashlib.md5(json_bytes).digest(), byteorder="big")
+
+
 def dict_hash(data: dict):
+    canonical = _canonicalise(data)
     return hash(
-        int(hashlib.md5(json.dumps(data, sort_keys=True).encode()).hexdigest(), 16)
+        int(hashlib.md5(json.dumps(canonical, sort_keys=True).encode()).hexdigest(), 16)
     )
 
 

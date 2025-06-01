@@ -58,6 +58,16 @@ class Instruction(RepresentationMixin):
             data["text"],
             data.get("preamble", "You were given the following instructions:"),
         )
+    
+    def __eq__(self, other_instruction) -> bool:
+        """Check if two Instruction objects are equal.
+
+        :param other_instruction: The other Instruction object to compare against.
+
+        :return: True if the two Instruction objects are equal, False otherwise.
+        """
+        return self.to_dict() == other_instruction.to_dict()
+    
 
 
 if __name__ == "__main__":
