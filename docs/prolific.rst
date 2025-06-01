@@ -7,7 +7,8 @@ Your Coop account provides an interface to launch your EDSL surveys as studies o
 This allows you to gather human responses to your surveys, which can be combined with AI-generated responses for analysis.
 You can create a Prolific study from your Coop account, specifying the number of participants, payment amount, and other study details.
 
-A clickable demo of the steps below is viewable `here <https://app.arcade.software/share/GVCSuf9kfK6gduTzysg2>`_. A downloadable notebook of the example code shown below is available at this `here <https://www.expectedparrot.com/content/RobinHorton/coop-project-example>`_.
+The steps below are also accessible in a `clickable demo <https://app.arcade.software/share/GVCSuf9kfK6gduTzysg2>`_. 
+The example code below is also available at a downloadable `notebook at Coop <https://www.expectedparrot.com/content/RobinHorton/coop-project-example>`_.
 
 If you are looking for information about the EDSL method `humanize`, which generates a shareable web-based version of your survey for human respondents, see the :ref:`humanize` page.
 This method allows you to collect responses from your own respondents.

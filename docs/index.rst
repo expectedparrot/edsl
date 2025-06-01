@@ -239,12 +239,20 @@ Links
    :hidden:
 
    results
-   humanize
    dataset
    data
    exceptions
    token_usage
    checklist
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Validating with Humans
+   :hidden:
+
+   humanize
+   prolific
+   survey_builder
 
 .. toctree::
    :maxdepth: 2
@@ -257,7 +265,6 @@ Links
    filestore
    notebooks
    colab_notebooks
-   survey_builder
 
 .. toctree::
    :maxdepth: 2
@@ -298,6 +305,8 @@ Links
    :caption: Notebooks
    :hidden:
 
+   notebooks/human-results-example-notebook.ipynb
+   notebooks/coop-project-example.ipynb
    notebooks/data_labeling_validation_example.ipynb
    notebooks/reasoning_model_example.ipynb
    notebooks/next_token_probs.ipynb
