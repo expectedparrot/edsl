@@ -239,12 +239,20 @@ Links
    :hidden:
 
    results
-   humanize
    dataset
    data
    exceptions
    token_usage
    checklist
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Validating with Humans
+   :hidden:
+
+   humanize
+   prolific
+   survey_builder
 
 .. toctree::
    :maxdepth: 2
@@ -257,7 +265,6 @@ Links
    filestore
    notebooks
    colab_notebooks
-   survey_builder
 
 .. toctree::
    :maxdepth: 2
