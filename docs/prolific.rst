@@ -21,7 +21,8 @@ You can post a message at our Discord channel or send us an email at info@expect
 How it works
 ------------
 
-1. **Create a survey**: Use EDSL to create a survey, or use the :ref:`survey_builder` interface to build a survey interactively.
+1. **Create a survey**: 
+Use EDSL to create a survey, or use the :ref:`survey_builder` interface to build a survey interactively.
 Run the survey with AI agents and models to generate responses.
 See the :ref:`surveys` section for more details on creating surveys and working with :ref:`results`.
 
@@ -31,9 +32,11 @@ The survey will automatically appear at your Coop `Content <https://www.expected
 
 *Note:* The `push` method can be called on any EDSL object to post it to Coop, including `Survey`, `Agent`, `Model`, `Notebook`, etc.
 
-3. **Create a new project:** At your Coop account, choose the option to create a new project and select the survey you posted.
+3. **Create a new project:** 
+At your Coop account, choose the option to create a new project and select the survey you posted.
 
-4. **Create a Prolific study:** Select the option to create a new study and fill in the study details:
+4. **Create a Prolific study:** 
+Select the option to create a new study and fill in the study details:
 
    - **Study name** *(Shown to participants)*
    - **Description** *(Shown to participants)*
@@ -43,16 +46,18 @@ The survey will automatically appear at your Coop `Content <https://www.expected
    - **Participant allowlist:** Optionally, you can specify a list of Prolific IDs of participants who are allowed to take part in the study.
    - **Configure filters:** Optionally, you can set filters to target specific demographics or characteristics of participants (e.g., age, gender, ethnicity, languages, location, education, work status, etc.).
     
-    *Note:* The **Study URL** will be generated automatically. 
-    You can open it to view the web-based version of the survey that will be sent to participants.
-    (You can also share this link with any other respondents on your own to gather their responses.)
+*Note:* The **Study URL** will be generated automatically. 
+You can open it to view the web-based version of the survey that will be sent to participants.
+(You can also share this link with any other respondents on your own to gather their responses.)
 
-    Click the **Create study** button to finalize the study creation.
+Click the **Create study** button to finalize the study creation.
 
-5. **Launch the study:** Find the new study at your project dashboard and select the option to launch it.
+5. **Launch the study:** 
+Find the new study at your project dashboard and select the option to launch it.
 Responses will automatically appear at your project dashboard where you can review and approve them.
 
-6. **Access results:** Copy the project UUID from the Coop interface and use it to access the participant responses in your EDSL code (see example below).
+6. **Access results:** 
+Copy the project UUID from the Coop interface and use it to access the participant responses in your EDSL code (see example below).
 
 
 Example
@@ -127,31 +132,9 @@ Post the survey to Coop to make it available for human respondents:
     )
 
 
-`Log into your Coop account <https://www.expectedparrot.com/login>`_ and create a new project and Prolific study for your survey (see steps 3-5 above):
+`Log into your Coop account <https://www.expectedparrot.com/login>`_ and create a new project and Prolific study for your survey (see steps 3-5 above).
 
-.. image:: static/coop_create_project.png
-   :alt: Researcher and respondent options
-   :align: center
-   :width: 100%
-
-
-.. raw:: html
-
-   <br>
-
-
-.. image:: static/coop_human_surveys.png
-   :alt: Option to launch a Prolific study
-   :align: center
-   :width: 100%
-
-
-.. raw:: html
-
-   <br>
-
-
-Use the `Coop` class to import the Prolific results into your EDSL code:
+Then use the `Coop` class to import the Prolific results into your EDSL code:
 
 .. code-block:: python
 
