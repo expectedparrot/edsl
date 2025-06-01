@@ -1523,11 +1523,22 @@ class Coop(CoopFunctionsMixin):
         return {
             "project_name": response_json.get("project_name"),
             "project_job_uuids": response_json.get("job_uuids"),
+            "project_prolific_studies": [
+                {
+                    "name": study.get("name"),
+                    "id": study.get("id"),
+                    "status": study.get("status"),
+                    "total_available_places": study.get("total_available_places"),
+                    "places_taken": study.get("places_taken"),
+                }
+                for study in response_json.get("prolific_studies", [])
+            ],
         }
 
     def get_project_human_responses(
         self,
         project_uuid: str,
+        prolific_study_id: Optional[str] = None,
     ) -> Union["Results", "ScenarioList"]:
         """
         Return a Results object with the human responses for a project.
@@ -1540,9 +1551,15 @@ class Coop(CoopFunctionsMixin):
         from ..scenarios import Scenario, ScenarioList
         from ..surveys import Survey
 
+        if prolific_study_id is not None:
+            params = {"prolific_study_id": prolific_study_id}
+        else:
+            params = {}
+
         response = self._send_server_request(
             uri=f"api/v0/projects/{project_uuid}/human-responses",
             method="GET",
+            params=params,
         )
         self._resolve_server_response(response)
         response_json = response.json()
@@ -1559,8 +1576,13 @@ class Coop(CoopFunctionsMixin):
                     )
 
                 response_dict = json.loads(response.get("response_json_string"))
+                agent_traits_json_string = response.get("agent_traits_json_string")
+                if agent_traits_json_string is not None:
+                    agent_traits = json.loads(agent_traits_json_string)
+                else:
+                    agent_traits = {}
 
-                a = Agent(name=response_uuid, instruction="")
+                a = Agent(name=response_uuid, instruction="", traits=agent_traits)
 
                 def create_answer_function(response_data):
                     def f(self, question, scenario):
