@@ -1848,7 +1848,6 @@ class Coop(CoopFunctionsMixin):
             method="POST",
             payload={"object_uuid": object_uuid},
         )
-        print(response.text)
         # Handle any errors in the response
         self._resolve_server_response(response)
         if "signed_url" not in response.json():
@@ -1915,7 +1914,6 @@ class Coop(CoopFunctionsMixin):
             },
         )
         response_json = response.json()
-        print(response_json)
         if response_json.get("signed_url") is not None:
             signed_url = response_json.get("signed_url")
         else:
