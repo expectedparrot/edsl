@@ -1074,11 +1074,9 @@ class Coop(CoopFunctionsMixin):
                 "fresh": fresh,
             },
         )
-        print(response.text)
         self._resolve_server_response(response)
         response_json = response.json()
         upload_signed_url = response_json.get("upload_signed_url")
-        print(response_json)
         if not upload_signed_url:
             from .exceptions import CoopResponseError
 
