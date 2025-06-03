@@ -1816,7 +1816,7 @@ class Coop(CoopFunctionsMixin):
         self._resolve_server_response(response)
         return response.json().get("uuid")
 
-    def new_pull(
+    def pull(
         self, object_uuid: str, expected_object_type: Optional[ObjectType] = None
     ) -> dict:
         """
@@ -1836,7 +1836,7 @@ class Coop(CoopFunctionsMixin):
             HTTPException: If the object or object files are not found
 
         Example:
-            >>> response = coop.new_pull("123e4567-e89b-12d3-a456-426614174000")
+            >>> response = coop.pull("123e4567-e89b-12d3-a456-426614174000")
             >>> print(f"Download URL: {response['signed_url']}")
             >>> # Use the signed_url to download the object directly
         """
@@ -1866,7 +1866,7 @@ class Coop(CoopFunctionsMixin):
         # Return the response containing the signed URL
         return edsl_object
 
-    def new_push(
+    def push(
         self,
         object: EDSLObject,
         description: Optional[str] = None,
@@ -1889,7 +1889,7 @@ class Coop(CoopFunctionsMixin):
             CoopServerResponseError: If there's an error communicating with the server
 
         Example:
-            >>> response = coop.new_push("scenario")
+            >>> response = coop.push("scenario")
             >>> print(f"Upload URL: {response['signed_url']}")
             >>> # Use the signed_url to upload the object directly
         """

@@ -96,7 +96,7 @@ class JobsRemoteInferenceHandler:
             remote_inference_description: Optional description for the remote job
             remote_inference_results_visibility: Visibility setting for results
             fresh: If True, ignore existing cache entries and generate new results
-            new_format: If True, use new_pull method for result retrieval; if False, use legacy get method
+            new_format: If True, use pull method for result retrieval; if False, use legacy get method
 
         Returns:
             RemoteJobInfo: Information about the created job including UUID and logger
@@ -200,7 +200,7 @@ class JobsRemoteInferenceHandler:
 
             coop = Coop()
             if new_format:
-                return coop.new_pull
+                return coop.pull
             else:
                 return coop.get
 
@@ -580,7 +580,7 @@ class JobsRemoteInferenceHandler:
         :param iterations: Number of times to run each interview
         :param remote_inference_description: Optional description for the remote job
         :param remote_inference_results_visibility: Visibility setting for results
-        :param new_format: If True, use new_pull method for result retrieval; if False, use legacy get method
+        :param new_format: If True, use pull method for result retrieval; if False, use legacy get method
         :return: Results object if successful, None if job fails or is cancelled
         """
         import asyncio

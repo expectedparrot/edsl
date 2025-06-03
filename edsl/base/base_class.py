@@ -146,33 +146,33 @@ class PersistenceMixin:
         """
         print(cls.__doc__)
 
+    # def push(
+    #     self,
+    #     description: Optional[str] = None,
+    #     alias: Optional[str] = None,
+    #     visibility: Optional[str] = "unlisted",
+    #     expected_parrot_url: Optional[str] = None,
+    # ):
+    #     """Upload this object to the EDSL cooperative platform.
+
+    #     This method serializes the object and posts it to the EDSL coop service,
+    #     making it accessible to others or for your own use across sessions.
+
+    #     Args:
+    #         description: Optional text description of the object
+    #         alias: Optional human-readable identifier for the object
+    #         visibility: Access level setting ("private", "unlisted", or "public")
+    #         expected_parrot_url: Optional custom URL for the coop service
+
+    #     Returns:
+    #         The response from the coop service containing the object's unique identifier
+    #     """
+    #     from edsl.coop import Coop
+
+    #     c = Coop(url=expected_parrot_url)
+    #     return c.create(self, description, alias, visibility)
+
     def push(
-        self,
-        description: Optional[str] = None,
-        alias: Optional[str] = None,
-        visibility: Optional[str] = "unlisted",
-        expected_parrot_url: Optional[str] = None,
-    ):
-        """Upload this object to the EDSL cooperative platform.
-
-        This method serializes the object and posts it to the EDSL coop service,
-        making it accessible to others or for your own use across sessions.
-
-        Args:
-            description: Optional text description of the object
-            alias: Optional human-readable identifier for the object
-            visibility: Access level setting ("private", "unlisted", or "public")
-            expected_parrot_url: Optional custom URL for the coop service
-
-        Returns:
-            The response from the coop service containing the object's unique identifier
-        """
-        from edsl.coop import Coop
-
-        c = Coop(url=expected_parrot_url)
-        return c.create(self, description, alias, visibility)
-
-    def new_push(
         self,
         description: Optional[str] = None,
         alias: Optional[str] = None,
@@ -194,14 +194,14 @@ class PersistenceMixin:
         Example:
             >>> from edsl.surveys import Survey
             >>> survey = Survey(...)
-            >>> response = survey.new_push()
+            >>> response = survey.push()
             >>> print(f"Upload URL: {response['signed_url']}")
             >>> # Use the signed_url to upload the object directly
         """
         from edsl.coop import Coop
 
         c = Coop(url=expected_parrot_url)
-        return c.new_push(self, description, alias, visibility)
+        return c.push(self, description, alias, visibility)
 
     def to_yaml(self, add_edsl_version=False, filename: str = None) -> Union[str, None]:
         """Convert the object to YAML format.
@@ -273,35 +273,35 @@ class PersistenceMixin:
             fs = FileStore(path=f.name)
         return fs.create_link()
 
+    # @classmethod
+    # def pull(
+    #     cls,
+    #     url_or_uuid: Optional[Union[str, UUID]] = None,
+    # ):
+    #     """Pull the object from coop.
+
+    #     Args:
+    #         url_or_uuid: Either a UUID string or a URL pointing to the object
+    #     """
+    #     from edsl.coop import Coop
+    #     from edsl.coop import ObjectRegistry
+    #     from edsl.jobs import Jobs
+
+    #     coop = Coop()
+
+    #     if issubclass(cls, Jobs):
+    #         job_status = coop.remote_inference_get(
+    #             job_uuid=str(url_or_uuid), include_json_string=True
+    #         )
+    #         job_dict = json.loads(job_status.get("job_json_string"))
+    #         return cls.from_dict(job_dict)
+
+    #     object_type = ObjectRegistry.get_object_type_by_edsl_class(cls)
+
+    #     return coop.get(url_or_uuid, expected_object_type=object_type)
+
     @classmethod
     def pull(
-        cls,
-        url_or_uuid: Optional[Union[str, UUID]] = None,
-    ):
-        """Pull the object from coop.
-
-        Args:
-            url_or_uuid: Either a UUID string or a URL pointing to the object
-        """
-        from edsl.coop import Coop
-        from edsl.coop import ObjectRegistry
-        from edsl.jobs import Jobs
-
-        coop = Coop()
-
-        if issubclass(cls, Jobs):
-            job_status = coop.remote_inference_get(
-                job_uuid=str(url_or_uuid), include_json_string=True
-            )
-            job_dict = json.loads(job_status.get("job_json_string"))
-            return cls.from_dict(job_dict)
-
-        object_type = ObjectRegistry.get_object_type_by_edsl_class(cls)
-
-        return coop.get(url_or_uuid, expected_object_type=object_type)
-
-    @classmethod
-    def new_pull(
         cls,
         object_uuid: str,
         expected_parrot_url: Optional[str] = None,
@@ -320,7 +320,7 @@ class PersistenceMixin:
             dict: A response containing the signed_url for direct download
 
         Example:
-            >>> response = SurveyClass.new_pull("123e4567-e89b-12d3-a456-426614174000")
+            >>> response = SurveyClass.pull("123e4567-e89b-12d3-a456-426614174000")
             >>> print(f"Download URL: {response['signed_url']}")
             >>> # Use the signed_url to download the object directly
         """
@@ -331,7 +331,7 @@ class PersistenceMixin:
 
         object_type = ObjectRegistry.get_object_type_by_edsl_class(cls)
 
-        return coop.new_pull(object_uuid, object_type)
+        return coop.pull(object_uuid, object_type)
 
     @classmethod
     def list(
