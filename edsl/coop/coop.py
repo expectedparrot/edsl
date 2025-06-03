@@ -4,7 +4,7 @@ import json
 import requests
 import time
 
-from typing import Any, Optional, Union, Literal, List, TypedDict, TYPE_CHECKING
+from typing import Any, Dict, Optional, Union, Literal, List, TypedDict, TYPE_CHECKING
 from uuid import UUID
 
 from .. import __version__
@@ -35,6 +35,7 @@ from .utils import (
 from .coop_functions import CoopFunctionsMixin
 from .coop_regular_objects import CoopRegularObjects
 from .coop_jobs_objects import CoopJobsObjects
+from .coop_prolific_filters import CoopProlificFilters
 from .ep_key_handling import ExpectedParrotKeyHandler
 
 from ..inference_services.data_structures import ServiceToModelsMapping
@@ -1513,6 +1514,121 @@ class Coop(CoopFunctionsMixin):
                 scenario = Scenario(response_dict)
                 human_response_scenarios.append(scenario)
             return ScenarioList(human_response_scenarios)
+
+    def list_prolific_filters(self) -> "CoopProlificFilters":
+        """
+        Get a ScenarioList of supported Prolific filters. This list has several methods
+        that you can use to create valid filter dicts for use with Coop.create_prolific_study().
+
+        Call find() to examine a specific filter by ID:
+        >>> filters = coop.list_prolific_filters()
+        >>> filters.find("age")
+        Scenario(
+            {
+                "filter_id": "age",
+                "type": "range",
+                "range_filter_min": 18,
+                "range_filter_max": 100,
+                ...
+            }
+        )
+
+        Call create_study_filter() to create a valid filter dict:
+        >>> filters.create_study_filter("age", min=30, max=40)
+        {
+            "filter_id": "age",
+            "selected_range": {
+                "lower": 30,
+                "upper": 40,
+            },
+        }
+        """
+        from ..scenarios import Scenario
+
+        response = self._send_server_request(
+            uri="api/v0/prolific-filters",
+            method="GET",
+        )
+        self._resolve_server_response(response)
+        response_json = response.json()
+        filters = response_json.get("prolific_filters", [])
+        filter_scenarios = []
+        for filter in filters:
+            filter_type = filter.get("type")
+            question = filter.get("question")
+            scenario = Scenario(
+                {
+                    "filter_id": filter.get("filter_id"),
+                    "title": filter.get("title"),
+                    "question": (
+                        f"Participants were asked the following: {question}"
+                        if question
+                        else None
+                    ),
+                    "type": filter_type,
+                    "range_filter_min": (
+                        filter.get("min") if filter_type == "range" else None
+                    ),
+                    "range_filter_max": (
+                        filter.get("max") if filter_type == "range" else None
+                    ),
+                    "select_filter_num_options": (
+                        len(filter.get("choices", []))
+                        if filter_type == "select"
+                        else None
+                    ),
+                    "select_filter_options": (
+                        filter.get("choices") if filter_type == "select" else None
+                    ),
+                }
+            )
+            filter_scenarios.append(scenario)
+        return CoopProlificFilters(filter_scenarios)
+
+    def create_prolific_study(
+        self,
+        project_uuid: str,
+        name: str,
+        description: str,
+        num_participants: int,
+        estimated_completion_time_minutes: int,
+        participant_payment_cents: int,
+        device_compatibility: Optional[
+            List[Literal["desktop", "tablet", "mobile"]]
+        ] = None,
+        peripheral_requirements: Optional[
+            List[Literal["audio", "camera", "download", "microphone"]]
+        ] = None,
+        filters: Optional[List[Dict]] = None,
+    ) -> dict:
+        """
+        Create a Prolific study for a project. Returns a dict with the study ID.
+
+        To add filters to your study, you should first pull the list of supported
+        filters using Coop.list_prolific_filters().
+        Then, you can use the create_study_filter method of the returned
+        CoopProlificFilters object to create a valid filter dict.
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/projects/{project_uuid}/prolific-studies",
+            method="POST",
+            payload={
+                "name": name,
+                "description": description,
+                "total_available_places": num_participants,
+                "estimated_completion_time": estimated_completion_time_minutes,
+                "reward": participant_payment_cents,
+                "device_compatibility": device_compatibility
+                or ["desktop", "tablet", "mobile"],
+                "peripheral_requirements": peripheral_requirements or [],
+                "filters": filters or [],
+            },
+        )
+        self._resolve_server_response(response)
+        response_json = response.json()
+        return {
+            "study_id": response_json.get("study_id"),
+        }
 
     def __repr__(self):
         """Return a string representation of the client."""
