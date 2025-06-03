@@ -1415,10 +1415,10 @@ class Coop(CoopFunctionsMixin):
             "project_job_uuids": response_json.get("job_uuids"),
             "project_prolific_studies": [
                 {
+                    "study_id": study.get("id"),
                     "name": study.get("name"),
-                    "id": study.get("id"),
                     "status": study.get("status"),
-                    "total_available_places": study.get("total_available_places"),
+                    "num_participants": study.get("total_available_places"),
                     "places_taken": study.get("places_taken"),
                 }
                 for study in response_json.get("prolific_studies", [])
@@ -1602,7 +1602,7 @@ class Coop(CoopFunctionsMixin):
         filters: Optional[List[Dict]] = None,
     ) -> dict:
         """
-        Create a Prolific study for a project. Returns a dict with the study ID.
+        Create a Prolific study for a project. Returns a dict with the study details.
 
         To add filters to your study, you should first pull the list of supported
         filters using Coop.list_prolific_filters().
@@ -1618,16 +1618,120 @@ class Coop(CoopFunctionsMixin):
                 "total_available_places": num_participants,
                 "estimated_completion_time": estimated_completion_time_minutes,
                 "reward": participant_payment_cents,
-                "device_compatibility": device_compatibility
-                or ["desktop", "tablet", "mobile"],
-                "peripheral_requirements": peripheral_requirements or [],
-                "filters": filters or [],
+                "device_compatibility": (
+                    ["desktop", "tablet", "mobile"]
+                    if device_compatibility is None
+                    else device_compatibility
+                ),
+                "peripheral_requirements": (
+                    [] if peripheral_requirements is None else peripheral_requirements
+                ),
+                "filters": [] if filters is None else filters,
             },
         )
         self._resolve_server_response(response)
         response_json = response.json()
         return {
             "study_id": response_json.get("study_id"),
+            "status": response_json.get("status"),
+            "name": response_json.get("name"),
+            "description": response_json.get("description"),
+            "num_participants": response_json.get("total_available_places"),
+            "estimated_completion_time_minutes": response_json.get(
+                "estimated_completion_time"
+            ),
+            "participant_payment_cents": response_json.get("reward"),
+            "total_cost_cents": response_json.get("total_cost"),
+            "device_compatibility": response_json.get("device_compatibility"),
+            "peripheral_requirements": response_json.get("peripheral_requirements"),
+            "filters": response_json.get("filters"),
+        }
+
+    def update_prolific_study(
+        self,
+        project_uuid: str,
+        study_id: str,
+        name: Optional[str] = None,
+        description: Optional[str] = None,
+        num_participants: Optional[int] = None,
+        estimated_completion_time_minutes: Optional[int] = None,
+        participant_payment_cents: Optional[int] = None,
+        device_compatibility: Optional[
+            List[Literal["desktop", "tablet", "mobile"]]
+        ] = None,
+        peripheral_requirements: Optional[
+            List[Literal["audio", "camera", "download", "microphone"]]
+        ] = None,
+        filters: Optional[List[Dict]] = None,
+    ) -> dict:
+        """
+        Update a Prolific study. Returns a dict with the study details.
+        """
+        payload = {}
+        if name is not None:
+            payload["name"] = name
+        if description is not None:
+            payload["description"] = description
+        if num_participants is not None:
+            payload["total_available_places"] = num_participants
+        if estimated_completion_time_minutes is not None:
+            payload["estimated_completion_time"] = estimated_completion_time_minutes
+        if participant_payment_cents is not None:
+            payload["reward"] = participant_payment_cents
+        if device_compatibility is not None:
+            payload["device_compatibility"] = device_compatibility
+        if peripheral_requirements is not None:
+            payload["peripheral_requirements"] = peripheral_requirements
+        if filters is not None:
+            payload["filters"] = filters
+
+        response = self._send_server_request(
+            uri=f"api/v0/projects/{project_uuid}/prolific-studies/{study_id}",
+            method="PATCH",
+            payload=payload,
+        )
+        self._resolve_server_response(response)
+        response_json = response.json()
+        return {
+            "study_id": response_json.get("study_id"),
+            "status": response_json.get("status"),
+            "name": response_json.get("name"),
+            "description": response_json.get("description"),
+            "num_participants": response_json.get("total_available_places"),
+            "estimated_completion_time_minutes": response_json.get(
+                "estimated_completion_time"
+            ),
+            "participant_payment_cents": response_json.get("reward"),
+            "total_cost_cents": response_json.get("total_cost"),
+            "device_compatibility": response_json.get("device_compatibility"),
+            "peripheral_requirements": response_json.get("peripheral_requirements"),
+            "filters": response_json.get("filters"),
+        }
+
+    def get_prolific_study(self, project_uuid: str, study_id: str) -> dict:
+        """
+        Get a Prolific study. Returns a dict with the study details.
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/projects/{project_uuid}/prolific-studies/{study_id}",
+            method="GET",
+        )
+        self._resolve_server_response(response)
+        response_json = response.json()
+        return {
+            "study_id": response_json.get("study_id"),
+            "status": response_json.get("status"),
+            "name": response_json.get("name"),
+            "description": response_json.get("description"),
+            "num_participants": response_json.get("total_available_places"),
+            "estimated_completion_time_minutes": response_json.get(
+                "estimated_completion_time"
+            ),
+            "participant_payment_cents": response_json.get("reward"),
+            "total_cost_cents": response_json.get("total_cost"),
+            "device_compatibility": response_json.get("device_compatibility"),
+            "peripheral_requirements": response_json.get("peripheral_requirements"),
+            "filters": response_json.get("filters"),
         }
 
     def __repr__(self):
