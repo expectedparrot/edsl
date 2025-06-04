@@ -16,6 +16,8 @@ from __future__ import annotations
 import functools
 import warnings
 import fnmatch
+from collections import defaultdict
+import warnings
 from typing import Any, Callable, List, Literal, Optional, Type, TypeVar, Union, TYPE_CHECKING, cast, Any
 
 T = TypeVar('T')
@@ -1268,15 +1270,28 @@ class DelimitedFileSource(Source):
             # Auto-generate column names
             header = [f"col{i}" for i in range(len(rows[0]))]
             data_rows = rows
+
+        header_counts = defaultdict(lambda: 0)
+        new_header = []
+        for h in header:
+            print(header_counts)
+            if header_counts[h] >= 1:
+                new_header.append(f"{h}_{header_counts[h]}")
+                warnings.warn(f"Duplicate header found: {h}. Renamed to {h}_{header_counts[h]}")
+            else:
+                new_header.append(h)
+            header_counts[h] += 1
+
+        assert len(new_header) == len(set(new_header))
         
         # Create scenarios
         scenarios = []
         for row in data_rows:
-            if len(row) != len(header):
+            if len(row) != len(new_header):
                 warnings.warn(f"Skipping row with {len(row)} values (expected {len(header)})")
                 continue
             
-            scenario_dict = dict(zip(header, row))
+            scenario_dict = dict(zip(new_header, row))
             scenarios.append(Scenario(scenario_dict))
         
         return ScenarioList(scenarios)
