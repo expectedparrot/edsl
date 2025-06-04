@@ -1946,7 +1946,7 @@ class Coop(CoopFunctionsMixin):
         )
         self._resolve_server_response(confirm_response)
 
-        return {"object_uuid": object_uuid}
+        return {"uuid": object_uuid}
 
     def _display_login_url(
         self, edsl_auth_token: str, link_description: Optional[str] = None
