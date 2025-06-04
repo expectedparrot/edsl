@@ -1061,6 +1061,115 @@ class Coop(CoopFunctionsMixin):
             >>> print(f"Job created with UUID: {job_info['uuid']}")
         """
         response = self._send_server_request(
+            uri="api/v0/new-remote-inference",
+            method="POST",
+            payload={
+                "json_string": "offloaded",
+                "description": description,
+                "status": status,
+                "iterations": iterations,
+                "visibility": visibility,
+                "version": self._edsl_version,
+                "initial_results_visibility": initial_results_visibility,
+                "fresh": fresh,
+            },
+        )
+        self._resolve_server_response(response)
+        response_json = response.json()
+        upload_signed_url = response_json.get("upload_signed_url")
+        if not upload_signed_url:
+            from .exceptions import CoopResponseError
+
+            raise CoopResponseError("No signed url was provided received")
+
+        response = requests.put(
+            upload_signed_url,
+            data=json.dumps(
+                job.to_dict(),
+                default=self._json_handle_none,
+            ).encode(),
+            headers={"Content-Type": "application/json"},
+        )
+        self._resolve_gcs_response(response)
+
+        job_uuid = response_json.get("job_uuid")
+
+        response = self._send_server_request(
+            uri="api/v0/new-remote-inference/uploaded",
+            method="POST",
+            payload={
+                "job_uuid": job_uuid,
+                "message": "Job uploaded successfully",
+            },
+        )
+        response_json = response.json()
+
+        return RemoteInferenceCreationInfo(
+            **{
+                "uuid": response_json.get("job_uuid"),
+                "description": response_json.get("description", ""),
+                "status": response_json.get("status"),
+                "iterations": response_json.get("iterations", ""),
+                "visibility": response_json.get("visibility", ""),
+                "version": self._edsl_version,
+            }
+        )
+
+    def old_remote_inference_create(
+        self,
+        job: "Jobs",
+        description: Optional[str] = None,
+        status: RemoteJobStatus = "queued",
+        visibility: Optional[VisibilityType] = "unlisted",
+        initial_results_visibility: Optional[VisibilityType] = "unlisted",
+        iterations: Optional[int] = 1,
+        fresh: Optional[bool] = False,
+    ) -> RemoteInferenceCreationInfo:
+        """
+        Create a remote inference job for execution in the Expected Parrot cloud.
+
+        This method sends a job to be executed in the cloud, which can be more efficient
+        for large jobs or when you want to run jobs in the background. The job execution
+        is handled by Expected Parrot's infrastructure, and you can check the status
+        and retrieve results later.
+
+        Parameters:
+            job (Jobs): The EDSL job to run in the cloud
+            description (str, optional): A human-readable description of the job
+            status (RemoteJobStatus): Initial status, should be "queued" for normal use
+                Possible values: "queued", "running", "completed", "failed"
+            visibility (VisibilityType): Access level for the job information. One of:
+                - "private": Only accessible by the owner
+                - "public": Accessible by anyone
+                - "unlisted": Accessible with the link, but not listed publicly
+            initial_results_visibility (VisibilityType): Access level for the job results
+            iterations (int): Number of times to run each interview (default: 1)
+            fresh (bool): If True, ignore existing cache entries and generate new results
+
+        Returns:
+            RemoteInferenceCreationInfo: Information about the created job including:
+                - uuid: The unique identifier for the job
+                - description: The job description
+                - status: Current status of the job
+                - iterations: Number of iterations for each interview
+                - visibility: Access level for the job
+                - version: EDSL version used to create the job
+
+        Raises:
+            CoopServerResponseError: If there's an error communicating with the server
+
+        Notes:
+            - Remote jobs run asynchronously and may take time to complete
+            - Use remote_inference_get() with the returned UUID to check status
+            - Credits are consumed based on the complexity of the job
+
+        Example:
+            >>> from edsl.jobs import Jobs
+            >>> job = Jobs.example()
+            >>> job_info = coop.remote_inference_create(job=job, description="My job")
+            >>> print(f"Job created with UUID: {job_info['uuid']}")
+        """
+        response = self._send_server_request(
             uri="api/v0/remote-inference",
             method="POST",
             payload={
@@ -1706,6 +1815,138 @@ class Coop(CoopFunctionsMixin):
         )
         self._resolve_server_response(response)
         return response.json().get("uuid")
+
+    def pull(
+        self, object_uuid: str, expected_object_type: Optional[ObjectType] = None
+    ) -> dict:
+        """
+        Generate a signed URL for pulling an object directly from Google Cloud Storage.
+
+        This method gets a signed URL that allows direct download access to the object from
+        Google Cloud Storage, which is more efficient for large files.
+
+        Parameters:
+            object_uuid (str): The UUID of the object to download
+
+        Returns:
+            dict: A response containing the signed_url for direct download
+
+        Raises:
+            CoopServerResponseError: If there's an error communicating with the server
+            HTTPException: If the object or object files are not found
+
+        Example:
+            >>> response = coop.pull("123e4567-e89b-12d3-a456-426614174000")
+            >>> print(f"Download URL: {response['signed_url']}")
+            >>> # Use the signed_url to download the object directly
+        """
+        # Send the request to the API endpoint
+        response = self._send_server_request(
+            uri="api/v0/object/pull",
+            method="POST",
+            payload={"object_uuid": object_uuid},
+        )
+        # Handle any errors in the response
+        self._resolve_server_response(response)
+        if "signed_url" not in response.json():
+            from .exceptions import CoopResponseError
+
+            raise CoopResponseError("No signed url was provided received")
+        signed_url = response.json().get("signed_url")
+        response = requests.get(signed_url)
+
+        self._resolve_gcs_response(response)
+
+        object_dict = response.json()
+        if expected_object_type is not None:
+            edsl_class = ObjectRegistry.get_edsl_class_by_object_type(
+                expected_object_type
+            )
+            edsl_object = edsl_class.from_dict(object_dict)
+        # Return the response containing the signed URL
+        return edsl_object
+
+    def push(
+        self,
+        object: EDSLObject,
+        description: Optional[str] = None,
+        alias: Optional[str] = None,
+        visibility: Optional[VisibilityType] = "unlisted",
+    ) -> dict:
+        """
+        Generate a signed URL for pushing an object directly to Google Cloud Storage.
+
+        This method gets a signed URL that allows direct upload access to Google Cloud Storage,
+        which is more efficient for large files.
+
+        Parameters:
+            object_type (ObjectType): The type of object to be uploaded
+
+        Returns:
+            dict: A response containing the signed_url for direct upload and optionally a job_id
+
+        Raises:
+            CoopServerResponseError: If there's an error communicating with the server
+
+        Example:
+            >>> response = coop.push("scenario")
+            >>> print(f"Upload URL: {response['signed_url']}")
+            >>> # Use the signed_url to upload the object directly
+        """
+
+        object_type = ObjectRegistry.get_object_type_by_edsl_class(object)
+        object_dict = object.to_dict()
+        object_hash = object.get_hash() if hasattr(object, "get_hash") else None
+
+        # Send the request to the API endpoint
+        response = self._send_server_request(
+            uri="api/v0/object/push",
+            method="POST",
+            payload={
+                "object_type": object_type,
+                "description": description,
+                "alias": alias,
+                "visibility": visibility,
+                "object_hash": object_hash,
+                "version": self._edsl_version,
+            },
+        )
+        response_json = response.json()
+        if response_json.get("signed_url") is not None:
+            signed_url = response_json.get("signed_url")
+        else:
+            from .exceptions import CoopResponseError
+
+            raise CoopResponseError("No signed url was provided received")
+
+        json_data = json.dumps(
+            object_dict,
+            default=self._json_handle_none,
+            allow_nan=False,
+        )
+        response = requests.put(
+            signed_url,
+            data=json_data.encode(),
+            headers={"Content-Type": "application/json"},
+        )
+        self._resolve_gcs_response(response)
+
+        # Send confirmation that upload was completed
+        object_uuid = response_json.get("object_uuid", None)
+        if object_uuid is None:
+            from .exceptions import CoopResponseError
+
+            raise CoopResponseError("No object uuid was provided received")
+
+        # Confirm the upload completion
+        confirm_response = self._send_server_request(
+            uri="api/v0/object/confirm-upload",
+            method="POST",
+            payload={"object_uuid": object_uuid},
+        )
+        self._resolve_server_response(confirm_response)
+
+        return {"uuid": object_uuid}
 
     def _display_login_url(
         self, edsl_auth_token: str, link_description: Optional[str] = None
