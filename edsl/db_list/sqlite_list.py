@@ -4,7 +4,7 @@ import os
 import json
 from typing import Any, Callable, Iterable, Iterator, List, Optional
 from abc import ABC, abstractmethod
-from collections.abc import MutableSequence
+from collections.abc import MutableSequence, MutableMapping
 
 
 class SQLiteList(MutableSequence, ABC):
@@ -97,7 +97,10 @@ class SQLiteList(MutableSequence, ABC):
         row = cursor.fetchone()
         if row is None:
             raise IndexError("list index out of range")
-        return self.deserialize(row[0])
+
+        obj = self.deserialize(row[0])
+        # Return a proxy that keeps the DB in sync on mutation
+        return self._RowProxy(self, index, obj)
 
     def __setitem__(self, index, value):
         if index < 0:
@@ -347,3 +350,42 @@ class SQLiteList(MutableSequence, ABC):
             os.unlink(self.db_path)
         except:
             pass
+
+    class _RowProxy(MutableMapping):
+        """A write-through proxy returned by SQLiteList.__getitem__.
+
+        Any mutation on the proxy (e.g. proxy[key] = value) is immediately
+        re-serialised and written back to the underlying SQLite storage,
+        ensuring the database stays in sync with in-memory edits.
+        """
+
+        def __init__(self, parent: "SQLiteList", idx: int, obj: Any):
+            self._parent = parent
+            self._idx = idx
+            self._obj = obj  # The real deserialised object (e.g. Scenario)
+
+        # ---- MutableMapping interface ----
+        def __getitem__(self, key):
+            return self._obj[key]
+
+        def __setitem__(self, key, value):
+            self._obj[key] = value
+            # Propagate change back to SQLite via parent list
+            self._parent.__setitem__(self._idx, self._obj)
+
+        def __delitem__(self, key):
+            del self._obj[key]
+            self._parent.__setitem__(self._idx, self._obj)
+
+        def __iter__(self):
+            return iter(self._obj)
+
+        def __len__(self):
+            return len(self._obj)
+
+        # ---- Convenience helpers ----
+        def __getattr__(self, name):  # Delegate attribute access
+            return getattr(self._obj, name)
+
+        def __repr__(self):
+            return repr(self._obj)
