@@ -1425,13 +1425,11 @@ class Coop(CoopFunctionsMixin):
             ],
         }
 
-    def get_project_human_responses(
-        self,
-        project_uuid: str,
-        prolific_study_id: Optional[str] = None,
+    def _turn_human_responses_into_results(
+        self, human_responses: List[dict], survey_json_string: str
     ) -> Union["Results", "ScenarioList"]:
         """
-        Return a Results object with the human responses for a project.
+        Turn a list of human responses into a Results object.
 
         If generating the Results object fails, a ScenarioList will be returned instead.
         """
@@ -1440,20 +1438,6 @@ class Coop(CoopFunctionsMixin):
         from ..language_models import Model
         from ..scenarios import Scenario, ScenarioList
         from ..surveys import Survey
-
-        if prolific_study_id is not None:
-            params = {"prolific_study_id": prolific_study_id}
-        else:
-            params = {}
-
-        response = self._send_server_request(
-            uri=f"api/v0/projects/{project_uuid}/human-responses",
-            method="GET",
-            params=params,
-        )
-        self._resolve_server_response(response)
-        response_json = response.json()
-        human_responses = response_json.get("human_responses", [])
 
         try:
             agent_list = AgentList()
@@ -1485,7 +1469,6 @@ class Coop(CoopFunctionsMixin):
                 )
                 agent_list.append(a)
 
-            survey_json_string = response_json.get("survey_json_string")
             survey = Survey.from_dict(json.loads(survey_json_string))
 
             model = Model("test")
@@ -1514,6 +1497,28 @@ class Coop(CoopFunctionsMixin):
                 scenario = Scenario(response_dict)
                 human_response_scenarios.append(scenario)
             return ScenarioList(human_response_scenarios)
+
+    def get_project_human_responses(
+        self,
+        project_uuid: str,
+    ) -> Union["Results", "ScenarioList"]:
+        """
+        Return a Results object with the human responses for a project.
+
+        If generating the Results object fails, a ScenarioList will be returned instead.
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/projects/{project_uuid}/human-responses",
+            method="GET",
+        )
+        self._resolve_server_response(response)
+        response_json = response.json()
+        human_responses = response_json.get("human_responses", [])
+        survey_json_string = response_json.get("survey_json_string")
+
+        return self._turn_human_responses_into_results(
+            human_responses, survey_json_string
+        )
 
     def list_prolific_filters(self) -> "CoopProlificFilters":
         """
@@ -1733,6 +1738,29 @@ class Coop(CoopFunctionsMixin):
             "peripheral_requirements": response_json.get("peripheral_requirements"),
             "filters": response_json.get("filters"),
         }
+
+    def get_prolific_study_responses(
+        self,
+        project_uuid: str,
+        study_id: str,
+    ) -> Union["Results", "ScenarioList"]:
+        """
+        Return a Results object with the human responses for a project.
+
+        If generating the Results object fails, a ScenarioList will be returned instead.
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/projects/{project_uuid}/prolific-studies/{study_id}/responses",
+            method="GET",
+        )
+        self._resolve_server_response(response)
+        response_json = response.json()
+        human_responses = response_json.get("human_responses", [])
+        survey_json_string = response_json.get("survey_json_string")
+
+        return self._turn_human_responses_into_results(
+            human_responses, survey_json_string
+        )
 
     def __repr__(self):
         """Return a string representation of the client."""
