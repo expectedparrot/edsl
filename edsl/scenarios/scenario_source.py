@@ -16,6 +16,8 @@ from __future__ import annotations
 import functools
 import warnings
 import fnmatch
+from collections import defaultdict
+import warnings
 from typing import (
     Any,
     Callable,
@@ -29,8 +31,6 @@ from typing import (
     cast,
     Any,
 )
-from collections import defaultdict
-import warnings
 
 T = TypeVar("T")
 
@@ -1330,8 +1330,8 @@ class DelimitedFileSource(Source):
             # Auto-generate column names
             header = [f"col{i}" for i in range(len(rows[0]))]
             data_rows = rows
-            header_counts = defaultdict(lambda: 0)
 
+        header_counts = defaultdict(lambda: 0)
         new_header = []
         for h in header:
             print(header_counts)
@@ -1345,6 +1345,7 @@ class DelimitedFileSource(Source):
             header_counts[h] += 1
 
         assert len(new_header) == len(set(new_header))
+
         # Create scenarios
         scenarios = []
         for row in data_rows:
