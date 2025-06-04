@@ -1639,6 +1639,8 @@ class Coop(CoopFunctionsMixin):
         return {
             "study_id": response_json.get("study_id"),
             "status": response_json.get("status"),
+            "admin_url": response_json.get("admin_url"),
+            "respondent_url": response_json.get("respondent_url"),
             "name": response_json.get("name"),
             "description": response_json.get("description"),
             "num_participants": response_json.get("total_available_places"),
@@ -1700,6 +1702,8 @@ class Coop(CoopFunctionsMixin):
         return {
             "study_id": response_json.get("study_id"),
             "status": response_json.get("status"),
+            "admin_url": response_json.get("admin_url"),
+            "respondent_url": response_json.get("respondent_url"),
             "name": response_json.get("name"),
             "description": response_json.get("description"),
             "num_participants": response_json.get("total_available_places"),
@@ -1726,6 +1730,8 @@ class Coop(CoopFunctionsMixin):
         return {
             "study_id": response_json.get("study_id"),
             "status": response_json.get("status"),
+            "admin_url": response_json.get("admin_url"),
+            "respondent_url": response_json.get("respondent_url"),
             "name": response_json.get("name"),
             "description": response_json.get("description"),
             "num_participants": response_json.get("total_available_places"),
@@ -1761,6 +1767,23 @@ class Coop(CoopFunctionsMixin):
         return self._turn_human_responses_into_results(
             human_responses, survey_json_string
         )
+
+    def delete_prolific_study(
+        self,
+        project_uuid: str,
+        study_id: str,
+    ) -> dict:
+        """
+        Deletes a Prolific study.
+
+        Note: Only draft studies can be deleted. Once you publish a study, it cannot be deleted.
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/projects/{project_uuid}/prolific-studies/{study_id}",
+            method="DELETE",
+        )
+        self._resolve_server_response(response)
+        return response.json()
 
     def __repr__(self):
         """Return a string representation of the client."""
@@ -2104,7 +2127,9 @@ class Coop(CoopFunctionsMixin):
             >>> balance = coop.get_balance()
             >>> print(f"You have {balance['credits']} credits available.")
         """
-        response = self._send_server_request(uri="api/users/get_balance", method="GET")
+        response = self._send_server_request(
+            uri="api/v0/users/get-balance", method="GET"
+        )
         self._resolve_server_response(response)
         return response.json()
 
