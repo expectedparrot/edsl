@@ -1846,7 +1846,9 @@ class Coop(CoopFunctionsMixin):
         return response.json().get("uuid")
 
     def pull(
-        self, object_uuid: str, expected_object_type: Optional[ObjectType] = None
+        self,
+        url_or_uuid: Optional[Union[str, UUID]] = None,
+        expected_object_type: Optional[ObjectType] = None,
     ) -> dict:
         """
         Generate a signed URL for pulling an object directly from Google Cloud Storage.
@@ -1855,25 +1857,64 @@ class Coop(CoopFunctionsMixin):
         Google Cloud Storage, which is more efficient for large files.
 
         Parameters:
-            object_uuid (str): The UUID of the object to download
+            url_or_uuid (Union[str, UUID], optional): Identifier for the object to retrieve.
+                Can be one of:
+                - UUID string (e.g., "123e4567-e89b-12d3-a456-426614174000")
+                - Full URL (e.g., "https://expectedparrot.com/content/123e4567...")
+                - Alias URL (e.g., "https://expectedparrot.com/content/username/my-survey")
+            expected_object_type (ObjectType, optional): If provided, validates that the
+                retrieved object is of the expected type (e.g., "survey", "agent")
 
         Returns:
             dict: A response containing the signed_url for direct download
 
         Raises:
+            CoopNoUUIDError: If no UUID or URL is provided
+            CoopInvalidURLError: If the URL format is invalid
             CoopServerResponseError: If there's an error communicating with the server
             HTTPException: If the object or object files are not found
 
         Example:
             >>> response = coop.pull("123e4567-e89b-12d3-a456-426614174000")
+            >>> response = coop.pull("https://expectedparrot.com/content/username/my-survey")
             >>> print(f"Download URL: {response['signed_url']}")
             >>> # Use the signed_url to download the object directly
         """
-        # Send the request to the API endpoint
+        obj_uuid, owner_username, alias = self._resolve_uuid_or_alias(url_or_uuid)
+
+        # Handle alias-based retrieval with new/old format detection
+        if not obj_uuid and owner_username and alias:
+            # First, get object info to determine format and UUID
+            info_response = self._send_server_request(
+                uri="api/v0/object/alias/info",
+                method="GET",
+                params={"owner_username": owner_username, "alias": alias},
+            )
+            self._resolve_server_response(info_response)
+            info_data = info_response.json()
+
+            obj_uuid = info_data.get("uuid")
+            is_new_format = info_data.get("is_new_format", False)
+
+            # Validate object type if expected
+            if expected_object_type:
+                actual_object_type = info_data.get("object_type")
+                if actual_object_type != expected_object_type:
+                    from .exceptions import CoopObjectTypeError
+
+                    raise CoopObjectTypeError(
+                        f"Expected {expected_object_type=} but got {actual_object_type=}"
+                    )
+
+            # Use get method for old format objects
+            if not is_new_format:
+                return self.get(url_or_uuid, expected_object_type)
+
+        # Send the request to the API endpoint with the resolved UUID
         response = self._send_server_request(
             uri="api/v0/object/pull",
             method="POST",
-            payload={"object_uuid": object_uuid},
+            payload={"object_uuid": obj_uuid},
         )
         # Handle any errors in the response
         self._resolve_server_response(response)
@@ -1884,15 +1925,15 @@ class Coop(CoopFunctionsMixin):
         signed_url = response.json().get("signed_url")
 
         if signed_url == "":  # it is in old format
-            return self.get(object_uuid, expected_object_type)
+            return self.get(url_or_uuid, expected_object_type)
 
         try:
             response = requests.get(signed_url)
 
             self._resolve_gcs_response(response)
 
-        except Exception as e:
-            return self.get(object_uuid, expected_object_type)
+        except Exception:
+            return self.get(url_or_uuid, expected_object_type)
         object_dict = response.json()
         if expected_object_type is not None:
             edsl_class = ObjectRegistry.get_edsl_class_by_object_type(
