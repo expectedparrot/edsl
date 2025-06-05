@@ -38,6 +38,9 @@ def is_iterable(obj):
 class EmptyAgentList:
     def __repr__(self):
         return "Empty AgentList"
+    
+    def __len__(self):
+        return 0
 
 
 # ResultsExportMixin,
@@ -259,11 +262,23 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
             ...                Agent(traits = {'a': 1, 'b': 2})])
             >>> al.filter("b == 2")
             AgentList([Agent(traits = {'a': 1, 'b': 2})])
+            >>> al = AgentList([Agent(traits = {'a': 1, 'b': 1}, name = 'steve'),
+            ...                Agent(traits = {'a': 1, 'b': 2}, name = 'roxanne')])
+            >>> len(al.filter("name == 'steve'"))
+            1
+            >>> len(al.filter("name == 'roxanne'"))
+            1
+            >>> len(al.filter("name == 'steve' and a == 1"))
+            1
+            >>> len(al.filter("name == 'steve' and a == 2"))
+            0
+            >>> len(al.filter("name == 'steve' and a == 1 and b == 2"))
+            0
         """
 
         def create_evaluator(agent: "Agent"):
             """Create an evaluator for the given agent."""
-            return EvalWithCompoundTypes(names=agent.traits)
+            return EvalWithCompoundTypes(names={**agent.traits, 'name': agent.name})
 
         try:
             new_data = [
