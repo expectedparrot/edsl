@@ -149,7 +149,8 @@ class CoopProlificFilters(ScenarioList):
             ):
 
                 # Create a truncated representation of the options list
-                formatter = reprlib.Repr(maxstring=50)
+                formatter = reprlib.Repr()
+                formatter.maxstring = 50
                 select_filter_options = list(
                     dict(scenario_dict["select_filter_options"]).values()
                 )
