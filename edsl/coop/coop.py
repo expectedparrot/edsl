@@ -1717,6 +1717,21 @@ class Coop(CoopFunctionsMixin):
             "filters": response_json.get("filters"),
         }
 
+    def publish_prolific_study(
+        self,
+        project_uuid: str,
+        study_id: str,
+    ) -> dict:
+        """
+        Publish a Prolific study.
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/projects/{project_uuid}/prolific-studies/{study_id}/publish",
+            method="POST",
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
     def get_prolific_study(self, project_uuid: str, study_id: str) -> dict:
         """
         Get a Prolific study. Returns a dict with the study details.
@@ -1781,6 +1796,79 @@ class Coop(CoopFunctionsMixin):
         response = self._send_server_request(
             uri=f"api/v0/projects/{project_uuid}/prolific-studies/{study_id}",
             method="DELETE",
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
+    def approve_prolific_study_submission(
+        self,
+        project_uuid: str,
+        study_id: str,
+        submission_id: str,
+    ) -> dict:
+        """
+        Approve a Prolific study submission.
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/projects/{project_uuid}/prolific-studies/{study_id}/submissions/{submission_id}/approve",
+            method="POST",
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
+    def reject_prolific_study_submission(
+        self,
+        project_uuid: str,
+        study_id: str,
+        submission_id: str,
+        reason: Literal[
+            "TOO_QUICKLY",
+            "TOO_SLOWLY",
+            "FAILED_INSTRUCTIONS",
+            "INCOMP_LONGITUDINAL",
+            "FAILED_CHECK",
+            "LOW_EFFORT",
+            "MALINGERING",
+            "NO_CODE",
+            "BAD_CODE",
+            "NO_DATA",
+            "UNSUPP_DEVICE",
+            "OTHER",
+        ],
+        explanation: str,
+    ) -> dict:
+        """
+        Reject a Prolific study submission.
+        """
+        valid_rejection_reasons = [
+            "TOO_QUICKLY",
+            "TOO_SLOWLY",
+            "FAILED_INSTRUCTIONS",
+            "INCOMP_LONGITUDINAL",
+            "FAILED_CHECK",
+            "LOW_EFFORT",
+            "MALINGERING",
+            "NO_CODE",
+            "BAD_CODE",
+            "NO_DATA",
+            "UNSUPP_DEVICE",
+            "OTHER",
+        ]
+        if reason not in valid_rejection_reasons:
+            raise CoopValueError(
+                f"Invalid rejection reason. Please use one of the following: {valid_rejection_reasons}."
+            )
+        if len(explanation) < 100:
+            raise CoopValueError(
+                "Rejection explanation must be at least 100 characters."
+            )
+        response = self._send_server_request(
+            uri=f"api/v0/projects/{project_uuid}/prolific-studies/{study_id}/submissions/{submission_id}/reject",
+            method="POST",
+            payload={
+                "reason": reason,
+                "explanation": explanation,
+            },
         )
         self._resolve_server_response(response)
         return response.json()
