@@ -2032,7 +2032,7 @@ class Coop(CoopFunctionsMixin):
         else:
             from .exceptions import CoopResponseError
 
-            raise CoopResponseError("No signed url was provided received")
+            raise CoopResponseError(response.text)
 
         json_data = json.dumps(
             object_dict,
