@@ -2049,7 +2049,7 @@ class Coop(CoopFunctionsMixin):
         # Send confirmation that upload was completed
         object_uuid = response_json.get("object_uuid", None)
         owner_username = response_json.get("owner_username", None)
-        object_alias = response_json.get("object_alias", None)
+        object_alias = response_json.get("alias", None)
 
         if object_uuid is None:
             from .exceptions import CoopResponseError
