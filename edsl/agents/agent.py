@@ -426,6 +426,25 @@ class Agent(Base):
             self.traits_presentation_template = "Your traits: {{traits}}"
             self.set_traits_presentation_template = False
 
+
+    def drop(self, field_name: str) -> Agent:
+        """Drop a field from the agent.
+        
+        Args:
+            field_name: The name of the field to drop.
+        """
+        d = self.to_dict()
+        if field_name in d['traits']:
+            d['traits'].pop(field_name)
+        elif field_name in d:
+            d.pop(field_name)
+        else:
+            raise AgentErrors((f"Field '{field_name}' not found in agent"
+                               f"Available fields: {d.keys()}"
+                               f"Available traits: {d['traits'].keys()}"
+                              ))
+        return Agent.from_dict(d)
+
     def duplicate(self) -> Agent:
         """Create a deep copy of this agent with all its traits and capabilities.
         
@@ -1213,7 +1232,7 @@ class Agent(Base):
         """
         return dict_hash(self.to_dict(add_edsl_version=False))
 
-    def to_dict(self, add_edsl_version=True) -> dict[str, Union[dict, bool]]:
+    def to_dict(self, add_edsl_version=True, full_dict=False) -> dict[str, Union[dict, bool]]:
         """Serialize to a dictionary with EDSL info.
 
         Example usage:
@@ -1230,11 +1249,11 @@ class Agent(Base):
         d["traits"] = copy.deepcopy(dict(self._traits))
         if self.name:
             d["name"] = self.name
-        if self.set_instructions:
+        if self.set_instructions or full_dict:
             d["instruction"] = self.instruction
-        if self.set_traits_presentation_template:
+        if self.set_traits_presentation_template or full_dict:
             d["traits_presentation_template"] = self.traits_presentation_template
-        if self.codebook:
+        if self.codebook or full_dict:
             d["codebook"] = self.codebook
         if add_edsl_version:
             from edsl import __version__
