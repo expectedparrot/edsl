@@ -693,6 +693,35 @@ class Coop(CoopFunctionsMixin):
         """
         obj_uuid, owner_username, alias = self._resolve_uuid_or_alias(url_or_uuid)
 
+        # Handle alias-based retrieval with new/old format detection
+        if not obj_uuid and owner_username and alias:
+            # First, get object info to determine format and UUID
+            info_response = self._send_server_request(
+                uri="api/v0/object/alias/info",
+                method="GET",
+                params={"owner_username": owner_username, "alias": alias},
+            )
+            self._resolve_server_response(info_response)
+            info_data = info_response.json()
+
+            obj_uuid = info_data.get("uuid")
+            is_new_format = info_data.get("is_new_format", False)
+
+            # Validate object type if expected
+            if expected_object_type:
+                actual_object_type = info_data.get("object_type")
+                if actual_object_type != expected_object_type:
+                    from .exceptions import CoopObjectTypeError
+
+                    raise CoopObjectTypeError(
+                        f"Expected {expected_object_type=} but got {actual_object_type=}"
+                    )
+
+            # Use pull method for new format objects
+            if is_new_format:
+                return self.pull(obj_uuid, expected_object_type)
+
+        # Handle UUID-based retrieval or legacy alias objects
         if obj_uuid:
             response = self._send_server_request(
                 uri="api/v0/object",
@@ -1872,6 +1901,44 @@ class Coop(CoopFunctionsMixin):
             edsl_object = edsl_class.from_dict(object_dict)
         # Return the response containing the signed URL
         return edsl_object
+
+    def get_upload_url(self, object_uuid: str) -> dict:
+        """
+        Get a signed upload URL for updating the content of an existing object.
+
+        This method gets a signed URL that allows direct upload to Google Cloud Storage
+        for objects stored in the new format, while preserving the existing UUID.
+
+        Parameters:
+            object_uuid (str): The UUID of the object to get an upload URL for
+
+        Returns:
+            dict: A response containing:
+                - signed_url: The signed URL for uploading new content
+                - object_uuid: The UUID of the object
+                - message: Success message
+
+        Raises:
+            CoopServerResponseError: If there's an error communicating with the server
+            HTTPException: If the object is not found, not owned by user, or not in new format
+
+        Notes:
+            - Only works with objects stored in the new format (transition table)
+            - User must be the owner of the object
+            - The signed URL expires after 60 minutes
+
+        Example:
+            >>> response = coop.get_upload_url("123e4567-e89b-12d3-a456-426614174000")
+            >>> upload_url = response['signed_url']
+            >>> # Use the upload_url to PUT new content directly to GCS
+        """
+        response = self._send_server_request(
+            uri="api/v0/object/upload-url",
+            method="POST",
+            payload={"object_uuid": object_uuid},
+        )
+        self._resolve_server_response(response)
+        return response.json()
 
     def push(
         self,
