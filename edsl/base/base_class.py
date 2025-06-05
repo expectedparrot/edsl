@@ -273,32 +273,32 @@ class PersistenceMixin:
             fs = FileStore(path=f.name)
         return fs.create_link()
 
-    # @classmethod
-    # def pull(
-    #     cls,
-    #     url_or_uuid: Optional[Union[str, UUID]] = None,
-    # ):
-    #     """Pull the object from coop.
+    @classmethod
+    def old_pull(
+        cls,
+        url_or_uuid: Optional[Union[str, UUID]] = None,
+    ):
+        """Pull the object from coop.
 
-    #     Args:
-    #         url_or_uuid: Either a UUID string or a URL pointing to the object
-    #     """
-    #     from edsl.coop import Coop
-    #     from edsl.coop import ObjectRegistry
-    #     from edsl.jobs import Jobs
+        Args:
+            url_or_uuid: Either a UUID string or a URL pointing to the object
+        """
+        from edsl.coop import Coop
+        from edsl.coop import ObjectRegistry
+        from edsl.jobs import Jobs
 
-    #     coop = Coop()
+        coop = Coop()
 
-    #     if issubclass(cls, Jobs):
-    #         job_status = coop.remote_inference_get(
-    #             job_uuid=str(url_or_uuid), include_json_string=True
-    #         )
-    #         job_dict = json.loads(job_status.get("job_json_string"))
-    #         return cls.from_dict(job_dict)
+        if issubclass(cls, Jobs):
+            job_status = coop.remote_inference_get(
+                job_uuid=str(url_or_uuid), include_json_string=True
+            )
+            job_dict = json.loads(job_status.get("job_json_string"))
+            return cls.from_dict(job_dict)
 
-    #     object_type = ObjectRegistry.get_object_type_by_edsl_class(cls)
+        object_type = ObjectRegistry.get_object_type_by_edsl_class(cls)
 
-    #     return coop.get(url_or_uuid, expected_object_type=object_type)
+        return coop.get(url_or_uuid, expected_object_type=object_type)
 
     @classmethod
     def pull(
