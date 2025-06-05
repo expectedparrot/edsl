@@ -245,7 +245,20 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
             traits_to_select = list(traits)
 
         return AgentList([agent.select(*traits_to_select) for agent in self.data])
-
+    
+    @classmethod
+    def from_results(self, results: "Results") -> "AgentList": 
+        """Create an AgentList from a Results object.
+        
+        >>> from edsl import Results
+        >>> results = Results.example()
+        >>> al = AgentList.from_results(results)
+        >>> al
+        AgentList([Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5}), Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5})])
+        """ 
+        al = results.agent_list 
+        return al 
+     
     def filter(self, expression: str) -> AgentList:
         """Filter agents based on a boolean expression.
 
