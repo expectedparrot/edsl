@@ -2048,6 +2048,9 @@ class Coop(CoopFunctionsMixin):
 
         # Send confirmation that upload was completed
         object_uuid = response_json.get("object_uuid", None)
+        owner_username = response_json.get("owner_username", None)
+        object_alias = response_json.get("object_alias", None)
+
         if object_uuid is None:
             from .exceptions import CoopResponseError
 
@@ -2061,7 +2064,15 @@ class Coop(CoopFunctionsMixin):
         )
         self._resolve_server_response(confirm_response)
 
-        return {"uuid": object_uuid}
+        return {
+            "description": response_json.get("description"),
+            "object_type": object_type,
+            "url": f"{self.url}/content/{response_json.get('uuid')}",
+            "alias_url": self._get_alias_url(owner_username, object_alias),
+            "uuid": object_uuid,
+            "version": self._edsl_version,
+            "visibility": response_json.get("visibility"),
+        }
 
     def _display_login_url(
         self, edsl_auth_token: str, link_description: Optional[str] = None
