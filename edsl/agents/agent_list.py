@@ -168,7 +168,7 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         return AgentList([a.duplicate() for a in self.data])
 
 
-    def collapse(self): 
+    def collapse(self, warn_about_none_name: bool = True) -> "AgentList": 
         """All agents with the same name have their traits combined.
         
         >>> al = AgentList([Agent(name = 'steve'), Agent(name = 'roxanne')])
@@ -177,16 +177,17 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         >>> al = AgentList([Agent(name = 'steve', traits = {'age': 22}), Agent(name = 'steve', traits = {'hair': 'brown'})])
         >>> al.collapse()
         AgentList([Agent(name = \"\"\"steve\"\"\", traits = {'age': 22, 'hair': 'brown'})])
+        >>> AgentList.example().collapse(warn_about_none_name = False)
+        AgentList([Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5})])
         """
         new_agent_list = AgentList()
         warned_about_none_name = False
         d = {}
         for agent in self: 
             if agent.name is None: 
-                if not warned_about_none_name: 
+                if not warned_about_none_name and warn_about_none_name: 
                     warnings.warn("Agent has no name, so it will be ignored.")
                     warned_about_none_name = True
-                continue
             if agent.name not in d: 
                 d[agent.name] = agent
             else: 
