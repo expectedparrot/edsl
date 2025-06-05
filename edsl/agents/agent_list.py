@@ -5,6 +5,7 @@ from __future__ import annotations
 import csv
 import sys
 import random
+import warnings
 import logging
 from collections import defaultdict
 from itertools import product
@@ -165,6 +166,34 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
             False
         """
         return AgentList([a.duplicate() for a in self.data])
+
+
+    def collapse(self): 
+        """All agents with the same name have their traits combined.
+        
+        >>> al = AgentList([Agent(name = 'steve'), Agent(name = 'roxanne')])
+        >>> al.collapse()
+        AgentList([Agent(name = \"\"\"steve\"\"\", traits = {}), Agent(name = \"\"\"roxanne\"\"\", traits = {})])
+        >>> al = AgentList([Agent(name = 'steve', traits = {'age': 22}), Agent(name = 'steve', traits = {'hair': 'brown'})])
+        >>> al.collapse()
+        AgentList([Agent(name = \"\"\"steve\"\"\", traits = {'age': 22, 'hair': 'brown'})])
+        """
+        new_agent_list = AgentList()
+        warned_about_none_name = False
+        d = {}
+        for agent in self: 
+            if agent.name is None: 
+                if not warned_about_none_name: 
+                    warnings.warn("Agent has no name, so it will be ignored.")
+                    warned_about_none_name = True
+                continue
+            if agent.name not in d: 
+                d[agent.name] = agent
+            else: 
+                d[agent.name].traits.update(agent.traits)
+        for name, agent in d.items(): 
+            new_agent_list.append(agent)
+        return new_agent_list
 
     def rename(self, old_name: str, new_name: str) -> AgentList:
         """Rename a trait across all agents in the list.
