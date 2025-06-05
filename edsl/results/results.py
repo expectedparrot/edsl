@@ -273,6 +273,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         "generated_tokens",
         "cache_used",
         "cache_keys",
+        "reasoning_summary",
     ]
 
     @classmethod
@@ -771,6 +772,10 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
     def to_dataset(self) -> "Dataset":
         return self.select()
 
+    def optimzie_scenarios(self):
+        for result in self.data:
+            result.scenario.offload(inplace=True)
+
     def to_dict(
         self,
         sort: bool = False,
@@ -778,9 +783,12 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         include_cache: bool = True,
         include_task_history: bool = False,
         include_cache_info: bool = True,
+        offload_scenarios: bool = True,
     ) -> dict[str, Any]:
         from ..caching import Cache
 
+        if offload_scenarios:
+            self.optimzie_scenarios()
         if sort:
             data = sorted([result for result in self.data], key=lambda x: hash(x))
         else:
@@ -809,7 +817,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             )
 
         if self.task_history.has_unfixed_exceptions or include_task_history:
-            d.update({"task_history": self.task_history.to_dict()})
+            d.update({"task_history": self.task_history.to_dict(offload_content=True)})
 
         if add_edsl_version:
             from .. import __version__

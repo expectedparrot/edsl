@@ -2,6 +2,7 @@ import aiohttp
 import base64
 import json
 import requests
+import time
 
 from typing import Any, Optional, Union, Literal, List, TypedDict, TYPE_CHECKING
 from uuid import UUID
@@ -13,7 +14,9 @@ from ..caching import CacheEntry
 
 if TYPE_CHECKING:
     from ..jobs import Jobs
+    from ..scenarios import ScenarioList
     from ..surveys import Survey
+    from ..results import Results
 
 from .exceptions import (
     CoopInvalidURLError,
@@ -37,17 +40,58 @@ from .ep_key_handling import ExpectedParrotKeyHandler
 from ..inference_services.data_structures import ServiceToModelsMapping
 
 
+class JobRunExpense(TypedDict):
+    service: str
+    model: str
+    token_type: Literal["input", "output"]
+    price_per_million_tokens: float
+    tokens_count: int
+    cost_credits: float
+    cost_usd: float
+
+
+class JobRunExceptionCounter(TypedDict):
+    exception_type: str
+    inference_service: str
+    model: str
+    question_name: str
+    exception_count: int
+
+
+class JobRunInterviewDetails(TypedDict):
+    total_interviews: int
+    completed_interviews: int
+    interviews_with_exceptions: int
+    exception_summary: List[JobRunExceptionCounter]
+
+
+class LatestJobRunDetails(TypedDict):
+    # For running, completed, and partially failed jobs
+    interview_details: Optional[JobRunInterviewDetails] = None
+
+    # For failed jobs only
+    failure_reason: Optional[Literal["error", "insufficient funds"]] = None
+    failure_description: Optional[str] = None
+
+    # For partially failed jobs only
+    error_report_uuid: Optional[UUID] = None
+
+    # For completed and partially failed jobs
+    cost_credits: Optional[float] = None
+    cost_usd: Optional[float] = None
+    expenses: Optional[list[JobRunExpense]] = None
+
+
 class RemoteInferenceResponse(TypedDict):
     job_uuid: str
     results_uuid: str
-    results_url: str
-    latest_error_report_uuid: str
-    latest_error_report_url: str
-    status: str
-    reason: str
-    credits_consumed: float
-    version: str
     job_json_string: Optional[str]
+    status: RemoteJobStatus
+    latest_job_run_details: LatestJobRunDetails
+    description: Optional[str]
+    version: str
+    visibility: VisibilityType
+    results_url: str
 
 
 class RemoteInferenceCreationInfo(TypedDict):
@@ -168,7 +212,9 @@ class Coop(CoopFunctionsMixin):
             and "json_string" in payload
             and payload.get("json_string") is not None
         ):
-            timeout = max(40, (len(payload.get("json_string", "")) // (1024 * 1024)))
+            timeout = max(
+                60, 2 * (len(payload.get("json_string", "")) // (1024 * 1024))
+            )
         try:
             if method in ["GET", "DELETE"]:
                 response = requests.request(
@@ -244,15 +290,14 @@ class Coop(CoopFunctionsMixin):
         #         print(
         #             "Please upgrade your EDSL version to access our latest features. Open your terminal and run `pip install --upgrade edsl`"
         #         )
-
         if response.status_code >= 400:
             try:
                 message = str(response.json().get("detail"))
             except json.JSONDecodeError:
                 raise CoopServerResponseError(
                     f"Server returned status code {response.status_code}."
-                    "JSON response could not be decoded.",
-                    "The server response was: " + response.text,
+                    f"JSON response could not be decoded."
+                    f"The server response was: {response.text}"
                 )
             # print(response.text)
             if "The API key you provided is invalid" in message and check_api_key:
@@ -524,6 +569,7 @@ class Coop(CoopFunctionsMixin):
                     json.dumps(
                         object_dict,
                         default=self._json_handle_none,
+                        allow_nan=False,
                     )
                     if object_type != "scenario"
                     else ""
@@ -542,6 +588,7 @@ class Coop(CoopFunctionsMixin):
             json_data = json.dumps(
                 object_dict,
                 default=self._json_handle_none,
+                allow_nan=False,
             )
             headers = {"Content-Type": "application/json"}
             if response_json.get("upload_signed_url"):
@@ -885,6 +932,7 @@ class Coop(CoopFunctionsMixin):
                     json.dumps(
                         value.to_dict(),
                         default=self._json_handle_none,
+                        allow_nan=False,
                     )
                     if value
                     else None
@@ -1013,6 +1061,115 @@ class Coop(CoopFunctionsMixin):
             >>> print(f"Job created with UUID: {job_info['uuid']}")
         """
         response = self._send_server_request(
+            uri="api/v0/new-remote-inference",
+            method="POST",
+            payload={
+                "json_string": "offloaded",
+                "description": description,
+                "status": status,
+                "iterations": iterations,
+                "visibility": visibility,
+                "version": self._edsl_version,
+                "initial_results_visibility": initial_results_visibility,
+                "fresh": fresh,
+            },
+        )
+        self._resolve_server_response(response)
+        response_json = response.json()
+        upload_signed_url = response_json.get("upload_signed_url")
+        if not upload_signed_url:
+            from .exceptions import CoopResponseError
+
+            raise CoopResponseError("No signed url was provided received")
+
+        response = requests.put(
+            upload_signed_url,
+            data=json.dumps(
+                job.to_dict(),
+                default=self._json_handle_none,
+            ).encode(),
+            headers={"Content-Type": "application/json"},
+        )
+        self._resolve_gcs_response(response)
+
+        job_uuid = response_json.get("job_uuid")
+
+        response = self._send_server_request(
+            uri="api/v0/new-remote-inference/uploaded",
+            method="POST",
+            payload={
+                "job_uuid": job_uuid,
+                "message": "Job uploaded successfully",
+            },
+        )
+        response_json = response.json()
+
+        return RemoteInferenceCreationInfo(
+            **{
+                "uuid": response_json.get("job_uuid"),
+                "description": response_json.get("description", ""),
+                "status": response_json.get("status"),
+                "iterations": response_json.get("iterations", ""),
+                "visibility": response_json.get("visibility", ""),
+                "version": self._edsl_version,
+            }
+        )
+
+    def old_remote_inference_create(
+        self,
+        job: "Jobs",
+        description: Optional[str] = None,
+        status: RemoteJobStatus = "queued",
+        visibility: Optional[VisibilityType] = "unlisted",
+        initial_results_visibility: Optional[VisibilityType] = "unlisted",
+        iterations: Optional[int] = 1,
+        fresh: Optional[bool] = False,
+    ) -> RemoteInferenceCreationInfo:
+        """
+        Create a remote inference job for execution in the Expected Parrot cloud.
+
+        This method sends a job to be executed in the cloud, which can be more efficient
+        for large jobs or when you want to run jobs in the background. The job execution
+        is handled by Expected Parrot's infrastructure, and you can check the status
+        and retrieve results later.
+
+        Parameters:
+            job (Jobs): The EDSL job to run in the cloud
+            description (str, optional): A human-readable description of the job
+            status (RemoteJobStatus): Initial status, should be "queued" for normal use
+                Possible values: "queued", "running", "completed", "failed"
+            visibility (VisibilityType): Access level for the job information. One of:
+                - "private": Only accessible by the owner
+                - "public": Accessible by anyone
+                - "unlisted": Accessible with the link, but not listed publicly
+            initial_results_visibility (VisibilityType): Access level for the job results
+            iterations (int): Number of times to run each interview (default: 1)
+            fresh (bool): If True, ignore existing cache entries and generate new results
+
+        Returns:
+            RemoteInferenceCreationInfo: Information about the created job including:
+                - uuid: The unique identifier for the job
+                - description: The job description
+                - status: Current status of the job
+                - iterations: Number of iterations for each interview
+                - visibility: Access level for the job
+                - version: EDSL version used to create the job
+
+        Raises:
+            CoopServerResponseError: If there's an error communicating with the server
+
+        Notes:
+            - Remote jobs run asynchronously and may take time to complete
+            - Use remote_inference_get() with the returned UUID to check status
+            - Credits are consumed based on the complexity of the job
+
+        Example:
+            >>> from edsl.jobs import Jobs
+            >>> job = Jobs.example()
+            >>> job_info = coop.remote_inference_create(job=job, description="My job")
+            >>> print(f"Job created with UUID: {job_info['uuid']}")
+        """
+        response = self._send_server_request(
             uri="api/v0/remote-inference",
             method="POST",
             payload={
@@ -1063,16 +1220,36 @@ class Coop(CoopFunctionsMixin):
 
         Returns:
             RemoteInferenceResponse: Information about the job including:
-                - job_uuid: The unique identifier for the job
-                - results_uuid: The UUID of the results (if job is completed)
-                - results_url: URL to access the results (if available)
-                - latest_error_report_uuid: UUID of error report (if job failed)
-                - latest_error_report_url: URL to access error details (if available)
-                - status: Current status ("queued", "running", "completed", "failed")
-                - reason: Reason for failure (if applicable)
-                - credits_consumed: Credits used for the job execution
-                - version: EDSL version used for the job
-                - job_json_string: The json string for the job (if include_json_string is True)
+                job_uuid: The unique identifier for the job
+                results_uuid: The UUID of the results
+                results_url: URL to access the results
+                status: Current status ("queued", "running", "completed", "failed")
+                version: EDSL version used for the job
+                job_json_string: The json string for the job (if include_json_string is True)
+                latest_job_run_details: Metadata about the job status
+                    interview_details: Metadata about the job interview status (for jobs that have reached running status)
+                        total_interviews: The total number of interviews in the job
+                        completed_interviews: The number of completed interviews
+                        interviews_with_exceptions: The number of completed interviews that have exceptions
+                        exception_counters: A list of exception counts for the job
+                            exception_type: The type of exception
+                            inference_service: The inference service
+                            model: The model
+                            question_name: The name of the question
+                            exception_count: The number of exceptions
+                    failure_reason: The reason the job failed (failed jobs only)
+                    failure_description: The description of the failure (failed jobs only)
+                    error_report_uuid: The UUID of the error report (partially failed jobs only)
+                    cost_credits: The cost of the job run in credits
+                    cost_usd: The cost of the job run in USD
+                    expenses: The expenses incurred by the job run
+                        service: The service
+                        model: The model
+                        token_type: The type of token (input or output)
+                        price_per_million_tokens: The price per million tokens
+                        tokens_count: The number of tokens consumed
+                        cost_credits: The cost of the service/model/token type combination in credits
+                        cost_usd: The cost of the service/model/token type combination in USD
 
         Raises:
             ValueError: If neither job_uuid nor results_uuid is provided
@@ -1098,6 +1275,8 @@ class Coop(CoopFunctionsMixin):
             params = {"job_uuid": job_uuid}
         else:
             params = {"results_uuid": results_uuid}
+        if include_json_string:
+            params["include_json_string"] = include_json_string
 
         response = self._send_server_request(
             uri="api/v0/remote-inference",
@@ -1108,35 +1287,32 @@ class Coop(CoopFunctionsMixin):
         data = response.json()
 
         results_uuid = data.get("results_uuid")
-        latest_error_report_uuid = data.get("latest_error_report_uuid")
 
         if results_uuid is None:
             results_url = None
         else:
             results_url = f"{self.url}/content/{results_uuid}"
 
-        if latest_error_report_uuid is None:
-            latest_error_report_url = None
-        else:
-            latest_error_report_url = (
-                f"{self.url}/home/remote-inference/error/{latest_error_report_uuid}"
-            )
+        latest_job_run_details = data.get("latest_job_run_details", {})
+        if data.get("status") == "partial_failed":
+            latest_error_report_uuid = latest_job_run_details.get("error_report_uuid")
+            if latest_error_report_uuid is None:
+                latest_job_run_details["error_report_url"] = None
+            else:
+                latest_error_report_url = (
+                    f"{self.url}/home/remote-inference/error/{latest_error_report_uuid}"
+                )
+                latest_job_run_details["error_report_url"] = latest_error_report_url
 
         return RemoteInferenceResponse(
             **{
                 "job_uuid": data.get("job_uuid"),
                 "results_uuid": results_uuid,
                 "results_url": results_url,
-                "latest_error_report_uuid": latest_error_report_uuid,
-                "latest_error_report_url": latest_error_report_url,
-                "latest_failure_description": data.get("latest_failure_details"),
                 "status": data.get("status"),
-                "reason": data.get("latest_failure_reason"),
-                "credits_consumed": data.get("price"),
                 "version": data.get("version"),
-                "job_json_string": (
-                    data.get("job_json_string") if include_json_string else None
-                ),
+                "job_json_string": data.get("job_json_string"),
+                "latest_job_run_details": latest_job_run_details,
             }
         )
 
@@ -1256,13 +1432,13 @@ class Coop(CoopFunctionsMixin):
         self, input: Union["Jobs", "Survey"], iterations: int = 1
     ) -> int:
         """
-        Get the cost of a remote inference job.
+        Get the estimated cost in credits of a remote inference job.
 
         :param input: The EDSL job to send to the server.
 
         >>> job = Jobs.example()
         >>> coop.remote_inference_cost(input=job)
-        {'credits': 0.77, 'usd': 0.0076950000000000005}
+        {'credits_hold': 0.77, 'usd': 0.0076950000000000005}
         """
         from ..jobs import Jobs
         from ..surveys import Survey
@@ -1290,7 +1466,7 @@ class Coop(CoopFunctionsMixin):
         self._resolve_server_response(response)
         response_json = response.json()
         return {
-            "credits": response_json.get("cost_in_credits"),
+            "credits_hold": response_json.get("cost_in_credits"),
             "usd": response_json.get("cost_in_usd"),
         }
 
@@ -1323,11 +1499,129 @@ class Coop(CoopFunctionsMixin):
         self._resolve_server_response(response)
         response_json = response.json()
         return {
-            "name": response_json.get("project_name"),
+            "project_name": response_json.get("project_name"),
             "uuid": response_json.get("uuid"),
             "admin_url": f"{self.url}/home/projects/{response_json.get('uuid')}",
             "respondent_url": f"{self.url}/respond/{response_json.get('uuid')}",
         }
+
+    def get_project(
+        self,
+        project_uuid: str,
+    ) -> dict:
+        """
+        Get a project from Coop.
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/projects/{project_uuid}",
+            method="GET",
+        )
+        self._resolve_server_response(response)
+        response_json = response.json()
+        return {
+            "project_name": response_json.get("project_name"),
+            "project_job_uuids": response_json.get("job_uuids"),
+            "project_prolific_studies": [
+                {
+                    "name": study.get("name"),
+                    "id": study.get("id"),
+                    "status": study.get("status"),
+                    "total_available_places": study.get("total_available_places"),
+                    "places_taken": study.get("places_taken"),
+                }
+                for study in response_json.get("prolific_studies", [])
+            ],
+        }
+
+    def get_project_human_responses(
+        self,
+        project_uuid: str,
+        prolific_study_id: Optional[str] = None,
+    ) -> Union["Results", "ScenarioList"]:
+        """
+        Return a Results object with the human responses for a project.
+
+        If generating the Results object fails, a ScenarioList will be returned instead.
+        """
+        from ..agents import Agent, AgentList
+        from ..caching import Cache
+        from ..language_models import Model
+        from ..scenarios import Scenario, ScenarioList
+        from ..surveys import Survey
+
+        if prolific_study_id is not None:
+            params = {"prolific_study_id": prolific_study_id}
+        else:
+            params = {}
+
+        response = self._send_server_request(
+            uri=f"api/v0/projects/{project_uuid}/human-responses",
+            method="GET",
+            params=params,
+        )
+        self._resolve_server_response(response)
+        response_json = response.json()
+        human_responses = response_json.get("human_responses", [])
+
+        try:
+            agent_list = AgentList()
+
+            for response in human_responses:
+                response_uuid = response.get("response_uuid")
+                if response_uuid is None:
+                    raise RuntimeError(
+                        "One of your responses is missing a unique identifier."
+                    )
+
+                response_dict = json.loads(response.get("response_json_string"))
+                agent_traits_json_string = response.get("agent_traits_json_string")
+                if agent_traits_json_string is not None:
+                    agent_traits = json.loads(agent_traits_json_string)
+                else:
+                    agent_traits = {}
+
+                a = Agent(name=response_uuid, instruction="", traits=agent_traits)
+
+                def create_answer_function(response_data):
+                    def f(self, question, scenario):
+                        return response_data.get(question.question_name, None)
+
+                    return f
+
+                a.add_direct_question_answering_method(
+                    create_answer_function(response_dict)
+                )
+                agent_list.append(a)
+
+            survey_json_string = response_json.get("survey_json_string")
+            survey = Survey.from_dict(json.loads(survey_json_string))
+
+            model = Model("test")
+            results = (
+                survey.by(agent_list)
+                .by(model)
+                .run(
+                    cache=Cache(),
+                    disable_remote_cache=True,
+                    disable_remote_inference=True,
+                    print_exceptions=False,
+                )
+            )
+            return results
+        except Exception:
+            human_response_scenarios = []
+            for response in human_responses:
+                response_uuid = response.get("response_uuid")
+                if response_uuid is None:
+                    raise RuntimeError(
+                        "One of your responses is missing a unique identifier."
+                    )
+
+                response_dict = json.loads(response.get("response_json_string"))
+                response_dict["agent_name"] = response_uuid
+                scenario = Scenario(response_dict)
+                human_response_scenarios.append(scenario)
+            return ScenarioList(human_response_scenarios)
 
     def __repr__(self):
         """Return a string representation of the client."""
@@ -1522,6 +1816,145 @@ class Coop(CoopFunctionsMixin):
         self._resolve_server_response(response)
         return response.json().get("uuid")
 
+    def pull(
+        self, object_uuid: str, expected_object_type: Optional[ObjectType] = None
+    ) -> dict:
+        """
+        Generate a signed URL for pulling an object directly from Google Cloud Storage.
+
+        This method gets a signed URL that allows direct download access to the object from
+        Google Cloud Storage, which is more efficient for large files.
+
+        Parameters:
+            object_uuid (str): The UUID of the object to download
+
+        Returns:
+            dict: A response containing the signed_url for direct download
+
+        Raises:
+            CoopServerResponseError: If there's an error communicating with the server
+            HTTPException: If the object or object files are not found
+
+        Example:
+            >>> response = coop.pull("123e4567-e89b-12d3-a456-426614174000")
+            >>> print(f"Download URL: {response['signed_url']}")
+            >>> # Use the signed_url to download the object directly
+        """
+        # Send the request to the API endpoint
+        response = self._send_server_request(
+            uri="api/v0/object/pull",
+            method="POST",
+            payload={"object_uuid": object_uuid},
+        )
+        # Handle any errors in the response
+        self._resolve_server_response(response)
+        if "signed_url" not in response.json():
+            from .exceptions import CoopResponseError
+
+            raise CoopResponseError("No signed url was provided received")
+        signed_url = response.json().get("signed_url")
+
+        if signed_url == "":  # it is in old format
+            return self.get(object_uuid, expected_object_type)
+
+        try:
+            response = requests.get(signed_url)
+
+            self._resolve_gcs_response(response)
+
+        except Exception as e:
+            return self.get(object_uuid, expected_object_type)
+        object_dict = response.json()
+        if expected_object_type is not None:
+            edsl_class = ObjectRegistry.get_edsl_class_by_object_type(
+                expected_object_type
+            )
+            edsl_object = edsl_class.from_dict(object_dict)
+        # Return the response containing the signed URL
+        return edsl_object
+
+    def push(
+        self,
+        object: EDSLObject,
+        description: Optional[str] = None,
+        alias: Optional[str] = None,
+        visibility: Optional[VisibilityType] = "unlisted",
+    ) -> dict:
+        """
+        Generate a signed URL for pushing an object directly to Google Cloud Storage.
+
+        This method gets a signed URL that allows direct upload access to Google Cloud Storage,
+        which is more efficient for large files.
+
+        Parameters:
+            object_type (ObjectType): The type of object to be uploaded
+
+        Returns:
+            dict: A response containing the signed_url for direct upload and optionally a job_id
+
+        Raises:
+            CoopServerResponseError: If there's an error communicating with the server
+
+        Example:
+            >>> response = coop.push("scenario")
+            >>> print(f"Upload URL: {response['signed_url']}")
+            >>> # Use the signed_url to upload the object directly
+        """
+
+        object_type = ObjectRegistry.get_object_type_by_edsl_class(object)
+        object_dict = object.to_dict()
+        object_hash = object.get_hash() if hasattr(object, "get_hash") else None
+
+        # Send the request to the API endpoint
+        response = self._send_server_request(
+            uri="api/v0/object/push",
+            method="POST",
+            payload={
+                "object_type": object_type,
+                "description": description,
+                "alias": alias,
+                "visibility": visibility,
+                "object_hash": object_hash,
+                "version": self._edsl_version,
+            },
+        )
+        response_json = response.json()
+        if response_json.get("signed_url") is not None:
+            signed_url = response_json.get("signed_url")
+        else:
+            from .exceptions import CoopResponseError
+
+            raise CoopResponseError("No signed url was provided received")
+
+        json_data = json.dumps(
+            object_dict,
+            default=self._json_handle_none,
+            allow_nan=False,
+        )
+        response = requests.put(
+            signed_url,
+            data=json_data.encode(),
+            headers={"Content-Type": "application/json"},
+        )
+        self._resolve_gcs_response(response)
+
+        # Send confirmation that upload was completed
+        object_uuid = response_json.get("object_uuid", None)
+        if object_uuid is None:
+            from .exceptions import CoopResponseError
+
+            raise CoopResponseError("No object uuid was provided received")
+
+        # Confirm the upload completion
+        confirm_response = self._send_server_request(
+            uri="api/v0/object/confirm-upload",
+            method="POST",
+            payload={"object_uuid": object_uuid},
+        )
+        self._resolve_server_response(confirm_response)
+
+        return {"uuid": object_uuid}
+
     def _display_login_url(
         self, edsl_auth_token: str, link_description: Optional[str] = None
     ):
@@ -1555,6 +1988,11 @@ class Coop(CoopFunctionsMixin):
                 rich_print(
                     f"[#38bdf8][link={url}][underline]Log in and automatically store key[/underline][/link][/#38bdf8]"
                 )
+
+        print("Logging in will activate the following features:")
+        print("  - Remote inference: Runs jobs remotely on the Expected Parrot server.")
+        print("  - Remote logging: Sends error messages to the Expected Parrot server.")
+        print("\n")
 
     def _get_api_key(self, edsl_auth_token: str):
         """
@@ -1599,6 +2037,76 @@ class Coop(CoopFunctionsMixin):
 
         # Add API key to environment
         load_dotenv()
+
+    def transfer_credits(
+        self,
+        credits_transferred: int,
+        recipient_username: str,
+        transfer_note: str = None,
+    ) -> dict:
+        """
+        Transfer credits to another user.
+
+        This method transfers a specified number of credits from the authenticated user's
+        account to another user's account on the Expected Parrot platform.
+
+        Parameters:
+            credits_transferred (int): The number of credits to transfer to the recipient
+            recipient_username (str): The username of the recipient
+            transfer_note (str, optional): A personal note to include with the transfer
+
+        Returns:
+            dict: Information about the transfer transaction, including:
+                - success: Whether the transaction was successful
+                - transaction_id: A unique identifier for the transaction
+                - remaining_credits: The number of credits remaining in the sender's account
+
+        Raises:
+            CoopServerResponseError: If there's an error communicating with the server
+                or if the transfer criteria aren't met (e.g., insufficient credits)
+
+        Example:
+            >>> result = coop.transfer_credits(
+            ...     credits_transferred=100,
+            ...     recipient_username="friend_username",
+            ...     transfer_note="Thanks for your help!"
+            ... )
+            >>> print(f"Transfer successful! You have {result['remaining_credits']} credits left.")
+        """
+        response = self._send_server_request(
+            uri="api/users/gift",
+            method="POST",
+            payload={
+                "credits_gifted": credits_transferred,
+                "recipient_username": recipient_username,
+                "gift_note": transfer_note,
+            },
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
+    def get_balance(self) -> dict:
+        """
+        Get the current credit balance for the authenticated user.
+
+        This method retrieves the user's current credit balance information from
+        the Expected Parrot platform.
+
+        Returns:
+            dict: Information about the user's credit balance, including:
+                - credits: The current number of credits in the user's account
+                - usage_history: Recent credit usage if available
+
+        Raises:
+            CoopServerResponseError: If there's an error communicating with the server
+
+        Example:
+            >>> balance = coop.get_balance()
+            >>> print(f"You have {balance['credits']} credits available.")
+        """
+        response = self._send_server_request(uri="api/users/get_balance", method="GET")
+        self._resolve_server_response(response)
+        return response.json()
 
 
 def main():

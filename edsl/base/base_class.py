@@ -146,31 +146,62 @@ class PersistenceMixin:
         """
         print(cls.__doc__)
 
+    # def push(
+    #     self,
+    #     description: Optional[str] = None,
+    #     alias: Optional[str] = None,
+    #     visibility: Optional[str] = "unlisted",
+    #     expected_parrot_url: Optional[str] = None,
+    # ):
+    #     """Upload this object to the EDSL cooperative platform.
+
+    #     This method serializes the object and posts it to the EDSL coop service,
+    #     making it accessible to others or for your own use across sessions.
+
+    #     Args:
+    #         description: Optional text description of the object
+    #         alias: Optional human-readable identifier for the object
+    #         visibility: Access level setting ("private", "unlisted", or "public")
+    #         expected_parrot_url: Optional custom URL for the coop service
+
+    #     Returns:
+    #         The response from the coop service containing the object's unique identifier
+    #     """
+    #     from edsl.coop import Coop
+
+    #     c = Coop(url=expected_parrot_url)
+    #     return c.create(self, description, alias, visibility)
+
     def push(
         self,
         description: Optional[str] = None,
         alias: Optional[str] = None,
         visibility: Optional[str] = "unlisted",
         expected_parrot_url: Optional[str] = None,
-    ):
-        """Upload this object to the EDSL cooperative platform.
+    ) -> dict:
+        """
+        Get a signed URL for directly uploading an object to Google Cloud Storage.
 
-        This method serializes the object and posts it to the EDSL coop service,
-        making it accessible to others or for your own use across sessions.
+        This method provides a more efficient way to upload objects compared to the push() method,
+        especially for large files, by generating a direct signed URL to the storage bucket.
 
         Args:
-            description: Optional text description of the object
-            alias: Optional human-readable identifier for the object
-            visibility: Access level setting ("private", "unlisted", or "public")
-            expected_parrot_url: Optional custom URL for the coop service
+            expected_parrot_url (str, optional): Optional custom URL for the coop service
 
         Returns:
-            The response from the coop service containing the object's unique identifier
+            dict: A response containing the signed_url for direct upload and optionally a job_id
+
+        Example:
+            >>> from edsl.surveys import Survey
+            >>> survey = Survey(...)
+            >>> response = survey.push()
+            >>> print(f"Upload URL: {response['signed_url']}")
+            >>> # Use the signed_url to upload the object directly
         """
         from edsl.coop import Coop
 
         c = Coop(url=expected_parrot_url)
-        return c.create(self, description, alias, visibility)
+        return c.push(self, description, alias, visibility)
 
     def to_yaml(self, add_edsl_version=False, filename: str = None) -> Union[str, None]:
         """Convert the object to YAML format.
@@ -243,7 +274,7 @@ class PersistenceMixin:
         return fs.create_link()
 
     @classmethod
-    def pull(
+    def old_pull(
         cls,
         url_or_uuid: Optional[Union[str, UUID]] = None,
     ):
@@ -268,6 +299,39 @@ class PersistenceMixin:
         object_type = ObjectRegistry.get_object_type_by_edsl_class(cls)
 
         return coop.get(url_or_uuid, expected_object_type=object_type)
+
+    @classmethod
+    def pull(
+        cls,
+        object_uuid: str,
+        expected_parrot_url: Optional[str] = None,
+    ) -> dict:
+        """
+        Get a signed URL for directly downloading an object from Google Cloud Storage.
+
+        This method provides a more efficient way to download objects compared to the pull() method,
+        especially for large files, by generating a direct signed URL to the storage bucket.
+
+        Args:
+            object_uuid (str): The UUID of the object to download
+            expected_parrot_url (str, optional): Optional custom URL for the coop service
+
+        Returns:
+            dict: A response containing the signed_url for direct download
+
+        Example:
+            >>> response = SurveyClass.pull("123e4567-e89b-12d3-a456-426614174000")
+            >>> print(f"Download URL: {response['signed_url']}")
+            >>> # Use the signed_url to download the object directly
+        """
+        from edsl.coop import Coop
+        from edsl.coop import ObjectRegistry
+
+        coop = Coop(url=expected_parrot_url)
+
+        object_type = ObjectRegistry.get_object_type_by_edsl_class(cls)
+
+        return coop.pull(object_uuid, object_type)
 
     @classmethod
     def list(

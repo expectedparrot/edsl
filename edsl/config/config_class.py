@@ -8,13 +8,18 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 class InvalidEnvironmentVariableError(BaseException):
     """Raised when an environment variable is invalid."""
+
     pass
+
 
 class MissingEnvironmentVariableError(BaseException):
     """Raised when an expected environment variable is missing."""
+
     pass
+
 
 cache_dir = platformdirs.user_cache_dir("edsl")
 os.makedirs(cache_dir, exist_ok=True)
@@ -59,7 +64,7 @@ CONFIG_MAP = {
         "info": "This config var determines whether to fetch prices for tokens used in remote inference",
     },
     "EDSL_LOG_DIR": {
-        "default": str(os.path.join(platformdirs.user_data_dir('edsl'), 'logs')),
+        "default": str(os.path.join(platformdirs.user_data_dir("edsl"), "logs")),
         "info": "This config var determines the directory where logs are stored.",
     },
     "EDSL_LOG_LEVEL": {
@@ -83,7 +88,7 @@ CONFIG_MAP = {
         "info": "This config var holds the URL of the Expected Parrot API.",
     },
     "EDSL_MAX_CONCURRENT_TASKS": {
-        "default": "500",
+        "default": "1000",
         "info": "This config var determines the maximum number of concurrent tasks that can be run by the async job-runner",
     },
     "EDSL_OPEN_EXCEPTION_REPORT_URL": {
