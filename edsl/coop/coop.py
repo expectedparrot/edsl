@@ -1853,10 +1853,17 @@ class Coop(CoopFunctionsMixin):
 
             raise CoopResponseError("No signed url was provided received")
         signed_url = response.json().get("signed_url")
-        response = requests.get(signed_url)
 
-        self._resolve_gcs_response(response)
+        if signed_url == "":  # it is in old format
+            return self.get(object_uuid, expected_object_type)
 
+        try:
+            response = requests.get(signed_url)
+
+            self._resolve_gcs_response(response)
+
+        except Exception as e:
+            return self.get(object_uuid, expected_object_type)
         object_dict = response.json()
         if expected_object_type is not None:
             edsl_class = ObjectRegistry.get_edsl_class_by_object_type(
