@@ -1590,6 +1590,25 @@ class Coop(CoopFunctionsMixin):
             filter_scenarios.append(scenario)
         return CoopProlificFilters(filter_scenarios)
 
+    @staticmethod
+    def _validate_prolific_study_cost(
+        estimated_completion_time_minutes: int, participant_payment_cents: int
+    ) -> tuple[bool, float]:
+        """
+        If the cost of a Prolific study is below the threshold, return True.
+        Otherwise, return False.
+        The second value in the tuple is the cost of the study in USD per hour.
+        """
+        estimated_completion_time_hours = estimated_completion_time_minutes / 60
+        participant_payment_usd = participant_payment_cents / 100
+        cost_usd_per_hour = participant_payment_usd / estimated_completion_time_hours
+
+        # $8.00 USD per hour is the minimum amount for using Prolific
+        if cost_usd_per_hour < 8:
+            return True, cost_usd_per_hour
+        else:
+            return False, cost_usd_per_hour
+
     def create_prolific_study(
         self,
         project_uuid: str,
@@ -1614,6 +1633,14 @@ class Coop(CoopFunctionsMixin):
         Then, you can use the create_study_filter method of the returned
         CoopProlificFilters object to create a valid filter dict.
         """
+        is_underpayment, cost_usd_per_hour = self._validate_prolific_study_cost(
+            estimated_completion_time_minutes, participant_payment_cents
+        )
+        if is_underpayment:
+            raise CoopValueError(
+                f"The current participant payment of ${cost_usd_per_hour:.2f} USD per hour is below the minimum payment for using Prolific ($8.00 USD per hour)."
+            )
+
         response = self._send_server_request(
             uri=f"api/v0/projects/{project_uuid}/prolific-studies",
             method="POST",
@@ -1674,6 +1701,24 @@ class Coop(CoopFunctionsMixin):
         """
         Update a Prolific study. Returns a dict with the study details.
         """
+        study = self.get_prolific_study(project_uuid, study_id)
+
+        current_completion_time = study.get("estimated_completion_time_minutes")
+        current_payment = study.get("participant_payment_cents")
+
+        updated_completion_time = (
+            estimated_completion_time_minutes or current_completion_time
+        )
+        updated_payment = participant_payment_cents or current_payment
+
+        is_underpayment, cost_usd_per_hour = self._validate_prolific_study_cost(
+            updated_completion_time, updated_payment
+        )
+        if is_underpayment:
+            raise CoopValueError(
+                f"This update would result in a participant payment of ${cost_usd_per_hour:.2f} USD per hour, which is below the minimum payment for using Prolific ($8.00 USD per hour)."
+            )
+
         payload = {}
         if name is not None:
             payload["name"] = name

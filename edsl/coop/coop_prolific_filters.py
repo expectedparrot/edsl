@@ -110,13 +110,18 @@ class CoopProlificFilters(ScenarioList):
                 },
             }
         elif filter_type == "select":
-            allowed_option_labels = filter.get("select_filter_options", {})
-            option_labels_to_ids = {v: k for k, v in allowed_option_labels.items()}
-
             if values is None:
                 raise CoopValueError("Select filters require a list of values.")
 
+            if correct_filter_id == "custom_allowlist":
+                return {
+                    "filter_id": correct_filter_id,
+                    "selected_values": values,
+                }
+
             try:
+                allowed_option_labels = filter.get("select_filter_options", {})
+                option_labels_to_ids = {v: k for k, v in allowed_option_labels.items()}
                 selected_option_ids = [option_labels_to_ids[value] for value in values]
             except KeyError:
                 raise CoopValueError(
