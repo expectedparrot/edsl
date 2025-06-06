@@ -16,7 +16,7 @@ How it works
 
 2. Use the `run` method to launch your survey with AI :ref:`agents` and :ref:`language_models`. 
 
-3. Use the `humanize` method to generate a web-based version of your survey, with a link that can be shared with human respondents and another link for the admin page at your Coop account where you can access responses interactively. *Note:* You may want to modify your LLM-based survey to add or change questions specific to human respondents before calling the `humanize` method, e.g., to add screening questions for aligning human respondents and AI agent personas.
+3. Use the `humanize` method to generate a web-based version of your survey, with a link that can be shared with human respondents and another link for the admin page at your account where you can access responses interactively. *Note:* You may want to modify your LLM-based survey to add or change questions specific to human respondents before calling the `humanize` method, e.g., to add screening questions for aligning human respondents and AI agent personas.
 
 4. Share the web survey link with human respondents.
 
