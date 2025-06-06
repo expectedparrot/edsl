@@ -4,7 +4,7 @@ import json
 import requests
 import time
 
-from typing import Any, Optional, Union, Literal, List, TypedDict, TYPE_CHECKING
+from typing import Any, Dict, Optional, Union, Literal, List, TypedDict, TYPE_CHECKING
 from uuid import UUID
 
 from .. import __version__
@@ -35,6 +35,7 @@ from .utils import (
 from .coop_functions import CoopFunctionsMixin
 from .coop_regular_objects import CoopRegularObjects
 from .coop_jobs_objects import CoopJobsObjects
+from .coop_prolific_filters import CoopProlificFilters
 from .ep_key_handling import ExpectedParrotKeyHandler
 
 from ..inference_services.data_structures import ServiceToModelsMapping
@@ -1636,23 +1637,21 @@ class Coop(CoopFunctionsMixin):
             "project_job_uuids": response_json.get("job_uuids"),
             "project_prolific_studies": [
                 {
+                    "study_id": study.get("id"),
                     "name": study.get("name"),
-                    "id": study.get("id"),
                     "status": study.get("status"),
-                    "total_available_places": study.get("total_available_places"),
+                    "num_participants": study.get("total_available_places"),
                     "places_taken": study.get("places_taken"),
                 }
                 for study in response_json.get("prolific_studies", [])
             ],
         }
 
-    def get_project_human_responses(
-        self,
-        project_uuid: str,
-        prolific_study_id: Optional[str] = None,
+    def _turn_human_responses_into_results(
+        self, human_responses: List[dict], survey_json_string: str
     ) -> Union["Results", "ScenarioList"]:
         """
-        Return a Results object with the human responses for a project.
+        Turn a list of human responses into a Results object.
 
         If generating the Results object fails, a ScenarioList will be returned instead.
         """
@@ -1661,20 +1660,6 @@ class Coop(CoopFunctionsMixin):
         from ..language_models import Model
         from ..scenarios import Scenario, ScenarioList
         from ..surveys import Survey
-
-        if prolific_study_id is not None:
-            params = {"prolific_study_id": prolific_study_id}
-        else:
-            params = {}
-
-        response = self._send_server_request(
-            uri=f"api/v0/projects/{project_uuid}/human-responses",
-            method="GET",
-            params=params,
-        )
-        self._resolve_server_response(response)
-        response_json = response.json()
-        human_responses = response_json.get("human_responses", [])
 
         try:
             agent_list = AgentList()
@@ -1706,7 +1691,6 @@ class Coop(CoopFunctionsMixin):
                 )
                 agent_list.append(a)
 
-            survey_json_string = response_json.get("survey_json_string")
             survey = Survey.from_dict(json.loads(survey_json_string))
 
             model = Model("test")
@@ -1735,6 +1719,426 @@ class Coop(CoopFunctionsMixin):
                 scenario = Scenario(response_dict)
                 human_response_scenarios.append(scenario)
             return ScenarioList(human_response_scenarios)
+
+    def get_project_human_responses(
+        self,
+        project_uuid: str,
+    ) -> Union["Results", "ScenarioList"]:
+        """
+        Return a Results object with the human responses for a project.
+
+        If generating the Results object fails, a ScenarioList will be returned instead.
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/projects/{project_uuid}/human-responses",
+            method="GET",
+        )
+        self._resolve_server_response(response)
+        response_json = response.json()
+        human_responses = response_json.get("human_responses", [])
+        survey_json_string = response_json.get("survey_json_string")
+
+        return self._turn_human_responses_into_results(
+            human_responses, survey_json_string
+        )
+
+    def list_prolific_filters(self) -> "CoopProlificFilters":
+        """
+        Get a ScenarioList of supported Prolific filters. This list has several methods
+        that you can use to create valid filter dicts for use with Coop.create_prolific_study().
+
+        Call find() to examine a specific filter by ID:
+        >>> filters = coop.list_prolific_filters()
+        >>> filters.find("age")
+        Scenario(
+            {
+                "filter_id": "age",
+                "type": "range",
+                "range_filter_min": 18,
+                "range_filter_max": 100,
+                ...
+            }
+        )
+
+        Call create_study_filter() to create a valid filter dict:
+        >>> filters.create_study_filter("age", min=30, max=40)
+        {
+            "filter_id": "age",
+            "selected_range": {
+                "lower": 30,
+                "upper": 40,
+            },
+        }
+        """
+        from ..scenarios import Scenario
+
+        response = self._send_server_request(
+            uri="api/v0/prolific-filters",
+            method="GET",
+        )
+        self._resolve_server_response(response)
+        response_json = response.json()
+        filters = response_json.get("prolific_filters", [])
+        filter_scenarios = []
+        for filter in filters:
+            filter_type = filter.get("type")
+            question = filter.get("question")
+            scenario = Scenario(
+                {
+                    "filter_id": filter.get("filter_id"),
+                    "title": filter.get("title"),
+                    "question": (
+                        f"Participants were asked the following: {question}"
+                        if question
+                        else None
+                    ),
+                    "type": filter_type,
+                    "range_filter_min": (
+                        filter.get("min") if filter_type == "range" else None
+                    ),
+                    "range_filter_max": (
+                        filter.get("max") if filter_type == "range" else None
+                    ),
+                    "select_filter_num_options": (
+                        len(filter.get("choices", []))
+                        if filter_type == "select"
+                        else None
+                    ),
+                    "select_filter_options": (
+                        filter.get("choices") if filter_type == "select" else None
+                    ),
+                }
+            )
+            filter_scenarios.append(scenario)
+        return CoopProlificFilters(filter_scenarios)
+
+    @staticmethod
+    def _validate_prolific_study_cost(
+        estimated_completion_time_minutes: int, participant_payment_cents: int
+    ) -> tuple[bool, float]:
+        """
+        If the cost of a Prolific study is below the threshold, return True.
+        Otherwise, return False.
+        The second value in the tuple is the cost of the study in USD per hour.
+        """
+        estimated_completion_time_hours = estimated_completion_time_minutes / 60
+        participant_payment_usd = participant_payment_cents / 100
+        cost_usd_per_hour = participant_payment_usd / estimated_completion_time_hours
+
+        # $8.00 USD per hour is the minimum amount for using Prolific
+        if cost_usd_per_hour < 8:
+            return True, cost_usd_per_hour
+        else:
+            return False, cost_usd_per_hour
+
+    def create_prolific_study(
+        self,
+        project_uuid: str,
+        name: str,
+        description: str,
+        num_participants: int,
+        estimated_completion_time_minutes: int,
+        participant_payment_cents: int,
+        device_compatibility: Optional[
+            List[Literal["desktop", "tablet", "mobile"]]
+        ] = None,
+        peripheral_requirements: Optional[
+            List[Literal["audio", "camera", "download", "microphone"]]
+        ] = None,
+        filters: Optional[List[Dict]] = None,
+    ) -> dict:
+        """
+        Create a Prolific study for a project. Returns a dict with the study details.
+
+        To add filters to your study, you should first pull the list of supported
+        filters using Coop.list_prolific_filters().
+        Then, you can use the create_study_filter method of the returned
+        CoopProlificFilters object to create a valid filter dict.
+        """
+        is_underpayment, cost_usd_per_hour = self._validate_prolific_study_cost(
+            estimated_completion_time_minutes, participant_payment_cents
+        )
+        if is_underpayment:
+            raise CoopValueError(
+                f"The current participant payment of ${cost_usd_per_hour:.2f} USD per hour is below the minimum payment for using Prolific ($8.00 USD per hour)."
+            )
+
+        response = self._send_server_request(
+            uri=f"api/v0/projects/{project_uuid}/prolific-studies",
+            method="POST",
+            payload={
+                "name": name,
+                "description": description,
+                "total_available_places": num_participants,
+                "estimated_completion_time": estimated_completion_time_minutes,
+                "reward": participant_payment_cents,
+                "device_compatibility": (
+                    ["desktop", "tablet", "mobile"]
+                    if device_compatibility is None
+                    else device_compatibility
+                ),
+                "peripheral_requirements": (
+                    [] if peripheral_requirements is None else peripheral_requirements
+                ),
+                "filters": [] if filters is None else filters,
+            },
+        )
+        self._resolve_server_response(response)
+        response_json = response.json()
+        return {
+            "study_id": response_json.get("study_id"),
+            "status": response_json.get("status"),
+            "admin_url": response_json.get("admin_url"),
+            "respondent_url": response_json.get("respondent_url"),
+            "name": response_json.get("name"),
+            "description": response_json.get("description"),
+            "num_participants": response_json.get("total_available_places"),
+            "estimated_completion_time_minutes": response_json.get(
+                "estimated_completion_time"
+            ),
+            "participant_payment_cents": response_json.get("reward"),
+            "total_cost_cents": response_json.get("total_cost"),
+            "device_compatibility": response_json.get("device_compatibility"),
+            "peripheral_requirements": response_json.get("peripheral_requirements"),
+            "filters": response_json.get("filters"),
+        }
+
+    def update_prolific_study(
+        self,
+        project_uuid: str,
+        study_id: str,
+        name: Optional[str] = None,
+        description: Optional[str] = None,
+        num_participants: Optional[int] = None,
+        estimated_completion_time_minutes: Optional[int] = None,
+        participant_payment_cents: Optional[int] = None,
+        device_compatibility: Optional[
+            List[Literal["desktop", "tablet", "mobile"]]
+        ] = None,
+        peripheral_requirements: Optional[
+            List[Literal["audio", "camera", "download", "microphone"]]
+        ] = None,
+        filters: Optional[List[Dict]] = None,
+    ) -> dict:
+        """
+        Update a Prolific study. Returns a dict with the study details.
+        """
+        study = self.get_prolific_study(project_uuid, study_id)
+
+        current_completion_time = study.get("estimated_completion_time_minutes")
+        current_payment = study.get("participant_payment_cents")
+
+        updated_completion_time = (
+            estimated_completion_time_minutes or current_completion_time
+        )
+        updated_payment = participant_payment_cents or current_payment
+
+        is_underpayment, cost_usd_per_hour = self._validate_prolific_study_cost(
+            updated_completion_time, updated_payment
+        )
+        if is_underpayment:
+            raise CoopValueError(
+                f"This update would result in a participant payment of ${cost_usd_per_hour:.2f} USD per hour, which is below the minimum payment for using Prolific ($8.00 USD per hour)."
+            )
+
+        payload = {}
+        if name is not None:
+            payload["name"] = name
+        if description is not None:
+            payload["description"] = description
+        if num_participants is not None:
+            payload["total_available_places"] = num_participants
+        if estimated_completion_time_minutes is not None:
+            payload["estimated_completion_time"] = estimated_completion_time_minutes
+        if participant_payment_cents is not None:
+            payload["reward"] = participant_payment_cents
+        if device_compatibility is not None:
+            payload["device_compatibility"] = device_compatibility
+        if peripheral_requirements is not None:
+            payload["peripheral_requirements"] = peripheral_requirements
+        if filters is not None:
+            payload["filters"] = filters
+
+        response = self._send_server_request(
+            uri=f"api/v0/projects/{project_uuid}/prolific-studies/{study_id}",
+            method="PATCH",
+            payload=payload,
+        )
+        self._resolve_server_response(response)
+        response_json = response.json()
+        return {
+            "study_id": response_json.get("study_id"),
+            "status": response_json.get("status"),
+            "admin_url": response_json.get("admin_url"),
+            "respondent_url": response_json.get("respondent_url"),
+            "name": response_json.get("name"),
+            "description": response_json.get("description"),
+            "num_participants": response_json.get("total_available_places"),
+            "estimated_completion_time_minutes": response_json.get(
+                "estimated_completion_time"
+            ),
+            "participant_payment_cents": response_json.get("reward"),
+            "total_cost_cents": response_json.get("total_cost"),
+            "device_compatibility": response_json.get("device_compatibility"),
+            "peripheral_requirements": response_json.get("peripheral_requirements"),
+            "filters": response_json.get("filters"),
+        }
+
+    def publish_prolific_study(
+        self,
+        project_uuid: str,
+        study_id: str,
+    ) -> dict:
+        """
+        Publish a Prolific study.
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/projects/{project_uuid}/prolific-studies/{study_id}/publish",
+            method="POST",
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
+    def get_prolific_study(self, project_uuid: str, study_id: str) -> dict:
+        """
+        Get a Prolific study. Returns a dict with the study details.
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/projects/{project_uuid}/prolific-studies/{study_id}",
+            method="GET",
+        )
+        self._resolve_server_response(response)
+        response_json = response.json()
+        return {
+            "study_id": response_json.get("study_id"),
+            "status": response_json.get("status"),
+            "admin_url": response_json.get("admin_url"),
+            "respondent_url": response_json.get("respondent_url"),
+            "name": response_json.get("name"),
+            "description": response_json.get("description"),
+            "num_participants": response_json.get("total_available_places"),
+            "estimated_completion_time_minutes": response_json.get(
+                "estimated_completion_time"
+            ),
+            "participant_payment_cents": response_json.get("reward"),
+            "total_cost_cents": response_json.get("total_cost"),
+            "device_compatibility": response_json.get("device_compatibility"),
+            "peripheral_requirements": response_json.get("peripheral_requirements"),
+            "filters": response_json.get("filters"),
+        }
+
+    def get_prolific_study_responses(
+        self,
+        project_uuid: str,
+        study_id: str,
+    ) -> Union["Results", "ScenarioList"]:
+        """
+        Return a Results object with the human responses for a project.
+
+        If generating the Results object fails, a ScenarioList will be returned instead.
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/projects/{project_uuid}/prolific-studies/{study_id}/responses",
+            method="GET",
+        )
+        self._resolve_server_response(response)
+        response_json = response.json()
+        human_responses = response_json.get("human_responses", [])
+        survey_json_string = response_json.get("survey_json_string")
+
+        return self._turn_human_responses_into_results(
+            human_responses, survey_json_string
+        )
+
+    def delete_prolific_study(
+        self,
+        project_uuid: str,
+        study_id: str,
+    ) -> dict:
+        """
+        Deletes a Prolific study.
+
+        Note: Only draft studies can be deleted. Once you publish a study, it cannot be deleted.
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/projects/{project_uuid}/prolific-studies/{study_id}",
+            method="DELETE",
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
+    def approve_prolific_study_submission(
+        self,
+        project_uuid: str,
+        study_id: str,
+        submission_id: str,
+    ) -> dict:
+        """
+        Approve a Prolific study submission.
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/projects/{project_uuid}/prolific-studies/{study_id}/submissions/{submission_id}/approve",
+            method="POST",
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
+    def reject_prolific_study_submission(
+        self,
+        project_uuid: str,
+        study_id: str,
+        submission_id: str,
+        reason: Literal[
+            "TOO_QUICKLY",
+            "TOO_SLOWLY",
+            "FAILED_INSTRUCTIONS",
+            "INCOMP_LONGITUDINAL",
+            "FAILED_CHECK",
+            "LOW_EFFORT",
+            "MALINGERING",
+            "NO_CODE",
+            "BAD_CODE",
+            "NO_DATA",
+            "UNSUPP_DEVICE",
+            "OTHER",
+        ],
+        explanation: str,
+    ) -> dict:
+        """
+        Reject a Prolific study submission.
+        """
+        valid_rejection_reasons = [
+            "TOO_QUICKLY",
+            "TOO_SLOWLY",
+            "FAILED_INSTRUCTIONS",
+            "INCOMP_LONGITUDINAL",
+            "FAILED_CHECK",
+            "LOW_EFFORT",
+            "MALINGERING",
+            "NO_CODE",
+            "BAD_CODE",
+            "NO_DATA",
+            "UNSUPP_DEVICE",
+            "OTHER",
+        ]
+        if reason not in valid_rejection_reasons:
+            raise CoopValueError(
+                f"Invalid rejection reason. Please use one of the following: {valid_rejection_reasons}."
+            )
+        if len(explanation) < 100:
+            raise CoopValueError(
+                "Rejection explanation must be at least 100 characters."
+            )
+        response = self._send_server_request(
+            uri=f"api/v0/projects/{project_uuid}/prolific-studies/{study_id}/submissions/{submission_id}/reject",
+            method="POST",
+            payload={
+                "reason": reason,
+                "explanation": explanation,
+            },
+        )
+        self._resolve_server_response(response)
+        return response.json()
 
     def __repr__(self):
         """Return a string representation of the client."""
@@ -2421,7 +2825,9 @@ class Coop(CoopFunctionsMixin):
             >>> balance = coop.get_balance()
             >>> print(f"You have {balance['credits']} credits available.")
         """
-        response = self._send_server_request(uri="api/users/get_balance", method="GET")
+        response = self._send_server_request(
+            uri="api/v0/users/get-balance", method="GET"
+        )
         self._resolve_server_response(response)
         return response.json()
 
