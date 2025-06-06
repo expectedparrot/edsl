@@ -273,47 +273,51 @@ class PersistenceMixin:
             fs = FileStore(path=f.name)
         return fs.create_link()
 
-    # @classmethod
-    # def pull(
-    #     cls,
-    #     url_or_uuid: Optional[Union[str, UUID]] = None,
-    # ):
-    #     """Pull the object from coop.
+    @classmethod
+    def old_pull(
+        cls,
+        url_or_uuid: Optional[Union[str, UUID]] = None,
+    ):
+        """Pull the object from coop.
 
-    #     Args:
-    #         url_or_uuid: Either a UUID string or a URL pointing to the object
-    #     """
-    #     from edsl.coop import Coop
-    #     from edsl.coop import ObjectRegistry
-    #     from edsl.jobs import Jobs
+        Args:
+            url_or_uuid: Either a UUID string or a URL pointing to the object
+        """
+        from edsl.coop import Coop
+        from edsl.coop import ObjectRegistry
+        from edsl.jobs import Jobs
 
-    #     coop = Coop()
+        coop = Coop()
 
-    #     if issubclass(cls, Jobs):
-    #         job_status = coop.remote_inference_get(
-    #             job_uuid=str(url_or_uuid), include_json_string=True
-    #         )
-    #         job_dict = json.loads(job_status.get("job_json_string"))
-    #         return cls.from_dict(job_dict)
+        if issubclass(cls, Jobs):
+            job_status = coop.remote_inference_get(
+                job_uuid=str(url_or_uuid), include_json_string=True
+            )
+            job_dict = json.loads(job_status.get("job_json_string"))
+            return cls.from_dict(job_dict)
 
-    #     object_type = ObjectRegistry.get_object_type_by_edsl_class(cls)
+        object_type = ObjectRegistry.get_object_type_by_edsl_class(cls)
 
-    #     return coop.get(url_or_uuid, expected_object_type=object_type)
+        return coop.get(url_or_uuid, expected_object_type=object_type)
 
     @classmethod
     def pull(
         cls,
-        object_uuid: str,
+        url_or_uuid: Optional[Union[str, UUID]] = None,
         expected_parrot_url: Optional[str] = None,
     ) -> dict:
         """
         Get a signed URL for directly downloading an object from Google Cloud Storage.
 
-        This method provides a more efficient way to download objects compared to the pull() method,
+        This method provides a more efficient way to download objects compared to the old pull() method,
         especially for large files, by generating a direct signed URL to the storage bucket.
 
         Args:
-            object_uuid (str): The UUID of the object to download
+            url_or_uuid (Union[str, UUID], optional): Identifier for the object to retrieve.
+                Can be one of:
+                - UUID string (e.g., "123e4567-e89b-12d3-a456-426614174000")
+                - Full URL (e.g., "https://expectedparrot.com/content/123e4567...")
+                - Alias URL (e.g., "https://expectedparrot.com/content/username/my-survey")
             expected_parrot_url (str, optional): Optional custom URL for the coop service
 
         Returns:
@@ -321,6 +325,7 @@ class PersistenceMixin:
 
         Example:
             >>> response = SurveyClass.pull("123e4567-e89b-12d3-a456-426614174000")
+            >>> response = SurveyClass.pull("https://expectedparrot.com/content/username/my-survey")
             >>> print(f"Download URL: {response['signed_url']}")
             >>> # Use the signed_url to download the object directly
         """
@@ -331,7 +336,7 @@ class PersistenceMixin:
 
         object_type = ObjectRegistry.get_object_type_by_edsl_class(cls)
 
-        return coop.pull(object_uuid, object_type)
+        return coop.pull(url_or_uuid, object_type)
 
     @classmethod
     def list(
