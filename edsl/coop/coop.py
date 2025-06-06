@@ -693,6 +693,35 @@ class Coop(CoopFunctionsMixin):
         """
         obj_uuid, owner_username, alias = self._resolve_uuid_or_alias(url_or_uuid)
 
+        # Handle alias-based retrieval with new/old format detection
+        if not obj_uuid and owner_username and alias:
+            # First, get object info to determine format and UUID
+            info_response = self._send_server_request(
+                uri="api/v0/object/alias/info",
+                method="GET",
+                params={"owner_username": owner_username, "alias": alias},
+            )
+            self._resolve_server_response(info_response)
+            info_data = info_response.json()
+
+            obj_uuid = info_data.get("uuid")
+            is_new_format = info_data.get("is_new_format", False)
+
+            # Validate object type if expected
+            if expected_object_type:
+                actual_object_type = info_data.get("object_type")
+                if actual_object_type != expected_object_type:
+                    from .exceptions import CoopObjectTypeError
+
+                    raise CoopObjectTypeError(
+                        f"Expected {expected_object_type=} but got {actual_object_type=}"
+                    )
+
+            # Use pull method for new format objects
+            if is_new_format:
+                return self.pull(obj_uuid, expected_object_type)
+
+        # Handle UUID-based retrieval or legacy alias objects
         if obj_uuid:
             response = self._send_server_request(
                 uri="api/v0/object",
@@ -914,6 +943,26 @@ class Coop(CoopFunctionsMixin):
 
         obj_uuid, owner_username, obj_alias = self._resolve_uuid_or_alias(url_or_uuid)
 
+        # If we have a UUID and are updating the value, check the storage format first
+        if obj_uuid and value:
+            # Check if object is in new format (GCS)
+            format_check_response = self._send_server_request(
+                uri="api/v0/object/check-format",
+                method="POST",
+                payload={"object_uuid": str(obj_uuid)},
+            )
+            self._resolve_server_response(format_check_response)
+            format_data = format_check_response.json()
+
+            is_new_format = format_data.get("is_new_format", False)
+
+            if is_new_format:
+                # Handle new format objects: update metadata first, then upload content
+                return self._patch_new_format_object(
+                    obj_uuid, description, alias, value, visibility
+                )
+
+        # Handle traditional format objects or metadata-only updates
         if obj_uuid:
             uri = "api/v0/object"
             params = {"uuid": obj_uuid}
@@ -942,6 +991,70 @@ class Coop(CoopFunctionsMixin):
         )
         self._resolve_server_response(response)
         return response.json()
+
+    def _patch_new_format_object(
+        self,
+        obj_uuid: UUID,
+        description: Optional[str],
+        alias: Optional[str],
+        value: EDSLObject,
+        visibility: Optional[VisibilityType],
+    ) -> dict:
+        """
+        Handle patching of objects stored in the new format (GCS).
+        """
+        # Step 1: Update metadata only (no json_string)
+        if description is not None or alias is not None or visibility is not None:
+            metadata_response = self._send_server_request(
+                uri="api/v0/object",
+                method="PATCH",
+                params={"uuid": obj_uuid},
+                payload={
+                    "description": description,
+                    "alias": alias,
+                    "json_string": None,  # Don't send content to traditional endpoint
+                    "visibility": visibility,
+                },
+            )
+            self._resolve_server_response(metadata_response)
+
+        # Step 2: Get signed upload URL for content update
+        upload_url_response = self._send_server_request(
+            uri="api/v0/object/upload-url",
+            method="POST",
+            payload={"object_uuid": str(obj_uuid)},
+        )
+        self._resolve_server_response(upload_url_response)
+        upload_data = upload_url_response.json()
+
+        # Step 3: Upload the object content to GCS
+        signed_url = upload_data.get("signed_url")
+        if not signed_url:
+            raise CoopServerResponseError("Failed to get signed upload URL")
+
+        json_content = json.dumps(
+            value.to_dict(),
+            default=self._json_handle_none,
+            allow_nan=False,
+        )
+
+        # Upload to GCS using signed URL
+        gcs_response = requests.put(
+            signed_url,
+            data=json_content,
+            headers={"Content-Type": "application/json"},
+        )
+
+        if gcs_response.status_code != 200:
+            raise CoopServerResponseError(
+                f"Failed to upload object to GCS: {gcs_response.status_code}"
+            )
+
+        return {
+            "status": "success",
+            "message": "Object updated successfully (new format - uploaded to GCS)",
+            "object_uuid": str(obj_uuid),
+        }
 
     ################
     # Remote Cache
@@ -1817,7 +1930,9 @@ class Coop(CoopFunctionsMixin):
         return response.json().get("uuid")
 
     def pull(
-        self, object_uuid: str, expected_object_type: Optional[ObjectType] = None
+        self,
+        url_or_uuid: Optional[Union[str, UUID]] = None,
+        expected_object_type: Optional[ObjectType] = None,
     ) -> dict:
         """
         Generate a signed URL for pulling an object directly from Google Cloud Storage.
@@ -1826,25 +1941,64 @@ class Coop(CoopFunctionsMixin):
         Google Cloud Storage, which is more efficient for large files.
 
         Parameters:
-            object_uuid (str): The UUID of the object to download
+            url_or_uuid (Union[str, UUID], optional): Identifier for the object to retrieve.
+                Can be one of:
+                - UUID string (e.g., "123e4567-e89b-12d3-a456-426614174000")
+                - Full URL (e.g., "https://expectedparrot.com/content/123e4567...")
+                - Alias URL (e.g., "https://expectedparrot.com/content/username/my-survey")
+            expected_object_type (ObjectType, optional): If provided, validates that the
+                retrieved object is of the expected type (e.g., "survey", "agent")
 
         Returns:
             dict: A response containing the signed_url for direct download
 
         Raises:
+            CoopNoUUIDError: If no UUID or URL is provided
+            CoopInvalidURLError: If the URL format is invalid
             CoopServerResponseError: If there's an error communicating with the server
             HTTPException: If the object or object files are not found
 
         Example:
             >>> response = coop.pull("123e4567-e89b-12d3-a456-426614174000")
+            >>> response = coop.pull("https://expectedparrot.com/content/username/my-survey")
             >>> print(f"Download URL: {response['signed_url']}")
             >>> # Use the signed_url to download the object directly
         """
-        # Send the request to the API endpoint
+        obj_uuid, owner_username, alias = self._resolve_uuid_or_alias(url_or_uuid)
+
+        # Handle alias-based retrieval with new/old format detection
+        if not obj_uuid and owner_username and alias:
+            # First, get object info to determine format and UUID
+            info_response = self._send_server_request(
+                uri="api/v0/object/alias/info",
+                method="GET",
+                params={"owner_username": owner_username, "alias": alias},
+            )
+            self._resolve_server_response(info_response)
+            info_data = info_response.json()
+
+            obj_uuid = info_data.get("uuid")
+            is_new_format = info_data.get("is_new_format", False)
+
+            # Validate object type if expected
+            if expected_object_type:
+                actual_object_type = info_data.get("object_type")
+                if actual_object_type != expected_object_type:
+                    from .exceptions import CoopObjectTypeError
+
+                    raise CoopObjectTypeError(
+                        f"Expected {expected_object_type=} but got {actual_object_type=}"
+                    )
+
+            # Use get method for old format objects
+            if not is_new_format:
+                return self.get(url_or_uuid, expected_object_type)
+
+        # Send the request to the API endpoint with the resolved UUID
         response = self._send_server_request(
             uri="api/v0/object/pull",
             method="POST",
-            payload={"object_uuid": object_uuid},
+            payload={"object_uuid": obj_uuid},
         )
         # Handle any errors in the response
         self._resolve_server_response(response)
@@ -1855,15 +2009,15 @@ class Coop(CoopFunctionsMixin):
         signed_url = response.json().get("signed_url")
 
         if signed_url == "":  # it is in old format
-            return self.get(object_uuid, expected_object_type)
+            return self.get(url_or_uuid, expected_object_type)
 
         try:
             response = requests.get(signed_url)
 
             self._resolve_gcs_response(response)
 
-        except Exception as e:
-            return self.get(object_uuid, expected_object_type)
+        except Exception:
+            return self.get(url_or_uuid, expected_object_type)
         object_dict = response.json()
         if expected_object_type is not None:
             edsl_class = ObjectRegistry.get_edsl_class_by_object_type(
@@ -1872,6 +2026,44 @@ class Coop(CoopFunctionsMixin):
             edsl_object = edsl_class.from_dict(object_dict)
         # Return the response containing the signed URL
         return edsl_object
+
+    def get_upload_url(self, object_uuid: str) -> dict:
+        """
+        Get a signed upload URL for updating the content of an existing object.
+
+        This method gets a signed URL that allows direct upload to Google Cloud Storage
+        for objects stored in the new format, while preserving the existing UUID.
+
+        Parameters:
+            object_uuid (str): The UUID of the object to get an upload URL for
+
+        Returns:
+            dict: A response containing:
+                - signed_url: The signed URL for uploading new content
+                - object_uuid: The UUID of the object
+                - message: Success message
+
+        Raises:
+            CoopServerResponseError: If there's an error communicating with the server
+            HTTPException: If the object is not found, not owned by user, or not in new format
+
+        Notes:
+            - Only works with objects stored in the new format (transition table)
+            - User must be the owner of the object
+            - The signed URL expires after 60 minutes
+
+        Example:
+            >>> response = coop.get_upload_url("123e4567-e89b-12d3-a456-426614174000")
+            >>> upload_url = response['signed_url']
+            >>> # Use the upload_url to PUT new content directly to GCS
+        """
+        response = self._send_server_request(
+            uri="api/v0/object/upload-url",
+            method="POST",
+            payload={"object_uuid": object_uuid},
+        )
+        self._resolve_server_response(response)
+        return response.json()
 
     def push(
         self,
@@ -1924,7 +2116,7 @@ class Coop(CoopFunctionsMixin):
         else:
             from .exceptions import CoopResponseError
 
-            raise CoopResponseError("No signed url was provided received")
+            raise CoopResponseError(response.text)
 
         json_data = json.dumps(
             object_dict,
@@ -1940,6 +2132,9 @@ class Coop(CoopFunctionsMixin):
 
         # Send confirmation that upload was completed
         object_uuid = response_json.get("object_uuid", None)
+        owner_username = response_json.get("owner_username", None)
+        object_alias = response_json.get("alias", None)
+
         if object_uuid is None:
             from .exceptions import CoopResponseError
 
@@ -1953,7 +2148,15 @@ class Coop(CoopFunctionsMixin):
         )
         self._resolve_server_response(confirm_response)
 
-        return {"uuid": object_uuid}
+        return {
+            "description": response_json.get("description"),
+            "object_type": object_type,
+            "url": f"{self.url}/content/{object_uuid}",
+            "alias_url": self._get_alias_url(owner_username, object_alias),
+            "uuid": object_uuid,
+            "version": self._edsl_version,
+            "visibility": response_json.get("visibility"),
+        }
 
     def _display_login_url(
         self, edsl_auth_token: str, link_description: Optional[str] = None
