@@ -38,7 +38,7 @@ def is_iterable(obj):
 class EmptyAgentList:
     def __repr__(self):
         return "Empty AgentList"
-    
+
     def __len__(self):
         return 0
 
@@ -53,7 +53,7 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
 
     >>> AgentList.example().to_scenario_list().drop('age')
     ScenarioList([Scenario({'hair': 'brown', 'height': 5.5}), Scenario({'hair': 'brown', 'height': 5.5})])
-    
+
     >>> AgentList.example().to_dataset()
     Dataset([{'age': [22, 22]}, {'hair': ['brown', 'brown']}, {'height': [5.5, 5.5]}])
 
@@ -69,7 +69,11 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         "https://docs.expectedparrot.com/en/latest/agents.html#agentlist-class"
     )
 
-    def __init__(self, data: Optional[list["Agent"]] = None, codebook: Optional[dict[str, str]] = None):
+    def __init__(
+        self,
+        data: Optional[list["Agent"]] = None,
+        codebook: Optional[dict[str, str]] = None,
+    ):
         """Initialize a new AgentList.
 
         >>> from edsl import Agent
@@ -83,14 +87,14 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
 
         Args:
             data: A list of Agent objects. If None, creates an empty AgentList.
-            codebook: Optional dictionary mapping trait names to descriptions. 
+            codebook: Optional dictionary mapping trait names to descriptions.
                       If provided, will be applied to all agents in the list.
         """
         if data is not None:
             super().__init__(data)
         else:
             super().__init__()
-            
+
         # Apply codebook to all agents if provided
         if codebook is not None:
             self.set_codebook(codebook)
@@ -103,10 +107,12 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         """
         for agent in self.data:
             agent.instruction = instruction
-        
+
         return None
-    
-    def set_traits_presentation_template(self, traits_presentation_template: str) -> None:
+
+    def set_traits_presentation_template(
+        self, traits_presentation_template: str
+    ) -> None:
         """Set the traits presentation template for all agents in the list.
 
         Args:
@@ -114,7 +120,7 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         """
         for agent in self.data:
             agent.traits_presentation_template = traits_presentation_template
-        
+
         return None
 
     def shuffle(self, seed: Optional[str] = None) -> AgentList:
@@ -145,7 +151,7 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         if seed:
             random.seed(seed)
         return AgentList(random.sample(self.data, n))
-    
+
     def drop(self, field_name: str) -> AgentList:
         """Drop a field from the AgentList.
 
@@ -170,10 +176,9 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         """
         return AgentList([a.duplicate() for a in self.data])
 
-
-    def collapse(self, warn_about_none_name: bool = True) -> "AgentList": 
+    def collapse(self, warn_about_none_name: bool = True) -> "AgentList":
         """All agents with the same name have their traits combined.
-        
+
         >>> al = AgentList([Agent(name = 'steve'), Agent(name = 'roxanne')])
         >>> al.collapse()
         AgentList([Agent(name = \"\"\"steve\"\"\", traits = {}), Agent(name = \"\"\"roxanne\"\"\", traits = {})])
@@ -186,16 +191,16 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         new_agent_list = AgentList()
         warned_about_none_name = False
         d = {}
-        for agent in self: 
-            if agent.name is None: 
-                if not warned_about_none_name and warn_about_none_name: 
+        for agent in self:
+            if agent.name is None:
+                if not warned_about_none_name and warn_about_none_name:
                     warnings.warn("Agent has no name, so it will be ignored.")
                     warned_about_none_name = True
-            if agent.name not in d: 
+            if agent.name not in d:
                 d[agent.name] = agent
-            else: 
+            else:
                 d[agent.name].traits.update(agent.traits)
-        for name, agent in d.items(): 
+        for name, agent in d.items():
             new_agent_list.append(agent)
         return new_agent_list
 
@@ -245,20 +250,20 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
             traits_to_select = list(traits)
 
         return AgentList([agent.select(*traits_to_select) for agent in self.data])
-    
+
     @classmethod
-    def from_results(self, results: "Results") -> "AgentList": 
+    def from_results(self, results: "Results") -> "AgentList":
         """Create an AgentList from a Results object.
-        
+
         >>> from edsl import Results
         >>> results = Results.example()
         >>> al = AgentList.from_results(results)
         >>> al
         AgentList([Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5}), Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5})])
-        """ 
-        al = results.agent_list 
-        return al 
-     
+        """
+        al = results.to_agent_list()
+        return al
+
     def filter(self, expression: str) -> AgentList:
         """Filter agents based on a boolean expression.
 
@@ -291,7 +296,7 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
 
         def create_evaluator(agent: "Agent"):
             """Create an evaluator for the given agent."""
-            return EvalWithCompoundTypes(names={**agent.traits, 'name': agent.name})
+            return EvalWithCompoundTypes(names={**agent.traits, "name": agent.name})
 
         try:
             new_data = [
@@ -327,7 +332,12 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         return list(d.keys())
 
     @classmethod
-    def from_csv(cls, file_path: str, name_field: Optional[str] = None, codebook: Optional[dict[str, str]] = None):
+    def from_csv(
+        cls,
+        file_path: str,
+        name_field: Optional[str] = None,
+        codebook: Optional[dict[str, str]] = None,
+    ):
         """Load AgentList from a CSV file.
 
         >>> import csv
@@ -364,7 +374,9 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
                     name_field = "name"
                 if name_field is not None:
                     agent_name = row.pop(name_field)
-                    agent_list.append(Agent(traits=row, name=agent_name, codebook=codebook))
+                    agent_list.append(
+                        Agent(traits=row, name=agent_name, codebook=codebook)
+                    )
                 else:
                     agent_list.append(Agent(traits=row, codebook=codebook))
         return cls(agent_list)
@@ -478,19 +490,19 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
                 agent.to_dict(add_edsl_version=add_edsl_version) for agent in data
             ]
         }
-        
+
         # Add codebook if all agents have the same codebook
         if len(self.data) > 0:
             # Get the first agent's codebook
             first_codebook = self.data[0].codebook
-            
+
             # Check if all agents have the same codebook
             all_same = all(agent.codebook == first_codebook for agent in self.data)
-            
+
             # Only include codebook if it's non-empty and consistent across all agents
             if all_same and first_codebook:
                 d["codebook"] = first_codebook
-                
+
         if add_edsl_version:
             from edsl import __version__
 
@@ -511,7 +523,7 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         return {
             "agents": len(self),
         }
-    
+
     def set_codebook(self, codebook: dict[str, str]) -> AgentList:
         """Set the codebook for the AgentList.
 
@@ -529,7 +541,6 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
             agent.codebook = codebook
 
         return self
-
 
     def table(
         self,
@@ -583,7 +594,11 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
                 data[trait_key].append(agent.traits.get(trait_key, None))
             if not traits_only:
                 data["agent_parameters"].append(
-                    {"instruction": agent.instruction, "agent_name": agent.name, "traits_presentation_template": agent.traits_presentation_template}
+                    {
+                        "instruction": agent.instruction,
+                        "agent_name": agent.name,
+                        "traits_presentation_template": agent.traits_presentation_template,
+                    }
                 )
         return Dataset([{key: entry} for key, entry in data.items()])
 
@@ -609,21 +624,23 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
 
         agents = [Agent.from_dict(agent_dict) for agent_dict in data["agent_list"]]
         agent_list = cls(agents)
-        
+
         # Apply codebook if present in the dictionary
         if "codebook" in data and data["codebook"]:
             agent_list.set_codebook(data["codebook"])
-            
+
         return agent_list
 
     @classmethod
-    def example(cls, randomize: bool = False, codebook: Optional[dict[str, str]] = None) -> AgentList:
+    def example(
+        cls, randomize: bool = False, codebook: Optional[dict[str, str]] = None
+    ) -> AgentList:
         """
         Returns an example AgentList instance.
 
         :param randomize: If True, uses Agent's randomize method.
         :param codebook: Optional dictionary mapping trait names to descriptions.
-        
+
         >>> al = AgentList.example()
         >>> al
         AgentList([Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5}), Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5})])
@@ -634,14 +651,19 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         from .agent import Agent
 
         agent_list = cls([Agent.example(randomize), Agent.example(randomize)])
-        
+
         if codebook:
             agent_list.set_codebook(codebook)
-            
+
         return agent_list
 
     @classmethod
-    def from_list(self, trait_name: str, values: List[Any], codebook: Optional[dict[str, str]] = None) -> "AgentList":
+    def from_list(
+        self,
+        trait_name: str,
+        values: List[Any],
+        codebook: Optional[dict[str, str]] = None,
+    ) -> "AgentList":
         """Create an AgentList from a list of values.
 
         :param trait_name: The name of the trait.
@@ -657,10 +679,10 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         from .agent import Agent
 
         agent_list = AgentList([Agent({trait_name: value}) for value in values])
-        
+
         if codebook:
             agent_list.set_codebook(codebook)
-            
+
         return agent_list
 
     def __mul__(self, other: AgentList) -> AgentList:
@@ -707,7 +729,7 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
             AgentList([Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5})])
         """
         from .agent import Agent  # Use direct relative import
-        
+
         agents = []
         for scenario in scenario_list:
             # Simple implementation to handle the basic test case
@@ -717,13 +739,17 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
 
         # Add a debug check to verify we've processed the scenarios correctly
         if len(agents) != len(scenario_list):
-            raise ValueError(f"Expected {len(scenario_list)} agents, but created {len(agents)}")
+            raise ValueError(
+                f"Expected {len(scenario_list)} agents, but created {len(agents)}"
+            )
 
         return cls(agents)
 
 
 if __name__ == "__main__":
     import doctest
-    
+
     # Just run the standard doctests with verbose flag
-    doctest.testmod(verbose=True, optionflags=doctest.ELLIPSIS | doctest.NORMALIZE_WHITESPACE)
+    doctest.testmod(
+        verbose=True, optionflags=doctest.ELLIPSIS | doctest.NORMALIZE_WHITESPACE
+    )
