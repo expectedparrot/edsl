@@ -295,8 +295,8 @@ class Coop(CoopFunctionsMixin):
                 message = str(response.json().get("detail"))
             except json.JSONDecodeError:
                 raise CoopServerResponseError(
-                    f"Server returned status code {response.status_code}."
-                    f"JSON response could not be decoded."
+                    f"Server returned status code {response.status_code}. "
+                    f"JSON response could not be decoded. "
                     f"The server response was: {response.text}"
                 )
             # print(response.text)
@@ -2241,6 +2241,120 @@ class Coop(CoopFunctionsMixin):
         # Add API key to environment
         load_dotenv()
 
+    def login_streamlit(self, timeout: int = 120):
+        """
+        Start the EDSL auth token login flow inside a Streamlit application.
+
+        This helper is functionally equivalent to ``Coop.login`` but renders the
+        login link and status updates directly in the Streamlit UI.  The method
+        will automatically poll the Expected Parrot server for the API-key
+        associated with the generated auth-token and, once received, store it
+        via ``ExpectedParrotKeyHandler`` and write it to the local ``.env``
+        file so subsequent sessions pick it up automatically.
+
+        Parameters
+        ----------
+        timeout : int, default 120
+            How many seconds to wait for the user to complete the login before
+            giving up and showing an error in the Streamlit app.
+
+        Returns
+        -------
+        str | None
+            The API-key if the user logged-in successfully, otherwise ``None``.
+        """
+        try:
+            import streamlit as st
+            from streamlit.runtime.scriptrunner import get_script_run_ctx
+        except ModuleNotFoundError as exc:
+            raise ImportError(
+                "Streamlit is required for `login_streamlit`. Install it with `pip install streamlit`."
+            ) from exc
+
+        # Ensure we are actually running inside a Streamlit script. If not, give a
+        # clear error message instead of crashing when `st.experimental_rerun` is
+        # invoked outside the Streamlit runtime.
+        if get_script_run_ctx() is None:
+            raise RuntimeError(
+                "`login_streamlit` must be invoked from within a running Streamlit "
+                "app (use `streamlit run your_script.py`). If you need to obtain an "
+                "API-key in a regular Python script or notebook, use `Coop.login()` "
+                "instead."
+            )
+
+        import secrets
+        import time
+        import os
+        from dotenv import load_dotenv
+        from .ep_key_handling import ExpectedParrotKeyHandler
+        from ..utilities.utilities import write_api_key_to_env
+
+        # ------------------------------------------------------------------
+        # 1. Prepare auth-token and store state across reruns
+        # ------------------------------------------------------------------
+        if "edsl_auth_token" not in st.session_state:
+            st.session_state.edsl_auth_token = secrets.token_urlsafe(16)
+            st.session_state.login_start_time = time.time()
+
+        edsl_auth_token: str = st.session_state.edsl_auth_token
+        login_url = f"{CONFIG.EXPECTED_PARROT_URL}/login?edsl_auth_token={edsl_auth_token}"
+
+        # ------------------------------------------------------------------
+        # 2. Render clickable login link
+        # ------------------------------------------------------------------
+        st.markdown(
+            f"🔗 **Log in to Expected Parrot** → [click here]({login_url})",
+            unsafe_allow_html=True,
+        )
+
+        # ------------------------------------------------------------------
+        # 3. Poll server for API-key (runs once per Streamlit execution)
+        # ------------------------------------------------------------------
+        api_key = self._get_api_key(edsl_auth_token)
+        if api_key is None:
+            elapsed = time.time() - st.session_state.login_start_time
+            if elapsed > timeout:
+                st.error("Timed-out waiting for login. Please rerun the app to try again.")
+                return None
+
+            remaining = int(timeout - elapsed)
+            st.info(f"Waiting for login… ({remaining}s left)")
+            # Trigger a rerun after a short delay to continue polling
+            time.sleep(1)
+            # Attempt a rerun in a version-agnostic way. Different Streamlit
+            # releases expose the helper under different names.
+            def _safe_rerun():
+                if hasattr(st, "experimental_rerun"):
+                    st.experimental_rerun()
+                elif hasattr(st, "rerun"):
+                    st.rerun()  # introduced in newer versions
+                else:
+                    # Fallback – advise the user to update Streamlit for automatic polling.
+                    st.warning(
+                        "Please refresh the page to continue the login flow. "
+                        "(Consider upgrading Streamlit to enable automatic refresh.)"
+                    )
+
+            try:
+                _safe_rerun()
+            except Exception:
+                # The Streamlit runtime intercepts the rerun exception; any other
+                # unexpected errors are ignored to avoid crashing the app.
+                pass
+
+        # ------------------------------------------------------------------
+        # 4. Key received – persist it and notify user
+        # ------------------------------------------------------------------
+        ExpectedParrotKeyHandler().store_ep_api_key(api_key)
+        os.environ["EXPECTED_PARROT_API_KEY"] = api_key
+        path_to_env = write_api_key_to_env(api_key)
+        load_dotenv()
+
+        st.success("API-key retrieved and stored. You are now logged-in! 🎉")
+        st.caption(f"Key saved to `{path_to_env}`.")
+
+        return api_key
+
     def transfer_credits(
         self,
         credits_transferred: int,
@@ -2447,3 +2561,12 @@ def main():
     job_coop_object = coop.remote_inference_create(job)
     job_coop_results = coop.remote_inference_get(job_coop_object.get("uuid"))
     coop.get(job_coop_results.get("results_uuid"))
+
+    import streamlit as st
+    from edsl.coop import Coop
+
+    coop = Coop()                 # no API-key required yet
+    api_key = coop.login_streamlit()   # renders link + handles polling & storage
+
+    if api_key:
+        st.success("Ready to use EDSL with remote features!")
