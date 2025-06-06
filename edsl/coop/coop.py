@@ -943,6 +943,26 @@ class Coop(CoopFunctionsMixin):
 
         obj_uuid, owner_username, obj_alias = self._resolve_uuid_or_alias(url_or_uuid)
 
+        # If we have a UUID and are updating the value, check the storage format first
+        if obj_uuid and value:
+            # Check if object is in new format (GCS)
+            format_check_response = self._send_server_request(
+                uri="api/v0/object/check-format",
+                method="POST",
+                payload={"object_uuid": str(obj_uuid)},
+            )
+            self._resolve_server_response(format_check_response)
+            format_data = format_check_response.json()
+
+            is_new_format = format_data.get("is_new_format", False)
+
+            if is_new_format:
+                # Handle new format objects: update metadata first, then upload content
+                return self._patch_new_format_object(
+                    obj_uuid, description, alias, value, visibility
+                )
+
+        # Handle traditional format objects or metadata-only updates
         if obj_uuid:
             uri = "api/v0/object"
             params = {"uuid": obj_uuid}
@@ -971,6 +991,70 @@ class Coop(CoopFunctionsMixin):
         )
         self._resolve_server_response(response)
         return response.json()
+
+    def _patch_new_format_object(
+        self,
+        obj_uuid: UUID,
+        description: Optional[str],
+        alias: Optional[str],
+        value: EDSLObject,
+        visibility: Optional[VisibilityType],
+    ) -> dict:
+        """
+        Handle patching of objects stored in the new format (GCS).
+        """
+        # Step 1: Update metadata only (no json_string)
+        if description is not None or alias is not None or visibility is not None:
+            metadata_response = self._send_server_request(
+                uri="api/v0/object",
+                method="PATCH",
+                params={"uuid": obj_uuid},
+                payload={
+                    "description": description,
+                    "alias": alias,
+                    "json_string": None,  # Don't send content to traditional endpoint
+                    "visibility": visibility,
+                },
+            )
+            self._resolve_server_response(metadata_response)
+
+        # Step 2: Get signed upload URL for content update
+        upload_url_response = self._send_server_request(
+            uri="api/v0/object/upload-url",
+            method="POST",
+            payload={"object_uuid": str(obj_uuid)},
+        )
+        self._resolve_server_response(upload_url_response)
+        upload_data = upload_url_response.json()
+
+        # Step 3: Upload the object content to GCS
+        signed_url = upload_data.get("signed_url")
+        if not signed_url:
+            raise CoopServerResponseError("Failed to get signed upload URL")
+
+        json_content = json.dumps(
+            value.to_dict(),
+            default=self._json_handle_none,
+            allow_nan=False,
+        )
+
+        # Upload to GCS using signed URL
+        gcs_response = requests.put(
+            signed_url,
+            data=json_content,
+            headers={"Content-Type": "application/json"},
+        )
+
+        if gcs_response.status_code != 200:
+            raise CoopServerResponseError(
+                f"Failed to upload object to GCS: {gcs_response.status_code}"
+            )
+
+        return {
+            "status": "success",
+            "message": "Object updated successfully (new format - uploaded to GCS)",
+            "object_uuid": str(obj_uuid),
+        }
 
     ################
     # Remote Cache
