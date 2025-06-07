@@ -159,7 +159,15 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
 
     # Required MutableSequence abstract methods
     def __getitem__(self, index):
-        """Get item at index."""
+        """Get item at index.
+
+        Example:
+            >>> from edsl.scenarios import Scenario, ScenarioList
+            >>> sl = ScenarioList([Scenario({'a': 12})])
+            >>> sl[0]['b'] = 100  # modify in-place
+            >>> sl[0]['b']
+            100
+        """
         if isinstance(index, slice):
             return self.__class__(list(self.data[index]), self.codebook.copy())
         return self.data[index]

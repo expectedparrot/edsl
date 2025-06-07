@@ -296,8 +296,8 @@ class Coop(CoopFunctionsMixin):
                 message = str(response.json().get("detail"))
             except json.JSONDecodeError:
                 raise CoopServerResponseError(
-                    f"Server returned status code {response.status_code}."
-                    f"JSON response could not be decoded."
+                    f"Server returned status code {response.status_code}. "
+                    f"JSON response could not be decoded. "
                     f"The server response was: {response.text}"
                 )
             # print(response.text)
@@ -694,6 +694,35 @@ class Coop(CoopFunctionsMixin):
         """
         obj_uuid, owner_username, alias = self._resolve_uuid_or_alias(url_or_uuid)
 
+        # Handle alias-based retrieval with new/old format detection
+        if not obj_uuid and owner_username and alias:
+            # First, get object info to determine format and UUID
+            info_response = self._send_server_request(
+                uri="api/v0/object/alias/info",
+                method="GET",
+                params={"owner_username": owner_username, "alias": alias},
+            )
+            self._resolve_server_response(info_response)
+            info_data = info_response.json()
+
+            obj_uuid = info_data.get("uuid")
+            is_new_format = info_data.get("is_new_format", False)
+
+            # Validate object type if expected
+            if expected_object_type:
+                actual_object_type = info_data.get("object_type")
+                if actual_object_type != expected_object_type:
+                    from .exceptions import CoopObjectTypeError
+
+                    raise CoopObjectTypeError(
+                        f"Expected {expected_object_type=} but got {actual_object_type=}"
+                    )
+
+            # Use pull method for new format objects
+            if is_new_format:
+                return self.pull(obj_uuid, expected_object_type)
+
+        # Handle UUID-based retrieval or legacy alias objects
         if obj_uuid:
             response = self._send_server_request(
                 uri="api/v0/object",
@@ -915,6 +944,26 @@ class Coop(CoopFunctionsMixin):
 
         obj_uuid, owner_username, obj_alias = self._resolve_uuid_or_alias(url_or_uuid)
 
+        # If we have a UUID and are updating the value, check the storage format first
+        if obj_uuid and value:
+            # Check if object is in new format (GCS)
+            format_check_response = self._send_server_request(
+                uri="api/v0/object/check-format",
+                method="POST",
+                payload={"object_uuid": str(obj_uuid)},
+            )
+            self._resolve_server_response(format_check_response)
+            format_data = format_check_response.json()
+
+            is_new_format = format_data.get("is_new_format", False)
+
+            if is_new_format:
+                # Handle new format objects: update metadata first, then upload content
+                return self._patch_new_format_object(
+                    obj_uuid, description, alias, value, visibility
+                )
+
+        # Handle traditional format objects or metadata-only updates
         if obj_uuid:
             uri = "api/v0/object"
             params = {"uuid": obj_uuid}
@@ -943,6 +992,70 @@ class Coop(CoopFunctionsMixin):
         )
         self._resolve_server_response(response)
         return response.json()
+
+    def _patch_new_format_object(
+        self,
+        obj_uuid: UUID,
+        description: Optional[str],
+        alias: Optional[str],
+        value: EDSLObject,
+        visibility: Optional[VisibilityType],
+    ) -> dict:
+        """
+        Handle patching of objects stored in the new format (GCS).
+        """
+        # Step 1: Update metadata only (no json_string)
+        if description is not None or alias is not None or visibility is not None:
+            metadata_response = self._send_server_request(
+                uri="api/v0/object",
+                method="PATCH",
+                params={"uuid": obj_uuid},
+                payload={
+                    "description": description,
+                    "alias": alias,
+                    "json_string": None,  # Don't send content to traditional endpoint
+                    "visibility": visibility,
+                },
+            )
+            self._resolve_server_response(metadata_response)
+
+        # Step 2: Get signed upload URL for content update
+        upload_url_response = self._send_server_request(
+            uri="api/v0/object/upload-url",
+            method="POST",
+            payload={"object_uuid": str(obj_uuid)},
+        )
+        self._resolve_server_response(upload_url_response)
+        upload_data = upload_url_response.json()
+
+        # Step 3: Upload the object content to GCS
+        signed_url = upload_data.get("signed_url")
+        if not signed_url:
+            raise CoopServerResponseError("Failed to get signed upload URL")
+
+        json_content = json.dumps(
+            value.to_dict(),
+            default=self._json_handle_none,
+            allow_nan=False,
+        )
+
+        # Upload to GCS using signed URL
+        gcs_response = requests.put(
+            signed_url,
+            data=json_content,
+            headers={"Content-Type": "application/json"},
+        )
+
+        if gcs_response.status_code != 200:
+            raise CoopServerResponseError(
+                f"Failed to upload object to GCS: {gcs_response.status_code}"
+            )
+
+        return {
+            "status": "success",
+            "message": "Object updated successfully (new format - uploaded to GCS)",
+            "object_uuid": str(obj_uuid),
+        }
 
     ################
     # Remote Cache
@@ -1008,6 +1121,115 @@ class Coop(CoopFunctionsMixin):
         ]
 
     def remote_inference_create(
+        self,
+        job: "Jobs",
+        description: Optional[str] = None,
+        status: RemoteJobStatus = "queued",
+        visibility: Optional[VisibilityType] = "unlisted",
+        initial_results_visibility: Optional[VisibilityType] = "unlisted",
+        iterations: Optional[int] = 1,
+        fresh: Optional[bool] = False,
+    ) -> RemoteInferenceCreationInfo:
+        """
+        Create a remote inference job for execution in the Expected Parrot cloud.
+
+        This method sends a job to be executed in the cloud, which can be more efficient
+        for large jobs or when you want to run jobs in the background. The job execution
+        is handled by Expected Parrot's infrastructure, and you can check the status
+        and retrieve results later.
+
+        Parameters:
+            job (Jobs): The EDSL job to run in the cloud
+            description (str, optional): A human-readable description of the job
+            status (RemoteJobStatus): Initial status, should be "queued" for normal use
+                Possible values: "queued", "running", "completed", "failed"
+            visibility (VisibilityType): Access level for the job information. One of:
+                - "private": Only accessible by the owner
+                - "public": Accessible by anyone
+                - "unlisted": Accessible with the link, but not listed publicly
+            initial_results_visibility (VisibilityType): Access level for the job results
+            iterations (int): Number of times to run each interview (default: 1)
+            fresh (bool): If True, ignore existing cache entries and generate new results
+
+        Returns:
+            RemoteInferenceCreationInfo: Information about the created job including:
+                - uuid: The unique identifier for the job
+                - description: The job description
+                - status: Current status of the job
+                - iterations: Number of iterations for each interview
+                - visibility: Access level for the job
+                - version: EDSL version used to create the job
+
+        Raises:
+            CoopServerResponseError: If there's an error communicating with the server
+
+        Notes:
+            - Remote jobs run asynchronously and may take time to complete
+            - Use remote_inference_get() with the returned UUID to check status
+            - Credits are consumed based on the complexity of the job
+
+        Example:
+            >>> from edsl.jobs import Jobs
+            >>> job = Jobs.example()
+            >>> job_info = coop.remote_inference_create(job=job, description="My job")
+            >>> print(f"Job created with UUID: {job_info['uuid']}")
+        """
+        response = self._send_server_request(
+            uri="api/v0/new-remote-inference",
+            method="POST",
+            payload={
+                "json_string": "offloaded",
+                "description": description,
+                "status": status,
+                "iterations": iterations,
+                "visibility": visibility,
+                "version": self._edsl_version,
+                "initial_results_visibility": initial_results_visibility,
+                "fresh": fresh,
+            },
+        )
+        self._resolve_server_response(response)
+        response_json = response.json()
+        upload_signed_url = response_json.get("upload_signed_url")
+        if not upload_signed_url:
+            from .exceptions import CoopResponseError
+
+            raise CoopResponseError("No signed url was provided received")
+
+        response = requests.put(
+            upload_signed_url,
+            data=json.dumps(
+                job.to_dict(),
+                default=self._json_handle_none,
+            ).encode(),
+            headers={"Content-Type": "application/json"},
+        )
+        self._resolve_gcs_response(response)
+
+        job_uuid = response_json.get("job_uuid")
+
+        response = self._send_server_request(
+            uri="api/v0/new-remote-inference/uploaded",
+            method="POST",
+            payload={
+                "job_uuid": job_uuid,
+                "message": "Job uploaded successfully",
+            },
+        )
+        response_json = response.json()
+
+        return RemoteInferenceCreationInfo(
+            **{
+                "uuid": response_json.get("job_uuid"),
+                "description": response_json.get("description", ""),
+                "status": response_json.get("status"),
+                "iterations": response_json.get("iterations", ""),
+                "visibility": response_json.get("visibility", ""),
+                "version": self._edsl_version,
+            }
+        )
+
+    def old_remote_inference_create(
         self,
         job: "Jobs",
         description: Optional[str] = None,
@@ -2111,6 +2333,235 @@ class Coop(CoopFunctionsMixin):
         self._resolve_server_response(response)
         return response.json().get("uuid")
 
+    def pull(
+        self,
+        url_or_uuid: Optional[Union[str, UUID]] = None,
+        expected_object_type: Optional[ObjectType] = None,
+    ) -> dict:
+        """
+        Generate a signed URL for pulling an object directly from Google Cloud Storage.
+
+        This method gets a signed URL that allows direct download access to the object from
+        Google Cloud Storage, which is more efficient for large files.
+
+        Parameters:
+            url_or_uuid (Union[str, UUID], optional): Identifier for the object to retrieve.
+                Can be one of:
+                - UUID string (e.g., "123e4567-e89b-12d3-a456-426614174000")
+                - Full URL (e.g., "https://expectedparrot.com/content/123e4567...")
+                - Alias URL (e.g., "https://expectedparrot.com/content/username/my-survey")
+            expected_object_type (ObjectType, optional): If provided, validates that the
+                retrieved object is of the expected type (e.g., "survey", "agent")
+
+        Returns:
+            dict: A response containing the signed_url for direct download
+
+        Raises:
+            CoopNoUUIDError: If no UUID or URL is provided
+            CoopInvalidURLError: If the URL format is invalid
+            CoopServerResponseError: If there's an error communicating with the server
+            HTTPException: If the object or object files are not found
+
+        Example:
+            >>> response = coop.pull("123e4567-e89b-12d3-a456-426614174000")
+            >>> response = coop.pull("https://expectedparrot.com/content/username/my-survey")
+            >>> print(f"Download URL: {response['signed_url']}")
+            >>> # Use the signed_url to download the object directly
+        """
+        obj_uuid, owner_username, alias = self._resolve_uuid_or_alias(url_or_uuid)
+
+        # Handle alias-based retrieval with new/old format detection
+        if not obj_uuid and owner_username and alias:
+            # First, get object info to determine format and UUID
+            info_response = self._send_server_request(
+                uri="api/v0/object/alias/info",
+                method="GET",
+                params={"owner_username": owner_username, "alias": alias},
+            )
+            self._resolve_server_response(info_response)
+            info_data = info_response.json()
+
+            obj_uuid = info_data.get("uuid")
+            is_new_format = info_data.get("is_new_format", False)
+
+            # Validate object type if expected
+            if expected_object_type:
+                actual_object_type = info_data.get("object_type")
+                if actual_object_type != expected_object_type:
+                    from .exceptions import CoopObjectTypeError
+
+                    raise CoopObjectTypeError(
+                        f"Expected {expected_object_type=} but got {actual_object_type=}"
+                    )
+
+            # Use get method for old format objects
+            if not is_new_format:
+                return self.get(url_or_uuid, expected_object_type)
+
+        # Send the request to the API endpoint with the resolved UUID
+        response = self._send_server_request(
+            uri="api/v0/object/pull",
+            method="POST",
+            payload={"object_uuid": obj_uuid},
+        )
+        # Handle any errors in the response
+        self._resolve_server_response(response)
+        if "signed_url" not in response.json():
+            from .exceptions import CoopResponseError
+
+            raise CoopResponseError("No signed url was provided received")
+        signed_url = response.json().get("signed_url")
+
+        if signed_url == "":  # it is in old format
+            return self.get(url_or_uuid, expected_object_type)
+
+        try:
+            response = requests.get(signed_url)
+
+            self._resolve_gcs_response(response)
+
+        except Exception:
+            return self.get(url_or_uuid, expected_object_type)
+        object_dict = response.json()
+        if expected_object_type is not None:
+            edsl_class = ObjectRegistry.get_edsl_class_by_object_type(
+                expected_object_type
+            )
+            edsl_object = edsl_class.from_dict(object_dict)
+        # Return the response containing the signed URL
+        return edsl_object
+
+    def get_upload_url(self, object_uuid: str) -> dict:
+        """
+        Get a signed upload URL for updating the content of an existing object.
+
+        This method gets a signed URL that allows direct upload to Google Cloud Storage
+        for objects stored in the new format, while preserving the existing UUID.
+
+        Parameters:
+            object_uuid (str): The UUID of the object to get an upload URL for
+
+        Returns:
+            dict: A response containing:
+                - signed_url: The signed URL for uploading new content
+                - object_uuid: The UUID of the object
+                - message: Success message
+
+        Raises:
+            CoopServerResponseError: If there's an error communicating with the server
+            HTTPException: If the object is not found, not owned by user, or not in new format
+
+        Notes:
+            - Only works with objects stored in the new format (transition table)
+            - User must be the owner of the object
+            - The signed URL expires after 60 minutes
+
+        Example:
+            >>> response = coop.get_upload_url("123e4567-e89b-12d3-a456-426614174000")
+            >>> upload_url = response['signed_url']
+            >>> # Use the upload_url to PUT new content directly to GCS
+        """
+        response = self._send_server_request(
+            uri="api/v0/object/upload-url",
+            method="POST",
+            payload={"object_uuid": object_uuid},
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
+    def push(
+        self,
+        object: EDSLObject,
+        description: Optional[str] = None,
+        alias: Optional[str] = None,
+        visibility: Optional[VisibilityType] = "unlisted",
+    ) -> dict:
+        """
+        Generate a signed URL for pushing an object directly to Google Cloud Storage.
+
+        This method gets a signed URL that allows direct upload access to Google Cloud Storage,
+        which is more efficient for large files.
+
+        Parameters:
+            object_type (ObjectType): The type of object to be uploaded
+
+        Returns:
+            dict: A response containing the signed_url for direct upload and optionally a job_id
+
+        Raises:
+            CoopServerResponseError: If there's an error communicating with the server
+
+        Example:
+            >>> response = coop.push("scenario")
+            >>> print(f"Upload URL: {response['signed_url']}")
+            >>> # Use the signed_url to upload the object directly
+        """
+
+        object_type = ObjectRegistry.get_object_type_by_edsl_class(object)
+        object_dict = object.to_dict()
+        object_hash = object.get_hash() if hasattr(object, "get_hash") else None
+
+        # Send the request to the API endpoint
+        response = self._send_server_request(
+            uri="api/v0/object/push",
+            method="POST",
+            payload={
+                "object_type": object_type,
+                "description": description,
+                "alias": alias,
+                "visibility": visibility,
+                "object_hash": object_hash,
+                "version": self._edsl_version,
+            },
+        )
+        response_json = response.json()
+        if response_json.get("signed_url") is not None:
+            signed_url = response_json.get("signed_url")
+        else:
+            from .exceptions import CoopResponseError
+
+            raise CoopResponseError(response.text)
+
+        json_data = json.dumps(
+            object_dict,
+            default=self._json_handle_none,
+            allow_nan=False,
+        )
+        response = requests.put(
+            signed_url,
+            data=json_data.encode(),
+            headers={"Content-Type": "application/json"},
+        )
+        self._resolve_gcs_response(response)
+
+        # Send confirmation that upload was completed
+        object_uuid = response_json.get("object_uuid", None)
+        owner_username = response_json.get("owner_username", None)
+        object_alias = response_json.get("alias", None)
+
+        if object_uuid is None:
+            from .exceptions import CoopResponseError
+
+            raise CoopResponseError("No object uuid was provided received")
+
+        # Confirm the upload completion
+        confirm_response = self._send_server_request(
+            uri="api/v0/object/confirm-upload",
+            method="POST",
+            payload={"object_uuid": object_uuid},
+        )
+        self._resolve_server_response(confirm_response)
+
+        return {
+            "description": response_json.get("description"),
+            "object_type": object_type,
+            "url": f"{self.url}/content/{object_uuid}",
+            "alias_url": self._get_alias_url(owner_username, object_alias),
+            "uuid": object_uuid,
+            "version": self._edsl_version,
+            "visibility": response_json.get("visibility"),
+        }
+
     def _display_login_url(
         self, edsl_auth_token: str, link_description: Optional[str] = None
     ):
@@ -2193,6 +2644,120 @@ class Coop(CoopFunctionsMixin):
 
         # Add API key to environment
         load_dotenv()
+
+    def login_streamlit(self, timeout: int = 120):
+        """
+        Start the EDSL auth token login flow inside a Streamlit application.
+
+        This helper is functionally equivalent to ``Coop.login`` but renders the
+        login link and status updates directly in the Streamlit UI.  The method
+        will automatically poll the Expected Parrot server for the API-key
+        associated with the generated auth-token and, once received, store it
+        via ``ExpectedParrotKeyHandler`` and write it to the local ``.env``
+        file so subsequent sessions pick it up automatically.
+
+        Parameters
+        ----------
+        timeout : int, default 120
+            How many seconds to wait for the user to complete the login before
+            giving up and showing an error in the Streamlit app.
+
+        Returns
+        -------
+        str | None
+            The API-key if the user logged-in successfully, otherwise ``None``.
+        """
+        try:
+            import streamlit as st
+            from streamlit.runtime.scriptrunner import get_script_run_ctx
+        except ModuleNotFoundError as exc:
+            raise ImportError(
+                "Streamlit is required for `login_streamlit`. Install it with `pip install streamlit`."
+            ) from exc
+
+        # Ensure we are actually running inside a Streamlit script. If not, give a
+        # clear error message instead of crashing when `st.experimental_rerun` is
+        # invoked outside the Streamlit runtime.
+        if get_script_run_ctx() is None:
+            raise RuntimeError(
+                "`login_streamlit` must be invoked from within a running Streamlit "
+                "app (use `streamlit run your_script.py`). If you need to obtain an "
+                "API-key in a regular Python script or notebook, use `Coop.login()` "
+                "instead."
+            )
+
+        import secrets
+        import time
+        import os
+        from dotenv import load_dotenv
+        from .ep_key_handling import ExpectedParrotKeyHandler
+        from ..utilities.utilities import write_api_key_to_env
+
+        # ------------------------------------------------------------------
+        # 1. Prepare auth-token and store state across reruns
+        # ------------------------------------------------------------------
+        if "edsl_auth_token" not in st.session_state:
+            st.session_state.edsl_auth_token = secrets.token_urlsafe(16)
+            st.session_state.login_start_time = time.time()
+
+        edsl_auth_token: str = st.session_state.edsl_auth_token
+        login_url = f"{CONFIG.EXPECTED_PARROT_URL}/login?edsl_auth_token={edsl_auth_token}"
+
+        # ------------------------------------------------------------------
+        # 2. Render clickable login link
+        # ------------------------------------------------------------------
+        st.markdown(
+            f"🔗 **Log in to Expected Parrot** → [click here]({login_url})",
+            unsafe_allow_html=True,
+        )
+
+        # ------------------------------------------------------------------
+        # 3. Poll server for API-key (runs once per Streamlit execution)
+        # ------------------------------------------------------------------
+        api_key = self._get_api_key(edsl_auth_token)
+        if api_key is None:
+            elapsed = time.time() - st.session_state.login_start_time
+            if elapsed > timeout:
+                st.error("Timed-out waiting for login. Please rerun the app to try again.")
+                return None
+
+            remaining = int(timeout - elapsed)
+            st.info(f"Waiting for login… ({remaining}s left)")
+            # Trigger a rerun after a short delay to continue polling
+            time.sleep(1)
+            # Attempt a rerun in a version-agnostic way. Different Streamlit
+            # releases expose the helper under different names.
+            def _safe_rerun():
+                if hasattr(st, "experimental_rerun"):
+                    st.experimental_rerun()
+                elif hasattr(st, "rerun"):
+                    st.rerun()  # introduced in newer versions
+                else:
+                    # Fallback – advise the user to update Streamlit for automatic polling.
+                    st.warning(
+                        "Please refresh the page to continue the login flow. "
+                        "(Consider upgrading Streamlit to enable automatic refresh.)"
+                    )
+
+            try:
+                _safe_rerun()
+            except Exception:
+                # The Streamlit runtime intercepts the rerun exception; any other
+                # unexpected errors are ignored to avoid crashing the app.
+                pass
+
+        # ------------------------------------------------------------------
+        # 4. Key received – persist it and notify user
+        # ------------------------------------------------------------------
+        ExpectedParrotKeyHandler().store_ep_api_key(api_key)
+        os.environ["EXPECTED_PARROT_API_KEY"] = api_key
+        path_to_env = write_api_key_to_env(api_key)
+        load_dotenv()
+
+        st.success("API-key retrieved and stored. You are now logged-in! 🎉")
+        st.caption(f"Key saved to `{path_to_env}`.")
+
+        return api_key
 
     def transfer_credits(
         self,
@@ -2402,3 +2967,12 @@ def main():
     job_coop_object = coop.remote_inference_create(job)
     job_coop_results = coop.remote_inference_get(job_coop_object.get("uuid"))
     coop.get(job_coop_results.get("results_uuid"))
+
+    import streamlit as st
+    from edsl.coop import Coop
+
+    coop = Coop()                 # no API-key required yet
+    api_key = coop.login_streamlit()   # renders link + handles polling & storage
+
+    if api_key:
+        st.success("Ready to use EDSL with remote features!")
