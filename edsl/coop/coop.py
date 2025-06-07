@@ -4,7 +4,7 @@ import json
 import requests
 import time
 
-from typing import Any, Optional, Union, Literal, List, TypedDict, TYPE_CHECKING
+from typing import Any, Dict, Optional, Union, Literal, List, TypedDict, TYPE_CHECKING
 from uuid import UUID
 
 from .. import __version__
@@ -35,6 +35,7 @@ from .utils import (
 from .coop_functions import CoopFunctionsMixin
 from .coop_regular_objects import CoopRegularObjects
 from .coop_jobs_objects import CoopJobsObjects
+from .coop_prolific_filters import CoopProlificFilters
 from .ep_key_handling import ExpectedParrotKeyHandler
 
 from ..inference_services.data_structures import ServiceToModelsMapping
@@ -295,8 +296,8 @@ class Coop(CoopFunctionsMixin):
                 message = str(response.json().get("detail"))
             except json.JSONDecodeError:
                 raise CoopServerResponseError(
-                    f"Server returned status code {response.status_code}."
-                    f"JSON response could not be decoded."
+                    f"Server returned status code {response.status_code}. "
+                    f"JSON response could not be decoded. "
                     f"The server response was: {response.text}"
                 )
             # print(response.text)
@@ -693,6 +694,35 @@ class Coop(CoopFunctionsMixin):
         """
         obj_uuid, owner_username, alias = self._resolve_uuid_or_alias(url_or_uuid)
 
+        # Handle alias-based retrieval with new/old format detection
+        if not obj_uuid and owner_username and alias:
+            # First, get object info to determine format and UUID
+            info_response = self._send_server_request(
+                uri="api/v0/object/alias/info",
+                method="GET",
+                params={"owner_username": owner_username, "alias": alias},
+            )
+            self._resolve_server_response(info_response)
+            info_data = info_response.json()
+
+            obj_uuid = info_data.get("uuid")
+            is_new_format = info_data.get("is_new_format", False)
+
+            # Validate object type if expected
+            if expected_object_type:
+                actual_object_type = info_data.get("object_type")
+                if actual_object_type != expected_object_type:
+                    from .exceptions import CoopObjectTypeError
+
+                    raise CoopObjectTypeError(
+                        f"Expected {expected_object_type=} but got {actual_object_type=}"
+                    )
+
+            # Use pull method for new format objects
+            if is_new_format:
+                return self.pull(obj_uuid, expected_object_type)
+
+        # Handle UUID-based retrieval or legacy alias objects
         if obj_uuid:
             response = self._send_server_request(
                 uri="api/v0/object",
@@ -914,6 +944,26 @@ class Coop(CoopFunctionsMixin):
 
         obj_uuid, owner_username, obj_alias = self._resolve_uuid_or_alias(url_or_uuid)
 
+        # If we have a UUID and are updating the value, check the storage format first
+        if obj_uuid and value:
+            # Check if object is in new format (GCS)
+            format_check_response = self._send_server_request(
+                uri="api/v0/object/check-format",
+                method="POST",
+                payload={"object_uuid": str(obj_uuid)},
+            )
+            self._resolve_server_response(format_check_response)
+            format_data = format_check_response.json()
+
+            is_new_format = format_data.get("is_new_format", False)
+
+            if is_new_format:
+                # Handle new format objects: update metadata first, then upload content
+                return self._patch_new_format_object(
+                    obj_uuid, description, alias, value, visibility
+                )
+
+        # Handle traditional format objects or metadata-only updates
         if obj_uuid:
             uri = "api/v0/object"
             params = {"uuid": obj_uuid}
@@ -942,6 +992,70 @@ class Coop(CoopFunctionsMixin):
         )
         self._resolve_server_response(response)
         return response.json()
+
+    def _patch_new_format_object(
+        self,
+        obj_uuid: UUID,
+        description: Optional[str],
+        alias: Optional[str],
+        value: EDSLObject,
+        visibility: Optional[VisibilityType],
+    ) -> dict:
+        """
+        Handle patching of objects stored in the new format (GCS).
+        """
+        # Step 1: Update metadata only (no json_string)
+        if description is not None or alias is not None or visibility is not None:
+            metadata_response = self._send_server_request(
+                uri="api/v0/object",
+                method="PATCH",
+                params={"uuid": obj_uuid},
+                payload={
+                    "description": description,
+                    "alias": alias,
+                    "json_string": None,  # Don't send content to traditional endpoint
+                    "visibility": visibility,
+                },
+            )
+            self._resolve_server_response(metadata_response)
+
+        # Step 2: Get signed upload URL for content update
+        upload_url_response = self._send_server_request(
+            uri="api/v0/object/upload-url",
+            method="POST",
+            payload={"object_uuid": str(obj_uuid)},
+        )
+        self._resolve_server_response(upload_url_response)
+        upload_data = upload_url_response.json()
+
+        # Step 3: Upload the object content to GCS
+        signed_url = upload_data.get("signed_url")
+        if not signed_url:
+            raise CoopServerResponseError("Failed to get signed upload URL")
+
+        json_content = json.dumps(
+            value.to_dict(),
+            default=self._json_handle_none,
+            allow_nan=False,
+        )
+
+        # Upload to GCS using signed URL
+        gcs_response = requests.put(
+            signed_url,
+            data=json_content,
+            headers={"Content-Type": "application/json"},
+        )
+
+        if gcs_response.status_code != 200:
+            raise CoopServerResponseError(
+                f"Failed to upload object to GCS: {gcs_response.status_code}"
+            )
+
+        return {
+            "status": "success",
+            "message": "Object updated successfully (new format - uploaded to GCS)",
+            "object_uuid": str(obj_uuid),
+        }
 
     ################
     # Remote Cache
@@ -1523,23 +1637,21 @@ class Coop(CoopFunctionsMixin):
             "project_job_uuids": response_json.get("job_uuids"),
             "project_prolific_studies": [
                 {
+                    "study_id": study.get("id"),
                     "name": study.get("name"),
-                    "id": study.get("id"),
                     "status": study.get("status"),
-                    "total_available_places": study.get("total_available_places"),
+                    "num_participants": study.get("total_available_places"),
                     "places_taken": study.get("places_taken"),
                 }
                 for study in response_json.get("prolific_studies", [])
             ],
         }
 
-    def get_project_human_responses(
-        self,
-        project_uuid: str,
-        prolific_study_id: Optional[str] = None,
+    def _turn_human_responses_into_results(
+        self, human_responses: List[dict], survey_json_string: str
     ) -> Union["Results", "ScenarioList"]:
         """
-        Return a Results object with the human responses for a project.
+        Turn a list of human responses into a Results object.
 
         If generating the Results object fails, a ScenarioList will be returned instead.
         """
@@ -1548,20 +1660,6 @@ class Coop(CoopFunctionsMixin):
         from ..language_models import Model
         from ..scenarios import Scenario, ScenarioList
         from ..surveys import Survey
-
-        if prolific_study_id is not None:
-            params = {"prolific_study_id": prolific_study_id}
-        else:
-            params = {}
-
-        response = self._send_server_request(
-            uri=f"api/v0/projects/{project_uuid}/human-responses",
-            method="GET",
-            params=params,
-        )
-        self._resolve_server_response(response)
-        response_json = response.json()
-        human_responses = response_json.get("human_responses", [])
 
         try:
             agent_list = AgentList()
@@ -1593,7 +1691,6 @@ class Coop(CoopFunctionsMixin):
                 )
                 agent_list.append(a)
 
-            survey_json_string = response_json.get("survey_json_string")
             survey = Survey.from_dict(json.loads(survey_json_string))
 
             model = Model("test")
@@ -1622,6 +1719,426 @@ class Coop(CoopFunctionsMixin):
                 scenario = Scenario(response_dict)
                 human_response_scenarios.append(scenario)
             return ScenarioList(human_response_scenarios)
+
+    def get_project_human_responses(
+        self,
+        project_uuid: str,
+    ) -> Union["Results", "ScenarioList"]:
+        """
+        Return a Results object with the human responses for a project.
+
+        If generating the Results object fails, a ScenarioList will be returned instead.
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/projects/{project_uuid}/human-responses",
+            method="GET",
+        )
+        self._resolve_server_response(response)
+        response_json = response.json()
+        human_responses = response_json.get("human_responses", [])
+        survey_json_string = response_json.get("survey_json_string")
+
+        return self._turn_human_responses_into_results(
+            human_responses, survey_json_string
+        )
+
+    def list_prolific_filters(self) -> "CoopProlificFilters":
+        """
+        Get a ScenarioList of supported Prolific filters. This list has several methods
+        that you can use to create valid filter dicts for use with Coop.create_prolific_study().
+
+        Call find() to examine a specific filter by ID:
+        >>> filters = coop.list_prolific_filters()
+        >>> filters.find("age")
+        Scenario(
+            {
+                "filter_id": "age",
+                "type": "range",
+                "range_filter_min": 18,
+                "range_filter_max": 100,
+                ...
+            }
+        )
+
+        Call create_study_filter() to create a valid filter dict:
+        >>> filters.create_study_filter("age", min=30, max=40)
+        {
+            "filter_id": "age",
+            "selected_range": {
+                "lower": 30,
+                "upper": 40,
+            },
+        }
+        """
+        from ..scenarios import Scenario
+
+        response = self._send_server_request(
+            uri="api/v0/prolific-filters",
+            method="GET",
+        )
+        self._resolve_server_response(response)
+        response_json = response.json()
+        filters = response_json.get("prolific_filters", [])
+        filter_scenarios = []
+        for filter in filters:
+            filter_type = filter.get("type")
+            question = filter.get("question")
+            scenario = Scenario(
+                {
+                    "filter_id": filter.get("filter_id"),
+                    "title": filter.get("title"),
+                    "question": (
+                        f"Participants were asked the following: {question}"
+                        if question
+                        else None
+                    ),
+                    "type": filter_type,
+                    "range_filter_min": (
+                        filter.get("min") if filter_type == "range" else None
+                    ),
+                    "range_filter_max": (
+                        filter.get("max") if filter_type == "range" else None
+                    ),
+                    "select_filter_num_options": (
+                        len(filter.get("choices", []))
+                        if filter_type == "select"
+                        else None
+                    ),
+                    "select_filter_options": (
+                        filter.get("choices") if filter_type == "select" else None
+                    ),
+                }
+            )
+            filter_scenarios.append(scenario)
+        return CoopProlificFilters(filter_scenarios)
+
+    @staticmethod
+    def _validate_prolific_study_cost(
+        estimated_completion_time_minutes: int, participant_payment_cents: int
+    ) -> tuple[bool, float]:
+        """
+        If the cost of a Prolific study is below the threshold, return True.
+        Otherwise, return False.
+        The second value in the tuple is the cost of the study in USD per hour.
+        """
+        estimated_completion_time_hours = estimated_completion_time_minutes / 60
+        participant_payment_usd = participant_payment_cents / 100
+        cost_usd_per_hour = participant_payment_usd / estimated_completion_time_hours
+
+        # $8.00 USD per hour is the minimum amount for using Prolific
+        if cost_usd_per_hour < 8:
+            return True, cost_usd_per_hour
+        else:
+            return False, cost_usd_per_hour
+
+    def create_prolific_study(
+        self,
+        project_uuid: str,
+        name: str,
+        description: str,
+        num_participants: int,
+        estimated_completion_time_minutes: int,
+        participant_payment_cents: int,
+        device_compatibility: Optional[
+            List[Literal["desktop", "tablet", "mobile"]]
+        ] = None,
+        peripheral_requirements: Optional[
+            List[Literal["audio", "camera", "download", "microphone"]]
+        ] = None,
+        filters: Optional[List[Dict]] = None,
+    ) -> dict:
+        """
+        Create a Prolific study for a project. Returns a dict with the study details.
+
+        To add filters to your study, you should first pull the list of supported
+        filters using Coop.list_prolific_filters().
+        Then, you can use the create_study_filter method of the returned
+        CoopProlificFilters object to create a valid filter dict.
+        """
+        is_underpayment, cost_usd_per_hour = self._validate_prolific_study_cost(
+            estimated_completion_time_minutes, participant_payment_cents
+        )
+        if is_underpayment:
+            raise CoopValueError(
+                f"The current participant payment of ${cost_usd_per_hour:.2f} USD per hour is below the minimum payment for using Prolific ($8.00 USD per hour)."
+            )
+
+        response = self._send_server_request(
+            uri=f"api/v0/projects/{project_uuid}/prolific-studies",
+            method="POST",
+            payload={
+                "name": name,
+                "description": description,
+                "total_available_places": num_participants,
+                "estimated_completion_time": estimated_completion_time_minutes,
+                "reward": participant_payment_cents,
+                "device_compatibility": (
+                    ["desktop", "tablet", "mobile"]
+                    if device_compatibility is None
+                    else device_compatibility
+                ),
+                "peripheral_requirements": (
+                    [] if peripheral_requirements is None else peripheral_requirements
+                ),
+                "filters": [] if filters is None else filters,
+            },
+        )
+        self._resolve_server_response(response)
+        response_json = response.json()
+        return {
+            "study_id": response_json.get("study_id"),
+            "status": response_json.get("status"),
+            "admin_url": response_json.get("admin_url"),
+            "respondent_url": response_json.get("respondent_url"),
+            "name": response_json.get("name"),
+            "description": response_json.get("description"),
+            "num_participants": response_json.get("total_available_places"),
+            "estimated_completion_time_minutes": response_json.get(
+                "estimated_completion_time"
+            ),
+            "participant_payment_cents": response_json.get("reward"),
+            "total_cost_cents": response_json.get("total_cost"),
+            "device_compatibility": response_json.get("device_compatibility"),
+            "peripheral_requirements": response_json.get("peripheral_requirements"),
+            "filters": response_json.get("filters"),
+        }
+
+    def update_prolific_study(
+        self,
+        project_uuid: str,
+        study_id: str,
+        name: Optional[str] = None,
+        description: Optional[str] = None,
+        num_participants: Optional[int] = None,
+        estimated_completion_time_minutes: Optional[int] = None,
+        participant_payment_cents: Optional[int] = None,
+        device_compatibility: Optional[
+            List[Literal["desktop", "tablet", "mobile"]]
+        ] = None,
+        peripheral_requirements: Optional[
+            List[Literal["audio", "camera", "download", "microphone"]]
+        ] = None,
+        filters: Optional[List[Dict]] = None,
+    ) -> dict:
+        """
+        Update a Prolific study. Returns a dict with the study details.
+        """
+        study = self.get_prolific_study(project_uuid, study_id)
+
+        current_completion_time = study.get("estimated_completion_time_minutes")
+        current_payment = study.get("participant_payment_cents")
+
+        updated_completion_time = (
+            estimated_completion_time_minutes or current_completion_time
+        )
+        updated_payment = participant_payment_cents or current_payment
+
+        is_underpayment, cost_usd_per_hour = self._validate_prolific_study_cost(
+            updated_completion_time, updated_payment
+        )
+        if is_underpayment:
+            raise CoopValueError(
+                f"This update would result in a participant payment of ${cost_usd_per_hour:.2f} USD per hour, which is below the minimum payment for using Prolific ($8.00 USD per hour)."
+            )
+
+        payload = {}
+        if name is not None:
+            payload["name"] = name
+        if description is not None:
+            payload["description"] = description
+        if num_participants is not None:
+            payload["total_available_places"] = num_participants
+        if estimated_completion_time_minutes is not None:
+            payload["estimated_completion_time"] = estimated_completion_time_minutes
+        if participant_payment_cents is not None:
+            payload["reward"] = participant_payment_cents
+        if device_compatibility is not None:
+            payload["device_compatibility"] = device_compatibility
+        if peripheral_requirements is not None:
+            payload["peripheral_requirements"] = peripheral_requirements
+        if filters is not None:
+            payload["filters"] = filters
+
+        response = self._send_server_request(
+            uri=f"api/v0/projects/{project_uuid}/prolific-studies/{study_id}",
+            method="PATCH",
+            payload=payload,
+        )
+        self._resolve_server_response(response)
+        response_json = response.json()
+        return {
+            "study_id": response_json.get("study_id"),
+            "status": response_json.get("status"),
+            "admin_url": response_json.get("admin_url"),
+            "respondent_url": response_json.get("respondent_url"),
+            "name": response_json.get("name"),
+            "description": response_json.get("description"),
+            "num_participants": response_json.get("total_available_places"),
+            "estimated_completion_time_minutes": response_json.get(
+                "estimated_completion_time"
+            ),
+            "participant_payment_cents": response_json.get("reward"),
+            "total_cost_cents": response_json.get("total_cost"),
+            "device_compatibility": response_json.get("device_compatibility"),
+            "peripheral_requirements": response_json.get("peripheral_requirements"),
+            "filters": response_json.get("filters"),
+        }
+
+    def publish_prolific_study(
+        self,
+        project_uuid: str,
+        study_id: str,
+    ) -> dict:
+        """
+        Publish a Prolific study.
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/projects/{project_uuid}/prolific-studies/{study_id}/publish",
+            method="POST",
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
+    def get_prolific_study(self, project_uuid: str, study_id: str) -> dict:
+        """
+        Get a Prolific study. Returns a dict with the study details.
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/projects/{project_uuid}/prolific-studies/{study_id}",
+            method="GET",
+        )
+        self._resolve_server_response(response)
+        response_json = response.json()
+        return {
+            "study_id": response_json.get("study_id"),
+            "status": response_json.get("status"),
+            "admin_url": response_json.get("admin_url"),
+            "respondent_url": response_json.get("respondent_url"),
+            "name": response_json.get("name"),
+            "description": response_json.get("description"),
+            "num_participants": response_json.get("total_available_places"),
+            "estimated_completion_time_minutes": response_json.get(
+                "estimated_completion_time"
+            ),
+            "participant_payment_cents": response_json.get("reward"),
+            "total_cost_cents": response_json.get("total_cost"),
+            "device_compatibility": response_json.get("device_compatibility"),
+            "peripheral_requirements": response_json.get("peripheral_requirements"),
+            "filters": response_json.get("filters"),
+        }
+
+    def get_prolific_study_responses(
+        self,
+        project_uuid: str,
+        study_id: str,
+    ) -> Union["Results", "ScenarioList"]:
+        """
+        Return a Results object with the human responses for a project.
+
+        If generating the Results object fails, a ScenarioList will be returned instead.
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/projects/{project_uuid}/prolific-studies/{study_id}/responses",
+            method="GET",
+        )
+        self._resolve_server_response(response)
+        response_json = response.json()
+        human_responses = response_json.get("human_responses", [])
+        survey_json_string = response_json.get("survey_json_string")
+
+        return self._turn_human_responses_into_results(
+            human_responses, survey_json_string
+        )
+
+    def delete_prolific_study(
+        self,
+        project_uuid: str,
+        study_id: str,
+    ) -> dict:
+        """
+        Deletes a Prolific study.
+
+        Note: Only draft studies can be deleted. Once you publish a study, it cannot be deleted.
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/projects/{project_uuid}/prolific-studies/{study_id}",
+            method="DELETE",
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
+    def approve_prolific_study_submission(
+        self,
+        project_uuid: str,
+        study_id: str,
+        submission_id: str,
+    ) -> dict:
+        """
+        Approve a Prolific study submission.
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/projects/{project_uuid}/prolific-studies/{study_id}/submissions/{submission_id}/approve",
+            method="POST",
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
+    def reject_prolific_study_submission(
+        self,
+        project_uuid: str,
+        study_id: str,
+        submission_id: str,
+        reason: Literal[
+            "TOO_QUICKLY",
+            "TOO_SLOWLY",
+            "FAILED_INSTRUCTIONS",
+            "INCOMP_LONGITUDINAL",
+            "FAILED_CHECK",
+            "LOW_EFFORT",
+            "MALINGERING",
+            "NO_CODE",
+            "BAD_CODE",
+            "NO_DATA",
+            "UNSUPP_DEVICE",
+            "OTHER",
+        ],
+        explanation: str,
+    ) -> dict:
+        """
+        Reject a Prolific study submission.
+        """
+        valid_rejection_reasons = [
+            "TOO_QUICKLY",
+            "TOO_SLOWLY",
+            "FAILED_INSTRUCTIONS",
+            "INCOMP_LONGITUDINAL",
+            "FAILED_CHECK",
+            "LOW_EFFORT",
+            "MALINGERING",
+            "NO_CODE",
+            "BAD_CODE",
+            "NO_DATA",
+            "UNSUPP_DEVICE",
+            "OTHER",
+        ]
+        if reason not in valid_rejection_reasons:
+            raise CoopValueError(
+                f"Invalid rejection reason. Please use one of the following: {valid_rejection_reasons}."
+            )
+        if len(explanation) < 100:
+            raise CoopValueError(
+                "Rejection explanation must be at least 100 characters."
+            )
+        response = self._send_server_request(
+            uri=f"api/v0/projects/{project_uuid}/prolific-studies/{study_id}/submissions/{submission_id}/reject",
+            method="POST",
+            payload={
+                "reason": reason,
+                "explanation": explanation,
+            },
+        )
+        self._resolve_server_response(response)
+        return response.json()
 
     def __repr__(self):
         """Return a string representation of the client."""
@@ -1817,7 +2334,9 @@ class Coop(CoopFunctionsMixin):
         return response.json().get("uuid")
 
     def pull(
-        self, object_uuid: str, expected_object_type: Optional[ObjectType] = None
+        self,
+        url_or_uuid: Optional[Union[str, UUID]] = None,
+        expected_object_type: Optional[ObjectType] = None,
     ) -> dict:
         """
         Generate a signed URL for pulling an object directly from Google Cloud Storage.
@@ -1826,25 +2345,64 @@ class Coop(CoopFunctionsMixin):
         Google Cloud Storage, which is more efficient for large files.
 
         Parameters:
-            object_uuid (str): The UUID of the object to download
+            url_or_uuid (Union[str, UUID], optional): Identifier for the object to retrieve.
+                Can be one of:
+                - UUID string (e.g., "123e4567-e89b-12d3-a456-426614174000")
+                - Full URL (e.g., "https://expectedparrot.com/content/123e4567...")
+                - Alias URL (e.g., "https://expectedparrot.com/content/username/my-survey")
+            expected_object_type (ObjectType, optional): If provided, validates that the
+                retrieved object is of the expected type (e.g., "survey", "agent")
 
         Returns:
             dict: A response containing the signed_url for direct download
 
         Raises:
+            CoopNoUUIDError: If no UUID or URL is provided
+            CoopInvalidURLError: If the URL format is invalid
             CoopServerResponseError: If there's an error communicating with the server
             HTTPException: If the object or object files are not found
 
         Example:
             >>> response = coop.pull("123e4567-e89b-12d3-a456-426614174000")
+            >>> response = coop.pull("https://expectedparrot.com/content/username/my-survey")
             >>> print(f"Download URL: {response['signed_url']}")
             >>> # Use the signed_url to download the object directly
         """
-        # Send the request to the API endpoint
+        obj_uuid, owner_username, alias = self._resolve_uuid_or_alias(url_or_uuid)
+
+        # Handle alias-based retrieval with new/old format detection
+        if not obj_uuid and owner_username and alias:
+            # First, get object info to determine format and UUID
+            info_response = self._send_server_request(
+                uri="api/v0/object/alias/info",
+                method="GET",
+                params={"owner_username": owner_username, "alias": alias},
+            )
+            self._resolve_server_response(info_response)
+            info_data = info_response.json()
+
+            obj_uuid = info_data.get("uuid")
+            is_new_format = info_data.get("is_new_format", False)
+
+            # Validate object type if expected
+            if expected_object_type:
+                actual_object_type = info_data.get("object_type")
+                if actual_object_type != expected_object_type:
+                    from .exceptions import CoopObjectTypeError
+
+                    raise CoopObjectTypeError(
+                        f"Expected {expected_object_type=} but got {actual_object_type=}"
+                    )
+
+            # Use get method for old format objects
+            if not is_new_format:
+                return self.get(url_or_uuid, expected_object_type)
+
+        # Send the request to the API endpoint with the resolved UUID
         response = self._send_server_request(
             uri="api/v0/object/pull",
             method="POST",
-            payload={"object_uuid": object_uuid},
+            payload={"object_uuid": obj_uuid},
         )
         # Handle any errors in the response
         self._resolve_server_response(response)
@@ -1855,15 +2413,15 @@ class Coop(CoopFunctionsMixin):
         signed_url = response.json().get("signed_url")
 
         if signed_url == "":  # it is in old format
-            return self.get(object_uuid, expected_object_type)
+            return self.get(url_or_uuid, expected_object_type)
 
         try:
             response = requests.get(signed_url)
 
             self._resolve_gcs_response(response)
 
-        except Exception as e:
-            return self.get(object_uuid, expected_object_type)
+        except Exception:
+            return self.get(url_or_uuid, expected_object_type)
         object_dict = response.json()
         if expected_object_type is not None:
             edsl_class = ObjectRegistry.get_edsl_class_by_object_type(
@@ -1872,6 +2430,44 @@ class Coop(CoopFunctionsMixin):
             edsl_object = edsl_class.from_dict(object_dict)
         # Return the response containing the signed URL
         return edsl_object
+
+    def get_upload_url(self, object_uuid: str) -> dict:
+        """
+        Get a signed upload URL for updating the content of an existing object.
+
+        This method gets a signed URL that allows direct upload to Google Cloud Storage
+        for objects stored in the new format, while preserving the existing UUID.
+
+        Parameters:
+            object_uuid (str): The UUID of the object to get an upload URL for
+
+        Returns:
+            dict: A response containing:
+                - signed_url: The signed URL for uploading new content
+                - object_uuid: The UUID of the object
+                - message: Success message
+
+        Raises:
+            CoopServerResponseError: If there's an error communicating with the server
+            HTTPException: If the object is not found, not owned by user, or not in new format
+
+        Notes:
+            - Only works with objects stored in the new format (transition table)
+            - User must be the owner of the object
+            - The signed URL expires after 60 minutes
+
+        Example:
+            >>> response = coop.get_upload_url("123e4567-e89b-12d3-a456-426614174000")
+            >>> upload_url = response['signed_url']
+            >>> # Use the upload_url to PUT new content directly to GCS
+        """
+        response = self._send_server_request(
+            uri="api/v0/object/upload-url",
+            method="POST",
+            payload={"object_uuid": object_uuid},
+        )
+        self._resolve_server_response(response)
+        return response.json()
 
     def push(
         self,
@@ -1924,7 +2520,7 @@ class Coop(CoopFunctionsMixin):
         else:
             from .exceptions import CoopResponseError
 
-            raise CoopResponseError("No signed url was provided received")
+            raise CoopResponseError(response.text)
 
         json_data = json.dumps(
             object_dict,
@@ -1940,6 +2536,9 @@ class Coop(CoopFunctionsMixin):
 
         # Send confirmation that upload was completed
         object_uuid = response_json.get("object_uuid", None)
+        owner_username = response_json.get("owner_username", None)
+        object_alias = response_json.get("alias", None)
+
         if object_uuid is None:
             from .exceptions import CoopResponseError
 
@@ -1953,7 +2552,15 @@ class Coop(CoopFunctionsMixin):
         )
         self._resolve_server_response(confirm_response)
 
-        return {"uuid": object_uuid}
+        return {
+            "description": response_json.get("description"),
+            "object_type": object_type,
+            "url": f"{self.url}/content/{object_uuid}",
+            "alias_url": self._get_alias_url(owner_username, object_alias),
+            "uuid": object_uuid,
+            "version": self._edsl_version,
+            "visibility": response_json.get("visibility"),
+        }
 
     def _display_login_url(
         self, edsl_auth_token: str, link_description: Optional[str] = None
@@ -2038,6 +2645,120 @@ class Coop(CoopFunctionsMixin):
         # Add API key to environment
         load_dotenv()
 
+    def login_streamlit(self, timeout: int = 120):
+        """
+        Start the EDSL auth token login flow inside a Streamlit application.
+
+        This helper is functionally equivalent to ``Coop.login`` but renders the
+        login link and status updates directly in the Streamlit UI.  The method
+        will automatically poll the Expected Parrot server for the API-key
+        associated with the generated auth-token and, once received, store it
+        via ``ExpectedParrotKeyHandler`` and write it to the local ``.env``
+        file so subsequent sessions pick it up automatically.
+
+        Parameters
+        ----------
+        timeout : int, default 120
+            How many seconds to wait for the user to complete the login before
+            giving up and showing an error in the Streamlit app.
+
+        Returns
+        -------
+        str | None
+            The API-key if the user logged-in successfully, otherwise ``None``.
+        """
+        try:
+            import streamlit as st
+            from streamlit.runtime.scriptrunner import get_script_run_ctx
+        except ModuleNotFoundError as exc:
+            raise ImportError(
+                "Streamlit is required for `login_streamlit`. Install it with `pip install streamlit`."
+            ) from exc
+
+        # Ensure we are actually running inside a Streamlit script. If not, give a
+        # clear error message instead of crashing when `st.experimental_rerun` is
+        # invoked outside the Streamlit runtime.
+        if get_script_run_ctx() is None:
+            raise RuntimeError(
+                "`login_streamlit` must be invoked from within a running Streamlit "
+                "app (use `streamlit run your_script.py`). If you need to obtain an "
+                "API-key in a regular Python script or notebook, use `Coop.login()` "
+                "instead."
+            )
+
+        import secrets
+        import time
+        import os
+        from dotenv import load_dotenv
+        from .ep_key_handling import ExpectedParrotKeyHandler
+        from ..utilities.utilities import write_api_key_to_env
+
+        # ------------------------------------------------------------------
+        # 1. Prepare auth-token and store state across reruns
+        # ------------------------------------------------------------------
+        if "edsl_auth_token" not in st.session_state:
+            st.session_state.edsl_auth_token = secrets.token_urlsafe(16)
+            st.session_state.login_start_time = time.time()
+
+        edsl_auth_token: str = st.session_state.edsl_auth_token
+        login_url = f"{CONFIG.EXPECTED_PARROT_URL}/login?edsl_auth_token={edsl_auth_token}"
+
+        # ------------------------------------------------------------------
+        # 2. Render clickable login link
+        # ------------------------------------------------------------------
+        st.markdown(
+            f"🔗 **Log in to Expected Parrot** → [click here]({login_url})",
+            unsafe_allow_html=True,
+        )
+
+        # ------------------------------------------------------------------
+        # 3. Poll server for API-key (runs once per Streamlit execution)
+        # ------------------------------------------------------------------
+        api_key = self._get_api_key(edsl_auth_token)
+        if api_key is None:
+            elapsed = time.time() - st.session_state.login_start_time
+            if elapsed > timeout:
+                st.error("Timed-out waiting for login. Please rerun the app to try again.")
+                return None
+
+            remaining = int(timeout - elapsed)
+            st.info(f"Waiting for login… ({remaining}s left)")
+            # Trigger a rerun after a short delay to continue polling
+            time.sleep(1)
+            # Attempt a rerun in a version-agnostic way. Different Streamlit
+            # releases expose the helper under different names.
+            def _safe_rerun():
+                if hasattr(st, "experimental_rerun"):
+                    st.experimental_rerun()
+                elif hasattr(st, "rerun"):
+                    st.rerun()  # introduced in newer versions
+                else:
+                    # Fallback – advise the user to update Streamlit for automatic polling.
+                    st.warning(
+                        "Please refresh the page to continue the login flow. "
+                        "(Consider upgrading Streamlit to enable automatic refresh.)"
+                    )
+
+            try:
+                _safe_rerun()
+            except Exception:
+                # The Streamlit runtime intercepts the rerun exception; any other
+                # unexpected errors are ignored to avoid crashing the app.
+                pass
+
+        # ------------------------------------------------------------------
+        # 4. Key received – persist it and notify user
+        # ------------------------------------------------------------------
+        ExpectedParrotKeyHandler().store_ep_api_key(api_key)
+        os.environ["EXPECTED_PARROT_API_KEY"] = api_key
+        path_to_env = write_api_key_to_env(api_key)
+        load_dotenv()
+
+        st.success("API-key retrieved and stored. You are now logged-in! 🎉")
+        st.caption(f"Key saved to `{path_to_env}`.")
+
+        return api_key
+
     def transfer_credits(
         self,
         credits_transferred: int,
@@ -2104,7 +2825,9 @@ class Coop(CoopFunctionsMixin):
             >>> balance = coop.get_balance()
             >>> print(f"You have {balance['credits']} credits available.")
         """
-        response = self._send_server_request(uri="api/users/get_balance", method="GET")
+        response = self._send_server_request(
+            uri="api/v0/users/get-balance", method="GET"
+        )
         self._resolve_server_response(response)
         return response.json()
 
@@ -2244,3 +2967,12 @@ def main():
     job_coop_object = coop.remote_inference_create(job)
     job_coop_results = coop.remote_inference_get(job_coop_object.get("uuid"))
     coop.get(job_coop_results.get("results_uuid"))
+
+    import streamlit as st
+    from edsl.coop import Coop
+
+    coop = Coop()                 # no API-key required yet
+    api_key = coop.login_streamlit()   # renders link + handles polling & storage
+
+    if api_key:
+        st.success("Ready to use EDSL with remote features!")
