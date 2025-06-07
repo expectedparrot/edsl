@@ -3,6 +3,7 @@ import base64
 import json
 import requests
 import time
+import os
 
 from typing import Any, Dict, Optional, Union, Literal, List, TypedDict, TYPE_CHECKING
 from uuid import UUID
@@ -2893,12 +2894,12 @@ class Coop(CoopFunctionsMixin):
         # ------------------------------------------------------------------
         # 2. Build Gradio interface
         # ------------------------------------------------------------------
-        with gr.Blocks(compact=True) as demo:
-            gr.Markdown(
-                f"🔗 **Log in to Expected Parrot** → [click here]({login_url}){{:target=\"_blank\"}}",
+        with gr.Blocks() as demo:
+            gr.HTML(
+                f'🔗 <b>Log in to Expected Parrot</b> → <a href="{login_url}" target="_blank">click here</a>'
             )
             status_md = gr.Markdown("Waiting for login…")
-            refresh_btn = gr.Button("Refresh status")
+            refresh_btn = gr.Button("I've logged in – click to continue", elem_id="refresh-btn")
             key_state = gr.State(value=None)
 
             # --------------------------------------------------------------
@@ -2906,7 +2907,17 @@ class Coop(CoopFunctionsMixin):
             # --------------------------------------------------------------
             def _refresh(current_key):  # noqa: D401, pylint: disable=unused-argument
                 """Poll server for API-key and update UI accordingly."""
+                # Fallback helper to generate a `update` object for the refresh button
+                def _button_update(**kwargs):
+                    try:
+                        return gr.Button.update(**kwargs)
+                    except AttributeError:
+                        return gr.update(**kwargs)
+
                 api_key = self._get_api_key(edsl_auth_token)
+                # Fall back to env var in case the key was obtained earlier in this session
+                if not api_key:
+                    api_key = os.environ.get("EXPECTED_PARROT_API_KEY")
                 elapsed = time.time() - start_time
                 remaining = max(0, int(timeout - elapsed))
 
@@ -2922,7 +2933,7 @@ class Coop(CoopFunctionsMixin):
                     )
                     return (
                         success_msg,
-                        gr.Button.update(interactive=False, visible=False),
+                        _button_update(interactive=False, visible=False),
                         api_key,
                     )
 
@@ -2933,18 +2944,19 @@ class Coop(CoopFunctionsMixin):
                     )
                     return (
                         err_msg,
-                        gr.Button.update(),
+                        _button_update(),
                         None,
                     )
 
                 info_msg = f"Waiting for login… ({remaining}s left)"
                 return (
                     info_msg,
-                    gr.Button.update(),
+                    _button_update(),
                     None,
                 )
 
-            refresh_btn.click(
+            # Initial status check when the interface loads
+            demo.load(
                 fn=_refresh,
                 inputs=key_state,
                 outputs=[status_md, refresh_btn, key_state],
