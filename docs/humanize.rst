@@ -7,6 +7,7 @@ EDSL comes with built-in methods for generating web-based versions of your surve
 
 *Note:* This page provides information about EDSL code methods for launching surveys, gathering human responses, and analyzing results from your workspace. 
 For more information about building surveys interactively, see the :ref:`survey_builder` page.
+For more information about launching studies with Prolific participants, see the :ref:`prolific` page.
 
 
 How it works
