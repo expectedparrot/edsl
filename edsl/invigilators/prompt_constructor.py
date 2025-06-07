@@ -23,26 +23,27 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+
 class BasePlaceholder:
     """
     Base class for placeholder values used when a question is not yet answered.
-    
+
     This class provides a mechanism for handling references to previous question
     answers that don't yet exist or are unavailable. It serves as a marker or
     placeholder in prompts and template processing, ensuring that the system can
     gracefully handle dependencies on missing answers.
-    
+
     Attributes:
         value: The default value to use when the placeholder is accessed directly.
         comment: Description of the placeholder's purpose.
         _type: The type of placeholder (e.g., "answer", "comment").
-    
+
     Technical Design:
     - Implements __getitem__ to act like an empty collection when indexed
     - Provides clear string representation for debugging and logging
     - Serves as a base for specific placeholder types like PlaceholderAnswer
     - Used during template rendering to handle missing or future answers
-    
+
     Implementation Notes:
     - This is important for template-based question logic where not all answers
       may be available at template rendering time
@@ -53,7 +54,7 @@ class BasePlaceholder:
     def __init__(self, placeholder_type: str = "answer"):
         """
         Initialize a new BasePlaceholder.
-        
+
         Args:
             placeholder_type: The type of placeholder (e.g., "answer", "comment").
         """
@@ -64,13 +65,13 @@ class BasePlaceholder:
     def __getitem__(self, index: Any) -> str:
         """
         Allow indexing into the placeholder, always returning an empty string.
-        
+
         This method makes placeholders act like empty collections when indexed,
         preventing errors when templates try to access specific items.
-        
+
         Args:
             index: The index being accessed (ignored).
-            
+
         Returns:
             An empty string.
         """
@@ -79,7 +80,7 @@ class BasePlaceholder:
     def __str__(self) -> str:
         """
         Get a string representation of the placeholder for display.
-        
+
         Returns:
             A string identifying this as a placeholder of a specific type.
         """
@@ -88,7 +89,7 @@ class BasePlaceholder:
     def __repr__(self) -> str:
         """
         Get a string representation for debugging purposes.
-        
+
         Returns:
             Same string as __str__.
         """
@@ -113,66 +114,65 @@ class PlaceholderGeneratedTokens(BasePlaceholder):
 class PromptConstructor:
     """
     Constructs structured prompts for language models based on questions, agents, and context.
-    
+
     The PromptConstructor is a critical component in the invigilator architecture that
     assembles the various elements needed to form effective prompts for language models.
     It handles the complex task of combining question content, agent characteristics,
     response requirements, and contextual information into coherent prompts that elicit
     well-structured responses.
-    
+
     Prompt Architecture:
-    The constructor builds prompts with several distinct components:
-    
-    1. Agent Instructions:
-       - Core instructions about the agent's role and behavior
-       - Example: "You are answering questions as if you were a human. Do not break character."
-    
-    2. Persona Prompt:
-       - Details about the agent's characteristics and traits
-       - Example: "You are an agent with the following persona: {'age': 22, 'hair': 'brown'}"
-    
-    3. Question Instructions:
-       - The question itself with instructions on how to answer
-       - Example: "You are being asked: Do you like school? The options are 0: yes 1: no
-                 Return a valid JSON with your answer code and explanation."
-    
-    4. Memory Prompt:
-       - Information about previous questions and answers in the sequence
-       - Example: "Before this question, you answered: Question: Do you like school? Answer: Yes"
-    
+        The constructor builds prompts with several distinct components:
+
+        1. Agent Instructions:
+            Core instructions about the agent's role and behavior
+            Example: "You are answering questions as if you were a human. Do not break character."
+
+        2. Persona Prompt:
+            Details about the agent's characteristics and traits
+            Example: "You are an agent with the following persona: {'age': 22, 'hair': 'brown'}"
+
+        3. Question Instructions:
+            The question itself with instructions on how to answer
+            Example: "You are being asked: Do you like school? The options are 0: yes 1: no
+                    Return a valid JSON with your answer code and explanation."
+
+        4. Memory Prompt:
+            Information about previous questions and answers in the sequence
+            Example: "Before this question, you answered: Question: Do you like school? Answer: Yes"
+
     Technical Design:
-    - Uses a template-based approach for flexibility and consistency
-    - Processes question options to present them clearly to the model
-    - Handles template variable replacements for scenarios and previous answers
-    - Supports both system and user prompts with appropriate content separation
-    - Caches computed properties for efficiency
-    
+        - Uses a template-based approach for flexibility and consistency
+        - Processes question options to present them clearly to the model
+        - Handles template variable replacements for scenarios and previous answers
+        - Supports both system and user prompts with appropriate content separation
+        - Caches computed properties for efficiency
+
     Implementation Notes:
-    - The class performs no direct I/O or model calls
-    - It focuses solely on prompt construction, adhering to single responsibility principle
-    - Various helper classes handle specialized aspects of prompt construction
-    - Extensive use of cached_property for computational efficiency with complex prompts
+        - The class performs no direct I/O or model calls
+        - It focuses solely on prompt construction, adhering to single responsibility principle
+        - Various helper classes handle specialized aspects of prompt construction
+        - Extensive use of cached_property for computational efficiency with complex prompts
     """
+
     @classmethod
     def from_invigilator(
-        cls,
-        invigilator: "InvigilatorBase",
-        prompt_plan: Optional["PromptPlan"] = None
+        cls, invigilator: "InvigilatorBase", prompt_plan: Optional["PromptPlan"] = None
     ) -> "PromptConstructor":
         """
         Create a PromptConstructor from an invigilator instance.
-        
+
         This factory method extracts the necessary components from an invigilator
         and creates a PromptConstructor instance. This is the primary way to create
         a PromptConstructor in the context of administering questions.
-        
+
         Args:
-            invigilator: The invigilator instance containing all necessary components.
-            prompt_plan: Optional custom prompt plan. If None, uses the invigilator's plan.
-            
+            invigilator: The invigilator instance containing all necessary components
+            prompt_plan: Optional custom prompt plan. If None, uses the invigilator's plan
+
         Returns:
-            A new PromptConstructor instance configured with the invigilator's components.
-            
+            A new PromptConstructor instance configured with the invigilator's components
+
         Technical Notes:
             - This method simplifies the creation of a PromptConstructor with all necessary context
             - It extracts all required components from the invigilator
@@ -187,7 +187,7 @@ class PromptConstructor:
             model=invigilator.model,
             current_answers=invigilator.current_answers,
             memory_plan=invigilator.memory_plan,
-            prompt_plan=prompt_plan or invigilator.prompt_plan
+            prompt_plan=prompt_plan or invigilator.prompt_plan,
         )
 
     def __init__(
@@ -199,26 +199,26 @@ class PromptConstructor:
         model: "LanguageModel",
         current_answers: dict,
         memory_plan: "MemoryPlan",
-        prompt_plan: Optional["PromptPlan"] = None
+        prompt_plan: Optional["PromptPlan"] = None,
     ):
         """
         Initialize a new PromptConstructor with all necessary components.
-        
+
         This constructor sets up a prompt constructor with references to all the
         components needed to build effective prompts for language models. It establishes
         the context for constructing prompts that are specific to the given question,
         agent, scenario, and other context.
-        
+
         Args:
-            agent: The agent for which to construct prompts.
-            question: The question being asked.
-            scenario: The scenario providing context for the question.
-            survey: The survey containing the question.
-            model: The language model that will process the prompts.
-            current_answers: Dictionary of answers to previous questions.
-            memory_plan: Plan for managing memory across questions.
-            prompt_plan: Configuration for how to structure the prompts.
-            
+            agent: The agent for which to construct prompts
+            question: The question being asked
+            scenario: The scenario providing context for the question
+            survey: The survey containing the question
+            model: The language model that will process the prompts
+            current_answers: Dictionary of answers to previous questions
+            memory_plan: Plan for managing memory across questions
+            prompt_plan: Configuration for how to structure the prompts
+
         Technical Notes:
             - All components are stored as instance attributes for use in prompt construction
             - The prompt_plan determines which components are included in the prompts and how
@@ -241,17 +241,28 @@ class PromptConstructor:
     def get_question_options(self, question_data: dict) -> list[str]:
         """
         Get formatted options for a question based on its data.
-        
+
         This method delegates to a QuestionOptionProcessor to transform raw question
         option data into a format appropriate for inclusion in prompts. It handles
         various question types and their specific option formatting requirements.
-        
+
         Args:
-            question_data: Dictionary containing the question data, including options.
-            
+            question_data: Dictionary containing the question data, including options
+
         Returns:
-            A list of formatted option strings ready for inclusion in prompts.
-            
+            list[str]: A list of formatted option strings ready for inclusion in prompts
+
+        Examples:
+            >>> from edsl.invigilators.invigilators import InvigilatorBase
+            >>> i = InvigilatorBase.example()
+            >>> question_data = {"options": ["yes", "no"], "option_codes": [0, 1]}
+            >>> i.prompt_constructor.get_question_options(question_data)
+            ['0: yes', '1: no']
+
+            >>> question_data = {"options": ["strongly agree", "agree", "disagree"]}
+            >>> i.prompt_constructor.get_question_options(question_data)
+            ['0: strongly agree', '1: agree', '2: disagree']
+
         Technical Notes:
             - Delegates the actual option processing to the QuestionOptionProcessor
             - The processor has specialized logic for different question types
@@ -259,18 +270,23 @@ class PromptConstructor:
             - This separation of concerns keeps the PromptConstructor focused on
               overall prompt construction rather than option formatting details
         """
-        return (QuestionOptionProcessor
-                .from_prompt_constructor(self)
-                .get_question_options(question_data)
-        )
+        return QuestionOptionProcessor.from_prompt_constructor(
+            self
+        ).get_question_options(question_data)
 
     @cached_property
     def agent_instructions_prompt(self) -> Prompt:
         """
-        >>> from .invigilators import InvigilatorBase
-        >>> i = InvigilatorBase.example()
-        >>> i.prompt_constructor.agent_instructions_prompt
-        Prompt(text=\"""You are answering questions as if you were a human. Do not break character.\""")
+        Get the agent's core instruction prompt.
+
+        Returns:
+            Prompt: A prompt containing the agent's core instructions
+
+        Examples:
+            >>> from .invigilators import InvigilatorBase
+            >>> i = InvigilatorBase.example()
+            >>> i.prompt_constructor.agent_instructions_prompt
+            Prompt(text=\"""You are answering questions as if you were a human. Do not break character.\""")
         """
         from ..agents import Agent
 
@@ -282,10 +298,16 @@ class PromptConstructor:
     @cached_property
     def agent_persona_prompt(self) -> Prompt:
         """
-        >>> from edsl.invigilators.invigilators import InvigilatorBase
-        >>> i = InvigilatorBase.example()
-        >>> i.prompt_constructor.agent_persona_prompt
-        Prompt(text=\"""Your traits: {'age': 22, 'hair': 'brown', 'height': 5.5}\""")
+        Get the agent's persona characteristics prompt.
+
+        Returns:
+            Prompt: A prompt containing the agent's traits and characteristics
+
+        Examples:
+            >>> from edsl.invigilators.invigilators import InvigilatorBase
+            >>> i = InvigilatorBase.example()
+            >>> i.prompt_constructor.agent_persona_prompt
+            Prompt(text=\"""Your traits: {'age': 22, 'hair': 'brown', 'height': 5.5}\""")
         """
         from ..agents import Agent
 
@@ -295,12 +317,17 @@ class PromptConstructor:
         return self.agent.prompt()
 
     def prior_answers_dict(self) -> dict[str, "QuestionBase"]:
-        """This is a dictionary of prior answers, if they exist.
-        
-        >>> from edsl.invigilators.invigilators import InvigilatorBase
-        >>> i = InvigilatorBase.example()
-        >>> i.prompt_constructor.prior_answers_dict()
-        {'q0': ..., 'q1': ...}
+        """
+        Get a dictionary of prior answers if they exist.
+
+        Returns:
+            dict[str, QuestionBase]: A dictionary mapping question names to their answered instances
+
+        Examples:
+            >>> from edsl.invigilators.invigilators import InvigilatorBase
+            >>> i = InvigilatorBase.example()
+            >>> i.prompt_constructor.prior_answers_dict()
+            {'q0': ..., 'q1': ...}
         """
         return self._add_answers(
             self.survey.question_names_to_questions(), self.current_answers
@@ -309,16 +336,23 @@ class PromptConstructor:
     @staticmethod
     def _extract_question_and_entry_type(key_entry) -> tuple[str, str]:
         """
-        Extracts the question name and type for the current answer dictionary key entry.
+        Extract the question name and type from a dictionary key entry.
 
-        >>> PromptConstructor._extract_question_and_entry_type("q0")
-        ('q0', 'answer')
-        >>> PromptConstructor._extract_question_and_entry_type("q0_comment")
-        ('q0', 'comment')
-        >>> PromptConstructor._extract_question_and_entry_type("q0_alternate_generated_tokens")
-        ('q0_alternate', 'generated_tokens')
-        >>> PromptConstructor._extract_question_and_entry_type("q0_alt_comment")
-        ('q0_alt', 'comment')
+        Args:
+            key_entry: The key from the answers dictionary to parse
+
+        Returns:
+            tuple[str, str]: A tuple of (question_name, entry_type)
+
+        Examples:
+            >>> PromptConstructor._extract_question_and_entry_type("q0")
+            ('q0', 'answer')
+            >>> PromptConstructor._extract_question_and_entry_type("q0_comment")
+            ('q0', 'comment')
+            >>> PromptConstructor._extract_question_and_entry_type("q0_alternate_generated_tokens")
+            ('q0_alternate', 'generated_tokens')
+            >>> PromptConstructor._extract_question_and_entry_type("q0_alt_comment")
+            ('q0_alt', 'comment')
         """
         split_list = key_entry.rsplit("_", maxsplit=1)
         if len(split_list) == 1:
@@ -339,18 +373,29 @@ class PromptConstructor:
     @staticmethod
     def _augmented_answers_dict(current_answers: dict) -> dict:
         """
-        Creates a nested dictionary of the current answers to question dictionaries; those question dictionaries have the answer, comment, and generated_tokens as keys.
+        Create a nested dictionary of current answers organized by question.
 
-        >>> PromptConstructor._augmented_answers_dict({"q0": "LOVE IT!", "q0_comment": "I love school!"})
-        {'q0': {'answer': 'LOVE IT!', 'comment': 'I love school!'}}
+        Creates a dictionary where each question's answers, comments, and generated tokens
+        are grouped together in a sub-dictionary.
+
+        Args:
+            current_answers: The flat dictionary of current answers
+
+        Returns:
+            dict: A nested dictionary with answers organized by question
+
+        Examples:
+            >>> PromptConstructor._augmented_answers_dict({"q0": "LOVE IT!", "q0_comment": "I love school!"})
+            {'q0': {'answer': 'LOVE IT!', 'comment': 'I love school!'}}
         """
         from collections import defaultdict
 
         d = defaultdict(dict)
         for key, value in current_answers.items():
-            question_name, entry_type = (
-                PromptConstructor._extract_question_and_entry_type(key)
-            )
+            (
+                question_name,
+                entry_type,
+            ) = PromptConstructor._extract_question_and_entry_type(key)
             d[question_name][entry_type] = value
         return dict(d)
 
@@ -359,13 +404,21 @@ class PromptConstructor:
         answer_dict: dict, current_answers: dict
     ) -> dict[str, "QuestionBase"]:
         """
-        Adds the current answers to the answer dictionary.
+        Add current answers to the answer dictionary, handling missing answers with placeholders.
 
-        >>> from edsl import QuestionFreeText
-        >>> d = {"q0": QuestionFreeText(question_text="Do you like school?", question_name = "q0")}
-        >>> current_answers = {"q0": "LOVE IT!"}
-        >>> PromptConstructor._add_answers(d, current_answers)['q0'].answer
-        'LOVE IT!'
+        Args:
+            answer_dict: The base dictionary of questions
+            current_answers: The dictionary of current answers to add
+
+        Returns:
+            dict[str, QuestionBase]: The updated dictionary with answers added
+
+        Examples:
+            >>> from edsl import QuestionFreeText
+            >>> d = {"q0": QuestionFreeText(question_text="Do you like school?", question_name = "q0")}
+            >>> current_answers = {"q0": "LOVE IT!"}
+            >>> PromptConstructor._add_answers(d, current_answers)['q0'].answer
+            'LOVE IT!'
         """
         augmented_answers = PromptConstructor._augmented_answers_dict(current_answers)
 
@@ -381,11 +434,17 @@ class PromptConstructor:
 
     @cached_property
     def file_keys_from_question(self) -> list:
-        """Extracts the file keys from the question text.
-        
-        It checks if the variables in the question text are in the scenario file keys.
         """
-        return QuestionTemplateReplacementsBuilder.from_prompt_constructor(self).question_file_keys()
+        Extract file keys referenced in the question text.
+
+        Checks if variables in the question text correspond to scenario file keys.
+
+        Returns:
+            list: A list of file keys found in the question text
+        """
+        return QuestionTemplateReplacementsBuilder.from_prompt_constructor(
+            self
+        ).question_file_keys()
 
     @cached_property
     def question_instructions_prompt(self) -> Prompt:
@@ -399,17 +458,52 @@ class PromptConstructor:
         return self.build_question_instructions_prompt()
 
     def build_question_instructions_prompt(self) -> Prompt:
-        """Buils the question instructions prompt."""
-        from .question_instructions_prompt_builder import QuestionInstructionPromptBuilder
+        """
+        Builds the question instructions prompt by combining question text, options, and formatting.
+
+        This method uses the QuestionInstructionPromptBuilder to construct a complete
+        prompt that includes the question text, available options, and any necessary
+        formatting or additional instructions for the model.
+
+        Returns:
+            Prompt: A Prompt object containing the fully constructed question instructions
+
+        Examples:
+            >>> from edsl.invigilators.invigilators import InvigilatorBase
+            >>> i = InvigilatorBase.example()
+            >>> prompt = i.prompt_constructor.build_question_instructions_prompt()
+            >>> "Do you like school?" in prompt.text
+            True
+            >>> "0: yes" in prompt.text
+            True
+            >>> "1: no" in prompt.text
+            True
+
+        Technical Notes:
+            - Uses QuestionInstructionPromptBuilder for consistent prompt formatting
+            - Captures any variables set during prompt construction
+            - Updates the captured_variables dictionary with any new variables
+            - Returns a complete Prompt object ready for rendering
+        """
+        from .question_instructions_prompt_builder import (
+            QuestionInstructionPromptBuilder,
+        )
+
         qipb = QuestionInstructionPromptBuilder.from_prompt_constructor(self)
         prompt = qipb.build()
         if prompt.captured_variables:
             self.captured_variables.update(prompt.captured_variables)
-            
+
         return prompt
-    
+
     @cached_property
     def prior_question_memory_prompt(self) -> Prompt:
+        """
+        Get the prompt containing memory of prior questions and answers.
+
+        Returns:
+            Prompt: A prompt containing the relevant prior question memory
+        """
         memory_prompt = Prompt(text="")
         if self.memory_plan is not None:
             memory_prompt += self.create_memory_prompt(
@@ -418,40 +512,83 @@ class PromptConstructor:
         return memory_prompt
 
     def create_memory_prompt(self, question_name: str) -> Prompt:
-        """Create a memory for the agent.
+        """
+        Create a memory prompt containing previous question answers for the agent.
 
-        The returns a memory prompt for the agent.
+        Args:
+            question_name: The name of the current question
 
-        >>> from edsl.invigilators.invigilators import InvigilatorBase
-        >>> i = InvigilatorBase.example()
-        >>> i.current_answers = {"q0": "Prior answer"}
-        >>> i.memory_plan.add_single_memory("q1", "q0")
-        >>> p = i.prompt_constructor.create_memory_prompt("q1")
-        >>> p.text.strip().replace("\\n", " ").replace("\\t", " ")
-        'Before the question you are now answering, you already answered the following question(s):          Question: Do you like school?  Answer: Prior answer'
+        Returns:
+            Prompt: A memory prompt containing relevant prior answers
+
+        Examples:
+            >>> from edsl.invigilators.invigilators import InvigilatorBase
+            >>> i = InvigilatorBase.example()
+            >>> i.current_answers = {"q0": "Prior answer"}
+            >>> i.memory_plan.add_single_memory("q1", "q0")
+            >>> p = i.prompt_constructor.create_memory_prompt("q1")
+            >>> p.text.strip().replace("\\n", " ").replace("\\t", " ")
+            'Before the question you are now answering, you already answered the following question(s):          Question: Do you like school?  Answer: Prior answer'
         """
         return self.memory_plan.get_memory_prompt_fragment(
             question_name, self.current_answers
         )
 
     def get_prompts(self) -> Dict[str, Any]:
-        """Get the prompts for the question."""
+        """
+        Get all prompts needed for the question, properly formatted and organized.
+
+        This method assembles all the different components of the prompt system:
+        - Agent instructions
+        - Agent persona
+        - Question instructions
+        - Prior question memory
+        And combines them according to the prompt plan's specifications.
+
+        Returns:
+            Dict[str, Any]: A dictionary containing the formatted prompts and any associated files.
+            The dictionary typically includes:
+                - 'system_prompt': Instructions for the model's behavior
+                - 'user_prompt': The actual question and context
+                - 'files_list': Any relevant files (if file keys are present)
+
+        Examples:
+            >>> from edsl.invigilators.invigilators import InvigilatorBase
+            >>> i = InvigilatorBase.example()
+            >>> prompts = i.prompt_constructor.get_prompts()
+            >>> "Do not break character" in prompts['system_prompt']
+            True
+            >>> "Do you like school?" in prompts['user_prompt']
+            True
+
+            # Test with file keys
+            >>> i.prompt_constructor.file_keys_from_question = ['code.py']
+            >>> i.prompt_constructor.scenario = {'code.py': 'print("Hello")'}
+            >>> prompts = i.prompt_constructor.get_prompts()
+            >>> prompts['files_list']
+            ['print("Hello")']
+
+        Technical Notes:
+            - Builds all prompt components first
+            - Uses the prompt plan to organize components
+            - Handles file attachments if specified in the question
+            - Returns a complete dictionary ready for use with the language model
+        """
         # Build all the components
         agent_instructions = self.agent_instructions_prompt
         agent_persona = self.agent_persona_prompt
         question_instructions = self.question_instructions_prompt
         prior_question_memory = self.prior_question_memory_prompt
-        
+
         # Get components dict
         components = {
             "agent_instructions": agent_instructions.text,
             "agent_persona": agent_persona.text,
             "question_instructions": question_instructions.text,
             "prior_question_memory": prior_question_memory.text,
-        }        
-        
+        }
+
         prompts = self.prompt_plan.get_prompts(**components)
-        
         # Handle file keys if present
         file_keys = self.file_keys_from_question
         if file_keys:
@@ -459,14 +596,40 @@ class PromptConstructor:
             for key in file_keys:
                 files_list.append(self.scenario[key])
             prompts["files_list"] = files_list
-    
+
         return prompts
-    
+
     def get_captured_variables(self) -> dict:
-        """Get the captured variables."""
+        """
+        Get all variables that were captured during prompt construction and rendering.
+
+        This method returns any variables that were set during the template rendering
+        process. These variables can be used for tracking state, storing intermediate
+        values, or capturing information about the prompt construction process.
+
+        Returns:
+            dict: A dictionary containing all captured variables and their values
+
+        Examples:
+            >>> from edsl.invigilators.invigilators import InvigilatorBase
+            >>> i = InvigilatorBase.example()
+            >>> i.prompt_constructor.captured_variables = {'answer_count': 5, 'last_response': 'yes'}
+            >>> vars = i.prompt_constructor.get_captured_variables()
+            >>> vars['answer_count']
+            5
+            >>> vars['last_response']
+            'yes'
+
+        Technical Notes:
+            - Variables are captured during template rendering
+            - The dictionary is updated throughout the prompt construction process
+            - Useful for debugging and tracking template variable usage
+            - Can be used to pass information between different parts of the system
+        """
         return self.captured_variables
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import doctest
+
     doctest.testmod(optionflags=doctest.ELLIPSIS)

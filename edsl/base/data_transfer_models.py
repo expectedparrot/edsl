@@ -17,6 +17,7 @@ class EDSLOutput(NamedTuple):
     answer: Any
     generated_tokens: str
     comment: Optional[str] = None
+    reasoning_summary: Optional[Any] = None
 
 
 class ModelResponse(NamedTuple):
@@ -49,6 +50,7 @@ class EDSLResultObjectInput(NamedTuple):
     cache_key: str
     answer: Any
     comment: str
+    reasoning_summary: Optional[Any] = None
     validated: bool = False
     exception_occurred: Exception = None
     input_tokens: Optional[int] = None
@@ -96,12 +98,15 @@ class Answers(UserDict):
         answer = response.answer
         comment = response.comment
         generated_tokens = response.generated_tokens
+        reasoning_summary = response.reasoning_summary
         # record the answer
         if generated_tokens:
             self[question.question_name + "_generated_tokens"] = generated_tokens
         self[question.question_name] = answer
         if comment:
             self[question.question_name + "_comment"] = comment
+        if reasoning_summary:
+            self[question.question_name + "_reasoning_summary"] = reasoning_summary
 
     def replace_missing_answers_with_none(self, survey: "Survey") -> None:
         """Replace missing answers with None. Answers can be missing if the agent skips a question."""

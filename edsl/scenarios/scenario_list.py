@@ -145,25 +145,29 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         """Initialize a new ScenarioList with optional data and codebook."""
         self._data_class = data_class
         self.data = self._data_class([])
-        warned = False
         for item in data or []:
-            try: 
-                _ = json.dumps(item.to_dict())
-            except:
-                import warnings 
-                if not warned:
-                    warnings.warn( 
-                        f"One or more items in the data list are not JSON serializable. "
-                        "This would prevent running a job that uses this ScenarioList."
-                        "One solution is to use 'str(item)' to convert the item to a string before adding."
-                    )
-                    warned = True
             self.data.append(item)
         self.codebook = codebook or {}
 
+    def is_serializable(self):
+        for item in self.data:
+            try:
+                _ = json.dumps(item.to_dict())
+            except Exception as e:
+                return False
+        return True
+
     # Required MutableSequence abstract methods
     def __getitem__(self, index):
-        """Get item at index."""
+        """Get item at index.
+
+        Example:
+            >>> from edsl.scenarios import Scenario, ScenarioList
+            >>> sl = ScenarioList([Scenario({'a': 12})])
+            >>> sl[0]['b'] = 100  # modify in-place
+            >>> sl[0]['b']
+            100
+        """
         if isinstance(index, slice):
             return self.__class__(list(self.data[index]), self.codebook.copy())
         return self.data[index]
@@ -360,6 +364,54 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
                 new_scenarios.append(Scenario(new_scenario))
 
         return new_scenarios
+
+    @classmethod
+    def from_prompt(self, description: str, name:Optional[str] = "item", target_number:int = 10, verbose = False):
+        from ..questions.question_list import QuestionList
+        q = QuestionList(question_name = name, 
+                         question_text = description + f"\n Please try to return {target_number} examples.")
+        results = q.run(verbose = verbose)
+        return results.select(name).to_scenario_list().expand(name)
+    
+
+    def __add__(self, other):
+        if isinstance(other, Scenario):
+            new_list = self.duplicate()
+            new_list.append(other)
+            return new_list
+        elif isinstance(other, ScenarioList):
+            new_list = self.duplicate()
+            for item in other:
+                new_list.append(item)
+        else:
+            raise ScenarioError("Don't know how to combine!")
+        return new_list
+
+    @classmethod
+    def from_search_terms(cls, search_terms: List[str]) -> ScenarioList:
+        """Create a ScenarioList from a list of search terms, using Wikipedia.
+
+        Args:
+            search_terms: A list of search terms.
+        """
+        from ..utilities.wikipedia import fetch_wikipedia_content
+        results = fetch_wikipedia_content(search_terms)
+        return cls([Scenario(result) for result in results])
+    
+    def augment_with_wikipedia(self, search_key:str, content_only: bool = True, key_name: str = "wikipedia_content") -> ScenarioList:
+        """Augment the ScenarioList with Wikipedia content."""
+        search_terms = self.select(search_key).to_list()
+        wikipedia_results = ScenarioList.from_search_terms(search_terms)
+        new_sl = ScenarioList(data = [], codebook = self.codebook)
+        for scenario, wikipedia_result in zip(self, wikipedia_results):
+            if content_only:
+                scenario[key_name] = wikipedia_result["content"]
+                new_sl.append(scenario)
+            else:
+                scenario[key_name] = wikipedia_result
+                new_sl.append(scenario)
+        return new_sl
+
 
     def pivot(
         self,
