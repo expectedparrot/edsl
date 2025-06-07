@@ -6,6 +6,7 @@ from edsl.jobs import Jobs
 from edsl.scenarios import ScenarioList
 from edsl.notebooks import Notebook
 import pytest
+import time 
 class TestCoopUUIDFromObjectHash(unittest.TestCase):
     """Test getting UUID from object hash for various EDSL objects."""
     @pytest.mark.coop
@@ -30,6 +31,7 @@ class TestCoopUUIDFromObjectHash(unittest.TestCase):
             
             assert uuid_from_hash != None, f"UUID from hash is None for {obj.__class__.__name__}"
             # Pull the object from remote using UUID
+            time.sleep(2)
             pulled_obj = obj.pull(uuid_from_push)
             
             # Verify pulled object has same hash
