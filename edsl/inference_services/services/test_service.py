@@ -54,7 +54,7 @@ class TestService(InferenceServiceABC):
             input_token_name = cls.input_token_name
             output_token_name = cls.output_token_name
             _rpm = 1000
-            _tpm = 100000
+            _tpm = 8000000
 
             @property
             def _canned_response(self):

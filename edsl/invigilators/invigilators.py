@@ -105,7 +105,11 @@ class InvigilatorBase(ABC):
             value = getattr(self, attr)
             if value is None:
                 return None
-            if hasattr(value, "to_dict"):
+            if attr == "scenario" and hasattr(value, "offload"):
+                # Use the scenario's offload method to replace base64_string values
+                offloaded = value.offload()
+                return offloaded.to_dict()
+            elif hasattr(value, "to_dict"):
                 return value.to_dict()
             if isinstance(value, (int, float, str, bool, dict, list)):
                 return value

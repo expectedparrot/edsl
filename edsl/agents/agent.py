@@ -58,6 +58,7 @@ from typing import (
     TypeVar,
     Type,
 )
+from collections.abc import MutableMapping
 
 if TYPE_CHECKING:
     from ..caching import Cache
@@ -106,24 +107,69 @@ class DirectAnswerMethod(Protocol):
     def __call__(self, self_: A, question: QuestionBase, scenario: Scenario) -> Any: ...
 
 
-class AgentTraits(Scenario):
-    """A class representing the traits of an agent.
-    
-    AgentTraits inherits from Scenario to provide a structured way to store and
-    access agent characteristics. This allows agent traits to be handled consistently
-    throughout the EDSL framework, including for presentation in prompts.
-    
-    Attributes:
-        data: Dictionary containing the agent's traits as key-value pairs
+class AgentTraits(MutableMapping):
     """
+    A proxy around the real trait dict.
+    All writes go through _guard(), which delegates to the parent Agent
+    to enforce whatever rules it wants (no dynamic-traits override, etc.).
+    """
+    def __init__(self, data: dict, parent: "Agent"):
+        self._store = Scenario(data)
+        self._parent = parent
 
+    # ---- internal helper -------------------------------------------------
+    def _guard(self):
+        self._parent._check_before_modifying_traits()        # raise if not allowed
+
+    # ---- MutableMapping interface ----------------------------------------
+    def __getitem__(self, key):
+        return self._store[key]
+
+    def __setitem__(self, key, value):
+        self._guard()
+        self._store[key] = value
+
+    def __delitem__(self, key):
+        self._guard()
+        del self._store[key]
+
+    def __iter__(self):
+        return iter(self._store)
+
+    def __len__(self):
+        return len(self._store)
+
+    # nice repr for debugging
     def __repr__(self):
-        """Generate a string representation of the agent traits.
-        
-        Returns:
-            str: String representation of the agent traits dictionary
+        return dict(self._store).__repr__()
+
+    # allow dict | union syntax to work like normal dicts
+    def __or__(self, other):
+        """Return a regular dictionary that is the union of this mapping and *other*.
+
+        Mirrors the behaviour of ``dict.__or__`` introduced in Python 3.9 so that
+        ``AgentTraits | AgentTraits`` (or ``|`` with any mapping) behaves the
+        same as with plain ``dict`` objects.  The result is a **new** *dict*
+        (not an ``AgentTraits`` instance) which matches the semantics of the
+        built-in type.
         """
-        return f"{self.data}"
+        if isinstance(other, MutableMapping):
+            return {**dict(self), **dict(other)}
+        return NotImplemented
+
+    # support reversed operand order (e.g. ``dict | AgentTraits``)
+    def __ror__(self, other):
+        if isinstance(other, MutableMapping):
+            return {**dict(other), **dict(self)}
+        return NotImplemented
+
+    # in-place union ``|=`` – delegates to __setitem__ so guards still fire
+    def __ior__(self, other):
+        if isinstance(other, MutableMapping):
+            for k, v in other.items():
+                self[k] = v  # will trigger _guard()
+            return self
+        return NotImplemented
 
 
 class Agent(Base):
@@ -267,7 +313,7 @@ class Agent(Base):
             codebook: Dictionary mapping trait keys to descriptions
         """
         self.name = name
-        self._traits = AgentTraits(traits or dict())
+        self._traits = AgentTraits(traits or {}, parent=self)
         self.codebook = codebook or dict()
 
     def _initialize_instruction(self, instruction) -> None:
@@ -425,6 +471,25 @@ class Agent(Base):
         else:
             self.traits_presentation_template = "Your traits: {{traits}}"
             self.set_traits_presentation_template = False
+
+
+    def drop(self, field_name: str) -> Agent:
+        """Drop a field from the agent.
+        
+        Args:
+            field_name: The name of the field to drop.
+        """
+        d = self.to_dict()
+        if field_name in d['traits']:
+            d['traits'].pop(field_name)
+        elif field_name in d:
+            d.pop(field_name)
+        else:
+            raise AgentErrors((f"Field '{field_name}' not found in agent"
+                               f"Available fields: {d.keys()}"
+                               f"Available traits: {d['traits'].keys()}"
+                              ))
+        return Agent.from_dict(d)
 
     def duplicate(self) -> Agent:
         """Create a deep copy of this agent with all its traits and capabilities.
@@ -692,7 +757,7 @@ class Agent(Base):
                 return self.dynamic_traits_function()
         else:
             # Return the stored traits
-            return dict(self._traits)
+            return self._traits
 
     @contextmanager
     def modify_traits_context(self):
@@ -700,7 +765,8 @@ class Agent(Base):
         try:
             yield
         finally:
-            self._traits = AgentTraits(self._traits)
+            # re-wrap the possibly mutated mapping so future writes remain guarded
+            self._traits = AgentTraits(dict(self._traits), parent=self)
 
     def _check_before_modifying_traits(self):
         """Check before modifying traits."""
@@ -713,6 +779,7 @@ class Agent(Base):
     @traits.setter
     def traits(self, traits: dict[str, str]):
         with self.modify_traits_context():
+            # store raw dict temporarily – it will be wrapped by the context manager
             self._traits = traits
 
     def rename(
@@ -1213,7 +1280,7 @@ class Agent(Base):
         """
         return dict_hash(self.to_dict(add_edsl_version=False))
 
-    def to_dict(self, add_edsl_version=True) -> dict[str, Union[dict, bool]]:
+    def to_dict(self, add_edsl_version=True, full_dict=False) -> dict[str, Union[dict, bool]]:
         """Serialize to a dictionary with EDSL info.
 
         Example usage:
@@ -1230,11 +1297,11 @@ class Agent(Base):
         d["traits"] = copy.deepcopy(dict(self._traits))
         if self.name:
             d["name"] = self.name
-        if self.set_instructions:
+        if self.set_instructions or full_dict:
             d["instruction"] = self.instruction
-        if self.set_traits_presentation_template:
+        if self.set_traits_presentation_template or full_dict:
             d["traits_presentation_template"] = self.traits_presentation_template
-        if self.codebook:
+        if self.codebook or full_dict:
             d["codebook"] = self.codebook
         if add_edsl_version:
             from edsl import __version__

@@ -57,6 +57,7 @@ class InferenceServiceType(EnumWithChecks):
     DEEP_INFRA = "deep_infra"
     REPLICATE = "replicate"
     OPENAI = "openai"
+    OPENAI_V2 = "openai_v2"
     GOOGLE = "google"
     TEST = "test"
     ANTHROPIC = "anthropic"
@@ -77,6 +78,7 @@ InferenceServiceLiteral = Literal[
     "deep_infra",
     "replicate",
     "openai",
+    "openai_v2",
     "google",
     "test",
     "anthropic",
@@ -93,6 +95,7 @@ InferenceServiceLiteral = Literal[
 available_models_urls = {
     "anthropic": "https://docs.anthropic.com/en/docs/about-claude/models",
     "openai": "https://platform.openai.com/docs/models/gp",
+    "openai_v2": "https://platform.openai.com/docs/models/gp",
     "groq": "https://console.groq.com/docs/models",
     "google": "https://cloud.google.com/vertex-ai/generative-ai/docs/learn/models",
 }
@@ -102,6 +105,7 @@ service_to_api_keyname = {
     InferenceServiceType.DEEP_INFRA.value: "DEEP_INFRA_API_KEY",
     InferenceServiceType.REPLICATE.value: "TBD",
     InferenceServiceType.OPENAI.value: "OPENAI_API_KEY",
+    InferenceServiceType.OPENAI_V2.value: "OPENAI_API_KEY",
     InferenceServiceType.GOOGLE.value: "GOOGLE_API_KEY",
     InferenceServiceType.TEST.value: "TBD",
     InferenceServiceType.ANTHROPIC.value: "ANTHROPIC_API_KEY",
@@ -135,7 +139,7 @@ class TokenPricing:
             and self.prompt_token_price == other.prompt_token_price
             and self.completion_token_price == other.completion_token_price
         )
-    
+
     @classmethod
     def example(cls) -> "TokenPricing":
         """Return an example TokenPricing object."""
@@ -144,6 +148,7 @@ class TokenPricing:
             prompt_token_price_per_k=0.01,
             completion_token_price_per_k=0.03,
         )
+
 
 pricing = {
     "dbrx-instruct": TokenPricing(

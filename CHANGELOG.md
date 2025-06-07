@@ -1,12 +1,35 @@
 # Changelog
 
-## [0.1.56] - TBD
+## [0.1.60] - 2025-05-21
 ### Added
-- New video file handlers: `Scenario` objects can be videos (MP4 and WebM).  
+- Support for the OpenAI response API has been added. Job responses now have access to model reasoning summaries.
+- Example notebook for the new functionality: https://www.expectedparrot.com/content/arulm/getting-reasoning-summaries-from-thinking-models
 
-- New question type `QuestionMultipleChoiceWithOther` automatically includes "Other" in the `question_options` and corresponding modified default instructions.
+## [0.1.59] - 2025-05-15
+### Added
+- Added a drop method to the Agent class for removing specific fields, and updated the to_dict method to optionally include all fields. [1] [2]
+- Enhanced the AgentList class with methods to set instructions and traits presentation templates for all agents, and added a drop method to remove fields across the list. [1] [2]
+- Updated the to_dataset method in AgentList to include traits_presentation_template in the agent_parameters when traits_only is set to False. 
+### Fixed
+- Fix error in computing the remote inference cache key for files.
+- Fix timeout issues when running jobs with videos.
 
-- Question type `QuestionMultipleChoice` now takes an optional parameter `enumeration_style` that allows you to specify "numeric" (default) or "letter" options (["A", "B", "C", "D"]). This parameter can also be passed to new question type `QuestionMultipleChoiceWithOther`.
+## [0.1.58] - 2025-05-02
+### Added
+- Improvements to the job status table to include more details on exceptions and costs.
+
+## [0.1.57] - 2025-04-29
+
+
+## [0.1.56] - 2025-04-26
+### Added
+- Video file handlers: `Scenario` objects can now be videos (MP4 and WebM). Example: https://www.expectedparrot.com/content/RobinHorton/video-scenarios-notebook
+
+- `Results` objects now include separate fields for input tokens, output tokens, input tokens cost, output tokens cost and total cost for each `Result`. These fields all have the `raw_model_response` prefix. 
+
+- `Jobs` method `estimate_job_cost()` now also includes estimated input tokens, output tokens, input tokens cost, output tokens cost and total cost for each model, and credits to be placed on hold while the job is running.
+
+- New documentation page on estimating and tracking costs: https://docs.expectedparrot.com/en/latest/costs.html
 
 
 ## [0.1.55] - 2025-04-23
