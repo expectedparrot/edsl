@@ -3,14 +3,12 @@
 Prolific studies
 ================
 
-Your account provides an interface to launch your EDSL surveys as studies on Prolific, a platform for recruiting human participants for research studies.
-This allows you to gather human responses to your surveys, which can be combined with AI-generated responses for analysis.
-You can create a Prolific study from your account, specifying the number of participants, payment amount, and other study details.
+EDSL allows you to launch surveys with human participants using Prolific, a platform for recruiting participants for research studies.
+You can choose whether to create and manage Prolific studies directly in your EDSL code or interactivately at your Coop account, enabling you to gather human responses to your surveys alongside AI-generated responses.
+The steps below outline both methods (code-based and interactive).
+Interactive steps are also viewable in a `clickable demo <https://app.arcade.software/share/GVCSuf9kfK6gduTzysg2>`_, and example code below is also available at a downloadable `notebook at Coop <https://www.expectedparrot.com/content/RobinHorton/coop-project-example>`_.
 
-The steps below are also accessible in a `clickable demo <https://app.arcade.software/share/GVCSuf9kfK6gduTzysg2>`_. 
-The example code below is also available at a downloadable `notebook at Coop <https://www.expectedparrot.com/content/RobinHorton/coop-project-example>`_.
-
-If you are looking for information about the EDSL method `humanize`, which generates a shareable web-based version of your survey for human respondents, see the :ref:`humanize` page.
+More information about the `humanize` method for generating a shareable web-based version of your survey for human respondents is available at the :ref:`humanize` page.
 This method allows you to collect responses from your own respondents.
 The responses can then be combined with AI-generated responses (and Prolific responses) for analysis.
 
@@ -27,7 +25,7 @@ You can create a Prolific study for your EDSL survey from your workspace (in cod
 Code-based workflow
 ^^^^^^^^^^^^^^^^^^^
 
-You can view an example of this workflow in this `notebook at Coop <https://www.expectedparrot.com/content/RobinHorton/coop-project-example>`_.
+.. You can view an example of this workflow in this `notebook at Coop <https://www.expectedparrot.com/content/RobinHorton/coop-project-example>`_.
 
 1. **Create a survey in a notebook**
 Create a survey in EDSL:
@@ -45,8 +43,8 @@ Use the `humanize` method to generate a `Project` for your survey and a web-base
 You can optionally pass a `project_name`, `survey_description` and `survey_alias` to customize the project details (see example below).
 
 3. **Use `Coop` to launch studies**
-Create a `Coop` client object to access your Coop account.
-Then use the `Coop` methods to create a Prolific study for your survey and gather human responses:
+Create a `Coop` client object to access your account.
+Then use `Coop` methods to create a Prolific study for your survey and gather human responses:
 
     - Use the `Coop().create_prolific_study` method to create a new study for the `project_uuid` and specify the study details (`name`, `description`, `num_participant`, `estimated_completion_time` (minutes), `participant_payment_cents`), and optional filters for targeting specific demographics and Prolific participants (IDs list).
     - Use the `Coop().get_prolific_study` method to retrieve the study details for the `project_uuid` and `study_id`.
@@ -265,8 +263,8 @@ Example output:
 
     {'study_id': '684307d08015cf8252ca77cf',
     'status': 'UNPUBLISHED',
-    'admin_url': 'https://chick.expectedparrot.com/home/projects/369b1bdc-11d4-4d22-8eeb-d0fb9eddd3cc/prolific-studies/684307d08015cf8252ca77cf',
-    'respondent_url': 'https://chick.expectedparrot.com/respond/369b1bdc-11d4-4d22-8eeb-d0fb9eddd3cc',
+    'admin_url': 'https://www.expectedparrot.com/home/projects/369b1bdc-11d4-4d22-8eeb-d0fb9eddd3cc/prolific-studies/684307d08015cf8252ca77cf',
+    'respondent_url': 'https://www.expectedparrot.com/respond/369b1bdc-11d4-4d22-8eeb-d0fb9eddd3cc',
     'name': 'Vehicle Ownership Study',
     'description': 'A study on vehicle ownership and driving habits.',
     'num_participants': 1,
@@ -382,8 +380,8 @@ Example output:
 
     {'study_id': '684307d08015cf8252ca77cf',
     'status': 'UNPUBLISHED',
-    'admin_url': 'https://chick.expectedparrot.com/home/projects/369b1bdc-11d4-4d22-8eeb-d0fb9eddd3cc/prolific-studies/684307d08015cf8252ca77cf',
-    'respondent_url': 'https://chick.expectedparrot.com/respond/369b1bdc-11d4-4d22-8eeb-d0fb9eddd3cc',
+    'admin_url': 'https://www.expectedparrot.com/home/projects/369b1bdc-11d4-4d22-8eeb-d0fb9eddd3cc/prolific-studies/684307d08015cf8252ca77cf',
+    'respondent_url': 'https://www.expectedparrot.com/respond/369b1bdc-11d4-4d22-8eeb-d0fb9eddd3cc',
     'name': 'Vehicle Ownership Study',
     'description': 'A study on vehicle ownership and driving habits.',
     'num_participants': 1,
