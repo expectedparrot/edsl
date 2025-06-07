@@ -7,12 +7,12 @@ Overview
 --------
 
 Survey Builder is a user-friendly, no-code application for launching surveys and gathering responses from human respondents and AI agents. 
-It is fully integrated with EDSL and available at your Coop account, allowing you to seamlessly design questions and agents, and analyze, visualize and share your results.
+It is fully integrated with EDSL and available at your account, allowing you to seamlessly design questions and agents, and analyze, visualize and share your results.
 
 See also:
 
 * :ref:`humanize`: Learn how to generate web-based versions of your surveys and analyze human responses. 
-* :ref:`prolific`: Learn how to launching surveys with Prolific participants.
+* :ref:`prolific`: Learn how to launch surveys with Prolific participants.
 
 
 Features
@@ -20,7 +20,7 @@ Features
 
 - **Survey creation**: Build customized surveys using a wide range of question types, including multiple choice, free text, linear scale, matrix, numerical and more.
 - **AI agent design**: Create and configure AI agent personas to respond to your questions. 
-- **Dynamic data integration**: Import data from Coop and other sources to dynamically parameterize your surveys.
+- **Dynamic data integration**: Import data to dynamically parameterize your surveys.
 - **Seamless deployment**: Easily launch surveys with both human and AI respondents.
 - **Results analysis**: Leverage built-in tools to visualize and analyze responses, combining human and AI data for greater insights.
 - **Team collaboration**: Share surveys, agents, results and projects with your team with tools for streamlined sharing and collaboration.
@@ -29,11 +29,11 @@ Features
 Getting started 
 ---------------
 
-1. Log into your Coop account
+1. Log into your account
     Sign in or create an account `here <https://www.expectedparrot.com/login>`_.
 
 2. Create a survey
-    Select the option to create a new survey, or create a project and select a survey from your Coop content.
+    Select the option to create a new survey, or create a project and select a survey from your saved content.
 
 3. Design AI agents
     Choose whether to use saved agents, create new agents interactively, or import a dataset of agents to use with your survey.
@@ -52,7 +52,7 @@ Getting started
 Create a survey
 ^^^^^^^^^^^^^^^
 
-`Log in <https://www.expectedparrot.com/login>`_ to your Coop account and navigate to the `Create <https://www.expectedparrot.com/create>`_ page.
+`Log in <https://www.expectedparrot.com/login>`_ to your account and navigate to the `Create <https://www.expectedparrot.com/create>`_ page.
 Choose whether to build a survey from scratch or select a saved survey to use in a new project.
 
 At the survey builder interface you can add and edit questions, configure survey logic, and save the survey as a new project:
@@ -73,7 +73,7 @@ AI and human responses will automatically appear at your dashboard where you can
 Analyze results
 ^^^^^^^^^^^^^^^
 
-Once you have collected responses from AI agents and human respondents, you can analyze the results at your Coop account dashboard or in EDSL code at your workspace.
+Once you have collected responses from AI agents and human respondents, you can analyze the results at your account dashboard or in EDSL code at your workspace.
 See the :ref:`humanize` and :ref:`prolific` sections for more details.
 
 
