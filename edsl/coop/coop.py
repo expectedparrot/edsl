@@ -2831,6 +2831,133 @@ class Coop(CoopFunctionsMixin):
         self._resolve_server_response(response)
         return response.json()
 
+    def login_gradio(self, timeout: int = 120, launch: bool = True, **launch_kwargs):
+        """
+        Start the EDSL auth token login flow inside a **Gradio** application.
+
+        This helper mirrors the behaviour of :py:meth:`Coop.login_streamlit` but
+        renders the login link and status updates inside a Gradio UI.  It will
+        poll the Expected Parrot server for the API-key associated with a newly
+        generated auth-token and, once received, store it via
+        :pyclass:`~edsl.coop.ep_key_handling.ExpectedParrotKeyHandler` as well as
+        in the local ``.env`` file so subsequent sessions pick it up
+        automatically.
+
+        Parameters
+        ----------
+        timeout : int, default 120
+            How many seconds to wait for the user to complete the login before
+            giving up.
+        launch : bool, default True
+            If ``True`` the Gradio app is immediately launched with
+            ``demo.launch(**launch_kwargs)``.  Set this to ``False`` if you want
+            to embed the returned :class:`gradio.Blocks` object into an existing
+            Gradio interface.
+        **launch_kwargs
+            Additional keyword-arguments forwarded to ``gr.Blocks.launch`` when
+            *launch* is ``True``.
+
+        Returns
+        -------
+        str | gradio.Blocks | None
+            • If the API-key is retrieved within *timeout* seconds while the
+              function is executing (e.g. when *launch* is ``False`` and the
+              caller integrates the Blocks into another app) the key is
+              returned.
+            • If *launch* is ``True`` the method returns ``None`` after the
+              Gradio app has been launched.
+            • If *launch* is ``False`` the constructed ``gr.Blocks`` is
+              returned so the caller can compose it further.
+        """
+        try:
+            import gradio as gr
+        except ModuleNotFoundError as exc:
+            raise ImportError(
+                "Gradio is required for `login_gradio`. Install it with `pip install gradio`."
+            ) from exc
+
+        import secrets
+        import time
+        import os
+        from dotenv import load_dotenv
+        from .ep_key_handling import ExpectedParrotKeyHandler
+        from ..utilities.utilities import write_api_key_to_env
+
+        # ------------------------------------------------------------------
+        # 1. Prepare auth-token
+        # ------------------------------------------------------------------
+        edsl_auth_token = secrets.token_urlsafe(16)
+        login_url = f"{CONFIG.EXPECTED_PARROT_URL}/login?edsl_auth_token={edsl_auth_token}"
+        start_time = time.time()
+
+        # ------------------------------------------------------------------
+        # 2. Build Gradio interface
+        # ------------------------------------------------------------------
+        with gr.Blocks(compact=True) as demo:
+            gr.Markdown(
+                f"🔗 **Log in to Expected Parrot** → [click here]({login_url}){{:target=\"_blank\"}}",
+            )
+            status_md = gr.Markdown("Waiting for login…")
+            refresh_btn = gr.Button("Refresh status")
+            key_state = gr.State(value=None)
+
+            # --------------------------------------------------------------
+            # Polling callback
+            # --------------------------------------------------------------
+            def _refresh(current_key):  # noqa: D401, pylint: disable=unused-argument
+                """Poll server for API-key and update UI accordingly."""
+                api_key = self._get_api_key(edsl_auth_token)
+                elapsed = time.time() - start_time
+                remaining = max(0, int(timeout - elapsed))
+
+                if api_key:
+                    # Persist and expose the key
+                    ExpectedParrotKeyHandler().store_ep_api_key(api_key)
+                    os.environ["EXPECTED_PARROT_API_KEY"] = api_key
+                    path_to_env = write_api_key_to_env(api_key)
+                    load_dotenv()
+                    success_msg = (
+                        "API-key retrieved and stored 🎉\n\n"
+                        f"Key saved to `{path_to_env}`."
+                    )
+                    return (
+                        success_msg,
+                        gr.Button.update(interactive=False, visible=False),
+                        api_key,
+                    )
+
+                if elapsed > timeout:
+                    err_msg = (
+                        "Timed-out waiting for login. Please refresh the page "
+                        "or restart the app to try again."
+                    )
+                    return (
+                        err_msg,
+                        gr.Button.update(),
+                        None,
+                    )
+
+                info_msg = f"Waiting for login… ({remaining}s left)"
+                return (
+                    info_msg,
+                    gr.Button.update(),
+                    None,
+                )
+
+            refresh_btn.click(
+                fn=_refresh,
+                inputs=key_state,
+                outputs=[status_md, refresh_btn, key_state],
+            )
+
+        # ------------------------------------------------------------------
+        # 3. Launch or return interface
+        # ------------------------------------------------------------------
+        if launch:
+            demo.launch(**launch_kwargs)
+            return None
+        return demo
+
 
 def main():
     """
