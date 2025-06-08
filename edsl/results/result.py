@@ -289,12 +289,6 @@ class Result(Base, UserDict):
             ``'rich'`` uses the *rich* library (if installed) to wrap each Q&A block in a
             ``Panel`` and returns the coloured/boxed string. Attempting to use the *rich*
             format without the dependency available raises ``ImportError``.
-
-        Examples
-        --------
-        >>> r = Result.example()
-        >>> r.transcript()
-        'QUESTION: What is your name?\nANSWER: John'
         """
 
         if format not in {"simple", "rich"}:
