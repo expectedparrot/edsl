@@ -485,54 +485,23 @@ class ServiceDefinition(DictSerializable):
 
     def __call__(self, **kwargs: Any) -> Any:
         """
-        Executes the service call, trying the gateway first and falling back to a direct call.
+        Executes the service call via the gateway only (no automatic
+        fallback to a direct endpoint).
 
         Args:
             **kwargs: Parameters for the service call.
 
         Returns:
-            The API response, potentially deserialized based on service definition.
+            The API response, potentially deserialized based on the service
+            definition.
 
         Raises:
-            ServiceParameterValidationError: If validation fails.
-            ServiceConfigurationError: If essential configuration is missing for both methods.
-            ServiceConnectionError: If both gateway and direct calls fail due to connection issues.
-            ServiceResponseError: If both calls fail due to response issues (status, JSON).
-            ServiceDeserializationError: If deserialization fails after a successful call.
-            ExtensionError: For unexpected errors during the call process.
+            All exceptions are propagated from `call_via_gateway` so callers
+            can handle them as needed.
         """
-        gateway_error = None
-        try:
-            # Attempt to call via the gateway first
-            print(f"Attempting to call service '{self.name}' via gateway...")
-            # This call can raise ServiceParameterValidationError, ServiceConfigurationError,
-            # ServiceConnectionError, ServiceResponseError, ServiceDeserializationError
-            return self.call_via_gateway(**kwargs)
-        # Catch the specific errors we expect from call_via_gateway
-        except (ServiceParameterValidationError, ServiceConfigurationError, ServiceConnectionError, ServiceResponseError, ServiceDeserializationError, ExtensionError) as e_gateway:
-            gateway_error = e_gateway # Store the gateway error
-            print(f"Gateway call failed for service '{self.name}': {e_gateway}")
-            print(f"Falling back to direct call for service '{self.name}'...")
-            try:
-                # Fallback to direct call
-                # This call can also raise the same set of specific errors
-                return self.call_directly(**kwargs)
-            # Catch specific errors from call_directly
-            except (ServiceParameterValidationError, ServiceConfigurationError, ServiceConnectionError, ServiceResponseError, ServiceDeserializationError, ExtensionError) as e_direct:
-                print(f"Direct call also failed for service '{self.name}': {e_direct}")
-                # If both fail, raise the original gateway error,
-                # preserving the direct call error as the cause/context for why the fallback failed.
-                raise gateway_error from e_direct # Swapped: gateway_error is primary, e_direct is the cause
-            except Exception as e_direct_unexpected:
-                # Catch any other unexpected error from direct call
-                print(f"Unexpected error during direct call for service '{self.name}': {e_direct_unexpected}")
-                # Raise generic ExtensionError, chained from the direct call error, which is chained from the gateway error (if exists)
-                raise ExtensionError(f"Direct call failed unexpectedly for {self.name}") from e_direct_unexpected
-        except Exception as e_gateway_unexpected:
-             # Catch any other unexpected error from gateway call
-             print(f"Unexpected error during gateway call for service '{self.name}': {e_gateway_unexpected}")
-             # Raise generic ExtensionError, chained from the gateway error
-             raise ExtensionError(f"Gateway call failed unexpectedly for {self.name}") from e_gateway_unexpected
+        # Attempt the gateway call and propagate any exceptions upward.
+        print(f"Attempting to call service '{self.name}' via gateway...")
+        return self.call_via_gateway(**kwargs)
 
     def call_directly(self, **kwargs: Any) -> Any:
         """
@@ -817,9 +786,9 @@ def register_service(
             authorization: Optional[str] = Header(None),
         ) -> Dict[str, Any]:
             token = extract_bearer_token(authorization)
-            # Forward each field of the request body as a positional argument
-            # -- or use **request_body.model_dump() as kwargs, if preferred.
-            result = await fn(*request_body.model_dump().values(), ep_api_token=token)
+            # Forward request parameters as keyword arguments to avoid relying on positional order
+            # and prevent duplicate ep_api_token values.
+            result = await fn(**request_body.model_dump(), ep_api_token=token)
 
             # Plug into your standard output validator
             service_def.validate_service_output(result)
