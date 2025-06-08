@@ -94,6 +94,11 @@ class ServiceDefinition(DictSerializable):
     _base_url: Optional[str] = field(default=None, init=False, repr=False)
     _ep_api_token: Optional[str] = field(default=None, init=False, repr=False)
 
+    def __post_init__(self):
+        """Populate an instance-specific __doc__ right after initialization."""
+        # Avoid dataclass immutability issues by using object.__setattr__
+        object.__setattr__(self, "__doc__", self._generate_dynamic_doc())
+
     def to_dict(self) -> Dict[str, Any]:
         """Converts the ServiceDefinition to a dictionary, handling nested objects.
 
@@ -750,6 +755,54 @@ class ServiceDefinition(DictSerializable):
             __base__=BaseModel
         )
         return pydantic_model
+
+    def _generate_dynamic_doc(self) -> str:
+        """Dynamically builds a helpful, example-driven docstring for *this* service instance."""
+        # Build call signature   e.g. create_survey(overall_question: str, population: string, num_questions: int = 10)
+        signature_parts: list[str] = []
+        for p_name, p_def in self.parameters.items():
+            default_str = ""
+            # Only show default if it actually has one (and it's not the MISSING sentinel)
+            if p_def.default_value is not MISSING:
+                default_str = f" = {p_def.default_value!r}"
+            signature_parts.append(f"{p_name}: {p_def.type}{default_str}")
+        signature = f"{self.name}({', '.join(signature_parts)})"
+
+        # Parameters section
+        param_lines: list[str] = []
+        for p_name, p_def in self.parameters.items():
+            required_str = "required" if p_def.required and p_def.default_value is MISSING else "optional"
+            line = f"    {p_name} ({p_def.type}, {required_str}) – {p_def.description}"
+            param_lines.append(line)
+        params_block = "\n".join(param_lines) if param_lines else "    (no parameters)"
+
+        # Returns section
+        return_lines: list[str] = []
+        for r_key, r_def in self.service_returns.items():
+            line = f"    {r_key} ({r_def.type}) – {r_def.description}"
+            return_lines.append(line)
+        returns_block = "\n".join(return_lines) if return_lines else "    (no explicit returns)"
+
+        # Cost section (brief)
+        cost_line = f"    {self.cost.per_call_cost} {self.cost.unit} per call"
+        if self.cost.variable_pricing_cost_formula:
+            cost_line += f" + variable component ({self.cost.variable_pricing_cost_formula})"
+
+        doc = (
+            f"{self.description}\n\n"
+            f"Call signature:\n\n    {signature}\n\n"
+            f"Parameters:\n{params_block}\n\n"
+            f"Returns:\n{returns_block}\n\n"
+            f"Cost:\n{cost_line}\n\n"
+            f"Endpoint: {self.endpoint or 'N/A'}"
+        )
+        return doc
+
+    def __getattr__(self, item: str):
+        # Provide a dynamic, instance-specific docstring when users invoke `help(<service_instance>)`.
+        if item == "__doc__":
+            return self._generate_dynamic_doc()
+        raise AttributeError(f"{self.__class__.__name__!r} object has no attribute {item!r}")
 
 
 from fastapi import HTTPException

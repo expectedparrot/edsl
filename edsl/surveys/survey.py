@@ -240,7 +240,6 @@ class Survey(Base):
 
         self._exporter = SurveyExport(self)
 
-
     # In survey.py
     @property
     def ep(self):

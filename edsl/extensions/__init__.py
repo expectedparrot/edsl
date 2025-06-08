@@ -1,2 +1,49 @@
-from .external_services import extensions
+from .external_services import extensions as _extensions
 from .authoring import register_service
+
+
+# edsl/extensions/__init__.py
+from types import MappingProxyType
+
+# keep the dict read-only for users who still want it
+extensions: dict[str, callable] = MappingProxyType(_extensions)
+
+class _ExtensionsProxy:
+    """Attribute-access proxy exposing all registered extension helpers.
+
+    Examples
+    --------
+    >>> from edsl.extensions import ext
+    >>> ext.create_survey(...)
+    """
+
+    def __getattr__(self, name: str):
+        try:
+            return _extensions[name]
+        except KeyError as exc:
+            raise AttributeError(
+                f"Extension '{name}' is not registered. "
+                f"Known extensions: {list(_extensions)}"
+            ) from exc
+
+    def __dir__(self):
+        # Include built-in helper names in dir() output
+        return list(_extensions) + ["list"]
+
+    # Convenient helper to show available services
+    def list(self):  # noqa: D401 – simple method
+        """Return a list of available service names."""
+        return list(_extensions)
+
+# Export a singleton proxy instance so users can do `from edsl.extensions import ext`
+ext = _ExtensionsProxy()
+
+def __getattr__(name: str):
+    """Allow `edsl.extensions.create_survey(...)`."""
+    try:
+        return _extensions[name]
+    except KeyError as exc:
+        raise AttributeError(
+            f"Extension '{name}' is not registered. "
+            f"Known extensions: {list(_extensions)}"
+        ) from exc
