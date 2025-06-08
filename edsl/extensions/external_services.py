@@ -7,9 +7,12 @@ from collections import UserDict
 from .authoring import ServiceDefinition
 # Import loaders from the new module
 from .service_loaders import ServiceLoader, APIServiceLoader, GithubYamlLoader
+import logging
 
 # Attempt to import Survey, but make it optional
 from edsl import Survey
+
+logger = logging.getLogger(__name__)
 
 # --- Service Display Function ---
 
@@ -71,13 +74,13 @@ class ExternalServices(UserDict):
                 update_needed = True
 
             if not update_needed:
-                 print("ExternalServices already initialized with compatible configuration.")
+                 logger.info("ExternalServices already initialized with compatible configuration.")
                  return # No changes needed
             else:
                 # If config changes, we need to refetch services
                 self._fetched = False
                 self.data.clear() # Clear old prepared services
-                print("ExternalServices configuration changed. Services will be re-fetched.")
+                logger.info("ExternalServices configuration changed. Services will be re-fetched.")
 
         # Determine the loader
         if loader:
@@ -121,24 +124,24 @@ class ExternalServices(UserDict):
     def _fetch_and_prepare_services(self) -> None:
         """Internal method to fetch service configurations using the loader, prepare callables, and store them."""
         if not self._loader:
-             print("Error: No service loader configured. Cannot fetch services.")
+             logger.error("No service loader configured. Cannot fetch services.")
              self.data.clear()
              return
 
-        print(f"Using loader: {type(self._loader).__name__}")
+        logger.info("Using loader: %s", type(self._loader).__name__)
         services_data_list = self._loader.load_services() # Use the loader
 
         # Clear existing data before loading new definitions
         self.data.clear()
 
         if not services_data_list:
-             print("Warning: Loader returned no service definitions.")
+             logger.warning("Loader returned no service definitions.")
              return # _fetched remains False if loading failed/returned empty
 
         # Populate the dictionary with ServiceDefinition objects
         for service_data in services_data_list:
             if not isinstance(service_data, dict):
-                 print(f"Warning: Skipping invalid service data item (not a dictionary): {service_data}")
+                 logger.warning("Skipping invalid service data item (not a dictionary): %s", service_data)
                  continue
             try:
                 service_def = ServiceDefinition.from_dict(service_data)
@@ -149,17 +152,17 @@ class ExternalServices(UserDict):
                 service_def._ep_api_token = getattr(self, 'ep_api_token', None) # Use stored token
 
                 if not service_def._base_url:
-                     print(f"Warning: No base_url configured in ExternalServices. Service '{service_def.name}' may not be callable.")
+                     logger.warning("No base_url configured in ExternalServices. Service '%s' may not be callable.", service_def.name)
 
                 # Store the configured ServiceDefinition object
                 self.data[service_def.name] = service_def
             except Exception as e:
-                print(f"Error processing service definition for '{service_data.get('name', 'Unknown')}': {e}")
+                logger.error("Error processing service definition for '%s': %s", service_data.get('name', 'Unknown'), e)
                 # print(f"Service data: {service_data}") # Optional: for debugging
 
         # If loading succeeded (even if zero services were defined), mark as fetched.
         self._fetched = True
-        print(f"Finished processing {len(self.data)} service definitions.")
+        logger.info("Finished processing %d service definitions.", len(self.data))
 
 
     def __getitem__(self, key: str) -> ServiceDefinition: # Return type is ServiceDefinition
@@ -184,7 +187,7 @@ class ExternalServices(UserDict):
         self._ensure_services_fetched() # Ensure services are available
         
         if not self.data: # Check if fetch failed or no services
-            print("No services available to list.")
+            logger.info("No services available to list.")
             return
 
         # self.data directly contains ServiceDefinition objects
@@ -194,7 +197,7 @@ class ExternalServices(UserDict):
             try:
                 services_display_func(service_definitions)
             except Exception as e:
-                 print(f"Error in services_display_func: {e}") # Log error
+                 logger.error("Error in services_display_func: %s", e) # Log error
 
 # Option 3: Default to API Loader via base_url (requires base_url to be set)
 API_BASE_URL = os.getenv("EDSL_API_URL", "http://localhost:8000")
