@@ -3,14 +3,16 @@
 Teaching guide
 ==============
 
-This page provides a short guide for getting started using `edsl` to conduct AI research and collaborate with others.
+This page provides a short guide for getting started using EDSL to conduct AI research and collaborate with others.
 
 1. **Create an account**
+
 `Create an account <https://www.expectedparrot.com/login>`_ at Expected Parrot. 
 This allows you to access special features for storing, sharing and collaborating on your EDSL projects.
-Your account comes with an `API key <https://docs.expectedparrot.com/en/latest/api_keys.html>`_ to access all available language models (see `current models <https://www.expectedparrot.com/models>`_) and free `credits <https://docs.expectedparrot.com/en/latest/credits.html>`_ for getting started. 
+Your account comes with an `API key <https://docs.expectedparrot.com/en/latest/api_keys.html>`_ to access all available language models (see information about `current models <https://www.expectedparrot.com/models>`_) and free `credits <https://docs.expectedparrot.com/en/latest/credits.html>`_ for getting started. 
 
 2. **Install the EDSL package**
+
 Open your terminal or command prompt, navigate to the directory where you want to install the EDSL library, and run the following command:
 
 .. code-block:: bash
@@ -21,26 +23,36 @@ Open your terminal or command prompt, navigate to the directory where you want t
 See the :ref:`installation` section for more details.
 
 3. **Open a Python environment**
-After installing EDSL, you can start using it in any Python IDE or text editor of your choice, such as Jupyter Notebook, Visual Studio Code or Google Colab.
+
+After installing EDSL, you can start using it in a Python IDE or text editor of your choice, such as Jupyter Notebook or Visual Studio Code.
 Save a new notebook in the directory where you installed EDSL and open it.
-(If you are using Google Colab, see the :ref:`colab` section for instructions on how to store and access your Expected Parrot API key.)
 
 You can also start working in EDSL by downloading an example notebook and modifying the code as needed for your research.
 See the **How-to Guides** and **Notebooks** for various use cases listed in the sidebar of the `documentation <https://docs.expectedparrot.com/en/latest/index.html>`_ page, and a :ref:`starter_tutorial`.
 
+*Note:* If you are using Google Colab, please see `special instructions <https://docs.expectedparrot.com/en/latest/colab_setup.html>` on storing and accessing your Expected Parrot API key.
+
 4. **Design your research**
-EDSL allows to conduct AI research designed as surveys of questions administered to language models using AI agents to answer the questions.
+
+EDSL allows you to design AI research projects as surveys of questions administered to language models (optionally) using AI agents to answer the questions.
 A typical workflow consists of the following steps:
 
-    - **Create questions**: Construct :ref:`questions` you want to ask the language models. EDSL provides many common question types that you can choose from based on the form of the response that you want to get back from a model (multiple choice, free text, linear scale, etc.). You can also use built-in methods for importing data to use as :ref:`scenarios` of your questions (CSV, PDF, PNG, MP4, DOC, tables, lists, dicts, etc.). (This can be efficient for data labeling and other workflows where you want to repeat questions with different data inputs.)
-    - **Construct a survey**: Combine your questions into :ref:`surveys` to administer them together, and use methods to add desired logic, such as skip/stop rules, randomization, piping answers, and more.
-    - **Design AI agents**: Specify relevant personas and instructions for AI agents to answer the questions.
-    - **Select language models**: Choose the :ref:`language_models` you want to use generate the answers.
+    - **Create questions**: Construct :ref:`questions` you want to ask a language model. EDSL provides many common question types that you can choose from based on the form of the response that you want to get back from a model (multiple choice, free text, linear scale, etc.). You can also use built-in methods for importing data to use as :ref:`scenarios` of your questions (CSV, PDF, PNG, MP4, DOC, tables, lists, dicts, etc.). This can be efficient for data labeling and other workflows where you want to repeat questions with different data inputs.
+
+    - **Construct a survey**: Combine your questions into :ref:`surveys` to administer them together, and add desired logic, such as skip/stop rules, randomization, piping answers, and more.
+    
+    - **Design AI agents**: Specify relevant personas and instructions for AI agents to answer the questions (this is optional).
+    
+    - **Select language models**: Choose the :ref:`language_models` you want to use to generate the answers.
+    
     - **Run experiments**: Administer a survey with AI agents and selected language models. This generates a formatted dataset of results. 
+    
     - **Analyze results**: Use built-in methods to analyze your :ref:`results`.
-    - **Validate with humans**: Launch your survey with human respondents to compare the AI-generated responses. Iterate on your survey design to improve your research outcomes.
+    
+    - **Validate with humans**: Launch your survey with human respondents to compare the AI-generated responses. Iterate on your survey design and rerun.
 
 5. **Example code**
+
 Below is example code for creating a survey, running it with AI agents and language models, launching it with humans and comparing results.
 You can also view the code and output in a downloadable `notebook at Coop <https://www.expectedparrot.com/content/RobinHorton/example-edsl-teaching>`_.
 
