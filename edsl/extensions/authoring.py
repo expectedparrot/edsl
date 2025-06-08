@@ -7,6 +7,12 @@ import requests # Added for __call__
 from pydantic import create_model, Field, BaseModel
 
 import json
+# Std-lib imports for spinner/timer functionality
+import sys
+import threading
+import itertools
+import time
+import logging
 
 from ..surveys import Survey # Assume Survey is always available
 from ..base import RegisterSubclassesMeta
@@ -21,9 +27,13 @@ from .exceptions import (
     ServiceOutputValidationError
 )
 
+# (no top-level compute_price import – avoid circular dependency)
+
 T = TypeVar('T', bound='DictSerializable')
 
 # Removed Exception Classes (moved to exceptions.py)
+
+logger = logging.getLogger(__name__)
 
 class DictSerializable(ABC):
     """Abstract base class for dataclasses that can be converted to/from dictionaries."""
@@ -483,10 +493,59 @@ class ServiceDefinition(DictSerializable):
         if self._ep_api_token:
             payload["ep_api_token"] = self._ep_api_token
 
-        # _make_api_call raises ServiceConfigurationError, ServiceConnectionError, ServiceResponseError
-        response = self._make_api_call(payload)
-        # _deserialize_response raises ServiceResponseError, ServiceDeserializationError
-        return self._deserialize_response(response)
+        # Display a spinner with elapsed-time feedback while the request is in flight.
+        logger.info("Calling service '%s' via gateway...", self.name)
+
+        class _Spinner:
+            """Lightweight console spinner that also shows elapsed seconds."""
+
+            def __init__(self, message: str, delay: float = 0.1):
+                self.message = message.rstrip()
+                self.delay = delay
+                self._stop_event = threading.Event()
+                self._thread = threading.Thread(target=self._spin, daemon=True)
+
+            def _spin(self):
+                spinner_chars = itertools.cycle("|/-\\")
+                start = time.time()
+                while not self._stop_event.is_set():
+                    char = next(spinner_chars)
+                    elapsed = time.time() - start
+                    sys.stdout.write(f"\r{self.message} {char} {elapsed:.1f}s")
+                    sys.stdout.flush()
+                    time.sleep(self.delay)
+                # Clear line and print final time
+                elapsed = time.time() - start
+                sys.stdout.write(f"\r{self.message} done in {elapsed:.2f}s\n")
+                sys.stdout.flush()
+
+            def start(self):
+                if sys.stdout.isatty():
+                    self._thread.start()
+
+            def stop(self):
+                if sys.stdout.isatty():
+                    self._stop_event.set()
+                    self._thread.join()
+
+        spinner = _Spinner(message=f"Calling service '{self.name}' via gateway")
+        spinner.start()
+        try:
+            # _make_api_call raises ServiceConfigurationError, ServiceConnectionError, ServiceResponseError
+            response = self._make_api_call(payload)
+            # _deserialize_response raises ServiceResponseError, ServiceDeserializationError
+            return self._deserialize_response(response)
+        finally:
+            spinner.stop()
+
+        # --- Print/log estimated cost -----------------------------------
+        try:
+            from .price_calculation import compute_price  # local import to avoid circular deps
+            estimated_cost = compute_price(self, prepared_params)
+            logger.info("Estimated cost for call to '%s': %s %s", self.name, estimated_cost, self.cost.unit)
+        except Exception as _e:
+            # Avoid hard failure if pricing formula is invalid – just log at debug level.
+            logger.debug("Could not compute price for '%s': %s", self.name, _e)
 
     def __call__(self, **kwargs: Any) -> Any:
         """
@@ -504,8 +563,7 @@ class ServiceDefinition(DictSerializable):
             All exceptions are propagated from `call_via_gateway` so callers
             can handle them as needed.
         """
-        # Attempt the gateway call and propagate any exceptions upward.
-        print(f"Attempting to call service '{self.name}' via gateway...")
+        # Simply delegate; call_via_gateway handles logging/spinner.
         return self.call_via_gateway(**kwargs)
 
     def call_directly(self, **kwargs: Any) -> Any:
@@ -579,6 +637,14 @@ class ServiceDefinition(DictSerializable):
         except Exception as e:
             # Catch any other unexpected errors during the process
             raise ExtensionError(f"Unexpected error during direct call for service '{self.name}': {e}") from e
+
+        # --- Print/log estimated cost -----------------------------------
+        try:
+            from .price_calculation import compute_price  # local import to avoid circular deps
+            estimated_cost = compute_price(self, prepared_params)
+            logger.info("Estimated cost for direct call to '%s': %s %s", self.name, estimated_cost, self.cost.unit)
+        except Exception as _e:
+            logger.debug("Could not compute price for '%s': %s", self.name, _e)
 
     def validate_service_output(self, output_data: Dict[str, Any]):
         """
@@ -863,4 +929,3 @@ if __name__ == "__main__":
     # Optional: exit with non-zero status if tests fail
     #if results.failed > 0:
     #    exit(1)
-

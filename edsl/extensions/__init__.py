@@ -3,10 +3,11 @@ from .authoring import register_service
 
 
 # edsl/extensions/__init__.py
-from types import MappingProxyType
 
-# keep the dict read-only for users who still want it
-extensions: dict[str, callable] = MappingProxyType(_extensions)
+# Public handle to the loaded service registry
+# Expose the *ExternalServices* singleton directly so callers can use
+# its helper methods such as ``list()``.
+extensions = _extensions  # type: ignore[assignment]
 
 class _ExtensionsProxy:
     """Attribute-access proxy exposing all registered extension helpers.
@@ -47,3 +48,6 @@ def __getattr__(name: str):
             f"Extension '{name}' is not registered. "
             f"Known extensions: {list(_extensions)}"
         ) from exc
+
+# Convenience re-export so users can do `from edsl.extensions import compute_price`.
+from .price_calculation import compute_price  # noqa: F401

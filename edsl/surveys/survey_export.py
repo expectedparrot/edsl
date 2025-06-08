@@ -63,6 +63,11 @@ class SurveyExport:
         """Generate a docx document for the survey."""
         from docx import Document
 
+        if not filename:  # handles None and ""
+            tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".docx")
+            filename = tmp.name
+            tmp.close()
+
         doc = Document()
         doc.add_heading("EDSL Survey")
         doc.add_paragraph("\n")
