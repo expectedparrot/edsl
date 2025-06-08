@@ -284,3 +284,10 @@ For example, to share a notebook of your code:
         alias = "my-notebook",
         visibility = "public"  # or "private" or "unlisted" by defauilt
     )
+
+
+**Support and resources**
+
+For more information about using EDSL, please see the `documentation <https://docs.expectedparrot.com/en/latest/index.html>`_ page.
+
+You can also join our `Discord channel <https://discord.com/invite/mxAYkjfy9m>`_ to post questions and get help from the community.
