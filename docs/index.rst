@@ -116,6 +116,8 @@ Introduction
 - :ref:`whitepaper`: A whitepaper about the EDSL package (*in progress*).
 - :ref:`citation`: How to cite the package in your work.
 - :ref:`papers`: Research papers and articles that use or cite EDSL.
+- :ref:`teaching`: A guide for teaching EDSL and using it in the classroom.
+- :ref:`starter_tutorial`: A step-by-step tutorial for getting started with EDSL.
 
 
 Core Concepts
@@ -219,6 +221,7 @@ Links
    remote_inference
    remote_caching
    starter_tutorial
+   teaching
    colab_setup
 
 .. toctree::
