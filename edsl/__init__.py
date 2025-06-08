@@ -14,6 +14,7 @@ ROOT_DIR = os.path.dirname(BASE_DIR)
 
 from edsl.__version__ import __version__
 from edsl.config import Config, CONFIG
+# NOTE: `ext` is lazily imported below via __getattr__ to avoid circular-import issues.
 
 # Initialize and expose logger
 from edsl import logger
@@ -143,6 +144,14 @@ except Exception as e:
 # Now that all modules are loaded, configure logging from the config
 logger.configure_from_config()
 
+# Import `ext` only after the full EDSL package (including surveys) is initialized
+try:
+    from edsl.extensions import ext as ext  # type: ignore
+    globals()["ext"] = ext
+    __all__.append("ext")
+except Exception as _e:
+    # Log but do not fail if extensions cannot be imported (e.g., during partial builds)
+    logger.warning("Failed to import edsl.extensions.ext: %s", _e)
 
 # Installs a custom exception handling routine for edsl exceptions
 from .base.base_exception import BaseException
