@@ -3,7 +3,9 @@
 Teaching guide
 ==============
 
-This page provides a short guide for getting started using EDSL to conduct AI research and collaborate with others.
+This page provides a short guide for getting started using EDSL (*Expected Parrot Domain-Specific Language*) to conduct and collaborate on AI research.
+`EDSL <https://github.com/expectedparrot/edsl>`_ is an open-source Python library for simulating surveys, experiments and research tasks with AI agents and language models, and validating results with human respondents.
+It is fully integrated with `Coop <https://docs.expectedparrot.com/en/latest/coop.html>`, a platform for creating and sharing AI and hybrid AI-human research projects.
 
 1. **Create an account**
 
@@ -28,9 +30,9 @@ After installing EDSL, you can start using it in a Python IDE or text editor of 
 Save a new notebook in the directory where you installed EDSL and open it.
 
 You can also start working in EDSL by downloading an example notebook and modifying the code as needed for your research.
-See the **How-to Guides** and **Notebooks** for various use cases listed in the sidebar of the `documentation <https://docs.expectedparrot.com/en/latest/index.html>`_ page, and a :ref:`starter_tutorial`.
+See the **How-to Guides** and **Notebooks** for various `use cases <https://www.expectedparrot.com/use-cases>`_ listed in the sidebar of the `documentation <https://docs.expectedparrot.com/en/latest/index.html>`_ page, and a :ref:`starter_tutorial`.
 
-*Note:* If you are using Google Colab, please see `special instructions <https://docs.expectedparrot.com/en/latest/colab_setup.html>` on storing and accessing your Expected Parrot API key.
+*Note:* If you are using Google Colab, please see `special instructions <https://docs.expectedparrot.com/en/latest/colab_setup.html>`_ on storing and accessing your Expected Parrot API key.
 
 4. **Design your research**
 
