@@ -43,8 +43,8 @@ if TYPE_CHECKING:
     from ..scenarios import ScenarioList
     from ..buckets.bucket_collection import BucketCollection
     from ..key_management.key_lookup import KeyLookup
-    
-    # Define types for documentation purpose only  
+
+    # Define types for documentation purpose only
     VisibilityType = Literal["unlisted", "public", "private"]
     Table = Any  # Type for table display
     # Type alias for docx document
@@ -70,24 +70,26 @@ from .rules import RuleManager, RuleCollection
 from .survey_export import SurveyExport
 from .exceptions import SurveyCreationError, SurveyHasNoRulesError, SurveyError
 
+
 class PseudoIndices(UserDict):
     """A dictionary of pseudo-indices for the survey.
-    
+
     This class manages indices for both questions and instructions in a survey. It assigns
     floating-point indices to instructions so they can be interspersed between integer-indexed
     questions while maintaining order. This is crucial for properly serializing and deserializing
     surveys with both questions and instructions.
-    
+
     Attributes:
         data (dict): The underlying dictionary mapping item names to their pseudo-indices.
     """
+
     @property
     def max_pseudo_index(self) -> float:
         """Return the maximum pseudo index in the survey.
-        
+
         Returns:
             float: The highest pseudo-index value currently assigned, or -1 if empty.
-            
+
         Examples:
             >>> Survey.example()._pseudo_indices.max_pseudo_index
             2
@@ -103,7 +105,7 @@ class PseudoIndices(UserDict):
         This is used to determine the pseudo-index of the next item added to the survey.
         Instructions are assigned floating-point indices (e.g., 1.5) while questions
         have integer indices.
-        
+
         Returns:
             bool: True if the last added item was an instruction, False otherwise.
 
@@ -121,21 +123,21 @@ class PseudoIndices(UserDict):
 
 class Survey(Base):
     """A collection of questions with logic for navigating between them.
-    
+
     Survey is the main class for creating, modifying, and running surveys. It supports:
-    
+
     - Skip logic: conditional navigation between questions based on previous answers
     - Memory: controlling which previous answers are visible to agents
     - Question grouping: organizing questions into logical sections
     - Randomization: randomly ordering certain questions to reduce bias
     - Instructions: adding non-question elements to guide respondents
-    
+
     A Survey instance can be used to:
     1. Define a set of questions and their order
     2. Add rules for navigating between questions
     3. Run the survey with agents or humans
     4. Export the survey in various formats
-    
+
     The survey maintains the order of questions, any skip logic rules, and handles
     serialization for storage or transmission.
     """
@@ -187,15 +189,15 @@ class Survey(Base):
 
         Examples:
             Create a basic survey with three questions:
-            
+
             >>> from edsl import QuestionFreeText
             >>> q1 = QuestionFreeText(question_text="What is your name?", question_name="name")
             >>> q2 = QuestionFreeText(question_text="What is your favorite color?", question_name="color")
             >>> q3 = QuestionFreeText(question_text="Is a hot dog a sandwich?", question_name="food")
             >>> s = Survey([q1, q2, q3])
-            
+
             Create a survey with question groups:
-            
+
             >>> s = Survey([q1, q2, q3], question_groups={"demographics": (0, 1), "food_questions": (2, 2)})
         """
 
@@ -240,12 +242,12 @@ class Survey(Base):
 
         self._exporter = SurveyExport(self)
 
-
     # In survey.py
     @property
     def ep(self):
         """Return plugin host for this survey."""
         from ..plugins.plugin_host import PluginHost
+
         return PluginHost(self)
 
     def question_names_valid(self) -> bool:
@@ -276,9 +278,13 @@ class Survey(Base):
         """Process the raw questions passed to the survey."""
         handler = InstructionHandler(self)
         result = handler.separate_questions_and_instructions(questions or [])
-        
+
         # Handle result safely for mypy
-        if hasattr(result, 'true_questions') and hasattr(result, 'instruction_names_to_instructions') and hasattr(result, 'pseudo_indices'):
+        if (
+            hasattr(result, "true_questions")
+            and hasattr(result, "instruction_names_to_instructions")
+            and hasattr(result, "pseudo_indices")
+        ):
             # It's the SeparatedComponents dataclass
             self._instruction_names_to_instructions = result.instruction_names_to_instructions  # type: ignore
             self._pseudo_indices = PseudoIndices(result.pseudo_indices)  # type: ignore
@@ -295,7 +301,9 @@ class Survey(Base):
                 self._pseudo_indices = PseudoIndices(pseudo_idx)
                 return true_q
             else:
-                raise TypeError(f"Unexpected result type from separate_questions_and_instructions: {type(result)}")
+                raise TypeError(
+                    f"Unexpected result type from separate_questions_and_instructions: {type(result)}"
+                )
 
     @property
     def _relevant_instructions_dict(self) -> InstructionCollection:
@@ -384,7 +392,7 @@ class Survey(Base):
         if question_name not in self.question_name_to_index:
             raise SurveyError(f"Question name {question_name} not found in survey.")
         return self.questions[self.question_name_to_index[question_name]]
-    
+
     def get(self, question_name: str) -> QuestionBase:
         """Return the question object given the question name."""
         return self._get_question_by_name(question_name)
@@ -417,22 +425,32 @@ class Survey(Base):
         """
         return {q.question_name: i for i, q in enumerate(self.questions)}
 
+    def to_long_format(
+        self, scenario_list: ScenarioList
+    ) -> Tuple[List[QuestionBase], ScenarioList]:
+        """Return a new survey with the questions in long format and the associated scenario list."""
+
+        from edsl.questions.loop_processor import LongSurveyLoopProcessor
+
+        lp = LongSurveyLoopProcessor(self, scenario_list)
+        return lp.process_templates_for_all_questions()
+
     def to_dict(self, add_edsl_version=True) -> dict[str, Any]:
         """Serialize the Survey object to a dictionary for storage or transmission.
-        
+
         This method converts the entire survey structure, including questions, rules,
         memory plan, and question groups, into a dictionary that can be serialized to JSON.
         This is essential for saving surveys, sharing them, or transferring them between
         systems.
-        
+
         The serialized dictionary contains the complete state of the survey, allowing it
         to be fully reconstructed using the from_dict() method.
-        
+
         Args:
             add_edsl_version: If True (default), includes the EDSL version and class name
                 in the dictionary, which can be useful for backward compatibility when
                 deserializing.
-                
+
         Returns:
             dict[str, Any]: A dictionary representation of the survey with the following keys:
                 - 'questions': List of serialized questions and instructions
@@ -442,14 +460,14 @@ class Survey(Base):
                 - 'questions_to_randomize': List of questions to randomize (if any)
                 - 'edsl_version': EDSL version (if add_edsl_version=True)
                 - 'edsl_class_name': Class name (if add_edsl_version=True)
-                
+
         Examples:
             >>> s = Survey.example()
             >>> s.to_dict(add_edsl_version=False).keys()
             dict_keys(['questions', 'memory_plan', 'rule_collection', 'question_groups'])
-            
+
             With version information:
-            
+
             >>> d = s.to_dict(add_edsl_version=True)
             >>> 'edsl_version' in d and 'edsl_class_name' in d
             True
@@ -468,7 +486,7 @@ class Survey(Base):
             ),
             "question_groups": self.question_groups,
         }
-        
+
         # Include randomization information if present
         if self.questions_to_randomize != []:
             d["questions_to_randomize"] = self.questions_to_randomize
@@ -477,45 +495,46 @@ class Survey(Base):
         if add_edsl_version:
             d["edsl_version"] = __version__
             d["edsl_class_name"] = "Survey"
-            
+
         return d
 
     @classmethod
     @remove_edsl_version
     def from_dict(cls, data: dict) -> Survey:
         """Reconstruct a Survey object from its dictionary representation.
-        
+
         This class method is the counterpart to to_dict() and allows you to recreate
         a Survey object from a serialized dictionary. This is useful for loading saved
         surveys, receiving surveys from other systems, or cloning surveys.
-        
+
         The method handles deserialization of all survey components, including questions,
         instructions, memory plan, rules, and question groups.
-        
+
         Args:
             data: A dictionary containing the serialized survey data, typically
                 created by the to_dict() method.
-                
+
         Returns:
             Survey: A fully reconstructed Survey object with all the original
                 questions, rules, and configuration.
-                
+
         Examples:
             Create a survey, serialize it, and deserialize it back:
-            
+
             >>> d = Survey.example().to_dict()
             >>> s = Survey.from_dict(d)
             >>> s == Survey.example()
             True
-            
+
             Works with instructions as well:
-            
+
             >>> s = Survey.example(include_instructions=True)
             >>> d = s.to_dict()
             >>> news = Survey.from_dict(d)
             >>> news == s
             True
         """
+
         # Helper function to determine the correct class for each serialized component
         def get_class(pass_dict):
             from ..questions import QuestionBase
@@ -524,12 +543,15 @@ class Survey(Base):
                 return QuestionBase
             elif pass_dict.get("edsl_class_name") == "QuestionDict":
                 from ..questions import QuestionDict
+
                 return QuestionDict
             elif class_name == "Instruction":
                 from ..instructions import Instruction
+
                 return Instruction
             elif class_name == "ChangeInstruction":
                 from ..instructions import ChangeInstruction
+
                 return ChangeInstruction
             else:
                 return QuestionBase
@@ -538,16 +560,16 @@ class Survey(Base):
         questions = [
             get_class(q_dict).from_dict(q_dict) for q_dict in data["questions"]
         ]
-        
+
         # Deserialize the memory plan
         memory_plan = MemoryPlan.from_dict(data["memory_plan"])
-        
+
         # Get the list of questions to randomize if present
         if "questions_to_randomize" in data:
             questions_to_randomize = data["questions_to_randomize"]
         else:
             questions_to_randomize = None
-            
+
         # Create and return the reconstructed survey
         survey = cls(
             questions=questions,
@@ -693,14 +715,14 @@ class Survey(Base):
 
     def set_full_memory_mode(self) -> Survey:
         """Configure the survey so agents remember all previous questions and answers.
-        
+
         In full memory mode, when an agent answers any question, it will have access to
         all previously asked questions and the agent's answers to them. This is useful
         for surveys where later questions build on or reference earlier responses.
-        
+
         Returns:
             Survey: The modified survey instance (allows for method chaining).
-            
+
         Examples:
             >>> s = Survey.example().set_full_memory_mode()
         """
@@ -709,21 +731,21 @@ class Survey(Base):
 
     def set_lagged_memory(self, lags: int) -> Survey:
         """Configure the survey so agents remember a limited window of previous questions.
-        
+
         In lagged memory mode, when an agent answers a question, it will only have access
         to the most recent 'lags' number of questions and answers. This is useful for
         limiting context when only recent questions are relevant.
-        
+
         Args:
             lags: The number of previous questions to remember. For example, if lags=2,
                 only the two most recent questions and answers will be remembered.
-                
+
         Returns:
             Survey: The modified survey instance (allows for method chaining).
-            
+
         Examples:
             Remember only the two most recent questions:
-            
+
             >>> s = Survey.example().set_lagged_memory(2)
         """
         MemoryManagement(self)._set_memory_plan(
@@ -733,15 +755,15 @@ class Survey(Base):
 
     def _set_memory_plan(self, prior_questions_func: Callable) -> None:
         """Set a custom memory plan based on a provided function.
-        
+
         This is an internal method used to define custom memory plans. The function
         provided determines which previous questions should be remembered for each
         question index.
-        
+
         Args:
             prior_questions_func: A function that takes the index of the current question
                 and returns a list of question names to remember.
-                
+
         Examples:
             >>> s = Survey.example()
             >>> s._set_memory_plan(lambda i: s.question_names[:i])
@@ -754,23 +776,23 @@ class Survey(Base):
         prior_question: Union[QuestionBase, str],
     ) -> Survey:
         """Configure the survey so a specific question has access to a prior question's answer.
-        
+
         This method allows you to define memory relationships between specific questions.
         When an agent answers the focal_question, it will have access to the prior_question
         and its answer, regardless of other memory settings.
-        
+
         Args:
             focal_question: The question for which to add memory, specified either as a
                 QuestionBase object or its question_name string.
             prior_question: The prior question to remember, specified either as a
                 QuestionBase object or its question_name string.
-                
+
         Returns:
             Survey: The modified survey instance (allows for method chaining).
-            
+
         Examples:
             When answering q2, remember the answer to q0:
-            
+
             >>> s = Survey.example().add_targeted_memory("q2", "q0")
             >>> s.memory_plan
             {'q2': Memory(prior_questions=['q0'])}
@@ -785,23 +807,23 @@ class Survey(Base):
         prior_questions: List[Union[QuestionBase, str]],
     ) -> Survey:
         """Configure the survey so a specific question has access to multiple prior questions.
-        
+
         This method allows you to define memory relationships between specific questions.
         When an agent answers the focal_question, it will have access to all the questions
         and answers specified in prior_questions.
-        
+
         Args:
             focal_question: The question for which to add memory, specified either as a
                 QuestionBase object or its question_name string.
             prior_questions: A list of prior questions to remember, each specified either
                 as a QuestionBase object or its question_name string.
-                
+
         Returns:
             Survey: The modified survey instance (allows for method chaining).
-            
+
         Examples:
             When answering q2, remember the answers to both q0 and q1:
-            
+
             >>> s = Survey.example().add_memory_collection("q2", ["q0", "q1"])
             >>> s.memory_plan
             {'q2': Memory(prior_questions=['q0', 'q1'])}
@@ -817,16 +839,16 @@ class Survey(Base):
         group_name: str,
     ) -> Survey:
         """Create a logical group of questions within the survey.
-        
+
         Question groups allow you to organize questions into meaningful sections,
         which can be useful for:
         - Analysis (analyzing responses by section)
         - Navigation (jumping between sections)
         - Presentation (displaying sections with headers)
-        
+
         Groups are defined by a contiguous range of questions from start_question
         to end_question, inclusive. Groups cannot overlap with other groups.
-        
+
         Args:
             start_question: The first question in the group, specified either as a
                 QuestionBase object or its question_name string.
@@ -834,24 +856,24 @@ class Survey(Base):
                 QuestionBase object or its question_name string.
             group_name: A name for the group. Must be a valid Python identifier
                 and must not conflict with existing group or question names.
-                
+
         Returns:
             Survey: The modified survey instance (allows for method chaining).
-            
+
         Raises:
             SurveyCreationError: If the group name is invalid, already exists,
                 conflicts with a question name, if start comes after end,
                 or if the group overlaps with an existing group.
-                
+
         Examples:
             Create a group of questions for demographics:
-            
+
             >>> s = Survey.example().add_question_group("q0", "q1", "group1")
             >>> s.question_groups
             {'group1': (0, 1)}
-            
+
             Group names must be valid Python identifiers:
-            
+
             >>> from edsl.surveys.exceptions import SurveyCreationError
             >>> # Example showing invalid group name error
             >>> try:
@@ -859,18 +881,18 @@ class Survey(Base):
             ... except SurveyCreationError:
             ...     print("Error: Invalid group name (as expected)")
             Error: Invalid group name (as expected)
-            
+
             Group names can't conflict with question names:
-            
+
             >>> # Example showing name conflict error
             >>> try:
             ...     Survey.example().add_question_group("q0", "q1", "q0")
             ... except SurveyCreationError:
             ...     print("Error: Group name conflicts with question name (as expected)")
             Error: Group name conflicts with question name (as expected)
-            
+
             Start question must come before end question:
-            
+
             >>> # Example showing index order error
             >>> try:
             ...     Survey.example().add_question_group("q1", "q0", "group1")
@@ -902,20 +924,23 @@ class Survey(Base):
             raise SurveyCreationError(
                 "Cannot use EndOfSurvey as a boundary for question groups."
             )
-            
+
         # Now we know both are integers
         assert isinstance(start_index, int) and isinstance(end_index, int)
-        
+
         if start_index > end_index:
             raise SurveyCreationError(
                 f"Start index {start_index} is greater than end index {end_index}."
             )
 
         # Check for overlaps with existing groups
-        for existing_group_name, (exist_start, exist_end) in self.question_groups.items():
+        for existing_group_name, (
+            exist_start,
+            exist_end,
+        ) in self.question_groups.items():
             # Ensure the existing indices are integers (they should be, but for type checking)
             assert isinstance(exist_start, int) and isinstance(exist_end, int)
-            
+
             # Check containment and overlap cases
             if start_index < exist_start and end_index > exist_end:
                 raise SurveyCreationError(
@@ -989,7 +1014,7 @@ class Survey(Base):
         self, question: Union["QuestionBase", str], expression: str
     ) -> Survey:
         """Add a rule to skip a question based on a conditional expression.
-        
+
         Skip rules are evaluated *before* the question is presented. If the expression
         evaluates to True, the question is skipped and the flow proceeds to the next
         question in sequence. This is different from jump rules which are evaluated
@@ -1001,7 +1026,7 @@ class Survey(Base):
             expression: A string expression that will be evaluated to determine if the
                 question should be skipped. Can reference previous questions' answers
                 using the template syntax, e.g., "{{ q0.answer }} == 'yes'".
-                
+
         Returns:
             Survey: The modified survey instance (allows for method chaining).
 
@@ -1016,16 +1041,16 @@ class Survey(Base):
             >>> s = Survey([q0, q1]).add_skip_rule("q0", "True")
             >>> s.next_question("q0", {}).question_name
             'q1'
-            
+
             Skip a question conditionally:
-            
+
             >>> q2 = QuestionFreeText.example()
             >>> q2.question_name = "q2"
             >>> s = Survey([q0, q1, q2])
             >>> s = s.add_skip_rule("q1", "{{ q0.answer }} == 'skip next'")
         """
         question_index = self._get_question_index(question)
-        
+
         # Only proceed if question_index is an integer (not EndOfSurvey)
         if isinstance(question_index, int):
             next_index = question_index + 1
@@ -1033,9 +1058,7 @@ class Survey(Base):
                 question, expression, next_index, before_rule=True
             )
         else:
-            raise SurveyCreationError(
-                "Cannot add skip rule to EndOfSurvey"
-            )
+            raise SurveyCreationError("Cannot add skip rule to EndOfSurvey")
 
     def add_rule(
         self,
@@ -1045,11 +1068,11 @@ class Survey(Base):
         before_rule: bool = False,
     ) -> Survey:
         """Add a conditional rule for navigating between questions in the survey.
-        
+
         Rules determine the flow of questions based on conditional expressions. When a rule's
         expression evaluates to True, the survey will navigate to the specified next question,
         potentially skipping questions or jumping to an earlier question.
-        
+
         By default, rules are evaluated *after* a question is answered. When before_rule=True,
         the rule is evaluated before the question is presented (which is useful for skip logic).
 
@@ -1064,19 +1087,19 @@ class Survey(Base):
                 or the EndOfSurvey class to end the survey.
             before_rule: If True, the rule is evaluated before the question is presented.
                 If False (default), the rule is evaluated after the question is answered.
-                
+
         Returns:
             Survey: The modified survey instance (allows for method chaining).
 
         Examples:
             Add a rule that navigates to q2 if the answer to q0 is 'yes':
-            
+
             >>> s = Survey.example().add_rule("q0", "{{ q0.answer }} == 'yes'", "q2")
             >>> s.next_question("q0", {"q0.answer": "yes"}).question_name
             'q2'
-            
+
             Add a rule to end the survey conditionally:
-            
+
             >>> from edsl.surveys.base import EndOfSurvey
             >>> s = Survey.example().add_rule("q0", "{{ q0.answer }} == 'end'", EndOfSurvey)
         """
@@ -1086,11 +1109,11 @@ class Survey(Base):
 
     def by(self, *args: Union["Agent", "Scenario", "LanguageModel"]) -> "Jobs":
         """Add components to the survey and return a runnable Jobs object.
-        
+
         This method is the primary way to prepare a survey for execution. It adds the
         necessary components (agents, scenarios, language models) to create a Jobs object
         that can be run to generate responses to the survey.
-        
+
         The method can be chained to add multiple components in sequence.
 
         Args:
@@ -1098,21 +1121,21 @@ class Survey(Base):
                 - Agent: The persona that will answer the survey questions
                 - Scenario: The context for the survey, with variables to substitute
                 - LanguageModel: The model that will generate the agent's responses
-                
+
         Returns:
             Jobs: A Jobs object that can be run to execute the survey.
-            
+
         Examples:
             Create a runnable Jobs object with an agent and scenario:
-            
+
             >>> s = Survey.example()
             >>> from edsl.agents import Agent
             >>> from edsl import Scenario
             >>> s.by(Agent.example()).by(Scenario.example())
             Jobs(...)
-            
+
             Chain all components in a single call:
-            
+
             >>> from edsl.language_models import LanguageModel
             >>> s.by(Agent.example(), Scenario.example(), LanguageModel.example())
             Jobs(...)
@@ -1123,14 +1146,14 @@ class Survey(Base):
 
     def to_jobs(self) -> "Jobs":
         """Convert the survey to a Jobs object without adding components.
-        
+
         This method creates a Jobs object from the survey without adding any agents,
         scenarios, or language models. You'll need to add these components later
         using the `by()` method before running the job.
-        
+
         Returns:
             Jobs: A Jobs object based on this survey.
-            
+
         Examples:
             >>> s = Survey.example()
             >>> jobs = s.to_jobs()
@@ -1143,11 +1166,11 @@ class Survey(Base):
 
     def show_prompts(self):
         """Display the prompts that will be used when running the survey.
-        
+
         This method converts the survey to a Jobs object and shows the prompts that
         would be sent to a language model. This is useful for debugging and understanding
         how the survey will be presented.
-        
+
         Returns:
             The detailed prompts for the survey.
         """
@@ -1164,10 +1187,10 @@ class Survey(Base):
         **kwargs,
     ) -> "Results":
         """Execute the survey with the given parameters and return results.
-        
+
         This is a convenient shorthand for creating a Jobs object and running it immediately.
         Any keyword arguments are passed as scenario parameters.
-        
+
         Args:
             model: The language model to use. If None, a default model is used.
             agent: The agent to use. If None, a default agent is used.
@@ -1176,13 +1199,13 @@ class Survey(Base):
             disable_remote_cache: If True, don't use remote cache even if available.
             disable_remote_inference: If True, don't use remote inference even if available.
             **kwargs: Key-value pairs to use as scenario parameters.
-            
+
         Returns:
             Results: The results of running the survey.
-            
+
         Examples:
             Run a survey with a functional question that uses scenario parameters:
-            
+
             >>> from edsl.questions import QuestionFunctional
             >>> def f(scenario, agent_traits): return "yes" if scenario["period"] == "morning" else "no"
             >>> q = QuestionFunctional(question_name="q0", func=f)
@@ -1207,11 +1230,11 @@ class Survey(Base):
         **kwargs,
     ) -> "Results":
         """Execute the survey asynchronously and return results.
-        
+
         This method provides an asynchronous way to run surveys, which is useful for
         concurrent execution or integration with other async code. It creates a Jobs
         object and runs it asynchronously.
-        
+
         Args:
             model: The language model to use. If None, a default model is used.
             agent: The agent to use. If None, a default agent is used.
@@ -1219,28 +1242,28 @@ class Survey(Base):
             **kwargs: Key-value pairs to use as scenario parameters. May include:
                 - disable_remote_inference: If True, don't use remote inference even if available.
                 - disable_remote_cache: If True, don't use remote cache even if available.
-            
+
         Returns:
             Results: The results of running the survey.
-            
+
         Examples:
             Run a survey asynchronously with morning parameter:
-            
+
             >>> import asyncio
             >>> from edsl.questions import QuestionFunctional
             >>> def f(scenario, agent_traits): return "yes" if scenario["period"] == "morning" else "no"
             >>> q = QuestionFunctional(question_name="q0", func=f)
-            >>> from edsl import Model 
+            >>> from edsl import Model
             >>> s = Survey([q])
-            >>> async def test_run_async(): 
+            >>> async def test_run_async():
             ...     result = await s.run_async(period="morning", disable_remote_inference = True)
             ...     print(result.select("answer.q0").first())
             >>> asyncio.run(test_run_async())
             yes
-            
+
             Run with evening parameter:
-            
-            >>> async def test_run_async2(): 
+
+            >>> async def test_run_async2():
             ...     result = await s.run_async(period="evening", disable_remote_inference = True)
             ...     print(result.select("answer.q0").first())
             >>> asyncio.run(test_run_async2())
@@ -1249,28 +1272,37 @@ class Survey(Base):
         # Create a cache if none provided
         if cache is None:
             from edsl.caching import Cache
+
             c = Cache()
         else:
             c = cache
 
         # Get scenario parameters, excluding any that will be passed to run_async
-        scenario_kwargs = {k: v for k, v in kwargs.items() 
-                         if k not in ['disable_remote_inference', 'disable_remote_cache']}
-        
+        scenario_kwargs = {
+            k: v
+            for k, v in kwargs.items()
+            if k not in ["disable_remote_inference", "disable_remote_cache"]
+        }
+
         # Get the job options to pass to run_async
-        job_kwargs = {k: v for k, v in kwargs.items() 
-                     if k in ['disable_remote_inference', 'disable_remote_cache']}
-                     
-        jobs: "Jobs" = self.get_job(model=model, agent=agent, **scenario_kwargs).using(c)
+        job_kwargs = {
+            k: v
+            for k, v in kwargs.items()
+            if k in ["disable_remote_inference", "disable_remote_cache"]
+        }
+
+        jobs: "Jobs" = self.get_job(model=model, agent=agent, **scenario_kwargs).using(
+            c
+        )
         return await jobs.run_async(**job_kwargs)
 
     def run(self, *args, **kwargs) -> "Results":
         """Convert the survey to a Job and execute it with the provided parameters.
-        
+
         This method creates a Jobs object from the survey and runs it immediately with
         the provided arguments. It's a convenient way to run a survey without explicitly
         creating a Jobs object first.
-        
+
         Args:
             *args: Positional arguments passed to the Jobs.run() method.
             **kwargs: Keyword arguments passed to the Jobs.run() method, which can include:
@@ -1278,13 +1310,13 @@ class Survey(Base):
                 - verbose: Whether to show detailed progress
                 - disable_remote_cache: Whether to disable remote caching
                 - disable_remote_inference: Whether to disable remote inference
-        
+
         Returns:
             Results: The results of running the survey.
-            
+
         Examples:
             Run a survey with a test language model:
-            
+
             >>> from edsl import QuestionFreeText
             >>> s = Survey([QuestionFreeText.example()])
             >>> from edsl.language_models import LanguageModel
@@ -1364,12 +1396,12 @@ class Survey(Base):
 
     def gen_path_through_survey(self) -> Generator[QuestionBase, dict, None]:
         """Generate a coroutine that navigates through the survey based on answers.
-        
+
         This method creates a Python generator that implements the survey flow logic.
         It yields questions and receives answers, handling the branching logic based
         on the rules defined in the survey. This generator is the core mechanism used
         by the Interview process to administer surveys.
-        
+
         The generator follows these steps:
         1. Yields the first question (or skips it if skip rules apply)
         2. Receives an answer dictionary from the caller via .send()
@@ -1377,29 +1409,29 @@ class Survey(Base):
         4. Determines the next question based on the survey rules
         5. Yields the next question
         6. Repeats steps 2-5 until the end of survey is reached
-        
+
         Returns:
             Generator[QuestionBase, dict, None]: A generator that yields questions and
                 receives answer dictionaries. The generator terminates when it reaches
                 the end of the survey.
-                
+
         Examples:
             For the example survey with conditional branching:
-            
+
             >>> s = Survey.example()
             >>> s.show_rules()
             Dataset([{'current_q': [0, 0, 1, 2]}, {'expression': ['True', "{{ q0.answer }}== 'yes'", 'True', 'True']}, {'next_q': [1, 2, 2, 3]}, {'priority': [-1, 0, -1, -1]}, {'before_rule': [False, False, False, False]}])
-            
+
             Path when answering "yes" to first question:
-            
+
             >>> i = s.gen_path_through_survey()
             >>> next(i)  # Get first question
             Question('multiple_choice', question_name = \"""q0\""", question_text = \"""Do you like school?\""", question_options = ['yes', 'no'])
             >>> i.send({"q0.answer": "yes"})  # Answer "yes" and get next question
             Question('multiple_choice', question_name = \"""q2\""", question_text = \"""Why?\""", question_options = ['**lack*** of killer bees in cafeteria', 'other'])
-            
+
             Path when answering "no" to first question:
-            
+
             >>> i2 = s.gen_path_through_survey()
             >>> next(i2)  # Get first question
             Question('multiple_choice', question_name = \"""q0\""", question_text = \"""Do you like school?\""", question_options = ['yes', 'no'])
@@ -1408,10 +1440,10 @@ class Survey(Base):
         """
         # Initialize empty answers dictionary
         self.answers: Dict[str, Any] = {}
-        
+
         # Start with the first question
         question = self.questions[0]
-        
+
         # Check if the first question should be skipped based on skip rules
         if self.rule_collection.skip_question_before_running(0, self.answers):
             question = self.next_question(question, self.answers)
@@ -1420,39 +1452,38 @@ class Survey(Base):
         while not question == EndOfSurvey:
             # Yield the current question and wait for an answer
             answer = yield question
-            
+
             # Update the accumulated answers with the new answer
             self.answers.update(answer)
-            
+
             # Determine the next question based on the rules and answers
             # TODO: This should also include survey and agent attributes
             question = self.next_question(question, self.answers)
 
-
     def dag(self, textify: bool = False) -> "DAG":
         """Return a Directed Acyclic Graph (DAG) representation of the survey flow.
-        
+
         This method constructs a DAG that represents the possible paths through the survey,
         taking into account both skip logic and memory relationships. The DAG is useful
         for visualizing and analyzing the structure of the survey.
-        
+
         Args:
             textify: If True, the DAG will use question names as nodes instead of indices.
                 This makes the DAG more human-readable but less compact.
-                
+
         Returns:
             DAG: A dictionary where keys are question indices (or names if textify=True)
                 and values are sets of prerequisite questions. For example, {2: {0, 1}}
                 means question 2 depends on questions 0 and 1.
-                
+
         Examples:
             >>> s = Survey.example()
             >>> d = s.dag()
             >>> d
             {1: {0}, 2: {0}}
-            
+
             With textify=True:
-            
+
             >>> dag = s.dag(textify=True)
             >>> sorted([(k, sorted(list(v))) for k, v in dag.items()])
             [('q1', ['q0']), ('q2', ['q0'])]
@@ -1529,12 +1560,12 @@ class Survey(Base):
         custom_instructions: Optional[str] = None,
     ) -> Survey:
         """Create an example survey for testing and demonstration purposes.
-        
+
         This method creates a simple branching survey about school preferences.
         The default survey contains three questions with conditional logic:
         - If the user answers "yes" to liking school, they are asked why they like it
         - If the user answers "no", they are asked why they don't like it
-        
+
         Args:
             params: If True, adds a fourth question that demonstrates parameter substitution
                 by referencing the question text and answer from the first question.
@@ -1543,19 +1574,19 @@ class Survey(Base):
             include_instructions: If True, adds an instruction to the beginning of the survey.
             custom_instructions: Custom instruction text to use if include_instructions is True.
                 Defaults to "Please pay attention!" if not provided.
-                
+
         Returns:
             Survey: A configured example survey instance.
-            
+
         Examples:
             Create a basic example survey:
-            
+
             >>> s = Survey.example()
             >>> [q.question_text for q in s.questions]
             ['Do you like school?', 'Why not?', 'Why?']
-            
+
             Create an example with parameter substitution:
-            
+
             >>> s = Survey.example(params=True)
             >>> s.questions[3].question_text
             "To the question '{{ q0.question_text}}', you said '{{ q0.answer }}'. Do you still feel this way?"
@@ -1564,7 +1595,7 @@ class Survey(Base):
 
         # Add random UUID to question text if randomization is requested
         addition = "" if not randomize else str(uuid4())
-        
+
         # Create the basic questions
         q0 = QuestionMultipleChoice(
             question_text=f"Do you like school?{addition}",
@@ -1581,7 +1612,7 @@ class Survey(Base):
             question_options=["**lack*** of killer bees in cafeteria", "other"],
             question_name="q2",
         )
-        
+
         # Add parameter demonstration question if requested
         if params:
             q3 = QuestionMultipleChoice(
@@ -1697,14 +1728,14 @@ class Survey(Base):
 
     def copy(self) -> "Survey":
         """Create a deep copy of the survey using serialization.
-        
+
         This method creates a completely independent copy of the survey by serializing
         and then deserializing it. This ensures all components are properly copied
         and maintains consistency with the survey's serialization format.
-        
+
         Returns:
             Survey: A new Survey instance that is a deep copy of the original.
-            
+
         Examples:
             >>> s = Survey.example()
             >>> s2 = s.copy()
