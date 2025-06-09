@@ -84,6 +84,7 @@ class CostDefinition(DictSerializable):
     per_call_cost: int
     variable_pricing_cost_formula: Optional[str] = None
     uses_client_ep_key: bool = False
+    ep_username: str = "test"
 
 
 @dataclass
