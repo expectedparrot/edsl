@@ -1679,7 +1679,10 @@ class Coop(CoopFunctionsMixin):
         }
 
     def _turn_human_responses_into_results(
-        self, human_responses: List[dict], survey_json_string: str
+        self,
+        human_responses: List[dict],
+        survey_json_string: str,
+        scenario_list_json_string: Optional[str] = None,
     ) -> Union["Results", "ScenarioList"]:
         """
         Turn a list of human responses into a Results object.
@@ -1693,7 +1696,18 @@ class Coop(CoopFunctionsMixin):
         from ..surveys import Survey
 
         try:
-            agent_list = AgentList()
+            survey = Survey.from_dict(json.loads(survey_json_string))
+
+            model = Model("test")
+
+            if scenario_list_json_string is not None:
+                scenario_list = ScenarioList.from_dict(
+                    json.loads(scenario_list_json_string)
+                )
+            else:
+                scenario_list = ScenarioList()
+
+            results = None
 
             for response in human_responses:
                 response_uuid = response.get("response_uuid")
@@ -1704,6 +1718,7 @@ class Coop(CoopFunctionsMixin):
 
                 response_dict = json.loads(response.get("response_json_string"))
                 agent_traits_json_string = response.get("agent_traits_json_string")
+                scenario_uuid = response.get("scenario_uuid")
                 if agent_traits_json_string is not None:
                     agent_traits = json.loads(agent_traits_json_string)
                 else:
@@ -1717,26 +1732,38 @@ class Coop(CoopFunctionsMixin):
 
                     return f
 
+                scenario = None
+                if scenario_uuid is not None:
+                    for s in scenario_list:
+                        if s.get("uuid") == scenario_uuid:
+                            scenario = s
+                            break
+
+                    if scenario is None:
+                        raise RuntimeError("Scenario not found.")
+
                 a.add_direct_question_answering_method(
                     create_answer_function(response_dict)
                 )
-                agent_list.append(a)
 
-            survey = Survey.from_dict(json.loads(survey_json_string))
+                job = survey.by(a).by(model)
 
-            model = Model("test")
-            results = (
-                survey.by(agent_list)
-                .by(model)
-                .run(
+                if scenario is not None:
+                    job = job.by(scenario)
+
+                question_results = job.run(
                     cache=Cache(),
                     disable_remote_cache=True,
                     disable_remote_inference=True,
                     print_exceptions=False,
                 )
-            )
+
+                if results is None:
+                    results = question_results
+                else:
+                    results = results + question_results
             return results
-        except Exception:
+        except Exception as e:
             human_response_scenarios = []
             for response in human_responses:
                 response_uuid = response.get("response_uuid")
@@ -1768,9 +1795,10 @@ class Coop(CoopFunctionsMixin):
         response_json = response.json()
         human_responses = response_json.get("human_responses", [])
         survey_json_string = response_json.get("survey_json_string")
+        scenario_list_json_string = response_json.get("scenario_list_json_string")
 
         return self._turn_human_responses_into_results(
-            human_responses, survey_json_string
+            human_responses, survey_json_string, scenario_list_json_string
         )
 
     def list_prolific_filters(self) -> "CoopProlificFilters":
