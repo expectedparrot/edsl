@@ -240,6 +240,13 @@ class Survey(Base):
 
         self._exporter = SurveyExport(self)
 
+    @classmethod
+    def auto_survey(cls, overall_question: str, population: str, num_questions: int) -> Survey:
+        """Create a survey with a single question that asks the user how they are doing."""
+        from edsl import ext
+        survey_info = ext.create_survey(overall_question=overall_question, population=population, num_questions=num_questions)
+        return survey_info['survey']
+
     # In survey.py
     @property
     def ep(self):
