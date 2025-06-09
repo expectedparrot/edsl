@@ -1592,6 +1592,7 @@ class Coop(CoopFunctionsMixin):
         self,
         survey: "Survey",
         scenario_list: Optional["ScenarioList"] = None,
+        scenario_list_method: Optional[Literal["randomize", "loop"]] = None,
         project_name: str = "Project",
         survey_description: Optional[str] = None,
         survey_alias: Optional[str] = None,
@@ -1603,6 +1604,14 @@ class Coop(CoopFunctionsMixin):
         """
         Create a survey object on Coop, then create a project from the survey.
         """
+        if scenario_list is None and scenario_list_method is not None:
+            raise CoopValueError(
+                "You must specify both a scenario list and a scenario list method to use scenarios with your survey."
+            )
+        elif scenario_list is not None and scenario_list_method is None:
+            raise CoopValueError(
+                "You must specify both a scenario list and a scenario list method to use scenarios with your survey."
+            )
         survey_details = self.push(
             object=survey,
             description=survey_description,
@@ -1629,6 +1638,7 @@ class Coop(CoopFunctionsMixin):
                 "scenario_list_uuid": (
                     str(scenario_list_uuid) if scenario_list_uuid is not None else None
                 ),
+                "scenario_list_method": scenario_list_method,
             },
         )
         self._resolve_server_response(response)

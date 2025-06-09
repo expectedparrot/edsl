@@ -1091,6 +1091,7 @@ class Jobs(Base):
     def humanize(
         self,
         project_name: str = "Project",
+        scenario_list_method: Optional[Literal["randomize", "loop"]] = None,
         survey_description: Optional[str] = None,
         survey_alias: Optional[str] = None,
         survey_visibility: Optional["VisibilityType"] = "unlisted",
@@ -1104,25 +1105,30 @@ class Jobs(Base):
         Then, create a project on Coop so you can share the survey with human respondents.
         """
         from edsl.coop import Coop
+        from edsl.coop.exceptions import CoopValueError
 
         if len(self.agents) > 0 or len(self.models) > 0:
-            raise ValueError("We don't support humanize with agents or models yet.")
+            raise CoopValueError("We don't support humanize with agents or models yet.")
 
-        # Add unique names to scenarios
+        if len(self.scenarios) > 0 and scenario_list_method is None:
+            raise CoopValueError(
+                "You must specify both a scenario list and a scenario list method to use scenarios with your survey."
+            )
+        elif len(self.scenarios) == 0 and scenario_list_method is not None:
+            raise CoopValueError(
+                "You must specify both a scenario list and a scenario list method to use scenarios with your survey."
+            )
+
         if len(self.scenarios) == 0:
             scenario_list = None
         else:
-            scenario_list = ScenarioList(
-                [
-                    Scenario(scenario.data, name=f"scenario_{i}")
-                    for i, scenario in enumerate(self.scenarios)
-                ]
-            )
+            scenario_list = self.scenarios
 
         c = Coop()
         project_details = c.create_project(
             self.survey,
             scenario_list,
+            scenario_list_method,
             project_name,
             survey_description,
             survey_alias,
