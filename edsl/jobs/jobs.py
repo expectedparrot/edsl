@@ -1118,6 +1118,15 @@ class Jobs(Base):
             raise CoopValueError(
                 "You must specify both a scenario list and a scenario list method to use scenarios with your survey."
             )
+        elif scenario_list_method is "loop":
+            questions, long_scenario_list = self.survey.to_long_format(self.scenarios)
+
+            # Replace the questions with new ones from the loop method
+            self.survey = Survey(questions)
+            self.scenarios = long_scenario_list
+
+            if len(self.scenarios) != 1:
+                raise CoopValueError("Something went wrong with the loop method.")
 
         if len(self.scenarios) == 0:
             scenario_list = None
