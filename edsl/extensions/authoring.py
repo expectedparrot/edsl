@@ -7,6 +7,7 @@ import requests # Added for __call__
 from pydantic import create_model, Field, BaseModel
 
 import json
+import os
 # Std-lib imports for spinner/timer functionality
 import sys
 import threading
@@ -563,7 +564,45 @@ class ServiceDefinition(DictSerializable):
             All exceptions are propagated from `call_via_gateway` so callers
             can handle them as needed.
         """
-        # Simply delegate; call_via_gateway handles logging/spinner.
+        # --- Estimate cost and potentially ask for confirmation --------
+        try:
+            from .price_calculation import compute_price  # Local import to avoid circular deps
+            estimated_cost = compute_price(self, kwargs)
+        except Exception as _e:  # pragma: no cover – cost estimation failure should never abort the call
+            logger.debug("Could not compute price for '%s': %s", self.name, _e)
+            estimated_cost = None
+
+        # Check env var – if set and a numeric value, compare against the cost
+        #threshold_str = os.getenv("MAX_PRICE_BEFORE_CONFIRM")
+        from ..config import CONFIG
+        threshold_str = CONFIG.EDSL_MAX_PRICE_BEFORE_CONFIRM
+        #threshold_str = "90"
+        threshold: Optional[int] = None
+        if threshold_str is not None:
+            try:
+                threshold = int(threshold_str)
+            except ValueError:
+                logger.warning("Environment variable MAX_PRICE_BEFORE_CONFIRM is not a valid integer: %s", threshold_str)
+
+        if estimated_cost is not None and threshold is not None and estimated_cost > threshold:
+            # Prompt the user for confirmation. Use a simple stdin prompt so the check works in most shells.
+            prompt = (
+                f"This service call is estimated to cost {estimated_cost} {self.cost.unit}, "
+                f"which exceeds your threshold of {threshold}. Proceed? [y/N]: "
+            )
+            try:
+                user_input = input(prompt)
+            except EOFError:
+                # Non-interactive environment – default to 'no'
+                logger.info("No TTY available for confirmation prompt; aborting expensive call.")
+                return None
+
+            if user_input.strip().lower() not in ("y", "yes"):
+                logger.info("User declined to proceed with service '%s' due to estimated cost.", self.name)
+                print("Aborted service call.")
+                return None
+
+        # Proceed with the actual call – call_via_gateway handles the rest
         return self.call_via_gateway(**kwargs)
 
     def call_directly(self, **kwargs: Any) -> Any:
