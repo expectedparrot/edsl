@@ -11,7 +11,7 @@ from ..file_methods import FileMethods
 class PyMethods(FileMethods):
     suffix = "py"
 
-    def view_system(self):
+    def view_system(self, width: int = None, height: int = None):
         """Open the Python file in the system's default editor."""
         import os
         import subprocess
@@ -29,7 +29,7 @@ class PyMethods(FileMethods):
         else:
             print("Python file was not found.")
 
-    def view_notebook(self):
+    def view_notebook(self, width: int = None, height: int = None):
         """Display the Python file with syntax highlighting in a notebook."""
         from IPython.display import FileLink, display, HTML
         import pygments
