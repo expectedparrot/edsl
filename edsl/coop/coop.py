@@ -1591,25 +1591,45 @@ class Coop(CoopFunctionsMixin):
     def create_project(
         self,
         survey: "Survey",
+        scenario_list: Optional["ScenarioList"] = None,
         project_name: str = "Project",
         survey_description: Optional[str] = None,
         survey_alias: Optional[str] = None,
         survey_visibility: Optional[VisibilityType] = "unlisted",
+        scenario_list_description: Optional[str] = None,
+        scenario_list_alias: Optional[str] = None,
+        scenario_list_visibility: Optional[VisibilityType] = "unlisted",
     ):
         """
         Create a survey object on Coop, then create a project from the survey.
         """
-        survey_details = self.create(
+        survey_details = self.push(
             object=survey,
             description=survey_description,
             alias=survey_alias,
             visibility=survey_visibility,
         )
         survey_uuid = survey_details.get("uuid")
+        if scenario_list is not None:
+            scenario_list_details = self.push(
+                object=scenario_list,
+                description=scenario_list_description,
+                alias=scenario_list_alias,
+                visibility=scenario_list_visibility,
+            )
+            scenario_list_uuid = scenario_list_details.get("uuid")
+        else:
+            scenario_list_uuid = None
         response = self._send_server_request(
             uri="api/v0/projects/create-from-survey",
             method="POST",
-            payload={"project_name": project_name, "survey_uuid": str(survey_uuid)},
+            payload={
+                "project_name": project_name,
+                "survey_uuid": str(survey_uuid),
+                "scenario_list_uuid": (
+                    str(scenario_list_uuid) if scenario_list_uuid is not None else None
+                ),
+            },
         )
         self._resolve_server_response(response)
         response_json = response.json()
@@ -2702,7 +2722,9 @@ class Coop(CoopFunctionsMixin):
             st.session_state.login_start_time = time.time()
 
         edsl_auth_token: str = st.session_state.edsl_auth_token
-        login_url = f"{CONFIG.EXPECTED_PARROT_URL}/login?edsl_auth_token={edsl_auth_token}"
+        login_url = (
+            f"{CONFIG.EXPECTED_PARROT_URL}/login?edsl_auth_token={edsl_auth_token}"
+        )
 
         # ------------------------------------------------------------------
         # 2. Render clickable login link
@@ -2719,13 +2741,16 @@ class Coop(CoopFunctionsMixin):
         if api_key is None:
             elapsed = time.time() - st.session_state.login_start_time
             if elapsed > timeout:
-                st.error("Timed-out waiting for login. Please rerun the app to try again.")
+                st.error(
+                    "Timed-out waiting for login. Please rerun the app to try again."
+                )
                 return None
 
             remaining = int(timeout - elapsed)
             st.info(f"Waiting for login… ({remaining}s left)")
             # Trigger a rerun after a short delay to continue polling
             time.sleep(1)
+
             # Attempt a rerun in a version-agnostic way. Different Streamlit
             # releases expose the helper under different names.
             def _safe_rerun():
@@ -2888,7 +2913,9 @@ class Coop(CoopFunctionsMixin):
         # 1. Prepare auth-token
         # ------------------------------------------------------------------
         edsl_auth_token = secrets.token_urlsafe(16)
-        login_url = f"{CONFIG.EXPECTED_PARROT_URL}/login?edsl_auth_token={edsl_auth_token}"
+        login_url = (
+            f"{CONFIG.EXPECTED_PARROT_URL}/login?edsl_auth_token={edsl_auth_token}"
+        )
         start_time = time.time()
 
         # ------------------------------------------------------------------
@@ -2899,7 +2926,9 @@ class Coop(CoopFunctionsMixin):
                 f'🔗 <b>Log in to Expected Parrot</b> → <a href="{login_url}" target="_blank">click here</a>'
             )
             status_md = gr.Markdown("Waiting for login…")
-            refresh_btn = gr.Button("I've logged in – click to continue", elem_id="refresh-btn")
+            refresh_btn = gr.Button(
+                "I've logged in – click to continue", elem_id="refresh-btn"
+            )
             key_state = gr.State(value=None)
 
             # --------------------------------------------------------------
@@ -2907,6 +2936,7 @@ class Coop(CoopFunctionsMixin):
             # --------------------------------------------------------------
             def _refresh(current_key):  # noqa: D401, pylint: disable=unused-argument
                 """Poll server for API-key and update UI accordingly."""
+
                 # Fallback helper to generate a `update` object for the refresh button
                 def _button_update(**kwargs):
                     try:
@@ -3110,8 +3140,8 @@ def main():
     import streamlit as st
     from edsl.coop import Coop
 
-    coop = Coop()                 # no API-key required yet
-    api_key = coop.login_streamlit()   # renders link + handles polling & storage
+    coop = Coop()  # no API-key required yet
+    api_key = coop.login_streamlit()  # renders link + handles polling & storage
 
     if api_key:
         st.success("Ready to use EDSL with remote features!")

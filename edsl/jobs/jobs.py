@@ -1,8 +1,8 @@
 """
 The Jobs module is the core orchestration component of the EDSL framework.
 
-It provides functionality to define, configure, and execute computational jobs that 
-involve multiple agents, scenarios, models, and a survey. Jobs are the primary way 
+It provides functionality to define, configure, and execute computational jobs that
+involve multiple agents, scenarios, models, and a survey. Jobs are the primary way
 that users run large-scale experiments or simulations in EDSL.
 
 The Jobs class handles:
@@ -15,6 +15,7 @@ The Jobs class handles:
 This module is designed to be used by both application developers and researchers
 who need to run complex simulations with language models.
 """
+
 from __future__ import annotations
 import asyncio
 from typing import Optional, Union, TypeVar, Callable, cast
@@ -1086,6 +1087,51 @@ class Jobs(Base):
     def code(self):
         """Return the code to create this instance."""
         raise JobsImplementationError("Code generation not implemented yet")
+
+    def humanize(
+        self,
+        project_name: str = "Project",
+        survey_description: Optional[str] = None,
+        survey_alias: Optional[str] = None,
+        survey_visibility: Optional["VisibilityType"] = "unlisted",
+        scenario_list_description: Optional[str] = None,
+        scenario_list_alias: Optional[str] = None,
+        scenario_list_visibility: Optional["VisibilityType"] = "unlisted",
+    ):
+        """
+        Send the survey and scenario list to Coop.
+
+        Then, create a project on Coop so you can share the survey with human respondents.
+        """
+        from edsl.coop import Coop
+
+        if len(self.agents) > 0 or len(self.models) > 0:
+            raise ValueError("We don't support humanize with agents or models yet.")
+
+        # Add unique names to scenarios
+        if len(self.scenarios) == 0:
+            scenario_list = None
+        else:
+            scenario_list = ScenarioList(
+                [
+                    Scenario(scenario.data, name=f"scenario_{i}")
+                    for i, scenario in enumerate(self.scenarios)
+                ]
+            )
+
+        c = Coop()
+        project_details = c.create_project(
+            self.survey,
+            scenario_list,
+            project_name,
+            survey_description,
+            survey_alias,
+            survey_visibility,
+            scenario_list_description,
+            scenario_list_alias,
+            scenario_list_visibility,
+        )
+        return project_details
 
 
 def main():
