@@ -1676,7 +1676,11 @@ class Survey(Base):
 
         c = Coop()
         project_details = c.create_project(
-            self, project_name, survey_description, survey_alias, survey_visibility
+            self,
+            project_name=project_name,
+            survey_description=survey_description,
+            survey_alias=survey_alias,
+            survey_visibility=survey_visibility,
         )
         return project_details
 
