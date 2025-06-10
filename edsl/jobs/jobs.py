@@ -1091,7 +1091,9 @@ class Jobs(Base):
     def humanize(
         self,
         project_name: str = "Project",
-        scenario_list_method: Optional[Literal["randomize", "loop"]] = None,
+        scenario_list_method: Optional[
+            Literal["randomize", "loop", "single_scenario"]
+        ] = None,
         survey_description: Optional[str] = None,
         survey_alias: Optional[str] = None,
         survey_visibility: Optional["VisibilityType"] = "unlisted",
@@ -1127,6 +1129,11 @@ class Jobs(Base):
 
             if len(self.scenarios) != 1:
                 raise CoopValueError("Something went wrong with the loop method.")
+        elif len(self.scenarios) != 1 and scenario_list_method == "single_scenario":
+            raise CoopValueError(
+                f"The single_scenario method requires exactly one scenario. "
+                f"If you have a scenario list with multiple scenarios, try using the randomize or loop methods."
+            )
 
         if len(self.scenarios) == 0:
             scenario_list = None

@@ -1592,7 +1592,9 @@ class Coop(CoopFunctionsMixin):
         self,
         survey: "Survey",
         scenario_list: Optional["ScenarioList"] = None,
-        scenario_list_method: Optional[Literal["randomize", "loop"]] = None,
+        scenario_list_method: Optional[
+            Literal["randomize", "loop", "single_scenario"]
+        ] = None,
         project_name: str = "Project",
         survey_description: Optional[str] = None,
         survey_alias: Optional[str] = None,
