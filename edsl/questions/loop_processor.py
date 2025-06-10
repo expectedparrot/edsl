@@ -207,7 +207,7 @@ class LongSurveyLoopProcessor:
     >>> from edsl.questions import QuestionMultipleChoice
     >>> from edsl.surveys import Survey
     >>> from edsl.scenarios import Scenario, ScenarioList
-    >>> q = QuestionMultipleChoice(question_name = "enjoy", question_text = "How much do you enjoy {{ activity }}?", question_options = ["Not at all", "Somewhat", "Very much"])
+    >>> q = QuestionMultipleChoice(question_name = "enjoy", question_text = "How much do you enjoy {{ scenario.activity }}?", question_options = ["Not at all", "Somewhat", "Very much"])
     >>> scenarios = ScenarioList([Scenario({"activity": activity}) for activity in ["tennis", "racecar driving", "cycling"]])
     >>> survey = Survey([q])
     >>> loop_processor = LongSurveyLoopProcessor(survey, scenarios)
@@ -341,7 +341,9 @@ class LongSurveyLoopProcessor:
     def _jinja_variable_pattern(self) -> str:
 
         # Regular expression to find Jinja2 variables in the template
-        pattern = r"(?P<open>\{\{\s*)(?P<var>[a-zA-Z0-9_.]+)(?P<close>\s*\}\})"
+        pattern = (
+            r"(?P<open>\{\{\s*)scenario\.(?P<var>[a-zA-Z0-9_.]+)(?P<close>\s*\}\})"
+        )
         return pattern
 
     def _render_template(
@@ -363,22 +365,22 @@ class LongSurveyLoopProcessor:
             >>> q.question_text = "test"
             >>> sl = ScenarioList([Scenario({"name": "World"}), Scenario({"name": "everyone"})])
             >>> p = LongSurveyLoopProcessor(q, sl)
-            >>> p._render_template("Hello {{name}}!", {"name": "everyone"}, scenario_index=1)
+            >>> p._render_template("Hello {{scenario.name}}!", {"name": "everyone"}, scenario_index=1)
             'Hello {{ scenario.name_1 }}!'
 
-            >>> p._render_template("{{a}} and {{b}}", {"b": 6}, scenario_index=1)
+            >>> p._render_template("{{scenario.a}} and {{scenario.b}}", {"b": 6}, scenario_index=1)
             '{{ a }} and {{ scenario.b_1 }}'
 
-            >>> p._render_template("{{x}} + {{y}} = {{z}}", {"x": 2, "y": 3}, scenario_index=5)
+            >>> p._render_template("{{scenario.x}} + {{scenario.y}} = {{scenario.z}}", {"x": 2, "y": 3}, scenario_index=5)
             '{{ scenario.x_5 }} + {{ scenario.y_5 }} = {{ z }}'
 
             >>> p._render_template("No variables here", {}, scenario_index=0)
             'No variables here'
 
-            >>> p._render_template("{{item.price}}", {"item": {"price": 9.99}}, scenario_index=3)
+            >>> p._render_template("{{scenario.item.price}}", {"item": {"price": 9.99}}, scenario_index=3)
             '{{ scenario.item_3.price }}'
 
-            >>> p._render_template("{{item.missing}}", {"item": {"price": 9.99}}, scenario_index=3)
+            >>> p._render_template("{{scenario.item.missing}}", {"item": {"price": 9.99}}, scenario_index=3)
             '{{ scenario.item_3.missing }}'
         """
         import re
@@ -395,6 +397,7 @@ class LongSurveyLoopProcessor:
             try:
                 # Handle nested attributes (like item.price)
                 parts = var_name.split(".")
+
                 base_var = parts[0]
 
                 self.long_scenario_dict.update(
