@@ -204,7 +204,13 @@ class LongSurveyLoopProcessor:
     The long scenario list is essentially a flattened scenario list with one scenario that has many fields.
 
     Usage:
-    >>> loop_processor = LongSurveyLoopProcessor(survey, scenario_list)
+    >>> from edsl.questions import QuestionMultipleChoice
+    >>> from edsl.surveys import Survey
+    >>> from edsl.scenarios import Scenario, ScenarioList
+    >>> q = QuestionMultipleChoice(question_name = "enjoy", question_text = "How much do you enjoy {{ activity }}?", question_options = ["Not at all", "Somewhat", "Very much"])
+    >>> scenarios = ScenarioList([Scenario({"activity": activity}) for activity in ["tennis", "racecar driving", "cycling"]])
+    >>> survey = Survey([q])
+    >>> loop_processor = LongSurveyLoopProcessor(survey, scenarios)
     >>> long_questions_list, long_scenario_list = loop_processor.process_templates_for_all_questions()
     """
 
@@ -352,6 +358,7 @@ class LongSurveyLoopProcessor:
 
         Examples:
             >>> from edsl.questions import QuestionBase
+            >>> from edsl.scenarios import Scenario, ScenarioList
             >>> q = QuestionBase()
             >>> q.question_text = "test"
             >>> sl = ScenarioList([Scenario({"name": "World"}), Scenario({"name": "everyone"})])
