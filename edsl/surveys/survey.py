@@ -246,6 +246,14 @@ class Survey(Base):
         from edsl import ext
         survey_info = ext.create_survey(overall_question=overall_question, population=population, num_questions=num_questions)
         return survey_info['survey']
+    
+    def generate_description(self) -> str:
+        """Generate a description of the survey."""
+        from ..questions import QuestionFreeText
+        question_texts = [q.question_text for q in self.questions]
+        q = QuestionFreeText(question_text=f"What is a good one sentence description of this survey? The questions are: {question_texts}", question_name="description")
+        results = q.run(verbose = False)
+        return results.select('answer.description').first()
 
     # In survey.py
     @property

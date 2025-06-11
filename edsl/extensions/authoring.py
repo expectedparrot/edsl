@@ -15,7 +15,12 @@ import itertools
 import time
 import logging
 
+from fastapi import HTTPException
+from fastapi import APIRouter, Header, HTTPException
+from typing import Callable, Optional, Any, Dict
+
 from ..surveys import Survey # Assume Survey is always available
+from ..scenarios import Scenario
 from ..base import RegisterSubclassesMeta
 
 from .exceptions import (
@@ -27,6 +32,22 @@ from .exceptions import (
     ServiceDeserializationError,
     ServiceOutputValidationError
 )
+
+class Service(Scenario):
+
+    # def __init__(self, service_definition: 'ServiceDefinition'):
+    #     super().__init__({'yaml_string': service_definition.to_yaml()})
+
+    @classmethod
+    def from_service_definition(cls, service_definition: 'ServiceDefinition') -> 'Service':
+        return cls({'yaml_string'= service_definition.to_yaml()})
+    
+    def to_service_definition(self) -> 'ServiceDefinition':
+        return ServiceDefinition.from_yaml(self['yaml_string'])
+    
+    @classmethod
+    def example(cls) -> 'Service':
+        return cls(ServiceDefinition.example())
 
 # (no top-level compute_price import – avoid circular dependency)
 
@@ -105,6 +126,14 @@ class ServiceDefinition(DictSerializable):
     # Internal attributes to be set by the client
     _base_url: Optional[str] = field(default=None, init=False, repr=False)
     _ep_api_token: Optional[str] = field(default=None, init=False, repr=False)
+
+    def push(self, *args, **kwargs):
+        service = Service.from_service_definition(self)
+        return service.push(*args, **kwargs)
+
+    def pull(self, *args, **kwargs):
+        scenario = Scenario.pull(*args, **kwargs)
+        return scenario.to_service_definition()
 
     def __post_init__(self):
         """Populate an instance-specific __doc__ right after initialization."""
@@ -911,7 +940,7 @@ class ServiceDefinition(DictSerializable):
         raise AttributeError(f"{self.__class__.__name__!r} object has no attribute {item!r}")
 
 
-from fastapi import HTTPException
+
 
 def extract_bearer_token(authorization: str | None) -> str:
     if authorization and authorization.startswith("Bearer "):
@@ -919,8 +948,6 @@ def extract_bearer_token(authorization: str | None) -> str:
     raise HTTPException(401, "Missing or invalid Bearer token")
 
 
-from fastapi import APIRouter, Header, HTTPException
-from typing import Callable, Optional, Any, Dict
 
 def register_service(
     router: APIRouter,
@@ -962,10 +989,3 @@ def register_service(
 if __name__ == "__main__":
     import doctest
     doctest.testmod(optionflags=doctest.ELLIPSIS)
-    # print(create_survey_service)
-    # Run doctests
-    #results = doctest.testmod()
-    #print(f"Doctest results: {results}")
-    # Optional: exit with non-zero status if tests fail
-    #if results.failed > 0:
-    #    exit(1)

@@ -1075,6 +1075,26 @@ class ExcelSource(Source):
                 # If there is only one sheet, use it
                 sheet_name = list(all_sheets.keys())[0]
 
+        # Handle sheet name matching with case-insensitive fallback
+        if sheet_name is not None:
+            available_sheets = list(all_sheets.keys())
+            
+            # First try exact match
+            if sheet_name not in available_sheets:
+                # Try case-insensitive match
+                sheet_name_lower = sheet_name.lower()
+                matching_sheets = [s for s in available_sheets if s.lower() == sheet_name_lower]
+                
+                if matching_sheets:
+                    sheet_name = matching_sheets[0]  # Use the first match
+                else:
+                    # No match found, provide helpful error
+                    available_sheets_str = ", ".join([f"'{name}'" for name in available_sheets])
+                    raise ScenarioError(
+                        f"Worksheet named '{sheet_name}' not found. "
+                        f"Available sheets: {available_sheets_str}"
+                    )
+
         # Load the specified or determined sheet
         df = pd.read_excel(self.file_path, sheet_name=sheet_name, **self.kwargs)
 
