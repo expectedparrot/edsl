@@ -7,27 +7,29 @@ EDSL comes with built-in methods for generating web-based versions of your surve
 
 *Note:* This page provides information about EDSL code methods for launching surveys, gathering human responses, and analyzing results from your workspace. 
 For more information about building surveys interactively, see the :ref:`survey_builder` page.
+For more information about launching studies with Prolific participants, see the :ref:`prolific` page.
 
 
 How it works
 ------------
 
-1. Create a `Survey` (see the :ref:`surveys` section for details and examples).
+1. Create :ref:`surveys` with desired types of :ref:`questions`, and pptionally design AI :ref:`agents` to answer them. Select :ref:`language_models` to generate the responses.
 
-2. Use the `run` method to launch your survey with AI :ref:`agents` and :ref:`language_models`. 
+2. Use the `run` method to launch your survey with agents and language models, generating a formatted dataset of :ref:`results`.
 
-3. Use the `humanize` method to generate a web-based version of your survey, with a link that can be shared with human respondents and another link for the admin page at your Coop account where you can access responses interactively. *Note:* You may want to modify your LLM-based survey to add or change questions specific to human respondents before calling the `humanize` method, e.g., to add screening questions for aligning human respondents and AI agent personas.
+3. Use the `humanize` method to generate a web-based version of your survey, with a link for human respondents to access the survey and a link for the admin page at your account where you can access responses interactively.
 
-4. Share the web survey link with human respondents.
+4. Share the web survey link with human respondents, allowing them to complete the survey. (See the :ref:`prolific` page for information about launching studies with Prolific participants.)
 
 5. Use the `Coop().get_project_human_responses` method to collect the responses in a `Results` object.
-6. Analyze the results together with your LLM results.
+
+6. Analyze the results together with your LLM results, combining insights from both AI and human responses.
 
 
 Example
 -------
 
-Code and results for the example below are also accessible at this downloadable `notebook at Coop <https://www.expectedparrot.com/content/RobinHorton/human-results-example-notebook>`_.
+Code and results for the example below are also accessible at a downloadable `notebook at Coop <https://www.expectedparrot.com/content/RobinHorton/human-results-example-notebook>`_.
 
 .. code-block:: python
 
