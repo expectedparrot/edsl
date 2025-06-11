@@ -1821,6 +1821,37 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             d["edsl_class_name"] = self.__class__.__name__
         return d
 
+    def clipboard_data(self) -> str:
+        """Return TSV representation of this ScenarioList for clipboard operations.
+        
+        This method is called by the clipboard() method in the base class to provide
+        a custom format for copying ScenarioList objects to the system clipboard.
+        
+        Returns:
+            str: Tab-separated values representation of the ScenarioList
+        """
+        # Use the to_csv method with tab separator to create TSV format
+        csv_filestore = self.to_csv()
+        
+        # Get the CSV content and convert it to TSV
+        csv_content = csv_filestore.text
+        
+        # Convert CSV to TSV by replacing commas with tabs
+        # This is a simple approach, but we should handle quoted fields properly
+        import csv
+        import io
+        
+        # Parse the CSV content
+        csv_reader = csv.reader(io.StringIO(csv_content))
+        rows = list(csv_reader)
+        
+        # Convert to TSV format
+        tsv_lines = []
+        for row in rows:
+            tsv_lines.append('\t'.join(row))
+        
+        return '\n'.join(tsv_lines)
+
     def to(self, survey: Union["Survey", "QuestionBase"]) -> "Jobs":
         """Create a Jobs object from a ScenarioList and a Survey object.
 
