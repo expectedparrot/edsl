@@ -31,6 +31,7 @@ class RemoteJobInfo:
     creation_data: RemoteInferenceCreationInfo
     job_uuid: JobUUID
     logger: JobLogger
+    new_format: bool = True
 
 
 class JobsRemoteInferenceHandler:
@@ -85,7 +86,21 @@ class JobsRemoteInferenceHandler:
         remote_inference_description: Optional[str] = None,
         remote_inference_results_visibility: Optional["VisibilityType"] = "unlisted",
         fresh: Optional[bool] = False,
+        new_format: Optional[bool] = True,
     ) -> RemoteJobInfo:
+        """
+        Create a remote inference job and return job information.
+
+        Args:
+            iterations: Number of times to run each interview
+            remote_inference_description: Optional description for the remote job
+            remote_inference_results_visibility: Visibility setting for results
+            fresh: If True, ignore existing cache entries and generate new results
+            new_format: If True, use pull method for result retrieval; if False, use legacy get method
+
+        Returns:
+            RemoteJobInfo: Information about the created job including UUID and logger
+        """
         from ..coop import Coop
 
         logger = self._create_logger()
@@ -101,14 +116,24 @@ class JobsRemoteInferenceHandler:
         logger.add_info(
             "remote_cache_url", f"{self.expected_parrot_url}/home/remote-cache"
         )
-        remote_job_creation_data = coop.remote_inference_create(
-            self.jobs,
-            description=remote_inference_description,
-            status="queued",
-            iterations=iterations,
-            initial_results_visibility=remote_inference_results_visibility,
-            fresh=fresh,
-        )
+        if new_format:
+            remote_job_creation_data = coop.remote_inference_create(
+                self.jobs,
+                description=remote_inference_description,
+                status="queued",
+                iterations=iterations,
+                initial_results_visibility=remote_inference_results_visibility,
+                fresh=fresh,
+            )
+        else:
+            remote_job_creation_data = coop.old_remote_inference_create(
+                self.jobs,
+                description=remote_inference_description,
+                status="queued",
+                iterations=iterations,
+                initial_results_visibility=remote_inference_results_visibility,
+                fresh=fresh,
+            )
         logger.update(
             "Your survey is running at the Expected Parrot server...",
             status=JobsStatus.RUNNING,
@@ -141,6 +166,7 @@ class JobsRemoteInferenceHandler:
             creation_data=remote_job_creation_data,
             job_uuid=job_uuid,
             logger=logger,
+            new_format=new_format,
         )
 
     @staticmethod
@@ -164,7 +190,7 @@ class JobsRemoteInferenceHandler:
             return coop.remote_inference_get
 
     def _construct_object_fetcher(
-        self, testing_simulated_response: Optional[Any] = None
+        self, new_format: bool = True, testing_simulated_response: Optional[Any] = None
     ) -> Callable:
         "Constructs a function to fetch the results object from Coop."
         if testing_simulated_response is not None:
@@ -173,7 +199,10 @@ class JobsRemoteInferenceHandler:
             from ..coop import Coop
 
             coop = Coop()
-            return coop.get
+            if new_format:
+                return coop.pull
+            else:
+                return coop.get
 
     def _handle_cancelled_job(self, job_info: RemoteJobInfo) -> None:
         "Handles a cancelled job by logging the cancellation and updating the job status."
@@ -395,7 +424,6 @@ class JobsRemoteInferenceHandler:
 
         converter = CostConverter()
         for model_key, model_cost_dict in expenses_by_model.items():
-
             # Handle full cost (without cache)
             input_cost = model_cost_dict["input_cost_usd"]
             output_cost = model_cost_dict["output_cost_usd"]
@@ -417,9 +445,9 @@ class JobsRemoteInferenceHandler:
             model_cost_dict["input_cost_credits_with_cache"] = converter.usd_to_credits(
                 input_cost_with_cache
             )
-            model_cost_dict["output_cost_credits_with_cache"] = (
-                converter.usd_to_credits(output_cost_with_cache)
-            )
+            model_cost_dict[
+                "output_cost_credits_with_cache"
+            ] = converter.usd_to_credits(output_cost_with_cache)
         return list(expenses_by_model.values())
 
     def _fetch_results_and_log(
@@ -525,7 +553,10 @@ class JobsRemoteInferenceHandler:
         remote_job_data_fetcher = self._construct_remote_job_fetcher(
             testing_simulated_response
         )
-        object_fetcher = self._construct_object_fetcher(testing_simulated_response)
+        object_fetcher = self._construct_object_fetcher(
+            new_format=job_info.new_format,
+            testing_simulated_response=testing_simulated_response,
+        )
 
         job_in_queue = True
         while job_in_queue:
@@ -540,6 +571,7 @@ class JobsRemoteInferenceHandler:
         iterations: int = 1,
         remote_inference_description: Optional[str] = None,
         remote_inference_results_visibility: Optional[VisibilityType] = "unlisted",
+        new_format: Optional[bool] = True,
     ) -> Union["Results", None]:
         """
         Creates and polls a remote inference job asynchronously.
@@ -548,6 +580,7 @@ class JobsRemoteInferenceHandler:
         :param iterations: Number of times to run each interview
         :param remote_inference_description: Optional description for the remote job
         :param remote_inference_results_visibility: Visibility setting for results
+        :param new_format: If True, use pull method for result retrieval; if False, use legacy get method
         :return: Results object if successful, None if job fails or is cancelled
         """
         import asyncio
@@ -562,6 +595,7 @@ class JobsRemoteInferenceHandler:
                 iterations=iterations,
                 remote_inference_description=remote_inference_description,
                 remote_inference_results_visibility=remote_inference_results_visibility,
+                new_format=new_format,
             ),
         )
         if job_info is None:

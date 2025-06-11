@@ -5,11 +5,11 @@ Expected Parrot: Tools for AI-Powered Research
 
 Expected Parrot delivers powerful tools for conducting research with human and artificial intelligences.
 
-This page provides documentation for **Expected Parrot Domain-Specific Language (EDSL)**, a Python package for performing research with AI agents and language models,
-and **Coop**, a platform for creating, storing and sharing AI-based research projects.
+This page provides documentation for **Expected Parrot Domain-Specific Language (EDSL)**, an open-source Python package for performing research with AI agents and language models,
+and **Coop**, a platform for creating, storing and sharing AI research projects.
 
 * EDSL is available to download from `PyPI <https://pypi.org/project/edsl/>`_ (run `pip install edsl`). The source code is available at `GitHub <https://github.com/expectedparrot/edsl>`_.
-* `Create an account <https://www.expectedparrot.com/login>`_ to post and share content, run surveys and store results at the Expected Parrot survey. Learn more about `how it works <https://docs.expectedparrot.com/en/latest/coop.html>`_ and start `exploring <https://www.expectedparrot.com/content/explore>`_.
+* `Create an account <https://www.expectedparrot.com/login>`_ to post and share content, run surveys with LLMs and humans, and store results at the Expected Parrot server. Learn more about `how it works <https://docs.expectedparrot.com/en/latest/coop.html>`_ and start `exploring <https://www.expectedparrot.com/content/explore>`_.
 
 
 Key features 
@@ -25,7 +25,7 @@ Data integrations
    Easily import, analyze and extend many types of data. `Learn more <https://docs.expectedparrot.com/en/latest/scenarios.html>`_.
 
 Hybrid human-AI surveys
-   Collect and combine responses from humans and AI. `Learn more <https://docs.expectedparrot.com/en/latest/survey_builder.html>`_.
+   Collect and combine responses from humans and AI. `Learn more <https://docs.expectedparrot.com/en/latest/humanize.html>`_.
 
 Built-in analysis tools
    Readily visualize, analyze and compare responses. `Learn more <https://docs.expectedparrot.com/en/latest/results.html>`_.
@@ -94,6 +94,10 @@ Please see the links in the steps below for more details:
    Read the :ref:`starter_tutorial` and `download a notebook <https://www.expectedparrot.com/content/179b3a78-2505-4568-acd9-c09d18953288>`_ to create a survey and run it.
    See examples for many use cases and `tips <https://docs.expectedparrot.com/en/latest/checklist.html>`_ on using EDSL effectively in the documentation.
 
+5. **Validate with real respondents.**
+
+   You can run surveys with real respondents using the Coop platform or at your workspace.
+   Learn about methods for generating web-based surveys and collecting responses in the :ref:`survey_builder` and :ref:`humanize` sections.
 
 Join our `Discord channel <https://discord.com/invite/mxAYkjfy9m>`_ to ask questions and chat with other users!
 
@@ -112,6 +116,8 @@ Introduction
 - :ref:`whitepaper`: A whitepaper about the EDSL package (*in progress*).
 - :ref:`citation`: How to cite the package in your work.
 - :ref:`papers`: Research papers and articles that use or cite EDSL.
+- :ref:`teaching`: A guide for teaching EDSL and using it in the classroom.
+- :ref:`starter_tutorial`: A step-by-step tutorial for getting started with EDSL.
 
 
 Core Concepts
@@ -128,11 +134,19 @@ Working with Results
 --------------------
 
 - :ref:`results`: Access built-in methods for analyzing survey results as datasets.
-- :ref:`dataset`: Work with tabular data using the versatile Dataset class.
 - :ref:`caching`: Learn about caching and sharing results.
 - :ref:`costs`: See how to estimate costs for running surveys and track actual costs for each question and model that you use.
 - :ref:`exceptions`: Identify and handle exceptions in running surveys.
 - :ref:`token_usage`: Monitor token limits and usage for language models.
+- :ref:`dataset`: Work with tabular data using the versatile Dataset class.
+
+
+Validating with Humans
+----------------------
+
+- :ref:`humanize`: Generate web-based surveys and collect responses from human respondents.
+- :ref:`prolific`: Launch surveys as studies on Prolific, a platform for recruiting human participants for research studies.
+- :ref:`survey_builder`: A user-friendly no-code interface for creating surveys and gathering responses from humans and AI agents.
 
 
 Coop 
@@ -141,7 +155,6 @@ Coop
 `Coop <https://www.expectedparrot.com/content/explore>`_ is a platform for creating, storing and sharing AI-based research.
 It is fully integrated with EDSL and provides access to special features for working with AI agents and language models, free storage and collaboration tools, including:
 
-- :ref:`survey_builder`: A user-friendly no-code interface for creating surveys and gathering responses from humans and AI agents.
 - :ref:`remote_inference`: Access all available language models and run surveys at the Expected Parrot server. 
 - :ref:`remote_caching`: Automatically store results and API calls at the Expected Parrot server. 
 - :ref:`notebooks` & :ref:`colab_notebooks`: Easily post and share `.ipynb` and `.py` files to the Coop and access with Colab. 
@@ -173,6 +186,7 @@ Examples of special methods and use cases for EDSL, including:
 - Conducting agent conversations
 - Converting surveys into EDSL
 - Cognitive testing 
+- Validating LLM answers with humans
 - Research methods
 
  
@@ -207,6 +221,7 @@ Links
    remote_inference
    remote_caching
    starter_tutorial
+   teaching
    colab_setup
 
 .. toctree::
@@ -235,6 +250,15 @@ Links
 
 .. toctree::
    :maxdepth: 2
+   :caption: Validating with Humans
+   :hidden:
+
+   humanize
+   prolific
+   survey_builder
+
+.. toctree::
+   :maxdepth: 2
    :caption: Coop
    :hidden:
 
@@ -244,7 +268,6 @@ Links
    filestore
    notebooks
    colab_notebooks
-   survey_builder
 
 .. toctree::
    :maxdepth: 2
@@ -285,6 +308,10 @@ Links
    :caption: Notebooks
    :hidden:
 
+   notebooks/human-results-example-notebook.ipynb
+   notebooks/coop-project-example.ipynb
+   notebooks/data_labeling_validation_example.ipynb
+   notebooks/reasoning_model_example.ipynb
    notebooks/next_token_probs.ipynb
    notebooks/summarizing_transcripts.ipynb
    notebooks/analyze_evaluations.ipynb

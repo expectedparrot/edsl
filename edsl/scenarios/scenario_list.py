@@ -159,7 +159,15 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
 
     # Required MutableSequence abstract methods
     def __getitem__(self, index):
-        """Get item at index."""
+        """Get item at index.
+
+        Example:
+            >>> from edsl.scenarios import Scenario, ScenarioList
+            >>> sl = ScenarioList([Scenario({'a': 12})])
+            >>> sl[0]['b'] = 100  # modify in-place
+            >>> sl[0]['b']
+            100
+        """
         if isinstance(index, slice):
             return self.__class__(list(self.data[index]), self.codebook.copy())
         return self.data[index]
@@ -356,7 +364,29 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
                 new_scenarios.append(Scenario(new_scenario))
 
         return new_scenarios
+
+    @classmethod
+    def from_prompt(self, description: str, name:Optional[str] = "item", target_number:int = 10, verbose = False):
+        from ..questions.question_list import QuestionList
+        q = QuestionList(question_name = name, 
+                         question_text = description + f"\n Please try to return {target_number} examples.")
+        results = q.run(verbose = verbose)
+        return results.select(name).to_scenario_list().expand(name)
     
+
+    def __add__(self, other):
+        if isinstance(other, Scenario):
+            new_list = self.duplicate()
+            new_list.append(other)
+            return new_list
+        elif isinstance(other, ScenarioList):
+            new_list = self.duplicate()
+            for item in other:
+                new_list.append(item)
+        else:
+            raise ScenarioError("Don't know how to combine!")
+        return new_list
+
     @classmethod
     def from_search_terms(cls, search_terms: List[str]) -> ScenarioList:
         """Create a ScenarioList from a list of search terms, using Wikipedia.

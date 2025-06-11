@@ -124,9 +124,8 @@ def test_serialization_coverage():
             "CoopObjects",
             "CoopRegularObjects",
             "CoopJobsObjects",
-            "QuestionMultipleChoiceWithOther"
-
-            
+            "CoopProlificFilters",
+            "QuestionMultipleChoiceWithOther",
         ]
     )
 
