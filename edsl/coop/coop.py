@@ -2872,6 +2872,53 @@ class Coop(CoopFunctionsMixin):
         self._resolve_server_response(response)
         return response.json()
 
+    def pay_for_service(
+        self,
+        credits_transferred: int,
+        recipient_username: str,
+        service_name: str,
+    ) -> dict:
+        """
+        Pay for a service.
+
+        This method transfers a specified number of credits from the authenticated user's
+        account to another user's account on the Expected Parrot platform.
+
+        Parameters:
+            credits_transferred (int): The number of credits to transfer to the recipient
+            recipient_username (str): The username of the recipient
+            service_name (str): The name of the service to pay for
+
+        Returns:
+            dict: Information about the transfer transaction, including:
+                - success: Whether the transaction was successful
+                - transaction_id: A unique identifier for the transaction
+                - remaining_credits: The number of credits remaining in the sender's account
+
+        Raises:
+            CoopServerResponseError: If there's an error communicating with the server
+                or if the transfer criteria aren't met (e.g., insufficient credits)
+
+        Example:
+            >>> result = coop.pay_for_service(
+            ...     credits_transferred=100,
+            ...     service_name="service_name",
+            ...     recipient_username="friend_username",
+            ... )
+            >>> print(f"Transfer successful! You have {result['remaining_credits']} credits left.")
+        """
+        response = self._send_server_request(
+            uri="api/v0/users/pay-for-service",
+            method="POST",
+            payload={
+                "cost_credits": credits_transferred,
+                "service_name": service_name,
+                "recipient_username": recipient_username,
+            },
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
     def get_balance(self) -> dict:
         """
         Get the current credit balance for the authenticated user.
