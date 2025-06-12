@@ -47,7 +47,7 @@ class Service(Scenario):
     
     @classmethod
     def example(cls) -> 'Service':
-        return cls(ServiceDefinition.example())
+        return cls.from_service_definition(ServiceDefinition.example())
 
 # (no top-level compute_price import – avoid circular dependency)
 
