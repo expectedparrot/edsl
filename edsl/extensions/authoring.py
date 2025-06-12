@@ -40,7 +40,7 @@ class Service(Scenario):
 
     @classmethod
     def from_service_definition(cls, service_definition: 'ServiceDefinition') -> 'Service':
-        return cls({'yaml_string'= service_definition.to_yaml()})
+        return cls({'yaml_string':service_definition.to_yaml()})
     
     def to_service_definition(self) -> 'ServiceDefinition':
         return ServiceDefinition.from_yaml(self['yaml_string'])
