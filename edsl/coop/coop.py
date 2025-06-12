@@ -890,6 +890,61 @@ class Coop(CoopFunctionsMixin):
 
         return CoopRegularObjects(objects)
 
+    def list_legacy_objects(
+        self,
+        object_type: Optional[ObjectType] = None,
+        page: int = 1,
+        page_size: int = 50,
+    ) -> dict:
+        """
+        List objects that are still in legacy (old) format.
+
+        This method identifies objects that have not been migrated to the new
+        format. This is useful for identifying which objects need migration.
+
+        Parameters:
+            object_type (ObjectType, optional): Filter by specific object type
+            page (int): Page number for pagination (default: 1)
+            page_size (int): Number of objects per page (max 200, default: 50)
+
+        Returns:
+            dict: Response containing legacy objects and pagination info
+
+        Example:
+            >>> coop = Coop()
+            >>> # Get all legacy objects
+            >>> legacy_objects = coop.list_legacy_objects()
+            >>> print(f"Found {legacy_objects['total_count']} legacy objects")
+            >>>
+            >>> # Get only legacy surveys
+            >>> legacy_surveys = coop.list_legacy_objects(object_type="survey")
+            >>> for obj in legacy_surveys['objects']:
+            >>>     print(f"Legacy survey: {obj['alias']} ({obj['uuid']})")
+        """
+
+        if page < 1:
+            raise CoopValueError("The page must be greater than or equal to 1.")
+        if page_size < 1:
+            raise CoopValueError("The page size must be greater than or equal to 1.")
+        if page_size > 200:
+            raise CoopValueError("The page size must be less than or equal to 200.")
+
+        params = {
+            "page": page,
+            "page_size": page_size,
+        }
+
+        if object_type:
+            params["object_type"] = object_type
+
+        response = self._send_server_request(
+            uri="api/v0/object/legacy",
+            method="GET",
+            params=params,
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
     def delete(self, url_or_uuid: Union[str, UUID]) -> dict:
         """
         Delete an object from the server.
@@ -2536,6 +2591,7 @@ class Coop(CoopFunctionsMixin):
         description: Optional[str] = None,
         alias: Optional[str] = None,
         visibility: Optional[VisibilityType] = "unlisted",
+        existing_uuid: Optional[str] = None,
     ) -> dict:
         """
         Generate a signed URL for pushing an object directly to Google Cloud Storage.
@@ -2563,17 +2619,23 @@ class Coop(CoopFunctionsMixin):
         object_hash = object.get_hash() if hasattr(object, "get_hash") else None
 
         # Send the request to the API endpoint
+        payload = {
+            "object_type": object_type,
+            "description": description,
+            "alias": alias,
+            "visibility": visibility,
+            "object_hash": object_hash,
+            "version": self._edsl_version,
+        }
+
+        # Include existing_uuid for migration if provided
+        if existing_uuid:
+            payload["existing_uuid"] = existing_uuid
+
         response = self._send_server_request(
             uri="api/v0/object/push",
             method="POST",
-            payload={
-                "object_type": object_type,
-                "description": description,
-                "alias": alias,
-                "visibility": visibility,
-                "object_hash": object_hash,
-                "version": self._edsl_version,
-            },
+            payload=payload,
         )
         response_json = response.json()
         if response_json.get("signed_url") is not None:
@@ -2622,6 +2684,210 @@ class Coop(CoopFunctionsMixin):
             "version": self._edsl_version,
             "visibility": response_json.get("visibility"),
         }
+
+    def migrate_object_to_new_format(
+        self,
+        object_uuid: str,
+        owner_username: Optional[str] = None,
+        alias: Optional[str] = None,
+    ) -> dict:
+        """
+        Migrate an object from old format (legacy JSON storage) to new format
+        (ORM + Google Cloud Storage) while preserving the original UUID.
+
+        This method:
+        1. Pulls the object from old format storage
+        2. Pushes it to new format storage with the same UUID
+        3. Preserves all metadata (description, alias, visibility, etc.)
+
+        Parameters:
+            object_uuid (str): UUID of the object to migrate
+            owner_username (str, optional): Username of object owner (for alias-based lookup)
+            alias (str, optional): Alias of object (for alias-based lookup)
+
+        Returns:
+            dict: Response containing migration status and object information
+
+        Raises:
+            CoopServerResponseError: If there's an error during migration
+
+        Example:
+            >>> coop = Coop()
+            >>> result = coop.migrate_object_to_new_format("object-uuid")
+            >>> print(f"Migration completed: {result['uuid']}")
+        """
+
+        # First, check if object is already in new format
+        try:
+            if owner_username and alias:
+                # Check format by alias
+                format_response = self._send_server_request(
+                    uri="api/v0/object/alias/info",
+                    method="GET",
+                    params={
+                        "owner_username": owner_username,
+                        "alias": alias,
+                    },
+                )
+            else:
+                # Check format by UUID
+                format_response = self._send_server_request(
+                    uri="api/v0/object/check-format",
+                    method="POST",
+                    payload={"object_uuid": object_uuid},
+                )
+
+            self._resolve_server_response(format_response)
+            format_data = format_response.json()
+
+            if format_data.get("is_new_format", False):
+                return {
+                    "status": "already_migrated",
+                    "message": "Object is already in new format",
+                    "uuid": object_uuid,
+                    "url": f"{self.url}/content/{object_uuid}",
+                }
+
+        except Exception as e:
+            # If format check fails, continue with migration attempt
+            print(f"Warning: Could not check object format: {e}")
+
+        # Step 1: Pull the object from old format
+        try:
+            if owner_username and alias:
+                # Get by alias
+                old_object_data = self.get(owner_username, alias)
+            else:
+                # Get by UUID
+                old_object_data = self.get(object_uuid)
+
+        except Exception as e:
+            raise CoopServerResponseError(
+                f"Failed to retrieve object for migration: {e}"
+            )
+
+        # Extract object information
+        edsl_object = old_object_data["object"]
+        description = old_object_data.get("description")
+        original_alias = old_object_data.get("alias")
+        visibility = old_object_data.get("visibility", "unlisted")
+        original_uuid = old_object_data.get("uuid", object_uuid)
+
+        # Step 2: Push to new format with preserved UUID
+        try:
+            migration_result = self.push(
+                object=edsl_object,
+                description=description,
+                alias=original_alias,
+                visibility=visibility,
+                existing_uuid=original_uuid,
+            )
+
+            migration_result["status"] = "migrated"
+            migration_result["message"] = "Object successfully migrated to new format"
+            migration_result["original_uuid"] = original_uuid
+
+            return migration_result
+
+        except Exception as e:
+            raise CoopServerResponseError(
+                f"Failed to migrate object to new format: {e}"
+            )
+
+    def migrate_objects_to_new_format(
+        self,
+        object_uuids: Optional[List[str]] = None,
+        object_type: Optional[ObjectType] = None,
+    ) -> List[dict]:
+        """
+        Migrate multiple objects from old format to new format while preserving UUIDs.
+
+        This method can either migrate specific objects by UUID or migrate all objects
+        of a specific type that are still in the old format.
+
+        Parameters:
+            object_uuids (List[str], optional): Specific UUIDs to migrate
+            object_type (ObjectType, optional): Migrate all objects of this type
+
+        Returns:
+            List[dict]: Results for each migration attempt
+
+        Example:
+            >>> coop = Coop()
+            >>> # Migrate specific objects
+            >>> results = coop.migrate_objects_to_new_format(["uuid1", "uuid2"])
+            >>>
+            >>> # Migrate all surveys
+            >>> results = coop.migrate_objects_to_new_format(object_type="survey")
+        """
+        results = []
+
+        if object_uuids:
+            # Migrate specific objects
+            total_objects = len(object_uuids)
+            for i, uuid in enumerate(object_uuids):
+                print(f"Migrating object {i+1}/{total_objects}: {uuid}")
+                try:
+                    result = self.migrate_object_to_new_format(uuid)
+                    results.append(result)
+                    print(f"  ✓ {result['status']}: {result.get('message', '')}")
+                except Exception as e:
+                    error_result = {
+                        "uuid": uuid,
+                        "status": "error",
+                        "message": str(e),
+                    }
+                    results.append(error_result)
+                    print(f"  ✗ Error: {e}")
+
+        elif object_type:
+            # Get all objects of specified type in legacy format
+            print(f"Finding objects of type '{object_type}' to migrate...")
+
+            try:
+                # Use the new legacy objects endpoint
+                legacy_response = self.list_legacy_objects(
+                    object_type=object_type, page_size=200
+                )
+                legacy_objects = legacy_response.get("objects", [])
+
+                print(f"Found {len(legacy_objects)} objects in old format to migrate")
+
+                # Migrate each object
+                for i, obj in enumerate(legacy_objects):
+                    uuid = obj["uuid"]
+                    print(f"Migrating object {i+1}/{len(legacy_objects)}: {uuid}")
+                    try:
+                        result = self.migrate_object_to_new_format(uuid)
+                        results.append(result)
+                        print(f"  ✓ {result['status']}: {result.get('message', '')}")
+                    except Exception as e:
+                        error_result = {
+                            "uuid": uuid,
+                            "status": "error",
+                            "message": str(e),
+                        }
+                        results.append(error_result)
+                        print(f"  ✗ Error: {e}")
+
+            except Exception as e:
+                print(f"Error getting legacy object list: {e}")
+
+        else:
+            raise ValueError("Must provide either object_uuids or object_type")
+
+        # Summary
+        successful = len(
+            [r for r in results if r["status"] in ["migrated", "already_migrated"]]
+        )
+        errors = len([r for r in results if r["status"] == "error"])
+
+        print(f"\nMigration Summary:")
+        print(f"  Successful: {successful}")
+        print(f"  Errors: {errors}")
+        print(f"  Total: {len(results)}")
+
+        return results
 
     def _display_login_url(
         self, edsl_auth_token: str, link_description: Optional[str] = None
