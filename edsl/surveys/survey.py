@@ -242,6 +242,13 @@ class Survey(Base):
 
         self._exporter = SurveyExport(self)
 
+    def clipboard_data(self):
+        """Return the clipboard data for the survey."""
+        text = []
+        for question in self.questions:
+            text.append(question.human_readable())
+        return "\n\n".join(text)
+
     @classmethod
     def auto_survey(cls, overall_question: str, population: str, num_questions: int) -> Survey:
         """Create a survey with a single question that asks the user how they are doing."""
