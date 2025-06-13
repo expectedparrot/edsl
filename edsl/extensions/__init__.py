@@ -1,9 +1,11 @@
-from .external_services import extensions as _extensions
-from .authoring import register_service
+#from .external_services import extensions as _extensions
+#from .authoring import register_service
+from .services_model import ServicesRegistry
 
+services_registry = ServicesRegistry.from_config()
+_extensions = services_registry.services
 
 # edsl/extensions/__init__.py
-
 # Public handle to the loaded service registry
 # Expose the *ExternalServices* singleton directly so callers can use
 # its helper methods such as ``list()``.
