@@ -1065,10 +1065,20 @@ class Coop(CoopFunctionsMixin):
                 f"Failed to upload object to GCS: {gcs_response.status_code}"
             )
 
+        # Step 4: Confirm upload and trigger queue worker processing
+        confirm_response = self._send_server_request(
+            uri="api/v0/object/confirm-upload",
+            method="POST",
+            payload={"object_uuid": str(obj_uuid)},
+        )
+        self._resolve_server_response(confirm_response)
+        confirm_data = confirm_response.json()
+
         return {
             "status": "success",
-            "message": "Object updated successfully (new format - uploaded to GCS)",
+            "message": "Object updated successfully (new format - uploaded to GCS and processing triggered)",
             "object_uuid": str(obj_uuid),
+            "processing_started": confirm_data.get("processing_started", False),
         }
 
     ################
