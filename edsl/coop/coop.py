@@ -1591,25 +1591,57 @@ class Coop(CoopFunctionsMixin):
     def create_project(
         self,
         survey: "Survey",
+        scenario_list: Optional["ScenarioList"] = None,
+        scenario_list_method: Optional[
+            Literal["randomize", "loop", "single_scenario"]
+        ] = None,
         project_name: str = "Project",
         survey_description: Optional[str] = None,
         survey_alias: Optional[str] = None,
         survey_visibility: Optional[VisibilityType] = "unlisted",
+        scenario_list_description: Optional[str] = None,
+        scenario_list_alias: Optional[str] = None,
+        scenario_list_visibility: Optional[VisibilityType] = "unlisted",
     ):
         """
         Create a survey object on Coop, then create a project from the survey.
         """
-        survey_details = self.create(
+        if scenario_list is None and scenario_list_method is not None:
+            raise CoopValueError(
+                "You must specify both a scenario list and a scenario list method to use scenarios with your survey."
+            )
+        elif scenario_list is not None and scenario_list_method is None:
+            raise CoopValueError(
+                "You must specify both a scenario list and a scenario list method to use scenarios with your survey."
+            )
+        survey_details = self.push(
             object=survey,
             description=survey_description,
             alias=survey_alias,
             visibility=survey_visibility,
         )
         survey_uuid = survey_details.get("uuid")
+        if scenario_list is not None:
+            scenario_list_details = self.push(
+                object=scenario_list,
+                description=scenario_list_description,
+                alias=scenario_list_alias,
+                visibility=scenario_list_visibility,
+            )
+            scenario_list_uuid = scenario_list_details.get("uuid")
+        else:
+            scenario_list_uuid = None
         response = self._send_server_request(
             uri="api/v0/projects/create-from-survey",
             method="POST",
-            payload={"project_name": project_name, "survey_uuid": str(survey_uuid)},
+            payload={
+                "project_name": project_name,
+                "survey_uuid": str(survey_uuid),
+                "scenario_list_uuid": (
+                    str(scenario_list_uuid) if scenario_list_uuid is not None else None
+                ),
+                "scenario_list_method": scenario_list_method,
+            },
         )
         self._resolve_server_response(response)
         response_json = response.json()
@@ -1649,7 +1681,10 @@ class Coop(CoopFunctionsMixin):
         }
 
     def _turn_human_responses_into_results(
-        self, human_responses: List[dict], survey_json_string: str
+        self,
+        human_responses: List[dict],
+        survey_json_string: str,
+        scenario_list_json_string: Optional[str] = None,
     ) -> Union["Results", "ScenarioList"]:
         """
         Turn a list of human responses into a Results object.
@@ -1663,7 +1698,18 @@ class Coop(CoopFunctionsMixin):
         from ..surveys import Survey
 
         try:
-            agent_list = AgentList()
+            survey = Survey.from_dict(json.loads(survey_json_string))
+
+            model = Model("test")
+
+            if scenario_list_json_string is not None:
+                scenario_list = ScenarioList.from_dict(
+                    json.loads(scenario_list_json_string)
+                )
+            else:
+                scenario_list = ScenarioList()
+
+            results = None
 
             for response in human_responses:
                 response_uuid = response.get("response_uuid")
@@ -1674,6 +1720,7 @@ class Coop(CoopFunctionsMixin):
 
                 response_dict = json.loads(response.get("response_json_string"))
                 agent_traits_json_string = response.get("agent_traits_json_string")
+                scenario_uuid = response.get("scenario_uuid")
                 if agent_traits_json_string is not None:
                     agent_traits = json.loads(agent_traits_json_string)
                 else:
@@ -1687,26 +1734,38 @@ class Coop(CoopFunctionsMixin):
 
                     return f
 
+                scenario = None
+                if scenario_uuid is not None:
+                    for s in scenario_list:
+                        if s.get("uuid") == scenario_uuid:
+                            scenario = s
+                            break
+
+                    if scenario is None:
+                        raise RuntimeError("Scenario not found.")
+
                 a.add_direct_question_answering_method(
                     create_answer_function(response_dict)
                 )
-                agent_list.append(a)
 
-            survey = Survey.from_dict(json.loads(survey_json_string))
+                job = survey.by(a).by(model)
 
-            model = Model("test")
-            results = (
-                survey.by(agent_list)
-                .by(model)
-                .run(
+                if scenario is not None:
+                    job = job.by(scenario)
+
+                question_results = job.run(
                     cache=Cache(),
                     disable_remote_cache=True,
                     disable_remote_inference=True,
                     print_exceptions=False,
                 )
-            )
+
+                if results is None:
+                    results = question_results
+                else:
+                    results = results + question_results
             return results
-        except Exception:
+        except Exception as e:
             human_response_scenarios = []
             for response in human_responses:
                 response_uuid = response.get("response_uuid")
@@ -1738,9 +1797,10 @@ class Coop(CoopFunctionsMixin):
         response_json = response.json()
         human_responses = response_json.get("human_responses", [])
         survey_json_string = response_json.get("survey_json_string")
+        scenario_list_json_string = response_json.get("scenario_list_json_string")
 
         return self._turn_human_responses_into_results(
-            human_responses, survey_json_string
+            human_responses, survey_json_string, scenario_list_json_string
         )
 
     def list_prolific_filters(self) -> "CoopProlificFilters":
@@ -2702,7 +2762,9 @@ class Coop(CoopFunctionsMixin):
             st.session_state.login_start_time = time.time()
 
         edsl_auth_token: str = st.session_state.edsl_auth_token
-        login_url = f"{CONFIG.EXPECTED_PARROT_URL}/login?edsl_auth_token={edsl_auth_token}"
+        login_url = (
+            f"{CONFIG.EXPECTED_PARROT_URL}/login?edsl_auth_token={edsl_auth_token}"
+        )
 
         # ------------------------------------------------------------------
         # 2. Render clickable login link
@@ -2719,13 +2781,16 @@ class Coop(CoopFunctionsMixin):
         if api_key is None:
             elapsed = time.time() - st.session_state.login_start_time
             if elapsed > timeout:
-                st.error("Timed-out waiting for login. Please rerun the app to try again.")
+                st.error(
+                    "Timed-out waiting for login. Please rerun the app to try again."
+                )
                 return None
 
             remaining = int(timeout - elapsed)
             st.info(f"Waiting for login… ({remaining}s left)")
             # Trigger a rerun after a short delay to continue polling
             time.sleep(1)
+
             # Attempt a rerun in a version-agnostic way. Different Streamlit
             # releases expose the helper under different names.
             def _safe_rerun():
@@ -2888,7 +2953,9 @@ class Coop(CoopFunctionsMixin):
         # 1. Prepare auth-token
         # ------------------------------------------------------------------
         edsl_auth_token = secrets.token_urlsafe(16)
-        login_url = f"{CONFIG.EXPECTED_PARROT_URL}/login?edsl_auth_token={edsl_auth_token}"
+        login_url = (
+            f"{CONFIG.EXPECTED_PARROT_URL}/login?edsl_auth_token={edsl_auth_token}"
+        )
         start_time = time.time()
 
         # ------------------------------------------------------------------
@@ -2899,7 +2966,9 @@ class Coop(CoopFunctionsMixin):
                 f'🔗 <b>Log in to Expected Parrot</b> → <a href="{login_url}" target="_blank">click here</a>'
             )
             status_md = gr.Markdown("Waiting for login…")
-            refresh_btn = gr.Button("I've logged in – click to continue", elem_id="refresh-btn")
+            refresh_btn = gr.Button(
+                "I've logged in – click to continue", elem_id="refresh-btn"
+            )
             key_state = gr.State(value=None)
 
             # --------------------------------------------------------------
@@ -2907,6 +2976,7 @@ class Coop(CoopFunctionsMixin):
             # --------------------------------------------------------------
             def _refresh(current_key):  # noqa: D401, pylint: disable=unused-argument
                 """Poll server for API-key and update UI accordingly."""
+
                 # Fallback helper to generate a `update` object for the refresh button
                 def _button_update(**kwargs):
                     try:
@@ -3110,8 +3180,8 @@ def main():
     import streamlit as st
     from edsl.coop import Coop
 
-    coop = Coop()                 # no API-key required yet
-    api_key = coop.login_streamlit()   # renders link + handles polling & storage
+    coop = Coop()  # no API-key required yet
+    api_key = coop.login_streamlit()  # renders link + handles polling & storage
 
     if api_key:
         st.success("Ready to use EDSL with remote features!")
