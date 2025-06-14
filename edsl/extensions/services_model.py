@@ -30,6 +30,7 @@ from ..config import CONFIG
 class ServicesRegistry(UserDict):
     
     registry_url = CONFIG.get("EDSL_EXTENSION_SERVICES")
+    registry_uuid = '82dba30d-9939-4408-88b5-002bb65736e1' #TODO: temporary work-around
     
     _info: Optional[Dict[str, Any]] = None
 
@@ -85,7 +86,12 @@ class ServicesRegistry(UserDict):
     def update(self):
         print(f"Updating {self.registry_url}")
         scenario = Scenario.from_dict(self.to_dict())
-        scenario.patch(self.registry_url, value = scenario)
+        if hasattr(self, 'registry_uuid'):
+            import warnings 
+            warnings.warn("Using registry_uuid to update registry; this is a temporary work-around")
+            scenario.patch(self.registry_uuid, value = scenario)
+        else:
+            scenario.patch(self.registry_url, value = scenario)
         print(f"Updated {self.registry_url}")
 
     def to_dict(self) -> Dict[str, Any]:
