@@ -1,9 +1,11 @@
 from abc import ABC
+from pathlib import Path
 from dataclasses import dataclass, field, asdict, fields, MISSING
 from typing import Optional, Dict, Any, TypeVar, Type, Callable, List, Union
 import requests # Added for __call__
 #import doctest
 from pydantic import create_model, Field, BaseModel
+import yaml  # Added for YAML serialization
 
 import json
 import os
@@ -38,7 +40,31 @@ from .response_processor import ServiceResponseProcessor
 from .model_generation import ModelGenerator
 
 
+def extract_bearer_token(authorization: Optional[str] = None) -> Optional[str]:
+    """Extract the token from the Authorization header.
+    
+    Args:
+        authorization: The Authorization header value, expected to be in the format "Bearer <token>"
         
+    Returns:
+        The token if present, None otherwise
+        
+    Example:
+        >>> extract_bearer_token("Bearer abc123")
+        'abc123'
+        >>> extract_bearer_token("bearer abc123")
+        'abc123'
+        >>> extract_bearer_token("Basic abc123")
+        >>> extract_bearer_token(None)
+    """
+    if not authorization:
+        return None
+        
+    parts = authorization.split()
+    if len(parts) != 2 or parts[0].lower() != "bearer":
+        return None
+        
+    return parts[1]
 
 T = TypeVar('T', bound='DictSerializable')
 
@@ -471,6 +497,99 @@ class ServiceDefinition(DictSerializable):
 
         return decorator
 
+    # ------------------------------------------------------------------
+    # YAML helpers
+    # ------------------------------------------------------------------
+    def to_yaml(self) -> str:
+        """Serializes the ServiceDefinition to a YAML string.
+
+        >>> sd = ServiceDefinition.example()
+        >>> yaml_str = sd.to_yaml()
+        >>> isinstance(yaml_str, str)
+        True
+        """
+        # ``sort_keys=False`` to preserve field ordering as defined by ``to_dict``
+        return yaml.safe_dump(self.to_dict(), sort_keys=False)
+
+    @classmethod
+    def from_yaml(cls, yaml_source: Union[str, "Path", os.PathLike]) -> 'ServiceDefinition':
+        """Create a :class:`ServiceDefinition` from YAML *content* **or** a YAML *file*.
+
+        The method is flexible:
+
+        • If *yaml_source* is a :class:`pathlib.Path` (or any *os.PathLike*) it is treated as a
+          path to a YAML file which will be read.
+        • If *yaml_source* is a ``str`` that refers to an **existing file path**, that file will
+          be read.
+        • Otherwise the argument is treated as a raw YAML string, preserving the original
+          behaviour.
+
+        Examples
+        --------
+        >>> sd_orig = ServiceDefinition.example()
+        >>> # Original behaviour still works – pass YAML text
+        >>> sd_from_text = ServiceDefinition.from_yaml(sd_orig.to_yaml())
+        >>> sd_from_text == sd_orig
+        True
+        >>> # New behaviour – pass a file path
+        >>> import tempfile, pathlib, os
+        >>> tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".yaml")
+        >>> _ = tmp.write(sd_orig.to_yaml().encode()) and tmp.close()  # doctest: +ELLIPSIS
+        >>> sd_from_file = ServiceDefinition.from_yaml(tmp.name)
+        >>> sd_from_file == sd_orig
+        True
+        >>> os.unlink(tmp.name)  # cleanup
+        """
+
+        # ------------------------------------------------------------------
+        # Detect whether *yaml_source* is a path or raw YAML content.
+        # ------------------------------------------------------------------
+        yaml_str: str
+
+        # Case 1 – pathlib.Path or os.PathLike explicitly passed
+        if isinstance(yaml_source, (Path, os.PathLike)):
+            with open(yaml_source, "r", encoding="utf-8") as f:
+                yaml_str = f.read()
+        # Case 2 – string input: it *might* be a path. If the path exists on disk, read it.
+        elif isinstance(yaml_source, str):
+            # Heuristic: attempt to parse the string directly as YAML first. If it yields
+            # a dictionary, we are done.  This avoids filesystem look-ups on long YAML
+            # strings which can raise "File name too long" OSErrors.
+            try:
+                parsed_tmp = yaml.safe_load(yaml_source)
+                if isinstance(parsed_tmp, dict):
+                    yaml_str = yaml_source
+                    data_parsed = parsed_tmp  # Re-use later, skip second parse
+                else:
+                    raise yaml.YAMLError  # Force fallback to path handling
+            except yaml.YAMLError:
+                # Not valid YAML content – treat the string as a potential file path.
+                potential_path = Path(yaml_source)
+                try:
+                    if potential_path.exists():
+                        with open(potential_path, "r", encoding="utf-8") as f:
+                            yaml_str = f.read()
+                    else:
+                        raise FileNotFoundError(f"YAML file not found: {yaml_source}")
+                except OSError as e:
+                    # Re-raise with clearer context
+                    raise FileNotFoundError(f"Could not read YAML file: {e}")
+        else:
+            raise TypeError("yaml_source must be a str, Path, or os.PathLike object")
+
+        # ------------------------------------------------------------------
+        # Deserialize and delegate to existing from_dict constructor
+        # ------------------------------------------------------------------
+        # Use the YAML that we have already parsed if available, otherwise parse now.
+        if 'data_parsed' in locals():
+            data = data_parsed  # type: ignore[assignment]
+        else:
+            data = yaml.safe_load(yaml_str)
+
+        if not isinstance(data, dict):
+            raise ServiceDeserializationError("YAML content must deserialize to a dictionary")
+        return cls.from_dict(data)
+
 
 
     
@@ -479,4 +598,81 @@ class ServiceDefinition(DictSerializable):
 if __name__ == "__main__":
     import doctest
     doctest.testmod(optionflags=doctest.ELLIPSIS)
+
+
+# ---------------------------------------------------------------------------
+# ExtensionSource – simple helper to push a local extension repo to gateway
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class ExtensionSource:
+    """Utility for packaging a local directory and pushing it to a running
+    extension-gateway instance via the `/receive_extension_repository` route.
+
+    Example
+    -------
+    >>> es = ExtensionSource(path="/path/to/extension_repo")
+    >>> es.push()  # doctest: +ELLIPSIS
+    {"archive": ..., "file_count": ...}
+    """
+
+    path: str
+    gateway_url: str = "http://localhost:8000/receive_extension_repository"
+
+    def _collect_files(self) -> List[tuple]:
+        """Walk *self.path* recursively and build the `files` payload list for
+        `requests.post`.  Each list element is a 2-tuple with key 'files' so
+        that FastAPI interprets them as multiple values of the same field.
+        The tuple structure is `(fieldname, (filename, fileobj, content_type))`.
+        """
+
+        if not os.path.isdir(self.path):
+            raise FileNotFoundError(f"ExtensionSource path not found or not a directory: {self.path}")
+
+        payload: List[tuple] = []
+
+        for root, _dirs, filenames in os.walk(self.path):
+            for fname in filenames:
+                f_path = os.path.join(root, fname)
+                # Preserve directory hierarchy via relative path.
+                rel_path = os.path.relpath(f_path, self.path)
+
+                # Read content immediately to avoid keeping many file handles open.
+                # For typical extension repositories this memory footprint is small
+                # (tens/hundreds of KB).  For larger trees consider streaming or
+                # packaging into a single archive instead.
+                with open(f_path, "rb") as f_obj:
+                    content_bytes = f_obj.read()
+
+                payload.append(
+                    (
+                        "files",
+                        (rel_path, content_bytes, "application/octet-stream"),
+                    )
+                )
+
+        if not payload:
+            raise ValueError(f"No files found under {self.path} to push")
+
+        return payload
+
+    def push(self) -> Dict[str, Any]:
+        """POST the contents of *path* to the gateway.  Returns parsed JSON
+        response on success or raises an HTTPException on non-2xx status codes.
+        """
+
+        files_payload = self._collect_files()
+
+        # Directly post – no need to close file handles since we embedded bytes.
+        response = requests.post(self.gateway_url, files=files_payload, timeout=300)
+
+        if response.status_code >= 400:
+            # Re-raise as FastAPI-style HTTPException for consistency with other components.
+            raise HTTPException(status_code=response.status_code, detail=response.text)
+
+        try:
+            return response.json()
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Could not decode gateway response: {e}")
 
