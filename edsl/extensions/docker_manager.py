@@ -114,7 +114,7 @@ class ExtensionDeploymentManager:
 
     def build(self) -> None:
         """Build the Docker image."""
-        self._run(f"docker build -t {self.image_name} {shlex.quote(str(self.workdir))}")
+        self._run(f"docker build --no-cache -t {self.image_name} {shlex.quote(str(self.workdir))}")
 
     def run(self) -> None:
         """Run the container in detached mode on *self.port*.
