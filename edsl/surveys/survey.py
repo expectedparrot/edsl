@@ -242,6 +242,28 @@ class Survey(Base):
 
         self._exporter = SurveyExport(self)
 
+    def clipboard_data(self):
+        """Return the clipboard data for the survey."""
+        text = []
+        for question in self.questions:
+            text.append(question.human_readable())
+        return "\n\n".join(text)
+
+    @classmethod
+    def auto_survey(cls, overall_question: str, population: str, num_questions: int) -> Survey:
+        """Create a survey with a single question that asks the user how they are doing."""
+        from edsl import ext
+        survey_info = ext.create_survey(overall_question=overall_question, population=population, num_questions=num_questions)
+        return survey_info['survey']
+    
+    def generate_description(self) -> str:
+        """Generate a description of the survey."""
+        from ..questions import QuestionFreeText
+        question_texts = [q.question_text for q in self.questions]
+        q = QuestionFreeText(question_text=f"What is a good one sentence description of this survey? The questions are: {question_texts}", question_name="description")
+        results = q.run(verbose = False)
+        return results.select('answer.description').first()
+
     # In survey.py
     @property
     def ep(self):
@@ -712,6 +734,20 @@ class Survey(Base):
         return sorted(
             questions_and_instructions, key=lambda x: self._pseudo_indices[x.name]
         )
+
+    # BEGIN ADDITION: public alias for external access
+    def recombined_questions_and_instructions(
+        self,
+    ) -> List[Union["QuestionBase", "Instruction"]]:
+        """Return questions and instructions in survey order.
+
+        This is a thin public wrapper around the internal
+        _recombined_questions_and_instructions method, provided so that
+        external modules (e.g. SurveyExport) can access the data without
+        relying on a leading-underscore method name.
+        """
+        return self._recombined_questions_and_instructions()
+    # END ADDITION
 
     def set_full_memory_mode(self) -> Survey:
         """Configure the survey so agents remember all previous questions and answers.
