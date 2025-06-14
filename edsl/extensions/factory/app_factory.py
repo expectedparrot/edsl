@@ -181,14 +181,17 @@ def _validate_implementation_signature(service_def, implementation: Callable[...
 
 
 def create_app(
-    variant_module_path: str,
+    variant_module_path: str | None = None,
     settings: Settings = None,
     *,
     with_standard_middleware: bool = True,
+    service_def = None,
+    implementation: Callable[..., Any] | None = None,
 ) -> FastAPI:
     """
-    Build a FastAPI instance, then import a variant's router
-    and bolt it on.
+    Build a FastAPI instance, then either:
+    1. Import a variant's router and bolt it on (if variant_module_path is provided)
+    2. Create an extension route directly (if service_def and implementation are provided)
     """
     # if settings is None:
     #     from .config import settings as default_settings
@@ -198,7 +201,6 @@ def create_app(
     # Instantiate base FastAPI app
     # -----------------------------------------------------------------------
 
-    
     app = FastAPI(
         title="application name", #settings.app_name,
         description="A modern FastAPI application deployed on Replit",
@@ -224,12 +226,21 @@ def create_app(
         add_standard_middleware(app)
 
     # -------------------------------------------------------------------
-    # Pull in variant-specific router(s)
+    # Either import variant router or create extension route directly
     # -------------------------------------------------------------------
-
-    variant_mod = import_module(variant_module_path)
-    # expect a top-level fastapi.APIRouter named `router`
-    app.include_router(variant_mod.router)#, prefix="/api/v1") #settings.api_prefix)
+    
+    if variant_module_path:
+        variant_mod = import_module(variant_module_path)
+        # expect a top-level fastapi.APIRouter named `router`
+        app.include_router(variant_mod.router)
+    elif service_def and implementation:
+        create_extension_route(
+            router=app,
+            service_def=service_def,
+            implementation=implementation,
+        )
+    else:
+        raise ValueError("Must provide either variant_module_path or both service_def and implementation")
     
     # Root path response – list all registered routes
     @app.get("/")
