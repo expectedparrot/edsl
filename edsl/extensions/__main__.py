@@ -3,9 +3,10 @@
 This CLI tool provides commands to work with EDSL extension service implementations:
 
     validate    Validate an extension repository structure
-    run        Run an extension service locally
-    gcp-build  Build a Docker image and push to Google Container Registry
-    gcp-deploy Deploy an extension to Google Cloud Run
+    local-run   Run an extension service locally without Docker
+    run         Run an extension service locally with Docker
+    gcp-build   Build a Docker image and push to Google Container Registry
+    gcp-deploy  Deploy an extension to Google Cloud Run
 
 You can run ``python -m edsl.extensions --help`` to see all available commands.
 """
@@ -164,6 +165,73 @@ def validate(path: Path):
     dockerfile_path = target / "Dockerfile"
     dockerfile_path.write_text(dockerfile_content, encoding="utf-8")
     click.echo(click.style("🐳  Created Dockerfile: ", fg='green') + str(dockerfile_path))
+
+
+@cli.command()
+@click.argument('path', type=click.Path(exists=True, file_okay=False, dir_okay=True, path_type=Path), default='.')
+@click.option('--port', type=int, default=8080, help='Port to run the service on')
+@click.option('--install-deps', is_flag=True, help='Install dependencies before running')
+def local_run(path: Path, port: int, install_deps: bool):
+    """Run an extension service locally without Docker.
+    
+    PATH is the directory containing the extension (defaults to current directory).
+    """
+    target = path.expanduser().resolve()
+    
+    try:
+        _sd = load_service_definition(target)
+        
+        if install_deps:
+            click.echo(click.style("\n📦  Installing dependencies...", fg='yellow'))
+            subprocess.run(["pip", "install", "-r", str(target / "requirements.txt")], check=True)
+        
+        # Add the extension directory to Python path so app.py can find its imports
+        sys.path.insert(0, str(target))
+        
+        click.echo(click.style("\n🚀  Starting local service...", fg='green'))
+        
+        # Update the service definition with the local endpoint
+        base_url = f"http://localhost:{port}"
+        local_endpoint = f"{base_url}/{_sd.name}"
+        original_endpoint = _sd.endpoint
+        _sd.endpoint = local_endpoint
+        
+        click.echo("\n📝  Updated service definition:")
+        click.echo(f"     Original endpoint: {original_endpoint}")
+        click.echo(f"     Local endpoint: {local_endpoint}")
+        
+        click.echo(click.style("\n🔄  Registering service with Expected Parrot...", fg='yellow'))
+        _sd.add_service_to_expected_parrot()
+        
+        click.echo(click.style("\n✨  Starting service at ", fg='green') + base_url)
+        click.echo(f"   Service endpoint: {local_endpoint}")
+        click.echo("   Press Ctrl+C to stop")
+        
+        # Run uvicorn
+        try:
+            subprocess.run([
+                "uvicorn", 
+                "app:app", 
+                "--host", "0.0.0.0",
+                "--port", str(port),
+                "--reload"  # Enable auto-reload for development
+            ], cwd=target, check=True)
+        except KeyboardInterrupt:
+            click.echo(click.style("\n\n🛑  Stopping service...", fg='yellow'))
+            # Restore the original endpoint
+            _sd.endpoint = original_endpoint
+            click.echo(f"     Restored original endpoint: {original_endpoint}")
+            # Re-register with original endpoint
+            click.echo(click.style("\n🔄  Re-registering service with original endpoint...", fg='yellow'))
+            _sd.add_service_to_expected_parrot()
+            click.echo("Service stopped.")
+        
+    except subprocess.CalledProcessError as e:
+        click.echo(click.style(f"\n❌  Command failed: {e}", fg='red'))
+        sys.exit(4)
+    except Exception as e:
+        click.echo(click.style(f"\n❌  Failed to run service: {e}", fg='red'))
+        sys.exit(4)
 
 
 @cli.command()
