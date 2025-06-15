@@ -508,6 +508,51 @@ class PersistenceMixin:
         c = Coop()
         return c.search(cls, query)
 
+    def clipboard(self):
+        """Copy this object's representation to the system clipboard.
+
+        This method first checks if the object has a custom clipboard_data() method.
+        If it does, it uses that method's output. Otherwise, it serializes the object 
+        to a dictionary (without version info) and copies it to the system clipboard as JSON text.
+
+        Returns:
+            None, but prints a confirmation message
+        """
+        import subprocess
+        import json
+        import platform
+
+        # Check if the object has a custom clipboard_data method
+        if hasattr(self, 'clipboard_data') and callable(getattr(self, 'clipboard_data')):
+            clipboard_text = self.clipboard_data()
+        else:
+            # Default behavior: use to_dict and convert to JSON
+            obj_dict = self.to_dict(add_edsl_version=False)
+            clipboard_text = json.dumps(obj_dict, indent=2)
+
+        # Determine the clipboard command based on the operating system
+        system = platform.system()
+        
+        try:
+            if system == "Darwin":  # macOS
+                process = subprocess.Popen(['pbcopy'], stdin=subprocess.PIPE)
+                process.communicate(clipboard_text.encode('utf-8'))
+            elif system == "Linux":
+                process = subprocess.Popen(['xclip', '-selection', 'clipboard'], stdin=subprocess.PIPE)
+                process.communicate(clipboard_text.encode('utf-8'))
+            elif system == "Windows":
+                process = subprocess.Popen(['clip'], stdin=subprocess.PIPE, shell=True)
+                process.communicate(clipboard_text.encode('utf-8'))
+            else:
+                print(f"Clipboard not supported on {system}")
+                return
+            
+            print("Object data copied to clipboard")
+        except FileNotFoundError:
+            print("Clipboard command not found. Please install pbcopy (macOS), xclip (Linux), or use Windows.")
+        except Exception as e:
+            print(f"Failed to copy to clipboard: {e}")
+
     def store(self, d: dict, key_name: Optional[str] = None):
         if key_name is None:
             index = len(d)
