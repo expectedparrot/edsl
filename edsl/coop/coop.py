@@ -2944,6 +2944,29 @@ class Coop(CoopFunctionsMixin):
         self._resolve_server_response(response)
         return response.json()
 
+    def get_profile(self) -> dict:
+        """
+        Get the current user's profile information.
+
+        This method retrieves the authenticated user's profile information from
+        the Expected Parrot platform using their API key.
+
+        Returns:
+            dict: User profile information including:
+                - username: The user's username
+                - email: The user's email address
+
+        Raises:
+            CoopServerResponseError: If there's an error communicating with the server
+
+        Example:
+            >>> profile = coop.get_profile()
+            >>> print(f"Welcome, {profile['username']}!")
+        """
+        response = self._send_server_request(uri="api/v0/users/profile", method="GET")
+        self._resolve_server_response(response)
+        return response.json()
+
     def login_gradio(self, timeout: int = 120, launch: bool = True, **launch_kwargs):
         """
         Start the EDSL auth token login flow inside a **Gradio** application.
