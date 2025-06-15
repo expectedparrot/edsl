@@ -1,7 +1,8 @@
 from importlib import import_module
 # Standard library
-import time, secrets, inspect, logging
+import time, secrets, inspect, logging, os
 from typing import Callable, Optional, Any, Dict
+from contextlib import contextmanager
 
 # Third-party
 from fastapi import FastAPI, APIRouter, Header, HTTPException
@@ -50,6 +51,28 @@ def add_standard_middleware(app: FastAPI) -> None:
         return response
 
 
+@contextmanager
+def temporary_api_token(token: Optional[str] = None):
+    """Context manager for temporarily setting the EXPECTED_PARROT_API_KEY environment variable.
+    
+    Args:
+        token (Optional[str]): The API token to set. If None, no changes are made.
+    """
+    if token is None:
+        yield
+        return
+        
+    old_token = os.environ.get("EXPECTED_PARROT_API_KEY")
+    try:
+        os.environ["EXPECTED_PARROT_API_KEY"] = token
+        yield
+    finally:
+        if old_token is not None:
+            os.environ["EXPECTED_PARROT_API_KEY"] = old_token
+        else:
+            os.environ.pop("EXPECTED_PARROT_API_KEY", None)
+
+
 def create_extension_route(
     router: APIRouter,
     service_def,
@@ -80,9 +103,10 @@ def create_extension_route(
     ) -> Dict[str, Any]:
         token = extract_bearer_token(authorization)
         try:
-            result = await _invoke(
-                implementation, **body.model_dump(), ep_api_token=token
-            )
+            with temporary_api_token(token):
+                result = await _invoke(
+                    implementation, **body.model_dump()
+                )
         except Exception as exc:  # noqa: BLE001
             logger.exception("%s failed: %s", service_def.name, exc)
             raise HTTPException(status_code=500, detail=str(exc)) from exc
@@ -101,8 +125,7 @@ def _validate_implementation_signature(service_def, implementation: Callable[...
     """Ensure that *implementation* has a compatible signature with *service_def*.
 
     The callable must be able to accept **all** parameters declared in the
-    ServiceDefinition as keyword arguments **and** the special ``ep_api_token``
-    parameter that is injected by the router.  Validation happens eagerly when
+    ServiceDefinition as keyword arguments. Validation happens eagerly when
     the route is registered so that mistakes surface during application start-
     up rather than as runtime 500 errors on first request.
 
@@ -128,10 +151,6 @@ def _validate_implementation_signature(service_def, implementation: Callable[...
 
     missing = [p for p in service_def.parameters.keys() if p not in param_names and not accepts_var_kw]
 
-    # Ensure ``ep_api_token`` will be accepted when the router injects it.
-    if "ep_api_token" not in param_names and not accepts_var_kw:
-        missing.append("ep_api_token")
-
     # ---------------------------------------------------------------------
     # 2. Required implementation parameters must be declared by service ----
     # ---------------------------------------------------------------------
@@ -150,7 +169,7 @@ def _validate_implementation_signature(service_def, implementation: Callable[...
         ) and p.default is inspect._empty and p.name != "self":
             required_impl_params.append(p.name)
 
-    extra_required = [p for p in required_impl_params if p not in service_def.parameters and p != "ep_api_token"]
+    extra_required = [p for p in required_impl_params if p not in service_def.parameters]
 
     # ---------------------------------------------------------------------
     # 3. Raise informative error if we have discrepancies ------------------
@@ -181,37 +200,28 @@ def _validate_implementation_signature(service_def, implementation: Callable[...
 
 
 def create_app(
-    variant_module_path: str | None = None,
-    settings: Settings = None,
-    *,
-    with_standard_middleware: bool = True,
+    implementation: Callable[..., Any],
     service_def = None,
-    implementation: Callable[..., Any] | None = None,
+    settings: Settings = None,
 ) -> FastAPI:
     """
-    Build a FastAPI instance, then either:
-    1. Import a variant's router and bolt it on (if variant_module_path is provided)
-    2. Create an extension route directly (if service_def and implementation are provided)
-    """
-    # if settings is None:
-    #     from .config import settings as default_settings
-    #     settings = default_settings
-        
-    # -----------------------------------------------------------------------
-    # Instantiate base FastAPI app
-    # -----------------------------------------------------------------------
+    Build a FastAPI instance with a direct implementation.
 
+    Args:
+        implementation: The callable that implements the endpoint functionality
+        service_def: Optional ServiceDefinition to validate the implementation against
+        settings: Optional Settings instance for app configuration
+    
+    Returns:
+        FastAPI: The configured FastAPI application
+    """
     app = FastAPI(
-        title="application name", #settings.app_name,
-        description="A modern FastAPI application deployed on Replit",
-        version=1, #settings.version,
-        debug=False, #settings.debug
+        title="application name",  # settings.app_name if settings else "application name",
+        description="A modern FastAPI application",
+        version=1,  # settings.version if settings else 1,
+        debug=False,  # settings.debug if settings else False
     )
     
-    # -------------------------------------------------------------------
-    # Built-in middleware
-    # -------------------------------------------------------------------
-
     # CORS middleware setup
     app.add_middleware(
         CORSMiddleware,
@@ -221,26 +231,23 @@ def create_app(
         allow_headers=["*"],
     )
     
-    # Optional – standard timing / logging middleware
-    if with_standard_middleware:
-        add_standard_middleware(app)
+    # Standard timing / logging middleware
+    add_standard_middleware(app)
 
-    # -------------------------------------------------------------------
-    # Either import variant router or create extension route directly
-    # -------------------------------------------------------------------
-    
-    if variant_module_path:
-        variant_mod = import_module(variant_module_path)
-        # expect a top-level fastapi.APIRouter named `router`
-        app.include_router(variant_mod.router)
-    elif service_def and implementation:
+    # Create the implementation route
+    if service_def:
         create_extension_route(
             router=app,
             service_def=service_def,
             implementation=implementation,
         )
     else:
-        raise ValueError("Must provide either variant_module_path or both service_def and implementation")
+        # If no service_def is provided, create a simple POST endpoint
+        @app.post("/endpoint")
+        async def endpoint(request: dict):
+            if inspect.iscoroutinefunction(implementation):
+                return await implementation(**request)
+            return implementation(**request)
     
     # Root path response – list all registered routes
     @app.get("/")
