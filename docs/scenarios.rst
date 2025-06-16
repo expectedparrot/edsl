@@ -19,7 +19,7 @@ How it works
 ^^^^^^^^^^^^
 
 Adding scenarios to a question--or to multiple questions at once in a survey--causes it to be administered multiple times, once for each scenario, with the parameter(s) replaced by the value(s) in the scenario.
-This allows us to administer multiple versions of a question together, either asynchronously (by default) or according to `survey rules <https://docs.expectedparrot.com/en/latest/surveys.html#key-methods>`_ that we can specify (e.g., skip/stop logic), without having to create each version of a question manually.
+This allows us to administer different versions of a question together, either asynchronously (by default) or according to `survey rules <https://docs.expectedparrot.com/en/latest/surveys.html#key-methods>`_ that we can specify (e.g., skip/stop logic), without having to create each version of a question manually.
 
 
 Metadata
@@ -98,7 +98,7 @@ Output:
 
 
 Alternatively, we can create a `ScenarioList` object.
-A list of scenarios is used in the same way as a `ScenarioList`; the difference is that a `ScenarioList` is a class that can be used to create a list of scenarios from a variety of data sources, such as a list, dictionary, a Wikipedia table or a PDF.
+A list of scenarios is used in the same way as a `ScenarioList`; the difference is that a `ScenarioList` is a class that can be used to create a list of scenarios from a variety of data sources, such as a CSV, dataframe, list, dictionary, a Wikipedia table or a PDF pages.
 These special methods are discussed below.
 
 For example, here we create a `ScenarioList` for the same list as above:
@@ -121,26 +121,50 @@ Output:
   * - reading   
 
 
-Special methods for creating scenarios
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Special method for creating scenarios
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Special methods are available for creating a `Scenario` or `ScenarioList` from various data source types:
-
-* The constructor method `from_pdf()` can be used to create a single scenario for a PDF or a scenario list where each page of a PDF is stored as an individual scenario.
-
-* The constructor method `from_directory()` can be used to create a scenario list from all files in a directory, where each file is wrapped in a Scenario object with a specified key (default is "content").
-
-* The constructor methods `from_list()`, `from_csv`, `from_nested_dict()` and `from_wikipedia_table()` will create a scenario list from a list, CSV, nested dictionary or Wikipedia table.
-
+We can use the general purpose `from_source()` method to create a `ScenarioList` from a variety of data source types.
 For example, the following code will create the same scenario list as above:
 
 .. code-block:: python
-
   from edsl import ScenarioList
 
-  scenariolist = ScenarioList.from_list("activity", ["running", "reading"])
+  scenariolist = ScenarioList.from_source(
+    source_type = "list", # or "csv", "dataframe", "delimited_file", "dict", "directory", "dta", "excel", "google_doc", "google_sheet", "json", "latex", "list_of_tuples", "pandas", "parquet", "pdf", "png", "pdf", "pdf_to_image", "text", "tsv", "sqlite", "urls", "wikipedia"
+    field_name = "activity", # source-specific positional argument
+    values = ["running", "reading"], # source-specific keyword argument
+    use_indexes = False # source-specific keyword argument
+  )
+
+Each source type has its own set of parameters that can be passed to it:
+
+  * "csv"
+  * "dataframe"
+  * "delimited_file"
+  * "dict"
+  * "directory"
+  * "dta"
+  * "excel"
+  * "google_doc"
+  * "google_sheet"
+  * "json"
+  * "latex"
+  * "list"
+  * "list_of_tuples"
+  * "pandas"
+  * "parquet"
+  * "pdf"
+  * "png"
+  * "pdf_to_image"
+  * "text"
+  * "tsv"
+  * "sqlite"
+  * "urls"
+  * "wikipedia"
   
-Example of creating a scenario list from files in a directory:
+
+Here we create a scenario list from files in a directory:
 
 .. code-block:: python
 
@@ -148,32 +172,35 @@ Example of creating a scenario list from files in a directory:
   
   # Create a ScenarioList from all image files in a directory
   # Each file will be wrapped in a Scenario with key "content"
-  scenarios = ScenarioList.from_directory("images_folder/*.png")
+  scenarios = ScenarioList.from_source("directory", "images_folder/*.png")
   
-  # Or specify a custom key name
-  scenarios = ScenarioList.from_directory("images_folder", key_name="image")
+  # Or specify a custom key name (e.g., "image")
+  scenarios = ScenarioList.from_source("directory", "images_folder/*.png", "image")
   
   # Create a question that uses the scenario key
   q = QuestionFreeText(
-      question_name="image_description",
-      question_text="Please describe this image: {{ scenario.image }}"
+    question_name="image_description",
+    question_text="Please describe this image: {{ scenario.image }}"
   )
   
   # Run the question with the scenarios
   results = q.by(scenarios).run()
 
 
-Examples for each of these methods is provided below, and in `this notebook <https://www.expectedparrot.com/content/44de0963-31b9-4944-a9bf-508c7a07d757>`_.
+Examples of these methods are provided below and in `this notebook <https://www.expectedparrot.com/content/RobinHorton/example-scenario-methods>`_.
 
 
 Using a scenario
 ----------------
 
 We use a `Scenario` or `ScenarioList` by adding it to a question or survey of questions, either when we are constructing questions or when running them.
-The most common situation is to add a scenario to a question when running it.
-This is done by passing the `Scenario` or `ScenarioList` object to the `by()` method or a question or survey and then chaining the `run()` method.
+If we add scenarios to a question when running a survey (using the `by()` method), the scenario contents replace the parameters in the question text at runtime, and are stored in a separate column of the results.
+If we add scenarios to a question when constructing a survey (using the `loop()` method), the scenario contents become part of the question text and there is no separate column of the results for the scenarios.
 
-For example, here we call the `by()` method on the example question created above and pass a scenario list at the same time that we run it:
+The most common situation is to add a scenario to a question when running it.
+This is done by passing the `Scenario` or `ScenarioList` object to the `by()` method of a question or survey and then chaining the `run()` method.
+
+For example, here we call the `by()` method on the example question created above and pass a scenario list when we run it:
 
 .. code-block:: python
 
@@ -217,11 +244,10 @@ This will print a table of the selected components of the results:
 Looping  
 ^^^^^^^
 
-We use the `loop()` method to add scenarios to a question when constructing the question.
+We use the `loop()` method to add scenarios to a question when constructing a survey.
 This method takes a `ScenarioList` and returns a list of new questions for each scenario that was passed.
 We can optionally include the scenario key in the question name as well as the question text.
 This allows us to control the question names when the new questions are created; otherwise a number is automatically added to the original question name in order to ensure uniqueness.
-Note that we do not include the `scenario.` prefix when looping.
 
 For example: 
 
@@ -357,6 +383,16 @@ Output:
   * - answer.capital_of_france
   * - Paris
     
+
+Scenario methods
+----------------
+
+There are a variety of methods for working with scenarios and scenario lists, including:
+`concatenate`, `concatenate_to_list`, `concatenate_to_set`, `drop`, `duplicate` `expand`, `filter`, `keep`, `mutate`, `order_by`, `sample`, `shuffle`, `times`, `tranform`, `unpack_dict`
+
+These methods can be used to manipulate scenarios and scenario lists in various ways, such as sampling a subset of scenarios, shuffling the order of scenarios, concatenating scenarios together, filtering scenarios based on certain criteria, and more.
+Examples of some of these methods are provided below.
+
 
 Combining Scenarios 
 -------------------
@@ -619,7 +655,7 @@ This will return:
     - ['spinach']
     
 
-The method `from_sqlite()` can be used to create a scenario list from a SQLite database. It takes a `filepath` to the database file and optional parameters `table` and `sql_query`.
+The method `from_source("sqlite")` can be used to create a scenario list from a SQLite database. It takes a `filepath` to the database file and optional parameters `table` and `sql_query`.
 
 
 Creating scenarios from a dataset
@@ -694,11 +730,27 @@ We can inspect the scenarios to see that they have been created correctly:
 PDFs as textual scenarios
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The `ScenarioList` method `from_pdf('path/to/pdf')` is a convenient way to extract information from large files.
-It allows you to read in a PDF and automatically create a list of textual scenarios for the pages of the file.
-Each scenario has the following keys which can be used as parameters in a question or stored as metadata, and renamed as desired: `filename`, `page`, `text`.
+The `ScenarioList` method `from_source("pdf", "path/to/pdf")` is a convenient way to extract information from large files.
+It allows you to read in a PDF and automatically create a list of textual scenarios for the individual pages of the file.
+Each scenario has the following keys which can be used as parameters in a question or stored as metadata, and renamed as desired: `filename`, `page`, `text`:
 
-If you prefer to create a single `Scenario` for the entire PDF file, you can use the `Scenario.from_pdf('path/to/pdf')` method instead.
+.. code-block:: python
+
+  from edsl import ScenarioList
+
+  scenarios = ScenarioList.from_source("pdf", "path/to/pdf_file.pdf") # modify the filepath
+
+
+If you prefer to create a single `Scenario` for the entire PDF file, you can use the `FileStore` module to pass the file to a `Scenario` in the usual way (e.g., this method is identical for PNG image files): 
+
+.. code-block:: python
+
+  from edsl import Scenario, FileStore
+
+  fs = FileStore("path/to/pdf") # create a FileStore object for the PDF file (or image file)
+
+  scenario = Scenario({"my_pdf": fs}) # pass the FileStore object to a Scenario
+
 
 To use this method with either object, we start by adding a placeholder `{{ scenario.text }}` to a question text where the text of a PDF or PDF page will be inserted.
 When the question or survey is run with the PDF scenario or scenario list, the text of the PDF or individual pages will be inserted into the question text at the placeholder.
@@ -722,7 +774,7 @@ For example, this code can be used to insert the text of each page of a PDF in a
 
   survey = Survey([q1, q2])
 
-  scenarios = ScenarioList.from_pdf("path/to/pdf_file.pdf") # modify the filepath
+  scenarios = ScenarioList.from_source("pdf", "path/to/pdf_file.pdf") # modify the filepath
 
   # Run the survey with the pages of the PDF as scenarios:
   results = survey.by(scenarios).run()
@@ -737,7 +789,7 @@ Examples of this method can be viewed in a `demo notebook <https://docs.expected
 Image scenarios
 ^^^^^^^^^^^^^^^
 
-A `Scenario` can be generated from an image by passing the filepath as the value.
+A `Scenario` can be generated from an image by passing the filepath as the value (the same as a PDF, as shown above).
 This is done by using the `FileStore` module to store the image and then passing the `FileStore` object to a `Scenario`.
 
 Example usage:
@@ -791,13 +843,11 @@ See a `demo notebook <https://docs.expectedparrot.com/en/latest/notebooks/image_
 
 *Note:* You must use a vision model in order to run questions with images.
 We recommend testing whether a model can reliably identify your images before running a survey with them.
-You can also check the `model pricing page <https://www.expectedparrot.com/getting-started/coop-pricing>`_ to see available models' performance with test questions, including images.
+You can also use the `models page <https://www.expectedparrot.com/models>`_ to check available models' performance with test questions, including images.
 
 
 Creating a scenario list from a list
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-The `ScenarioList` method `from_list()` creates a list of scenarios for a specified key and list of values that is passed to it.
 
 Example usage:
 
@@ -805,7 +855,7 @@ Example usage:
 
   from edsl import ScenarioList
 
-  scenariolist = ScenarioList.from_list("item", ["color", "food", "animal"])
+  scenariolist = ScenarioList.from_source("list" "item", ["color", "food", "animal"])
 
   scenariolist
 
@@ -824,8 +874,6 @@ This will return:
 Creating a scenario list from a dictionary
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The `ScenarioList` method `from_nested_dict()` creates a list of scenarios for a specified key and nested dictionary.
-
 Example usage:
 
 .. code-block:: python 
@@ -834,7 +882,7 @@ Example usage:
 
   d = {"item": ["color", "food", "animal"]}
 
-  scenariolist = ScenarioList.from_nested_dict(d)
+  scenariolist = ScenarioList.from_source("nested_dict", d)
   scenariolist
 
 
@@ -852,15 +900,13 @@ This will return:
 Creating a scenario list from a Wikipedia table
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The `ScenarioList` method `from_wikipedia_table('url')` can be used to create a list of scenarios from a Wikipedia table.
-
 Example usage:
 
 .. code-block:: python
 
   from edsl import ScenarioList
 
-  scenarios = ScenarioList.from_wikipedia("https://en.wikipedia.org/wiki/1990s_in_film", 3)
+  scenarios = ScenarioList.from_source("wikipedia", "https://en.wikipedia.org/wiki/1990s_in_film", 3)
   scenarios
 
 
@@ -1273,7 +1319,7 @@ Output:
 Creating a scenario list from a CSV
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The `ScenarioList` method `from_csv('<filepath>.csv')` creates a list of scenarios from a CSV file.
+The `ScenarioList` method `from_source("csv", "<filepath>.csv")` creates a list of scenarios from a CSV file.
 The method reads the CSV file and creates a scenario for each row in the file, with the keys as the column names and the values as the row values.
 
 For example, say we have a CSV file containing the following data:
@@ -1293,7 +1339,7 @@ We can create a list of scenarios from the CSV file:
 
   from edsl import ScenarioList
 
-  scenariolist = ScenarioList.from_csv("path/to/file.csv") # update filepath
+  scenariolist = ScenarioList.from_source("csv", "path/to/file.csv") # update filepath
   scenariolist
 
 
@@ -1343,7 +1389,7 @@ We can create a list of scenarios from the CSV file:
 
   from edsl import ScenarioList
 
-  scenariolist = ScenarioList.from_csv("path/to/file.csv") # update filepath
+  scenariolist = ScenarioList.from_source("csv", "path/to/file.csv") # update filepath
 
   scenariolist = scenariolist.give_valid_names()
   scenariolist
@@ -1429,7 +1475,7 @@ For example, say we have a scenario list for the above CSV file:
 
   from edsl import ScenarioList
 
-  scenariolist = ScenarioList.from_csv("<filepath>.csv")
+  scenariolist = ScenarioList.from_source("csv", "<filepath>.csv")
   scenariolist
 
 
@@ -1600,7 +1646,7 @@ Here we use scenarios to conduct the task:
     "I need help with a product..."
   ]
 
-  scenarios = ScenarioList(Scenario({"message": message}) for message in messages)
+  scenarios = ScenarioList.from_source("list", "message", messages)
 
   # Create a survey with the question
   survey = Survey(questions = [q1, q2])
@@ -1671,9 +1717,7 @@ Note that the question texts are unchanged:
     {"message": "I need help with a product...", "user": "David", "source": "Chat", "date": "2022-01-04"}
   ]
 
-  scenarios = ScenarioList(
-      Scenario.from_dict(m) for m in user_messages
-  )
+  scenarios = ScenarioList.from_source("dict", user_messages)
 
   # Create a survey with the question
   survey = Survey(questions = [q1, q2])
@@ -1795,7 +1839,7 @@ Then we use the `show_prompts()` method to examine the user prompts that are cre
     )
     questions.append(q)
 
-  scenarios = ScenarioList.from_list("activity", activities)
+  scenarios = ScenarioList.from_source("list", "activity", activities)
 
   survey = Survey(questions = questions)
   survey.by(scenarios).show_prompts()
