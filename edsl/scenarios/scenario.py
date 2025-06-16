@@ -467,11 +467,7 @@ class Scenario(Base, UserDict):
                 - is_filestore_scenario: Boolean indicating if this Scenario was created from a FileStore
                 - summary: Human-readable summary of files
 
-        Examples:
-            >>> scenario = Scenario({"video": FileStore("test.mp4"), "image": FileStore("pic.jpg")})
-            >>> info = scenario.get_filestore_info()
-            >>> print(info['total_count'])  # 2
-            >>> print(info['file_extensions'])  # {'video': '.mp4', 'image': '.jpg'}
+
         """
         from edsl.scenarios import FileStore
 
