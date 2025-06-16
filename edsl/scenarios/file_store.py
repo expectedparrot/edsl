@@ -512,6 +512,28 @@ class FileStore(Scenario):
         )
         return info
 
+    def offload(self, inplace=False) -> "FileStore":
+        """
+        Offloads base64-encoded content from the FileStore by replacing 'base64_string'
+        with 'offloaded'. This reduces memory usage.
+
+        Args:
+            inplace (bool): If True, modify the current FileStore. If False, return a new one.
+
+        Returns:
+            FileStore: The modified FileStore (either self or a new instance).
+        """
+        if inplace:
+            if hasattr(self, "base64_string"):
+                self.base64_string = "offloaded"
+            return self
+        else:
+            # Create a copy and offload it
+            file_store_dict = self.to_dict()
+            if "base64_string" in file_store_dict:
+                file_store_dict["base64_string"] = "offloaded"
+            return self.__class__.from_dict(file_store_dict)
+
     @classmethod
     def pull(cls, url_or_uuid: Union[str, UUID]) -> "FileStore":
         """
