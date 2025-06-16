@@ -1,7 +1,7 @@
 from importlib import import_module
 # Standard library
 import time, secrets, inspect, logging, os
-from typing import Callable, Optional, Any, Dict
+from typing import Callable, Optional, Any, Dict, Union
 from contextlib import contextmanager
 
 # Third-party
@@ -11,6 +11,7 @@ from fastapi.routing import APIRoute
 
 # Local imports
 from edsl.extensions.authoring import extract_bearer_token
+from ..authoring import Service, Services  # Add import for Services class
 
 from .config import Settings
 
@@ -200,16 +201,14 @@ def _validate_implementation_signature(service_def, implementation: Callable[...
 
 
 def create_app(
-    implementation: Callable[..., Any],
-    service_def = None,
+    services: Services,
     settings: Settings = None,
 ) -> FastAPI:
     """
-    Build a FastAPI instance with a direct implementation.
+    Build a FastAPI instance from a Services container.
 
     Args:
-        implementation: The callable that implements the endpoint functionality
-        service_def: Optional ServiceDefinition to validate the implementation against
+        services: A Services container with all service implementations
         settings: Optional Settings instance for app configuration
     
     Returns:
@@ -218,7 +217,7 @@ def create_app(
     app = FastAPI(
         title="application name",  # settings.app_name if settings else "application name",
         description="A modern FastAPI application",
-        version=1,  # settings.version if settings else 1,
+        version="1.0",  # settings.version if settings else "1.0",
         debug=False,  # settings.debug if settings else False
     )
     
@@ -234,20 +233,13 @@ def create_app(
     # Standard timing / logging middleware
     add_standard_middleware(app)
 
-    # Create the implementation route
-    if service_def:
+    # Create routes for all services
+    for service in services:
         create_extension_route(
             router=app,
-            service_def=service_def,
-            implementation=implementation,
+            service_def=service.service_def,
+            implementation=service.implementation,
         )
-    else:
-        # If no service_def is provided, create a simple POST endpoint
-        @app.post("/endpoint")
-        async def endpoint(request: dict):
-            if inspect.iscoroutinefunction(implementation):
-                return await implementation(**request)
-            return implementation(**request)
     
     # Root path response – list all registered routes
     @app.get("/")
@@ -265,7 +257,7 @@ def create_app(
         return {
             "routes": route_infos,
             "docs_url": "/docs",
-            "version": 1,
+            "version": "1.0",
         }
     
     return app

@@ -273,6 +273,38 @@ class ServiceDefinitionHelper:
         """
         return not (self.get_missing_parameters(service_def) or self.get_missing_returns(service_def))
 
+    def has_differences(self, service_def: ServiceDefinition) -> bool:
+        """Check if there are any differences between the implementation and service definition.
+        
+        This method performs a deep comparison of parameters and returns, checking not just
+        for missing items but also for differences in their definitions.
+        
+        Args:
+            service_def: The service definition to compare against
+            
+        Returns:
+            True if there are any differences in parameters or returns, False if everything matches exactly
+        """
+        # Get parameter and return definitions
+        extracted_params = self.signature_extractor.get_parameter_definitions()
+        extracted_returns = self.return_analyzer.get_return_definitions(self.func)
+        
+        # Check for any differences in parameters
+        for key in set(extracted_params.keys()) | set(service_def.parameters.keys()):
+            if key not in extracted_params or key not in service_def.parameters:
+                return True
+            if extracted_params[key].to_dict() != service_def.parameters[key].to_dict():
+                return True
+        
+        # Check for any differences in returns
+        for key in set(extracted_returns.keys()) | set(service_def.service_returns.keys()):
+            if key not in extracted_returns or key not in service_def.service_returns:
+                return True
+            if extracted_returns[key].to_dict() != service_def.service_returns[key].to_dict():
+                return True
+        
+        return False
+
 if __name__ == "__main__":
     # Get the example function
     example_func = ServiceDefinitionHelper.get_example_function()

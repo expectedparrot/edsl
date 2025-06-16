@@ -1,7 +1,7 @@
 from abc import ABC
 from pathlib import Path
 from dataclasses import dataclass, field, asdict, fields, MISSING
-from typing import Optional, Dict, Any, TypeVar, Type, Callable, List, Union
+from typing import Optional, Dict, Any, TypeVar, Type, Callable, List, Union, TYPE_CHECKING
 import requests # Added for __call__
 #import doctest
 from pydantic import create_model, Field, BaseModel
@@ -39,6 +39,8 @@ from .service_caller import ServiceCaller
 from .response_processor import ServiceResponseProcessor
 from .model_generation import ModelGenerator
 
+if TYPE_CHECKING:
+    from .service_definition_helper import ServiceDefinitionHelper
 
 def extract_bearer_token(authorization: Optional[str] = None) -> Optional[str]:
     """Extract the token from the Authorization header.
@@ -591,8 +593,160 @@ class ServiceDefinition(DictSerializable):
         return cls.from_dict(data)
 
 
-
+class Service:
+    def __init__(
+        self, 
+        implementation: Callable, 
+        overwrite: bool = False,
+        name: Optional[str] = None,
+        description: Optional[str] = None,
+        endpoint: Optional[str] = None,
+        cost_unit: Optional[str] = None,
+        per_call_cost: Optional[int] = None,
+        variable_pricing_cost_formula: Optional[str] = None,
+        uses_client_ep_key: Optional[bool] = None,
+        ep_username: Optional[str] = None
+    ):
+        from .service_definition_helper import ServiceDefinitionHelper
+        self.implementation = implementation
+        helper = ServiceDefinitionHelper(implementation)
+        self.service_def = helper.propose_service_definition()
+        
+        # Override service definition fields if provided
+        if name:
+            self.service_def.name = name
+        if description:
+            self.service_def.description = description
+        if endpoint:
+            self.service_def.endpoint = endpoint
+            
+        # Override cost definition fields if provided
+        if any([cost_unit, per_call_cost, variable_pricing_cost_formula, uses_client_ep_key, ep_username]):
+            if cost_unit:
+                self.service_def.cost.unit = cost_unit
+            if per_call_cost is not None:
+                self.service_def.cost.per_call_cost = per_call_cost
+            if variable_pricing_cost_formula:
+                self.service_def.cost.variable_pricing_cost_formula = variable_pricing_cost_formula
+            if uses_client_ep_key is not None:
+                self.service_def.cost.uses_client_ep_key = uses_client_ep_key
+            if ep_username:
+                self.service_def.cost.ep_username = ep_username
+        
+        # Write service definition to YAML
+        self._write_service_yaml(helper, overwrite)
     
+    def _has_differences(self, existing_def: ServiceDefinition, helper: 'ServiceDefinitionHelper') -> bool:
+        comparison = helper.validate(existing_def)
+        return bool(comparison.strip())
+    
+    def _get_user_confirmation(self) -> bool:
+        """Prompt the user for confirmation and return their choice."""
+        while True:
+            response = input("\nWould you like to overwrite with these changes? [y/N]: ").lower().strip()
+            if response in ['y', 'yes']:
+                return True
+            if response in ['', 'n', 'no']:
+                return False
+            print("Please answer 'y' or 'n'")
+
+    def _write_service_yaml(self, helper: 'ServiceDefinitionHelper', overwrite: bool):
+        # Get the directory of the caller (where app.py is)
+        caller_dir = Path(os.getcwd())
+        
+        # Ensure configs directory exists in the caller's directory
+        configs_dir = caller_dir / 'configs'
+        configs_dir.mkdir(exist_ok=True)
+        
+        # Get YAML path relative to caller
+        yaml_path = configs_dir / f"{self.service_def.name}.yaml"
+        
+        # If file exists, compare definitions
+        if yaml_path.exists():
+            existing_def = ServiceDefinition.from_yaml(yaml_path)
+            
+            # Compare the actual service definitions
+            existing_dict = existing_def.to_dict()
+            new_dict = self.service_def.to_dict()
+            
+            # Check for differences and show them
+            differences = []
+            for key in set(existing_dict.keys()) | set(new_dict.keys()):
+                if key not in existing_dict:
+                    differences.append(f"New field added: {key}")
+                elif key not in new_dict:
+                    differences.append(f"Field removed: {key}")
+                elif existing_dict[key] != new_dict[key]:
+                    if isinstance(existing_dict[key], dict) and isinstance(new_dict[key], dict):
+                        # For nested dicts (like cost), show specific field differences
+                        for subkey in set(existing_dict[key].keys()) | set(new_dict[key].keys()):
+                            if subkey not in existing_dict[key]:
+                                differences.append(f"New subfield added in {key}: {subkey}")
+                            elif subkey not in new_dict[key]:
+                                differences.append(f"Subfield removed in {key}: {subkey}")
+                            elif existing_dict[key][subkey] != new_dict[key][subkey]:
+                                differences.append(f"Changed {key}.{subkey}:")
+                                differences.append(f"  From: {existing_dict[key][subkey]}")
+                                differences.append(f"  To:   {new_dict[key][subkey]}")
+                    else:
+                        differences.append(f"Changed {key}:")
+                        differences.append(f"  From: {existing_dict[key]}")
+                        differences.append(f"  To:   {new_dict[key]}")
+            
+            if differences:
+                print("\nDifferences detected between existing YAML and new definition:")
+                print("\n".join(differences))
+                
+                # If there are differences, always ask for confirmation
+                should_overwrite = self._get_user_confirmation() if not overwrite else True
+                
+                if should_overwrite:
+                    print(f"Overwriting {yaml_path}")
+                    yaml_path.write_text(self.service_def.to_yaml())
+                else:
+                    print("Keeping existing YAML file")
+            else:
+                print("\nNo differences detected between existing YAML and new definition")
+        else:
+            # File doesn't exist, write it
+            print(f"Creating new YAML file at {yaml_path}")
+            yaml_path.write_text(self.service_def.to_yaml())
+
+
+class Services:
+    """A container class for managing multiple service definitions."""
+    
+    def __init__(self):
+        self._services: Dict[str, Service] = {}
+    
+    def add_service(
+        self, 
+        implementation: Callable[..., Any],
+        overwrite: bool = False,
+        **kwargs
+    ) -> None:
+        """Add a service to the container.
+        
+        Args:
+            implementation: The callable that implements the service
+            overwrite: Whether to overwrite existing YAML file without confirmation
+            **kwargs: Additional keyword arguments to pass to the Service constructor (e.g., name, description, 
+                     endpoint, cost_unit, per_call_cost, variable_pricing_cost_formula, uses_client_ep_key, ep_username)
+        """
+        service = Service(implementation, overwrite=overwrite, **kwargs)
+        self._services[service.service_def.name] = service
+    
+    def __getitem__(self, key: str) -> Service:
+        """Get a service by name."""
+        return self._services[key]
+    
+    def __iter__(self):
+        """Iterate over services."""
+        return iter(self._services.values())
+    
+    def __len__(self) -> int:
+        """Get number of services."""
+        return len(self._services)
 
 
 if __name__ == "__main__":
