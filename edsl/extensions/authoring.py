@@ -135,7 +135,6 @@ class CostDefinition(DictSerializable):
     per_call_cost: int
     variable_pricing_cost_formula: Optional[str] = None
     uses_client_ep_key: bool = False
-    ep_username: str = "test"
 
     def __post_init__(self):
         # If we got a dictionary, extract the fields from it
@@ -145,7 +144,6 @@ class CostDefinition(DictSerializable):
             self.per_call_cost = data["per_call_cost"]
             self.variable_pricing_cost_formula = data.get("variable_pricing_cost_formula")
             self.uses_client_ep_key = data.get("uses_client_ep_key", False)
-            self.ep_username = data.get("ep_username", "test")
 
 
 @dataclass
@@ -162,6 +160,27 @@ class ReturnDefinition(DictSerializable):
             self.description = data["description"]
             self.coopr_url = data.get("coopr_url", False)
 
+from collections import UserDict
+
+from typing import TypedDict
+
+class ServiceLocation(TypedDict):
+    service_name: str
+    creator_ep_username: str
+    gateway_url: str
+    service_url: str
+
+class ServiceLocations(TypedDict):
+    def __init__(self, data=None, **kwargs):
+        super().__init__(data, **kwargs)
+        self.locations = {}
+    
+    def add_location(self, name: str, location: ServiceLocation) -> None:
+        self.locations[name] = location
+
+    def get_service_endpoint(self, service_name: str) -> str:
+        return self.locations[service_name]["service_url"] + "/" + self.locations[service_name]["service_name"]
+
 
 @dataclass
 class ServiceDefinition(DictSerializable):
@@ -170,7 +189,6 @@ class ServiceDefinition(DictSerializable):
     parameters: Dict[str, Union[ParameterDefinition, Dict[str, Any]]]
     cost: Union[CostDefinition, Dict[str, Any]]
     service_returns: Dict[str, Union[ReturnDefinition, Dict[str, Any]]]
-    endpoint: str
     # Internal attributes to be set by the client
     _base_url: Optional[str] = field(default=None, init=False, repr=False)
     _ep_api_token: Optional[str] = field(default=None, init=False, repr=False)
@@ -178,6 +196,7 @@ class ServiceDefinition(DictSerializable):
     _response_processor: ServiceResponseProcessor = field(init=False, repr=False)
     _model_generator: ModelGenerator = field(init=False, repr=False)
     _service_caller_instance: Optional[ServiceCaller] = field(default=None, init=False, repr=False)
+    creator_ep_username: str = "test"
 
     def __post_init__(self):
         """Convert dictionaries to proper objects after initialization."""
@@ -243,6 +262,12 @@ class ServiceDefinition(DictSerializable):
         scenario = Scenario.pull(*args, **kwargs)
         return cls.from_dict(scenario.to_dict())
     
+    @classmethod
+    def from_uuid(cls, service_uuid: str) -> 'ServiceDefinition':
+        from edsl import Scenario
+        scenario = Scenario.pull(service_uuid)
+        return cls.from_dict(scenario.to_dict())
+    
     def update(self, service_uuid: str):
         new_scenario = Scenario(self.to_dict())
         return Scenario.patch(service_uuid, value = new_scenario)
@@ -267,9 +292,12 @@ class ServiceDefinition(DictSerializable):
             "parameters": {k: v.to_dict() for k, v in self.parameters.items()},
             "cost": self.cost.to_dict(),
             "service_returns": {k: v.to_dict() for k, v in self.service_returns.items()},
-            "endpoint": self.endpoint
+            "creator_ep_username": self.creator_ep_username,
         }
     
+    def __hash__(self) -> int:
+        return hash(Scenario(self.to_dict()))
+
     def add_service_to_expected_parrot(self) -> None:
         """Adds a service to the registry"""
         from .services_model import ServicesRegistry
@@ -293,9 +321,9 @@ class ServiceDefinition(DictSerializable):
             name=data['name'],
             description=data['description'],
             parameters={k: ParameterDefinition.from_dict(v) for k, v in data['parameters'].items()},
-            cost=CostDefinition.from_dict(data['cost']),
+            cost=CostDefinition.from_dict({k: v for k, v in data['cost'].items() if k != 'ep_username'}),
             service_returns={k: ReturnDefinition.from_dict(v) for k, v in data['service_returns'].items()},
-            endpoint=data['endpoint']
+            creator_ep_username=data.get('creator_ep_username', 'test'),
         )
 
     @classmethod
@@ -335,7 +363,7 @@ class ServiceDefinition(DictSerializable):
                 description="An EDSL survey object"
              )
             },
-            endpoint="X"
+            creator_ep_username="test",
         )
 
     def validate_call_parameters(self, params: Dict[str, Any]):
@@ -453,7 +481,6 @@ class ServiceDefinition(DictSerializable):
             f"Parameters:\n{params_block}\n\n"
             f"Returns:\n{returns_block}\n\n"
             f"Cost:\n{cost_line}\n\n"
-            f"Endpoint: {self.endpoint or 'N/A'}"
         )
         return doc
 
@@ -462,6 +489,93 @@ class ServiceDefinition(DictSerializable):
         if item == "__doc__":
             return self._generate_dynamic_doc()
         raise AttributeError(f"{self.__class__.__name__!r} object has no attribute {item!r}")
+
+    def call_directly(self, ep_api_token: Optional[str] = None, timeout: int = 120, **kwargs: Any) -> Any:
+        """Call the service *directly* at the URL contained in ``self.endpoint`` – bypassing the
+        gateway entirely.
+
+        Parameters
+        ----------
+        ep_api_token : str, optional
+            Bearer token to forward in the ``Authorization`` header.  If not supplied, the
+            value previously set via ``service_def._ep_api_token`` (if any) is used.
+        timeout : int, default ``120`` seconds
+            Request timeout in seconds passed through to ``requests.post``.
+        **kwargs : Any
+            Service parameters (same as for calling the service via the gateway).
+
+        Returns
+        -------
+        Any
+            Deserialised response according to the service's ``service_returns`` definition.
+
+        Raises
+        ------
+        ServiceParameterValidationError
+            If required parameters are missing or of wrong type.
+        ServiceResponseError
+            If the endpoint returns an HTTP status ≥400.
+        ServiceConnectionError
+            If the HTTP request fails due to network issues.
+        ServiceDeserializationError
+            If the response body cannot be parsed or mapped to the declared return types.
+        ServiceConfigurationError
+            If ``self.endpoint`` is empty.
+        """
+        # ------------------------------------------------------------------
+        # 1) Validate parameters and build the JSON payload
+        # ------------------------------------------------------------------
+        self.validate_call_parameters(kwargs)
+        prepared_params = self._prepare_parameters(**kwargs)
+
+        # ------------------------------------------------------------------
+        # 2) Build HTTP request details
+        # ------------------------------------------------------------------
+        if not self.endpoint:
+            raise ServiceConfigurationError(
+                f"Service '{self.name}' has no endpoint defined – cannot call directly.")
+
+        url = self.endpoint.rstrip("/")  # Avoid accidental double slashes
+        headers: Dict[str, str] = {"Content-Type": "application/json"}
+
+        token = ep_api_token or self._ep_api_token
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
+
+        # ------------------------------------------------------------------
+        # 3) Execute the request
+        # ------------------------------------------------------------------
+        try:
+            response = requests.post(url, json=prepared_params, headers=headers, timeout=timeout)
+        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
+            raise ServiceConnectionError(
+                f"Error connecting to service '{self.name}' at {url}: {e}") from e
+        except requests.exceptions.RequestException as e:
+            raise ServiceConnectionError(
+                f"Unexpected error calling service '{self.name}' at {url}: {e}") from e
+
+        # Error status codes – surface as ServiceResponseError for consistency
+        if response.status_code >= 400:
+            try:
+                detail = response.json()
+            except Exception:
+                detail = response.text
+            raise ServiceResponseError(
+                f"Direct call to '{self.name}' failed with status {response.status_code}: {detail}")
+
+        # ------------------------------------------------------------------
+        # 4) Deserialize & log cost as in the standard __call__ path
+        # ------------------------------------------------------------------
+        result = self._response_processor.deserialize_response(response)
+
+        try:
+            from .price_calculation import compute_price  # local import to avoid circular deps
+            estimated_cost = compute_price(self, prepared_params)
+            logger.info("Estimated cost for direct call to '%s': %s %s", self.name, estimated_cost, self.cost.unit)
+        except Exception as _e:
+            logger.debug("Could not compute price for '%s' (direct call): %s", self.name, _e)
+
+        return result
 
     def register_service(
         router: APIRouter,
@@ -605,7 +719,7 @@ class Service:
         per_call_cost: Optional[int] = None,
         variable_pricing_cost_formula: Optional[str] = None,
         uses_client_ep_key: Optional[bool] = None,
-        ep_username: Optional[str] = None
+        creator_ep_username: Optional[str] = None
     ):
         from .service_definition_helper import ServiceDefinitionHelper
         self.implementation = implementation
@@ -621,7 +735,7 @@ class Service:
             self.service_def.endpoint = endpoint
             
         # Override cost definition fields if provided
-        if any([cost_unit, per_call_cost, variable_pricing_cost_formula, uses_client_ep_key, ep_username]):
+        if any([cost_unit, per_call_cost, variable_pricing_cost_formula, uses_client_ep_key, creator_ep_username]):
             if cost_unit:
                 self.service_def.cost.unit = cost_unit
             if per_call_cost is not None:
@@ -630,8 +744,8 @@ class Service:
                 self.service_def.cost.variable_pricing_cost_formula = variable_pricing_cost_formula
             if uses_client_ep_key is not None:
                 self.service_def.cost.uses_client_ep_key = uses_client_ep_key
-            if ep_username:
-                self.service_def.cost.ep_username = ep_username
+            if creator_ep_username:
+                self.service_def.creator_ep_username = creator_ep_username
         
         # Write service definition to YAML
         self._write_service_yaml(helper, overwrite)
@@ -735,6 +849,15 @@ class Services:
         """
         service = Service(implementation, overwrite=overwrite, **kwargs)
         self._services[service.service_def.name] = service
+    
+    def set_base_url(self, base_url: str) -> None:
+        """Set the base URL for all service definitions in this container.
+        
+        Args:
+            base_url: The base URL to set for all services
+        """
+        for service in self._services.values():
+            service.service_def._base_url = base_url
     
     def __getitem__(self, key: str) -> Service:
         """Get a service by name."""
