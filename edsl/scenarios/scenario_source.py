@@ -1334,7 +1334,6 @@ class DelimitedFileSource(Source):
         header_counts = defaultdict(lambda: 0)
         new_header = []
         for h in header:
-            print(header_counts)
             if header_counts[h] >= 1:
                 new_header.append(f"{h}_{header_counts[h]}")
                 warnings.warn(
