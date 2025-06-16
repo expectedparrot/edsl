@@ -8,6 +8,11 @@ from dataclasses import dataclass
 from .authoring import ReturnDefinition
 
 
+class ReturnStructureError(Exception):
+    """Exception raised when return structure is missing required fields."""
+    pass
+
+
 @dataclass
 class ReturnStructure:
     """Represents the structure of a return value."""
@@ -25,21 +30,36 @@ class ReturnStructure:
         - description: str
         - coopr_url: bool
         - value: Any
+
+        Raises:
+            ReturnStructureError: If any required fields are missing from the return structure
         """
         return_defs = {}
+        required_fields = ['type', 'description', 'coopr_url']
         
         # For each top-level key in the return dictionary
         for key in self.keys:
             if key in self.nested_structures:
                 nested = self.nested_structures[key]
-                # Check if the nested structure has the expected ReturnDefinition fields
-                if all(k in nested.literal_values or k in nested.computed_values 
-                      for k in ['type', 'description', 'coopr_url']):
-                    return_defs[key] = ReturnDefinition(
-                        type=nested.literal_values.get('type', 'Any'),
-                        description=nested.literal_values.get('description', ''),
-                        coopr_url=nested.literal_values.get('coopr_url', False)
+                
+                # Check for missing fields
+                missing_fields = [
+                    field for field in required_fields 
+                    if field not in nested.literal_values and field not in nested.computed_values
+                ]
+                
+                if missing_fields:
+                    missing_fields_str = ", ".join(missing_fields)
+                    raise ReturnStructureError(
+                        f"Return value for key '{key}' is missing required fields: {missing_fields_str}.\n"
+                        f"Each return value must include: {', '.join(required_fields)}."
                     )
+                
+                return_defs[key] = ReturnDefinition(
+                    type=nested.literal_values.get('type', 'Any'),
+                    description=nested.literal_values.get('description', ''),
+                    coopr_url=nested.literal_values.get('coopr_url', False)
+                )
         
         return return_defs
 
