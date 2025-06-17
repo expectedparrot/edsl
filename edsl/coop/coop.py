@@ -945,18 +945,31 @@ class Coop(CoopFunctionsMixin):
 
         obj_uuid, owner_username, obj_alias = self._resolve_uuid_or_alias(url_or_uuid)
 
-        # If we have a UUID and are updating the value, check the storage format first
-        if obj_uuid and value:
-            # Check if object is in new format (GCS)
-            format_check_response = self._send_server_request(
-                uri="api/v0/object/check-format",
-                method="POST",
-                payload={"object_uuid": str(obj_uuid)},
-            )
-            self._resolve_server_response(format_check_response)
-            format_data = format_check_response.json()
+        # If we're updating the value, we need to check the storage format
+        if value:
+            # If we don't have a UUID but have an alias, get the UUID and format info first
+            if not obj_uuid and owner_username and obj_alias:
+                # Get object info including UUID and format
+                info_response = self._send_server_request(
+                    uri="api/v0/object/alias/info",
+                    method="GET",
+                    params={"owner_username": owner_username, "alias": obj_alias},
+                )
+                self._resolve_server_response(info_response)
+                info_data = info_response.json()
 
-            is_new_format = format_data.get("is_new_format", False)
+                obj_uuid = info_data.get("uuid")
+                is_new_format = info_data.get("is_new_format", False)
+            else:
+                # We have a UUID, check the format
+                format_check_response = self._send_server_request(
+                    uri="api/v0/object/check-format",
+                    method="POST",
+                    payload={"object_uuid": str(obj_uuid)},
+                )
+                self._resolve_server_response(format_check_response)
+                format_data = format_check_response.json()
+                is_new_format = format_data.get("is_new_format", False)
 
             if is_new_format:
                 # Handle new format objects: update metadata first, then upload content
@@ -1052,10 +1065,20 @@ class Coop(CoopFunctionsMixin):
                 f"Failed to upload object to GCS: {gcs_response.status_code}"
             )
 
+        # Step 4: Confirm upload and trigger queue worker processing
+        confirm_response = self._send_server_request(
+            uri="api/v0/object/confirm-upload",
+            method="POST",
+            payload={"object_uuid": str(obj_uuid)},
+        )
+        self._resolve_server_response(confirm_response)
+        confirm_data = confirm_response.json()
+
         return {
             "status": "success",
-            "message": "Object updated successfully (new format - uploaded to GCS)",
+            "message": "Object updated successfully (new format - uploaded to GCS and processing triggered)",
             "object_uuid": str(obj_uuid),
+            "processing_started": confirm_data.get("processing_started", False),
         }
 
     ################
