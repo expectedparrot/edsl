@@ -331,8 +331,16 @@ class PersistenceMixin:
         """
         from edsl.coop import Coop
         from edsl.coop import ObjectRegistry
+        from edsl.jobs import Jobs
 
         coop = Coop(url=expected_parrot_url)
+
+        if issubclass(cls, Jobs):
+            job_data = coop.new_remote_inference_get(
+                str(url_or_uuid), include_json_string=True
+            )
+            job_dict = json.loads(job_data.get("job_json_string"))
+            return cls.from_dict(job_dict)
 
         object_type = ObjectRegistry.get_object_type_by_edsl_class(cls)
 
