@@ -598,7 +598,7 @@ class Coop(CoopFunctionsMixin):
             else:
                 from .exceptions import CoopResponseError
 
-                raise CoopResponseError("No signed url was provided received")
+                raise CoopResponseError("No signed url was provided.")
 
             response = requests.put(
                 signed_url, data=json_data.encode(), headers=headers
@@ -1218,7 +1218,7 @@ class Coop(CoopFunctionsMixin):
         if not upload_signed_url:
             from .exceptions import CoopResponseError
 
-            raise CoopResponseError("No signed url was provided received")
+            raise CoopResponseError("No signed url was provided.")
 
         response = requests.put(
             upload_signed_url,
@@ -1450,6 +1450,160 @@ class Coop(CoopFunctionsMixin):
                 "status": data.get("status"),
                 "version": data.get("version"),
                 "job_json_string": data.get("job_json_string"),
+                "latest_job_run_details": latest_job_run_details,
+            }
+        )
+
+    def new_remote_inference_get(
+        self,
+        job_uuid: Optional[str] = None,
+        results_uuid: Optional[str] = None,
+        include_json_string: Optional[bool] = False,
+    ) -> RemoteInferenceResponse:
+        """
+        Get the status and details of a remote inference job.
+
+        This method retrieves the current status and information about a remote job,
+        including links to results if the job has completed successfully.
+
+        Parameters:
+            job_uuid (str, optional): The UUID of the remote job to check
+            results_uuid (str, optional): The UUID of the results associated with the job
+                (can be used if you only have the results UUID)
+            include_json_string (bool, optional): If True, include the json string for the job in the response
+
+        Returns:
+            RemoteInferenceResponse: Information about the job including:
+                job_uuid: The unique identifier for the job
+                results_uuid: The UUID of the results
+                results_url: URL to access the results
+                status: Current status ("queued", "running", "completed", "failed")
+                version: EDSL version used for the job
+                job_json_string: The json string for the job (if include_json_string is True)
+                latest_job_run_details: Metadata about the job status
+                    interview_details: Metadata about the job interview status (for jobs that have reached running status)
+                        total_interviews: The total number of interviews in the job
+                        completed_interviews: The number of completed interviews
+                        interviews_with_exceptions: The number of completed interviews that have exceptions
+                        exception_counters: A list of exception counts for the job
+                            exception_type: The type of exception
+                            inference_service: The inference service
+                            model: The model
+                            question_name: The name of the question
+                            exception_count: The number of exceptions
+                    failure_reason: The reason the job failed (failed jobs only)
+                    failure_description: The description of the failure (failed jobs only)
+                    error_report_uuid: The UUID of the error report (partially failed jobs only)
+                    cost_credits: The cost of the job run in credits
+                    cost_usd: The cost of the job run in USD
+                    expenses: The expenses incurred by the job run
+                        service: The service
+                        model: The model
+                        token_type: The type of token (input or output)
+                        price_per_million_tokens: The price per million tokens
+                        tokens_count: The number of tokens consumed
+                        cost_credits: The cost of the service/model/token type combination in credits
+                        cost_usd: The cost of the service/model/token type combination in USD
+
+        Raises:
+            ValueError: If neither job_uuid nor results_uuid is provided
+            CoopServerResponseError: If there's an error communicating with the server
+
+        Notes:
+            - Either job_uuid or results_uuid must be provided
+            - If both are provided, job_uuid takes precedence
+            - For completed jobs, you can use the results_url to view or download results
+            - For failed jobs, check the latest_error_report_url for debugging information
+
+        Example:
+            >>> job_status = coop.new_remote_inference_get("9f8484ee-b407-40e4-9652-4133a7236c9c")
+            >>> print(f"Job status: {job_status['status']}")
+            >>> if job_status['status'] == 'completed':
+            ...     print(f"Results available at: {job_status['results_url']}")
+        """
+        if job_uuid is None and results_uuid is None:
+            from .exceptions import CoopValueError
+
+            raise CoopValueError("Either job_uuid or results_uuid must be provided.")
+        elif job_uuid is not None:
+            params = {"job_uuid": job_uuid}
+        else:
+            params = {"results_uuid": results_uuid}
+        if include_json_string:
+            params["include_json_string"] = include_json_string
+
+        response = self._send_server_request(
+            uri="api/v0/remote-inference",
+            method="GET",
+            params=params,
+        )
+        self._resolve_server_response(response)
+        data = response.json()
+
+        results_uuid = data.get("results_uuid")
+
+        if results_uuid is None:
+            results_url = None
+        else:
+            results_url = f"{self.url}/content/{results_uuid}"
+
+        latest_job_run_details = data.get("latest_job_run_details", {})
+        if data.get("status") == "partial_failed":
+            latest_error_report_uuid = latest_job_run_details.get("error_report_uuid")
+            if latest_error_report_uuid is None:
+                latest_job_run_details["error_report_url"] = None
+            else:
+                latest_error_report_url = (
+                    f"{self.url}/home/remote-inference/error/{latest_error_report_uuid}"
+                )
+                latest_job_run_details["error_report_url"] = latest_error_report_url
+
+        json_string = data.get("job_json_string")
+
+        # The job has been offloaded to GCS
+        if include_json_string and json_string == "offloaded":
+
+            # Attempt to fetch JSON string from GCS
+            response = self._send_server_request(
+                uri="api/v0/remote-inference/pull",
+                method="POST",
+                payload={"job_uuid": job_uuid},
+            )
+            # Handle any errors in the response
+            self._resolve_server_response(response)
+            if "signed_url" not in response.json():
+                from .exceptions import CoopResponseError
+
+                raise CoopResponseError("No signed url was provided.")
+            signed_url = response.json().get("signed_url")
+
+            if signed_url == "":  # The job is in legacy format
+                job_json = json_string
+
+            try:
+                response = requests.get(signed_url)
+                self._resolve_gcs_response(response)
+                job_json = json.dumps(response.json())
+            except Exception:
+                job_json = json_string
+
+        # If the job is in legacy format, we should already have the JSON string
+        # from the first API call
+        elif include_json_string and not json_string == "offloaded":
+            job_json = json_string
+
+        # If include_json_string is False, we don't need the JSON string at all
+        else:
+            job_json = None
+
+        return RemoteInferenceResponse(
+            **{
+                "job_uuid": data.get("job_uuid"),
+                "results_uuid": results_uuid,
+                "results_url": results_url,
+                "status": data.get("status"),
+                "version": data.get("version"),
+                "job_json_string": job_json,
                 "latest_job_run_details": latest_job_run_details,
             }
         )
@@ -2493,7 +2647,7 @@ class Coop(CoopFunctionsMixin):
         if "signed_url" not in response.json():
             from .exceptions import CoopResponseError
 
-            raise CoopResponseError("No signed url was provided received")
+            raise CoopResponseError("No signed url was provided.")
         signed_url = response.json().get("signed_url")
 
         if signed_url == "":  # it is in old format
@@ -3267,7 +3421,7 @@ def main():
     job = Jobs.example()
     coop.remote_inference_cost(job)
     job_coop_object = coop.remote_inference_create(job)
-    job_coop_results = coop.remote_inference_get(job_coop_object.get("uuid"))
+    job_coop_results = coop.new_remote_inference_get(job_coop_object.get("uuid"))
     coop.get(job_coop_results.get("results_uuid"))
 
     import streamlit as st
