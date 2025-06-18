@@ -280,6 +280,18 @@ class Scenario(Base, UserDict):
 
         target = self if inplace else Scenario()
 
+        # First check if this Scenario itself has a base64_string (e.g., from FileStore.to_dict())
+        if "base64_string" in self and isinstance(self.get("base64_string"), str):
+            # This is likely a Scenario created from FileStore.to_dict()
+            if inplace:
+                self["base64_string"] = "offloaded"
+            else:
+                # Copy all keys to target
+                for k, v in self.items():
+                    target[k] = v
+                target["base64_string"] = "offloaded"
+            return target
+
         for key, value in self.items():
             if isinstance(value, FileStore):
                 file_store_dict = value.to_dict()
