@@ -7,11 +7,24 @@ The :class:`ExtensionDeploymentManager` class exposes each Makefile target as a 
 that the same actions can be invoked directly from python scripts, notebooks or simple REPL
 sessions without shelling out to `make`.
 
+The manager works at the service collection level, deploying all services in a ServicesBuilder
+as a single containerized application.
+
 Example
 -------
->>> from docker_manager import ExtensionDeploymentManager
->>> mgr = ExtensionDeploymentManager.from_service_definition(
-...     service_def=service_def,
+>>> from edsl.extension_authoring.authoring import ServicesBuilder
+>>> from edsl.extension_authoring.docker_manager import ExtensionDeploymentManager
+>>> 
+>>> # Create a services collection
+>>> services = ServicesBuilder(
+...     service_collection_name="my_services",
+...     creator_ep_username="username"
+... )
+>>> # ... add services to the builder ...
+>>> 
+>>> # Create deployment manager for the entire collection
+>>> mgr = ExtensionDeploymentManager.from_services_builder(
+...     services_builder=services,
 ...     project_id="extensions-testing-462609",
 ...     region="us-central1",
 ... )
@@ -25,9 +38,8 @@ import subprocess
 import re
 from pathlib import Path
 from typing import Sequence, Optional
-from urllib.parse import urlparse
 
-from .authoring import ServiceDefinition
+from .authoring import ServicesBuilder
 
 
 class ExtensionDeploymentManager:
@@ -47,6 +59,8 @@ class ExtensionDeploymentManager:
         GCP region for the Cloud Run service.
     service_name:
         Deployed Cloud Run service name.
+    service_collection_name:
+        Name of the service collection being deployed.
     """
 
     def __init__(
@@ -57,6 +71,7 @@ class ExtensionDeploymentManager:
         project_id: str,
         region: str,
         service_name: str,
+        service_collection_name: str,
     ) -> None:
         self.image_name = image_name
         self.container_name = container_name
@@ -64,22 +79,23 @@ class ExtensionDeploymentManager:
         self.project_id = project_id
         self.region = region
         self.service_name = service_name
+        self.service_collection_name = service_collection_name
         self.workdir = Path(os.getcwd()).resolve()
 
     @classmethod
-    def from_service_definition(
+    def from_services_builder(
         cls,
-        service_def: ServiceDefinition,
+        services_builder: ServicesBuilder,
         project_id: str,
         region: str,
         port: int = 8080,
     ) -> ExtensionDeploymentManager:
-        """Create an ExtensionDeploymentManager instance from a ServiceDefinition.
+        """Create an ExtensionDeploymentManager instance from a ServicesBuilder.
         
         Parameters
         ----------
-        service_def:
-            The ServiceDefinition instance containing service configuration.
+        services_builder:
+            The ServicesBuilder instance containing the service collection.
         project_id:
             Google Cloud project id.
         region:
@@ -87,17 +103,16 @@ class ExtensionDeploymentManager:
         port:
             Host and container port to expose the API under. Defaults to 8080.
         """
-        # Extract service name from the endpoint URL or fall back to the service name
-        service_name = service_def.name
-        if service_def.endpoint:
-            # Try to extract service name from Cloud Run URL if it exists
-            url_parts = urlparse(service_def.endpoint)
-            if url_parts.netloc and "-" in url_parts.netloc:
-                service_name = url_parts.netloc.split("-")[0]
+        # Get collection name from the services builder
+        service_collection_name = services_builder._default_service_collection_name or "default_collection"
         
-        # Clean service name to be valid for Docker
-        image_name = re.sub(r'[^a-zA-Z0-9_.-]', '-', service_name.lower())
+        # Clean collection name to be valid for Docker and Cloud Run
+        clean_collection_name = re.sub(r'[^a-zA-Z0-9_.-]', '-', service_collection_name.lower())
+        
+        # Use collection name for image and service naming
+        image_name = clean_collection_name
         container_name = f"{image_name}-container"
+        service_name = clean_collection_name
         
         return cls(
             image_name=image_name,
@@ -106,6 +121,7 @@ class ExtensionDeploymentManager:
             project_id=project_id,
             region=region,
             service_name=service_name,
+            service_collection_name=service_collection_name,
         )
 
     # ---------------------------------------------------------------------
@@ -157,7 +173,7 @@ class ExtensionDeploymentManager:
         """Run the container with source mounted for hot-reloading."""
         self.stop(ignore_errors=True)
         self._run(
-            "docker run --rm --name {cn} -p {p}:{p} -v {src}:/app/autostudy {img}".format(
+            "docker run --rm --name {cn} -p {p}:{p} -v {src}:/app {img}".format(
                 cn=self.container_name,
                 p=self.port,
                 src=shlex.quote(str(self.workdir)),
@@ -253,16 +269,32 @@ class ExtensionDeploymentManager:
         params = (
             f"image_name={self.image_name!r}, container_name={self.container_name!r}, "
             f"port={self.port!r}, project_id={self.project_id!r}, region={self.region!r}, "
-            f"service_name={self.service_name!r}, workdir={str(self.workdir)!r}"
+            f"service_name={self.service_name!r}, workdir={str(self.workdir)!r}, "
+            f"service_collection_name={self.service_collection_name!r}"
         )
         return f"{self.__class__.__name__}({params})"
 
 
 if __name__ == "__main__":
-    mgr = ExtensionDeploymentManager.from_service_definition(
-        service_def=service_def,
+    # Example usage with ServicesBuilder
+    from .authoring import ServicesBuilder
+    
+    # Create a sample services builder
+    services = ServicesBuilder(
+        service_collection_name="example_collection",
+        creator_ep_username="test_user"
+    )
+    
+    # Create deployment manager from services builder
+    mgr = ExtensionDeploymentManager.from_services_builder(
+        services_builder=services,
         project_id="extensions-testing-462609",
         region="us-central1",
     )
-    mgr.build()
-    mgr.run()
+    print(f"Created deployment manager for collection: {mgr.service_collection_name}")
+    print(f"Image name: {mgr.image_name}")
+    print(f"Service name: {mgr.service_name}")
+    
+    # Example commands (commented out to avoid actual deployment)
+    # mgr.build()
+    # mgr.run()

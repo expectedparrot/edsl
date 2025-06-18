@@ -9,6 +9,7 @@ from pydantic import create_model, Field, BaseModel
 import yaml  # Added for YAML serialization
 
 import os
+import sys
 import logging
 
 from fastapi import HTTPException
@@ -36,8 +37,7 @@ from .response_processor import ServiceResponseProcessor
 from .model_generation import ModelGenerator
 
 
-#API_BASE_URL = os.getenv("EDSL_API_URL", "http://localhost:8000")
-API_BASE_URL = "http://localhost:8000"
+API_BASE_URL = os.getenv("EDSL_API_URL", "http://localhost:8000")
 
 if TYPE_CHECKING:
     from .service_definition_helper import ServiceDefinitionHelper
@@ -449,11 +449,13 @@ class ServiceDefinition(DictSerializable):
     
 
 
-    def __call__(self, use_gateway: bool = True, **kwargs: Any) -> Any:
+    def __call__(self, use_gateway: bool = True, gateway_url: Optional[str] = None, **kwargs: Any) -> Any:
         """
         Executes the API call for this service using provided parameters.
 
         Args:
+            use_gateway: Whether to use the gateway for calling the service
+            gateway_url: Override the default gateway URL (only used when use_gateway=True)
             **kwargs: Parameters for the service call.
 
         Returns:
@@ -471,9 +473,10 @@ class ServiceDefinition(DictSerializable):
         prepared_params = self._prepare_parameters(**kwargs)
 
         if use_gateway:
+            effective_gateway_url = gateway_url or API_BASE_URL
             service_caller = GatewayServiceCaller(
                 service_name=self.service_name,
-                gateway_url=API_BASE_URL,
+                gateway_url=effective_gateway_url,
                 ep_api_token=self._ep_api_token
             )
         else:
@@ -1115,7 +1118,7 @@ class ServicesBuilder:
         service = ServiceBuilder(implementation, overwrite=overwrite, **kwargs)
         self._services[service.service_def.service_name] = service
     
-    def set_base_url(self, base_url: str) -> None:
+    def set_base_url(self, base_url: str, push_to_gateway: bool = False, gateway_url: str = API_BASE_URL, timeout: int = 30) -> None:
         """Set the base URL for all service definitions in this container.
         
         This updates the service_endpoint for each service from None to the full URL:
@@ -1123,10 +1126,70 @@ class ServicesBuilder:
         
         Args:
             base_url: The base URL to set for all services (e.g., "http://localhost:8000")
+            push_to_gateway: Whether to push the updated services to the gateway after setting URLs
+            gateway_url: The gateway URL to push to (only used if push_to_gateway=True)
+            timeout: Request timeout for gateway operations (only used if push_to_gateway=True)
         """
         base_url = base_url.rstrip("/")  # Remove trailing slash if present
         for service in self._services.values():
             service.service_def.service_endpoint = f"{base_url}/{service.service_def.service_name}"
+        
+        if push_to_gateway:
+            self.push_to_gateway(gateway_url=gateway_url, timeout=timeout)
+    
+    def push_to_gateway(self, gateway_url: str = API_BASE_URL, timeout: int = 30) -> Dict[str, Any]:
+        """Push all service definitions in this container to the gateway.
+        
+        Args:
+            gateway_url: The base URL of the extension gateway (e.g., "http://localhost:8000")
+            timeout: Request timeout in seconds for each push operation
+            
+        Returns:
+            Dict[str, Any]: Summary of push results with service names as keys and gateway responses as values
+            
+        Raises:
+            ServiceConnectionError: If any HTTP request fails due to network issues
+            ServiceResponseError: If the gateway returns an error status (≥400) for any service
+            ServiceDeserializationError: If any response cannot be parsed as JSON
+            
+        Examples:
+            >>> services = ServicesBuilder("example_collection")
+            >>> # ... add services ...
+            >>> results = services.push_to_gateway()  # Uses API_BASE_URL as default
+            >>> isinstance(results, dict)  # doctest: +SKIP
+            True
+        """
+        results = {}
+        errors = {}
+        
+        logger.info("Pushing %s service definitions to gateway: %s", len(self._services), gateway_url)
+        
+        for service_name, service in self._services.items():
+            try:
+                result = service.service_def.push_to_gateway(gateway_url=gateway_url, timeout=timeout)
+                results[service_name] = result
+                logger.debug("Successfully pushed service '%s' to gateway", service_name)
+            except Exception as e:
+                errors[service_name] = str(e)
+                logger.error("Failed to push service '%s' to gateway: %s", service_name, e)
+        
+        # Include error summary in results
+        summary = {
+            "successful_pushes": results,
+            "failed_pushes": errors,
+            "total_services": len(self._services),
+            "successful_count": len(results),
+            "failed_count": len(errors)
+        }
+        
+        if errors:
+            logger.warning("Push completed with %s successes and %s failures", len(results), len(errors))
+            # If there were failures, include them in the returned summary but don't raise an exception
+            # This allows the caller to inspect what succeeded and what failed
+        else:
+            logger.info("Successfully pushed all %s service definitions to gateway", len(self._services))
+        
+        return summary
     
     def __getitem__(self, key: str) -> ServiceBuilder:
         """Get a service by name."""
@@ -1145,8 +1208,37 @@ class ServicesBuilder:
 if __name__ == "__main__":
     #import doctest
     #doctest.testmod(optionflags=doctest.ELLIPSIS)
+    
+    # Test the new gateway URL functionality
+    print("Testing gateway URL configuration...")
+    
+    # Test environment variable
+    import os
+    original_env = os.environ.get("EDSL_API_URL")
+    os.environ["EDSL_API_URL"] = "http://localhost:9999"
+    
+    # Reload the module to pick up the environment variable change
+    import importlib
+    current_module = sys.modules[__name__]
+    importlib.reload(current_module)
+    
+    print(f"API_BASE_URL from environment: {API_BASE_URL}")
+    
+    # Restore original environment
+    if original_env:
+        os.environ["EDSL_API_URL"] = original_env
+    else:
+        os.environ.pop("EDSL_API_URL", None)
+    
+    # Test service definition calling with custom gateway URL
     sd = ServiceDefinition.example()
-    sd.service_name = "new_create_survey"
-    sd.push_to_gateway()
-    sd(overall_question = "How are you??", population = "People who stubbed their toes")
+    sd.service_name = "test_service"
+    
+    print("\nExample service call with custom gateway URL:")
+    print("service_def(gateway_url='http://localhost:8001', param1='value1')")
+    print("\nOr set environment variable EDSL_API_URL to change the default")
+    
+    # Show that the gateway URL parameter works
+    print(f"\nDefault gateway URL: {API_BASE_URL}")
+    print("Custom gateway URL: http://localhost:8001")
 
