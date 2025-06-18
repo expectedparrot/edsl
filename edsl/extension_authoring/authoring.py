@@ -1118,7 +1118,7 @@ class ServicesBuilder:
         service = ServiceBuilder(implementation, overwrite=overwrite, **kwargs)
         self._services[service.service_def.service_name] = service
     
-    def set_base_url(self, base_url: str, push_to_gateway: bool = False, gateway_url: str = API_BASE_URL, timeout: int = 30) -> None:
+    def set_base_url(self, base_url: str, push_to_gateway: bool = True, gateway_url: str = API_BASE_URL, timeout: int = 30) -> None:
         """Set the base URL for all service definitions in this container.
         
         This updates the service_endpoint for each service from None to the full URL:
