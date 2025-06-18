@@ -112,8 +112,9 @@ class ScenarioSQLiteList(SQLiteList):
             return pickle.loads(data.encode())
         return pickle.loads(data)
 
-
-if use_sqlite := True:
+from ..config import CONFIG
+                        
+if use_sqlite := CONFIG.get("EDSL_USE_SQLITE_FOR_SCENARIO_LIST").lower() == "true":
     data_class = ScenarioSQLiteList
 else:
     data_class = list
