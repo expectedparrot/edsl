@@ -1,5 +1,5 @@
-#from .external_services import extensions as _extensions
-#from .authoring import register_service
+# from .external_services import extensions as _extensions
+# from .authoring import register_service
 # from .services_model import ServicesRegistry
 
 # services_registry = ServicesRegistry.from_config()

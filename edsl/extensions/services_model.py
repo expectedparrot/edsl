@@ -56,7 +56,6 @@ class ServicesRegistry(UserDict):
     def _to_services(self) -> Generator[Tuple[str, ServiceDefinition], None, None]:
         for service_name, service_info in self.data.items():
             service_definition = ServiceDefinition.pull(service_info['uuid'])
-            service_definition._base_url = self._gateway_url
             service_definition._ep_api_token = self._ep_api_token
             yield (service_name, service_definition)
 
