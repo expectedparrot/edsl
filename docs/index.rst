@@ -6,7 +6,7 @@ Expected Parrot: Tools for AI-Powered Research
 Expected Parrot delivers powerful tools for conducting research with human and artificial intelligences.
 
 This page provides documentation for **Expected Parrot Domain-Specific Language (EDSL)**, an open-source Python package for performing research with AI agents and language models,
-and **Coop**, a platform for creating, storing and sharing AI research projects.
+and **Coop**, a platform for creating, storing and sharing AI research projects, and validating LLM results with human respondents.
 
 * EDSL is available to download from `PyPI <https://pypi.org/project/edsl/>`_ (run `pip install edsl`). The source code is available at `GitHub <https://github.com/expectedparrot/edsl>`_.
 * `Create an account <https://www.expectedparrot.com/login>`_ to post and share content, run surveys with LLMs and humans, and store results at the Expected Parrot server. Learn more about `how it works <https://docs.expectedparrot.com/en/latest/coop.html>`_ and start `exploring <https://www.expectedparrot.com/content/explore>`_.
@@ -19,10 +19,10 @@ Simplified access to hundreds of models
    A single API key lets you conduct research with many popular models at once. `Learn more <https://docs.expectedparrot.com/en/latest/remote_inference.html>`_.
 
 Collaboration features
-   Use `Coop <https://www.expectedparrot.com/content/explore>`_ to create, store and share your research projects seamlessly.
+   Use `Coop <https://www.expectedparrot.com/login>`_ to create, store and share your research projects seamlessly.
 
 Data integrations
-   Easily import, analyze and extend many types of data. `Learn more <https://docs.expectedparrot.com/en/latest/scenarios.html>`_.
+   Easily import, analyze and extend many types of data to use with your research. `Learn more <https://docs.expectedparrot.com/en/latest/scenarios.html>`_.
 
 Hybrid human-AI surveys
    Collect and combine responses from humans and AI. `Learn more <https://docs.expectedparrot.com/en/latest/humanize.html>`_.
@@ -163,15 +163,15 @@ It is fully integrated with EDSL and provides access to special features for wor
 Learn more about `how it works <https://docs.expectedparrot.com/en/latest/coop.html>`_ and purchasing `credits <https://docs.expectedparrot.com/en/latest/credits.html>`_.
 
 
-.. Importing Surveys
-.. -----------------
+Importing Surveys
+-----------------
 
-.. - :ref:`conjure`: Automatically import other survey data into EDSL to:
+- Automatically import other survey data into EDSL to:
   
-..   * Clean and analyze your data
-..   * Create AI agents and conduct follow-on interviews
-..   * Extend results with new questions
-..   * Store and share data at the Coop
+  * Clean and analyze your data
+  * Create AI agents and conduct follow-on interviews
+  * Extend results with new questions
+  * Store and share data at the Coop
 
 
 How-to Guides & Notebooks
@@ -274,19 +274,15 @@ Links
    :caption: How-to Guides
    :hidden:
 
-   notebooks/edsl_intro.ipynb
+   notebooks/starter_tutorial.ipynb
    notebooks/estimating_costs.ipynb
    notebooks/piping_comments.ipynb
    notebooks/looping_and_piping.ipynb
    notebooks/answering_instructions_example.ipynb
    notebooks/video_scenario_example.ipynb
    notebooks/image_scenario_example.ipynb
-   notebooks/analyze_customer_call.ipynb
    notebooks/updating_agents.ipynb
    notebooks/save_load_objects_locally.ipynb
-   notebooks/data_labeling_example.ipynb
-   notebooks/data_cleaning.ipynb
-   notebooks/yoga_studio_name_survey.ipynb
    notebooks/scenario_from_pdf.ipynb
    notebooks/scenario_list_wikipedia.ipynb
    notebooks/filestore_examples_new.ipynb
@@ -298,8 +294,7 @@ Links
    notebooks/import_agents.ipynb
    notebooks/batching_results.ipynb
    notebooks/research_methods.ipynb
-   notebooks/agent_fatigue.ipynb
-   notebooks/model_test_report.ipynb
+   notebooks/next_token_probs.ipynb
    notebooks/run_background.ipynb
    notebooks/edsl_with_cloud_providers.ipynb
 
@@ -308,11 +303,13 @@ Links
    :caption: Notebooks
    :hidden:
 
-   notebooks/human-results-example-notebook.ipynb
-   notebooks/coop-project-example.ipynb
    notebooks/data_labeling_validation_example.ipynb
+   notebooks/data_labeling_agent.ipynb
+   notebooks/data_labeling_example.ipynb
+   notebooks/data_cleaning.ipynb
+   notebooks/yoga_studio_name_survey.ipynb
+   notebooks/analyze_customer_call.ipynb
    notebooks/reasoning_model_example.ipynb
-   notebooks/next_token_probs.ipynb
    notebooks/summarizing_transcripts.ipynb
    notebooks/analyze_evaluations.ipynb
    notebooks/concept_induction.ipynb
@@ -320,12 +317,12 @@ Links
    notebooks/conduct_interview.ipynb
    notebooks/qualitative_research.ipynb
    notebooks/nps_survey.ipynb
-   notebooks/data_labeling_agent.ipynb
    notebooks/scenariolist_unpivot.ipynb
    notebooks/random_numbers.ipynb
    notebooks/testing_training_data.ipynb
    notebooks/evaluating_job_posts.ipynb
    notebooks/explore_llm_biases.ipynb
+   notebooks/agent_fatigue.ipynb
    notebooks/research_random_silicon_sampling.ipynb
    notebooks/explore_survey_contexts.ipynb
    notebooks/free_responses.ipynb
