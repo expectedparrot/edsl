@@ -81,7 +81,7 @@ class ServiceDefinitionHelper:
         >>> example_func = ServiceDefinitionHelper.get_example_function()
         >>> helper = ServiceDefinitionHelper(example_func)
         >>> proposed = helper.propose_service_definition()
-        >>> proposed.name == 'analyze_text'
+        >>> proposed.service_name == 'analyze_text'
         True
         >>> 'text' in proposed.parameters
         True
@@ -113,17 +113,19 @@ class ServiceDefinitionHelper:
 
     def propose_service_definition(
         self,
-        name: Optional[str] = None,
+        service_name: Optional[str] = None,
+        service_collection_name: Optional[str] = None,
         description: Optional[str] = None,
-        endpoint: Optional[str] = None,
+        service_endpoint: Optional[str] = None,
         cost: Optional[CostDefinition] = None
     ) -> ServiceDefinition:
         """Generate a proposed ServiceDefinition based on the function's signature and returns.
         
         Args:
-            name: Service name (defaults to function name if not provided)
+            service_name: Service name (defaults to function name if not provided)
+            service_collection_name: Service collection name (defaults to "default_collection" if not provided)
             description: Service description (defaults to function's docstring if not provided)
-            endpoint: Service endpoint (defaults to f"/{name}")
+            service_endpoint: Service endpoint (defaults to None, should be set when deploying)
             cost: Cost definition (defaults to basic cost structure if not provided)
             
         Returns:
@@ -134,9 +136,10 @@ class ServiceDefinitionHelper:
         func_doc = inspect.getdoc(self.func) or ""
         
         # Use provided values or defaults
-        service_name = name or func_name
+        service_name = service_name or func_name
+        service_collection_name = service_collection_name or "default_collection"
         service_description = description or func_doc
-        service_endpoint = endpoint or f"/{service_name}"
+        # service_endpoint remains None unless explicitly provided
         
         # Get parameters from function signature
         parameters = self.signature_extractor.get_parameter_definitions()
@@ -149,17 +152,17 @@ class ServiceDefinitionHelper:
             unit="ep_credits",
             per_call_cost=1,  # Default cost
             variable_pricing_cost_formula=None,
-            uses_client_ep_key=True,
-            ep_username="test"
+            uses_client_ep_key=True
         )
         
         return ServiceDefinition(
-            name=service_name,
+            service_collection_name=service_collection_name,
+            service_name=service_name,
             description=service_description,
             parameters=parameters,
             cost=service_cost,
             service_returns=returns,
-            endpoint=service_endpoint
+            service_endpoint=service_endpoint
         )
 
     def _generate_comparison_report(self, extracted_defs: Dict, service_defs: Dict, section_name: str) -> str:
@@ -248,7 +251,7 @@ class ServiceDefinitionHelper:
         """
         report_parts = [
             "=== Service Definition Validation Report ===\n",
-            f"Validating implementation of service: {service_def.name}\n",
+            f"Validating implementation of service: {service_def.service_name}\n",
             self.validate_parameters(service_def),
             "\n" + "="*80 + "\n",  # Separator
             self.validate_returns(service_def)
@@ -313,11 +316,11 @@ if __name__ == "__main__":
     # Generate a proposed service definition
     proposed = helper.propose_service_definition()
     print("Proposed Service Definition:")
-    print(f"Name: {proposed.name}")
+    print(f"Name: {proposed.service_name}")
     print(f"Description: {proposed.description}")
     print(f"Parameters: {list(proposed.parameters.keys())}")
     print(f"Returns: {list(proposed.service_returns.keys())}")
-    print(f"Endpoint: {proposed.endpoint}")
+    print(f"Endpoint: {proposed.service_endpoint}")
     print("\n" + "="*80 + "\n")
     
     # Validate the function against its own proposed definition

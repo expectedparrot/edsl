@@ -10,8 +10,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.routing import APIRoute
 
 # Local imports
-from edsl.extensions.authoring import extract_bearer_token
-from ..authoring import Service, Services  # Add import for Services class
+from ..authoring import extract_bearer_token
+from ..authoring import ServiceBuilder, ServicesBuilder  # Add import for Services class
 
 from .config import Settings
 
@@ -22,6 +22,79 @@ from .config import Settings
 
 
 logger = logging.getLogger(__name__)
+
+
+def _transform_response_for_fastapi(result: Dict[str, Any]) -> Dict[str, Any]:
+    """Transform service response to extract values from metadata structures for FastAPI validation.
+    
+    Args:
+        result: Service response dictionary (potentially containing metadata structures)
+        
+    Returns:
+        Transformed dictionary with values extracted from metadata structures
+    """
+    transformed = {}
+    
+    for key, value in result.items():
+        # Check if this is a metadata structure with a 'value' field
+        if isinstance(value, dict) and 'value' in value:
+            # Extract the actual value for FastAPI validation
+            transformed[key] = value['value']
+        else:
+            # Use the value directly
+            transformed[key] = value
+    
+    return transformed
+
+
+def _deserialize_edsl_objects(params_dict: Dict[str, Any], service_def) -> Dict[str, Any]:
+    """Deserialize EDSL objects from dictionaries based on service definition parameter types.
+    
+    Args:
+        params_dict: Dictionary of parameters (potentially containing serialized EDSL objects)
+        service_def: ServiceDefinition with parameter type information
+        
+    Returns:
+        Dictionary with EDSL objects deserialized from their dict representations
+    """
+    from edsl import Survey, Scenario
+    
+    # Map of EDSL type names to their classes
+    edsl_types = {
+        'Survey': Survey,
+        'Scenario': Scenario,
+    }
+    
+    deserialized_params = {}
+    
+    for param_name, param_value in params_dict.items():
+        if param_name in service_def.parameters:
+            param_def = service_def.parameters[param_name]
+            param_type = param_def.type
+            
+            # Check if this parameter should be an EDSL object
+            if param_type in edsl_types and isinstance(param_value, dict):
+                edsl_class = edsl_types[param_type]
+                try:
+                    # Use from_dict method for EDSL objects
+                    deserialized_obj = edsl_class.from_dict(param_value)
+                    deserialized_params[param_name] = deserialized_obj
+                    logger.info("Successfully deserialized %s parameter '%s' from dict to %s object", 
+                               param_type, param_name, edsl_class.__name__)
+                except Exception as e:
+                    logger.error("Failed to deserialize %s parameter '%s': %s. Param value keys: %s", 
+                                param_type, param_name, e, list(param_value.keys()) if isinstance(param_value, dict) else str(type(param_value)))
+                    logger.error("Full param_value: %s", param_value)
+                    # Fall back to original value if deserialization fails
+                    deserialized_params[param_name] = param_value
+            else:
+                # Not an EDSL object or not a dict - pass through unchanged
+                deserialized_params[param_name] = param_value
+        else:
+            # Parameter not in service definition - pass through unchanged
+            deserialized_params[param_name] = param_value
+    
+    return deserialized_params
 
 
 def add_standard_middleware(app: FastAPI) -> None:
@@ -90,7 +163,7 @@ def create_extension_route(
 
     request_model = service_def.get_request_model()
     response_model = service_def.get_response_model()
-    path = route_path or f"/{service_def.name}"
+    path = route_path or f"/{service_def.service_name}"
 
     async def _invoke(fn: Callable[..., Any], **kwargs):  # noqa: D401
         if inspect.iscoroutinefunction(fn):
@@ -105,16 +178,32 @@ def create_extension_route(
         token = extract_bearer_token(authorization)
         try:
             with temporary_api_token(token):
+                # Convert Pydantic model to dict and then deserialize EDSL objects
+                params_dict = body.model_dump()
+                deserialized_params = _deserialize_edsl_objects(params_dict, service_def)
+                
                 result = await _invoke(
-                    implementation, **body.model_dump()
+                    implementation, **deserialized_params
                 )
         except Exception as exc:  # noqa: BLE001
-            logger.exception("%s failed: %s", service_def.name, exc)
+            logger.exception("%s failed: %s", service_def.service_name, exc)
             raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+        # Debug: Log the actual result structure
+        logger.info("Service '%s' returned result: %s (type: %s)", 
+                   service_def.service_name, result, type(result))
+        if isinstance(result, dict):
+            for key, value in result.items():
+                logger.info("  Key '%s': %s (type: %s)", key, value, type(value))
 
         # Validate output structure matches service definition
         service_def.validate_service_output(result)
-        return result
+        
+        # Transform response for FastAPI validation - extract values from metadata structures
+        transformed_result = _transform_response_for_fastapi(result)
+        logger.info("Transformed result for FastAPI: %s", transformed_result)
+        
+        return transformed_result
 
 
 # ---------------------------------------------------------------------------
@@ -160,7 +249,7 @@ def _validate_implementation_signature(service_def, implementation: Callable[...
     for p in params.values():
         if p.kind == inspect.Parameter.POSITIONAL_ONLY:
             raise TypeError(
-                f"Implementation for service '{service_def.name}' may not use positional-only parameter '{p.name}'. "
+                f"Implementation for service '{service_def.service_name}' may not use positional-only parameter '{p.name}'. "
                 "The router passes arguments by keyword."
             )
 
@@ -190,7 +279,7 @@ def _validate_implementation_signature(service_def, implementation: Callable[...
 
         details = "; ".join(message_parts)
         raise TypeError(
-            f"Signature mismatch for service '{service_def.name}': {details}. "
+            f"Signature mismatch for service '{service_def.service_name}': {details}. "
             "Either update the implementation or the ServiceDefinition so that they match."
         )
 
@@ -201,7 +290,7 @@ def _validate_implementation_signature(service_def, implementation: Callable[...
 
 
 def create_app(
-    services: Services,
+    services: ServicesBuilder,
     settings: Settings = None,
 ) -> FastAPI:
     """

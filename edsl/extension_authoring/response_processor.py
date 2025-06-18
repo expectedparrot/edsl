@@ -139,28 +139,36 @@ class ServiceResponseProcessor:
             actual_value = output_data[return_key]
             expected_type_str = return_def.type
 
+            # Check if this is a metadata structure with a 'value' field
+            if isinstance(actual_value, dict) and 'value' in actual_value:
+                # Extract the actual value for validation
+                actual_value_to_validate = actual_value['value']
+            else:
+                # Use the value directly
+                actual_value_to_validate = actual_value
+
             # Type Validation
             expected_python_type = TYPE_MAP.get(expected_type_str.lower())
 
             if expected_type_str in edsl_registry:
                 # For EDSL objects defined in returns, we expect a dictionary representation
-                if not isinstance(actual_value, dict):
+                if not isinstance(actual_value_to_validate, dict):
                     raise ServiceOutputValidationError(
                         f"Type mismatch for return key '{return_key}'. "
                         f"Expected a dictionary representation of EDSL type '{expected_type_str}', "
-                        f"but got type '{type(actual_value).__name__}'."
+                        f"but got type '{type(actual_value_to_validate).__name__}'."
                     )
 
             elif expected_python_type:
                 # Basic Python types
                 # Special case: allow int for float/number
-                if expected_python_type in (float,) and isinstance(actual_value, int):
+                if expected_python_type in (float,) and isinstance(actual_value_to_validate, int):
                     pass # Allow int where float/number is expected
-                elif not isinstance(actual_value, expected_python_type):
+                elif not isinstance(actual_value_to_validate, expected_python_type):
                     raise ServiceOutputValidationError(
                         f"Type mismatch for return key '{return_key}'. "
                         f"Expected type '{expected_type_str}' (mapped to {expected_python_type.__name__}), "
-                        f"but got type '{type(actual_value).__name__}'."
+                        f"but got type '{type(actual_value_to_validate).__name__}'."
                     )
             else:
                 raise ServiceOutputValidationError(f"Unknown type '{expected_type_str}' defined for return key '{return_key}'. Cannot validate.") 

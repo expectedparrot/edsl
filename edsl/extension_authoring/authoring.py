@@ -1,19 +1,14 @@
 from abc import ABC
 from pathlib import Path
 from dataclasses import dataclass, field, asdict, fields, MISSING
-from typing import Optional, Dict, Any, TypeVar, Type, Callable, List, Union, TYPE_CHECKING
-import requests # Added for __call__
-#import doctest
+from typing import Optional, Dict, Any, TypeVar, Type, Callable, List, Union, TYPE_CHECKING, TypedDict
+from collections import UserDict
+
+import requests
 from pydantic import create_model, Field, BaseModel
 import yaml  # Added for YAML serialization
 
-import json
 import os
-# Std-lib imports for spinner/timer functionality
-import sys
-import threading
-import itertools
-import time
 import logging
 
 from fastapi import HTTPException
@@ -36,8 +31,13 @@ from .exceptions import (
 
 from .parameter_validation import Parameters
 from .service_caller import ServiceCaller
+from .service_callers import GatewayServiceCaller, DirectServiceCaller
 from .response_processor import ServiceResponseProcessor
 from .model_generation import ModelGenerator
+
+
+#API_BASE_URL = os.getenv("EDSL_API_URL", "http://localhost:8000")
+API_BASE_URL = "http://localhost:8000"
 
 if TYPE_CHECKING:
     from .service_definition_helper import ServiceDefinitionHelper
@@ -70,7 +70,6 @@ def extract_bearer_token(authorization: Optional[str] = None) -> Optional[str]:
 
 T = TypeVar('T', bound='DictSerializable')
 
-# Removed Exception Classes (moved to exceptions.py)
 
 logger = logging.getLogger(__name__)
 
@@ -107,9 +106,6 @@ class DictSerializable(ABC):
         # Basic implementation, assumes keys match field names.
         # Does not automatically handle nested DictSerializable objects.
         return cls(**data)
-
-
-
 
 
 @dataclass
@@ -160,43 +156,41 @@ class ReturnDefinition(DictSerializable):
             self.description = data["description"]
             self.coopr_url = data.get("coopr_url", False)
 
-from collections import UserDict
 
-from typing import TypedDict
+# class ServiceLocation(TypedDict):
+#     service_name: str
+#     creator_ep_username: str
+#     service_url: str
+#     last_updated_timestamp: str
 
-class ServiceLocation(TypedDict):
-    service_name: str
-    creator_ep_username: str
-    gateway_url: str
-    service_url: str
-
-class ServiceLocations(TypedDict):
-    def __init__(self, data=None, **kwargs):
-        super().__init__(data, **kwargs)
-        self.locations = {}
+# class ServiceLocations(TypedDict):
+#     def __init__(self, data=None, **kwargs):
+#         super().__init__(data, **kwargs)
+#         self.locations = {}
     
-    def add_location(self, name: str, location: ServiceLocation) -> None:
-        self.locations[name] = location
+#     def add_location(self, name: str, location: ServiceLocation) -> None:
+#         self.locations[name] = location
 
-    def get_service_endpoint(self, service_name: str) -> str:
-        return self.locations[service_name]["service_url"] + "/" + self.locations[service_name]["service_name"]
+#     def get_service_endpoint(self, service_name: str) -> str:
+#         return self.locations[service_name]["service_url"] + "/" + self.locations[service_name]["service_name"]
 
 
 @dataclass
 class ServiceDefinition(DictSerializable):
-    name: str
+    service_collection_name: str
+    service_name: str
     description: str
     parameters: Dict[str, Union[ParameterDefinition, Dict[str, Any]]]
     cost: Union[CostDefinition, Dict[str, Any]]
     service_returns: Dict[str, Union[ReturnDefinition, Dict[str, Any]]]
+    service_endpoint: Optional[str] = None
+    creator_ep_username: Optional[str] = "test"
+
     # Internal attributes to be set by the client
-    _base_url: Optional[str] = field(default=None, init=False, repr=False)
     _ep_api_token: Optional[str] = field(default=None, init=False, repr=False)
     _parameters: Parameters = field(init=False, repr=False)
     _response_processor: ServiceResponseProcessor = field(init=False, repr=False)
     _model_generator: ModelGenerator = field(init=False, repr=False)
-    _service_caller_instance: Optional[ServiceCaller] = field(default=None, init=False, repr=False)
-    creator_ep_username: str = "test"
 
     def __post_init__(self):
         """Convert dictionaries to proper objects after initialization."""
@@ -221,13 +215,13 @@ class ServiceDefinition(DictSerializable):
 
         # Initialize response processor
         self._response_processor = ServiceResponseProcessor(
-            service_name=self.name,
+            service_name=self.service_name,
             service_returns=self.service_returns
         )
 
         # Initialize model generator
         self._model_generator = ModelGenerator(
-            service_name=self.name,
+            service_name=self.service_name,
             parameters=self.parameters,
             service_returns=self.service_returns
         )
@@ -239,39 +233,111 @@ class ServiceDefinition(DictSerializable):
         # Generate dynamic doc
         object.__setattr__(self, "__doc__", self._generate_dynamic_doc())
 
-    @property
-    def _service_caller(self) -> ServiceCaller:
-        """Lazy-loaded ServiceCaller instance."""
-        if self._service_caller_instance is None:
-            if not self._base_url:
-                raise ServiceConfigurationError(f"Service '{self.name}' cannot be called. Configuration missing (base_url).")
-            self._service_caller_instance = ServiceCaller(
-                service_name=self.name,
-                base_url=self._base_url,
-                ep_api_token=self._ep_api_token
-            )
-        return self._service_caller_instance
 
-    def push(self, *args, **kwargs):
-        #service = Service.from_service_definition(self)
-        scenario = Scenario(self.to_dict())
-        return scenario.push(*args, **kwargs)
-    
-    @classmethod
-    def pull(cls, *args, **kwargs):
-        scenario = Scenario.pull(*args, **kwargs)
-        return cls.from_dict(scenario.to_dict())
-    
-    @classmethod
-    def from_uuid(cls, service_uuid: str) -> 'ServiceDefinition':
-        from edsl import Scenario
-        scenario = Scenario.pull(service_uuid)
-        return cls.from_dict(scenario.to_dict())
-    
-    def update(self, service_uuid: str):
-        new_scenario = Scenario(self.to_dict())
-        return Scenario.patch(service_uuid, value = new_scenario)
+
+    def push_to_gateway(self, gateway_url: str = API_BASE_URL, timeout: int = 30) -> Dict[str, Any]:
+        """
+        Push this ServiceDefinition to an extension gateway.
+        
+        Parameters
+        ----------
+        gateway_url : str, default API_BASE_URL
+            The base URL of the extension gateway (e.g., "http://localhost:8000").
+            The method will append "/service-definitions/" to this URL.
+        timeout : int, default 30
+            Request timeout in seconds.
+            
+        Returns
+        -------
+        Dict[str, Any]
+            The response from the gateway including the assigned database ID and confirmation message.
+            
+        Raises
+        ------
+        ServiceConnectionError
+            If the HTTP request fails due to network issues.
+        ServiceResponseError
+            If the gateway returns an error status (≥400).
+        ServiceDeserializationError
+            If the response cannot be parsed as JSON.
+            
+        Examples
+        --------
+        >>> service_def = ServiceDefinition.example()
+        >>> response = service_def.push_to_gateway()  # Uses API_BASE_URL as default
+        >>> "id" in response  # doctest: +SKIP
+        True
+        >>> # Or specify a custom gateway URL
+        >>> response = service_def.push_to_gateway("http://custom-gateway:8000")  # doctest: +SKIP
+        """
+        # Build the endpoint URL
+        endpoint_url = gateway_url.rstrip("/") + "/service-definitions/"
+        
+        # Prepare the payload with field mapping for backward compatibility with gateway
+        base_payload = self.to_dict()
+        # Map new field names to what the gateway currently expects
+        payload = {
+            "service_name": base_payload["service_name"],  # Gateway expects 'name' field
+            "description": base_payload["description"],
+            "creator_ep_username": base_payload["creator_ep_username"],
+            "service_endpoint": base_payload.get("service_endpoint"), 
+            "cost": base_payload["cost"],
+            "service_returns": base_payload["service_returns"],
+            "parameters": base_payload["parameters"],
+            "service_collection_name": base_payload["service_collection_name"]
+        }
+        
+        # Set up headers
+        headers = {
+            "Content-Type": "application/json"
+        }
+        
+        logger.info("Pushing ServiceDefinition '%s' to gateway: %s", self.service_name, endpoint_url)
+        logger.debug("Payload: %s", payload)
+        
+        try:
+            response = requests.post(
+                endpoint_url, 
+                json=payload, 
+                headers=headers, 
+                timeout=timeout
+            )
+            
+            logger.debug("Gateway response status: %s", response.status_code)
+            
+            # Handle error status codes
+            if response.status_code >= 400:
+                try:
+                    error_detail = response.json()
+                    error_message = error_detail.get("detail", response.text)
+                except Exception:
+                    error_message = response.text
                 
+                raise ServiceResponseError(
+                    f"Gateway rejected ServiceDefinition '{self.service_name}' with status {response.status_code}: {error_message}"
+                )
+            
+            # Parse successful response
+            try:
+                result = response.json()
+                logger.info("Successfully pushed ServiceDefinition '%s' to gateway. Assigned ID: %s", 
+                          self.service_name, result.get("id", "unknown"))
+                return result
+                
+            except Exception as e:
+                raise ServiceDeserializationError(
+                    f"Could not parse gateway response as JSON: {e}"
+                ) from e
+                
+        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
+            raise ServiceConnectionError(
+                f"Error connecting to gateway at {endpoint_url}: {e}"
+            ) from e
+        except requests.exceptions.RequestException as e:
+            raise ServiceConnectionError(
+                f"Unexpected error calling gateway at {endpoint_url}: {e}"
+            ) from e
+
     def to_dict(self) -> Dict[str, Any]:
         """Converts the ServiceDefinition to a dictionary, handling nested objects.
 
@@ -283,12 +349,14 @@ class ServiceDefinition(DictSerializable):
         True
         >>> d['service_returns']['survey']['type'] == 'Survey'
         True
-        >>> d['endpoint'] == 'http://localhost:8000/test_create_survey'
+        >>> d['service_endpoint'] is None  # Will be set when deployed
         True
         """
         return {
-            "name": self.name,
+            "service_collection_name": self.service_collection_name,
+            "service_name": self.service_name,
             "description": self.description,
+            "service_endpoint": self.service_endpoint,
             "parameters": {k: v.to_dict() for k, v in self.parameters.items()},
             "cost": self.cost.to_dict(),
             "service_returns": {k: v.to_dict() for k, v in self.service_returns.items()},
@@ -297,15 +365,6 @@ class ServiceDefinition(DictSerializable):
     
     def __hash__(self) -> int:
         return hash(Scenario(self.to_dict()))
-
-    def add_service_to_expected_parrot(self) -> None:
-        """Adds a service to the registry"""
-        from .services_model import ServicesRegistry
-        print("Fetching current services")
-        services_registry = ServicesRegistry.from_config()
-        print("Adding service to Expected Parrot")
-        services_registry.add_service(self)
-        print("Service added to Expected Parrot")
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'ServiceDefinition':
@@ -318,8 +377,10 @@ class ServiceDefinition(DictSerializable):
         True
         """
         return cls(
-            name=data['name'],
+            service_collection_name=data['service_collection_name'],
+            service_name=data['service_name'],
             description=data['description'],
+            service_endpoint=data.get('service_endpoint'),
             parameters={k: ParameterDefinition.from_dict(v) for k, v in data['parameters'].items()},
             cost=CostDefinition.from_dict({k: v for k, v in data['cost'].items() if k != 'ep_username'}),
             service_returns={k: ReturnDefinition.from_dict(v) for k, v in data['service_returns'].items()},
@@ -330,8 +391,10 @@ class ServiceDefinition(DictSerializable):
     def example(cls) -> 'ServiceDefinition':
         """Returns an example instance of the ServiceDefinition."""
         return cls(
-            name="create_survey",
+            service_collection_name="example_collection",
+            service_name="create_survey",
             description="Creates a survey to answer an overall research question",
+            service_endpoint=None,  # Will be set when deployed
             parameters={
                 "overall_question": ParameterDefinition(
                     type="str",
@@ -383,8 +446,10 @@ class ServiceDefinition(DictSerializable):
         if self._parameters is None:
             raise ServiceConfigurationError("Parameters not initialized")
         return self._parameters.prepare_parameters(**kwargs)
+    
 
-    def __call__(self, **kwargs: Any) -> Any:
+
+    def __call__(self, use_gateway: bool = True, **kwargs: Any) -> Any:
         """
         Executes the API call for this service using provided parameters.
 
@@ -396,7 +461,7 @@ class ServiceDefinition(DictSerializable):
 
         Raises:
             ServiceParameterValidationError: If validation fails (missing/incorrect params).
-            ServiceConfigurationError: If base_url is not set when needed.
+            ServiceConfigurationError: If service_endpoint is not set when needed.
             ServiceConnectionError: If the API call fails due to connection issues.
             ServiceResponseError: If the API call returns an error status or invalid JSON.
             ServiceDeserializationError: If the response cannot be deserialized correctly.
@@ -405,22 +470,35 @@ class ServiceDefinition(DictSerializable):
         self.validate_call_parameters(kwargs)
         prepared_params = self._prepare_parameters(**kwargs)
 
-        # Make the service call - this will raise ServiceConfigurationError if base_url not set
-        result = self._service_caller.call_service(
+        if use_gateway:
+            service_caller = GatewayServiceCaller(
+                service_name=self.service_name,
+                gateway_url=API_BASE_URL,
+                ep_api_token=self._ep_api_token
+            )
+        else:
+            service_caller = DirectServiceCaller(
+                service_name=self.service_name,
+                service_endpoint=self.service_endpoint,
+                ep_api_token=self._ep_api_token
+            )
+
+        result = service_caller.call_service(
             prepared_params=prepared_params,
             deserialize_response=self._response_processor.deserialize_response
         )
-
         # Log estimated cost
         try:
             from .price_calculation import compute_price  # local import to avoid circular deps
             estimated_cost = compute_price(self, prepared_params)
-            logger.info("Estimated cost for call to '%s': %s %s", self.name, estimated_cost, self.cost.unit)
+            logger.info("Estimated cost for call to '%s': %s %s", self.service_name, estimated_cost, self.cost.unit)
         except Exception as _e:
             # Avoid hard failure if pricing formula is invalid – just log at debug level.
-            logger.debug("Could not compute price for '%s': %s", self.name, _e)
+            logger.debug("Could not compute price for '%s': %s", self.service_name, _e)
 
         return result
+
+
 
     def validate_service_output(self, output_data: Dict[str, Any]):
         """
@@ -453,7 +531,7 @@ class ServiceDefinition(DictSerializable):
             if p_def.default_value is not MISSING:
                 default_str = f" = {p_def.default_value!r}"
             signature_parts.append(f"{p_name}: {p_def.type}{default_str}")
-        signature = f"{self.name}({', '.join(signature_parts)})"
+        signature = f"{self.service_name}({', '.join(signature_parts)})"
 
         # Parameters section
         param_lines: list[str] = []
@@ -489,93 +567,6 @@ class ServiceDefinition(DictSerializable):
         if item == "__doc__":
             return self._generate_dynamic_doc()
         raise AttributeError(f"{self.__class__.__name__!r} object has no attribute {item!r}")
-
-    def call_directly(self, ep_api_token: Optional[str] = None, timeout: int = 120, **kwargs: Any) -> Any:
-        """Call the service *directly* at the URL contained in ``self.endpoint`` – bypassing the
-        gateway entirely.
-
-        Parameters
-        ----------
-        ep_api_token : str, optional
-            Bearer token to forward in the ``Authorization`` header.  If not supplied, the
-            value previously set via ``service_def._ep_api_token`` (if any) is used.
-        timeout : int, default ``120`` seconds
-            Request timeout in seconds passed through to ``requests.post``.
-        **kwargs : Any
-            Service parameters (same as for calling the service via the gateway).
-
-        Returns
-        -------
-        Any
-            Deserialised response according to the service's ``service_returns`` definition.
-
-        Raises
-        ------
-        ServiceParameterValidationError
-            If required parameters are missing or of wrong type.
-        ServiceResponseError
-            If the endpoint returns an HTTP status ≥400.
-        ServiceConnectionError
-            If the HTTP request fails due to network issues.
-        ServiceDeserializationError
-            If the response body cannot be parsed or mapped to the declared return types.
-        ServiceConfigurationError
-            If ``self.endpoint`` is empty.
-        """
-        # ------------------------------------------------------------------
-        # 1) Validate parameters and build the JSON payload
-        # ------------------------------------------------------------------
-        self.validate_call_parameters(kwargs)
-        prepared_params = self._prepare_parameters(**kwargs)
-
-        # ------------------------------------------------------------------
-        # 2) Build HTTP request details
-        # ------------------------------------------------------------------
-        if not self.endpoint:
-            raise ServiceConfigurationError(
-                f"Service '{self.name}' has no endpoint defined – cannot call directly.")
-
-        url = self.endpoint.rstrip("/")  # Avoid accidental double slashes
-        headers: Dict[str, str] = {"Content-Type": "application/json"}
-
-        token = ep_api_token or self._ep_api_token
-        if token:
-            headers["Authorization"] = f"Bearer {token}"
-
-        # ------------------------------------------------------------------
-        # 3) Execute the request
-        # ------------------------------------------------------------------
-        try:
-            response = requests.post(url, json=prepared_params, headers=headers, timeout=timeout)
-        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
-            raise ServiceConnectionError(
-                f"Error connecting to service '{self.name}' at {url}: {e}") from e
-        except requests.exceptions.RequestException as e:
-            raise ServiceConnectionError(
-                f"Unexpected error calling service '{self.name}' at {url}: {e}") from e
-
-        # Error status codes – surface as ServiceResponseError for consistency
-        if response.status_code >= 400:
-            try:
-                detail = response.json()
-            except Exception:
-                detail = response.text
-            raise ServiceResponseError(
-                f"Direct call to '{self.name}' failed with status {response.status_code}: {detail}")
-
-        # ------------------------------------------------------------------
-        # 4) Deserialize & log cost as in the standard __call__ path
-        # ------------------------------------------------------------------
-        result = self._response_processor.deserialize_response(response)
-
-        try:
-            from .price_calculation import compute_price  # local import to avoid circular deps
-            estimated_cost = compute_price(self, prepared_params)
-            logger.info("Estimated cost for direct call to '%s': %s %s", self.name, estimated_cost, self.cost.unit)
-        except Exception as _e:
-            logger.debug("Could not compute price for '%s' (direct call): %s", self.name, _e)
-
-        return result
 
     def register_service(
         router: APIRouter,
@@ -706,15 +697,274 @@ class ServiceDefinition(DictSerializable):
             raise ServiceDeserializationError("YAML content must deserialize to a dictionary")
         return cls.from_dict(data)
 
+    @classmethod
+    def list_from_gateway(cls, gateway_url: str = API_BASE_URL, timeout: int = 30) -> List[Dict[str, Any]]:
+        """
+        List all service definitions stored in an extension gateway.
+        
+        Parameters
+        ----------
+        gateway_url : str, default API_BASE_URL
+            The base URL of the extension gateway (e.g., "http://localhost:8000").
+        timeout : int, default 30
+            Request timeout in seconds.
+            
+        Returns
+        -------
+        List[Dict[str, Any]]
+            List of service definition summaries from the gateway.
+            
+        Raises
+        ------
+        ServiceConnectionError
+            If the HTTP request fails due to network issues.
+        ServiceResponseError
+            If the gateway returns an error status (≥400).
+        ServiceDeserializationError
+            If the response cannot be parsed as JSON.
+            
+        Examples
+        --------
+        >>> services = ServiceDefinition.list_from_gateway()  # Uses API_BASE_URL as default
+        >>> isinstance(services, list)  # doctest: +SKIP
+        True
+        >>> # Or specify a custom gateway URL
+        >>> services = ServiceDefinition.list_from_gateway("http://custom-gateway:8000")  # doctest: +SKIP
+        """
+        endpoint_url = gateway_url.rstrip("/") + "/service-definitions/"
+        
+        logger.info("Listing service definitions from gateway: %s", endpoint_url)
+        
+        try:
+            response = requests.get(endpoint_url, timeout=timeout)
+            
+            if response.status_code >= 400:
+                try:
+                    error_detail = response.json()
+                    error_message = error_detail.get("detail", response.text)
+                except Exception:
+                    error_message = response.text
+                
+                raise ServiceResponseError(
+                    f"Gateway failed to list service definitions with status {response.status_code}: {error_message}"
+                )
+            
+            try:
+                result = response.json()
+                service_definitions = result.get("service_definitions", [])
+                logger.info("Retrieved %s service definitions from gateway", len(service_definitions))
+                return service_definitions
+                
+            except Exception as e:
+                raise ServiceDeserializationError(
+                    f"Could not parse gateway response as JSON: {e}"
+                ) from e
+                
+        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
+            raise ServiceConnectionError(
+                f"Error connecting to gateway at {endpoint_url}: {e}"
+            ) from e
+        except requests.exceptions.RequestException as e:
+            raise ServiceConnectionError(
+                f"Unexpected error calling gateway at {endpoint_url}: {e}"
+            ) from e
 
-class Service:
+    @classmethod
+    def pull_from_gateway(cls, service_id: int, gateway_url: str = API_BASE_URL, timeout: int = 30) -> 'ServiceDefinition':
+        """
+        Retrieve a specific service definition from an extension gateway by ID.
+        
+        Parameters
+        ----------
+        service_id : int
+            The database ID of the service definition to retrieve.
+        gateway_url : str, default API_BASE_URL
+            The base URL of the extension gateway (e.g., "http://localhost:8000").
+        timeout : int, default 30
+            Request timeout in seconds.
+            
+        Returns
+        -------
+        ServiceDefinition
+            The service definition retrieved from the gateway.
+            
+        Raises
+        ------
+        ServiceConnectionError
+            If the HTTP request fails due to network issues.
+        ServiceResponseError
+            If the gateway returns an error status (≥400) or if the service is not found.
+        ServiceDeserializationError
+            If the response cannot be parsed or converted to a ServiceDefinition.
+            
+        Examples
+        --------
+        >>> service_def = ServiceDefinition.pull_from_gateway(1)  # Uses API_BASE_URL as default
+        >>> isinstance(service_def, ServiceDefinition)  # doctest: +SKIP
+        True
+        >>> # Or specify a custom gateway URL
+        >>> service_def = ServiceDefinition.pull_from_gateway(1, "http://custom-gateway:8000")  # doctest: +SKIP
+        """
+        endpoint_url = gateway_url.rstrip("/") + f"/service-definitions/{service_id}"
+        
+        logger.info("Retrieving service definition ID %s from gateway: %s", service_id, endpoint_url)
+        
+        try:
+            response = requests.get(endpoint_url, timeout=timeout)
+            
+            if response.status_code >= 400:
+                try:
+                    error_detail = response.json()
+                    error_message = error_detail.get("detail", response.text)
+                except Exception:
+                    error_message = response.text
+                
+                if response.status_code == 404:
+                    raise ServiceResponseError(
+                        f"Service definition with ID {service_id} not found in gateway"
+                    )
+                else:
+                    raise ServiceResponseError(
+                        f"Gateway failed to retrieve service definition with status {response.status_code}: {error_message}"
+                    )
+            
+            try:
+                result = response.json()
+                # Map gateway field names to our internal field names
+                service_data = {
+                    "service_collection_name": result.get("service_collection_name", "default"),
+                    "service_name": result.get("name", result.get("service_name")),  # Gateway sends 'name'
+                    "description": result.get("description"),
+                    "service_endpoint": result.get("service_location_url", result.get("service_endpoint")),  # Gateway sends 'service_location_url'
+                    "creator_ep_username": result.get("creator_ep_username"),
+                    "parameters": result.get("parameters", {}),
+                    "cost": result.get("cost", {}),
+                    "service_returns": result.get("service_returns", {})
+                }
+                
+                service_def = cls.from_dict(service_data)
+                logger.info("Successfully retrieved service definition '%s' from gateway", service_def.service_name)
+                return service_def
+                
+            except Exception as e:
+                raise ServiceDeserializationError(
+                    f"Could not parse gateway response or convert to ServiceDefinition: {e}"
+                ) from e
+                
+        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
+            raise ServiceConnectionError(
+                f"Error connecting to gateway at {endpoint_url}: {e}"
+            ) from e
+        except requests.exceptions.RequestException as e:
+            raise ServiceConnectionError(
+                f"Unexpected error calling gateway at {endpoint_url}: {e}"
+            ) from e
+
+    @classmethod
+    def pull_all_from_gateway(cls, gateway_url: str = API_BASE_URL, timeout: int = 30) -> List['ServiceDefinition']:
+        """
+        Retrieve all service definitions from an extension gateway.
+        
+        This method first lists all available service definitions, then pulls the full
+        definition for each one. This provides complete ServiceDefinition objects with
+        all parameters, cost information, and return specifications.
+        
+        Parameters
+        ----------
+        gateway_url : str, default API_BASE_URL
+            The base URL of the extension gateway (e.g., "http://localhost:8000").
+        timeout : int, default 30
+            Request timeout in seconds for each individual request.
+            
+        Returns
+        -------
+        List[ServiceDefinition]
+            List of all service definitions available in the gateway.
+            
+        Raises
+        ------
+        ServiceConnectionError
+            If any HTTP request fails due to network issues.
+        ServiceResponseError
+            If the gateway returns an error status (≥400) for any request.
+        ServiceDeserializationError
+            If any response cannot be parsed or converted to a ServiceDefinition.
+            
+        Examples
+        --------
+        >>> services = ServiceDefinition.pull_all_from_gateway()  # Uses API_BASE_URL as default
+        >>> isinstance(services, list)  # doctest: +SKIP
+        True
+        >>> all(isinstance(s, ServiceDefinition) for s in services)  # doctest: +SKIP
+        True
+        >>> # Or specify a custom gateway URL
+        >>> services = ServiceDefinition.pull_all_from_gateway("http://custom-gateway:8000")  # doctest: +SKIP
+        """
+        logger.info("Retrieving all service definitions from gateway: %s", gateway_url)
+        
+        try:
+            # First, get the list of all service definitions (summaries with IDs)
+            service_summaries = cls.list_from_gateway(gateway_url, timeout)
+            
+            if not service_summaries:
+                logger.info("No service definitions found in gateway")
+                return []
+            
+            logger.info("Found %s service definitions, retrieving full definitions...", len(service_summaries))
+            
+            # Pull each service definition individually
+            service_definitions = []
+            failed_services = []
+            
+            for summary in service_summaries:
+                service_id = summary.get("id")
+                service_name = summary.get("service_name", summary.get("name", f"ID-{service_id}"))
+                
+                if not service_id:
+                    logger.warning("Service summary missing ID, skipping: %s", summary)
+                    failed_services.append(f"Unknown service (no ID): {summary}")
+                    continue
+                
+                try:
+                    service_def = cls.pull_from_gateway(service_id, gateway_url, timeout)
+                    service_definitions.append(service_def)
+                    logger.debug("Successfully retrieved service definition: %s", service_def.service_name)
+                    
+                except Exception as e:
+                    logger.warning("Failed to retrieve service definition ID %s (%s): %s", 
+                                 service_id, service_name, e)
+                    failed_services.append(f"{service_name} (ID: {service_id}): {str(e)}")
+            
+            # Log summary
+            logger.info("Successfully retrieved %s/%s service definitions from gateway", 
+                       len(service_definitions), len(service_summaries))
+            
+            if failed_services:
+                logger.warning("Failed to retrieve %s service definitions: %s", 
+                             len(failed_services), ", ".join(failed_services))
+            
+            return service_definitions
+            
+        except Exception as e:
+            # If the list operation itself fails, re-raise with context
+            if "list_from_gateway" in str(e) or isinstance(e, (ServiceConnectionError, ServiceResponseError)):
+                raise
+            else:
+                logger.exception("Unexpected error retrieving all service definitions: %s", e)
+                raise ServiceConnectionError(
+                    f"Unexpected error retrieving all service definitions: {e}"
+                ) from e
+
+
+class ServiceBuilder:
     def __init__(
         self, 
         implementation: Callable, 
         overwrite: bool = False,
-        name: Optional[str] = None,
+        service_name: Optional[str] = None,
+        service_collection_name: Optional[str] = None,
         description: Optional[str] = None,
-        endpoint: Optional[str] = None,
+        service_endpoint: Optional[str] = None,
         cost_unit: Optional[str] = None,
         per_call_cost: Optional[int] = None,
         variable_pricing_cost_formula: Optional[str] = None,
@@ -724,15 +974,20 @@ class Service:
         from .service_definition_helper import ServiceDefinitionHelper
         self.implementation = implementation
         helper = ServiceDefinitionHelper(implementation)
-        self.service_def = helper.propose_service_definition()
+        self.service_def = helper.propose_service_definition(
+            service_name=service_name,
+            service_collection_name=service_collection_name
+        )
         
         # Override service definition fields if provided
-        if name:
-            self.service_def.name = name
+        if service_name:
+            self.service_def.service_name = service_name
+        if service_collection_name:
+            self.service_def.service_collection_name = service_collection_name
         if description:
             self.service_def.description = description
-        if endpoint:
-            self.service_def.endpoint = endpoint
+        if service_endpoint:
+            self.service_def.service_endpoint = service_endpoint
             
         # Override cost definition fields if provided
         if any([cost_unit, per_call_cost, variable_pricing_cost_formula, uses_client_ep_key, creator_ep_username]):
@@ -773,7 +1028,7 @@ class Service:
         configs_dir.mkdir(exist_ok=True)
         
         # Get YAML path relative to caller
-        yaml_path = configs_dir / f"{self.service_def.name}.yaml"
+        yaml_path = configs_dir / f"{self.service_def.service_name}.yaml"
         
         # If file exists, compare definitions
         if yaml_path.exists():
@@ -827,11 +1082,13 @@ class Service:
             yaml_path.write_text(self.service_def.to_yaml())
 
 
-class Services:
+class ServicesBuilder:
     """A container class for managing multiple service definitions."""
     
-    def __init__(self):
-        self._services: Dict[str, Service] = {}
+    def __init__(self, service_collection_name: Optional[str] = None, creator_ep_username: Optional[str] = None):
+        self._services: Dict[str, ServiceBuilder] = {}
+        self._default_service_collection_name = service_collection_name
+        self._default_creator_ep_username = creator_ep_username
     
     def add_service(
         self, 
@@ -844,22 +1101,34 @@ class Services:
         Args:
             implementation: The callable that implements the service
             overwrite: Whether to overwrite existing YAML file without confirmation
-            **kwargs: Additional keyword arguments to pass to the Service constructor (e.g., name, description, 
-                     endpoint, cost_unit, per_call_cost, variable_pricing_cost_formula, uses_client_ep_key, ep_username)
+            **kwargs: Additional keyword arguments to pass to the ServiceBuilder constructor (e.g., service_name, description, 
+                     service_endpoint, cost_unit, per_call_cost, variable_pricing_cost_formula, uses_client_ep_key, creator_ep_username)
         """
-        service = Service(implementation, overwrite=overwrite, **kwargs)
-        self._services[service.service_def.name] = service
+        # Use default service_collection_name if not provided in kwargs
+        if 'service_collection_name' not in kwargs and self._default_service_collection_name is not None:
+            kwargs['service_collection_name'] = self._default_service_collection_name
+            
+        # Use default creator_ep_username if not provided in kwargs
+        if 'creator_ep_username' not in kwargs and self._default_creator_ep_username is not None:
+            kwargs['creator_ep_username'] = self._default_creator_ep_username
+            
+        service = ServiceBuilder(implementation, overwrite=overwrite, **kwargs)
+        self._services[service.service_def.service_name] = service
     
     def set_base_url(self, base_url: str) -> None:
         """Set the base URL for all service definitions in this container.
         
+        This updates the service_endpoint for each service from None to the full URL:
+        base_url + "/" + service_name
+        
         Args:
-            base_url: The base URL to set for all services
+            base_url: The base URL to set for all services (e.g., "http://localhost:8000")
         """
+        base_url = base_url.rstrip("/")  # Remove trailing slash if present
         for service in self._services.values():
-            service.service_def._base_url = base_url
+            service.service_def.service_endpoint = f"{base_url}/{service.service_def.service_name}"
     
-    def __getitem__(self, key: str) -> Service:
+    def __getitem__(self, key: str) -> ServiceBuilder:
         """Get a service by name."""
         return self._services[key]
     
@@ -872,84 +1141,12 @@ class Services:
         return len(self._services)
 
 
+
 if __name__ == "__main__":
-    import doctest
-    doctest.testmod(optionflags=doctest.ELLIPSIS)
-
-
-# ---------------------------------------------------------------------------
-# ExtensionSource – simple helper to push a local extension repo to gateway
-# ---------------------------------------------------------------------------
-
-
-@dataclass
-class ExtensionSource:
-    """Utility for packaging a local directory and pushing it to a running
-    extension-gateway instance via the `/receive_extension_repository` route.
-
-    Example
-    -------
-    >>> es = ExtensionSource(path="/path/to/extension_repo")
-    >>> es.push()  # doctest: +ELLIPSIS
-    {"archive": ..., "file_count": ...}
-    """
-
-    path: str
-    gateway_url: str = "http://localhost:8000/receive_extension_repository"
-
-    def _collect_files(self) -> List[tuple]:
-        """Walk *self.path* recursively and build the `files` payload list for
-        `requests.post`.  Each list element is a 2-tuple with key 'files' so
-        that FastAPI interprets them as multiple values of the same field.
-        The tuple structure is `(fieldname, (filename, fileobj, content_type))`.
-        """
-
-        if not os.path.isdir(self.path):
-            raise FileNotFoundError(f"ExtensionSource path not found or not a directory: {self.path}")
-
-        payload: List[tuple] = []
-
-        for root, _dirs, filenames in os.walk(self.path):
-            for fname in filenames:
-                f_path = os.path.join(root, fname)
-                # Preserve directory hierarchy via relative path.
-                rel_path = os.path.relpath(f_path, self.path)
-
-                # Read content immediately to avoid keeping many file handles open.
-                # For typical extension repositories this memory footprint is small
-                # (tens/hundreds of KB).  For larger trees consider streaming or
-                # packaging into a single archive instead.
-                with open(f_path, "rb") as f_obj:
-                    content_bytes = f_obj.read()
-
-                payload.append(
-                    (
-                        "files",
-                        (rel_path, content_bytes, "application/octet-stream"),
-                    )
-                )
-
-        if not payload:
-            raise ValueError(f"No files found under {self.path} to push")
-
-        return payload
-
-    def push(self) -> Dict[str, Any]:
-        """POST the contents of *path* to the gateway.  Returns parsed JSON
-        response on success or raises an HTTPException on non-2xx status codes.
-        """
-
-        files_payload = self._collect_files()
-
-        # Directly post – no need to close file handles since we embedded bytes.
-        response = requests.post(self.gateway_url, files=files_payload, timeout=300)
-
-        if response.status_code >= 400:
-            # Re-raise as FastAPI-style HTTPException for consistency with other components.
-            raise HTTPException(status_code=response.status_code, detail=response.text)
-
-        try:
-            return response.json()
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Could not decode gateway response: {e}")
+    #import doctest
+    #doctest.testmod(optionflags=doctest.ELLIPSIS)
+    sd = ServiceDefinition.example()
+    sd.service_name = "new_create_survey"
+    sd.push_to_gateway()
+    sd(overall_question = "How are you??", population = "People who stubbed their toes")
 
