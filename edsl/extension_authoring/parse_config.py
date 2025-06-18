@@ -45,4 +45,4 @@ def load_service_definition_from_file(filepath):
     return ServiceDefinition.from_yaml(yaml_string)
 
 # Usage
-service_def = load_service_definition_from_file('config.py')
+#service_def = load_service_definition_from_file('config.py')

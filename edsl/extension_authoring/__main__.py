@@ -20,17 +20,16 @@ from pathlib import Path
 import tarfile
 import tempfile
 import click
+import importlib.util
 from typing import Union, Optional
 from .dockerfile_creator import generate_dockerfile
 from .docker_manager import ExtensionDeploymentManager
-from .parse_config import load_service_definition_from_file
-from .authoring import ServiceDefinition  # type: ignore
+from .authoring import ServicesBuilder  # type: ignore
 
 
 REQUIRED_FILES = [
     "app.py",
     "requirements.txt",
-    "config.py",
 ]
 
 REQUIRED_DIRS = [
@@ -52,6 +51,63 @@ def validate_extension_repo(target_path: Path) -> list[str]:
             missing.append(f"{dname}/")
 
     return missing
+
+
+def load_services_builder(path: Union[str, Path] = ".") -> ServicesBuilder:
+    """Load a ServicesBuilder from app.py in the given directory.
+    
+    Parameters
+    ----------
+    path
+        Directory containing ``app.py``. Defaults to the current working directory.
+        
+    Returns
+    -------
+    ServicesBuilder
+        The services builder instance from the app.py file.
+        
+    Raises
+    ------
+    FileNotFoundError
+        If app.py cannot be found.
+    AttributeError
+        If app.py doesn't contain a 'services' variable.
+    """
+    p = Path(path).expanduser().resolve()
+    
+    if p.is_dir():
+        app_file = p / "app.py"
+    else:
+        app_file = p
+        
+    if not app_file.is_file():
+        raise FileNotFoundError(f"app.py not found at: {app_file}")
+    
+    # Load the app.py module dynamically
+    spec = importlib.util.spec_from_file_location("app", app_file)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"Could not load module from {app_file}")
+    
+    app_module = importlib.util.module_from_spec(spec)
+    
+    # Add the directory to sys.path temporarily so imports work
+    original_path = sys.path[:]
+    sys.path.insert(0, str(app_file.parent))
+    
+    try:
+        spec.loader.exec_module(app_module)
+    finally:
+        sys.path[:] = original_path
+    
+    # Extract the services builder
+    if not hasattr(app_module, 'services'):
+        raise AttributeError(f"app.py does not contain a 'services' variable of type ServicesBuilder")
+    
+    services = app_module.services
+    if not isinstance(services, ServicesBuilder):
+        raise TypeError(f"'services' variable in app.py is not a ServicesBuilder instance, got {type(services)}")
+    
+    return services
 
 
 @click.group()
@@ -90,13 +146,13 @@ def validate(path: Path):
     #  Load and parse config.py to ensure it is valid
     # ------------------------------------------------------------------
 
-    try:
-        _sd = load_service_definition(target)
-        click.echo(click.style("📝  Loaded service definition: ", fg='green') + 
-                  f"name='{_sd.name}', endpoint='{_sd.endpoint}'")
-    except Exception as exc:
-        click.echo(click.style("❌  Failed to parse config.py: ", fg='red') + str(exc))
-        sys.exit(3)
+    # try:
+    #     _sd = load_service_definition(target)
+    #     click.echo(click.style("📝  Loaded service definition: ", fg='green') + 
+    #               f"name='{_sd.name}', endpoint='{_sd.endpoint}'")
+    # except Exception as exc:
+    #     click.echo(click.style("❌  Failed to parse config.py: ", fg='red') + str(exc))
+    #     sys.exit(3)
 
     # ------------------------------------------------------------------
     #  Package required components into a temporary .tar.gz archive
@@ -172,14 +228,14 @@ def validate(path: Path):
 @click.option('--port', type=int, default=8080, help='Port to run the service on')
 @click.option('--install-deps', is_flag=True, help='Install dependencies before running')
 def local_run(path: Path, port: int, install_deps: bool):
-    """Run an extension service locally without Docker.
+    """Run an extension service collection locally without Docker.
     
     PATH is the directory containing the extension (defaults to current directory).
     """
     target = path.expanduser().resolve()
     
     try:
-        _sd = load_service_definition(target)
+        services_builder = load_services_builder(target)
         
         if install_deps:
             click.echo(click.style("\n📦  Installing dependencies...", fg='yellow'))
@@ -188,23 +244,20 @@ def local_run(path: Path, port: int, install_deps: bool):
         # Add the extension directory to Python path so app.py can find its imports
         sys.path.insert(0, str(target))
         
-        click.echo(click.style("\n🚀  Starting local service...", fg='green'))
+        click.echo(click.style("\n🚀  Starting local service collection...", fg='green'))
         
-        # Update the service definition with the local endpoint
+        # Update the service collection with the local base URL
         base_url = f"http://localhost:{port}"
-        local_endpoint = f"{base_url}/{_sd.name}"
-        original_endpoint = _sd.endpoint
-        _sd.endpoint = local_endpoint
+        collection_name = services_builder._default_service_collection_name or "default_collection"
         
-        click.echo("\n📝  Updated service definition:")
-        click.echo(f"     Original endpoint: {original_endpoint}")
-        click.echo(f"     Local endpoint: {local_endpoint}")
+        click.echo(f"\n📝  Service Collection: {collection_name}")
+        click.echo(f"     Base URL: {base_url}")
+        click.echo(f"     Number of services: {len(services_builder)}")
         
-        click.echo(click.style("\n🔄  Registering service with Expected Parrot...", fg='yellow'))
-        _sd.add_service_to_expected_parrot()
+        # Set base URL for all services and push to gateway
+        services_builder.set_base_url(base_url, push_to_gateway=True)
         
-        click.echo(click.style("\n✨  Starting service at ", fg='green') + base_url)
-        click.echo(f"   Service endpoint: {local_endpoint}")
+        click.echo(click.style("\n✨  Starting service collection at ", fg='green') + base_url)
         click.echo("   Press Ctrl+C to stop")
         
         # Run uvicorn
@@ -218,12 +271,6 @@ def local_run(path: Path, port: int, install_deps: bool):
             ], cwd=target, check=True)
         except KeyboardInterrupt:
             click.echo(click.style("\n\n🛑  Stopping service...", fg='yellow'))
-            # Restore the original endpoint
-            _sd.endpoint = original_endpoint
-            click.echo(f"     Restored original endpoint: {original_endpoint}")
-            # Re-register with original endpoint
-            click.echo(click.style("\n🔄  Re-registering service with original endpoint...", fg='yellow'))
-            _sd.add_service_to_expected_parrot()
             click.echo("Service stopped.")
         
     except subprocess.CalledProcessError as e:
@@ -238,16 +285,16 @@ def local_run(path: Path, port: int, install_deps: bool):
 @click.argument('path', type=click.Path(exists=True, file_okay=False, dir_okay=True, path_type=Path), default='.')
 @click.option('--port', type=int, default=8080, help='Port to run the service on')
 def run(path: Path, port: int):
-    """Run an extension service locally.
+    """Run an extension service collection locally with Docker.
     
     PATH is the directory containing the extension (defaults to current directory).
     """
     target = path.expanduser().resolve()
     
     try:
-        _sd = load_service_definition(target)
-        mgr = ExtensionDeploymentManager.from_service_definition(
-            service_def=_sd,
+        services_builder = load_services_builder(target)
+        mgr = ExtensionDeploymentManager.from_services_builder(
+            services_builder=services_builder,
             project_id="local-dev",  # Placeholder for local development
             region="local",
             port=port
@@ -256,24 +303,21 @@ def run(path: Path, port: int):
         click.echo(click.style("\n🔨  Building Docker image...", fg='yellow'))
         mgr.build()
         
-        click.echo(click.style("\n🚀  Starting local service...", fg='green'))
+        click.echo(click.style("\n🚀  Starting local service collection...", fg='green'))
         mgr.run()
         
-        # Update the service definition with the local endpoint
+        # Update the service collection with the local base URL
         base_url = f"http://localhost:{mgr.port}"
-        local_endpoint = f"{base_url}/{_sd.name}"
-        original_endpoint = _sd.endpoint
-        _sd.endpoint = local_endpoint
+        collection_name = services_builder._default_service_collection_name or "default_collection"
         
-        click.echo("\n📝  Updated service definition:")
-        click.echo(f"     Original endpoint: {original_endpoint}")
-        click.echo(f"     Local endpoint: {local_endpoint}")
+        click.echo(f"\n📝  Service Collection: {collection_name}")
+        click.echo(f"     Base URL: {base_url}")
+        click.echo(f"     Number of services: {len(services_builder)}")
         
-        click.echo(click.style("\n🔄  Registering service with Expected Parrot...", fg='yellow'))
-        _sd.add_service_to_expected_parrot()
+        # Set base URL for all services and push to gateway
+        services_builder.set_base_url(base_url, push_to_gateway=True)
         
-        click.echo(click.style("\n✨  Service is running locally at ", fg='green') + base_url)
-        click.echo(f"   Service endpoint: {local_endpoint}")
+        click.echo(click.style("\n✨  Service collection is running locally at ", fg='green') + base_url)
         click.echo("   Following logs... (Press Ctrl+C to stop)")
         
         # Follow the logs
@@ -283,12 +327,6 @@ def run(path: Path, port: int):
             click.echo(click.style("\n\n🛑  Stopping service...", fg='yellow'))
             mgr.stop()
             click.echo("Service stopped.")
-            # Restore the original endpoint
-            _sd.endpoint = original_endpoint
-            click.echo(f"     Restored original endpoint: {original_endpoint}")
-            # Re-register with original endpoint
-            click.echo(click.style("\n🔄  Re-registering service with original endpoint...", fg='yellow'))
-            _sd.add_service_to_expected_parrot()
         
     except Exception as e:
         click.echo(click.style(f"\n❌  Failed to build/run service: {e}", fg='red'))
@@ -328,44 +366,39 @@ def create_archive(source_dir: Path) -> Path:
 # the ServiceDefinition object defined by *config.py* in a given directory.  The
 # function below offers that.
 
-def load_service_definition(path: Union[str, Path] = ".") -> ServiceDefinition:  # noqa: D401
-    """Return a :class:`ServiceDefinition` loaded from *config.py*.
+def load_service_definition(path: Union[str, Path] = ".") -> ServicesBuilder:  # noqa: D401
+    """Return a :class:`ServicesBuilder` loaded from *app.py*.
+
+    DEPRECATED: Use load_services_builder directly instead.
 
     Parameters
     ----------
     path
-        Directory containing ``config.py`` **or** the path to the
-        config file itself. Defaults to the current working directory.
+        Directory containing ``app.py`` **or** the path to the
+        app file itself. Defaults to the current working directory.
 
     Raises
     ------
     FileNotFoundError
-        If *config.py* (or the supplied file path) cannot be found.
+        If *app.py* (or the supplied file path) cannot be found.
     ValueError
-        If the config file cannot be parsed or is missing required YAML_STRING.
-    ServiceDeserializationError
-        Propagated when the YAML content does not correspond to a dictionary.
+        If the app file cannot be parsed or is missing required services variable.
 
     Examples
     --------
     >>> # Assuming you are in an extension repo directory
-    >>> sd = load_service_definition()
-    >>> print(sd.name)
-    create_survey
+    >>> services = load_service_definition()
+    >>> print(len(services))
+    2
     """
-
-    p = Path(path).expanduser().resolve()
-
-    # If a directory is provided, append the default file name
-    if p.is_dir():
-        config_file = p / "config.py"
-    else:
-        config_file = p
-
-    if not config_file.is_file():
-        raise FileNotFoundError(f"config.py not found at: {config_file}")
-
-    return load_service_definition_from_file(config_file)
+    import warnings
+    warnings.warn(
+        "load_service_definition is deprecated. Use load_services_builder instead.",
+        DeprecationWarning,
+        stacklevel=2
+    )
+    
+    return load_services_builder(path)
 
 
 def get_gcp_project() -> str:
@@ -425,20 +458,24 @@ def gcp_build(path: Path, project_id: Optional[str], region: str, registry: str)
         sys.exit(1)
     
     try:
-        _sd = load_service_definition(target)
+        services_builder = load_services_builder(target)
         
-        # Create unique image name based on service name
-        image_name = f"{registry}/{project_id}/{_sd.name}"
+        # Create unique image name based on service collection name
+        collection_name = services_builder._default_service_collection_name or "default_collection"
+        sanitized_name = sanitize_service_name(collection_name)
+        image_name = f"{registry}/{project_id}/{sanitized_name}"
         
         # Validate image name format
         if '//' in image_name:
             click.echo(click.style("❌ Invalid image name generated. Components:", fg='red'))
             click.echo(f"  Registry: {registry}")
             click.echo(f"  Project ID: {project_id}")
-            click.echo(f"  Service Name: {_sd.name}")
+            click.echo(f"  Collection Name: {sanitized_name}")
             sys.exit(1)
         
-        click.echo(click.style("\n🔨  Building Docker image...", fg='yellow'))
+        click.echo(click.style("\n🔨  Building Docker image for service collection...", fg='yellow'))
+        click.echo(f"Collection: {collection_name}")
+        click.echo(f"Services: {len(services_builder)}")
         click.echo(f"Image: {image_name}")
         click.echo("Platform: linux/amd64 (required for Cloud Run)")
         
@@ -481,7 +518,8 @@ def gcp_build(path: Path, project_id: Optional[str], region: str, registry: str)
             "image": image_name,
             "project_id": project_id,
             "region": region,
-            "service_name": _sd.name
+            "service_collection_name": collection_name,
+            "sanitized_service_name": sanitized_name
         }
         config_file.write_text(json.dumps(config, indent=2))
         
@@ -541,7 +579,7 @@ def gcp_deploy(
     max_instances: int,
     port: int
 ):
-    """Deploy an extension to Google Cloud Run.
+    """Deploy an extension service collection to Google Cloud Run.
     
     PATH is the directory containing the extension (defaults to current directory).
     """
@@ -558,10 +596,12 @@ def gcp_deploy(
         config = json.loads(config_file.read_text())
         project_id = project_id or config['project_id']
         region = region or config['region']
-        service_name = sanitize_service_name(config['service_name'])
+        service_name = config['sanitized_service_name']
+        collection_name = config['service_collection_name']
         image = config['image']
         
-        click.echo(click.style("\n🚀  Deploying to Google Cloud Run...", fg='yellow'))
+        click.echo(click.style("\n🚀  Deploying service collection to Google Cloud Run...", fg='yellow'))
+        click.echo(f"Collection: {collection_name}")
         click.echo(f"Service name: {service_name}")
         click.echo(f"Image: {image}")
         click.echo(f"Region: {region}")
@@ -599,21 +639,19 @@ def gcp_deploy(
             click.echo("Deployment might have succeeded, but service URL is unavailable")
             sys.exit(0)
         
-        # Update the service definition with the Cloud Run URL
-        _sd = load_service_definition(target)
+        # Update the service collection with the Cloud Run URL
+        services_builder = load_services_builder(target)
         cloud_run_url = deploy_info.get('status', {}).get('url')
         
         if cloud_run_url:
-            original_endpoint = _sd.endpoint
-            _sd.endpoint = f"{cloud_run_url}/{_sd.name}"
-            
             click.echo(click.style("\n✅  Successfully deployed to Cloud Run:", fg='green'))
             click.echo(f"    URL: {cloud_run_url}")
-            click.echo(f"    Service Endpoint: {_sd.endpoint}")
+            click.echo(f"    Collection: {collection_name}")
+            click.echo(f"    Services: {len(services_builder)}")
             
-            click.echo(click.style("\n🔄  Updating service registration...", fg='yellow'))
-            _sd.add_service_to_expected_parrot()
-            click.echo(click.style("✅  Service registration updated", fg='green'))
+            click.echo(click.style("\n🔄  Updating service collection endpoints...", fg='yellow'))
+            services_builder.set_base_url(cloud_run_url, push_to_gateway=True)
+            click.echo(click.style("✅  Service collection registration updated", fg='green'))
         else:
             click.echo(click.style("\n⚠️  Deployment succeeded but couldn't get service URL", fg='yellow'))
             click.echo("Please check the Cloud Run console for the service URL")
