@@ -176,7 +176,7 @@ class JobsRemoteInferenceHandler:
         from ..coop import Coop
 
         coop = Coop()
-        return coop.remote_inference_get(job_uuid)
+        return coop.new_remote_inference_get(job_uuid)
 
     def _construct_remote_job_fetcher(
         self, testing_simulated_response: Optional[Any] = None
@@ -445,9 +445,9 @@ class JobsRemoteInferenceHandler:
             model_cost_dict["input_cost_credits_with_cache"] = converter.usd_to_credits(
                 input_cost_with_cache
             )
-            model_cost_dict[
-                "output_cost_credits_with_cache"
-            ] = converter.usd_to_credits(output_cost_with_cache)
+            model_cost_dict["output_cost_credits_with_cache"] = (
+                converter.usd_to_credits(output_cost_with_cache)
+            )
         return list(expenses_by_model.values())
 
     def _fetch_results_and_log(
