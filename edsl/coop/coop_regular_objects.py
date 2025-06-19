@@ -23,4 +23,6 @@ class CoopRegularObjects(CoopObjects):
         from ..coop import Coop
 
         c = Coop()
-        return [c.pull(obj["uuid"]) for obj in self]
+        return [
+            c.pull(obj["uuid"], expected_object_type=obj["object_type"]) for obj in self
+        ]
