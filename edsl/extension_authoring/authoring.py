@@ -1,4 +1,4 @@
-from abc import ABC
+from abc import ABC, abstractmethod
 from pathlib import Path
 from dataclasses import dataclass, field, asdict, fields, MISSING
 from typing import Optional, Dict, Any, TypeVar, Type, Callable, List, Union, TYPE_CHECKING, TypedDict
@@ -41,6 +41,139 @@ API_BASE_URL = os.getenv("EDSL_API_URL", "http://localhost:8000")
 
 if TYPE_CHECKING:
     from .service_definition_helper import ServiceDefinitionHelper
+
+
+# ABC Design Pattern for Extension Services
+# ========================================
+# This design provides a consistent interface for all extension services with:
+# - Required class attributes (service_name, description, cost) 
+# - Standardized execute() method for service logic
+# - Built-in testing via run_example() class method
+# - example_inputs property for test data
+# - Input validation capabilities
+# - Dictionary-like output structure using UserDict
+# 
+# Services inherit from ExtensionService and must define the required class attributes.
+# The ABC validates these attributes exist at instantiation time.
+# No getter methods needed - access attributes directly!
+
+
+class ExtensionService(ABC):
+    """Abstract base class for all extension services."""
+    
+    def __init__(self):
+        """Initialize the extension service using class attributes."""
+        # Validate that child class has defined required attributes
+        required_attrs = ['service_name', 'description', 'cost']
+        for attr in required_attrs:
+            if not hasattr(self.__class__, attr):
+                raise AttributeError(f"Class {self.__class__.__name__} must define '{attr}' class attribute")
+        
+        # Use the class attributes directly
+        self.service_name = self.__class__.service_name
+        self.description = self.__class__.description
+        self.cost = self.__class__.cost
+    
+    @abstractmethod
+    def execute(self, **kwargs) -> 'ExtensionOutputs':
+        """Execute the main service functionality.
+        
+        Args:
+            **kwargs: Service-specific input parameters
+            
+        Returns:
+            ExtensionOutputs containing the service results
+        """
+        pass
+    
+    @property
+    @abstractmethod
+    def example_inputs(self) -> Dict[str, Any]:
+        """Provide example inputs for testing the service.
+        
+        Returns:
+            A dictionary of example input parameters
+        """
+        pass
+    
+    def validate_inputs(self, **kwargs) -> bool:
+        """Validate input parameters. Override if custom validation needed.
+        
+        Args:
+            **kwargs: Input parameters to validate
+            
+        Returns:
+            True if inputs are valid, False otherwise
+        """
+        return True
+    
+    @classmethod
+    def run_example(cls) -> 'ExtensionOutputs':
+        """Run the service with example inputs for testing.
+        
+        Returns:
+            ExtensionOutputs from running with example inputs
+        """
+        instance = cls()
+        example_inputs = instance.example_inputs
+        return instance.execute(**example_inputs)
+
+
+class ExtensionOutput(UserDict):
+    """A dictionary-like class representing a single extension output with output_type, description, returns_coopr_url, and value."""
+    
+    def __init__(self, output_type: str, description: str, returns_coopr_url: bool, value: Any):
+        super().__init__()
+        self.data['output_type'] = output_type
+        self.data['description'] = description
+        self.data['returns_coopr_url'] = returns_coopr_url
+        self.data['value'] = value
+    
+    @property
+    def output_type(self) -> str:
+        return self.data['output_type']
+    
+    @property
+    def description(self) -> str:
+        return self.data['description']
+    
+    @property
+    def returns_coopr_url(self) -> bool:
+        return self.data['returns_coopr_url']
+    
+    @property
+    def value(self) -> Any:
+        return self.data['value']
+
+
+class ExtensionOutputs(UserDict):
+    """A dictionary-like class representing the overall extension outputs containing multiple ExtensionOutput objects."""
+    
+    def __init__(self, **entries):
+        super().__init__()
+        for key, value in entries.items():
+            if isinstance(value, dict) and not isinstance(value, ExtensionOutput):
+                # Convert dict to ExtensionOutput if it has the right structure
+                if all(k in value for k in ['output_type', 'description', 'returns_coopr_url', 'value']):
+                    self.data[key] = ExtensionOutput(
+                        output_type=value['output_type'],
+                        description=value['description'],
+                        returns_coopr_url=value['returns_coopr_url'],
+                        value=value['value']
+                    )
+                else:
+                    self.data[key] = value
+            else:
+                self.data[key] = value
+    
+    def add_entry(self, key: str, output_type: str, description: str, returns_coopr_url: bool, value: Any) -> 'ExtensionOutputs':
+        """Add a new extension output entry.
+        
+        Returns:
+            Self for method chaining (fluent interface).
+        """
+        self.data[key] = ExtensionOutput(output_type, description, returns_coopr_url, value)
+        return self
 
 def extract_bearer_token(authorization: Optional[str] = None) -> Optional[str]:
     """Extract the token from the Authorization header.
@@ -1095,18 +1228,75 @@ class ServicesBuilder:
     
     def add_service(
         self, 
-        implementation: Callable[..., Any],
+        implementation: Union[Callable[..., Any], type],
         overwrite: bool = False,
         **kwargs
     ) -> None:
         """Add a service to the container.
         
         Args:
-            implementation: The callable that implements the service
+            implementation: Either a callable that implements the service OR an ExtensionService class
             overwrite: Whether to overwrite existing YAML file without confirmation
             **kwargs: Additional keyword arguments to pass to the ServiceBuilder constructor (e.g., service_name, description, 
                      service_endpoint, cost_unit, per_call_cost, variable_pricing_cost_formula, uses_client_ep_key, creator_ep_username)
         """
+        # Check if implementation is an ExtensionService class
+        if (isinstance(implementation, type) and 
+            issubclass(implementation, ExtensionService)):
+            
+            # Handle ExtensionService classes directly
+            self._add_extension_service(implementation, overwrite, **kwargs)
+        else:
+            # Handle regular callables with the existing flow
+            self._add_callable_service(implementation, overwrite, **kwargs)
+    
+    def _add_extension_service(
+        self,
+        service_class: type,
+        overwrite: bool = False,
+        **kwargs
+    ) -> None:
+        """Add an ExtensionService class directly to the container."""
+        # Use default service_collection_name if not provided in kwargs
+        if 'service_collection_name' not in kwargs and self._default_service_collection_name is not None:
+            kwargs['service_collection_name'] = self._default_service_collection_name
+            
+        # Use default creator_ep_username if not provided in kwargs
+        if 'creator_ep_username' not in kwargs and self._default_creator_ep_username is not None:
+            kwargs['creator_ep_username'] = self._default_creator_ep_username
+        
+        # Extract metadata from class attributes
+        service_name = kwargs.get('service_name', service_class.service_name)
+        description = kwargs.get('description', service_class.description)
+        cost = kwargs.get('per_call_cost', service_class.cost)
+        
+        # Create a wrapper that instantiates the service and calls execute
+        def service_implementation(**call_kwargs):
+            instance = service_class()
+            return instance.execute(**call_kwargs)
+        
+        # Create ServiceBuilder with the wrapper implementation
+        service_builder = ServiceBuilder(
+            implementation=service_implementation,
+            overwrite=overwrite,
+            service_name=service_name,
+            description=description,
+            per_call_cost=cost,
+            **kwargs
+        )
+        
+        self._services[service_name] = service_builder
+        
+        # Store reference to the original class for access to class methods like run_example
+        service_builder._extension_service_class = service_class
+    
+    def _add_callable_service(
+        self,
+        implementation: Callable[..., Any],
+        overwrite: bool = False,
+        **kwargs
+    ) -> None:
+        """Add a regular callable service using the existing flow."""
         # Use default service_collection_name if not provided in kwargs
         if 'service_collection_name' not in kwargs and self._default_service_collection_name is not None:
             kwargs['service_collection_name'] = self._default_service_collection_name
@@ -1202,6 +1392,104 @@ class ServicesBuilder:
     def __len__(self) -> int:
         """Get number of services."""
         return len(self._services)
+    
+    def run_service_example(self, service_name: str):
+        """Run the example for a given service if it's an ExtensionService."""
+        if service_name not in self._services:
+            raise ValueError(f"Service '{service_name}' not found")
+        
+        service_builder = self._services[service_name]
+        
+        # Check if this service has an ExtensionService class attached
+        if hasattr(service_builder, '_extension_service_class'):
+            return service_builder._extension_service_class.run_example()
+        else:
+            raise ValueError(f"Service '{service_name}' is not an ExtensionService, cannot run example")
+    
+    def get_extension_service_class(self, service_name: str) -> type:
+        """Get the ExtensionService class for a given service."""
+        if service_name not in self._services:
+            raise ValueError(f"Service '{service_name}' not found")
+        
+        service_builder = self._services[service_name]
+        
+        if hasattr(service_builder, '_extension_service_class'):
+            return service_builder._extension_service_class
+        else:
+            raise ValueError(f"Service '{service_name}' is not an ExtensionService")
+    
+    def add_services(self, *services, **kwargs) -> 'ServicesBuilder':
+        """Add multiple services to the container.
+        
+        This method provides a convenient way to add multiple services at once.
+        It accepts services in various formats and returns self for method chaining.
+        
+        Args:
+            *services: Can be:
+                - A single service class
+                - Multiple service classes as separate arguments
+                - A list/tuple of service classes (if passed as the first argument)
+            **kwargs: Additional keyword arguments passed to add_service for each service
+            
+        Returns:
+            Self for method chaining (fluent interface).
+        
+        Examples:
+            # Single service
+            services.add_services(QuestionCountService)
+            
+            # Multiple services as arguments
+            services.add_services(QuestionCountService, ScenarioValidationService, ResultCountService)
+            
+            # List of services
+            service_list = [QuestionCountService, ScenarioValidationService, ResultCountService]
+            services.add_services(service_list)
+            
+            # With additional kwargs
+            services.add_services(QuestionCountService, ScenarioValidationService, overwrite=True)
+            
+            # Method chaining
+            app = (ServicesBuilder("my_collection")
+                   .add_services(ServiceA, ServiceB)
+                   .add_services(ServiceC)
+                   .create_app())
+        """
+        if not services:
+            return self
+        
+        # Check if the first argument is a list/tuple of services
+        if len(services) == 1 and isinstance(services[0], (list, tuple)):
+            services_to_add = services[0]
+        else:
+            services_to_add = services
+        
+        # Add each service
+        for service in services_to_add:
+            self.add_service(service, **kwargs)
+            
+        return self
+    
+    def create_app(self):
+        """Create a FastAPI app from the services in this builder.
+        
+        This is a convenience method that wraps the create_app function
+        from the factory module, eliminating the need to import it separately.
+        
+        Returns:
+            FastAPI app configured with all the services in this builder.
+            
+        Examples:
+            # Traditional approach
+            from edsl.extension_authoring.factory.app_factory import create_app
+            app = create_app(services=services)
+            
+            # New fluent approach
+            app = (ServicesBuilder("my_collection")
+                   .add_services(ServiceA, ServiceB, ServiceC)
+                   .create_app())
+        """
+        from .factory.app_factory import create_app
+        return create_app(services=self)
 
 
 
