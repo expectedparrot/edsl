@@ -44,8 +44,8 @@ class ExtensionServiceMeta(ABCMeta):
         # Validate extension_outputs structure
         ExtensionServiceMeta._validate_extension_outputs(cls)
         
-        # Note: Return signature validation happens at runtime in _combine_outputs_with_values()
-        # This provides more reliable validation than static AST analysis
+        # Validate execute method return signature at class definition time
+        ExtensionServiceMeta._validate_execute_return_signature(cls)
     
     @staticmethod
     def _validate_service_name(cls):
@@ -92,6 +92,42 @@ class ExtensionServiceMeta(ABCMeta):
             if 'value' in output_def:
                 raise AttributeError(f"Output '{key}' in {cls.__name__}.extension_outputs should not include 'value' - values come from execute() method")
     
+    @staticmethod
+    def _validate_execute_return_signature(cls):
+        """Validate that the execute method returns the correct keys defined in extension_outputs."""
+        try:
+            # Create a temporary instance to get example_inputs
+            instance = cls()
+            example_inputs = instance.example_inputs
+            
+            # Call the execute method with example inputs
+            returned_values = cls.execute(**example_inputs)
+            
+            if not isinstance(returned_values, dict):
+                raise AttributeError(f"Class {cls.__name__} execute() method must return a dictionary, got {type(returned_values)}")
+            
+            # Check that all required outputs are provided
+            expected_keys = set(cls.extension_outputs.keys())
+            returned_keys = set(returned_values.keys())
+            
+            missing_keys = expected_keys - returned_keys
+            if missing_keys:
+                raise AttributeError(f"Class {cls.__name__} execute() method must return values for all outputs defined in extension_outputs. Missing: {missing_keys}")
+            
+            # Warn about extra keys (but don't fail the class definition)
+            extra_keys = returned_keys - expected_keys
+            if extra_keys:
+                import warnings
+                warnings.warn(f"Class {cls.__name__} execute() method returns extra keys not defined in extension_outputs: {extra_keys}")
+        
+        except Exception as e:
+            # If validation fails for any reason, provide a clear error message
+            if isinstance(e, AttributeError) and "extension_outputs" in str(e):
+                # Re-raise our own validation errors
+                raise e
+            else:
+                # Wrap other errors with context
+                raise AttributeError(f"Class {cls.__name__} failed execute() return signature validation: {e}") from e
 
 
 
