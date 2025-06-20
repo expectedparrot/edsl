@@ -33,7 +33,7 @@ Create a survey in EDSL:
    - Construct :ref:`questions` and pass them to :ref:`surveys` with desired logic.
    - Create AI :ref:`agents` with desired traits.
    - Specify :ref:`language_models` to generate responses.
-   - Use the `run` method to administer the survey with the agents and models.
+   - Use the `run` method to administer a survey with desired agents and models.
 
 This generates a formatted dataset of :ref:`results` that you can analyze with built-in methods.
 The survey, agents and results are automatically posted to your Coop account, where you can access them interactively.
