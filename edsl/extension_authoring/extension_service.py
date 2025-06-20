@@ -8,6 +8,8 @@ from abc import ABC, abstractmethod, ABCMeta
 from typing import Dict, Any
 from collections import UserDict
 import re
+import ast
+import inspect
 
 
 class ExtensionServiceMeta(ABCMeta):
@@ -44,8 +46,8 @@ class ExtensionServiceMeta(ABCMeta):
         # Validate extension_outputs structure
         ExtensionServiceMeta._validate_extension_outputs(cls)
         
-        # Validate execute method return signature at class definition time
-        ExtensionServiceMeta._validate_execute_return_signature(cls)
+        # Validate that execute method exists and is properly defined
+        ExtensionServiceMeta._validate_execute_method(cls)
     
     @staticmethod
     def _validate_service_name(cls):
@@ -93,41 +95,94 @@ class ExtensionServiceMeta(ABCMeta):
                 raise AttributeError(f"Output '{key}' in {cls.__name__}.extension_outputs should not include 'value' - values come from execute() method")
     
     @staticmethod
-    def _validate_execute_return_signature(cls):
-        """Validate that the execute method returns the correct keys defined in extension_outputs."""
-        try:
-            # Create a temporary instance to get example_inputs
-            instance = cls()
-            example_inputs = instance.example_inputs
-            
-            # Call the execute method with example inputs
-            returned_values = cls.execute(**example_inputs)
-            
-            if not isinstance(returned_values, dict):
-                raise AttributeError(f"Class {cls.__name__} execute() method must return a dictionary, got {type(returned_values)}")
-            
-            # Check that all required outputs are provided
-            expected_keys = set(cls.extension_outputs.keys())
-            returned_keys = set(returned_values.keys())
-            
-            missing_keys = expected_keys - returned_keys
-            if missing_keys:
-                raise AttributeError(f"Class {cls.__name__} execute() method must return values for all outputs defined in extension_outputs. Missing: {missing_keys}")
-            
-            # Warn about extra keys (but don't fail the class definition)
-            extra_keys = returned_keys - expected_keys
-            if extra_keys:
-                import warnings
-                warnings.warn(f"Class {cls.__name__} execute() method returns extra keys not defined in extension_outputs: {extra_keys}")
+    def _validate_execute_method(cls):
+        """Validate that the execute method exists and is properly defined."""
+        if not hasattr(cls, 'execute'):
+            raise AttributeError(f"Class {cls.__name__} must define an 'execute' method")
         
-        except Exception as e:
-            # If validation fails for any reason, provide a clear error message
-            if isinstance(e, AttributeError) and "extension_outputs" in str(e):
-                # Re-raise our own validation errors
-                raise e
-            else:
-                # Wrap other errors with context
-                raise AttributeError(f"Class {cls.__name__} failed execute() return signature validation: {e}") from e
+        execute_method = getattr(cls, 'execute')
+        
+        # Check if it's callable
+        if not callable(execute_method):
+            raise AttributeError(f"Class {cls.__name__} 'execute' method must be callable")
+        
+        # Validate return signature using static code inspection
+        ExtensionServiceMeta._validate_return_signature_static(cls)
+    
+    @staticmethod
+    def _validate_return_signature_static(cls):
+        """Validate return signature using static code inspection of the execute method."""
+        try:
+            # Get the execute method
+            execute_method = getattr(cls, 'execute')
+            
+            # Get the source code
+            source = inspect.getsource(execute_method)
+            
+            # Remove common leading whitespace to handle indentation
+            import textwrap
+            source = textwrap.dedent(source)
+            
+            # Parse the source code into an AST
+            tree = ast.parse(source)
+            
+            # Find all return statements
+            return_visitor = ReturnStatementVisitor(cls.extension_outputs.keys())
+            return_visitor.visit(tree)
+            
+            # Check if we found any problematic returns
+            if return_visitor.validation_errors:
+                error_msg = f"Class {cls.__name__} execute() method has return signature issues:\n"
+                for error in return_visitor.validation_errors:
+                    error_msg += f"  - {error}\n"
+                raise AttributeError(error_msg.rstrip())
+                
+        except (OSError, TypeError, SyntaxError, IndentationError) as e:
+            # If we can't get source (e.g., in REPL, compiled code), skip validation
+            import warnings
+            warnings.warn(f"Could not validate return signature for {cls.__name__}: {e}")
+
+
+class ReturnStatementVisitor(ast.NodeVisitor):
+    """AST visitor that validates return statements in execute methods."""
+    
+    def __init__(self, expected_keys):
+        self.expected_keys = set(expected_keys)
+        self.validation_errors = []
+    
+    def visit_Return(self, node):
+        """Visit a return statement and validate its structure."""
+        if node.value is None:
+            # Return with no value (return;)
+            return
+            
+        if isinstance(node.value, ast.Dict):
+            # Return statement is a dictionary literal
+            self._validate_dict_return(node.value)
+        # For non-dict returns (variables, function calls, etc.), we can't validate statically
+        # but that's okay - runtime validation will catch those
+    
+    def _validate_dict_return(self, dict_node):
+        """Validate a dictionary return statement."""
+        # Extract string keys from the dictionary literal
+        returned_keys = set()
+        
+        for key_node in dict_node.keys:
+            if isinstance(key_node, ast.Str):  # Python < 3.8
+                returned_keys.add(key_node.s)
+            elif isinstance(key_node, ast.Constant) and isinstance(key_node.value, str):  # Python >= 3.8
+                returned_keys.add(key_node.value)
+            # For non-string keys or computed keys, we can't validate statically
+        
+        # Only validate if we could extract all keys as strings
+        if len(returned_keys) == len(dict_node.keys):
+            missing_keys = self.expected_keys - returned_keys
+            if missing_keys:
+                self.validation_errors.append(f"Missing required keys in return statement: {missing_keys}")
+            
+            extra_keys = returned_keys - self.expected_keys
+            if extra_keys:
+                self.validation_errors.append(f"Extra keys in return statement not defined in extension_outputs: {extra_keys}")
 
 
 
