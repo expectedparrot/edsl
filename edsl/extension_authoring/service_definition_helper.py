@@ -108,7 +108,13 @@ class ServiceDefinitionHelper:
 
     def __init__(self, func: Callable):
         self.func = func
-        self.signature_extractor = FunctionSignatureExtractor(func)
+        
+        # Check if this is an ExtensionService wrapper, use the original execute method for parameter extraction
+        if hasattr(func, '_extension_execute_method'):
+            self.signature_extractor = FunctionSignatureExtractor(func._extension_execute_method)
+        else:
+            self.signature_extractor = FunctionSignatureExtractor(func)
+            
         self.return_analyzer = ReturnAnalyzer()
 
     def propose_service_definition(
@@ -145,7 +151,19 @@ class ServiceDefinitionHelper:
         parameters = self.signature_extractor.get_parameter_definitions()
         
         # Get return structure from function implementation
-        returns = self.return_analyzer.get_return_definitions(self.func)
+        # Check if this is an ExtensionService with metadata, use that instead of source analysis
+        if hasattr(self.func, '_extension_outputs'):
+            # Convert extension_outputs to ReturnDefinition objects
+            returns = {}
+            for key, output_def in self.func._extension_outputs.items():
+                returns[key] = ReturnDefinition(
+                    type=output_def['output_type'],
+                    description=output_def['description'],
+                    coopr_url=output_def.get('returns_coopr_url', False)
+                )
+        else:
+            # Fall back to source code analysis for regular functions
+            returns = self.return_analyzer.get_return_definitions(self.func)
         
         # Use provided cost or create default
         service_cost = cost or CostDefinition(
@@ -235,12 +253,29 @@ class ServiceDefinitionHelper:
 
     def validate_parameters(self, service_def: ServiceDefinition) -> str:
         """Validate the function's parameters against the service definition."""
-        extracted_params = self.signature_extractor.get_parameter_definitions()
+        # Use the same parameter extraction logic as in __init__
+        if hasattr(self.func, '_extension_execute_method'):
+            extractor = FunctionSignatureExtractor(self.func._extension_execute_method)
+        else:
+            extractor = self.signature_extractor
+        extracted_params = extractor.get_parameter_definitions()
         return self._generate_comparison_report(extracted_params, service_def.parameters, "Parameters")
 
     def validate_returns(self, service_def: ServiceDefinition) -> str:
         """Validate the function's return value against the service definition."""
-        extracted_returns = self.return_analyzer.get_return_definitions(self.func)
+        # Check if this is an ExtensionService with metadata
+        if hasattr(self.func, '_extension_outputs'):
+            # Convert extension_outputs to ReturnDefinition objects
+            extracted_returns = {}
+            for key, output_def in self.func._extension_outputs.items():
+                extracted_returns[key] = ReturnDefinition(
+                    type=output_def['output_type'],
+                    description=output_def['description'],
+                    coopr_url=output_def.get('returns_coopr_url', False)
+                )
+        else:
+            # Fall back to source code analysis for regular functions
+            extracted_returns = self.return_analyzer.get_return_definitions(self.func)
         return self._generate_comparison_report(extracted_returns, service_def.service_returns, "Returns")
 
     def validate(self, service_def: ServiceDefinition) -> str:
@@ -260,12 +295,23 @@ class ServiceDefinitionHelper:
 
     def get_missing_parameters(self, service_def: ServiceDefinition) -> List[str]:
         """Get list of parameters required by service definition but missing in implementation."""
-        extracted_params = self.signature_extractor.get_parameter_definitions()
+        # Use the same parameter extraction logic as in __init__
+        if hasattr(self.func, '_extension_execute_method'):
+            extractor = FunctionSignatureExtractor(self.func._extension_execute_method)
+        else:
+            extractor = self.signature_extractor
+        extracted_params = extractor.get_parameter_definitions()
         return list(set(service_def.parameters.keys()) - set(extracted_params.keys()))
 
     def get_missing_returns(self, service_def: ServiceDefinition) -> List[str]:
         """Get list of return values required by service definition but missing in implementation."""
-        extracted_returns = self.return_analyzer.get_return_definitions(self.func)
+        # Check if this is an ExtensionService with metadata
+        if hasattr(self.func, '_extension_outputs'):
+            # Get returns from extension_outputs metadata
+            extracted_returns = {key: None for key in self.func._extension_outputs.keys()}
+        else:
+            # Fall back to source code analysis for regular functions
+            extracted_returns = self.return_analyzer.get_return_definitions(self.func)
         return list(set(service_def.service_returns.keys()) - set(extracted_returns.keys()))
 
     def is_valid(self, service_def: ServiceDefinition) -> bool:
@@ -289,8 +335,26 @@ class ServiceDefinitionHelper:
             True if there are any differences in parameters or returns, False if everything matches exactly
         """
         # Get parameter and return definitions
-        extracted_params = self.signature_extractor.get_parameter_definitions()
-        extracted_returns = self.return_analyzer.get_return_definitions(self.func)
+        # Use the same parameter extraction logic as in __init__
+        if hasattr(self.func, '_extension_execute_method'):
+            extractor = FunctionSignatureExtractor(self.func._extension_execute_method)
+        else:
+            extractor = self.signature_extractor
+        extracted_params = extractor.get_parameter_definitions()
+        
+        # Check if this is an ExtensionService with metadata
+        if hasattr(self.func, '_extension_outputs'):
+            # Convert extension_outputs to ReturnDefinition objects
+            extracted_returns = {}
+            for key, output_def in self.func._extension_outputs.items():
+                extracted_returns[key] = ReturnDefinition(
+                    type=output_def['output_type'],
+                    description=output_def['description'],
+                    coopr_url=output_def.get('returns_coopr_url', False)
+                )
+        else:
+            # Fall back to source code analysis for regular functions
+            extracted_returns = self.return_analyzer.get_return_definitions(self.func)
         
         # Check for any differences in parameters
         for key in set(extracted_params.keys()) | set(service_def.parameters.keys()):

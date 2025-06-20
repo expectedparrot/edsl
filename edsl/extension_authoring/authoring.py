@@ -20,6 +20,9 @@ from ..surveys import Survey # Assume Survey is always available
 from ..scenarios import Scenario
 from ..base import RegisterSubclassesMeta
 
+# Import ExtensionService classes from the new module
+from .extension_service import ExtensionService, ExtensionOutput, ExtensionOutputs
+
 from .exceptions import (
     ExtensionError,
     ServiceConnectionError,
@@ -56,124 +59,9 @@ if TYPE_CHECKING:
 # Services inherit from ExtensionService and must define the required class attributes.
 # The ABC validates these attributes exist at instantiation time.
 # No getter methods needed - access attributes directly!
-
-
-class ExtensionService(ABC):
-    """Abstract base class for all extension services."""
-    
-    def __init__(self):
-        """Initialize the extension service using class attributes."""
-        # Validate that child class has defined required attributes
-        required_attrs = ['service_name', 'description', 'cost']
-        for attr in required_attrs:
-            if not hasattr(self.__class__, attr):
-                raise AttributeError(f"Class {self.__class__.__name__} must define '{attr}' class attribute")
-        
-        # Use the class attributes directly
-        self.service_name = self.__class__.service_name
-        self.description = self.__class__.description
-        self.cost = self.__class__.cost
-    
-    @abstractmethod
-    def execute(self, **kwargs) -> 'ExtensionOutputs':
-        """Execute the main service functionality.
-        
-        Args:
-            **kwargs: Service-specific input parameters
-            
-        Returns:
-            ExtensionOutputs containing the service results
-        """
-        pass
-    
-    @property
-    @abstractmethod
-    def example_inputs(self) -> Dict[str, Any]:
-        """Provide example inputs for testing the service.
-        
-        Returns:
-            A dictionary of example input parameters
-        """
-        pass
-    
-    def validate_inputs(self, **kwargs) -> bool:
-        """Validate input parameters. Override if custom validation needed.
-        
-        Args:
-            **kwargs: Input parameters to validate
-            
-        Returns:
-            True if inputs are valid, False otherwise
-        """
-        return True
-    
-    @classmethod
-    def run_example(cls) -> 'ExtensionOutputs':
-        """Run the service with example inputs for testing.
-        
-        Returns:
-            ExtensionOutputs from running with example inputs
-        """
-        instance = cls()
-        example_inputs = instance.example_inputs
-        return instance.execute(**example_inputs)
-
-
-class ExtensionOutput(UserDict):
-    """A dictionary-like class representing a single extension output with output_type, description, returns_coopr_url, and value."""
-    
-    def __init__(self, output_type: str, description: str, returns_coopr_url: bool, value: Any):
-        super().__init__()
-        self.data['output_type'] = output_type
-        self.data['description'] = description
-        self.data['returns_coopr_url'] = returns_coopr_url
-        self.data['value'] = value
-    
-    @property
-    def output_type(self) -> str:
-        return self.data['output_type']
-    
-    @property
-    def description(self) -> str:
-        return self.data['description']
-    
-    @property
-    def returns_coopr_url(self) -> bool:
-        return self.data['returns_coopr_url']
-    
-    @property
-    def value(self) -> Any:
-        return self.data['value']
-
-
-class ExtensionOutputs(UserDict):
-    """A dictionary-like class representing the overall extension outputs containing multiple ExtensionOutput objects."""
-    
-    def __init__(self, **entries):
-        super().__init__()
-        for key, value in entries.items():
-            if isinstance(value, dict) and not isinstance(value, ExtensionOutput):
-                # Convert dict to ExtensionOutput if it has the right structure
-                if all(k in value for k in ['output_type', 'description', 'returns_coopr_url', 'value']):
-                    self.data[key] = ExtensionOutput(
-                        output_type=value['output_type'],
-                        description=value['description'],
-                        returns_coopr_url=value['returns_coopr_url'],
-                        value=value['value']
-                    )
-                else:
-                    self.data[key] = value
-            else:
-                self.data[key] = value
-    
-    def add_entry(self, key: str, output_type: str, description: str, returns_coopr_url: bool, value: Any) -> 'ExtensionOutputs':
-        """Add a new extension output entry.
-        
-        Returns:
-            Self for method chaining (fluent interface).
-        """
-        self.data[key] = ExtensionOutput(output_type, description, returns_coopr_url, value)
-        return self
+#
+# Note: ExtensionService, ExtensionOutput, and ExtensionOutputs classes are now
+# imported from the extension_service module for better organization.
 
 def extract_bearer_token(authorization: Optional[str] = None) -> Optional[str]:
     """Extract the token from the Authorization header.
@@ -1270,10 +1158,18 @@ class ServicesBuilder:
         description = kwargs.get('description', service_class.description)
         cost = kwargs.get('per_call_cost', service_class.cost)
         
-        # Create a wrapper that instantiates the service and calls execute
+        # Create a wrapper that calls the static execute method and combines with metadata
         def service_implementation(**call_kwargs):
+            # Call the static execute method directly
+            values = service_class.execute(**call_kwargs)
+            # Create a temporary instance to use the _combine_outputs_with_values method
             instance = service_class()
-            return instance.execute(**call_kwargs)
+            return instance._combine_outputs_with_values(values)
+        
+        # Add extension metadata to the wrapper function for the service definition helper
+        service_implementation._extension_outputs = service_class.extension_outputs
+        service_implementation._extension_service_class = service_class
+        service_implementation._extension_execute_method = service_class.execute
         
         # Create ServiceBuilder with the wrapper implementation
         service_builder = ServiceBuilder(
