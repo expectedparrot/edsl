@@ -1164,7 +1164,19 @@ class ServicesBuilder:
             values = service_class.execute(**call_kwargs)
             # Create a temporary instance to use the _combine_outputs_with_values method
             instance = service_class()
-            return instance._combine_outputs_with_values(values)
+            extension_outputs = instance._combine_outputs_with_values(values)
+            
+            # Extract just the values from ExtensionOutputs for validation compatibility
+            # The validation system expects a dictionary of output_key -> value
+            result_dict = {}
+            for key, extension_output in extension_outputs.items():
+                if hasattr(extension_output, 'value'):
+                    result_dict[key] = extension_output.value
+                else:
+                    # Fallback if for some reason it's not an ExtensionOutput object
+                    result_dict[key] = extension_output
+                    
+            return result_dict
         
         # Add extension metadata to the wrapper function for the service definition helper
         service_implementation._extension_outputs = service_class.extension_outputs
