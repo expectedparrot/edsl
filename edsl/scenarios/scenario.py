@@ -280,6 +280,18 @@ class Scenario(Base, UserDict):
 
         target = self if inplace else Scenario()
 
+        # First check if this Scenario itself has a base64_string (e.g., from FileStore.to_dict())
+        if "base64_string" in self and isinstance(self.get("base64_string"), str):
+            # This is likely a Scenario created from FileStore.to_dict()
+            if inplace:
+                self["base64_string"] = "offloaded"
+            else:
+                # Copy all keys to target
+                for k, v in self.items():
+                    target[k] = v
+                target["base64_string"] = "offloaded"
+            return target
+
         for key, value in self.items():
             if isinstance(value, FileStore):
                 file_store_dict = value.to_dict()
@@ -296,6 +308,227 @@ class Scenario(Base, UserDict):
             target[key] = modified_value
 
         return target
+
+    def save_to_gcs_bucket(self, signed_url_or_dict) -> dict:
+        """
+        Saves FileStore objects contained within this Scenario to a Google Cloud Storage bucket.
+
+        This method finds all FileStore objects in the Scenario and uploads them to GCS using
+        the provided signed URL(s). If the Scenario itself was created from a FileStore (has
+        base64_string as a top-level key), it uploads that content directly.
+
+        Args:
+            signed_url_or_dict: Either:
+                - str: Single signed URL (for single FileStore or Scenario from FileStore)
+                - dict: Mapping of scenario keys to signed URLs for multiple FileStore objects
+                        e.g., {"video": "signed_url_1", "image": "signed_url_2"}
+
+        Returns:
+            dict: Summary of upload operations performed
+
+        Raises:
+            ValueError: If no uploadable content found or content is offloaded
+            requests.RequestException: If any upload fails
+        """
+        from edsl.scenarios import FileStore
+        import requests
+        import base64
+
+        upload_results = []
+
+        # Case 1: This Scenario was created from a FileStore (has direct base64_string)
+        if "base64_string" in self and isinstance(self.get("base64_string"), str):
+            if self["base64_string"] == "offloaded":
+                raise ValueError("File content is offloaded. Cannot upload to GCS.")
+
+            # For single FileStore scenario, expect string URL
+            if isinstance(signed_url_or_dict, dict):
+                raise ValueError(
+                    "For Scenario created from FileStore, provide a single signed URL string, not a dictionary."
+                )
+
+            signed_url = signed_url_or_dict
+
+            # Get file info from Scenario keys
+            mime_type = self.get("mime_type", "application/octet-stream")
+            suffix = self.get("suffix", "")
+
+            # Decode and upload
+            try:
+                file_content = base64.b64decode(self["base64_string"])
+            except Exception as e:
+                raise ValueError(f"Failed to decode base64 content: {e}")
+
+            headers = {
+                "Content-Type": mime_type,
+                "Content-Length": str(len(file_content)),
+            }
+
+            response = requests.put(signed_url, data=file_content, headers=headers)
+            response.raise_for_status()
+
+            upload_results.append(
+                {
+                    "type": "scenario_filestore_content",
+                    "status": "success",
+                    "status_code": response.status_code,
+                    "file_size": len(file_content),
+                    "mime_type": mime_type,
+                    "file_extension": suffix,
+                }
+            )
+
+        # Case 2: Find FileStore objects in Scenario values
+        else:
+            # Collect all FileStore keys first
+            filestore_keys = [
+                key for key, value in self.items() if isinstance(value, FileStore)
+            ]
+
+            if not filestore_keys:
+                raise ValueError("No FileStore objects found in Scenario to upload.")
+
+            # Handle URL parameter
+            if isinstance(signed_url_or_dict, str):
+                # Single URL provided for multiple FileStore objects - this will cause overwrites
+                if len(filestore_keys) > 1:
+                    raise ValueError(
+                        f"Multiple FileStore objects found ({filestore_keys}) but only one signed URL provided. "
+                        f"Provide a dictionary mapping keys to URLs to avoid overwrites: "
+                        f"{{'{filestore_keys[0]}': 'url1', '{filestore_keys[1]}': 'url2', ...}}"
+                    )
+
+                # Single FileStore object, single URL is fine
+                url_mapping = {filestore_keys[0]: signed_url_or_dict}
+
+            elif isinstance(signed_url_or_dict, dict):
+                # Dictionary of URLs provided
+                missing_keys = set(filestore_keys) - set(signed_url_or_dict.keys())
+                if missing_keys:
+                    raise ValueError(
+                        f"Missing signed URLs for FileStore keys: {list(missing_keys)}"
+                    )
+
+                extra_keys = set(signed_url_or_dict.keys()) - set(filestore_keys)
+                if extra_keys:
+                    raise ValueError(
+                        f"Signed URLs provided for non-FileStore keys: {list(extra_keys)}"
+                    )
+
+                url_mapping = signed_url_or_dict
+
+            else:
+                raise ValueError(
+                    "signed_url_or_dict must be either a string or a dictionary"
+                )
+
+            # Upload each FileStore object
+            for key, value in self.items():
+                if isinstance(value, FileStore):
+                    try:
+                        result = value.save_to_gcs_bucket(url_mapping[key])
+                        result["scenario_key"] = key
+                        result["type"] = "filestore_object"
+                        upload_results.append(result)
+                    except Exception as e:
+                        upload_results.append(
+                            {
+                                "scenario_key": key,
+                                "type": "filestore_object",
+                                "status": "error",
+                                "error": str(e),
+                            }
+                        )
+
+        return {
+            "total_uploads": len(upload_results),
+            "successful_uploads": len(
+                [r for r in upload_results if r.get("status") == "success"]
+            ),
+            "failed_uploads": len(
+                [r for r in upload_results if r.get("status") == "error"]
+            ),
+            "upload_details": upload_results,
+        }
+
+    def get_filestore_info(self) -> dict:
+        """
+        Returns information about FileStore objects present in this Scenario.
+
+        This method is useful for determining how many signed URLs need to be generated
+        and what file extensions/types are present before calling save_to_gcs_bucket().
+
+        Returns:
+            dict: Information about FileStore objects containing:
+                - total_count: Total number of FileStore objects
+                - filestore_keys: List of scenario keys that contain FileStore objects
+                - file_extensions: Dictionary mapping keys to file extensions
+                - file_types: Dictionary mapping keys to MIME types
+                - is_filestore_scenario: Boolean indicating if this Scenario was created from a FileStore
+                - summary: Human-readable summary of files
+
+
+        """
+        from edsl.scenarios import FileStore
+
+        # Check if this Scenario was created from a FileStore
+        is_filestore_scenario = "base64_string" in self and isinstance(
+            self.get("base64_string"), str
+        )
+
+        if is_filestore_scenario:
+            # Single FileStore scenario
+            return {
+                "total_count": 1,
+                "filestore_keys": ["filestore_content"],
+                "file_extensions": {"filestore_content": self.get("suffix", "")},
+                "file_types": {
+                    "filestore_content": self.get(
+                        "mime_type", "application/octet-stream"
+                    )
+                },
+                "is_filestore_scenario": True,
+                "summary": f"Single FileStore content with extension '{self.get('suffix', 'unknown')}'",
+            }
+
+        # Regular Scenario with FileStore objects as values
+        filestore_info = {}
+        file_extensions = {}
+        file_types = {}
+
+        for key, value in self.items():
+            if isinstance(value, FileStore):
+                filestore_info[key] = {
+                    "extension": getattr(value, "suffix", ""),
+                    "mime_type": getattr(
+                        value, "mime_type", "application/octet-stream"
+                    ),
+                    "binary": getattr(value, "binary", True),
+                    "path": getattr(value, "path", "unknown"),
+                }
+                file_extensions[key] = getattr(value, "suffix", "")
+                file_types[key] = getattr(
+                    value, "mime_type", "application/octet-stream"
+                )
+
+        # Generate summary
+        if filestore_info:
+            ext_summary = [f"{key}({ext})" for key, ext in file_extensions.items()]
+            summary = (
+                f"{len(filestore_info)} FileStore objects: {', '.join(ext_summary)}"
+            )
+        else:
+            summary = "No FileStore objects found"
+
+        return {
+            "total_count": len(filestore_info),
+            "filestore_keys": list(filestore_info.keys()),
+            "file_extensions": file_extensions,
+            "file_types": file_types,
+            "is_filestore_scenario": False,
+            "detailed_info": filestore_info,
+            "summary": summary,
+        }
 
     def to_dict(
         self, add_edsl_version: bool = True, offload_base64: bool = False
