@@ -83,6 +83,10 @@ def load_services_builder(path: Union[str, Path] = ".") -> ServicesBuilder:
     if not app_file.is_file():
         raise FileNotFoundError(f"app.py not found at: {app_file}")
     
+    print(f"🔍 DEBUG: Loading app.py from: {app_file}")
+    print(f"🔍 DEBUG: File exists: {app_file.exists()}")
+    print(f"🔍 DEBUG: File size: {app_file.stat().st_size} bytes")
+    
     # Load the app.py module dynamically
     spec = importlib.util.spec_from_file_location("app", app_file)
     if spec is None or spec.loader is None:
@@ -95,18 +99,121 @@ def load_services_builder(path: Union[str, Path] = ".") -> ServicesBuilder:
     sys.path.insert(0, str(app_file.parent))
     
     try:
+        print(f"🔍 DEBUG: Attempting to execute module from {app_file}")
+        
+        # First, let's try to compile the file to check for syntax errors
+        try:
+            with open(app_file, 'r', encoding='utf-8') as f:
+                source_code = f.read()
+            compile(source_code, str(app_file), 'exec')
+            print(f"🔍 DEBUG: File compiles successfully")
+        except (SyntaxError, IndentationError) as compile_err:
+            print(f"❌ COMPILE ERROR in {app_file}:")
+            print(f"   Error: {compile_err}")
+            print(f"   Line: {getattr(compile_err, 'lineno', 'unknown')}")
+            print(f"   Text: {getattr(compile_err, 'text', 'unknown')}")
+            raise compile_err
+        
         spec.loader.exec_module(app_module)
+        print(f"🔍 DEBUG: Successfully executed module")
+    except IndentationError as e:
+        print(f"❌ INDENTATION ERROR in {app_file}:")
+        print(f"   Error: {e}")
+        print(f"   Line: {getattr(e, 'lineno', 'unknown')}")
+        print(f"   Text: {getattr(e, 'text', 'unknown')}")
+        print(f"   Position: {getattr(e, 'offset', 'unknown')}")
+        
+        # Try to show the problematic lines
+        try:
+            with open(app_file, 'r', encoding='utf-8') as f:
+                lines = f.readlines()
+            
+            if hasattr(e, 'lineno') and e.lineno:
+                lineno = e.lineno
+                print(f"\n📝 Context around line {lineno}:")
+                start = max(0, lineno - 3)
+                end = min(len(lines), lineno + 3)
+                
+                for i in range(start, end):
+                    line_num = i + 1
+                    line_content = lines[i].rstrip()
+                    marker = " --> " if line_num == lineno else "     "
+                    print(f"{marker}{line_num:3d}: {line_content}")
+                    
+                    # Show whitespace for the problematic line
+                    if line_num == lineno:
+                        visible_whitespace = line_content.replace('\t', '→   ').replace(' ', '·')
+                        print(f"     Whitespace: {visible_whitespace}")
+        except Exception as file_err:
+            print(f"   Could not read file for context: {file_err}")
+        
+        raise IndentationError(f"IndentationError in {app_file}: {e}") from e
+    except ImportError as e:
+        print(f"❌ IMPORT ERROR when loading {app_file}:")
+        print(f"   Error: {e}")
+        print(f"   This usually means one of your imports is missing or has syntax errors")
+        print(f"   Check your imports in {app_file}")
+        
+        # Try to identify which import is failing
+        try:
+            with open(app_file, 'r', encoding='utf-8') as f:
+                lines = f.readlines()
+            
+            print(f"\n📝 Imports in {app_file}:")
+            for i, line in enumerate(lines, 1):
+                stripped = line.strip()
+                if stripped.startswith(('import ', 'from ')) and not stripped.startswith('#'):
+                    print(f"   {i:3d}: {stripped}")
+        except Exception as file_err:
+            print(f"   Could not read file for analysis: {file_err}")
+        
+        raise ImportError(f"ImportError when loading {app_file}: {e}") from e
+    except SyntaxError as e:
+        print(f"❌ SYNTAX ERROR in {app_file}:")
+        print(f"   Error: {e}")
+        print(f"   Line: {getattr(e, 'lineno', 'unknown')}")
+        print(f"   Text: {getattr(e, 'text', 'unknown')}")
+        print(f"   Position: {getattr(e, 'offset', 'unknown')}")
+        
+        # Try to show the problematic lines
+        try:
+            with open(app_file, 'r', encoding='utf-8') as f:
+                lines = f.readlines()
+            
+            if hasattr(e, 'lineno') and e.lineno:
+                lineno = e.lineno
+                print(f"\n📝 Context around line {lineno}:")
+                start = max(0, lineno - 3)
+                end = min(len(lines), lineno + 3)
+                
+                for i in range(start, end):
+                    line_num = i + 1
+                    line_content = lines[i].rstrip()
+                    marker = " --> " if line_num == lineno else "     "
+                    print(f"{marker}{line_num:3d}: {line_content}")
+        except Exception as file_err:
+            print(f"   Could not read file for context: {file_err}")
+        
+        raise SyntaxError(f"SyntaxError in {app_file}: {e}") from e
+    except Exception as e:
+        print(f"❌ UNEXPECTED ERROR loading {app_file}:")
+        print(f"   Error type: {type(e).__name__}")
+        print(f"   Error: {e}")
+        raise RuntimeError(f"Failed to load {app_file}: {e}") from e
     finally:
         sys.path[:] = original_path
     
     # Extract the services builder
     if not hasattr(app_module, 'services'):
+        print(f"🔍 DEBUG: Available attributes in app module: {dir(app_module)}")
         raise AttributeError(f"app.py does not contain a 'services' variable of type ServicesBuilder")
     
     services = app_module.services
     if not isinstance(services, ServicesBuilder):
+        print(f"🔍 DEBUG: 'services' variable type: {type(services)}")
         raise TypeError(f"'services' variable in app.py is not a ServicesBuilder instance, got {type(services)}")
     
+    print(f"🔍 DEBUG: Successfully loaded ServicesBuilder with {len(services)} services")
     return services
 
 
@@ -233,7 +340,7 @@ def local_run(path: Path, port: int, install_deps: bool):
     PATH is the directory containing the extension (defaults to current directory).
     """
     target = path.expanduser().resolve()
-    
+        
     try:
         services_builder = load_services_builder(target)
         
