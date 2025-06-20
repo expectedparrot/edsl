@@ -26,7 +26,7 @@ class CoopJobsObjects(CoopObjects):
 
         c = Coop()
         job_details = [
-            c.remote_inference_get(obj["uuid"], include_json_string=True)
+            c.new_remote_inference_get(obj["uuid"], include_json_string=True)
             for obj in self
         ]
 
@@ -53,7 +53,7 @@ class CoopJobsObjects(CoopObjects):
 
         for obj in self:
             if obj.get("results_uuid"):
-                result = c.get(obj["results_uuid"])
+                result = c.pull(obj["results_uuid"], expected_object_type="results")
                 results.append(result)
 
         return results

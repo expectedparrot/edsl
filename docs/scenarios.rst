@@ -1,5 +1,38 @@
 .. _scenarios:
 
+`from_prompt`
+def from_prompt(self, description: str, name:Optional[str] = "item", target_number:int = 10, verbose = False):
+        from ..questions.question_list import QuestionList
+        q = QuestionList(question_name = name, 
+                         question_text = description + f"\n Please try to return {target_number} examples.")
+        results = q.run(verbose = verbose)
+        return results.select(name).to_scenario_list().expand(name)
+
+`from_search_terms`
+def from_search_terms(cls, search_terms: List[str]) -> ScenarioList:
+        """Create a ScenarioList from a list of search terms, using Wikipedia.
+
+        Args:
+            search_terms: A list of search terms.
+        """
+        from ..utilities.wikipedia import fetch_wikipedia_content
+        results = fetch_wikipedia_content(search_terms)
+        return cls([Scenario(result) for result in results])
+
+def augment_with_wikipedia(self, search_key:str, content_only: bool = True, key_name: str = "wikipedia_content") -> ScenarioList:
+        """Augment the ScenarioList with Wikipedia content."""
+        search_terms = self.select(search_key).to_list()
+        wikipedia_results = ScenarioList.from_search_terms(search_terms)
+        new_sl = ScenarioList(data = [], codebook = self.codebook)
+        for scenario, wikipedia_result in zip(self, wikipedia_results):
+            if content_only:
+                scenario[key_name] = wikipedia_result["content"]
+                new_sl.append(scenario)
+            else:
+                scenario[key_name] = wikipedia_result
+                new_sl.append(scenario)
+        return new_sl
+
 Scenarios
 =========
 
@@ -388,7 +421,7 @@ Scenario methods
 ----------------
 
 There are a variety of methods for working with scenarios and scenario lists, including:
-`concatenate`, `concatenate_to_list`, `concatenate_to_set`, `drop`, `duplicate` `expand`, `filter`, `keep`, `mutate`, `order_by`, `sample`, `shuffle`, `times`, `tranform`, `unpack_dict`
+`concatenate`, `concatenate_to_list`, `concatenate_to_set`, `drop`, `duplicate` `expand`, `filter`, `keep`, `mutate`, `order_by`, `rename`, `sample`, `shuffle`, `times`, `tranform`, `unpack_dict`
 
 These methods can be used to manipulate scenarios and scenario lists in various ways, such as sampling a subset of scenarios, shuffling the order of scenarios, concatenating scenarios together, filtering scenarios based on certain criteria, and more.
 Examples of some of these methods are provided below.
