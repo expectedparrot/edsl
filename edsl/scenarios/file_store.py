@@ -534,6 +534,53 @@ class FileStore(Scenario):
                 file_store_dict["base64_string"] = "offloaded"
             return self.__class__.from_dict(file_store_dict)
 
+    def save_to_gcs_bucket(self, signed_url: str) -> dict:
+        """
+        Saves the FileStore's file content to a Google Cloud Storage bucket using a signed URL.
+
+        Args:
+            signed_url (str): The signed URL for uploading to GCS bucket
+
+        Returns:
+            dict: Response from the GCS upload operation
+
+        Raises:
+            ValueError: If base64_string is offloaded or missing
+            requests.RequestException: If the upload fails
+        """
+        import requests
+        import base64
+
+        # Check if content is available
+        if not hasattr(self, "base64_string") or self.base64_string == "offloaded":
+            raise ValueError(
+                "File content is not available (offloaded or missing). Cannot upload to GCS."
+            )
+
+        # Decode base64 content to bytes
+        try:
+            file_content = base64.b64decode(self.base64_string)
+        except Exception as e:
+            raise ValueError(f"Failed to decode base64 content: {e}")
+
+        # Prepare headers with proper content type
+        headers = {
+            "Content-Type": self.mime_type or "application/octet-stream",
+            "Content-Length": str(len(file_content)),
+        }
+
+        # Upload to GCS using the signed URL
+        response = requests.put(signed_url, data=file_content, headers=headers)
+        response.raise_for_status()
+
+        return {
+            "status": "success",
+            "status_code": response.status_code,
+            "file_size": len(file_content),
+            "mime_type": self.mime_type,
+            "file_extension": self.suffix,
+        }
+
     @classmethod
     def pull(cls, url_or_uuid: Union[str, UUID]) -> "FileStore":
         """
