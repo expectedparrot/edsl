@@ -39,7 +39,7 @@ import json
 import pickle
 
 
-# Import for refactoring to Source classes 
+# Import for refactoring to Source classes
 from edsl.scenarios.scenario_source import deprecated_classmethod, TuplesSource
 
 from simpleeval import EvalWithCompoundTypes, NameNotDefined  # type: ignore
@@ -98,7 +98,6 @@ TableFormat: TypeAlias = Literal[
 ]
 
 
-
 class ScenarioSQLiteList(SQLiteList):
     """SQLite-backed list specifically for storing Scenario objects."""
 
@@ -117,6 +116,7 @@ if use_sqlite := True:
     data_class = ScenarioSQLiteList
 else:
     data_class = list
+
 
 class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
     """
@@ -219,13 +219,13 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         """
         seen_hashes = set()
         result = ScenarioList()
-        
+
         for scenario in self.data:
             scenario_hash = hash(scenario)
             if scenario_hash not in seen_hashes:
                 seen_hashes.add(scenario_hash)
                 result.append(scenario)
-                
+
         return result
 
     @property
@@ -306,8 +306,8 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         ScenarioList([Scenario({'custom_name': 1, 'b': 2}), Scenario({'a': 1, 'b': 1})])
         """
         codebook = existing_codebook.copy() if existing_codebook else {}
-        
-        new_scenarios = ScenarioList(data = [], codebook = codebook)
+
+        new_scenarios = ScenarioList(data=[], codebook=codebook)
 
         for scenario in self:
             new_scenario = {}
@@ -355,7 +355,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         if value_vars is None:
             value_vars = [field for field in self[0].keys() if field not in id_vars]
 
-        new_scenarios = ScenarioList(data = [], codebook = {})
+        new_scenarios = ScenarioList(data=[], codebook={})
         for scenario in self:
             for var in value_vars:
                 new_scenario = {id_var: scenario[id_var] for id_var in id_vars}
@@ -366,13 +366,22 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         return new_scenarios
 
     @classmethod
-    def from_prompt(self, description: str, name:Optional[str] = "item", target_number:int = 10, verbose = False):
+    def from_prompt(
+        self,
+        description: str,
+        name: Optional[str] = "item",
+        target_number: int = 10,
+        verbose=False,
+    ):
         from ..questions.question_list import QuestionList
-        q = QuestionList(question_name = name, 
-                         question_text = description + f"\n Please try to return {target_number} examples.")
-        results = q.run(verbose = verbose)
+
+        q = QuestionList(
+            question_name=name,
+            question_text=description
+            + f"\n Please try to return {target_number} examples.",
+        )
+        results = q.run(verbose=verbose)
         return results.select(name).to_scenario_list().expand(name)
-    
 
     def __add__(self, other):
         if isinstance(other, Scenario):
@@ -395,14 +404,20 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             search_terms: A list of search terms.
         """
         from ..utilities.wikipedia import fetch_wikipedia_content
+
         results = fetch_wikipedia_content(search_terms)
         return cls([Scenario(result) for result in results])
-    
-    def augment_with_wikipedia(self, search_key:str, content_only: bool = True, key_name: str = "wikipedia_content") -> ScenarioList:
+
+    def augment_with_wikipedia(
+        self,
+        search_key: str,
+        content_only: bool = True,
+        key_name: str = "wikipedia_content",
+    ) -> ScenarioList:
         """Augment the ScenarioList with Wikipedia content."""
         search_terms = self.select(search_key).to_list()
         wikipedia_results = ScenarioList.from_search_terms(search_terms)
-        new_sl = ScenarioList(data = [], codebook = self.codebook)
+        new_sl = ScenarioList(data=[], codebook=self.codebook)
         for scenario, wikipedia_result in zip(self, wikipedia_results):
             if content_only:
                 scenario[key_name] = wikipedia_result["content"]
@@ -411,7 +426,6 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
                 scenario[key_name] = wikipedia_result
                 new_sl.append(scenario)
         return new_sl
-
 
     def pivot(
         self,
@@ -452,11 +466,11 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             value = scenario[value_name]
             pivoted_dict[id_key][variable] = value
 
-        new_sl = ScenarioList(data = [], codebook = self.codebook)
+        new_sl = ScenarioList(data=[], codebook=self.codebook)
         for id_key, values in pivoted_dict.items():
             new_sl.append(Scenario(dict(zip(id_vars, id_key), **values)))
         return new_sl
-  
+
     def group_by(
         self, id_vars: List[str], variables: List[str], func: Callable
     ) -> ScenarioList:
@@ -497,7 +511,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
                 grouped[key][var].append(scenario[var])
 
         # Apply the function to each group
-        new_sl= ScenarioList(data = [], codebook = self.codebook)
+        new_sl = ScenarioList(data=[], codebook=self.codebook)
         for key, group in grouped.items():
             try:
                 aggregated = func(*[group[var] for var in variables])
@@ -551,21 +565,22 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         """
         # Start with a seed value
         running_hash = 0
-        
+
         # Use a heap to maintain sorted order as we go
         import heapq
+
         heap = []
-        
+
         # Process each scenario's hash and add to heap
         for scenario in self:
             heapq.heappush(heap, hash(scenario))
-            
+
         # Combine hashes in sorted order
         while heap:
             h = heapq.heappop(heap)
             # Use a large prime number to mix the bits
             running_hash = (running_hash * 31) ^ h
-            
+
         return running_hash
 
     def __eq__(self, other: Any) -> bool:
@@ -608,6 +623,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         ScenarioList([Scenario({'a': 1, 'b': 1}), Scenario({'a': 1, 'b': 2}), Scenario({'a': 2, 'b': 1}), Scenario({'a': 2, 'b': 2})])
         """
         import warnings
+
         warnings.warn("times is deprecated, use * instead", DeprecationWarning)
         return self.__mul__(other)
 
@@ -927,6 +943,27 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             new_list.append(scenario.copy())
         return new_list
 
+    def offload(self, inplace: bool = False) -> "ScenarioList":
+        """
+        Offloads base64-encoded content from all scenarios in the list by replacing
+        'base64_string' fields with 'offloaded'. This reduces memory usage.
+
+        Args:
+            inplace (bool): If True, modify the current scenario list. If False, return a new one.
+
+        Returns:
+            ScenarioList: The modified scenario list (either self or a new instance).
+        """
+        if inplace:
+            for i, scenario in enumerate(self.data):
+                self.data[i] = scenario.offload(inplace=True)
+            return self
+        else:
+            new_list = ScenarioList(codebook=self.codebook)
+            for scenario in self.data:
+                new_list.append(scenario.offload(inplace=False))
+            return new_list
+
     def __iter__(self):
         """Iterate over scenarios using streaming."""
         return iter(self.data)
@@ -967,7 +1004,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
                 sample_size = min(len(self), 100)  # Check at most 100 scenarios
                 base_keys = set(first_item.keys())
                 keys = set()
-                
+
                 # Use a counter to check only the sample_size
                 count = 0
                 for scenario in self:
@@ -975,9 +1012,10 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
                     count += 1
                     if count >= sample_size:
                         break
-                        
+
                 if keys != base_keys:
                     import warnings
+
                     warnings.warn(
                         "Ragged ScenarioList detected (different keys for different scenario entries). This may cause unexpected behavior."
                     )
@@ -999,10 +1037,10 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
                     # Create a copy and immediately append to the new list
                     scenario_copy = scenario.copy()
                     new_sl.append(scenario_copy)
-                    
+
                     # Remove reference to allow for garbage collection
                     del scenario_copy
-                
+
         except NameNotDefined as e:
             # Get available fields for error message
             try:
@@ -1023,22 +1061,26 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
 
         return new_sl
 
+    @classmethod
+    def from_urls(
+        cls, urls: list[str], field_name: Optional[str] = "text"
+    ) -> ScenarioList:
+        from .scenario_source import URLSource
+
+        return URLSource(urls, field_name).to_scenario_list()
 
     @classmethod
-    def from_urls(cls, urls: list[str], field_name: Optional[str] = "text") -> ScenarioList:
-        from .scenario_source import URLSource
-        return URLSource(urls, field_name).to_scenario_list()
-    
-    @classmethod
-    def from_list(cls, field_name: str, values: list, use_indexes: bool = False) -> ScenarioList:
+    def from_list(
+        cls, field_name: str, values: list, use_indexes: bool = False
+    ) -> ScenarioList:
         """Create a ScenarioList from a list of values with a specified field name.
-        
+
         >>> ScenarioList.from_list('text', ['a', 'b', 'c'])
         ScenarioList([Scenario({'text': 'a'}), Scenario({'text': 'b'}), Scenario({'text': 'c'})])
         """
         from .scenario_source import ListSource
+
         return ListSource(field_name, values, use_indexes).to_scenario_list()
-    
 
     def select(self, *fields: str) -> ScenarioList:
         """
@@ -1131,23 +1173,24 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             sl = ScenarioList.from_directory(recursive=True, key_name="document")
         """
         import warnings
+
         warnings.warn(
             "from_directory is deprecated. Use ScenarioSource.from_source('directory', ...) instead.",
             DeprecationWarning,
-            stacklevel=2
+            stacklevel=2,
         )
         from .scenario_source import DirectorySource
-        
+
         source = DirectorySource(
             directory=path or os.getcwd(),
             pattern="*",
             recursive=recursive,
-            metadata=True
+            metadata=True,
         )
-        
+
         # Get the ScenarioList with FileStore objects under "file" key
         sl = source.to_scenario_list()
-        
+
         # If the requested key is different from the default "file" key used by DirectoryScanner.scan_directory,
         # rename the keys in all scenarios
         if key_name != "file":
@@ -1162,7 +1205,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
                         new_data[k] = v
                 result.append(Scenario(new_data))
             return result
-            
+
         return sl
 
     # @classmethod
@@ -1298,18 +1341,21 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
 
     @classmethod
     @deprecated_classmethod("ScenarioSource.from_source('list_of_tuples', ...)")
-    def from_list_of_tuples(cls, field_names: list[str], values: list[tuple], use_indexes: bool = False) -> ScenarioList:
+    def from_list_of_tuples(
+        cls, field_names: list[str], values: list[tuple], use_indexes: bool = False
+    ) -> ScenarioList:
         """Create a ScenarioList from a list of tuples with specified field names.
-        
+
         Args:
             field_names: A list of field names for the tuples
             values: A list of tuples with values matching the field_names
             use_indexes: Whether to add an index field to each scenario
-            
+
         Returns:
             A ScenarioList containing the data from the tuples
         """
         from .scenario_source import TuplesSource
+
         source = TuplesSource(field_names, values, use_indexes)
         return source.to_scenario_list()
 
@@ -1322,7 +1368,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         >>> s.add_list('age', [30, 25])
         ScenarioList([Scenario({'name': 'Alice', 'age': 30}), Scenario({'name': 'Bob', 'age': 25})])
         """
-        #sl = self.duplicate()
+        # sl = self.duplicate()
         if len(values) != len(self.data):
             raise ScenarioError(
                 f"Length of values ({len(values)}) does not match length of ScenarioList ({len(self)})"
@@ -1375,7 +1421,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         ScenarioList([Scenario({'first_name': 'Alice', 'years': 30}), Scenario({'first_name': 'Bob', 'years': 25})])
 
         """
-        new_sl = ScenarioList(data = [], codebook=self.codebook)
+        new_sl = ScenarioList(data=[], codebook=self.codebook)
         for scenario in self:
             new_scenario = scenario.rename(replacement_dict)
             new_sl.append(new_scenario)
@@ -1441,12 +1487,13 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             sqlite3.Error: If there is an error executing the database query
         """
         from .scenario_source import SQLiteSource
-        
+
         # Handle the case where sql_query is provided instead of table
         if table is None and sql_query is None:
             from .exceptions import ValueScenarioError
+
             raise ValueScenarioError("Either table or sql_query must be provided")
-            
+
         if table is None:
             # We need to use the old implementation for SQL queries
             import sqlite3
@@ -1469,19 +1516,22 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
 
     @classmethod
     @deprecated_classmethod("ScenarioSource.from_source('latex', ...)")
-    def from_latex(cls, tex_file_path: str, table_index: int = 0, has_header: bool = True):
+    def from_latex(
+        cls, tex_file_path: str, table_index: int = 0, has_header: bool = True
+    ):
         """Create a ScenarioList from a LaTeX file.
-        
+
         Args:
             tex_file_path: The path to the LaTeX file.
             table_index: The index of the table to extract (if multiple tables exist).
                 Default is 0 (first table).
             has_header: Whether the table has a header row. Default is True.
-            
+
         Returns:
             ScenarioList: A new ScenarioList containing the data from the LaTeX table.
         """
         from .scenario_source import LaTeXSource
+
         source = LaTeXSource(tex_file_path, table_index, has_header)
         return source.to_scenario_list()
 
@@ -1501,6 +1551,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
 
         """
         from .scenario_source import GoogleDocSource
+
         source = GoogleDocSource(url)
         return source.to_scenario_list()
 
@@ -1517,6 +1568,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         ScenarioList([Scenario({'name': 'Alice', 'age': 30, 'location': 'New York'}), Scenario({'name': 'Bob', 'age': 25, 'location': 'Los Angeles'})])
         """
         from .scenario_source import PandasSource
+
         source = PandasSource(df)
         return source.to_scenario_list()
 
@@ -1534,6 +1586,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             ScenarioList: A ScenarioList containing the data from the Stata file
         """
         from .scenario_source import StataSource
+
         source = StataSource(filepath, include_metadata)
         return source.to_scenario_list()
 
@@ -1550,12 +1603,13 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
 
         Returns:
             ScenarioList: A ScenarioList containing data from the Wikipedia table.
-            
+
         Example usage:
             url = "https://en.wikipedia.org/wiki/List_of_countries_by_GDP_(nominal)"
             scenarios = ScenarioList.from_wikipedia(url, 0)
         """
         from .scenario_source import WikipediaSource
+
         source = WikipediaSource(url, table_index, header)
         return source.to_scenario_list()
 
@@ -1584,7 +1638,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         sheet_name: Optional[str] = None,
         skip_rows: Optional[List[int]] = None,
         use_codebook: bool = False,
-        **kwargs
+        **kwargs,
     ) -> ScenarioList:
         """Create a ScenarioList from an Excel file.
 
@@ -1633,19 +1687,24 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         'Charlie'
         """
         from .scenario_source import ExcelSource
+
         source = ExcelSource(
-            file_path=filename, 
-            sheet_name=sheet_name, 
-            skip_rows=skip_rows, 
+            file_path=filename,
+            sheet_name=sheet_name,
+            skip_rows=skip_rows,
             use_codebook=use_codebook,
-            **kwargs
+            **kwargs,
         )
         return source.to_scenario_list()
 
     @classmethod
     @deprecated_classmethod("ScenarioSource.from_source('google_sheet', ...)")
     def from_google_sheet(
-        cls, url: str, sheet_name: str = None, column_names: Optional[List[str]] = None, **kwargs
+        cls,
+        url: str,
+        sheet_name: str = None,
+        column_names: Optional[List[str]] = None,
+        **kwargs,
     ) -> ScenarioList:
         """Create a ScenarioList from a Google Sheet.
 
@@ -1665,102 +1724,112 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
 
         """
         from .scenario_source import GoogleSheetSource
-        source = GoogleSheetSource(url, sheet_name=sheet_name, column_names=column_names, **kwargs)
+
+        source = GoogleSheetSource(
+            url, sheet_name=sheet_name, column_names=column_names, **kwargs
+        )
         return source.to_scenario_list()
 
     @classmethod
     @deprecated_classmethod("ScenarioSource.from_source('delimited_file', ...)")
     def from_delimited_file(
-        cls, source: Union[str, "ParseResult"], delimiter: str = ",", encoding: str = "utf-8", **kwargs
+        cls,
+        source: Union[str, "ParseResult"],
+        delimiter: str = ",",
+        encoding: str = "utf-8",
+        **kwargs,
     ) -> ScenarioList:
         """Create a ScenarioList from a delimited file (CSV/TSV) or URL.
-        
+
         Args:
             source: Path to a local file or URL to a remote file.
             delimiter: The delimiter character used in the file (default is ',').
             encoding: The file encoding to use (default is 'utf-8').
             **kwargs: Additional parameters for csv reader.
-            
+
         Returns:
             ScenarioList: An instance of the ScenarioList class.
         """
         from .scenario_source import DelimitedFileSource
         from urllib.parse import ParseResult
-        
+
         if isinstance(source, ParseResult):
             # Convert ParseResult to string URL
             file_or_url = source.geturl()
         else:
             file_or_url = source
-            
+
         source = DelimitedFileSource(
-            file_or_url=file_or_url,
-            delimiter=delimiter,
-            encoding=encoding,
-            **kwargs
+            file_or_url=file_or_url, delimiter=delimiter, encoding=encoding, **kwargs
         )
         return source.to_scenario_list()
 
     # Convenience methods for specific file types
     @classmethod
     @deprecated_classmethod("ScenarioSource.from_source('csv', ...)")
-    def from_csv(cls, source: Union[str, "ParseResult"], has_header: bool = True, encoding: str = "utf-8", **kwargs) -> ScenarioList:
+    def from_csv(
+        cls,
+        source: Union[str, "ParseResult"],
+        has_header: bool = True,
+        encoding: str = "utf-8",
+        **kwargs,
+    ) -> ScenarioList:
         """Create a ScenarioList from a CSV file or URL.
-        
+
         Args:
             source: Path to a local file or URL to a remote file.
             has_header: Whether the file has a header row (default is True).
             encoding: The file encoding to use (default is 'utf-8').
             **kwargs: Additional parameters for csv reader.
-            
+
         Returns:
             ScenarioList: An instance of the ScenarioList class.
         """
         from .scenario_source import CSVSource
         from urllib.parse import ParseResult
-        
+
         if isinstance(source, ParseResult):
             # Convert ParseResult to string URL
             file_or_url = source.geturl()
         else:
             file_or_url = source
-            
+
         source = CSVSource(
-            file_or_url=file_or_url,
-            has_header=has_header,
-            encoding=encoding,
-            **kwargs
+            file_or_url=file_or_url, has_header=has_header, encoding=encoding, **kwargs
         )
         return source.to_scenario_list()
-        
+
     @classmethod
     @deprecated_classmethod("ScenarioSource.from_source('tsv', ...)")
-    def from_tsv(cls, source: Union[str, "ParseResult"], has_header: bool = True, encoding: str = "utf-8", **kwargs) -> ScenarioList:
+    def from_tsv(
+        cls,
+        source: Union[str, "ParseResult"],
+        has_header: bool = True,
+        encoding: str = "utf-8",
+        **kwargs,
+    ) -> ScenarioList:
         """Create a ScenarioList from a TSV file or URL.
-        
+
         Args:
             source: Path to a local file or URL to a remote file.
             has_header: Whether the file has a header row (default is True).
             encoding: The file encoding to use (default is 'utf-8').
             **kwargs: Additional parameters for csv reader.
-            
+
         Returns:
             ScenarioList: An instance of the ScenarioList class.
         """
         from .scenario_source import TSVSource
         from urllib.parse import ParseResult
-        
+
         if isinstance(source, ParseResult):
             # Convert ParseResult to string URL
             file_or_url = source.geturl()
         else:
             file_or_url = source
-            
+
         source = TSVSource(
-            file_or_url=file_or_url,
-            has_header=has_header,
-            encoding=encoding,
-            **kwargs
+            file_or_url=file_or_url, has_header=has_header, encoding=encoding, **kwargs
         )
         return source.to_scenario_list()
 
@@ -1786,7 +1855,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
     def from_tsv(cls, source: Union[str, "ParseResult"]) -> ScenarioList:
         """Create a ScenarioList from a TSV file or URL."""
         from .scenario_source import ScenarioSource
-        
+
         # Delegate to ScenarioSource implementation
         return ScenarioSource._from_tsv(source)
 
@@ -1807,12 +1876,12 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             data = sorted(self, key=lambda x: hash(x))
         else:
             data = self
-            
+
         d = {"scenarios": [s.to_dict(add_edsl_version=add_edsl_version) for s in data]}
 
         # Add codebook if it exists
-        if hasattr(self, 'codebook') and self.codebook:
-            d['codebook'] = self.codebook
+        if hasattr(self, "codebook") and self.codebook:
+            d["codebook"] = self.codebook
 
         if add_edsl_version:
             from .. import __version__
@@ -1900,10 +1969,12 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         from .scenario import Scenario
 
         # Extract codebook if it exists
-        codebook = data.get('codebook', None)
-        
+        codebook = data.get("codebook", None)
+
         # Create ScenarioList with scenarios and codebook
-        return cls([Scenario.from_dict(s) for s in data["scenarios"]], codebook=codebook)
+        return cls(
+            [Scenario.from_dict(s) for s in data["scenarios"]], codebook=codebook
+        )
 
     @classmethod
     def from_nested_dict(cls, data: dict) -> ScenarioList:
@@ -1948,7 +2019,6 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         """
         return cls([Scenario.example(randomize), Scenario.example(randomize)])
 
-
     def items(self):
         """Make this class compatible with dict.items() by accessing first scenario items.
 
@@ -1981,7 +2051,6 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             except (TypeError, ValueError):
                 # Fallback to empty scenario
                 return Scenario({})
-
 
     def to_agent_list(self):
         """Convert the ScenarioList to an AgentList.
@@ -2021,6 +2090,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             'Assistant'
         """
         from ..agents import AgentList
+
         return AgentList.from_scenario_list(self)
 
     def chunk(
@@ -2089,7 +2159,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             grouped[key].append(scenario[field])
 
         # Create a new ScenarioList with the collapsed field
-        new_sl = ScenarioList(data = [], codebook=self.codebook)
+        new_sl = ScenarioList(data=[], codebook=self.codebook)
         for key, values in grouped.items():
             new_scenario = dict(zip(id_vars, key))
             if separator:
@@ -2100,7 +2170,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
                 new_scenario["num_collapsed_rows"] = len(values)
             new_sl.append(Scenario(new_scenario))
 
-        #return ScenarioList(result)
+        # return ScenarioList(result)
         return new_sl
 
     def create_comparisons(
@@ -2195,7 +2265,6 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             result.append(Scenario(new_scenario))
 
         return ScenarioList(result)
-    
 
     @classmethod
     @deprecated_classmethod("ScenarioSource.from_source('parquet', ...)")
@@ -2209,6 +2278,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             ScenarioList: A new ScenarioList containing the scenarios from the Parquet file.
         """
         from .scenario_source import ParquetSource
+
         source = ParquetSource(filepath)
         return source.to_scenario_list()
 
@@ -2244,17 +2314,17 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
                     new_scenario[key] = value
             new_sl.append(Scenario(new_scenario))
         return new_sl
-    
+
     @classmethod
     @deprecated_classmethod("ScenarioSource.from_source('pdf', ...)")
     def from_pdf(cls, filename_or_url, collapse_pages=False):
         """Create a ScenarioList from a PDF file or URL."""
         from .scenario_source import PDFSource
-        
+
         source = PDFSource(
             file_path=filename_or_url,
             chunk_type="page" if not collapse_pages else "text",
-            chunk_size=1
+            chunk_size=1,
         )
         return source.to_scenario_list()
 
@@ -2263,32 +2333,28 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
     def from_pdf_to_image(cls, pdf_path, image_format="jpeg"):
         """Create a ScenarioList with images extracted from a PDF file."""
         from .scenario_source import PDFImageSource
-        
-        source = PDFImageSource(
-            file_path=pdf_path,
-            base_width=2000,
-            include_text=True
-        )
+
+        source = PDFImageSource(file_path=pdf_path, base_width=2000, include_text=True)
         return source.to_scenario_list()
-                                               
+
     @classmethod
     def from_source(cls, source_type: str, *args, **kwargs) -> "ScenarioList":
         """
         Create a ScenarioList from a specified source type.
-        
+
         This method serves as the main entry point for creating ScenarioList objects,
         providing a unified interface for various data sources.
-        
+
         Args:
             source_type: The type of source to create a ScenarioList from.
                          Valid values include: 'urls', 'directory', 'csv', 'tsv',
                          'excel', 'pdf', 'pdf_to_image', and others.
             *args: Positional arguments to pass to the source-specific method.
             **kwargs: Keyword arguments to pass to the source-specific method.
-            
+
         Returns:
             A ScenarioList object created from the specified source.
-            
+
         Examples:
             >>> # This is a simplified example for doctest
             >>> # In real usage, you would provide a path to your CSV file:
@@ -2298,9 +2364,11 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             >>> # sl_dir = ScenarioList.from_source('directory', '/path/to/files')
         """
         from .scenario_source import ScenarioSource
+
         return ScenarioSource.from_source(source_type, *args, **kwargs)
 
 
 if __name__ == "__main__":
     import doctest
+
     doctest.testmod(optionflags=doctest.ELLIPSIS)
