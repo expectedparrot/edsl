@@ -115,8 +115,8 @@ CONFIG_MAP = {
         "default": "90",
         "info": "This config var determines the maximum price before a confirmation prompt is shown.",
     },
-    "EDSL_EXTENSION_SERVICES":{
-        "default": "https://www.expectedparrot.com/content/johnjhorton/ep-services-experimental",
+    "EDSL_EXTENSION_GATEWAY_URL":{
+        "default": "http://0.0.0.0:8000",
         "info": "This is a Service object that has registered extensions."
     }
 }
