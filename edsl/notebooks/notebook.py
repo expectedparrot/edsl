@@ -140,6 +140,17 @@ class Notebook(Base):
         notebook_instance = cls(data=nb, name=name, lint=lint)
 
         return notebook_instance
+    
+    def generate_description(self) -> str:
+        """Generate a description of the notebook."""
+        from ..questions import QuestionFreeText
+        notebook_content = ""
+        for cell in self.data["cells"]:
+            if "source" in cell:
+                notebook_content += cell["source"]
+        q = QuestionFreeText(question_text=f"What is a good one sentence description of this notebook? The content is {notebook_content}", question_name="description")
+        results = q.run(verbose = False)
+        return results.select('answer.description').first()
 
     @classmethod
     def from_current_script(cls, lint: bool = True) -> "Notebook":

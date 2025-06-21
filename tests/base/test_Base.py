@@ -47,6 +47,7 @@ class TestBaseModels:
                 "CoopJobsObjects",
                 "CoopRegularObjects",
                 "CoopProlificFilters",
+                "Service"
             ]
 
         from edsl.base.exceptions import BaseNotImplementedError

@@ -132,10 +132,15 @@ class ObjectRegistry:
 
         # Look up the object type
         object_type = cls.edsl_class_to_object_type.get(edsl_class_name)
+
+        if isinstance(edsl_object, Scenario):
+            return "scenario"
+
         if object_type is None:
             from .exceptions import CoopValueError
 
             raise CoopValueError(f"Object type not found for {edsl_object=}")
+
         return object_type
 
     @classmethod
