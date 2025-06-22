@@ -25,8 +25,8 @@ class ServiceFetcher:
     """
     A class to fetch available services from the extension gateway.
     
-    The gateway URL should be provided via the EXTENSION_GATEWAY_URL environment variable.
-    Example: EXTENSION_GATEWAY_URL=http://localhost:8000
+    The gateway URL should be provided via the EDSL_EXTENSION_GATEWAY_URL config setting.
+    Example: EDSL_EXTENSION_GATEWAY_URL=http://localhost:8000
     """
     
     def __init__(self, gateway_url: Optional[str] = None, timeout: float = 10.0):
@@ -34,13 +34,13 @@ class ServiceFetcher:
         Initialize the ServiceFetcher.
         
         Args:
-            gateway_url: Optional URL override. If not provided, uses EXTENSION_GATEWAY_URL env var
+            gateway_url: Optional URL override. If not provided, uses EDSL_EXTENSION_GATEWAY_URL config
             timeout: Request timeout in seconds
         """
         self.gateway_url = gateway_url or CONFIG.get("EDSL_EXTENSION_GATEWAY_URL")
         if not self.gateway_url:
             raise ValueError(
-                "Gateway URL must be provided either as parameter or via EXTENSION_GATEWAY_URL environment variable"
+                "Gateway URL must be provided either as parameter or via EDSL_EXTENSION_GATEWAY_URL config setting"
             )
         
         # Remove trailing slash for consistency
@@ -49,9 +49,119 @@ class ServiceFetcher:
         
         logger.info(f"ServiceFetcher initialized with gateway URL: {self.gateway_url}")
     
+    def fetch_service_definitions(self) -> List['ServiceDefinition']:
+        """
+        Fetch all ServiceDefinition objects from the gateway.
+        
+        This method uses the ServiceDefinition.pull_all_from_gateway() method
+        to get complete service definitions with all parameters, cost info, etc.
+        
+        Returns:
+            List of ServiceDefinition objects
+            
+        Raises:
+            Various exceptions from ServiceDefinition gateway methods
+        """
+        from ..extension_authoring.authoring import ServiceDefinition
+        
+        logger.info("Fetching all service definitions from gateway")
+        return ServiceDefinition.pull_all_from_gateway(
+            gateway_url=self.gateway_url,
+            timeout=int(self.timeout)
+        )
+    
+    def fetch_service_definition(self, service_id: int) -> 'ServiceDefinition':
+        """
+        Fetch a specific ServiceDefinition by ID from the gateway.
+        
+        Args:
+            service_id: The database ID of the service definition
+            
+        Returns:
+            ServiceDefinition object
+            
+        Raises:
+            Various exceptions from ServiceDefinition gateway methods
+        """
+        from ..extension_authoring.authoring import ServiceDefinition
+        
+        logger.info(f"Fetching service definition ID {service_id} from gateway")
+        return ServiceDefinition.pull_from_gateway(
+            service_id=service_id,
+            gateway_url=self.gateway_url,
+            timeout=int(self.timeout)
+        )
+    
+    def fetch_service_definition_by_name(self, service_name: str) -> Optional['ServiceDefinition']:
+        """
+        Fetch a ServiceDefinition by name from the gateway.
+        
+        Args:
+            service_name: The name of the service to find
+            
+        Returns:
+            ServiceDefinition object if found, None otherwise
+        """
+        service_definitions = self.fetch_service_definitions()
+        
+        for service_def in service_definitions:
+            if service_def.service_name == service_name:
+                return service_def
+        
+        return None
+    
+    def fetch_service_definitions_by_collection(self, collection_name: str) -> List['ServiceDefinition']:
+        """
+        Fetch ServiceDefinitions from a specific collection.
+        
+        Args:
+            collection_name: The name of the collection to filter by
+            
+        Returns:
+            List of ServiceDefinition objects from the specified collection
+        """
+        service_definitions = self.fetch_service_definitions()
+        
+        return [
+            service_def for service_def in service_definitions
+            if service_def.service_collection_name == collection_name
+        ]
+    
+    def fetch_service_definitions_by_creator(self, creator_username: str) -> List['ServiceDefinition']:
+        """
+        Fetch ServiceDefinitions created by a specific user.
+        
+        Args:
+            creator_username: Username of the service creator
+            
+        Returns:
+            List of ServiceDefinition objects created by the specified user
+        """
+        service_definitions = self.fetch_service_definitions()
+        
+        return [
+            service_def for service_def in service_definitions
+            if service_def.creator_ep_username == creator_username
+        ]
+    
+    def list_service_summaries(self) -> List[Dict[str, Any]]:
+        """
+        Get basic service summaries from the gateway (faster than full definitions).
+        
+        Returns:
+            List of service summary dictionaries
+        """
+        from ..extension_authoring.authoring import ServiceDefinition
+        
+        logger.info("Listing service summaries from gateway")
+        return ServiceDefinition.list_from_gateway(
+            gateway_url=self.gateway_url,
+            timeout=int(self.timeout)
+        )
+
     async def fetch_services(self) -> List[ServiceInfo]:
         """
-        Fetch all available services from the gateway.
+        Fetch all available services from the gateway (basic info only).
         
         Returns:
             List of ServiceInfo objects representing available services
@@ -96,13 +206,13 @@ class ServiceFetcher:
     
     def fetch_services_sync(self) -> List[ServiceInfo]:
         """
-        Synchronous version of fetch_services.
+        Synchronous version of fetch_services (basic info only).
         
         Returns:
             List of ServiceInfo objects representing available services
             
         Raises:
-            httpx.HTTPError: If the request fails
+            httpx.HTTPError: If the request fails  
             ValueError: If the response format is unexpected
         """
         url = f"{self.gateway_url}/services"
@@ -141,7 +251,7 @@ class ServiceFetcher:
     
     async def fetch_service_collections(self) -> Dict[str, List[ServiceInfo]]:
         """
-        Fetch services grouped by collection.
+        Fetch services grouped by collection (basic info only).
         
         Returns:
             Dictionary mapping collection names to lists of ServiceInfo objects
@@ -159,7 +269,7 @@ class ServiceFetcher:
     
     def fetch_service_collections_sync(self) -> Dict[str, List[ServiceInfo]]:
         """
-        Synchronous version of fetch_service_collections.
+        Synchronous version of fetch_service_collections (basic info only).
         
         Returns:
             Dictionary mapping collection names to lists of ServiceInfo objects
@@ -177,7 +287,7 @@ class ServiceFetcher:
     
     async def fetch_services_by_creator(self, creator_username: str) -> List[ServiceInfo]:
         """
-        Fetch services created by a specific user.
+        Fetch services created by a specific user (basic info only).
         
         Args:
             creator_username: Username of the service creator
@@ -190,7 +300,7 @@ class ServiceFetcher:
     
     def fetch_services_by_creator_sync(self, creator_username: str) -> List[ServiceInfo]:
         """
-        Synchronous version of fetch_services_by_creator.
+        Synchronous version of fetch_services_by_creator (basic info only).
         
         Args:
             creator_username: Username of the service creator
@@ -234,10 +344,70 @@ class ServiceFetcher:
                 print(f"    Creator: {service.creator_ep_username}")
                 print()
 
-# Convenience function for quick access
+    def list_service_definitions(self, service_definitions: Optional[List['ServiceDefinition']] = None) -> None:
+        """
+        Print a formatted list of ServiceDefinition objects with detailed information.
+        
+        Args:
+            service_definitions: Optional list of ServiceDefinition objects to display. 
+                                If None, fetches all service definitions.
+        """
+        if service_definitions is None:
+            service_definitions = self.fetch_service_definitions()
+        
+        if not service_definitions:
+            print("No service definitions available.")
+            return
+        
+        print(f"\nAvailable Service Definitions ({len(service_definitions)} total):")
+        print("=" * 100)
+        
+        # Group by collection for better display
+        collections = {}
+        for service_def in service_definitions:
+            collection = service_def.service_collection_name
+            if collection not in collections:
+                collections[collection] = []
+            collections[collection].append(service_def)
+        
+        for collection_name, collection_services in collections.items():
+            print(f"\n{collection_name.upper()} Collection:")
+            print("-" * 50)
+            
+            for service_def in collection_services:
+                print(f"\n  📋 {service_def.service_name}")
+                print(f"     Description: {service_def.description}")
+                print(f"     Creator: {service_def.creator_ep_username}")
+                print(f"     Endpoint: {service_def.service_endpoint or 'Not set'}")
+                
+                # Show parameters
+                if service_def.parameters:
+                    print(f"     Parameters ({len(service_def.parameters)}):")
+                    for param_name, param_def in service_def.parameters.items():
+                        required_str = "required" if param_def.required else "optional"
+                        default_str = f", default={param_def.default_value}" if param_def.default_value is not None else ""
+                        print(f"       • {param_name} ({param_def.type}, {required_str}{default_str})")
+                        print(f"         {param_def.description}")
+                
+                # Show cost info
+                if service_def.cost:
+                    cost_info = f"{service_def.cost.per_call_cost} {service_def.cost.unit}"
+                    if service_def.cost.variable_pricing_cost_formula:
+                        cost_info += f" + {service_def.cost.variable_pricing_cost_formula}"
+                    print(f"     Cost: {cost_info}")
+                
+                # Show returns
+                if service_def.service_returns:
+                    print(f"     Returns ({len(service_def.service_returns)}):")
+                    for return_name, return_def in service_def.service_returns.items():
+                        print(f"       • {return_name} ({return_def.type}): {return_def.description}")
+                
+                print()
+
+# Convenience functions for quick access
 def get_available_services(gateway_url: Optional[str] = None) -> List[ServiceInfo]:
     """
-    Convenience function to quickly fetch all available services.
+    Convenience function to quickly fetch all available services (basic info).
     
     Args:
         gateway_url: Optional gateway URL override
@@ -248,17 +418,62 @@ def get_available_services(gateway_url: Optional[str] = None) -> List[ServiceInf
     fetcher = ServiceFetcher(gateway_url)
     return fetcher.fetch_services_sync()
 
+def get_available_service_definitions(gateway_url: Optional[str] = None) -> List['ServiceDefinition']:
+    """
+    Convenience function to quickly fetch all available ServiceDefinition objects.
+    
+    Args:
+        gateway_url: Optional gateway URL override
+        
+    Returns:
+        List of ServiceDefinition objects
+    """
+    fetcher = ServiceFetcher(gateway_url)
+    return fetcher.fetch_service_definitions()
+
+def get_service_definition_by_name(service_name: str, gateway_url: Optional[str] = None) -> Optional['ServiceDefinition']:
+    """
+    Convenience function to get a specific ServiceDefinition by name.
+    
+    Args:
+        service_name: Name of the service to find
+        gateway_url: Optional gateway URL override
+        
+    Returns:
+        ServiceDefinition object if found, None otherwise
+    """
+    fetcher = ServiceFetcher(gateway_url)
+    return fetcher.fetch_service_definition_by_name(service_name)
+
 # Example usage
 if __name__ == "__main__":
     import asyncio
     
-    # Example using environment variable
-    # export EXTENSION_GATEWAY_URL=http://localhost:8000
+    # Example using config setting
+    # Set EDSL_EXTENSION_GATEWAY_URL in your config
     
     try:
-        # Synchronous usage
-        print("=== Synchronous Usage ===")
+        print("=== ServiceDefinition Usage ===")
         fetcher = ServiceFetcher()
+        
+        # Fetch complete service definitions
+        service_definitions = fetcher.fetch_service_definitions()
+        print(f"Found {len(service_definitions)} service definitions")
+        
+        # Display them nicely
+        fetcher.list_service_definitions(service_definitions)
+        
+        # Get a specific service by name
+        if service_definitions:
+            first_service_name = service_definitions[0].service_name
+            specific_service = fetcher.fetch_service_definition_by_name(first_service_name)
+            if specific_service:
+                print(f"\nFound specific service: {specific_service.service_name}")
+                # You can now call the service!
+                # result = specific_service(param1="value1", param2="value2")
+        
+        print("\n=== Basic Service Info Usage ===")
+        # Fetch basic service info (faster)
         services = fetcher.fetch_services_sync()
         fetcher.list_services(services)
         
@@ -277,6 +492,6 @@ if __name__ == "__main__":
         
     except ValueError as e:
         print(f"Configuration error: {e}")
-        print("Please set the EXTENSION_GATEWAY_URL environment variable")
+        print("Please set the EDSL_EXTENSION_GATEWAY_URL config setting")
     except Exception as e:
         print(f"Error: {e}")
