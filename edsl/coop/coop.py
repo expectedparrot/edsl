@@ -1617,7 +1617,6 @@ class Coop(CoopFunctionsMixin):
 
         # The job has been offloaded to GCS
         if include_json_string and json_string == "offloaded":
-
             # Attempt to fetch JSON string from GCS
             response = self._send_server_request(
                 uri="api/v0/remote-inference/pull",
@@ -2933,36 +2932,27 @@ class Coop(CoopFunctionsMixin):
         try:
             if owner_username and alias:
                 # Get by alias
-                old_object_data = self.get(owner_username, alias)
+                edsl_object = self.get(owner_username, alias)
             else:
                 # Get by UUID
-                old_object_data = self.get(object_uuid)
+                edsl_object = self.get(object_uuid)
 
         except Exception as e:
             raise CoopServerResponseError(
                 f"Failed to retrieve object for migration: {e}"
             )
 
-        # Extract object information
-        edsl_object = old_object_data["object"]
-        description = old_object_data.get("description")
-        original_alias = old_object_data.get("alias")
-        visibility = old_object_data.get("visibility", "unlisted")
-        original_uuid = old_object_data.get("uuid", object_uuid)
-
         # Step 2: Push to new format with preserved UUID
+        # The backend will preserve all existing metadata when existing_uuid is provided
         try:
             migration_result = self.push(
                 object=edsl_object,
-                description=description,
-                alias=original_alias,
-                visibility=visibility,
-                existing_uuid=original_uuid,
+                existing_uuid=object_uuid,
             )
 
             migration_result["status"] = "migrated"
             migration_result["message"] = "Object successfully migrated to new format"
-            migration_result["original_uuid"] = original_uuid
+            migration_result["original_uuid"] = object_uuid
 
             return migration_result
 
