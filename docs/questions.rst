@@ -353,6 +353,9 @@ We can combine multiple questions into a survey by passing them as a list to a `
 This allows us to administer multiple questions at once, either asynchronously (by default) or according to specified logic (e.g., skip or stop rules).
 To learn more about designing surveys with conditional logic, please see the :ref:`surveys` section.
 
+*Note:* If you want multiple choice question options to be randomized, you can pass an optional parameter `questions_to_randomize` (a list of the relevant question names) to the `Survey` object when it is created.
+See more details about `QuestionMultipleChoice` below and the :ref:`surveys` section on randomizing question options.
+
 
 Simulating a response 
 ---------------------
@@ -923,7 +926,23 @@ An example can also created using the `example` method:
    QuestionMultipleChoice.example()
 
 
-Note: Question options can be strings of any length, but if they are long or complex, it may be useful to add the `use_code` parameter to the question.
+If you want the question options to be randomized, you can pass an optional parameter `questions_to_randomize` (a list of the relevant question names) to the `Survey` object when it is created.
+For example: 
+
+.. code-block:: python
+
+   from edsl import QuestionMultipleChoice, Survey
+
+   q = QuestionMultipleChoice(
+      question_name = "color",
+      question_text = "What is your favorite color?",
+      question_options = ["Red", "Blue", "Green", "Yellow"]
+   )
+
+   survey = Survey([q], questions_to_randomize=["color"])
+
+
+*Note:* Question options can be strings of any length, but if they are long or complex, it may be useful to add the `use_code` parameter to the question.
 This will add an instruction to the `user_prompt` for the model to provide the code number of the question option that it selects as its answer (i.e., 0, 1, 2, etc.) instead of the value of the option.
 This can be useful when the question options are long or complex, or include formatting that a model may make errors in reproducing to provide an answer, resulting in a validation error that may be avoidable by returning the code number of the option instead.
 The code is then translated back to the option value in the survey results.

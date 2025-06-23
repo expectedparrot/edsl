@@ -1,8 +1,8 @@
 """
 The Jobs module is the core orchestration component of the EDSL framework.
 
-It provides functionality to define, configure, and execute computational jobs that 
-involve multiple agents, scenarios, models, and a survey. Jobs are the primary way 
+It provides functionality to define, configure, and execute computational jobs that
+involve multiple agents, scenarios, models, and a survey. Jobs are the primary way
 that users run large-scale experiments or simulations in EDSL.
 
 The Jobs class handles:
@@ -15,6 +15,7 @@ The Jobs class handles:
 This module is designed to be used by both application developers and researchers
 who need to run complex simulations with language models.
 """
+
 from __future__ import annotations
 import asyncio
 from typing import Optional, Union, TypeVar, Callable, cast
@@ -564,6 +565,7 @@ class Jobs(Base):
             remote_inference_description=self.run_config.parameters.remote_inference_description,
             remote_inference_results_visibility=self.run_config.parameters.remote_inference_results_visibility,
             fresh=self.run_config.parameters.fresh,
+            new_format=self.run_config.parameters.new_format,
         )
         return job_info
 
@@ -829,6 +831,7 @@ class Jobs(Base):
             key_lookup (KeyLookup, optional): Object to manage API keys
             memory_threshold (int, optional): Memory threshold in bytes for the Results object's SQLList,
                 controlling when data is offloaded to SQLite storage
+            new_format (bool): If True, uses remote_inference_create method, if False uses old_remote_inference_create method (default: True)
 
         Returns:
             Results: A Results object containing all responses and metadata
@@ -889,6 +892,7 @@ class Jobs(Base):
             key_lookup (KeyLookup, optional): Object to manage API keys
             memory_threshold (int, optional): Memory threshold in bytes for the Results object's SQLList,
                 controlling when data is offloaded to SQLite storage
+            new_format (bool): If True, uses remote_inference_create method, if False uses old_remote_inference_create method (default: True)
 
         Returns:
             Results: A Results object containing all responses and metadata
@@ -1083,6 +1087,73 @@ class Jobs(Base):
     def code(self):
         """Return the code to create this instance."""
         raise JobsImplementationError("Code generation not implemented yet")
+
+    def humanize(
+        self,
+        project_name: str = "Project",
+        scenario_list_method: Optional[
+            Literal["randomize", "loop", "single_scenario"]
+        ] = None,
+        survey_description: Optional[str] = None,
+        survey_alias: Optional[str] = None,
+        survey_visibility: Optional["VisibilityType"] = "unlisted",
+        scenario_list_description: Optional[str] = None,
+        scenario_list_alias: Optional[str] = None,
+        scenario_list_visibility: Optional["VisibilityType"] = "unlisted",
+    ):
+        """
+        Send the survey and scenario list to Coop.
+
+        Then, create a project on Coop so you can share the survey with human respondents.
+        """
+        from edsl.coop import Coop
+        from edsl.coop.exceptions import CoopValueError
+
+        if len(self.agents) > 0 or len(self.models) > 0:
+            raise CoopValueError("We don't support humanize with agents or models yet.")
+
+        if len(self.scenarios) > 0 and scenario_list_method is None:
+            raise CoopValueError(
+                "You must specify both a scenario list and a scenario list method to use scenarios with your survey."
+            )
+        elif len(self.scenarios) == 0 and scenario_list_method is not None:
+            raise CoopValueError(
+                "You must specify both a scenario list and a scenario list method to use scenarios with your survey."
+            )
+        elif scenario_list_method == "loop":
+            questions, long_scenario_list = self.survey.to_long_format(self.scenarios)
+
+            # Replace the questions with new ones from the loop method
+            self.survey = Survey(questions)
+            self.scenarios = long_scenario_list
+
+            if len(self.scenarios) != 1:
+                raise CoopValueError("Something went wrong with the loop method.")
+        elif len(self.scenarios) != 1 and scenario_list_method == "single_scenario":
+            raise CoopValueError(
+                f"The single_scenario method requires exactly one scenario. "
+                f"If you have a scenario list with multiple scenarios, try using the randomize or loop methods."
+            )
+
+        if len(self.scenarios) == 0:
+            scenario_list = None
+        else:
+            scenario_list = self.scenarios
+
+        c = Coop()
+        project_details = c.create_project(
+            self.survey,
+            scenario_list,
+            scenario_list_method,
+            project_name,
+            survey_description,
+            survey_alias,
+            survey_visibility,
+            scenario_list_description,
+            scenario_list_alias,
+            scenario_list_visibility,
+        )
+        return project_details
 
 
 def main():

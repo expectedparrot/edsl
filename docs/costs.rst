@@ -7,7 +7,7 @@ EDSL comes with built-in methods for estimating costs before running your survey
 This is useful for budgeting and understanding the costs of running surveys with different models and inference services, and determining which models are most efficient for your research goals.
 
 .. note::
-    When running jobs remotely, your prompts and responses are cached automatically and can be retrieved again later at no cost.
+    When running survey jobs your prompts and responses are cached automatically and can be retrieved again later at no cost.
     Learn more about remote inference caching in the :ref:`remote-caching` section of the docs.
 
 
@@ -20,9 +20,11 @@ The `Job` object contains all the information needed to run the survey, includin
 
 There are 2 methods of estimating costs (in USD and credits):
 
-* Call the `estimate_job_cost()` method on a `Job` object (a survey combined with one or more models). This will return the total estimated cost in USD, the estimated input and output tokens, and estimated costs and tokens for each inference service and model used. 
+* Call the `estimate_job_cost()` method on a `Job` object (a survey combined with one or more models). This will return the total estimated cost in USD, the estimated input and output tokens, and estimated costs and tokens for each inference service and model used. It will also show the number of credits that will be placed on hold if the survey job is run remotely. Once the job has completed the credits are released and final calculated credits are deducted from your account.
 
-* Call the `remote_inference_cost()` method on a `Coop` client object and pass it the job. This will return the estimated cost in credits and USD. (Credits are required to run surveys remotely. Learn more about using credits in the [Credits](https://docs.expectedparrot.com/en/latest/credits.html) section of the docs.)
+* Call the `remote_inference_cost()` method on a `Coop` client object and pass it the job. This will return the total estimated cost in in USD and credits. 
+
+*Credits are required to run surveys remotely. Learn more about using credits in the `Credits <https://docs.expectedparrot.com/en/latest/credits.html>`_ section of the docs.*
 
 For example:
 
@@ -109,11 +111,11 @@ The above-mentioned methods use the following calculation for each question in a
 1. Estimate the input tokens.
     * Compute the number of characters in the `user_prompt` and `system_prompt`, with any `Agent` and `Scenario` data piped in. (*Note:* Previous answers cannot be piped in because they are not available until the survey is run; they are left as Jinja-bracketed variables in the prompts for purposes of estimating tokens and costs.)
     * Apply a piping multiplier of 2 to the number of characters in the user prompt if it has an answer piped in from a previous question (i.e., if the question has Jinja braces). Otherwise, apply a multiplier of 1.
-    * Convert the number of characters into the number of input tokens using a conversion factor of 4 characters per token, rounding down to the nearest whole number. (This approximation was [established by OpenAI](https://help.openai.com/en/articles/4936856-what-are-tokens-and-how-to-count-them).)
+    * Convert the number of characters into the number of input tokens using a conversion factor of 4 characters per token, rounding down to the nearest whole number. (This approximation was `established by OpenAI <https://help.openai.com/en/articles/4936856-what-are-tokens-and-how-to-count-them>`_.)
 2. Estimate the output tokens.
     * Apply a multiplier of 0.75 to the number of input tokens, rounding up to the nearest whole number.
 3. Apply the token rates for the model and inference service.
-    * Find the model and inference service for the question in the [Pricing](https://www.expectedparrot.com/getting-started/coop-pricing) page:
+    * Find the model and inference service for the question in the `Pricing <https://www.expectedparrot.com/getting-started/coop-pricing>`_ page:
         *Total cost = (input tokens * input token rate) + (output tokens * output token rate)*
     * If the model is not found, a default price for the inference service provider is used. If both the model and the inference service provider are not found, the following fallback token rates are applied (you will also see a warning message that a model price was not found):
         * USD 1.00 per 1M input tokens
@@ -123,7 +125,7 @@ The above-mentioned methods use the following calculation for each question in a
     * Total cost in credits = total cost in USD * 100, rounded up to the nearest 1/100th credit.
 
 Then sum the costs for all question prompts to get the total cost of the job.
-A notebook example is available [here](https://www.expectedparrot.com/content/RobinHorton/estimating-job-costs-notebook).
+A notebook example is available `here <https://www.expectedparrot.com/content/RobinHorton/estimating-job-costs-notebook>`_.
 
 
 Tracking costs
@@ -139,7 +141,7 @@ After running a survey job, you can track the actual token costs incurred for ea
 * **raw_model_response.<question_name>_output_tokens**: The number of output tokens for the relevant question for the relevant model.
 * **raw_model_response.<question_name>_raw_model_response**: The raw model response for the relevant question.
 
-Details can also be viewed at the [Jobs](https://www.expectedparrot.com/home/remote-inference) and [Transactions](https://www.expectedparrot.com/home/transactions) pages of your Coop account.
+Details can also be viewed at the `Jobs <https://www.expectedparrot.com/home/remote-inference>`_ and `Transactions <https://www.expectedparrot.com/home/transactions>`_ pages of your Coop account.
 
 For example, here we inspect the costs of running the job from above:
 
@@ -179,7 +181,7 @@ Output:
     - 53
     - 0.300000
     - 42872.461058
-    - {'candidates': [{'content': {'parts': [{'text': "5\n\nIt's, like, a huge deal!  The future of the planet is at stake, and that affects everything –  from the environment to the economy to, you know, my future.  It's definitely something I worry about.\n"}], 'role': 'model'}, 'finish_reason': 1, 'safety_ratings': [{'category': 8, 'probability': 1, 'blocked': False}, {'category': 10, 'probability': 1, 'blocked': False}, {'category': 7, 'probability': 1, 'blocked': False}, {'category': 9, 'probability': 1, 'blocked': False}], 'avg_logprobs': -0.2145003372768186, 'token_count': 0, 'grounding_attributions': []}], 'usage_metadata': {'prompt_token_count': 128, 'candidates_token_count': 53, 'total_token_count': 181, 'cached_content_token_count': 0}, 'model_version': 'gemini-1.5-flash'}
+    - {'candidates': [{'content': {'parts': [{'text': "5\n\nIt's, like, a huge deal!  The future of the planet is at stake, and that affects everything -  from the environment to the economy to, you know, my future.  It's definitely something I worry about.\n"}], 'role': 'model'}, 'finish_reason': 1, 'safety_ratings': [{'category': 8, 'probability': 1, 'blocked': False}, {'category': 10, 'probability': 1, 'blocked': False}, {'category': 7, 'probability': 1, 'blocked': False}, {'category': 9, 'probability': 1, 'blocked': False}], 'avg_logprobs': -0.2145003372768186, 'token_count': 0, 'grounding_attributions': []}], 'usage_metadata': {'prompt_token_count': 128, 'candidates_token_count': 53, 'total_token_count': 181, 'cached_content_token_count': 0}, 'model_version': 'gemini-1.5-flash'}
     - 0.075000
     - 95
     - {'candidates': [{'content': {'parts': [{'text': "Yes\n\nI've read a few articles and some chapters from textbooks for my environmental science classes, which covered climate change extensively.  It's not quite the same as reading a whole book dedicated to the topic, but I've definitely learned about it.\n"}], 'role': 'model'}, 'finish_reason': 1, 'safety_ratings': [{'category': 8, 'probability': 1, 'blocked': False}, {'category': 10, 'probability': 1, 'blocked': False}, {'category': 7, 'probability': 1, 'blocked': False}, {'category': 9, 'probability': 1, 'blocked': False}], 'avg_logprobs': -0.15844399840743453, 'token_count': 0, 'grounding_attributions': []}], 'usage_metadata': {'prompt_token_count': 95, 'candidates_token_count': 54, 'total_token_count': 149, 'cached_content_token_count': 0}, 'model_version': 'gemini-1.5-flash'}
@@ -335,4 +337,4 @@ Your `Transactions page <https://www.expectedparrot.com/home/transactions>`_ wil
     <br>
 
 
-For more on credits, please see the [Credits](https://docs.expectedparrot.com/en/latest/credits.html) section of the docs.
+For more on credits, please see the `Credits <https://docs.expectedparrot.com/en/latest/credits.html>`_ section of the docs.

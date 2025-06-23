@@ -290,6 +290,7 @@ class Prompt(PersistenceMixin, RepresentationMixin):
             return result
         except Exception as e:
             print(f"Error rendering prompt: {e}")
+            raise e
             return self
 
     @staticmethod
@@ -304,8 +305,13 @@ class Prompt(PersistenceMixin, RepresentationMixin):
         Returns (rendered_text, captured_variables).
         """
         # Combine replacements.
-        all_replacements = {**primary_replacement, **additional_replacements}
-
+        from ..scenarios import Scenario
+        # This fixed Issue 2027 - the scenario prefix  was not being recoginized in the template
+        if isinstance(primary_replacement, Scenario):
+            additional = {'scenario': primary_replacement.to_dict()}
+        else:
+            additional = {}
+        all_replacements = {**primary_replacement, **additional_replacements, **additional}
         # If no replacements and no Jinja variables, just return the text.
         if not all_replacements and not _find_template_variables(text):
             return text, template_vars.get_all()

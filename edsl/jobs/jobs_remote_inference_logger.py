@@ -24,14 +24,39 @@ class LogMessage:
 
 
 @dataclass
+class JobRunExceptionCounter:
+    exception_type: str = None
+    inference_service: str = None
+    model: str = None
+    question_name: str = None
+    exception_count: int = None
+
+
+@dataclass
+class ModelCost:
+    service: str = None
+    model: str = None
+    input_tokens: int = None
+    input_cost_usd: float = None
+    output_tokens: int = None
+    output_cost_usd: float = None
+    input_cost_credits_with_cache: int = None
+    output_cost_credits_with_cache: int = None
+
+
+@dataclass
 class JobsInfo:
     job_uuid: str = None
     progress_bar_url: str = None
     error_report_url: str = None
+    remote_inference_url: str = None
+    remote_cache_url: str = None
     results_uuid: str = None
     results_url: str = None
     completed_interviews: int = None
     failed_interviews: int = None
+    exception_summary: list[JobRunExceptionCounter] = None
+    model_costs: list[ModelCost] = None
 
     pretty_names = {
         "job_uuid": "Job UUID",
@@ -39,6 +64,8 @@ class JobsInfo:
         "error_report_url": "Exceptions Report URL",
         "results_uuid": "Results UUID",
         "results_url": "Results URL",
+        "remote_inference_url": "Remote Jobs",
+        "remote_cache_url": "Remote Cache",
     }
 
 
@@ -57,6 +84,8 @@ class JobLogger(ABC):
             "results_url",
             "completed_interviews",
             "failed_interviews",
+            "model_costs",
+            "exception_summary",
         ],
         value: str,
     ):
