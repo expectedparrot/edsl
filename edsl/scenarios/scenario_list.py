@@ -846,12 +846,19 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
 
         Example:
             >>> s = ScenarioList([Scenario({'a': 1, 'b': 2, 'c': 3}), Scenario({'a': 4, 'b': 5, 'c': 6})])
-            >>> s.concatenate_to_set(['a', 'b', 'c'])
-            ScenarioList([Scenario({'concat_a_b_c': {1, 2, 3}}), Scenario({'concat_a_b_c': {4, 5, 6}})])
-            >>> s.concatenate_to_set(['a', 'b', 'c'], new_field_name='unique_values')
-            ScenarioList([Scenario({'unique_values': {1, 2, 3}}), Scenario({'unique_values': {4, 5, 6}})])
-            >>> s.concatenate_to_set(['a', 'b', 'c'], prefix='[', postfix=']')
-            ScenarioList([Scenario({'concat_a_b_c': {'[1]', '[2]', '[3]'}}), Scenario({'concat_a_b_c': {'[4]', '[5]', '[6]'}})])
+            >>> result = s.concatenate_to_set(['a', 'b', 'c'])
+            >>> result[0]['concat_a_b_c'] == {1, 2, 3}
+            True
+            >>> result[1]['concat_a_b_c'] == {4, 5, 6}
+            True
+            >>> result = s.concatenate_to_set(['a', 'b', 'c'], new_field_name='unique_values')
+            >>> result[0]['unique_values'] == {1, 2, 3}
+            True
+            >>> result = s.concatenate_to_set(['a', 'b', 'c'], prefix='[', postfix=']')
+            >>> result[0]['concat_a_b_c'] == {'[1]', '[2]', '[3]'}
+            True
+            >>> result[1]['concat_a_b_c'] == {'[4]', '[5]', '[6]'}
+            True
         """
         return self._concatenate(
             fields, 
