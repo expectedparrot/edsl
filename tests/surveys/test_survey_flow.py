@@ -290,24 +290,18 @@ class TestSurveyFlow(unittest.TestCase):
 
     def test_last_item_instruction_survey(self):
         """Test a survey that contains only instructions."""
-        instruction1 = (
-            Instruction(
-                name="introduction",
-                text="Welcome to the survey. Please think about the following question carefully.",
-            ),
+        instruction1 = Instruction(
+            name="introduction",
+            text="Welcome to the survey. Please think about the following question carefully.",
         )
-        question = (
-            QuestionMultipleChoice(
-                question_name="thoughts_on_activity",
-                question_text="What are your thoughts on tennis?",
-                question_options=["I love it", "I hate it", "I'm neutral"],
-            ),
+        question = QuestionMultipleChoice(
+            question_name="thoughts_on_activity",
+            question_text="What are your thoughts on tennis?",
+            question_options=["I love it", "I hate it", "I'm neutral"],
         )
-        instruction2 = (
-            Instruction(
-                name="conclusion",
-                text="Thank you for your time!",
-            ),
+        instruction2 = Instruction(
+            name="conclusion",
+            text="Thank you for your time!",
         )
 
         survey = Survey(questions=[instruction1, question, instruction2])

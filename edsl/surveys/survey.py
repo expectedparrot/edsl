@@ -1522,9 +1522,21 @@ class Survey(Base):
 
         # Handle end of survey case
         if next_question_object.next_q == EndOfSurvey:
+            # Check if there are any instructions after the current question before ending
+            next_position = current_position + 1
+            if next_position < len(combined_items):
+                next_item = combined_items[next_position]
+                if hasattr(next_item, 'text') and not hasattr(next_item, 'question_name'):
+                    return next_item
             return EndOfSurvey
             
         if next_question_object.next_q >= len(self.questions):
+            # Check if there are any instructions after the current question before ending
+            next_position = current_position + 1
+            if next_position < len(combined_items):
+                next_item = combined_items[next_position]
+                if hasattr(next_item, 'text') and not hasattr(next_item, 'question_name'):
+                    return next_item
             return EndOfSurvey
 
         # Find the target question in the combined list
