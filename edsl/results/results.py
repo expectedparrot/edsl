@@ -274,6 +274,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         "cache_used",
         "cache_keys",
         "reasoning_summary",
+        "validated",
     ]
 
     @classmethod
@@ -2205,14 +2206,16 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
                     "survey": self.survey.to_dict() if self.survey else None,
                     "created_columns": self.created_columns,
                     "cache": self.cache.to_dict() if hasattr(self, "cache") else None,
-                    "task_history": self.task_history.to_dict()
-                    if hasattr(self, "task_history")
-                    else None,
+                    "task_history": (
+                        self.task_history.to_dict()
+                        if hasattr(self, "task_history")
+                        else None
+                    ),
                     "completed": self.completed,
                     "job_uuid": self._job_uuid if hasattr(self, "_job_uuid") else None,
-                    "total_results": self._total_results
-                    if hasattr(self, "_total_results")
-                    else None,
+                    "total_results": (
+                        self._total_results if hasattr(self, "_total_results") else None
+                    ),
                 }
 
                 metadata_path = temp_path / "metadata.json"
@@ -2270,16 +2273,22 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
 
                 # 2. Create a new Results instance
                 results = cls(
-                    survey=Survey.from_dict(metadata["survey"])
-                    if metadata["survey"]
-                    else None,
+                    survey=(
+                        Survey.from_dict(metadata["survey"])
+                        if metadata["survey"]
+                        else None
+                    ),
                     created_columns=metadata["created_columns"],
-                    cache=Cache.from_dict(metadata["cache"])
-                    if metadata["cache"]
-                    else None,
-                    task_history=TaskHistory.from_dict(metadata["task_history"])
-                    if metadata["task_history"]
-                    else None,
+                    cache=(
+                        Cache.from_dict(metadata["cache"])
+                        if metadata["cache"]
+                        else None
+                    ),
+                    task_history=(
+                        TaskHistory.from_dict(metadata["task_history"])
+                        if metadata["task_history"]
+                        else None
+                    ),
                     job_uuid=metadata["job_uuid"],
                     total_results=metadata["total_results"],
                 )
