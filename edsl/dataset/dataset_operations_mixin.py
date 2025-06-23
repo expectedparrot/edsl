@@ -1378,6 +1378,469 @@ class DataOperationsBase:
 
         return Dataset(new_data)
 
+    def report_from_template(
+        self,
+        template: str,
+        *fields: Optional[str],
+        top_n: Optional[int] = None,
+        remove_prefix: bool = True,
+        return_string: bool = False,
+        format: str = "text",
+        filename: Optional[str] = None,
+        separator: str = "\n\n",
+        observation_title_template: Optional[str] = None,
+        explode: bool = False,
+        markdown_to_docx: bool = True,
+        use_pandoc: bool = True,
+    ) -> Optional[Union[str, "Document", List]]:
+        """Generates a report using a Jinja2 template for each row in the dataset.
+
+        This method renders a user-provided Jinja2 template for each observation in the dataset,
+        with template variables populated from the row data. This allows for completely customized
+        report formatting.
+
+        Args:
+            template: Jinja2 template string to render for each row
+            *fields: The fields to include in template context. If none provided, all fields are used.
+            top_n: Optional limit on the number of observations to include.
+            remove_prefix: Whether to remove type prefixes (e.g., "answer.") from field names in template context.
+            return_string: If True, returns the rendered string. If False (default in notebooks),
+                          only displays the content without returning.
+            format: Output format - either "text" or "docx".
+            filename: If provided, saves the rendered content to this file. For exploded output, 
+                     this becomes a template (e.g., "report_{index}.docx").
+            separator: String to use between rendered templates for each row (ignored when explode=True).
+            observation_title_template: Optional Jinja2 template for observation titles. 
+                                       Defaults to "Observation {index}" where index is 1-based.
+                                       Template has access to all row data plus 'index' and 'index0' variables.
+            explode: If True, creates separate files for each observation instead of one combined file.
+            markdown_to_docx: If True (default), treats template content as Markdown and converts it to proper DOCX formatting.
+                             Set to False to use plain text formatting (original behavior).
+            use_pandoc: If True (default) and markdown_to_docx=True, uses pandoc for conversion (recommended). 
+                       If False, uses a Python-based Markdown parser (requires markdown and python-docx libraries)
+
+        Returns:
+            Depending on explode, format and return_string:
+            - If explode=True: List of created filenames (when filename provided) or list of documents/strings
+            - If explode=False: Same as before - string, Document, or None
+
+        Examples:
+            >>> from edsl.results import Results
+            >>> r = Results.example()
+            >>> template = "Person feels: {{ how_feeling }}"
+            >>> report = r.select('how_feeling').report_from_template(template, return_string=True)
+            >>> "Person feels: OK" in report
+            True
+            >>> "Person feels: Great" in report
+            True
+            
+            # Generate DOCX format
+            >>> doc = r.select('how_feeling').report_from_template(template, format="docx")
+            >>> isinstance(doc, object)
+            True
+            
+            # Custom observation titles
+            >>> custom_title = "Response {{ index }}: {{ how_feeling }}"
+            >>> report = r.select('how_feeling').report_from_template(
+            ...     template, observation_title_template=custom_title, return_string=True)
+            >>> "Response 1: OK" in report
+            True
+            
+            # Explode into separate files
+            >>> files = r.select('how_feeling').report_from_template(
+            ...     template, explode=True, filename="feeling_{index}.txt")
+            >>> len(files) == 4  # One file per observation
+            True
+            
+            # Markdown formatting is now enabled by default for DOCX (requires pandoc)
+            >>> markdown_template = "## Person's Mood\\n\\n**Feeling**: {{ how_feeling }}\\n\\n*This is italic text*"
+            >>> # The following creates a properly formatted DOCX (pandoc required):
+            >>> # doc = r.select('how_feeling').report_from_template(markdown_template, format="docx")
+            
+            # To disable markdown formatting and use plain text (old behavior):
+            >>> # doc = r.select('how_feeling').report_from_template(template, format="docx", markdown_to_docx=False)
+        """
+        try:
+            from jinja2 import Template
+        except ImportError:
+            from .exceptions import DatasetImportError
+            raise DatasetImportError(
+                "The jinja2 package is required for template-based reports. Install it with 'pip install jinja2'."
+            )
+
+        from ..utilities.utilities import is_notebook
+
+        # If no fields specified, use all columns
+        if not fields:
+            fields = self.relevant_columns()
+
+        # Validate all fields exist
+        for field in fields:
+            if field not in self.relevant_columns():
+                raise DatasetKeyError(f"Field '{field}' not found in dataset")
+
+        # Get data as list of dictionaries
+        list_of_dicts = self.to_dicts(remove_prefix=remove_prefix)
+        
+        # Apply top_n limit if specified
+        if top_n is not None:
+            list_of_dicts = list_of_dicts[:top_n]
+
+        # Filter to only include requested fields if specified
+        if fields and remove_prefix:
+            # Remove prefixes from field names for filtering
+            filter_fields = [field.split(".")[-1] if "." in field else field for field in fields]
+            list_of_dicts = [
+                {k: v for k, v in row.items() if k in filter_fields}
+                for row in list_of_dicts
+            ]
+        elif fields:
+            # Use exact field names for filtering
+            list_of_dicts = [
+                {k: v for k, v in row.items() if k in fields}
+                for row in list_of_dicts
+            ]
+
+        # Create Jinja2 template
+        jinja_template = Template(template)
+
+        # Render template for each row
+        rendered_reports = []
+        for row_data in list_of_dicts:
+            try:
+                rendered = jinja_template.render(**row_data)
+                rendered_reports.append(rendered)
+            except Exception as e:
+                raise DatasetValueError(f"Error rendering template with data {row_data}: {e}")
+
+        # Set up observation title template
+        if observation_title_template is None:
+            observation_title_template = "Observation {{ index }}"
+        
+        # Create observation title Jinja2 template
+        title_template = Template(observation_title_template)
+
+        # Helper function to convert markdown to DOCX
+        def _convert_markdown_to_docx(markdown_content: str, temp_dir: str = None) -> "Document":
+            """Convert markdown content to a DOCX document."""
+            if use_pandoc:
+                # Use pandoc for conversion
+                import subprocess
+                import tempfile
+                import os
+                
+                # Check if pandoc is available
+                try:
+                    subprocess.run(["pandoc", "--version"], capture_output=True, check=True)
+                except (subprocess.CalledProcessError, FileNotFoundError):
+                    raise DatasetExportError(
+                        "Pandoc is not installed or not available in PATH. "
+                        "Install pandoc (https://pandoc.org/installing.html) or set use_pandoc=False to use Python-based conversion."
+                    )
+                
+                # Create temporary files
+                with tempfile.NamedTemporaryFile(mode='w', suffix='.md', delete=False, dir=temp_dir) as md_file:
+                    md_file.write(markdown_content)
+                    md_filename = md_file.name
+                
+                docx_filename = md_filename.replace('.md', '.docx')
+                
+                try:
+                    # Run pandoc conversion
+                    subprocess.run([
+                        "pandoc", 
+                        md_filename, 
+                        "-o", docx_filename,
+                        "--from", "markdown",
+                        "--to", "docx"
+                    ], check=True)
+                    
+                    # Load the generated DOCX
+                    from docx import Document
+                    doc = Document(docx_filename)
+                    
+                    # Clean up temporary files
+                    os.unlink(md_filename)
+                    os.unlink(docx_filename)
+                    
+                    return doc
+                    
+                except subprocess.CalledProcessError as e:
+                    # Clean up on error
+                    if os.path.exists(md_filename):
+                        os.unlink(md_filename)
+                    if os.path.exists(docx_filename):
+                        os.unlink(docx_filename)
+                    raise DatasetExportError(f"Pandoc conversion failed: {e}")
+                    
+            else:
+                # Use Python-based conversion
+                try:
+                    import markdown
+                    from markdown.extensions import codehilite, fenced_code, tables
+                    from docx import Document
+                    from docx.shared import Pt, RGBColor
+                    from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
+                    import re
+                    import html
+                except ImportError:
+                    raise DatasetImportError(
+                        "Python-based markdown conversion requires 'markdown' and 'python-docx' packages. "
+                        "Install with 'pip install markdown python-docx' or set use_pandoc=True to use pandoc."
+                    )
+                
+                # Convert markdown to HTML first
+                md = markdown.Markdown(extensions=['codehilite', 'fenced_code', 'tables', 'nl2br'])
+                html_content = md.convert(markdown_content)
+                
+                # Create a new document
+                doc = Document()
+                
+                # Parse HTML and convert to DOCX elements
+                # This is a simplified parser - for production use, consider using BeautifulSoup
+                lines = html_content.split('\n')
+                current_paragraph = None
+                
+                for line in lines:
+                    line = line.strip()
+                    if not line:
+                        continue
+                        
+                    # Handle headers
+                    if line.startswith('<h1>') and line.endswith('</h1>'):
+                        text = html.unescape(re.sub(r'<[^>]+>', '', line))
+                        doc.add_heading(text, level=1)
+                    elif line.startswith('<h2>') and line.endswith('</h2>'):
+                        text = html.unescape(re.sub(r'<[^>]+>', '', line))
+                        doc.add_heading(text, level=2)
+                    elif line.startswith('<h3>') and line.endswith('</h3>'):
+                        text = html.unescape(re.sub(r'<[^>]+>', '', line))
+                        doc.add_heading(text, level=3)
+                    # Handle paragraphs
+                    elif line.startswith('<p>') and line.endswith('</p>'):
+                        text = html.unescape(re.sub(r'<[^>]+>', '', line))
+                        if text.strip():
+                            p = doc.add_paragraph()
+                            # Handle basic formatting within paragraphs
+                            parts = re.split(r'(<strong>.*?</strong>|<em>.*?</em>|<code>.*?</code>)', text)
+                            for part in parts:
+                                if part.startswith('<strong>') and part.endswith('</strong>'):
+                                    clean_text = html.unescape(re.sub(r'<[^>]+>', '', part))
+                                    run = p.add_run(clean_text)
+                                    run.bold = True
+                                elif part.startswith('<em>') and part.endswith('</em>'):
+                                    clean_text = html.unescape(re.sub(r'<[^>]+>', '', part))
+                                    run = p.add_run(clean_text)
+                                    run.italic = True
+                                elif part.startswith('<code>') and part.endswith('</code>'):
+                                    clean_text = html.unescape(re.sub(r'<[^>]+>', '', part))
+                                    run = p.add_run(clean_text)
+                                    run.font.name = 'Courier New'
+                                    run.font.size = Pt(10)
+                                else:
+                                    if part.strip():
+                                        p.add_run(html.unescape(part))
+                    # Handle code blocks
+                    elif '<pre>' in line or '<code>' in line:
+                        text = html.unescape(re.sub(r'<[^>]+>', '', line))
+                        if text.strip():
+                            p = doc.add_paragraph()
+                            run = p.add_run(text)
+                            run.font.name = 'Courier New'
+                            run.font.size = Pt(10)
+                    # Handle other content
+                    else:
+                        text = html.unescape(re.sub(r'<[^>]+>', '', line))
+                        if text.strip():
+                            doc.add_paragraph(text)
+                
+                return doc
+
+        # Handle explode mode - create separate files/documents per observation
+        if explode:
+            # Validate filename template when exploding to files
+            if filename and not any(var in filename for var in ['{index}', '{index0}'] + list(list_of_dicts[0].keys()) if list_of_dicts):
+                import warnings
+                warnings.warn(
+                    "When explode=True, filename should contain template variables like {index} "
+                    "to avoid overwriting files. Example: 'report_{index}.docx'"
+                )
+            
+            results = []
+            
+            for i, (rendered_content, row_data) in enumerate(zip(rendered_reports, list_of_dicts)):
+                # Add index variables to row data for title template
+                title_data = row_data.copy()
+                title_data['index'] = i + 1
+                title_data['index0'] = i
+                
+                # Render the observation title
+                observation_title = title_template.render(**title_data)
+                
+                if format.lower() == "docx":
+                    # Generate individual DOCX document
+                    try:
+                        from docx import Document
+                        from docx.shared import Pt
+                    except ImportError:
+                        from .exceptions import DatasetImportError
+                        raise DatasetImportError(
+                            "The python-docx package is required for DOCX export. Install it with 'pip install python-docx'."
+                        )
+
+                    if markdown_to_docx:
+                        # Convert markdown content to DOCX with proper formatting
+                        full_markdown = f"# {observation_title}\n\n{rendered_content}"
+                        doc = _convert_markdown_to_docx(full_markdown)
+                    else:
+                        # Use plain text approach (original behavior)
+                        doc = Document()
+                        doc.add_heading(observation_title, level=1)
+                        
+                        # Add the rendered template content
+                        lines = rendered_content.split('\n')
+                        for line in lines:
+                            if line.strip():
+                                doc.add_paragraph(line)
+                            else:
+                                doc.add_paragraph()
+
+                    if filename:
+                        # Generate filename from template
+                        individual_filename = filename.format(index=i+1, index0=i, **row_data)
+                        doc.save(individual_filename)
+                        results.append(individual_filename)
+                    else:
+                        results.append(doc)
+                        
+                elif format.lower() == "text":
+                    # Generate individual text content
+                    individual_content = f"# {observation_title}\n\n{rendered_content}"
+                    
+                    if filename:
+                        # Generate filename from template
+                        individual_filename = filename.format(index=i+1, index0=i, **row_data)
+                        with open(individual_filename, 'w', encoding='utf-8') as f:
+                            f.write(individual_content)
+                        results.append(individual_filename)
+                    else:
+                        results.append(individual_content)
+            
+            if filename:
+                print(f"Created {len(results)} individual files")
+            
+            return results
+
+        # Handle non-explode mode (original combined behavior)
+        if format.lower() == "docx":
+            # Generate DOCX document
+            try:
+                from docx import Document
+                from docx.shared import Pt
+            except ImportError:
+                from .exceptions import DatasetImportError
+                raise DatasetImportError(
+                    "The python-docx package is required for DOCX export. Install it with 'pip install python-docx'."
+                )
+
+            if markdown_to_docx:
+                # Convert all content to one markdown document
+                markdown_parts = []
+                for i, (rendered_content, row_data) in enumerate(zip(rendered_reports, list_of_dicts)):
+                    # Add index variables to row data for title template
+                    title_data = row_data.copy()
+                    title_data['index'] = i + 1
+                    title_data['index0'] = i
+                    
+                    # Render the observation title
+                    observation_title = title_template.render(**title_data)
+                    
+                    # Add title and content as markdown
+                    section_markdown = f"# {observation_title}\n\n{rendered_content}"
+                    markdown_parts.append(section_markdown)
+                
+                # Combine all markdown sections
+                full_markdown = "\n\n\\pagebreak\n\n".join(markdown_parts)
+                doc = _convert_markdown_to_docx(full_markdown)
+            else:
+                # Use plain text approach (original behavior)
+                doc = Document()
+
+                for i, (rendered_content, row_data) in enumerate(zip(rendered_reports, list_of_dicts)):
+                    # Add index variables to row data for title template
+                    title_data = row_data.copy()
+                    title_data['index'] = i + 1
+                    title_data['index0'] = i
+                    
+                    # Render the observation title
+                    observation_title = title_template.render(**title_data)
+                    
+                    # Add a heading for each observation
+                    doc.add_heading(observation_title, level=1)
+                    
+                    # Add the rendered template content
+                    lines = rendered_content.split('\n')
+                    for line in lines:
+                        if line.strip():
+                            doc.add_paragraph(line)
+                        else:
+                            doc.add_paragraph()
+
+                    # Add page break between observations except for the last one
+                    if i < len(rendered_reports) - 1:
+                        doc.add_page_break()
+
+            # Save to file if filename is provided
+            if filename:
+                doc.save(filename)
+                print(f"Report saved to {filename}")
+                return None
+
+            return doc
+
+        elif format.lower() == "text":
+            # Handle text format with custom observation titles
+            final_report_parts = []
+            
+            for i, (rendered_content, row_data) in enumerate(zip(rendered_reports, list_of_dicts)):
+                # Add index variables to row data for title template
+                title_data = row_data.copy()
+                title_data['index'] = i + 1
+                title_data['index0'] = i
+                
+                # Render the observation title
+                observation_title = title_template.render(**title_data)
+                
+                # Combine title and content
+                section_content = f"# {observation_title}\n\n{rendered_content}"
+                final_report_parts.append(section_content)
+            
+            final_report = separator.join(final_report_parts)
+
+            # Save to file if filename is provided
+            if filename:
+                with open(filename, 'w', encoding='utf-8') as f:
+                    f.write(final_report)
+                print(f"Report saved to {filename}")
+                if not return_string:
+                    return None
+
+            # In notebooks, display the content
+            is_nb = is_notebook()
+            if is_nb and not return_string:
+                from IPython.display import display, HTML
+                # Use HTML display to preserve formatting
+                display(HTML(f"<pre>{final_report}</pre>"))
+                return None
+
+            # Return the string if requested or if not in a notebook
+            return final_report
+
+        else:
+            raise DatasetExportError(
+                f"Unsupported format: {format}. Use 'text' or 'docx'."
+            )
+
 
 def to_dataset(func):
     """
