@@ -289,25 +289,19 @@ class TestSurveyFlow(unittest.TestCase):
         self.assertEqual(end_result, EndOfSurvey)
 
     def test_last_item_instruction_survey(self):
-        """Test a survey that contains only instructions."""
-        instruction1 = (
-            Instruction(
-                name="introduction",
-                text="Welcome to the survey. Please think about the following question carefully.",
-            ),
+        """Test a survey where the last item in the flow is an instruction."""
+        instruction1 = Instruction(
+            name="introduction",
+            text="Welcome to the survey. Please think about the following question carefully.",
         )
-        question = (
-            QuestionMultipleChoice(
-                question_name="thoughts_on_activity",
-                question_text="What are your thoughts on tennis?",
-                question_options=["I love it", "I hate it", "I'm neutral"],
-            ),
+        question = QuestionMultipleChoice(
+            question_name="thoughts_on_tennis",
+            question_text="What are your thoughts on tennis?",
+            question_options=["I love it", "I hate it", "I'm neutral"],
         )
-        instruction2 = (
-            Instruction(
-                name="conclusion",
-                text="Thank you for your time!",
-            ),
+        instruction2 = Instruction(
+            name="conclusion",
+            text="Thank you for your time!",
         )
 
         survey = Survey(questions=[instruction1, question, instruction2])
@@ -318,7 +312,7 @@ class TestSurveyFlow(unittest.TestCase):
 
         # Second item
         second = survey.next_question_with_instructions(first)
-        self.assertEqual(second.name, "thoughts_on_activity")
+        self.assertEqual(second.name, "thoughts_on_tennis")
 
         # Third item
         third = survey.next_question_with_instructions(second)
