@@ -174,7 +174,8 @@ class LanguageModel(
         """
         key_sequence = cls.key_sequence
         usage_sequence = cls.usage_sequence if hasattr(cls, "usage_sequence") else None
-        return RawResponseHandler(key_sequence, usage_sequence)
+        reasoning_sequence = cls.reasoning_sequence if hasattr(cls, "reasoning_sequence") else None
+        return RawResponseHandler(key_sequence, usage_sequence, reasoning_sequence)
 
     def __init__(
         self,
@@ -769,8 +770,45 @@ class LanguageModel(
                 params["question_name"] = invigilator.question.question_name
             # Get timeout from configuration
             from ..config import CONFIG
+            import logging
 
-            TIMEOUT = float(CONFIG.get("EDSL_API_TIMEOUT"))
+            logger = logging.getLogger(__name__)
+            base_timeout = float(CONFIG.get("EDSL_API_TIMEOUT"))
+
+            # Adjust timeout if files are present
+            import time
+
+            start = time.time()
+            if files_list:
+                # Calculate total size of attached files in MB
+                file_sizes = []
+                for file in files_list:
+                    # Try different attributes that might contain the file content
+                    if hasattr(file, "base64_string") and file.base64_string:
+                        file_sizes.append(len(file.base64_string) / (1024 * 1024))
+                    elif hasattr(file, "content") and file.content:
+                        file_sizes.append(len(file.content) / (1024 * 1024))
+                    elif hasattr(file, "data") and file.data:
+                        file_sizes.append(len(file.data) / (1024 * 1024))
+                    else:
+                        # Default minimum size if we can't determine actual size
+                        file_sizes.append(1)  # Assume at least 1MB
+                total_size_mb = sum(file_sizes)
+
+                # Increase timeout proportionally to file size
+                # For each MB of file size, add 10 seconds to the timeout (adjust as needed)
+                size_adjustment = total_size_mb * 10
+
+                # Cap the maximum timeout adjustment at 5 minutes (300 seconds)
+                size_adjustment = min(size_adjustment, 300)
+
+                TIMEOUT = base_timeout + size_adjustment
+
+                logger.info(
+                    f"Adjusted timeout for API call with {len(files_list)} files (total size: {total_size_mb:.2f}MB). Base timeout: {base_timeout}s, New timeout: {TIMEOUT}s"
+                )
+            else:
+                TIMEOUT = base_timeout
 
             # Execute the model call with timeout
             response = await asyncio.wait_for(f(**params), timeout=TIMEOUT)
@@ -1019,7 +1057,7 @@ class LanguageModel(
 
         # Combine model name and parameters
         return (
-            f"Model(model_name = '{self.model}'"
+            f"Model(model_name = '{self.model}', service_name = '{self._inference_service_}'"
             + (f", {param_string}" if param_string else "")
             + ")"
         )

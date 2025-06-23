@@ -93,6 +93,38 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
         """
         _, values = list(self.data[0].items())[0]
         return len(values)
+    
+    def drop(self, field_name):
+        """
+        Returns a new Dataset with the specified field removed.
+        
+        Args:
+            field_name (str): The name of the field to remove.
+            
+        Returns:
+            Dataset: A new Dataset instance without the specified field.
+            
+        Raises:
+            KeyError: If the field_name doesn't exist in the dataset.
+            
+        Examples:
+            >>> from .dataset import Dataset
+            >>> d = Dataset([{'a': [1, 2, 3]}, {'b': [4, 5, 6]}])
+            >>> d.drop('a')
+            Dataset([{'b': [4, 5, 6]}])
+            
+            >>> # Testing drop with nonexistent field raises DatasetKeyError - tested in unit tests
+        """
+        from .dataset import Dataset
+        
+        # Check if field exists in the dataset
+        if field_name not in self.relevant_columns():
+            raise DatasetKeyError(f"Field '{field_name}' not found in dataset")
+        
+        # Create a new dataset without the specified field
+        new_data = [entry for entry in self.data if field_name not in entry]
+        return Dataset(new_data)
+
 
     def tail(self, n: int = 5) -> Dataset:
         """Return the last n observations in the dataset.
@@ -1098,6 +1130,48 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
             for i, lst in enumerate(field_data):
                 number_values.extend(range(1, len(lst) + 1))
             new_data.append({f"{field}_number": number_values})
+        
+        return Dataset(new_data)
+
+    def unique(self) -> "Dataset":
+        """Return a new dataset with only unique observations.
+        
+        Examples:
+            >>> d = Dataset([{'a': [1, 2, 2, 3]}, {'b': [4, 5, 5, 6]}])
+            >>> d.unique().data
+            [{'a': [1, 2, 3]}, {'b': [4, 5, 6]}]
+            
+            >>> d = Dataset([{'x': ['a', 'a', 'b']}, {'y': [1, 1, 2]}])
+            >>> d.unique().data
+            [{'x': ['a', 'b']}, {'y': [1, 2]}]
+        """
+        # Get all column names and values
+        headers, data = self._tabular()
+        
+        # Create a list of unique rows
+        unique_rows = []
+        seen = set()
+        
+        for row in data:
+            # Convert the row to a hashable representation for comparison
+            # We need to handle potential unhashable types
+            try:
+                row_key = tuple(map(lambda x: str(x) if isinstance(x, (list, dict)) else x, row))
+                if row_key not in seen:
+                    seen.add(row_key)
+                    unique_rows.append(row)
+            except:
+                # Fallback for complex objects: compare based on string representation
+                row_str = str(row)
+                if row_str not in seen:
+                    seen.add(row_str)
+                    unique_rows.append(row)
+        
+        # Create a new dataset with unique combinations
+        new_data = []
+        for i, header in enumerate(headers):
+            values = [row[i] for row in unique_rows]
+            new_data.append({header: values})
         
         return Dataset(new_data)
 
