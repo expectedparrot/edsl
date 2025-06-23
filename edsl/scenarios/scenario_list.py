@@ -688,6 +688,8 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         fields: List[str],
         output_type: str = "string",
         separator: str = ";",
+        prefix: str = "",
+        postfix: str = "",
         new_field_name: Optional[str] = None,
     ) -> ScenarioList:
         """Private method to handle concatenation logic for different output types.
@@ -695,6 +697,8 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         :param fields: The fields to concatenate.
         :param output_type: The type of output ("string", "list", or "set").
         :param separator: The separator to use for string concatenation.
+        :param prefix: String to prepend to each value before concatenation.
+        :param postfix: String to append to each value before concatenation.
         :param new_field_name: Optional custom name for the concatenated field.
                              If None, defaults to "concat_field1_field2_..."
 
@@ -723,14 +727,25 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             )
 
             if output_type == "string":
-                # Convert all values to strings and join with separator
-                new_scenario[field_name] = separator.join(str(v) for v in values)
+                # Apply prefix and postfix to each value, then join with separator
+                formatted_values = [f"{prefix}{str(v)}{postfix}" for v in values]
+                new_scenario[field_name] = separator.join(formatted_values)
             elif output_type == "list":
-                # Keep as a list
-                new_scenario[field_name] = values
+                # Apply prefix and postfix to each value if they are strings
+                if prefix or postfix:
+                    formatted_values = [f"{prefix}{str(v)}{postfix}" for v in values]
+                    new_scenario[field_name] = formatted_values
+                else:
+                    # Keep as original list if no prefix/postfix
+                    new_scenario[field_name] = values
             elif output_type == "set":
-                # Convert to a set (removes duplicates)
-                new_scenario[field_name] = set(values)
+                # Apply prefix and postfix to each value if they are strings, then convert to set
+                if prefix or postfix:
+                    formatted_values = [f"{prefix}{str(v)}{postfix}" for v in values]
+                    new_scenario[field_name] = set(formatted_values)
+                else:
+                    # Convert to a set (removes duplicates)
+                    new_scenario[field_name] = set(values)
             else:
                 from .exceptions import ValueScenarioError
 
@@ -746,12 +761,16 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         self,
         fields: List[str],
         separator: str = ";",
+        prefix: str = "",
+        postfix: str = "",
         new_field_name: Optional[str] = None,
     ) -> ScenarioList:
         """Concatenate specified fields into a single string field.
 
         :param fields: The fields to concatenate.
         :param separator: The separator to use.
+        :param prefix: String to prepend to each value before concatenation.
+        :param postfix: String to append to each value before concatenation.
         :param new_field_name: Optional custom name for the concatenated field.
 
         Returns:
@@ -763,20 +782,30 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             ScenarioList([Scenario({'concat_a_b_c': '1;2;3'}), Scenario({'concat_a_b_c': '4;5;6'})])
             >>> s.concatenate(['a', 'b', 'c'], new_field_name='combined')
             ScenarioList([Scenario({'combined': '1;2;3'}), Scenario({'combined': '4;5;6'})])
+            >>> s.concatenate(['a', 'b', 'c'], prefix='[', postfix=']')
+            ScenarioList([Scenario({'concat_a_b_c': '[1];[2];[3]'}), Scenario({'concat_a_b_c': '[4];[5];[6]'})])
         """
         return self._concatenate(
             fields,
             output_type="string",
             separator=separator,
+            prefix=prefix,
+            postfix=postfix,
             new_field_name=new_field_name,
         )
 
     def concatenate_to_list(
-        self, fields: List[str], new_field_name: Optional[str] = None
+        self, 
+        fields: List[str], 
+        prefix: str = "",
+        postfix: str = "",
+        new_field_name: Optional[str] = None
     ) -> ScenarioList:
         """Concatenate specified fields into a single list field.
 
         :param fields: The fields to concatenate.
+        :param prefix: String to prepend to each value before concatenation.
+        :param postfix: String to append to each value before concatenation.
         :param new_field_name: Optional custom name for the concatenated field.
 
         Returns:
@@ -788,17 +817,29 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             ScenarioList([Scenario({'concat_a_b_c': [1, 2, 3]}), Scenario({'concat_a_b_c': [4, 5, 6]})])
             >>> s.concatenate_to_list(['a', 'b', 'c'], new_field_name='values')
             ScenarioList([Scenario({'values': [1, 2, 3]}), Scenario({'values': [4, 5, 6]})])
+            >>> s.concatenate_to_list(['a', 'b', 'c'], prefix='[', postfix=']')
+            ScenarioList([Scenario({'concat_a_b_c': ['[1]', '[2]', '[3]']}), Scenario({'concat_a_b_c': ['[4]', '[5]', '[6]']})])
         """
         return self._concatenate(
-            fields, output_type="list", new_field_name=new_field_name
+            fields, 
+            output_type="list", 
+            prefix=prefix,
+            postfix=postfix,
+            new_field_name=new_field_name
         )
 
     def concatenate_to_set(
-        self, fields: List[str], new_field_name: Optional[str] = None
+        self, 
+        fields: List[str], 
+        prefix: str = "",
+        postfix: str = "",
+        new_field_name: Optional[str] = None
     ) -> ScenarioList:
         """Concatenate specified fields into a single set field.
 
         :param fields: The fields to concatenate.
+        :param prefix: String to prepend to each value before concatenation.
+        :param postfix: String to append to each value before concatenation.
         :param new_field_name: Optional custom name for the concatenated field.
 
         Returns:
@@ -806,13 +847,26 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
 
         Example:
             >>> s = ScenarioList([Scenario({'a': 1, 'b': 2, 'c': 3}), Scenario({'a': 4, 'b': 5, 'c': 6})])
-            >>> s.concatenate_to_set(['a', 'b', 'c'])
-            ScenarioList([Scenario({'concat_a_b_c': {1, 2, 3}}), Scenario({'concat_a_b_c': {4, 5, 6}})])
-            >>> s.concatenate_to_set(['a', 'b', 'c'], new_field_name='unique_values')
-            ScenarioList([Scenario({'unique_values': {1, 2, 3}}), Scenario({'unique_values': {4, 5, 6}})])
+            >>> result = s.concatenate_to_set(['a', 'b', 'c'])
+            >>> result[0]['concat_a_b_c'] == {1, 2, 3}
+            True
+            >>> result[1]['concat_a_b_c'] == {4, 5, 6}
+            True
+            >>> result = s.concatenate_to_set(['a', 'b', 'c'], new_field_name='unique_values')
+            >>> result[0]['unique_values'] == {1, 2, 3}
+            True
+            >>> result = s.concatenate_to_set(['a', 'b', 'c'], prefix='[', postfix=']')
+            >>> result[0]['concat_a_b_c'] == {'[1]', '[2]', '[3]'}
+            True
+            >>> result[1]['concat_a_b_c'] == {'[4]', '[5]', '[6]'}
+            True
         """
         return self._concatenate(
-            fields, output_type="set", new_field_name=new_field_name
+            fields, 
+            output_type="set", 
+            prefix=prefix,
+            postfix=postfix,
+            new_field_name=new_field_name
         )
 
     def unpack_dict(
@@ -2091,7 +2145,12 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         return ScenarioList(new_scenarios)
 
     def collapse(
-        self, field: str, separator: Optional[str] = None, add_count: bool = False
+        self, 
+        field: str, 
+        separator: Optional[str] = None, 
+        prefix: str = "",
+        postfix: str = "",
+        add_count: bool = False
     ) -> ScenarioList:
         """Collapse a ScenarioList by grouping on all fields except the specified one,
         collecting the values of the specified field into a list.
@@ -2099,6 +2158,8 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         Args:
             field: The field to collapse (whose values will be collected into lists)
             separator: Optional string to join the values with instead of keeping as a list
+            prefix: String to prepend to each value before joining (only used with separator)
+            postfix: String to append to each value before joining (only used with separator)
             add_count: If True, adds a field showing the number of collapsed rows
 
         Returns:
@@ -2112,6 +2173,8 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         ... ])
         >>> s.collapse('item', add_count=True)
         ScenarioList([Scenario({'category': 'fruit', 'color': 'red', 'item': ['apple', 'cherry'], 'num_collapsed_rows': 2}), Scenario({'category': 'vegetable', 'color': 'green', 'item': ['spinach'], 'num_collapsed_rows': 1})])
+        >>> s.collapse('item', separator='; ', prefix='<example>', postfix='</example>')
+        ScenarioList([Scenario({'category': 'fruit', 'color': 'red', 'item': '<example>apple</example>; <example>cherry</example>'}), Scenario({'category': 'vegetable', 'color': 'green', 'item': '<example>spinach</example>'})])
         """
         if not self:
             return ScenarioList([])
@@ -2132,14 +2195,15 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         for key, values in grouped.items():
             new_scenario = dict(zip(id_vars, key))
             if separator:
-                new_scenario[field] = separator.join([str(x) for x in values])
+                # Apply prefix and postfix to each value, then join with separator
+                formatted_values = [f"{prefix}{str(v)}{postfix}" for v in values]
+                new_scenario[field] = separator.join(formatted_values)
             else:
                 new_scenario[field] = values
             if add_count:
                 new_scenario["num_collapsed_rows"] = len(values)
             new_sl.append(Scenario(new_scenario))
 
-        # return ScenarioList(result)
         return new_sl
 
     def create_comparisons(
