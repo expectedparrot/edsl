@@ -602,7 +602,7 @@ class Jobs(Base):
 
     def _check_if_remote_keys_ok(self):
         jc = JobsChecks(self)
-        if jc.needs_key_process():
+        if not jc.user_has_ep_api_key():
             jc.key_process()
 
     def _check_if_local_keys_ok(self):
