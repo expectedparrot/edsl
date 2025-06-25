@@ -2,6 +2,7 @@ import os
 from typing import Any, Optional, List, TYPE_CHECKING
 from openai import AsyncAzureOpenAI
 from ..inference_service_abc import InferenceServiceABC
+
 # Use TYPE_CHECKING to avoid circular imports at runtime
 if TYPE_CHECKING:
     from ...language_models import LanguageModel
@@ -49,7 +50,9 @@ class AzureAIService(InferenceServiceABC):
         azure_endpoints = os.getenv("AZURE_ENDPOINT_URL_AND_KEY", None)
         if not azure_endpoints:
             from ..exceptions import InferenceServiceEnvironmentError
-            raise InferenceServiceEnvironmentError("AZURE_ENDPOINT_URL_AND_KEY is not defined")
+
+            return []
+            # raise InferenceServiceEnvironmentError("AZURE_ENDPOINT_URL_AND_KEY is not defined")
         azure_endpoints = azure_endpoints.split(",")
         for data in azure_endpoints:
             try:
@@ -100,12 +103,13 @@ class AzureAIService(InferenceServiceABC):
     @classmethod
     def create_model(
         cls, model_name: str = "azureai", model_class_name=None
-    ) -> 'LanguageModel':
+    ) -> "LanguageModel":
         if model_class_name is None:
             model_class_name = cls.to_class_name(model_name)
 
         # Import LanguageModel only when actually creating a model
         from ...language_models import LanguageModel
+
         class LLM(LanguageModel):
             """
             Child class of LanguageModel for interacting with Azure OpenAI models.
@@ -140,6 +144,7 @@ class AzureAIService(InferenceServiceABC):
 
                 if not api_key:
                     from ..exceptions import InferenceServiceEnvironmentError
+
                     raise InferenceServiceEnvironmentError(
                         f"AZURE_ENDPOINT_URL_AND_KEY doesn't have the endpoint:key pair for your model: {model_name}"
                     )
@@ -151,6 +156,7 @@ class AzureAIService(InferenceServiceABC):
 
                 if not endpoint:
                     from ..exceptions import InferenceServiceEnvironmentError
+
                     raise InferenceServiceEnvironmentError(
                         f"AZURE_ENDPOINT_URL_AND_KEY doesn't have the endpoint:key pair for your model: {model_name}"
                     )
