@@ -108,8 +108,8 @@ class OpenAIService(InferenceServiceABC):
                     for m in cls.get_model_list(api_key=api_token)
                     if m.id not in cls.model_exclude_list
                 ]
-            except Exception as e:
-                pass
+            except Exception:
+                raise
         return cls._models_list_cache
 
     @classmethod
