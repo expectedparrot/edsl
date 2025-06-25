@@ -388,7 +388,7 @@ class DataOperationsBase:
             4
             >>> engine = Results.example()._db(shape = "long")
             >>> len(engine.execute(text("SELECT * FROM self")).fetchall())
-            212
+            220
         """
         # Import needed for database connection
         from sqlalchemy import create_engine
@@ -473,7 +473,7 @@ class DataOperationsBase:
 
             # Using long format
             >>> len(r.sql("SELECT * FROM self", shape="long"))
-            212
+            220
         """
         import pandas as pd
 
@@ -1116,7 +1116,7 @@ class DataOperationsBase:
             >>> d = Dataset([{'a': [{'a': 1, 'b': 2}]}, {'c': [5]}])
             >>> d.flatten('a', keep_original=True)
             Dataset([{'a': [{'a': 1, 'b': 2}]}, {'c': [5]}, {'a.a': [1]}, {'a.b': [2]}])
-            
+
             # Can also use unambiguous unprefixed field name
             >>> result = Dataset([{'answer.pros_cons': [{'pros': ['Safety'], 'cons': ['Cost']}]}]).flatten('pros_cons')
             >>> sorted(result.keys()) == ['answer.pros_cons.cons', 'answer.pros_cons.pros']
@@ -1129,7 +1129,7 @@ class DataOperationsBase:
         # Ensure the dataset isn't empty
         if not self.data:
             return self.copy()
-        
+
         # First try direct match with the exact field name
         field_entry = None
         for entry in self.data:
@@ -1137,18 +1137,18 @@ class DataOperationsBase:
             if field == col_name:
                 field_entry = entry
                 break
-        
+
         # If not found, try to match by unprefixed name
         if field_entry is None:
             # Find any columns that have field as their unprefixed name
             candidates = []
             for entry in self.data:
                 col_name = next(iter(entry.keys()))
-                if '.' in col_name:
-                    prefix, col_field = col_name.split('.', 1)
+                if "." in col_name:
+                    prefix, col_field = col_name.split(".", 1)
                     if col_field == field:
                         candidates.append(entry)
-            
+
             # If we found exactly one match by unprefixed name, use it
             if len(candidates) == 1:
                 field_entry = candidates[0]
@@ -1156,6 +1156,7 @@ class DataOperationsBase:
             elif len(candidates) > 1:
                 matching_cols = [next(iter(entry.keys())) for entry in candidates]
                 from .exceptions import DatasetValueError
+
                 raise DatasetValueError(
                     f"Ambiguous field name '{field}'. It matches multiple columns: {matching_cols}. "
                     f"Please specify the full column name to flatten."
@@ -1165,24 +1166,27 @@ class DataOperationsBase:
                 partial_matches = []
                 for entry in self.data:
                     col_name = next(iter(entry.keys()))
-                    if '.' in col_name and (
-                        col_name.endswith('.' + field) or 
-                        col_name.startswith(field + '.')
+                    if "." in col_name and (
+                        col_name.endswith("." + field)
+                        or col_name.startswith(field + ".")
                     ):
                         partial_matches.append(entry)
-                
+
                 # If we found exactly one partial match, use it
                 if len(partial_matches) == 1:
                     field_entry = partial_matches[0]
                 # If we found multiple partial matches, it's ambiguous
                 elif len(partial_matches) > 1:
-                    matching_cols = [next(iter(entry.keys())) for entry in partial_matches]
+                    matching_cols = [
+                        next(iter(entry.keys())) for entry in partial_matches
+                    ]
                     from .exceptions import DatasetValueError
+
                     raise DatasetValueError(
                         f"Ambiguous field name '{field}'. It matches multiple columns: {matching_cols}. "
                         f"Please specify the full column name to flatten."
                     )
-        
+
         # Get the number of observations
         num_observations = self.num_observations()
 
@@ -1192,7 +1196,7 @@ class DataOperationsBase:
                 f"Field '{field}' not found in dataset, returning original dataset"
             )
             return self.copy()
-        
+
         # Get the actual field name as it appears in the data
         actual_field = next(iter(field_entry.keys()))
 
