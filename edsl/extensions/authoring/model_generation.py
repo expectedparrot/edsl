@@ -1,7 +1,7 @@
 from typing import Dict, Any, Type, List, Optional
 from pydantic import create_model, Field, BaseModel
 
-from ..base import RegisterSubclassesMeta
+from ...base import RegisterSubclassesMeta
 
 class ModelGenerator:
     """Handles generation of Pydantic models for FastAPI endpoints."""

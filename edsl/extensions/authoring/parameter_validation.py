@@ -3,7 +3,7 @@ from dataclasses import MISSING, dataclass
 from abc import ABC
 
 from .exceptions import ServiceParameterValidationError
-from ..base import RegisterSubclassesMeta
+from ...base import RegisterSubclassesMeta
 
 @dataclass
 class Parameters:

@@ -8,7 +8,7 @@ This package provides tools for creating and managing EDSL extension services:
 - ExtensionOutput, ExtensionOutputs: Output structure classes
 
 Example:
-    from edsl.extension_authoring import ExtensionService, ServicesBuilder
+    from edsl.extensions.authoring import ExtensionService, ServicesBuilder
     
     class MyService(ExtensionService):
         service_name = "my_service"

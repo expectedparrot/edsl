@@ -53,3 +53,48 @@
 
 # # Convenience re-export so users can do `from edsl.extensions import compute_price`.
 # from .price_calculation import compute_price  # noqa: F401
+
+# Extension discovery and interaction tools
+from .available_extensions import ServiceFetcher, get_service_definition_by_name
+
+
+class Extensions:
+    """Main interface for discovering and using extensions."""
+    
+    def __init__(self):
+        self._fetcher = ServiceFetcher()
+    
+    def list(self):
+        """List all available extensions."""
+        return self._fetcher.list_service_definitions()
+    
+    def get(self, service_name):
+        """
+        Get a callable service by name.
+        
+        Args:
+            service_name: Name of the service to retrieve
+            
+        Returns:
+            ServiceDefinition: A callable service definition
+            
+        Raises:
+            ValueError: If the service is not found
+            
+        Examples:
+            >>> service = extensions.get('create_automated_survey')
+            >>> result = service(question="...", population="...")
+        """
+        service_def = get_service_definition_by_name(service_name)
+        if service_def is None:
+            raise ValueError(f"Extension '{service_name}' not found")
+        return service_def
+    
+    def __repr__(self):
+        return "Extensions(use .list() to see available services)"
+
+
+# Main interface - users import this
+extensions = Extensions()
+
+

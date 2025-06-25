@@ -16,9 +16,9 @@ from fastapi import HTTPException
 from fastapi import APIRouter, Header, HTTPException
 from typing import Callable, Optional, Any, Dict
 
-from ..surveys import Survey # Assume Survey is always available
-from ..scenarios import Scenario
-from ..base import RegisterSubclassesMeta
+from ...surveys import Survey # Assume Survey is always available
+from ...scenarios import Scenario
+from ...base import RegisterSubclassesMeta
 
 # Import ExtensionService classes from the new module
 from .extension_service import ExtensionService, ExtensionOutput, ExtensionOutputs
@@ -1388,7 +1388,7 @@ class ServicesBuilder:
             
         Examples:
             # Traditional approach
-            from edsl.extension_authoring.factory.app_factory import create_app
+            from edsl.extensions.authoring.factory.app_factory import create_app
             app = create_app(services=services)
             
             # New fluent approach

@@ -1,4 +1,4 @@
-from ..base import BaseException
+from ...base import BaseException
 
 
 class ExtensionError(BaseException):
