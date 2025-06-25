@@ -5,6 +5,7 @@ import os
 import openai
 
 from ..inference_service_abc import InferenceServiceABC
+
 # Use TYPE_CHECKING to avoid circular imports at runtime
 if TYPE_CHECKING:
     from ...language_models import LanguageModel
@@ -112,12 +113,13 @@ class OpenAIService(InferenceServiceABC):
         return cls._models_list_cache
 
     @classmethod
-    def create_model(cls, model_name, model_class_name=None) -> 'LanguageModel':
+    def create_model(cls, model_name, model_class_name=None) -> "LanguageModel":
         if model_class_name is None:
             model_class_name = cls.to_class_name(model_name)
 
         # Import LanguageModel only when actually creating a model
         from ...language_models import LanguageModel
+
         class LLM(LanguageModel):
             """
             Child class of LanguageModel for interacting with OpenAI models
@@ -236,10 +238,10 @@ class OpenAIService(InferenceServiceABC):
                 try:
                     response = await client.chat.completions.create(**params)
                 except Exception as e:
-                    #breakpoint()
-                    #print(e)
-                    #raise e
-                    return {'message': str(e)}
+                    # breakpoint()
+                    # print(e)
+                    # raise e
+                    return {"message": str(e)}
                 return response.model_dump()
 
         LLM.__name__ = "LanguageModel"
