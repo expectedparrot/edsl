@@ -109,8 +109,6 @@ class OpenAIService(InferenceServiceABC):
                     if m.id not in cls.model_exclude_list
                 ]
             except Exception as e:
-                # TODO: this is a temporary fix to avoid showing the errors in the Colab because on fresh installs this method
-                # is called automatically when importing edsl and no models_available.db is present yet locally.
                 pass
         return cls._models_list_cache
 
