@@ -37,6 +37,7 @@ from .coop_functions import CoopFunctionsMixin
 from .coop_regular_objects import CoopRegularObjects
 from .coop_jobs_objects import CoopJobsObjects
 from .coop_prolific_filters import CoopProlificFilters
+from .humanize import OrderedSamplingConfig, RandomSamplingConfig, SurveyItemConfig
 from .ep_key_handling import ExpectedParrotKeyHandler
 
 from ..inference_services.data_structures import ServiceToModelsMapping
@@ -1768,9 +1769,10 @@ class Coop(CoopFunctionsMixin):
     def create_project(
         self,
         survey: "Survey",
+        survey_config: Optional[dict[str, SurveyItemConfig]] = None,
         scenario_list: Optional["ScenarioList"] = None,
-        scenario_list_method: Optional[
-            Literal["randomize", "loop", "single_scenario"]
+        scenario_list_sampling_config: Optional[
+            Union[OrderedSamplingConfig, RandomSamplingConfig]
         ] = None,
         project_name: str = "Project",
         survey_description: Optional[str] = None,
@@ -1783,13 +1785,16 @@ class Coop(CoopFunctionsMixin):
         """
         Create a survey object on Coop, then create a project from the survey.
         """
-        if scenario_list is None and scenario_list_method is not None:
+        survey_config_dict = {
+            question: config.to_dict() for question, config in survey_config.items()
+        }
+        if scenario_list is None and scenario_list_sampling_config is not None:
             raise CoopValueError(
-                "You must specify both a scenario list and a scenario list method to use scenarios with your survey."
+                "You must specify both a scenario list and a scenario list sampling config to use scenarios with your survey."
             )
-        elif scenario_list is not None and scenario_list_method is None:
+        elif scenario_list is not None and scenario_list_sampling_config is None:
             raise CoopValueError(
-                "You must specify both a scenario list and a scenario list method to use scenarios with your survey."
+                "You must specify both a scenario list and a scenario list sampling config to use scenarios with your survey."
             )
         survey_details = self.push(
             object=survey,
@@ -1798,26 +1803,27 @@ class Coop(CoopFunctionsMixin):
             visibility=survey_visibility,
         )
         survey_uuid = survey_details.get("uuid")
-        if scenario_list is not None:
+        if scenario_list is not None and scenario_list_sampling_config is not None:
             scenario_list_details = self.push(
                 object=scenario_list,
                 description=scenario_list_description,
                 alias=scenario_list_alias,
                 visibility=scenario_list_visibility,
             )
-            scenario_list_uuid = scenario_list_details.get("uuid")
+            scenario_list_uuid = str(scenario_list_details["uuid"])
+            sampling_config_dict = scenario_list_sampling_config.to_dict()
         else:
             scenario_list_uuid = None
+            sampling_config_dict = None
         response = self._send_server_request(
             uri="api/v0/projects/create-from-survey",
             method="POST",
             payload={
                 "project_name": project_name,
                 "survey_uuid": str(survey_uuid),
-                "scenario_list_uuid": (
-                    str(scenario_list_uuid) if scenario_list_uuid is not None else None
-                ),
-                "scenario_list_method": scenario_list_method,
+                "survey_config": survey_config_dict,
+                "scenario_list_uuid": scenario_list_uuid,
+                "scenario_list_sampling_config": sampling_config_dict,
             },
         )
         self._resolve_server_response(response)
@@ -1828,6 +1834,86 @@ class Coop(CoopFunctionsMixin):
             "admin_url": f"{self.url}/home/projects/{response_json.get('uuid')}",
             "respondent_url": f"{self.url}/respond/{response_json.get('uuid')}",
         }
+
+    def testing_sampling_config(self, project_uuid: str) -> dict:
+        """
+        Get a sample for a project.
+        """
+        start_time = time.time()
+        response = self._send_server_request(
+            uri=f"api/v0/projects/{project_uuid}/testing-sampling-config",
+            method="POST",
+        )
+        self._resolve_server_response(response)
+        response_json = response.json()
+        end_time = time.time()
+        print(f"Time taken for this request (in Coop): {end_time - start_time} seconds")
+        numbers = response_json.get("numbers")
+        return [i - 133 for i in numbers]
+
+    def get_sampling_config(self, project_uuid: str) -> dict:
+        """
+        Get the sampling configuration for a project.
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/projects/{project_uuid}/sampling-config",
+            method="GET",
+        )
+        self._resolve_server_response(response)
+        response_json = response.json()
+        sampling_config = response_json.get("sampling_config", {})
+        sampling_method = sampling_config.get("sampling_method")
+        if sampling_method == "ordered":
+            return {
+                "sampling_method": "ordered",
+                "num_scenarios": sampling_config.get("num_scenarios_per_participant"),
+                "randomize_within_chunk": sampling_config.get("randomize_within_chunk"),
+                "shuffle_on_exhaustion": sampling_config.get("shuffle_on_exhaustion"),
+                "is_in_initial_state": sampling_config.get("is_in_initial_state"),
+            }
+        elif sampling_method == "random":
+            return {
+                "sampling_method": "random",
+                "num_scenarios": sampling_config.get("num_scenarios_per_participant"),
+                "replace_within_chunk": sampling_config.get("replace_within_chunk"),
+                "replace_within_list": sampling_config.get("replace_within_list"),
+                "is_in_initial_state": sampling_config.get("is_in_initial_state"),
+            }
+        else:
+            raise CoopValueError(
+                f"The server returned an invalid sampling method: {sampling_method}. Valid methods are: ordered, random."
+            )
+
+    def update_sampling_config(
+        self,
+        project_uuid: str,
+        sampling_config: Union[OrderedSamplingConfig, RandomSamplingConfig],
+    ) -> dict:
+        """
+        Update the sampling configuration for a project.
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/projects/{project_uuid}/sampling-config",
+            method="PATCH",
+            payload={
+                "scenario_list_sampling_config": sampling_config.to_dict(),
+            },
+        )
+        self._resolve_server_response(response)
+        response_json = response.json()
+        return response_json
+
+    def reset_sampling_config(self, project_uuid: str) -> dict:
+        """
+        Reset the sampling configuration for a project.
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/projects/{project_uuid}/reset-sampling-config",
+            method="POST",
+        )
+        self._resolve_server_response(response)
+        response_json = response.json()
+        return response_json
 
     def get_project(
         self,
@@ -1898,10 +1984,14 @@ class Coop(CoopFunctionsMixin):
                 response_dict = json.loads(response.get("response_json_string"))
                 agent_traits_json_string = response.get("agent_traits_json_string")
                 scenario_uuid = response.get("scenario_uuid")
+                session_uuid = response.get("session_uuid")
                 if agent_traits_json_string is not None:
                     agent_traits = json.loads(agent_traits_json_string)
+                    agent_traits["session_uuid"] = session_uuid
                 else:
-                    agent_traits = {}
+                    agent_traits = {
+                        "session_uuid": session_uuid,
+                    }
 
                 a = Agent(name=response_uuid, instruction="", traits=agent_traits)
 
@@ -1915,7 +2005,7 @@ class Coop(CoopFunctionsMixin):
                 if scenario_uuid is not None:
                     for s in scenario_list:
                         if s.get("uuid") == scenario_uuid:
-                            scenario = s
+                            scenario = s.drop("uuid")
                             break
 
                     if scenario is None:

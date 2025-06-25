@@ -30,6 +30,11 @@ from typing import (
 from ..base import Base
 from ..utilities import remove_edsl_version
 from ..coop import CoopServerResponseError
+from ..coop.humanize import (
+    OrderedSamplingConfig,
+    RandomSamplingConfig,
+    SurveyItemConfig,
+)
 
 # Import BucketCollection with an import_module to avoid early binding
 from importlib import import_module
@@ -1091,8 +1096,9 @@ class Jobs(Base):
     def humanize(
         self,
         project_name: str = "Project",
-        scenario_list_method: Optional[
-            Literal["randomize", "loop", "single_scenario"]
+        survey_config: Optional[dict[str, SurveyItemConfig]] = None,
+        scenario_list_sampling_config: Optional[
+            Union[OrderedSamplingConfig, RandomSamplingConfig]
         ] = None,
         survey_description: Optional[str] = None,
         survey_alias: Optional[str] = None,
@@ -1112,27 +1118,13 @@ class Jobs(Base):
         if len(self.agents) > 0 or len(self.models) > 0:
             raise CoopValueError("We don't support humanize with agents or models yet.")
 
-        if len(self.scenarios) > 0 and scenario_list_method is None:
+        if len(self.scenarios) > 0 and scenario_list_sampling_config is None:
             raise CoopValueError(
-                "You must specify both a scenario list and a scenario list method to use scenarios with your survey."
+                "You must specify both a scenario list and a scenario list sampling config to use scenarios with your survey."
             )
-        elif len(self.scenarios) == 0 and scenario_list_method is not None:
+        elif len(self.scenarios) == 0 and scenario_list_sampling_config is not None:
             raise CoopValueError(
-                "You must specify both a scenario list and a scenario list method to use scenarios with your survey."
-            )
-        elif scenario_list_method == "loop":
-            questions, long_scenario_list = self.survey.to_long_format(self.scenarios)
-
-            # Replace the questions with new ones from the loop method
-            self.survey = Survey(questions)
-            self.scenarios = long_scenario_list
-
-            if len(self.scenarios) != 1:
-                raise CoopValueError("Something went wrong with the loop method.")
-        elif len(self.scenarios) != 1 and scenario_list_method == "single_scenario":
-            raise CoopValueError(
-                f"The single_scenario method requires exactly one scenario. "
-                f"If you have a scenario list with multiple scenarios, try using the randomize or loop methods."
+                "You must specify both a scenario list and a scenario list sampling config to use scenarios with your survey."
             )
 
         if len(self.scenarios) == 0:
@@ -1143,8 +1135,9 @@ class Jobs(Base):
         c = Coop()
         project_details = c.create_project(
             self.survey,
+            survey_config,
             scenario_list,
-            scenario_list_method,
+            scenario_list_sampling_config,
             project_name,
             survey_description,
             survey_alias,
