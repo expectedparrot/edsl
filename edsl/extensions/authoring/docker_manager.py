@@ -12,8 +12,8 @@ as a single containerized application.
 
 Example
 -------
->>> from edsl.extension_authoring.authoring import ServicesBuilder
->>> from edsl.extension_authoring.docker_manager import ExtensionDeploymentManager
+>>> from edsl.extensions.authoring.authoring import ServicesBuilder
+>>> from edsl.extensions.authoring.docker_manager import ExtensionDeploymentManager
 >>> 
 >>> # Create a services collection
 >>> services = ServicesBuilder(

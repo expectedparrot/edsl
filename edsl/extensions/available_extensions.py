@@ -62,7 +62,7 @@ class ServiceFetcher:
         Raises:
             Various exceptions from ServiceDefinition gateway methods
         """
-        from ..extension_authoring.authoring import ServiceDefinition
+        from .authoring.authoring import ServiceDefinition
         
         logger.info("Fetching all service definitions from gateway")
         return ServiceDefinition.pull_all_from_gateway(
@@ -83,7 +83,7 @@ class ServiceFetcher:
         Raises:
             Various exceptions from ServiceDefinition gateway methods
         """
-        from ..extension_authoring.authoring import ServiceDefinition
+        from .authoring.authoring import ServiceDefinition
         
         logger.info(f"Fetching service definition ID {service_id} from gateway")
         return ServiceDefinition.pull_from_gateway(
@@ -151,7 +151,7 @@ class ServiceFetcher:
         Returns:
             List of service summary dictionaries
         """
-        from ..extension_authoring.authoring import ServiceDefinition
+        from .authoring.authoring import ServiceDefinition
         
         logger.info("Listing service summaries from gateway")
         return ServiceDefinition.list_from_gateway(

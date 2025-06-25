@@ -3,7 +3,7 @@ import json
 import requests
 from dataclasses import dataclass
 
-from ..base import RegisterSubclassesMeta
+from ...base import RegisterSubclassesMeta
 from .exceptions import (
     ServiceDeserializationError,
     ServiceResponseError,
