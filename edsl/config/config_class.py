@@ -118,7 +118,11 @@ CONFIG_MAP = {
     "EDSL_EXTENSION_GATEWAY_URL":{
         "default": "http://0.0.0.0:8000",
         "info": "This is a Service object that has registered extensions."
-    }
+    },
+    "EDSL_USE_SQLITE_FOR_SCENARIO_LIST": {
+        "default": "False",
+        "info": "This config var determines whether to use SQLite for ScenarioList instances.",
+    },
 }
 
 

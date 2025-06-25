@@ -660,7 +660,7 @@ class GoogleDocSource(Source):
             # Create a scenario from the DOCX file
             docx_scenario = DocxScenario(temp_filename)
             scenarios = [
-                Scenario({"text": paragraph}) for paragraph in docx_scenario.paragraphs
+                Scenario({"text": paragraph.text}) for paragraph in docx_scenario.doc.paragraphs
             ]
 
             return ScenarioList(scenarios)
