@@ -208,9 +208,10 @@ def _check_version_on_import():
             # Silently fail
             pass
 
-    # Run in a separate thread to avoid blocking imports
-    thread = threading.Thread(target=check_in_background, daemon=True)
-    thread.start()
+    check_in_background()
+    # # Run in a separate thread to avoid blocking imports
+    # thread = threading.Thread(target=check_in_background, daemon=True)
+    # thread.start()
 
 
 # Run version check on import
