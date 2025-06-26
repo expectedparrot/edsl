@@ -1835,21 +1835,18 @@ class Coop(CoopFunctionsMixin):
             "respondent_url": f"{self.url}/respond/{response_json.get('uuid')}",
         }
 
-    def testing_sampling_config(self, project_uuid: str) -> dict:
+    def test_sampling_config(self, project_uuid: str) -> dict:
         """
         Get a sample for a project.
         """
-        start_time = time.time()
         response = self._send_server_request(
-            uri=f"api/v0/projects/{project_uuid}/testing-sampling-config",
-            method="POST",
+            uri=f"api/v0/projects/{project_uuid}/sampling-config/test",
+            method="GET",
         )
         self._resolve_server_response(response)
         response_json = response.json()
-        end_time = time.time()
-        print(f"Time taken for this request (in Coop): {end_time - start_time} seconds")
-        numbers = response_json.get("numbers")
-        return [i - 133 for i in numbers]
+        numbers = response_json.get("scenario_indices")
+        return [i for i in numbers]
 
     def get_sampling_config(self, project_uuid: str) -> dict:
         """
