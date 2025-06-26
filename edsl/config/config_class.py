@@ -111,6 +111,14 @@ CONFIG_MAP = {
         "default": "10",  # Change to a very low threshold (10 bytes) to test SQLite offloading
         "info": "This config var determines the memory threshold in bytes before Results' SQLList offloads data to SQLite.",
     },
+    "EDSL_MAX_PRICE_BEFORE_CONFIRM": {
+        "default": "90",
+        "info": "This config var determines the maximum price before a confirmation prompt is shown.",
+    },
+    "EDSL_EXTENSION_GATEWAY_URL":{
+        "default": "http://0.0.0.0:8000",
+        "info": "This is a Service object that has registered extensions."
+    },
     "EDSL_USE_SQLITE_FOR_SCENARIO_LIST": {
         "default": "False",
         "info": "This config var determines whether to use SQLite for ScenarioList instances.",

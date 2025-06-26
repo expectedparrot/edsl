@@ -59,6 +59,8 @@ from typing import (
     Type,
 )
 from collections.abc import MutableMapping
+from collections import UserDict, defaultdict  
+
 
 if TYPE_CHECKING:
     from ..caching import Cache
@@ -170,6 +172,7 @@ class AgentTraits(MutableMapping):
                 self[k] = v  # will trigger _guard()
             return self
         return NotImplemented
+        
 
 
 class Agent(Base):
@@ -221,6 +224,7 @@ class Agent(Base):
         name: Optional[str] = None,
         codebook: Optional[dict] = None,
         instruction: Optional[str] = None,
+        trait_categories: Optional[OrganizedTraits] = None,
         traits_presentation_template: Optional[str] = None,
         dynamic_traits_function: Optional[Callable] = None,
         dynamic_traits_function_source_code: Optional[str] = None,
@@ -303,6 +307,29 @@ class Agent(Base):
         self._check_dynamic_traits_function()
         self._initialize_traits_presentation_template(traits_presentation_template)
         self.current_question = None
+        self.trait_categories = trait_categories or {}
+
+    def with_categories(self, *categories: str) -> Agent:
+        """Return a new agent with the specified categories"""
+        new_agent = self.duplicate()
+        new_traits = {}
+        for category in categories:
+            if category not in self.trait_categories:
+                raise AgentErrors(f"Category {category} not found in agent categories")
+            for trait_key in self.trait_categories[category]:
+                new_traits[trait_key] = self.traits[trait_key]
+        new_agent.traits = new_traits
+        return new_agent
+    
+    def add_category(self, category_name: str, trait_keys: Optional[list[str]] = None) -> None:
+        """Add a category to the agent"""
+        if category_name not in self.trait_categories:
+            self.trait_categories[category_name] = []
+        if trait_keys:
+            for trait_key in trait_keys:
+                if trait_key not in self.traits:
+                    raise AgentErrors(f"Trait {trait_key} not found in agent traits")
+                self.trait_categories[category_name].append(trait_key)
 
     def _initialize_basic_attributes(self, traits, name, codebook) -> None:
         """Initialize the basic attributes of the agent.
@@ -1270,6 +1297,10 @@ class Agent(Base):
                 )
         raw_data["traits"] = dict(raw_data["traits"])
 
+        if hasattr(self, "trait_categories"):
+            if self.trait_categories:
+                raw_data["trait_categories"] = self.trait_categories
+
         return raw_data
 
     def __hash__(self) -> int:
@@ -1303,6 +1334,8 @@ class Agent(Base):
             d["traits_presentation_template"] = self.traits_presentation_template
         if self.codebook or full_dict:
             d["codebook"] = self.codebook
+        if self.trait_categories or full_dict:
+            d["trait_categories"] = self.trait_categories
         if add_edsl_version:
             from edsl import __version__
 
@@ -1323,6 +1356,10 @@ class Agent(Base):
 
         """
         if "traits" in agent_dict:
+            if "trait_categories" in agent_dict:
+                trait_categories = agent_dict.pop("trait_categories", {})
+            else:
+                trait_categories = {}
             return cls(
                 traits=agent_dict["traits"],
                 name=agent_dict.get("name", None),
@@ -1331,6 +1368,7 @@ class Agent(Base):
                     "traits_presentation_template", None
                 ),
                 codebook=agent_dict.get("codebook", None),
+                trait_categories=trait_categories,
             )
         else:  # old-style agent - we used to only store the traits
             return cls(**agent_dict)
@@ -1455,3 +1493,7 @@ if __name__ == "__main__":
     import doctest
 
     doctest.testmod(optionflags=doctest.ELLIPSIS)
+
+
+    agent = Agent(traits={"age": 10, "hair": "brown", "height": 5.5, "gender": "male"}, trait_categories={"demographics": ["age", "gender"]})
+    agent.with_categories("demographics")
