@@ -284,23 +284,29 @@ class Coop(CoopFunctionsMixin):
             dict with version info if update is available, None otherwise
         """
         try:
-            # Make a simple request to get version info (using edsl-settings which is lightweight)
+            # Use the new /version/updates endpoint
             response = self._send_server_request(
-                uri="api/v0/edsl-settings", method="GET", timeout=5
+                uri="version/updates", method="GET", timeout=5
             )
 
-            # Get version from response headers
-            server_edsl_version = response.headers.get("X-EDSL-Version")
-            update_info = response.headers.get("X-EDSL-Update-Info", "")
+            data = response.json()
 
-            if server_edsl_version and self._user_version_is_outdated(
+            # Extract version information from the response
+            current_version = data.get("current")  # Latest version in use
+            guid_message = data.get("guid_message", "")  # Message about updates
+            force_update = (
+                "force update" in guid_message.lower() if guid_message else False
+            )
+            # Check if update is needed
+            if current_version and self._user_version_is_outdated(
                 user_version_str=self._edsl_version,
-                server_version_str=server_edsl_version,
+                server_version_str=current_version,
             ):
                 update_data = {
                     "current_version": self._edsl_version,
-                    "latest_version": server_edsl_version,
-                    "update_info": update_info,
+                    "latest_version": current_version,
+                    "guid_message": guid_message,
+                    "force_update": force_update,
                     "update_command": "pip install --upgrade edsl",
                 }
 
@@ -308,20 +314,67 @@ class Coop(CoopFunctionsMixin):
                     print("\n" + "=" * 60)
                     print("📦 EDSL Update Available!")
                     print(f"Your version: {self._edsl_version}")
-                    print(f"Latest version: {server_edsl_version}")
-                    if update_info:
-                        print(f"Update info: {update_info}")
-                    print(
-                        "\nYour version is out of date - can we update to latest version? [Y/n]"
-                    )
+                    print(f"Latest version: {current_version}")
+
+                    # Display the guid message if present
+                    if guid_message:
+                        print(f"\n{guid_message}")
+
+                    # Prompt user for update
+                    prompt_message = "\nDo you want to update now? [Y/n] "
+                    if force_update:
+                        prompt_message = "\n⚠️  FORCE UPDATE REQUIRED - Do you want to update now? [Y/n] "
+
+                    print(prompt_message, end="")
 
                     try:
                         user_input = input().strip().lower()
                         if user_input in ["", "y", "yes"]:
-                            print("To update, run: pip install --upgrade edsl")
-                            print("=" * 60 + "\n")
+                            # Actually run the update
+                            print("\nUpdating EDSL...")
+                            import subprocess
+                            import sys
+
+                            try:
+                                # Run pip install --upgrade edsl
+                                result = subprocess.run(
+                                    [
+                                        sys.executable,
+                                        "-m",
+                                        "pip",
+                                        "install",
+                                        "--upgrade",
+                                        "edsl",
+                                    ],
+                                    capture_output=True,
+                                    text=True,
+                                )
+
+                                if result.returncode == 0:
+                                    print(
+                                        "✅ Update successful! Please restart your application."
+                                    )
+                                else:
+                                    print(f"❌ Update failed: {result.stderr}")
+                                    print(
+                                        "You can try updating manually with: pip install --upgrade edsl"
+                                    )
+                            except Exception as e:
+                                print(f"❌ Update failed: {str(e)}")
+                                print(
+                                    "You can try updating manually with: pip install --upgrade edsl"
+                                )
+                        else:
+                            print(
+                                "\nUpdate skipped. You can update later with: pip install --upgrade edsl"
+                            )
+
+                        print("=" * 60 + "\n")
+
                     except (EOFError, KeyboardInterrupt):
-                        print("To update, run: pip install --upgrade edsl")
+                        print(
+                            "\nUpdate skipped. You can update later with: pip install --upgrade edsl"
+                        )
                         print("=" * 60 + "\n")
 
                 return update_data
