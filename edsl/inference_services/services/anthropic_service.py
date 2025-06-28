@@ -85,14 +85,18 @@ class AnthropicService(InferenceServiceABC):
                 ]
                 if files_list:
                     for file_entry in files_list:
-                        encoded_image = file_entry.base64_string
+                        encoded_data = file_entry.base64_string
+                        
+                        # Use "document" type for PDFs, "image" type for other files
+                        content_type = "document" if file_entry.mime_type == "application/pdf" else "image"
+                        
                         messages[0]["content"].append(
                             {
-                                "type": "image",
+                                "type": content_type,
                                 "source": {
                                     "type": "base64",
                                     "media_type": file_entry.mime_type,
-                                    "data": encoded_image,
+                                    "data": encoded_data,
                                 },
                             }
                         )
