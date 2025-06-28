@@ -602,8 +602,8 @@ class Jobs(Base):
 
     def _check_if_remote_keys_ok(self):
         jc = JobsChecks(self)
-        if jc.needs_key_process():
-            jc.key_process()
+        if not jc.user_has_ep_api_key():
+            jc.key_process(remote_inference=True)
 
     def _check_if_local_keys_ok(self):
         jc = JobsChecks(self)
@@ -758,7 +758,8 @@ class Jobs(Base):
         # Make sure all required objects exist
         self.replace_missing_objects()
         self._prepare_to_run()
-        self._check_if_remote_keys_ok()
+        if not self.run_config.parameters.disable_remote_inference:
+            self._check_if_remote_keys_ok()
 
         # Setup caching
         from ..caching import CacheHandler, Cache
