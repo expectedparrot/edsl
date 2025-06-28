@@ -219,15 +219,22 @@ class JobsRemoteInferenceHandler:
         self, job_info: RemoteJobInfo, remote_job_data: RemoteInferenceResponse
     ) -> None:
         "Handles a failed job by logging the error and updating the job status."
-        error_report_url = remote_job_data.get("latest_job_run_details", {}).get(
-            "error_report_url"
-        )
+        latest_job_run_details = remote_job_data.get("latest_job_run_details", {})
+        error_report_url = latest_job_run_details.get("error_report_url")
 
-        reason = remote_job_data.get("reason")
+        failure_reason = latest_job_run_details.get("failure_reason")
 
-        if reason == "insufficient funds":
+        if failure_reason == "insufficient funds":
+            failure_description = latest_job_run_details.get(
+                "failure_description",
+                "You don't have enough credits to start this job",
+            )
             job_info.logger.update(
-                f"Error: Insufficient balance to start the job. Add funds to your account at the [Credits page]({self.expected_parrot_url}/home/credits)",
+                f"Insufficient funds: {failure_description}.",
+                status=JobsStatus.FAILED,
+            )
+            job_info.logger.update(
+                f"Add funds to your account at the [Credits page]({self.expected_parrot_url}/home/credits).",
                 status=JobsStatus.FAILED,
             )
 
