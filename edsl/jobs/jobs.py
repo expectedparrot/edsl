@@ -1107,6 +1107,15 @@ class Jobs(Base):
                 for scenario in self.scenarios
             ],
         }
+        
+        # Add _post_run_methods if not empty
+        if self._post_run_methods:
+            d["_post_run_methods"] = self._post_run_methods
+            
+        # Add _depends_on if not None
+        if self._depends_on is not None:
+            d["_depends_on"] = self._depends_on.to_dict(add_edsl_version=add_edsl_version)
+        
         if add_edsl_version:
             from .. import __version__
 
@@ -1127,12 +1136,23 @@ class Jobs(Base):
         from ..language_models import LanguageModel
         from ..scenarios import Scenario
 
-        return cls(
+        # Create the base Jobs instance
+        job = cls(
             survey=Survey.from_dict(data["survey"]),
             agents=[Agent.from_dict(agent) for agent in data["agents"]],
             models=[LanguageModel.from_dict(model) for model in data["models"]],
             scenarios=[Scenario.from_dict(scenario) for scenario in data["scenarios"]],
         )
+        
+        # Restore _post_run_methods if present
+        if "_post_run_methods" in data:
+            job._post_run_methods = data["_post_run_methods"]
+            
+        # Restore _depends_on if present
+        if "_depends_on" in data:
+            job._depends_on = cls.from_dict(data["_depends_on"])
+            
+        return job
 
     def __eq__(self, other: Jobs) -> bool:
         """Return True if the Jobs instance is equal to another Jobs instance.
