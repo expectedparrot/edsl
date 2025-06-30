@@ -99,6 +99,22 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         if codebook is not None:
             self.set_codebook(codebook)
 
+    def at(self, index: int) -> "Agent":
+        """Get the agent at the specified index position.
+        """
+        return self.data[index]
+    
+    def first(self) -> "Agent":
+        """Get the first agent in the list.
+        """
+        return self.data[0]
+    
+    def last(self) -> "Agent":
+        """Get the last agent in the list.
+        """
+        return self.data[-1]
+
+
     def set_instruction(self, instruction: str) -> None:
         """Set the instruction for all agents in the list.
 
@@ -108,7 +124,7 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         for agent in self.data:
             agent.instruction = instruction
 
-        return None
+        return self
 
     def set_traits_presentation_template(
         self, traits_presentation_template: str
