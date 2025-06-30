@@ -134,6 +134,12 @@ class PersistenceMixin:
             A new instance of the same class with identical properties
         """
         return self.from_dict(self.to_dict(add_edsl_version=False))
+    
+    def store(self, container_dict: dict, name: Optional[str] = None):
+        if name is None:
+            name = hash(self)
+        container_dict[name] = self
+        return self
 
     @classmethod
     def help(cls):
