@@ -469,6 +469,9 @@ class QuestionBase(
             candidate_data["function_source_code"] = inspect.getsource(func)
 
         return candidate_data
+    
+    def to_jobs(self):
+        return self.to_survey().to_jobs()
 
     def to_dict(self, add_edsl_version: bool = True):
         """Convert the question to a dictionary that includes the question type (used in deserialization).
