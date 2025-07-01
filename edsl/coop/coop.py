@@ -1770,7 +1770,7 @@ class Coop(CoopFunctionsMixin):
         survey: "Survey",
         scenario_list: Optional["ScenarioList"] = None,
         scenario_list_method: Optional[
-            Literal["randomize", "loop", "single_scenario"]
+            Literal["randomize", "loop", "single_scenario", "ordered"]
         ] = None,
         project_name: str = "Project",
         survey_description: Optional[str] = None,
@@ -1979,6 +1979,34 @@ class Coop(CoopFunctionsMixin):
         return self._turn_human_responses_into_results(
             human_responses, survey_json_string, scenario_list_json_string
         )
+
+    def test_scenario_sampling(self, project_uuid: str) -> List[int]:
+        """
+        Get a sample for a project.
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/projects/{project_uuid}/scenario-sampling/test",
+            method="GET",
+        )
+        self._resolve_server_response(response)
+        response_json = response.json()
+        scenario_indices = response_json.get("scenario_indices")
+        return scenario_indices
+
+    def reset_scenario_sampling_state(self, project_uuid: str) -> dict:
+        """
+        Reset the scenario sampling state for a project.
+
+        This is useful if you have scenario_list_method="ordered" and you want to
+        start over with the first scenario in the list.
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/projects/{project_uuid}/scenario-sampling/reset",
+            method="POST",
+        )
+        self._resolve_server_response(response)
+        response_json = response.json()
+        return response_json
 
     def list_prolific_filters(self) -> "CoopProlificFilters":
         """
