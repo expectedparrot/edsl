@@ -1048,18 +1048,20 @@ class Jobs(Base):
         )
         return number_of_interviews
 
-    def to(self, question_or_survey: Union["Question", "Survey"]) -> "Jobs":
+    def to(self, question_or_survey_or_jobs: Union["Question", "Survey", "Jobs"]) -> "Jobs":
         """
         Convert the Jobs instance to a new Jobs instance with the given question or survey.
         """
         from ..questions import QuestionBase
         from ..surveys import Survey
-        if isinstance(question_or_survey, QuestionBase):
-            new_jobs = Jobs(survey=Survey(questions=[question_or_survey]))
-        elif isinstance(question_or_survey, Survey):
-            new_jobs = Jobs(survey=question_or_survey)
+        if isinstance(question_or_survey_or_jobs, QuestionBase):
+            new_jobs = Jobs(survey=Survey(questions=[question_or_survey_or_jobs]))
+        elif isinstance(question_or_survey_or_jobs, Survey):
+            new_jobs = Jobs(survey=question_or_survey_or_jobs)
+        elif isinstance(question_or_survey_or_jobs, Jobs):
+            new_jobs = question_or_survey_or_jobs
         else:
-            raise ValueError(f"Invalid type: {type(question_or_survey)}")
+            raise ValueError(f"Invalid type: {type(question_or_survey_or_jobs)}")
 
         new_jobs._depends_on  = self
         return new_jobs
