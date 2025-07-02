@@ -111,6 +111,10 @@ CONFIG_MAP = {
         "default": "10",  # Change to a very low threshold (10 bytes) to test SQLite offloading
         "info": "This config var determines the memory threshold in bytes before Results' SQLList offloads data to SQLite.",
     },
+    "EDSL_USE_SQLITE_FOR_SCENARIO_LIST": {
+        "default": "False",
+        "info": "This config var determines whether to use SQLite for ScenarioList instances.",
+    },
 }
 
 

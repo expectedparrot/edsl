@@ -273,6 +273,118 @@ class Coop(CoopFunctionsMixin):
 
         return user_stable_version < server_stable_version
 
+    def check_for_updates(self, silent: bool = False) -> Optional[dict]:
+        """
+        Check if there's a newer version of EDSL available.
+
+        Args:
+            silent: If True, don't print any messages to console
+
+        Returns:
+            dict with version info if update is available, None otherwise
+        """
+        try:
+            # Use the new /version/updates endpoint
+            response = self._send_server_request(
+                uri="version/updates", method="GET", timeout=5
+            )
+
+            data = response.json()
+
+            # Extract version information from the response
+            current_version = data.get("current")  # Latest version in use
+            guid_message = data.get("guid_message", "")  # Message about updates
+            force_update = (
+                "force update" in guid_message.lower() if guid_message else False
+            )
+            # Check if update is needed
+            if current_version and self._user_version_is_outdated(
+                user_version_str=self._edsl_version,
+                server_version_str=current_version,
+            ):
+                update_data = {
+                    "current_version": self._edsl_version,
+                    "latest_version": current_version,
+                    "guid_message": guid_message,
+                    "force_update": force_update,
+                    "update_command": "pip install --upgrade edsl",
+                }
+
+                if not silent:
+                    print("\n" + "=" * 60)
+                    print("📦 EDSL Update Available!")
+                    print(f"Your version: {self._edsl_version}")
+                    print(f"Latest version: {current_version}")
+
+                    # Display the guid message if present
+                    if guid_message:
+                        print(f"\n{guid_message}")
+
+                    # Prompt user for update
+                    prompt_message = "\nDo you want to update now? [Y/n] "
+                    if force_update:
+                        prompt_message = "\n⚠️  FORCE UPDATE REQUIRED - Do you want to update now? [Y/n] "
+
+                    print(prompt_message, end="")
+
+                    try:
+                        user_input = input().strip().lower()
+                        if user_input in ["", "y", "yes"]:
+                            # Actually run the update
+                            print("\nUpdating EDSL...")
+                            import subprocess
+                            import sys
+
+                            try:
+                                # Run pip install --upgrade edsl
+                                result = subprocess.run(
+                                    [
+                                        sys.executable,
+                                        "-m",
+                                        "pip",
+                                        "install",
+                                        "--upgrade",
+                                        "edsl",
+                                    ],
+                                    capture_output=True,
+                                    text=True,
+                                )
+
+                                if result.returncode == 0:
+                                    print(
+                                        "✅ Update successful! Please restart your application."
+                                    )
+                                else:
+                                    print(f"❌ Update failed: {result.stderr}")
+                                    print(
+                                        "You can try updating manually with: pip install --upgrade edsl"
+                                    )
+                            except Exception as e:
+                                print(f"❌ Update failed: {str(e)}")
+                                print(
+                                    "You can try updating manually with: pip install --upgrade edsl"
+                                )
+                        else:
+                            print(
+                                "\nUpdate skipped. You can update later with: pip install --upgrade edsl"
+                            )
+
+                        print("=" * 60 + "\n")
+
+                    except (EOFError, KeyboardInterrupt):
+                        print(
+                            "\nUpdate skipped. You can update later with: pip install --upgrade edsl"
+                        )
+                        print("=" * 60 + "\n")
+
+                return update_data
+
+        except Exception:
+            # Silently fail if we can't check for updates
+            pass
+
+        return None
+
     def _resolve_server_response(
         self, response: requests.Response, check_api_key: bool = True
     ) -> None:
@@ -280,18 +392,35 @@ class Coop(CoopFunctionsMixin):
         Check the response from the server and raise errors as appropriate.
         """
         # Get EDSL version from header
-        # breakpoint()
-        # Commented out as currently unused
-        # server_edsl_version = response.headers.get("X-EDSL-Version")
+        server_edsl_version = response.headers.get("X-EDSL-Version")
 
-        # if server_edsl_version:
-        #     if self._user_version_is_outdated(
-        #         user_version_str=self._edsl_version,
-        #         server_version_str=server_edsl_version,
-        #     ):
-        #         print(
-        #             "Please upgrade your EDSL version to access our latest features. Open your terminal and run `pip install --upgrade edsl`"
-        #         )
+        if server_edsl_version:
+            if self._user_version_is_outdated(
+                user_version_str=self._edsl_version,
+                server_version_str=server_edsl_version,
+            ):
+                # Get additional info from server if available
+                update_info = response.headers.get("X-EDSL-Update-Info", "")
+
+                print("\n" + "=" * 60)
+                print("📦 EDSL Update Available!")
+                print(f"Your version: {self._edsl_version}")
+                print(f"Latest version: {server_edsl_version}")
+                if update_info:
+                    print(f"Update info: {update_info}")
+                print(
+                    "\nYour version is out of date - can we update to latest version? [Y/n]"
+                )
+
+                try:
+                    user_input = input().strip().lower()
+                    if user_input in ["", "y", "yes"]:
+                        print("To update, run: pip install --upgrade edsl")
+                        print("=" * 60 + "\n")
+                except (EOFError, KeyboardInterrupt):
+                    # Handle non-interactive environments
+                    print("To update, run: pip install --upgrade edsl")
+                    print("=" * 60 + "\n")
         if response.status_code >= 400:
             try:
                 message = str(response.json().get("detail"))
@@ -1562,7 +1691,6 @@ class Coop(CoopFunctionsMixin):
 
         # The job has been offloaded to GCS
         if include_json_string and json_string == "offloaded":
-
             # Attempt to fetch JSON string from GCS
             response = self._send_server_request(
                 uri="api/v0/remote-inference/pull",
