@@ -1,11 +1,12 @@
 from contextlib import contextmanager
 from pathlib import Path
 import tempfile
+from typing import Optional
 
 
 
 @contextmanager
-def local_results_cache(job, cache_dir: str | None = None, verbose: bool = True):
+def local_results_cache(job, cache_dir: Optional[str] = None, verbose: bool = True):
     """Context-manager that caches `job.run()` results to disk.
 
     Usage

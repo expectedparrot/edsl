@@ -89,14 +89,14 @@ class OpenAIServiceV2(InferenceServiceABC):
     _models_list_cache: List[str] = []
 
     @classmethod
-    def get_model_list(cls, api_key: str | None = None) -> List[str]:
+    def get_model_list(cls, api_key: Optional[str] = None) -> List[str]:
         if api_key is None:
             api_key = os.getenv(cls._env_key_name_)
         raw = cls.sync_client(api_key).models.list()
         return raw.data if hasattr(raw, "data") else raw
 
     @classmethod
-    def available(cls, api_token: str | None = None) -> List[str]:
+    def available(cls, api_token: Optional[str] = None) -> List[str]:
         if api_token is None:
             api_token = os.getenv(cls._env_key_name_)
         if not cls._models_list_cache:
@@ -110,7 +110,7 @@ class OpenAIServiceV2(InferenceServiceABC):
     def create_model(
         cls,
         model_name: str,
-        model_class_name: str | None = None,
+        model_class_name: Optional[str] = None,
     ) -> LanguageModel:
         if model_class_name is None:
             model_class_name = cls.to_class_name(model_name)
