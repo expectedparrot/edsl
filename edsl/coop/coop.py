@@ -1915,7 +1915,7 @@ class Coop(CoopFunctionsMixin):
                 if scenario_uuid is not None:
                     for s in scenario_list:
                         if s.get("uuid") == scenario_uuid:
-                            scenario = s
+                            scenario = s.drop("uuid")
                             break
 
                     if scenario is None:
