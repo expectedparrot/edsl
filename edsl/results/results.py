@@ -1581,6 +1581,56 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         return selector.select(*columns)
 
     @ensure_ready
+    def bucket_by(self, *columns: str) -> dict[tuple, list["Result"]]:
+        """Group Result objects into buckets keyed by the specified column values.
+
+        Each key in the returned dictionary is a tuple containing the values of
+        the requested columns (in the same order as supplied).  The associated
+        value is a list of ``Result`` instances whose values match that key.
+
+        Args:
+            *columns: Names of the columns to group by.  Column identifiers
+                follow the same rules used by :meth:`select` – they can be
+                specified either as fully-qualified names (e.g. ``"agent.status"``)
+                or by bare attribute name when unambiguous.
+
+        Returns:
+            dict[tuple, list[Result]]: Mapping from value tuples to lists of
+            ``Result`` objects.
+
+        Raises:
+            ResultsError: If no columns are provided or an invalid column name is
+                supplied.
+
+        Examples:
+            >>> r = Results.example()
+            >>> buckets = r.bucket_by('how_feeling')
+            >>> list(buckets.keys())  # doctest: +ELLIPSIS
+            [('OK',), ('Great',), ('Terrible',)]
+            >>> all(isinstance(v, list) for v in buckets.values())
+            True
+        """
+        if len(columns) == 0:
+            raise ResultsError("You must provide at least one column to bucket_by().")
+
+        # Build buckets using a dictionary that maps key tuples to lists of Result objects
+        from collections import defaultdict
+
+        buckets: dict[tuple, list[Result]] = defaultdict(list)
+
+        for result in self.data:
+            key_values = []
+            for col in columns:
+                # Determine data_type and attribute key
+                data_type, attr_key = self._parse_column(col)
+                # Extract the value from the Result object
+                value = result.get_value(data_type, attr_key)
+                key_values.append(value)
+            buckets[tuple(key_values)].append(result)
+
+        return dict(buckets)
+
+    @ensure_ready
     def sort_by(self, *columns: str, reverse: bool = False) -> Results:
         """Sort the results by one or more columns."""
         warnings.warn(
