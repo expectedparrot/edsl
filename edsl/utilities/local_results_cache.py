@@ -10,8 +10,8 @@ def local_results_cache(job, cache_dir: str | None = None, verbose: bool = True)
 
     Usage
     -----
-    >>> with local_results_cache(job) as results:
-    ...     # use results
+    >>> with local_results_cache(job) as results:  # doctest: +SKIP
+    ...     pass  # use results
     """
 
     from edsl import Results  # local import to avoid heavy import cost
