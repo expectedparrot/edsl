@@ -189,6 +189,16 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         """Insert value at index."""
         self.data.insert(index, value)
 
+    def at(self, index: int) -> Scenario:
+        """Get the scenario at the specified index position.
+        >>> sl = ScenarioList.from_list("a", [1, 2, 3])
+        >>> sl.at(0)
+        Scenario({'a': 1})
+        >>> sl.at(-1)
+        Scenario({'a': 3})
+        """
+        return self.data[index]
+
     def unique(self) -> ScenarioList:
         """
         Return a new ScenarioList containing only unique Scenario objects.
