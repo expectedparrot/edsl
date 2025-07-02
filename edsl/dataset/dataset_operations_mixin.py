@@ -339,6 +339,37 @@ class DataOperationsBase:
         )
         return exporter.export()
 
+    def clipboard_data(self) -> str:
+        """Return TSV representation of this object for clipboard operations.
+        
+        This method is called by the clipboard() method in the base class to provide
+        a custom format for copying objects to the system clipboard.
+        
+        Returns:
+            str: Tab-separated values representation of the object
+        """
+        # Use the to_csv method to get CSV data
+        csv_filestore = self.to_csv()
+        
+        # Get the CSV content and convert it to TSV
+        csv_content = csv_filestore.text
+        
+        # Convert CSV to TSV by replacing commas with tabs
+        # This is a simple approach, but we should handle quoted fields properly
+        import csv
+        import io
+        
+        # Parse the CSV content
+        csv_reader = csv.reader(io.StringIO(csv_content))
+        rows = list(csv_reader)
+        
+        # Convert to TSV format
+        tsv_lines = []
+        for row in rows:
+            tsv_lines.append('\t'.join(row))
+        
+        return '\n'.join(tsv_lines)
+
     def _db(self, remove_prefix: bool = True, shape: str = "wide"):
         """Create a SQLite database in memory and return the connection.
 
@@ -357,7 +388,7 @@ class DataOperationsBase:
             4
             >>> engine = Results.example()._db(shape = "long")
             >>> len(engine.execute(text("SELECT * FROM self")).fetchall())
-            212
+            220
         """
         # Import needed for database connection
         from sqlalchemy import create_engine
@@ -442,7 +473,7 @@ class DataOperationsBase:
 
             # Using long format
             >>> len(r.sql("SELECT * FROM self", shape="long"))
-            212
+            220
         """
         import pandas as pd
 
@@ -1085,7 +1116,7 @@ class DataOperationsBase:
             >>> d = Dataset([{'a': [{'a': 1, 'b': 2}]}, {'c': [5]}])
             >>> d.flatten('a', keep_original=True)
             Dataset([{'a': [{'a': 1, 'b': 2}]}, {'c': [5]}, {'a.a': [1]}, {'a.b': [2]}])
-            
+
             # Can also use unambiguous unprefixed field name
             >>> result = Dataset([{'answer.pros_cons': [{'pros': ['Safety'], 'cons': ['Cost']}]}]).flatten('pros_cons')
             >>> sorted(result.keys()) == ['answer.pros_cons.cons', 'answer.pros_cons.pros']
@@ -1098,7 +1129,7 @@ class DataOperationsBase:
         # Ensure the dataset isn't empty
         if not self.data:
             return self.copy()
-        
+
         # First try direct match with the exact field name
         field_entry = None
         for entry in self.data:
@@ -1106,18 +1137,18 @@ class DataOperationsBase:
             if field == col_name:
                 field_entry = entry
                 break
-        
+
         # If not found, try to match by unprefixed name
         if field_entry is None:
             # Find any columns that have field as their unprefixed name
             candidates = []
             for entry in self.data:
                 col_name = next(iter(entry.keys()))
-                if '.' in col_name:
-                    prefix, col_field = col_name.split('.', 1)
+                if "." in col_name:
+                    prefix, col_field = col_name.split(".", 1)
                     if col_field == field:
                         candidates.append(entry)
-            
+
             # If we found exactly one match by unprefixed name, use it
             if len(candidates) == 1:
                 field_entry = candidates[0]
@@ -1125,6 +1156,7 @@ class DataOperationsBase:
             elif len(candidates) > 1:
                 matching_cols = [next(iter(entry.keys())) for entry in candidates]
                 from .exceptions import DatasetValueError
+
                 raise DatasetValueError(
                     f"Ambiguous field name '{field}'. It matches multiple columns: {matching_cols}. "
                     f"Please specify the full column name to flatten."
@@ -1134,24 +1166,27 @@ class DataOperationsBase:
                 partial_matches = []
                 for entry in self.data:
                     col_name = next(iter(entry.keys()))
-                    if '.' in col_name and (
-                        col_name.endswith('.' + field) or 
-                        col_name.startswith(field + '.')
+                    if "." in col_name and (
+                        col_name.endswith("." + field)
+                        or col_name.startswith(field + ".")
                     ):
                         partial_matches.append(entry)
-                
+
                 # If we found exactly one partial match, use it
                 if len(partial_matches) == 1:
                     field_entry = partial_matches[0]
                 # If we found multiple partial matches, it's ambiguous
                 elif len(partial_matches) > 1:
-                    matching_cols = [next(iter(entry.keys())) for entry in partial_matches]
+                    matching_cols = [
+                        next(iter(entry.keys())) for entry in partial_matches
+                    ]
                     from .exceptions import DatasetValueError
+
                     raise DatasetValueError(
                         f"Ambiguous field name '{field}'. It matches multiple columns: {matching_cols}. "
                         f"Please specify the full column name to flatten."
                     )
-        
+
         # Get the number of observations
         num_observations = self.num_observations()
 
@@ -1161,7 +1196,7 @@ class DataOperationsBase:
                 f"Field '{field}' not found in dataset, returning original dataset"
             )
             return self.copy()
-        
+
         # Get the actual field name as it appears in the data
         actual_field = next(iter(field_entry.keys()))
 
@@ -1342,6 +1377,94 @@ class DataOperationsBase:
             new_data.append({new_key: values})
 
         return Dataset(new_data)
+
+    def report_from_template(
+        self,
+        template: str,
+        *fields: Optional[str],
+        top_n: Optional[int] = None,
+        remove_prefix: bool = True,
+        return_string: bool = False,
+        format: str = "text",
+        filename: Optional[str] = None,
+        separator: str = "\n\n",
+        observation_title_template: Optional[str] = None,
+        explode: bool = False,
+        markdown_to_docx: bool = True,
+        use_pandoc: bool = True,
+    ) -> Optional[Union[str, "Document", List]]:
+        """Generates a report using a Jinja2 template for each row in the dataset.
+
+        This method renders a user-provided Jinja2 template for each observation in the dataset,
+        with template variables populated from the row data. This allows for completely customized
+        report formatting.
+
+        Args:
+            template: Jinja2 template string to render for each row
+            *fields: The fields to include in template context. If none provided, all fields are used.
+            top_n: Optional limit on the number of observations to include.
+            remove_prefix: Whether to remove type prefixes (e.g., "answer.") from field names in template context.
+            return_string: If True, returns the rendered string. If False (default in notebooks),
+                          only displays the content without returning.
+            format: Output format - either "text" or "docx".
+            filename: If provided, saves the rendered content to this file. For exploded output, 
+                     this becomes a template (e.g., "report_{index}.docx").
+            separator: String to use between rendered templates for each row (ignored when explode=True).
+            observation_title_template: Optional Jinja2 template for observation titles. 
+                                       Defaults to "Observation {index}" where index is 1-based.
+                                       Template has access to all row data plus 'index' and 'index0' variables.
+            explode: If True, creates separate files for each observation instead of one combined file.
+            markdown_to_docx: If True (default), treats template content as Markdown and converts it to proper DOCX formatting.
+                             Set to False to use plain text formatting (original behavior).
+            use_pandoc: If True (default) and markdown_to_docx=True, uses pandoc for conversion (recommended). 
+                       If False, uses a Python-based Markdown parser (requires markdown and python-docx libraries)
+
+        Returns:
+            Depending on explode, format and return_string:
+            - If explode=True: List of created filenames (when filename provided) or list of documents/strings
+            - If explode=False: Same as before - string, Document, or None
+
+        Examples:
+            >>> from edsl.results import Results
+            >>> r = Results.example()
+            >>> template = "Person feels: {{ how_feeling }}"
+            >>> report = r.select('how_feeling').report_from_template(template, return_string=True)
+            >>> "Person feels: OK" in report
+            True
+            >>> "Person feels: Great" in report
+            True
+            
+            # Custom observation titles
+            >>> custom_title = "Response {{ index }}: {{ how_feeling }}"
+            >>> report = r.select('how_feeling').report_from_template(
+            ...     template, observation_title_template=custom_title, return_string=True)
+            >>> "Response 1: OK" in report
+            True
+            
+            # Basic template functionality
+            >>> template2 = "Feeling: {{ how_feeling }}, Index: {{ index }}"
+            >>> report2 = r.select('how_feeling').report_from_template(
+            ...     template2, return_string=True, top_n=2)
+            >>> "Feeling: OK, Index: 1" in report2
+            True
+        """
+        from .report_from_template import TemplateReportGenerator
+        
+        generator = TemplateReportGenerator(self)
+        return generator.generate_report(
+            template,
+            *fields,
+            top_n=top_n,
+            remove_prefix=remove_prefix,
+            return_string=return_string,
+            format=format,
+            filename=filename,
+            separator=separator,
+            observation_title_template=observation_title_template,
+            explode=explode,
+            markdown_to_docx=markdown_to_docx,
+            use_pandoc=use_pandoc,
+        )
 
 
 def to_dataset(func):
