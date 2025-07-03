@@ -529,6 +529,12 @@ class Scenario(Base, UserDict):
             "detailed_info": filestore_info,
             "summary": summary,
         }
+    
+    def to(self, question_or_survey: Union['Question', 'Survey']) -> 'Jobs':
+        """
+        Sends the scenario to a question or survey
+        """
+        return question_or_survey.by(self)
 
     def to_dict(
         self, add_edsl_version: bool = True, offload_base64: bool = False

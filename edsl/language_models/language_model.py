@@ -124,11 +124,13 @@ class classproperty:
         """
         return self.method(cls)
 
+from ..base import DiffMethodsMixin
 
 class LanguageModel(
     PersistenceMixin,
     RepresentationMixin,
     HashingMixin,
+    DiffMethodsMixin,
     ABC,
     metaclass=RegisterLanguageModelsMeta,
 ):
