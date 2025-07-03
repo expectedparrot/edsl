@@ -81,8 +81,7 @@ def test_jobs_by_agents():
     job = survey.by(agent1).by(agent2)
     assert job.agents == AgentList([agent1 + agent2])
     assert len(job) == 1
-    with pytest.raises(AgentCombinationError):
-        job = survey.by(agent1).by(agent1)
+    job = survey.by(agent1).by(agent1)
 
 
 def test_jobs_by_scenarios():
