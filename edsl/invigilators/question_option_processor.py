@@ -7,46 +7,89 @@ import edsl.scenarios.scenario  # noqa: F401
 def extract_template_variables(ast) -> List[Union[str, tuple]]:
     """
     Extract variable expressions from a Jinja2 AST.
-    
+
     Args:
         ast: Jinja2 AST
-        
+
     Returns:
         List[Union[str, tuple]]: List of variable names or tuples for dotted paths
     """
     from jinja2 import nodes
     from jinja2.visitor import NodeVisitor
-    
+
     variables = []
-    
+
     class VariableVisitor(NodeVisitor):
         def visit_Name(self, node):
             variables.append(node.name)
-        
+
         def visit_Getattr(self, node):
             # For dotted access like scenario.question_options
             parts = []
             current = node
-            
+
             # Handle the leaf attribute
             parts.append(node.attr)
-            
+
             # Walk up the chain to collect all parts
             while isinstance(current.node, nodes.Getattr):
                 current = current.node
                 parts.append(current.attr)
-            
+
             # Add the root name
             if isinstance(current.node, nodes.Name):
                 parts.append(current.node.name)
-            
+
             # Reverse to get the correct order
             parts.reverse()
             variables.append(tuple(parts))
-    
+
+        def visit_Getitem(self, node):
+            # For dictionary access like scenario.color_list['choices']
+            parts = []
+            current = node
+
+            # Handle the dictionary key
+            if isinstance(node.arg, nodes.Const):
+                parts.append(node.arg.value)
+            else:
+                # If the key is not a constant, we can't easily represent it
+                # For now, we'll skip these cases
+                return
+
+            # Walk up the chain to collect all parts
+            while isinstance(current.node, nodes.Getitem):
+                if isinstance(current.node.arg, nodes.Const):
+                    parts.append(current.node.arg.value)
+                else:
+                    return  # Skip if key is not a constant
+                current = current.node
+
+            # Handle the base object (could be a Name or Getattr)
+            if isinstance(current.node, nodes.Name):
+                parts.append(current.node.name)
+            elif isinstance(current.node, nodes.Getattr):
+                # Handle dotted access as the base
+                attr_parts = []
+                attr_current = current.node
+                attr_parts.append(attr_current.attr)
+
+                while isinstance(attr_current.node, nodes.Getattr):
+                    attr_current = attr_current.node
+                    attr_parts.append(attr_current.attr)
+
+                if isinstance(attr_current.node, nodes.Name):
+                    attr_parts.append(attr_current.node.name)
+
+                parts.extend(attr_parts)
+
+            # Reverse to get the correct order
+            parts.reverse()
+            variables.append(tuple(parts))
+
     visitor = VariableVisitor()
     visitor.visit(ast)
-    
+
     return variables
 
 
@@ -63,11 +106,13 @@ class QuestionOptionProcessor:
 
         return cls(scenario, prior_answers_dict)
 
-    def __init__(self, scenario: 'edsl.scenarios.scenario.Scenario', prior_answers_dict: dict):
-        # This handles cases where the question has {{ scenario.key }} - eventually 
+    def __init__(
+        self, scenario: "edsl.scenarios.scenario.Scenario", prior_answers_dict: dict
+    ):
+        # This handles cases where the question has {{ scenario.key }} - eventually
         # we might not allow 'naked' scenario keys w/o the scenario prefix
-        #new_scenario = scenario.copy()
-        #new_scenario.update({'scenario': new_scenario})
+        # new_scenario = scenario.copy()
+        # new_scenario.update({'scenario': new_scenario})
         self.scenario = scenario
         self.prior_answers_dict = prior_answers_dict
 
@@ -80,7 +125,7 @@ class QuestionOptionProcessor:
     def _parse_template_variable(template_str: str) -> Union[str, tuple]:
         """
         Extract the variable name from a template string.
-        If the variable contains dots (e.g., scenario.question_options), 
+        If the variable contains dots (e.g., scenario.question_options),
         returns a tuple of the path components.
 
         Args:
@@ -106,19 +151,29 @@ class QuestionOptionProcessor:
         env = Environment()
         parsed_content = env.parse(template_str)
         undeclared_variables = extract_template_variables(parsed_content)
-        
+
         if not undeclared_variables:
             from edsl.invigilators.exceptions import InvigilatorValueError
+
             raise InvigilatorValueError("No variables found in template string")
         if len(undeclared_variables) > 1:
             from edsl.invigilators.exceptions import InvigilatorValueError
+
             raise InvigilatorValueError("Multiple variables found in template string")
-        
+
         return undeclared_variables[0]
 
-    @staticmethod
+    def _get_nested_key(self, data: dict, key_path: tuple) -> Union[any, None]:
+        """
+        Safely get a nested key from a dictionary using a tuple of keys.
+        """
+        current = data
+        for key in key_path:
+            current = current[key]
+        return current
+
     def _get_options_from_scenario(
-        scenario: dict, option_key: str
+        self, scenario: dict, option_key: tuple
     ) -> Union[list, None]:
         """
         Try to get options from scenario data.
@@ -132,12 +187,11 @@ class QuestionOptionProcessor:
         Returns:
             list | None: List of options if found in scenario, None otherwise
         """
-        scenario_options = scenario.get(option_key)
+        scenario_options = self._get_nested_key(scenario, option_key)
         return scenario_options if isinstance(scenario_options, list) else None
 
-    @staticmethod
     def _get_options_from_prior_answers(
-        prior_answers: dict, option_key: str
+        self, prior_answers: dict, option_key: tuple
     ) -> Union[list, None]:
         """
         Try to get options from prior answers.
@@ -157,7 +211,7 @@ class QuestionOptionProcessor:
         Returns:
             list | None: List of options if found in prior answers, None otherwise
         """
-        prior_answer = prior_answers.get(option_key)
+        prior_answer = self._get_nested_key(prior_answers, option_key)
         if prior_answer and hasattr(prior_answer, "answer"):
             if isinstance(prior_answer.answer, list):
                 return prior_answer.answer
@@ -222,27 +276,27 @@ class QuestionOptionProcessor:
         source_type = None
 
         if isinstance(raw_option_key, tuple):
-            if raw_option_key[0] == 'scenario':
-                source_type = 'scenario'
-                option_key = raw_option_key[-1]
+            if raw_option_key[0] == "scenario":
+                source_type = "scenario"
+                option_key = raw_option_key[1:]
             else:
-                source_type = 'prior_answers'
-                option_key = raw_option_key[0]
-                #breakpoint()
+                source_type = "prior_answers"
+                option_key = (raw_option_key[0],)
+                # breakpoint()
         else:
-            option_key = raw_option_key
+            option_key = (raw_option_key,)
 
-        #breakpoint()
+        # breakpoint()
 
-        if source_type == 'scenario':
+        if source_type == "scenario":
             # Try getting options from scenario
             scenario_options = self._get_options_from_scenario(
                 self.scenario, option_key
             )
             if scenario_options:
                 return scenario_options
-            
-        if source_type == 'prior_answers':
+
+        if source_type == "prior_answers":
 
             # Try getting options from prior answers
             prior_answer_options = self._get_options_from_prior_answers(
