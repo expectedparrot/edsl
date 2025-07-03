@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Dict, Any, Optional, TYPE_CHECKING
+from typing import Dict, Any, Optional, TYPE_CHECKING, Literal
 from functools import cached_property
 import logging
 
@@ -11,6 +11,7 @@ from .prompt_helpers import PromptPlan
 from .question_template_replacements_builder import (
     QuestionTemplateReplacementsBuilder,
 )
+from .question_numerical_processor import QuestionNumericalProcessor
 from .question_option_processor import QuestionOptionProcessor
 
 if TYPE_CHECKING:
@@ -273,6 +274,16 @@ class PromptConstructor:
         return QuestionOptionProcessor.from_prompt_constructor(
             self
         ).get_question_options(question_data)
+
+    def get_question_numerical_value(
+        self, question_data: dict, key: Literal["min_value", "max_value"]
+    ) -> int | float | None:
+        """
+        Get the numerical value for a question based on its data.
+        """
+        return QuestionNumericalProcessor.from_prompt_constructor(
+            self
+        ).get_question_numerical_value(question_data, key)
 
     @cached_property
     def agent_instructions_prompt(self) -> Prompt:
