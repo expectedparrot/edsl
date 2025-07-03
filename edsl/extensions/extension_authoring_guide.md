@@ -118,26 +118,99 @@ returns = {
 
 ```python
 service_def = ServiceDefinition(
-    name="text_processor",
+    service_collection_name="text_processing",
+    service_name="text_processor",
     description="Processes text with various transformations",
     parameters=parameters,
     cost=cost,
     service_returns=returns,
-    endpoint="https://api.example.com/process"
+    service_endpoint="https://api.example.com/process"
 )
 ```
 
 ## Service Implementation Patterns
 
-### Pattern 1: Simple Function Implementation
+### Pattern 1: ExtensionService Class (Recommended)
+
+```python
+from edsl.extensions.authoring import ExtensionService
+
+class TextProcessorService(ExtensionService):
+    service_name = "text_processor"
+    description = "Processes text with various transformations"
+    cost = 10  # Cost in EP credits
+    
+    extension_outputs = {
+        'processed_text': {
+            'output_type': 'str',
+            'description': 'The processed text',
+            'returns_coopr_url': False
+        },
+        'metadata': {
+            'output_type': 'dict',
+            'description': 'Processing metadata',
+            'returns_coopr_url': False
+        }
+    }
+    
+    @staticmethod
+    def execute(input_text: str, max_length: int = 100, ep_api_token: str = None) -> dict:
+        """Process the input text."""
+        
+        # Process the input
+        result = input_text[:max_length]
+        
+        # Return dict matching extension_outputs
+        return {
+            "processed_text": result,
+            "metadata": {
+                "original_length": len(input_text),
+                "truncated": len(input_text) > max_length
+            }
+        }
+    
+    @property
+    def example_inputs(self) -> dict:
+        return {
+            'input_text': 'This is a sample text to process',
+            'max_length': 50
+        }
+```
+
+### Pattern 2: ServiceDefinition with FastAPI (Advanced)
 
 ```python
 from fastapi import APIRouter
-from edsl.extensions.authoring import register_service
+from edsl.extensions.authoring import ServiceDefinition, ParameterDefinition, CostDefinition, ReturnDefinition
 
 router = APIRouter()
 
-@register_service(router, "text_processor", service_def)
+# Create service definition
+service_def = ServiceDefinition(
+    service_collection_name="text_processing",
+    service_name="text_processor",
+    description="Processes text with various transformations",
+    parameters={
+        "input_text": ParameterDefinition(
+            type="str", 
+            required=True, 
+            description="Text to process"
+        ),
+        "max_length": ParameterDefinition(
+            type="int", 
+            required=False, 
+            default_value=100,
+            description="Maximum length"
+        )
+    },
+    cost=CostDefinition(unit="ep_credits", per_call_cost=10),
+    service_returns={
+        "processed_text": ReturnDefinition(type="str", description="Processed text"),
+        "metadata": ReturnDefinition(type="dict", description="Processing metadata")
+    }
+)
+
+@ServiceDefinition.register_service(router, "text_processor", service_def)
 async def text_processor_impl(input_text: str, max_length: int, ep_api_token: str):
     """Implementation receives parameters as keyword arguments."""
     
@@ -154,55 +227,84 @@ async def text_processor_impl(input_text: str, max_length: int, ep_api_token: st
     }
 ```
 
-### Pattern 2: Complex Service with EDSL Objects
-
-```python
-@register_service(router, "create_survey", extensions["create_survey"])
-async def create_survey_impl(overall_question: str, population: str, ep_api_token: str):
-    """Service that returns EDSL objects."""
-    
-    # Create EDSL Survey object
-    survey = Survey([
-        QuestionFreeText(
-            question_name="main_question",
-            question_text=overall_question
-        )
-    ])
-    
-    # Return serialized EDSL object
-    return {"survey": survey.to_dict()}
-```
-
 ### Pattern 3: External API Integration
 
 ```python
 import httpx
+from edsl.extensions.authoring import ExtensionService
 
-@register_service(router, "external_service", service_def)
-async def external_service_impl(query: str, ep_api_token: str):
-    """Service that calls external APIs."""
+class ExternalAPIService(ExtensionService):
+    service_name = "external_api_service"
+    description = "Calls external APIs for data processing"
+    cost = 15
     
-    async with httpx.AsyncClient() as client:
-        response = await client.post(
-            "https://external-api.com/endpoint",
-            json={"query": query},
-            headers={"Authorization": f"Bearer {ep_api_token}"}
-        )
-        response.raise_for_status()
-        data = response.json()
+    extension_outputs = {
+        'result': {
+            'output_type': 'dict',
+            'description': 'Response from external API',
+            'returns_coopr_url': False
+        }
+    }
     
-    return {"result": data["output"]}
+    @staticmethod
+    def execute(query: str, ep_api_token: str = None) -> dict:
+        """Call external API asynchronously."""
+        import asyncio
+        
+        async def call_api():
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    "https://external-api.com/endpoint",
+                    json={"query": query},
+                    headers={"Authorization": f"Bearer {ep_api_token}"}
+                )
+                response.raise_for_status()
+                data = response.json()
+                return {"result": data}
+        
+        return asyncio.run(call_api())
+    
+    @property
+    def example_inputs(self) -> dict:
+        return {'query': 'sample query'}
 ```
 
 ## Factory Pattern Usage
 
 The factory pattern (`factory/`) provides a standardized way to create FastAPI applications with extension support.
 
-### Basic App Creation
+### Basic App Creation with ExtensionService
 
 ```python
-from edsl.extensions.factory.app_factory import create_app
-from edsl.extensions.factory.config import Settings
+from edsl.extensions.authoring import ExtensionService, ServicesBuilder
+from edsl.extensions.authoring.factory.app_factory import create_app
+from edsl.extensions.authoring.factory.config import Settings
+
+# Define your services using ExtensionService
+class MyService(ExtensionService):
+    service_name = "my_service"
+    description = "My custom service"
+    cost = 5
+    
+    extension_outputs = {
+        'result': {
+            'output_type': 'str',
+            'description': 'Service result',
+            'returns_coopr_url': False
+        }
+    }
+    
+    @staticmethod
+    def execute(input_data: str, ep_api_token: str = None) -> dict:
+        return {'result': f"Processed: {input_data}"}
+    
+    @property
+    def example_inputs(self) -> dict:
+        return {'input_data': 'test'}
+
+# Create services builder and add services
+services = ServicesBuilder("my_collection")
+services.add_service(MyService)
 
 # Custom configuration
 settings = Settings(
@@ -212,19 +314,39 @@ settings = Settings(
     debug=False
 )
 
-# Create app with router module
-app = create_app("my_extension.router", settings)
+# Create app with services
+app = create_app(services, settings)
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("my_module:app", host="0.0.0.0", port=8000, reload=True)
 ```
 
-### Router Module Structure
-
-Create a module (e.g., `my_extension/router.py`) with:
+### Alternative: ServiceDefinition with FastAPI Router
 
 ```python
 from fastapi import APIRouter
-from edsl.extensions.authoring import register_service
+from edsl.extensions.authoring import ServiceDefinition, ParameterDefinition, CostDefinition, ReturnDefinition
 
 router = APIRouter()
+
+# Define service
+my_service_def = ServiceDefinition(
+    service_collection_name="my_collection",
+    service_name="my_service",
+    description="My custom service",
+    parameters={
+        "input_data": ParameterDefinition(
+            type="str",
+            required=True,
+            description="Input data to process"
+        )
+    },
+    cost=CostDefinition(unit="ep_credits", per_call_cost=5),
+    service_returns={
+        "result": ReturnDefinition(type="str", description="Processed result")
+    }
+)
 
 # Health check endpoint
 @router.get("/health")
@@ -232,10 +354,14 @@ async def health_check():
     return {"status": "healthy"}
 
 # Register your services
-@register_service(router, "my_service", my_service_definition)
-async def my_service_impl(...):
-    # Implementation
-    pass
+@ServiceDefinition.register_service(router, "my_service", my_service_def)
+async def my_service_impl(input_data: str, ep_api_token: str):
+    return {"result": f"Processed: {input_data}"}
+
+# Create FastAPI app manually
+from fastapi import FastAPI
+app = FastAPI(title="My Extension Service")
+app.include_router(router)
 ```
 
 ### Configuration Options
