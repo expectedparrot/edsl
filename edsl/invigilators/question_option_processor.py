@@ -183,7 +183,7 @@ class QuestionOptionProcessor:
 
         >>> from edsl import Scenario
         >>> scenario = Scenario({"options": ["Option 1", "Option 2"]})
-        >>> QuestionOptionProcessor._get_options_from_scenario(scenario, "options")
+        >>> QuestionOptionProcessor._get_options_from_scenario(scenario, ("options",))
         ['Option 1', 'Option 2']
 
 
@@ -206,9 +206,9 @@ class QuestionOptionProcessor:
         >>> q = Q.example()
         >>> q.answer = ["Option 1", "Option 2"]
         >>> prior_answers = {"options": q}
-        >>> QuestionOptionProcessor._get_options_from_prior_answers(prior_answers, "options")
+        >>> QuestionOptionProcessor._get_options_from_prior_answers(prior_answers, ("options",))
         ['Option 1', 'Option 2']
-        >>> QuestionOptionProcessor._get_options_from_prior_answers(prior_answers, "wrong_key") is None
+        >>> QuestionOptionProcessor._get_options_from_prior_answers(prior_answers, ("wrong_key",)) is None
         True
 
         Returns:
@@ -250,7 +250,7 @@ class QuestionOptionProcessor:
         >>> processor.get_question_options(question_data)
         ['Option 1', 'Option 2']
 
-        The case where there is a templace string but it's in the prior answers:
+        The case where there is a template string but it's in the prior answers:
 
         >>> class MockQuestion:
         ...     pass
@@ -262,7 +262,7 @@ class QuestionOptionProcessor:
         >>> processor.get_question_options(question_data)
         ['Option 1', 'Option 2']
 
-        The case we're no options are found:
+        The case where no options are found:
         >>> processor.get_question_options({"question_options": "{{ poop }}"})
         ['<< Option 1 - Placeholder >>', '<< Option 2 - Placeholder >>', '<< Option 3 - Placeholder >>']
 
@@ -285,11 +285,8 @@ class QuestionOptionProcessor:
             else:
                 source_type = "prior_answers"
                 option_key = (raw_option_key[0],)
-                # breakpoint()
         else:
             option_key = (raw_option_key,)
-
-        # breakpoint()
 
         if source_type == "scenario":
             # Try getting options from scenario
