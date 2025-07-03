@@ -29,11 +29,11 @@ def test_multiple_choice_question_format_with_nested_scenario():
     q = QuestionMultipleChoice(
         question_name="capital_of_france",
         question_text="What is the capital of France?",
-        question_options="{{ scenario.cities['choices'] }}",
+        question_options="{{ scenario.cities[0]['choices'] }}",
     )
 
     # Create the nested scenario with options
-    s = Scenario({"cities": {"choices": ["Paris", "London", "Berlin", "Madrid"]}})
+    s = Scenario({"cities": [{"choices": ["Paris", "London", "Berlin", "Madrid"]}]})
 
     # Get the prompt
     actual_prompt = q.by(s).prompts().select("user_prompt").first().text
