@@ -167,10 +167,13 @@ class QuestionOptionProcessor:
         """
         Safely get a nested key from a dictionary using a tuple of keys.
         """
-        current = data
-        for key in key_path:
-            current = current[key]
-        return current
+        try:
+            current = data
+            for key in key_path:
+                current = current[key]
+            return current
+        except KeyError:
+            return None
 
     def _get_options_from_scenario(
         self, scenario: dict, option_key: tuple
