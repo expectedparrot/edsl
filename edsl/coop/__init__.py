@@ -1,4 +1,3 @@
-
 """
 The coop module provides connectivity with Expected Parrot's cloud services.
 
@@ -31,39 +30,17 @@ Examples:
 from .utils import EDSLObject, ObjectType, VisibilityType, ObjectRegistry
 from .coop import Coop
 from .exceptions import CoopServerResponseError
-from .proxy_key_encryption import (
-    ProxyKeyEncryption, 
-    ProxyKeyPayload,
-    create_encrypted_proxy_key
-)
-from .proxy_key_tracker import (
-    ProxyKeyTracker,
-    ChargeRecord,
-    ProxyKeyBalance,
-    register_proxy_key,
-    check_proxy_key_balance,
-    charge_proxy_key
-)
 
 __all__ = [
-    "Coop", 
-    "EDSLObject", 
-    "ObjectType", 
-    "VisibilityType", 
-    "ObjectRegistry", 
+    "Coop",
+    "EDSLObject",
+    "ObjectType",
+    "VisibilityType",
+    "ObjectRegistry",
     "CoopServerResponseError",
-    "ProxyKeyEncryption",
-    "ProxyKeyPayload",
-    "create_encrypted_proxy_key",
-    "ProxyKeyTracker",
-    "ChargeRecord",
-    "ProxyKeyBalance",
-    "register_proxy_key",
-    "check_proxy_key_balance",
-    "charge_proxy_key",
-    "AvailablePlugin", 
-    "get_available_plugins", 
-    "search_plugins", 
+    "AvailablePlugin",
+    "get_available_plugins",
+    "search_plugins",
     "get_plugin_details",
-    "PluginRegistryError"
+    "PluginRegistryError",
 ]
