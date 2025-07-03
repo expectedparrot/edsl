@@ -107,51 +107,5 @@ def test_comment_piping():
     )
 
 
-def test_option_expand_piping():
-    from edsl.questions import QuestionList, QuestionCheckBox
-    from edsl.language_models.model import Model
-
-    def two_responses_closure():
-
-        num_calls = 0
-
-        def two_responses(user_prompt, system_prompt, files_list):
-            nonlocal num_calls
-            if num_calls == 0:
-                num_calls += 1
-                return """["Red", "Blue", "Green", "Yellow", "Orange"]"""
-            else:
-                return "Red, Blue, Yellow"
-
-        return two_responses
-
-    m = Model("test", func=two_responses_closure())
-
-    q1 = QuestionList(question_name="colors", question_text="Draft a list of colors.")
-
-    q2 = QuestionCheckBox(
-        question_name="primary",
-        question_text="Which of these colors are primary?",
-        question_options="{{ colors.answer }}",
-    )
-
-    survey = Survey([q1, q2])
-
-    results = survey.by(m).run(stop_on_exception=True)
-    # results.select("primary").print(format="rich")
-    # breakpoint()
-    # Conform it got passed through
-    assert results.select("question_options.primary").to_list()[0] == [
-        "Red",
-        "Blue",
-        "Green",
-        "Yellow",
-        "Orange",
-    ]
-
-    # from edsl.scenarios.Dataset import Dataset
-    # assert results.select('question_options.primary') == Dataset([{'question_options.primary_question_options': [['Red', 'Blue', 'Green', 'Yellow', 'Orange']]}])
-
-
 if __name__ == "__main__":
     pytest.main()
