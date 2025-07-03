@@ -1371,7 +1371,7 @@ class Agent(Base):
 
         >>> a = Agent(traits = {"age": 10, "hair": "brown", "height": 5.5}, instruction = "Have fun.")
         >>> a.to_dict()
-        {'traits': {'age': 10, 'hair': 'brown', 'height': 5.7}, 'instruction': 'Have fun.', 'edsl_version': '...', 'edsl_class_name': 'Agent'}
+        {'traits': {'age': 10, 'hair': 'brown', 'height': 5.5}, 'instruction': 'Have fun.', 'edsl_version': '...', 'edsl_class_name': 'Agent'}
         """
         d = {}
         d["traits"] = copy.deepcopy(dict(self._traits))
