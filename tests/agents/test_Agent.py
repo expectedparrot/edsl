@@ -34,8 +34,9 @@ def test_agent_dunder_methods():
     assert (agent1 + None) is agent1
     assert isinstance(agent1 + agent2, Agent)
     assert (agent1 + agent2).traits == agent3.traits
-    with pytest.raises(AgentCombinationError):
-        agent1 + agent3
+    # Agents now combine without raising exceptions
+    combined = agent1 + agent3
+    assert isinstance(combined, Agent)
     # __eq__
     assert agent1 == agent1
     assert agent1 + agent2 == agent3

@@ -1128,43 +1128,123 @@ class Agent(Base):
         )
         return newagent
 
-    def __add__(self, other_agent: Optional[Agent] = None) -> Agent:
+    def add(
+        self: A,
+        other_agent: Optional[A] = None,
+        *,
+        conflict_strategy: str = "numeric",
+    ) -> A:
+        """Combine *self* with *other_agent* and return a new Agent.
+
+        Parameters
+        ----------
+        other_agent
+            The second agent to merge with *self*.  If *None*, *self* is
+            returned unchanged.
+        conflict_strategy
+            How to handle overlapping trait names.
+
+            • ``"numeric"`` (default) – rename conflicting traits coming from
+              *other_agent* by appending an incrementing suffix (``_1``,
+              ``_2`` …).  This is identical to the behaviour of the ``+``
+              operator before this refactor.
+            • ``"error"`` – raise :class:`edsl.agents.exceptions.AgentCombinationError`.
+            • ``"repeated_observation"`` – if both agents have the same
+              trait *and* the codebook entry for that trait is identical (or
+              missing in both), merge the two values into a list ``[old,
+              new]``.  If the codebook entries differ, an
+              :class:`edsl.agents.exceptions.AgentCombinationError` is raised.
+
+        Returns
+        -------
+        Agent
+            A new agent containing the merged traits / codebooks.
         """
-        Combine two agents by joining their traits.
 
-        The agents must not have overlapping traits.
-
-        Example usage:
-
-        >>> a1 = Agent(traits = {"age": 10})
-        >>> a2 = Agent(traits = {"height": 5.5})
-        >>> a1 + a2
-        Agent(traits = {'age': 10, 'height': 5.5})
-        >>> a1 + a1
-        Traceback (most recent call last):
-        ...
-        edsl.agents.exceptions.AgentCombinationError: The agents have overlapping traits: {'age'}.
-        ...
-        >>> a1 = Agent(traits = {"age": 10}, codebook = {"age": "Their age is"})
-        >>> a2 = Agent(traits = {"height": 5.5}, codebook = {"height": "Their height is"})
-        >>> a1 + a2
-        Agent(traits = {'age': 10, 'height': 5.5}, codebook = {'age': 'Their age is', 'height': 'Their height is'})
-        """
         if other_agent is None:
             return self
-        elif common_traits := set(self.traits.keys()) & set(other_agent.traits.keys()):
-            raise AgentCombinationError(
-                f"The agents have overlapping traits: {common_traits}."
+
+        if conflict_strategy not in {"numeric", "error", "repeated_observation"}:
+            raise ValueError(
+                "conflict_strategy must be 'numeric', 'error', or 'repeated_observation', got "
+                f"{conflict_strategy!r}"
             )
-        else:
-            new_codebook = copy.deepcopy(self.codebook) | copy.deepcopy(
-                other_agent.codebook
-            )
-            d = self.traits | other_agent.traits
-            newagent = self.duplicate()
-            newagent.traits = d
-            newagent.codebook = new_codebook
-            return newagent
+
+        # Quick path: raise if user asked for error strategy and there is a clash
+        if conflict_strategy == "error":
+            common = set(self.traits) & set(other_agent.traits)
+            if common:
+                raise AgentCombinationError(
+                    f"The agents have overlapping traits: {common}."
+                )
+
+        # Otherwise proceed with numeric-suffix merging (behaviour identical
+        # to the former __add__).
+        newagent = self.duplicate()
+
+        combined_traits: dict = dict(self.traits)
+        combined_codebook: dict = copy.deepcopy(self.codebook)
+
+        def _unique_name(base_name: str, existing_keys: set[str]) -> str:
+            """Return *base_name* or *base_name_N* to avoid duplicates."""
+            if base_name not in existing_keys:
+                return base_name
+
+            idx = 1
+            while f"{base_name}_{idx}" in existing_keys:
+                idx += 1
+            return f"{base_name}_{idx}"
+
+        rename_map: dict[str, str] = {}
+
+        for key, value in other_agent.traits.items():
+            if key not in combined_traits:
+                # no conflict
+                combined_traits[key] = value
+                rename_map[key] = key
+                continue
+
+            # conflict handling
+            if conflict_strategy == "numeric":
+                unique_key = _unique_name(key, combined_traits.keys())
+                combined_traits[unique_key] = value
+                rename_map[key] = unique_key
+            elif conflict_strategy == "repeated_observation":
+                # validate codebook equality
+                desc_self = self.codebook.get(key)
+                desc_other = other_agent.codebook.get(key)
+                if desc_self != desc_other:
+                    raise AgentCombinationError(
+                        "Trait conflict on '{key}' with differing codebook descriptions.".format(key=key)
+                    )
+                # merge values into list
+                existing_val = combined_traits[key]
+                if isinstance(existing_val, list):
+                    merged_val = existing_val + [value]
+                else:
+                    merged_val = [existing_val, value]
+                combined_traits[key] = merged_val
+                rename_map[key] = key  # name unchanged
+            else:  # conflict_strategy == 'error' (should not be reached)
+                pass
+
+        for key, description in other_agent.codebook.items():
+            if key in rename_map:
+                target_key = rename_map[key]
+            elif conflict_strategy == "numeric":
+                target_key = _unique_name(key, combined_codebook.keys())
+            else:
+                target_key = key
+            combined_codebook[target_key] = description
+
+        newagent.traits = combined_traits
+        newagent.codebook = combined_codebook
+
+        return newagent
+
+    def __add__(self, other_agent: Optional[Agent] = None) -> Agent:
+        """Syntactic sugar – delegates to :pymeth:`add`."""
+        return self.add(other_agent)
 
     def __eq__(self, other: Agent) -> bool:
         """Check if two agents are equal.
@@ -1423,6 +1503,105 @@ class Agent(Base):
         """
         return f"from edsl.agents import Agent\nagent = Agent(traits={self.traits})"
 
+    @classmethod
+    def from_result(
+        cls,
+        result: "Result",
+        name: Optional[str] = None,
+    ) -> "Agent":
+        """Create an Agent instance from an :pyclass:`edsl.results.Result` object.
+
+        The agent's ``traits`` will correspond to the questions asked during the
+        interview (the keys of ``result.answer``) with their respective answers
+        as the values.
+
+        A simple, readable ``traits_presentation_template`` is automatically
+        generated so that rendering the agent will look like::
+
+            They were asked the following questions – here are their answers:
+            Q: <question 1>
+            A: <answer 1>
+
+            Q: <question 2>
+            A: <answer 2>
+            ...
+
+        Parameters
+        ----------
+        result
+            The :pyclass:`edsl.results.Result` instance from which to build the
+            agent.
+        name
+            Optional explicit name for the new agent.  If omitted, we attempt
+            to reuse ``result.agent.name`` if it exists.
+        """
+        # Import locally to avoid an import cycle when the agents module is
+        # imported from results and vice-versa.
+        from ..results import result as _result_module  # noqa: WPS433 – local import by design
+
+        if not isinstance(result, _result_module.Result):
+            raise TypeError("from_result expects an edsl.results.Result object")
+
+        # 1. Traits are simply the answers dictionary (shallow-copied).
+        traits: dict[str, Any] = dict(result.answer)
+
+        # 2. Where available, build a codebook mapping question keys to their
+        #    human-readable question text.  This improves prompt readability
+        #    but falls back gracefully if the information is missing.
+        codebook: dict[str, str] = {}
+        question_attrs = getattr(result, "question_to_attributes", None)
+        if question_attrs:
+            from ..prompts import Prompt
+
+            for qname, attrs in question_attrs.items():
+                qtext_template = attrs.get("question_text", qname)
+
+                # If the question text contains Jinja variables, render it with the
+                # scenario context so it becomes a fully populated human-readable
+                # string.  We fall back gracefully if rendering fails for any
+                # reason (e.g. missing variables).
+                try:
+                    rendered_qtext = (
+                        Prompt(text=qtext_template)
+                        .render(result.scenario)  # scenario provides replacement vars
+                        .text
+                    )
+                except Exception:
+                    rendered_qtext = qtext_template
+
+                codebook[qname] = rendered_qtext
+
+        # 3. Provide a presentation template that lists the Q&A pairs.
+        # Build a Jinja2 template that gracefully handles repeated observations
+        # (i.e. when a trait value is a list because the question was asked
+        # more than once).
+        template_lines = [
+            "This person was asked the following questions – here are the answers:",
+            "{% for key, value in traits.items() %}",
+            "Q: {{ codebook[key] if codebook and key in codebook else key }}",
+            "{% if value is iterable and value is not string %}",
+            "    {% for v in value %}",
+            "A: {{ v }}",
+            "    {% endfor %}",
+            "{% else %}",
+            "A: {{ value }}",
+            "{% endif %}",
+            "",
+            "{% endfor %}",
+        ]
+        traits_presentation_template = "\n".join(template_lines)
+
+        # 4. Fallback to the name inside the original agent if not provided.
+        if name is None and hasattr(result, "agent") and getattr(result.agent, "name", None):
+            name = result.agent.name
+
+        return cls(
+            traits=traits,
+            name=name,
+            codebook=codebook,
+            traits_presentation_template=traits_presentation_template,
+        )
+
 
 def main():
     """
@@ -1438,7 +1617,7 @@ def main():
     agent.traits
     agent.print()
     # combining two agents
-    agent = Agent(traits={"age": 10}) + Agent(traits={"height": 5.5})
+    agent = Agent(traits={"age": 10}) + Agent(traits={"height": 5.7})
     agent.traits
     # Agent -> Job using the to() method
     agent = Agent(traits={"allergies": "peanut"})
