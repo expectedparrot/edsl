@@ -2004,6 +2004,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         else:
             return survey.by(self)
 
+
     @classmethod
     def gen(cls, scenario_dicts_list: List[dict]) -> ScenarioList:
         """Create a `ScenarioList` from a list of dictionaries.

@@ -1,4 +1,3 @@
-
 """
 The coop module provides connectivity with Expected Parrot's cloud services.
 
@@ -33,15 +32,15 @@ from .coop import Coop
 from .exceptions import CoopServerResponseError
 
 __all__ = [
-    "Coop", 
-    "EDSLObject", 
-    "ObjectType", 
-    "VisibilityType", 
-    "ObjectRegistry", 
+    "Coop",
+    "EDSLObject",
+    "ObjectType",
+    "VisibilityType",
+    "ObjectRegistry",
     "CoopServerResponseError",
-    "AvailablePlugin", 
-    "get_available_plugins", 
-    "search_plugins", 
+    "AvailablePlugin",
+    "get_available_plugins",
+    "search_plugins",
     "get_plugin_details",
-    "PluginRegistryError"
+    "PluginRegistryError",
 ]
