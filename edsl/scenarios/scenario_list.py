@@ -1351,6 +1351,19 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             new_scenario = Scenario({key: scenario[key] for key in new_order})
             new_sl.append(new_scenario)
         return new_sl
+    
+    def to_survey(self) -> "Survey":
+        from ..questions import QuestionBase
+        from ..surveys import Survey
+        s = Survey()
+        for scenario in self:
+            d = scenario.to_dict(add_edsl_version=False)
+            if d['question_type'] == 'free_text':
+                if 'question_options' in d:
+                    _ = d.pop("question_options")
+            question = QuestionBase.from_dict(d)
+            s.add_question(question)
+        return s
 
     def to_dataset(self) -> "Dataset":
         """

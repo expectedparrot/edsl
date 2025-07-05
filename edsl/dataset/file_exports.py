@@ -17,7 +17,7 @@ class FileExport(ABC):
         self.data = data
         self.filename = filename  # or self._get_default_filename()
         self.remove_prefix = remove_prefix
-        self.pretty_labels = pretty_labels
+        self.pretty_labels = pretty_labels or {}
 
     @property
     def mime_type(self) -> str:
@@ -146,8 +146,6 @@ class ExcelExport(TabularExport):
         return buffer.getvalue()
 
 
-
-
 class SQLiteExport(TabularExport):
     mime_type = "application/x-sqlite3"
     suffix = "db"
@@ -256,3 +254,78 @@ class SQLiteExport(TabularExport):
             raise DatasetValueError(
                 f"Invalid table name: {self.table_name}. Must contain only alphanumeric characters and underscores."
             )
+
+
+class DocxExport(FileExport):
+    """Export dataset rows to a Microsoft Word (.docx) document.
+
+    Each observation (row) becomes its own page containing a two-column table with
+    keys and corresponding values.
+    """
+
+    mime_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    suffix = "docx"
+    is_binary = True
+
+    def __init__(
+        self,
+        *args,
+        remove_prefix: bool = False,
+        pretty_labels: Optional[Dict[str, str]] = None,
+        **kwargs,
+    ):
+        super().__init__(*args, remove_prefix=remove_prefix, pretty_labels=pretty_labels, **kwargs)
+
+    def _build_document(self):
+        """Create a docx Document object representing the dataset."""
+        try:
+            from docx import Document  # type: ignore
+        except ImportError as exc:
+            from .exceptions import DatasetImportError
+            raise DatasetImportError(
+                "The python-docx package is required for DOCX export. Install it with 'pip install python-docx'."
+            ) from exc
+
+        import json
+
+        # Prepare the data
+        rows = self.data.to_dicts(remove_prefix=self.remove_prefix)
+
+        doc = Document()
+
+        for idx, row in enumerate(rows):
+            if idx > 0:
+                # Page break between observations (except before first)
+                doc.add_page_break()
+
+            # Apply pretty labels if provided
+            key_value_pairs = [
+                (self.pretty_labels.get(k, k), v) for k, v in row.items()
+            ]
+
+            # Create table: one row per key-value pair, two columns
+            table = doc.add_table(rows=len(key_value_pairs), cols=2)
+            table.autofit = True
+
+            for r_idx, (key, value) in enumerate(key_value_pairs):
+                # Key cell
+                table.rows[r_idx].cells[0].text = str(key)
+                # Value cell – pretty-print complex structures
+                if isinstance(value, (list, dict)):
+                    value_text = json.dumps(value, ensure_ascii=False, indent=2)
+                else:
+                    value_text = str(value)
+                table.rows[r_idx].cells[1].text = value_text
+
+        return doc
+
+    def format_data(self) -> bytes:
+        """Render the document to bytes suitable for writing or FileStore."""
+        import io
+
+        doc = self._build_document()
+
+        buffer = io.BytesIO()
+        doc.save(buffer)
+        buffer.seek(0)
+        return buffer.getvalue()

@@ -124,6 +124,11 @@ class PandasStyleRenderer(DataTablesRendererABC):
 class RichRenderer(DataTablesRendererABC):
     """Rich-based terminal renderer implementation"""
     
+    # ------------------------------------------------------------------
+    # HTML fallback (required by the ABC).  The Rich renderer is intended
+    # primarily for terminal output, but we still provide a minimal HTML
+    # representation so that RichRenderer can be used in any context.
+    # ------------------------------------------------------------------
     def render_html(self) -> str:
         """
         This method is required by the ABC but is not the primary function
@@ -142,35 +147,70 @@ class RichRenderer(DataTablesRendererABC):
         
         return html
     
-    def render_terminal(self) -> None:
-        """
-        Render the table to the terminal using Rich Console and Table
-        
-        This is the primary rendering method for this renderer.
-        """
+    # ------------------------------------------------------------------
+    # Rich terminal helpers
+    # ------------------------------------------------------------------
+
+    def _build_rich_table(self):
+        """Return a :class:`rich.table.Table` instance for *self.table_data*."""
+        from rich.table import Table
+
+        # Enable horizontal lines between rows for better readability
+        tbl = Table(show_header=True, header_style="bold", show_lines=True)
+
+        # Column headers
+        for header in self.table_data.headers:
+            tbl.add_column(str(header))
+
+        # Rows
+        for row in self.table_data.data:
+            str_row = ["" if cell is None else str(cell) for cell in row]
+            tbl.add_row(*str_row)
+
+        return tbl
+
+    def render_terminal(self, *, console=None) -> None:
+        """Print the table to *console* (defaults to a new Console)."""
         try:
             from rich.console import Console
-            from rich.table import Table
-            
-            # Create a table with the headers
-            table = Table(show_header=True, header_style="bold")
-            
-            # Add columns with headers
-            for header in self.table_data.headers:
-                table.add_column(str(header))
-            
-            # Add rows
-            for row in self.table_data.data:
-                # Convert all values to strings and handle None
-                str_row = [str(cell) if cell is not None else "" for cell in row]
-                table.add_row(*str_row)
-            
-            # Create a console and print the table
-            console = Console()
-            console.print(table)
-            
+
+            if console is None:
+                console = Console()
+
+            console.print(self._build_rich_table())
+
         except ImportError:
-            # Fallback if rich is not installed
+            # Fallback if Rich is not installed
             print("Rich package is not installed. Install with 'pip install rich'")
             from tabulate import tabulate
             print(tabulate(self.table_data.data, headers=self.table_data.headers, tablefmt="grid"))
+
+    # ------------------------------------------------------------------
+    # String representation helpers
+    # ------------------------------------------------------------------
+
+    def render_str(self, width: int = 120) -> str:
+        """Return the Rich-formatted table as a plain string.
+
+        This is primarily useful for non-interactive contexts where the Rich
+        colour codes are still desirable (e.g. writing to a log file) or when
+        :pymeth:`TableDisplay.__repr__` needs a value to return.
+        """
+        try:
+            from rich.console import Console
+            import io
+
+            buffer = io.StringIO()
+            capture_console = Console(
+                file=buffer, force_terminal=True, width=width, color_system="truecolor"
+            )
+            capture_console.print(self._build_rich_table())
+            return buffer.getvalue()
+        except ImportError:
+            # Degrade gracefully if Rich isn't available.
+            from tabulate import tabulate
+            return tabulate(
+                self.table_data.data,
+                headers=self.table_data.headers,
+                tablefmt="grid",
+            )

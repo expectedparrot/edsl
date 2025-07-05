@@ -99,14 +99,24 @@ class TableDisplay:
     def __repr__(self):
         # If rich format is requested, use RichRenderer
         if self.tablefmt == "rich":
+            import sys
+
             table_data = TableData(
                 headers=self.headers,
                 data=self.data,
                 parameters=self.printing_parameters,
                 raw_data_set=self.raw_data_set,
             )
-            RichRenderer(table_data).render_terminal()
-            return ""  # Return empty string since the table is already printed
+
+            renderer = RichRenderer(table_data)
+
+            # Simply return the Rich-formatted string; a REPL or caller can
+            # decide what to do with it (e.g. the interactive prompt shows the
+            # repr automatically, while an explicit `print()` will emit it
+            # once).  Avoid calling render_terminal() here to prevent double
+            # printing when the caller also prints the returned value.
+
+            return renderer.render_str()
         else:
             # Fall back to tabulate for other formats
             from tabulate import tabulate
