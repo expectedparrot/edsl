@@ -1487,6 +1487,59 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             new_sl.append(scenario)
         return new_sl
 
+    def tack_on(self, replacements: dict[str, Any], index: int = -1) -> "ScenarioList":
+        """Add a duplicate of an existing scenario with optional value replacements.
+
+        This method duplicates the scenario at *index* (default ``-1`` which refers to the
+        last scenario), applies the key/value pairs provided in *replacements*, and
+        returns a new ScenarioList with the modified scenario appended.
+
+        Args:
+            replacements: Mapping of field names to new values to overwrite in the cloned
+                scenario.
+            index: Index of the scenario to duplicate. Supports negative indexing just
+                like normal Python lists (``-1`` is the last item).
+
+        Returns:
+            ScenarioList: A new ScenarioList containing all original scenarios plus the
+            newly created one.
+
+        Raises:
+            ScenarioError: If the ScenarioList is empty, *index* is out of range, or if
+                any key in *replacements* does not exist in the reference scenario.
+        """
+        # Ensure there is at least one scenario to duplicate
+        if len(self) == 0:
+            raise ScenarioError("Cannot tack_on to an empty ScenarioList.")
+
+        # Resolve negative indices and validate range
+        if index < 0:
+            index = len(self) + index
+        if index < 0 or index >= len(self):
+            raise ScenarioError(
+                f"Index {index} is out of range for ScenarioList of length {len(self)}."
+            )
+
+        # Reference scenario to clone
+        reference = self[index]
+
+        # Verify that all replacement keys are present in the scenario
+        missing_keys = [key for key in replacements if key not in reference]
+        if missing_keys:
+            raise ScenarioError(
+                f"Replacement keys not found in scenario: {', '.join(missing_keys)}"
+            )
+
+        # Create a modified copy of the scenario
+        new_scenario = reference.copy()
+        for key, value in replacements.items():
+            new_scenario[key] = value
+
+        # Duplicate the ScenarioList and append the modified scenario
+        new_sl = self.duplicate()
+        new_sl.append(new_scenario)
+        return new_sl
+
     def rename(self, replacement_dict: dict) -> ScenarioList:
         """Rename the fields in the scenarios.
 
@@ -2197,6 +2250,11 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             )
             new_scenarios.extend(replacement_scenarios)
         return ScenarioList(new_scenarios)
+    
+    def to_agent_blueprint(self):
+        """Create an AgentBlueprint from a ScenarioList"""
+        from .agent_blueprint import AgentBlueprint
+        return AgentBlueprint(self)
 
     def collapse(
         self, 
