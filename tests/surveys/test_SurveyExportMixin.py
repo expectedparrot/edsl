@@ -10,28 +10,33 @@ class TestDocxMethod:
         return Survey.example()
 
     def test_docx_method_without_filename(self, example_survey):
-        result = example_survey.docx(return_document_object=True)
+        result = example_survey.docx()
 
         print(f"Type of result: {type(result)}")
         print(f"Result: {result}")
 
         assert result is not None, "docx method returned None"
+        # Since docx() now returns a FileStore, we need to load the document
+        from edsl import FileStore
         assert isinstance(
-            result, DocumentClass
-        ), f"Expected Document object, got {type(result)}"
+            result, FileStore
+        ), f"Expected FileStore object, got {type(result)}"
 
+        # Load the document from the FileStore to check content
+        doc = Document(result.path)
+        
         # Check if the result has expected Document methods/attributes
         assert hasattr(
-            result, "add_paragraph"
-        ), "Result doesn't have 'add_paragraph' method"
+            doc, "add_paragraph"
+        ), "Document doesn't have 'add_paragraph' method"
         assert hasattr(
-            result, "add_heading"
-        ), "Result doesn't have 'add_heading' method"
+            doc, "add_heading"
+        ), "Document doesn't have 'add_heading' method"
 
         # Check document content
-        assert len(result.paragraphs) > 0, "Document has no paragraphs"
+        assert len(doc.paragraphs) > 0, "Document has no paragraphs"
         assert (
-            "EDSL Survey" in result.paragraphs[0].text
+            "EDSL Survey" in doc.paragraphs[0].text
         ), "Document doesn't start with expected title"
 
         # Check if all questions are present
@@ -40,14 +45,16 @@ class TestDocxMethod:
             question = example_survey._questions[i]
             question_text = f"Question {i + 1} ({question.question_name})"
             assert any(
-                question_text in p.text for p in result.paragraphs
+                question_text in p.text for p in doc.paragraphs
             ), f"Question {i+1} not found in document"
 
     def test_docx_method_with_filename(self, example_survey, tmp_path):
         filename = tmp_path / "test_survey.docx"
         result = example_survey.docx(filename=str(filename))
 
-        assert result is None
+        # Now docx() returns a FileStore object even when filename is provided
+        from edsl import FileStore
+        assert isinstance(result, FileStore), f"Expected FileStore object, got {type(result)}"
         assert filename.exists()
 
         # Verify the content of the created document
@@ -63,7 +70,10 @@ class TestDocxMethod:
             assert any(question_text in p.text for p in doc.paragraphs)
 
     def test_docx_method_content(self, example_survey):
-        doc = example_survey.docx(return_document_object=True)
+        result = example_survey.docx()
+        
+        # Load the document from the FileStore to check content
+        doc = Document(result.path)
 
         # Check the structure and content of the document
         paragraphs = doc.paragraphs

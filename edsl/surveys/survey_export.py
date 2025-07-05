@@ -56,12 +56,11 @@ class SurveyExport:
 
     def docx(
         self,
-        return_document_object: bool = False,
         filename: Optional[str] = None,
-        open_file: bool = False,
-    ) -> Union["Document", None]:
+    ) -> "FileStore":
         """Generate a docx document for the survey."""
         from docx import Document
+        from edsl import FileStore  # Added import for FileStore
 
         doc = Document()
         doc.add_heading("EDSL Survey")
@@ -80,13 +79,21 @@ class SurveyExport:
                     for option in getattr(question, "question_options", []):
                         doc.add_paragraph(str(option), style="ListBullet")
 
-        if return_document_object:
-            return doc
-        else:
-            doc.save(filename)
-            if open_file:
-                os.system(f"open {filename}")
-            return None
+        # Determine filename: use provided filename or create a temporary one
+        if filename is None:
+            current_directory = os.getcwd()
+            # Create a temporary file to hold the .docx content
+            temp_file = tempfile.NamedTemporaryFile(
+                "wb", delete=False, suffix=".docx", dir=current_directory
+            )
+            filename = temp_file.name
+            temp_file.close()
+
+        # Save the document to the determined filename
+        doc.save(filename)
+
+        # Return a FileStore object for the generated file
+        return FileStore(filename)
 
     def show(self):
         self.to_scenario_list(questions_only=False, rename=True).print(format="rich")
@@ -182,6 +189,7 @@ class SurveyExport:
         from IPython.display import display, HTML
         import os
         from edsl.utilities.utilities import is_notebook
+        from edsl import FileStore  # Added import for FileStore
 
         if scenario is None:
             scenario = {}
@@ -226,29 +234,114 @@ class SurveyExport:
             f.write(html_footer)
             output += html_footer
 
-        if is_notebook():
-            html_url = f"/files/{filename}"
-            html_link = f'<a href="{html_url}" target="_blank">{cta}</a>'
-            display(HTML(html_link))
+        return FileStore(filename)
 
-            import html
+    def latex(
+        self,
+        filename: Optional[str] = None,
+        include_question_name: bool = False,
+        standalone: bool = True,
+    ) -> "FileStore":
+        """Generate a LaTeX (.tex) document for the survey.
 
-            escaped_output = html.escape(output)
-            iframe = f""""
-            <iframe srcdoc="{ escaped_output }" style="width: 800px; height: 600px;"></iframe>
-            """
-            display(HTML(iframe))
+        Parameters
+        ----------
+        filename : Optional[str]
+            The filename to write to. If not provided, a temporary file is created
+            in the current working directory with a ``.tex`` suffix.
+        include_question_name : bool, default False
+            If True, includes the internal ``question_name`` of each question in
+            the rendered LaTeX.
+        standalone : bool, default True
+            If True, a full LaTeX document is produced with ``\documentclass`` and
+            ``\begin{document}`` / ``\end{document}``. If False, only the snippet
+            corresponding to the survey content is written (suitable for inclusion
+            in a larger document).
 
+        Returns
+        -------
+        FileStore
+            A ``FileStore`` object pointing to the generated ``.tex`` file so it
+            can easily be downloaded, viewed, or further processed.
+        """
+        # Local import to avoid heavy dependency at import-time.
+        from edsl import FileStore
+
+        # Determine filename
+        if filename is None:
+            current_directory = os.getcwd()
+            temp_file = tempfile.NamedTemporaryFile(
+                "w", delete=False, suffix=".tex", dir=current_directory
+            )
+            filename = temp_file.name
+            temp_file.close()
+
+        # Basic LaTeX document structure (optional)
+        if standalone:
+            header = r"""\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage{enumitem}
+\begin{document}
+\section*{EDSL Survey}
+"""
+            footer = "\n\\end{document}\n"
         else:
-            print(f"Survey saved to {filename}")
-            import webbrowser
-            import os
+            header = ""
+            footer = ""
 
-            webbrowser.open(f"file://{os.path.abspath(filename)}")
-            # webbrowser.open(filename)
+        def _escape_latex(text: str) -> str:
+            """Escape characters that have special meaning in LaTeX."""
+            replacements = {
+                "&": r"\&",
+                "%": r"\%",
+                "$": r"\$",
+                "#": r"\#",
+                "_": r"\\_",
+                "{": r"\{",
+                "}": r"\}",
+                "~": r"\textasciitilde{}",
+                "^": r"\textasciicircum{}",
+                "\\": r"\textbackslash{}",
+            }
+            for k, v in replacements.items():
+                text = text.replace(k, v)
+            return text
 
-        if return_link:
-            return filename
+        with open(filename, "w", encoding="utf-8") as f:
+            f.write(header)
+            for idx, question in enumerate(self.survey._questions):
+                # Heading for each question
+                heading_parts = [f"Question {idx + 1}"]
+                if include_question_name:
+                    heading_parts.append(f"(\\texttt{{{_escape_latex(question.question_name)}}})")
+                heading_parts.append(f"-- \\textit{{{_escape_latex(question.question_type)}}}")
+                heading = " ".join(heading_parts)
+                f.write(f"\\subsection*{{{heading}}}\n")
+
+                # Question text
+                f.write(f"{_escape_latex(question.question_text)}\\\n\n")
+
+                # Handle options or labels depending on question type
+                if question.question_type == "linear_scale":
+                    option_labels = getattr(question, "option_labels", {}) or {}
+                    if option_labels:
+                        f.write("\\begin{itemize}\n")
+                        for key, value in option_labels.items():
+                            f.write(f"  \\item {_escape_latex(str(key))}: {_escape_latex(str(value))}\n")
+                        f.write("\\end{itemize}\n\n")
+                else:
+                    if hasattr(question, "question_options"):
+                        options = getattr(question, "question_options", []) or []
+                        if options:
+                            f.write("\\begin{enumerate}[label=\\alph*)]\n")
+                            for option in options:
+                                f.write(f"  \\item {_escape_latex(str(option))}\n")
+                            f.write("\\end{enumerate}\n\n")
+
+            f.write(footer)
+
+        # Return a FileStore object for the generated file
+        return FileStore(filename)
 
 
 if __name__ == "__main__":
