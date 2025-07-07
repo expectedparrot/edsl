@@ -1390,39 +1390,46 @@ class DataOperationsBase:
         separator: str = "\n\n",
         observation_title_template: Optional[str] = None,
         explode: bool = False,
-        markdown_to_docx: bool = True,
-        use_pandoc: bool = True,
-    ) -> Optional[Union[str, "Document", List]]:
+        filestore: bool = False,
+    ) -> Optional[Union[str, "Document", List, "FileStore"]]:
         """Generates a report using a Jinja2 template for each row in the dataset.
 
         This method renders a user-provided Jinja2 template for each observation in the dataset,
         with template variables populated from the row data. This allows for completely customized
-        report formatting.
+        report formatting using pandoc for advanced output formats.
 
         Args:
             template: Jinja2 template string to render for each row
             *fields: The fields to include in template context. If none provided, all fields are used.
             top_n: Optional limit on the number of observations to include.
             remove_prefix: Whether to remove type prefixes (e.g., "answer.") from field names in template context.
-            return_string: If True, returns the rendered string. If False (default in notebooks),
+            return_string: If True, returns the rendered content. If False (default in notebooks),
                           only displays the content without returning.
-            format: Output format - either "text" or "docx".
+            format: Output format - one of "text", "html", "pdf", or "docx". Formats other than "text" require pandoc.
             filename: If provided, saves the rendered content to this file. For exploded output, 
-                     this becomes a template (e.g., "report_{index}.docx").
+                     this becomes a template (e.g., "report_{index}.html").
             separator: String to use between rendered templates for each row (ignored when explode=True).
             observation_title_template: Optional Jinja2 template for observation titles. 
                                        Defaults to "Observation {index}" where index is 1-based.
                                        Template has access to all row data plus 'index' and 'index0' variables.
             explode: If True, creates separate files for each observation instead of one combined file.
-            markdown_to_docx: If True (default), treats template content as Markdown and converts it to proper DOCX formatting.
-                             Set to False to use plain text formatting (original behavior).
-            use_pandoc: If True (default) and markdown_to_docx=True, uses pandoc for conversion (recommended). 
-                       If False, uses a Python-based Markdown parser (requires markdown and python-docx libraries)
+            filestore: If True, wraps the generated file(s) in FileStore object(s). If no filename is provided,
+                      creates temporary files. For exploded output, returns a list of FileStore objects.
 
         Returns:
-            Depending on explode, format and return_string:
-            - If explode=True: List of created filenames (when filename provided) or list of documents/strings
-            - If explode=False: Same as before - string, Document, or None
+            Depending on explode, format, return_string, and filestore:
+            - For text format: String content or None (if displayed in notebook)
+            - For html format: HTML string content or None (if displayed in notebook)
+            - For docx format: Document object or None (if saved to file)
+            - For pdf format: PDF bytes or None (if saved to file)
+            - If explode=True: List of created filenames (when filename provided) or list of documents/content
+            - If filestore=True: FileStore object(s) containing the generated file(s)
+
+        Notes:
+            - Pandoc is required for HTML, PDF, and DOCX output formats
+            - Templates are treated as Markdown for all non-text formats
+            - PDF output uses XeLaTeX engine through pandoc
+            - HTML output includes standalone document structure
 
         Examples:
             >>> from edsl.results import Results
@@ -1440,6 +1447,16 @@ class DataOperationsBase:
             ...     template, observation_title_template=custom_title, return_string=True)
             >>> "Response 1: OK" in report
             True
+            
+            # HTML output (requires pandoc)
+            >>> html_report = r.select('how_feeling').report_from_template(
+            ...     template, format="html", return_string=True)  # doctest: +SKIP
+            >>> # Creates HTML with proper document structure
+            
+            # PDF output (requires pandoc with XeLaTeX)
+            >>> pdf_report = r.select('how_feeling').report_from_template(
+            ...     template, format="pdf")  # doctest: +SKIP
+            >>> # Returns PDF bytes
             
             # Basic template functionality
             >>> template2 = "Feeling: {{ how_feeling }}, Index: {{ index }}"
@@ -1462,8 +1479,7 @@ class DataOperationsBase:
             separator=separator,
             observation_title_template=observation_title_template,
             explode=explode,
-            markdown_to_docx=markdown_to_docx,
-            use_pandoc=use_pandoc,
+            filestore=filestore,
         )
 
 

@@ -4,6 +4,7 @@ from .PrettyList import PrettyList
 from .restricted_python import create_restricted_function
 from .remove_edsl_version import remove_edsl_version
 from .ast_utilities import extract_variable_names
+from .local_results_cache import local_results_cache
 
 # Functions from utilities.py
 from .utilities import (
@@ -14,7 +15,7 @@ from .utilities import (
     create_valid_var_name,
     random_string,
     shorten_string,
-    is_gzipped
+    is_gzipped, 
 )
 
 # Decorator utilities
@@ -46,6 +47,7 @@ __all__ = [
     "memory_profile",
     "is_notebook",
     "is_valid_variable_name",
-    "sanitize_string"
+    "sanitize_string",
+    "local_results_cache"
 ]
 
