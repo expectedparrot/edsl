@@ -574,7 +574,7 @@ class PersistenceMixin:
             index = key_name
         d[index] = self
 
-    def save(self, filename, compress=True):
+    def save(self, filename: Optional[str] = None, compress: bool = True):
         """Save the object to a file as JSON with optional compression.
 
         Serializes the object to JSON and writes it to the specified file.
@@ -592,6 +592,10 @@ class PersistenceMixin:
             >>> obj.save("my_object.json.gz")  # Compressed
             >>> obj.save("my_object.json", compress=False)  # Uncompressed
         """
+
+        if filename is None:
+            filename = f"{self.__class__.__name__}_{str(hash(self))}.json"
+
         logger.debug(f"Saving {self.__class__.__name__} to file: {filename}")
 
         if filename.endswith("json.gz"):

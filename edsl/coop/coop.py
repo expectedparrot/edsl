@@ -2794,6 +2794,14 @@ class Coop(CoopFunctionsMixin):
                 expected_object_type
             )
             edsl_object = edsl_class.from_dict(object_dict)
+        else:
+            likely_object_type = object_dict.get("edsl_class_name")
+            if likely_object_type is not None:
+                edsl_class = ObjectRegistry.get_registry().get(likely_object_type, None)
+                if edsl_class is None:
+                    raise CoopResponseError(f"No EDSL class found for {likely_object_type=}")          
+            edsl_object = edsl_class.from_dict(object_dict)
+            
         # Return the response containing the signed URL
         return edsl_object
 
