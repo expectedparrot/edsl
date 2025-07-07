@@ -21,11 +21,19 @@ import ast
 import readline
 import re
 import types
+from functools import lru_cache
+try:
+    from dotenv import load_dotenv
+except ImportError:
+    load_dotenv = None
 
 warnings.filterwarnings("ignore", category=UserWarning, module="edsl\.scenarios\.file_store")
 
 # Path for persistent CLI history
 HISTORY_FILE = Path.home() / ".edsl_cli_commands_log"
+
+# Active env profile
+_active_profile: Optional[str] = None
 
 # Create the main Typer app
 app = typer.Typer(help="EDSL - Expected Parrot Domain Specific Language", invoke_without_command=True)
@@ -56,8 +64,10 @@ _RESERVED_SHELL_COMMANDS = {
     "cd",
     "unload",
     "pull",
-    "agent",
-    "scenario",
+    "create",
+    "show_key",
+    "switch",
+    "profiles",
 }
 
 # Built-in functions to expose as additional CLI/shell commands
@@ -129,6 +139,52 @@ def _parse_line_args_kwargs(line: str):
     return positional, keyword
 
 
+# ---------------------------------------------------------------------------
+# Registry instantiation helper (must appear before shell usage)
+# ---------------------------------------------------------------------------
+
+
+@lru_cache()
+def _get_registry():
+    from edsl.coop.utils import ObjectRegistry
+    return ObjectRegistry.get_registry()
+
+
+def _instantiate_from_registry(class_name: str, args: list, kwargs: dict):
+    """Instantiate object using registry with catch-all parameter mapping."""
+    registry = _get_registry()
+    cls = registry.get(class_name) or registry.get(class_name.capitalize()) or registry.get(class_name.lower())
+    if cls is None:
+        raise ValueError(f"Unknown class '{class_name}'. Available: {', '.join(registry.keys())}")
+
+    sig = inspect.signature(cls.__init__)
+    formal_params = {
+        p.name for p in sig.parameters.values()
+        if p.kind in (inspect.Parameter.POSITIONAL_OR_KEYWORD, inspect.Parameter.KEYWORD_ONLY) and p.name != 'self'
+    }
+    var_kw = any(p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values())
+
+    preferred = ['traits', 'data', 'attributes', 'params']
+    catch = next((n for n in preferred if n in formal_params), None)
+
+    extra = {k: kwargs.pop(k) for k in list(kwargs.keys()) if k not in formal_params}
+    if extra:
+        if catch:
+            if catch in kwargs and isinstance(kwargs[catch], dict):
+                kwargs[catch].update(extra)
+            else:
+                kwargs[catch] = extra
+        elif var_kw:
+            kwargs.update(extra)
+        else:
+            raise TypeError(f"Unknown parameters: {', '.join(extra.keys())}")
+
+    if catch and args and isinstance(args[0], dict) and catch not in kwargs:
+        kwargs[catch] = args.pop(0)
+
+    return cls(*args, **kwargs)
+
+
 class EDSLShell(cmd.Cmd):
     """Interactive shell for loaded EDSL objects."""
     
@@ -193,7 +249,7 @@ class EDSLShell(cmd.Cmd):
                         console.print(f"[cyan]Calling built-in {func_name}({self.object_name})...[/cyan]")
                         result = func(self.loaded_object)
                         if result is not None:
-                            console.print(f"[green]Result:[/green] {result}")
+                            console.print(f"[green]Returned:[/green] {result}")
                     except Exception as e:
                         console.print(f"[red]Error calling built-in {func_name}: {e}[/red]")
                 return wrapper
@@ -239,7 +295,7 @@ class EDSLShell(cmd.Cmd):
             
             # Display result
             if result is not None:
-                console.print(f"[green]Result:[/green]")
+                console.print(f"[green]Returned:[/green]")
                 if isinstance(result, (dict, list)):
                     console.print_json(json.dumps(result, indent=2, default=str))
                 else:
@@ -504,7 +560,7 @@ class EDSLShell(cmd.Cmd):
                 from edsl.coop import Coop
                 from edsl.jobs import Jobs  # type: ignore
                 coop = Coop()
-                job_data = coop.new_remote_inference_get(str(uuid_str), include_json_string=True)
+                job_data = coop.new_remote_inference_get(str(uuid), include_json_string=True)
                 import json as _json
                 job_dict = _json.loads(job_data.get("job_json_string"))
                 obj = Jobs.from_dict(job_dict)
@@ -592,6 +648,92 @@ class EDSLShell(cmd.Cmd):
         except Exception as e:
             console.print(f"[red]Error creating Scenario: {e}[/red]")
 
+    def do_create(self, line):
+        """Create an object from the registry.
+
+        Usage: create <ClassName> [args] [key=value ...]
+        Example: create Agent traits={'persona':"Nice"}
+        """
+        if not line.strip():
+            console.print("[yellow]Usage: create <ClassName> [args] [key=value ...][/yellow]")
+            return
+
+        # Split only first token for class name
+        parts = line.strip().split(maxsplit=1)
+        class_name = parts[0]
+        arg_line = parts[1] if len(parts) > 1 else ""
+
+        # If arg_line starts with dict/list literal keep as single positional
+        if arg_line.lstrip().startswith(('{', '[')):
+            try:
+                arg_obj = ast.literal_eval(arg_line.strip())
+                args = [arg_obj]
+                kwargs = {}
+            except Exception as e:
+                console.print(f"[red]Failed to parse literal: {e}[/red]")
+                raise typer.Exit(1)
+        else:
+            args, kwargs = _parse_line_args_kwargs(arg_line)
+
+        try:
+            obj = _instantiate_from_registry(class_name, args, kwargs)
+            new_name = obj.__class__.__name__
+            _add_to_stack(new_name, obj)
+            # Switch focus
+            self.loaded_object = obj
+            self.object_name = new_name
+            self.prompt = f"edsl ({new_name})> "
+            self._add_dynamic_methods()
+            _register_dynamic_commands()
+
+            console.print(f"[green]✓ Created {new_name} (${len(_object_stack)})[/green]")
+        except Exception as err:
+            console.print(f"[red]Error creating object: {err}[/red]")
+            raise typer.Exit(1)
+
+    # -------------------------------------------------------------------
+    # Show Expected Parrot key
+    # -------------------------------------------------------------------
+
+    def do_show_key(self, line):
+        """Display the current Expected Parrot API key (masked)."""
+        key = _get_expected_parrot_key()
+        if key:
+            masked = key[:4] + "..." + key[-4:]
+            console.print(f"[green]Expected Parrot key:[/green] {masked}")
+        else:
+            console.print("[yellow]No Expected Parrot key found in environment.[/yellow]")
+
+    # -------------------------------------------------------------------
+    # Profile management
+    # -------------------------------------------------------------------
+
+    def do_profiles(self, line):
+        """List available .env_<profile> files."""
+        profiles = _list_env_profiles()
+        if profiles:
+            console.print("[cyan]Available profiles:[/cyan]")
+            for p in profiles:
+                name = p[len('.env_'):]
+                console.print(f" • {name} ({p})")
+        else:
+            console.print("[yellow]No profiles found.[/yellow]")
+
+    def do_switch(self, line):
+        """Switch to a given environment profile.
+
+        Usage: switch <profile>
+        """
+        profile = line.strip()
+        if not profile:
+            console.print("[yellow]Usage: switch <profile>[/yellow]")
+            return
+        ok = _load_env_profile(profile)
+        if ok:
+            console.print(f"[green]✓ Switched to profile '{profile}'.[/green]")
+        else:
+            console.print(f"[red]Profile '.env_{profile}' not found.[/red]")
+
 
 def _get_callable_methods(obj: Any) -> Dict[str, callable]:
     """Get all callable methods from an object that don't start with underscore."""
@@ -625,7 +767,7 @@ def _create_dynamic_command(method_name: str, method: callable):
             
             # Display result
             if result is not None:
-                console.print(f"[green]Result:[/green]")
+                console.print(f"[green]Returned:[/green]")
                 if isinstance(result, (dict, list)):
                     console.print_json(json.dumps(result, indent=2, default=str))
                 else:
@@ -676,7 +818,7 @@ def _create_builtin_cli_command(func_name: str, func):
 
             # Display result
             if result is not None:
-                console.print(f"[green]Result:[/green] {result}")
+                console.print(f"[green]Returned:[/green] {result}")
         except Exception as e:
             console.print(f"[red]Error calling built-in {func_name}: {e}[/red]")
             raise typer.Exit(1)
@@ -1062,6 +1204,87 @@ def _print_directory(path: Path, show_hidden: bool = False) -> None:
     console.print(table)
 
 
+def _get_expected_parrot_key():
+    """Return Expected Parrot key from env or .env search."""
+    key_names = ("EXPECTED_PARROT_API_KEY", "EXPECTED_PARROT_KEY", "EP_KEY")
+    for k in key_names:
+        val = os.getenv(k)
+        if val:
+            return val
+
+    # If python-dotenv isn't available, do a simple manual parse for cwd .env
+    if not load_dotenv:
+        current_env = Path.cwd() / ".env"
+        if current_env.exists():
+            try:
+                with current_env.open() as f:
+                    for line in f:
+                        line = line.strip()
+                        if not line or line.startswith("#"):
+                            continue
+                        if "=" in line:
+                            k, v = line.split("=", 1)
+                            k = k.strip()
+                            v = v.strip().strip('"\'')
+                            if k in key_names:
+                                return v
+            except Exception:
+                pass
+    return None
+
+
+def _load_env_profile(profile: str) -> bool:
+    """Load environment variables from .env_<profile>. Returns True if loaded."""
+    global _active_profile
+
+    filename = f".env_{profile}"
+    path = None
+    for p in [Path.cwd()] + list(Path.cwd().parents):
+        candidate = p / filename
+        if candidate.exists():
+            path = candidate
+            break
+
+    if path is None:
+        home_candidate = Path.home() / filename
+        if home_candidate.exists():
+            path = home_candidate
+
+    if path is None:
+        return False
+
+    # Clear existing EP vars first
+    for var in ("EXPECTED_PARROT_API_KEY", "EXPECTED_PARROT_KEY", "EP_KEY"):
+        os.environ.pop(var, None)
+
+    # Use python-dotenv if available for parsing; else manual
+    if load_dotenv:
+        load_dotenv(path, override=True)
+    else:
+        with path.open() as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                k, v = line.split("=", 1)
+                k = k.strip()
+                v = v.strip().strip('"\'')
+                os.environ[k] = v
+
+    _active_profile = profile
+    return True
+
+
+def _list_env_profiles() -> List[str]:
+    """Return list of .env_<profile> filenames discovered."""
+    seen: set[str] = set()
+    paths = [Path.cwd()] + list(Path.cwd().parents) + [Path.home()]
+    for p in paths:
+        for env_file in p.glob(".env_*"):
+            seen.add(env_file.name)
+    return sorted(seen)
+
+
 def main():
     """Main entry point for the EDSL package when executed as a module."""
     app()
@@ -1069,3 +1292,28 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+# -------------------------------------------------------------------
+# Profile management CLI
+# -------------------------------------------------------------------
+
+
+@app.command(name="profiles", help="List available environment profiles")
+def profiles_cli():
+    profiles = _list_env_profiles()
+    if profiles:
+        console.print("[cyan]Available profiles:[/cyan]")
+        for p in profiles:
+            name = p[len('.env_'):]
+            console.print(f" • {name} ({p})")
+    else:
+        console.print("No profiles found.")
+
+
+@app.command(name="switch", help="Switch to environment profile")
+def switch_cli(profile: str = typer.Argument(..., help="Profile name")):
+    if _load_env_profile(profile):
+        console.print(f"Switched to profile '{profile}'.")
+    else:
+        console.print(f"Profile '.env_{profile}' not found.")
+        raise typer.Exit(1)
