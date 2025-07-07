@@ -1299,12 +1299,12 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
     def table(
         self,
         *fields: str,
-        tablefmt: Optional[TableFormat] = None,
+        tablefmt: Optional[TableFormat] = "rich",
         pretty_labels: Optional[dict[str, str]] = None,
     ) -> str:
         """Return the ScenarioList as a table."""
 
-        if tablefmt is not None and tablefmt not in tabulate_formats:
+        if tablefmt is not None and tablefmt not in (tabulate_formats + ["rich"]):
             raise ValueError(
                 f"Invalid table format: {tablefmt}",
                 f"Valid formats are: {tabulate_formats}",
@@ -2069,6 +2069,70 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             return Survey([survey]).by(self)
         else:
             return survey.by(self)
+                
+    def for_n(self, target: Union['Question', 'Survey', 'Job'], iterations: int) -> 'Jobs':
+        """Execute a target multiple times, feeding each iteration's output
+        into the next.
+
+        Parameters
+        ----------
+        target : Question | Survey | Job
+            The object to be executed on each round. A fresh ``duplicate()`` of
+            *target* is taken for every iteration so that state is **not** shared
+            between runs.
+        iterations : int
+            How many times to run *target*.
+
+        Returns
+        -------
+        Jobs
+            A :class:`~edsl.jobs.Jobs` instance containing the results of the
+            final iteration.
+
+        Example (non-doctest)::
+
+            from edsl import ScenarioList, QuestionFreeText
+
+            base_personas = ScenarioList.from_list(
+                "persona",
+                [
+                    "- Likes basketball",
+                    "- From Germany",
+                    "- Once owned a sawmill",
+                ],
+            )
+
+            persona_detail_jobs = (
+                QuestionFreeText(
+                    question_text=(
+                        "Take this persona: {{ scenario.persona }} and add one additional detail, "
+                        "preserving the original details."
+                    ),
+                    question_name="enhance",
+                )
+                .to_jobs()
+                .select("enhance")
+                .to_scenario_list()
+                .rename({"enhance": "persona"})
+            )
+
+            # Run the enrichment five times
+            enriched_personas = base_personas.for_n(persona_detail_jobs, 5)
+
+            print(enriched_personas.select("persona"))
+        """
+        
+        from ..jobs import Jobs
+        from ..questions import QuestionBase
+        from ..surveys import Survey
+
+        
+        intermediate_result = self
+        for i in range(iterations):
+            clean_target = target.duplicate()
+            new_jobs = clean_target.by(intermediate_result)
+            intermediate_result = new_jobs.run()
+        return intermediate_result
 
     @classmethod
     def gen(cls, scenario_dicts_list: List[dict]) -> ScenarioList:
