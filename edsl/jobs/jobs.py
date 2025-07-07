@@ -1154,9 +1154,11 @@ class Jobs(Base):
         new_jobs = handler(question_or_survey_or_jobs)
         new_jobs._depends_on  = self
         return new_jobs
+    
 
-    
-    
+    def duplicate(self):
+        return Jobs.from_dict(self.to_dict())
+
     def to_dict(self, add_edsl_version=True):
         d = {
             "survey": self.survey.to_dict(add_edsl_version=add_edsl_version),
