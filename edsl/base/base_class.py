@@ -1539,6 +1539,20 @@ class BaseDiff:
                         result.append(f"      {diff}")
         return "\n".join(result)
 
+    def pretty_print(self):  # noqa: D401
+        """Pretty-print the diff to the terminal using Rich.
+
+        This method relies on :pymod:`edsl.pretty_diff` which renders the diff
+        as colourised tables.  It simply delegates to that helper so that
+        calling code can do:
+
+        >>> diff = obj1 - obj2
+        >>> diff.pretty_print()
+        """
+        from .pretty_diff import pretty_print  # Local import now that pretty_diff is inside edsl.base
+
+        pretty_print(self)
+
     def __repr__(self):
         """Generate a developer-friendly string representation.
 

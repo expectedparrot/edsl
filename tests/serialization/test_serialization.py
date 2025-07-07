@@ -126,6 +126,7 @@ def test_serialization_coverage():
             "CoopJobsObjects",
             "CoopProlificFilters",
             "QuestionMultipleChoiceWithOther",
+            "Service",
         ]
     )
 
