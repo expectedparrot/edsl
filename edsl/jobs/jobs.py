@@ -1003,7 +1003,7 @@ class Jobs(Base):
             ...
         """
         if self._depends_on is not None:
-            prior_results = self._depends_on.run()
+            prior_results = self._depends_on.run(config=config)
             self = self.by(prior_results)
 
         potentially_completed_results, reason = self._run(config)
