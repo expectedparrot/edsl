@@ -860,6 +860,7 @@ class Jobs(Base):
         if not self._post_run_methods:
             return results
         
+        from ..results import Results
         # Mapping of built-in functions to their corresponding dunder methods
         builtin_to_dunder = {
             'len': '__len__',
@@ -888,16 +889,14 @@ class Jobs(Base):
             if method_name in builtin_to_dunder:
                 method_name = builtin_to_dunder[method_name]
             
-            # if not hasattr(converted_object, method_name):
-            #     available_methods = [m for m in dir(converted_object) if not m.startswith('_')]
-            #     raise AttributeError(
-            #         f"Results object does not have method '{method_name}'. "
-            #         f"Available methods include: {', '.join(available_methods[:10])}..."
-            #     )
             try:
                 converted_object = getattr(converted_object, method_name)(*args, **kwargs)
             except AttributeError:
                 raise JobsImplementationError(f"Could not apply method '{method_name}' to object.")
+        
+        if not isinstance(converted_object, Results):
+            converted_object._associated_results = results
+
         return converted_object
 
     @with_config
