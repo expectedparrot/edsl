@@ -21,6 +21,7 @@ import ast
 import readline
 import re
 import types
+import shutil
 from functools import lru_cache
 try:
     from dotenv import load_dotenv
@@ -137,6 +138,110 @@ def _parse_line_args_kwargs(line: str):
                     pass
             positional.append(resolved)
     return positional, keyword
+
+
+# ---------------------------------------------------------------------------
+# Stdin handling for piped data
+# ---------------------------------------------------------------------------
+
+
+def _load_from_stdin() -> bool:
+    """
+    Check if there's data on stdin and try to load it as an EDSL object.
+    Returns True if an object was successfully loaded, False otherwise.
+    """
+    # Only try to read from stdin if it's not connected to a terminal (i.e., piped data)
+    if sys.stdin.isatty():
+        return False
+    
+    try:
+        # Read all data from stdin
+        stdin_data = sys.stdin.read().strip()
+        if not stdin_data:
+            return False
+        
+        console.print("[cyan]Reading EDSL object from stdin...[/cyan]")
+        
+        # After reading piped data, restore stdin to terminal for interactive use
+        _restore_stdin_to_terminal()
+        
+        # Try to parse as JSON first
+        try:
+            data = json.loads(stdin_data)
+        except json.JSONDecodeError:
+            console.print("[red]Error: Stdin data is not valid JSON[/red]")
+            return False
+        
+        # Try to use EDSL's generic load functionality
+        try:
+            from edsl.base.base_class import RegisterSubclassesMeta
+            
+            # If the data is a dict with EDSL object structure, try to load it
+            if isinstance(data, dict) and "edsl_class_name" in data:
+                class_name = data["edsl_class_name"]
+                registry = RegisterSubclassesMeta.get_registry()
+                
+                if class_name not in registry:
+                    console.print(f"[red]Unknown EDSL class '{class_name}'. Available: {', '.join(registry.keys())}[/red]")
+                    return False
+                
+                cls = registry[class_name]
+                obj = cls.from_dict(data)
+                new_name = obj.__class__.__name__
+                _add_to_stack(new_name, obj)
+                console.print(f"[green]✓ Successfully loaded {new_name} from stdin (${len(_object_stack)})[/green]")
+                _register_dynamic_commands()
+                return True
+            else:
+                console.print("[yellow]Stdin data doesn't appear to be a serialized EDSL object (missing 'edsl_class_name')[/yellow]")
+                return False
+                
+        except ImportError:
+            console.print("[yellow]Warning: Could not import EDSL registry utilities[/yellow]")
+            return False
+        except Exception as e:
+            # If generic load fails, try other approaches
+            console.print(f"[yellow]Generic load failed: {e}[/yellow]")
+            
+            # Try to instantiate based on class name if present
+            if isinstance(data, dict) and "edsl_class_name" in data:
+                try:
+                    class_name = data["edsl_class_name"]
+                    # Remove metadata fields
+                    obj_data = {k: v for k, v in data.items() if not k.startswith("edsl_")}
+                    
+                    obj = _instantiate_from_registry(class_name, [], obj_data)
+                    new_name = obj.__class__.__name__
+                    _add_to_stack(new_name, obj)
+                    console.print(f"[green]✓ Successfully created {new_name} from stdin data (${len(_object_stack)})[/green]")
+                    _register_dynamic_commands()
+                    return True
+                except Exception as e2:
+                    console.print(f"[red]Failed to instantiate object from stdin data: {e2}[/red]")
+                    return False
+            else:
+                console.print("[red]Unable to determine object type from stdin data[/red]")
+                return False
+                
+    except Exception as e:
+        console.print(f"[red]Error reading from stdin: {e}[/red]")
+        return False
+
+
+def _restore_stdin_to_terminal():
+    """Restore stdin to be connected to the terminal for interactive input."""
+    try:
+        # Close current stdin and reopen it to the terminal
+        sys.stdin.close()
+        sys.stdin = open('/dev/tty', 'r')
+    except Exception:
+        # If we can't restore to /dev/tty, try to at least reset stdin
+        try:
+            import io
+            sys.stdin = io.TextIOWrapper(io.BufferedReader(io.FileIO(0)))
+        except Exception:
+            # Last resort: just continue with current stdin
+            pass
 
 
 # ---------------------------------------------------------------------------
@@ -532,51 +637,27 @@ class EDSLShell(cmd.Cmd):
             console.print("[yellow]Usage: pull <uuid>[/yellow]")
             return
 
-        try:
-            from edsl.coop import Coop
+        from edsl.coop import Coop
 
-            console.print(f"[cyan]Pulling object {uuid_str} from Coop...[/cyan]")
-            coop = Coop()
-            obj = coop.pull(uuid_str)
+        console.print(f"[cyan]Pulling object {uuid_str} from Coop...[/cyan]")
+        coop = Coop()
+        obj = coop.pull(uuid_str)
 
-            new_name = obj.__class__.__name__
-            _add_to_stack(new_name, obj)
+        new_name = obj.__class__.__name__
+        _add_to_stack(new_name, obj)
 
-            # Update shell context
-            self.loaded_object = obj
-            self.object_name = new_name
-            self.prompt = f"edsl ({new_name})> "
+        # Update shell context
+        self.loaded_object = obj
+        self.object_name = new_name
+        self.prompt = f"edsl ({new_name})> "
 
-            # Refresh dynamic methods
-            self._add_dynamic_methods()
+        # Refresh dynamic methods
+        self._add_dynamic_methods()
 
-            # Register CLI dynamic commands
-            _register_dynamic_commands()
+        # Register CLI dynamic commands
+        _register_dynamic_commands()
 
-            console.print(f"[green]✓ Pulled object {uuid_str} as {new_name} (${len(_object_stack)})[/green]")
-        except Exception as e:
-            # Attempt Jobs-specific pull fallback
-            try:
-                from edsl.coop import Coop
-                from edsl.jobs import Jobs  # type: ignore
-                coop = Coop()
-                job_data = coop.new_remote_inference_get(str(uuid), include_json_string=True)
-                import json as _json
-                job_dict = _json.loads(job_data.get("job_json_string"))
-                obj = Jobs.from_dict(job_dict)
-
-                new_name = obj.__class__.__name__
-                _add_to_stack(new_name, obj)
-
-                self.loaded_object = obj
-                self.object_name = new_name
-                self.prompt = f"edsl ({new_name})> "
-                self._add_dynamic_methods()
-                _register_dynamic_commands()
-
-                console.print(f"[green]✓ Pulled Jobs object {uuid_str} as {new_name} (${len(_object_stack)})[/green]")
-            except Exception as e2:
-                console.print(f"[red]Error pulling object: {e} | Fallback failed: {e2}[/red]")
+        console.print(f"[green]✓ Pulled object {uuid_str} as {new_name} (${len(_object_stack)})[/green]")
 
     # -------------------------------------------------------------------
     # Instantiate new objects: agent / scenario
@@ -722,6 +803,11 @@ class EDSLShell(cmd.Cmd):
     def do_switch(self, line):
         """Switch to a given environment profile.
 
+        This will:
+        1. Backup current .env to .env_bak
+        2. Copy .env_<profile> to .env
+        3. Reload environment variables
+
         Usage: switch <profile>
         """
         profile = line.strip()
@@ -730,7 +816,7 @@ class EDSLShell(cmd.Cmd):
             return
         ok = _load_env_profile(profile)
         if ok:
-            console.print(f"[green]✓ Switched to profile '{profile}'.[/green]")
+            console.print(f"[green]✓ Switched to profile '{profile}' and reloaded .env[/green]")
         else:
             console.print(f"[red]Profile '.env_{profile}' not found.[/red]")
 
@@ -1062,49 +1148,51 @@ def cd_cli(path: Path = typer.Argument("~", help="Directory to change to")):
 @app.command(name="pull", help="Pull an object from Expected Parrot Coop by UUID")
 def pull_cli(uuid: str = typer.Argument(..., help="UUID of the object to pull")):
     """Pull an object from Coop, add to stack, and register commands."""
+    from edsl.coop import Coop
+
+    coop = Coop()
+    obj = coop.pull(uuid)
+
+    new_name = obj.__class__.__name__
+    _add_to_stack(new_name, obj)
+
+    console.print(f"[green]✓ Pulled object {uuid} as {new_name} (${len(_object_stack)})[/green]")
+
+    # Register dynamic commands for the new object
+    _register_dynamic_commands()
+
+
+@app.command(name="test-stdin", help="Output a test EDSL object for testing stdin functionality")
+def test_stdin():
+    """Create and output a simple EDSL object for testing stdin functionality.
+    
+    Usage example:
+        python -m edsl test-stdin | python -m edsl
+    """
     try:
-        from edsl.coop import Coop
-
-        coop = Coop()
-        obj = coop.pull(uuid)
-
-        new_name = obj.__class__.__name__
-        _add_to_stack(new_name, obj)
-
-        console.print(f"[green]✓ Pulled object {uuid} as {new_name} (${len(_object_stack)})[/green]")
-
-        # Register dynamic commands for the new object
-        _register_dynamic_commands()
+        from edsl.agents import Agent
+        
+        # Create a simple agent
+        agent = Agent(traits={"persona": "A helpful test agent"})
+        
+        # Output the serialized object
+        import json
+        output = json.dumps(agent.to_dict(), indent=2, default=str)
+        print(output)
+        
+    except ImportError as e:
+        console.print(f"[red]Error: Could not import required modules. {e}[/red]")
+        raise typer.Exit(1)
     except Exception as e:
-        # Attempt Jobs-specific pull fallback
-        try:
-            from edsl.coop import Coop
-            from edsl.jobs import Jobs  # type: ignore
-            coop = Coop()
-            job_data = coop.new_remote_inference_get(str(uuid), include_json_string=True)
-            import json as _json
-            job_dict = _json.loads(job_data.get("job_json_string"))
-            obj = Jobs.from_dict(job_dict)
-
-            new_name = obj.__class__.__name__
-            _add_to_stack(new_name, obj)
-
-            self.loaded_object = obj
-            self.object_name = new_name
-            self.prompt = f"edsl ({new_name})> "
-            self._add_dynamic_methods()
-            _register_dynamic_commands()
-
-            console.print(f"[green]✓ Pulled Jobs object {uuid} as {new_name} (${len(_object_stack)})[/green]")
-        except Exception as e2:
-            console.print(f"[red]Error pulling object: {e} | Fallback failed: {e2}[/red]")
+        console.print(f"[red]Error creating test object: {e}[/red]")
+        raise typer.Exit(1)
 
 
 @app.callback()
 def callback(
     ctx: typer.Context,
     interactive: bool = typer.Option(
-        False, "--interactive", "-i", help="Start interactive shell without loading an object."
+        False, "--interactive", "-i", help="Force interactive mode (interactive is now the default when no command is given)."
     ),
 ):
     """
@@ -1112,27 +1200,27 @@ def callback(
     
     A toolkit for creating, managing, and running surveys with language models.
     
-    If invoked without any command, prints helpful usage information instead of an error.
+    EDSL supports reading serialized objects from stdin when used in a pipeline.
+    For example: echo '{"edsl_class_name": "Agent", ...}' | python -m edsl
+    Or: python -m edsl test-stdin | python -m edsl
+    
+    If invoked without any command, starts an interactive shell.
     """
 
-    # Handle --interactive with no subcommand
-    if interactive and ctx.invoked_subcommand is None:
-        console.print("[yellow]Starting interactive shell (no object loaded)...[/yellow]")
-        shell = EDSLShell()
-        shell.cmdloop()
-        raise typer.Exit()
+    # Check for and process stdin data first
+    stdin_loaded = False
+    if not sys.stdin.isatty():
+        stdin_loaded = _load_from_stdin()
 
-    # If no subcommand was supplied, give a gentle hint instead of an error.
+    # If no subcommand was supplied, default to interactive mode
     if ctx.invoked_subcommand is None:
-        if _loaded_object is None:
-            console.print(
-                "[yellow]No object loaded. Use 'edsl load <FILEPATH>' to get started or 'edsl --help' for more options.[/yellow]"
-            )
+        if stdin_loaded:
+            console.print(f"[yellow]Starting interactive shell with loaded {_loaded_object_name}...[/yellow]")
+            shell = EDSLShell(_loaded_object, _loaded_object_name)
         else:
-            console.print(
-                f"[cyan]{_loaded_object_name} is currently loaded. Use 'edsl methods' to list available actions.[/cyan]"
-            )
-        # Exit cleanly without error
+            console.print("[yellow]Starting interactive shell (no object loaded)...[/yellow]")
+            shell = EDSLShell()
+        shell.cmdloop()
         raise typer.Exit()
 
 
@@ -1225,7 +1313,7 @@ def _get_expected_parrot_key():
                         if "=" in line:
                             k, v = line.split("=", 1)
                             k = k.strip()
-                            v = v.strip().strip('"\'')
+                            v = v.strip().strip("'\"")  # strip surrounding quotes if any
                             if k in key_names:
                                 return v
             except Exception:
@@ -1234,45 +1322,67 @@ def _get_expected_parrot_key():
 
 
 def _load_env_profile(profile: str) -> bool:
-    """Load environment variables from .env_<profile>. Returns True if loaded."""
+    """Switch to a profile by copying .env_<profile> to .env and backing up the old .env."""
     global _active_profile
 
     filename = f".env_{profile}"
-    path = None
+    profile_path = None
+    
+    # Find the profile file
     for p in [Path.cwd()] + list(Path.cwd().parents):
         candidate = p / filename
         if candidate.exists():
-            path = candidate
+            profile_path = candidate
             break
 
-    if path is None:
+    if profile_path is None:
         home_candidate = Path.home() / filename
         if home_candidate.exists():
-            path = home_candidate
+            profile_path = home_candidate
 
-    if path is None:
+    if profile_path is None:
         return False
 
-    # Clear existing EP vars first
-    for var in ("EXPECTED_PARROT_API_KEY", "EXPECTED_PARROT_KEY", "EP_KEY"):
-        os.environ.pop(var, None)
+    # Work in the current directory for .env management
+    current_dir = Path.cwd()
+    env_path = current_dir / ".env"
+    env_bak_path = current_dir / ".env_bak"
 
-    # Use python-dotenv if available for parsing; else manual
-    if load_dotenv:
-        load_dotenv(path, override=True)
-    else:
-        with path.open() as f:
-            for line in f:
-                line = line.strip()
-                if not line or line.startswith("#") or "=" not in line:
-                    continue
-                k, v = line.split("=", 1)
-                k = k.strip()
-                v = v.strip().strip('"\'')
-                os.environ[k] = v
+    try:
+        # Step 1: Backup current .env to .env_bak if it exists
+        if env_path.exists():
+            console.print(f"[cyan]Backing up current .env to .env_bak...[/cyan]")
+            shutil.copy2(env_path, env_bak_path)
 
-    _active_profile = profile
-    return True
+        # Step 2: Copy the profile to .env
+        console.print(f"[cyan]Copying {profile_path} to .env...[/cyan]")
+        shutil.copy2(profile_path, env_path)
+
+        # Step 3: Clear existing environment variables first
+        for var in ("EXPECTED_PARROT_API_KEY", "EXPECTED_PARROT_KEY", "EP_KEY"):
+            os.environ.pop(var, None)
+
+        # Step 4: Reload the new .env file
+        if load_dotenv:
+            load_dotenv(env_path, override=True)
+        else:
+            # Fallback manual parsing when python-dotenv is not installed
+            with env_path.open() as f:
+                for line in f:
+                    line = line.strip()
+                    if not line or line.startswith("#") or "=" not in line:
+                        continue
+                    k, v = line.split("=", 1)
+                    k = k.strip()
+                    v = v.strip().strip("'\"")  # strip surrounding quotes if any
+                    os.environ[k] = v
+
+        _active_profile = profile
+        return True
+
+    except Exception as e:
+        console.print(f"[red]Error switching profile: {e}[/red]")
+        return False
 
 
 def _list_env_profiles() -> List[str]:
@@ -1287,7 +1397,22 @@ def _list_env_profiles() -> List[str]:
 
 def main():
     """Main entry point for the EDSL package when executed as a module."""
-    app()
+    # If no arguments provided, start interactive shell directly
+    if len(sys.argv) == 1:
+        # Check for stdin data even when no arguments provided
+        stdin_loaded = False
+        if not sys.stdin.isatty():
+            stdin_loaded = _load_from_stdin()
+        
+        if stdin_loaded:
+            console.print(f"[yellow]Starting interactive shell with loaded {_loaded_object_name}...[/yellow]")
+            shell = EDSLShell(_loaded_object, _loaded_object_name)
+        else:
+            console.print("[yellow]Starting interactive shell (no object loaded)...[/yellow]")
+            shell = EDSLShell()
+        shell.cmdloop()
+    else:
+        app()
 
 
 if __name__ == "__main__":
@@ -1310,10 +1435,10 @@ def profiles_cli():
         console.print("No profiles found.")
 
 
-@app.command(name="switch", help="Switch to environment profile")
+@app.command(name="switch", help="Switch to environment profile (backs up .env to .env_bak and copies profile to .env)")
 def switch_cli(profile: str = typer.Argument(..., help="Profile name")):
     if _load_env_profile(profile):
-        console.print(f"Switched to profile '{profile}'.")
+        console.print(f"[green]✓ Switched to profile '{profile}' and reloaded .env[/green]")
     else:
-        console.print(f"Profile '.env_{profile}' not found.")
+        console.print(f"[red]Profile '.env_{profile}' not found.[/red]")
         raise typer.Exit(1)

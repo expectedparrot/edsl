@@ -2788,22 +2788,30 @@ class Coop(CoopFunctionsMixin):
 
         except Exception:
             return self.get(url_or_uuid, expected_object_type)
+        
         object_dict = response.json()
         if expected_object_type is not None:
             edsl_class = ObjectRegistry.get_edsl_class_by_object_type(
                 expected_object_type
             )
             edsl_object = edsl_class.from_dict(object_dict)
+            return edsl_object
         else:
             likely_object_type = object_dict.get("edsl_class_name")
             if likely_object_type is not None:
                 edsl_class = ObjectRegistry.get_registry().get(likely_object_type, None)
-                if edsl_class is None:
-                    raise CoopResponseError(f"No EDSL class found for {likely_object_type=}")          
-            edsl_object = edsl_class.from_dict(object_dict)
+                return edsl_class.from_dict(object_dict)
+            else:
+                for edsl_class in ObjectRegistry.get_registry().values():
+                    try:
+                        edsl_object = edsl_class.from_dict(object_dict)
+                        return edsl_object
+                        break
+                    except Exception:
+                        continue
+
+        raise CoopResponseError(f"No EDSL class found for {likely_object_type=}")
             
-        # Return the response containing the signed URL
-        return edsl_object
 
     def get_upload_url(self, object_uuid: str) -> dict:
         """
@@ -2849,7 +2857,7 @@ class Coop(CoopFunctionsMixin):
         description: Optional[str] = None,
         alias: Optional[str] = None,
         visibility: Optional[VisibilityType] = "unlisted",
-    ) -> dict:
+    ) -> 'Scenario':
         """
         Generate a signed URL for pushing an object directly to Google Cloud Storage.
 
@@ -2870,7 +2878,7 @@ class Coop(CoopFunctionsMixin):
             >>> print(f"Upload URL: {response['signed_url']}")
             >>> # Use the signed_url to upload the object directly
         """
-
+        from ..scenarios import Scenario
         object_type = ObjectRegistry.get_object_type_by_edsl_class(object)
         object_dict = object.to_dict()
         object_hash = object.get_hash() if hasattr(object, "get_hash") else None
@@ -2926,7 +2934,7 @@ class Coop(CoopFunctionsMixin):
         )
         self._resolve_server_response(confirm_response)
 
-        return {
+        return Scenario({
             "description": response_json.get("description"),
             "object_type": object_type,
             "url": f"{self.url}/content/{object_uuid}",
@@ -2934,7 +2942,7 @@ class Coop(CoopFunctionsMixin):
             "uuid": object_uuid,
             "version": self._edsl_version,
             "visibility": response_json.get("visibility"),
-        }
+        })
 
     def _display_login_url(
         self, edsl_auth_token: str, link_description: Optional[str] = None

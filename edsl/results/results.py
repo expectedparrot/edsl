@@ -780,7 +780,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
     def to_dict(
         self,
         sort: bool = False,
-        add_edsl_version: bool = False,
+        add_edsl_version: bool = True,
         include_cache: bool = True,
         include_task_history: bool = False,
         include_cache_info: bool = True,
@@ -825,6 +825,9 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
 
             d["edsl_version"] = __version__
             d["edsl_class_name"] = "Results"
+
+        assert 'edsl_class_name' in d
+        #assert False
 
         return d
 

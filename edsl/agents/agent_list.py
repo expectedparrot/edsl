@@ -561,7 +561,7 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
     def table(
         self,
         *fields,
-        tablefmt: Optional[str] = None,
+        tablefmt: Optional[str] = "rich",
         pretty_labels: Optional[dict] = None,
     ) -> Any:
         if len(self) == 0:

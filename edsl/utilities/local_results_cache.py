@@ -8,7 +8,7 @@ from .edsl_load import load as _load_edsl_obj
 
 
 @contextmanager
-def object_disk_cache(job, cache_dir: Optional[str] = None, verbose: bool = True):
+def object_disk_cache(job, *args, cache_dir: Optional[str] = None, verbose: bool = False, **kwargs):
     """Context-manager that caches the output of ``job.run()`` to disk.
 
     This is a generalisation of the old ``local_results_cache`` helper: it works
@@ -30,10 +30,14 @@ def object_disk_cache(job, cache_dir: Optional[str] = None, verbose: bool = True
     ----------
     job : Any
         Object with a ``run()`` method returning an EDSL object.
+    *args : Any
+        Positional arguments to pass to the job's ``run()`` method.
     cache_dir : str | None, optional
         Override the default cache directory.
     verbose : bool, default ``True``
         Print human-readable status messages to stdout.
+    **kwargs : Any
+        Keyword arguments to pass to the job's ``run()`` method.
     """
 
     # Defer heavy imports until we *need* them – avoids slowing down start-up
@@ -73,7 +77,19 @@ def object_disk_cache(job, cache_dir: Optional[str] = None, verbose: bool = True
     # ------------------------------------------------------------------
     if verbose:
         print("[cache] miss – running job")
-    obj = job.run()
+
+    print(f"Running job with args: {args} and kwargs: {kwargs}")
+    
+    # Add debug logging to trace disable_remote_inference
+    if 'disable_remote_inference' in kwargs:
+        print(f"[cache] disable_remote_inference set to: {kwargs['disable_remote_inference']}")
+    
+    # Also disable remote cache to ensure completely local execution
+    if 'disable_remote_cache' not in kwargs:
+        kwargs['disable_remote_cache'] = True
+        print(f"[cache] Also setting disable_remote_cache=True for fully local execution")
+    
+    obj = job.run(*args, **kwargs)
 
     # Persist to disk (best-effort – if it fails we still yield the object)
     try:

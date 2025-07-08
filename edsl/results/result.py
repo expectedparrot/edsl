@@ -377,13 +377,17 @@ class Result(Base, UserDict):
         d = {}
         problem_keys = []
         data_types = sorted(self.sub_dicts.keys())
+        if 'answer' in data_types:
+            data_types.remove('answer')
+            data_types = ['answer'] + data_types
         for data_type in data_types:
             for key in self.sub_dicts[data_type]:
                 if key in d:
                     import warnings
 
                     warnings.warn(
-                        f"Key '{key}' of data type '{data_type}' is already in use. Renaming to {key}_{data_type}"
+                        f"Key '{key}' of data type '{data_type}' is already in use. Renaming to {key}_{data_type}.\n"
+                        f"Conflicting data_type for this key at {d[key]}"
                     )
                     problem_keys.append((key, data_type))
                     key = f"{key}_{data_type}"
