@@ -37,7 +37,7 @@ HISTORY_FILE = Path.home() / ".edsl_cli_commands_log"
 _active_profile: Optional[str] = None
 
 # Create the main Typer app
-app = typer.Typer(help="EDSL - Expected Parrot Domain Specific Language", invoke_without_command=True)
+app = typer.Typer(help="EDSL - Expected Parrot Domain Specific Language (use .help for dot commands)", invoke_without_command=True)
 console = Console()
 
 # Currently focused object (top of stack)
@@ -69,6 +69,8 @@ _RESERVED_SHELL_COMMANDS = {
     "show_key",
     "switch",
     "profiles",
+    "pop",
+    "clear",
 }
 
 # Built-in functions to expose as additional CLI/shell commands
@@ -502,7 +504,40 @@ class EDSLShell(cmd.Cmd):
     
     def default(self, line):
         """Handle unknown commands."""
-        attr_name = line.strip().split()[0]
+        command = line.strip()
+        
+        # Handle dot commands (SQLite-style)
+        if command.startswith('.'):
+            parts = command.split(None, 1)
+            dot_command = parts[0][1:]  # Remove the leading dot
+            dot_args = parts[1] if len(parts) > 1 else ""
+            
+            # Map dot commands to their corresponding methods
+            dot_command_map = {
+                'load': self.do_dot_load,
+                'stack': self.do_dot_stack,
+                'unload': self.do_dot_unload,
+                'pull': self.do_dot_pull,
+                'create': self.do_dot_create,
+                'show_key': self.do_dot_show_key,
+                'profiles': self.do_dot_profiles,
+                'switch': self.do_dot_switch,
+                'pop': self.do_dot_pop,
+                'clear': self.do_dot_clear,
+                'help': self.do_dot_help,
+                'quit': self.do_quit,
+                'exit': self.do_exit,
+            }
+            
+            if dot_command in dot_command_map:
+                return dot_command_map[dot_command](dot_args)
+            else:
+                console.print(f"[red]Unknown dot command: .{dot_command}[/red]")
+                console.print("[yellow]Available dot commands: .load, .stack, .unload, .pull, .create, .show_key, .profiles, .switch, .pop, .clear, .help, .quit, .exit[/yellow]")
+                return
+        
+        # Handle regular attribute access
+        attr_name = command.split()[0]
         if hasattr(self.loaded_object, attr_name):
             value = getattr(self.loaded_object, attr_name)
             import inspect
@@ -526,24 +561,18 @@ class EDSLShell(cmd.Cmd):
                     _register_dynamic_commands()
             return
 
-        console.print(f"[red]Unknown command: {line}[/red]")
-        console.print("[yellow]Type 'methods' to see available methods or 'help' for help.[/yellow]")
+        console.print(f"[red]Unknown command: {command}[/red]")
+        console.print("[yellow]Type 'methods' to see available methods or '.help' for help.[/yellow]")
 
-    def do_stack(self, line):
-        """Show the current object stack."""
-        _print_stack()
+    # -------------------------------------------------------------------
+    # Dot command implementations (SQLite-style)
+    # -------------------------------------------------------------------
 
-    def do_load(self, line):
-        """Load a file or switch to an object in the stack.
-
-        Usage examples:
-          load /path/to/file.json
-          load $3            # Focus the object at position 3 in the stack
-        """
-
+    def do_dot_load(self, line):
+        """Load a file or switch to an object in the stack."""
         target = line.strip()
         if not target:
-            console.print("[yellow]Usage: load <filepath>|$<n>[/yellow]")
+            console.print("[yellow]Usage: .load <filepath>|$<n>[/yellow]")
             return
 
         # Handle stack reference ($n)
@@ -585,7 +614,11 @@ class EDSLShell(cmd.Cmd):
             # Errors are already printed in load(); simply pass
             pass
 
-    def do_unload(self, line):
+    def do_dot_stack(self, line):
+        """Show the current object stack."""
+        _print_stack()
+
+    def do_dot_unload(self, line):
         """Unload the current object and clear the stack."""
         _unload()
         # Update shell prompt/context
@@ -593,48 +626,11 @@ class EDSLShell(cmd.Cmd):
         self.object_name = None
         self.prompt = "edsl> "
 
-    # -------------------------------------------------------------------
-    # Filesystem operations
-    # -------------------------------------------------------------------
-
-    def do_ls(self, line):
-        """List directory contents. Usage: ls [path] [--all|-a]"""
-        tokens = shlex.split(line)
-        show_hidden = False
-        path = Path.cwd()
-        for token in tokens:
-            if token in ("-a", "--all"):
-                show_hidden = True
-            else:
-                path = Path(token).expanduser()
-        _print_directory(path, show_hidden)
-
-    def do_cd(self, line):
-        """Change current directory. Usage: cd <path>"""
-        target = line.strip() or "~"
-        path = Path(target).expanduser()
-        if not path.exists() or not path.is_dir():
-            console.print(f"[red]Directory '{path}' does not exist.[/red]")
-            return
-        try:
-            os.chdir(path)
-            console.print(f"[green]✓ Changed directory to {path}[/green]")
-        except Exception as e:
-            console.print(f"[red]Error changing directory: {e}[/red]")
-
-    # -------------------------------------------------------------------
-    # Coop pull operation
-    # -------------------------------------------------------------------
-
-    def do_pull(self, line):
-        """Pull an object from Expected Parrot Coop by UUID.
-
-        Usage: pull <uuid>
-        """
-
+    def do_dot_pull(self, line):
+        """Pull an object from Expected Parrot Coop by UUID."""
         uuid_str = line.strip()
         if not uuid_str:
-            console.print("[yellow]Usage: pull <uuid>[/yellow]")
+            console.print("[yellow]Usage: .pull <uuid>[/yellow]")
             return
 
         from edsl.coop import Coop
@@ -659,84 +655,10 @@ class EDSLShell(cmd.Cmd):
 
         console.print(f"[green]✓ Pulled object {uuid_str} as {new_name} (${len(_object_stack)})[/green]")
 
-    # -------------------------------------------------------------------
-    # Instantiate new objects: agent / scenario
-    # -------------------------------------------------------------------
-
-    def do_agent(self, line):
-        """Instantiate an Agent object.
-
-        Usage: agent [args] [key=value ...]
-        """
-        try:
-            from edsl.agents import Agent
-        except ImportError as e:
-            console.print(f"[red]Could not import Agent: {e}[/red]")
-            return
-
-        args, kwargs = _parse_line_args_kwargs(line)
-
-        # Avoid duplicate dict positional arg when traits passed via keyword
-        if args and isinstance(args[0], dict) and 'traits' in kwargs:
-            args = args[1:]
-
-        try:
-            obj = Agent(*args, **kwargs)
-            new_name = obj.__class__.__name__
-            _add_to_stack(new_name, obj)
-
-            # Switch focus
-            self.loaded_object = obj
-            self.object_name = new_name
-            self.prompt = f"edsl ({new_name})> "
-            self._add_dynamic_methods()
-            _register_dynamic_commands()
-
-            console.print(f"[green]✓ Created {new_name} (${len(_object_stack)})[/green]")
-        except Exception as e:
-            console.print(f"[red]Error creating Agent: {e}[/red]")
-
-    def do_scenario(self, line):
-        """Instantiate a Scenario object.
-
-        Usage: scenario [args] [key=value ...]
-        """
-        try:
-            from edsl.scenarios import Scenario
-        except ImportError as e:
-            console.print(f"[red]Could not import Scenario: {e}[/red]")
-            return
-
-        args, kwargs = _parse_line_args_kwargs(line)
-
-        # Avoid duplicate dict positional arg when traits passed via keyword
-        if args and isinstance(args[0], dict) and 'traits' in kwargs:
-            args = args[1:]
-
-        try:
-            obj = Scenario(*args, **kwargs)
-            new_name = obj.__class__.__name__
-            _add_to_stack(new_name, obj)
-
-            # Switch focus
-            self.loaded_object = obj
-            self.object_name = new_name
-            self.prompt = f"edsl ({new_name})> "
-            self._add_dynamic_methods()
-            _register_dynamic_commands()
-
-            console.print(f"[green]✓ Created {new_name} (${len(_object_stack)})[/green]")
-        except Exception as e:
-            console.print(f"[red]Error creating Scenario: {e}[/red]")
-
-    def do_create(self, line):
-        """Create an object from the registry.
-
-        Usage: create <ClassName> [args] [key=value ...]
-        Example: create Agent traits={'persona':"Nice"}
-        """
+    def do_dot_create(self, line):
+        """Create an object from the registry."""
         if not line.strip():
-            console.print("[yellow]Usage: create <ClassName> [args] [key=value ...][/yellow]")
+            console.print("[yellow]Usage: .create <ClassName> [args] [key=value ...][/yellow]")
             return
 
         # Split only first token for class name
@@ -772,11 +694,7 @@ class EDSLShell(cmd.Cmd):
             console.print(f"[red]Error creating object: {err}[/red]")
             raise typer.Exit(1)
 
-    # -------------------------------------------------------------------
-    # Show Expected Parrot key
-    # -------------------------------------------------------------------
-
-    def do_show_key(self, line):
+    def do_dot_show_key(self, line):
         """Display the current Expected Parrot API key (masked)."""
         key = _get_expected_parrot_key()
         if key:
@@ -785,11 +703,7 @@ class EDSLShell(cmd.Cmd):
         else:
             console.print("[yellow]No Expected Parrot key found in environment.[/yellow]")
 
-    # -------------------------------------------------------------------
-    # Profile management
-    # -------------------------------------------------------------------
-
-    def do_profiles(self, line):
+    def do_dot_profiles(self, line):
         """List available .env_<profile> files."""
         profiles = _list_env_profiles()
         if profiles:
@@ -800,25 +714,205 @@ class EDSLShell(cmd.Cmd):
         else:
             console.print("[yellow]No profiles found.[/yellow]")
 
-    def do_switch(self, line):
-        """Switch to a given environment profile.
-
-        This will:
-        1. Backup current .env to .env_bak
-        2. Copy .env_<profile> to .env
-        3. Reload environment variables
-
-        Usage: switch <profile>
-        """
+    def do_dot_switch(self, line):
+        """Switch to a given environment profile."""
         profile = line.strip()
         if not profile:
-            console.print("[yellow]Usage: switch <profile>[/yellow]")
+            console.print("[yellow]Usage: .switch <profile>[/yellow]")
             return
         ok = _load_env_profile(profile)
         if ok:
             console.print(f"[green]✓ Switched to profile '{profile}' and reloaded .env[/green]")
         else:
             console.print(f"[red]Profile '.env_{profile}' not found.[/red]")
+
+    def do_dot_pop(self, line):
+        """Remove the currently focused object from the stack and switch to the previous one."""
+        if not _object_stack:
+            console.print("[yellow]Stack is empty - nothing to pop.[/yellow]")
+            return
+
+        if self.loaded_object is None:
+            console.print("[yellow]No object is currently focused.[/yellow]")
+            return
+
+        # Find the current object in the stack
+        current_idx = None
+        for idx, (name, obj) in enumerate(_object_stack):
+            if obj is self.loaded_object:
+                current_idx = idx
+                break
+
+        if current_idx is None:
+            console.print("[yellow]Current object not found in stack.[/yellow]")
+            return
+
+        # Remove the current object from the stack
+        removed_name, removed_obj = _object_stack.pop(current_idx)
+        console.print(f"[green]✓ Popped {removed_name} from stack[/green]")
+
+        # Update global state
+        global _loaded_object, _loaded_object_name
+
+        # If stack is now empty, unload everything
+        if not _object_stack:
+            _loaded_object = None
+            _loaded_object_name = None
+            self.loaded_object = None
+            self.object_name = None
+            self.prompt = "edsl> "
+            console.print("[yellow]Stack is now empty - no object loaded.[/yellow]")
+        else:
+            # Switch to the previous object in the stack
+            if current_idx >= len(_object_stack):
+                # We removed the last item, focus on the new last item
+                new_idx = len(_object_stack) - 1
+            else:
+                # We removed a middle item, focus on the item that took its place
+                # But let's actually focus on the previous item if it exists
+                new_idx = max(0, current_idx - 1)
+
+            new_name, new_obj = _object_stack[new_idx]
+            
+            # Update global and local state
+            _loaded_object = new_obj
+            _loaded_object_name = new_name
+            self.loaded_object = new_obj
+            self.object_name = new_name
+            self.prompt = f"edsl ({new_name})> "
+            
+            # Refresh dynamic methods for the new object
+            self._add_dynamic_methods()
+            _register_dynamic_commands()
+            
+            console.print(f"[green]Switched focus to {new_name} (${new_idx+1})[/green]")
+
+    def do_dot_clear(self, line):
+        """Clear the entire object stack but keep current focus."""
+        if not _object_stack:
+            console.print("[yellow]Stack is already empty.[/yellow]")
+            return
+
+        # Count objects before clearing
+        count = len(_object_stack)
+        current_obj = self.loaded_object
+        current_name = self.object_name
+
+        # Clear the stack
+        _object_stack.clear()
+
+        # If we had a focused object, add it back as the only item
+        if current_obj is not None and current_name is not None:
+            _object_stack.append((current_name, current_obj))
+            console.print(f"[green]✓ Cleared {count} objects from stack, kept current focus on {current_name}[/green]")
+        else:
+            console.print(f"[green]✓ Cleared {count} objects from stack[/green]")
+
+        # Update global state to match
+        global _loaded_object, _loaded_object_name
+        if current_obj is not None:
+            _loaded_object = current_obj
+            _loaded_object_name = current_name
+        else:
+            _loaded_object = None
+            _loaded_object_name = None
+
+
+    # -------------------------------------------------------------------
+    # Filesystem operations
+    # -------------------------------------------------------------------
+
+    def do_ls(self, line):
+        """List directory contents. Usage: ls [path] [--all|-a]"""
+        tokens = shlex.split(line)
+        show_hidden = False
+        path = Path.cwd()
+        for token in tokens:
+            if token in ("-a", "--all"):
+                show_hidden = True
+            else:
+                path = Path(token).expanduser()
+        _print_directory(path, show_hidden)
+
+    def do_cd(self, line):
+        """Change current directory. Usage: cd <path>"""
+        target = line.strip() or "~"
+        path = Path(target).expanduser()
+        if not path.exists() or not path.is_dir():
+            console.print(f"[red]Directory '{path}' does not exist.[/red]")
+            return
+        try:
+            os.chdir(path)
+            console.print(f"[green]✓ Changed directory to {path}[/green]")
+        except Exception as e:
+            console.print(f"[red]Error changing directory: {e}[/red]")
+
+    # -------------------------------------------------------------------
+    # Coop pull operation
+    # -------------------------------------------------------------------
+
+
+    # -------------------------------------------------------------------
+    # Instantiate new objects: agent / scenario
+    # -------------------------------------------------------------------
+
+
+    # -------------------------------------------------------------------
+    # Show Expected Parrot key
+    # -------------------------------------------------------------------
+
+
+    # -------------------------------------------------------------------
+    # Profile management
+    # -------------------------------------------------------------------
+
+
+    def do_dot_help(self, line):
+        """Show comprehensive help for EDSL commands."""
+        
+        help_table = Table(title="EDSL Commands", show_header=True, header_style="bold cyan")
+        help_table.add_column("Command", style="cyan", width=15)
+        help_table.add_column("Description", style="white", width=50)
+        help_table.add_column("Example", style="yellow", width=30)
+        
+        commands_help = [
+            (".load", "Load a file or switch focus", ".load myfile.json or .load $2"),
+            (".create", "Create an object from registry", ".create Agent"),
+            (".pull", "Pull object from Coop by UUID", ".pull abc-123-def"),
+            (".info", "Show info about loaded object", ".info"),
+            (".methods", "List available methods", ".methods"),
+            (".stack", "Show object stack", ".stack"),
+            (".unload", "Unload current object", ".unload"),
+            (".pop", "Remove current from stack", ".pop"),
+            (".clear", "Clear stack but keep focus", ".clear"),
+            ("ls", "List directory contents", "ls /path"),
+            ("cd", "Change directory", "cd /path"),
+            (".profiles", "List env profiles", ".profiles"),
+            (".switch", "Switch env profile", ".switch dev"),
+            (".show_key", "Show API key (masked)", ".show_key"),
+            ("exit/quit", "Exit the shell", "exit"),
+            (".help", "Show this help", ".help"),
+        ]
+        
+        for cmd, desc, example in commands_help:
+            help_table.add_row(cmd, desc, example)
+        
+        console.print(help_table)
+        
+        console.print("\n[bold cyan]Method Calls:[/bold cyan]")
+        console.print("  Call any method on the loaded object directly:")
+        console.print("  method_name arg1 arg2 key=value")
+        console.print("  Example: run")
+        console.print("  Example: to_dict")
+        
+        console.print("\n[bold cyan]Built-in Functions:[/bold cyan]")
+        console.print("  len, str, repr, hash, dir, type, id, print")
+        console.print("  Example: len  # calls len() on loaded object")
+        
+        console.print("\n[bold cyan]Stack References:[/bold cyan]")
+        console.print("  Use $1, $2, $3, etc. to reference objects in the stack")
+        console.print("  Example: .load $2  # switch focus to object #2")
+
 
 
 def _get_callable_methods(obj: Any) -> Dict[str, callable]:
@@ -840,7 +934,7 @@ def _create_dynamic_command(method_name: str, method: callable):
     def dynamic_command(*args, **kwargs):
         """Dynamically created command."""
         if _loaded_object is None:
-            console.print("[red]Error: No object loaded. Use 'edsl load FILEPATH' first.[/red]")
+            console.print("[red]Error: No object loaded. Use 'edsl .load FILEPATH' first.[/red]")
             raise typer.Exit(1)
         
         try:
@@ -895,7 +989,7 @@ def _create_builtin_cli_command(func_name: str, func):
 
     def builtin_command():
         if _loaded_object is None:
-            console.print("[red]Error: No object loaded. Use 'edsl load FILEPATH' first.[/red]")
+            console.print("[red]Error: No object loaded. Use 'edsl .load FILEPATH' first.[/red]")
             raise typer.Exit(1)
 
         try:
@@ -946,7 +1040,7 @@ def _register_dynamic_commands():
         app.command(name=func_name, help=f"Apply built-in '{func_name}' to loaded {_loaded_object_name}")(builtin_cmd)
 
 
-@app.command()
+@app.command(name=".load")
 def load(
     filepath: Path = typer.Argument(..., help="Path to the file to load"),
     object_type: Optional[str] = typer.Option(
@@ -961,8 +1055,8 @@ def load(
     
     After loading, you can either:
     1. Call methods directly: python -m edsl <method_name> [args]
-    2. Start interactive shell: python -m edsl load FILEPATH --interactive
-    3. Start shell after loading: python -m edsl shell
+    2. Start interactive shell: python -m edsl .load FILEPATH --interactive
+    3. Start shell after loading: python -m edsl .shell
     
     Args:
         filepath: Path to the file to load
@@ -1031,11 +1125,11 @@ def load(
         raise typer.Exit(1)
 
 
-@app.command()
+@app.command(name=".info")
 def info():
     """Show information about the currently loaded object."""
     if _loaded_object is None:
-        console.print("[red]No object loaded. Use 'edsl load FILEPATH' first.[/red]")
+        console.print("[red]No object loaded. Use 'edsl .load FILEPATH' first.[/red]")
         raise typer.Exit(1)
     
     console.print(f"[cyan]Loaded object: {_loaded_object_name}[/cyan]")
@@ -1058,11 +1152,11 @@ def info():
     console.print(table)
 
 
-@app.command()
+@app.command(name=".methods")
 def methods():
     """List all available methods on the loaded object."""
     if _loaded_object is None:
-        console.print("[red]No object loaded. Use 'edsl load FILEPATH' first.[/red]")
+        console.print("[red]No object loaded. Use 'edsl .load FILEPATH' first.[/red]")
         raise typer.Exit(1)
     
     methods = _get_callable_methods(_loaded_object)
@@ -1086,11 +1180,11 @@ def methods():
     console.print(table)
 
 
-@app.command()
+@app.command(name=".shell")
 def shell():
     """Start an interactive shell for the loaded object."""
     if _loaded_object is None:
-        console.print("[red]No object loaded. Use 'edsl load FILEPATH' first.[/red]")
+        console.print("[red]No object loaded. Use 'edsl .load FILEPATH' first.[/red]")
         raise typer.Exit(1)
     
     console.print(f"[yellow]Starting interactive shell for {_loaded_object_name}...[/yellow]")
@@ -1098,7 +1192,7 @@ def shell():
     shell.cmdloop()
 
 
-@app.command()
+@app.command(name=".version")
 def version():
     """Show the EDSL version."""
     try:
@@ -1111,19 +1205,19 @@ def version():
         )
 
 
-@app.command()
+@app.command(name=".stack")
 def stack():
     """Show the current object stack."""
     _print_stack()
 
 
-@app.command()
+@app.command(name=".unload")
 def unload():
     """Unload the current object and clear the stack."""
     _unload()
 
 
-@app.command(name="ls", help="List files in a directory")
+@app.command(name=".ls", help="List files in a directory")
 def ls_cli(
     path: Path = typer.Argument(None, help="Path to list (defaults to current directory)"),
     all: bool = typer.Option(False, "--all", "-a", help="Include hidden files"),
@@ -1131,7 +1225,7 @@ def ls_cli(
     _print_directory(path if path else Path.cwd(), show_hidden=all)
 
 
-@app.command(name="cd", help="Change current working directory")
+@app.command(name=".cd", help="Change current working directory")
 def cd_cli(path: Path = typer.Argument("~", help="Directory to change to")):
     path = path.expanduser()
     if not path.exists() or not path.is_dir():
@@ -1145,7 +1239,7 @@ def cd_cli(path: Path = typer.Argument("~", help="Directory to change to")):
         raise typer.Exit(1)
 
 
-@app.command(name="pull", help="Pull an object from Expected Parrot Coop by UUID")
+@app.command(name=".pull", help="Pull an object from Expected Parrot Coop by UUID")
 def pull_cli(uuid: str = typer.Argument(..., help="UUID of the object to pull")):
     """Pull an object from Coop, add to stack, and register commands."""
     from edsl.coop import Coop
@@ -1162,7 +1256,7 @@ def pull_cli(uuid: str = typer.Argument(..., help="UUID of the object to pull"))
     _register_dynamic_commands()
 
 
-@app.command(name="test-stdin", help="Output a test EDSL object for testing stdin functionality")
+@app.command(name=".test-stdin", help="Output a test EDSL object for testing stdin functionality")
 def test_stdin():
     """Create and output a simple EDSL object for testing stdin functionality.
     
@@ -1200,9 +1294,12 @@ def callback(
     
     A toolkit for creating, managing, and running surveys with language models.
     
+    All commands use dot prefixes (e.g., .load, .create, .pull).
+    Use .help to see all available commands.
+    
     EDSL supports reading serialized objects from stdin when used in a pipeline.
     For example: echo '{"edsl_class_name": "Agent", ...}' | python -m edsl
-    Or: python -m edsl test-stdin | python -m edsl
+    Or: python -m edsl .test-stdin | python -m edsl
     
     If invoked without any command, starts an interactive shell.
     """
@@ -1395,6 +1492,211 @@ def _list_env_profiles() -> List[str]:
     return sorted(seen)
 
 
+# -------------------------------------------------------------------
+# Additional CLI commands
+# -------------------------------------------------------------------
+
+
+@app.command(name=".profiles", help="List available environment profiles")
+def profiles_cli():
+    profiles = _list_env_profiles()
+    if profiles:
+        console.print("[cyan]Available profiles:[/cyan]")
+        for p in profiles:
+            name = p[len('.env_'):]
+            console.print(f" • {name} ({p})")
+    else:
+        console.print("No profiles found.")
+
+
+@app.command(name=".switch", help="Switch to environment profile (backs up .env to .env_bak and copies profile to .env)")
+def switch_cli(profile: str = typer.Argument(..., help="Profile name")):
+    if _load_env_profile(profile):
+        console.print(f"[green]✓ Switched to profile '{profile}' and reloaded .env[/green]")
+    else:
+        console.print(f"[red]Profile '.env_{profile}' not found.[/red]")
+        raise typer.Exit(1)
+
+
+@app.command(name=".create", help="Create an object from the registry")
+def create_cli(
+    class_name: str = typer.Argument(..., help="Class name to instantiate"),
+    args: Optional[str] = typer.Argument(None, help="Arguments for the class (as string)")
+):
+    """Create an object from the registry."""
+    
+    if not args:
+        args = ""
+    
+    # If args starts with dict/list literal keep as single positional
+    if args.lstrip().startswith(('{', '[')):
+        try:
+            arg_obj = ast.literal_eval(args.strip())
+            positional_args = [arg_obj]
+            keyword_args = {}
+        except Exception as e:
+            console.print(f"[red]Failed to parse literal: {e}[/red]")
+            raise typer.Exit(1)
+    else:
+        positional_args, keyword_args = _parse_line_args_kwargs(args)
+
+    try:
+        obj = _instantiate_from_registry(class_name, positional_args, keyword_args)
+        new_name = obj.__class__.__name__
+        _add_to_stack(new_name, obj)
+        _register_dynamic_commands()
+
+        console.print(f"[green]✓ Created {new_name} (${len(_object_stack)})[/green]")
+    except Exception as err:
+        console.print(f"[red]Error creating object: {err}[/red]")
+        raise typer.Exit(1)
+
+
+@app.command(name=".show_key", help="Display the current Expected Parrot API key (masked)")
+def show_key_cli():
+    """Display the current Expected Parrot API key (masked)."""
+    key = _get_expected_parrot_key()
+    if key:
+        masked = key[:4] + "..." + key[-4:]
+        console.print(f"[green]Expected Parrot key:[/green] {masked}")
+    else:
+        console.print("[yellow]No Expected Parrot key found in environment.[/yellow]")
+
+
+@app.command(name=".pop", help="Remove the currently focused object from the stack")
+def pop_cli():
+    """Remove the currently focused object from the stack and switch to the previous one."""
+    global _loaded_object, _loaded_object_name
+    
+    if not _object_stack:
+        console.print("[yellow]Stack is empty - nothing to pop.[/yellow]")
+        return
+
+    if _loaded_object is None:
+        console.print("[yellow]No object is currently focused.[/yellow]")
+        return
+
+    # Find the current object in the stack
+    current_idx = None
+    for idx, (name, obj) in enumerate(_object_stack):
+        if obj is _loaded_object:
+            current_idx = idx
+            break
+
+    if current_idx is None:
+        console.print("[yellow]Current object not found in stack.[/yellow]")
+        return
+
+    # Remove the current object from the stack
+    removed_name, removed_obj = _object_stack.pop(current_idx)
+    console.print(f"[green]✓ Popped {removed_name} from stack[/green]")
+
+    # If stack is now empty, unload everything
+    if not _object_stack:
+        _loaded_object = None
+        _loaded_object_name = None
+        console.print("[yellow]Stack is now empty - no object loaded.[/yellow]")
+    else:
+        # Switch to the previous object in the stack
+        if current_idx >= len(_object_stack):
+            # We removed the last item, focus on the new last item
+            new_idx = len(_object_stack) - 1
+        else:
+            # We removed a middle item, focus on the item that took its place
+            # But let's actually focus on the previous item if it exists
+            new_idx = max(0, current_idx - 1)
+
+        new_name, new_obj = _object_stack[new_idx]
+        
+        # Update global state
+        _loaded_object = new_obj
+        _loaded_object_name = new_name
+        
+        _register_dynamic_commands()
+        
+        console.print(f"[green]Switched focus to {new_name} (${new_idx+1})[/green]")
+
+
+@app.command(name=".clear", help="Clear the entire object stack but keep current focus")
+def clear_cli():
+    """Clear the entire object stack but keep current focus."""
+    global _loaded_object, _loaded_object_name
+    
+    if not _object_stack:
+        console.print("[yellow]Stack is already empty.[/yellow]")
+        return
+
+    # Count objects before clearing
+    count = len(_object_stack)
+    current_obj = _loaded_object
+    current_name = _loaded_object_name
+
+    # Clear the stack
+    _object_stack.clear()
+
+    # If we had a focused object, add it back as the only item
+    if current_obj is not None and current_name is not None:
+        _object_stack.append((current_name, current_obj))
+        console.print(f"[green]✓ Cleared {count} objects from stack, kept current focus on {current_name}[/green]")
+        _loaded_object = current_obj
+        _loaded_object_name = current_name
+    else:
+        console.print(f"[green]✓ Cleared {count} objects from stack[/green]")
+        _loaded_object = None
+        _loaded_object_name = None
+
+
+@app.command(name=".help", help="Show help for EDSL commands")
+def help_cli():
+    """Show comprehensive help for EDSL dot commands."""
+    
+    help_table = Table(title="EDSL Dot Commands", show_header=True, header_style="bold cyan")
+    help_table.add_column("Command", style="cyan", width=15)
+    help_table.add_column("Description", style="white", width=50)
+    help_table.add_column("Example", style="yellow", width=30)
+    
+    commands_help = [
+        (".load", "Load a file as an EDSL object", ".load myfile.json"),
+        (".create", "Create an object from registry", ".create Agent"),
+        (".pull", "Pull object from Coop by UUID", ".pull abc-123-def"),
+        (".info", "Show info about loaded object", ".info"),
+        (".methods", "List available methods", ".methods"),
+        (".stack", "Show object stack", ".stack"),
+        (".unload", "Unload current object", ".unload"),
+        (".pop", "Remove current from stack", ".pop"),
+        (".clear", "Clear stack but keep focus", ".clear"),
+        (".shell", "Start interactive shell", ".shell"),
+        (".ls", "List directory contents", ".ls /path"),
+        (".cd", "Change directory", ".cd /path"),
+        (".profiles", "List env profiles", ".profiles"),
+        (".switch", "Switch env profile", ".switch dev"),
+        (".show_key", "Show API key (masked)", ".show_key"),
+        (".version", "Show EDSL version", ".version"),
+        (".test-stdin", "Output test object", ".test-stdin"),
+        (".help", "Show this help", ".help"),
+    ]
+    
+    for cmd, desc, example in commands_help:
+        help_table.add_row(cmd, desc, example)
+    
+    console.print(help_table)
+    
+    console.print("\n[bold cyan]Usage Examples:[/bold cyan]")
+    console.print("  python -m edsl .load myfile.json")
+    console.print("  python -m edsl .create Agent traits='{\"persona\": \"helpful\"}'")
+    console.print("  python -m edsl .shell  # Start interactive mode")
+    console.print("  python -m edsl  # Start interactive mode (default)")
+    
+    console.print("\n[bold cyan]Interactive Shell:[/bold cyan]")
+    console.print("  Once in the shell, you can use dot commands or call methods directly")
+    console.print("  Example: .load myfile.json")
+    console.print("  Example: run  # calls the run() method on loaded object")
+    
+    console.print("\n[bold cyan]Stack References:[/bold cyan]")
+    console.print("  Use $1, $2, $3, etc. to reference objects in the stack")
+    console.print("  Example: .load $2  # switch focus to object #2")
+
+
 def main():
     """Main entry point for the EDSL package when executed as a module."""
     # If no arguments provided, start interactive shell directly
@@ -1417,28 +1719,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-# -------------------------------------------------------------------
-# Profile management CLI
-# -------------------------------------------------------------------
-
-
-@app.command(name="profiles", help="List available environment profiles")
-def profiles_cli():
-    profiles = _list_env_profiles()
-    if profiles:
-        console.print("[cyan]Available profiles:[/cyan]")
-        for p in profiles:
-            name = p[len('.env_'):]
-            console.print(f" • {name} ({p})")
-    else:
-        console.print("No profiles found.")
-
-
-@app.command(name="switch", help="Switch to environment profile (backs up .env to .env_bak and copies profile to .env)")
-def switch_cli(profile: str = typer.Argument(..., help="Profile name")):
-    if _load_env_profile(profile):
-        console.print(f"[green]✓ Switched to profile '{profile}' and reloaded .env[/green]")
-    else:
-        console.print(f"[red]Profile '.env_{profile}' not found.[/red]")
-        raise typer.Exit(1)
