@@ -1565,7 +1565,7 @@ class Survey(Base):
     def tree(self, node_list: Optional[List[str]] = None):
         return self.to_scenario_list().tree(node_list=node_list)
 
-    def table(self, *fields, tablefmt=None) -> Table:
+    def table(self, *fields, tablefmt="rich") -> Table:
         return self.to_scenario_list().to_dataset().table(*fields, tablefmt=tablefmt)
 
     def codebook(self) -> Dict[str, str]:
