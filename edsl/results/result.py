@@ -37,6 +37,7 @@ if TYPE_CHECKING:
     from ..scenarios import Scenario
     from ..language_models import LanguageModel
     from ..surveys import Survey
+    from .chat_transcript import ChatTranscript
 
 QuestionName = str
 AnswerValue = Any
@@ -607,6 +608,30 @@ class Result(Base, UserDict):
 
                 raise ResultsError(f"Parameter {k} not found in Result object")
         return scoring_function(**params)
+
+    def transcript(self, show_options: bool = True, show_agent_info: bool = True) -> None:
+        """Display a rich-formatted chat transcript of the interview.
+        
+        This method creates a ChatTranscript object and displays the conversation
+        between questions and agent responses in a beautiful, chat-like format
+        using the Rich library.
+        
+        Args:
+            show_options: Whether to display question options if available. Defaults to True.
+            show_agent_info: Whether to show agent information at the top. Defaults to True.
+        
+        Examples:
+            >>> result = Result.example()
+            >>> result.transcript()  # Display full transcript with all options
+            
+            >>> result.transcript(show_options=False)  # Hide question options
+            
+            >>> result.transcript(show_agent_info=False)  # Hide agent information
+        """
+        from .chat_transcript import ChatTranscript
+        
+        chat_transcript = ChatTranscript(self)
+        chat_transcript.view(show_options=show_options, show_agent_info=show_agent_info)
 
     @classmethod
     def from_interview(cls, interview) -> Result:

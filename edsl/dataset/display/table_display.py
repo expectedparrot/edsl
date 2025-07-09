@@ -33,7 +33,7 @@ class TableDisplay:
         self,
         headers: Sequence[str],
         data: Sequence[Row],
-        tablefmt: Optional[TableFormat] = None,
+        tablefmt: Optional[TableFormat] = "rich",
         raw_data_set: "Dataset" = None,
         renderer_class: Optional[TableRenderer] = None,
     ):

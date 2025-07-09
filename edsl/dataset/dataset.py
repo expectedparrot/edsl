@@ -532,7 +532,7 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
             return self.rename(pretty_labels).print(**kwargs)
             
         # Pass through any tablefmt parameter
-        tablefmt = kwargs.get("tablefmt", None)
+        tablefmt = kwargs.get("tablefmt", "rich")
         return self.table(tablefmt=tablefmt)
 
     def rename(self, rename_dic) -> Dataset:
@@ -898,6 +898,7 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
             [{'num_observations': [3]}, {'keys': [['a', 'b']]}]
         """
         return Dataset([{"num_observations": [len(self)]}, {"keys": [self.keys()]}])
+        
 
     @classmethod
     def example(self, n: int = None) -> "Dataset":
