@@ -49,7 +49,9 @@ class Dimension(Generic[T]):
     ...         ("center", 2),  # twice as likely
     ...     ],
     ... )
-    >>> dim.sample()
+    >>> import random
+    >>> rng = random.Random(42)
+    >>> dim.sample(rng=rng)
     'center'
     """
 

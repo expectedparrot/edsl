@@ -620,13 +620,6 @@ class Result(Base, UserDict):
             show_options: Whether to display question options if available. Defaults to True.
             show_agent_info: Whether to show agent information at the top. Defaults to True.
         
-        Examples:
-            >>> result = Result.example()
-            >>> result.transcript()  # Display full transcript with all options
-            
-            >>> result.transcript(show_options=False)  # Hide question options
-            
-            >>> result.transcript(show_agent_info=False)  # Hide agent information
         """
         from .chat_transcript import ChatTranscript
         
