@@ -23,13 +23,7 @@ class ChatTranscript:
     
     This class takes a Result object and provides methods to display the conversation
     between questions and agent responses in a visually appealing format using the
-    Rich library.
-    
-    Examples:
-        >>> from edsl.results import Result
-        >>> result = Result.example()
-        >>> transcript = ChatTranscript(result)
-        >>> transcript.view()  # Displays a nicely formatted conversation
+    Rich library.    
     """
     
     def __init__(self, result: "Result"):

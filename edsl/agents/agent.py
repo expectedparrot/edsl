@@ -1122,13 +1122,7 @@ class Agent(Base):
             search_string: The string to search for in trait descriptions
             
         Returns:
-            A ScenarioList containing ranked trait matches
-            
-        Example:
-            >>> agent = Agent(traits={'age': 30, 'height': 5.5}, codebook={'age': 'Person age'})
-            >>> results = agent.search_traits('age')
-            >>> len(results) > 0
-            True
+            A ScenarioList containing ranked trait matches            
         """
         from ..utilities.similarity_rank import RankableItems
         from ..scenarios import ScenarioList, Scenario
