@@ -36,9 +36,19 @@ HISTORY_FILE = Path.home() / ".edsl_cli_commands_log"
 # Active env profile
 _active_profile: Optional[str] = None
 
+# Interactive mode flag
+_interactive_mode: bool = False
+
 # Create the main Typer app
 app = typer.Typer(help="EDSL - Expected Parrot Domain Specific Language (use .help for dot commands)", invoke_without_command=True)
 console = Console()
+
+# Function to get the appropriate console for output
+def get_console():
+    """Get console that outputs to stderr when running non-interactively for piping."""
+    if not _interactive_mode and not sys.stdout.isatty():
+        return Console(stderr=True)
+    return console
 
 # Currently focused object (top of stack)
 _loaded_object = None
@@ -295,7 +305,7 @@ def _instantiate_from_registry(class_name: str, args: list, kwargs: dict):
 class EDSLShell(cmd.Cmd):
     """Interactive shell for loaded EDSL objects."""
     
-    def __init__(self, loaded_object: Any = None, object_name: Optional[str] = None):
+    def __init__(self, loaded_object: Any = None, object_name: Optional[str] = None, output_console: Optional[Console] = None):
         super().__init__()
         # Load persistent history if available
         try:
@@ -305,6 +315,7 @@ class EDSLShell(cmd.Cmd):
             pass
         self.loaded_object = loaded_object
         self.object_name = object_name if object_name else "None"
+        self.output_console = output_console if output_console else console
         if self.loaded_object is None:
             self.intro = "\nInteractive EDSL Shell (no object loaded)"
             self.prompt = "edsl> "
@@ -502,9 +513,44 @@ class EDSLShell(cmd.Cmd):
         """Handle empty line input."""
         pass
     
-    def default(self, line):
-        """Handle unknown commands."""
-        command = line.strip()
+    def _execute_piped_commands_in_shell(self, command_line):
+        """Execute a sequence of commands connected by pipe operators within the shell."""
+        # Split by pipe operator
+        commands = [cmd.strip() for cmd in command_line.split('|')]
+        
+        if len(commands) < 2:
+            console.print("[red]Error: Pipe operator found but no commands to chain.[/red]")
+            return
+        
+        console.print(f"[cyan]Executing {len(commands)} chained commands...[/cyan]")
+        
+        # Execute each command in sequence
+        for i, command in enumerate(commands):
+            if not command:
+                console.print(f"[red]Error: Empty command at position {i+1}[/red]")
+                return
+            
+            console.print(f"[cyan]Step {i+1}: {command}[/cyan]")
+            
+            # Execute the command recursively using the shell's default method
+            # but without pipe handling to avoid infinite recursion
+            try:
+                self._execute_single_command(command)
+            except Exception as e:
+                console.print(f"[red]Command '{command}' failed: {e}[/red]")
+                return
+            
+            # Show the current state after each command
+            if self.loaded_object is not None:
+                console.print(f"[green]→ Current object: {self.object_name}[/green]")
+            else:
+                console.print("[yellow]→ No object currently loaded[/yellow]")
+        
+        console.print("[green]✓ All commands executed successfully![/green]")
+    
+    def _execute_single_command(self, command):
+        """Execute a single command without pipe handling."""
+        command = command.strip()
         
         # Handle dot commands (SQLite-style)
         if command.startswith('.'):
@@ -538,11 +584,49 @@ class EDSLShell(cmd.Cmd):
         
         # Handle regular attribute access
         attr_name = command.split()[0]
-        if hasattr(self.loaded_object, attr_name):
+        if self.loaded_object is not None and hasattr(self.loaded_object, attr_name):
             value = getattr(self.loaded_object, attr_name)
             import inspect
             if inspect.isroutine(value):
-                console.print(f"[red]Unknown command or callable requires parentheses: {attr_name}[/red]")
+                # Try to call the method with no arguments
+                try:
+                    console.print(f"[cyan]Calling {self.object_name}.{attr_name}()...[/cyan]")
+                    result = value()
+                    
+                    # Display result
+                    if result is not None:
+                        console.print(f"[green]Returned:[/green]")
+                        if isinstance(result, (dict, list)):
+                            console.print_json(json.dumps(result, indent=2, default=str))
+                        else:
+                            console.print(str(result))
+
+                        # Push new objects onto the stack automatically
+                        # Primitive return types (str, int, etc.) shouldn't be added.
+                        if not isinstance(result, (str, int, float, bool, bytes, bytearray)):
+                            new_name = result.__class__.__name__
+                            _add_to_stack(new_name, result)
+                            console.print(
+                                f"[cyan]Added new object to stack as ${len(_object_stack)} ({new_name}). Switched focus.[/cyan]"
+                            )
+
+                            # Update shell context
+                            self.loaded_object = result
+                            self.object_name = new_name
+                            self.prompt = f"edsl ({new_name})> "
+
+                            # Refresh dynamic methods for the new object
+                            self._add_dynamic_methods()
+
+                            # Register new dynamic commands for the freshly focused object (CLI)
+                            _register_dynamic_commands()
+                    else:
+                        console.print("[green]✓ Method executed successfully[/green]")
+                except TypeError as e:
+                    # Method requires arguments
+                    console.print(f"[red]Method {attr_name} requires arguments: {e}[/red]")
+                except Exception as e:
+                    console.print(f"[red]Error calling {attr_name}: {e}[/red]")
             else:
                 console.print(f"[green]Attribute {attr_name}:[/green] {value}")
 
@@ -563,6 +647,17 @@ class EDSLShell(cmd.Cmd):
 
         console.print(f"[red]Unknown command: {command}[/red]")
         console.print("[yellow]Type 'methods' to see available methods or '.help' for help.[/yellow]")
+    
+    def default(self, line):
+        """Handle unknown commands."""
+        command = line.strip()
+        
+        # Handle piped commands (command chaining)
+        if '|' in command:
+            return self._execute_piped_commands_in_shell(command)
+        
+        # Use the single command execution method
+        return self._execute_single_command(command)
 
     # -------------------------------------------------------------------
     # Dot command implementations (SQLite-style)
@@ -570,6 +665,8 @@ class EDSLShell(cmd.Cmd):
 
     def do_dot_load(self, line):
         """Load a file or switch to an object in the stack."""
+        global _loaded_object, _loaded_object_name
+        
         target = line.strip()
         if not target:
             console.print("[yellow]Usage: .load <filepath>|$<n>[/yellow]")
@@ -588,7 +685,6 @@ class EDSLShell(cmd.Cmd):
                 self.object_name = name
 
                 # Update globals too
-                global _loaded_object, _loaded_object_name
                 _loaded_object = obj
                 _loaded_object_name = name
 
@@ -658,7 +754,7 @@ class EDSLShell(cmd.Cmd):
     def do_dot_create(self, line):
         """Create an object from the registry."""
         if not line.strip():
-            console.print("[yellow]Usage: .create <ClassName> [args] [key=value ...][/yellow]")
+            self.output_console.print("[yellow]Usage: .create <ClassName> [args] [key=value ...][/yellow]")
             return
 
         # Split only first token for class name
@@ -673,7 +769,7 @@ class EDSLShell(cmd.Cmd):
                 args = [arg_obj]
                 kwargs = {}
             except Exception as e:
-                console.print(f"[red]Failed to parse literal: {e}[/red]")
+                self.output_console.print(f"[red]Failed to parse literal: {e}[/red]")
                 raise typer.Exit(1)
         else:
             args, kwargs = _parse_line_args_kwargs(arg_line)
@@ -689,9 +785,9 @@ class EDSLShell(cmd.Cmd):
             self._add_dynamic_methods()
             _register_dynamic_commands()
 
-            console.print(f"[green]✓ Created {new_name} (${len(_object_stack)})[/green]")
+            self.output_console.print(f"[green]✓ Created {new_name} (${len(_object_stack)})[/green]")
         except Exception as err:
-            console.print(f"[red]Error creating object: {err}[/red]")
+            self.output_console.print(f"[red]Error creating object: {err}[/red]")
             raise typer.Exit(1)
 
     def do_dot_show_key(self, line):
@@ -931,7 +1027,7 @@ def _get_callable_methods(obj: Any) -> Dict[str, callable]:
 def _create_dynamic_command(method_name: str, method: callable):
     """Create a dynamic typer command for a method."""
     
-    def dynamic_command(*args, **kwargs):
+    def dynamic_command():
         """Dynamically created command."""
         if _loaded_object is None:
             console.print("[red]Error: No object loaded. Use 'edsl .load FILEPATH' first.[/red]")
@@ -941,9 +1037,9 @@ def _create_dynamic_command(method_name: str, method: callable):
             # Get the method from the loaded object
             method = getattr(_loaded_object, method_name)
             
-            # Call the method
+            # Call the method with no arguments (methods that need args will need to be handled differently)
             console.print(f"[cyan]Calling {_loaded_object_name}.{method_name}()...[/cyan]")
-            result = method(*args, **kwargs)
+            result = method()
             
             # Display result
             if result is not None:
@@ -1286,7 +1382,7 @@ def test_stdin():
 def callback(
     ctx: typer.Context,
     interactive: bool = typer.Option(
-        False, "--interactive", "-i", help="Force interactive mode (interactive is now the default when no command is given)."
+        False, "--interactive", "-i", help="Stay in interactive mode after command execution."
     ),
 ):
     """
@@ -1301,8 +1397,16 @@ def callback(
     For example: echo '{"edsl_class_name": "Agent", ...}' | python -m edsl
     Or: python -m edsl .test-stdin | python -m edsl
     
+    Command chaining is supported using the pipe operator |:
+    Example: python -m edsl .create Agent | to_dict
+    Example: python -m edsl .load myfile.json | select 'answer.*' | table
+    
     If invoked without any command, starts an interactive shell.
     """
+
+    # Store the interactive flag globally so commands can access it
+    global _interactive_mode
+    _interactive_mode = interactive
 
     # Check for and process stdin data first
     stdin_loaded = False
@@ -1695,10 +1799,189 @@ def help_cli():
     console.print("\n[bold cyan]Stack References:[/bold cyan]")
     console.print("  Use $1, $2, $3, etc. to reference objects in the stack")
     console.print("  Example: .load $2  # switch focus to object #2")
+    
+    console.print("\n[bold cyan]Command Chaining:[/bold cyan]")
+    console.print("  Chain commands with the pipe operator |")
+    console.print("  Each command's output becomes the input for the next command")
+    console.print("  Example: .create Agent | to_dict")
+    console.print("  Example: .load myfile.json | select 'answer.*' | table")
+
+
+def _has_pipe_operator() -> bool:
+    """Check if the command line contains a pipe operator."""
+    # Check if any argument contains a pipe operator (including quoted strings)
+    for arg in sys.argv[1:]:
+        if '|' in arg:
+            return True
+    return False
+
+
+def _execute_piped_commands():
+    """Execute a sequence of commands connected by pipe operators."""
+    global _loaded_object, _loaded_object_name
+    
+    # Filter out --interactive/-i flags from the command line arguments
+    filtered_args = []
+    for arg in sys.argv[1:]:
+        if arg not in ('--interactive', '-i'):
+            filtered_args.append(arg)
+    
+    # Handle the case where the entire command is in a single quoted argument
+    if len(filtered_args) == 1 and '|' in filtered_args[0]:
+        # Single quoted argument containing pipe operator
+        full_command = filtered_args[0]
+    else:
+        # Join all arguments after the script name
+        full_command = ' '.join(filtered_args)
+    
+    # Split by pipe operator
+    commands = [cmd.strip() for cmd in full_command.split('|')]
+    
+    if len(commands) < 2:
+        console.print("[red]Error: Pipe operator found but no commands to chain.[/red]")
+        raise typer.Exit(1)
+    
+    console.print(f"[cyan]Executing {len(commands)} chained commands...[/cyan]")
+    
+    # Create a shell instance to handle command execution
+    shell = EDSLShell()
+    
+    # Execute each command in sequence
+    for i, command in enumerate(commands):
+        if not command:
+            console.print(f"[red]Error: Empty command at position {i+1}[/red]")
+            raise typer.Exit(1)
+        
+        console.print(f"[cyan]Step {i+1}: {command}[/cyan]")
+        
+        # Update the shell's loaded object state to match global state
+        shell.loaded_object = _loaded_object
+        shell.object_name = _loaded_object_name
+        if _loaded_object is not None:
+            shell.prompt = f"edsl ({_loaded_object_name})> "
+            shell._add_dynamic_methods()
+        else:
+            shell.prompt = "edsl> "
+        
+        # Execute the command using the shell's default method (same as interactive)
+        try:
+            shell.default(command)
+        except Exception as e:
+            console.print(f"[red]Command '{command}' failed: {e}[/red]")
+            raise typer.Exit(1)
+        
+        # Update global state from shell state
+        _loaded_object = shell.loaded_object
+        _loaded_object_name = shell.object_name
+        
+        # Show the current state after each command
+        if _loaded_object is not None:
+            console.print(f"[green]→ Current object: {_loaded_object_name}[/green]")
+        else:
+            console.print("[yellow]→ No object currently loaded[/yellow]")
+    
+    console.print("[green]✓ All commands executed successfully![/green]")
+    
+    # If interactive mode was requested, don't exit - let the caller handle it
+    return _interactive_mode
+
+
+def _execute_single_dot_command():
+    """Execute a single dot command when passed as a quoted argument."""
+    global _loaded_object, _loaded_object_name
+    
+    # Filter out --interactive/-i flags from the command line arguments
+    filtered_args = []
+    for arg in sys.argv[1:]:
+        if arg not in ('--interactive', '-i'):
+            filtered_args.append(arg)
+    
+    if not filtered_args:
+        console.print("[red]Error: No command provided.[/red]")
+        raise typer.Exit(1)
+    
+    # The first argument is the dot command, remaining arguments are parameters
+    dot_command = filtered_args[0]
+    additional_args = filtered_args[1:] if len(filtered_args) > 1 else []
+    
+    # If there are additional arguments, append them to the dot command
+    if additional_args:
+        full_command = dot_command + ' ' + ' '.join(additional_args)
+    else:
+        full_command = dot_command
+    
+    output_console = get_console()
+    output_console.print(f"[cyan]Executing command: {full_command}[/cyan]")
+    
+    # Create a shell instance to handle command execution
+    shell = EDSLShell(output_console=output_console)
+    
+    # Update the shell's loaded object state to match global state
+    shell.loaded_object = _loaded_object
+    shell.object_name = _loaded_object_name
+    if _loaded_object is not None:
+        shell.prompt = f"edsl ({_loaded_object_name})> "
+        shell._add_dynamic_methods()
+    else:
+        shell.prompt = "edsl> "
+    
+    # Execute the command using the shell's default method (same as interactive)
+    try:
+        shell.default(full_command)
+    except Exception as e:
+        output_console.print(f"[red]Command '{full_command}' failed: {e}[/red]")
+        raise typer.Exit(1)
+    
+    # Update global state from shell state
+    _loaded_object = shell.loaded_object
+    _loaded_object_name = shell.object_name
+    
+    # Show the current state after command execution
+    if _loaded_object is not None:
+        output_console.print(f"[green]→ Current object: {_loaded_object_name}[/green]")
+    else:
+        output_console.print("[yellow]→ No object currently loaded[/yellow]")
+    
+    output_console.print("[green]✓ Command executed successfully![/green]")
+    
+    # If interactive mode was requested, don't exit - let the caller handle it
+    return _interactive_mode
+
+
+
+
+def _is_edsl_object(obj):
+    """Check if an object is an EDSL object (inherits from Base)."""
+    try:
+        from edsl.base.base_class import Base
+        return isinstance(obj, Base)
+    except ImportError:
+        return False
+
+
+def _print_json_on_exit():
+    """Print JSON representation of the focused object on exit if running non-interactively."""
+    # Only print JSON if we're not in interactive mode and have a focused object
+    if not _interactive_mode and _loaded_object is not None:
+        try:
+            if _is_edsl_object(_loaded_object):
+                # EDSL object - use to_dict()
+                print(json.dumps(_loaded_object.to_dict()))
+            else:
+                # Non-EDSL object - attempt to serialize as JSON
+                print(json.dumps(_loaded_object, default=str))
+        except Exception:
+            # If JSON serialization fails, just print the object as string
+            print(str(_loaded_object))
 
 
 def main():
     """Main entry point for the EDSL package when executed as a module."""
+    global _interactive_mode
+    
+    # Check for interactive flag early
+    _interactive_mode = '--interactive' in sys.argv or '-i' in sys.argv
+    
     # If no arguments provided, start interactive shell directly
     if len(sys.argv) == 1:
         # Check for stdin data even when no arguments provided
@@ -1714,7 +1997,78 @@ def main():
             shell = EDSLShell()
         shell.cmdloop()
     else:
-        app()
+        # Check for pipe operator before passing to Typer
+        if _has_pipe_operator():
+            try:
+                should_continue_interactive = _execute_piped_commands()
+                # After piped command execution, start interactive shell if --interactive flag was used
+                if should_continue_interactive:
+                    console.print(f"[yellow]Starting interactive shell after piped command execution...[/yellow]")
+                    if _loaded_object:
+                        shell = EDSLShell(_loaded_object, _loaded_object_name)
+                    else:
+                        shell = EDSLShell()
+                    shell.cmdloop()
+                else:
+                    # Print JSON on exit if not going to interactive mode
+                    _print_json_on_exit()
+            except SystemExit:
+                # _execute_piped_commands might raise SystemExit, catch it
+                # Still check if we should start interactive mode
+                if _interactive_mode:
+                    console.print(f"[yellow]Starting interactive shell after piped command execution...[/yellow]")
+                    if _loaded_object:
+                        shell = EDSLShell(_loaded_object, _loaded_object_name)
+                    else:
+                        shell = EDSLShell()
+                    shell.cmdloop()
+                else:
+                    # Print JSON on exit if not going to interactive mode
+                    _print_json_on_exit()
+        # Check if first argument is a quoted dot command
+        elif len(sys.argv) >= 2 and sys.argv[1].startswith('.'):
+            # Handle quoted dot commands like ".create Agent"
+            try:
+                should_continue_interactive = _execute_single_dot_command()
+                if should_continue_interactive:
+                    console.print(f"[yellow]Starting interactive shell after command execution...[/yellow]")
+                    if _loaded_object:
+                        shell = EDSLShell(_loaded_object, _loaded_object_name)
+                    else:
+                        shell = EDSLShell()
+                    shell.cmdloop()
+                else:
+                    # Print JSON on exit if not going to interactive mode
+                    _print_json_on_exit()
+            except SystemExit:
+                if _interactive_mode:
+                    console.print(f"[yellow]Starting interactive shell after command execution...[/yellow]")
+                    if _loaded_object:
+                        shell = EDSLShell(_loaded_object, _loaded_object_name)
+                    else:
+                        shell = EDSLShell()
+                    shell.cmdloop()
+                else:
+                    # Print JSON on exit if not going to interactive mode
+                    _print_json_on_exit()
+        else:
+            try:
+                app()
+            except SystemExit as e:
+                # Typer raises SystemExit after command execution
+                # If --interactive flag was used, start interactive shell
+                if _interactive_mode:
+                    console.print(f"[yellow]Starting interactive shell after command execution...[/yellow]")
+                    if _loaded_object:
+                        shell = EDSLShell(_loaded_object, _loaded_object_name)
+                    else:
+                        shell = EDSLShell()
+                    shell.cmdloop()
+                else:
+                    # Print JSON on exit if not going to interactive mode
+                    _print_json_on_exit()
+                    # Re-raise the SystemExit if not in interactive mode
+                    raise e
 
 
 if __name__ == "__main__":
