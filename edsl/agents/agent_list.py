@@ -1,5 +1,4 @@
-"""A list of Agents
-"""
+"""A list of Agents"""
 
 from __future__ import annotations
 import csv
@@ -100,20 +99,16 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
             self.set_codebook(codebook)
 
     def at(self, index: int) -> "Agent":
-        """Get the agent at the specified index position.
-        """
+        """Get the agent at the specified index position."""
         return self.data[index]
-    
-    def first(self) -> "Agent":
-        """Get the first agent in the list.
-        """
-        return self.data[0]
-    
-    def last(self) -> "Agent":
-        """Get the last agent in the list.
-        """
-        return self.data[-1]
 
+    def first(self) -> "Agent":
+        """Get the first agent in the list."""
+        return self.data[0]
+
+    def last(self) -> "Agent":
+        """Get the last agent in the list."""
+        return self.data[-1]
 
     def set_instruction(self, instruction: str) -> None:
         """Set the instruction for all agents in the list.
@@ -174,7 +169,7 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         Args:
             *field_names: The name(s) of the field(s) to drop. Can be:
                 - Single field name: drop("age")
-                - Multiple field names: drop("age", "height") 
+                - Multiple field names: drop("age", "height")
                 - List of field names: drop(["age", "height"])
 
         Returns:
@@ -211,7 +206,7 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         Args:
             *field_names: The name(s) of the field(s) to keep. Can be:
                 - Single field name: keep("age")
-                - Multiple field names: keep("age", "height") 
+                - Multiple field names: keep("age", "height")
                 - List of field names: keep(["age", "height"])
 
         Returns:
@@ -341,20 +336,20 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
             traits_to_select = list(traits)
 
         return AgentList([agent.select(*traits_to_select) for agent in self.data])
-    
+
     # @classmethod
-    # def from_results(self, results: "Results") -> "AgentList": 
+    # def from_results(self, results: "Results") -> "AgentList":
     #     """Create an AgentList from a Results object.
-        
+
     #     >>> from edsl import Results
     #     >>> results = Results.example()
     #     >>> al = AgentList.from_results(results)
     #     >>> al
     #     AgentList([Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5}), Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5})])
-    #     """ 
-    #     al = results.agent_list 
-    #     return al 
-     
+    #     """
+    #     al = results.agent_list
+    #     return al
+
     def filter(self, expression: str) -> AgentList:
         """Filter agents based on a boolean expression.
 
@@ -556,11 +551,12 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         1681154913465662422
         """
         return dict_hash(self.to_dict(add_edsl_version=False, sorted=True))
-    
-    def to(self, target: Union['Question', 'Jobs', 'Survey']) -> 'Jobs':
+
+    def to(self, target: Union["Question", "Jobs", "Survey"]) -> "Jobs":
         from ..questions import QuestionBase
         from ..surveys import Survey
-        from ..jobs import Jobs 
+        from ..jobs import Jobs
+
         if isinstance(target, QuestionBase):
             return Survey([target]).by(self)
         elif isinstance(target, Jobs):
@@ -838,8 +834,13 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         for scenario in scenario_list:
             # Simple implementation to handle the basic test case
             new_scenario = scenario.copy().data
-            new_agent = Agent(traits=new_scenario)
-            agents.append(new_agent)
+            if "name" in new_scenario:
+                new_scenario["agent_name"] = new_scenario.pop("name")
+                new_agent = Agent(traits=new_scenario, name=new_scenario["agent_name"])
+                agents.append(new_agent)
+            else:
+                new_agent = Agent(traits=new_scenario)
+                agents.append(new_agent)
 
         # Add a debug check to verify we've processed the scenarios correctly
         if len(agents) != len(scenario_list):

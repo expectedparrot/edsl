@@ -62,6 +62,11 @@ class SurveyExport:
         from docx import Document
         from edsl import FileStore  # Added import for FileStore
 
+        if not filename:  # handles None and ""
+            tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".docx")
+            filename = tmp.name
+            tmp.close()
+
         doc = Document()
         doc.add_heading("EDSL Survey")
         doc.add_paragraph("\n")
@@ -313,8 +318,12 @@ class SurveyExport:
                 # Heading for each question
                 heading_parts = [f"Question {idx + 1}"]
                 if include_question_name:
-                    heading_parts.append(f"(\\texttt{{{_escape_latex(question.question_name)}}})")
-                heading_parts.append(f"-- \\textit{{{_escape_latex(question.question_type)}}}")
+                    heading_parts.append(
+                        f"(\\texttt{{{_escape_latex(question.question_name)}}})"
+                    )
+                heading_parts.append(
+                    f"-- \\textit{{{_escape_latex(question.question_type)}}}"
+                )
                 heading = " ".join(heading_parts)
                 f.write(f"\\subsection*{{{heading}}}\n")
 
@@ -327,7 +336,9 @@ class SurveyExport:
                     if option_labels:
                         f.write("\\begin{itemize}\n")
                         for key, value in option_labels.items():
-                            f.write(f"  \\item {_escape_latex(str(key))}: {_escape_latex(str(value))}\n")
+                            f.write(
+                                f"  \\item {_escape_latex(str(key))}: {_escape_latex(str(value))}\n"
+                            )
                         f.write("\\end{itemize}\n\n")
                 else:
                     if hasattr(question, "question_options"):

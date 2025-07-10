@@ -252,8 +252,6 @@ class Jobs(Base):
         handler(obj)
         return self
 
-
-
     @property
     def models(self):
         return self._models
@@ -291,7 +289,6 @@ class Jobs(Base):
                 self._agents = value
         else:
             self._agents = AgentList([])
-
 
     def where(self, expression: str) -> Jobs:
         """
@@ -700,7 +697,7 @@ class Jobs(Base):
             )
 
         # Create a shared function to process interview results
-        async def process_interviews(interview_runner, results_obj) :
+        async def process_interviews(interview_runner, results_obj):
             prev_interview_ref = None
             async for result, interview, idx in interview_runner.run():
                 # Set the order attribute on the result for correct ordering
@@ -744,9 +741,7 @@ class Jobs(Base):
             await process_interviews(interview_runner, results)
         else:
             # For synchronous execution mode (with progress bar)
-            with ProgressBarManager(
-                self, run_config, self.run_config.parameters
-            ):
+            with ProgressBarManager(self, run_config, self.run_config.parameters):
                 try:
                     await process_interviews(interview_runner, results)
                 except KeyboardInterrupt:
@@ -867,10 +862,10 @@ class Jobs(Base):
     def then(self, method_name, *args, **kwargs) -> "Jobs":
         """
         Schedule a method to be called on the results object after the job runs.
-        
+
         This allows for method chaining like:
         jobs.then('to_scenario_list').then('to_pandas').then('head', 10)
-        
+
         Args:
             method_name: Name of the method to call on the results
             *args: Positional arguments to pass to the method
@@ -878,59 +873,86 @@ class Jobs(Base):
         """
         self._post_run_methods.append((method_name, args, kwargs))
         return self
-    
+
     def __getattr__(self, name):
         """
         Safer version of attribute access for method chaining.
-        
+
         Only captures specific patterns to avoid masking real AttributeErrors.
         """
         # Safeguard: ensure _post_run_methods exists
-        if not hasattr(self, '_post_run_methods'):
-            raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
-        
+        if not hasattr(self, "_post_run_methods"):
+            raise AttributeError(
+                f"'{self.__class__.__name__}' object has no attribute '{name}'"
+            )
+
         # Only capture names that look like result methods (could be customized)
         # This is a whitelist approach - only capture known safe patterns
         safe_method_patterns = {
-            'to_pandas', 'to_dict', 'to_csv', 'to_json', 'to_list', 
-            'select', 'filter', 'sort_values', 'head', 'tail',
-            'groupby', 'pivot', 'melt', 'drop', 'rename', "to_scenario_list", "to_agent_list", 
-            "concatenate", "collapse", "expand", "store", "first", "last"
+            "to_pandas",
+            "to_dict",
+            "to_csv",
+            "to_json",
+            "to_list",
+            "select",
+            "filter",
+            "sort_values",
+            "head",
+            "tail",
+            "groupby",
+            "pivot",
+            "melt",
+            "drop",
+            "rename",
+            "to_scenario_list",
+            "to_agent_list",
+            "concatenate",
+            "collapse",
+            "expand",
+            "store",
+            "first",
+            "last",
         }
-        
+
         if name in safe_method_patterns:
+
             def method_proxy(*args, **kwargs):
                 self._post_run_methods.append((name, args, kwargs))
                 return self
+
             return method_proxy
-        
+
         # For unknown methods, raise AttributeError immediately
-        raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'. "
-                           f"Use .then('{name}', ...) for post-run method chaining.")
+        raise AttributeError(
+            f"'{self.__class__.__name__}' object has no attribute '{name}'. "
+            f"Use .then('{name}', ...) for post-run method chaining."
+        )
 
     def _apply_post_run_methods(self, results) -> Any:
         """
         Apply all post-run methods to the results object.
-        
+
         Returns the transformed results object, or the original results if no methods were applied.
         """
         if not self._post_run_methods:
             return results
-        
+
+        from ..results import Results
+
         # Mapping of built-in functions to their corresponding dunder methods
         builtin_to_dunder = {
-            'len': '__len__',
-            'str': '__str__',
-            'repr': '__repr__',
-            'bool': '__bool__',
-            'int': '__int__',
-            'float': '__float__',
-            'hash': '__hash__',
-            'iter': '__iter__',
-            'next': '__next__',
-            'reversed': '__reversed__',
+            "len": "__len__",
+            "str": "__str__",
+            "repr": "__repr__",
+            "bool": "__bool__",
+            "int": "__int__",
+            "float": "__float__",
+            "hash": "__hash__",
+            "iter": "__iter__",
+            "next": "__next__",
+            "reversed": "__reversed__",
         }
-            
+
         converted_object = results
         for method_info in self._post_run_methods:
             if isinstance(method_info, str):
@@ -940,15 +962,23 @@ class Jobs(Base):
             else:
                 # Handle new format (method name, args, kwargs)
                 method_name, args, kwargs = method_info
-            
+
             # Convert built-in function names to their dunder method equivalents
             if method_name in builtin_to_dunder:
                 method_name = builtin_to_dunder[method_name]
-            
+
             try:
-                converted_object = getattr(converted_object, method_name)(*args, **kwargs)
+                converted_object = getattr(converted_object, method_name)(
+                    *args, **kwargs
+                )
             except AttributeError:
-                raise JobsImplementationError(f"Could not apply method '{method_name}' to object.")
+                raise JobsImplementationError(
+                    f"Could not apply method '{method_name}' to object."
+                )
+
+        if not isinstance(converted_object, Results):
+            converted_object._associated_results = results
+
         return converted_object
 
     @with_config
@@ -1013,7 +1043,7 @@ class Jobs(Base):
 
         if reason == "insufficient funds":
             return None
-        
+
         results = asyncio.run(self._execute_with_remote_cache(run_job_async=False))
         return self._apply_post_run_methods(results)
 
@@ -1099,7 +1129,9 @@ class Jobs(Base):
         )
         return number_of_interviews
 
-    def to(self, question_or_survey_or_jobs: Union["Question", "Survey", "Jobs"]) -> "Jobs":
+    def to(
+        self, question_or_survey_or_jobs: Union["Question", "Survey", "Jobs"]
+    ) -> "Jobs":
         """Create a new :class:`Jobs` instance from *self* and a target object.
 
         The target can be one of the following:
@@ -1142,19 +1174,24 @@ class Jobs(Base):
 
         type_handlers = {
             QuestionBase: lambda q: Jobs(survey=Survey(questions=[q])),
-            Survey: lambda s: Jobs(survey=s), 
-            Jobs: lambda j: j
+            Survey: lambda s: Jobs(survey=s),
+            Jobs: lambda j: j,
         }
-        handler = next((fn for t, fn in type_handlers.items()
-                       if isinstance(question_or_survey_or_jobs, t)), None)
-        
+        handler = next(
+            (
+                fn
+                for t, fn in type_handlers.items()
+                if isinstance(question_or_survey_or_jobs, t)
+            ),
+            None,
+        )
+
         if handler is None:
             raise ValueError(f"Invalid type: {type(question_or_survey_or_jobs)}")
-        
+
         new_jobs = handler(question_or_survey_or_jobs)
-        new_jobs._depends_on  = self
+        new_jobs._depends_on = self
         return new_jobs
-    
 
     def duplicate(self):
         return Jobs.from_dict(self.to_dict())
@@ -1175,15 +1212,17 @@ class Jobs(Base):
                 for scenario in self.scenarios
             ],
         }
-        
+
         # Add _post_run_methods if not empty
         if self._post_run_methods:
             d["_post_run_methods"] = self._post_run_methods
-            
+
         # Add _depends_on if not None
         if self._depends_on is not None:
-            d["_depends_on"] = self._depends_on.to_dict(add_edsl_version=add_edsl_version)
-        
+            d["_depends_on"] = self._depends_on.to_dict(
+                add_edsl_version=add_edsl_version
+            )
+
         if add_edsl_version:
             from .. import __version__
 
@@ -1211,15 +1250,15 @@ class Jobs(Base):
             models=[LanguageModel.from_dict(model) for model in data["models"]],
             scenarios=[Scenario.from_dict(scenario) for scenario in data["scenarios"]],
         )
-        
+
         # Restore _post_run_methods if present
         if "_post_run_methods" in data:
             job._post_run_methods = data["_post_run_methods"]
-            
+
         # Restore _depends_on if present
         if "_depends_on" in data:
             job._depends_on = cls.from_dict(data["_depends_on"])
-            
+
         return job
 
     def __eq__(self, other: Jobs) -> bool:

@@ -224,9 +224,9 @@ class Result(Base, UserDict):
             if question_name in self.question_to_attributes:
                 for dictionary_name in sub_dicts_needing_new_keys:
                     new_key = question_name + "_" + dictionary_name
-                    sub_dicts_needing_new_keys[dictionary_name][new_key] = (
-                        self.question_to_attributes[question_name][dictionary_name]
-                    )
+                    sub_dicts_needing_new_keys[dictionary_name][
+                        new_key
+                    ] = self.question_to_attributes[question_name][dictionary_name]
 
         new_cache_dict = {
             f"{k}_cache_used": v for k, v in self.data["cache_used_dict"].items()
@@ -275,6 +275,92 @@ class Result(Base, UserDict):
                     f"Key by itself {key} is problematic. Use the full key {key + '.' + key} name instead."
                 )
         return None
+
+    def transcript(self, format: str = "simple"):
+        """Return the questions and answers in a human-readable transcript.
+
+        Parameters
+        ----------
+        format : str, optional (``'simple'`` or ``'rich'``)
+            ``'simple'`` (default) returns plain-text:
+
+            QUESTION: <question text>
+            OPTIONS: <opt1 / opt2 / ...>   # only when options are available
+            ANSWER:   <answer>
+
+            Each block is separated by a blank line.
+
+            ``'rich'`` uses the *rich* library (if installed) to wrap each Q&A block in a
+            ``Panel`` and returns the coloured/boxed string. Attempting to use the *rich*
+            format without the dependency available raises ``ImportError``.
+        """
+
+        if format not in {"simple", "rich"}:
+            raise ValueError("format must be either 'simple' or 'rich'")
+
+        # Helper to extract question text, options, answer value
+        def _components(q_name):
+            meta = self.question_to_attributes.get(q_name, {})
+            q_text = meta.get("question_text", q_name)
+            options = meta.get("question_options")
+
+            # stringify options if they exist
+            opt_str: str | None
+            if options:
+                if isinstance(options, (list, tuple)):
+                    opt_str = " / ".join(map(str, options))
+                elif isinstance(options, dict):
+                    opt_str = " / ".join(f"{k}: {v}" for k, v in options.items())
+                else:
+                    opt_str = str(options)
+            else:
+                opt_str = None
+
+            ans_val = self.answer[q_name]
+            if not isinstance(ans_val, str):
+                ans_val = str(ans_val)
+
+            return q_text, opt_str, ans_val
+
+        # SIMPLE (plain-text) format -------------------------------------
+        if format == "simple":
+            lines: list[str] = []
+            for q_name in self.answer:
+                q_text, opt_str, ans_val = _components(q_name)
+                lines.append(f"QUESTION: {q_text}")
+                if opt_str is not None:
+                    lines.append(f"OPTIONS: {opt_str}")
+                lines.append(f"ANSWER: {ans_val}")
+                lines.append("")
+
+            if lines and lines[-1] == "":
+                lines.pop()  # trailing blank line
+
+            return "\n".join(lines)
+
+        # RICH format ----------------------------------------------------
+        try:
+            from rich.console import Console
+            from rich.panel import Panel
+        except ImportError as exc:
+            raise ImportError(
+                "The 'rich' package is required for format='rich'. Install it with `pip install rich`."
+            ) from exc
+
+        console = Console()
+        with console.capture() as capture:
+            for q_name in self.answer:
+                q_text, opt_str, ans_val = _components(q_name)
+
+                block_lines = [f"[bold]QUESTION:[/bold] {q_text}"]
+                if opt_str is not None:
+                    block_lines.append(f"[italic]OPTIONS:[/italic] {opt_str}")
+                block_lines.append(f"[bold]ANSWER:[/bold] {ans_val}")
+
+                console.print(Panel("\n".join(block_lines), expand=False))
+                console.print()  # blank line between panels
+
+        return capture.get()
 
     def code(self):
         """Return a string of code that can be used to recreate the Result object."""
@@ -378,9 +464,9 @@ class Result(Base, UserDict):
         d = {}
         problem_keys = []
         data_types = sorted(self.sub_dicts.keys())
-        if 'answer' in data_types:
-            data_types.remove('answer')
-            data_types = ['answer'] + data_types
+        if "answer" in data_types:
+            data_types.remove("answer")
+            data_types = ["answer"] + data_types
         for data_type in data_types:
             for key in self.sub_dicts[data_type]:
                 if key in d:
@@ -609,20 +695,22 @@ class Result(Base, UserDict):
                 raise ResultsError(f"Parameter {k} not found in Result object")
         return scoring_function(**params)
 
-    def transcript(self, show_options: bool = True, show_agent_info: bool = True) -> None:
+    def transcript(
+        self, show_options: bool = True, show_agent_info: bool = True
+    ) -> None:
         """Display a rich-formatted chat transcript of the interview.
-        
+
         This method creates a ChatTranscript object and displays the conversation
         between questions and agent responses in a beautiful, chat-like format
         using the Rich library.
-        
+
         Args:
             show_options: Whether to display question options if available. Defaults to True.
             show_agent_info: Whether to show agent information at the top. Defaults to True.
-        
+
         """
         from .chat_transcript import ChatTranscript
-        
+
         chat_transcript = ChatTranscript(self)
         chat_transcript.view(show_options=show_options, show_agent_info=show_agent_info)
 
@@ -729,12 +817,12 @@ class Result(Base, UserDict):
         def get_prompt_dictionary(answer_key_names, question_name_to_prompts):
             prompt_dictionary = {}
             for answer_key_name in answer_key_names:
-                prompt_dictionary[answer_key_name + "_user_prompt"] = (
-                    question_name_to_prompts[answer_key_name]["user_prompt"]
-                )
-                prompt_dictionary[answer_key_name + "_system_prompt"] = (
-                    question_name_to_prompts[answer_key_name]["system_prompt"]
-                )
+                prompt_dictionary[
+                    answer_key_name + "_user_prompt"
+                ] = question_name_to_prompts[answer_key_name]["user_prompt"]
+                prompt_dictionary[
+                    answer_key_name + "_system_prompt"
+                ] = question_name_to_prompts[answer_key_name]["system_prompt"]
             return prompt_dictionary
 
         def get_raw_model_results_and_cache_used_dictionary(model_response_objects):
@@ -742,24 +830,24 @@ class Result(Base, UserDict):
             cache_used_dictionary = {}
             for result in model_response_objects:
                 question_name = result.question_name
-                raw_model_results_dictionary[question_name + "_raw_model_response"] = (
-                    result.raw_model_response
-                )
-                raw_model_results_dictionary[question_name + "_input_tokens"] = (
-                    result.input_tokens
-                )
-                raw_model_results_dictionary[question_name + "_output_tokens"] = (
-                    result.output_tokens
-                )
+                raw_model_results_dictionary[
+                    question_name + "_raw_model_response"
+                ] = result.raw_model_response
+                raw_model_results_dictionary[
+                    question_name + "_input_tokens"
+                ] = result.input_tokens
+                raw_model_results_dictionary[
+                    question_name + "_output_tokens"
+                ] = result.output_tokens
                 raw_model_results_dictionary[
                     question_name + "_input_price_per_million_tokens"
                 ] = result.input_price_per_million_tokens
                 raw_model_results_dictionary[
                     question_name + "_output_price_per_million_tokens"
                 ] = result.output_price_per_million_tokens
-                raw_model_results_dictionary[question_name + "_cost"] = (
-                    result.total_cost
-                )
+                raw_model_results_dictionary[
+                    question_name + "_cost"
+                ] = result.total_cost
                 one_usd_buys = (
                     "NA"
                     if isinstance(result.total_cost, str)
@@ -767,9 +855,9 @@ class Result(Base, UserDict):
                     or result.total_cost is None
                     else 1.0 / result.total_cost
                 )
-                raw_model_results_dictionary[question_name + "_one_usd_buys"] = (
-                    one_usd_buys
-                )
+                raw_model_results_dictionary[
+                    question_name + "_one_usd_buys"
+                ] = one_usd_buys
                 cache_used_dictionary[question_name] = result.cache_used
 
             return raw_model_results_dictionary, cache_used_dictionary
@@ -829,9 +917,10 @@ class Result(Base, UserDict):
             else {}
         )
 
-        raw_model_results_dictionary, cache_used_dictionary = (
-            get_raw_model_results_and_cache_used_dictionary(model_response_objects)
-        )
+        (
+            raw_model_results_dictionary,
+            cache_used_dictionary,
+        ) = get_raw_model_results_and_cache_used_dictionary(model_response_objects)
 
         validated_dictionary = get_validated_dictionary(model_response_objects)
 

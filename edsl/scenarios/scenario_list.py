@@ -111,8 +111,9 @@ class ScenarioSQLiteList(SQLiteList):
             return pickle.loads(data.encode())
         return pickle.loads(data)
 
+
 from ..config import CONFIG
-                        
+
 if use_sqlite := CONFIG.get("EDSL_USE_SQLITE_FOR_SCENARIO_LIST").lower() == "true":
     data_class = ScenarioSQLiteList
 else:
@@ -805,11 +806,11 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         )
 
     def concatenate_to_list(
-        self, 
-        fields: List[str], 
+        self,
+        fields: List[str],
         prefix: str = "",
         postfix: str = "",
-        new_field_name: Optional[str] = None
+        new_field_name: Optional[str] = None,
     ) -> ScenarioList:
         """Concatenate specified fields into a single list field.
 
@@ -831,19 +832,19 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             ScenarioList([Scenario({'concat_a_b_c': ['[1]', '[2]', '[3]']}), Scenario({'concat_a_b_c': ['[4]', '[5]', '[6]']})])
         """
         return self._concatenate(
-            fields, 
-            output_type="list", 
+            fields,
+            output_type="list",
             prefix=prefix,
             postfix=postfix,
-            new_field_name=new_field_name
+            new_field_name=new_field_name,
         )
 
     def concatenate_to_set(
-        self, 
-        fields: List[str], 
+        self,
+        fields: List[str],
         prefix: str = "",
         postfix: str = "",
-        new_field_name: Optional[str] = None
+        new_field_name: Optional[str] = None,
     ) -> ScenarioList:
         """Concatenate specified fields into a single set field.
 
@@ -872,11 +873,11 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             True
         """
         return self._concatenate(
-            fields, 
-            output_type="set", 
+            fields,
+            output_type="set",
             prefix=prefix,
             postfix=postfix,
-            new_field_name=new_field_name
+            new_field_name=new_field_name,
         )
 
     def unpack_dict(
@@ -1351,15 +1352,16 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             new_scenario = Scenario({key: scenario[key] for key in new_order})
             new_sl.append(new_scenario)
         return new_sl
-    
+
     def to_survey(self) -> "Survey":
         from ..questions import QuestionBase
         from ..surveys import Survey
+
         s = Survey()
         for scenario in self:
             d = scenario.to_dict(add_edsl_version=False)
-            if d['question_type'] == 'free_text':
-                if 'question_options' in d:
+            if d["question_type"] == "free_text":
+                if "question_options" in d:
                     _ = d.pop("question_options")
             question = QuestionBase.from_dict(d)
             s.add_question(question)
@@ -2023,34 +2025,34 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
 
     def clipboard_data(self) -> str:
         """Return TSV representation of this ScenarioList for clipboard operations.
-        
+
         This method is called by the clipboard() method in the base class to provide
         a custom format for copying ScenarioList objects to the system clipboard.
-        
+
         Returns:
             str: Tab-separated values representation of the ScenarioList
         """
         # Use the to_csv method with tab separator to create TSV format
         csv_filestore = self.to_csv()
-        
+
         # Get the CSV content and convert it to TSV
         csv_content = csv_filestore.text
-        
+
         # Convert CSV to TSV by replacing commas with tabs
         # This is a simple approach, but we should handle quoted fields properly
         import csv
         import io
-        
+
         # Parse the CSV content
         csv_reader = csv.reader(io.StringIO(csv_content))
         rows = list(csv_reader)
-        
+
         # Convert to TSV format
         tsv_lines = []
         for row in rows:
-            tsv_lines.append('\t'.join(row))
-        
-        return '\n'.join(tsv_lines)
+            tsv_lines.append("\t".join(row))
+
+        return "\n".join(tsv_lines)
 
     def to(self, survey: Union["Survey", "QuestionBase"]) -> "Jobs":
         """Create a Jobs object from a ScenarioList and a Survey object.
@@ -2069,8 +2071,10 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             return Survey([survey]).by(self)
         else:
             return survey.by(self)
-                
-    def for_n(self, target: Union['Question', 'Survey', 'Job'], iterations: int) -> 'Jobs':
+
+    def for_n(
+        self, target: Union["Question", "Survey", "Job"], iterations: int
+    ) -> "Jobs":
         """Execute a target multiple times, feeding each iteration's output
         into the next.
 
@@ -2121,12 +2125,11 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
 
             print(enriched_personas.select("persona"))
         """
-        
+
         from ..jobs import Jobs
         from ..questions import QuestionBase
         from ..surveys import Survey
 
-        
         intermediate_result = self
         for i in range(iterations):
             clean_target = target.duplicate()
@@ -2314,19 +2317,20 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             )
             new_scenarios.extend(replacement_scenarios)
         return ScenarioList(new_scenarios)
-    
+
     def to_agent_blueprint(self):
         """Create an AgentBlueprint from a ScenarioList"""
         from .agent_blueprint import AgentBlueprint
+
         return AgentBlueprint(self)
 
     def collapse(
-        self, 
-        field: str, 
-        separator: Optional[str] = None, 
+        self,
+        field: str,
+        separator: Optional[str] = None,
         prefix: str = "",
         postfix: str = "",
-        add_count: bool = False
+        add_count: bool = False,
     ) -> ScenarioList:
         """Collapse a ScenarioList by grouping on all fields except the specified one,
         collecting the values of the specified field into a list.
