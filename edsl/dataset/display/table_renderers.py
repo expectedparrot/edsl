@@ -199,10 +199,30 @@ class RichRenderer(DataTablesRendererABC):
         try:
             from rich.console import Console
             import io
+            import sys
+
+            # Detect if we're in a terminal or being piped
+            is_terminal = sys.stdout.isatty()
+            
+            # Try to detect actual terminal width if we're connected to a terminal
+            if is_terminal:
+                try:
+                    # Use the actual terminal width if available
+                    import os
+                    terminal_width = os.get_terminal_size().columns
+                    # Use terminal width but with a reasonable minimum
+                    width = max(terminal_width, 80)
+                except (OSError, AttributeError):
+                    # Fall back to provided width if terminal size detection fails
+                    pass
 
             buffer = io.StringIO()
             capture_console = Console(
-                file=buffer, force_terminal=True, width=width, color_system="truecolor"
+                file=buffer, 
+                force_terminal=is_terminal,  # Only force terminal mode if actually in terminal
+                width=width, 
+                color_system="truecolor" if is_terminal else None,  # No color for non-terminal
+                legacy_windows=False
             )
             capture_console.print(self._build_rich_table())
             return buffer.getvalue()

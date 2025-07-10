@@ -1382,7 +1382,8 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         for scenario in self:
             new_keys = list(scenario.keys())
             if new_keys != keys:
-                keys = list(set(keys + new_keys))
+                # Use dict.fromkeys to preserve order while ensuring uniqueness
+                keys = list(dict.fromkeys(keys + new_keys))
         data = [
             {key: [scenario.get(key, None) for scenario in self.data]} for key in keys
         ]
