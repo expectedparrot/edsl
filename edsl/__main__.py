@@ -47,7 +47,8 @@ console = Console()
 def get_console():
     """Get console that outputs to stderr when running non-interactively for piping."""
     if not _interactive_mode and not sys.stdout.isatty():
-        return Console(stderr=True)
+        # For piping, use stderr but preserve terminal detection for Rich tables
+        return Console(file=sys.stderr, force_terminal=True, width=120)
     return console
 
 # Currently focused object (top of stack)
@@ -417,7 +418,16 @@ class EDSLShell(cmd.Cmd):
                 if isinstance(result, (dict, list)):
                     console.print_json(json.dumps(result, indent=2, default=str))
                 else:
-                    console.print(str(result))
+                    # Check if it's a TableDisplay to avoid double Rich formatting
+                    try:
+                        from edsl.dataset.display.table_display import TableDisplay
+                        if isinstance(result, TableDisplay):
+                            # For TableDisplay, print the string directly without console formatting
+                            print(str(result))
+                        else:
+                            console.print(str(result))
+                    except ImportError:
+                        console.print(str(result))
 
                 # Push new objects onto the stack automatically
                 # Primitive return types (str, int, etc.) shouldn't be added.
@@ -599,7 +609,16 @@ class EDSLShell(cmd.Cmd):
                         if isinstance(result, (dict, list)):
                             console.print_json(json.dumps(result, indent=2, default=str))
                         else:
-                            console.print(str(result))
+                            # Check if it's a TableDisplay to avoid double Rich formatting
+                            try:
+                                from edsl.dataset.display.table_display import TableDisplay
+                                if isinstance(result, TableDisplay):
+                                    # For TableDisplay, print the string directly without console formatting
+                                    print(str(result))
+                                else:
+                                    console.print(str(result))
+                            except ImportError:
+                                console.print(str(result))
 
                         # Push new objects onto the stack automatically
                         # Primitive return types (str, int, etc.) shouldn't be added.
@@ -1047,7 +1066,16 @@ def _create_dynamic_command(method_name: str, method: callable):
                 if isinstance(result, (dict, list)):
                     console.print_json(json.dumps(result, indent=2, default=str))
                 else:
-                    console.print(str(result))
+                    # Check if it's a TableDisplay to avoid double Rich formatting
+                    try:
+                        from edsl.dataset.display.table_display import TableDisplay
+                        if isinstance(result, TableDisplay):
+                            # For TableDisplay, print the string directly without console formatting
+                            print(str(result))
+                        else:
+                            console.print(str(result))
+                    except ImportError:
+                        console.print(str(result))
 
                 # Push new objects onto the stack automatically
                 # Primitive return types (str, int, etc.) shouldn't be added.

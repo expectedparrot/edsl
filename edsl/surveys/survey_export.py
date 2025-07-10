@@ -117,7 +117,7 @@ class SurveyExport:
         else:
             renaming_dict = {}
 
-        all_keys = set([])
+        all_keys = []
         scenarios = ScenarioList()
         for item in to_iterate_over:
             d = item.to_dict()
@@ -126,7 +126,10 @@ class SurveyExport:
             for key in renaming_dict:
                 if key in d:
                     d[renaming_dict[key]] = d.pop(key)
-            all_keys.update(d.keys())
+            # Preserve order by using list with manual deduplication
+            for key in d.keys():
+                if key not in all_keys:
+                    all_keys.append(key)
             scenarios.append(Scenario(d))
 
         for scenario in scenarios:
