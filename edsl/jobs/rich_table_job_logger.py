@@ -98,24 +98,20 @@ class RichTableJobLogger(JobLogger):
         config = self.status_config.get(status, {"style": "white"})
         return config["style"]
 
-    def _format_url(self, url: str, label: str = None) -> str:
-        """Format a URL for display"""
+    def _format_url(self, url: str, label: str | None = None) -> str:
+        """Format a URL for display as plain text"""
         if not url:
             return ""
         
-        display_label = label or url
-        if len(display_label) > 50:
-            display_label = display_label[:47] + "..."
-        
-        return f"[link={url}]{display_label}[/link]"
+        # Return the full URL as plain text for terminal compatibility
+        return f"[cyan]{url}[/cyan]"
 
     def _format_uuid(self, uuid_value: str) -> str:
         """Format a UUID for display"""
         if not uuid_value:
             return ""
         
-        if len(uuid_value) > 12:
-            return f"[dim]{uuid_value[:8]}...{uuid_value[-4:]}[/dim]"
+        # Show full UUID instead of truncated version
         return f"[dim]{uuid_value}[/dim]"
 
     def _create_job_info_table(self) -> Table:
@@ -159,11 +155,13 @@ class RichTableJobLogger(JobLogger):
         # Add URL fields
         for field, pretty_name, value in url_fields:
             label = pretty_name.replace(" URL", "")
-            table.add_row("Links", label, self._format_url(value, label))
+            formatted_value = self._format_url(value, label) if value else ""
+            table.add_row("Links", label, formatted_value)
 
         # Add UUID fields
         for field, pretty_name, value in uuid_fields:
-            table.add_row("Identifiers", pretty_name, self._format_uuid(value))
+            formatted_value = self._format_uuid(value) if value else ""
+            table.add_row("Identifiers", pretty_name, formatted_value)
 
         # Add other fields
         for field, pretty_name, value in other_fields:
@@ -201,36 +199,23 @@ class RichTableJobLogger(JobLogger):
             border_style=self.status_config.get(current_status, {}).get("color", "white")
         )
 
-    def _create_messages_table(self) -> Table:
-        """Create a table with recent messages"""
+    def _create_messages_panel(self) -> Panel:
+        """Create a panel with the most recent message shown one at a time"""
         if not self.messages:
-            return Table(title="Messages", title_style="bold yellow")
+            return Panel("No messages yet", title="Recent Message", border_style="yellow")
             
-        table = Table(
-            title="Recent Messages",
-            title_style="bold yellow",
-            box=ROUNDED,
-            show_header=True,
-            header_style="bold blue"
-        )
+        # Show only the most recent message
+        msg = self.messages[-1]
+        status_style = self._get_status_style(msg.status)
+        status_text = msg.status.name.replace("_", " ").title()
         
-        table.add_column("Time", style="cyan", no_wrap=True, width=10)
-        table.add_column("Status", style="magenta", no_wrap=True, width=12)
-        table.add_column("Message", style="white")
-
-        # Show last 10 messages
-        recent_messages = self.messages[-10:]
-        for msg in recent_messages:
-            status_style = self._get_status_style(msg.status)
-            status_text = msg.status.name.replace("_", " ").title()
-            
-            table.add_row(
-                msg.timestamp.strftime("%H:%M:%S"),
-                f"[{status_style}]{status_text}[/{status_style}]",
-                msg.text
-            )
-
-        return table
+        content = f"[{status_style}]{status_text}[/{status_style}] | {msg.timestamp.strftime('%H:%M:%S')} | {msg.text}"
+        
+        return Panel(
+            Align.center(content),
+            title="Recent Message",
+            border_style="yellow"
+        )
 
     def _create_exceptions_table(self) -> Union[Table, None]:
         """Create a table with exception information"""
@@ -350,8 +335,8 @@ class RichTableJobLogger(JobLogger):
         # Create info table
         info_table = self._create_job_info_table()
         
-        # Create messages table
-        messages_table = self._create_messages_table()
+        # Create messages panel
+        messages_panel = self._create_messages_panel()
         
         # Create optional tables
         exceptions_table = self._create_exceptions_table()
@@ -367,9 +352,8 @@ class RichTableJobLogger(JobLogger):
         if info_table.row_count > 0:
             main_content.append(info_table)
         
-        # Add messages table if it has content
-        if messages_table.row_count > 0:
-            main_content.append(messages_table)
+        # Add messages panel
+        main_content.append(messages_panel)
         
         # Add exceptions table if it exists
         if exceptions_table:
