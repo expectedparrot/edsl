@@ -60,7 +60,14 @@ class JobsRemoteInferenceHandler:
 
         if is_notebook():
             return HTMLTableJobLogger(verbose=self.verbose)
-        return StdOutJobLogger(verbose=self.verbose)
+        
+        # Try to use RichTableJobLogger for terminal environments
+        try:
+            from .rich_table_job_logger import RichTableJobLogger
+            return RichTableJobLogger(verbose=self.verbose)
+        except ImportError:
+            # Fall back to StdOutJobLogger if rich is not available
+            return StdOutJobLogger(verbose=self.verbose)
 
     def use_remote_inference(self, disable_remote_inference: bool) -> bool:
         import requests
