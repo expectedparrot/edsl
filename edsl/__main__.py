@@ -986,7 +986,7 @@ class EDSLShell(cmd.Cmd):
             (".profiles", "List env profiles", ".profiles"),
             (".switch", "Switch env profile", ".switch dev"),
             (".show_key", "Show API key (masked)", ".show_key"),
-            ("exit/quit", "Exit the shell", "exit"),
+            (".quit", "Exit the shell", ".quit"),
             (".help", "Show this help", ".help"),
         ]
         

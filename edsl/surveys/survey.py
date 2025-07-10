@@ -536,6 +536,7 @@ class Survey(Base):
             True
         """
 
+
         # Helper function to determine the correct class for each serialized component
         def get_class(pass_dict):
             from ..questions import QuestionBase
@@ -1579,6 +1580,34 @@ class Survey(Base):
         for question in self.questions:
             codebook[question.question_name] = question.question_text
         return codebook
+    
+    def edit(self): 
+        import webbrowser
+        import time 
+        info = self.push()
+        print("Waiting for survey to be created on Coop...")
+        time.sleep(5)
+        url = f"https://www.expectedparrot.com/edit/survey/{info['uuid']}"
+        webbrowser.open(url)
+        print(f"Survey opened in web editor: {url}")
+        
+        # Wait for user to confirm editing is complete
+        while True:
+            user_input = input("Is editing complete [y/n]: ").strip().lower()
+            if user_input in ['y', 'yes']:
+                print("Waiting for changes to sync...")
+                time.sleep(5)
+                # Pull the updated survey and update current object
+                updated_survey = Survey.pull(info['uuid'])
+                # Update the current object's attributes with the pulled survey
+                self.__dict__.update(updated_survey.__dict__)
+                print("Survey updated with changes from web editor.")
+                break
+            elif user_input in ['n', 'no']:
+                print("Editing session ended. Survey remains unchanged.")
+                break
+            else:
+                print("Please enter 'y' for yes or 'n' for no.")
 
     @classmethod
     def example(

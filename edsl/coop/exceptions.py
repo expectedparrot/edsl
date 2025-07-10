@@ -239,3 +239,25 @@ class CoopTimeoutError(CoopErrors):
         ```
     """
     relevant_doc = "https://docs.expectedparrot.com/en/latest/using_coop.html"
+
+
+class CoopSerializationError(CoopErrors):
+    """
+    Exception raised when an object cannot be serialized to JSON for upload.
+    
+    This exception is raised when attempting to push an object that contains
+    data that cannot be serialized to JSON, such as inf, -inf, or NaN float values.
+    
+    To fix this error:
+    1. Check your data for invalid float values (inf, -inf, NaN)
+    2. Replace or remove problematic values before pushing
+    3. Use the provided location information to identify specific problematic fields
+    
+    Example:
+        ```python
+        # Data with NaN values will raise this exception
+        results = Results([{"value": float('nan')}])
+        coop.push(results)  # Raises CoopSerializationError
+        ```
+    """
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/using_coop.html"

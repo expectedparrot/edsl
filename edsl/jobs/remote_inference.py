@@ -61,10 +61,10 @@ class JobsRemoteInferenceHandler:
         if is_notebook():
             return HTMLTableJobLogger(verbose=self.verbose)
         
-        # Try to use RichTableJobLogger for terminal environments
+        # Try to use RichTableSimpleJobLogger for terminal environments
         try:
-            from .rich_table_job_logger import RichTableJobLogger
-            return RichTableJobLogger(verbose=self.verbose)
+            from .rich_table_simple_job_logger import RichTableSimpleJobLogger
+            return RichTableSimpleJobLogger(verbose=self.verbose)
         except ImportError:
             # Fall back to StdOutJobLogger if rich is not available
             return StdOutJobLogger(verbose=self.verbose)
@@ -221,6 +221,10 @@ class JobsRemoteInferenceHandler:
             f"See [Remote Inference page]({self.expected_parrot_url}/home/remote-inference) for more details.",
             status=JobsStatus.CANCELLED,
         )
+        
+        # Notify logger about job completion
+        if hasattr(job_info.logger, 'job_completed'):
+            job_info.logger.job_completed(JobsStatus.CANCELLED)
 
     def _handle_failed_job(
         self, job_info: RemoteJobInfo, remote_job_data: RemoteInferenceResponse
@@ -253,6 +257,10 @@ class JobsRemoteInferenceHandler:
             f"See [Remote Inference page]({self.expected_parrot_url}/home/remote-inference) for more details.",
             status=JobsStatus.FAILED,
         )
+        
+        # Notify logger about job completion
+        if hasattr(job_info.logger, 'job_completed'):
+            job_info.logger.job_completed(JobsStatus.FAILED)
         job_info.logger.update(
             f"Need support? [Visit Discord]({RemoteJobConstants.DISCORD_URL})",
             status=JobsStatus.FAILED,
@@ -509,11 +517,20 @@ class JobsRemoteInferenceHandler:
                 f"Job completed and Results stored on Coop. [View Results]({results_url})",
                 status=JobsStatus.COMPLETED,
             )
+            
+            # Notify logger about job completion
+            if hasattr(job_info.logger, 'job_completed'):
+                job_info.logger.job_completed(JobsStatus.COMPLETED)
+                
         elif job_status == "partial_failed":
             job_info.logger.update(
                 f"View partial results [here]({results_url})",
                 status=JobsStatus.PARTIALLY_FAILED,
             )
+            
+            # Notify logger about job completion
+            if hasattr(job_info.logger, 'job_completed'):
+                job_info.logger.job_completed(JobsStatus.PARTIALLY_FAILED)
 
         results.job_uuid = job_info.job_uuid
         results.results_uuid = results_uuid
