@@ -1,13 +1,13 @@
 from functools import wraps
 from threading import RLock
 import inspect
-from typing import Optional, Union, TypeVar, Callable, cast
+from typing import TypeVar, Callable, cast
 
 try:
     from typing import ParamSpec
 except ImportError:
     from typing_extensions import ParamSpec
-    
+
 from ..jobs.data_structures import RunEnvironment, RunParameters, RunConfig
 
 

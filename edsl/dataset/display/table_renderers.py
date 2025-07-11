@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from .table_data_class import TableData
 
+
 class DataTablesRendererABC(ABC):
     def __init__(self, table_data: TableData):
         self.table_data = table_data
@@ -103,12 +104,14 @@ class PandasStyleRenderer(DataTablesRendererABC):
             else:
                 df = pd.DataFrame(self.table_data.data, columns=self.table_data.headers)
 
-            styled_df = df.style.set_properties(**{
-                "text-align": "left",
-                "white-space": "pre-wrap",  # Allows text wrapping
-                "max-width": "300px",       # Maximum width before wrapping
-                "word-wrap": "break-word"   # Breaks words that exceed max-width
-            }).background_gradient()
+            styled_df = df.style.set_properties(
+                **{
+                    "text-align": "left",
+                    "white-space": "pre-wrap",  # Allows text wrapping
+                    "max-width": "300px",  # Maximum width before wrapping
+                    "word-wrap": "break-word",  # Breaks words that exceed max-width
+                }
+            ).background_gradient()
 
             return f"""
             <div style="max-height: 500px; overflow-y: auto;">
@@ -119,11 +122,11 @@ class PandasStyleRenderer(DataTablesRendererABC):
     @classmethod
     def get_css(cls) -> str:
         return ""  # Pandas styling handles its own CSS
-        
-        
+
+
 class RichRenderer(DataTablesRendererABC):
     """Rich-based terminal renderer implementation"""
-    
+
     # ------------------------------------------------------------------
     # HTML fallback (required by the ABC).  The Rich renderer is intended
     # primarily for terminal output, but we still provide a minimal HTML
@@ -138,15 +141,15 @@ class RichRenderer(DataTablesRendererABC):
         html = "<table border='1'><thead><tr>"
         html += "".join(f"<th>{header}</th>" for header in self.table_data.headers)
         html += "</tr></thead><tbody>"
-        
+
         for row in self.table_data.data:
             html += "<tr>"
             html += "".join(f"<td>{cell}</td>" for cell in row)
             html += "</tr>"
         html += "</tbody></table>"
-        
+
         return html
-    
+
     # ------------------------------------------------------------------
     # Rich terminal helpers
     # ------------------------------------------------------------------
@@ -183,7 +186,14 @@ class RichRenderer(DataTablesRendererABC):
             # Fallback if Rich is not installed
             print("Rich package is not installed. Install with 'pip install rich'")
             from tabulate import tabulate
-            print(tabulate(self.table_data.data, headers=self.table_data.headers, tablefmt="grid"))
+
+            print(
+                tabulate(
+                    self.table_data.data,
+                    headers=self.table_data.headers,
+                    tablefmt="grid",
+                )
+            )
 
     # ------------------------------------------------------------------
     # String representation helpers
@@ -203,12 +213,13 @@ class RichRenderer(DataTablesRendererABC):
 
             # Detect if we're in a terminal or being piped
             is_terminal = sys.stdout.isatty()
-            
+
             # Try to detect actual terminal width if we're connected to a terminal
             if is_terminal:
                 try:
                     # Use the actual terminal width if available
                     import os
+
                     terminal_width = os.get_terminal_size().columns
                     # Use terminal width but with a reasonable minimum
                     width = max(terminal_width, 80)
@@ -218,17 +229,20 @@ class RichRenderer(DataTablesRendererABC):
 
             buffer = io.StringIO()
             capture_console = Console(
-                file=buffer, 
+                file=buffer,
                 force_terminal=is_terminal,  # Only force terminal mode if actually in terminal
-                width=width, 
-                color_system="truecolor" if is_terminal else None,  # No color for non-terminal
-                legacy_windows=False
+                width=width,
+                color_system=(
+                    "truecolor" if is_terminal else None
+                ),  # No color for non-terminal
+                legacy_windows=False,
             )
             capture_console.print(self._build_rich_table())
             return buffer.getvalue()
         except ImportError:
             # Degrade gracefully if Rich isn't available.
             from tabulate import tabulate
+
             return tabulate(
                 self.table_data.data,
                 headers=self.table_data.headers,

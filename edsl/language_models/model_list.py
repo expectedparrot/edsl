@@ -10,6 +10,7 @@ if TYPE_CHECKING:
     from ..inference_services.data_structures import AvailableModels
     from ..language_models import LanguageModel
 
+
 class ModelList(Base, UserList):
     __documentation__ = """https://docs.expectedparrot.com/en/latest/language_models.html#module-edsl.language_models.ModelList"""
 
@@ -151,7 +152,7 @@ class ModelList(Base, UserList):
         """
 
         return cls([Model.example(randomize) for _ in range(3)])
-    
+
     @classmethod
     def all(cls) -> "ModelList":
         """

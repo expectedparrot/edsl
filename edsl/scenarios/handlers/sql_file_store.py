@@ -6,6 +6,7 @@ import textwrap
 
 from ..file_methods import FileMethods
 
+
 class SqlMethods(FileMethods):
     suffix = "sql"
 

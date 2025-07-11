@@ -88,7 +88,11 @@ class TableDisplay:
                 )
             except Exception:
                 # Even `tabulate` failed – resort to the default __repr__.
-                plain = super().__repr__() if hasattr(super(), "__repr__") else str(self.data)
+                plain = (
+                    super().__repr__()
+                    if hasattr(super(), "__repr__")
+                    else str(self.data)
+                )
 
             # Escape HTML-sensitive chars so the browser renders plain text.
             import html
@@ -99,7 +103,6 @@ class TableDisplay:
     def __repr__(self):
         # If rich format is requested, use RichRenderer
         if self.tablefmt == "rich":
-            import sys
 
             table_data = TableData(
                 headers=self.headers,
@@ -120,6 +123,7 @@ class TableDisplay:
         else:
             # Fall back to tabulate for other formats
             from tabulate import tabulate
+
             return tabulate(self.data, headers=self.headers, tablefmt=self.tablefmt)
 
     @classmethod

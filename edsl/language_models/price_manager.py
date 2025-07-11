@@ -153,7 +153,7 @@ class PriceManager:
         """Ensure proper cleanup when the instance is garbage collected."""
         try:
             self._price_lookup = {}  # Clean up resources
-        except:
+        except Exception:
             pass  # Ignore any cleanup errors
 
     @property

@@ -7,8 +7,13 @@ from ..config import CONFIG
 from .exceptions import LanguageModelValueError
 
 # Import only what's needed initially to avoid circular imports
-from ..inference_services import (InferenceServicesCollection, 
-                                  AvailableModels, InferenceServiceABC, InferenceServiceError)
+from ..inference_services import (
+    InferenceServicesCollection,
+    AvailableModels,
+    InferenceServiceABC,
+    InferenceServiceError,
+)
+
 # The 'default' import will be imported lazily when needed
 
 from ..enums import InferenceServiceLiteral
@@ -25,12 +30,14 @@ def get_model_class(
     if registry is None:
         # Import default lazily only when needed
         from ..inference_services import default as inference_default
+
         registry = inference_default
     try:
         factory = registry.create_model_factory(model_name, service_name=service_name)
         return factory
     except (InferenceServiceError, Exception) as e:
         return Model._handle_model_error(model_name, e)
+
 
 class Meta(type):
     def __repr__(cls):
@@ -61,6 +68,7 @@ class Model(metaclass=Meta):
         if cls._registry is None:
             # Import default lazily only when needed
             from ..inference_services import default as inference_default
+
             cls._registry = inference_default
         return cls._registry
 
@@ -346,5 +354,5 @@ class Model(metaclass=Meta):
 
 if __name__ == "__main__":
     import doctest
-    doctest.testmod(optionflags=doctest.ELLIPSIS)
 
+    doctest.testmod(optionflags=doctest.ELLIPSIS)

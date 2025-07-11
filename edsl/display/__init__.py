@@ -16,12 +16,10 @@ __all__ = [
     "FileLink",
     "IFrame",
     "is_notebook_environment",
-    
     # Utility functions
     "file_notice",
     "display_html",
-    
     # Plugin architecture
     "DisplayPlugin",
-    "DisplayPluginRegistry"
+    "DisplayPluginRegistry",
 ]

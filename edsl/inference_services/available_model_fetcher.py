@@ -9,6 +9,7 @@ from .data_structures import ModelNamesList, LanguageModelInfo, AvailableModels
 
 from .available_model_cache_handler import AvailableModelCacheHandler
 
+
 class AvailableModelFetcher:
     """Fetches available models from the various services with JSON caching."""
 
@@ -156,6 +157,7 @@ class AvailableModelFetcher:
         if service_name in self._service_map:
             return self._service_map[service_name]
         from .exceptions import InferenceServiceValueError
+
         raise InferenceServiceValueError(f"Service {service_name} not found")
 
     def _get_all_models(self, force_refresh=False) -> List[LanguageModelInfo]:

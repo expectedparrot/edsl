@@ -5,9 +5,11 @@ from abc import ABC
 from .exceptions import ServiceParameterValidationError
 from ...base import RegisterSubclassesMeta
 
+
 @dataclass
 class Parameters:
     """A class to handle parameter validation and preparation for service calls."""
+
     parameters: Dict[str, Any]  # Dictionary of ParameterDefinition objects
 
     def validate_call_parameters(self, params: Dict[str, Any]) -> None:
@@ -21,8 +23,14 @@ class Parameters:
         """
         for param_name, param_def in self.parameters.items():
             # Check for missing required parameters (only if no default is defined)
-            if param_def.required and param_name not in params and param_def.default_value is MISSING:
-                 raise ServiceParameterValidationError(f"Missing required parameter: {param_name}")
+            if (
+                param_def.required
+                and param_name not in params
+                and param_def.default_value is MISSING
+            ):
+                raise ServiceParameterValidationError(
+                    f"Missing required parameter: {param_name}"
+                )
 
             # Check type if parameter is provided
             if param_name in params:
@@ -31,19 +39,34 @@ class Parameters:
                 type_mismatch = False
 
                 # Basic type validation
-                if expected_type_str in ("string", "str") and not isinstance(actual_value, str):
+                if expected_type_str in ("string", "str") and not isinstance(
+                    actual_value, str
+                ):
                     type_mismatch = True
-                elif expected_type_str in ("int", "integer") and not isinstance(actual_value, int):
+                elif expected_type_str in ("int", "integer") and not isinstance(
+                    actual_value, int
+                ):
                     # Allow ints where floats are expected
-                    if not (expected_type_str in ("number", "float") and isinstance(actual_value, int)):
-                         type_mismatch = True
-                elif expected_type_str in ("number", "float") and not isinstance(actual_value, (int, float)):
-                     type_mismatch = True
-                elif expected_type_str in ("bool", "boolean") and not isinstance(actual_value, bool):
+                    if not (
+                        expected_type_str in ("number", "float")
+                        and isinstance(actual_value, int)
+                    ):
+                        type_mismatch = True
+                elif expected_type_str in ("number", "float") and not isinstance(
+                    actual_value, (int, float)
+                ):
                     type_mismatch = True
-                elif expected_type_str in ("list", "array") and not isinstance(actual_value, list):
+                elif expected_type_str in ("bool", "boolean") and not isinstance(
+                    actual_value, bool
+                ):
                     type_mismatch = True
-                elif expected_type_str in ("dict", "object") and not isinstance(actual_value, dict):
+                elif expected_type_str in ("list", "array") and not isinstance(
+                    actual_value, list
+                ):
+                    type_mismatch = True
+                elif expected_type_str in ("dict", "object") and not isinstance(
+                    actual_value, dict
+                ):
                     type_mismatch = True
                 # Add more complex type checks if needed (e.g., for custom EDSL objects)
 
@@ -77,8 +100,8 @@ class Parameters:
                     target_cls = edsl_registry[expected_type_str]
                     # Check if the provided value is an instance of this EDSL type
                     # and has a 'to_dict' method. Validation should have already ensured type match.
-                    if isinstance(value, target_cls) and hasattr(value, 'to_dict'):
-                        call_params[param_name] = value.to_dict() # Serialize
+                    if isinstance(value, target_cls) and hasattr(value, "to_dict"):
+                        call_params[param_name] = value.to_dict()  # Serialize
                     else:
                         # This case *shouldn't* happen if validate_call_parameters was called first
                         # and the registry/type definitions are consistent.
@@ -88,7 +111,7 @@ class Parameters:
                     # Not an EDSL type, pass as-is
                     call_params[param_name] = value
             elif param_def.default_value is not MISSING:
-                 # Use default value if provided parameter is missing
-                 call_params[param_name] = param_def.default_value
+                # Use default value if provided parameter is missing
+                call_params[param_name] = param_def.default_value
 
-        return call_params 
+        return call_params

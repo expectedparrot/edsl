@@ -91,7 +91,7 @@ class ExtensionDeploymentManager:
         port: int = 8080,
     ) -> ExtensionDeploymentManager:
         """Create an ExtensionDeploymentManager instance from a ServicesBuilder.
-        
+
         Parameters
         ----------
         services_builder:
@@ -104,16 +104,20 @@ class ExtensionDeploymentManager:
             Host and container port to expose the API under. Defaults to 8080.
         """
         # Get collection name from the services builder
-        service_collection_name = services_builder._default_service_collection_name or "default_collection"
-        
+        service_collection_name = (
+            services_builder._default_service_collection_name or "default_collection"
+        )
+
         # Clean collection name to be valid for Docker and Cloud Run
-        clean_collection_name = re.sub(r'[^a-zA-Z0-9_.-]', '-', service_collection_name.lower())
-        
+        clean_collection_name = re.sub(
+            r"[^a-zA-Z0-9_.-]", "-", service_collection_name.lower()
+        )
+
         # Use collection name for image and service naming
         image_name = clean_collection_name
         container_name = f"{image_name}-container"
         service_name = clean_collection_name
-        
+
         return cls(
             image_name=image_name,
             container_name=container_name,
@@ -130,7 +134,9 @@ class ExtensionDeploymentManager:
 
     def build(self) -> None:
         """Build the Docker image."""
-        self._run(f"docker build --no-cache -t {self.image_name} {shlex.quote(str(self.workdir))}")
+        self._run(
+            f"docker build --no-cache -t {self.image_name} {shlex.quote(str(self.workdir))}"
+        )
 
     def run(self) -> None:
         """Run the container in detached mode on *self.port*.
@@ -183,9 +189,7 @@ class ExtensionDeploymentManager:
 
     def run_temp(self) -> None:
         """Run container without persistent name (auto-removes on stop)."""
-        self._run(
-            f"docker run --rm -d -p {self.port}:{self.port} {self.image_name}"
-        )
+        self._run(f"docker run --rm -d -p {self.port}:{self.port} {self.image_name}")
         print(f"API running at http://localhost:{self.port} (temporary container)")
 
     # ---- Google Cloud helpers ------------------------------------------------
@@ -215,7 +219,7 @@ class ExtensionDeploymentManager:
             "AND resource.labels.revision_name~'{svc}-'"
         ).format(svc=self.service_name)
         self._run(
-            "gcloud logging read \"{q}\" --limit {limit} --format \"table(timestamp,textPayload)\" --project {proj} --freshness=1d".format(
+            'gcloud logging read "{q}" --limit {limit} --format "table(timestamp,textPayload)" --project {proj} --freshness=1d'.format(
                 q=query, limit=limit, proj=self.project_id
             ),
             shell=True,
@@ -224,7 +228,7 @@ class ExtensionDeploymentManager:
     def gcp_logs_current(self, *, limit: int = 50) -> None:
         """View logs from the *latest* ready revision only."""
         cmd_get_revision = (
-            "gcloud run services describe {svc} --region={region} --project={proj} --format=\"value(status.latestReadyRevisionName)\""
+            'gcloud run services describe {svc} --region={region} --project={proj} --format="value(status.latestReadyRevisionName)"'
         ).format(svc=self.service_name, region=self.region, proj=self.project_id)
         # Capture result
         revision = (
@@ -235,7 +239,7 @@ class ExtensionDeploymentManager:
             raise RuntimeError("Could not determine latest ready revision via gcloud.")
         print(f"Getting logs for current revision: {revision}")
         self._run(
-            "gcloud logging read \"resource.type=cloud_run_revision AND resource.labels.revision_name={rev}\" --limit {limit} --format \"table(timestamp,textPayload)\" --project {proj} --freshness=1d".format(
+            'gcloud logging read "resource.type=cloud_run_revision AND resource.labels.revision_name={rev}" --limit {limit} --format "table(timestamp,textPayload)" --project {proj} --freshness=1d'.format(
                 rev=revision, limit=limit, proj=self.project_id
             ),
             shell=True,
@@ -244,7 +248,7 @@ class ExtensionDeploymentManager:
     def gcp_endpoint(self) -> None:
         """Print the public endpoint URL of the Cloud Run service."""
         self._run(
-            "gcloud run services describe {svc} --region={region} --project={proj} --format=\"value(status.url)\"".format(
+            'gcloud run services describe {svc} --region={region} --project={proj} --format="value(status.url)"'.format(
                 svc=self.service_name, region=self.region, proj=self.project_id
             ),
             shell=True,
@@ -261,7 +265,9 @@ class ExtensionDeploymentManager:
     ) -> None:
         """Wrapper around :pyfunc:`subprocess.run` that streams output live."""
         print(f"$ {command}")
-        subprocess.run(command if shell else shlex.split(command), check=check, shell=shell)
+        subprocess.run(
+            command if shell else shlex.split(command), check=check, shell=shell
+        )
 
     # ------------------------------------------------------------------ dunder
 
@@ -278,13 +284,12 @@ class ExtensionDeploymentManager:
 if __name__ == "__main__":
     # Example usage with ServicesBuilder
     from .authoring import ServicesBuilder
-    
+
     # Create a sample services builder
     services = ServicesBuilder(
-        service_collection_name="example_collection",
-        creator_ep_username="test_user"
+        service_collection_name="example_collection", creator_ep_username="test_user"
     )
-    
+
     # Create deployment manager from services builder
     mgr = ExtensionDeploymentManager.from_services_builder(
         services_builder=services,
@@ -294,7 +299,7 @@ if __name__ == "__main__":
     print(f"Created deployment manager for collection: {mgr.service_collection_name}")
     print(f"Image name: {mgr.image_name}")
     print(f"Service name: {mgr.service_name}")
-    
+
     # Example commands (commented out to avoid actual deployment)
     # mgr.build()
     # mgr.run()

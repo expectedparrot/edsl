@@ -15,7 +15,7 @@ __all__ = [
     "SQLiteMethods",
     "JpegMethods",
     "Mp4Methods",
-    "WebmMethods"
+    "WebmMethods",
 ]
 
 from .pdf_file_store import PdfMethods

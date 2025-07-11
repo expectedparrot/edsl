@@ -1,7 +1,6 @@
 """Mixin with validators for LLM answers to questions."""
 
 
-
 class AnswerValidatorMixin:
     """
     Mixin with validators for LLM answers to questions.
@@ -125,7 +124,6 @@ class AnswerValidatorMixin:
     #     """Validate QuestionCheckbox-specific answer.
 
     #     :param answer: Answer to validate
-
 
     #     Check that answer["answer"]:
     #     - has elements that are strings, bytes-like objects or real numbers evaluating to integers

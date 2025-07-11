@@ -36,9 +36,9 @@ from .invigilators import InvigilatorFunctional
 from .prompt_constructor import PromptConstructor
 
 __all__ = [
-    'InvigilatorAI',
-    'InvigilatorHuman',
-    'InvigilatorBase',
-    'InvigilatorFunctional',
-    'PromptConstructor'
+    "InvigilatorAI",
+    "InvigilatorHuman",
+    "InvigilatorBase",
+    "InvigilatorFunctional",
+    "PromptConstructor",
 ]

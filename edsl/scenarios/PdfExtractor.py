@@ -5,28 +5,29 @@ class PdfExtractor:
     def __init__(self, pdf_path: str):
         self.pdf_path = pdf_path
         self._has_pymupdf = self._check_pymupdf()
-        #self.constructor = parent_object.__class__
+        # self.constructor = parent_object.__class__
 
     def _check_pymupdf(self):
         """Check if PyMuPDF is installed."""
         try:
             import importlib.util
+
             return importlib.util.find_spec("fitz") is not None
         except ImportError:
             return False
-        
+
     def get_pdf_dict(self) -> dict:
         # First check if the file exists
         if not os.path.exists(self.pdf_path):
             raise FileNotFoundError(f"The file {self.pdf_path} does not exist.")
-        
+
         # Then check if PyMuPDF is available
         if not self._has_pymupdf:
             raise ImportError(
                 "The 'fitz' module (PyMuPDF) is required for PDF extraction. "
                 "Please install it with: pip install pymupdf"
             )
-        
+
         # If we get here, we can safely import and use fitz
         import fitz
 
