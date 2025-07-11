@@ -37,6 +37,7 @@ if TYPE_CHECKING:
     from ..scenarios import Scenario
     from ..language_models import LanguageModel
     from ..surveys import Survey
+    from .chat_transcript import ChatTranscript
 
 QuestionName = str
 AnswerValue = Any
@@ -461,13 +462,17 @@ class Result(Base, UserDict):
         d = {}
         problem_keys = []
         data_types = sorted(self.sub_dicts.keys())
+        if 'answer' in data_types:
+            data_types.remove('answer')
+            data_types = ['answer'] + data_types
         for data_type in data_types:
             for key in self.sub_dicts[data_type]:
                 if key in d:
                     import warnings
 
                     warnings.warn(
-                        f"Key '{key}' of data type '{data_type}' is already in use. Renaming to {key}_{data_type}"
+                        f"Key '{key}' of data type '{data_type}' is already in use. Renaming to {key}_{data_type}.\n"
+                        f"Conflicting data_type for this key at {d[key]}"
                     )
                     problem_keys.append((key, data_type))
                     key = f"{key}_{data_type}"
@@ -687,6 +692,23 @@ class Result(Base, UserDict):
 
                 raise ResultsError(f"Parameter {k} not found in Result object")
         return scoring_function(**params)
+
+    def transcript(self, show_options: bool = True, show_agent_info: bool = True) -> None:
+        """Display a rich-formatted chat transcript of the interview.
+        
+        This method creates a ChatTranscript object and displays the conversation
+        between questions and agent responses in a beautiful, chat-like format
+        using the Rich library.
+        
+        Args:
+            show_options: Whether to display question options if available. Defaults to True.
+            show_agent_info: Whether to show agent information at the top. Defaults to True.
+        
+        """
+        from .chat_transcript import ChatTranscript
+        
+        chat_transcript = ChatTranscript(self)
+        chat_transcript.view(show_options=show_options, show_agent_info=show_agent_info)
 
     @classmethod
     def from_interview(cls, interview) -> Result:

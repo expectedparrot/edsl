@@ -308,7 +308,7 @@ class DataOperationsBase:
         filename: Optional[str] = None,
         remove_prefix: bool = False,
         pretty_labels: Optional[dict] = None,
-    ):
+    ) -> 'FileStore':
         """Export the results to a FileStore instance containing CSV data."""
         from .file_exports import CSVExport
 
@@ -336,6 +336,28 @@ class DataOperationsBase:
             remove_prefix=remove_prefix,
             pretty_labels=pretty_labels,
             sheet_name=sheet_name,
+        )
+        return exporter.export()
+
+    def to_docx(
+        self,
+        filename: Optional[str] = None,
+        remove_prefix: bool = False,
+        pretty_labels: Optional[dict] = None,
+    ) -> 'FileStore':
+        """Export the results to a FileStore instance containing DOCX data.
+
+        Each row of the dataset will be rendered on its own page, with a 2-column
+        table that lists the keys and associated values for that observation.
+        """
+        # Import here to avoid heavy dependency unless the method is called
+        from .file_exports import DocxExport
+
+        exporter = DocxExport(
+            data=self,
+            filename=filename,
+            remove_prefix=remove_prefix,
+            pretty_labels=pretty_labels,
         )
         return exporter.export()
 

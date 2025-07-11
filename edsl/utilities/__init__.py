@@ -4,7 +4,8 @@ from .PrettyList import PrettyList
 from .restricted_python import create_restricted_function
 from .remove_edsl_version import remove_edsl_version
 from .ast_utilities import extract_variable_names
-from .local_results_cache import local_results_cache
+from .local_results_cache import object_disk_cache, local_results_cache
+from .edsl_load import load as edsl_load
 
 # Functions from utilities.py
 from .utilities import (
@@ -48,6 +49,7 @@ __all__ = [
     "is_notebook",
     "is_valid_variable_name",
     "sanitize_string",
-    "local_results_cache"
+    "object_disk_cache",
+    "edsl_load"
 ]
 
