@@ -24,7 +24,7 @@ This will open a window (or display inline in notebooks) with a graph showing
 from __future__ import annotations
 
 import tempfile
-from typing import Optional, Dict, Set
+from typing import Optional, Dict
 
 import pydot
 
@@ -176,4 +176,4 @@ class JobsFlowVisualization:
             f"Jobs\nquestions: {summary['questions']},\n"
             f"agents: {summary['agents']}, models: {summary['models']},\n"
             f"scenarios: {summary['scenarios']}"
-        ) 
+        )

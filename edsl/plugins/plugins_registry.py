@@ -20,7 +20,7 @@ from .exceptions import PluginException
 class AvailablePlugin:
     """
     Data class representing an available plugin in the registry.
-    
+
     Attributes:
         name: The name of the plugin
         description: A description of the plugin's functionality
@@ -31,6 +31,7 @@ class AvailablePlugin:
         created_at: Date when the plugin was created
         is_installed: Whether the plugin is currently installed locally
     """
+
     name: str
     description: str
     github_url: str
@@ -39,7 +40,7 @@ class AvailablePlugin:
     tags: List[str] = None
     created_at: str = None
     is_installed: bool = False
-    
+
     def __post_init__(self):
         """Initialize default values for optional fields."""
         if self.tags is None:
@@ -51,25 +52,26 @@ class AvailablePlugin:
 class PluginRegistryError(PluginException):
     """
     Exception raised when there's an issue with the plugin registry.
-    
+
     This exception is raised when the plugin registry cannot be accessed
     or when there's an issue with the plugin data format.
     """
+
     relevant_doc = "https://docs.expectedparrot.com/en/latest/plugins.html"
 
 
 def get_available_plugins(refresh: bool = False) -> List[AvailablePlugin]:
     """
     Get a list of available plugins from the Expected Parrot.
-    
+
     This retrieves the official list of plugins available for EDSL.
-    
+
     Args:
         refresh: Whether to refresh the cache and fetch the latest data
-        
+
     Returns:
         List of AvailablePlugin objects representing available plugins
-        
+
     Raises:
         PluginRegistryError: If the registry cannot be accessed or data is invalid
     """
@@ -84,56 +86,60 @@ def get_available_plugins(refresh: bool = False) -> List[AvailablePlugin]:
             tags=["qualtrics", "stata", "spss", "survey", "web", "import", "convert"],
         )
     ]
-    
+
     return plugins
 
 
-def search_plugins(query: str, tags: Optional[List[str]] = None) -> List[AvailablePlugin]:
+def search_plugins(
+    query: str, tags: Optional[List[str]] = None
+) -> List[AvailablePlugin]:
     """
     Search for plugins matching a query string or tags.
-    
+
     Args:
         query: Search query string
         tags: Optional list of tags to filter by
-        
+
     Returns:
         List of matching AvailablePlugin objects
     """
     all_plugins = get_available_plugins()
-    
+
     # Filter by search query
     if query:
         query = query.lower()
         filtered_plugins = [
-            plugin for plugin in all_plugins 
+            plugin
+            for plugin in all_plugins
             if query in plugin.name.lower() or query in plugin.description.lower()
         ]
     else:
         filtered_plugins = all_plugins
-    
+
     # Filter by tags if provided
     if tags:
         tags = [tag.lower() for tag in tags]
         filtered_plugins = [
-            plugin for plugin in filtered_plugins
+            plugin
+            for plugin in filtered_plugins
             if any(tag in [t.lower() for t in plugin.tags] for tag in tags)
         ]
-    
+
     return filtered_plugins
 
 
 def get_plugin_details(plugin_name: str) -> Optional[Dict[str, Any]]:
     """
     Get detailed information about a specific plugin.
-    
+
     Args:
         plugin_name: Name of the plugin to get details for
-        
+
     Returns:
         Dictionary of detailed plugin information or None if not found
     """
     all_plugins = get_available_plugins()
-    
+
     # Find the plugin by name
     for plugin in all_plugins:
         if plugin.name.lower() == plugin_name.lower():
@@ -148,17 +154,17 @@ def get_plugin_details(plugin_name: str) -> Optional[Dict[str, Any]]:
                 "created_at": plugin.created_at,
             }
             return plugin_dict
-    
+
     return None
 
 
 def get_github_url_by_name(plugin_name: str) -> Optional[str]:
     """
     Get a plugin's GitHub URL by its name.
-    
+
     Args:
         plugin_name: Name of the plugin
-        
+
     Returns:
         GitHub URL of the plugin or None if not found
     """

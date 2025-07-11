@@ -19,7 +19,6 @@ class TreeNode:
         self.children = {}
 
 
-
 class Tree:
     def __init__(self, data: "Dataset", node_order: Optional[List[str]] = None):
         """Initialize the tree with a Dataset."""
@@ -52,6 +51,7 @@ class Tree:
             if not set(node_order).issubset(set(self.data.keys())):
                 invalid_keys = set(node_order) - set(self.data.keys())
                 from .exceptions import DatasetValueError
+
                 raise DatasetValueError(f"Invalid keys in node_order: {invalid_keys}")
 
         self.root = TreeNode()
@@ -225,15 +225,15 @@ class Tree:
 
     def to_dict(self, node: Optional[TreeNode] = None) -> tuple[dict, list[str]]:
         """Converts the tree structure into a nested dictionary and returns the schema.
-        
+
         Args:
             node: The current node being processed. Defaults to the root node.
-            
+
         Returns:
             A tuple of (nested_dict, schema) where:
                 - nested_dict: The hierarchical data structure
                 - schema: List of keys in order of hierarchy
-            
+
         Examples:
             >>> tree = Tree.example()
             >>> result, schema = tree.to_dict()
@@ -254,7 +254,9 @@ class Tree:
         result = {}
         for value, child in node.children.items():
             if child.children:
-                nested_dict, _ = self.to_dict(child)  # Always unpack tuple, ignore schema except at root
+                nested_dict, _ = self.to_dict(
+                    child
+                )  # Always unpack tuple, ignore schema except at root
                 result[value] = nested_dict
             else:
                 result[value] = None
@@ -267,10 +269,10 @@ class Tree:
     @classmethod
     def example(cls) -> "Tree":
         """Creates an example Tree instance with geographic data.
-        
+
         Returns:
             Tree: A sample tree with continent/country/city/population data
-        
+
         Examples:
             >>> tree = Tree.example()
             >>> result, schema = tree.to_dict()
@@ -281,14 +283,32 @@ class Tree:
             ['Canada', 'US']
         """
         from .dataset import Dataset
-        
-        data = Dataset([
-            {"continent": ["North America", "Asia", "Europe", "North America", "Asia"]},
-            {"country": ["US", "China", "France", "Canada", "Japan"]},
-            {"city": ["New York", "Beijing", "Paris", "Toronto", "Tokyo"]},
-            {"population": ["8419000", "21540000", "2161000", "2930000", "13960000"]},  # Convert to strings
-        ])
-        
+
+        data = Dataset(
+            [
+                {
+                    "continent": [
+                        "North America",
+                        "Asia",
+                        "Europe",
+                        "North America",
+                        "Asia",
+                    ]
+                },
+                {"country": ["US", "China", "France", "Canada", "Japan"]},
+                {"city": ["New York", "Beijing", "Paris", "Toronto", "Tokyo"]},
+                {
+                    "population": [
+                        "8419000",
+                        "21540000",
+                        "2161000",
+                        "2930000",
+                        "13960000",
+                    ]
+                },  # Convert to strings
+            ]
+        )
+
         node_order = ["continent", "country", "city", "population"]
         tree = cls(data, node_order=node_order)  # Explicitly pass node_order
         return tree
@@ -296,14 +316,14 @@ class Tree:
     @staticmethod
     def _adjust_markdown_levels(text: str, base_level: int) -> str:
         """Adjusts markdown heading levels by adding or removing '#' characters.
-        
+
         Args:
             text: The markdown text to adjust
             base_level: The level to adjust headings to (e.g., 2 means h2)
-            
+
         Returns:
             Adjusted markdown text with updated heading levels
-            
+
         Examples:
             >>> text = "# Title\\n## Subtitle\\nContent"
             >>> print(Tree._adjust_markdown_levels(text, 2))
@@ -312,42 +332,44 @@ class Tree:
             Content
         """
         lines = []
-        for line in text.split('\n'):
-            if line.strip().startswith('#'):
+        for line in text.split("\n"):
+            if line.strip().startswith("#"):
                 # Count leading '#' characters
-                heading_level = len(line) - len(line.lstrip('#'))
+                heading_level = len(line) - len(line.lstrip("#"))
                 # Adjust the heading level by adding base_level - 1
                 new_level = heading_level + (base_level - 1)
                 # Replace the original heading markers with the new level
-                lines.append('#' * new_level + line[heading_level:])
+                lines.append("#" * new_level + line[heading_level:])
             else:
                 lines.append(line)
-        return '\n'.join(lines)
+        return "\n".join(lines)
 
-    def report(self, node: Optional[TreeNode] = None, level: int = 1, render: bool = True) -> str:
+    def report(
+        self, node: Optional[TreeNode] = None, level: int = 1, render: bool = True
+    ) -> str:
         """Generates a markdown document representing the tree structure.
-        
+
         Args:
             node: The current node being processed. Defaults to the root node.
             level: Current heading level (h1-h6). Defaults to 1.
             render: Whether to render the markdown in notebooks. Defaults to True.
-            
+
         Returns:
-            A string containing the markdown document, or renders markdown in notebooks.            
+            A string containing the markdown document, or renders markdown in notebooks.
         """
         from ..utilities.utilities import is_notebook
         from IPython.display import Markdown, display
-        
+
         if node is None:
             node = self.root
             if node is None:
                 return "Tree has not been constructed yet."
 
         lines = []
-        
+
         # Process current node
         if node != self.root:  # Skip the root node as it has no value
-            if isinstance(node.value, str) and node.value.startswith('#'):
+            if isinstance(node.value, str) and node.value.startswith("#"):
                 # If the value is markdown, adjust its heading levels
                 adjusted_markdown = self._adjust_markdown_levels(node.value, level)
                 lines.append(adjusted_markdown)
@@ -357,24 +379,27 @@ class Tree:
                 lines.append(f"{'#' * heading_level} {node.key.title()}: {node.value}")
             else:  # Leaf nodes get regular text
                 lines.append(f"{node.key.title()}: {node.value}")
-        
+
         # Process children in sorted order for consistent output
         for value in sorted(node.children.keys()):
             child = node.children[value]
-            lines.append(self.report(child, level + 1, render=False))  # Don't render recursive calls
-        
+            lines.append(
+                self.report(child, level + 1, render=False)
+            )  # Don't render recursive calls
+
         markdown_text = "\n".join(lines)
-        
+
         # Only attempt to render at the top level call
         if node == self.root and render and is_notebook():
             display(Markdown(markdown_text))
             return ""  # Return empty string since we've displayed the content
-        
+
         return markdown_text
 
 
 if __name__ == "__main__":
-    #tree = Tree.example()
-    #print(tree.to_dict())
-    import doctest 
+    # tree = Tree.example()
+    # print(tree.to_dict())
+    import doctest
+
     doctest.testmod()

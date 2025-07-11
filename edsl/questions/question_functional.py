@@ -6,7 +6,11 @@ from pydantic import BaseModel
 
 from .question_base import QuestionBase
 from .response_validator_abc import ResponseValidatorABC
-from .exceptions import QuestionErrors, QuestionAnswerValidationError, QuestionNotImplementedError
+from .exceptions import (
+    QuestionErrors,
+    QuestionAnswerValidationError,
+    QuestionNotImplementedError,
+)
 
 from ..utilities.restricted_python import create_restricted_function
 
@@ -14,21 +18,21 @@ from ..utilities.restricted_python import create_restricted_function
 class FunctionalResponse(BaseModel):
     """
     Pydantic model for functional question responses.
-    
+
     Since functional questions are evaluated directly by Python code rather than an LLM,
     this model primarily serves as a structured way to represent the output.
-    
+
     Attributes:
         answer: The result of the function evaluation
         comment: Optional comment about the result
         generated_tokens: Optional token usage data
-    
+
     Examples:
         >>> # Valid response with a numeric answer
         >>> response = FunctionalResponse(answer=42)
         >>> response.answer
         42
-        
+
         >>> # Valid response with a string answer and a comment
         >>> response = FunctionalResponse(answer="Hello world", comment="Function executed successfully")
         >>> response.answer
@@ -36,6 +40,7 @@ class FunctionalResponse(BaseModel):
         >>> response.comment
         'Function executed successfully'
     """
+
     answer: Any
     comment: Optional[str] = None
     generated_tokens: Optional[Any] = None
@@ -44,10 +49,11 @@ class FunctionalResponse(BaseModel):
 class FunctionalResponseValidator(ResponseValidatorABC):
     """
     Validator for functional question responses.
-    
+
     Since functional questions are evaluated directly and not by an LLM,
     this validator is minimal and mainly serves for consistency with other question types.
     """
+
     required_params = []
     valid_examples = [
         (
@@ -60,24 +66,24 @@ class FunctionalResponseValidator(ResponseValidatorABC):
         ),
     ]
     invalid_examples = []
-    
+
     def fix(self, response, verbose=False):
         """
         Attempt to fix an invalid response.
-        
+
         Since functional questions are evaluated directly, this method is mainly
         for consistency with other question types.
-        
+
         Args:
             response: The response to fix
             verbose: Whether to print verbose output
-            
+
         Returns:
             The fixed response or the original response if it cannot be fixed
         """
         if verbose:
             print(f"Fixing functional response: {response}")
-        
+
         # Handle case where response is a raw value without the proper structure
         if not isinstance(response, dict):
             try:
@@ -86,7 +92,7 @@ class FunctionalResponseValidator(ResponseValidatorABC):
                 if verbose:
                     print(f"Failed to fix response: {e}")
                 return {"answer": None, "comment": "Failed to execute function"}
-                
+
         return response
 
 
@@ -189,7 +195,9 @@ class QuestionFunctional(QuestionBase):
 
     def _simulate_answer(self, human_readable=True) -> dict[str, str]:
         """Required by Question, but not used by QuestionFunctional."""
-        raise QuestionNotImplementedError("_simulate_answer not implemented for QuestionFunctional")
+        raise QuestionNotImplementedError(
+            "_simulate_answer not implemented for QuestionFunctional"
+        )
 
     def _validate_answer(self, answer: dict[str, str]):
         """Validate the answer using the Pydantic model."""
@@ -197,22 +205,25 @@ class QuestionFunctional(QuestionBase):
             return self.create_response_model()(**answer).model_dump()
         except Exception as e:
             from pydantic import ValidationError
+
             # Create a ValidationError with a helpful message
             validation_error = ValidationError.from_exception_data(
-                title='FunctionalResponse',
-                line_errors=[{
-                    'type': 'value_error',
-                    'loc': ('answer',),
-                    'msg': f'Function response validation failed: {str(e)}',
-                    'input': answer,
-                    'ctx': {'error': str(e)}
-                }]
+                title="FunctionalResponse",
+                line_errors=[
+                    {
+                        "type": "value_error",
+                        "loc": ("answer",),
+                        "msg": f"Function response validation failed: {str(e)}",
+                        "input": answer,
+                        "ctx": {"error": str(e)},
+                    }
+                ],
             )
             raise QuestionAnswerValidationError(
                 message=f"Invalid function response: {str(e)}",
                 data=answer,
                 model=self.create_response_model(),
-                pydantic_error=validation_error
+                pydantic_error=validation_error,
             )
 
     @property
@@ -229,10 +240,10 @@ class QuestionFunctional(QuestionBase):
             "function_name": self.function_name,
         }
         if add_edsl_version:
-            from edsl import __version__
-
-            d["edsl_version"] = __version__
-            d["edsl_class_name"] = self.__class__.__name__
+            import edsl
+            
+            d["edsl_version"] = getattr(edsl, '__version__')
+            d["edsl_class_name"] = type(self).__name__
 
         return d
 

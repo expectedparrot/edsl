@@ -45,12 +45,14 @@ class SQLiteList(MutableSequence, ABC):
         with self.conn:
             self.conn.execute(query)
             # Create an index for faster lookups
-            self.conn.execute(f"CREATE INDEX IF NOT EXISTS idx_index ON {self._TABLE_NAME} (idx)")
+            self.conn.execute(
+                f"CREATE INDEX IF NOT EXISTS idx_index ON {self._TABLE_NAME} (idx)"
+            )
 
     def _batch_insert(self, data: Iterable) -> None:
         """
         Insert items one at a time to minimize memory usage.
-        
+
         Args:
             data: Iterable containing items to insert
         """
@@ -61,7 +63,7 @@ class SQLiteList(MutableSequence, ABC):
                 serialized = self.serialize(item)
                 self.conn.execute(
                     f"INSERT INTO {self._TABLE_NAME} (idx, value) VALUES (?, ?)",
-                    (idx, serialized)
+                    (idx, serialized),
                 )
                 # Clear reference to allow garbage collection
                 del serialized
@@ -78,13 +80,13 @@ class SQLiteList(MutableSequence, ABC):
             if step == 1:  # Simple range
                 cursor = self.conn.execute(
                     f"SELECT value FROM {self._TABLE_NAME} WHERE idx >= ? AND idx < ? ORDER BY idx",
-                    (start, stop)
+                    (start, stop),
                 )
                 return [self.deserialize(row[0]) for row in cursor]
             else:  # Need to handle step
                 indices = range(start, stop, step)
                 return [self[i] for i in indices]
-            
+
         # Handle integer index
         if index < 0:
             index = len(self) + index
@@ -103,6 +105,7 @@ class SQLiteList(MutableSequence, ABC):
         # If the stored object is a Scenario (or subclass), return a specialised proxy
         try:
             from edsl.scenarios.scenario import Scenario
+
             if isinstance(obj, Scenario):
                 return self._make_scenario_proxy(self, index, obj)
         except ImportError:
@@ -176,9 +179,9 @@ class SQLiteList(MutableSequence, ABC):
     def extend(self, values: Iterable) -> None:
         """
         Extend the list by appending all items in the given iterable.
-        
+
         Processes one item at a time to minimize memory usage.
-        
+
         Args:
             values: Iterable of values to append
         """
@@ -190,7 +193,7 @@ class SQLiteList(MutableSequence, ABC):
                 serialized = self.serialize(item)
                 self.conn.execute(
                     f"INSERT INTO {self._TABLE_NAME} (idx, value) VALUES (?, ?)",
-                    (start_idx + i, serialized)
+                    (start_idx + i, serialized),
                 )
                 # Clear reference to allow garbage collection
                 del serialized
@@ -224,10 +227,10 @@ class SQLiteList(MutableSequence, ABC):
 
         # Create a new instance of the same class
         result = type(self)()
-        
+
         # Use stream to copy all items from self
         result.extend(self.stream())
-        
+
         # Use stream to copy all items from other
         result.extend(other.stream())
 
@@ -242,22 +245,22 @@ class SQLiteList(MutableSequence, ABC):
     def stream_batched(self, batch_size: int = 1000) -> Iterator[List[Any]]:
         """
         Stream items in batches to reduce memory usage and improve performance.
-        
+
         Args:
             batch_size: Number of items to yield in each batch
-            
+
         Yields:
             Lists of deserialized items, with at most batch_size items per list
         """
         cursor = self.conn.execute(f"SELECT value FROM {self._TABLE_NAME} ORDER BY idx")
         batch = []
-        
+
         for row in cursor:
             batch.append(self.deserialize(row[0]))
             if len(batch) >= batch_size:
                 yield batch
                 batch = []
-                
+
         if batch:  # Don't forget the last batch if it's not full
             yield batch
 
@@ -269,12 +272,16 @@ class SQLiteList(MutableSequence, ABC):
         """Memory-efficient comparison of two SQLiteLists."""
         if len(self) != len(other):
             return False
-        
+
         # Compare in batches to reduce memory usage
         batch_size = 1000
         self_batches = self.stream_batched(batch_size)
-        other_batches = other.stream_batched(batch_size) if hasattr(other, 'stream_batched') else None
-        
+        other_batches = (
+            other.stream_batched(batch_size)
+            if hasattr(other, "stream_batched")
+            else None
+        )
+
         if other_batches:
             # Both objects support batched streaming
             for self_batch, other_batch in zip(self_batches, other_batches):
@@ -297,10 +304,10 @@ class SQLiteList(MutableSequence, ABC):
 
     def copy_from(self, source_db_path: str) -> None:
         """Copy data from another SQLite database file.
-        
+
         Args:
             source_db_path: Path to the source SQLite database file
-            
+
         Raises:
             sqlite3.Error: If there's an error accessing the source database
         """
@@ -308,38 +315,42 @@ class SQLiteList(MutableSequence, ABC):
         import time
         import shutil
         import tempfile
-        
+
         # Make a temporary copy of the source database to avoid locking issues
         with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as temp_file:
             temp_db_path = temp_file.name
-        
+
         try:
             # Copy the source database to a temporary file
             shutil.copy2(source_db_path, temp_db_path)
-            
+
             # Connect to the copied database
             source_conn = sqlite3.connect(temp_db_path)
             source_cursor = source_conn.cursor()
-            
+
             try:
                 # Check if the table exists in the source database
-                source_cursor.execute(f"SELECT name FROM sqlite_master WHERE type='table' AND name='{self._TABLE_NAME}'")
+                source_cursor.execute(
+                    f"SELECT name FROM sqlite_master WHERE type='table' AND name='{self._TABLE_NAME}'"
+                )
                 if not source_cursor.fetchone():
                     return  # Table doesn't exist in source, nothing to copy
-                
+
                 # Get data from source database
-                source_cursor.execute(f"SELECT idx, value FROM {self._TABLE_NAME} ORDER BY idx")
+                source_cursor.execute(
+                    f"SELECT idx, value FROM {self._TABLE_NAME} ORDER BY idx"
+                )
                 rows = source_cursor.fetchall()
-                
+
                 # Empty the current database
                 with self.conn:
                     self.conn.execute(f"DELETE FROM {self._TABLE_NAME}")
-                
+
                 # Insert data into the destination database
                 with self.conn:
                     self.conn.executemany(
                         f"INSERT INTO {self._TABLE_NAME} (idx, value) VALUES (?, ?)",
-                        rows
+                        rows,
                     )
             finally:
                 source_cursor.close()
@@ -347,6 +358,7 @@ class SQLiteList(MutableSequence, ABC):
         finally:
             # Clean up the temporary file
             import os
+
             if os.path.exists(temp_db_path):
                 try:
                     os.unlink(temp_db_path)
@@ -415,15 +427,18 @@ class SQLiteList(MutableSequence, ABC):
         def _proxy_setitem(self, key, value):
             Scenario.__setitem__(self, key, value)  # super call avoids MRO confusion
             from edsl.scenarios.scenario import Scenario as S
+
             self._parent.__setitem__(self._idx, S(dict(self)))
 
         def _proxy_delitem(self, key):
             Scenario.__delitem__(self, key)
             from edsl.scenarios.scenario import Scenario as S
+
             self._parent.__setitem__(self._idx, S(dict(self)))
 
         def _proxy_reduce(self):
             from edsl.scenarios.scenario import Scenario as S
+
             return (S, (dict(self),))
 
         proxy_cls = type(

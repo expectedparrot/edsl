@@ -1,12 +1,14 @@
 from typing import TYPE_CHECKING
 from typing import Callable
 from edsl.agents import Agent
-#from edsl.surveys import Survey
+
+# from edsl.surveys import Survey
 
 if TYPE_CHECKING:
     from edsl.surveys import Survey
     from edsl.results import Results
     from edsl.questions import QuestionBase
+
 
 class Simulator:
     def __init__(self, survey: "Survey"):
@@ -59,6 +61,7 @@ class Simulator:
             if num_passes > 100:
                 print("Too many passes.")
                 from .exceptions import SurveyError
+
                 raise SurveyError("Too many passes.")
         return self.survey.answers
 

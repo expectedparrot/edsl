@@ -12,14 +12,15 @@ from .exceptions import (
     ServiceConnectionError,
     ServiceResponseError,
     ServiceConfigurationError,
-    ServiceDeserializationError
+    ServiceDeserializationError,
 )
 
 logger = logging.getLogger(__name__)
 
+
 def extract_bearer_token(authorization: str | None) -> str:
     """Extract the token from a Bearer authorization header.
-    
+
     Args:
         authorization: The authorization header value
 
@@ -32,6 +33,7 @@ def extract_bearer_token(authorization: str | None) -> str:
     if authorization and authorization.startswith("Bearer "):
         return authorization.removeprefix("Bearer ").strip()
     raise HTTPException(401, "Missing or invalid Bearer token")
+
 
 class ProgressSpinner:
     """Lightweight console spinner that also shows elapsed seconds."""
@@ -65,9 +67,11 @@ class ProgressSpinner:
             self._stop_event.set()
             self._thread.join()
 
+
 @dataclass
 class ServiceCaller:
     """Handles API calls and response processing for services."""
+
     service_name: str
     base_url: str
     ep_api_token: Optional[str] = None
@@ -75,10 +79,10 @@ class ServiceCaller:
     def _make_api_call(self, payload: Dict[str, Any]) -> requests.Response:
         """Makes the API request to the gateway and returns the response object."""
         url = f"{self.base_url.rstrip('/')}/service/"
-        response = None # Initialize response to None
+        response = None  # Initialize response to None
         try:
             response = requests.post(url, json=payload)
-            response.raise_for_status() # Raises HTTPError for 4xx/5xx
+            response.raise_for_status()  # Raises HTTPError for 4xx/5xx
             return response
         except requests.exceptions.HTTPError as e:
             # Raise ServiceResponseError for bad status codes
@@ -87,16 +91,20 @@ class ServiceCaller:
                 error_message += f" Response: {e.response.text}"
             except Exception:
                 error_message += " Response content could not be read."
-            print(error_message) # Keep print for logging, but raise specific error
+            print(error_message)  # Keep print for logging, but raise specific error
             raise ServiceResponseError(error_message) from e
         except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
             # Raise ServiceConnectionError for connection issues
-            error_message = f"Error connecting to service '{self.service_name}' at {url}: {e}"
+            error_message = (
+                f"Error connecting to service '{self.service_name}' at {url}: {e}"
+            )
             print(error_message)
             raise ServiceConnectionError(error_message) from e
         except requests.exceptions.RequestException as e:
             # Catch other potential request errors (e.g., invalid URL, too many redirects)
-            error_message = f"Error during request for service '{self.service_name}' at {url}: {e}"
+            error_message = (
+                f"Error during request for service '{self.service_name}' at {url}: {e}"
+            )
             if response is not None:
                 error_message += f"\nResponse status (potentially before error): {response.status_code}"
                 try:
@@ -107,7 +115,9 @@ class ServiceCaller:
             # Use ServiceConnectionError as a general category for request issues
             raise ServiceConnectionError(error_message) from e
 
-    def call_service(self, prepared_params: Dict[str, Any], deserialize_response: callable) -> Any:
+    def call_service(
+        self, prepared_params: Dict[str, Any], deserialize_response: callable
+    ) -> Any:
         """
         Makes a service call with progress reporting and response handling.
 
@@ -125,20 +135,21 @@ class ServiceCaller:
             ServiceDeserializationError: If the response cannot be deserialized correctly
         """
         if not self.base_url:
-            raise ServiceConfigurationError(f"Service '{self.service_name}' cannot be called. Configuration missing (base_url).")
+            raise ServiceConfigurationError(
+                f"Service '{self.service_name}' cannot be called. Configuration missing (base_url)."
+            )
 
         # Construct the payload
-        payload = {
-            "service": self.service_name,
-            "params": prepared_params
-        }
+        payload = {"service": self.service_name, "params": prepared_params}
         if self.ep_api_token:
             payload["ep_api_token"] = self.ep_api_token
 
         # Display a spinner with elapsed-time feedback while the request is in flight
         logger.info("Calling service '%s' via gateway...", self.service_name)
-        spinner = ProgressSpinner(message=f"Calling service '{self.service_name}' via gateway")
-        
+        spinner = ProgressSpinner(
+            message=f"Calling service '{self.service_name}' via gateway"
+        )
+
         spinner.start()
         try:
             response = self._make_api_call(payload)
@@ -146,4 +157,4 @@ class ServiceCaller:
         finally:
             spinner.stop()
 
-        # Note: Cost logging is handled by the ServiceDefinition class since it has access to the cost configuration 
+        # Note: Cost logging is handled by the ServiceDefinition class since it has access to the cost configuration

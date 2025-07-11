@@ -204,18 +204,21 @@ class OpenAIServiceV2(InferenceServiceABC):
                     "top_p": self.top_p,
                     "store": False,
                 }
-                
+
                 # Check if this is a reasoning model (o-series models)
-                is_reasoning_model = any(tag in self.model for tag in ["o1", "o1-mini", "o3", "o3-mini", "o1-pro", "o4-mini"])
-                
+                is_reasoning_model = any(
+                    tag in self.model
+                    for tag in ["o1", "o1-mini", "o3", "o3-mini", "o1-pro", "o4-mini"]
+                )
+
                 # Only add reasoning parameter for reasoning models
                 if is_reasoning_model:
                     params["reasoning"] = {"summary": "auto"}
-                
+
                 # For all models using the responses API, use max_output_tokens
                 # instead of max_tokens (which is for the completions API)
                 params["max_output_tokens"] = self.max_tokens
-                
+
                 # Specifically for o-series, we also set temperature to 1
                 if is_reasoning_model:
                     params["temperature"] = 1

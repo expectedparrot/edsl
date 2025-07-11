@@ -74,13 +74,14 @@ def generate_dockerfile(
     if pip_install_commands is None:
         pip_install_commands = [
             "pip install --no-cache-dir --upgrade pip",
-            f"if [ -f {requirements_path} ]; then pip install --no-cache-dir -r {requirements_path}; fi"
+            f"if [ -f {requirements_path} ]; then pip install --no-cache-dir -r {requirements_path}; fi",
         ]
     pip_install_str = " && \\\n        ".join(pip_install_commands)
 
     # Build the Dockerfile content
-    dockerfile = dedent(
-        f"""
+    dockerfile = (
+        dedent(
+            f"""
         # syntax=docker/dockerfile:1
         FROM {base_image} AS base
 
@@ -106,9 +107,11 @@ def generate_dockerfile(
         # Runtime stage (same as build to keep things simple)
         CMD {run_cmd_json}
         """
-    ).strip() + "\n"
+        ).strip()
+        + "\n"
+    )
 
     # Clean up potential double spaces introduced when no additional packages
-    dockerfile = '\n'.join(line.rstrip() for line in dockerfile.split('\n'))
+    dockerfile = "\n".join(line.rstrip() for line in dockerfile.split("\n"))
 
-    return dockerfile 
+    return dockerfile

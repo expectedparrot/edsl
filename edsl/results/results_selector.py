@@ -19,17 +19,17 @@ from .exceptions import ResultsColumnNotFoundError
 class Selector:
     """
     Selects and extracts columns from a Results object to create a Dataset.
-    
+
     The Selector class provides the functionality to extract specific data columns
     from Results objects, handling column name resolution, disambiguation,
     and wildcard matching. It transforms hierarchical Result data into a columnar
     Dataset format optimized for analysis operations.
-    
+
     Attributes:
         known_data_types: List of valid data types (e.g., "answer", "agent", "model")
         columns: List of available column names in dot notation (e.g., "answer.how_feeling")
     """
-    
+
     def __init__(
         self,
         known_data_types: List[str],
@@ -40,14 +40,14 @@ class Selector:
     ):
         """
         Initialize a Selector object.
-        
+
         Args:
             known_data_types: List of valid data types (e.g., "answer", "agent", "model")
             data_type_to_keys: Mapping from data types to lists of keys available in that type
             key_to_data_type: Mapping from keys to their corresponding data types
             fetch_list_func: Function that retrieves values for a given data type and key
             columns: List of available column names in dot notation
-            
+
         Examples:
             >>> s = Selector(
             ...     known_data_types=["answer", "agent"],
@@ -69,24 +69,24 @@ class Selector:
     def select(self, *columns: Union[str, List[str]]) -> Optional[Any]:
         """
         Select specific columns from the data and return as a Dataset.
-        
+
         This method processes column specifications, fetches the corresponding data,
         and constructs a Dataset with the selected columns. It handles error cases
         differently in notebook vs non-notebook environments.
-        
+
         Args:
             *columns: Column names to select. Each name can be a simple attribute
                      name (e.g., "how_feeling"), a fully qualified name with type
                      (e.g., "answer.how_feeling"), or a wildcard pattern
                      (e.g., "answer.*"). If no columns provided, selects all data.
-                     
+
         Returns:
             A Dataset object containing the selected data, or None if an error occurs
             in a notebook environment.
-            
+
         Raises:
             ResultsColumnNotFoundError: If a specified column cannot be found (non-notebook only)
-            
+
         Examples:
             >>> import unittest.mock as mock
             >>> mock_selector = Selector(
@@ -107,30 +107,32 @@ class Selector:
         except ResultsColumnNotFoundError as e:
             # Check is_notebook with explicit import to ensure mock works
             from ..utilities import is_notebook as is_notebook_check
+
             if is_notebook_check():
                 print("Error:", e, file=sys.stderr)
                 return None
             else:
                 raise e
-                
+
         # Import Dataset here to avoid circular import issues
         from ..dataset import Dataset
+
         return Dataset(new_data)
 
     def _normalize_columns(self, columns: Union[str, List[str]]) -> Tuple[str, ...]:
         """
         Normalize column specifications to a standard format.
-        
+
         This method handles various forms of column specifications, including
         converting lists to tuples, handling None values, and applying default
         wildcards when no columns are specified.
-        
+
         Args:
             columns: Column specifications as strings or lists
-            
+
         Returns:
             A tuple of normalized column name strings
-            
+
         Examples:
             >>> s = Selector([], {}, {}, lambda x, y: [], [])
             >>> s._normalize_columns([["a", "b"]])
@@ -151,20 +153,20 @@ class Selector:
     def _get_columns_to_fetch(self, columns: Tuple[str, ...]) -> Dict[str, List[str]]:
         """
         Process column specifications and determine what data to fetch.
-        
+
         This method iterates through each column specification, finds matching
         columns, validates the matches, and builds a structure that organizes
         which keys to fetch for each data type.
-        
+
         Args:
             columns: Tuple of normalized column specifications
-            
+
         Returns:
             Dictionary mapping data types to lists of keys to fetch
-            
+
         Raises:
             ResultsColumnNotFoundError: If columns are ambiguous or not found
-            
+
         Examples:
             >>> import unittest.mock as mock
             >>> mock_selector = Selector(
@@ -196,17 +198,17 @@ class Selector:
     def _find_matching_columns(self, partial_name: str) -> List[str]:
         """
         Find columns that match a partial column name.
-        
+
         This method supports both fully qualified column names with data types
         (containing a dot) and simple column names, handling each case appropriately.
         It finds all columns that start with the provided partial name.
-        
+
         Args:
             partial_name: A full or partial column name to match
-            
+
         Returns:
             List of matching column names
-            
+
         Examples:
             >>> s = Selector(
             ...     known_data_types=["answer", "agent"],
@@ -230,18 +232,18 @@ class Selector:
     def _validate_matches(self, column: str, matches: List[str]) -> None:
         """
         Validate that matched columns are unambiguous and exist.
-        
+
         This method checks that the column specification resolves to exactly
         one column or a wildcard pattern. It raises appropriate exceptions
         for ambiguous matches or when no matches are found.
-        
+
         Args:
             column: The original column specification
             matches: List of matching column names
-            
+
         Raises:
             ResultsColumnNotFoundError: If matches are ambiguous or no matches found
-            
+
         Examples:
             >>> s = Selector([], {}, {}, lambda dt, k: [], [])
             >>> s._validate_matches("col", ["col"])  # No exception
@@ -266,19 +268,19 @@ class Selector:
     def _parse_column(self, column: str) -> Tuple[str, str]:
         """
         Parse a column name into data type and key components.
-        
+
         This method handles both fully qualified column names (containing a dot)
         and simple column names, looking up the appropriate data type when needed.
-        
+
         Args:
             column: Column name to parse
-            
+
         Returns:
             Tuple of (data_type, key)
-            
+
         Raises:
             ResultsColumnNotFoundError: When key cannot be found in data
-            
+
         Examples:
             >>> s = Selector(
             ...     [],
@@ -303,16 +305,16 @@ class Selector:
     def _raise_key_error(self, column: str) -> None:
         """
         Raise an error with helpful suggestions when a column is not found.
-        
+
         This method uses difflib to find close matches to the specified column,
         providing helpful suggestions in the error message when possible.
-        
+
         Args:
             column: The column name that wasn't found
-            
+
         Raises:
             ResultsColumnNotFoundError: Always raised with a descriptive message
-            
+
         Examples:
             >>> import unittest.mock as mock
             >>> s = Selector(
@@ -339,21 +341,23 @@ class Selector:
         else:
             raise ResultsColumnNotFoundError(f"Column '{column}' not found in data")
 
-    def _process_column(self, data_type: str, key: str, to_fetch: Dict[str, List[str]]) -> None:
+    def _process_column(
+        self, data_type: str, key: str, to_fetch: Dict[str, List[str]]
+    ) -> None:
         """
         Process a parsed column and add it to the list of data to fetch.
-        
+
         This method handles wildcards in both data types and keys, expands them
         appropriately, and tracks the order of items for consistent output.
-        
+
         Args:
             data_type: The data type component (e.g., "answer", "agent")
             key: The key component (e.g., "how_feeling", "status")
             to_fetch: Dictionary to update with data to fetch
-            
+
         Raises:
             ResultsColumnNotFoundError: If the key is not found in any relevant data type
-            
+
         Examples:
             >>> s = Selector(
             ...     ["answer", "agent"],
@@ -386,19 +390,19 @@ class Selector:
     def _get_data_types_to_return(self, parsed_data_type: str) -> List[str]:
         """
         Determine which data types to include based on the parsed data type.
-        
+
         This method handles wildcards in data types, returning either all known
         data types or validating that a specific data type exists.
-        
+
         Args:
             parsed_data_type: Data type string or wildcard (*)
-            
+
         Returns:
             List of data types to include
-            
+
         Raises:
             ResultsColumnNotFoundError: If the data type is not known
-            
+
         Examples:
             >>> s = Selector(
             ...     ["answer", "agent", "model"],
@@ -428,16 +432,16 @@ class Selector:
     def _fetch_data(self, to_fetch: Dict[str, List[str]]) -> List[Dict[str, Any]]:
         """
         Fetch the actual data for the specified columns.
-        
+
         This method retrieves values for each data type and key combination
         and structures the results for conversion to a Dataset.
-        
+
         Args:
             to_fetch: Dictionary mapping data types to lists of keys to fetch
-            
+
         Returns:
             List of dictionaries containing the fetched data
-            
+
         Examples:
             >>> fetch_mock = lambda dt, k: [f"{dt}-{k}-val1", f"{dt}-{k}-val2"]
             >>> s = Selector(

@@ -27,14 +27,16 @@ from .exceptions import (
 
 from .token_bucket import TokenBucket
 from .model_buckets import ModelBuckets
-from .token_bucket_client import TokenBucketClient  # Add explicit import for TokenBucketClient
+from .token_bucket_client import (
+    TokenBucketClient,
+)  # Add explicit import for TokenBucketClient
 
 # Import BucketCollection last to avoid circular import issues
 from .bucket_collection import BucketCollection
 
 __all__ = [
-    "BucketCollection", 
-    "ModelBuckets", 
+    "BucketCollection",
+    "ModelBuckets",
     "TokenBucket",
     "TokenBucketClient",
     "BucketError",

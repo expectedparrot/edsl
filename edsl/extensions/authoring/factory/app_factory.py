@@ -1,4 +1,5 @@
 from importlib import import_module
+
 # Standard library
 import time, secrets, inspect, logging, os
 from typing import Callable, Optional, Any, Dict, Union
@@ -26,52 +27,54 @@ logger = logging.getLogger(__name__)
 
 def _transform_response_for_fastapi(result: Dict[str, Any]) -> Dict[str, Any]:
     """Transform service response to extract values from metadata structures for FastAPI validation.
-    
+
     Args:
         result: Service response dictionary (potentially containing metadata structures)
-        
+
     Returns:
         Transformed dictionary with values extracted from metadata structures
     """
     transformed = {}
-    
+
     for key, value in result.items():
         # Check if this is a metadata structure with a 'value' field
-        if isinstance(value, dict) and 'value' in value:
+        if isinstance(value, dict) and "value" in value:
             # Extract the actual value for FastAPI validation
-            transformed[key] = value['value']
+            transformed[key] = value["value"]
         else:
             # Use the value directly
             transformed[key] = value
-    
+
     return transformed
 
 
-def _deserialize_edsl_objects(params_dict: Dict[str, Any], service_def) -> Dict[str, Any]:
+def _deserialize_edsl_objects(
+    params_dict: Dict[str, Any], service_def
+) -> Dict[str, Any]:
     """Deserialize EDSL objects from dictionaries based on service definition parameter types.
-    
+
     Args:
         params_dict: Dictionary of parameters (potentially containing serialized EDSL objects)
         service_def: ServiceDefinition with parameter type information
-        
+
     Returns:
         Dictionary with EDSL objects deserialized from their dict representations
     """
     from edsl import Survey, Scenario
-    
+
     # Map of EDSL type names to their classes
     edsl_types = {
-        'Survey': Survey,
-        'Scenario': Scenario,
+        "Survey": Survey,
+        "Scenario": Scenario,
     }
-    
+
     deserialized_params = {}
-    
+
     for param_name, param_value in params_dict.items():
         if param_name in service_def.parameters:
             param_def = service_def.parameters[param_name]
             param_type = param_def.type
-            
+
             # Check if this parameter should be an EDSL object
             if param_type in edsl_types and isinstance(param_value, dict):
                 edsl_class = edsl_types[param_type]
@@ -79,11 +82,24 @@ def _deserialize_edsl_objects(params_dict: Dict[str, Any], service_def) -> Dict[
                     # Use from_dict method for EDSL objects
                     deserialized_obj = edsl_class.from_dict(param_value)
                     deserialized_params[param_name] = deserialized_obj
-                    logger.info("Successfully deserialized %s parameter '%s' from dict to %s object", 
-                               param_type, param_name, edsl_class.__name__)
+                    logger.info(
+                        "Successfully deserialized %s parameter '%s' from dict to %s object",
+                        param_type,
+                        param_name,
+                        edsl_class.__name__,
+                    )
                 except Exception as e:
-                    logger.error("Failed to deserialize %s parameter '%s': %s. Param value keys: %s", 
-                                param_type, param_name, e, list(param_value.keys()) if isinstance(param_value, dict) else str(type(param_value)))
+                    logger.error(
+                        "Failed to deserialize %s parameter '%s': %s. Param value keys: %s",
+                        param_type,
+                        param_name,
+                        e,
+                        (
+                            list(param_value.keys())
+                            if isinstance(param_value, dict)
+                            else str(type(param_value))
+                        ),
+                    )
                     logger.error("Full param_value: %s", param_value)
                     # Fall back to original value if deserialization fails
                     deserialized_params[param_name] = param_value
@@ -93,7 +109,7 @@ def _deserialize_edsl_objects(params_dict: Dict[str, Any], service_def) -> Dict[
         else:
             # Parameter not in service definition - pass through unchanged
             deserialized_params[param_name] = param_value
-    
+
     return deserialized_params
 
 
@@ -128,14 +144,14 @@ def add_standard_middleware(app: FastAPI) -> None:
 @contextmanager
 def temporary_api_token(token: Optional[str] = None):
     """Context manager for temporarily setting the EXPECTED_PARROT_API_KEY environment variable.
-    
+
     Args:
         token (Optional[str]): The API token to set. If None, no changes are made.
     """
     if token is None:
         yield
         return
-        
+
     old_token = os.environ.get("EXPECTED_PARROT_API_KEY")
     try:
         os.environ["EXPECTED_PARROT_API_KEY"] = token
@@ -180,29 +196,33 @@ def create_extension_route(
             with temporary_api_token(token):
                 # Convert Pydantic model to dict and then deserialize EDSL objects
                 params_dict = body.model_dump()
-                deserialized_params = _deserialize_edsl_objects(params_dict, service_def)
-                
-                result = await _invoke(
-                    implementation, **deserialized_params
+                deserialized_params = _deserialize_edsl_objects(
+                    params_dict, service_def
                 )
+
+                result = await _invoke(implementation, **deserialized_params)
         except Exception as exc:  # noqa: BLE001
             logger.exception("%s failed: %s", service_def.service_name, exc)
             raise HTTPException(status_code=500, detail=str(exc)) from exc
 
         # Debug: Log the actual result structure
-        logger.info("Service '%s' returned result: %s (type: %s)", 
-                   service_def.service_name, result, type(result))
+        logger.info(
+            "Service '%s' returned result: %s (type: %s)",
+            service_def.service_name,
+            result,
+            type(result),
+        )
         if isinstance(result, dict):
             for key, value in result.items():
                 logger.info("  Key '%s': %s (type: %s)", key, value, type(value))
 
         # Validate output structure matches service definition
         service_def.validate_service_output(result)
-        
+
         # Transform response for FastAPI validation - extract values from metadata structures
         transformed_result = _transform_response_for_fastapi(result)
         logger.info("Transformed result for FastAPI: %s", transformed_result)
-        
+
         return transformed_result
 
 
@@ -211,7 +231,9 @@ def create_extension_route(
 # ---------------------------------------------------------------------------
 
 
-def _validate_implementation_signature(service_def, implementation: Callable[..., Any]) -> None:
+def _validate_implementation_signature(
+    service_def, implementation: Callable[..., Any]
+) -> None:
     """Ensure that *implementation* has a compatible signature with *service_def*.
 
     The callable must be able to accept **all** parameters declared in the
@@ -233,13 +255,19 @@ def _validate_implementation_signature(service_def, implementation: Callable[...
     param_names = set(params)
 
     # Determine if **kwargs is present – this relaxes most restrictions.
-    accepts_var_kw = any(p.kind == inspect.Parameter.VAR_KEYWORD for p in params.values())
+    accepts_var_kw = any(
+        p.kind == inspect.Parameter.VAR_KEYWORD for p in params.values()
+    )
 
     # ---------------------------------------------------------------------
     # 1. All parameters defined by the service must be accepted ------------
     # ---------------------------------------------------------------------
 
-    missing = [p for p in service_def.parameters.keys() if p not in param_names and not accepts_var_kw]
+    missing = [
+        p
+        for p in service_def.parameters.keys()
+        if p not in param_names and not accepts_var_kw
+    ]
 
     # ---------------------------------------------------------------------
     # 2. Required implementation parameters must be declared by service ----
@@ -253,13 +281,20 @@ def _validate_implementation_signature(service_def, implementation: Callable[...
                 "The router passes arguments by keyword."
             )
 
-        if p.kind in (
-            inspect.Parameter.POSITIONAL_OR_KEYWORD,
-            inspect.Parameter.KEYWORD_ONLY,
-        ) and p.default is inspect._empty and p.name != "self":
+        if (
+            p.kind
+            in (
+                inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                inspect.Parameter.KEYWORD_ONLY,
+            )
+            and p.default is inspect._empty
+            and p.name != "self"
+        ):
             required_impl_params.append(p.name)
 
-    extra_required = [p for p in required_impl_params if p not in service_def.parameters]
+    extra_required = [
+        p for p in required_impl_params if p not in service_def.parameters
+    ]
 
     # ---------------------------------------------------------------------
     # 3. Raise informative error if we have discrepancies ------------------
@@ -299,7 +334,7 @@ def create_app(
     Args:
         services: A Services container with all service implementations
         settings: Optional Settings instance for app configuration
-    
+
     Returns:
         FastAPI: The configured FastAPI application
     """
@@ -309,7 +344,7 @@ def create_app(
         version="1.0",  # settings.version if settings else "1.0",
         debug=False,  # settings.debug if settings else False
     )
-    
+
     # CORS middleware setup
     app.add_middleware(
         CORSMiddleware,
@@ -318,7 +353,7 @@ def create_app(
         allow_methods=["*"],
         allow_headers=["*"],
     )
-    
+
     # Standard timing / logging middleware
     add_standard_middleware(app)
 
@@ -329,14 +364,16 @@ def create_app(
             service_def=service.service_def,
             implementation=service.implementation,
         )
-    
+
     # Root path response – list all registered routes
     @app.get("/")
     async def root():
         route_infos = [
             {
                 "path": route.path,
-                "methods": sorted(m for m in route.methods if m not in {"HEAD", "OPTIONS"}),
+                "methods": sorted(
+                    m for m in route.methods if m not in {"HEAD", "OPTIONS"}
+                ),
                 "name": route.name,
             }
             for route in app.routes
@@ -348,5 +385,5 @@ def create_app(
             "docs_url": "/docs",
             "version": "1.0",
         }
-    
+
     return app

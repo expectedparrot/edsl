@@ -3,10 +3,16 @@ from pydantic import create_model, Field, BaseModel
 
 from ...base import RegisterSubclassesMeta
 
+
 class ModelGenerator:
     """Handles generation of Pydantic models for FastAPI endpoints."""
 
-    def __init__(self, service_name: str, parameters: Dict[str, Any], service_returns: Dict[str, Any]):
+    def __init__(
+        self,
+        service_name: str,
+        parameters: Dict[str, Any],
+        service_returns: Dict[str, Any],
+    ):
         self.service_name = service_name
         self.parameters = parameters
         self.service_returns = service_returns
@@ -37,9 +43,9 @@ class ModelGenerator:
 
             # If not a basic type, check if it's a known EDSL type (expect dict)
             if python_type is None and type_str in edsl_registry:
-                python_type = Dict[str, Any] # Expect serialized dict for EDSL objects
+                python_type = Dict[str, Any]  # Expect serialized dict for EDSL objects
             elif python_type is None:
-                python_type = Any # Default to Any if type is unknown
+                python_type = Any  # Default to Any if type is unknown
 
             default_value = param_def.default_value
             description = param_def.description
@@ -62,12 +68,12 @@ class ModelGenerator:
             fields_definitions[param_name] = (type_annotation, field_definition)
 
         # Create a suitable model name
-        model_name = f"{self.service_name.replace('_', ' ').title().replace(' ', '')}Parameters"
+        model_name = (
+            f"{self.service_name.replace('_', ' ').title().replace(' ', '')}Parameters"
+        )
         # Dynamically create the Pydantic model
         pydantic_model = create_model(
-            model_name,
-            **fields_definitions,
-            __base__=BaseModel
+            model_name, **fields_definitions, __base__=BaseModel
         )
         return pydantic_model
 
@@ -99,7 +105,7 @@ class ModelGenerator:
             if python_type is None and type_str in edsl_registry:
                 python_type = Dict[str, Any]
             elif python_type is None:
-                python_type = Any # Default to Any if type is unknown
+                python_type = Any  # Default to Any if type is unknown
 
             description = return_def.description
 
@@ -110,11 +116,11 @@ class ModelGenerator:
             fields_definitions[return_key] = (type_annotation, field_definition)
 
         # Create a suitable model name
-        model_name = f"{self.service_name.replace('_', ' ').title().replace(' ', '')}Response"
+        model_name = (
+            f"{self.service_name.replace('_', ' ').title().replace(' ', '')}Response"
+        )
         # Dynamically create the Pydantic model
         pydantic_model = create_model(
-            model_name,
-            **fields_definitions,
-            __base__=BaseModel
+            model_name, **fields_definitions, __base__=BaseModel
         )
-        return pydantic_model 
+        return pydantic_model
