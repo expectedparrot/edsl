@@ -7,7 +7,7 @@ import random
 T = TypeVar("T")
 
 
-@dataclass(slots=True)
+@dataclass
 class DimensionValue(Generic[T]):
     """Represents a single value for a :class:`Dimension` with an optional probability *weight*.
 
@@ -29,7 +29,7 @@ class DimensionValue(Generic[T]):
             raise ValueError("weight must be non-negative")
 
 
-@dataclass(slots=True)
+@dataclass
 class Dimension(Generic[T]):
     """A helper class capturing a **dimension** used when generating agents.
 
