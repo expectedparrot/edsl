@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Optional, Dict, Any, Union
+from typing import Optional
 
 from .descriptors import QuestionOptionsDescriptor, OptionLabelDescriptor
 from .question_multiple_choice import QuestionMultipleChoice, MultipleChoiceResponseValidator
