@@ -1,7 +1,7 @@
 import re
 import time
 from datetime import datetime
-from typing import Union, List, Dict, Any
+from typing import Union, List, Dict, Any, Optional
 from dataclasses import dataclass
 from threading import Lock
 
@@ -98,7 +98,7 @@ class RichTableJobLogger(JobLogger):
         config = self.status_config.get(status, {"style": "white"})
         return config["style"]
 
-    def _format_url(self, url: str, label: str | None = None) -> str:
+    def _format_url(self, url: str, label: Optional[str] = None) -> str:
         """Format a URL for display as plain text"""
         if not url:
             return ""
