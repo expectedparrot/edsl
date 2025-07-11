@@ -17,7 +17,7 @@ class FetchInvigilator:
     ):
         # Store a weak reference to the interview instead of a strong reference
         self._interview_ref = weakref.ref(interview)
-        
+
         # Store external parameters that don't create reference cycles
         self._current_answers = current_answers
         self.key_lookup = key_lookup
@@ -29,35 +29,35 @@ class FetchInvigilator:
         if interview is None:
             raise RuntimeError("Interview has been garbage collected")
         return interview
-        
+
     @property
     def _scenario(self):
         return self.interview.scenario
-        
+
     @property
     def _model(self):
         return self.interview.model
-        
+
     @property
     def _survey(self):
         return self.interview.survey
-        
+
     @property
     def _agent(self):
         return self.interview.agent
-        
+
     @property
     def _iteration(self):
         return self.interview.iteration
-        
+
     @property
     def _cache(self):
         return self.interview.cache
-        
+
     @property
     def _raise_validation_errors(self):
         return self.interview.raise_validation_errors
-        
+
     @property
     def current_answers(self):
         if self._current_answers is not None:
@@ -87,4 +87,3 @@ class FetchInvigilator:
 
     def __call__(self, question):
         return self.get_invigilator(question)
-

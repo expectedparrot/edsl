@@ -43,6 +43,7 @@ class InstructionCollection(UserDict):
     ) -> Tuple[List[Instruction], List[ChangeInstruction]]:
         if question_name not in self.question_names:
             from .exceptions import InstructionCollectionError
+
             raise InstructionCollectionError(
                 f"Question name not found in the list of questions: got '{question_name}'; list is {self.question_names}"
             )
@@ -86,4 +87,5 @@ class InstructionCollection(UserDict):
 
 if __name__ == "__main__":
     import doctest
+
     doctest.testmod(optionflags=doctest.ELLIPSIS)

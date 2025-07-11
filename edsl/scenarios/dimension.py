@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Generic, Iterable, List, Sequence, Tuple, TypeVar, Union, overload, Optional
+from typing import Generic, List, Sequence, Tuple, TypeVar, Union, overload, Optional
 import random
 
 T = TypeVar("T")
@@ -63,14 +63,20 @@ class Dimension(Generic[T]):
     # Construction helpers
     # ------------------------------------------------------------------
     @overload
-    def __init__(self, *, name: str, description: str, values: Sequence[T]):
-        ...
+    def __init__(self, *, name: str, description: str, values: Sequence[T]): ...
 
     @overload
-    def __init__(self, *, name: str, description: str, values: Sequence[Tuple[T, float]]):
-        ...
+    def __init__(
+        self, *, name: str, description: str, values: Sequence[Tuple[T, float]]
+    ): ...
 
-    def __init__(self, *, name: str, description: str, values: Sequence[Union[T, Tuple[T, float]]]):
+    def __init__(
+        self,
+        *,
+        name: str,
+        description: str,
+        values: Sequence[Union[T, Tuple[T, float]]],
+    ):
         object.__setattr__(self, "name", name)
         object.__setattr__(self, "description", description)
 
@@ -78,7 +84,9 @@ class Dimension(Generic[T]):
         for v in values:
             if isinstance(v, tuple):
                 if len(v) != 2:
-                    raise ValueError("Each (value, weight) tuple must have exactly two elements")
+                    raise ValueError(
+                        "Each (value, weight) tuple must have exactly two elements"
+                    )
                 value, weight = v  # type: ignore[misc]
                 dim_values.append(DimensionValue(value=value, weight=float(weight)))
             else:
@@ -96,7 +104,9 @@ class Dimension(Generic[T]):
         """Return the dimension values as a plain list (weights discarded)."""
         return [dv.value for dv in self.values]
 
-    def sample(self, *, k: int = 1, rng: Optional[random.Random] = None) -> Union[T, List[T]]:
+    def sample(
+        self, *, k: int = 1, rng: Optional[random.Random] = None
+    ) -> Union[T, List[T]]:
         """Randomly sample *k* value(s) according to the weights.
 
         Parameters
@@ -126,7 +136,8 @@ class Dimension(Generic[T]):
 
     def __repr__(self) -> str:  # pragma: no cover
         vals_repr = ", ".join(
-            f"{dv.value!r}:{dv.weight}" if dv.weight != 1.0 else repr(dv.value) for dv in self.values
+            f"{dv.value!r}:{dv.weight}" if dv.weight != 1.0 else repr(dv.value)
+            for dv in self.values
         )
         return f"Dimension(name={self.name!r}, values=[{vals_repr}])"
 
@@ -149,4 +160,6 @@ class Dimension(Generic[T]):
         for dv in self.values:
             if dv.value == value:
                 return dv.weight / total if total > 0 else 0.0
-        raise ValueError(f"{value!r} is not a valid option for dimension '{self.name}'.") 
+        raise ValueError(
+            f"{value!r} is not a valid option for dimension '{self.name}'."
+        )

@@ -1,17 +1,20 @@
-from __future__ import annotations
-
 """Rich-based pretty printer for EDSL BaseDiff objects (package-local).
 
 Moved into ``edsl.base`` so we can rely on relative imports and avoid top-level
 package references.
 """
 
-from typing import Any, Optional
+from __future__ import annotations
+
+from typing import Any, Optional, TYPE_CHECKING
 
 from rich.console import Console, ConsoleRenderable, Group
 from rich.table import Table
 from rich.panel import Panel
 from rich import box
+
+if TYPE_CHECKING:
+    from .base_class import BaseDiff
 
 
 class DiffRenderer:
@@ -47,7 +50,12 @@ class DiffRenderer:
             sections.append(self._panel_modified())
 
         if not sections:
-            return Panel("[green]No differences[/green]", title="Diff Result", style="green", padding=(0, 1))
+            return Panel(
+                "[green]No differences[/green]",
+                title="Diff Result",
+                style="green",
+                padding=(0, 1),
+            )
 
         # Group stacks renderables without extra spacing
         return Group(*sections)
@@ -63,7 +71,9 @@ class DiffRenderer:
         for key, val in self.diff.added.items():
             table.add_row(str(key), self._safe_repr(val))
 
-        return Panel(table, title="[bold green]Added", border_style="green", padding=(0, 1))
+        return Panel(
+            table, title="[bold green]Added", border_style="green", padding=(0, 1)
+        )
 
     def _panel_removed(self) -> Panel:
         table = Table(box=box.SIMPLE, show_header=True, header_style="bold red")
@@ -73,7 +83,9 @@ class DiffRenderer:
         for key, val in self.diff.removed.items():
             table.add_row(str(key), self._safe_repr(val))
 
-        return Panel(table, title="[bold red]Removed", border_style="red", padding=(0, 1))
+        return Panel(
+            table, title="[bold red]Removed", border_style="red", padding=(0, 1)
+        )
 
     def _panel_modified(self) -> Panel:
         table = Table(box=box.SIMPLE, show_header=True, header_style="bold yellow")
@@ -84,7 +96,9 @@ class DiffRenderer:
         for key, (old, new, _details) in self.diff.modified.items():
             table.add_row(str(key), self._safe_repr(old), self._safe_repr(new))
 
-        return Panel(table, title="[bold yellow]Modified", border_style="yellow", padding=(0, 1))
+        return Panel(
+            table, title="[bold yellow]Modified", border_style="yellow", padding=(0, 1)
+        )
 
     # ------------------------------------------------------------------
     # Static helpers
@@ -102,8 +116,11 @@ class DiffRenderer:
 # Public convenience function
 # ----------------------------------------------------------------------
 
-def pretty_print(diff: "BaseDiff", *, console: Optional[Console] = None) -> None:  # noqa: ANN001
+
+def pretty_print(
+    diff: "BaseDiff", *, console: Optional[Console] = None
+) -> None:  # noqa: ANN001
     """Print *diff* using Rich-based formatting."""
 
     renderer = DiffRenderer(diff, console=console)
-    renderer.display() 
+    renderer.display()

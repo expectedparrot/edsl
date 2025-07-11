@@ -4,12 +4,17 @@ from .scenario_list import ScenarioList
 from .dimension import Dimension
 import math
 
+
 class AgentBlueprint:
 
-    def __init__(self, scenario_list: ScenarioList, seed: int | None = None, cycle: bool = True):
+    def __init__(
+        self, scenario_list: ScenarioList, seed: int | None = None, cycle: bool = True
+    ):
         for scenario in scenario_list:
-            assert 'dimension' in scenario, "Scenario must have a dimension field"
-            assert 'dimension_values' in scenario, "Scenario must have a dimension_values field"
+            assert "dimension" in scenario, "Scenario must have a dimension field"
+            assert (
+                "dimension_values" in scenario
+            ), "Scenario must have a dimension_values field"
 
         # Optional seed allows deterministic iteration order over the Cartesian product
         # of all dimension values.  The ``cycle`` flag controls whether enumeration
@@ -51,7 +56,9 @@ class AgentBlueprint:
 
         # Maintain a stable ordered view for mixed-radix indexing
         self.dimensions: list[str] = list(self._dimension_map.keys())
-        self.dimension_values: list[list] = [self._dimension_map[d].to_plain_list() for d in self.dimensions]
+        self.dimension_values: list[list] = [
+            self._dimension_map[d].to_plain_list() for d in self.dimensions
+        ]
 
         # Pre-compute the radix sizes and total Cartesian product size.
         self._radix_sizes = [len(v) for v in self.dimension_values]
@@ -73,7 +80,9 @@ class AgentBlueprint:
         """
         traits = {}
         remaining = index
-        for dimension, values, base in zip(self.dimensions, self.dimension_values, self._radix_sizes):
+        for dimension, values, base in zip(
+            self.dimensions, self.dimension_values, self._radix_sizes
+        ):
             idx = remaining % base
             remaining //= base
             traits[dimension] = values[idx]
@@ -87,7 +96,8 @@ class AgentBlueprint:
         drawn from a Random instance seeded with ``self.seed`` so that the order
         is completely reproducible given the same seed.
         """
-        import math, random
+        import math
+        import random
 
         rng = random.Random(self.seed)
         N = self._total_combinations
@@ -139,6 +149,7 @@ class AgentBlueprint:
             )
 
         from ..agents import AgentList
+
         generator = self.generate_agent()
         return AgentList([next(generator) for _ in range(n)])
 
@@ -193,7 +204,9 @@ class AgentBlueprint:
         """
 
         if dimension.name in self._dimension_map:
-            raise ValueError(f"Dimension '{dimension.name}' already exists in blueprint")
+            raise ValueError(
+                f"Dimension '{dimension.name}' already exists in blueprint"
+            )
 
         # Add to core structures
         self._dimension_map[dimension.name] = dimension
@@ -245,6 +258,7 @@ class AgentBlueprint:
 
         return prob
 
+
 # ------------------------------------------------------------------
 # Usage examples (run "python agent_blueprint.py" to see output)
 # ------------------------------------------------------------------
@@ -280,7 +294,9 @@ if __name__ == "__main__":
     )
 
     blueprint.add_dimension(gender)
-    print("\nAfter adding gender dimension → combinations:", blueprint._total_combinations)
+    print(
+        "\nAfter adding gender dimension → combinations:", blueprint._total_combinations
+    )
 
     # Sample a few agents post-addition
     agent_list = blueprint.create_agent_list(n=3)

@@ -20,6 +20,7 @@ Example
 >>> compute_price(service_def, {"overall_question": "What is life?", "population": "humans", "num_questions": 7})
 170  # 100 + 7*10
 """
+
 from __future__ import annotations
 
 import ast
@@ -97,14 +98,14 @@ def _safe_eval(expr: str, variables: Dict[str, Number]) -> Number:
         )
     except NameError as e:
         # Missing variable reference
-        raise PriceCalculationError(
-            f"Unknown variable in pricing formula – {e}"
-        ) from e
+        raise PriceCalculationError(f"Unknown variable in pricing formula – {e}") from e
     except Exception as e:  # pragma: no cover – catch-all safety net
         raise PriceCalculationError(str(e)) from e
 
 
-def _prepare_call_parameters(service_def: ServiceDefinition, params: Dict[str, Any]) -> Dict[str, Any]:
+def _prepare_call_parameters(
+    service_def: ServiceDefinition, params: Dict[str, Any]
+) -> Dict[str, Any]:
     """Mimic :py:meth:`ServiceDefinition._prepare_parameters` (private).
 
     We re-implement just what is needed for cost computation so that the
@@ -120,7 +121,9 @@ def _prepare_call_parameters(service_def: ServiceDefinition, params: Dict[str, A
     return prepared
 
 
-def compute_price(service_def: ServiceDefinition, call_params: Dict[str, Any]) -> Number:
+def compute_price(
+    service_def: ServiceDefinition, call_params: Dict[str, Any]
+) -> Number:
     """Return the price (in the ``unit`` specified by the service) for a call.
 
     Parameters
@@ -141,8 +144,10 @@ def compute_price(service_def: ServiceDefinition, call_params: Dict[str, Any]) -
     if cost_def.variable_pricing_cost_formula:
         variable_component = _safe_eval(
             cost_def.variable_pricing_cost_formula,
-            variables={k: v for k, v in prepared.items() if isinstance(v, (int, float))},
+            variables={
+                k: v for k, v in prepared.items() if isinstance(v, (int, float))
+            },
         )
         total += variable_component
 
-    return total 
+    return total

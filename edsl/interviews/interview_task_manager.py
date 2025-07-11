@@ -84,9 +84,9 @@ class InterviewTaskManager:
         The keys are the question names; the values are the lists of status log changes for each task.
         """
         for task_creator in self.task_creators.values():
-            self._task_status_log_dict[
-                task_creator.question.question_name
-            ] = task_creator.status_log
+            self._task_status_log_dict[task_creator.question.question_name] = (
+                task_creator.status_log
+            )
         return self._task_status_log_dict
 
     @property

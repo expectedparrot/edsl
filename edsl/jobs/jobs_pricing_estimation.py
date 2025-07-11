@@ -1,8 +1,7 @@
 import logging
 import math
 
-from typing import List, TYPE_CHECKING, Union, Literal, Dict
-from collections import namedtuple
+from typing import List, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .jobs import Jobs

@@ -31,16 +31,15 @@ import warnings
 import csv
 import random
 import os
-from io import StringIO
 import inspect
-from collections import UserList, defaultdict
+from collections import defaultdict
 from collections.abc import Iterable, MutableSequence
 import json
 import pickle
 
 
 # Import for refactoring to Source classes
-from edsl.scenarios.scenario_source import deprecated_classmethod, TuplesSource
+from edsl.scenarios.scenario_source import deprecated_classmethod
 
 from simpleeval import EvalWithCompoundTypes, NameNotDefined  # type: ignore
 from tabulate import tabulate_formats
@@ -50,12 +49,14 @@ try:
 except ImportError:
     from typing_extensions import TypeAlias
 
+from ..config import CONFIG
+
 if TYPE_CHECKING:
     from urllib.parse import ParseResult
     from ..dataset import Dataset
-    from ..jobs import Jobs
+    from ..jobs import Jobs, Job
     from ..surveys import Survey
-    from ..questions import QuestionBase
+    from ..questions import QuestionBase, Question
 
 
 from ..base import Base
@@ -72,9 +73,6 @@ from ..db_list.sqlite_list import SQLiteList
 
 from .exceptions import ScenarioError
 from .scenario import Scenario
-from .scenario_list_pdf_tools import PdfTools
-from .directory_scanner import DirectoryScanner
-from .file_store import FileStore
 
 
 if TYPE_CHECKING:
@@ -111,8 +109,7 @@ class ScenarioSQLiteList(SQLiteList):
             return pickle.loads(data.encode())
         return pickle.loads(data)
 
-from ..config import CONFIG
-                        
+
 if use_sqlite := CONFIG.get("EDSL_USE_SQLITE_FOR_SCENARIO_LIST").lower() == "true":
     data_class = ScenarioSQLiteList
 else:
@@ -154,7 +151,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         for item in self.data:
             try:
                 _ = json.dumps(item.to_dict())
-            except Exception as e:
+            except Exception:
                 return False
         return True
 
@@ -633,7 +630,6 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         >>> s1.times(s2)
         ScenarioList([Scenario({'a': 1, 'b': 1}), Scenario({'a': 1, 'b': 2}), Scenario({'a': 2, 'b': 1}), Scenario({'a': 2, 'b': 2})])
         """
-        import warnings
 
         warnings.warn("times is deprecated, use * instead", DeprecationWarning)
         return self.__mul__(other)
@@ -805,11 +801,11 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         )
 
     def concatenate_to_list(
-        self, 
-        fields: List[str], 
+        self,
+        fields: List[str],
         prefix: str = "",
         postfix: str = "",
-        new_field_name: Optional[str] = None
+        new_field_name: Optional[str] = None,
     ) -> ScenarioList:
         """Concatenate specified fields into a single list field.
 
@@ -831,19 +827,19 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             ScenarioList([Scenario({'concat_a_b_c': ['[1]', '[2]', '[3]']}), Scenario({'concat_a_b_c': ['[4]', '[5]', '[6]']})])
         """
         return self._concatenate(
-            fields, 
-            output_type="list", 
+            fields,
+            output_type="list",
             prefix=prefix,
             postfix=postfix,
-            new_field_name=new_field_name
+            new_field_name=new_field_name,
         )
 
     def concatenate_to_set(
-        self, 
-        fields: List[str], 
+        self,
+        fields: List[str],
         prefix: str = "",
         postfix: str = "",
-        new_field_name: Optional[str] = None
+        new_field_name: Optional[str] = None,
     ) -> ScenarioList:
         """Concatenate specified fields into a single set field.
 
@@ -872,11 +868,11 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             True
         """
         return self._concatenate(
-            fields, 
-            output_type="set", 
+            fields,
+            output_type="set",
             prefix=prefix,
             postfix=postfix,
-            new_field_name=new_field_name
+            new_field_name=new_field_name,
         )
 
     def unpack_dict(
@@ -1043,10 +1039,6 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             return False
         return self.data == other.data
 
-    def __eq__(self, other: Any) -> bool:
-        """Use memory-efficient comparison by default."""
-        return self.equals(other)
-
     @memory_profile
     def filter(self, expression: str) -> ScenarioList:
         """
@@ -1111,7 +1103,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             try:
                 first_item = self[0] if len(self) > 0 else None
                 available_fields = ", ".join(first_item.keys() if first_item else [])
-            except:
+            except Exception:
                 available_fields = "unknown"
 
             raise ScenarioError(
@@ -1237,7 +1229,6 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             # Get all files recursively including subdirectories
             sl = ScenarioList.from_directory(recursive=True, key_name="document")
         """
-        import warnings
 
         warnings.warn(
             "from_directory is deprecated. Use ScenarioSource.from_source('directory', ...) instead.",
@@ -1351,15 +1342,16 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             new_scenario = Scenario({key: scenario[key] for key in new_order})
             new_sl.append(new_scenario)
         return new_sl
-    
+
     def to_survey(self) -> "Survey":
         from ..questions import QuestionBase
         from ..surveys import Survey
+
         s = Survey()
         for scenario in self:
             d = scenario.to_dict(add_edsl_version=False)
-            if d['question_type'] == 'free_text':
-                if 'question_options' in d:
+            if d["question_type"] == "free_text":
+                if "question_options" in d:
                     _ = d.pop("question_options")
             question = QuestionBase.from_dict(d)
             s.add_question(question)
@@ -1983,14 +1975,6 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         sj = ScenarioJoin(self, other)
         return sj.left_join(by)
 
-    @classmethod
-    def from_tsv(cls, source: Union[str, "ParseResult"]) -> ScenarioList:
-        """Create a ScenarioList from a TSV file or URL."""
-        from .scenario_source import ScenarioSource
-
-        # Delegate to ScenarioSource implementation
-        return ScenarioSource._from_tsv(source)
-
     def to_dict(self, sort: bool = False, add_edsl_version: bool = True) -> dict:
         """
         >>> s = ScenarioList([Scenario({'food': 'wood chips'}), Scenario({'food': 'wood-fired pizza'})])
@@ -2024,34 +2008,33 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
 
     def clipboard_data(self) -> str:
         """Return TSV representation of this ScenarioList for clipboard operations.
-        
+
         This method is called by the clipboard() method in the base class to provide
         a custom format for copying ScenarioList objects to the system clipboard.
-        
+
         Returns:
             str: Tab-separated values representation of the ScenarioList
         """
         # Use the to_csv method with tab separator to create TSV format
         csv_filestore = self.to_csv()
-        
+
         # Get the CSV content and convert it to TSV
         csv_content = csv_filestore.text
-        
+
         # Convert CSV to TSV by replacing commas with tabs
         # This is a simple approach, but we should handle quoted fields properly
-        import csv
         import io
-        
+
         # Parse the CSV content
         csv_reader = csv.reader(io.StringIO(csv_content))
         rows = list(csv_reader)
-        
+
         # Convert to TSV format
         tsv_lines = []
         for row in rows:
-            tsv_lines.append('\t'.join(row))
-        
-        return '\n'.join(tsv_lines)
+            tsv_lines.append("\t".join(row))
+
+        return "\n".join(tsv_lines)
 
     def to(self, survey: Union["Survey", "QuestionBase"]) -> "Jobs":
         """Create a Jobs object from a ScenarioList and a Survey object.
@@ -2070,8 +2053,10 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             return Survey([survey]).by(self)
         else:
             return survey.by(self)
-                
-    def for_n(self, target: Union['Question', 'Survey', 'Job'], iterations: int) -> 'Jobs':
+
+    def for_n(
+        self, target: Union["Question", "Survey", "Job"], iterations: int
+    ) -> "Jobs":
         """Execute a target multiple times, feeding each iteration's output
         into the next.
 
@@ -2122,19 +2107,13 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
 
             print(enriched_personas.select("persona"))
         """
-        
-        from ..jobs import Jobs
-        from ..questions import QuestionBase
-        from ..surveys import Survey
 
-        
         intermediate_result = self
         for i in range(iterations):
             clean_target = target.duplicate()
             new_jobs = clean_target.by(intermediate_result)
             intermediate_result = new_jobs.run()
         return intermediate_result
-
 
     @classmethod
     def gen(cls, scenario_dicts_list: List[dict]) -> ScenarioList:
@@ -2316,19 +2295,20 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             )
             new_scenarios.extend(replacement_scenarios)
         return ScenarioList(new_scenarios)
-    
+
     def to_agent_blueprint(self):
         """Create an AgentBlueprint from a ScenarioList"""
         from .agent_blueprint import AgentBlueprint
+
         return AgentBlueprint(self)
 
     def collapse(
-        self, 
-        field: str, 
-        separator: Optional[str] = None, 
+        self,
+        field: str,
+        separator: Optional[str] = None,
         prefix: str = "",
         postfix: str = "",
-        add_count: bool = False
+        add_count: bool = False,
     ) -> ScenarioList:
         """Collapse a ScenarioList by grouping on all fields except the specified one,
         collecting the values of the specified field into a list.

@@ -215,6 +215,7 @@ def is_notebook() -> bool:
 def file_notice(file_name):
     """Print a notice about the file being created."""
     from ..display import file_notice as display_file_notice
+
     display_file_notice(file_name, link_text="Download file")
 
 
@@ -306,6 +307,7 @@ def merge_dicts(dict_list):
         result[key] = [d.get(key, None) for d in dict_list]
     return result
 
+
 # Note: extract_json_from_string is already defined above (line 58)
 
 
@@ -331,8 +333,10 @@ def is_valid_variable_name(name, allow_name=True):
 def create_valid_var_name(s, transform_func: Callable = lambda x: x.lower()) -> str:
     """Create a valid variable name from a string."""
     if transform_func is None:
+
         def identity(x):
             return x
+
         transform_func = identity
 
     # Ensure the string is not empty

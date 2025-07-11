@@ -57,7 +57,9 @@ _TYPE_TO_GRADIO_COMPONENT: Dict[str, Callable[[str, Any], gr.components.Componen
 }
 
 
-def _component_for_parameter(name: str, param_def: ParameterDefinition) -> gr.components.Component:
+def _component_for_parameter(
+    name: str, param_def: ParameterDefinition
+) -> gr.components.Component:
     """Return a *new* Gradio component appropriate for *one* parameter."""
     # We prefer showing the *parameter name* as the visible label so users
     # immediately know which argument they are filling in.  The description,
@@ -92,7 +94,9 @@ def _component_for_parameter(name: str, param_def: ParameterDefinition) -> gr.co
     return comp
 
 
-def _output_component_for_returns(service_def: ServiceDefinition) -> gr.components.Component | Sequence[gr.components.Component]:
+def _output_component_for_returns(
+    service_def: ServiceDefinition,
+) -> gr.components.Component | Sequence[gr.components.Component]:
     """Return output component(s) for displaying results.
 
     For simplicity we currently return a single JSON viewer, even if the
@@ -109,6 +113,7 @@ def _output_component_for_returns(service_def: ServiceDefinition) -> gr.componen
 # ---------------------------------------------------------------------------
 # Decorator factory
 # ---------------------------------------------------------------------------
+
 
 def register_service_gradio(
     ui: Optional[gr.Blocks],
@@ -162,6 +167,7 @@ def register_service_gradio(
             else:
                 # Handle typing.Optional or unions like int | None
                 from typing import get_origin, get_args
+
                 origin = get_origin(ann)
                 if origin is None and isinstance(ann, type):
                     type_str = ann.__name__
@@ -172,7 +178,9 @@ def register_service_gradio(
                     type_str = str(ann).split(".")[-1]
                 else:
                     # Try to extract first non-None arg from Union/Optional
-                    args = [a for a in get_args(ann) if a is not type(None)]  # noqa: E721
+                    args = [
+                        a for a in get_args(ann) if a is not type(None)
+                    ]  # noqa: E721
                     if len(args) == 1 and isinstance(args[0], type):
                         type_str = args[0].__name__
                     else:
@@ -190,7 +198,10 @@ def register_service_gradio(
 
         # Helper to convert merged lists into Gradio input components
         def _build_input_components() -> List[gr.components.Component]:
-            comps = [_component_for_parameter(n, d) for n, d in zip(merged_param_names, merged_param_defs)]
+            comps = [
+                _component_for_parameter(n, d)
+                for n, d in zip(merged_param_names, merged_param_defs)
+            ]
             if requires_token:
                 comps.append(gr.Textbox(label="EP API Token", type="password"))
             return comps
@@ -210,7 +221,8 @@ def register_service_gradio(
                     ep_api_token = inputs[-1]
                     # When token is present the parameter list is offset by one
                     kwargs = {
-                        name: value for name, value in zip(merged_param_names, inputs[:-1])
+                        name: value
+                        for name, value in zip(merged_param_names, inputs[:-1])
                     }
 
                 # Validate call parameters according to the ServiceDefinition
@@ -259,7 +271,9 @@ def register_service_gradio(
 
                     # Re-create *visual* components within the current context so
                     # they appear in the UI.  Keep the logical parameter order.
-                    component_refs: List[gr.components.Component] = _build_input_components()
+                    component_refs: List[gr.components.Component] = (
+                        _build_input_components()
+                    )
 
                     # Build output component(s) **inside** the context so they render
                     output_refs = _output_component_for_returns(service_def)
@@ -278,4 +292,4 @@ def register_service_gradio(
         # application code can still call it programmatically.
         return fn
 
-    return decorator 
+    return decorator

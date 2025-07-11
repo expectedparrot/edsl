@@ -8,6 +8,7 @@ from ..exceptions import SurveyError, SurveyCreationError
 from .rule import Rule
 from ..base import RulePriority, EndOfSurvey
 
+
 class ValidatedString(str):
     def __new__(cls, content):
         if "<>" in content:
@@ -22,8 +23,8 @@ class RuleManager:
         self.survey = survey
 
     def _get_question_index(
-        self, q: Union["QuestionBase", str, 'EndOfSurvey']
-    ) -> Union[int, 'EndOfSurvey']:
+        self, q: Union["QuestionBase", str, "EndOfSurvey"]
+    ) -> Union[int, "EndOfSurvey"]:
         """Return the index of the question or EndOfSurvey object.
 
         :param q: The question or question name to get the index of.
