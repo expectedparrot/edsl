@@ -1354,7 +1354,7 @@ class Jobs(Base):
         self,
         project_name: str = "Project",
         scenario_list_method: Optional[
-            Literal["randomize", "loop", "single_scenario"]
+            Literal["randomize", "loop", "single_scenario", "ordered"]
         ] = None,
         survey_description: Optional[str] = None,
         survey_alias: Optional[str] = None,
