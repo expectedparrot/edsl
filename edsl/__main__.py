@@ -161,6 +161,7 @@ def _parse_line_args_kwargs(line: str):
 def _load_from_stdin() -> bool:
     """
     Check if there's data on stdin and try to load it as an EDSL object.
+    If it's not an EDSL object, convert it to a FileStore object.
     Returns True if an object was successfully loaded, False otherwise.
     """
     # Only try to read from stdin if it's not connected to a terminal (i.e., piped data)
@@ -173,7 +174,7 @@ def _load_from_stdin() -> bool:
         if not stdin_data:
             return False
         
-        console.print("[cyan]Reading EDSL object from stdin...[/cyan]")
+        console.print("[cyan]Reading data from stdin...[/cyan]")
         
         # After reading piped data, restore stdin to terminal for interactive use
         _restore_stdin_to_terminal()
@@ -181,16 +182,17 @@ def _load_from_stdin() -> bool:
         # Try to parse as JSON first
         try:
             data = json.loads(stdin_data)
+            is_json = True
         except json.JSONDecodeError:
-            console.print("[red]Error: Stdin data is not valid JSON[/red]")
-            return False
+            # Not JSON, treat as raw text data
+            data = stdin_data
+            is_json = False
         
-        # Try to use EDSL's generic load functionality
-        try:
-            from edsl.base.base_class import RegisterSubclassesMeta
-            
-            # If the data is a dict with EDSL object structure, try to load it
-            if isinstance(data, dict) and "edsl_class_name" in data:
+        # Try to use EDSL's generic load functionality if it's JSON with EDSL structure
+        if is_json and isinstance(data, dict) and "edsl_class_name" in data:
+            try:
+                from edsl.base.base_class import RegisterSubclassesMeta
+                
                 class_name = data["edsl_class_name"]
                 registry = RegisterSubclassesMeta.get_registry()
                 
@@ -205,19 +207,13 @@ def _load_from_stdin() -> bool:
                 console.print(f"[green]✓ Successfully loaded {new_name} from stdin (${len(_object_stack)})[/green]")
                 _register_dynamic_commands()
                 return True
-            else:
-                console.print("[yellow]Stdin data doesn't appear to be a serialized EDSL object (missing 'edsl_class_name')[/yellow]")
-                return False
                 
-        except ImportError:
-            console.print("[yellow]Warning: Could not import EDSL registry utilities[/yellow]")
-            return False
-        except Exception as e:
-            # If generic load fails, try other approaches
-            console.print(f"[yellow]Generic load failed: {e}[/yellow]")
-            
-            # Try to instantiate based on class name if present
-            if isinstance(data, dict) and "edsl_class_name" in data:
+            except ImportError:
+                console.print("[yellow]Warning: Could not import EDSL registry utilities[/yellow]")
+            except Exception as e:
+                console.print(f"[yellow]Generic load failed: {e}[/yellow]")
+                
+                # Try to instantiate based on class name if present
                 try:
                     class_name = data["edsl_class_name"]
                     # Remove metadata fields
@@ -230,11 +226,53 @@ def _load_from_stdin() -> bool:
                     _register_dynamic_commands()
                     return True
                 except Exception as e2:
-                    console.print(f"[red]Failed to instantiate object from stdin data: {e2}[/red]")
-                    return False
-            else:
-                console.print("[red]Unable to determine object type from stdin data[/red]")
-                return False
+                    console.print(f"[yellow]Failed to instantiate object from stdin data: {e2}[/yellow]")
+        
+        # If we reach here, either it's not EDSL JSON or loading failed
+        # Try to load as native Python object if it's JSON
+        if is_json:
+            try:
+                # Load JSON as native Python object (dict, list, etc.)
+                new_name = type(data).__name__
+                _add_to_stack(new_name, data)
+                console.print(f"[green]✓ Successfully loaded JSON as {new_name} (${len(_object_stack)})[/green]")
+                _register_dynamic_commands()
+                return True
+            except Exception as e:
+                console.print(f"[yellow]Failed to load JSON as Python object: {e}[/yellow]")
+        
+        # Fall back to FileStore for non-JSON data or if JSON loading failed
+        console.print("[cyan]Converting data to FileStore...[/cyan]")
+        
+        try:
+            # Import FileStore from scenarios
+            from .scenarios.file_store import FileStore
+            import tempfile
+            
+            # Create a temporary file with the stdin data
+            with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.txt') as temp_file:
+                if is_json:
+                    # Write JSON data formatted
+                    temp_file.write(json.dumps(data, indent=2, default=str))
+                else:
+                    # Write raw text data
+                    temp_file.write(stdin_data)
+                temp_file_path = temp_file.name
+            
+            # Create FileStore from the temporary file
+            file_store = FileStore(temp_file_path)
+            new_name = "FileStore"
+            _add_to_stack(new_name, file_store)
+            console.print(f"[green]✓ Successfully converted stdin data to {new_name} (${len(_object_stack)})[/green]")
+            _register_dynamic_commands()
+            return True
+            
+        except ImportError as e:
+            console.print(f"[red]Error: Failed to import FileStore. {e}[/red]")
+            return False
+        except Exception as e:
+            console.print(f"[red]Error creating FileStore from stdin data: {e}[/red]")
+            return False
                 
     except Exception as e:
         console.print(f"[red]Error reading from stdin: {e}[/red]")
