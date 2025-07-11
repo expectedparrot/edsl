@@ -369,9 +369,9 @@ class QuestionOptionsDescriptor(BaseDescriptor):
                     f"You asked for {self.num_choices} selections, but provided {len(value)} options."
                 )
         if self.linear_scale:
-            if sorted(value) != list(range(min(value), max(value) + 1)):
+            if sorted(value) != value:
                 raise QuestionCreationValidationError(
-                    f"LinearScale.question_options must be a list of successive integers, e.g. [1, 2, 3] (got {value})."
+                    f"LinearScale.question_options must be in ascending order (got {value})."
                 )
 
 
