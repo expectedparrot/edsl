@@ -1592,6 +1592,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             key_to_data_type=self._key_to_data_type,
             fetch_list_func=self._fetch_list,
             columns=self.columns,
+            survey=self.survey,
         )
         return selector.select(*columns)
 
