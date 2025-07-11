@@ -43,6 +43,7 @@ if TYPE_CHECKING:
     from ..scenarios import ScenarioList
     from ..buckets.bucket_collection import BucketCollection
     from ..key_management.key_lookup import KeyLookup
+    from ..scenarios import FileStore
 
     # Define types for documentation purpose only
     VisibilityType = Literal["unlisted", "public", "private"]
@@ -557,6 +558,7 @@ class Survey(Base):
             True
         """
 
+
         # Helper function to determine the correct class for each serialized component
         def get_class(pass_dict):
             from ..questions import QuestionBase
@@ -735,19 +737,17 @@ class Survey(Base):
             questions_and_instructions, key=lambda x: self._pseudo_indices[x.name]
         )
 
-    # BEGIN ADDITION: public alias for external access
+    # NEW: Public alias for compatibility with other modules such as SurveyExport
     def recombined_questions_and_instructions(
         self,
     ) -> List[Union["QuestionBase", "Instruction"]]:
-        """Return questions and instructions in survey order.
+        """Return a list of questions and instructions (public wrapper).
 
-        This is a thin public wrapper around the internal
-        _recombined_questions_and_instructions method, provided so that
-        external modules (e.g. SurveyExport) can access the data without
-        relying on a leading-underscore method name.
+        This is a thin wrapper around the internal
+        `_recombined_questions_and_instructions` method, provided for
+        compatibility with modules that expect a public accessor.
         """
         return self._recombined_questions_and_instructions()
-    # END ADDITION
 
     def set_full_memory_mode(self) -> Survey:
         """Configure the survey so agents remember all previous questions and answers.
@@ -1179,6 +1179,22 @@ class Survey(Base):
         from edsl.jobs import Jobs
 
         return Jobs(survey=self).by(*args)
+    
+    def gold_standard(self, q_and_a_dict: dict[str, str]) -> 'Result':
+        """Run the survey with a gold standard agent and return the result object. 
+        
+        Args:
+            q_and_a_dict: A dictionary of question names and answers.
+        """
+        try:
+            assert set(q_and_a_dict.keys()) == set(self.question_names), "q_and_a_dict must have the same keys as the survey"
+        except AssertionError:
+            raise ValueError("q_and_a_dict must have the same keys as the survey", set(q_and_a_dict.keys()), set(self.question_names))
+        gold_agent = Agent()
+        def f(self, question, scenario):
+            return q_and_a_dict[question.question_name]       
+        gold_agent.add_direct_question_answering_method(f)
+        return self.by(gold_agent).run(disable_remote_inference=True)[0]
 
     def to_jobs(self) -> "Jobs":
         """Convert the survey to a Jobs object without adding components.
@@ -1750,7 +1766,7 @@ class Survey(Base):
     def tree(self, node_list: Optional[List[str]] = None):
         return self.to_scenario_list().tree(node_list=node_list)
 
-    def table(self, *fields, tablefmt=None) -> Table:
+    def table(self, *fields, tablefmt="rich") -> Table:
         return self.to_scenario_list().to_dataset().table(*fields, tablefmt=tablefmt)
 
     def codebook(self) -> Dict[str, str]:
@@ -1764,6 +1780,34 @@ class Survey(Base):
         for question in self.questions:
             codebook[question.question_name] = question.question_text
         return codebook
+    
+    def edit(self): 
+        import webbrowser
+        import time 
+        info = self.push()
+        print("Waiting for survey to be created on Coop...")
+        time.sleep(5)
+        url = f"https://www.expectedparrot.com/edit/survey/{info['uuid']}"
+        webbrowser.open(url)
+        print(f"Survey opened in web editor: {url}")
+        
+        # Wait for user to confirm editing is complete
+        while True:
+            user_input = input("Is editing complete [y/n]: ").strip().lower()
+            if user_input in ['y', 'yes']:
+                print("Waiting for changes to sync...")
+                time.sleep(5)
+                # Pull the updated survey and update current object
+                updated_survey = Survey.pull(info['uuid'])
+                # Update the current object's attributes with the pulled survey
+                self.__dict__.update(updated_survey.__dict__)
+                print("Survey updated with changes from web editor.")
+                break
+            elif user_input in ['n', 'no']:
+                print("Editing session ended. Survey remains unchanged.")
+                break
+            else:
+                print("Please enter 'y' for yes or 'n' for no.")
 
     @classmethod
     def example(
@@ -1907,14 +1951,48 @@ class Survey(Base):
         """Return the description of the survey."""
         return self._exporter.get_description()
 
+    # NEW PREFERRED METHOD NAMES
+    def to_docx(
+        self,
+        filename: Optional[str] = None,
+    ) -> FileStore:
+        """Generate a docx document for the survey.
+
+        This is the preferred alias for the deprecated ``docx`` method.
+        """
+        return self._exporter.docx(filename)
+
+    def to_html(
+        self,
+        scenario: Optional[dict] = None,
+        filename: Optional[str] = None,
+        return_link: bool = False,
+        css: Optional[str] = None,
+        cta: str = "Open HTML file",
+        include_question_name: bool = False,
+    ) -> FileStore:
+        """Generate HTML representation of the survey.
+
+        This is the preferred alias for the deprecated ``html`` method.
+        """
+        return self._exporter.html(
+            scenario, filename, return_link, css, cta, include_question_name
+        )
+
+    # Deprecated aliases – keep for backward compatibility
     def docx(
         self,
-        return_document_object: bool = False,
-        filename: str = "",
-        open_file: bool = False,
-    ) -> Union["Document", None]:
-        """Generate a docx document for the survey."""
-        return self._exporter.docx(return_document_object, filename, open_file)
+        filename: Optional[str] = None,
+    ) -> FileStore:
+        """DEPRECATED: Use :py:meth:`to_docx` instead."""
+        import warnings
+
+        warnings.warn(
+            "Survey.docx is deprecated and will be removed in a future release. Use Survey.to_docx instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.to_docx(filename)
 
     def show(self):
         """Display the survey in a rich format."""
@@ -1933,16 +2011,48 @@ class Survey(Base):
     def html(
         self,
         scenario: Optional[dict] = None,
-        filename: str = "",
+        filename: Optional[str] = None,
         return_link=False,
         css: Optional[str] = None,
         cta: str = "Open HTML file",
         include_question_name=False,
-    ):
-        """Generate HTML representation of the survey."""
-        return self._exporter.html(
-            scenario, filename, return_link, css, cta, include_question_name
+    ) -> FileStore:
+        """DEPRECATED: Use :py:meth:`to_html` instead."""
+        import warnings
+
+        warnings.warn(
+            "Survey.html is deprecated and will be removed in a future release. Use Survey.to_html instead.",
+            DeprecationWarning,
+            stacklevel=2,
         )
+        return self.to_html(
+            scenario,
+            filename,
+            return_link=return_link,
+            css=css,
+            cta=cta,
+            include_question_name=include_question_name,
+        )
+
+    def latex(
+        self,
+        filename: Optional[str] = None,
+        include_question_name: bool = False,
+        standalone: bool = True,
+    ) -> "FileStore":
+        """Generate a LaTeX (.tex) representation of the survey.
+
+        Parameters
+        ----------
+        filename : Optional[str]
+            The filename to write to. If not provided, a temporary file is created
+            in the current working directory with a ``.tex`` suffix.
+        include_question_name : bool
+            If True, includes the internal ``question_name`` of each question. Default False.
+        standalone : bool
+            If True, the LaTeX file is standalone. Default True.
+        """
+        return self._exporter.latex(filename, include_question_name, standalone)
 
     def copy(self) -> "Survey":
         """Create a deep copy of the survey using serialization.
