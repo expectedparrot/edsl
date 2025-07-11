@@ -9,6 +9,7 @@ __all__ = [
     "JsonMethods",
     "SqlMethods",
     "PptxMethods",
+    "XlsxMethods",
     "LaTeXMethods",
     "PyMethods",
     "SQLiteMethods",
@@ -27,6 +28,7 @@ from .csv_file_store import CsvMethods
 from .json_file_store import JsonMethods
 from .sql_file_store import SqlMethods
 from .pptx_file_store import PptxMethods
+from .xlsx_file_store import XlsxMethods
 from .latex_file_store import LaTeXMethods
 from .py_file_store import PyMethods
 from .sqlite_file_store import SQLiteMethods

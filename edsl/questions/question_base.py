@@ -472,6 +472,10 @@ class QuestionBase(
     
     def to_jobs(self):
         return self.to_survey().to_jobs()
+    
+    def gold_standard(self, q_and_a_dict: dict[str, str]) -> "Result":
+        """Run the question with a gold standard agent and return the result."""
+        return self.to_survey().gold_standard(q_and_a_dict)
 
     def to_dict(self, add_edsl_version: bool = True):
         """Convert the question to a dictionary that includes the question type (used in deserialization).
