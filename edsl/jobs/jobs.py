@@ -917,6 +917,7 @@ class Jobs(Base):
         if not self._post_run_methods:
             return results
         
+        from ..results import Results
         # Mapping of built-in functions to their corresponding dunder methods
         builtin_to_dunder = {
             'len': '__len__',
@@ -949,6 +950,10 @@ class Jobs(Base):
                 converted_object = getattr(converted_object, method_name)(*args, **kwargs)
             except AttributeError:
                 raise JobsImplementationError(f"Could not apply method '{method_name}' to object.")
+        
+        if not isinstance(converted_object, Results):
+            converted_object._associated_results = results
+
         return converted_object
 
     @with_config
