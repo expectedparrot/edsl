@@ -112,6 +112,7 @@ from .question_check_box import QuestionCheckBox
 from .question_extract import QuestionExtract
 from .question_free_text import QuestionFreeText
 from .question_functional import QuestionFunctional
+from .question_compute import QuestionCompute
 from .question_list import QuestionList
 from .question_matrix import QuestionMatrix
 from .question_dict import QuestionDict
@@ -158,6 +159,7 @@ __all__ = [
     "QuestionDict",
     "QuestionExtract",
     "QuestionFunctional",
+    "QuestionCompute",
     "QuestionList",
     "QuestionMatrix",
     "QuestionNumerical",
