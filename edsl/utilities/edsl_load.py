@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """Utility for loading a saved EDSL object without knowing its exact class.
 
 This module provides a single `load` function that mirrors the behaviour of
@@ -31,10 +29,10 @@ print(type(obj))  # <class 'edsl.results.results.Results'>
 ```
 """
 
+from __future__ import annotations
+
 from pathlib import Path
 from typing import Any, Dict
-import json
-import gzip
 
 from edsl.base.base_class import Base, RegisterSubclassesMeta
 
@@ -44,6 +42,7 @@ __all__ = ["load"]
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
+
 
 def _read_file(p: Path) -> Dict[str, Any]:
     """Return a parsed dictionary from *p*.
@@ -61,7 +60,9 @@ def _read_file(p: Path) -> Dict[str, Any]:
         return Base.open_regular_file(str(p))
 
     # No recognised suffix – try both options, compressed first
-    compressed = p.with_suffix(p.suffix + ".json.gz") if p.suffix else Path(str(p) + ".json.gz")
+    compressed = (
+        p.with_suffix(p.suffix + ".json.gz") if p.suffix else Path(str(p) + ".json.gz")
+    )
     if compressed.exists():
         return Base.open_compressed_file(str(compressed))
 
@@ -76,6 +77,7 @@ def _read_file(p: Path) -> Dict[str, Any]:
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
+
 
 def load(filename: str):
     """Load any EDSL object from *filename*.
@@ -107,11 +109,15 @@ def load(filename: str):
     try:
         class_name = data["edsl_class_name"]
     except KeyError as e:
-        raise KeyError("Missing 'edsl_class_name' key – is this an EDSL serialised file?") from e
+        raise KeyError(
+            "Missing 'edsl_class_name' key – is this an EDSL serialised file?"
+        ) from e
 
     registry = RegisterSubclassesMeta.get_registry()
     if class_name not in registry:
-        raise ValueError(f"Unknown EDSL class '{class_name}'.  Is the relevant module imported?")
+        raise ValueError(
+            f"Unknown EDSL class '{class_name}'.  Is the relevant module imported?"
+        )
 
     cls = registry[class_name]
-    return cls.from_dict(data) 
+    return cls.from_dict(data)

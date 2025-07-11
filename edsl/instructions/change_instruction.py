@@ -10,6 +10,7 @@ class ChangeInstruction:
     ):
         if keep is None and drop is None:
             from .exceptions import InstructionValueError
+
             raise InstructionValueError("Keep and drop cannot both be None")
 
         self.keep = keep or []

@@ -414,7 +414,7 @@ class LongSurveyLoopProcessor:
 
                 result = result.replace("{", "{{").replace("}", "}}")
                 return result
-            except (KeyError, TypeError) as e:
+            except (KeyError, TypeError):
                 # Return the original variable name with the expected spacing
                 result = f"{{ {var_name} }}".replace("{", "{{").replace("}", "}}")
                 return result

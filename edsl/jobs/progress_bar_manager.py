@@ -15,24 +15,24 @@ from .jobs_runner_status import JobsRunnerStatus
 
 class ProgressBarManager:
     """Context manager for handling progress bar setup and thread management.
-    
+
     This class manages the progress bar display and updating during job execution,
     particularly for remote tracking via the Expected Parrot API.
-    
+
     It handles:
     1. Setting up a status tracking object
     2. Creating and managing a background thread for progress updates
     3. Properly cleaning up resources when execution completes
     """
-    
+
     def __init__(self, jobs, run_config, parameters):
         self.parameters = parameters
         self.jobs = jobs
-        
+
         # Set up progress tracking
         coop = Coop()
         endpoint_url = coop.get_progress_bar_url()
-        
+
         # Set up jobs status object
         params = {
             "jobs": jobs,
@@ -40,17 +40,17 @@ class ProgressBarManager:
             "endpoint_url": endpoint_url,
             "job_uuid": parameters.job_uuid,
         }
-        
+
         # If the jobs_runner_status is already set, use it directly
         if run_config.environment.jobs_runner_status is not None:
             self.jobs_runner_status = run_config.environment.jobs_runner_status
         else:
             # Otherwise create a new one
             self.jobs_runner_status = JobsRunnerStatus(**params)
-        
+
         # Store on run_config for use by other components
         run_config.environment.jobs_runner_status = self.jobs_runner_status
-        
+
         self.progress_thread = None
         self.stop_event = threading.Event()
 
@@ -59,7 +59,7 @@ class ProgressBarManager:
             self.jobs_runner_status.setup()
             self.progress_thread = threading.Thread(
                 target=self._run_progress_bar,
-                args=(self.stop_event, self.jobs_runner_status)
+                args=(self.stop_event, self.jobs_runner_status),
             )
             self.progress_thread.start()
         elif self.parameters.progress_bar:

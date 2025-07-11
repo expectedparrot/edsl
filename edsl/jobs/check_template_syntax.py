@@ -1,4 +1,5 @@
 """Module for validating template syntax in surveys."""
+
 import re
 from typing import TYPE_CHECKING
 from .exceptions import JobsCompatibilityError

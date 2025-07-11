@@ -9,9 +9,19 @@ if TYPE_CHECKING:
 
 from ..enums import service_to_api_keyname
 from ..base import BaseException
+from .key_lookup import KeyLookup
+from .models import (
+    APIKeyEntry,
+    LimitEntry,
+    APIIDEntry,
+    LanguageModelInput,
+)
+
 
 class MissingAPIKeyError(BaseException):
-    def __init__(self, full_message=None, model_name=None, inference_service=None, silent=False):
+    def __init__(
+        self, full_message=None, model_name=None, inference_service=None, silent=False
+    ):
         if model_name and inference_service:
             full_message = textwrap.dedent(
                 f"""
@@ -22,13 +32,6 @@ class MissingAPIKeyError(BaseException):
             )
         super().__init__(full_message, show_docs=False, silent=silent)
 
-from .key_lookup import KeyLookup
-from .models import (
-    APIKeyEntry,
-    LimitEntry,
-    APIIDEntry,
-    LanguageModelInput,
-)
 
 service_to_api_keyname["bedrock"] = "AWS_SECRET_ACCESS_KEY"
 service_to_api_id = {"bedrock": "AWS_ACCESS_KEY_ID"}
@@ -47,53 +50,53 @@ api_id_to_service = {"AWS_ACCESS_KEY_ID": "bedrock"}
 
 class KeyLookupBuilder:
     """Factory class for building KeyLookup objects by gathering credentials from multiple sources.
-    
+
     >>> from edsl.key_management.exceptions import KeyManagementValueError
-    
+
     KeyLookupBuilder is responsible for discovering, organizing, and consolidating API keys
     and rate limits from various sources. It can pull credentials from:
-    
+
     - Environment variables (env)
-    - Configuration files (config) 
+    - Configuration files (config)
     - Remote services (coop)
-    
+
     The builder handles the complexities of:
     - Finding API keys with different naming conventions
     - Merging rate limits from different sources
     - Processing additional credentials like API IDs
     - Prioritizing sources based on a configurable order
-    
+
     Basic usage:
         >>> builder = KeyLookupBuilder()
         >>> keys = builder.build()
         >>> # Now use keys to access service credentials
         >>> keys['test'].api_token
         'test'
-    
+
     Customizing priorities:
         >>> builder = KeyLookupBuilder(fetch_order=("config", "env"))
         >>> builder.fetch_order
         ('config', 'env')
         >>> # 'env' has higher priority than 'config'
-    
+
     Configuration parameters:
         >>> builder = KeyLookupBuilder()
         >>> builder.DEFAULT_RPM  # Default API calls per minute
         100
         >>> builder.DEFAULT_TPM  # Default tokens per minute
         2000000
-    
+
     Validation examples:
         >>> try:
         ...     KeyLookupBuilder(fetch_order=["config", "env"])  # Should be tuple
         ... except KeyManagementValueError as e:
         ...     "fetch_order must be a tuple" in str(e)
         True
-        
+
         >>> builder = KeyLookupBuilder()
         >>> builder.extract_service("EDSL_SERVICE_RPM_OPENAI")
         ('openai', 'rpm')
-    
+
     Technical Notes:
         - The fetch_order parameter controls priority (later sources override earlier ones)
         - Default rate limits are applied when not explicitly provided
@@ -123,6 +126,7 @@ class KeyLookupBuilder:
 
         if not isinstance(self.fetch_order, tuple):
             from edsl.key_management.exceptions import KeyManagementValueError
+
             raise KeyManagementValueError("fetch_order must be a tuple")
 
         if coop is None:
@@ -148,15 +152,15 @@ class KeyLookupBuilder:
     @lru_cache
     def build(self) -> "KeyLookup":
         """Build a KeyLookup instance with all discovered credentials.
-        
+
         Processes all discovered API keys and rate limits from the configured sources
         and builds a KeyLookup instance containing LanguageModelInput objects for
         each valid service. This method is cached, so subsequent calls will return
         the same instance unless the builder state changes.
-        
+
         Returns:
             KeyLookup: A populated KeyLookup instance with service credentials
-            
+
         Examples:
             >>> builder = KeyLookupBuilder()
             >>> lookup = builder.build()
@@ -164,7 +168,7 @@ class KeyLookupBuilder:
             True
             >>> lookup['test'].api_token == 'test'  # Test service should always exist
             True
-            
+
         Technical Notes:
             - Skips services with missing API keys
             - Always includes a 'test' service for internal testing
@@ -186,21 +190,21 @@ class KeyLookupBuilder:
 
     def get_language_model_input(self, service: str) -> LanguageModelInput:
         """Construct a LanguageModelInput object for the specified service.
-        
+
         Creates a complete LanguageModelInput object for the requested service by
-        combining the API key, rate limits, and optional API ID from the various 
+        combining the API key, rate limits, and optional API ID from the various
         data sources. This method assembles the disparate pieces of information
         into a single configuration object.
-        
+
         Args:
             service: Name of the service to retrieve configuration for (e.g., 'openai')
-            
+
         Returns:
             LanguageModelInput: A configuration object with the service's credentials
-            
+
         Raises:
             MissingAPIKeyError: If the required API key for the service is not found
-            
+
         Examples:
             >>> builder = KeyLookupBuilder()
             >>> try:
@@ -208,14 +212,16 @@ class KeyLookupBuilder:
             ... except MissingAPIKeyError as e:
             ...     str(e)
             "No key found for service 'nonexistent_service'"
-            
+
         Technical Notes:
             - Uses default rate limits if none are specified
             - Preserves information about where each value came from
             - Supports services that require both API key and API ID
         """
         if (key_entries := self.key_data.get(service)) is None:
-            raise MissingAPIKeyError(f"No key found for service '{service}'", silent=True)
+            raise MissingAPIKeyError(
+                f"No key found for service '{service}'", silent=True
+            )
 
         if len(key_entries) == 1:
             api_key_entry = key_entries[0]
@@ -311,7 +317,7 @@ class KeyLookupBuilder:
 
     def _add_id(self, key: str, value: str, source: str) -> None:
         """Add an API ID to the id_data dictionary.
-        
+
         >>> from edsl.key_management.exceptions import KeyManagementDuplicateError
 
         >>> builder = KeyLookupBuilder()
@@ -331,6 +337,7 @@ class KeyLookupBuilder:
             )
         else:
             from edsl.key_management.exceptions import KeyManagementDuplicateError
+
             raise KeyManagementDuplicateError(f"Duplicate ID for service {service}")
 
     def _add_limit(self, key: str, value: str, source: str) -> None:
@@ -368,20 +375,24 @@ class KeyLookupBuilder:
         """
         service = api_keyname_to_service[key]
         new_entry = APIKeyEntry(service=service, name=key, value=value, source=source)
-        
+
         # Special case for OPENAI_API_KEY - add to both openai and openai_v2
         if key == "OPENAI_API_KEY":
             # Add to openai service
             openai_service = "openai"
-            openai_entry = APIKeyEntry(service=openai_service, name=key, value=value, source=source)
+            openai_entry = APIKeyEntry(
+                service=openai_service, name=key, value=value, source=source
+            )
             if openai_service not in self.key_data:
                 self.key_data[openai_service] = [openai_entry]
             else:
                 self.key_data[openai_service].append(openai_entry)
-                
+
             # Add to openai_v2 service
             openai_v2_service = "openai_v2"
-            openai_v2_entry = APIKeyEntry(service=openai_v2_service, name=key, value=value, source=source)
+            openai_v2_entry = APIKeyEntry(
+                service=openai_v2_service, name=key, value=value, source=source
+            )
             if openai_v2_service not in self.key_data:
                 self.key_data[openai_v2_service] = [openai_v2_entry]
             else:

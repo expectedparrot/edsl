@@ -37,7 +37,6 @@ if TYPE_CHECKING:
     from ..scenarios import Scenario
     from ..language_models import LanguageModel
     from ..surveys import Survey
-    from .chat_transcript import ChatTranscript
 
 QuestionName = str
 AnswerValue = Any
@@ -275,7 +274,7 @@ class Result(Base, UserDict):
                     f"Key by itself {key} is problematic. Use the full key {key + '.' + key} name instead."
                 )
         return None
-    
+
     def transcript(self, format: str = "simple"):
         """Return the questions and answers in a human-readable transcript.
 
@@ -343,7 +342,9 @@ class Result(Base, UserDict):
             from rich.console import Console
             from rich.panel import Panel
         except ImportError as exc:
-            raise ImportError("The 'rich' package is required for format='rich'. Install it with `pip install rich`." ) from exc
+            raise ImportError(
+                "The 'rich' package is required for format='rich'. Install it with `pip install rich`."
+            ) from exc
 
         console = Console()
         with console.capture() as capture:
@@ -462,9 +463,9 @@ class Result(Base, UserDict):
         d = {}
         problem_keys = []
         data_types = sorted(self.sub_dicts.keys())
-        if 'answer' in data_types:
-            data_types.remove('answer')
-            data_types = ['answer'] + data_types
+        if "answer" in data_types:
+            data_types.remove("answer")
+            data_types = ["answer"] + data_types
         for data_type in data_types:
             for key in self.sub_dicts[data_type]:
                 if key in d:
@@ -693,20 +694,22 @@ class Result(Base, UserDict):
                 raise ResultsError(f"Parameter {k} not found in Result object")
         return scoring_function(**params)
 
-    def transcript(self, show_options: bool = True, show_agent_info: bool = True) -> None:
+    def display_transcript(
+        self, show_options: bool = True, show_agent_info: bool = True
+    ) -> None:
         """Display a rich-formatted chat transcript of the interview.
-        
+
         This method creates a ChatTranscript object and displays the conversation
         between questions and agent responses in a beautiful, chat-like format
         using the Rich library.
-        
+
         Args:
             show_options: Whether to display question options if available. Defaults to True.
             show_agent_info: Whether to show agent information at the top. Defaults to True.
-        
+
         """
         from .chat_transcript import ChatTranscript
-        
+
         chat_transcript = ChatTranscript(self)
         chat_transcript.view(show_options=show_options, show_agent_info=show_agent_info)
 
@@ -737,20 +740,24 @@ class Result(Base, UserDict):
                 cache_keys[result.question_name] = result.cache_key
             return cache_keys
 
-        def get_generated_tokens_dict(answer_key_names) -> dict[str, str]:
+        def get_generated_tokens_dict(
+            answer_key_names, question_results
+        ) -> dict[str, str]:
             generated_tokens_dict = {
                 k + "_generated_tokens": question_results[k].generated_tokens
                 for k in answer_key_names
             }
             return generated_tokens_dict
 
-        def get_comments_dict(answer_key_names) -> dict[str, str]:
+        def get_comments_dict(answer_key_names, question_results) -> dict[str, str]:
             comments_dict = {
                 k + "_comment": question_results[k].comment for k in answer_key_names
             }
             return comments_dict
 
-        def get_reasoning_summaries_dict(answer_key_names) -> dict[str, Any]:
+        def get_reasoning_summaries_dict(
+            answer_key_names, question_results
+        ) -> dict[str, Any]:
             reasoning_summaries_dict = {}
             for k in answer_key_names:
                 reasoning_summary = question_results[k].reasoning_summary
@@ -891,11 +898,19 @@ class Result(Base, UserDict):
         question_results = get_question_results(model_response_objects)
         answer_key_names = list(question_results.keys())
         generated_tokens_dict = (
-            get_generated_tokens_dict(answer_key_names) if answer_key_names else {}
+            get_generated_tokens_dict(answer_key_names, question_results)
+            if answer_key_names
+            else {}
         )
-        comments_dict = get_comments_dict(answer_key_names) if answer_key_names else {}
+        comments_dict = (
+            get_comments_dict(answer_key_names, question_results)
+            if answer_key_names
+            else {}
+        )
         reasoning_summaries_dict = (
-            get_reasoning_summaries_dict(answer_key_names) if answer_key_names else {}
+            get_reasoning_summaries_dict(answer_key_names, question_results)
+            if answer_key_names
+            else {}
         )
 
         # Get answers that are in the question results

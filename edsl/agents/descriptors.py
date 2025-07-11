@@ -68,14 +68,14 @@ class TraitsDescriptor:
 
 class CodebookDescriptor:
     """Descriptor for the Agent's codebook attribute.
-    
+
     A codebook provides human-readable descriptions for trait keys, allowing traits
     to be presented in a more understandable format in prompts. The codebook is a
     dictionary mapping trait keys to their descriptive text.
-    
+
     For example, a trait key like 'age' might have a codebook description of
     'Age in years', making prompts more natural and clear.
-    
+
     Example:
         >>> # Agent would typically be imported from edsl.agents
         >>> # For doctests, we'll just demonstrate the descriptor behavior
@@ -92,11 +92,11 @@ class CodebookDescriptor:
 
     def __get__(self, instance, owner):
         """Return the codebook dictionary.
-        
+
         Args:
             instance: The instance object
             owner: The class
-            
+
         Returns:
             dict: The codebook dictionary mapping trait keys to descriptions
         """
@@ -104,7 +104,7 @@ class CodebookDescriptor:
 
     def __set__(self, instance, codebook_dict: Dict[str, str]) -> None:
         """Set the codebook dictionary.
-        
+
         Args:
             instance: The instance object
             codebook_dict: Dictionary mapping trait keys to descriptions
@@ -113,7 +113,7 @@ class CodebookDescriptor:
 
     def __set_name__(self, owner, name: str) -> None:
         """Set the name of the attribute in the instance's dictionary.
-        
+
         Args:
             owner: The class
             name: The name of the attribute

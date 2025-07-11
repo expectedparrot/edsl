@@ -132,9 +132,10 @@ class OpenAIService(InferenceServiceABC):
 
             _inference_service_ = cls._inference_service_
             _model_ = model_name
-            
+
             def __init__(self, *args, **kwargs):
                 super().__init__(*args, **kwargs)
+
             _parameters_ = {
                 "temperature": 0.5,
                 "max_tokens": 1000,
@@ -200,11 +201,11 @@ class OpenAIService(InferenceServiceABC):
                 """Calls the OpenAI API and returns the API response."""
                 import base64
                 import io
-                
+
                 # Check if this is a reasoning model with file limitations
                 is_reasoning_model = "o1" in self.model or "o3" in self.model
                 is_o1_mini = "o1-mini" in self.model
-                
+
                 if files_list:
                     # Handle reasoning model limitations
                     if is_reasoning_model:
@@ -217,97 +218,127 @@ class OpenAIService(InferenceServiceABC):
                             for file_entry in files_list:
                                 # Check for PDF MIME types (could be various formats)
                                 is_pdf = (
-                                    file_entry.mime_type == "application/pdf" or
-                                    file_entry.mime_type == "application/x-pdf" or
-                                    file_entry.mime_type == "text/pdf" or
-                                    'pdf' in file_entry.mime_type.lower() or
-                                    (hasattr(file_entry, 'filename') and 
-                                     getattr(file_entry, 'filename', '').lower().endswith('.pdf'))
+                                    file_entry.mime_type == "application/pdf"
+                                    or file_entry.mime_type == "application/x-pdf"
+                                    or file_entry.mime_type == "text/pdf"
+                                    or "pdf" in file_entry.mime_type.lower()
+                                    or (
+                                        hasattr(file_entry, "filename")
+                                        and getattr(file_entry, "filename", "")
+                                        .lower()
+                                        .endswith(".pdf")
+                                    )
                                 )
-                                
+
                                 if is_pdf:
                                     # Try image_url format first for reasoning models
                                     try:
-                                        content.append({
-                                            "type": "image_url", 
-                                            "image_url": {
-                                                "url": f"data:application/pdf;base64,{file_entry.base64_string}"
+                                        content.append(
+                                            {
+                                                "type": "image_url",
+                                                "image_url": {
+                                                    "url": f"data:application/pdf;base64,{file_entry.base64_string}"
+                                                },
                                             }
-                                        })
+                                        )
                                     except Exception:
                                         # Fallback to extracted text for reasoning models
-                                        if hasattr(file_entry, 'extracted_text') and file_entry.extracted_text:
-                                            content.append({
-                                                "type": "text",
-                                                "text": f"\n--- PDF Content from '{getattr(file_entry, 'filename', 'document.pdf')}' ---\n{file_entry.extracted_text}\n--- End of PDF Content ---\n"
-                                            })
+                                        if (
+                                            hasattr(file_entry, "extracted_text")
+                                            and file_entry.extracted_text
+                                        ):
+                                            content.append(
+                                                {
+                                                    "type": "text",
+                                                    "text": f"\n--- PDF Content from '{getattr(file_entry, 'filename', 'document.pdf')}' ---\n{file_entry.extracted_text}\n--- End of PDF Content ---\n",
+                                                }
+                                            )
                                         else:
-                                            content.append({
-                                                "type": "text",
-                                                "text": f"\n[PDF file '{getattr(file_entry, 'filename', 'document.pdf')}' could not be processed - no extracted text available.]"
-                                            })
-                                elif file_entry.mime_type.startswith('image/'):
+                                            content.append(
+                                                {
+                                                    "type": "text",
+                                                    "text": f"\n[PDF file '{getattr(file_entry, 'filename', 'document.pdf')}' could not be processed - no extracted text available.]",
+                                                }
+                                            )
+                                elif file_entry.mime_type.startswith("image/"):
                                     # Images should work with o1 models
-                                    content.append({
-                                        "type": "image_url",
-                                        "image_url": {
-                                            "url": f"data:{file_entry.mime_type};base64,{file_entry.base64_string}"
-                                        },
-                                    })
+                                    content.append(
+                                        {
+                                            "type": "image_url",
+                                            "image_url": {
+                                                "url": f"data:{file_entry.mime_type};base64,{file_entry.base64_string}"
+                                            },
+                                        }
+                                    )
                                 else:
                                     # Other file types - add informational message
-                                    content.append({
-                                        "type": "text",
-                                        "text": f"\n[File '{getattr(file_entry, 'filename', 'unknown')}' of type '{file_entry.mime_type}' provided but not directly supported by reasoning models.]"
-                                    })
+                                    content.append(
+                                        {
+                                            "type": "text",
+                                            "text": f"\n[File '{getattr(file_entry, 'filename', 'unknown')}' of type '{file_entry.mime_type}' provided but not directly supported by reasoning models.]",
+                                        }
+                                    )
                     else:
                         # Regular models - use the original logic
                         content = [{"type": "text", "text": user_prompt}]
                         for file_entry in files_list:
                             # Check for PDF MIME types (could be various formats)
                             is_pdf = (
-                                file_entry.mime_type == "application/pdf" or
-                                file_entry.mime_type == "application/x-pdf" or
-                                file_entry.mime_type == "text/pdf" or
-                                'pdf' in file_entry.mime_type.lower() or
-                                (hasattr(file_entry, 'filename') and 
-                                 getattr(file_entry, 'filename', '').lower().endswith('.pdf'))
+                                file_entry.mime_type == "application/pdf"
+                                or file_entry.mime_type == "application/x-pdf"
+                                or file_entry.mime_type == "text/pdf"
+                                or "pdf" in file_entry.mime_type.lower()
+                                or (
+                                    hasattr(file_entry, "filename")
+                                    and getattr(file_entry, "filename", "")
+                                    .lower()
+                                    .endswith(".pdf")
+                                )
                             )
-                            
+
                             if is_pdf:
                                 # For PDFs, we need to upload the file first and use file_id
                                 try:
                                     # Convert base64 back to bytes for upload
-                                    pdf_bytes = base64.b64decode(file_entry.base64_string)
+                                    pdf_bytes = base64.b64decode(
+                                        file_entry.base64_string
+                                    )
                                     pdf_file = io.BytesIO(pdf_bytes)
-                                    pdf_file.name = getattr(file_entry, 'filename', 'document.pdf')
-                                    
+                                    pdf_file.name = getattr(
+                                        file_entry, "filename", "document.pdf"
+                                    )
+
                                     # Use sync client for file upload (files.create is not async in OpenAI client)
                                     sync_client = self.sync_client()
                                     uploaded_file = sync_client.files.create(
-                                        file=pdf_file,
-                                        purpose="user_data"
+                                        file=pdf_file, purpose="user_data"
                                     )
-                                    
-                                    content.append({
-                                        "type": "file",
-                                        "file": {
-                                            "file_id": uploaded_file.id,
+
+                                    content.append(
+                                        {
+                                            "type": "file",
+                                            "file": {
+                                                "file_id": uploaded_file.id,
+                                            },
                                         }
-                                    })
+                                    )
                                 except Exception as e:
                                     # Fallback approach: Try base64 PDF format (some users report this working)
                                     try:
-                                        content.append({
-                                            "type": "text",
-                                            "text": f"Here is a PDF document (base64): data:application/pdf;base64,{file_entry.base64_string[:100]}... [truncated for brevity]"
-                                        })
+                                        content.append(
+                                            {
+                                                "type": "text",
+                                                "text": f"Here is a PDF document (base64): data:application/pdf;base64,{file_entry.base64_string[:100]}... [truncated for brevity]",
+                                            }
+                                        )
                                     except Exception as fallback_error:
                                         # Final fallback: add error message explaining the issue
-                                        content.append({
-                                            "type": "text", 
-                                            "text": f"[PDF file could not be processed. Upload error: {str(e)}. Fallback error: {str(fallback_error)}. Please ensure the file is a valid PDF and OpenAI API supports PDF uploads.]"
-                                        })
+                                        content.append(
+                                            {
+                                                "type": "text",
+                                                "text": f"[PDF file could not be processed. Upload error: {str(e)}. Fallback error: {str(fallback_error)}. Please ensure the file is a valid PDF and OpenAI API supports PDF uploads.]",
+                                            }
+                                        )
                             else:
                                 # Handle images as before
                                 content.append(
@@ -320,7 +351,7 @@ class OpenAIService(InferenceServiceABC):
                                 )
                 else:
                     content = user_prompt
-                
+
                 client = self.async_client()
 
                 messages = [
@@ -348,47 +379,64 @@ class OpenAIService(InferenceServiceABC):
                 if "o1" in self.model or "o3" in self.model:
                     params.pop("max_tokens")
                     # For reasoning models, use much higher completion tokens to allow for reasoning + response
-                    reasoning_tokens = max(self.max_tokens, 5000)  # At least 5000 tokens for reasoning models
+                    reasoning_tokens = max(
+                        self.max_tokens, 5000
+                    )  # At least 5000 tokens for reasoning models
                     params["max_completion_tokens"] = reasoning_tokens
                     params["temperature"] = 1
                 try:
                     response = await client.chat.completions.create(**params)
                 except Exception as e:
                     error_message = str(e)
-                    
+
                     # Check if this is a PDF-related error for reasoning models and we can fallback
-                    if (is_reasoning_model and files_list and 
-                        "unsupported MIME type 'application/pdf'" in error_message):
-                        
+                    if (
+                        is_reasoning_model
+                        and files_list
+                        and "unsupported MIME type 'application/pdf'" in error_message
+                    ):
+
                         # Rebuild content with extracted text instead of PDF
                         content = [{"type": "text", "text": user_prompt}]
                         for file_entry in files_list:
-                            if 'pdf' in file_entry.mime_type.lower():
-                                if hasattr(file_entry, 'extracted_text') and file_entry.extracted_text:
+                            if "pdf" in file_entry.mime_type.lower():
+                                if (
+                                    hasattr(file_entry, "extracted_text")
+                                    and file_entry.extracted_text
+                                ):
                                     # Truncate very long PDFs to avoid overwhelming reasoning models
                                     extracted_text = file_entry.extracted_text
                                     max_chars = 50000  # Limit to ~50k chars (roughly 12-15k tokens)
                                     if len(extracted_text) > max_chars:
-                                        extracted_text = extracted_text[:max_chars] + f"\n\n[PDF truncated after {max_chars} characters due to length limits]"
-                                    
-                                    content.append({
-                                        "type": "text",
-                                        "text": f"\n--- PDF Content from '{getattr(file_entry, 'filename', 'document.pdf')}' ---\n{extracted_text}\n--- End of PDF Content ---\n"
-                                    })
+                                        extracted_text = (
+                                            extracted_text[:max_chars]
+                                            + f"\n\n[PDF truncated after {max_chars} characters due to length limits]"
+                                        )
+
+                                    content.append(
+                                        {
+                                            "type": "text",
+                                            "text": f"\n--- PDF Content from '{getattr(file_entry, 'filename', 'document.pdf')}' ---\n{extracted_text}\n--- End of PDF Content ---\n",
+                                        }
+                                    )
                                 else:
-                                    content.append({
-                                        "type": "text",
-                                        "text": f"\n[PDF file '{getattr(file_entry, 'filename', 'document.pdf')}' could not be processed - no extracted text available.]"
-                                    })
-                            elif file_entry.mime_type.startswith('image/'):
+                                    content.append(
+                                        {
+                                            "type": "text",
+                                            "text": f"\n[PDF file '{getattr(file_entry, 'filename', 'document.pdf')}' could not be processed - no extracted text available.]",
+                                        }
+                                    )
+                            elif file_entry.mime_type.startswith("image/"):
                                 # Keep images as-is
-                                content.append({
-                                    "type": "image_url",
-                                    "image_url": {
-                                        "url": f"data:{file_entry.mime_type};base64,{file_entry.base64_string}"
-                                    },
-                                })
-                        
+                                content.append(
+                                    {
+                                        "type": "image_url",
+                                        "image_url": {
+                                            "url": f"data:{file_entry.mime_type};base64,{file_entry.base64_string}"
+                                        },
+                                    }
+                                )
+
                         # Update the messages with the new content
                         messages = [
                             {"role": "system", "content": system_prompt},
@@ -400,19 +448,21 @@ class OpenAIService(InferenceServiceABC):
                             or "o3" in self.model
                         ):
                             messages = messages[1:]
-                        
+
                         # Update params with new messages
                         params["messages"] = messages
-                        
+
                         # Ensure reasoning models get enough completion tokens in retry too
                         if "o1" in self.model or "o3" in self.model:
                             reasoning_tokens = max(self.max_tokens, 5000)
                             params["max_completion_tokens"] = reasoning_tokens
-                        
+
                         try:
                             response = await client.chat.completions.create(**params)
                         except Exception as e2:
-                            return {"message": f"Original error: {error_message}. Retry error: {str(e2)}"}
+                            return {
+                                "message": f"Original error: {error_message}. Retry error: {str(e2)}"
+                            }
                     else:
                         return {"message": str(e)}
                 return response.model_dump()

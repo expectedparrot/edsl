@@ -200,7 +200,7 @@ class InterviewExceptionEntry:
         >>> _ = entry.deserialize_exception(entry.to_dict()["exception"])
         """
         exception_type = data.get("type", "Exception")
-        module_name = data.get("module", "builtins")
+        data.get("module", "builtins")
         message = data.get("message", "")
 
         try:

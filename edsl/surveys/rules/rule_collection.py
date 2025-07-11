@@ -56,7 +56,7 @@ class RuleCollection(UserList):
 
     def _repr_html_(self):
         """Return an HTML representation of the RuleCollection object.
-        
+
         >>> rule_collection = RuleCollection.example()
         >>> _ = rule_collection._repr_html_()
         """
@@ -114,8 +114,7 @@ class RuleCollection(UserList):
         self.append(rule)
 
     def show_rules(self) -> None:
-        """Print the rules in a table.
-        """
+        """Print the rules in a table."""
         return self.to_dataset()
 
     def skip_question_before_running(self, q_now: int, answers: dict[str, Any]) -> bool:
@@ -373,4 +372,5 @@ class RuleCollection(UserList):
 
 if __name__ == "__main__":
     import doctest
+
     doctest.testmod(optionflags=doctest.ELLIPSIS)

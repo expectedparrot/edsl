@@ -4,6 +4,7 @@ EDSL: Experimental Design Specification Language
 EDSL is a Python library for conducting virtual social science experiments, surveys, 
 and interviews with large language models.
 """
+
 import os
 import time
 import importlib
@@ -14,6 +15,7 @@ ROOT_DIR = os.path.dirname(BASE_DIR)
 
 from edsl.__version__ import __version__
 from edsl.config import Config, CONFIG
+
 # NOTE: `ext` is lazily imported below via __getattr__ to avoid circular-import issues.
 
 # Initialize and expose logger
@@ -147,6 +149,7 @@ logger.configure_from_config()
 # Import `ext` only after the full EDSL package (including surveys) is initialized
 try:
     from edsl.extensions import ext as ext  # type: ignore
+
     globals()["ext"] = ext
     __all__.append("ext")
 except Exception as _e:

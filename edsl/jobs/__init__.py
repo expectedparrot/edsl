@@ -20,7 +20,7 @@ from .exceptions import (
     JobsCompatibilityError,
     JobsImplementationError,
     RemoteInferenceError,
-    JobsTypeError
+    JobsTypeError,
 )
 
 __all__ = [
@@ -40,5 +40,5 @@ __all__ = [
     "JobsRunnerStatusBase",
     "RunConfig",
     "RunParameters",
-    "RunEnvironment"
+    "RunEnvironment",
 ]

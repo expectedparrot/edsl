@@ -1,5 +1,6 @@
 from .registry import default
 
+
 def write_available():
     d = {}
     for service in default.services:
