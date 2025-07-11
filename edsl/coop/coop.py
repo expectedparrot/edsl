@@ -5,7 +5,7 @@ import requests
 import time
 import os
 
-from typing import Any, Dict, Optional, Union, Literal, List, TypedDict, TYPE_CHECKING
+from typing import Any, Dict, Optional, Union, Literal, List, Tuple, TypedDict, TYPE_CHECKING
 from uuid import UUID
 
 from .. import __version__
@@ -539,11 +539,62 @@ class Coop(CoopFunctionsMixin):
 
     def _json_handle_none(self, value: Any) -> Any:
         """
-        Handle None values during JSON serialization.
-        - Return "null" if the value is None. Otherwise, don't return anything.
+        Handle None values and problematic float values during JSON serialization.
+        - Return "null" if the value is None
+        - Handle out-of-range float values with detailed error messages
         """
+        import math
+        
         if value is None:
             return "null"
+        
+        # Handle problematic float values
+        if isinstance(value, float):
+            if math.isinf(value):
+                raise ValueError(f"Cannot serialize infinite float value: {value}. "
+                               f"Location: {self._get_value_location(value)}")
+            elif math.isnan(value):
+                raise ValueError(f"Cannot serialize NaN float value: {value}. "
+                               f"Location: {self._get_value_location(value)}")
+            elif abs(value) > 1.7976931348623157e+308:  # sys.float_info.max
+                raise ValueError(f"Cannot serialize out-of-range float value: {value}. "
+                               f"Location: {self._get_value_location(value)}")
+        
+        # For other types, let the default JSON encoder handle them
+        raise TypeError(f"Object of type {type(value)} is not JSON serializable")
+
+    def _find_problematic_floats(self, obj: Any, path: str = "") -> List[Tuple[str, Any]]:
+        """
+        Recursively find all problematic float values in a nested data structure.
+        
+        Args:
+            obj: The object to search
+            path: Current path in the object hierarchy
+            
+        Returns:
+            List of tuples containing (path, problematic_value)
+        """
+        import math
+        
+        problems = []
+        
+        if isinstance(obj, float):
+            if math.isinf(obj) or math.isnan(obj):
+                problems.append((path, obj))
+        elif isinstance(obj, dict):
+            for key, value in obj.items():
+                new_path = f"{path}.{key}" if path else key
+                problems.extend(self._find_problematic_floats(value, new_path))
+        elif isinstance(obj, (list, tuple)):
+            for i, value in enumerate(obj):
+                new_path = f"{path}[{i}]" if path else f"[{i}]"
+                problems.extend(self._find_problematic_floats(value, new_path))
+        elif hasattr(obj, '__dict__'):
+            for key, value in obj.__dict__.items():
+                new_path = f"{path}.{key}" if path else key
+                problems.extend(self._find_problematic_floats(value, new_path))
+        
+        return problems
 
     @staticmethod
     def _is_url(url_or_uuid: Union[str, UUID]) -> bool:
@@ -2788,14 +2839,30 @@ class Coop(CoopFunctionsMixin):
 
         except Exception:
             return self.get(url_or_uuid, expected_object_type)
+        
         object_dict = response.json()
         if expected_object_type is not None:
             edsl_class = ObjectRegistry.get_edsl_class_by_object_type(
                 expected_object_type
             )
             edsl_object = edsl_class.from_dict(object_dict)
-        # Return the response containing the signed URL
-        return edsl_object
+            return edsl_object
+        else:
+            likely_object_type = object_dict.get("edsl_class_name")
+            if likely_object_type is not None:
+                edsl_class = ObjectRegistry.get_registry().get(likely_object_type, None)
+                return edsl_class.from_dict(object_dict)
+            else:
+                for edsl_class in ObjectRegistry.get_registry().values():
+                    try:
+                        edsl_object = edsl_class.from_dict(object_dict)
+                        return edsl_object
+                        break
+                    except Exception:
+                        continue
+
+        raise CoopResponseError(f"No EDSL class found for {likely_object_type=}")
+            
 
     def get_upload_url(self, object_uuid: str) -> dict:
         """
@@ -2841,7 +2908,7 @@ class Coop(CoopFunctionsMixin):
         description: Optional[str] = None,
         alias: Optional[str] = None,
         visibility: Optional[VisibilityType] = "unlisted",
-    ) -> dict:
+    ) -> 'Scenario':
         """
         Generate a signed URL for pushing an object directly to Google Cloud Storage.
 
@@ -2862,7 +2929,7 @@ class Coop(CoopFunctionsMixin):
             >>> print(f"Upload URL: {response['signed_url']}")
             >>> # Use the signed_url to upload the object directly
         """
-
+        from ..scenarios import Scenario
         object_type = ObjectRegistry.get_object_type_by_edsl_class(object)
         object_dict = object.to_dict()
         object_hash = object.get_hash() if hasattr(object, "get_hash") else None
@@ -2888,11 +2955,42 @@ class Coop(CoopFunctionsMixin):
 
             raise CoopResponseError(response.text)
 
-        json_data = json.dumps(
-            object_dict,
-            default=self._json_handle_none,
-            allow_nan=False,
-        )
+        try:
+            json_data = json.dumps(
+                object_dict,
+                default=self._json_handle_none,
+                allow_nan=False,
+            )
+        except (ValueError, TypeError) as e:
+            from .exceptions import CoopSerializationError
+            import math
+            
+            # Find specific problematic values
+            problems = self._find_problematic_floats(object_dict)
+            
+            if problems:
+                # Create detailed error message with specific locations
+                error_msg = f"Cannot serialize object to JSON due to {len(problems)} problematic float value(s):\n"
+                for path, value in problems[:10]:  # Limit to first 10 to avoid overwhelming output
+                    value_type = "inf" if math.isinf(value) else "nan" if math.isnan(value) else "invalid"
+                    error_msg += f"  • {path}: {value} ({value_type})\n"
+                
+                if len(problems) > 10:
+                    error_msg += f"  ... and {len(problems) - 10} more problematic values\n"
+                
+                error_msg += "\nTo fix this issue:\n"
+                error_msg += "1. Replace NaN values with None or a default value\n"
+                error_msg += "2. Replace inf/-inf values with large finite numbers or None\n"
+                error_msg += "3. Filter out rows/records with problematic values before pushing"
+                
+                raise CoopSerializationError(error_msg) from e
+            else:
+                # Generic serialization error
+                error_msg = f"Failed to serialize object to JSON: {str(e)}"
+                if "not JSON serializable" in str(e):
+                    error_msg += f"\nObject type: {type(object_dict)}"
+                    error_msg += f"\nObject class: {object.__class__.__name__}"
+                raise CoopSerializationError(error_msg) from e
         response = requests.put(
             signed_url,
             data=json_data.encode(),
@@ -2918,7 +3016,7 @@ class Coop(CoopFunctionsMixin):
         )
         self._resolve_server_response(confirm_response)
 
-        return {
+        return Scenario({
             "description": response_json.get("description"),
             "object_type": object_type,
             "url": f"{self.url}/content/{object_uuid}",
@@ -2926,7 +3024,7 @@ class Coop(CoopFunctionsMixin):
             "uuid": object_uuid,
             "version": self._edsl_version,
             "visibility": response_json.get("visibility"),
-        }
+        })
 
     def _display_login_url(
         self, edsl_auth_token: str, link_description: Optional[str] = None
