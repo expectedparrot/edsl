@@ -37,6 +37,7 @@ class Selector:
         key_to_data_type: Dict[str, str],
         fetch_list_func: Callable[[str, str], List[Any]],
         columns: List[str],
+        survey: Optional[Any] = None,
     ):
         """
         Initialize a Selector object.
@@ -47,6 +48,7 @@ class Selector:
             key_to_data_type: Mapping from keys to their corresponding data types
             fetch_list_func: Function that retrieves values for a given data type and key
             columns: List of available column names in dot notation
+            survey: Optional survey object to determine question order for answer columns
 
         Examples:
             >>> s = Selector(
@@ -64,6 +66,7 @@ class Selector:
         self._key_to_data_type = key_to_data_type
         self._fetch_list = fetch_list_func
         self.columns = columns
+        self.survey = survey
         self.items_in_order = []  # Tracks column order for consistent output
 
     def select(self, *columns: Union[str, List[str]]) -> Optional[Any]:
@@ -349,6 +352,7 @@ class Selector:
 
         This method handles wildcards in both data types and keys, expands them
         appropriately, and tracks the order of items for consistent output.
+        For answer columns, it orders them according to the survey question order.
 
         Args:
             data_type: The data type component (e.g., "answer", "agent")
@@ -378,7 +382,30 @@ class Selector:
 
         for dt in data_types:
             relevant_keys = self._data_type_to_keys[dt]
-            for k in relevant_keys:
+            
+            # For answer columns with wildcard, order by survey question order
+            if dt == "answer" and key == "*" and self.survey and hasattr(self.survey, 'questions'):
+                # Get question names in survey order
+                survey_question_names = [q.question_name for q in self.survey.questions if hasattr(q, 'question_name')]
+                
+                # Order relevant keys by survey question order, then add any extras
+                ordered_keys = []
+                for question_name in survey_question_names:
+                    if question_name in relevant_keys:
+                        ordered_keys.append(question_name)
+                
+                # Add any remaining keys not in survey (e.g., created columns)
+                for k in relevant_keys:
+                    if k not in ordered_keys:
+                        ordered_keys.append(k)
+                
+                # Use the ordered keys
+                keys_to_process = ordered_keys
+            else:
+                # For non-answer columns or specific keys, use original order
+                keys_to_process = relevant_keys
+            
+            for k in keys_to_process:
                 if k == key or key == "*":
                     found_once = True
                     to_fetch[dt].append(k)

@@ -693,6 +693,7 @@ class EDSLShell(cmd.Cmd):
                 "clear": self.do_dot_clear,
                 "error": self.do_dot_error,
                 "help": self.do_dot_help,
+                "list": self.do_dot_list,
                 "quit": self.do_quit,
                 "exit": self.do_exit,
             }
@@ -702,7 +703,7 @@ class EDSLShell(cmd.Cmd):
             else:
                 console.print(f"[red]Unknown dot command: .{dot_command}[/red]")
                 console.print(
-                    "[yellow]Available dot commands: .load, .stack, .unload, .pull, .create, .show_key, .profiles, .switch, .pop, .clear, .error, .help, .quit, .exit[/yellow]"
+                    "[yellow]Available dot commands: .load, .stack, .unload, .pull, .create, .show_key, .profiles, .switch, .pop, .clear, .error, .help, .list, .quit, .exit[/yellow]"
                 )
                 return
 
@@ -1135,6 +1136,67 @@ class EDSLShell(cmd.Cmd):
     # Profile management
     # -------------------------------------------------------------------
 
+    def do_dot_list(self, line):
+        """List objects from Coop by calling the list() method on an EDSL class."""
+        class_name = line.strip()
+        if not class_name:
+            console.print("[yellow]Usage: .list <ClassName>[/yellow]")
+            return
+
+        try:
+            # Get the class from the registry
+            registry = _get_registry()
+            cls = (
+                registry.get(class_name)
+                or registry.get(class_name.capitalize())
+                or registry.get(class_name.lower())
+            )
+            if cls is None:
+                console.print(
+                    f"[red]Unknown class '{class_name}'. Available: {', '.join(registry.keys())}[/red]"
+                )
+                return
+
+            # Call the list() method on the class
+            console.print(f"[cyan]Calling {class_name}.list()...[/cyan]")
+            result = cls.list()
+
+            # Display the result
+            if result is not None:
+                console.print(f"[green]Returned:[/green]")
+                # Check if it's a TableDisplay to avoid double Rich formatting
+                try:
+                    from edsl.dataset.display.table_display import TableDisplay
+
+                    if isinstance(result, TableDisplay):
+                        print(str(result))
+                    else:
+                        console.print(str(result))
+                except ImportError:
+                    console.print(str(result))
+
+                # Push the result onto the stack if it's not a primitive type
+                if not isinstance(result, (str, int, float, bool, bytes, bytearray)):
+                    new_name = result.__class__.__name__
+                    _add_to_stack(new_name, result)
+                    console.print(
+                        f"[cyan]Added result to stack as ${len(_object_stack)} ({new_name}). Switched focus.[/cyan]"
+                    )
+
+                    # Update shell context
+                    self.loaded_object = result
+                    self.object_name = new_name
+                    self.prompt = f"edsl ({new_name})> "
+
+                    # Refresh dynamic methods for the new object
+                    self._add_dynamic_methods()
+                    _register_dynamic_commands()
+            else:
+                console.print("[green]✓ Method executed successfully[/green]")
+
+        except Exception as e:
+            console.print(f"[red]Error calling {class_name}.list(): {e}[/red]")
+
     def do_dot_help(self, line):
         """Show comprehensive help for EDSL commands."""
 
@@ -1161,6 +1223,7 @@ class EDSLShell(cmd.Cmd):
             (".switch", "Switch env profile", ".switch dev"),
             (".show_key", "Show API key (masked)", ".show_key"),
             (".error", "Open error URL in browser", ".error abc-123-def"),
+            (".list", "List objects from Coop", ".list Agent"),
             (".quit", "Exit the shell", ".quit"),
             (".help", "Show this help", ".help"),
         ]
@@ -2013,6 +2076,57 @@ def error_cli(uuid: str = typer.Argument(..., help="UUID of the error to open"))
         console.print(f"[yellow]Manual URL: {url}[/yellow]")
 
 
+@app.command(name=".list", help="List objects from Coop by calling the list() method on an EDSL class")
+def list_cli(class_name: str = typer.Argument(..., help="EDSL class name")):
+    """List objects from Coop by calling the list() method on an EDSL class."""
+    try:
+        # Get the class from the registry
+        registry = _get_registry()
+        cls = (
+            registry.get(class_name)
+            or registry.get(class_name.capitalize())
+            or registry.get(class_name.lower())
+        )
+        if cls is None:
+            console.print(
+                f"[red]Unknown class '{class_name}'. Available: {', '.join(registry.keys())}[/red]"
+            )
+            raise typer.Exit(1)
+
+        # Call the list() method on the class
+        console.print(f"[cyan]Calling {class_name}.list()...[/cyan]")
+        result = cls.list()
+
+        # Display the result
+        if result is not None:
+            console.print(f"[green]Returned:[/green]")
+            # Check if it's a TableDisplay to avoid double Rich formatting
+            try:
+                from edsl.dataset.display.table_display import TableDisplay
+
+                if isinstance(result, TableDisplay):
+                    print(str(result))
+                else:
+                    console.print(str(result))
+            except ImportError:
+                console.print(str(result))
+
+            # Push the result onto the stack if it's not a primitive type
+            if not isinstance(result, (str, int, float, bool, bytes, bytearray)):
+                new_name = result.__class__.__name__
+                _add_to_stack(new_name, result)
+                console.print(
+                    f"[cyan]Added result to stack as ${len(_object_stack)} ({new_name})[/cyan]"
+                )
+                _register_dynamic_commands()
+        else:
+            console.print("[green]✓ Method executed successfully[/green]")
+
+    except Exception as e:
+        console.print(f"[red]Error calling {class_name}.list(): {e}[/red]")
+        raise typer.Exit(1)
+
+
 @app.command(name=".help", help="Show help for EDSL commands")
 def help_cli():
     """Show comprehensive help for EDSL dot commands."""
@@ -2041,6 +2155,7 @@ def help_cli():
         (".switch", "Switch env profile", ".switch dev"),
         (".show_key", "Show API key (masked)", ".show_key"),
         (".error", "Open error URL in browser", ".error abc-123-def"),
+        (".list", "List objects from Coop", ".list Agent"),
         (".version", "Show EDSL version", ".version"),
         (".test-stdin", "Output test object", ".test-stdin"),
         (".help", "Show this help", ".help"),
