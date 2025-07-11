@@ -27,28 +27,28 @@ class LinearScaleResponseValidator(MultipleChoiceResponseValidator):
             A fixed response dict if possible, otherwise the original response
         """
         if verbose:
-            print(f"Starting fix with response: {response}")
-            print(f"Option labels: {self.option_labels}")
-            print(f"Question options: {self.question_options}")
+            logger.setLevel(logging.DEBUG)
+        else:
+            logger.setLevel(logging.WARNING)
+        logger.debug(f"Starting fix with response: {response}")
+        logger.debug(f"Option labels: {self.option_labels}")
+        logger.debug(f"Question options: {self.question_options}")
         
         # First check if the response is already valid with an integer answer
         try:
             # Try to validate the original response
             self.response_model.model_validate(response)
             # If successful, the response is already valid
-            if verbose:
-                print("Response is already valid, returning as is")
+            logger.debug("Response is already valid, returning as is")
             return response
         except Exception as e:
             # Response is invalid, proceed with fixing
-            if verbose:
-                print(f"Response validation failed: {e}")
+            logger.debug(f"Response validation failed: {e}")
             pass
             
         # Don't attempt to fix None values
         if response.get("answer") is None:
-            if verbose:
-                print("Not attempting to fix None answer value")
+            logger.debug("Not attempting to fix None answer value")
             return response
         
         # Get the response text to analyze
