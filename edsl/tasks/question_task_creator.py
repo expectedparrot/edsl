@@ -26,11 +26,11 @@ if TYPE_CHECKING:
 class TokensUsed(UserDict):
     """
     Container for tracking token usage for a task, separating cached and new tokens.
-    
+
     This class provides a structured way to track token usage for a single task,
     distinguishing between tokens reused from cache and tokens freshly generated.
     It uses a UserDict interface for convenient access to the underlying data.
-    
+
     Attributes:
         cached_tokens: TokenUsage object tracking reused tokens from cache
         new_tokens: TokenUsage object tracking freshly generated tokens
@@ -39,7 +39,7 @@ class TokensUsed(UserDict):
     def __init__(self, cached_tokens: TokenUsage, new_tokens: TokenUsage):
         """
         Initialize a TokensUsed container.
-        
+
         Parameters:
             cached_tokens: TokenUsage object for tokens reused from cache
             new_tokens: TokenUsage object for newly generated tokens
@@ -51,27 +51,28 @@ class TokensUsed(UserDict):
 class QuestionTaskCreator(UserList):
     """
     Creates and manages the execution of a single question as an asyncio task.
-    
+
     The QuestionTaskCreator is a fundamental component of EDSL's task system,
     responsible for executing a single question with its dependencies. It extends
     UserList to maintain a list of dependent tasks that must complete before this
     task can execute.
-    
+
     Key responsibilities:
     1. Task Dependency Management - Tracks prerequisite tasks that must complete first
     2. Resource Management - Handles rate limiting and token quota management
     3. Task Status Tracking - Monitors and logs task state transitions
     4. Token Usage Tracking - Records token consumption for both cached and new tokens
     5. Task Execution - Runs the question answering function when dependencies are met
-    
+
     The class follows the state machine pattern, with task_status transitioning through
     various TaskStatus states (NOT_STARTED, WAITING_FOR_DEPENDENCIES, etc.) as execution
     progresses. All status changes are automatically logged to enable detailed analysis
     and visualization.
-    
+
     This class is designed to work with asyncio for concurrent task execution, enabling
     efficient processing of interviews with multiple questions and dependencies.
     """
+
     task_status = TaskStatusDescriptor()
 
     def __init__(
@@ -85,14 +86,14 @@ class QuestionTaskCreator(UserList):
     ):
         """
         Initialize a QuestionTaskCreator for a specific question.
-        
+
         Parameters:
             question: The Question object to be answered
             answer_question_func: Function that will execute the LLM call to answer the question
             model_buckets: Container for rate limiting buckets (requests and tokens)
             token_estimator: Function to estimate token usage for the question (for quota management)
             iteration: The iteration number of this question (for repeated questions)
-            
+
         Notes:
             - The QuestionTaskCreator starts in the NOT_STARTED state
             - Dependencies can be added after initialization with add_dependency()
@@ -233,40 +234,40 @@ class QuestionTaskCreator(UserList):
     async def _run_task_async(self) -> Answers:
         """
         Execute the task with its dependencies in an async workflow.
-        
+
         This method implements the core task execution logic with dependency handling.
         It manages the complete lifecycle of a task:
-        
+
         1. Waiting for dependencies to complete
         2. Handling dependency failures appropriately
         3. Executing the task itself when dependencies are satisfied
         4. Tracking status transitions throughout execution
-        
+
         The method maintains the state machine pattern by updating task_status
         at each stage of execution, allowing for detailed monitoring and visualization
         of task progress.
-        
+
         Returns:
             Answers object containing the question's answer and metadata
-            
+
         Raises:
             asyncio.CancelledError: If the task is cancelled
             InterviewErrorPriorTaskCanceled: If any dependency task fails
-            
+
         Example:
             >>> qt1 = QuestionTaskCreator.example()
             >>> qt2 = QuestionTaskCreator.example()
             >>> qt2.add_dependency(qt1)
-        
+
         Implementation details:
-        
+
         1. Set status to WAITING_FOR_DEPENDENCIES and await all dependencies
            - Using gather with return_exceptions=True allows collecting all results
-        
+
         2. Check dependency results for exceptions:
            - If CancelledError: Set status to CANCELLED and propagate the cancellation
            - If other exception: Set status to PARENT_FAILED and wrap in InterviewErrorPriorTaskCanceled
-        
+
         3. If all dependencies succeed, execute the focal task (_run_focal_task)
            - The focal task handles its own status transitions during execution
         """

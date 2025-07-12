@@ -11,11 +11,7 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 from ..config import CONFIG
-from .validation_analysis import (
-    get_validation_failure_stats,
-    suggest_fix_improvements,
-    export_improvements_report
-)
+from .validation_analysis import get_validation_failure_stats, suggest_fix_improvements
 from .validation_logger import get_validation_failure_logs
 
 HTML_TEMPLATE = """
@@ -214,9 +210,11 @@ def _generate_type_stats_rows(stats: Dict) -> str:
     """Generate HTML table rows for question type statistics."""
     type_stats = stats.get("by_question_type", {})
     total_failures = sum(type_stats.values())
-    
+
     rows = []
-    for question_type, count in sorted(type_stats.items(), key=lambda x: x[1], reverse=True):
+    for question_type, count in sorted(
+        type_stats.items(), key=lambda x: x[1], reverse=True
+    ):
         percentage = (count / total_failures) * 100 if total_failures > 0 else 0
         row = (
             f"<tr>"
@@ -226,33 +224,28 @@ def _generate_type_stats_rows(stats: Dict) -> str:
             f"</tr>"
         )
         rows.append(row)
-    
+
     return "\n".join(rows)
 
 
 def _generate_error_stats_rows(stats: Dict) -> str:
     """Generate HTML table rows for error message statistics."""
     error_counts = {}
-    
+
     # Aggregate error counts across all question types
     for question_type, errors in stats.get("by_error_message", {}).items():
         for error_msg, count in errors.items():
             error_counts[error_msg] = error_counts.get(error_msg, 0) + count
-    
+
     # Sort by count (descending)
     sorted_errors = sorted(error_counts.items(), key=lambda x: x[1], reverse=True)
-    
+
     rows = []
     for error_msg, count in sorted_errors[:10]:  # Show top 10 errors
         shortened_msg = error_msg[:100] + "..." if len(error_msg) > 100 else error_msg
-        row = (
-            f"<tr>"
-            f"<td>{shortened_msg}</td>"
-            f"<td>{count}</td>"
-            f"</tr>"
-        )
+        row = f"<tr>" f"<td>{shortened_msg}</td>" f"<td>{count}</td>" f"</tr>"
         rows.append(row)
-    
+
     return "\n".join(rows)
 
 
@@ -260,18 +253,18 @@ def _generate_suggestions_content(suggestions: Dict) -> str:
     """Generate HTML content for fix method suggestions."""
     if not suggestions:
         return "<p>No suggestions available. Log more validation failures to generate improvement suggestions.</p>"
-    
+
     content = []
-    
+
     for question_type, question_suggestions in suggestions.items():
-        content.append(f"<div class='card'>")
+        content.append("<div class='card'>")
         content.append(f"<div class='card-header'>{question_type}</div>")
-        
+
         for suggestion in question_suggestions:
             error_msg = suggestion.get("error_message", "")
             occurrence_count = suggestion.get("occurrence_count", 0)
             suggestion_text = suggestion.get("suggestion", "")
-            
+
             content.append(
                 f"<div class='suggestion'>"
                 f"<p><strong>Error:</strong> {error_msg}</p>"
@@ -282,9 +275,9 @@ def _generate_suggestions_content(suggestions: Dict) -> str:
                 f"</div>"
                 f"</div>"
             )
-        
+
         content.append("</div>")
-    
+
     return "\n".join(content)
 
 
@@ -292,9 +285,9 @@ def _generate_examples_content(logs: List[Dict]) -> str:
     """Generate HTML content for example validation failures."""
     if not logs:
         return "<p>No validation failure examples available.</p>"
-    
+
     content = []
-    
+
     # Group logs by question type
     logs_by_type = {}
     for log in logs:
@@ -302,20 +295,22 @@ def _generate_examples_content(logs: List[Dict]) -> str:
         if question_type not in logs_by_type:
             logs_by_type[question_type] = []
         logs_by_type[question_type].append(log)
-    
+
     # For each question type, show the most recent example
     for question_type, type_logs in logs_by_type.items():
         # Sort by timestamp (newest first)
-        sorted_logs = sorted(type_logs, key=lambda x: x.get("timestamp", ""), reverse=True)
+        sorted_logs = sorted(
+            type_logs, key=lambda x: x.get("timestamp", ""), reverse=True
+        )
         example_log = sorted_logs[0]
-        
+
         error_message = example_log.get("error_message", "")
         invalid_data = example_log.get("invalid_data", {})
         model_schema = example_log.get("model_schema", {})
-        
-        content.append(f"<div class='card'>")
+
+        content.append("<div class='card'>")
         content.append(f"<div class='card-header'>{question_type}</div>")
-        
+
         content.append(
             f"<div class='example'>"
             f"<p><strong>Error:</strong> {error_message}</p>"
@@ -325,19 +320,19 @@ def _generate_examples_content(logs: List[Dict]) -> str:
             f"<pre><code>{json.dumps(model_schema, indent=2)}</code></pre>"
             f"</div>"
         )
-        
+
         content.append("</div>")
-    
+
     return "\n".join(content)
 
 
 def generate_html_report(output_path: Optional[Path] = None) -> Path:
     """
     Generate an HTML report of validation failures.
-    
+
     Args:
         output_path: Optional custom path for the report
-        
+
     Returns:
         Path to the generated HTML report
     """
@@ -351,38 +346,40 @@ def generate_html_report(output_path: Optional[Path] = None) -> Path:
             report_dir = default_log_dir
         os.makedirs(report_dir, exist_ok=True)
         output_path = report_dir / "validation_report.html"
-    
+
     # Get validation data
     logs = get_validation_failure_logs(n=100)  # Get up to 100 recent logs
     stats = get_validation_failure_stats()
     suggestions = suggest_fix_improvements()
-    
+
     # Calculate summary statistics
     total_failures = sum(stats.get("by_question_type", {}).values())
     question_types_count = len(stats.get("by_question_type", {}))
-    
+
     # Generate report content
     type_stats_rows = _generate_type_stats_rows(stats)
     error_stats_rows = _generate_error_stats_rows(stats)
     suggestions_content = _generate_suggestions_content(suggestions)
     examples_content = _generate_examples_content(logs)
-    
+
     # Format timestamp
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    
+
     # Fill the template
     html_content = HTML_TEMPLATE.replace("{{timestamp}}", timestamp)
     html_content = html_content.replace("{{total_failures}}", str(total_failures))
-    html_content = html_content.replace("{{question_types_count}}", str(question_types_count))
+    html_content = html_content.replace(
+        "{{question_types_count}}", str(question_types_count)
+    )
     html_content = html_content.replace("{{type_stats_rows}}", type_stats_rows)
     html_content = html_content.replace("{{error_stats_rows}}", error_stats_rows)
     html_content = html_content.replace("{{suggestions_content}}", suggestions_content)
     html_content = html_content.replace("{{examples_content}}", examples_content)
-    
+
     # Write the report
     with open(output_path, "w") as f:
         f.write(html_content)
-    
+
     return output_path
 
 
@@ -390,10 +387,11 @@ def generate_and_open_report() -> None:
     """Generate a validation report and open it in the default browser."""
     report_path = generate_html_report()
     print(f"Report generated at: {report_path}")
-    
+
     # Try to open the report in a browser
     try:
         import webbrowser
+
         webbrowser.open(f"file://{report_path}")
     except Exception as e:
         print(f"Could not open browser: {e}")

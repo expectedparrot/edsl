@@ -299,7 +299,6 @@ class FileStore(Scenario):
 
     def upload_google(self, refresh: bool = False) -> None:
         import google.generativeai as genai
-        import google
 
         try:
             genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))

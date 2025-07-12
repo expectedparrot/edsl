@@ -41,6 +41,7 @@ class FileExport(ABC):
     def _create_filestore(self, data: Union[str, bytes]):
         """Create a FileStore instance with encoded data."""
         from ..scenarios.file_store import FileStore
+
         if isinstance(data, str):
             base64_string = base64.b64encode(data.encode()).decode()
         else:
@@ -70,7 +71,7 @@ class FileExport(ABC):
 
     def export(self) -> Optional:
         """Export the data to a FileStore instance.
-        
+
         Returns:
             A FileStore instance or None if the file was written directly.
         """
@@ -202,6 +203,7 @@ class SQLiteExport(TabularExport):
             )
             if cursor.fetchone():
                 from .exceptions import DatasetValueError
+
                 raise DatasetValueError(f"Table {self.table_name} already exists")
 
         # Create table
@@ -244,6 +246,7 @@ class SQLiteExport(TabularExport):
         valid_if_exists = {"fail", "replace", "append"}
         if self.if_exists not in valid_if_exists:
             from .exceptions import DatasetValueError
+
             raise DatasetValueError(
                 f"if_exists must be one of {valid_if_exists}, got {self.if_exists}"
             )
@@ -251,6 +254,7 @@ class SQLiteExport(TabularExport):
         # Validate table name (basic SQLite identifier validation)
         if not self.table_name.isalnum() and not all(c in "_" for c in self.table_name):
             from .exceptions import DatasetValueError
+
             raise DatasetValueError(
                 f"Invalid table name: {self.table_name}. Must contain only alphanumeric characters and underscores."
             )
@@ -263,7 +267,9 @@ class DocxExport(FileExport):
     keys and corresponding values.
     """
 
-    mime_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    mime_type = (
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    )
     suffix = "docx"
     is_binary = True
 
@@ -274,7 +280,9 @@ class DocxExport(FileExport):
         pretty_labels: Optional[Dict[str, str]] = None,
         **kwargs,
     ):
-        super().__init__(*args, remove_prefix=remove_prefix, pretty_labels=pretty_labels, **kwargs)
+        super().__init__(
+            *args, remove_prefix=remove_prefix, pretty_labels=pretty_labels, **kwargs
+        )
 
     def _build_document(self):
         """Create a docx Document object representing the dataset."""
@@ -282,6 +290,7 @@ class DocxExport(FileExport):
             from docx import Document  # type: ignore
         except ImportError as exc:
             from .exceptions import DatasetImportError
+
             raise DatasetImportError(
                 "The python-docx package is required for DOCX export. Install it with 'pip install python-docx'."
             ) from exc

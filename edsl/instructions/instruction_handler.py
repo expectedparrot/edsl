@@ -3,6 +3,7 @@ from dataclasses import dataclass
 
 from typing import Dict, List, Any
 
+
 @dataclass
 class SeparatedComponents:
     true_questions: List[Any]
@@ -15,7 +16,9 @@ class InstructionHandler:
         self.survey = survey
 
     @staticmethod
-    def separate_questions_and_instructions(questions_and_instructions: list) -> SeparatedComponents:
+    def separate_questions_and_instructions(
+        questions_and_instructions: list,
+    ) -> SeparatedComponents:
         """
         The 'pseudo_indices' attribute is a dictionary that maps question names to pseudo-indices
         that are used to order questions and instructions in the survey.
@@ -66,6 +69,7 @@ class InstructionHandler:
                     for prior_instruction in entry.keep + entry.drop:
                         if prior_instruction not in instruction_names_to_instructions:
                             from .exceptions import InstructionValueError
+
                             raise InstructionValueError(
                                 f"ChangeInstruction {entry.name} references instruction {prior_instruction} which does not exist."
                             )
@@ -80,6 +84,7 @@ class InstructionHandler:
                 true_questions.append(entry)
             else:
                 from .exceptions import InstructionValueError
+
                 raise InstructionValueError(
                     f"Entry {repr(entry)} is not a QuestionBase or an Instruction."
                 )

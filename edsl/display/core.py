@@ -10,6 +10,7 @@ try:
     from IPython.display import HTML as IPythonHTML
     from IPython.display import FileLink as IPythonFileLink
     from IPython.display import IFrame as IPythonIFrame
+
     _IPYTHON_AVAILABLE = True
 except ImportError:
     _IPYTHON_AVAILABLE = False
@@ -18,7 +19,7 @@ except ImportError:
 def is_notebook_environment():
     """
     Check if code is running in a Jupyter notebook or similar interactive environment.
-    
+
     Returns:
         bool: True if running in a notebook environment, False otherwise
     """
@@ -28,6 +29,7 @@ def is_notebook_environment():
             return True  # Jupyter notebook or qtconsole
         elif shell == "Shell":  # Google Colab's shell class
             import sys
+
             if "google.colab" in sys.modules:
                 return True  # Running in Google Colab
             return False
@@ -42,15 +44,16 @@ def is_notebook_environment():
 class HTML:
     """
     Wrapper for IPython's HTML display class.
-    
+
     This class provides the same functionality as IPython.display.HTML but can be
     extended or replaced with alternative implementations.
     """
+
     def __init__(self, data=None, metadata=None, **kwargs):
         self.data = data
         self.metadata = metadata
         self.kwargs = kwargs
-        
+
         if _IPYTHON_AVAILABLE and is_notebook_environment():
             self._ipython_html = IPythonHTML(data, metadata, **kwargs)
         else:
@@ -70,24 +73,28 @@ class HTML:
 class FileLink:
     """
     Wrapper for IPython's FileLink display class.
-    
+
     This class provides the same functionality as IPython.display.FileLink but can be
     extended or replaced with alternative implementations.
     """
-    def __init__(self, path, url_prefix='', result_html_prefix='', result_html_suffix='', **kwargs):
+
+    def __init__(
+        self,
+        path,
+        url_prefix="",
+        result_html_prefix="",
+        result_html_suffix="",
+        **kwargs,
+    ):
         self.path = path
         self.url_prefix = url_prefix
-        self.result_html_prefix = result_html_prefix 
+        self.result_html_prefix = result_html_prefix
         self.result_html_suffix = result_html_suffix
         self.kwargs = kwargs
-        
+
         if _IPYTHON_AVAILABLE and is_notebook_environment():
             self._ipython_filelink = IPythonFileLink(
-                path, 
-                url_prefix, 
-                result_html_prefix, 
-                result_html_suffix,
-                **kwargs
+                path, url_prefix, result_html_prefix, result_html_suffix, **kwargs
             )
         else:
             self._ipython_filelink = None
@@ -102,16 +109,17 @@ class FileLink:
 class IFrame:
     """
     Wrapper for IPython's IFrame display class.
-    
+
     This class provides the same functionality as IPython.display.IFrame but can be
     extended or replaced with alternative implementations.
     """
+
     def __init__(self, src, width, height, **kwargs):
         self.src = src
         self.width = width
         self.height = height
         self.kwargs = kwargs
-        
+
         if _IPYTHON_AVAILABLE and is_notebook_environment():
             self._ipython_iframe = IPythonIFrame(src, width, height, **kwargs)
         else:
@@ -127,10 +135,10 @@ class IFrame:
 def display(obj, *args, **kwargs):
     """
     Display an object in the frontend.
-    
+
     Wrapper around IPython.display.display that can be extended or replaced with
     alternative implementations.
-    
+
     Args:
         obj: The object to display
         *args: Additional objects to display
@@ -140,7 +148,7 @@ def display(obj, *args, **kwargs):
         ipython_display(obj, *args, **kwargs)
     else:
         # Fallback behavior when not in notebook environment
-        if hasattr(obj, '_repr_html_'):
+        if hasattr(obj, "_repr_html_"):
             print("HTML representation available, but not in notebook environment.")
         print(repr(obj))
         for arg in args:

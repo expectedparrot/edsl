@@ -77,12 +77,14 @@ class PromptPlan:
 
         if not isinstance(user_prompt_order, tuple):
             from edsl.invigilators.exceptions import InvigilatorTypeError
+
             raise InvigilatorTypeError(
                 f"Expected a tuple, but got {type(user_prompt_order).__name__}"
             )
 
         if not isinstance(system_prompt_order, tuple):
             from edsl.invigilators.exceptions import InvigilatorTypeError
+
             raise InvigilatorTypeError(
                 f"Expected a tuple, but got {type(system_prompt_order).__name__}"
             )
@@ -91,6 +93,7 @@ class PromptPlan:
         self.system_prompt_order = self._convert_to_enum(system_prompt_order)
         if not self._is_valid_plan():
             from edsl.invigilators.exceptions import InvigilatorValueError
+
             raise InvigilatorValueError(
                 "Invalid plan: must contain each value of PromptComponent exactly once."
             )
@@ -113,6 +116,7 @@ class PromptPlan:
         component_strings = set([pc.value for pc in PromptComponent])
         if not set(kwargs.keys()) == component_strings:
             from edsl.invigilators.exceptions import InvigilatorValueError
+
             raise InvigilatorValueError(
                 f"Invalid components passed: {set(kwargs.keys())} but expected {PromptComponent}"
             )

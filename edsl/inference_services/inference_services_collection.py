@@ -12,8 +12,7 @@ if TYPE_CHECKING:
 
 
 class ModelCreator(Protocol):
-    def create_model(self, model_name: str) -> "LanguageModel":
-        ...
+    def create_model(self, model_name: str) -> "LanguageModel": ...
 
 
 class ModelResolver:

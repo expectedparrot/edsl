@@ -9,17 +9,17 @@ class XlsxMethods(FileMethods):
     def extract_text(self):
         """Extract text content from Excel file."""
         import pandas as pd
-        
+
         # Read all sheets from the Excel file
         excel_file = pd.read_excel(self.path, sheet_name=None)
-        
+
         text_content = []
         for sheet_name, df in excel_file.items():
             text_content.append(f"Sheet: {sheet_name}")
             # Convert DataFrame to string representation
             text_content.append(df.to_string())
             text_content.append("")  # Empty line between sheets
-        
+
         return "\n".join(text_content)
 
     def view_system(self):
@@ -44,7 +44,7 @@ class XlsxMethods(FileMethods):
 
         # Read all sheets from the Excel file
         excel_file = pd.read_excel(self.path, sheet_name=None)
-        
+
         # Display each sheet
         for sheet_name, df in excel_file.items():
             display(HTML(f"<h3>Sheet: {sheet_name}</h3>"))
@@ -55,37 +55,38 @@ class XlsxMethods(FileMethods):
 
         # Create sample data
         data = {
-            'Name': ['Alice', 'Bob', 'Charlie'],
-            'Age': [25, 30, 35],
-            'City': ['New York', 'London', 'Tokyo']
+            "Name": ["Alice", "Bob", "Charlie"],
+            "Age": [25, 30, 35],
+            "City": ["New York", "London", "Tokyo"],
         }
         df = pd.DataFrame(data)
-        
+
         # Create a temporary Excel file
         with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as tmp:
             df.to_excel(tmp.name, index=False)
-        
+
         return tmp.name
 
     def to_pandas(self):
         """
         Convert the Excel file to a pandas DataFrame.
-        
+
         Returns:
             dict: Dictionary of sheet names to DataFrames, or single DataFrame if only one sheet
         """
         import pandas as pd
-        
+
         excel_file = pd.read_excel(self.path, sheet_name=None)
-        
+
         # If only one sheet, return the DataFrame directly
         if len(excel_file) == 1:
             return next(iter(excel_file.values()))
-        
+
         # Otherwise return the dictionary of sheets
         return excel_file
 
 
 if __name__ == "__main__":
     import doctest
+
     doctest.testmod()

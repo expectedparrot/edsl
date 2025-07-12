@@ -16,6 +16,9 @@ import io
 import warnings
 import textwrap
 from typing import Optional, Tuple, Union, List, TYPE_CHECKING  # Callable not used
+
+if TYPE_CHECKING:
+    from ..scenarios import FileStore
 from functools import wraps
 from .r.ggplot import GGPlotMethod
 from .exceptions import (
@@ -308,7 +311,7 @@ class DataOperationsBase:
         filename: Optional[str] = None,
         remove_prefix: bool = False,
         pretty_labels: Optional[dict] = None,
-    ) -> 'FileStore':
+    ) -> "FileStore":
         """Export the results to a FileStore instance containing CSV data."""
         from .file_exports import CSVExport
 
@@ -344,7 +347,7 @@ class DataOperationsBase:
         filename: Optional[str] = None,
         remove_prefix: bool = False,
         pretty_labels: Optional[dict] = None,
-    ) -> 'FileStore':
+    ) -> "FileStore":
         """Export the results to a FileStore instance containing DOCX data.
 
         Each row of the dataset will be rendered on its own page, with a 2-column
@@ -363,34 +366,34 @@ class DataOperationsBase:
 
     def clipboard_data(self) -> str:
         """Return TSV representation of this object for clipboard operations.
-        
+
         This method is called by the clipboard() method in the base class to provide
         a custom format for copying objects to the system clipboard.
-        
+
         Returns:
             str: Tab-separated values representation of the object
         """
         # Use the to_csv method to get CSV data
         csv_filestore = self.to_csv()
-        
+
         # Get the CSV content and convert it to TSV
         csv_content = csv_filestore.text
-        
+
         # Convert CSV to TSV by replacing commas with tabs
         # This is a simple approach, but we should handle quoted fields properly
         import csv
         import io
-        
+
         # Parse the CSV content
         csv_reader = csv.reader(io.StringIO(csv_content))
         rows = list(csv_reader)
-        
+
         # Convert to TSV format
         tsv_lines = []
         for row in rows:
-            tsv_lines.append('\t'.join(row))
-        
-        return '\n'.join(tsv_lines)
+            tsv_lines.append("\t".join(row))
+
+        return "\n".join(tsv_lines)
 
     def _db(self, remove_prefix: bool = True, shape: str = "wide"):
         """Create a SQLite database in memory and return the connection.
@@ -1428,10 +1431,10 @@ class DataOperationsBase:
             return_string: If True, returns the rendered content. If False (default in notebooks),
                           only displays the content without returning.
             format: Output format - one of "text", "html", "pdf", or "docx". Formats other than "text" require pandoc.
-            filename: If provided, saves the rendered content to this file. For exploded output, 
+            filename: If provided, saves the rendered content to this file. For exploded output,
                      this becomes a template (e.g., "report_{index}.html").
             separator: String to use between rendered templates for each row (ignored when explode=True).
-            observation_title_template: Optional Jinja2 template for observation titles. 
+            observation_title_template: Optional Jinja2 template for observation titles.
                                        Defaults to "Observation {index}" where index is 1-based.
                                        Template has access to all row data plus 'index' and 'index0' variables.
             explode: If True, creates separate files for each observation instead of one combined file.
@@ -1462,24 +1465,24 @@ class DataOperationsBase:
             True
             >>> "Person feels: Great" in report
             True
-            
+
             # Custom observation titles
             >>> custom_title = "Response {{ index }}: {{ how_feeling }}"
             >>> report = r.select('how_feeling').report_from_template(
             ...     template, observation_title_template=custom_title, return_string=True)
             >>> "Response 1: OK" in report
             True
-            
+
             # HTML output (requires pandoc)
             >>> html_report = r.select('how_feeling').report_from_template(
             ...     template, format="html", return_string=True)  # doctest: +SKIP
             >>> # Creates HTML with proper document structure
-            
+
             # PDF output (requires pandoc with XeLaTeX)
             >>> pdf_report = r.select('how_feeling').report_from_template(
             ...     template, format="pdf")  # doctest: +SKIP
             >>> # Returns PDF bytes
-            
+
             # Basic template functionality
             >>> template2 = "Feeling: {{ how_feeling }}, Index: {{ index }}"
             >>> report2 = r.select('how_feeling').report_from_template(
@@ -1488,7 +1491,7 @@ class DataOperationsBase:
             True
         """
         from .report_from_template import TemplateReportGenerator
-        
+
         generator = TemplateReportGenerator(self)
         return generator.generate_report(
             template,

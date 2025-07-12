@@ -111,7 +111,7 @@ def fetch_and_save_pdf(url, filename):
 
 class PdfTools:
     """Class for handling PDF-related operations for scenarios"""
-    
+
     @staticmethod
     def from_pdf(filename_or_url, collapse_pages=False):
         # Check if the input is a URL
@@ -176,11 +176,14 @@ class PdfTools:
                 image.save(image_path, image_format.upper())
 
                 from ..file_store import FileStore
-                scenario = Scenario({
-                    "filepath":image_path,
-                    "page":i,
-                    "content":FileStore(image_path)
-                    })
+
+                scenario = Scenario(
+                    {
+                        "filepath": image_path,
+                        "page": i,
+                        "content": FileStore(image_path),
+                    }
+                )
                 scenarios.append(scenario)
 
             return scenarios

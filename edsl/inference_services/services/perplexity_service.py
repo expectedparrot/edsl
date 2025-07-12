@@ -42,12 +42,13 @@ class PerplexityService(OpenAIService):
     @classmethod
     def create_model(
         cls, model_name="llama-3.1-sonar-large-128k-online", model_class_name=None
-    ) -> 'LanguageModel':
+    ) -> "LanguageModel":
         if model_class_name is None:
             model_class_name = cls.to_class_name(model_name)
 
         # Import LanguageModel only when actually creating a model
         from ...language_models import LanguageModel
+
         class LLM(LanguageModel):
             """
             Child class of LanguageModel for interacting with Perplexity models

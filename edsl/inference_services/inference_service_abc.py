@@ -22,11 +22,12 @@ class InferenceServiceABC(ABC):
             "usage_sequence",
             "input_token_name",
             "output_token_name",
-            #"available_models_url",
+            # "available_models_url",
         ]
         for attr in must_have_attributes:
             if not hasattr(cls, attr):
                 from .exceptions import InferenceServiceNotImplementedError
+
                 raise InferenceServiceNotImplementedError(
                     f"Class {cls.__name__} must have a '{attr}' attribute."
                 )

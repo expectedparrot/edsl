@@ -20,6 +20,7 @@ Example
 >>> compute_price(service_def, {"overall_question": "What is life?", "population": "humans", "num_questions": 7})
 170  # 100 + 7*10
 """
+
 from __future__ import annotations
 
 import ast

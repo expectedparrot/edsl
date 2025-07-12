@@ -1,6 +1,6 @@
 """A class for exporting surveys to different formats."""
 
-from typing import Union, Optional, TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING
 
 import subprocess
 import platform
@@ -8,8 +8,7 @@ import os
 import tempfile
 
 if TYPE_CHECKING:
-    from docx import Document
-    from ..scenarios import ScenarioList
+    from ..scenarios import ScenarioList, FileStore
 
 
 def open_docx(file_path):
@@ -194,9 +193,7 @@ class SurveyExport:
         cta: Optional[str] = "Open HTML file",
         include_question_name=False,
     ):
-        from IPython.display import display, HTML
         import os
-        from edsl.utilities.utilities import is_notebook
         from edsl import FileStore  # Added import for FileStore
 
         if scenario is None:
@@ -321,8 +318,12 @@ class SurveyExport:
                 # Heading for each question
                 heading_parts = [f"Question {idx + 1}"]
                 if include_question_name:
-                    heading_parts.append(f"(\\texttt{{{_escape_latex(question.question_name)}}})")
-                heading_parts.append(f"-- \\textit{{{_escape_latex(question.question_type)}}}")
+                    heading_parts.append(
+                        f"(\\texttt{{{_escape_latex(question.question_name)}}})"
+                    )
+                heading_parts.append(
+                    f"-- \\textit{{{_escape_latex(question.question_type)}}}"
+                )
                 heading = " ".join(heading_parts)
                 f.write(f"\\subsection*{{{heading}}}\n")
 
@@ -335,7 +336,9 @@ class SurveyExport:
                     if option_labels:
                         f.write("\\begin{itemize}\n")
                         for key, value in option_labels.items():
-                            f.write(f"  \\item {_escape_latex(str(key))}: {_escape_latex(str(value))}\n")
+                            f.write(
+                                f"  \\item {_escape_latex(str(key))}: {_escape_latex(str(value))}\n"
+                            )
                         f.write("\\end{itemize}\n\n")
                 else:
                     if hasattr(question, "question_options"):

@@ -13,7 +13,6 @@ if TYPE_CHECKING:
     from ...language_models import LanguageModel
     from ....scenarios.file_store import FileStore as Files
 # from ...coop import Coop
-import asyncio
 
 safety_settings = [
     {

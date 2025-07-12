@@ -50,8 +50,11 @@ class ConstructDownloadLink:
         except ImportError:
             # For doctest, provide a mock HTML class
             class HTML:
-                def __init__(self, content): self.content = content
-                def _repr_html_(self): return self.content
+                def __init__(self, content):
+                    self.content = content
+
+                def _repr_html_(self):
+                    return self.content
 
         html = self.html_create_link(custom_filename, style)
         return HTML(html)
@@ -149,8 +152,11 @@ class ConstructDownloadLink:
         except ImportError:
             # For doctest, provide a mock HTML class
             class HTML:
-                def __init__(self, content): self.content = content
-                def _repr_html_(self): return self.content
+                def __init__(self, content):
+                    self.content = content
+
+                def _repr_html_(self):
+                    return self.content
 
         return HTML(
             '<div style="display: flex; gap: 10px;">' + "".join(html_parts) + "</div>"
