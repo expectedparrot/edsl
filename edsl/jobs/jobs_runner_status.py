@@ -4,7 +4,6 @@ import os
 import time
 import requests
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
 from collections import defaultdict
 from typing import Any, Dict, Optional, TYPE_CHECKING
 from uuid import UUID

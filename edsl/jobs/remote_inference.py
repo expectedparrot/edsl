@@ -1,5 +1,3 @@
-import re
-import math
 from typing import Optional, Union, Literal, TYPE_CHECKING, NewType, Callable, Any
 from dataclasses import dataclass
 from ..coop import CoopServerResponseError

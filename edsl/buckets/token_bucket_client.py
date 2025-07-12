@@ -7,10 +7,13 @@ operations to a remote server, enabling distributed rate limiting across
 multiple processes or machines.
 """
 
-from typing import Union, Optional, Dict, Any
+from typing import Union, Optional, Dict, Any, TYPE_CHECKING
 import asyncio
 import time
 import aiohttp
+
+if TYPE_CHECKING:
+    from matplotlib.figure import Figure
 
 from .exceptions import BucketError, TokenBucketClientError
 
@@ -18,16 +21,16 @@ from .exceptions import BucketError, TokenBucketClientError
 class TokenBucketClient:
     """
     Client implementation for interacting with a remote token bucket server.
-    
+
     TokenBucketClient implements the same interface as TokenBucket, but
     delegates operations to a remote server via REST API calls. This enables
     distributed rate limiting across multiple processes or machines, ensuring
     that rate limits are properly enforced in distributed environments.
-    
+
     The client maintains minimal local state and fetches most information from
     the server when needed. It creates the bucket on the server during
     initialization if it doesn't already exist.
-    
+
     Attributes:
         bucket_name (str): Name identifier for the bucket (usually service name)
         bucket_type (str): Type of bucket ("requests" or "tokens")
@@ -37,13 +40,13 @@ class TokenBucketClient:
         bucket_id (str): Unique identifier for this bucket on the server
         creation_time (float): Local timestamp when this client was created
         turbo_mode (bool): Flag indicating if turbo mode is active
-        
+
     Example:
         >>> # Create a client connected to a running token bucket server
         >>> client = TokenBucketClient(
-        ...     bucket_name="openai", 
+        ...     bucket_name="openai",
         ...     bucket_type="requests",
-        ...     capacity=100, 
+        ...     capacity=100,
         ...     refill_rate=10,
         ...     api_base_url="http://localhost:8000"
         ... )
@@ -61,26 +64,26 @@ class TokenBucketClient:
     ):
         """
         Initialize a new TokenBucketClient connected to a remote token bucket server.
-        
+
         Creates a new TokenBucketClient instance that connects to a remote token
         bucket server. During initialization, it attempts to create the bucket
         on the server if it doesn't already exist.
-        
+
         Args:
             bucket_name: Name identifier for the bucket (usually service name)
-            bucket_type: Type of bucket, either "requests" or "tokens" 
+            bucket_type: Type of bucket, either "requests" or "tokens"
             capacity: Maximum tokens the bucket can hold
             refill_rate: Rate at which tokens are added (tokens per second)
             api_base_url: Base URL for the token bucket server API
                          (default: "http://localhost:8000")
-                         
+
         Raises:
             ValueError: If bucket creation on the server fails
-            
+
         Example:
             >>> client = TokenBucketClient(
             ...     bucket_name="openai",
-            ...     bucket_type="requests", 
+            ...     bucket_type="requests",
             ...     capacity=100,
             ...     refill_rate=10
             ... )
@@ -102,11 +105,11 @@ class TokenBucketClient:
     async def _create_bucket(self) -> None:
         """
         Create or retrieve the bucket on the remote server.
-        
+
         This private async method sends a request to the server to create a new
         bucket with the specified parameters. If the bucket already exists on
         the server, it updates the local parameters to match the server's values.
-        
+
         Raises:
             ValueError: If the server returns an error
         """
@@ -118,14 +121,16 @@ class TokenBucketClient:
                 "capacity": self.capacity,
                 "refill_rate": self.refill_rate,
             }
-            
+
             # Send request to create/retrieve bucket
             async with session.post(
                 f"{self.api_base_url}/bucket",
                 json=payload,
             ) as response:
                 if response.status != 200:
-                    raise TokenBucketClientError(f"Unexpected error: {await response.text()}")
+                    raise TokenBucketClientError(
+                        f"Unexpected error: {await response.text()}"
+                    )
 
                 # Process server response
                 result = await response.json()
@@ -137,16 +142,16 @@ class TokenBucketClient:
     def turbo_mode_on(self) -> None:
         """
         Enable turbo mode to bypass rate limits.
-        
+
         Turbo mode sets the refill rate to infinity on the server,
         effectively bypassing rate limits. This is useful for testing
         or when rate limits are not needed.
-        
+
         Raises:
             ValueError: If the server returns an error
-            
+
         Example:
-            >>> client = TokenBucketClient(bucket_name="test", bucket_type="test", 
+            >>> client = TokenBucketClient(bucket_name="test", bucket_type="test",
             ...                           capacity=100, refill_rate=10)
             >>> client.turbo_mode_on()  # Now rate limits are bypassed
         """
@@ -156,15 +161,15 @@ class TokenBucketClient:
     def turbo_mode_off(self) -> None:
         """
         Disable turbo mode and restore original rate limits.
-        
+
         This method restores the original refill rates on the server,
         re-enabling rate limiting after it was bypassed with turbo_mode_on().
-        
+
         Raises:
             ValueError: If the server returns an error
-            
+
         Example:
-            >>> client = TokenBucketClient(bucket_name="test", bucket_type="test", 
+            >>> client = TokenBucketClient(bucket_name="test", bucket_type="test",
             ...                           capacity=100, refill_rate=10)
             >>> client.turbo_mode_on()  # Bypass rate limits
             >>> # Do some work without rate limiting
@@ -176,20 +181,20 @@ class TokenBucketClient:
     async def add_tokens(self, amount: Union[int, float]) -> None:
         """
         Add tokens to the bucket on the server.
-        
+
         This async method adds tokens to the bucket on the server.
-        It's useful for manually restoring tokens or increasing the 
+        It's useful for manually restoring tokens or increasing the
         available tokens beyond the normal refill rate.
-        
+
         Args:
             amount: Number of tokens to add to the bucket
-            
+
         Raises:
             ValueError: If the server returns an error
-            
+
         Example:
             >>> import asyncio
-            >>> client = TokenBucketClient(bucket_name="test", bucket_type="test", 
+            >>> client = TokenBucketClient(bucket_name="test", bucket_type="test",
             ...                           capacity=100, refill_rate=10)
             >>> # Add 50 tokens to the bucket
             >>> asyncio.run(client.add_tokens(50))
@@ -200,18 +205,20 @@ class TokenBucketClient:
                 params={"amount": amount},
             ) as response:
                 if response.status != 200:
-                    raise TokenBucketClientError(f"Failed to add tokens: {await response.text()}")
+                    raise TokenBucketClientError(
+                        f"Failed to add tokens: {await response.text()}"
+                    )
 
     async def _set_turbo_mode(self, state: bool) -> None:
         """
         Set the turbo mode state on the server.
-        
+
         This private async method sends a request to the server to
         enable or disable turbo mode.
-        
+
         Args:
             state: True to enable turbo mode, False to disable
-            
+
         Raises:
             ValueError: If the server returns an error
         """
@@ -229,23 +236,23 @@ class TokenBucketClient:
     ) -> None:
         """
         Request tokens from the token bucket on the server.
-        
+
         This async method requests tokens from the token bucket on the server.
         It will either return immediately if tokens are available or raise an
         exception if tokens are not available.
-        
+
         Args:
             amount: Number of tokens to request (default: 1)
             cheat_bucket_capacity: If True, allow exceeding capacity temporarily
                                   (default: True)
-            
+
         Raises:
             ValueError: If the server returns an error, which may indicate
                       insufficient tokens are available
-                      
+
         Example:
             >>> import asyncio
-            >>> client = TokenBucketClient(bucket_name="test", bucket_type="test", 
+            >>> client = TokenBucketClient(bucket_name="test", bucket_type="test",
             ...                           capacity=100, refill_rate=10)
             >>> # Request 20 tokens
             >>> asyncio.run(client.get_tokens(20))
@@ -259,25 +266,27 @@ class TokenBucketClient:
                 },
             ) as response:
                 if response.status != 200:
-                    raise TokenBucketClientError(f"Failed to get tokens: {await response.text()}")
+                    raise TokenBucketClientError(
+                        f"Failed to get tokens: {await response.text()}"
+                    )
 
     def get_throughput(self, time_window: Optional[float] = None) -> float:
         """
         Calculate the token throughput over a specified time window.
-        
+
         This method calculates the average token throughput (tokens per minute)
         over the specified time window by requesting the bucket status from
         the server and analyzing token usage.
-        
+
         Args:
             time_window: Time window in seconds to calculate throughput over
                         (default: entire bucket lifetime)
-                        
+
         Returns:
             Average throughput in tokens per minute
-            
+
         Example:
-            >>> client = TokenBucketClient(bucket_name="test", bucket_type="test", 
+            >>> client = TokenBucketClient(bucket_name="test", bucket_type="test",
             ...                           capacity=100, refill_rate=10)
             >>> # Calculate throughput over the last 60 seconds
             >>> throughput = client.get_throughput(60)
@@ -308,14 +317,14 @@ class TokenBucketClient:
     async def _get_status(self) -> Dict[str, Any]:
         """
         Get the current status of the bucket from the server.
-        
+
         This private async method retrieves the current status of the bucket
         from the server, including the current token count, history log,
         and various statistics.
-        
+
         Returns:
             Dictionary containing the bucket status information
-            
+
         Raises:
             ValueError: If the server returns an error
         """
@@ -332,17 +341,17 @@ class TokenBucketClient:
     def __add__(self, other: "TokenBucketClient") -> "TokenBucketClient":
         """
         Combine two token bucket clients to create a new one with merged limits.
-        
+
         This method combines two token bucket clients by creating a new client
         with the minimum capacity and refill rate of both inputs. This is useful
         for creating a client that respects both sets of rate limits.
-        
+
         Args:
             other: Another TokenBucketClient to combine with this one
-            
+
         Returns:
             A new TokenBucketClient with the combined (minimum) limits
-            
+
         Example:
             >>> client1 = TokenBucketClient(bucket_name="service1", bucket_type="requests",
             ...                            capacity=100, refill_rate=10)
@@ -362,12 +371,12 @@ class TokenBucketClient:
     def tokens(self) -> float:
         """
         Get the current number of tokens available in the bucket.
-        
+
         This property retrieves the current token count from the server.
-        
+
         Returns:
             Current number of tokens available in the bucket
-            
+
         Example:
             >>> client = TokenBucketClient(bucket_name="test", bucket_type="test",
             ...                           capacity=100, refill_rate=10)
@@ -380,20 +389,20 @@ class TokenBucketClient:
     def wait_time(self, requested_tokens: Union[float, int]) -> float:
         """
         Calculate the time to wait for the requested number of tokens.
-        
+
         This method calculates how long to wait (in seconds) for the requested
         number of tokens to become available, based on the current token count
         and refill rate.
-        
+
         Args:
             requested_tokens: Number of tokens needed
-            
+
         Returns:
             Time to wait in seconds (0.0 if tokens are already available)
-            
+
         Raises:
             ValueError: If an error occurs while calculating wait time
-            
+
         Example:
             >>> client = TokenBucketClient(bucket_name="test", bucket_type="test",
             ...                           capacity=100, refill_rate=10)
@@ -403,7 +412,7 @@ class TokenBucketClient:
         # If we have enough tokens, no need to wait
         if self.tokens >= float(requested_tokens):
             return 0.0
-            
+
         try:
             # Calculate time needed to accumulate the required tokens
             return (requested_tokens - self.tokens) / self.refill_rate
@@ -418,13 +427,13 @@ class TokenBucketClient:
     def visualize(self) -> "Figure":
         """
         Visualize the token bucket usage over time as a matplotlib figure.
-        
+
         This method generates a plot showing the available tokens over time,
         which can be useful for monitoring and debugging rate limit issues.
-        
+
         Returns:
             A matplotlib Figure object that can be displayed or saved
-            
+
         Example:
             >>> client = TokenBucketClient(bucket_name="test", bucket_type="test",
             ...                           capacity=100, refill_rate=10)
@@ -435,15 +444,14 @@ class TokenBucketClient:
         # Get the bucket history from the server
         status = asyncio.run(self._get_status())
         times, tokens = zip(*status["log"])
-        
+
         # Normalize times to start at 0
         start_time = times[0]
         times = [t - start_time for t in times]
 
         # Import here to avoid loading matplotlib until needed
         from matplotlib import pyplot as plt
-        from matplotlib.figure import Figure
-        
+
         # Create the plot
         fig = plt.figure(figsize=(10, 6))
         plt.plot(times, tokens, label="Tokens Available")
@@ -454,60 +462,60 @@ class TokenBucketClient:
         plt.legend()
         plt.grid(True)
         plt.tight_layout()
-        
+
         return fig
 
 
 # Examples and doctests
 if __name__ == "__main__":
-    #import doctest
+    # import doctest
 
     # Example showing how to use TokenBucketClient
     def example_usage():
         """
         Example demonstrating how to use TokenBucketClient:
-        
+
         ```python
         import asyncio
         import time
         from edsl.buckets.token_bucket_client import TokenBucketClient
-        
+
         # Create a client connected to a running token bucket server
         bucket = TokenBucketClient(
-            bucket_name="openai", 
+            bucket_name="openai",
             bucket_type="requests",
-            capacity=100, 
+            capacity=100,
             refill_rate=10,
             api_base_url="http://localhost:8000"
         )
-        
+
         # Get tokens from the bucket
         asyncio.run(bucket.get_tokens(50))
-        
+
         # Wait for a second
         time.sleep(1)
-        
+
         # Get more tokens
         asyncio.run(bucket.get_tokens(30))
-        
+
         # Check throughput
         throughput = bucket.get_throughput(1)
         print(f"Throughput: {throughput:.1f} tokens/minute")
-        
+
         # Enable turbo mode to bypass rate limits
         bucket.turbo_mode_on()
-        
+
         # Do some operations without rate limiting
         asyncio.run(bucket.get_tokens(1000))  # Would normally exceed limits
-        
+
         # Disable turbo mode
         bucket.turbo_mode_off()
-        
+
         # Visualize bucket usage
         plot = bucket.visualize()
         ```
         """
         pass
-    
+
     # Run doctests
-    #doctest.testmod()
+    # doctest.testmod()

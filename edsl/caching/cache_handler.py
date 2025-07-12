@@ -9,6 +9,7 @@ if TYPE_CHECKING:
     from .cache import Cache
     from .cache_entry import CacheEntry
 
+
 def set_session_cache(cache: "Cache") -> None:
     """
     Set the session cache.
@@ -138,6 +139,7 @@ class CacheHandler:
         Read in a new-style sqlite cache and return a dictionary of dictionaries.
         """
         import sqlite3
+
         conn = sqlite3.connect(uri)
         with conn:
             cur = conn.cursor()
@@ -164,4 +166,5 @@ class CacheHandler:
 
 if __name__ == "__main__":
     import doctest
+
     doctest.testmod()

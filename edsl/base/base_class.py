@@ -21,7 +21,6 @@ import difflib
 from typing import Dict, Literal, List, Tuple
 from collections import UserList
 import inspect
-import hashlib
 
 from .. import logger
 
@@ -134,7 +133,7 @@ class PersistenceMixin:
             A new instance of the same class with identical properties
         """
         return self.from_dict(self.to_dict(add_edsl_version=False))
-    
+
     def store(self, container_dict: dict, name: Optional[str] = None):
         if name is None:
             name = hash(self)
@@ -526,7 +525,7 @@ class PersistenceMixin:
         """Copy this object's representation to the system clipboard.
 
         This method first checks if the object has a custom clipboard_data() method.
-        If it does, it uses that method's output. Otherwise, it serializes the object 
+        If it does, it uses that method's output. Otherwise, it serializes the object
         to a dictionary (without version info) and copies it to the system clipboard as JSON text.
 
         Returns:
@@ -537,7 +536,9 @@ class PersistenceMixin:
         import platform
 
         # Check if the object has a custom clipboard_data method
-        if hasattr(self, 'clipboard_data') and callable(getattr(self, 'clipboard_data')):
+        if hasattr(self, "clipboard_data") and callable(
+            getattr(self, "clipboard_data")
+        ):
             clipboard_text = self.clipboard_data()
         else:
             # Default behavior: use to_dict and convert to JSON
@@ -546,33 +547,30 @@ class PersistenceMixin:
 
         # Determine the clipboard command based on the operating system
         system = platform.system()
-        
+
         try:
             if system == "Darwin":  # macOS
-                process = subprocess.Popen(['pbcopy'], stdin=subprocess.PIPE)
-                process.communicate(clipboard_text.encode('utf-8'))
+                process = subprocess.Popen(["pbcopy"], stdin=subprocess.PIPE)
+                process.communicate(clipboard_text.encode("utf-8"))
             elif system == "Linux":
-                process = subprocess.Popen(['xclip', '-selection', 'clipboard'], stdin=subprocess.PIPE)
-                process.communicate(clipboard_text.encode('utf-8'))
+                process = subprocess.Popen(
+                    ["xclip", "-selection", "clipboard"], stdin=subprocess.PIPE
+                )
+                process.communicate(clipboard_text.encode("utf-8"))
             elif system == "Windows":
-                process = subprocess.Popen(['clip'], stdin=subprocess.PIPE, shell=True)
-                process.communicate(clipboard_text.encode('utf-8'))
+                process = subprocess.Popen(["clip"], stdin=subprocess.PIPE, shell=True)
+                process.communicate(clipboard_text.encode("utf-8"))
             else:
                 print(f"Clipboard not supported on {system}")
                 return
-            
+
             print("Object data copied to clipboard")
         except FileNotFoundError:
-            print("Clipboard command not found. Please install pbcopy (macOS), xclip (Linux), or use Windows.")
+            print(
+                "Clipboard command not found. Please install pbcopy (macOS), xclip (Linux), or use Windows."
+            )
         except Exception as e:
             print(f"Failed to copy to clipboard: {e}")
-
-    def store(self, d: dict, key_name: Optional[str] = None):
-        if key_name is None:
-            index = len(d)
-        else:
-            index = key_name
-        d[index] = self
 
     def save(self, filename: Optional[str] = None, compress: bool = True):
         """Save the object to a file as JSON with optional compression.
@@ -1539,7 +1537,7 @@ class BaseDiff:
                     try:
                         for line in diff:
                             result.append(f"      {line}")
-                    except:
+                    except (TypeError, ValueError):
                         result.append(f"      {diff}")
         return "\n".join(result)
 
@@ -1553,7 +1551,9 @@ class BaseDiff:
         >>> diff = obj1 - obj2
         >>> diff.pretty_print()
         """
-        from .pretty_diff import pretty_print  # Local import now that pretty_diff is inside edsl.base
+        from .pretty_diff import (
+            pretty_print,
+        )  # Local import now that pretty_diff is inside edsl.base
 
         pretty_print(self)
 

@@ -49,7 +49,6 @@ class AzureAIService(InferenceServiceABC):
         out = []
         azure_endpoints = os.getenv("AZURE_ENDPOINT_URL_AND_KEY", None)
         if not azure_endpoints:
-            from ..exceptions import InferenceServiceEnvironmentError
 
             return []
             # raise InferenceServiceEnvironmentError("AZURE_ENDPOINT_URL_AND_KEY is not defined")

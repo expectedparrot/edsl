@@ -8,7 +8,9 @@ from .edsl_load import load as _load_edsl_obj
 
 
 @contextmanager
-def object_disk_cache(job, *args, cache_dir: Optional[str] = None, verbose: bool = False, **kwargs):
+def object_disk_cache(
+    job, *args, cache_dir: Optional[str] = None, verbose: bool = False, **kwargs
+):
     """Context-manager that caches the output of ``job.run()`` to disk.
 
     This is a generalisation of the old ``local_results_cache`` helper: it works
@@ -46,7 +48,9 @@ def object_disk_cache(job, *args, cache_dir: Optional[str] = None, verbose: bool
     # ------------------------------------------------------------------
     # Determine cache directory and file locations (single cache per script)
     # ------------------------------------------------------------------
-    root = Path(cache_dir) if cache_dir else Path(tempfile.gettempdir()) / "edsl_job_cache"
+    root = (
+        Path(cache_dir) if cache_dir else Path(tempfile.gettempdir()) / "edsl_job_cache"
+    )
     root.mkdir(parents=True, exist_ok=True)
 
     current_hash = str(hash(job))
@@ -69,7 +73,9 @@ def object_disk_cache(job, *args, cache_dir: Optional[str] = None, verbose: bool
             return
         except Exception as exc:  # noqa: BLE001
             if verbose:
-                print("[cache] load failed – cache corrupt or incompatible, rerunning job")
+                print(
+                    "[cache] load failed – cache corrupt or incompatible, rerunning job"
+                )
                 print("[cache]", exc)
 
     # ------------------------------------------------------------------
@@ -79,16 +85,20 @@ def object_disk_cache(job, *args, cache_dir: Optional[str] = None, verbose: bool
         print("[cache] miss – running job")
 
     print(f"Running job with args: {args} and kwargs: {kwargs}")
-    
+
     # Add debug logging to trace disable_remote_inference
-    if 'disable_remote_inference' in kwargs:
-        print(f"[cache] disable_remote_inference set to: {kwargs['disable_remote_inference']}")
-    
+    if "disable_remote_inference" in kwargs:
+        print(
+            f"[cache] disable_remote_inference set to: {kwargs['disable_remote_inference']}"
+        )
+
     # Also disable remote cache to ensure completely local execution
-    if 'disable_remote_cache' not in kwargs:
-        kwargs['disable_remote_cache'] = True
-        print(f"[cache] Also setting disable_remote_cache=True for fully local execution")
-    
+    if "disable_remote_cache" not in kwargs:
+        kwargs["disable_remote_cache"] = True
+        print(
+            "[cache] Also setting disable_remote_cache=True for fully local execution"
+        )
+
     obj = job.run(*args, **kwargs)
 
     # Persist to disk (best-effort – if it fails we still yield the object)
@@ -96,7 +106,9 @@ def object_disk_cache(job, *args, cache_dir: Optional[str] = None, verbose: bool
         if isinstance(obj, Base):
             obj.save(str(cache_path))
         else:
-            raise TypeError("The object returned by job.run() is not an EDSL object (subclass of Base)")
+            raise TypeError(
+                "The object returned by job.run() is not an EDSL object (subclass of Base)"
+            )
         if verbose:
             print("[cache] saved object to", cache_path)
     except Exception as exc:  # noqa: BLE001
@@ -110,4 +122,3 @@ def object_disk_cache(job, *args, cache_dir: Optional[str] = None, verbose: bool
 # Backwards-compatibility alias
 # ---------------------------------------------------------------------------
 local_results_cache = object_disk_cache
-

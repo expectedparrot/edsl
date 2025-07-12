@@ -4,6 +4,7 @@ import groq
 
 from .open_ai_service import OpenAIService
 
+
 class GroqService(OpenAIService):
     """DeepInfra service class."""
 

@@ -48,6 +48,7 @@ from ..base import Base
 from ..caching import Cache, CacheEntry
 
 if TYPE_CHECKING:
+    from ..interviews import Interview
     from ..surveys import Survey
     from ..agents import AgentList
     from ..scenarios import ScenarioList
@@ -663,30 +664,6 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         self.data.extend(other)
         self._invalidate_cache()
 
-    @ensure_ready
-    def extend_sorted(self, other):
-        """Extend the Results list with items from another iterable, maintaining sort order.
-
-        This method preserves ordering based on 'order' attribute if present,
-        otherwise falls back to 'iteration' attribute.
-        """
-        # Collect all items (existing and new)
-        all_items = list(self.data)
-        all_items.extend(other)
-
-        # Sort combined list by order attribute if available, otherwise by iteration
-        def get_sort_key(item):
-            if hasattr(item, "order"):
-                return (0, item.order)  # Order attribute takes precedence
-            return (1, item.data["iteration"])  # Iteration is secondary
-
-        all_items.sort(key=get_sort_key)
-
-        # Clear and refill with sorted items
-        self.data.clear()
-        self.data.extend(all_items)
-        self._invalidate_cache()
-
     def __add__(self, other: Results) -> Results:
         """Add two Results objects together.
 
@@ -849,7 +826,6 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             d["edsl_version"] = __version__
             d["edsl_class_name"] = "Results"
 
-        
         return d
 
     def compare(self, other_results: Results) -> dict:
@@ -1033,7 +1009,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             for column in self.created_columns:
                 d["answer"] = d["answer"].union(set({column}))
             self._data_type_to_keys_cache = d
-            
+
         return self._data_type_to_keys_cache
 
     @property
@@ -1049,6 +1025,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         if self._columns_cache is None or self._cache_dirty:
             column_names = [f"{v}.{k}" for k, v in self._key_to_data_type.items()]
             from ..utilities.PrettyList import PrettyList
+
             self._columns_cache = PrettyList(sorted(column_names))
 
         return self._columns_cache
@@ -1615,6 +1592,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             key_to_data_type=self._key_to_data_type,
             fetch_list_func=self._fetch_list,
             columns=self.columns,
+            survey=self.survey,
         )
         return selector.select(*columns)
 
@@ -2183,7 +2161,6 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             >>> new_result.order = 1.5  # Insert between items
             >>> r.insert_sorted(new_result)
         """
-        from bisect import bisect_left
 
         def get_sort_key(result):
             if hasattr(result, "order"):
@@ -2257,7 +2234,6 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         import os
         import tempfile
         from pathlib import Path
-        import sqlite3
         import shutil
 
         data_class = ResultsSQLList

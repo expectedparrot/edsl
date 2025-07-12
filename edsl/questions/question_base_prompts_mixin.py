@@ -9,6 +9,7 @@ if TYPE_CHECKING:
     from ..prompts import Prompt
     from ..prompts.prompt import PromptBase
 
+
 class TemplateManager:
     _instance = None
 
@@ -185,7 +186,10 @@ class QuestionBasePromptsMixin:
                 pass
             else:
                 from .exceptions import QuestionValueError
-                raise QuestionValueError(f"Example {answer} should have failed for {reason}.")
+
+                raise QuestionValueError(
+                    f"Example {answer} should have failed for {reason}."
+                )
 
     @property
     def new_default_instructions(self) -> "Prompt":
@@ -193,7 +197,6 @@ class QuestionBasePromptsMixin:
         from ..prompts import Prompt
 
         return Prompt(self.question_presentation) + Prompt(self.answering_instructions)
-    
 
     def detailed_parameters_by_key(self) -> dict[str, set[tuple[str, ...]]]:
         """
@@ -218,7 +221,7 @@ class QuestionBasePromptsMixin:
     @staticmethod
     def extract_parameters(txt: str) -> set[tuple[str, ...]]:
         """Return all parameters of the question as tuples representing their full paths.
-        
+
         :param txt: The text to extract parameters from.
         :return: A set of tuples representing the parameters.
 
@@ -230,17 +233,17 @@ class QuestionBasePromptsMixin:
         from jinja2 import Environment, nodes
 
         env = Environment()
-        #txt = self._all_text()
+        # txt = self._all_text()
         ast = env.parse(txt)
-        
+
         variables = set()
         processed_nodes = set()  # Keep track of nodes we've processed
-        
+
         def visit_node(node, path=()):
             if id(node) in processed_nodes:
                 return
             processed_nodes.add(id(node))
-            
+
             if isinstance(node, nodes.Name):
                 # Only add the name if we're not in the middle of building a longer path
                 if not path:
@@ -251,12 +254,12 @@ class QuestionBasePromptsMixin:
                 # Build path from bottom up
                 new_path = (node.attr,) + path
                 visit_node(node.node, new_path)
-        
+
         for node in ast.find_all((nodes.Name, nodes.Getattr)):
             visit_node(node)
 
         return variables
-    
+
     @property
     def detailed_parameters(self):
         return [".".join(p) for p in self.extract_parameters(self._all_text())]
@@ -296,14 +299,14 @@ class QuestionBasePromptsMixin:
     @staticmethod
     def sequence_in_dict(d: dict, path: tuple[str, ...]) -> tuple[bool, any]:
         """Check if a sequence of nested keys exists in a dictionary and return the value.
-        
+
         Args:
             d: The dictionary to check
             path: Tuple of keys representing the nested path
-            
+
         Returns:
             tuple[bool, any]: (True, value) if the path exists, (False, None) otherwise
-            
+
         Example:
             >>> sequence_in_dict = QuestionBasePromptsMixin.sequence_in_dict
             >>> d = {'a': {'b': {'c': 1}}}
@@ -327,4 +330,5 @@ class QuestionBasePromptsMixin:
 
 if __name__ == "__main__":
     import doctest
+
     doctest.testmod()

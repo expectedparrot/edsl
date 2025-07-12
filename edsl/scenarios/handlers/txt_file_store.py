@@ -2,6 +2,7 @@ import tempfile
 
 from ..file_methods import FileMethods
 
+
 class TxtMethods(FileMethods):
     suffix = "txt"
 

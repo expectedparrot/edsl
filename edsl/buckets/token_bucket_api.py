@@ -7,6 +7,7 @@ from typing import Optional
 from .token_bucket import TokenBucket  # Original implementation
 from .exceptions import BucketNotFoundError, InvalidBucketParameterError
 
+
 def safe_float_for_json(value: float) -> Union[float, str]:
     """Convert float('inf') to 'infinity' for JSON serialization.
 
@@ -26,12 +27,14 @@ app = FastAPI()
 # In-memory storage for TokenBucket instances
 buckets: Dict[str, TokenBucket] = {}
 
+
 @app.exception_handler(BucketNotFoundError)
 async def bucket_not_found_handler(request, exc):
     return JSONResponse(
         status_code=404,
         content={"detail": str(exc)},
     )
+
 
 @app.exception_handler(InvalidBucketParameterError)
 async def invalid_parameter_handler(request, exc):

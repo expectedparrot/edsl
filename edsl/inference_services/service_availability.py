@@ -75,6 +75,7 @@ class ServiceAvailability:
 
         # If we get here, all sources failed
         from .exceptions import InferenceServiceRuntimeError
+
         raise InferenceServiceRuntimeError(
             f"All sources failed to fetch models. Last error: {last_error}"
         )
@@ -112,5 +113,6 @@ class ServiceAvailability:
 
 
 if __name__ == "__main__":
-    import doctest 
+    import doctest
+
     doctest.tesmod()

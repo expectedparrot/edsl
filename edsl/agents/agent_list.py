@@ -28,6 +28,10 @@ logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from ..agents import Agent
+    from ..jobs import Jobs
+    from ..questions import QuestionBase as Question
+    from ..surveys import Survey
+    from ..scenarios import ScenarioList
 
 
 def is_iterable(obj):
@@ -169,7 +173,7 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         Args:
             *field_names: The name(s) of the field(s) to drop. Can be:
                 - Single field name: drop("age")
-                - Multiple field names: drop("age", "height") 
+                - Multiple field names: drop("age", "height")
                 - List of field names: drop(["age", "height"])
 
         Returns:
@@ -206,7 +210,7 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         Args:
             *field_names: The name(s) of the field(s) to keep. Can be:
                 - Single field name: keep("age")
-                - Multiple field names: keep("age", "height") 
+                - Multiple field names: keep("age", "height")
                 - List of field names: keep(["age", "height"])
 
         Returns:
@@ -551,11 +555,12 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         1681154913465662422
         """
         return dict_hash(self.to_dict(add_edsl_version=False, sorted=True))
-    
-    def to(self, target: Union['Question', 'Jobs', 'Survey']) -> 'Jobs':
+
+    def to(self, target: Union["Question", "Jobs", "Survey"]) -> "Jobs":
         from ..questions import QuestionBase
         from ..surveys import Survey
-        from ..jobs import Jobs 
+        from ..jobs import Jobs
+
         if isinstance(target, QuestionBase):
             return Survey([target]).by(self)
         elif isinstance(target, Jobs):

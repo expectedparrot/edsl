@@ -18,21 +18,22 @@ who need to run complex simulations with language models.
 
 from __future__ import annotations
 import asyncio
-from typing import Optional, Union, Any
-
-from typing import (
-    Literal,
-    Sequence,
-    Generator,
-    TYPE_CHECKING,
-)
+from importlib import import_module
+from typing import Optional, Union, Any, Literal, Sequence, Generator, TYPE_CHECKING
 
 from ..base import Base
 from ..utilities import remove_edsl_version
 from ..coop import CoopServerResponseError
+from ..scenarios import Scenario, ScenarioList
+from ..surveys import Survey
 
-# Import BucketCollection with an import_module to avoid early binding
-from importlib import import_module
+from .exceptions import JobsValueError, JobsImplementationError
+from .jobs_pricing_estimation import JobsPrompts
+from .remote_inference import JobsRemoteInferenceHandler
+from .jobs_checks import JobsChecks
+from .data_structures import RunEnvironment, RunParameters, RunConfig
+from .check_survey_scenario_compatibility import CheckSurveyScenarioCompatibility
+from .decorators import with_config
 
 
 def get_bucket_collection():
@@ -40,23 +41,9 @@ def get_bucket_collection():
     return buckets_module.BucketCollection
 
 
-from ..scenarios import Scenario, ScenarioList
-from ..surveys import Survey
-
-
 def get_interview():
     interviews_module = import_module("edsl.interviews.interview")
     return interviews_module.Interview
-
-
-from .exceptions import JobsValueError, JobsImplementationError
-
-from .jobs_pricing_estimation import JobsPrompts
-from .remote_inference import JobsRemoteInferenceHandler
-from .jobs_checks import JobsChecks
-from .data_structures import RunEnvironment, RunParameters, RunConfig
-from .check_survey_scenario_compatibility import CheckSurveyScenarioCompatibility
-from .decorators import with_config
 
 
 if TYPE_CHECKING:
@@ -68,6 +55,7 @@ if TYPE_CHECKING:
     from ..results import Results
     from ..dataset import Dataset
     from ..language_models import ModelList
+    from ..questions import QuestionBase as Question
     from ..caching import Cache
     from ..key_management import KeyLookup
     from ..buckets import BucketCollection
@@ -709,7 +697,7 @@ class Jobs(Base):
                 results_obj.insert_sorted(result)
 
                 # Memory management: Set up reference for next iteration and clear old references
-                prev_interview_ref = weakref.ref(interview)
+                weakref.ref(interview)
                 if hasattr(interview, "clear_references"):
                     interview.clear_references()
 
@@ -1371,7 +1359,7 @@ class Jobs(Base):
         self,
         project_name: str = "Project",
         scenario_list_method: Optional[
-            Literal["randomize", "loop", "single_scenario"]
+            Literal["randomize", "loop", "single_scenario", "ordered"]
         ] = None,
         survey_description: Optional[str] = None,
         survey_alias: Optional[str] = None,

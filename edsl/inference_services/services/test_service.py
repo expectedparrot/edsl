@@ -12,6 +12,7 @@ if TYPE_CHECKING:
 
 if TYPE_CHECKING:
     from ...scenarios.file_store import FileStore as File
+    from ...surveys import Survey
 
 
 class TestService(InferenceServiceABC):
@@ -106,7 +107,6 @@ class TestService(InferenceServiceABC):
                 }
 
             def set_canned_response(self, survey: "Survey") -> None:
-                from edsl import Model
                 from edsl.questions import (
                     QuestionMultipleChoice,
                     QuestionCheckBox,

@@ -39,7 +39,7 @@ if TYPE_CHECKING:
     from ..language_models import LanguageModel
     from ..caching import Cache
     from ..jobs import Jobs
-    from ..results import Results
+    from ..results import Results, Result
     from ..scenarios import ScenarioList
     from ..buckets.bucket_collection import BucketCollection
     from ..key_management.key_lookup import KeyLookup
@@ -251,19 +251,30 @@ class Survey(Base):
         return "\n\n".join(text)
 
     @classmethod
-    def auto_survey(cls, overall_question: str, population: str, num_questions: int) -> Survey:
+    def auto_survey(
+        cls, overall_question: str, population: str, num_questions: int
+    ) -> Survey:
         """Create a survey with a single question that asks the user how they are doing."""
         from edsl import ext
-        survey_info = ext.create_survey(overall_question=overall_question, population=population, num_questions=num_questions)
-        return survey_info['survey']
-    
+
+        survey_info = ext.create_survey(
+            overall_question=overall_question,
+            population=population,
+            num_questions=num_questions,
+        )
+        return survey_info["survey"]
+
     def generate_description(self) -> str:
         """Generate a description of the survey."""
         from ..questions import QuestionFreeText
+
         question_texts = [q.question_text for q in self.questions]
-        q = QuestionFreeText(question_text=f"What is a good one sentence description of this survey? The questions are: {question_texts}", question_name="description")
-        results = q.run(verbose = False)
-        return results.select('answer.description').first()
+        q = QuestionFreeText(
+            question_text=f"What is a good one sentence description of this survey? The questions are: {question_texts}",
+            question_name="description",
+        )
+        results = q.run(verbose=False)
+        return results.select("answer.description").first()
 
     # In survey.py
     @property
@@ -557,7 +568,6 @@ class Survey(Base):
             >>> news == s
             True
         """
-
 
         # Helper function to determine the correct class for each serialized component
         def get_class(pass_dict):
@@ -1179,20 +1189,28 @@ class Survey(Base):
         from edsl.jobs import Jobs
 
         return Jobs(survey=self).by(*args)
-    
-    def gold_standard(self, q_and_a_dict: dict[str, str]) -> 'Result':
-        """Run the survey with a gold standard agent and return the result object. 
-        
+
+    def gold_standard(self, q_and_a_dict: dict[str, str]) -> "Result":
+        """Run the survey with a gold standard agent and return the result object.
+
         Args:
             q_and_a_dict: A dictionary of question names and answers.
         """
         try:
-            assert set(q_and_a_dict.keys()) == set(self.question_names), "q_and_a_dict must have the same keys as the survey"
+            assert set(q_and_a_dict.keys()) == set(
+                self.question_names
+            ), "q_and_a_dict must have the same keys as the survey"
         except AssertionError:
-            raise ValueError("q_and_a_dict must have the same keys as the survey", set(q_and_a_dict.keys()), set(self.question_names))
+            raise ValueError(
+                "q_and_a_dict must have the same keys as the survey",
+                set(q_and_a_dict.keys()),
+                set(self.question_names),
+            )
         gold_agent = Agent()
+
         def f(self, question, scenario):
-            return q_and_a_dict[question.question_name]       
+            return q_and_a_dict[question.question_name]
+
         gold_agent.add_direct_question_answering_method(f)
         return self.by(gold_agent).run(disable_remote_inference=True)[0]
 
@@ -1463,7 +1481,7 @@ class Survey(Base):
 
         - If called with no arguments, it returns the first item (question or instruction) in the survey.
         - For instructions, it returns the next item in sequence since instructions don't have answers.
-        - For questions, it uses the rule logic to determine the next question, then returns any 
+        - For questions, it uses the rule logic to determine the next question, then returns any
           instructions that come before that target question, or the target question itself.
         - If the next item would be past the end of the survey, an EndOfSurvey object is returned.
 
@@ -1487,10 +1505,10 @@ class Survey(Base):
         """
         # Get the combined and ordered list of questions and instructions
         combined_items = self._recombined_questions_and_instructions()
-        
+
         if not combined_items:
             return EndOfSurvey
-            
+
         # If no current item specified, return the first item
         if current_item is None:
             return combined_items[0]
@@ -1510,42 +1528,49 @@ class Survey(Base):
         try:
             current_position = combined_items.index(current_item)
         except ValueError:
-            raise SurveyError(f"Current item not found in survey sequence.")
+            raise SurveyError("Current item not found in survey sequence.")
 
         # If this is an instruction, determine what comes next
-        if hasattr(current_item, 'text') and not hasattr(current_item, 'question_name'):
+        if hasattr(current_item, "text") and not hasattr(current_item, "question_name"):
             # This is an instruction
             if current_position + 1 >= len(combined_items):
                 return EndOfSurvey
-            
+
             # Check if this instruction is between questions that have rule-based navigation
             # We need to figure out what question would have led to this instruction
             prev_question = None
             for i in range(current_position - 1, -1, -1):
                 item = combined_items[i]
-                if hasattr(item, 'question_name'):
+                if hasattr(item, "question_name"):
                     prev_question = item
                     break
-            
+
             if prev_question is not None:
                 # Check if there are rules from this previous question that would jump over the next sequential question
                 prev_q_index = self.question_name_to_index[prev_question.question_name]
                 answer_dict = answers if answers is not None else {}
-                
+
                 try:
-                    next_question_object = self.rule_collection.next_question(prev_q_index, answer_dict)
-                    if next_question_object.num_rules_found > 0 and next_question_object.next_q != EndOfSurvey:
+                    next_question_object = self.rule_collection.next_question(
+                        prev_q_index, answer_dict
+                    )
+                    if (
+                        next_question_object.num_rules_found > 0
+                        and next_question_object.next_q != EndOfSurvey
+                    ):
                         # There's a rule that determined the next question
                         target_question = self.questions[next_question_object.next_q]
                         target_position = combined_items.index(target_question)
-                        
+
                         # If the target is after this instruction, continue toward it
                         if target_position > current_position:
                             # Look for the next question that should be shown
                             next_position = current_position + 1
                             while next_position < target_position:
                                 next_item = combined_items[next_position]
-                                if hasattr(next_item, 'text') and not hasattr(next_item, 'question_name'):
+                                if hasattr(next_item, "text") and not hasattr(
+                                    next_item, "question_name"
+                                ):
                                     # Another instruction before target
                                     return next_item
                                 next_position += 1
@@ -1554,17 +1579,17 @@ class Survey(Base):
                 except (SurveyHasNoRulesError, IndexError):
                     # No rules or error, fall back to sequential
                     pass
-            
+
             # Default: return next item in sequence
             return combined_items[current_position + 1]
 
         # This is a question - use rule logic to determine the target next question
-        if not hasattr(current_item, 'question_name'):
+        if not hasattr(current_item, "question_name"):
             raise SurveyError("Current item is neither a question nor an instruction.")
-            
+
         question_index = self.question_name_to_index[current_item.question_name]
         answer_dict = answers if answers is not None else {}
-        
+
         next_question_object = self.rule_collection.next_question(
             question_index, answer_dict
         )
@@ -1578,16 +1603,20 @@ class Survey(Base):
             next_position = current_position + 1
             if next_position < len(combined_items):
                 next_item = combined_items[next_position]
-                if hasattr(next_item, 'text') and not hasattr(next_item, 'question_name'):
+                if hasattr(next_item, "text") and not hasattr(
+                    next_item, "question_name"
+                ):
                     return next_item
             return EndOfSurvey
-            
+
         if next_question_object.next_q >= len(self.questions):
             # Check if there are any instructions after the current question before ending
             next_position = current_position + 1
             if next_position < len(combined_items):
                 next_item = combined_items[next_position]
-                if hasattr(next_item, 'text') and not hasattr(next_item, 'question_name'):
+                if hasattr(next_item, "text") and not hasattr(
+                    next_item, "question_name"
+                ):
                     return next_item
             return EndOfSurvey
 
@@ -1602,24 +1631,24 @@ class Survey(Base):
         # Look for any instructions between current position and target position
         # Start checking from the position after current
         next_position = current_position + 1
-        
+
         # If we're already at or past the end, return EndOfSurvey
         if next_position >= len(combined_items):
             return EndOfSurvey
-        
+
         # If the target question is the very next item, return it
         if next_position == target_position:
             return target_question
-            
+
         # If there are items between current and target, check if any are instructions
         # that should be shown before reaching the target question
         while next_position < target_position:
             next_item = combined_items[next_position]
             # If it's an instruction, return it (caller should pass target when calling again)
-            if hasattr(next_item, 'text') and not hasattr(next_item, 'question_name'):
+            if hasattr(next_item, "text") and not hasattr(next_item, "question_name"):
                 return next_item
             next_position += 1
-        
+
         # If we've gone through all items between current and target without finding
         # an instruction, return the target question
         return target_question
@@ -1780,30 +1809,31 @@ class Survey(Base):
         for question in self.questions:
             codebook[question.question_name] = question.question_text
         return codebook
-    
-    def edit(self): 
+
+    def edit(self):
         import webbrowser
-        import time 
+        import time
+
         info = self.push()
         print("Waiting for survey to be created on Coop...")
         time.sleep(5)
         url = f"https://www.expectedparrot.com/edit/survey/{info['uuid']}"
         webbrowser.open(url)
         print(f"Survey opened in web editor: {url}")
-        
+
         # Wait for user to confirm editing is complete
         while True:
             user_input = input("Is editing complete [y/n]: ").strip().lower()
-            if user_input in ['y', 'yes']:
+            if user_input in ["y", "yes"]:
                 print("Waiting for changes to sync...")
                 time.sleep(5)
                 # Pull the updated survey and update current object
-                updated_survey = Survey.pull(info['uuid'])
+                updated_survey = Survey.pull(info["uuid"])
                 # Update the current object's attributes with the pulled survey
                 self.__dict__.update(updated_survey.__dict__)
                 print("Survey updated with changes from web editor.")
                 break
-            elif user_input in ['n', 'no']:
+            elif user_input in ["n", "no"]:
                 print("Editing session ended. Survey remains unchanged.")
                 break
             else:

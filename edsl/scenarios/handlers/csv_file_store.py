@@ -1,6 +1,7 @@
 import tempfile
 from ..file_methods import FileMethods
 
+
 class CsvMethods(FileMethods):
     suffix = "csv"
 

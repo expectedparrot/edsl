@@ -16,11 +16,11 @@ from .exceptions import (
 )
 
 __all__ = [
-    "Notebook", 
+    "Notebook",
     "NotebookToLaTeX",
     "NotebookError",
     "NotebookValueError",
-    "NotebookFormatError", 
+    "NotebookFormatError",
     "NotebookConversionError",
     "NotebookEnvironmentError",
 ]

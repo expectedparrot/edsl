@@ -4,6 +4,7 @@ from dataclasses import dataclass
 
 from ..enums import InferenceServiceLiteral
 
+
 @dataclass
 class LanguageModelInfo:
     """A dataclass for storing information about a language model.
@@ -44,6 +45,7 @@ class LanguageModelInfo:
             return self.service_name
         else:
             from .exceptions import InferenceServiceIndexError
+
             raise InferenceServiceIndexError("Index out of range")
 
     @classmethod
@@ -107,6 +109,7 @@ class AvailableModels(UserList):
             )
             if len(avm) == 0:
                 from .exceptions import InferenceServiceValueError
+
                 raise InferenceServiceValueError(
                     "No models found matching the search pattern: " + pattern
                 )
@@ -114,6 +117,7 @@ class AvailableModels(UserList):
                 return avm
         except re.error as e:
             from .exceptions import InferenceServiceValueError
+
             raise InferenceServiceValueError(f"Invalid regular expression pattern: {e}")
 
 
@@ -129,6 +133,7 @@ class ServiceToModelsMapping(UserDict):
         for service in self.service_names:
             if service not in InferenceServiceLiteral:
                 from .exceptions import InferenceServiceValueError
+
                 raise InferenceServiceValueError(f"Invalid service name: {service}")
 
     def model_to_services(self) -> dict:

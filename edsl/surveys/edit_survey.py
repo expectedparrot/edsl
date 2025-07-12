@@ -11,6 +11,7 @@ from .exceptions import SurveyError, SurveyCreationError
 from .rules.rule import Rule
 from .base import RulePriority, EndOfSurvey
 
+
 class EditSurvey:
     def __init__(self, survey):
         self.survey = survey

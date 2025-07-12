@@ -88,7 +88,11 @@ class TableDisplay:
                 )
             except Exception:
                 # Even `tabulate` failed – resort to the default __repr__.
-                plain = super().__repr__() if hasattr(super(), "__repr__") else str(self.data)
+                plain = (
+                    super().__repr__()
+                    if hasattr(super(), "__repr__")
+                    else str(self.data)
+                )
 
             # Escape HTML-sensitive chars so the browser renders plain text.
             import html
@@ -99,7 +103,6 @@ class TableDisplay:
     def __repr__(self):
         # If rich format is requested, use RichRenderer
         if self.tablefmt == "rich":
-            import sys
 
             table_data = TableData(
                 headers=self.headers,
@@ -120,6 +123,7 @@ class TableDisplay:
         else:
             # Fall back to tabulate for other formats
             from tabulate import tabulate
+
             return tabulate(self.data, headers=self.headers, tablefmt=self.tablefmt)
 
     @classmethod
@@ -162,6 +166,24 @@ class TableDisplay:
             new_data.extend([[index, k, v] for k, v in zip(self.headers, row)])
         return TableDisplay(
             new_header, new_data, self.tablefmt, renderer_class=self.renderer_class
+        )
+
+    def flip(self) -> "TableDisplay":
+        """Flip the table by transposing columns and rows"""
+        # Create new headers from the first column of data (or indices if no suitable column)
+        new_headers = [str(i) for i in range(len(self.data))]
+        
+        # Transpose the data: each original column becomes a row
+        new_data = []
+        for i, header in enumerate(self.headers):
+            new_row = [header] + [row[i] for row in self.data]
+            new_data.append(new_row)
+        
+        # The new headers include the original column names as the first column
+        new_headers = ["column"] + new_headers
+        
+        return TableDisplay(
+            new_headers, new_data, self.tablefmt, renderer_class=self.renderer_class
         )
 
 

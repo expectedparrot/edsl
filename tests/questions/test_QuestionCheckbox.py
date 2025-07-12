@@ -119,6 +119,38 @@ def test_QuestionCheckBox_construction():
         QuestionCheckBox(**invalid_question)
 
 
+def test_QuestionCheckBox_negative_values():
+    """Test QuestionCheckBox validation for negative values."""
+    
+    # should raise an exception if min_selections is negative
+    invalid_question = valid_question.copy()
+    invalid_question.update({"min_selections": -1})
+    with pytest.raises(ValueError) as excinfo:
+        QuestionCheckBox(**invalid_question)
+    assert "min_selections must be non-negative" in str(excinfo.value)
+    
+    # should raise an exception if max_selections is negative
+    invalid_question = valid_question.copy()
+    invalid_question.update({"max_selections": -10})
+    with pytest.raises(ValueError) as excinfo:
+        QuestionCheckBox(**invalid_question)
+    assert "max_selections must be non-negative" in str(excinfo.value)
+    
+    # should raise an exception if both are negative
+    invalid_question = valid_question.copy()
+    invalid_question.update({"min_selections": -1, "max_selections": -10})
+    with pytest.raises(ValueError) as excinfo:
+        QuestionCheckBox(**invalid_question)
+    assert "min_selections must be non-negative" in str(excinfo.value)
+    
+    # should work fine with zero values
+    valid_question_zero = valid_question.copy()
+    valid_question_zero.update({"min_selections": 0, "max_selections": 0})
+    q = QuestionCheckBox(**valid_question_zero)
+    assert q.min_selections == 0
+    assert q.max_selections == 0
+
+
 def test_QuestionCheckBox_serialization():
     """Test QuestionCheckBox serialization."""
     q = QuestionCheckBox(**valid_question)
