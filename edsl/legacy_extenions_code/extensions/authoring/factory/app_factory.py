@@ -94,11 +94,9 @@ def _deserialize_edsl_objects(
                         param_type,
                         param_name,
                         e,
-                        (
-                            list(param_value.keys())
-                            if isinstance(param_value, dict)
-                            else str(type(param_value))
-                        ),
+                        list(param_value.keys())
+                        if isinstance(param_value, dict)
+                        else str(type(param_value)),
                     )
                     logger.error("Full param_value: %s", param_value)
                     # Fall back to original value if deserialization fails

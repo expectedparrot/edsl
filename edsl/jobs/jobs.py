@@ -619,7 +619,9 @@ class Jobs(Base):
 
     def _create_remote_inference_handler(self) -> "JobsRemoteInferenceHandler":
         return JobsRemoteInferenceHandler(
-            self, verbose=self.run_config.parameters.verbose
+            self,
+            verbose=self.run_config.parameters.verbose,
+            api_key=self.run_config.parameters.expected_parrot_api_key,
         )
 
     def _remote_results(
@@ -686,6 +688,7 @@ class Jobs(Base):
 
         # Create a shared function to process interview results
         async def process_interviews(interview_runner, results_obj):
+            prev_interview_ref = None
             async for result, interview, idx in interview_runner.run():
                 # Set the order attribute on the result for correct ordering
                 result.order = idx
@@ -1000,6 +1003,7 @@ class Jobs(Base):
             memory_threshold (int, optional): Memory threshold in bytes for the Results object's SQLList,
                 controlling when data is offloaded to SQLite storage
             new_format (bool): If True, uses remote_inference_create method, if False uses old_remote_inference_create method (default: True)
+            expected_parrot_api_key (str, optional): Custom EXPECTED_PARROT_API_KEY to use for this job run
 
         Returns:
             Results: A Results object containing all responses and metadata
@@ -1066,6 +1070,7 @@ class Jobs(Base):
             memory_threshold (int, optional): Memory threshold in bytes for the Results object's SQLList,
                 controlling when data is offloaded to SQLite storage
             new_format (bool): If True, uses remote_inference_create method, if False uses old_remote_inference_create method (default: True)
+            expected_parrot_api_key (str, optional): Custom EXPECTED_PARROT_API_KEY to use for this job run
 
         Returns:
             Results: A Results object containing all responses and metadata

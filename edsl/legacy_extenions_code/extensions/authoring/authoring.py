@@ -1276,7 +1276,6 @@ class ServicesBuilder:
         if isinstance(implementation, type) and issubclass(
             implementation, ExtensionService
         ):
-
             # Handle ExtensionService classes directly
             self._add_extension_service(implementation, overwrite, **kwargs)
         else:

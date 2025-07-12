@@ -33,7 +33,6 @@ from ..config import CONFIG
 
 
 class ServicesRegistry(UserDict):
-
     registry_url = CONFIG.get("EDSL_EXTENSION_SERVICES")
     registry_uuid = (
         "82dba30d-9939-4408-88b5-002bb65736e1"  # TODO: temporary work-around
