@@ -1029,6 +1029,7 @@ class Coop(CoopFunctionsMixin):
         page: int = 1,
         page_size: int = 10,
         sort_ascending: bool = False,
+        community: bool = False,
     ) -> "CoopRegularObjects":
         """
         Retrieve objects either owned by the user or shared with them.
@@ -1036,6 +1037,8 @@ class Coop(CoopFunctionsMixin):
         Notes:
         - search_query only works with the description field.
         - If sort_ascending is False, then the most recently created objects are returned first.
+        - If community is False, then only objects owned by the user or shared with the user are returned.
+        - If community is True, then only public objects not owned by the user are returned.
         """
         from ..scenarios import Scenario
 
@@ -1057,6 +1060,8 @@ class Coop(CoopFunctionsMixin):
             params["visibility"] = self._validate_visibility_types(visibility)
         if search_query:
             params["search_query"] = search_query
+        if community:
+            params["community"] = True
 
         response = self._send_server_request(
             uri="api/v0/object/list",
@@ -1084,6 +1089,9 @@ class Coop(CoopFunctionsMixin):
                     "created_ts": o.get("created_ts"),
                 }
             )
+            if community:
+                object["view_count"] = o.get("view_count")
+                object["download_count"] = o.get("download_count")
             objects.append(object)
 
         return CoopRegularObjects(objects)
