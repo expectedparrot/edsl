@@ -20,14 +20,14 @@ How it works
 ------------
 
 You can create a Prolific study for your EDSL survey from your workspace (in code) or from your account dashboard (interactively).
+You can also choose whether to use your own Prolific account key or your Expected Parrot key (by default).
 
 
 Code-based workflow
 ^^^^^^^^^^^^^^^^^^^
 
-.. You can view an example of this workflow in this `notebook at Coop <https://www.expectedparrot.com/content/RobinHorton/coop-project-example>`_.
-
 1. **Create a survey in a notebook**
+
 Create a survey in EDSL:
 
    - Construct :ref:`questions` and pass them to :ref:`surveys` with desired logic.
@@ -36,42 +36,40 @@ Create a survey in EDSL:
    - Use the `run` method to administer a survey with desired agents and models.
 
 This generates a formatted dataset of :ref:`results` that you can analyze with built-in methods.
-The survey, agents and results are automatically posted to your Coop account, where you can access them interactively.
+The survey, agents and results are also automatically added to your Coop account, where you can access them interactively.
 
-2. **Use `humanize` to generate a project and web-based survey**
-Use the `humanize` method to generate a `Project` for your survey and a web-based version that can be shared with respondents.
+2. **Use** `humanize` **to generate a project and web-based survey**
+
+Use the `humanize` method to generate a `Project` for your survey and a shareable web version.
 You can optionally pass a `project_name`, `survey_description` and `survey_alias` to customize the project details (see example below).
 
-3. **Use `Coop` to launch studies**
+3. **Use** `Coop` **to launch Prolific studies**
+
 Create a `Coop` client object to access your account.
 Then use `Coop` methods to create a Prolific study for your survey and gather human responses:
 
-    - Use the `Coop().create_prolific_study` method to create a new study for the `project_uuid` and specify the study details (`name`, `description`, `num_participant`, `estimated_completion_time` (minutes), `participant_payment_cents`), and optional filters for targeting specific demographics and Prolific participants (IDs list).
-    - Use the `Coop().get_prolific_study` method to retrieve the study details for the `project_uuid` and `study_id`.
-    - Use the `Coop().list_prolific_filters` method to show all the available filters for targeting specific demographics and characteristics of participants. Then use the `find` method to inspect the available filters by `filter_id` and the `create_study_filter` method to create a filter for your study with the desired parameters.
-    - Use the `Coop().update_prolific_study` method to update the study with the filters.
-    - Use the `Coop().publish_prolific_study` method to publish the study and make it available for participants.
-    - Use the `Coop().get_prolific_study_responses` method to retrieve the responses from the study.
-    - Use the `Coop().approve_prolific_study_submission` method to approve the responses from the study.
-    - Use the `Coop().reject_prolific_study_submission` method to reject the responses from the study.
+    - `create_prolific_study`: Create a new study for the `project_uuid` and specify the study details (`name`, `description`, `num_participant`, `estimated_completion_time` (minutes), `participant_payment_cents`), and optional filters for targeting specific demographics and Prolific participants (IDs list).
+    - `get_prolific_study`: Retrieve the study details for the `project_uuid` and `study_id`.
+    - `list_prolific_filters`: Show all the available filters for targeting specific demographics and characteristics of participants. Then use the `find` method to inspect the available filters by `filter_id` and the `create_study_filter` method to create a filter for your study with the desired parameters.
+    - `update_prolific_study`: Update the study with the filters.
+    - `publish_prolific_study`: Publish the study and make it available for participants.
+    - `get_prolific_study_responses`: Retrieve the responses from the study.
+    - `approve_prolific_study_submission`: Approve the responses from the study.
+    - `reject_prolific_study_submission`: Reject the responses from the study.
 
-If you have also shared the web-based survey link with other respondents, you can gather all human responses using the `Coop().get_project_human_responses` method.
+If you have also shared the web link with other respondents, you can gather all human responses using the `get_project_human_responses` method.
 
 
 Interactive workflow
 ^^^^^^^^^^^^^^^^^^^^
 
-1. **Create a survey at your account**
-`Log in <https://www.expectedparrot.com/login>`_ to your account and navigate to the **Create** page.
-You can either:
+1. **Create a survey project**
 
-   - Select the option to create a new **Survey**, then save a new **Project** for the survey
-   or
-   - Create a new **Project** and select a saved survey from your content
-
-Select the **Run with AI** option to run the survey with AI agents and models (use the **Create** page to create or import scenarios and agents to use with the survey).
+`Log in <https://www.expectedparrot.com/login>`_ to your account. 
+Create a project for a saved survey at your **Projects** page or create a new survey and select *Run survey* to view options for running the survey with AI agents and language models, generate a web version of the survey, and launch Prolific studies with human participants.
 
 2. **Create a Prolific study:** 
+
 Select the **Run with humans** option and fill in the study details:
 
    - **Study name** *(Shown to participants)*
@@ -89,11 +87,13 @@ You can also share this link with any other respondents on your own to gather th
 
 Click the **Create study** button to finalize the study creation.
 
-3. **Launch the study:** 
+3. **Launch the study** 
+
 Find the new study at your project dashboard and select the option to launch it.
 Responses will automatically appear at your project dashboard where you can review and approve them.
 
-4. **Access results:** 
+4. **Access results** 
+
 Copy the project UUID and use it to access the participant responses in your EDSL code (see example below).
 
 
@@ -415,6 +415,7 @@ After the study is published and participants have completed it, you can retriev
 
 
 Approve the responses from the study:
+
 .. code-block:: python
 
     # Approve the responses from the study
