@@ -9,7 +9,7 @@ Overview
 Survey Builder is a user-friendly, no-code application for launching surveys and gathering responses from AI agents and human respondents. 
 It is fully integrated with EDSL and available at your account, allowing you to seamlessly design questions and agents, and analyze, visualize and share your results.
 
-A clickable demo of the survey builder is available at `here <https://www.expectedparrot.com/getting-started/build>`_.
+A clickable demo of the survey builder is available `here <https://www.expectedparrot.com/getting-started/build>`_.
 
 *If you are looking for information about Polly, a chat application for interacting with AI agents, please see the* :ref:`polly` *page.*
 
