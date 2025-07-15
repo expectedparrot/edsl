@@ -146,7 +146,12 @@ Validating with Humans
 
 - :ref:`humanize`: Generate web-based surveys and collect responses from human respondents.
 - :ref:`prolific`: Launch surveys as studies on Prolific, a platform for recruiting human participants for research studies.
+
+
+No-code Apps
+------------
 - :ref:`survey_builder`: A user-friendly no-code interface for creating surveys and gathering responses from humans and AI agents.
+- :ref:`polly`: An interface for chatting with AI agents (*coming soon!*).
 
 
 Coop 
@@ -255,7 +260,14 @@ Links
 
    humanize
    prolific
+
+.. toctree::
+   :maxdepth: 2
+   :caption: No-code Apps
+   :hidden:
+
    survey_builder
+   polly
 
 .. toctree::
    :maxdepth: 2
