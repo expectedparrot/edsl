@@ -6,9 +6,9 @@ Prolific studies
 EDSL allows you to launch surveys with human participants using Prolific, a platform for recruiting participants for research studies.
 You can choose whether to create and manage Prolific studies directly in your EDSL code or interactivately at your Coop account, enabling you to gather human responses to your surveys alongside AI-generated responses.
 The steps below outline both methods (code-based and interactive).
-Interactive steps are also viewable in a `clickable demo <https://app.arcade.software/share/GVCSuf9kfK6gduTzysg2>`_, and example code below is also available at a downloadable `notebook at Coop <https://www.expectedparrot.com/content/RobinHorton/coop-project-example>`_.
+A clickable demo of interactive steps is available `here <https://www.expectedparrot.com/getting-started/build>`_, and example code below on this page is also available at a downloadable `notebook at Coop <https://www.expectedparrot.com/content/RobinHorton/coop-project-example>`_.
 
-More information about the `humanize` method for generating a shareable web-based version of your survey for human respondents is available at the :ref:`humanize` page.
+More information about the `humanize` method for generating a shareable web version of your survey for human respondents is available at the :ref:`humanize` page.
 This method allows you to collect responses from your own respondents.
 The responses can then be combined with AI-generated responses (and Prolific responses) for analysis.
 
@@ -38,7 +38,7 @@ Create a survey in EDSL:
 This generates a formatted dataset of :ref:`results` that you can analyze with built-in methods.
 The survey, agents and results are also automatically added to your Coop account, where you can access them interactively.
 
-2. **Use** `humanize` **to generate a project and web-based survey**
+2. **Use** `humanize` **to generate a project and web surveys**
 
 Use the `humanize` method to generate a `Project` for your survey and a shareable web version.
 You can optionally pass a `project_name`, `survey_description` and `survey_alias` to customize the project details (see example below).
@@ -81,7 +81,7 @@ Select the **Run with humans** option and fill in the study details:
    - **Configure filters:** Optionally, you can set filters to target specific demographics or characteristics of participants (e.g., age, gender, ethnicity, languages, location, education, work status, etc.).
     
 *Note:* The **Study URL** will be generated automatically. 
-You can open it to view the web-based version of the survey that will be sent to participants.
+You can open it to view the web version of the survey that will be sent to participants.
 This is the same link displayed when you select the **Web survey** option at your project page (or when you use the `humanize` method in code).
 You can also share this link with any other respondents on your own to gather their responses.
 
@@ -175,13 +175,13 @@ Example output:
     - 4
 
 
-**Create a project and web-based version of the survey for human respondents:**
+**Create a project and web version of the survey for human respondents:**
 
-Use the `humanize` method to create a project for the survey and a web-based version that can be shared with respondents (your own and via Prolific):
+Use the `humanize` method to create a project for the survey and a web version that can be shared with respondents (your own and via Prolific):
 
 .. code-block:: python
 
-    # Generate a web-based version of the survey for human respondents
+    # Generate a web version of the survey for human respondents
     project = survey.humanize(
         project_name = "Vehicle Ownership Survey",  # optional, defaults to the survey name
         survey_description = "A survey on vehicle ownership and driving habits.",  # optional
@@ -443,11 +443,11 @@ Optionally, you can reject responses if needed:
 
 
 **Gather all human responses:**
-If you have also shared the web-based survey link with other respondents, you can gather all human responses from the project:
+If you have also shared the web survey link with other respondents, you can gather all human responses from the project:
 
 .. code-block:: python
 
-    # Get human responses from the web-based survey link
+    # Get human responses from the web survey link
     human_responses = coop.get_project_human_responses(project_uuid)
 
     # Inspect the human responses
