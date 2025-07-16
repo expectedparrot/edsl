@@ -1370,6 +1370,9 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         """
         from ..dataset import Dataset
 
+        if not self.data:
+            return Dataset([])
+
         keys = list(self[0].keys())
         for scenario in self:
             new_keys = list(scenario.keys())

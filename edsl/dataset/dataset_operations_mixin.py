@@ -192,7 +192,8 @@ class DataOperationsBase:
                         f"Column '{key}' has {len(values)} observations, but previous columns had {_num_observations} observations."
                     )
 
-        return _num_observations
+        # Return 0 for empty datasets instead of None
+        return _num_observations if _num_observations is not None else 0
 
     def chart(self):
         """
@@ -547,6 +548,10 @@ class DataOperationsBase:
             3                 OK
         """
         import pandas as pd
+
+        # Handle empty dataset case
+        if not self.data:
+            return pd.DataFrame()
 
         csv_string = self.to_csv(remove_prefix=remove_prefix).text
         csv_buffer = io.StringIO(csv_string)

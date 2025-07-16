@@ -81,6 +81,10 @@ class TableDisplay:
             return self.renderer_class(table_data).render_html()
         except Exception as exc:  # pragma: no cover
             # --- graceful degradation -------------------------------------------------
+            import traceback
+
+            full_traceback = traceback.format_exc()
+
             try:
                 from tabulate import tabulate
 
@@ -101,7 +105,7 @@ class TableDisplay:
             import html
 
             safe_plain = html.escape(plain)
-            return f"<pre>{safe_plain}\n\n[TableDisplay fallback – original error: {exc}]</pre>"
+            return f"<pre>{safe_plain}\n\n[TableDisplay fallback – original error: {exc}]\n\nFull traceback:\n{html.escape(full_traceback)}</pre>"
 
     def __repr__(self):
         # If rich format is requested, use RichRenderer
