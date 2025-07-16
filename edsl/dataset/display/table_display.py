@@ -37,7 +37,10 @@ class TableDisplay:
         raw_data_set: "Dataset" = None,
         renderer_class: Optional[TableRenderer] = None,
     ):
-        assert len(headers) == len(data[0])  # Check if headers and data are consistent
+        if data:
+            assert len(headers) == len(
+                data[0]
+            )  # Check if headers and data are consistent
 
         self.headers = headers
         self.data = data
@@ -103,7 +106,6 @@ class TableDisplay:
     def __repr__(self):
         # If rich format is requested, use RichRenderer
         if self.tablefmt == "rich":
-
             table_data = TableData(
                 headers=self.headers,
                 data=self.data,
@@ -172,16 +174,16 @@ class TableDisplay:
         """Flip the table by transposing columns and rows"""
         # Create new headers from the first column of data (or indices if no suitable column)
         new_headers = [str(i) for i in range(len(self.data))]
-        
+
         # Transpose the data: each original column becomes a row
         new_data = []
         for i, header in enumerate(self.headers):
             new_row = [header] + [row[i] for row in self.data]
             new_data.append(new_row)
-        
+
         # The new headers include the original column names as the first column
         new_headers = ["column"] + new_headers
-        
+
         return TableDisplay(
             new_headers, new_data, self.tablefmt, renderer_class=self.renderer_class
         )
