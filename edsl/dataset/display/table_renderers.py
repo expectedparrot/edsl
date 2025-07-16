@@ -102,6 +102,9 @@ class PandasStyleRenderer(DataTablesRendererABC):
             ):
                 df = self.table_data.raw_data_set.to_pandas()
             else:
+                # Handle empty data case
+                if not self.table_data.data and not self.table_data.headers:
+                    return "<p>Empty table</p>"
                 df = pd.DataFrame(self.table_data.data, columns=self.table_data.headers)
 
             styled_df = df.style.set_properties(
