@@ -876,12 +876,14 @@ class RepresentationMixin:
             summary_line = "".join([f" {k}: {v};" for k, v in summary_dict.items()])
             class_name = self.__class__.__name__
             docs = getattr(self, "__documentation__", "")
+            table = self.table()
+            table_html = table._repr_html_() if table is not None else ""
             return (
                 "<p>"
                 + f"<a href='{docs}'>{class_name}</a>"
                 + summary_line
                 + "</p>"
-                + self.table()._repr_html_()
+                + table_html
             )
         else:
             class_name = self.__class__.__name__

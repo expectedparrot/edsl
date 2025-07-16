@@ -394,7 +394,12 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
         headers = list(dict.fromkeys(headers))  # Ensure unique headers
 
         # Extract data
-        max_len = max(len(values) for entry in self.data for values in entry.values())
+        if not self.data:
+            return headers, []
+
+        # Get max_len, but handle empty datasets
+        lengths = [len(values) for entry in self.data for values in entry.values()]
+        max_len = max(lengths) if lengths else 0
         rows = []
         for i in range(max_len):
             row = []
