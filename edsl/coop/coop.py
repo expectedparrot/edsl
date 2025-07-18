@@ -1096,6 +1096,46 @@ class Coop(CoopFunctionsMixin):
 
         return CoopRegularObjects(objects)
 
+    def get_metadata(self, url_or_uuid: Union[str, UUID]) -> dict:
+        """
+        Get an object's metadata from the server.
+
+        :param url_or_uuid: The UUID or URL of the object.
+            URLs can be in the form content/uuid or content/username/alias.
+        """
+        obj_uuid, owner_username, alias = self._resolve_uuid_or_alias(url_or_uuid)
+
+        if obj_uuid:
+            uri = "api/v0/object/metadata"
+            params = {"uuid": obj_uuid}
+        else:
+            uri = "api/v0/object/alias/metadata"
+            params = {"owner_username": owner_username, "alias": alias}
+
+        response = self._send_server_request(
+            uri=uri,
+            method="GET",
+            params=params,
+        )
+
+        self._resolve_server_response(response)
+        content = response.json()
+        return {
+            "uuid": content.get("uuid"),
+            "object_type": content.get("object_type"),
+            "alias": content.get("alias"),
+            "owner_username": content.get("owner_username"),
+            "description": content.get("description"),
+            "visibility": content.get("visibility"),
+            "version": content.get("version"),
+            "url": f"{self.url}/content/{content.get('uuid')}",
+            "alias_url": self._get_alias_url(
+                content.get("owner_username"), content.get("alias")
+            ),
+            "last_updated_ts": content.get("last_updated_ts"),
+            "created_ts": content.get("created_ts"),
+        }
+
     def delete(self, url_or_uuid: Union[str, UUID]) -> dict:
         """
         Delete an object from the server.
