@@ -38,11 +38,13 @@ class JobsRemoteInferenceHandler:
         jobs: "Jobs",
         verbose: bool = RemoteJobConstants.REMOTE_JOB_VERBOSE,
         poll_interval: Seconds = RemoteJobConstants.REMOTE_JOB_POLL_INTERVAL,
+        api_key: Optional[str] = None,
     ):
         """Handles the creation and running of a remote inference job."""
         self.jobs = jobs
         self.verbose = verbose
         self.poll_interval = poll_interval
+        self.api_key = api_key
 
         from ..config import CONFIG
 
@@ -77,7 +79,7 @@ class JobsRemoteInferenceHandler:
             try:
                 from ..coop import Coop
 
-                user_edsl_settings = Coop().edsl_settings
+                user_edsl_settings = Coop(api_key=self.api_key).edsl_settings
                 return user_edsl_settings.get("remote_inference", False)
             except requests.ConnectionError:
                 pass
@@ -111,7 +113,7 @@ class JobsRemoteInferenceHandler:
 
         logger = self._create_logger()
 
-        coop = Coop()
+        coop = Coop(api_key=self.api_key)
         logger.update(
             "Remote inference activated. Sending job to server...",
             status=JobsStatus.QUEUED,
@@ -181,7 +183,7 @@ class JobsRemoteInferenceHandler:
     ) -> "RemoteInferenceResponse":
         from ..coop import Coop
 
-        coop = Coop()
+        coop = Coop(api_key=self.api_key)
         return coop.new_remote_inference_get(job_uuid)
 
     def _construct_remote_job_fetcher(
@@ -192,7 +194,7 @@ class JobsRemoteInferenceHandler:
         else:
             from ..coop import Coop
 
-            coop = Coop()
+            coop = Coop(api_key=self.api_key)
             return coop.remote_inference_get
 
     def _construct_object_fetcher(
@@ -204,7 +206,7 @@ class JobsRemoteInferenceHandler:
         else:
             from ..coop import Coop
 
-            coop = Coop()
+            coop = Coop(api_key=self.api_key)
             if new_format:
                 return coop.pull
             else:
@@ -466,9 +468,9 @@ class JobsRemoteInferenceHandler:
             model_cost_dict["input_cost_credits_with_cache"] = converter.usd_to_credits(
                 input_cost_with_cache
             )
-            model_cost_dict["output_cost_credits_with_cache"] = (
-                converter.usd_to_credits(output_cost_with_cache)
-            )
+            model_cost_dict[
+                "output_cost_credits_with_cache"
+            ] = converter.usd_to_credits(output_cost_with_cache)
         return list(expenses_by_model.values())
 
     def _fetch_results_and_log(
