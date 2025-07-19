@@ -23,10 +23,10 @@ try:
 except ImportError:
     FASTAPI_AVAILABLE = False
 
-from ..base.exceptions import EDSLException
+from ..base.base_exception import BaseException
 
 
-class ServiceFrameworkException(EDSLException):
+class ServiceFrameworkException(BaseException):
     """Exception raised by the service framework"""
 
     pass
@@ -258,6 +258,12 @@ def edsl_service(
         func._edsl_framework = framework
         _current_framework = framework
 
+        # Apply any stored configuration from other decorators
+        if hasattr(func, "_edsl_input_params"):
+            framework.input_params.update(func._edsl_input_params)
+        if hasattr(func, "_edsl_output_schema"):
+            framework.output_schema = func._edsl_output_schema
+
         return func
 
     return decorator
@@ -292,11 +298,6 @@ def input_param(
     """
 
     def decorator(func):
-        if not hasattr(func, "_edsl_framework"):
-            raise ServiceFrameworkException(
-                "@input_param must be used after @edsl_service"
-            )
-
         param_config = {
             "type": param_type,
             "required": required,
@@ -319,7 +320,15 @@ def input_param(
         if choices is not None:
             param_config["choices"] = choices
 
-        func._edsl_framework.input_params[name] = param_config
+        # Store on function - framework may not exist yet
+        if not hasattr(func, "_edsl_input_params"):
+            func._edsl_input_params = {}
+        func._edsl_input_params[name] = param_config
+
+        # If framework exists, update it
+        if hasattr(func, "_edsl_framework"):
+            func._edsl_framework.input_params[name] = param_config
+
         return func
 
     return decorator
@@ -336,12 +345,13 @@ def output_schema(schema: Dict[str, Union[str, Type]]):
     """
 
     def decorator(func):
-        if not hasattr(func, "_edsl_framework"):
-            raise ServiceFrameworkException(
-                "@output_schema must be used after @edsl_service"
-            )
+        # Store on function - framework may not exist yet
+        func._edsl_output_schema = schema
 
-        func._edsl_framework.output_schema = schema
+        # If framework exists, update it
+        if hasattr(func, "_edsl_framework"):
+            func._edsl_framework.output_schema = schema
+
         return func
 
     return decorator
