@@ -20,13 +20,13 @@ class ExtensionGatewayClient:
 
         Args:
             gateway_url: Base URL of the Extension Gateway. If not provided,
-                        will use EDSL_EXTENSION_GATEWAY_URL env var or default to http://localhost:8000
+                        will be dynamically determined based on EXPECTED_PARROT_URL
             timeout: Request timeout in seconds
         """
         if gateway_url is None:
-            gateway_url = os.getenv(
-                "EDSL_EXTENSION_GATEWAY_URL", "http://localhost:8000"
-            )
+            from ..config import CONFIG
+
+            gateway_url = CONFIG.get_extension_gateway_url()
         self.gateway_url = gateway_url.rstrip("/")
         self.timeout = timeout
 

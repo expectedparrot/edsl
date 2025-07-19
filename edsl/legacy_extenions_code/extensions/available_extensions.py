@@ -27,8 +27,8 @@ class ServiceFetcher:
     """
     A class to fetch available services from the extension gateway.
 
-    The gateway URL should be provided via the EDSL_EXTENSION_GATEWAY_URL config setting.
-    Example: EDSL_EXTENSION_GATEWAY_URL=http://localhost:8000
+    The gateway URL is dynamically determined based on EXPECTED_PARROT_URL.
+    Example: EXPECTED_PARROT_URL=http://localhost:8000 -> gateway URL will be http://localhost:8008
     """
 
     def __init__(self, gateway_url: Optional[str] = None, timeout: float = 10.0):
@@ -36,13 +36,13 @@ class ServiceFetcher:
         Initialize the ServiceFetcher.
 
         Args:
-            gateway_url: Optional URL override. If not provided, uses EDSL_EXTENSION_GATEWAY_URL config
+            gateway_url: Optional URL override. If not provided, uses dynamic config based on EXPECTED_PARROT_URL
             timeout: Request timeout in seconds
         """
-        self.gateway_url = gateway_url or CONFIG.get("EDSL_EXTENSION_GATEWAY_URL")
+        self.gateway_url = gateway_url or CONFIG.get_extension_gateway_url()
         if not self.gateway_url:
             raise ValueError(
-                "Gateway URL must be provided either as parameter or via EDSL_EXTENSION_GATEWAY_URL config setting"
+                "Gateway URL must be provided either as parameter or via dynamic config based on EXPECTED_PARROT_URL"
             )
 
         # Remove trailing slash for consistency
@@ -492,7 +492,7 @@ if __name__ == "__main__":
     import asyncio
 
     # Example using config setting
-    # Set EDSL_EXTENSION_GATEWAY_URL in your config
+    # Gateway URL is dynamically determined from EXPECTED_PARROT_URL
 
     try:
         print("=== ServiceDefinition Usage ===")
@@ -537,6 +537,6 @@ if __name__ == "__main__":
 
     except ValueError as e:
         print(f"Configuration error: {e}")
-        print("Please set the EDSL_EXTENSION_GATEWAY_URL config setting")
+        print("Please check your EXPECTED_PARROT_URL config setting")
     except Exception as e:
         print(f"Error: {e}")
