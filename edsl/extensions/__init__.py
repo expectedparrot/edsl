@@ -23,6 +23,14 @@ from .service_framework import (
     ServiceFrameworkException,
 )
 
+from .extension_interface import (
+    ExtensionManager,
+    Extensions,
+    ExtensionService,
+    extension,
+    extensions,
+)
+
 __all__ = [
     # Gateway client for calling services
     "ExtensionGatewayClient",
@@ -37,4 +45,10 @@ __all__ = [
     "validate_service",
     "generate_service_files",
     "ServiceFrameworkException",
+    # Extension interface
+    "ExtensionManager",
+    "Extensions",
+    "ExtensionService",
+    "extension",
+    "extensions",
 ]
