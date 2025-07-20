@@ -162,16 +162,19 @@ class ExtensionManager:
         try:
             services_response = self.gateway_client.list_services()
             services = services_response.get("services", [])
-
             if not services:
                 print("No extensions available")
                 return
 
             print("Available extensions:")
             for service in services:
-                name = service.get("name", "Unknown")
+                service_name = service.get("service_name", "Unknown")
                 description = service.get("description", "No description")
-                print(f"  - {name}: {description}")
+                cost_credits = service.get("cost_credits", "Unknown")
+                ep_username = service.get("ep_username", "Unknown")
+                print(
+                    f"  - {service_name}: {description} (Cost: {cost_credits} credits, Owner: {ep_username})"
+                )
 
         except Exception as e:
             print(f"Error listing extensions: {e}")
