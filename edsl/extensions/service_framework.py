@@ -246,6 +246,89 @@ class EDSLServiceFramework:
                 "output_schema": self.output_schema,
             }
 
+        # Add parameter details endpoint
+        @app.get("/get_params", tags=["system"])
+        async def get_params():
+            """Get detailed parameter information for all endpoints"""
+            endpoint_name = self.service_config.get("endpoint_name", "run")
+
+            # Build detailed parameter info
+            params_info = {}
+            for param_name, config in self.input_params.items():
+                param_info = {
+                    "type": config["type"].__name__
+                    if hasattr(config["type"], "__name__")
+                    else str(config["type"]),
+                    "required": config.get("required", True),
+                    "description": config.get("description", ""),
+                }
+
+                # Add default value if present
+                if "default" in config:
+                    param_info["default"] = config["default"]
+
+                # Add validation constraints
+                if "min_value" in config:
+                    param_info["min_value"] = config["min_value"]
+                if "max_value" in config:
+                    param_info["max_value"] = config["max_value"]
+                if "min_length" in config:
+                    param_info["min_length"] = config["min_length"]
+                if "max_length" in config:
+                    param_info["max_length"] = config["max_length"]
+                if "choices" in config:
+                    param_info["choices"] = config["choices"]
+
+                params_info[param_name] = param_info
+
+            # Add ep_api_token info if service uses user account
+            if self.service_config.get("uses_user_account", True):
+                params_info["ep_api_token"] = {
+                    "type": "str",
+                    "required": True,
+                    "description": "Expected Parrot API key for authentication",
+                }
+
+            return {
+                "service_name": self.service_config.get("name"),
+                "endpoints": {
+                    f"/{endpoint_name}": {
+                        "method": "POST",
+                        "description": self.service_config.get(
+                            "description", "Execute the EDSL service"
+                        ),
+                        "parameters": params_info,
+                        "response_schema": self.output_schema,
+                    },
+                    "/health": {
+                        "method": "GET",
+                        "description": "Health check endpoint",
+                        "parameters": {},
+                        "response_schema": {"status": "str", "service": "str"},
+                    },
+                    "/info": {
+                        "method": "GET",
+                        "description": "Service information endpoint",
+                        "parameters": {},
+                        "response_schema": {
+                            "name": "str",
+                            "description": "str",
+                            "version": "str",
+                            "cost_credits": "int",
+                            "uses_user_account": "bool",
+                            "input_parameters": "list",
+                            "output_schema": "dict",
+                        },
+                    },
+                    "/get_params": {
+                        "method": "GET",
+                        "description": "Get detailed parameter information for all endpoints",
+                        "parameters": {},
+                        "response_schema": {"service_name": "str", "endpoints": "dict"},
+                    },
+                },
+            }
+
         self.app = app
         return app
 
