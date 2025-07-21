@@ -361,7 +361,7 @@ def run_service(
     service_function,
     host: str = "0.0.0.0",
     port: int = 8000,
-    reload: bool = True,
+    reload: bool = False,
     log_level: str = "info",
 ):
     """
@@ -386,16 +386,10 @@ def run_service(
     )
     print(f"API docs: http://{host}:{port}/docs")
 
-    if reload:
-        print(
-            "\nNote: Auto-reload is enabled but may show a warning. The service will still work correctly."
-        )
-        print(
-            "For full reload support, consider using: uvicorn your_service:app --reload\n"
-        )
-
     # Run the service
-    uvicorn.run(app, host=host, port=port, reload=reload, log_level=log_level)
+    # Note: reload requires the app to be importable, which doesn't work with dynamically created apps
+    # Users who want reload should use uvicorn directly: uvicorn myservice:app --reload
+    uvicorn.run(app, host=host, port=port, reload=False, log_level=log_level)
 
 
 def generate_service_files(
