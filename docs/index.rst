@@ -151,7 +151,6 @@ Validating with Humans
 No-code Apps
 ------------
 - :ref:`survey_builder`: A user-friendly no-code interface for creating surveys and gathering responses from humans and AI agents.
-- :ref:`polly`: An interface for chatting with AI agents (*coming soon!*).
 
 
 Coop 
@@ -267,7 +266,6 @@ Links
    :hidden:
 
    survey_builder
-   polly
 
 .. toctree::
    :maxdepth: 2
