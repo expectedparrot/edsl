@@ -8,6 +8,7 @@ The framework handles all the web service boilerplate.
 
 import inspect
 import json
+import logging
 import os
 import uvicorn
 from functools import wraps
@@ -24,6 +25,10 @@ except ImportError:
     FASTAPI_AVAILABLE = False
 
 from ..base.base_exception import BaseException
+
+
+# Set up logger for the service framework
+logger = logging.getLogger(__name__)
 
 
 class ServiceFrameworkException(BaseException):
@@ -136,6 +141,12 @@ class EDSLServiceFramework:
 
     def create_fastapi_app(self) -> FastAPI:
         """Create and configure the FastAPI application"""
+        # Configure logging to ensure it's visible
+        logging.basicConfig(
+            level=logging.INFO,
+            format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        )
+
         app = FastAPI(
             title=self.service_config.get("name", "EDSL Service"),
             description=self.service_config.get(
@@ -171,6 +182,9 @@ class EDSLServiceFramework:
                 # Validate API token if service requires user account
                 if self.service_config.get("uses_user_account", True):
                     if not params.get("ep_api_token"):
+                        print(
+                            f"[INFO] Missing API token in request to /{self.service_config.get('endpoint_name')}"
+                        )
                         raise HTTPException(
                             status_code=400,
                             detail="API token is required for this service",
@@ -185,9 +199,30 @@ class EDSLServiceFramework:
                 # Validate and return response
                 return ResponseModel(**result)
 
+            except HTTPException as e:
+                # Log client errors (4xx) at INFO level, they're expected
+                if hasattr(e, "status_code") and 400 <= e.status_code < 500:
+                    logger.info(f"Client error {e.status_code}: {e.detail}")
+                    print(
+                        f"[INFO] Client error {e.status_code}: {e.detail}"
+                    )  # Also print to ensure visibility
+                else:
+                    logger.error(
+                        f"HTTP error {getattr(e, 'status_code', 'unknown')}: {e.detail}"
+                    )
+                    print(
+                        f"[ERROR] HTTP error {getattr(e, 'status_code', 'unknown')}: {e.detail}"
+                    )
+                raise  # Re-raise HTTPException as-is (includes 400, 401, etc.)
             except ValidationError as e:
+                logger.warning(f"Validation error: {e.errors()}")
+                print(f"[WARNING] Validation error: {e.errors()}")
                 raise HTTPException(status_code=422, detail=e.errors())
             except Exception as e:
+                logger.error(
+                    f"Unexpected error in service endpoint: {str(e)}", exc_info=True
+                )
+                print(f"[ERROR] Unexpected error in service endpoint: {str(e)}")
                 raise HTTPException(status_code=500, detail=str(e))
 
         # Add health check endpoint
@@ -209,6 +244,89 @@ class EDSLServiceFramework:
                 "uses_user_account": self.service_config.get("uses_user_account", True),
                 "input_parameters": list(self.input_params.keys()),
                 "output_schema": self.output_schema,
+            }
+
+        # Add parameter details endpoint
+        @app.get("/get_params", tags=["system"])
+        async def get_params():
+            """Get detailed parameter information for all endpoints"""
+            endpoint_name = self.service_config.get("endpoint_name", "run")
+
+            # Build detailed parameter info
+            params_info = {}
+            for param_name, config in self.input_params.items():
+                param_info = {
+                    "type": config["type"].__name__
+                    if hasattr(config["type"], "__name__")
+                    else str(config["type"]),
+                    "required": config.get("required", True),
+                    "description": config.get("description", ""),
+                }
+
+                # Add default value if present
+                if "default" in config:
+                    param_info["default"] = config["default"]
+
+                # Add validation constraints
+                if "min_value" in config:
+                    param_info["min_value"] = config["min_value"]
+                if "max_value" in config:
+                    param_info["max_value"] = config["max_value"]
+                if "min_length" in config:
+                    param_info["min_length"] = config["min_length"]
+                if "max_length" in config:
+                    param_info["max_length"] = config["max_length"]
+                if "choices" in config:
+                    param_info["choices"] = config["choices"]
+
+                params_info[param_name] = param_info
+
+            # Add ep_api_token info if service uses user account
+            if self.service_config.get("uses_user_account", True):
+                params_info["ep_api_token"] = {
+                    "type": "str",
+                    "required": True,
+                    "description": "Expected Parrot API key for authentication",
+                }
+
+            return {
+                "service_name": self.service_config.get("name"),
+                "endpoints": {
+                    f"/{endpoint_name}": {
+                        "method": "POST",
+                        "description": self.service_config.get(
+                            "description", "Execute the EDSL service"
+                        ),
+                        "parameters": params_info,
+                        "response_schema": self.output_schema,
+                    },
+                    "/health": {
+                        "method": "GET",
+                        "description": "Health check endpoint",
+                        "parameters": {},
+                        "response_schema": {"status": "str", "service": "str"},
+                    },
+                    "/info": {
+                        "method": "GET",
+                        "description": "Service information endpoint",
+                        "parameters": {},
+                        "response_schema": {
+                            "name": "str",
+                            "description": "str",
+                            "version": "str",
+                            "cost_credits": "int",
+                            "uses_user_account": "bool",
+                            "input_parameters": "list",
+                            "output_schema": "dict",
+                        },
+                    },
+                    "/get_params": {
+                        "method": "GET",
+                        "description": "Get detailed parameter information for all endpoints",
+                        "parameters": {},
+                        "response_schema": {"service_name": "str", "endpoints": "dict"},
+                    },
+                },
             }
 
         self.app = app
@@ -386,7 +504,17 @@ def run_service(
     )
     print(f"API docs: http://{host}:{port}/docs")
 
-    uvicorn.run(app, host=host, port=port, reload=reload, log_level=log_level)
+    # Configure Python logging to ensure application logs are visible
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        force=True,  # Override any existing configuration
+    )
+
+    # Run the service
+    # Note: reload requires the app to be importable, which doesn't work with dynamically created apps
+    # Users who want reload should use uvicorn directly: uvicorn myservice:app --reload
+    uvicorn.run(app, host=host, port=port, reload=False, log_level=log_level)
 
 
 def generate_service_files(
