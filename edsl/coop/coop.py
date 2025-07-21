@@ -2556,9 +2556,10 @@ class Coop(CoopFunctionsMixin):
         response_json = response.json()
         human_responses = response_json.get("human_responses", [])
         survey_json_string = response_json.get("survey_json_string")
+        scenario_list_json_string = response_json.get("scenario_list_json_string")
 
         return self._turn_human_responses_into_results(
-            human_responses, survey_json_string
+            human_responses, survey_json_string, scenario_list_json_string
         )
 
     def delete_prolific_study(
