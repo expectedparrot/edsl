@@ -8,6 +8,7 @@ The framework handles all the web service boilerplate.
 
 import inspect
 import json
+import logging
 import os
 import uvicorn
 from functools import wraps
@@ -24,6 +25,10 @@ except ImportError:
     FASTAPI_AVAILABLE = False
 
 from ..base.base_exception import BaseException
+
+
+# Set up logger for the service framework
+logger = logging.getLogger(__name__)
 
 
 class ServiceFrameworkException(BaseException):
@@ -136,6 +141,12 @@ class EDSLServiceFramework:
 
     def create_fastapi_app(self) -> FastAPI:
         """Create and configure the FastAPI application"""
+        # Configure logging to ensure it's visible
+        logging.basicConfig(
+            level=logging.INFO,
+            format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        )
+
         app = FastAPI(
             title=self.service_config.get("name", "EDSL Service"),
             description=self.service_config.get(
@@ -171,6 +182,9 @@ class EDSLServiceFramework:
                 # Validate API token if service requires user account
                 if self.service_config.get("uses_user_account", True):
                     if not params.get("ep_api_token"):
+                        print(
+                            f"[INFO] Missing API token in request to /{self.service_config.get('endpoint_name')}"
+                        )
                         raise HTTPException(
                             status_code=400,
                             detail="API token is required for this service",
@@ -185,9 +199,30 @@ class EDSLServiceFramework:
                 # Validate and return response
                 return ResponseModel(**result)
 
+            except HTTPException as e:
+                # Log client errors (4xx) at INFO level, they're expected
+                if hasattr(e, "status_code") and 400 <= e.status_code < 500:
+                    logger.info(f"Client error {e.status_code}: {e.detail}")
+                    print(
+                        f"[INFO] Client error {e.status_code}: {e.detail}"
+                    )  # Also print to ensure visibility
+                else:
+                    logger.error(
+                        f"HTTP error {getattr(e, 'status_code', 'unknown')}: {e.detail}"
+                    )
+                    print(
+                        f"[ERROR] HTTP error {getattr(e, 'status_code', 'unknown')}: {e.detail}"
+                    )
+                raise  # Re-raise HTTPException as-is (includes 400, 401, etc.)
             except ValidationError as e:
+                logger.warning(f"Validation error: {e.errors()}")
+                print(f"[WARNING] Validation error: {e.errors()}")
                 raise HTTPException(status_code=422, detail=e.errors())
             except Exception as e:
+                logger.error(
+                    f"Unexpected error in service endpoint: {str(e)}", exc_info=True
+                )
+                print(f"[ERROR] Unexpected error in service endpoint: {str(e)}")
                 raise HTTPException(status_code=500, detail=str(e))
 
         # Add health check endpoint
@@ -385,6 +420,13 @@ def run_service(
         f"Service endpoint: http://{host}:{port}/{framework.service_config['endpoint_name']}"
     )
     print(f"API docs: http://{host}:{port}/docs")
+
+    # Configure Python logging to ensure application logs are visible
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        force=True,  # Override any existing configuration
+    )
 
     # Run the service
     # Note: reload requires the app to be importable, which doesn't work with dynamically created apps
