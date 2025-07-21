@@ -157,6 +157,15 @@ class ExtensionGatewayClient:
                 raise ValueError(f"Service '{service_name}' not found")
             elif response.status_code == 401:
                 raise ValueError("Authorization token required or invalid")
+            elif response.status_code >= 400 and response.status_code < 500:
+                # For client errors, try to get the error message from the response
+                try:
+                    error_detail = response.json().get("detail", response.text)
+                except:
+                    error_detail = response.text
+                raise ValueError(
+                    f"Service error ({response.status_code}): {error_detail}"
+                )
 
             response.raise_for_status()
             return response
