@@ -361,7 +361,7 @@ def run_service(
     service_function,
     host: str = "0.0.0.0",
     port: int = 8000,
-    reload: bool = False,
+    reload: bool = True,
     log_level: str = "info",
 ):
     """
