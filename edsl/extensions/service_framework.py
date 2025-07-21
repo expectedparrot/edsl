@@ -386,6 +386,15 @@ def run_service(
     )
     print(f"API docs: http://{host}:{port}/docs")
 
+    if reload:
+        print(
+            "\nNote: Auto-reload is enabled but may show a warning. The service will still work correctly."
+        )
+        print(
+            "For full reload support, consider using: uvicorn your_service:app --reload\n"
+        )
+
+    # Run the service
     uvicorn.run(app, host=host, port=port, reload=reload, log_level=log_level)
 
 
