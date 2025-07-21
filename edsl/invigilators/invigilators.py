@@ -449,6 +449,25 @@ class InvigilatorAI(InvigilatorBase):
                         # I don't love this direct writing but it seems to work
                         self.question.question_options = new_question_options
 
+                # the same treatment applies for min_value and max_value
+                if "min_value" in self.question.data:
+                    new_min_value = (
+                        self.prompt_constructor.get_question_numerical_value(
+                            self.question.data, key="min_value"
+                        )
+                    )
+                    if new_min_value != self.question.data["min_value"]:
+                        self.question.min_value = new_min_value
+
+                if "max_value" in self.question.data:
+                    new_max_value = (
+                        self.prompt_constructor.get_question_numerical_value(
+                            self.question.data, key="max_value"
+                        )
+                    )
+                    if new_max_value != self.question.data["max_value"]:
+                        self.question.max_value = new_max_value
+
                 question_with_validators = self.question.render(
                     self.scenario | prior_answers_dict | {"agent": self.agent.traits}
                 )
@@ -562,7 +581,11 @@ class InvigilatorFunctional(InvigilatorBase):
     async def async_answer_question(self, iteration: int = 0) -> AgentResponseDict:
         """Return the answer to the question."""
         func = self.question.answer_question_directly
-        answer = func(scenario=self.scenario, agent_traits=self.agent.traits)
+        # Get prior answers to make them available in the scenario context
+        prior_answers_dict = self.prompt_constructor.prior_answers_dict()
+        # Combine scenario with prior answers and agent traits like other invigilators
+        enriched_scenario = self.scenario | prior_answers_dict | {"agent": self.agent.traits}
+        answer = func(scenario=enriched_scenario, agent_traits=self.agent.traits)
 
         return EDSLResultObjectInput(
             generated_tokens=str(answer),

@@ -48,6 +48,7 @@ from ..base import Base
 from ..caching import Cache, CacheEntry
 
 if TYPE_CHECKING:
+    from ..interviews import Interview
     from ..surveys import Survey
     from ..agents import AgentList
     from ..scenarios import ScenarioList
@@ -380,11 +381,26 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
 
         self.task_history = task_history or TaskHistory(interviews=[])
 
+        # Initialize caches for expensive operations
+        self._key_to_data_type_cache = None
+        self._data_type_to_keys_cache = None
+        self._columns_cache = None
+        self._fetch_list_cache = {}
+        self._cache_dirty = True
+
         if hasattr(self, "_add_output_functions"):
             self._add_output_functions()
 
     def add_task_history_entry(self, interview: "Interview") -> None:
         self.task_history.add_interview(interview)
+
+    def _invalidate_cache(self) -> None:
+        """Invalidate cached expensive operations when data changes."""
+        self._key_to_data_type_cache = None
+        self._data_type_to_keys_cache = None
+        self._columns_cache = None
+        self._fetch_list_cache = {}
+        self._cache_dirty = True
 
     def _fetch_list(self, data_type: str, key: str) -> list:
         """Return a list of values from the data for a given data type and key.
@@ -407,11 +423,14 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             >>> all(isinstance(v, (str, type(None))) for v in values)
             True
         """
-        returned_list = []
-        for row in self.data:
-            returned_list.append(row.sub_dicts[data_type].get(key, None))
+        cache_key = (data_type, key)
+        if cache_key not in self._fetch_list_cache:
+            returned_list = []
+            for row in self.data:
+                returned_list.append(row.sub_dicts[data_type].get(key, None))
+            self._fetch_list_cache[cache_key] = returned_list
 
-        return returned_list
+        return self._fetch_list_cache[cache_key]
 
     def get_answers(self, question_name: str) -> list:
         """Get the answers for a given question name.
@@ -623,10 +642,12 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
     @ensure_ready
     def __setitem__(self, i, item):
         self.data[i] = item
+        self._invalidate_cache()
 
     @ensure_ready
     def __delitem__(self, i):
         del self.data[i]
+        self._invalidate_cache()
 
     @ensure_ready
     def __len__(self):
@@ -635,34 +656,13 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
     @ensure_ready
     def insert(self, index, item):
         self.data.insert(index, item)
+        self._invalidate_cache()
 
     @ensure_ready
     def extend(self, other):
         """Extend the Results list with items from another iterable."""
         self.data.extend(other)
-
-    @ensure_ready
-    def extend_sorted(self, other):
-        """Extend the Results list with items from another iterable, maintaining sort order.
-
-        This method preserves ordering based on 'order' attribute if present,
-        otherwise falls back to 'iteration' attribute.
-        """
-        # Collect all items (existing and new)
-        all_items = list(self.data)
-        all_items.extend(other)
-
-        # Sort combined list by order attribute if available, otherwise by iteration
-        def get_sort_key(item):
-            if hasattr(item, "order"):
-                return (0, item.order)  # Order attribute takes precedence
-            return (1, item.data["iteration"])  # Iteration is secondary
-
-        all_items.sort(key=get_sort_key)
-
-        # Clear and refill with sorted items
-        self.data.clear()
-        self.data.extend(all_items)
+        self._invalidate_cache()
 
     def __add__(self, other: Results) -> Results:
         """Add two Results objects together.
@@ -780,7 +780,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
     def to_dict(
         self,
         sort: bool = False,
-        add_edsl_version: bool = False,
+        add_edsl_version: bool = True,
         include_cache: bool = True,
         include_task_history: bool = False,
         include_cache_info: bool = True,
@@ -977,13 +977,16 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         - Uses the key_to_data_type property of the Result class.
         - Includes any columns that the user has created with `mutate`
         """
-        d: dict = {}
-        for result in self.data:
-            d.update(result.key_to_data_type)
-        for column in self.created_columns:
-            d[column] = "answer"
+        if self._key_to_data_type_cache is None or self._cache_dirty:
+            d: dict = {}
+            for result in self.data:
+                d.update(result.key_to_data_type)
+            for column in self.created_columns:
+                d[column] = "answer"
+            self._key_to_data_type_cache = d
+            self._cache_dirty = False
 
-        return d
+        return self._key_to_data_type_cache
 
     @property
     def _data_type_to_keys(self) -> dict[str, str]:
@@ -998,13 +1001,16 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         >>> r._data_type_to_keys
         defaultdict(...
         """
-        d: dict = defaultdict(set)
-        for result in self.data:
-            for key, value in result.key_to_data_type.items():
-                d[value] = d[value].union(set({key}))
-        for column in self.created_columns:
-            d["answer"] = d["answer"].union(set({column}))
-        return d
+        if self._data_type_to_keys_cache is None or self._cache_dirty:
+            d: dict = defaultdict(set)
+            for result in self.data:
+                for key, value in result.key_to_data_type.items():
+                    d[value] = d[value].union(set({key}))
+            for column in self.created_columns:
+                d["answer"] = d["answer"].union(set({column}))
+            self._data_type_to_keys_cache = d
+
+        return self._data_type_to_keys_cache
 
     @property
     def columns(self) -> list[str]:
@@ -1016,10 +1022,13 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         >>> r.columns
         ['agent.agent_index', ...]
         """
-        column_names = [f"{v}.{k}" for k, v in self._key_to_data_type.items()]
-        from ..utilities.PrettyList import PrettyList
+        if self._columns_cache is None or self._cache_dirty:
+            column_names = [f"{v}.{k}" for k, v in self._key_to_data_type.items()]
+            from ..utilities.PrettyList import PrettyList
 
-        return PrettyList(sorted(column_names))
+            self._columns_cache = PrettyList(sorted(column_names))
+
+        return self._columns_cache
 
     @property
     def answer_keys(self) -> dict[str, str]:
@@ -1217,11 +1226,13 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             new_data.append(new_result)
 
         # print("Created new variable", new_var_name)
-        return Results(
+        new_results = Results(
             survey=self.survey,
             data=new_data,
             created_columns=self.created_columns + [new_var_name],
         )
+        new_results._invalidate_cache()
+        return new_results
 
     @ensure_ready
     def add_column(self, column_name: str, values: list) -> Results:
@@ -1249,6 +1260,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             new_result["answer"][column_name] = values[i]
             new_results.append(new_result)
 
+        new_results._invalidate_cache()
         return new_results
 
     @ensure_ready
@@ -1376,11 +1388,13 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         except Exception as e:
             raise ResultsMutateError(f"Error in mutate. Exception:{e}")
 
-        return Results(
+        new_results = Results(
             survey=self.survey,
             data=new_data,
             created_columns=self.created_columns + [var_name],
         )
+        new_results._invalidate_cache()
+        return new_results
 
     # Method removed due to duplication (F811)
 
@@ -1412,6 +1426,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             del new_result["answer"][old_name]
             new_results.append(new_result)
 
+        new_results._invalidate_cache()
         return new_results
 
     @ensure_ready
@@ -1577,8 +1592,59 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             key_to_data_type=self._key_to_data_type,
             fetch_list_func=self._fetch_list,
             columns=self.columns,
+            survey=self.survey,
         )
         return selector.select(*columns)
+
+    @ensure_ready
+    def bucket_by(self, *columns: str) -> dict[tuple, list["Result"]]:
+        """Group Result objects into buckets keyed by the specified column values.
+
+        Each key in the returned dictionary is a tuple containing the values of
+        the requested columns (in the same order as supplied).  The associated
+        value is a list of ``Result`` instances whose values match that key.
+
+        Args:
+            *columns: Names of the columns to group by.  Column identifiers
+                follow the same rules used by :meth:`select` – they can be
+                specified either as fully-qualified names (e.g. ``"agent.status"``)
+                or by bare attribute name when unambiguous.
+
+        Returns:
+            dict[tuple, list[Result]]: Mapping from value tuples to lists of
+            ``Result`` objects.
+
+        Raises:
+            ResultsError: If no columns are provided or an invalid column name is
+                supplied.
+
+        Examples:
+            >>> r = Results.example()
+            >>> buckets = r.bucket_by('how_feeling')
+            >>> list(buckets.keys())  # doctest: +ELLIPSIS
+            [('OK',), ('Great',), ('Terrible',)]
+            >>> all(isinstance(v, list) for v in buckets.values())
+            True
+        """
+        if len(columns) == 0:
+            raise ResultsError("You must provide at least one column to bucket_by().")
+
+        # Build buckets using a dictionary that maps key tuples to lists of Result objects
+        from collections import defaultdict
+
+        buckets: dict[tuple, list[Result]] = defaultdict(list)
+
+        for result in self.data:
+            key_values = []
+            for col in columns:
+                # Determine data_type and attribute key
+                data_type, attr_key = self._parse_column(col)
+                # Extract the value from the Result object
+                value = result.get_value(data_type, attr_key)
+                key_values.append(value)
+            buckets[tuple(key_values)].append(result)
+
+        return dict(buckets)
 
     @ensure_ready
     def sort_by(self, *columns: str, reverse: bool = False) -> Results:
@@ -2095,7 +2161,6 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             >>> new_result.order = 1.5  # Insert between items
             >>> r.insert_sorted(new_result)
         """
-        from bisect import bisect_left
 
         def get_sort_key(result):
             if hasattr(result, "order"):
@@ -2169,7 +2234,6 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         import os
         import tempfile
         from pathlib import Path
-        import sqlite3
         import shutil
 
         data_class = ResultsSQLList

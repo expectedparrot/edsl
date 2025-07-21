@@ -6,6 +6,7 @@ if TYPE_CHECKING:
     from .jobs import Jobs
     from ..caching import Cache
 
+
 class InterviewsConstructor:
     def __init__(self, jobs: "Jobs", cache: "Cache"):
         self.jobs = jobs
@@ -36,7 +37,7 @@ class InterviewsConstructor:
             self.jobs.agents, self.jobs.scenarios, self.jobs.models
         ):
             yield Interview(
-                survey=self.jobs.survey.draw(), # this draw is to support shuffling of question options
+                survey=self.jobs.survey.draw(),  # this draw is to support shuffling of question options
                 agent=agent,
                 scenario=scenario,
                 model=model,
@@ -52,6 +53,7 @@ class InterviewsConstructor:
 
 
 if __name__ == "__main__":
-    #test_gc()
+    # test_gc()
     import doctest
+
     doctest.testmod()

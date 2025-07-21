@@ -7,5 +7,5 @@ __all__ = [
     "InterviewTaskManager",
     "InterviewStatusDictionary",
     "InterviewStatusLog",
-    "Interview"
+    "Interview",
 ]

@@ -19,21 +19,22 @@ def get_input_with_timeout(prompt, timeout=5, default="y"):
 class ExpectedParrotKeyHandler:
     """
     Manages Expected Parrot API keys for user authentication.
-    
+
     This class handles the storage, retrieval, and management of Expected Parrot API keys.
     It provides functionality to securely store API keys in platform-specific user
     configuration directories and retrieve them when needed. It also handles key
     preference management (e.g., environment variables vs. stored keys).
-    
+
     The key handler follows a priority order when retrieving keys:
     1. Environment variables (EXPECTED_PARROT_API_KEY)
     2. Platform-specific user config directory
-    
+
     Attributes:
         asked_to_store_file_name (str): Filename for tracking if user was asked about storage
         ep_key_file_name (str): Filename for the stored API key
         application_name (str): Application name for the config directory
     """
+
     asked_to_store_file_name = "asked_to_store.txt"
     ep_key_file_name = "ep_api_key.txt"
     application_name = "edsl"
@@ -42,13 +43,13 @@ class ExpectedParrotKeyHandler:
     def config_dir(self) -> str:
         """
         Get the platform-specific user configuration directory for the application.
-        
+
         This property uses the platformdirs library to determine the appropriate
         location for storing configuration files based on the user's operating system.
-        
+
         Returns:
             str: Path to the user configuration directory
-            
+
         Notes:
             - On Windows, typically: C:\\Users\\<username>\\AppData\\Local\\edsl
             - On macOS, typically: ~/Library/Application Support/edsl
@@ -59,10 +60,10 @@ class ExpectedParrotKeyHandler:
     def _ep_key_file_exists(self) -> bool:
         """
         Check if the Expected Parrot key file exists in the config directory.
-        
+
         Returns:
             bool: True if the key file exists, False otherwise
-            
+
         Notes:
             - Does not check the validity of the stored key
         """
@@ -115,17 +116,17 @@ class ExpectedParrotKeyHandler:
     def get_ep_api_key(self) -> str:
         """
         Retrieve the Expected Parrot API key from available sources.
-        
+
         This method checks multiple sources for the API key, with the following priority:
         1. Environment variable (EXPECTED_PARROT_API_KEY)
         2. Stored key in the user's config directory
-        
+
         If keys are found in multiple sources and they differ, the environment
         variable takes precedence. A warning is issued in this case.
-        
+
         Returns:
             str: The Expected Parrot API key, or None if not found
-            
+
         Notes:
             - If a key is found, it will attempt to store it persistently if appropriate
             - Warnings are issued if conflicting keys are found in different sources
@@ -148,6 +149,7 @@ class ExpectedParrotKeyHandler:
         if api_key_from_os and api_key_from_cache:
             if api_key_from_os != api_key_from_cache:
                 import warnings
+
                 warnings.warn(
                     "WARNING: The Expected Parrot API key from the environment variable "
                     "differs from the one stored in the config directory. Using the one "
@@ -164,7 +166,7 @@ class ExpectedParrotKeyHandler:
         # If a key was found, ask to store it persistently
         if api_key is not None:
             _ = self.ask_to_store(api_key)
-            
+
         return api_key
 
     def delete_ep_api_key(self):
@@ -176,13 +178,13 @@ class ExpectedParrotKeyHandler:
     def store_ep_api_key(self, api_key: str) -> None:
         """
         Store the Expected Parrot API key in the user's config directory.
-        
+
         This method saves the provided API key to a file in the platform-specific
         user configuration directory, creating the directory if it doesn't exist.
-        
+
         Parameters:
             api_key (str): The API key to store
-            
+
         Notes:
             - The key is stored in plain text in the user's config directory
             - The directory is created if it doesn't exist

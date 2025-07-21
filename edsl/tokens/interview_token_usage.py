@@ -4,11 +4,14 @@ from .token_usage import TokenUsage
 from ..enums import TokenPricing
 from .exceptions import TokenUsageError
 
+
 class InterviewTokenUsage:
     """A class to represent the token usage of an interview."""
 
     def __init__(
-        self, new_token_usage: Optional[TokenUsage] = None, cached_token_usage: Optional[TokenUsage] = None
+        self,
+        new_token_usage: Optional[TokenUsage] = None,
+        cached_token_usage: Optional[TokenUsage] = None,
     ):
         """Initialize the InterviewTokenUsage.
 
@@ -44,11 +47,11 @@ class InterviewTokenUsage:
         return self.new_token_usage.cost(prices)
 
     def saved(self, prices: TokenPricing) -> float:
-        """Return the saved cost of the cached token usage.
-        """
+        """Return the saved cost of the cached token usage."""
         return self.cached_token_usage.cost(prices)
 
 
 if __name__ == "__main__":
     import doctest
+
     doctest.testmod(optionflags=doctest.ELLIPSIS)

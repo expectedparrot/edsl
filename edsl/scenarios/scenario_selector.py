@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from .scenario_list import ScenarioList
 
+
 class ScenarioSelector:
     """
     A class for performing advanced field selection on ScenarioList objects,
@@ -131,8 +132,10 @@ class ScenarioSelector:
                 f"No fields matched the given patterns: {patterns}. "
                 f"Available fields are: {self.available_fields}"
             )
-        
-        new_sl = self.scenario_list.__class__(data=[], codebook=self.scenario_list.codebook)
+
+        new_sl = self.scenario_list.__class__(
+            data=[], codebook=self.scenario_list.codebook
+        )
         for scenario in self.scenario_list:
             new_sl.append(scenario.select(fields_to_select))
         return new_sl

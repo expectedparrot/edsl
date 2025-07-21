@@ -18,21 +18,22 @@ who need to run complex simulations with language models.
 
 from __future__ import annotations
 import asyncio
-from typing import Optional, Union, TypeVar, Callable, cast
-
-from typing import (
-    Literal,
-    Sequence,
-    Generator,
-    TYPE_CHECKING,
-)
+from importlib import import_module
+from typing import Optional, Union, Any, Literal, Sequence, Generator, TYPE_CHECKING
 
 from ..base import Base
 from ..utilities import remove_edsl_version
 from ..coop import CoopServerResponseError
+from ..scenarios import Scenario, ScenarioList
+from ..surveys import Survey
 
-# Import BucketCollection with an import_module to avoid early binding
-from importlib import import_module
+from .exceptions import JobsValueError, JobsImplementationError
+from .jobs_pricing_estimation import JobsPrompts
+from .remote_inference import JobsRemoteInferenceHandler
+from .jobs_checks import JobsChecks
+from .data_structures import RunEnvironment, RunParameters, RunConfig
+from .check_survey_scenario_compatibility import CheckSurveyScenarioCompatibility
+from .decorators import with_config
 
 
 def get_bucket_collection():
@@ -40,26 +41,9 @@ def get_bucket_collection():
     return buckets_module.BucketCollection
 
 
-from ..scenarios import Scenario, ScenarioList
-from ..surveys import Survey
-
-# Use import_module to avoid circular import with interviews
-from importlib import import_module
-
-
 def get_interview():
     interviews_module = import_module("edsl.interviews.interview")
     return interviews_module.Interview
-
-
-from .exceptions import JobsValueError, JobsImplementationError
-
-from .jobs_pricing_estimation import JobsPrompts
-from .remote_inference import JobsRemoteInferenceHandler
-from .jobs_checks import JobsChecks
-from .data_structures import RunEnvironment, RunParameters, RunConfig
-from .check_survey_scenario_compatibility import CheckSurveyScenarioCompatibility
-from .decorators import with_config
 
 
 if TYPE_CHECKING:
@@ -71,8 +55,11 @@ if TYPE_CHECKING:
     from ..results import Results
     from ..dataset import Dataset
     from ..language_models import ModelList
+    from ..questions import QuestionBase as Question
     from ..caching import Cache
     from ..key_management import KeyLookup
+    from ..buckets import BucketCollection
+    from ..interviews.interview import Interview
 
 VisibilityType = Literal["private", "public", "unlisted"]
 
@@ -154,6 +141,9 @@ class Jobs(Base):
 
         self._where_clauses = []
 
+        self._post_run_methods = []
+        self._depends_on = None
+
         try:
             assert self.survey.question_names_valid()
         except Exception:
@@ -166,54 +156,88 @@ class Jobs(Base):
                 f"At least some question names are not valid: {invalid_question_names}"
             )
 
-    def add_running_env(self, running_env: RunEnvironment):
+    def add_running_env(self, running_env: RunEnvironment) -> Jobs:
+        """Adds a running environment to the job.
+
+        Args:
+            running_env: A RunEnvironment object containing details about the execution
+                environment like API keys and other configuration.
+
+        Returns:
+            Jobs: The Jobs instance with the updated running environment.
+
+        Example:
+            >>> from edsl import Cache
+            >>> job = Jobs.example()
+            >>> my_cache = Cache.example()
+            >>> env = RunEnvironment(cache=my_cache)
+            >>> j = job.add_running_env(env)
+            >>> j.run_config.environment.cache == my_cache
+            True
+        """
         self.run_config.add_environment(running_env)
         return self
 
-    def using_cache(self, cache: "Cache") -> Jobs:
-        """
-        Add a Cache to the job.
+    def using_cache(self, cache: "Cache") -> "Jobs":
+        """Adds a Cache object to the job.
 
-        :param cache: the cache to add
+        Args:
+            cache: The Cache object to add to the job's configuration.
+
+        Returns:
+            Jobs: The Jobs instance with the updated cache.
         """
         self.run_config.add_cache(cache)
         return self
 
-    def using_bucket_collection(self, bucket_collection) -> Jobs:
-        """
-        Add a BucketCollection to the job.
+    def using_bucket_collection(self, bucket_collection: "BucketCollection") -> "Jobs":
+        """Adds a BucketCollection object to the job.
 
-        :param bucket_collection: the bucket collection to add
+        Args:
+            bucket_collection: The BucketCollection object to add to the job's configuration.
+
+        Returns:
+            Jobs: The Jobs instance with the updated bucket collection.
         """
         self.run_config.add_bucket_collection(bucket_collection)
         return self
 
-    def using_key_lookup(self, key_lookup: "KeyLookup") -> Jobs:
-        """
-        Add a KeyLookup to the job.
+    def using_key_lookup(self, key_lookup: "KeyLookup") -> "Jobs":
+        """Adds a KeyLookup object to the job.
 
-        :param key_lookup: the key lookup to add
+        Args:
+            key_lookup: The KeyLookup object to add to the job's configuration.
+
+        Returns:
+            Jobs: The Jobs instance with the updated key lookup.
         """
         self.run_config.add_key_lookup(key_lookup)
         return self
 
-    def using(self, obj) -> Jobs:
-        """
-        Add a Cache, BucketCollection, or KeyLookup to the job.
+    def using(self, obj) -> "Jobs":
+        """Adds a Cache, BucketCollection, or KeyLookup object to the job.
 
-        :param obj: the object to add
+        Args:
+            obj: The object to add to the job's configuration. Must be one of:
+                Cache, BucketCollection, or KeyLookup.
+
+        Returns:
+            Jobs: The Jobs instance with the updated configuration object.
         """
         from ..caching import Cache
         from ..key_management import KeyLookup
 
         BucketCollection = get_bucket_collection()
 
-        if isinstance(obj, Cache):
-            self.using_cache(obj)
-        elif isinstance(obj, BucketCollection):
-            self.using_bucket_collection(obj)
-        elif isinstance(obj, KeyLookup):
-            self.using_key_lookup(obj)
+        handlers = {
+            Cache: self.using_cache,
+            BucketCollection: self.using_bucket_collection,
+            KeyLookup: self.using_key_lookup,
+        }
+        handler = next((fn for t, fn in handlers.items() if isinstance(obj, t)), None)
+        if handler is None:
+            raise ValueError(f"Invalid object type: {type(obj)}")
+        handler(obj)
         return self
 
     @property
@@ -221,7 +245,7 @@ class Jobs(Base):
         return self._models
 
     @models.setter
-    def models(self, value):
+    def models(self, value) -> None:
         from ..language_models import ModelList
 
         if value:
@@ -264,11 +288,11 @@ class Jobs(Base):
         return self
 
     @property
-    def scenarios(self):
+    def scenarios(self) -> ScenarioList:
         return self._scenarios
 
     @scenarios.setter
-    def scenarios(self, value):
+    def scenarios(self, value) -> None:
         from ..scenarios import ScenarioList
         from ..dataset import Dataset
 
@@ -406,6 +430,7 @@ class Jobs(Base):
         return job_results.compute_job_cost()
 
     def replace_missing_objects(self) -> None:
+        """If the agents, models, or scenarios are not set, replace them with defaults."""
         from ..agents import Agent
         from ..language_models.model import Model
         from ..scenarios import Scenario
@@ -431,20 +456,43 @@ class Jobs(Base):
         ).create_interviews()
 
     def show_flow(self, filename: Optional[str] = None) -> None:
-        """Show the flow of the survey.
+        """Visualise either the *Job* dependency/post-processing flow **or** the
+        underlying survey flow.
+
+        The method automatically decides which flow to render:
+
+        1. If the job has dependencies created via :py:meth:`Jobs.to` (i.e.
+           ``_depends_on`` is not *None*) **or** has post-run methods queued in
+           ``_post_run_methods``, the *job* flow (dependencies → post-processing
+           chain) is rendered using :class:`edsl.jobs.job_flow_visualization.JobsFlowVisualization`.
+        2. Otherwise, it falls back to the original behaviour and shows the
+           survey question flow using
+           :class:`edsl.surveys.survey_flow_visualization.SurveyFlowVisualization`.
 
         >>> from edsl.jobs import Jobs
-        >>> Jobs.example().show_flow()
+        >>> job = Jobs.example()
+        >>> job.show_flow()  # Visualises survey flow (no deps/post-run methods)
+        >>> job2 = job.select('how_feeling').to_pandas()  # add post-run methods
+        >>> job2.show_flow()  # Now visualises job flow
         """
-        from ..surveys import SurveyFlowVisualization
 
-        if self.scenarios:
-            scenario = self.scenarios[0]
+        # Decide which visualisation to use
+        has_dependencies = getattr(self, "_depends_on", None) is not None
+        has_post_methods = bool(getattr(self, "_post_run_methods", []))
+
+        if has_dependencies or has_post_methods:
+            # Use the new Jobs flow visualisation
+            from .job_flow_visualization import JobsFlowVisualization
+
+            JobsFlowVisualization(self).show_flow(filename=filename)
         else:
-            scenario = None
-        SurveyFlowVisualization(self.survey, scenario=scenario, agent=None).show_flow(
-            filename=filename
-        )
+            # Fallback to survey flow visualisation
+            from ..surveys import SurveyFlowVisualization
+
+            scenario = self.scenarios[0] if self.scenarios else None
+            SurveyFlowVisualization(
+                self.survey, scenario=scenario, agent=None
+            ).show_flow(filename=filename)
 
     def interviews(self) -> list:
         """
@@ -463,7 +511,7 @@ class Jobs(Base):
         return list(self.generate_interviews())
 
     @classmethod
-    def from_interviews(cls, interview_list) -> "Jobs":
+    def from_interviews(cls, interview_list: list["Interview"]) -> Jobs:
         """Return a Jobs instance from a list of interviews.
 
         This is useful when you have, say, a list of failed interviews and you want to create
@@ -480,7 +528,7 @@ class Jobs(Base):
         jobs._interviews = interview_list
         return jobs
 
-    def create_bucket_collection(self):
+    def create_bucket_collection(self) -> "BucketCollection":
         """
         Create a collection of buckets for each model.
 
@@ -571,7 +619,9 @@ class Jobs(Base):
 
     def _create_remote_inference_handler(self) -> "JobsRemoteInferenceHandler":
         return JobsRemoteInferenceHandler(
-            self, verbose=self.run_config.parameters.verbose
+            self,
+            verbose=self.run_config.parameters.verbose,
+            api_key=self.run_config.parameters.expected_parrot_api_key,
         )
 
     def _remote_results(
@@ -600,12 +650,12 @@ class Jobs(Base):
         "This makes sure that the job is ready to run and that keys are in place for a remote job."
         CheckSurveyScenarioCompatibility(self.survey, self.scenarios).check()
 
-    def _check_if_remote_keys_ok(self):
+    def _check_if_remote_keys_ok(self) -> None:
         jc = JobsChecks(self)
         if not jc.user_has_ep_api_key():
             jc.key_process(remote_inference=True)
 
-    def _check_if_local_keys_ok(self):
+    def _check_if_local_keys_ok(self) -> None:
         jc = JobsChecks(self)
         if self.run_config.parameters.check_api_keys:
             jc.check_api_keys()
@@ -613,16 +663,10 @@ class Jobs(Base):
     async def _execute_with_remote_cache(self, run_job_async: bool) -> Results:
         """Core interview execution logic for jobs execution."""
         # Import needed modules inline to avoid early binding
-        import os
-        import time
-        import gc
         import weakref
-        import asyncio
         from ..caching import Cache
-        from ..results import Results, Result
+        from ..results import Results
         from ..tasks import TaskHistory
-        from ..utilities.decorators import jupyter_nb_handler
-        from ..utilities.memory_debugger import MemoryDebugger
         from .jobs_runner_status import JobsRunnerStatus
         from .async_interview_runner import AsyncInterviewRunner
         from .progress_bar_manager import ProgressBarManager
@@ -649,14 +693,11 @@ class Jobs(Base):
                 # Set the order attribute on the result for correct ordering
                 result.order = idx
 
-                # Collect results
-                # results_obj.append(result)
-                # key = results_obj.shelve_result(result)
                 results_obj.add_task_history_entry(interview)
                 results_obj.insert_sorted(result)
 
                 # Memory management: Set up reference for next iteration and clear old references
-                prev_interview_ref = weakref.ref(interview)
+                weakref.ref(interview)
                 if hasattr(interview, "clear_references"):
                     interview.clear_references()
 
@@ -665,7 +706,6 @@ class Jobs(Base):
                 del interview
 
             # Finalize results object with cache and bucket collection
-            # results_obj.insert_from_shelf()
             results_obj.cache = results_obj.relevant_cache(
                 self.run_config.environment.cache
             )
@@ -691,9 +731,7 @@ class Jobs(Base):
             await process_interviews(interview_runner, results)
         else:
             # For synchronous execution mode (with progress bar)
-            with ProgressBarManager(
-                self, run_config, self.run_config.parameters
-            ) as stop_event:
+            with ProgressBarManager(self, run_config, self.run_config.parameters):
                 try:
                     await process_interviews(interview_runner, results)
                 except KeyboardInterrupt:
@@ -701,7 +739,7 @@ class Jobs(Base):
                     results = Results(
                         survey=self.survey, data=[], task_history=TaskHistory()
                     )
-                except Exception as e:
+                except Exception:
                     if self.run_config.parameters.stop_on_exception:
                         raise
                     results = Results(
@@ -717,7 +755,16 @@ class Jobs(Base):
         return results
 
     @property
-    def num_interviews(self):
+    def num_interviews(self) -> int:
+        """
+        Calculate the total number of interviews that will be run.
+
+        >>> Jobs.example().num_interviews
+        4
+
+        This is the product of the number of scenarios, agents, and models,
+        multiplied by the number of iterations specified in the run configuration.
+        """
         if self.run_config.parameters.n is None:
             return len(self)
         else:
@@ -781,6 +828,7 @@ class Jobs(Base):
         self._check_if_local_keys_ok()
 
         # Create bucket collection if it doesn't exist
+        # this is respect API service request limits
         if self.run_config.environment.bucket_collection is None:
             self.run_config.environment.bucket_collection = (
                 self.create_bucket_collection()
@@ -800,6 +848,128 @@ class Jobs(Base):
             )
 
         return None, reason
+
+    def then(self, method_name, *args, **kwargs) -> "Jobs":
+        """
+        Schedule a method to be called on the results object after the job runs.
+
+        This allows for method chaining like:
+        jobs.then('to_scenario_list').then('to_pandas').then('head', 10)
+
+        Args:
+            method_name: Name of the method to call on the results
+            *args: Positional arguments to pass to the method
+            **kwargs: Keyword arguments to pass to the method
+        """
+        self._post_run_methods.append((method_name, args, kwargs))
+        return self
+
+    def __getattr__(self, name):
+        """
+        Safer version of attribute access for method chaining.
+
+        Only captures specific patterns to avoid masking real AttributeErrors.
+        """
+        # Safeguard: ensure _post_run_methods exists
+        if not hasattr(self, "_post_run_methods"):
+            raise AttributeError(
+                f"'{self.__class__.__name__}' object has no attribute '{name}'"
+            )
+
+        # Only capture names that look like result methods (could be customized)
+        # This is a whitelist approach - only capture known safe patterns
+        safe_method_patterns = {
+            "to_pandas",
+            "to_dict",
+            "to_csv",
+            "to_json",
+            "to_list",
+            "select",
+            "filter",
+            "sort_values",
+            "head",
+            "tail",
+            "groupby",
+            "pivot",
+            "melt",
+            "drop",
+            "rename",
+            "to_scenario_list",
+            "to_agent_list",
+            "concatenate",
+            "collapse",
+            "expand",
+            "store",
+            "first",
+            "last",
+        }
+
+        if name in safe_method_patterns:
+
+            def method_proxy(*args, **kwargs):
+                self._post_run_methods.append((name, args, kwargs))
+                return self
+
+            return method_proxy
+
+        # For unknown methods, raise AttributeError immediately
+        raise AttributeError(
+            f"'{self.__class__.__name__}' object has no attribute '{name}'. "
+            f"Use .then('{name}', ...) for post-run method chaining."
+        )
+
+    def _apply_post_run_methods(self, results) -> Any:
+        """
+        Apply all post-run methods to the results object.
+
+        Returns the transformed results object, or the original results if no methods were applied.
+        """
+        if not self._post_run_methods:
+            return results
+
+        from ..results import Results
+
+        # Mapping of built-in functions to their corresponding dunder methods
+        builtin_to_dunder = {
+            "len": "__len__",
+            "str": "__str__",
+            "repr": "__repr__",
+            "bool": "__bool__",
+            "int": "__int__",
+            "float": "__float__",
+            "hash": "__hash__",
+            "iter": "__iter__",
+            "next": "__next__",
+            "reversed": "__reversed__",
+        }
+
+        converted_object = results
+        for method_info in self._post_run_methods:
+            if isinstance(method_info, str):
+                # Handle old format (just method name)
+                method_name = method_info
+                args, kwargs = (), {}
+            else:
+                # Handle new format (method name, args, kwargs)
+                method_name, args, kwargs = method_info
+
+            # Convert built-in function names to their dunder method equivalents
+            if method_name in builtin_to_dunder:
+                method_name = builtin_to_dunder[method_name]
+
+            try:
+                converted_object = getattr(converted_object, method_name)(
+                    *args, **kwargs
+                )
+            except AttributeError:
+                raise JobsImplementationError(
+                    f"Could not apply method '{method_name}' to object."
+                )
+
+        if not isinstance(converted_object, Results):
+            converted_object._associated_results = results
+
+        return converted_object
 
     @with_config
     def run(self, *, config: RunConfig) -> "Results":
@@ -828,11 +998,12 @@ class Jobs(Base):
             background (bool): Whether to run in background mode (default: False)
             job_uuid (str, optional): UUID for the job, used for tracking
             cache (Cache, optional): Cache object to store results
-            bucket_collection (BucketCollection, optional): Object to track API calls
+            bucket_collection (BucketCollection, optional): Object to track API keys
             key_lookup (KeyLookup, optional): Object to manage API keys
             memory_threshold (int, optional): Memory threshold in bytes for the Results object's SQLList,
                 controlling when data is offloaded to SQLite storage
             new_format (bool): If True, uses remote_inference_create method, if False uses old_remote_inference_create method (default: True)
+            expected_parrot_api_key (str, optional): Custom EXPECTED_PARROT_API_KEY to use for this job run
 
         Returns:
             Results: A Results object containing all responses and metadata
@@ -852,15 +1023,20 @@ class Jobs(Base):
             >>> results = job.by(m).run(cache=Cache(), progress_bar=False, n=2, disable_remote_inference=True)
             ...
         """
+        if self._depends_on is not None:
+            prior_results = self._depends_on.run(config=config)
+            self = self.by(prior_results)
+
         potentially_completed_results, reason = self._run(config)
 
         if potentially_completed_results is not None:
-            return potentially_completed_results
+            return self._apply_post_run_methods(potentially_completed_results)
 
         if reason == "insufficient funds":
             return None
 
-        return asyncio.run(self._execute_with_remote_cache(run_job_async=False))
+        results = asyncio.run(self._execute_with_remote_cache(run_job_async=False))
+        return self._apply_post_run_methods(results)
 
     @with_config
     async def run_async(self, *, config: RunConfig) -> "Results":
@@ -894,6 +1070,7 @@ class Jobs(Base):
             memory_threshold (int, optional): Memory threshold in bytes for the Results object's SQLList,
                 controlling when data is offloaded to SQLite storage
             new_format (bool): If True, uses remote_inference_create method, if False uses old_remote_inference_create method (default: True)
+            expected_parrot_api_key (str, optional): Custom EXPECTED_PARROT_API_KEY to use for this job run
 
         Returns:
             Results: A Results object containing all responses and metadata
@@ -944,6 +1121,73 @@ class Jobs(Base):
         )
         return number_of_interviews
 
+    def to(
+        self, question_or_survey_or_jobs: Union["Question", "Survey", "Jobs"]
+    ) -> "Jobs":
+        """Create a new :class:`Jobs` instance from *self* and a target object.
+
+        The target can be one of the following:
+
+        • `Question` – A single question which will be wrapped in a one-question
+          survey.
+        • `Survey` – A survey object that will be used directly.
+        • `Jobs`   – An existing *Jobs* object. In this case the target *Jobs*
+          is **returned unchanged**, but its ``_depends_on`` attribute is set to
+          reference *self*, establishing an execution dependency chain.
+
+        Args:
+            question_or_survey_or_jobs (Union[Question, Survey, Jobs]):
+                The object used to build (or identify) the new *Jobs* instance.
+
+        Returns:
+            Jobs: A new *Jobs* instance that depends on the current instance, or
+            the target *Jobs* instance when the target itself is a *Jobs*.
+
+        Raises:
+            ValueError: If *question_or_survey_or_jobs* is not one of the
+                supported types.
+
+        Examples:
+            The following doctest demonstrates sending one job to another and
+            verifying the dependency link via the private ``_depends_on``
+            attribute::
+
+                >>> from edsl.jobs import Jobs
+                >>> base_job = Jobs.example()
+                >>> downstream_job = Jobs.example()
+                >>> new_job = base_job.to(downstream_job)
+                >>> new_job is downstream_job  # the same object is returned
+                True
+                >>> new_job._depends_on is base_job  # dependency recorded
+                True
+        """
+        from ..questions import QuestionBase
+        from ..surveys import Survey
+
+        type_handlers = {
+            QuestionBase: lambda q: Jobs(survey=Survey(questions=[q])),
+            Survey: lambda s: Jobs(survey=s),
+            Jobs: lambda j: j,
+        }
+        handler = next(
+            (
+                fn
+                for t, fn in type_handlers.items()
+                if isinstance(question_or_survey_or_jobs, t)
+            ),
+            None,
+        )
+
+        if handler is None:
+            raise ValueError(f"Invalid type: {type(question_or_survey_or_jobs)}")
+
+        new_jobs = handler(question_or_survey_or_jobs)
+        new_jobs._depends_on = self
+        return new_jobs
+
+    def duplicate(self):
+        return Jobs.from_dict(self.to_dict())
+
     def to_dict(self, add_edsl_version=True):
         d = {
             "survey": self.survey.to_dict(add_edsl_version=add_edsl_version),
@@ -960,6 +1204,17 @@ class Jobs(Base):
                 for scenario in self.scenarios
             ],
         }
+
+        # Add _post_run_methods if not empty
+        if self._post_run_methods:
+            d["_post_run_methods"] = self._post_run_methods
+
+        # Add _depends_on if not None
+        if self._depends_on is not None:
+            d["_depends_on"] = self._depends_on.to_dict(
+                add_edsl_version=add_edsl_version
+            )
+
         if add_edsl_version:
             from .. import __version__
 
@@ -980,15 +1235,26 @@ class Jobs(Base):
         from ..language_models import LanguageModel
         from ..scenarios import Scenario
 
-        return cls(
+        # Create the base Jobs instance
+        job = cls(
             survey=Survey.from_dict(data["survey"]),
             agents=[Agent.from_dict(agent) for agent in data["agents"]],
             models=[LanguageModel.from_dict(model) for model in data["models"]],
             scenarios=[Scenario.from_dict(scenario) for scenario in data["scenarios"]],
         )
 
+        # Restore _post_run_methods if present
+        if "_post_run_methods" in data:
+            job._post_run_methods = data["_post_run_methods"]
+
+        # Restore _depends_on if present
+        if "_depends_on" in data:
+            job._depends_on = cls.from_dict(data["_depends_on"])
+
+        return job
+
     def __eq__(self, other: Jobs) -> bool:
-        """Return True if the Jobs instance is equal to another Jobs instance.
+        """Return True if the Jobs instance is the same as another Jobs instance.
 
         >>> from edsl.jobs import Jobs
         >>> Jobs.example() == Jobs.example()
@@ -1093,7 +1359,7 @@ class Jobs(Base):
         self,
         project_name: str = "Project",
         scenario_list_method: Optional[
-            Literal["randomize", "loop", "single_scenario"]
+            Literal["randomize", "loop", "single_scenario", "ordered"]
         ] = None,
         survey_description: Optional[str] = None,
         survey_alias: Optional[str] = None,
@@ -1132,8 +1398,8 @@ class Jobs(Base):
                 raise CoopValueError("Something went wrong with the loop method.")
         elif len(self.scenarios) != 1 and scenario_list_method == "single_scenario":
             raise CoopValueError(
-                f"The single_scenario method requires exactly one scenario. "
-                f"If you have a scenario list with multiple scenarios, try using the randomize or loop methods."
+                "The single_scenario method requires exactly one scenario. "
+                "If you have a scenario list with multiple scenarios, try using the randomize or loop methods."
             )
 
         if len(self.scenarios) == 0:

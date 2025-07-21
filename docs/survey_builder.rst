@@ -6,13 +6,15 @@ Survey Builder
 Overview
 --------
 
-Survey Builder is a user-friendly, no-code application for launching surveys and gathering responses from human respondents and AI agents. 
+Survey Builder is a user-friendly, no-code application for launching surveys and gathering responses from AI agents and human respondents. 
 It is fully integrated with EDSL and available at your account, allowing you to seamlessly design questions and agents, and analyze, visualize and share your results.
 
-See also:
+A clickable demo of the survey builder is available `here <https://www.expectedparrot.com/getting-started/build>`_.
 
-* :ref:`humanize`: Learn how to generate web-based versions of your surveys and analyze human responses. 
-* :ref:`prolific`: Learn how to launch surveys with Prolific participants.
+*If you are looking for information about Polly, a chat application for interacting with AI agents, please see the* :ref:`polly` *page.*
+
+*If you are looking for information about EDSL code methods for launching surveys with human respondents, please see the* :ref:`humanize` *and* :ref:`prolific` *pages.*
+*For information about building and launching surveys interactively, see the sections below.*
 
 
 Features
@@ -30,13 +32,13 @@ Getting started
 ---------------
 
 1. Log into your account
-    Sign in or create an account `here <https://www.expectedparrot.com/login>`_.
+    Sign in or `create an account <https://www.expectedparrot.com/login>`_.
 
 2. Create a survey
-    Select the option to create a new survey, or create a project and select a survey from your saved content.
+    Choose whether to edit or import an existing survey, auto-generate a survey,or build a new survey.
 
 3. Design AI agents
-    Choose whether to use saved agents, create new agents interactively, or import a dataset of agents to use with your survey.
+    Choose whether to edit saved agents, import data to create new agents, auto-generate agents for a survey, or build new agents.
 
 4. Run the survey
     Select models to run your survey and view responses at your dashboard.
@@ -52,29 +54,26 @@ Getting started
 Create a survey
 ^^^^^^^^^^^^^^^
 
-`Log in <https://www.expectedparrot.com/login>`_ to your account and navigate to the `Create <https://www.expectedparrot.com/create>`_ page.
-Choose whether to build a survey from scratch or select a saved survey to use in a new project.
-
-At the survey builder interface you can add and edit questions, configure survey logic, and save the survey as a new project:
+`Log in <https://www.expectedparrot.com/login>`_ to your account and select options to create a `survey <https://www.expectedparrot.com/create/survey>`_ and `agents <https://www.expectedparrot.com/create/agent-list>`_.
+Choose whether to build a survey and agents from scratch, import data, or select and edit saved content.
 
 
-Project page
-^^^^^^^^^^^^
+Launch a survey
+^^^^^^^^^^^^^^^
 
-Your new project page has options for generating a web-based version of the survey, editing the survey, running the survey with AI agents, and launching studies with human participants.
+Selecting the option to *Run survey* creates a new project at your account dashboard, where you can run the survey with AI agents and human respondents.
+You can also create a new project by selecting *Create project* at your dashboard and choosing a saved survey and agents to use with the project.
+
+Your new project page has options for generating a shareable web version of the survey, running the survey with AI agents, and launching Prolific studies with human participants.
 AI and human responses will automatically appear at your dashboard where you can compare and export them.
-
-* Click the *Edit survey* button to modify the survey questions and logic.
-* Click the *Web survey* button to open a web-based version of your survey that you can share with your own respondents.
-* Click the *Run with AI* button to run the survey with AI agents and language models. You can use saved agents, create new agents interactively, or import a dataset of agents to use with your survey.
-* Click the *Run with Humans* button to launch studies with Prolific participants.
 
 
 Analyze results
 ^^^^^^^^^^^^^^^
 
 Once you have collected responses from AI agents and human respondents, you can analyze the results at your account dashboard or in EDSL code at your workspace.
-See the :ref:`humanize` and :ref:`prolific` sections for more details.
+See the :ref:`humanize` and :ref:`prolific` sections for more details about working with human responses in EDSL code.
+You can also export results in CSV format for further analysis in your preferred tools.
 
 
 *Please let us know if you have any questions or suggestions for improving the survey builder!*

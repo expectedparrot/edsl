@@ -62,9 +62,9 @@ class DAG(UserDict):
         """
         return list(TopologicalSorter(self).static_order())
 
-    def __add__(self, other_dag: 'DAG') -> 'DAG':
+    def __add__(self, other_dag: "DAG") -> "DAG":
         """Combine two DAGs.
-        
+
         >>> from edsl.surveys.dag import DAG
         >>> dag1 = DAG({'a': {'b'}, 'b': {'c'}})
         >>> dag2 = DAG({'d': {'e'}, 'e': {'f'}})

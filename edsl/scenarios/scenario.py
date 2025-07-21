@@ -31,6 +31,9 @@ from .exceptions import ScenarioError
 if TYPE_CHECKING:
     from .scenario_list import ScenarioList
     from ..dataset import Dataset
+    from ..jobs import Jobs
+    from ..questions import QuestionBase as Question
+    from ..surveys import Survey
 
 
 class Scenario(Base, UserDict):
@@ -276,7 +279,6 @@ class Scenario(Base, UserDict):
             Scenario: The modified scenario (either self or a new instance).
         """
         from edsl.scenarios import FileStore
-        from edsl.prompts import Prompt
 
         target = self if inplace else Scenario()
 
@@ -529,6 +531,28 @@ class Scenario(Base, UserDict):
             "detailed_info": filestore_info,
             "summary": summary,
         }
+
+    def to(self, question_or_survey: Union["Question", "Survey"]) -> "Jobs":
+        """
+        Sends the scenario to a question or survey
+        """
+        return question_or_survey.by(self)
+
+    def open_url(self, position: int = 0) -> str:
+        """
+        Opens a URL field in the browser
+        """
+        urls = [v for v in self.values() if isinstance(v, str) and v.startswith("http")]
+        if not urls:
+            raise ValueError("No URL fields found in scenario")
+        if int(position) >= len(urls):
+            raise ValueError(
+                f"Position {position} is out of range for {len(urls)} URLs"
+            )
+
+        import webbrowser
+
+        webbrowser.open(urls[int(position)])
 
     def to_dict(
         self, add_edsl_version: bool = True, offload_base64: bool = False

@@ -1,5 +1,3 @@
-import re
-import math
 from typing import Optional, Union, Literal, TYPE_CHECKING, NewType, Callable, Any
 from dataclasses import dataclass
 from ..coop import CoopServerResponseError
@@ -40,11 +38,13 @@ class JobsRemoteInferenceHandler:
         jobs: "Jobs",
         verbose: bool = RemoteJobConstants.REMOTE_JOB_VERBOSE,
         poll_interval: Seconds = RemoteJobConstants.REMOTE_JOB_POLL_INTERVAL,
+        api_key: Optional[str] = None,
     ):
         """Handles the creation and running of a remote inference job."""
         self.jobs = jobs
         self.verbose = verbose
         self.poll_interval = poll_interval
+        self.api_key = api_key
 
         from ..config import CONFIG
 
@@ -60,7 +60,15 @@ class JobsRemoteInferenceHandler:
 
         if is_notebook():
             return HTMLTableJobLogger(verbose=self.verbose)
-        return StdOutJobLogger(verbose=self.verbose)
+
+        # Try to use RichTableSimpleJobLogger for terminal environments
+        try:
+            from .rich_table_simple_job_logger import RichTableSimpleJobLogger
+
+            return RichTableSimpleJobLogger(verbose=self.verbose)
+        except ImportError:
+            # Fall back to StdOutJobLogger if rich is not available
+            return StdOutJobLogger(verbose=self.verbose)
 
     def use_remote_inference(self, disable_remote_inference: bool) -> bool:
         import requests
@@ -71,7 +79,7 @@ class JobsRemoteInferenceHandler:
             try:
                 from ..coop import Coop
 
-                user_edsl_settings = Coop().edsl_settings
+                user_edsl_settings = Coop(api_key=self.api_key).edsl_settings
                 return user_edsl_settings.get("remote_inference", False)
             except requests.ConnectionError:
                 pass
@@ -105,7 +113,7 @@ class JobsRemoteInferenceHandler:
 
         logger = self._create_logger()
 
-        coop = Coop()
+        coop = Coop(api_key=self.api_key)
         logger.update(
             "Remote inference activated. Sending job to server...",
             status=JobsStatus.QUEUED,
@@ -175,7 +183,7 @@ class JobsRemoteInferenceHandler:
     ) -> "RemoteInferenceResponse":
         from ..coop import Coop
 
-        coop = Coop()
+        coop = Coop(api_key=self.api_key)
         return coop.new_remote_inference_get(job_uuid)
 
     def _construct_remote_job_fetcher(
@@ -186,7 +194,7 @@ class JobsRemoteInferenceHandler:
         else:
             from ..coop import Coop
 
-            coop = Coop()
+            coop = Coop(api_key=self.api_key)
             return coop.remote_inference_get
 
     def _construct_object_fetcher(
@@ -198,7 +206,7 @@ class JobsRemoteInferenceHandler:
         else:
             from ..coop import Coop
 
-            coop = Coop()
+            coop = Coop(api_key=self.api_key)
             if new_format:
                 return coop.pull
             else:
@@ -214,6 +222,10 @@ class JobsRemoteInferenceHandler:
             f"See [Remote Inference page]({self.expected_parrot_url}/home/remote-inference) for more details.",
             status=JobsStatus.CANCELLED,
         )
+
+        # Notify logger about job completion
+        if hasattr(job_info.logger, "job_completed"):
+            job_info.logger.job_completed(JobsStatus.CANCELLED)
 
     def _handle_failed_job(
         self, job_info: RemoteJobInfo, remote_job_data: RemoteInferenceResponse
@@ -246,6 +258,10 @@ class JobsRemoteInferenceHandler:
             f"See [Remote Inference page]({self.expected_parrot_url}/home/remote-inference) for more details.",
             status=JobsStatus.FAILED,
         )
+
+        # Notify logger about job completion
+        if hasattr(job_info.logger, "job_completed"):
+            job_info.logger.job_completed(JobsStatus.FAILED)
         job_info.logger.update(
             f"Need support? [Visit Discord]({RemoteJobConstants.DISCORD_URL})",
             status=JobsStatus.FAILED,
@@ -452,9 +468,9 @@ class JobsRemoteInferenceHandler:
             model_cost_dict["input_cost_credits_with_cache"] = converter.usd_to_credits(
                 input_cost_with_cache
             )
-            model_cost_dict["output_cost_credits_with_cache"] = (
-                converter.usd_to_credits(output_cost_with_cache)
-            )
+            model_cost_dict[
+                "output_cost_credits_with_cache"
+            ] = converter.usd_to_credits(output_cost_with_cache)
         return list(expenses_by_model.values())
 
     def _fetch_results_and_log(
@@ -502,11 +518,20 @@ class JobsRemoteInferenceHandler:
                 f"Job completed and Results stored on Coop. [View Results]({results_url})",
                 status=JobsStatus.COMPLETED,
             )
+
+            # Notify logger about job completion
+            if hasattr(job_info.logger, "job_completed"):
+                job_info.logger.job_completed(JobsStatus.COMPLETED)
+
         elif job_status == "partial_failed":
             job_info.logger.update(
                 f"View partial results [here]({results_url})",
                 status=JobsStatus.PARTIALLY_FAILED,
             )
+
+            # Notify logger about job completion
+            if hasattr(job_info.logger, "job_completed"):
+                job_info.logger.job_completed(JobsStatus.PARTIALLY_FAILED)
 
         results.job_uuid = job_info.job_uuid
         results.results_uuid = results_uuid

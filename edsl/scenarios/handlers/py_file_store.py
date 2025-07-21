@@ -8,6 +8,7 @@ from importlib import util
 
 from ..file_methods import FileMethods
 
+
 class PyMethods(FileMethods):
     suffix = "py"
 

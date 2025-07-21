@@ -1,6 +1,10 @@
 from collections import UserDict
-from typing import NamedTuple, Dict, Optional, Any, Union
+from typing import NamedTuple, Dict, Optional, Any, Union, TYPE_CHECKING
 from dataclasses import dataclass, fields
+
+if TYPE_CHECKING:
+    from edsl.questions.question_base import QuestionBase
+    from edsl.surveys.survey import Survey
 
 
 class ModelInputs(NamedTuple):

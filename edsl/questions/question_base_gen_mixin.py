@@ -7,11 +7,12 @@ if TYPE_CHECKING:
     from .question_base import QuestionBase
     from ..scenarios import ScenarioList
 
+
 class QuestionBaseGenMixin:
     """Mixin for QuestionBase.
-    
+
     This mostly has functions that are used to generate new questions from existing ones.
-    
+
     """
 
     def copy(self) -> QuestionBase:
@@ -90,15 +91,18 @@ class QuestionBaseGenMixin:
 
     class MaxTemplateNestingExceeded(Exception):
         """Raised when template rendering exceeds maximum allowed nesting level."""
+
         pass
 
-    def render(self, replacement_dict: dict, return_dict: bool = False) -> Union["QuestionBase", dict]:
+    def render(
+        self, replacement_dict: dict, return_dict: bool = False
+    ) -> Union["QuestionBase", dict]:
         """Render the question components as jinja2 templates with the replacement dictionary.
         Handles nested template variables by recursively rendering until all variables are resolved.
-        
+
         Raises:
             MaxTemplateNestingExceeded: If template nesting exceeds MAX_NESTING levels
-        
+
         >>> from edsl.questions import QuestionFreeText
         >>> q = QuestionFreeText(question_name = "color", question_text = "What is your favorite {{ thing }}?")
         >>> q.render({"thing": "color"})
@@ -122,7 +126,7 @@ class QuestionBaseGenMixin:
         >>> q.render(Scenario({"thing": "color of {{ object }}", "object":"water"})).data
         {'question_name': 'color', 'question_text': 'What is your favorite color of water?', 'question_options': ['red', 'blue', 'green']}
 
-        
+
         >>> from edsl.questions import QuestionFreeText
         >>> q = QuestionFreeText(question_name = "infinite", question_text = "This has {{ a }}")
         >>> q.render({"a": "{{ b }}", "b": "{{ a }}"}) # doctest: +IGNORE_EXCEPTION_DETAIL
@@ -134,12 +138,12 @@ class QuestionBaseGenMixin:
         from edsl.scenarios import Scenario
 
         MAX_NESTING = 10  # Maximum allowed nesting levels
-        
+
         strings_only_replacement_dict = {
             k: v for k, v in replacement_dict.items() if not isinstance(v, Scenario)
         }
 
-        strings_only_replacement_dict['scenario'] = strings_only_replacement_dict
+        strings_only_replacement_dict["scenario"] = strings_only_replacement_dict
 
         def _has_unrendered_variables(template_str: str, env: Environment) -> bool:
             """Check if the template string has any unrendered variables."""
@@ -151,42 +155,45 @@ class QuestionBaseGenMixin:
         def render_string(value: str) -> str:
             if value is None or not isinstance(value, str):
                 return value
-            
+
             try:
                 env = Environment()
                 result = value
                 nesting_count = 0
-                
+
                 while _has_unrendered_variables(result, env):
                     if nesting_count >= MAX_NESTING:
                         raise self.MaxTemplateNestingExceeded(
                             f"Template rendering exceeded {MAX_NESTING} levels of nesting. "
                             f"Current value: {result}"
                         )
-                    
+
                     template = env.from_string(result)
                     new_result = template.render(strings_only_replacement_dict)
                     if new_result == result:  # Break if no changes made
                         break
                     result = new_result
                     nesting_count += 1
-                
+
                 return result
             except self.MaxTemplateNestingExceeded:
                 raise
             except Exception:
                 import warnings
+
                 warnings.warn("Failed to render string: " + value)
                 return value
+
         if return_dict:
             return self._apply_function_dict(render_string)
         else:
             return self.apply_function(render_string)
-      
+
     def apply_function(
         self, func: Callable, exclude_components: Optional[List[str]] = None
     ) -> QuestionBase:
         from .question_base import QuestionBase
+
         d = self._apply_function_dict(func, exclude_components)
         return QuestionBase.from_dict(d)
 

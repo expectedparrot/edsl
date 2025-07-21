@@ -7,12 +7,9 @@ from pydantic import BaseModel, Field
 from .question_base import QuestionBase
 from .descriptors import QuestionOptionsDescriptor
 from .decorators import inject_exception
-from .response_validator_abc import ResponseValidatorABC
 from .question_multiple_choice import (
-    BaseMultipleChoiceResponse,
     MultipleChoiceResponseValidator,
 )
-from pydantic import BaseModel, Field
 
 
 # Create a custom response model for MultipleChoiceWithOther
@@ -139,9 +136,6 @@ class MultipleChoiceWithOtherResponseValidator(MultipleChoiceResponseValidator):
         Returns:
             A validated response dict with "Other" as the answer and other_text field set
         """
-        # Keep original for reference
-        orig_response_dict = response_dict.copy()
-
         # Create a copy to avoid modifying the original that may be needed elsewhere
         response_dict = response_dict.copy()
         answer = str(response_dict.get("answer", ""))
@@ -524,9 +518,6 @@ class QuestionMultipleChoiceWithOther(QuestionBase):
             option_labels = self.option_labels
         else:
             option_labels = {}
-
-        # Create a list of all options including the "Other" option
-        all_options = list(self.question_options) + [self.other_option_text]
 
         question_html_content = Template(
             """

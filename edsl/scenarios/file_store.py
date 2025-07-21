@@ -136,6 +136,11 @@ class FileStore(Scenario):
             }
         )
 
+    def to_scenario(self, key_name: Optional[str] = None):
+        if key_name is None:
+            key_name = "file_store"
+        return Scenario({key_name: self})
+
     @property
     def path(self) -> str:
         """
@@ -294,7 +299,6 @@ class FileStore(Scenario):
 
     def upload_google(self, refresh: bool = False) -> None:
         import google.generativeai as genai
-        import google
 
         try:
             genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))

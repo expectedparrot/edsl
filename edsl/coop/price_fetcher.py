@@ -14,26 +14,27 @@ from typing import Dict, Tuple, Any
 class PriceFetcher:
     """
     A singleton class for fetching and caching language model pricing information.
-    
+
     This class retrieves the current pricing for language models from the Expected
     Parrot API and caches it to avoid unnecessary network requests. It implements
     a singleton pattern to ensure that only one instance exists throughout the
     application.
-    
+
     Attributes:
         _instance (PriceFetcher): The singleton instance of the class
         _cached_prices (Dict[Tuple[str, str], Dict]): Cached pricing information
             mapping (service, model) tuples to their pricing details
     """
+
     _instance = None
-    
+
     def __new__(cls):
         """
         Create or return the singleton instance of PriceFetcher.
-        
+
         This method ensures that only one instance of PriceFetcher exists.
         When called multiple times, it returns the same instance.
-        
+
         Returns:
             PriceFetcher: The singleton instance
         """
@@ -45,12 +46,12 @@ class PriceFetcher:
     def fetch_prices(self) -> Dict[Tuple[str, str], Dict[str, Dict[str, Any]]]:
         """
         Fetch current pricing information for language models.
-        
+
         This method retrieves the latest pricing information from the Expected Parrot API
         for all supported language models. It caches the results to avoid redundant API calls.
-        
+
         Returns:
-            Dict[Tuple[str, str], Dict[str, Dict[str, Any]]]: A dictionary mapping 
+            Dict[Tuple[str, str], Dict[str, Dict[str, Any]]]: A dictionary mapping
             (service, model) tuples to their pricing information for different token types.
             Structure example:
             {
@@ -72,7 +73,7 @@ class PriceFetcher:
                 },
                 ...
             }
-            
+
         Notes:
             - If the request fails, returns an empty dictionary
             - Uses caching to avoid redundant API calls
@@ -112,7 +113,7 @@ class PriceFetcher:
                         price_lookup[(service, model)].update({token_type: entry})
                     else:
                         price_lookup[(service, model)] = {token_type: entry}
-                        
+
             # Cache and return the results
             self._cached_prices = price_lookup
             return self._cached_prices
