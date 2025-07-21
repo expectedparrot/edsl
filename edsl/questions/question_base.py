@@ -61,6 +61,9 @@ from .exceptions import QuestionSerializationError
 from ..base import PersistenceMixin, RepresentationMixin, BaseDiff, BaseDiffCollection
 from ..utilities import remove_edsl_version, is_valid_variable_name
 
+if TYPE_CHECKING:
+    from ..results import Result
+
 # Define VisibilityType for type annotations
 VisibilityType = Literal["private", "public", "unlisted"]
 
@@ -88,11 +91,11 @@ class QuestionBase(
 ):
     """
     Abstract base class for all question types in EDSL.
-    
-    QuestionBase defines the core interface and behavior that all question types must 
+
+    QuestionBase defines the core interface and behavior that all question types must
     implement. It provides the foundation for asking questions to agents, validating
     responses, generating prompts, and integrating with the rest of the EDSL framework.
-    
+
     The class inherits from multiple mixins to provide different capabilities:
     - PersistenceMixin: Serialization and deserialization
     - RepresentationMixin: String representation
@@ -100,80 +103,80 @@ class QuestionBase(
     - QuestionBasePromptsMixin: Template-based prompt generation
     - QuestionBaseGenMixin: Generate responses with language models
     - AnswerValidatorMixin: Response validation
-    
+
     It also uses the RegisterQuestionsMeta metaclass to enforce constraints on child classes
     and automatically register them for serialization and runtime use.
-    
+
     Class attributes:
         question_name (str): Name of the question, used as an identifier
         question_text (str): The actual text of the question to be asked
-        
+
     Required attributes in derived classes:
         question_type (str): String identifier for the question type
         _response_model (Type): Pydantic model class for validating responses
         response_validator_class (Type): Validator class for responses
-        
+
     Key Methods:
         by(model): Connect this question to a language model for answering
         run(): Execute the question with the connected language model
         duplicate(): Create an exact copy of this question
         is_valid_question_name(): Verify the question_name is valid
-        
+
     Lifecycle:
         1. Instantiation: A question is created with specific parameters
         2. Connection: The question is connected to a language model via by()
         3. Execution: The question is run to generate a response
         4. Validation: The response is validated based on the question type
         5. Result: The validated response is returned for analysis
-        
+
     Template System:
         Questions use Jinja2 templates for generating prompts. Each question type
         has associated template files:
         - answering_instructions.jinja: Instructions for how the model should answer
         - question_presentation.jinja: Format for how the question is presented
         Templates support variable substitution using scenario variables.
-        
+
     Response Validation:
         Each question type has a dedicated response validator that:
         - Enforces the expected response structure
         - Ensures the response is valid for the question type
         - Attempts to fix invalid responses when possible
         - Uses Pydantic models for schema validation
-        
+
     Example:
         Derived classes must define the required attributes:
-        
+
         ```python
         class FreeTextQuestion(QuestionBase):
             question_type = "free_text"
             _response_model = FreeTextResponse
             response_validator_class = FreeTextResponseValidator
-            
+
             def __init__(self, question_name, question_text, **kwargs):
                 self.question_name = question_name
                 self.question_text = question_text
                 # Additional initialization as needed
         ```
-        
+
         Using a question:
-        
+
         ```python
         # Create a question
         question = FreeTextQuestion(
             question_name="opinion",
             question_text="What do you think about AI?"
         )
-        
+
         # Connect to a language model and run
         from edsl.language_models import Model
         model = Model()
         result = question.by(model).run()
-        
+
         # Access the answer
         answer = result.select("answer.opinion").to_list()[0]
         print(f"The model's opinion: {answer}")
         ```
-    
+
     Notes:
         - QuestionBase is abstract and cannot be instantiated directly
         - Child classes must implement required methods and attributes
@@ -191,14 +194,14 @@ class QuestionBase(
     def is_valid_question_name(self) -> bool:
         """
         Check if the question name is a valid Python identifier.
-        
+
         This method validates that the question_name attribute is a valid Python
         variable name according to Python's syntax rules. This is important because
         question names are often used as identifiers in various parts of the system.
-        
+
         Returns:
             bool: True if the question name is a valid Python identifier, False otherwise.
-            
+
         Examples:
             >>> from edsl.questions import QuestionFreeText
             >>> q = QuestionFreeText(question_name="valid_name", question_text="Text")
@@ -211,14 +214,14 @@ class QuestionBase(
     def response_validator(self) -> "ResponseValidatorABC":
         """
         Get the appropriate validator for this question type.
-        
+
         This property lazily creates and returns a response validator instance specific
         to this question type. The validator is created using the ResponseValidatorFactory,
         which selects the appropriate validator class based on the question's type.
-        
+
         Returns:
             ResponseValidatorABC: An instance of the appropriate validator for this question.
-            
+
         Notes:
             - Each question type has its own validator class defined in the class attribute
               response_validator_class
@@ -233,14 +236,14 @@ class QuestionBase(
     def duplicate(self) -> "QuestionBase":
         """
         Create an exact copy of this question instance.
-        
+
         This method creates a new instance of the question with identical attributes
         by serializing the current instance to a dictionary and then deserializing
         it back into a new instance.
-        
+
         Returns:
             QuestionBase: A new instance of the same question type with identical attributes.
-            
+
         Examples:
             >>> from edsl.questions import QuestionFreeText
             >>> original = QuestionFreeText(question_name="q1", question_text="Hello?")
@@ -256,14 +259,14 @@ class QuestionBase(
     def fake_data_factory(self):
         """
         Create and return a factory for generating fake response data.
-        
+
         This property lazily creates a factory class based on Pydantic's ModelFactory
         that can generate fake data conforming to the question's response model.
         The factory is cached after first creation for efficiency.
-        
+
         Returns:
             ModelFactory: A factory class that can generate fake data for this question type.
-            
+
         Notes:
             - Uses polyfactory to generate valid fake data instances
             - The response model for the question defines the structure of the generated data
@@ -275,16 +278,17 @@ class QuestionBase(
 
             class FakeData(ModelFactory[self.response_model]):
                 # Add customization for specific question types
-                if hasattr(self, 'question_type') and self.question_type == 'numerical':
+                if hasattr(self, "question_type") and self.question_type == "numerical":
+
                     @classmethod
                     def build_answer(cls):
-                        min_val = getattr(self, 'min_value', None)
-                        max_val = getattr(self, 'max_value', None)
-                        
+                        min_val = getattr(self, "min_value", None)
+                        max_val = getattr(self, "max_value", None)
+
                         # Default values if none provided
                         min_val = 0 if min_val is None else min_val
                         max_val = 100 if max_val is None else max_val
-                        
+
                         # Ensure values are within bounds
                         if isinstance(min_val, int) and isinstance(max_val, int):
                             return randint(min_val, max_val)
@@ -297,24 +301,24 @@ class QuestionBase(
     def _simulate_answer(self, human_readable: bool = False) -> dict:
         """
         Generate a simulated valid answer for this question.
-        
+
         This method creates a plausible answer that would pass validation for this
         question type. It's primarily used for testing, examples, and debugging purposes.
-        
+
         Args:
             human_readable: If True, converts code-based answers to their human-readable
                            text equivalents for multiple choice and similar questions.
-                           
+
         Returns:
             dict: A dictionary containing a simulated valid answer with appropriate
                  structure for this question type.
-                 
+
         Examples:
             >>> from edsl import QuestionFreeText as Q
             >>> answer = Q.example()._simulate_answer()
             >>> "answer" in answer and "generated_tokens" in answer
             True
-            
+
         Notes:
             - Free text questions have special handling with a predefined response
             - Other question types use the fake_data_factory to generate valid responses
@@ -322,8 +326,11 @@ class QuestionBase(
               indices or actual text options are returned
         """
         if self.question_type == "free_text":
-            return {"answer": "Hello, how are you?", 'generated_tokens': "Hello, how are you?"}
-        
+            return {
+                "answer": "Hello, how are you?",
+                "generated_tokens": "Hello, how are you?",
+            }
+
         simulated_answer = self.fake_data_factory.build().dict()
         if human_readable and hasattr(self, "question_options") and self.use_code:
             simulated_answer["answer"] = [
@@ -334,16 +341,17 @@ class QuestionBase(
     class ValidatedAnswer(TypedDict):
         """
         Type definition for a validated answer to a question.
-        
+
         This TypedDict defines the structure of a validated answer, which includes
         the actual answer value, an optional comment, and optional generated tokens
         information for tracking LLM token usage.
-        
+
         Attributes:
             answer: The validated answer value, type depends on question type
             comment: Optional string comment or explanation for the answer
             generated_tokens: Optional string containing raw LLM output for token tracking
         """
+
         answer: Any
         comment: Optional[str]
         generated_tokens: Optional[str]
@@ -353,23 +361,23 @@ class QuestionBase(
     ) -> ValidatedAnswer:
         """
         Validate a raw answer against this question's constraints.
-        
+
         This method applies the appropriate validator for this question type to the
         provided answer dictionary, ensuring it conforms to the expected structure
         and constraints.
-        
+
         Args:
             answer: Dictionary containing the raw answer to validate.
             replacement_dict: Optional dictionary of replacements to apply during
                              validation for template variables.
-                             
+
         Returns:
             ValidatedAnswer: A dictionary containing the validated answer with the
                             structure defined by ValidatedAnswer TypedDict.
-                            
+
         Raises:
             QuestionAnswerValidationError: If the answer fails validation.
-            
+
         Examples:
             >>> from edsl.questions import QuestionFreeText as Q
             >>> Q.example()._validate_answer({'answer': 'Hello', 'generated_tokens': 'Hello'})
@@ -380,12 +388,13 @@ class QuestionBase(
         except Exception as e:
             # Ensure all validation errors are raised as QuestionAnswerValidationError
             from .exceptions import QuestionAnswerValidationError
+
             if not isinstance(e, QuestionAnswerValidationError):
                 raise QuestionAnswerValidationError(
                     message=f"Invalid response: {e}",
                     data=answer,
-                    model=getattr(self, 'response_model', None),
-                    pydantic_error=e if hasattr(e, 'errors') else None
+                    model=getattr(self, "response_model", None),
+                    pydantic_error=e if hasattr(e, "errors") else None,
                 ) from e
             raise
 
@@ -393,10 +402,10 @@ class QuestionBase(
     def name(self) -> str:
         """
         Get the question name.
-        
+
         This property is a simple alias for question_name that provides a consistent
         interface shared with other EDSL components like Instructions.
-        
+
         Returns:
             str: The question name.
         """
@@ -405,14 +414,14 @@ class QuestionBase(
     def __hash__(self) -> int:
         """
         Calculate a hash value for this question instance.
-        
+
         This method returns a deterministic hash based on the serialized dictionary
         representation of the question. This allows questions to be used in sets and
         as dictionary keys.
-        
+
         Returns:
             int: A hash value for this question.
-            
+
         Examples:
             >>> from edsl import QuestionFreeText as Q
             >>> q1 = Q.example()
@@ -470,6 +479,13 @@ class QuestionBase(
 
         return candidate_data
 
+    def to_jobs(self):
+        return self.to_survey().to_jobs()
+
+    def gold_standard(self, q_and_a_dict: dict[str, str]) -> "Result":
+        """Run the question with a gold standard agent and return the result."""
+        return self.to_survey().gold_standard(q_and_a_dict)
+
     def to_dict(self, add_edsl_version: bool = True):
         """Convert the question to a dictionary that includes the question type (used in deserialization).
 
@@ -492,21 +508,21 @@ class QuestionBase(
     def from_dict(cls, data: dict) -> "QuestionBase":
         """
         Create a question instance from a dictionary representation.
-        
+
         This class method deserializes a question from a dictionary representation,
         typically created by the to_dict method. It looks up the appropriate question
         class based on the question_type field and constructs an instance of that class.
-        
+
         Args:
             data: Dictionary representation of a question, must contain a 'question_type' field.
-            
+
         Returns:
             QuestionBase: An instance of the appropriate question subclass.
-            
+
         Raises:
             QuestionSerializationError: If the data is missing the question_type field or
                                       if no question class is registered for the given type.
-                                      
+
         Examples:
             >>> from edsl.questions import QuestionFreeText
             >>> original = QuestionFreeText.example()
@@ -516,7 +532,7 @@ class QuestionBase(
             True
             >>> isinstance(deserialized, QuestionFreeText)
             True
-            
+
         Notes:
             - The @remove_edsl_version decorator removes EDSL version information from the
               dictionary before processing
@@ -560,16 +576,16 @@ class QuestionBase(
     def _get_test_model(cls, canned_response: Optional[str] = None) -> "LanguageModel":
         """
         Create a test language model with optional predefined response.
-        
+
         This helper method creates a test language model that can be used for testing
         questions without making actual API calls to language model providers.
-        
+
         Args:
             canned_response: Optional predefined response the model will return for any prompt.
-            
+
         Returns:
             LanguageModel: A test language model instance.
-            
+
         Notes:
             - The test model does not make external API calls
             - When canned_response is provided, the model will always return that response
@@ -591,11 +607,11 @@ class QuestionBase(
     ) -> "Results":
         """
         Run the example question with a language model and return results.
-        
+
         This class method creates an example instance of the question, asks it using
         the provided language model, and returns the results. It's primarily used for
         demonstrations, documentation, and testing.
-        
+
         Args:
             show_answer: If True, returns only the answer portion of the results.
                         If False, returns the full results.
@@ -604,19 +620,19 @@ class QuestionBase(
             disable_remote_cache: Whether to disable remote caching.
             disable_remote_inference: Whether to disable remote inference.
             **kwargs: Additional keyword arguments to pass to the example method.
-            
+
         Returns:
             Results: Either the full results or just the answer portion, depending on show_answer.
-            
+
         Examples:
             >>> from edsl.language_models import LanguageModel
             >>> from edsl import QuestionFreeText as Q
             >>> m = Q._get_test_model(canned_response="Yo, what's up?")
-            >>> results = Q.run_example(show_answer=True, model=m, 
+            >>> results = Q.run_example(show_answer=True, model=m,
             ...                       disable_remote_cache=True, disable_remote_inference=True)
             >>> "answer" in str(results)
             True
-            
+
         Notes:
             - This method is useful for quick demonstrations of question behavior
             - The disable_remote_* parameters are useful for offline testing
@@ -724,7 +740,10 @@ class QuestionBase(
             return getattr(self, key)
         except TypeError:
             from .exceptions import QuestionKeyError
-            raise QuestionKeyError(f"Question has no attribute {key} of type {type(key)}")
+
+            raise QuestionKeyError(
+                f"Question has no attribute {key} of type {type(key)}"
+            )
 
     def __repr__(self) -> str:
         """Return a string representation of the question. Should be able to be used to reconstruct the question.

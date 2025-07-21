@@ -16,21 +16,27 @@ from __future__ import annotations
 import functools
 import warnings
 import fnmatch
+import os
+import csv
+from io import StringIO
+from urllib.parse import urlparse
+from abc import ABC, abstractmethod
 from collections import defaultdict
-import warnings
 from typing import (
-    Any,
     Callable,
     List,
     Literal,
     Optional,
     Type,
     TypeVar,
-    Union,
     TYPE_CHECKING,
-    cast,
     Any,
 )
+
+# Local imports
+from .scenario import Scenario
+from .directory_scanner import DirectoryScanner
+from .exceptions import ScenarioError
 
 T = TypeVar("T")
 
@@ -63,24 +69,8 @@ def deprecated_classmethod(
     return decorator
 
 
-import os
-import csv
-import json
-import warnings
-from io import StringIO
-from urllib.parse import urlparse
-
 if TYPE_CHECKING:
-    import pandas as pd
-    from urllib.parse import ParseResult
-    from .scenario_list import ScenarioList
-
-# Local imports
-from .scenario import Scenario
-from .directory_scanner import DirectoryScanner
-from .exceptions import ScenarioError
-
-from abc import ABC, abstractmethod
+    pass
 
 
 class Source(ABC):
@@ -250,7 +240,6 @@ class DirectorySource(Source):
     def example(cls) -> "DirectorySource":
         """Return an example DirectorySource instance."""
         import tempfile
-        import os
 
         # Create a temporary directory for the example
         temp_dir = tempfile.mkdtemp(prefix="edsl_test_")
@@ -279,7 +268,6 @@ class DirectorySource(Source):
 
     def to_scenario_list(self):
         """Create a ScenarioList from files in a directory."""
-        import os
         import glob
 
         from .scenario_list import ScenarioList
@@ -434,7 +422,6 @@ class SQLiteSource(Source):
         """Return an example SQLiteSource instance."""
         import sqlite3
         import tempfile
-        import os
 
         # Create a temporary SQLite database for the example
         fd, temp_path = tempfile.mkstemp(suffix=".db", prefix="edsl_test_")
@@ -510,7 +497,6 @@ class LaTeXSource(Source):
     def example(cls) -> "LaTeXSource":
         """Return an example LaTeXSource instance."""
         import tempfile
-        import os
 
         # Create a temporary LaTeX file with a sample table
         fd, temp_path = tempfile.mkstemp(suffix=".tex", prefix="edsl_test_")
@@ -660,7 +646,8 @@ class GoogleDocSource(Source):
             # Create a scenario from the DOCX file
             docx_scenario = DocxScenario(temp_filename)
             scenarios = [
-                Scenario({"text": paragraph.text}) for paragraph in docx_scenario.doc.paragraphs
+                Scenario({"text": paragraph.text})
+                for paragraph in docx_scenario.doc.paragraphs
             ]
 
             return ScenarioList(scenarios)
@@ -762,8 +749,6 @@ class StataSource(Source):
     @classmethod
     def example(cls) -> "StataSource":
         """Return an example StataSource instance."""
-        import tempfile
-        import os
 
         # Since we can't easily create a real Stata file for testing,
         # we'll create a mock instance with an override
@@ -991,7 +976,6 @@ class ExcelSource(Source):
     def example(cls) -> "ExcelSource":
         """Return an example ExcelSource instance."""
         import tempfile
-        import os
 
         try:
             import pandas as pd
@@ -1074,6 +1058,30 @@ class ExcelSource(Source):
             else:
                 # If there is only one sheet, use it
                 sheet_name = list(all_sheets.keys())[0]
+
+        # Handle sheet name matching with case-insensitive fallback
+        if sheet_name is not None:
+            available_sheets = list(all_sheets.keys())
+
+            # First try exact match
+            if sheet_name not in available_sheets:
+                # Try case-insensitive match
+                sheet_name_lower = sheet_name.lower()
+                matching_sheets = [
+                    s for s in available_sheets if s.lower() == sheet_name_lower
+                ]
+
+                if matching_sheets:
+                    sheet_name = matching_sheets[0]  # Use the first match
+                else:
+                    # No match found, provide helpful error
+                    available_sheets_str = ", ".join(
+                        [f"'{name}'" for name in available_sheets]
+                    )
+                    raise ScenarioError(
+                        f"Worksheet named '{sheet_name}' not found. "
+                        f"Available sheets: {available_sheets_str}"
+                    )
 
         # Load the specified or determined sheet
         df = pd.read_excel(self.file_path, sheet_name=sheet_name, **self.kwargs)
@@ -1255,7 +1263,6 @@ class DelimitedFileSource(Source):
     def example(cls) -> "DelimitedFileSource":
         """Return an example DelimitedFileSource instance."""
         import tempfile
-        import os
 
         # Create a temporary CSV file with sample data
         fd, temp_path = tempfile.mkstemp(suffix=".csv", prefix="edsl_test_")
@@ -1308,7 +1315,7 @@ class DelimitedFileSource(Source):
                         continue
                 else:
                     raise ScenarioError(
-                        f"Failed to decode file with any of the attempted encodings"
+                        "Failed to decode file with any of the attempted encodings"
                     )
             except Exception as e:
                 raise ScenarioError(f"Failed to read file: {str(e)}")
@@ -1391,7 +1398,6 @@ class CSVSource(DelimitedFileSource):
     def example(cls) -> "CSVSource":
         """Return an example CSVSource instance."""
         import tempfile
-        import os
 
         # Create a temporary CSV file with sample data
         fd, temp_path = tempfile.mkstemp(suffix=".csv", prefix="edsl_test_")
@@ -1438,7 +1444,6 @@ class TSVSource(DelimitedFileSource):
     def example(cls) -> "TSVSource":
         """Return an example TSVSource instance."""
         import tempfile
-        import os
 
         # Create a temporary TSV file with sample data
         fd, temp_path = tempfile.mkstemp(suffix=".tsv", prefix="edsl_test_")
@@ -1470,12 +1475,9 @@ class ParquetSource(Source):
     def example(cls) -> "ParquetSource":
         """Return an example ParquetSource instance."""
         import tempfile
-        import os
 
         try:
             import pandas as pd
-            import pyarrow as pa
-            import pyarrow.parquet as pq
 
             # Create a temporary Parquet file with sample data
             fd, temp_path = tempfile.mkstemp(suffix=".parquet", prefix="edsl_test_")
@@ -1530,7 +1532,7 @@ class ParquetSource(Source):
             raise ImportError("pandas is required to read Parquet files")
 
         try:
-            import pyarrow
+            import pyarrow  # noqa: F401
         except ImportError:
             raise ImportError("pyarrow is required to read Parquet files")
 
@@ -1728,7 +1730,7 @@ class PDFImageSource(Source):
         try:
             # Import pdf2image library
             try:
-                from pdf2image import convert_from_path
+                from pdf2image import convert_from_path  # noqa: F401
             except ImportError:
                 raise ImportError(
                     "pdf2image is required to convert PDF to images. Install it with 'pip install pdf2image'."
@@ -1783,7 +1785,7 @@ class ScenarioSource:
             source_class = Source.get_source_class(source_type)
             source_instance = source_class(*args, **kwargs)
             return source_instance.to_scenario_list()
-        except ValueError as e:
+        except ValueError:
             # For backward compatibility, try the old method if the source_type isn't in the registry
             method_name = f"_from_{source_type}"
             if hasattr(ScenarioSource, method_name):
@@ -2019,7 +2021,7 @@ class ScenarioSource:
 
             # Check all lists have the same length
             list_lengths = [len(v) for v in data.values()]
-            if not all(l == list_lengths[0] for l in list_lengths):
+            if not all(length == list_lengths[0] for length in list_lengths):
                 raise ScenarioError("All lists must have the same length")
 
             # Create scenarios

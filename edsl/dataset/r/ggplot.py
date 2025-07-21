@@ -7,7 +7,7 @@ from typing import Optional
 
 class GGPlot:
     """A class to handle ggplot2 plot display and saving."""
-    
+
     def __init__(self, r_code: str, width: float = 6, height: float = 4):
         """Initialize with R code and dimensions."""
         self.r_code = r_code
@@ -15,11 +15,11 @@ class GGPlot:
         self.height = height
         self._svg_data = None
         self._saved = False  # Track if the plot was saved
-        
+
     def _execute_r_code(self, save_command: str = ""):
         """Execute R code with optional save command."""
         full_r_code = self.r_code + save_command
-        
+
         result = subprocess.run(
             ["Rscript", "-"],
             input=full_r_code,
@@ -31,62 +31,65 @@ class GGPlot:
         if result.returncode != 0:
             if result.returncode == 127:
                 from ..exceptions import DatasetRuntimeError
+
                 raise DatasetRuntimeError(
                     "Rscript is probably not installed. Please install R from https://cran.r-project.org/"
                 )
             else:
                 from ..exceptions import DatasetRuntimeError
+
                 raise DatasetRuntimeError(
                     f"An error occurred while running Rscript: {result.stderr}"
                 )
 
         if result.stderr:
             print("Error in R script:", result.stderr)
-            
+
         return result
-        
+
     def save(self, filename: str):
         """Save the plot to a file."""
-        format = filename.split('.')[-1].lower()
-        if format not in ['svg', 'png']:
+        format = filename.split(".")[-1].lower()
+        if format not in ["svg", "png"]:
             from ..exceptions import DatasetValueError
+
             raise DatasetValueError("Only 'svg' and 'png' formats are supported")
-            
+
         save_command = f'\nggsave("{filename}", plot = last_plot(), width = {self.width}, height = {self.height}, device = "{format}")'
         self._execute_r_code(save_command)
-        
+
         self._saved = True
         print(f"File saved to: {filename}")
         return None  # Return None instead of self
-        
+
     def _repr_html_(self):
         """Display the plot in a Jupyter notebook."""
         # Don't display if the plot was saved
         if self._saved:
             return None
-            
-        
+
         # Generate SVG if we haven't already
         if self._svg_data is None:
             # Create temporary SVG file
-            with tempfile.NamedTemporaryFile(suffix='.svg') as tmp:
+            with tempfile.NamedTemporaryFile(suffix=".svg") as tmp:
                 save_command = f'\nggsave("{tmp.name}", plot = last_plot(), width = {self.width}, height = {self.height}, device = "svg")'
                 self._execute_r_code(save_command)
-                with open(tmp.name, 'r') as f:
+                with open(tmp.name, "r") as f:
                     self._svg_data = f.read()
-                    
+
         return self._svg_data
+
 
 class GGPlotMethod:
 
     def __init__(self, results):
         """Initialize the GGPlotMethod with results.
-        
+
         Args:
             results: A Results or Dataset object.
         """
         self.results = results
-    
+
     """Mixin class for ggplot2 plotting."""
 
     def ggplot2(
@@ -163,6 +166,7 @@ class GGPlotMethod:
                     plt.show()
                 elif filename.endswith(".svg"):
                     from IPython.display import SVG, display
+
                     display(SVG(filename=filename))
                 else:
                     print("Unsupported file format. Please provide a PNG or SVG file.")
@@ -174,16 +178,16 @@ class GGPlotMethod:
         # If we're not in a notebook or imports failed, open with system viewer
         import platform
         import os
-        
+
         system = platform.system()
-        if system == 'Darwin':       # macOS
-            if filename.endswith('.svg'):
-                subprocess.run(['open', '-a', 'Preview', filename])
+        if system == "Darwin":  # macOS
+            if filename.endswith(".svg"):
+                subprocess.run(["open", "-a", "Preview", filename])
             else:
-                subprocess.run(['open', filename])
-        elif system == 'Linux':
-            subprocess.run(['xdg-open', filename])
-        elif system == 'Windows':
+                subprocess.run(["open", filename])
+        elif system == "Linux":
+            subprocess.run(["xdg-open", filename])
+        elif system == "Windows":
             os.startfile(filename)
         else:
             print(f"File saved to: {filename}")

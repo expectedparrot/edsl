@@ -21,7 +21,6 @@ import difflib
 from typing import Dict, Literal, List, Tuple
 from collections import UserList
 import inspect
-import hashlib
 
 from .. import logger
 
@@ -134,6 +133,12 @@ class PersistenceMixin:
             A new instance of the same class with identical properties
         """
         return self.from_dict(self.to_dict(add_edsl_version=False))
+
+    def store(self, container_dict: dict, name: Optional[str] = None):
+        if name is None:
+            name = hash(self)
+        container_dict[name] = self
+        return self
 
     @classmethod
     def help(cls):
@@ -520,7 +525,7 @@ class PersistenceMixin:
         """Copy this object's representation to the system clipboard.
 
         This method first checks if the object has a custom clipboard_data() method.
-        If it does, it uses that method's output. Otherwise, it serializes the object 
+        If it does, it uses that method's output. Otherwise, it serializes the object
         to a dictionary (without version info) and copies it to the system clipboard as JSON text.
 
         Returns:
@@ -531,7 +536,9 @@ class PersistenceMixin:
         import platform
 
         # Check if the object has a custom clipboard_data method
-        if hasattr(self, 'clipboard_data') and callable(getattr(self, 'clipboard_data')):
+        if hasattr(self, "clipboard_data") and callable(
+            getattr(self, "clipboard_data")
+        ):
             clipboard_text = self.clipboard_data()
         else:
             # Default behavior: use to_dict and convert to JSON
@@ -540,35 +547,32 @@ class PersistenceMixin:
 
         # Determine the clipboard command based on the operating system
         system = platform.system()
-        
+
         try:
             if system == "Darwin":  # macOS
-                process = subprocess.Popen(['pbcopy'], stdin=subprocess.PIPE)
-                process.communicate(clipboard_text.encode('utf-8'))
+                process = subprocess.Popen(["pbcopy"], stdin=subprocess.PIPE)
+                process.communicate(clipboard_text.encode("utf-8"))
             elif system == "Linux":
-                process = subprocess.Popen(['xclip', '-selection', 'clipboard'], stdin=subprocess.PIPE)
-                process.communicate(clipboard_text.encode('utf-8'))
+                process = subprocess.Popen(
+                    ["xclip", "-selection", "clipboard"], stdin=subprocess.PIPE
+                )
+                process.communicate(clipboard_text.encode("utf-8"))
             elif system == "Windows":
-                process = subprocess.Popen(['clip'], stdin=subprocess.PIPE, shell=True)
-                process.communicate(clipboard_text.encode('utf-8'))
+                process = subprocess.Popen(["clip"], stdin=subprocess.PIPE, shell=True)
+                process.communicate(clipboard_text.encode("utf-8"))
             else:
                 print(f"Clipboard not supported on {system}")
                 return
-            
+
             print("Object data copied to clipboard")
         except FileNotFoundError:
-            print("Clipboard command not found. Please install pbcopy (macOS), xclip (Linux), or use Windows.")
+            print(
+                "Clipboard command not found. Please install pbcopy (macOS), xclip (Linux), or use Windows."
+            )
         except Exception as e:
             print(f"Failed to copy to clipboard: {e}")
 
-    def store(self, d: dict, key_name: Optional[str] = None):
-        if key_name is None:
-            index = len(d)
-        else:
-            index = key_name
-        d[index] = self
-
-    def save(self, filename, compress=True):
+    def save(self, filename: Optional[str] = None, compress: bool = True):
         """Save the object to a file as JSON with optional compression.
 
         Serializes the object to JSON and writes it to the specified file.
@@ -586,6 +590,10 @@ class PersistenceMixin:
             >>> obj.save("my_object.json.gz")  # Compressed
             >>> obj.save("my_object.json", compress=False)  # Uncompressed
         """
+
+        if filename is None:
+            filename = f"{self.__class__.__name__}_{str(hash(self))}.json"
+
         logger.debug(f"Saving {self.__class__.__name__} to file: {filename}")
 
         if filename.endswith("json.gz"):
@@ -868,12 +876,14 @@ class RepresentationMixin:
             summary_line = "".join([f" {k}: {v};" for k, v in summary_dict.items()])
             class_name = self.__class__.__name__
             docs = getattr(self, "__documentation__", "")
+            table = self.table()
+            table_html = table._repr_html_() if table is not None else ""
             return (
                 "<p>"
                 + f"<a href='{docs}'>{class_name}</a>"
                 + summary_line
                 + "</p>"
-                + self.table()._repr_html_()
+                + table_html
             )
         else:
             class_name = self.__class__.__name__
@@ -1529,9 +1539,25 @@ class BaseDiff:
                     try:
                         for line in diff:
                             result.append(f"      {line}")
-                    except:
+                    except (TypeError, ValueError):
                         result.append(f"      {diff}")
         return "\n".join(result)
+
+    def pretty_print(self):  # noqa: D401
+        """Pretty-print the diff to the terminal using Rich.
+
+        This method relies on :pymod:`edsl.pretty_diff` which renders the diff
+        as colourised tables.  It simply delegates to that helper so that
+        calling code can do:
+
+        >>> diff = obj1 - obj2
+        >>> diff.pretty_print()
+        """
+        from .pretty_diff import (
+            pretty_print,
+        )  # Local import now that pretty_diff is inside edsl.base
+
+        pretty_print(self)
 
     def __repr__(self):
         """Generate a developer-friendly string representation.

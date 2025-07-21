@@ -5,6 +5,7 @@ import os
 import openai
 
 from ..inference_service_abc import InferenceServiceABC
+from .message_builder import MessageBuilder
 
 # Use TYPE_CHECKING to avoid circular imports at runtime
 if TYPE_CHECKING:
@@ -132,6 +133,10 @@ class OpenAIService(InferenceServiceABC):
 
             _inference_service_ = cls._inference_service_
             _model_ = model_name
+
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+
             _parameters_ = {
                 "temperature": 0.5,
                 "max_tokens": 1000,
@@ -188,37 +193,25 @@ class OpenAIService(InferenceServiceABC):
                 self,
                 user_prompt: str,
                 system_prompt: str = "",
+                question_name: Optional[str] = None,
                 files_list: Optional[List["Files"]] = None,
                 invigilator: Optional[
                     "InvigilatorAI"
                 ] = None,  # TBD - can eventually be used for function-calling
             ) -> dict[str, Any]:
                 """Calls the OpenAI API and returns the API response."""
-                if files_list:
-                    content = [{"type": "text", "text": user_prompt}]
-                    for file_entry in files_list:
-                        content.append(
-                            {
-                                "type": "image_url",
-                                "image_url": {
-                                    "url": f"data:{file_entry.mime_type};base64,{file_entry.base64_string}"
-                                },
-                            }
-                        )
-                else:
-                    content = user_prompt
+                
+                # Use MessageBuilder to construct messages
+                message_builder = MessageBuilder(
+                    model=self.model,
+                    files_list=files_list,
+                    user_prompt=user_prompt,
+                    system_prompt=system_prompt,
+                    omit_system_prompt_if_empty=self.omit_system_prompt_if_empty
+                )
+                
                 client = self.async_client()
-
-                messages = [
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": content},
-                ]
-                if (
-                    (system_prompt == "" and self.omit_system_prompt_if_empty)
-                    or "o1" in self.model
-                    or "o3" in self.model
-                ):
-                    messages = messages[1:]
+                messages = message_builder.get_messages(sync_client=self.sync_client())
 
                 params = {
                     "model": self.model,
@@ -233,14 +226,15 @@ class OpenAIService(InferenceServiceABC):
                 }
                 if "o1" in self.model or "o3" in self.model:
                     params.pop("max_tokens")
-                    params["max_completion_tokens"] = self.max_tokens
+                    # For reasoning models, use much higher completion tokens to allow for reasoning + response
+                    reasoning_tokens = max(
+                        self.max_tokens, 5000
+                    )  # At least 5000 tokens for reasoning models
+                    params["max_completion_tokens"] = reasoning_tokens
                     params["temperature"] = 1
                 try:
                     response = await client.chat.completions.create(**params)
                 except Exception as e:
-                    # breakpoint()
-                    # print(e)
-                    # raise e
                     return {"message": str(e)}
                 return response.model_dump()
 

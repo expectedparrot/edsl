@@ -4,6 +4,7 @@ from typing import Optional, Dict, Any
 
 from ..file_methods import FileMethods
 
+
 class JsonMethods(FileMethods):
     suffix = "json"
 

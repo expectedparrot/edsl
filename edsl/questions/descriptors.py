@@ -122,6 +122,14 @@ class NumericalOrNoneDescriptor(BaseDescriptor):
 
     def validate(self, value, instance):
         """Validate the value is a number or None."""
+        if isinstance(value, str):
+            # Check if the string is a dynamic numerical value
+            if "{{" in value and "}}" in value:
+                return None
+            else:
+                raise QuestionCreationValidationError(
+                    f"Dynamic numerical values must have jinja2 braces - instead received: {value}."
+                )
         if not is_number_or_none(value):
             raise QuestionAnswerValidationError(
                 f"Expected a number or None (got {value})."
@@ -361,9 +369,9 @@ class QuestionOptionsDescriptor(BaseDescriptor):
                     f"You asked for {self.num_choices} selections, but provided {len(value)} options."
                 )
         if self.linear_scale:
-            if sorted(value) != list(range(min(value), max(value) + 1)):
+            if sorted(value) != value:
                 raise QuestionCreationValidationError(
-                    f"LinearScale.question_options must be a list of successive integers, e.g. [1, 2, 3] (got {value})."
+                    f"LinearScale.question_options must be in ascending order (got {value})."
                 )
 
 
@@ -389,8 +397,7 @@ class QuestionTextDescriptor(BaseDescriptor):
             raise QuestionCreationValidationError("Question is too short!")
         if not isinstance(value, str):
             raise QuestionCreationValidationError("Question must be a string!")
-        
- 
+
         return None
 
 

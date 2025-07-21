@@ -3,6 +3,7 @@ import tempfile
 
 from ..file_methods import FileMethods
 
+
 class DocxMethods(FileMethods):
     suffix = "docx"
 
@@ -40,7 +41,9 @@ class DocxMethods(FileMethods):
         try:
             import mammoth
         except ImportError:
-            print("mammoth is not installed. Please install it using 'pip install mammoth'.")
+            print(
+                "mammoth is not installed. Please install it using 'pip install mammoth'."
+            )
             return
         from IPython.display import HTML, display
 
@@ -73,4 +76,5 @@ class DocxMethods(FileMethods):
 
 if __name__ == "__main__":
     import doctest
+
     doctest.testmod()

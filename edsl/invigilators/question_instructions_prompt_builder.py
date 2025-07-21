@@ -167,10 +167,25 @@ class QuestionInstructionPromptBuilder:
         """
         if "question_options" in question_data:
             from .question_option_processor import QuestionOptionProcessor
+
             question_options = QuestionOptionProcessor(
                 scenario, prior_answers_dict
             ).get_question_options(question_data=question_data)
             question_data["question_options"] = question_options
+        if "min_value" in question_data and question_data["min_value"] is not None:
+            from .question_numerical_processor import QuestionNumericalProcessor
+
+            question_min_value = QuestionNumericalProcessor(
+                scenario, prior_answers_dict
+            ).get_question_numerical_value(question_data=question_data, key="min_value")
+            question_data["min_value"] = question_min_value
+        if "max_value" in question_data and question_data["max_value"] is not None:
+            from .question_numerical_processor import QuestionNumericalProcessor
+
+            question_max_value = QuestionNumericalProcessor(
+                scenario, prior_answers_dict
+            ).get_question_numerical_value(question_data=question_data, key="max_value")
+            question_data["max_value"] = question_max_value
 
         return question_data
 
@@ -208,10 +223,10 @@ class QuestionInstructionPromptBuilder:
         replacement_dict = self.qtrb.build_replacement_dict(prompt_data["data"])
 
         # Render with dict
-        rendered_prompt =prompt_data["prompt"].render(replacement_dict)
+        rendered_prompt = prompt_data["prompt"].render(replacement_dict)
         if rendered_prompt.captured_variables:
             self.captured_variables.update(rendered_prompt.captured_variables)
-            #print(f"Captured variables in QIPB: {self.captured_variables}")
+            # print(f"Captured variables in QIPB: {self.captured_variables}")
         return rendered_prompt
 
     def _validate_template_variables(self, rendered_prompt: Prompt) -> None:

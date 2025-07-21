@@ -4,6 +4,7 @@ import inspect
 
 from .exceptions import QuestionMissingTypeError, QuestionBadTypeError
 
+
 class RegisterQuestionsMeta(ABCMeta):
     """Metaclass to register output elements in a registry i.e., those that have a parent."""
 
@@ -63,13 +64,14 @@ class RegisterQuestionsMeta(ABCMeta):
                 d[cls.question_type] = cls
             else:
                 from .exceptions import QuestionMissingTypeError
+
                 raise QuestionMissingTypeError(
                     f"Class {classname} does not have a question_type class attribute"
                 )
         return d
 
 
-
 if __name__ == "__main__":
-    import doctest 
+    import doctest
+
     doctest.testmod()

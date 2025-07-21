@@ -33,11 +33,12 @@ from abc import ABC, abstractmethod
 
 from typing import (
     Any,
-    Union,
     List,
     Optional,
     TYPE_CHECKING,
 )
+
+from ..base import DiffMethodsMixin
 
 from .exceptions import LanguageModelValueError
 
@@ -129,6 +130,7 @@ class LanguageModel(
     PersistenceMixin,
     RepresentationMixin,
     HashingMixin,
+    DiffMethodsMixin,
     ABC,
     metaclass=RegisterLanguageModelsMeta,
 ):
@@ -174,7 +176,9 @@ class LanguageModel(
         """
         key_sequence = cls.key_sequence
         usage_sequence = cls.usage_sequence if hasattr(cls, "usage_sequence") else None
-        reasoning_sequence = cls.reasoning_sequence if hasattr(cls, "reasoning_sequence") else None
+        reasoning_sequence = (
+            cls.reasoning_sequence if hasattr(cls, "reasoning_sequence") else None
+        )
         return RawResponseHandler(key_sequence, usage_sequence, reasoning_sequence)
 
     def __init__(
@@ -776,9 +780,6 @@ class LanguageModel(
             base_timeout = float(CONFIG.get("EDSL_API_TIMEOUT"))
 
             # Adjust timeout if files are present
-            import time
-
-            start = time.time()
             if files_list:
                 # Calculate total size of attached files in MB
                 file_sizes = []

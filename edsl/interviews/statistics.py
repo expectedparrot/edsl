@@ -1,9 +1,10 @@
 from collections import UserDict
-from typing import DefaultDict, Union, Optional
+from typing import DefaultDict, Optional
 
 from ..tokens import InterviewTokenUsage
 
 InterviewTokenUsageMapping = DefaultDict[str, InterviewTokenUsage]
+
 
 class InterviewStatistic(UserDict):
     """A statistic for an interview."""

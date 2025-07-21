@@ -36,7 +36,7 @@ file_handler = logging.FileHandler(VALIDATION_LOG_FILE)
 file_handler.setLevel(logging.INFO)
 
 # Create formatter
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 file_handler.setFormatter(formatter)
 
 # Add handler to logger
@@ -44,7 +44,7 @@ logger.addHandler(file_handler)
 
 # Touch the log file to make sure it exists
 if not os.path.exists(VALIDATION_LOG_FILE):
-    with open(VALIDATION_LOG_FILE, 'a'):
+    with open(VALIDATION_LOG_FILE, "a"):
         pass
 
 
@@ -58,7 +58,7 @@ def log_validation_failure(
 ) -> None:
     """
     Log a validation failure to the validation failures log file.
-    
+
     Args:
         question_type: The type of question that had a validation failure
         question_name: The name of the question
@@ -77,39 +77,41 @@ def log_validation_failure(
         "question_dict": question_dict,
         "traceback": traceback.format_exc(),
     }
-    
+
     # Log as JSON for easier parsing
     logger.info(json.dumps(log_entry))
-    
+
     # Write directly to the file as well to ensure it's written
     with open(VALIDATION_LOG_FILE, "a") as f:
-        f.write(f"{datetime.datetime.now().isoformat()} - validation_failures - INFO - {json.dumps(log_entry)}\n")
+        f.write(
+            f"{datetime.datetime.now().isoformat()} - validation_failures - INFO - {json.dumps(log_entry)}\n"
+        )
         f.flush()
 
 
 def get_validation_failure_logs(n: int = 10) -> list:
     """
     Get the latest n validation failure logs.
-    
+
     Args:
         n: Number of logs to return (default: 10)
-        
+
     Returns:
         List of validation failure log entries as dictionaries
     """
     logs = []
-    
+
     # Check if log file exists
     if not os.path.exists(VALIDATION_LOG_FILE):
         return logs
-        
+
     with open(VALIDATION_LOG_FILE, "r") as f:
         for line in f:
             try:
                 # Skip non-JSON lines (like logger initialization)
                 if not line.strip():
                     continue
-                    
+
                 # Handle both the Python logging format and our direct write format
                 parts = line.strip().split(" - ")
                 if len(parts) >= 4:
@@ -124,7 +126,7 @@ def get_validation_failure_logs(n: int = 10) -> list:
             except (IndexError, ValueError):
                 # Skip malformed lines
                 continue
-    
+
     # Return most recent logs first
     return sorted(logs, key=lambda x: x.get("timestamp", ""), reverse=True)[:n]
 

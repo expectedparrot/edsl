@@ -18,25 +18,12 @@ from __future__ import annotations
 import asyncio
 import copy
 from dataclasses import dataclass
+from importlib import import_module
 from typing import TYPE_CHECKING, Any, Generator, List, Optional, Type
-
-if TYPE_CHECKING:
-    from ..jobs.data_structures import RunConfig
-    from .interview_status_log import InterviewStatusLog
 
 # Import data structures
 from ..jobs.data_structures import Answers
 from ..jobs.fetch_invigilator import FetchInvigilator
-
-# Use import_module to avoid circular import
-from importlib import import_module
-
-
-def get_model_buckets():
-    buckets_module = import_module("edsl.buckets.model_buckets")
-    return buckets_module.ModelBuckets
-
-
 from ..surveys import Survey
 from ..utilities.utilities import dict_hash
 
@@ -53,8 +40,14 @@ if TYPE_CHECKING:
     from ..invigilators import InvigilatorBase
     from ..language_models import LanguageModel
     from ..scenarios import Scenario
-    from ..surveys import Survey
     from ..tokens import InterviewTokenUsage
+    from ..jobs.data_structures import RunConfig
+    from .interview_status_log import InterviewStatusLog
+
+
+def get_model_buckets():
+    buckets_module = import_module("edsl.buckets.model_buckets")
+    return buckets_module.ModelBuckets
 
 
 @dataclass

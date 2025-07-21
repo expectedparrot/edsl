@@ -1,5 +1,5 @@
 from ..enums import TokenPricing
-from .exceptions import TokenUsageError, TokenCostError
+from .exceptions import TokenUsageError
 
 
 class TokenUsage:

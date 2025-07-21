@@ -275,6 +275,92 @@ class Result(Base, UserDict):
                 )
         return None
 
+    def transcript(self, format: str = "simple"):
+        """Return the questions and answers in a human-readable transcript.
+
+        Parameters
+        ----------
+        format : str, optional (``'simple'`` or ``'rich'``)
+            ``'simple'`` (default) returns plain-text:
+
+            QUESTION: <question text>
+            OPTIONS: <opt1 / opt2 / ...>   # only when options are available
+            ANSWER:   <answer>
+
+            Each block is separated by a blank line.
+
+            ``'rich'`` uses the *rich* library (if installed) to wrap each Q&A block in a
+            ``Panel`` and returns the coloured/boxed string. Attempting to use the *rich*
+            format without the dependency available raises ``ImportError``.
+        """
+
+        if format not in {"simple", "rich"}:
+            raise ValueError("format must be either 'simple' or 'rich'")
+
+        # Helper to extract question text, options, answer value
+        def _components(q_name):
+            meta = self.question_to_attributes.get(q_name, {})
+            q_text = meta.get("question_text", q_name)
+            options = meta.get("question_options")
+
+            # stringify options if they exist
+            opt_str: str | None
+            if options:
+                if isinstance(options, (list, tuple)):
+                    opt_str = " / ".join(map(str, options))
+                elif isinstance(options, dict):
+                    opt_str = " / ".join(f"{k}: {v}" for k, v in options.items())
+                else:
+                    opt_str = str(options)
+            else:
+                opt_str = None
+
+            ans_val = self.answer[q_name]
+            if not isinstance(ans_val, str):
+                ans_val = str(ans_val)
+
+            return q_text, opt_str, ans_val
+
+        # SIMPLE (plain-text) format -------------------------------------
+        if format == "simple":
+            lines: list[str] = []
+            for q_name in self.answer:
+                q_text, opt_str, ans_val = _components(q_name)
+                lines.append(f"QUESTION: {q_text}")
+                if opt_str is not None:
+                    lines.append(f"OPTIONS: {opt_str}")
+                lines.append(f"ANSWER: {ans_val}")
+                lines.append("")
+
+            if lines and lines[-1] == "":
+                lines.pop()  # trailing blank line
+
+            return "\n".join(lines)
+
+        # RICH format ----------------------------------------------------
+        try:
+            from rich.console import Console
+            from rich.panel import Panel
+        except ImportError as exc:
+            raise ImportError(
+                "The 'rich' package is required for format='rich'. Install it with `pip install rich`."
+            ) from exc
+
+        console = Console()
+        with console.capture() as capture:
+            for q_name in self.answer:
+                q_text, opt_str, ans_val = _components(q_name)
+
+                block_lines = [f"[bold]QUESTION:[/bold] {q_text}"]
+                if opt_str is not None:
+                    block_lines.append(f"[italic]OPTIONS:[/italic] {opt_str}")
+                block_lines.append(f"[bold]ANSWER:[/bold] {ans_val}")
+
+                console.print(Panel("\n".join(block_lines), expand=False))
+                console.print()  # blank line between panels
+
+        return capture.get()
+
     def code(self):
         """Return a string of code that can be used to recreate the Result object."""
         from .exceptions import ResultsError
@@ -377,13 +463,17 @@ class Result(Base, UserDict):
         d = {}
         problem_keys = []
         data_types = sorted(self.sub_dicts.keys())
+        if "answer" in data_types:
+            data_types.remove("answer")
+            data_types = ["answer"] + data_types
         for data_type in data_types:
             for key in self.sub_dicts[data_type]:
                 if key in d:
                     import warnings
 
                     warnings.warn(
-                        f"Key '{key}' of data type '{data_type}' is already in use. Renaming to {key}_{data_type}"
+                        f"Key '{key}' of data type '{data_type}' is already in use. Renaming to {key}_{data_type}.\n"
+                        f"Conflicting data_type for this key at {d[key]}"
                     )
                     problem_keys.append((key, data_type))
                     key = f"{key}_{data_type}"
@@ -604,6 +694,25 @@ class Result(Base, UserDict):
                 raise ResultsError(f"Parameter {k} not found in Result object")
         return scoring_function(**params)
 
+    def display_transcript(
+        self, show_options: bool = True, show_agent_info: bool = True
+    ) -> None:
+        """Display a rich-formatted chat transcript of the interview.
+
+        This method creates a ChatTranscript object and displays the conversation
+        between questions and agent responses in a beautiful, chat-like format
+        using the Rich library.
+
+        Args:
+            show_options: Whether to display question options if available. Defaults to True.
+            show_agent_info: Whether to show agent information at the top. Defaults to True.
+
+        """
+        from .chat_transcript import ChatTranscript
+
+        chat_transcript = ChatTranscript(self)
+        chat_transcript.view(show_options=show_options, show_agent_info=show_agent_info)
+
     @classmethod
     def from_interview(cls, interview) -> Result:
         """Return a Result object from an interview dictionary, ensuring no reference to the original interview is maintained."""
@@ -631,20 +740,24 @@ class Result(Base, UserDict):
                 cache_keys[result.question_name] = result.cache_key
             return cache_keys
 
-        def get_generated_tokens_dict(answer_key_names) -> dict[str, str]:
+        def get_generated_tokens_dict(
+            answer_key_names, question_results
+        ) -> dict[str, str]:
             generated_tokens_dict = {
                 k + "_generated_tokens": question_results[k].generated_tokens
                 for k in answer_key_names
             }
             return generated_tokens_dict
 
-        def get_comments_dict(answer_key_names) -> dict[str, str]:
+        def get_comments_dict(answer_key_names, question_results) -> dict[str, str]:
             comments_dict = {
                 k + "_comment": question_results[k].comment for k in answer_key_names
             }
             return comments_dict
 
-        def get_reasoning_summaries_dict(answer_key_names) -> dict[str, Any]:
+        def get_reasoning_summaries_dict(
+            answer_key_names, question_results
+        ) -> dict[str, Any]:
             reasoning_summaries_dict = {}
             for k in answer_key_names:
                 reasoning_summary = question_results[k].reasoning_summary
@@ -785,11 +898,19 @@ class Result(Base, UserDict):
         question_results = get_question_results(model_response_objects)
         answer_key_names = list(question_results.keys())
         generated_tokens_dict = (
-            get_generated_tokens_dict(answer_key_names) if answer_key_names else {}
+            get_generated_tokens_dict(answer_key_names, question_results)
+            if answer_key_names
+            else {}
         )
-        comments_dict = get_comments_dict(answer_key_names) if answer_key_names else {}
+        comments_dict = (
+            get_comments_dict(answer_key_names, question_results)
+            if answer_key_names
+            else {}
+        )
         reasoning_summaries_dict = (
-            get_reasoning_summaries_dict(answer_key_names) if answer_key_names else {}
+            get_reasoning_summaries_dict(answer_key_names, question_results)
+            if answer_key_names
+            else {}
         )
 
         # Get answers that are in the question results

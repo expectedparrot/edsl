@@ -1,5 +1,4 @@
-"""A list of Agents
-"""
+"""A list of Agents"""
 
 from __future__ import annotations
 import csv
@@ -29,6 +28,10 @@ logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from ..agents import Agent
+    from ..jobs import Jobs
+    from ..questions import QuestionBase as Question
+    from ..surveys import Survey
+    from ..scenarios import ScenarioList
 
 
 def is_iterable(obj):
@@ -99,6 +102,18 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         if codebook is not None:
             self.set_codebook(codebook)
 
+    def at(self, index: int) -> "Agent":
+        """Get the agent at the specified index position."""
+        return self.data[index]
+
+    def first(self) -> "Agent":
+        """Get the first agent in the list."""
+        return self.data[0]
+
+    def last(self) -> "Agent":
+        """Get the last agent in the list."""
+        return self.data[-1]
+
     def set_instruction(self, instruction: str) -> None:
         """Set the instruction for all agents in the list.
 
@@ -108,7 +123,7 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         for agent in self.data:
             agent.instruction = instruction
 
-        return None
+        return self
 
     def set_traits_presentation_template(
         self, traits_presentation_template: str
@@ -152,13 +167,88 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
             random.seed(seed)
         return AgentList(random.sample(self.data, n))
 
-    def drop(self, field_name: str) -> AgentList:
-        """Drop a field from the AgentList.
+    def drop(self, *field_names: Union[str, List[str]]) -> AgentList:
+        """Drop field(s) from all agents in the AgentList.
 
         Args:
-            field_name: The name of the field to drop.
+            *field_names: The name(s) of the field(s) to drop. Can be:
+                - Single field name: drop("age")
+                - Multiple field names: drop("age", "height")
+                - List of field names: drop(["age", "height"])
+
+        Returns:
+            AgentList: A new AgentList with the specified fields dropped from all agents.
+
+        Examples:
+            Drop a single trait from all agents:
+
+            >>> from edsl import Agent, AgentList
+            >>> al = AgentList([Agent(traits={"age": 30, "hair": "brown", "height": 5.5})])
+            >>> al_dropped = al.drop("age")
+            >>> al_dropped[0].traits
+            {'hair': 'brown', 'height': 5.5}
+
+            Drop multiple traits using separate arguments:
+
+            >>> al = AgentList([Agent(traits={"age": 30, "hair": "brown", "height": 5.5})])
+            >>> al_dropped = al.drop("age", "height")
+            >>> al_dropped[0].traits
+            {'hair': 'brown'}
+
+            Drop multiple traits using a list:
+
+            >>> al = AgentList([Agent(traits={"age": 30, "hair": "brown", "height": 5.5})])
+            >>> al_dropped = al.drop(["age", "height"])
+            >>> al_dropped[0].traits
+            {'hair': 'brown'}
         """
-        return AgentList([a.drop(field_name) for a in self.data])
+        return AgentList([a.drop(*field_names) for a in self.data])
+
+    def keep(self, *field_names: Union[str, List[str]]) -> AgentList:
+        """Keep only the specified fields from all agents in the AgentList.
+
+        Args:
+            *field_names: The name(s) of the field(s) to keep. Can be:
+                - Single field name: keep("age")
+                - Multiple field names: keep("age", "height")
+                - List of field names: keep(["age", "height"])
+
+        Returns:
+            AgentList: A new AgentList with only the specified fields kept for all agents.
+
+        Examples:
+            Keep a single trait for all agents:
+
+            >>> from edsl import Agent, AgentList
+            >>> al = AgentList([Agent(traits={"age": 30, "hair": "brown", "height": 5.5})])
+            >>> al_kept = al.keep("age")
+            >>> al_kept[0].traits
+            {'age': 30}
+
+            Keep multiple traits using separate arguments:
+
+            >>> al = AgentList([Agent(traits={"age": 30, "hair": "brown", "height": 5.5})])
+            >>> al_kept = al.keep("age", "height")
+            >>> al_kept[0].traits
+            {'age': 30, 'height': 5.5}
+
+            Keep multiple traits using a list:
+
+            >>> al = AgentList([Agent(traits={"age": 30, "hair": "brown", "height": 5.5})])
+            >>> al_kept = al.keep(["age", "height"])
+            >>> al_kept[0].traits
+            {'age': 30, 'height': 5.5}
+
+            Keep agent fields and traits:
+
+            >>> al = AgentList([Agent(traits={"age": 30, "hair": "brown"}, name="John")])
+            >>> al_kept = al.keep("name", "age")
+            >>> al_kept[0].name
+            'John'
+            >>> al_kept[0].traits
+            {'age': 30}
+        """
+        return AgentList([a.keep(*field_names) for a in self.data])
 
     def duplicate(self) -> AgentList:
         """Create a deep copy of the AgentList.
@@ -250,20 +340,20 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
             traits_to_select = list(traits)
 
         return AgentList([agent.select(*traits_to_select) for agent in self.data])
-    
+
     # @classmethod
-    # def from_results(self, results: "Results") -> "AgentList": 
+    # def from_results(self, results: "Results") -> "AgentList":
     #     """Create an AgentList from a Results object.
-        
+
     #     >>> from edsl import Results
     #     >>> results = Results.example()
     #     >>> al = AgentList.from_results(results)
     #     >>> al
     #     AgentList([Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5}), Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5})])
-    #     """ 
-    #     al = results.agent_list 
-    #     return al 
-     
+    #     """
+    #     al = results.agent_list
+    #     return al
+
     def filter(self, expression: str) -> AgentList:
         """Filter agents based on a boolean expression.
 
@@ -466,6 +556,20 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         """
         return dict_hash(self.to_dict(add_edsl_version=False, sorted=True))
 
+    def to(self, target: Union["Question", "Jobs", "Survey"]) -> "Jobs":
+        from ..questions import QuestionBase
+        from ..surveys import Survey
+        from ..jobs import Jobs
+
+        if isinstance(target, QuestionBase):
+            return Survey([target]).by(self)
+        elif isinstance(target, Jobs):
+            return target.by(self)
+        elif isinstance(target, Survey):
+            return target.by(self)
+        else:
+            raise ValueError(f"Cannot convert AgentList to {type(target)}")
+
     def to_dict(self, sorted=False, add_edsl_version=True):
         """Serialize the AgentList to a dictionary.
 
@@ -545,7 +649,7 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
     def table(
         self,
         *fields,
-        tablefmt: Optional[str] = None,
+        tablefmt: Optional[str] = "rich",
         pretty_labels: Optional[dict] = None,
     ) -> Any:
         if len(self) == 0:
@@ -734,8 +838,13 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         for scenario in scenario_list:
             # Simple implementation to handle the basic test case
             new_scenario = scenario.copy().data
-            new_agent = Agent(traits=new_scenario)
-            agents.append(new_agent)
+            if "name" in new_scenario:
+                new_scenario["agent_name"] = new_scenario.pop("name")
+                new_agent = Agent(traits=new_scenario, name=new_scenario["agent_name"])
+                agents.append(new_agent)
+            else:
+                new_agent = Agent(traits=new_scenario)
+                agents.append(new_agent)
 
         # Add a debug check to verify we've processed the scenarios correctly
         if len(agents) != len(scenario_list):

@@ -39,10 +39,11 @@ if TYPE_CHECKING:
     from ..language_models import LanguageModel
     from ..caching import Cache
     from ..jobs import Jobs
-    from ..results import Results
+    from ..results import Results, Result
     from ..scenarios import ScenarioList
     from ..buckets.bucket_collection import BucketCollection
     from ..key_management.key_lookup import KeyLookup
+    from ..scenarios import FileStore
 
     # Define types for documentation purpose only
     VisibilityType = Literal["unlisted", "public", "private"]
@@ -241,6 +242,39 @@ class Survey(Base):
         self._cached_instruction_collection: Optional[InstructionCollection] = None
 
         self._exporter = SurveyExport(self)
+
+    def clipboard_data(self):
+        """Return the clipboard data for the survey."""
+        text = []
+        for question in self.questions:
+            text.append(question.human_readable())
+        return "\n\n".join(text)
+
+    @classmethod
+    def auto_survey(
+        cls, overall_question: str, population: str, num_questions: int
+    ) -> Survey:
+        """Create a survey with a single question that asks the user how they are doing."""
+        from edsl import ext
+
+        survey_info = ext.create_survey(
+            overall_question=overall_question,
+            population=population,
+            num_questions=num_questions,
+        )
+        return survey_info["survey"]
+
+    def generate_description(self) -> str:
+        """Generate a description of the survey."""
+        from ..questions import QuestionFreeText
+
+        question_texts = [q.question_text for q in self.questions]
+        q = QuestionFreeText(
+            question_text=f"What is a good one sentence description of this survey? The questions are: {question_texts}",
+            question_name="description",
+        )
+        results = q.run(verbose=False)
+        return results.select("answer.description").first()
 
     # In survey.py
     @property
@@ -713,6 +747,18 @@ class Survey(Base):
             questions_and_instructions, key=lambda x: self._pseudo_indices[x.name]
         )
 
+    # NEW: Public alias for compatibility with other modules such as SurveyExport
+    def recombined_questions_and_instructions(
+        self,
+    ) -> List[Union["QuestionBase", "Instruction"]]:
+        """Return a list of questions and instructions (public wrapper).
+
+        This is a thin wrapper around the internal
+        `_recombined_questions_and_instructions` method, provided for
+        compatibility with modules that expect a public accessor.
+        """
+        return self._recombined_questions_and_instructions()
+
     def set_full_memory_mode(self) -> Survey:
         """Configure the survey so agents remember all previous questions and answers.
 
@@ -1144,6 +1190,30 @@ class Survey(Base):
 
         return Jobs(survey=self).by(*args)
 
+    def gold_standard(self, q_and_a_dict: dict[str, str]) -> "Result":
+        """Run the survey with a gold standard agent and return the result object.
+
+        Args:
+            q_and_a_dict: A dictionary of question names and answers.
+        """
+        try:
+            assert set(q_and_a_dict.keys()) == set(
+                self.question_names
+            ), "q_and_a_dict must have the same keys as the survey"
+        except AssertionError:
+            raise ValueError(
+                "q_and_a_dict must have the same keys as the survey",
+                set(q_and_a_dict.keys()),
+                set(self.question_names),
+            )
+        gold_agent = Agent()
+
+        def f(self, question, scenario):
+            return q_and_a_dict[question.question_name]
+
+        gold_agent.add_direct_question_answering_method(f)
+        return self.by(gold_agent).run(disable_remote_inference=True)[0]
+
     def to_jobs(self) -> "Jobs":
         """Convert the survey to a Jobs object without adding components.
 
@@ -1394,6 +1464,195 @@ class Survey(Base):
             else:
                 return self.questions[next_question_object.next_q]
 
+    def next_question_with_instructions(
+        self,
+        current_item: Optional[Union[str, "QuestionBase", "Instruction"]] = None,
+        answers: Optional[Dict[str, Any]] = None,
+    ) -> Union["QuestionBase", "Instruction", EndOfSurveyParent]:
+        """
+        Return the next question or instruction in a survey, including instructions in sequence.
+
+        This method extends the functionality of next_question to also handle Instructions
+        that are interspersed between questions. It follows the proper sequence based on
+        pseudo indices and respects survey rules for question flow.
+
+        :param current_item: The current question or instruction in the survey.
+        :param answers: The answers for the survey so far
+
+        - If called with no arguments, it returns the first item (question or instruction) in the survey.
+        - For instructions, it returns the next item in sequence since instructions don't have answers.
+        - For questions, it uses the rule logic to determine the next question, then returns any
+          instructions that come before that target question, or the target question itself.
+        - If the next item would be past the end of the survey, an EndOfSurvey object is returned.
+
+        Returns:
+            Union["QuestionBase", "Instruction", EndOfSurveyParent]: The next question, instruction, or EndOfSurvey.
+
+        Examples:
+            With a survey that has instructions:
+
+            >>> from edsl import Instruction
+            >>> s = Survey.example(include_instructions=True)
+            >>> # Get the first item (should be the instruction)
+            >>> first_item = s.next_question_with_instructions()
+            >>> hasattr(first_item, 'text')  # Instructions have text attribute
+            True
+
+            >>> # After an instruction, get the next item
+            >>> next_item = s.next_question_with_instructions(first_item)
+            >>> hasattr(next_item, 'question_name')  # Questions have question_name attribute
+            True
+        """
+        # Get the combined and ordered list of questions and instructions
+        combined_items = self._recombined_questions_and_instructions()
+
+        if not combined_items:
+            return EndOfSurvey
+
+        # If no current item specified, return the first item
+        if current_item is None:
+            return combined_items[0]
+
+        # Handle string input by finding the corresponding item
+        if isinstance(current_item, str):
+            # Look for it in questions first
+            if current_item in self.question_name_to_index:
+                current_item = self._get_question_by_name(current_item)
+            # Then look for it in instructions
+            elif current_item in self._instruction_names_to_instructions:
+                current_item = self._instruction_names_to_instructions[current_item]
+            else:
+                raise SurveyError(f"Item name {current_item} not found in survey.")
+
+        # Find the current item's position in the combined list
+        try:
+            current_position = combined_items.index(current_item)
+        except ValueError:
+            raise SurveyError("Current item not found in survey sequence.")
+
+        # If this is an instruction, determine what comes next
+        if hasattr(current_item, "text") and not hasattr(current_item, "question_name"):
+            # This is an instruction
+            if current_position + 1 >= len(combined_items):
+                return EndOfSurvey
+
+            # Check if this instruction is between questions that have rule-based navigation
+            # We need to figure out what question would have led to this instruction
+            prev_question = None
+            for i in range(current_position - 1, -1, -1):
+                item = combined_items[i]
+                if hasattr(item, "question_name"):
+                    prev_question = item
+                    break
+
+            if prev_question is not None:
+                # Check if there are rules from this previous question that would jump over the next sequential question
+                prev_q_index = self.question_name_to_index[prev_question.question_name]
+                answer_dict = answers if answers is not None else {}
+
+                try:
+                    next_question_object = self.rule_collection.next_question(
+                        prev_q_index, answer_dict
+                    )
+                    if (
+                        next_question_object.num_rules_found > 0
+                        and next_question_object.next_q != EndOfSurvey
+                    ):
+                        # There's a rule that determined the next question
+                        target_question = self.questions[next_question_object.next_q]
+                        target_position = combined_items.index(target_question)
+
+                        # If the target is after this instruction, continue toward it
+                        if target_position > current_position:
+                            # Look for the next question that should be shown
+                            next_position = current_position + 1
+                            while next_position < target_position:
+                                next_item = combined_items[next_position]
+                                if hasattr(next_item, "text") and not hasattr(
+                                    next_item, "question_name"
+                                ):
+                                    # Another instruction before target
+                                    return next_item
+                                next_position += 1
+                            # No more instructions, return the target
+                            return target_question
+                except (SurveyHasNoRulesError, IndexError):
+                    # No rules or error, fall back to sequential
+                    pass
+
+            # Default: return next item in sequence
+            return combined_items[current_position + 1]
+
+        # This is a question - use rule logic to determine the target next question
+        if not hasattr(current_item, "question_name"):
+            raise SurveyError("Current item is neither a question nor an instruction.")
+
+        question_index = self.question_name_to_index[current_item.question_name]
+        answer_dict = answers if answers is not None else {}
+
+        next_question_object = self.rule_collection.next_question(
+            question_index, answer_dict
+        )
+
+        if next_question_object.num_rules_found == 0:
+            raise SurveyHasNoRulesError("No rules found for this question")
+
+        # Handle end of survey case
+        if next_question_object.next_q == EndOfSurvey:
+            # Check if there are any instructions after the current question before ending
+            next_position = current_position + 1
+            if next_position < len(combined_items):
+                next_item = combined_items[next_position]
+                if hasattr(next_item, "text") and not hasattr(
+                    next_item, "question_name"
+                ):
+                    return next_item
+            return EndOfSurvey
+
+        if next_question_object.next_q >= len(self.questions):
+            # Check if there are any instructions after the current question before ending
+            next_position = current_position + 1
+            if next_position < len(combined_items):
+                next_item = combined_items[next_position]
+                if hasattr(next_item, "text") and not hasattr(
+                    next_item, "question_name"
+                ):
+                    return next_item
+            return EndOfSurvey
+
+        # Find the target question in the combined list
+        target_question = self.questions[next_question_object.next_q]
+        try:
+            target_position = combined_items.index(target_question)
+        except ValueError:
+            # This shouldn't happen, but handle gracefully
+            return target_question
+
+        # Look for any instructions between current position and target position
+        # Start checking from the position after current
+        next_position = current_position + 1
+
+        # If we're already at or past the end, return EndOfSurvey
+        if next_position >= len(combined_items):
+            return EndOfSurvey
+
+        # If the target question is the very next item, return it
+        if next_position == target_position:
+            return target_question
+
+        # If there are items between current and target, check if any are instructions
+        # that should be shown before reaching the target question
+        while next_position < target_position:
+            next_item = combined_items[next_position]
+            # If it's an instruction, return it (caller should pass target when calling again)
+            if hasattr(next_item, "text") and not hasattr(next_item, "question_name"):
+                return next_item
+            next_position += 1
+
+        # If we've gone through all items between current and target without finding
+        # an instruction, return the target question
+        return target_question
+
     def gen_path_through_survey(self) -> Generator[QuestionBase, dict, None]:
         """Generate a coroutine that navigates through the survey based on answers.
 
@@ -1536,7 +1795,7 @@ class Survey(Base):
     def tree(self, node_list: Optional[List[str]] = None):
         return self.to_scenario_list().tree(node_list=node_list)
 
-    def table(self, *fields, tablefmt=None) -> Table:
+    def table(self, *fields, tablefmt="rich") -> Table:
         return self.to_scenario_list().to_dataset().table(*fields, tablefmt=tablefmt)
 
     def codebook(self) -> Dict[str, str]:
@@ -1550,6 +1809,35 @@ class Survey(Base):
         for question in self.questions:
             codebook[question.question_name] = question.question_text
         return codebook
+
+    def edit(self):
+        import webbrowser
+        import time
+
+        info = self.push()
+        print("Waiting for survey to be created on Coop...")
+        time.sleep(5)
+        url = f"https://www.expectedparrot.com/edit/survey/{info['uuid']}"
+        webbrowser.open(url)
+        print(f"Survey opened in web editor: {url}")
+
+        # Wait for user to confirm editing is complete
+        while True:
+            user_input = input("Is editing complete [y/n]: ").strip().lower()
+            if user_input in ["y", "yes"]:
+                print("Waiting for changes to sync...")
+                time.sleep(5)
+                # Pull the updated survey and update current object
+                updated_survey = Survey.pull(info["uuid"])
+                # Update the current object's attributes with the pulled survey
+                self.__dict__.update(updated_survey.__dict__)
+                print("Survey updated with changes from web editor.")
+                break
+            elif user_input in ["n", "no"]:
+                print("Editing session ended. Survey remains unchanged.")
+                break
+            else:
+                print("Please enter 'y' for yes or 'n' for no.")
 
     @classmethod
     def example(
@@ -1693,14 +1981,48 @@ class Survey(Base):
         """Return the description of the survey."""
         return self._exporter.get_description()
 
+    # NEW PREFERRED METHOD NAMES
+    def to_docx(
+        self,
+        filename: Optional[str] = None,
+    ) -> FileStore:
+        """Generate a docx document for the survey.
+
+        This is the preferred alias for the deprecated ``docx`` method.
+        """
+        return self._exporter.docx(filename)
+
+    def to_html(
+        self,
+        scenario: Optional[dict] = None,
+        filename: Optional[str] = None,
+        return_link: bool = False,
+        css: Optional[str] = None,
+        cta: str = "Open HTML file",
+        include_question_name: bool = False,
+    ) -> FileStore:
+        """Generate HTML representation of the survey.
+
+        This is the preferred alias for the deprecated ``html`` method.
+        """
+        return self._exporter.html(
+            scenario, filename, return_link, css, cta, include_question_name
+        )
+
+    # Deprecated aliases – keep for backward compatibility
     def docx(
         self,
-        return_document_object: bool = False,
-        filename: str = "",
-        open_file: bool = False,
-    ) -> Union["Document", None]:
-        """Generate a docx document for the survey."""
-        return self._exporter.docx(return_document_object, filename, open_file)
+        filename: Optional[str] = None,
+    ) -> FileStore:
+        """DEPRECATED: Use :py:meth:`to_docx` instead."""
+        import warnings
+
+        warnings.warn(
+            "Survey.docx is deprecated and will be removed in a future release. Use Survey.to_docx instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.to_docx(filename)
 
     def show(self):
         """Display the survey in a rich format."""
@@ -1719,16 +2041,48 @@ class Survey(Base):
     def html(
         self,
         scenario: Optional[dict] = None,
-        filename: str = "",
+        filename: Optional[str] = None,
         return_link=False,
         css: Optional[str] = None,
         cta: str = "Open HTML file",
         include_question_name=False,
-    ):
-        """Generate HTML representation of the survey."""
-        return self._exporter.html(
-            scenario, filename, return_link, css, cta, include_question_name
+    ) -> FileStore:
+        """DEPRECATED: Use :py:meth:`to_html` instead."""
+        import warnings
+
+        warnings.warn(
+            "Survey.html is deprecated and will be removed in a future release. Use Survey.to_html instead.",
+            DeprecationWarning,
+            stacklevel=2,
         )
+        return self.to_html(
+            scenario,
+            filename,
+            return_link=return_link,
+            css=css,
+            cta=cta,
+            include_question_name=include_question_name,
+        )
+
+    def latex(
+        self,
+        filename: Optional[str] = None,
+        include_question_name: bool = False,
+        standalone: bool = True,
+    ) -> "FileStore":
+        """Generate a LaTeX (.tex) representation of the survey.
+
+        Parameters
+        ----------
+        filename : Optional[str]
+            The filename to write to. If not provided, a temporary file is created
+            in the current working directory with a ``.tex`` suffix.
+        include_question_name : bool
+            If True, includes the internal ``question_name`` of each question. Default False.
+        standalone : bool
+            If True, the LaTeX file is standalone. Default True.
+        """
+        return self._exporter.latex(filename, include_question_name, standalone)
 
     def copy(self) -> "Survey":
         """Create a deep copy of the survey using serialization.

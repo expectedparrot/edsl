@@ -1,6 +1,7 @@
 from typing import Protocol
 import sys
-#from edsl.scenarios.FileStore import HTMLFileStore
+
+# from edsl.scenarios.FileStore import HTMLFileStore
 from ..config import CONFIG
 from ..coop.coop import Coop
 from ..scenarios import FileStore
@@ -43,7 +44,7 @@ class ResultsExceptionsHandler:
         self.parameters = parameters
 
         self.open_in_browser = self._get_browser_setting()
-        #self.remote_logging = self._get_remote_logging_setting()
+        # self.remote_logging = self._get_remote_logging_setting()
         self.remote_logging = False
 
     def _get_browser_setting(self) -> bool:
@@ -69,7 +70,7 @@ class ResultsExceptionsHandler:
 
     def _generate_error_message(self, indices) -> str:
         """Generate appropriate error message based on number of exceptions."""
-        msg = "Exceptions were raised.\n" 
+        msg = "Exceptions were raised.\n"
         return msg
 
     def handle_exceptions(self) -> None:
