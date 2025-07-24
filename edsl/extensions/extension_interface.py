@@ -61,6 +61,10 @@ class ExtensionService:
         # Prepare headers
         headers = {"Content-Type": "application/json"}
 
+        # Use EXPECTED_PARROT_API_KEY as default if no token provided
+        if token is None:
+            token = os.environ.get("EXPECTED_PARROT_API_KEY")
+
         # Add authorization if token provided
         if token:
             headers["Authorization"] = f"Bearer {token}"
@@ -155,12 +159,17 @@ class ExtensionService:
 
             if self.local_mode:
                 # Direct call to service bypassing gateway
-                token = kwargs.pop("ep_api_token", None)
+                # Set default ep_api_token if not provided
+                if "ep_api_token" not in kwargs:
+                    env_token = os.environ.get("EXPECTED_PARROT_API_KEY")
+                    if env_token:
+                        kwargs["ep_api_token"] = env_token
+
                 return self._call_service_directly(
                     path=path,
                     method="POST",
                     json_data=kwargs,
-                    token=token,
+                    token=None,  # Token is passed in the JSON body for local services
                 )
             else:
                 # Call through gateway (existing behavior)
