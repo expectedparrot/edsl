@@ -141,7 +141,7 @@ class Interview:
             {'q0': 0, 'q1': 1, 'q2': 2}
         """
         self.agent = agent
-        self.survey = copy.deepcopy(survey)  # why do we need to deepcopy the survey?
+        self.survey = survey  # Removed deepcopy for performance - surveys should be immutable during interviews
         self.scenario = scenario
         self.model = model
         self.iteration = iteration

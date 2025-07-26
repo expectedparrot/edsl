@@ -48,6 +48,30 @@ class TestSelector(unittest.TestCase):
             f"{data_type}-{key}-val2",
         ]
         
+        # Mock Results instance with cache and data
+        self.mock_results_instance = Mock()
+        self.mock_results_instance._fetch_list_cache = {}
+        
+        # Create mock data rows with sub_dicts structure
+        mock_row1 = Mock()
+        mock_row1.sub_dicts = {
+            "answer": {"question1": "answer-question1-val1", "question2": "answer-question2-val1"},
+            "agent": {"name": "agent-name-val1", "status": "agent-status-val1", "agent_id": "agent-agent_id-val1"},
+            "model": {"model_name": "model-model_name-val1", "temperature": "model-temperature-val1"}
+        }
+        
+        mock_row2 = Mock()
+        mock_row2.sub_dicts = {
+            "answer": {"question1": "answer-question1-val2", "question2": "answer-question2-val2"},
+            "agent": {"name": "agent-name-val2", "status": "agent-status-val2", "agent_id": "agent-agent_id-val2"},
+            "model": {"model_name": "model-model_name-val2", "temperature": "model-temperature-val2"}
+        }
+        
+        self.mock_results_instance.data = [mock_row1, mock_row2]
+        
+        # Set the __self__ attribute of the mock function
+        self.fetch_list_func.__self__ = self.mock_results_instance
+        
         # Create a list of available columns
         self.columns = [
             "answer.question1",
