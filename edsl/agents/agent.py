@@ -447,6 +447,54 @@ class Agent(Base):
 
         return AgentChat(self).run()
 
+    def _sanitize_jinja_syntax(self, data: dict, data_type: str) -> dict:
+        """Sanitize values that contain problematic Jinja2 syntax by replacing with safe equivalents.
+        
+        Args:
+            data: Dictionary to sanitize
+            data_type: Type of data being sanitized (for warning messages)
+            
+        Returns:
+            dict: Sanitized copy of the input data
+        """
+        import warnings
+        
+        jinja_replacements = {
+            '{#': '&#123;&#35;',  # HTML entities to preserve original meaning
+            '#}': '&#35;&#125;',
+            '{{': '&#123;&#123;',
+            '}}': '&#125;&#125;',
+            '{%': '&#123;&#37;',
+            '%}': '&#37;&#125;'
+        }
+        
+        def sanitize_value(value, key_path=""):
+            if isinstance(value, str):
+                original_value = value
+                for pattern, replacement in jinja_replacements.items():
+                    if pattern in value:
+                        value = value.replace(pattern, replacement)
+                
+                if value != original_value:
+                    warnings.warn(
+                        f"Jinja2 template syntax found in {data_type} "
+                        f"{'at key ' + key_path if key_path else ''} and has been escaped. "
+                        f"Original: {repr(original_value[:100])}{'...' if len(original_value) > 100 else ''}"
+                    )
+                return value
+            elif isinstance(value, dict):
+                return {k: sanitize_value(v, f"{key_path}.{k}" if key_path else k) 
+                       for k, v in value.items()}
+            elif isinstance(value, list):
+                return [sanitize_value(item, f"{key_path}[{i}]" if key_path else f"[{i}]") 
+                       for i, item in enumerate(value)]
+            elif isinstance(value, tuple):
+                return tuple(sanitize_value(item, f"{key_path}[{i}]" if key_path else f"[{i}]") 
+                           for i, item in enumerate(value))
+            return value
+        
+        return {key: sanitize_value(value, key) for key, value in data.items()}
+
     def _initialize_basic_attributes(
         self, traits: Optional[dict], name: Optional[str], codebook: Optional[dict]
     ) -> None:
@@ -464,6 +512,13 @@ class Agent(Base):
             'John'
         """
         self.name = name
+        
+        # Sanitize traits and codebook for Jinja2 syntax
+        if traits:
+            traits = self._sanitize_jinja_syntax(traits, "traits")
+        if codebook:
+            codebook = self._sanitize_jinja_syntax(codebook, "codebook")
+            
         self._traits = AgentTraits(traits or {}, parent=self)
         self.codebook = codebook or dict()
 
