@@ -1005,9 +1005,9 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             d: dict = defaultdict(set)
             for result in self.data:
                 for key, value in result.key_to_data_type.items():
-                    d[value] = d[value].union(set({key}))
+                    d[value].add(key)
             for column in self.created_columns:
-                d["answer"] = d["answer"].union(set({column}))
+                d["answer"].add(column)
             self._data_type_to_keys_cache = d
 
         return self._data_type_to_keys_cache
