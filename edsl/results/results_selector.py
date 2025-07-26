@@ -490,7 +490,12 @@ class Selector:
                 new_data.append({f"{data_type}.{key}": entries})
 
         # Ensure items are returned in the order they were requested
-        return [d for key in self.items_in_order for d in new_data if key in d]
+        # Create a lookup dictionary for O(1) access instead of O(n) search
+        data_dict = {}
+        for d in new_data:
+            data_dict.update(d)
+        
+        return [{key: data_dict[key]} for key in self.items_in_order if key in data_dict]
 
 
 if __name__ == "__main__":
