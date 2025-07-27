@@ -124,6 +124,11 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
             agent.instruction = instruction
 
         return self
+    
+    @classmethod
+    def manage(cls):
+        from ..widgets.agent_list_manager import AgentListManagerWidget
+        return AgentListManagerWidget()
 
     def set_traits_presentation_template(
         self, traits_presentation_template: str
