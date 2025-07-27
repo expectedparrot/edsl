@@ -19,10 +19,10 @@ class EDSLQuestionWidget(anywidget.AnyWidget):
     _esm = response_text
 
     # Traitlets for bidirectional communication
-    validation_request = traitlets.Dict().tag(
+    validation_request = traitlets.Dict({"is_default": True}).tag(
         sync=True
     )  # {id, params} for each validation request
-    validation_result = traitlets.Dict().tag(
+    validation_result = traitlets.Dict({"is_default": True}).tag(
         sync=True
     )  # {id, success, error/message} for results
 
@@ -45,11 +45,12 @@ class EDSLQuestionWidget(anywidget.AnyWidget):
             return
 
         # Validate the params and store result with request ID
-        self._validate_question_params(params, request_id)
+        result = self._validate_question_params(params, request_id)
+        self.validation_result = result
 
     def _validate_question_params(
         self, params: Dict[str, Any], request_id: str = None
-    ) -> None:
+    ) -> dict:
         """
         Try to instantiate an EDSL Question with the provided parameters.
         Updates the validation_result traitlet with success/error information.
@@ -83,23 +84,25 @@ class EDSLQuestionWidget(anywidget.AnyWidget):
 
             # If successful, set validation result via traitlet
             result = {
+                "is_default": False,
                 "id": request_id,
                 "success": True,
                 "message": "Question created successfully!",
                 "question_repr": str(question),
                 "timestamp": self._get_timestamp(),
             }
-            self.validation_result = result
+            return result
 
         except ImportError as e:
             # EDSL not available
             result = {
+                "is_default": False,
                 "id": request_id,
                 "success": False,
                 "error": f"EDSL not installed. Please install with: pip install edsl\nDetails: {str(e)}",
                 "timestamp": self._get_timestamp(),
             }
-            self.validation_result = result
+            return result
 
         except Exception as e:
             # Question creation failed
@@ -110,12 +113,13 @@ class EDSLQuestionWidget(anywidget.AnyWidget):
                 error_msg = f"Missing required parameter: {error_msg}"
 
             result = {
+                "is_default": False,
                 "id": request_id,
                 "success": False,
                 "error": f"Question validation failed: {error_msg}",
                 "timestamp": self._get_timestamp(),
             }
-            self.validation_result = result
+            return result
 
     def _get_timestamp(self) -> str:
         """Get current timestamp for validation tracking."""
