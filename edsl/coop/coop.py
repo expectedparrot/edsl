@@ -678,6 +678,17 @@ class Coop(CoopFunctionsMixin):
             return response.json()
         except Timeout:
             return {}
+        
+    def _get_widget_javascript(self, widget_name: str) -> str:
+        """
+        Fetches the javascript for a widget from the server using cached singleton.
+        
+        This method uses the CoopVisualization singleton to cache ESM and CSS content,
+        ensuring they are only fetched once per session for improved performance.
+        """
+        from .coop_widgets import get_widget_javascript
+        esm, css = get_widget_javascript(widget_name)
+        return esm, css
 
     ################
     # Objects

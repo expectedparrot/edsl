@@ -1,0 +1,3 @@
+[submodule "edsl/widgets/src"]
+	path = edsl/widgets/src
+	url = git@github.com:expectedparrot/edsl-widgets-src.git
