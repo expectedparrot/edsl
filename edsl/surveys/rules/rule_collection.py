@@ -112,6 +112,9 @@ class RuleCollection(UserList):
         0
         """
         self.append(rule)
+        # Clear the rules cache when new rules are added
+        if hasattr(self, '_rules_cache'):
+            self._rules_cache.clear()
 
     def show_rules(self) -> None:
         """Print the rules in a table."""
@@ -167,11 +170,19 @@ class RuleCollection(UserList):
         2. "q1 == 'b' ==> 4
         3. "q1 == 'c' ==> 5
         """
-        return [
-            rule
-            for rule in self
-            if rule.current_q == q_now and rule.before_rule == before_rule
-        ]
+        # Cache rules by position to avoid repeated filtering
+        cache_key = (q_now, before_rule)
+        if not hasattr(self, '_rules_cache'):
+            self._rules_cache = {}
+        
+        if cache_key not in self._rules_cache:
+            self._rules_cache[cache_key] = [
+                rule
+                for rule in self
+                if rule.current_q == q_now and rule.before_rule == before_rule
+            ]
+        
+        return self._rules_cache[cache_key]
 
     def next_question(self, q_now: int, answers: dict[str, Any]) -> NextQuestion:
         """Find the next question by index, given the rule collection.

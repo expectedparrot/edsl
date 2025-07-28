@@ -103,6 +103,17 @@ class SkipHandler:
         - The scenario should have "scenario." added to the keys
         - The agent traits should have "agent." added to the keys
         """
+        # Check if we have cached static components
+        if not hasattr(self, '_scenario_cache'):
+            self._scenario_cache = {f"scenario.{k}": v for k, v in self._scenario.items()}
+        
+        if not hasattr(self, '_agent_cache'):
+            self._agent_cache = {f"agent.{k}": v for k, v in self._agent_traits.items()}
+        
+        # Simple check - if answers haven't changed, return cached result
+        if hasattr(self, '_last_answers_id') and id(self._answers) == self._last_answers_id:
+            return self._env_cache_result
+        
         # Process answers dictionary
         processed_answers = {}
         for key, value in self._answers.items():
@@ -116,13 +127,13 @@ class SkipHandler:
                 # Regular answer
                 processed_answers[f"{key}.answer"] = value
 
-        # Process scenario dictionary
-        processed_scenario = {f"scenario.{k}": v for k, v in self._scenario.items()}
-
-        # Process agent traits
-        processed_agent = {f"agent.{k}": v for k, v in self._agent_traits.items()}
-
-        return processed_answers | processed_scenario | processed_agent
+        result = processed_answers | self._scenario_cache | self._agent_cache
+        
+        # Cache the result with object id
+        self._last_answers_id = id(self._answers)
+        self._env_cache_result = result
+        
+        return result
 
     def cancel_skipped_questions(self, current_question: "QuestionBase") -> None:
         """Cancel the tasks for questions that should be skipped."""
