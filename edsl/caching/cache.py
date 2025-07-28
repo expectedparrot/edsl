@@ -326,9 +326,15 @@ class Cache(Base):
 
             # Try to fetch from remote cache on local miss only if coop is available
             if self.coop is not None:
-                print(f"Attempting to fetch from remote cache for key: {key}")
+                if self.verbose:
+                    print(f"Attempting to fetch from remote cache for key: {key}")
                 entry = self._fetch_from_remote_cache(key)
-                print(f"Fetched from remote cache: {entry}")
+                if self.verbose:
+                    if entry is not None:
+                        print(f"Remote cache hit for key: {key}")
+                    else:
+                        print(f"Remote cache miss for key: {key}")
+
                 if entry is not None:
                     self.fetched_data[key] = entry
 
