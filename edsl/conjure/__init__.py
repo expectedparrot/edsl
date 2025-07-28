@@ -1,46 +1,60 @@
+# edsl/conjure/__init__.py
+
+import warnings
 import sys
-from types import ModuleType
-import subprocess
 
+# First try to import from the submodule location
+try:
+    from .src.conjure import Conjure
+    from .src.conjure.utilities import setup_warning_filter
+    
+    # Set up rich warning formatting when the package is imported
+    setup_warning_filter()
+    
+    _CONJURE_AVAILABLE = True
+    _CONJURE_SOURCE = "submodule"
+    
+except ImportError:
+    # Submodule not found, try importing as standalone package
+    try:
+        from conjure import Conjure
+        from conjure.utilities import setup_warning_filter
+        
+        # Set up rich warning formatting when the package is imported
+        setup_warning_filter()
+        
+        _CONJURE_AVAILABLE = True
+        _CONJURE_SOURCE = "standalone"
+        
+    except ImportError:
+        # Neither method worked - provide helpful warning
+        _CONJURE_AVAILABLE = False
+        _CONJURE_SOURCE = None
+        
+        warnings.warn(
+            "The 'edsl-conjure' functionality is not available. "
+            "You have two options:\n"
+            "1. If you cloned the edsl repository, initialize the submodule:\n"
+            "   git submodule update --init --recursive\n"
+            "2. Or install it as a standalone package:\n"
+            "   pip install git+https://github.com/expectedparrot/edsl-conjure.git\n"
+            "   Note: If installed standalone, import directly as 'from conjure import Conjure'",
+            ImportWarning,
+            stacklevel=2
+        )
+        
+        # Create placeholder classes that raise helpful errors
+        class Conjure:
+            def __init__(self, *args, **kwargs):
+                raise ImportError(
+                    "Conjure is not available. Please either:\n"
+                    "1. Initialize the submodule: git submodule update --init --recursive\n"
+                    "2. Install standalone: pip install git+https://github.com/expectedparrot/edsl-conjure.git\n"
+                    "   (Note: standalone installation requires 'from conjure import Conjure')"
+                )
+        
+        def setup_warning_filter():
+            pass  # No-op when not available
 
-class OptionalDependencyModule(ModuleType):
-    """Module that prompts to install optional dependency."""
-
-    def __init__(self):
-        super().__init__("edsl.conjure")
-        self._real_module = None
-        self._github_url = "git+https://github.com/expectedparrot/edsl-conjure.git"
-
-    def __getattr__(self, name):
-        if self._real_module is None:
-            try:
-                from conjure import conjure
-
-                self._real_module = conjure
-            except ImportError:
-                print("\nedsl-conjure is not installed.")
-                response = input("Install it now? [y/N]: ")
-                if response.lower() in ("y", "yes"):
-                    print("Installing edsl-conjure from GitHub...")
-                    # Install directly from GitHub, not via edsl[conjure]
-                    subprocess.check_call(
-                        [sys.executable, "-m", "pip", "install", self._github_url]
-                    )
-                    # Force reload of importlib caches
-                    import importlib
-
-                    importlib.invalidate_caches()
-
-                    from conjure import conjure
-
-                    self._real_module = conjure
-                else:
-                    raise ImportError(
-                        f"Install edsl-conjure with: pip install {self._github_url}"
-                    )
-
-        return getattr(self._real_module, name)
-
-
-# Replace this module with the lazy-loading module
-sys.modules[__name__] = OptionalDependencyModule()
+# Export the same interface regardless
+__all__ = ["Conjure", "setup_warning_filter", "_CONJURE_AVAILABLE", "_CONJURE_SOURCE"]
