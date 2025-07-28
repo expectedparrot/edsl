@@ -129,6 +129,10 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
     def manage(cls):
         from ..widgets.agent_list_manager import AgentListManagerWidget
         return AgentListManagerWidget()
+    
+    def edit(self):
+        from ..widgets.agent_list_builder import AgentListBuilderWidget
+        return AgentListBuilderWidget(self)
 
     def set_traits_presentation_template(
         self, traits_presentation_template: str
