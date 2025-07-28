@@ -751,7 +751,8 @@ class LanguageModel(
 
         # Try to fetch from cache
         if (
-            "{{" in invigilator.question.question_text
+            invigilator is not None
+            and "{{" in invigilator.question.question_text
             and "}}" in invigilator.question.question_text
         ):
             remote_fetch = True
