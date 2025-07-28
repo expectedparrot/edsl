@@ -286,6 +286,7 @@ class Cache(Base):
         user_prompt: str,
         iteration: int,
         validated: bool = False,
+        enable_remote_cache: bool = False,
     ) -> tuple(Union[None, str], str):
         """Retrieve a cached language model response if available.
 
