@@ -240,9 +240,6 @@ class Cache(Base):
                 entry_data = json.loads(data["json_string"])
                 cache_entry = CacheEntry.from_dict(entry_data)
 
-                if self.verbose:
-                    print(f"Remote cache hit for key: {cache_key}")
-
                 # Store in local cache for future use
                 if self.immediate_write:
                     self.data[cache_key] = cache_entry
@@ -274,6 +271,7 @@ class Cache(Base):
         user_prompt: str,
         iteration: int,
         validated: bool = False,
+        remote_fetch: bool = False,
     ) -> tuple(Union[None, str], str):
         """Retrieve a cached language model response if available.
 
@@ -325,7 +323,7 @@ class Cache(Base):
                 print(f"Local cache miss for key: {key}")
 
             # Try to fetch from remote cache on local miss only if coop is available
-            if self.coop is not None:
+            if self.coop is not None and remote_fetch:
                 if self.verbose:
                     print(f"Attempting to fetch from remote cache for key: {key}")
                 entry = self._fetch_from_remote_cache(key)
