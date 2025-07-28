@@ -37,6 +37,7 @@ from ..base import Base
 from ..utilities import remove_edsl_version, dict_hash
 from .exceptions import CacheError
 from .sql_dict import SQLiteDict
+import requests
 
 if TYPE_CHECKING:
     from .cache_entry import CacheEntry
@@ -225,18 +226,6 @@ class Cache(Base):
             CacheEntry: The cache entry if found, None otherwise
         """
         try:
-            from ..coop import Coop
-            from ..config import CONFIG
-            import requests
-
-            # Initialize Coop client if not already set
-            if self.coop is None:
-                try:
-                    self.coop = Coop()
-                except Exception:
-                    # If Coop initialization fails, return None
-                    return None
-
             # Make request to the new endpoint
             url = f"{self.coop.api_url}/api/v0/remote-cache/get-by-key/{cache_key}"
             headers = self.coop.headers
@@ -273,8 +262,7 @@ class Cache(Base):
                 return None
 
         except Exception as e:
-            if self.verbose:
-                print(f"Error fetching from remote cache: {e}")
+            print(f"Error fetching from remote cache: {e}")
             return None
 
     def fetch(
@@ -286,7 +274,6 @@ class Cache(Base):
         user_prompt: str,
         iteration: int,
         validated: bool = False,
-        enable_remote_cache: bool = False,
     ) -> tuple(Union[None, str], str):
         """Retrieve a cached language model response if available.
 
@@ -337,11 +324,13 @@ class Cache(Base):
             if self.verbose:
                 print(f"Local cache miss for key: {key}")
 
-            # Try to fetch from remote cache on local miss
-            entry = self._fetch_from_remote_cache(key)
-            print("Fetched from remote cache:", entry)
-            if entry is not None:
-                self.fetched_data[key] = entry
+            # Try to fetch from remote cache on local miss only if coop is available
+            if self.coop is not None:
+                print(f"Attempting to fetch from remote cache for key: {key}")
+                entry = self._fetch_from_remote_cache(key)
+                print(f"Fetched from remote cache: {entry}")
+                if entry is not None:
+                    self.fetched_data[key] = entry
 
         return None if entry is None else entry.output, key
 
