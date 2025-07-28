@@ -483,14 +483,52 @@ class Selector:
             >>> data[0]["answer.q1"]
             ['answer-q1-val1', 'answer-q1-val2']
         """
-        new_data = []
-        for data_type, keys in to_fetch.items():
-            for key in keys:
-                entries = self._fetch_list(data_type, key)
-                new_data.append({f"{data_type}.{key}": entries})
-
-        # Ensure items are returned in the order they were requested
-        return [d for key in self.items_in_order for d in new_data if key in d]
+        # Check if we can use the optimized batch fetching (when _fetch_list is a bound method)
+        if hasattr(self._fetch_list, '__self__'):
+            # Optimized batch fetching: extract all needed data in one pass
+            data_dict = {}
+            
+            # Check what's already cached and initialize result lists
+            uncached_requests = []
+            
+            # Access Results instance through the bound method
+            results_instance = self._fetch_list.__self__
+            
+            for data_type, keys in to_fetch.items():
+                for key in keys:
+                    column_name = f"{data_type}.{key}"
+                    cache_key = (data_type, key)
+                    
+                    if cache_key in results_instance._fetch_list_cache:
+                        # Use cached data
+                        data_dict[column_name] = results_instance._fetch_list_cache[cache_key]
+                    else:
+                        # Mark for batch extraction
+                        data_dict[column_name] = []
+                        uncached_requests.append((data_type, key, column_name))
+            
+            # Batch extract all uncached data in a single pass through results
+            if uncached_requests:
+                for row in results_instance.data:
+                    for data_type, key, column_name in uncached_requests:
+                        value = row.sub_dicts[data_type].get(key, None)
+                        data_dict[column_name].append(value)
+                
+                # Update cache for newly computed columns
+                for data_type, key, column_name in uncached_requests:
+                    cache_key = (data_type, key)
+                    results_instance._fetch_list_cache[cache_key] = data_dict[column_name]
+            
+            return [{key: data_dict[key]} for key in self.items_in_order if key in data_dict]
+        else:
+            # Fallback to original method for lambdas/functions without __self__
+            data_dict = {}
+            for data_type, keys in to_fetch.items():
+                for key in keys:
+                    column_name = f"{data_type}.{key}"
+                    data_dict[column_name] = self._fetch_list(data_type, key)
+            
+            return [{key: data_dict[key]} for key in self.items_in_order if key in data_dict]
 
 
 if __name__ == "__main__":
