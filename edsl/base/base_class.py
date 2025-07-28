@@ -1141,6 +1141,22 @@ class Base(
                 print(f"{method}: {documentation}")
         else:
             return [x[0] for x in public_methods_with_docstrings]
+        
+    def get_description(self) -> str:
+        """Get the description of this object."""
+        print("Getting description...")
+        from ..questions import QuestionFreeText
+        if self.__class__.__name__ == "Survey":
+            content = "This is a survey with the following questions: " + ", ".join([q.question_text for q in self.questions])
+        else:
+            content = str(self.to_dict())
+
+        q = QuestionFreeText(
+            question_text=f"Write a one sentence description of this (less than 200 characters): {content}?", 
+            question_name="description")
+        results = q.run()
+        return results.select("description").first()
+    
 
 
 class BaseDiffCollection(UserList):
