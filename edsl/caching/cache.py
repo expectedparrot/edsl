@@ -212,6 +212,71 @@ class Cache(Base):
     ####################
     # READ/WRITE
     ####################
+    def _fetch_from_remote_cache(self, cache_key: str) -> Optional["CacheEntry"]:
+        """Fetch a cache entry from the remote cache endpoint.
+
+        This method attempts to retrieve a cache entry from the universal cache
+        when a local cache miss occurs.
+
+        Args:
+            cache_key: The cache key to retrieve from remote cache
+
+        Returns:
+            CacheEntry: The cache entry if found, None otherwise
+        """
+        try:
+            from ..coop import Coop
+            from ..config import CONFIG
+            import requests
+
+            # Initialize Coop client if not already set
+            if self.coop is None:
+                try:
+                    self.coop = Coop()
+                except Exception:
+                    # If Coop initialization fails, return None
+                    return None
+
+            # Make request to the new endpoint
+            url = f"{self.coop.api_url}/api/v0/remote-cache/get-by-key/{cache_key}"
+            headers = self.coop.headers
+
+            response = requests.get(url, headers=headers, timeout=10)
+
+            if response.status_code == 200:
+                from .cache_entry import CacheEntry
+
+                data = response.json()
+                # Parse the CacheEntry from the JSON string
+                entry_data = json.loads(data["json_string"])
+                cache_entry = CacheEntry.from_dict(entry_data)
+
+                if self.verbose:
+                    print(f"Remote cache hit for key: {cache_key}")
+
+                # Store in local cache for future use
+                if self.immediate_write:
+                    self.data[cache_key] = cache_entry
+                else:
+                    self.new_entries_to_write_later[cache_key] = cache_entry
+
+                return cache_entry
+            elif response.status_code == 404:
+                if self.verbose:
+                    print(f"Remote cache miss for key: {cache_key}")
+                return None
+            else:
+                if self.verbose:
+                    print(
+                        f"Remote cache error {response.status_code} for key: {cache_key}"
+                    )
+                return None
+
+        except Exception as e:
+            if self.verbose:
+                print(f"Error fetching from remote cache: {e}")
+            return None
+
     def fetch(
         self,
         *,
@@ -245,6 +310,7 @@ class Cache(Base):
             - Updates self.fetched_data when a hit occurs to track cache usage
             - Optionally logs cache hit/miss when verbose=True
             - The response is returned as a JSON string for consistency
+            - On local cache miss, attempts to fetch from remote universal cache
 
         Examples:
             >>> c = Cache()
@@ -264,11 +330,18 @@ class Cache(Base):
         entry = self.data.get(key, None)
         if entry is not None:
             if self.verbose:
-                print(f"Cache hit for key: {key}")
+                print(f"Local cache hit for key: {key}")
             self.fetched_data[key] = entry
         else:
             if self.verbose:
-                print(f"Cache miss for key: {key}")
+                print(f"Local cache miss for key: {key}")
+
+            # Try to fetch from remote cache on local miss
+            entry = self._fetch_from_remote_cache(key)
+            print("Fetched from remote cache:", entry)
+            if entry is not None:
+                self.fetched_data[key] = entry
+
         return None if entry is None else entry.output, key
 
     def store(
