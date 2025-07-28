@@ -284,13 +284,13 @@ class TestSurvey(unittest.TestCase):
             == "BlueGreenRedBlueRedGreenBlueRedGreenBlueGreenRedGreenRedBlueGreenBlueRedGreenBlueRedRedBlueGreenBlueRedGreenGreenBlueRed"
         )
 
-    def test_rename_question_basic(self):
+    def test_with_renamed_question_basic(self):
         """Test basic question renaming functionality."""
         s = self.gen_survey()
         original_names = s.question_names
         
         # Rename the first question
-        s_renamed = s.rename_question("like_school", "school_preference")
+        s_renamed = s.with_renamed_question("like_school", "school_preference")
         
         # Check that the question name was updated
         self.assertEqual(s_renamed.question_names[0], "school_preference")
@@ -305,7 +305,7 @@ class TestSurvey(unittest.TestCase):
         with self.assertRaises(Exception):
             s_renamed.get("like_school")
 
-    def test_rename_question_with_rules(self):
+    def test_with_renamed_question_with_rules(self):
         """Test that rules are updated when questions are renamed."""
         from edsl.questions import QuestionFreeText
         
@@ -323,7 +323,7 @@ class TestSurvey(unittest.TestCase):
         self.assertTrue(any("{{ name.answer }}" in expr for expr in rule_expressions_before))
         
         # Rename the question
-        s_renamed = s.rename_question("name", "full_name")
+        s_renamed = s.with_renamed_question("name", "full_name")
         
         # Verify rule after rename
         rule_expressions_after = [rule.expression for rule in s_renamed.rule_collection if "full_name" in rule.expression]
@@ -333,7 +333,7 @@ class TestSurvey(unittest.TestCase):
         rule_expressions_old = [rule.expression for rule in s_renamed.rule_collection if "{{ name.answer }}" in rule.expression]
         self.assertEqual(len(rule_expressions_old), 0)
 
-    def test_rename_question_with_piping(self):
+    def test_with_renamed_question_with_piping(self):
         """Test that piping references are updated when questions are renamed."""
         from edsl.questions import QuestionFreeText, QuestionMultipleChoice
         
@@ -355,7 +355,7 @@ class TestSurvey(unittest.TestCase):
         self.assertIn("{{ user_name.answer }}", s.get("explanation").question_text)
         
         # Rename the question
-        s_renamed = s.rename_question("user_name", "participant_name")
+        s_renamed = s.with_renamed_question("user_name", "participant_name")
         
         # Verify piping after rename
         self.assertIn("{{ participant_name.answer }}", s_renamed.get("likes_surveys").question_text)
@@ -365,7 +365,7 @@ class TestSurvey(unittest.TestCase):
         self.assertNotIn("{{ user_name.answer }}", s_renamed.get("likes_surveys").question_text)
         self.assertNotIn("{{ user_name.answer }}", s_renamed.get("explanation").question_text)
 
-    def test_rename_question_with_memory_plan(self):
+    def test_with_renamed_question_with_memory_plan(self):
         """Test that memory plans are updated when questions are renamed."""
         s = self.gen_survey()
         
@@ -378,7 +378,7 @@ class TestSurvey(unittest.TestCase):
         self.assertIn("like_school", memory_plan_before["favorite_subject"].data)
         
         # Rename the focal question
-        s_renamed = s.rename_question("favorite_subject", "preferred_subject")
+        s_renamed = s.with_renamed_question("favorite_subject", "preferred_subject")
         memory_plan_after = dict(s_renamed.memory_plan)
         
         # Verify focal question name updated
@@ -387,14 +387,14 @@ class TestSurvey(unittest.TestCase):
         self.assertIn("like_school", memory_plan_after["preferred_subject"].data)
         
         # Rename the prior question
-        s_renamed2 = s_renamed.rename_question("like_school", "school_preference")
+        s_renamed2 = s_renamed.with_renamed_question("like_school", "school_preference")
         memory_plan_final = dict(s_renamed2.memory_plan)
         
         # Verify prior question name updated
         self.assertIn("school_preference", memory_plan_final["preferred_subject"].data)
         self.assertNotIn("like_school", memory_plan_final["preferred_subject"].data)
 
-    def test_rename_question_with_instructions(self):
+    def test_with_renamed_question_with_instructions(self):
         """Test that instructions are updated when questions are renamed."""
         from edsl.instructions import Instruction
         
@@ -412,38 +412,38 @@ class TestSurvey(unittest.TestCase):
         self.assertIn("{{ like_school.answer }}", instruction_text_before)
         
         # Rename the question
-        s_renamed = s_with_instruction.rename_question("like_school", "school_preference")
+        s_renamed = s_with_instruction.with_renamed_question("like_school", "school_preference")
         
         # Verify instruction after rename
         instruction_text_after = s_renamed._instruction_names_to_instructions["attention"].text
         self.assertIn("{{ school_preference.answer }}", instruction_text_after)
         self.assertNotIn("{{ like_school.answer }}", instruction_text_after)
 
-    def test_rename_question_error_conditions(self):
+    def test_with_renamed_question_error_conditions(self):
         """Test error conditions for question renaming."""
         s = self.gen_survey()
         
         # Test renaming non-existent question
         with self.assertRaises(Exception) as context:
-            s.rename_question("nonexistent", "new_name")
+            s.with_renamed_question("nonexistent", "new_name")
         self.assertIn("not found", str(context.exception))
         
         # Test renaming to existing name
         with self.assertRaises(Exception) as context:
-            s.rename_question("like_school", "favorite_subject")
+            s.with_renamed_question("like_school", "favorite_subject")
         self.assertIn("already exists", str(context.exception))
         
         # Test invalid identifier
         with self.assertRaises(Exception) as context:
-            s.rename_question("like_school", "123invalid")
+            s.with_renamed_question("like_school", "123invalid")
         self.assertIn("not a valid Python identifier", str(context.exception))
         
         # Test invalid identifier with spaces
         with self.assertRaises(Exception) as context:
-            s.rename_question("like_school", "invalid name")
+            s.with_renamed_question("like_school", "invalid name")
         self.assertIn("not a valid Python identifier", str(context.exception))
 
-    def test_rename_question_preserves_survey_structure(self):
+    def test_with_renamed_question_preserves_survey_structure(self):
         """Test that renaming preserves overall survey structure."""
         s = self.gen_survey()
         original_question_count = len(s.questions)
@@ -454,7 +454,7 @@ class TestSurvey(unittest.TestCase):
         s = s.add_targeted_memory("manual", "like_school")
         
         # Rename a question
-        s_renamed = s.rename_question("like_school", "school_preference")
+        s_renamed = s.with_renamed_question("like_school", "school_preference")
         
         # Verify structure preservation
         self.assertEqual(len(s_renamed.questions), original_question_count)
@@ -465,14 +465,14 @@ class TestSurvey(unittest.TestCase):
         next_q = s_renamed.next_question("school_preference", {"school_preference.answer": "yes"})
         self.assertEqual(next_q.question_name, "manual")
 
-    def test_rename_question_method_chaining(self):
-        """Test that rename_question can be chained with other methods."""
+    def test_with_renamed_question_method_chaining(self):
+        """Test that with_renamed_question can be chained with other methods."""
         s = self.gen_survey()
         
         # Test method chaining
-        s_chained = (s.rename_question("like_school", "school_preference")
-                    .rename_question("favorite_subject", "preferred_subject")
-                    .rename_question("manual", "hands_on"))
+        s_chained = (s.with_renamed_question("like_school", "school_preference")
+                    .with_renamed_question("favorite_subject", "preferred_subject")
+                    .with_renamed_question("manual", "hands_on"))
         
         expected_names = ["school_preference", "preferred_subject", "hands_on"]
         self.assertEqual(s_chained.question_names, expected_names)
@@ -481,7 +481,7 @@ class TestSurvey(unittest.TestCase):
         for name in expected_names:
             self.assertIsNotNone(s_chained.get(name))
 
-    def test_rename_question_complex_scenario(self):
+    def test_with_renamed_question_complex_scenario(self):
         """Test renaming in a complex scenario with multiple interdependencies."""
         from edsl.questions import QuestionFreeText, QuestionMultipleChoice
         from edsl.instructions import Instruction
@@ -515,7 +515,7 @@ class TestSurvey(unittest.TestCase):
         s = s.add_instruction(instruction)
         
         # Rename the central question
-        s_renamed = s.rename_question("user_name", "participant_name")
+        s_renamed = s.with_renamed_question("user_name", "participant_name")
         
         # Verify all components were updated
         # 1. Question text piping

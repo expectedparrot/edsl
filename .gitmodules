@@ -4,3 +4,6 @@
 [submodule "edsl/conjure/src"]
 	path = edsl/conjure/src
 	url = git@github.com:expectedparrot/edsl-conjure.git
+[submodule "edsl/lenny/src"]
+	path = edsl/lenny/src
+	url = git@github.com:expectedparrot/edsl-lenny.git

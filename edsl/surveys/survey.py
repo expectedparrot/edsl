@@ -1839,30 +1839,64 @@ class Survey(Base):
         else:
             raise TypeError(f"Survey indices must be int, str, slice, or List[str], not {type(index)}")
 
-    def select(self, *question_names: str) -> "Survey":
-        """Create a new Survey with questions selected by name.
-        
-        This is a convenient method for selecting multiple questions by name,
-        equivalent to using survey[['name1', 'name2', ...]] but with a more
-        readable syntax.
-        
-        :param question_names: Variable number of question names to select
-        :return: New Survey instance with the selected questions
-        
-        Examples:
-            >>> s = Survey.example() 
-            >>> sub = s.select('q0', 'q2')  # Select questions by name
-            >>> sub.question_names == ['q0', 'q2']
-            True
-            
-            >>> sub2 = s.select('q0')  # Select single question (returns Survey, not Question)
-            >>> len(sub2) == 1 and sub2.question_names == ['q0']
-            True
+    def select(self, *question_names: List[str]) -> "Survey":
+        """Create a new Survey with questions selected by name.        
         """
+        if isinstance(question_names, str):
+            question_names = [question_names]
+
         if not question_names:
             raise ValueError("At least one question name must be provided")
         
-        return self[list(question_names)]
+        kept_questions = [self.get(name) for name in question_names]
+        assert all(kept_questions), f"Question(s) {question_names} not found in survey"
+        return Survey(questions=kept_questions)
+
+    def drop(self, *question_names) -> "Survey":
+        """Create a new Survey with specified questions removed by name.
+        
+        This method creates a new Survey instance that contains all questions
+        except those specified in the question_names parameter. It's the inverse
+        of the select() method.
+        
+        Args:
+            *question_names: Variable number of question names to remove from the survey.
+        
+        Returns:
+            Survey: A new Survey instance with the specified questions removed.
+            
+        Raises:
+            ValueError: If no question names are provided.
+            KeyError: If any specified question name is not found in the survey.
+            
+        Examples:
+            >>> s = Survey.example() 
+            >>> s.question_names
+            ['q0', 'q1', 'q2']
+            >>> s_dropped = s.drop('q1')
+            >>> s_dropped.question_names
+            ['q0', 'q2']
+            >>> s_dropped2 = s.drop('q0', 'q2')
+            >>> s_dropped2.question_names
+            ['q1']
+        """
+        # Handle case where a single string is passed
+        if isinstance(question_names, str):
+            question_names = [question_names]
+
+        if not question_names:
+            raise ValueError("At least one question name must be provided")
+        
+        # Validate that all question names exist
+        question_map = self.question_names_to_questions()
+        for name in question_names:
+            if name not in question_map:
+                raise KeyError(f"Question '{name}' not found in survey. Available questions: {list(question_map.keys())}")
+        
+        # Get all questions except the ones to drop
+        kept_questions = [q for q in self.questions if q.question_name not in question_names]
+        
+        return self._create_subsurvey(kept_questions)
 
     def __repr__(self) -> str:
         """Return a string representation of the survey."""
@@ -1896,7 +1930,7 @@ class Survey(Base):
             codebook[question.question_name] = question.question_text
         return codebook
     
-    def with_edited_question(self, question_name: str, field_name_new_values: dict) -> "Survey":
+    def with_edited_question(self, question_name: str, field_name_new_values: dict, pop_fields: Optional[List[str]] = None) -> "Survey":
         """Return a new Survey with the specified question edited.
         
         This method creates a new Survey instance with the specified question edited.
@@ -1906,9 +1940,11 @@ class Survey(Base):
         new_survey = self.duplicate()
         question = new_survey.get(question_name)
         from ..questions import Question
-        old_dict = question.to_dict()
+        old_dict = question.to_dict(add_edsl_version=False)
         old_dict.update(field_name_new_values)
-        new_question = Question.from_dict(old_dict)
+        for field_name in pop_fields or []:
+            _ = old_dict.pop(field_name)
+        new_question = Question(**old_dict)
         new_survey.questions[new_survey.questions.index(question)] = new_question
         return new_survey
 
@@ -2208,8 +2244,8 @@ class Survey(Base):
         """
         return Survey.from_dict(self.to_dict())
 
-    def rename_question(self, old_name: str, new_name: str) -> "Survey":
-        """Rename a question and update all references to it throughout the survey.
+    def with_renamed_question(self, old_name: str, new_name: str) -> "Survey":
+        """Return a new survey with a question renamed and all references updated.
         
         This method creates a new survey with the specified question renamed. It also
         updates all references to the old question name in:
@@ -2232,7 +2268,7 @@ class Survey(Base):
             
         Examples:
             >>> s = Survey.example()
-            >>> s_renamed = s.rename_question("q0", "school_preference")
+            >>> s_renamed = s.with_renamed_question("q0", "school_preference")
             >>> s_renamed.get("school_preference").question_name
             'school_preference'
             
@@ -2344,7 +2380,8 @@ class Survey(Base):
             # Update question options if they exist
             if hasattr(question, 'question_options') and question.question_options:
                 question.question_options = [
-                    update_piping_in_text(option) for option in question.question_options
+                    update_piping_in_text(option) if isinstance(option, str) else option 
+                    for option in question.question_options
                 ]
                 
         # 5. Update instructions
