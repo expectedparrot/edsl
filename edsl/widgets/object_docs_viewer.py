@@ -37,6 +37,7 @@ class ObjectDocsViewerWidget(EDSLBaseWidget):
     
     # Widget properties
     edsl_object = SafeObjectTrait(allow_none=True)
+    object_class_name = traitlets.Unicode("").tag(sync=True)
     methods_data = traitlets.List().tag(sync=True)
     selected_method = traitlets.Unicode("").tag(sync=True)
     method_documentation = traitlets.Dict().tag(sync=True)
@@ -56,11 +57,13 @@ class ObjectDocsViewerWidget(EDSLBaseWidget):
         """Set the EDSL object and extract its public methods."""
         try:
             self.edsl_object = obj
+            self.object_class_name = obj.__class__.__name__ if obj is not None else ""
             self.error_message = ""
             self._extract_methods()
         except Exception as e:
             self.error_message = f"Error setting object: {str(e)}"
             self.methods_data = []
+            self.object_class_name = ""
     
     def _extract_methods(self):
         """Extract public methods from the EDSL object."""
