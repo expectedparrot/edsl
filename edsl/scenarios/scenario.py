@@ -574,12 +574,16 @@ class Scenario(Base, UserDict):
         {'food': 'wood chips'}
 
         """
+        import math
         from edsl.scenarios import FileStore
         from edsl.prompts import Prompt
 
         d = self.data.copy()
         for key, value in d.items():
-            if isinstance(value, FileStore) or isinstance(value, Prompt):
+            # Check for NaN values and replace with None for JSON serialization
+            if isinstance(value, float) and math.isnan(value):
+                d[key] = None
+            elif isinstance(value, FileStore) or isinstance(value, Prompt):
                 value_dict = value.to_dict(add_edsl_version=add_edsl_version)
                 if (
                     offload_base64
