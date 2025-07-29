@@ -754,6 +754,7 @@ class LanguageModel(
             invigilator is not None
             and "{{" in invigilator.question.question_text
             and "}}" in invigilator.question.question_text
+            and ".answer" in invigilator.question.question_text
         ):
             remote_fetch = True
         else:
