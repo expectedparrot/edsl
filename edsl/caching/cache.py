@@ -236,21 +236,39 @@ class Cache(Base):
                 from .cache_entry import CacheEntry
 
                 data = response.json()
-                # Parse the CacheEntry from the JSON string
-                entry_data = json.loads(data["json_string"])
-                cache_entry = CacheEntry.from_dict(entry_data)
+                status = data.get("status")
 
-                # Store in local cache for future use
-                if self.immediate_write:
-                    self.data[cache_key] = cache_entry
+                if status == "found":
+                    # Valid cache entry found
+                    cache_data = data.get("data", {})
+                    # Parse the CacheEntry from the JSON string
+                    entry_data = json.loads(cache_data["json_string"])
+                    cache_entry = CacheEntry.from_dict(entry_data)
+
+                    if self.verbose:
+                        print(f"Remote cache hit for key: {cache_key}")
+
+                    # Store in local cache for future use
+                    if self.immediate_write:
+                        self.data[cache_key] = cache_entry
+                    else:
+                        self.new_entries_to_write_later[cache_key] = cache_entry
+
+                    return cache_entry
+                elif status == "not_found":
+                    if self.verbose:
+                        print(f"Remote cache miss for key: {cache_key}")
+                    return None
+                elif status == "invalid":
+                    if self.verbose:
+                        print(
+                            f"Remote cache invalid for key: {cache_key} - {data.get('detail')}"
+                        )
+                    return None
                 else:
-                    self.new_entries_to_write_later[cache_key] = cache_entry
-
-                return cache_entry
-            elif response.status_code == 404:
-                if self.verbose:
-                    print(f"Remote cache miss for key: {cache_key}")
-                return None
+                    if self.verbose:
+                        print(f"Remote cache unexpected response for key: {cache_key}")
+                    return None
             else:
                 if self.verbose:
                     print(
