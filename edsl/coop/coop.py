@@ -767,9 +767,10 @@ class Coop(CoopFunctionsMixin):
 
     def list_widgets(
         self,
+        search_query: Optional[str] = None,
         page: int = 1,
         page_size: int = 10,
-    ) -> List[Dict]:
+    ) -> "ScenarioList":
         """
         Get metadata for all widgets.
 
@@ -784,6 +785,8 @@ class Coop(CoopFunctionsMixin):
             CoopValueError: If page or page_size parameters are invalid
             CoopServerResponseError: If there's an error communicating with the server
         """
+        from ..scenarios import Scenario, ScenarioList
+
         if page < 1:
             raise CoopValueError("The page must be greater than or equal to 1.")
         if page_size < 1:
@@ -791,19 +794,23 @@ class Coop(CoopFunctionsMixin):
         if page_size > 100:
             raise CoopValueError("The page size must be less than or equal to 100.")
 
+        params = {
+            "page": page,
+            "page_size": page_size,
+        }
+        if search_query:
+            params["search_query"] = search_query
+
         response = self._send_server_request(
             uri="api/v0/widgets/list",
             method="GET",
-            params={
-                "page": page,
-                "page_size": page_size,
-            },
+            params=params,
         )
         self._resolve_server_response(response)
         content = response.json()
         widgets = []
         for widget in content.get("widgets", []):
-            widgets.append(
+            scenario = Scenario(
                 {
                     "short_name": widget.get("short_name"),
                     "display_name": widget.get("display_name"),
@@ -815,7 +822,8 @@ class Coop(CoopFunctionsMixin):
                     "css_code_size_bytes": widget.get("css_code_size_bytes"),
                 }
             )
-        return {"widgets": widgets}
+            widgets.append(scenario)
+        return ScenarioList(widgets)
 
     def get_widget_metadata(self, short_name: str) -> Dict:
         """
@@ -871,7 +879,8 @@ class Coop(CoopFunctionsMixin):
             "display_name": content.get("display_name"),
             "description": content.get("description"),
             "esm_code": content.get("esm_code"),
-            "css_code": content.get("css_code"),
+            # CSS code is optional, but should be coerced to the empty string if not present
+            "css_code": content.get("css_code") or "",
             "esm_code_size_bytes": content.get("esm_code_size_bytes"),
             "css_code_size_bytes": content.get("css_code_size_bytes"),
         }
