@@ -519,36 +519,28 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
     def relevant_cache(self, cache: Cache) -> Cache:
         cache_keys = self._cache_keys()
         return cache.subset(cache_keys)
+    
+    def agent_answers_by_question(self, agent_key_fields: Optional[List[str]] = None, separator: str = ",") -> dict:
+        """Returns a dictionary of agent answers.
+        
+        The keys are the agent names and the values are the answers.
+        
+        >>> Results.example().agent_answers_by_question()
+        {'how_feeling': {'Agent_4': 'OK', 'Agent_5': 'Great', 'Agent_6': 'Terrible', 'Agent_7': 'OK'}, 'how_feeling_yesterday': {'Agent_4': 'Great', 'Agent_5': 'Good', 'Agent_6': 'OK', 'Agent_7': 'Terrible'}}
+        """
+        d = {}
+        if agent_key_fields is None:
+            agent_name_keys = self.select('agent.agent_name').to_list()
+        else:
+            agent_name_keys = [f"{separator}".join(x) for x in self.select(*agent_key_fields).to_list()]
 
-    # def insert(self, item):
-    #     """Insert a Result object into the Results list in the correct order.
+        for question in self.survey.questions:
+            question_name = question.question_name
+            answers = self.select(question_name).to_list()
+            d[question_name] = {k:v for k,v in zip(agent_name_keys, answers)}
 
-    #     If the Result has an 'order' attribute, it uses that for ordering.
-    #     Otherwise, it falls back to ordering by the 'iteration' attribute.
+        return d
 
-    #     >>> from edsl.results import Result
-    #     >>> rnew = Result.example()
-    #     >>> results = Results.example()
-    #     >>> results.insert(rnew)
-    #     >>> results[0] == rnew
-    #     True
-    #     >>> results = Results.example()
-    #     >>> rnew.order = 100
-    #     >>> results.insert(rnew)
-    #     >>> results[-1] == rnew  # The new result is at the end
-    #     True
-    #     """
-
-    #     def get_sort_key(result):
-    #         if hasattr(result, "order"):
-    #             return result.order
-    #         return result.data["iteration"]
-
-    #     # Find insertion point using bisect with custom key function
-    #     index = bisect_left([get_sort_key(x) for x in self.data], get_sort_key(item))
-
-    #     # Call the parent class's insert directly
-    #     MutableSequence.insert(self, index, item)
 
     def extend_sorted(self, other):
         """Extend the Results list with items from another iterable.
