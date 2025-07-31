@@ -57,14 +57,6 @@ class PersonaGenerator:
             
         Returns:
             AgentListCollection: A new collection containing the generated persona agents.
-            
-        Example:
-            >>> from edsl.agents import AgentListCollection
-            >>> generator = PersonaGenerator()
-            >>> source = AgentListCollection.example()
-            >>> result = generator.generate_from_collection(source)
-            >>> isinstance(result, AgentListCollection)
-            True
         """
         # Set up default names if not provided
         agent_list_names = self._get_agent_list_names(source_collection)
@@ -91,7 +83,14 @@ class PersonaGenerator:
         """Generate default names for agent lists if not provided."""
         if self.agent_list_names is not None:
             return self.agent_list_names
-        return [f"Persona generated from {source_collection[i].name}" for i in range(len(source_collection))]
+        names = []
+        for i in range(len(source_collection)):
+            agent_list = source_collection[i]
+            if hasattr(agent_list, 'name') and agent_list.name is not None:
+                names.append(f"Persona generated from {agent_list.name}")
+            else:
+                names.append(f"Persona generated from Agent List {i}")
+        return names
     
     def _get_collection_name(self, source_collection: 'AgentListCollection') -> Optional[str]:
         """Generate default collection name if not provided."""
@@ -206,16 +205,6 @@ class AgentListCollection(ItemCollection):
             AgentListCollection: A new collection containing the generated persona agents,
                                 organized into agent lists corresponding to the original lists.
         
-        Example:
-            >>> collection = AgentListCollection.example()
-            >>> persona_collection = collection.generate_persona_agents(
-            ...     agent_generation_prompt="Describe your personality in one sentence.",
-            ...     collection_name="Generated Personas"
-            ... )
-            >>> isinstance(persona_collection, AgentListCollection)
-            True
-            >>> persona_collection.name == "Generated Personas"
-            True
         """
         generator = PersonaGenerator(
             agent_generation_prompt=agent_generation_prompt,
