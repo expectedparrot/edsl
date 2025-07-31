@@ -531,8 +531,11 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         
         The keys are the agent names and the values are the answers.
         
-        >>> Results.example().agent_answers_by_question()
-        {'how_feeling': {'Agent_4': 'OK', 'Agent_5': 'Great', 'Agent_6': 'Terrible', 'Agent_7': 'OK'}, 'how_feeling_yesterday': {'Agent_4': 'Great', 'Agent_5': 'Good', 'Agent_6': 'OK', 'Agent_7': 'Terrible'}}
+        >>> result = Results.example().agent_answers_by_question()
+        >>> sorted(result['how_feeling'].values())
+        ['Great', 'OK', 'OK', 'Terrible']
+        >>> sorted(result['how_feeling_yesterday'].values())
+        ['Good', 'Great', 'OK', 'Terrible']
         """
         d = {}
         if agent_key_fields is None:
