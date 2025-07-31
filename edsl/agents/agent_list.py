@@ -659,6 +659,11 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         for agent in new_al.data:
             agents.append(agent.remove_trait(trait))
         return AgentList(agents)
+    
+    @property
+    def names(self) -> List[str]:
+        """Returns the names of the agents in the AgentList."""
+        return [agent.name for agent in self.data]
 
     def add_trait(self, trait: str, values: List[Any]) -> AgentList:
         """Adds a new trait to every agent, with values taken from values.
