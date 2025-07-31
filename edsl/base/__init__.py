@@ -2,6 +2,7 @@
 
 This module provides the foundation for all classes in the EDSL framework.
 """
+from edsl.base.item_collection_abc import ItemCollection
 
 from edsl.base.base_class import (
     Base,
@@ -50,6 +51,7 @@ from edsl.base.data_transfer_models import (
 __all__ = [
     # Base classes
     "Base",
+    "ItemCollection",
     "BaseDiff",
     "BaseDiffCollection",
     "DiffMethodsMixin",

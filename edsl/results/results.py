@@ -315,6 +315,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         self,
         survey: Optional[Survey] = None,
         data: Optional[list[Result]] = None,
+        name: Optional[str] = None,
         created_columns: Optional[list[str]] = None,
         cache: Optional[Cache] = None,
         job_uuid: Optional[str] = None,
@@ -391,6 +392,11 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         self._columns_cache = None
         self._fetch_list_cache = {}
         self._cache_dirty = True
+
+        if name is not None:
+            self.name = name
+        else:
+            self.name = None
 
         if hasattr(self, "_add_output_functions"):
             self._add_output_functions()
@@ -812,6 +818,8 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
                     )
                 }
             )
+        if self.name is not None:
+            d["name"] = self.name
 
         if self.task_history.has_unfixed_exceptions or include_task_history:
             d.update({"task_history": self.task_history.to_dict(offload_content=True)})
@@ -944,6 +952,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             if "task_history" in data
             else TaskHistory(interviews=[])
         )
+        name = data.get("name", None)
 
         # Create a Results object with original order preserved
         # using the empty data list initially
@@ -953,6 +962,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             "created_columns": created_columns,
             "cache": cache,
             "task_history": task_history,
+            "name": name
         }
 
         try:
