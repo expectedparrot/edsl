@@ -226,10 +226,11 @@ class Survey(Base):
         if rule_collection is not None:
             self.rule_collection = rule_collection
 
-        if name is not None:
-            import warnings
+        # if name is not None:
+        #     import warnings
 
-            warnings.warn("name parameter to a survey is deprecated.")
+        #     warnings.warn("name parameter to a survey is deprecated.")
+        self.name = name
 
         if questions_to_randomize is not None:
             self.questions_to_randomize = questions_to_randomize
@@ -520,6 +521,8 @@ class Survey(Base):
             ),
             "question_groups": self.question_groups,
         }
+        if self.name is not None:
+            d["name"] = self.name
 
         # Include randomization information if present
         if self.questions_to_randomize != []:
@@ -604,6 +607,11 @@ class Survey(Base):
         else:
             questions_to_randomize = None
 
+        if "name" in data:
+            name = data["name"]
+        else:
+            name = None
+
         # Create and return the reconstructed survey
         survey = cls(
             questions=questions,
@@ -611,6 +619,7 @@ class Survey(Base):
             rule_collection=RuleCollection.from_dict(data["rule_collection"]),
             question_groups=data["question_groups"],
             questions_to_randomize=questions_to_randomize,
+            name=name,
         )
         return survey
 

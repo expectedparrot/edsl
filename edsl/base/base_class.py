@@ -927,7 +927,11 @@ class HashingMixin:
         """
         from edsl.utilities.utilities import dict_hash
 
-        return dict_hash(self.to_dict(add_edsl_version=False))
+        d = self.to_dict(add_edsl_version=False)
+        if 'name' in d:
+            d.pop('name')
+
+        return dict_hash(d)
 
     def get_hash(self) -> str:
         """Get a string hash representation of this object based on its content.
