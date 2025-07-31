@@ -87,10 +87,6 @@ CONFIG_MAP = {
         "default": "https://www.expectedparrot.com",
         "info": "This config var holds the URL of the Expected Parrot API.",
     },
-    "EDSL_WIDGET_SCENARIO_UUID": {
-        "default": "",
-        "info": "This config var holds the UUID of the scenario list containing widget assets (ESM and CSS files).",
-    },
     "EDSL_MAX_CONCURRENT_TASKS": {
         "default": "1000",
         "info": "This config var determines the maximum number of concurrent tasks that can be run by the async job-runner",
