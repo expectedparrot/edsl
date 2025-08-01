@@ -135,9 +135,13 @@ class EDSLBaseWidget(anywidget.AnyWidget):
             except Exception as e:
                 pass
         else:
-            # print(f"No local widget assets found for {widget_name} at {js_file} and {css_file}")
-            pass
-        # Fall back to coop mechanism
+            if os.path.exists(src_dir):
+                raise FileNotFoundError(
+                    f"Widget assets for {widget_name} not found at {js_file} and {css_file}."
+                )
+            else:
+                pass
+        # # Fall back to coop mechanism
         return cls._get_widget_assets_from_coop(widget_name)
 
     @classmethod
