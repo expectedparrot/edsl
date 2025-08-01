@@ -8,7 +8,7 @@ such as asset loading, naming conventions, and integration with the coop system.
 import anywidget
 import os
 import re
-from typing import Tuple
+from typing import Optional, Tuple
 
 
 class EDSLBaseWidget(anywidget.AnyWidget):
@@ -24,28 +24,86 @@ class EDSLBaseWidget(anywidget.AnyWidget):
     @classmethod
     def get_widget_short_name(cls) -> str:
         """
-        Compute the short name for the widget from the class name.
+        Get the short name for the widget from the mandatory class variable.
 
-        Converts CamelCase class names to snake_case and removes 'Widget' suffix.
+        All widgets inheriting from EDSLBaseWidget must define a widget_short_name
+        class variable.
 
         Examples:
-            ResultsViewerWidget -> results_viewer
-            SurveyBuilderWidget -> survey_builder
-            DataVisualizationWidget -> data_visualization
+            class ResultsViewerWidget(EDSLBaseWidget):
+                widget_short_name = "results_viewer"
+
+            class SurveyBuilderWidget(EDSLBaseWidget):
+                widget_short_name = "survey_builder"
 
         Returns:
             str: The short name for the widget
+
+        Raises:
+            AttributeError: If widget_short_name is not defined on the class
         """
-        class_name = cls.__name__
+        if not hasattr(cls, "widget_short_name"):
+            raise AttributeError(
+                f"Class {cls.__name__} must define a 'widget_short_name' class variable."
+            )
 
-        # Remove 'Widget' suffix if present
-        if class_name.endswith("Widget"):
-            class_name = class_name[:-6]
+        return cls.widget_short_name
 
-        # Convert CamelCase to snake_case
-        # Insert underscores before uppercase letters (except the first one)
-        snake_case = re.sub("([a-z0-9])([A-Z])", r"\1_\2", class_name)
-        return snake_case.lower()
+    @staticmethod
+    def is_widget_short_name_valid(short_name: str) -> tuple[bool, Optional[str]]:
+        """
+        Check if the widget short name is valid.
+
+        Returns:
+            tuple[bool, str]: (is_valid, error_message)
+        """
+        if not short_name:
+            return False, "Widget short name cannot be empty."
+
+        if not short_name[0].isalpha():
+            return False, "Widget short name must start with a lowercase letter."
+
+        for char in short_name:
+            if not (char.islower() or char.isdigit() or char == "_"):
+                return (
+                    False,
+                    f"Widget short name contains invalid character '{char}'. Only lowercase letters, digits, and underscores are allowed.",
+                )
+
+        return True, None
+
+    @classmethod
+    def validate_widget_short_name(cls):
+        """
+        Validate that the widget_short_name is properly defined.
+
+        This method can be called during class definition to ensure the
+        widget_short_name is set correctly.
+
+        Raises:
+            AttributeError: If widget_short_name is not defined or is empty
+        """
+        if not hasattr(cls, "widget_short_name"):
+            class_name = cls.__name__.replace("Widget", "")
+            example_short_name = re.sub(
+                "([a-z0-9])([A-Z])", r"\1_\2", class_name
+            ).lower()
+            raise AttributeError(
+                f"Class {cls.__name__} must define a 'widget_short_name' class variable. "
+                f"Example: widget_short_name = '{example_short_name}'"
+            )
+
+        if not isinstance(cls.widget_short_name, str):
+            raise AttributeError(
+                f"Class {cls.__name__}.widget_short_name must be a string, "
+                f"got: {cls.widget_short_name}."
+            )
+
+        is_valid, error_message = cls.is_widget_short_name_valid(cls.widget_short_name)
+        if not is_valid:
+            raise AttributeError(
+                f"Class {cls.__name__}.widget_short_name is invalid: {error_message}"
+            )
 
     @classmethod
     def _get_widget_assets(cls) -> Tuple[str, str]:
@@ -123,6 +181,9 @@ class EDSLBaseWidget(anywidget.AnyWidget):
         Assets are fetched lazily - only when the first instance of a widget class
         is created, not during import.
         """
+        # Validate widget_short_name is properly defined
+        self.__class__.validate_widget_short_name()
+
         # Fetch assets only if they haven't been set on the class yet
         self.__class__.setup_widget_assets()
 
