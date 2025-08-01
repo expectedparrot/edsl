@@ -63,8 +63,8 @@ class EDSLBaseWidget(anywidget.AnyWidget):
         current_dir = os.path.dirname(os.path.abspath(__file__))
         src_dir = os.path.join(current_dir, "src")
 
-        js_file = os.path.join(src_dir, "esm_files", f"{widget_name}.js")
-        css_file = os.path.join(src_dir, "css_files", f"{widget_name}.css")
+        js_file = os.path.join(src_dir, "compiled", "esm_files", f"{widget_name}.js")
+        css_file = os.path.join(src_dir, "compiled", "css_files", f"{widget_name}.css")
 
         # Check if local files exist
         if os.path.exists(js_file) and os.path.exists(css_file):
