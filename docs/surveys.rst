@@ -214,14 +214,17 @@ Optional parameters
 
 There are optional parameters that can be passed to the `run()` method, including:
 
+* `fresh=False` - A boolean value to indicate whether to run the survey with fresh responses (default is False). Example: `run(fresh=True)` will generate fresh responses for each question.
 * `n` - The number of responses to generate for each question (default is 1). Example: `run(n=5)` will administer the same exact question (and scenario, if any) to an agent and model 5 times.
-* `cache` - A boolean value to cache the results of the survey. The default is True; the cache for the survey is automatically added to the `Results` object that is generated. Example: `run(cache=False)` will generate fresh responses.
+* `cache` - A `Cache` object to use for caching responses (default is None). Example: `run(cache=my_cache)` will use the specified cache to store responses.
 * `disable_remote_inference` - A boolean value to indicate whether to run the survey locally while remote inference is activated (default is False). Example: `run(disable_remote_inference=True)`.
+* `remote_cache_description` - A string value to describe the entries in the remote cache when the survey is run remotely. This description will be displayed on the Expected Parrot server and can be used to provide context for the survey. Example: `run(remote_cache_description="This is a survey about local news consumption.")`.
+* `remote_inference_description` - A string value to describe the survey when it is run remotely. This description will be displayed on the Expected Parrot server and can be used to provide context for the survey. Example: `run(remote_inference_description="This is a survey about local news consumption.")`.
 * `remote_inference_results_visibility` - A string value to indicate the visibility of the results on the Expected Parrot server, when a survey is being run remotely. Possible values are "public", "unlisted" or "private" (default is "unlisted"). Visibility can also be modified at the Coop web app. Example: `run(remote_inference_results_visibility="public")`.
-
 * `progress_bar=True` - This parameter can be used to view a Progress Report locally. A link to a Progress Report will automatically be provided when you run a survey remotely.
 * `background=True` - This parameter can be used to run a survey in the background, allowing you to continue working (or stop working) while your job completes. 
 * `polling_interval` - This parameter can be used to specify the interval (in seconds) at which to check for results when running a survey in the background. The default is 1.0 seconds. Example: `run(polling_interval=5.0)` will check for results every 5 seconds.
+* `verbose=True` - A boolean value to indicate whether to enable verbose logging (including a table of information about the job that is running) (default is True). Example: `run(verbose=False)` will disable verbose logging.
 
 
 Survey rules & logic
