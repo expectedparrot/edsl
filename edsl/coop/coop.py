@@ -17,6 +17,7 @@ from typing import (
     TYPE_CHECKING,
 )
 from uuid import UUID
+from datetime import datetime, timezone
 
 from .. import __version__
 
@@ -678,17 +679,279 @@ class Coop(CoopFunctionsMixin):
             return response.json()
         except Timeout:
             return {}
-        
+
     def _get_widget_javascript(self, widget_name: str) -> str:
         """
         Fetches the javascript for a widget from the server using cached singleton.
-        
+
         This method uses the CoopVisualization singleton to cache ESM and CSS content,
         ensuring they are only fetched once per session for improved performance.
         """
         from .coop_widgets import get_widget_javascript
+
         esm, css = get_widget_javascript(widget_name)
         return esm, css
+
+    ################
+    # Widgets
+    ################
+    def validate_widget_short_name(self, short_name: str) -> Dict:
+        """
+        Validate a widget short name.
+        """
+        # Check if short_name is empty
+        if not short_name:
+            raise CoopValueError("Widget short name cannot be empty.")
+
+        # Check if short_name starts with a lowercase letter
+        if not short_name[0].isalpha():
+            raise CoopValueError(
+                "Widget short name must start with a lowercase letter."
+            )
+
+        # Check if short_name contains only valid characters (lowercase letters, digits, underscores)
+        for char in short_name:
+            if not (char.islower() or char.isdigit() or char == "_"):
+                raise CoopValueError(
+                    f"Widget short name contains invalid character '{char}'. Only lowercase letters, digits, and underscores are allowed."
+                )
+
+    def create_widget(
+        self,
+        short_name: str,
+        display_name: str,
+        esm_code: str,
+        css_code: Optional[str] = None,
+        description: Optional[str] = None,
+    ) -> dict:
+        """
+        Create a new widget.
+
+        Parameters:
+            short_name (str): The short name identifier for the widget.
+            Must start with a lowercase letter and contain only lowercase letters, digits, and underscores
+            display_name (str): The display name of the widget
+            description (str): A human-readable description of the widget
+            esm_code (str): The ESM JavaScript code for the widget
+            css_code (str): The CSS code for the widget
+
+        Returns:
+            dict: Information about the created widget including:
+                - short_name: The widget's short name
+                - display_name: The widget's display name
+                - description: The widget's description
+
+        Raises:
+            CoopServerResponseError: If there's an error communicating with the server
+        """
+        self.validate_widget_short_name(short_name)
+
+        response = self._send_server_request(
+            uri="api/v0/widgets",
+            method="POST",
+            payload={
+                "short_name": short_name,
+                "display_name": display_name,
+                "description": description,
+                "esm_code": esm_code,
+                "css_code": css_code,
+            },
+        )
+        self._resolve_server_response(response)
+        content = response.json()
+        return {
+            "short_name": content.get("short_name"),
+            "display_name": content.get("display_name"),
+            "description": content.get("description"),
+        }
+
+    def list_widgets(
+        self,
+        search_query: Optional[str] = None,
+        page: int = 1,
+        page_size: int = 10,
+    ) -> "ScenarioList":
+        """
+        Get metadata for all widgets.
+
+        Parameters:
+            page (int): Page number for pagination (default: 1)
+            page_size (int): Number of widgets per page (default: 10, max: 100)
+
+        Returns:
+            List[Dict]: List of widget metadata
+
+        Raises:
+            CoopValueError: If page or page_size parameters are invalid
+            CoopServerResponseError: If there's an error communicating with the server
+        """
+        from ..scenarios import Scenario, ScenarioList
+
+        if page < 1:
+            raise CoopValueError("The page must be greater than or equal to 1.")
+        if page_size < 1:
+            raise CoopValueError("The page size must be greater than or equal to 1.")
+        if page_size > 100:
+            raise CoopValueError("The page size must be less than or equal to 100.")
+
+        params = {
+            "page": page,
+            "page_size": page_size,
+        }
+        if search_query:
+            params["search_query"] = search_query
+
+        response = self._send_server_request(
+            uri="api/v0/widgets/list",
+            method="GET",
+            params=params,
+        )
+        self._resolve_server_response(response)
+        content = response.json()
+        widgets = []
+        for widget in content.get("widgets", []):
+            scenario = Scenario(
+                {
+                    "short_name": widget.get("short_name"),
+                    "display_name": widget.get("display_name"),
+                    "description": widget.get("description"),
+                    "owner": widget.get("owner"),
+                    "created_ts": widget.get("created_ts"),
+                    "last_updated_ts": widget.get("last_updated_ts"),
+                    "esm_code_size_bytes": widget.get("esm_code_size_bytes"),
+                    "css_code_size_bytes": widget.get("css_code_size_bytes"),
+                }
+            )
+            widgets.append(scenario)
+        return ScenarioList(widgets)
+
+    def get_widget_metadata(self, short_name: str) -> Dict:
+        """
+        Get metadata for a specific widget by short name.
+
+        Parameters:
+            short_name (str): The short name of the widget
+
+        Returns:
+            Dict: Widget metadata including size information
+
+        Raises:
+            CoopServerResponseError: If there's an error communicating with the server
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/widgets/{short_name}/metadata",
+            method="GET",
+        )
+        self._resolve_server_response(response)
+        content = response.json()
+        return {
+            "short_name": content.get("short_name"),
+            "display_name": content.get("display_name"),
+            "description": content.get("description"),
+            "owner": content.get("owner"),
+            "created_ts": content.get("created_ts"),
+            "last_updated_ts": content.get("last_updated_ts"),
+            "esm_code_size_bytes": content.get("esm_code_size_bytes"),
+            "css_code_size_bytes": content.get("css_code_size_bytes"),
+        }
+
+    def get_widget(self, short_name: str) -> Dict:
+        """
+        Get a specific widget by short name.
+
+        Parameters:
+            short_name (str): The short name of the widget
+
+        Returns:
+            Dict: Complete widget data including ESM and CSS code
+
+        Raises:
+            CoopServerResponseError: If there's an error communicating with the server
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/widgets/{short_name}",
+            method="GET",
+        )
+        self._resolve_server_response(response)
+        content = response.json()
+        return {
+            "short_name": content.get("short_name"),
+            "display_name": content.get("display_name"),
+            "description": content.get("description"),
+            "esm_code": content.get("esm_code"),
+            # CSS code is optional, but should be coerced to the empty string if not present
+            "css_code": content.get("css_code") or "",
+            "esm_code_size_bytes": content.get("esm_code_size_bytes"),
+            "css_code_size_bytes": content.get("css_code_size_bytes"),
+        }
+
+    def update_widget(
+        self,
+        existing_short_name: str,
+        short_name: Optional[str] = None,
+        display_name: Optional[str] = None,
+        esm_code: Optional[str] = None,
+        css_code: Optional[str] = None,
+        description: Optional[str] = None,
+    ) -> Dict:
+        """
+        Update a widget by short name.
+
+        Parameters:
+            existing_short_name (str): The current short name of the widget
+            short_name (str, optional): New short name for the widget.
+            Must start with a lowercase letter and contain only lowercase letters, digits, and underscores
+            display_name (str, optional): New display name for the widget
+            description (str, optional): New description for the widget
+            esm_code (str, optional): New ESM JavaScript code for the widget
+            css_code (str, optional): New CSS code for the widget
+
+        Returns:
+            dict: Success status
+
+        Raises:
+            CoopServerResponseError: If there's an error communicating with the server
+        """
+        payload = {}
+        if short_name is not None:
+            self.validate_widget_short_name(short_name)
+            payload["short_name"] = short_name
+        if display_name is not None:
+            payload["display_name"] = display_name
+        if description is not None:
+            payload["description"] = description
+        if esm_code is not None:
+            payload["esm_code"] = esm_code
+        if css_code is not None:
+            payload["css_code"] = css_code
+
+        response = self._send_server_request(
+            uri=f"api/v0/widgets/{existing_short_name}",
+            method="PATCH",
+            payload=payload,
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
+    def delete_widget(self, short_name: str) -> dict:
+        """
+        Delete a widget by short name.
+
+        Parameters:
+            short_name (str): The short name of the widget to delete
+
+        Returns:
+            dict: Success status
+
+        Raises:
+            CoopServerResponseError: If there's an error communicating with the server
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/widgets/{short_name}",
+            method="DELETE",
+        )
+        self._resolve_server_response(response)
+        return response.json()
 
     ################
     # Objects
