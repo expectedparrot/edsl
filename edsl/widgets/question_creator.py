@@ -12,6 +12,7 @@ from .base_widget import EDSLBaseWidget
 class QuestionCreatorWidget(EDSLBaseWidget):
     """A widget for generating and validating EDSL questions with real-time feedback."""
 
+    widget_short_name = "question_creator"
 
     # Traitlets for bidirectional communication
     validation_request = traitlets.Dict({"is_default": True}).tag(
@@ -181,4 +182,9 @@ EDSLQuestionWidget = QuestionCreatorWidget
 EDSLWidget = QuestionCreatorWidget
 
 # Export the main class
-__all__ = ["QuestionCreatorWidget", "create_question_creator_widget", "EDSLQuestionWidget", "EDSLWidget"]
+__all__ = [
+    "QuestionCreatorWidget",
+    "create_question_creator_widget",
+    "EDSLQuestionWidget",
+    "EDSLWidget",
+]
