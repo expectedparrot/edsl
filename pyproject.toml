@@ -9,7 +9,6 @@ description = "Create and analyze LLM-based surveys"
 documentation = "https://docs.expectedparrot.com"
 homepage = "https://www.expectedparrot.com/"
 include = [ "edsl/questions/templates/**/*",]
-exclude = [ "edsl/widgets/src/**/*",]
 keywords = [ "LLM", "social science", "surveys", "user research",]
 license = "MIT"
 name = "edsl"
