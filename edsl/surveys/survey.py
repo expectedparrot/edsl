@@ -1763,20 +1763,106 @@ class Survey(Base):
         """
         return len(self.questions)
 
-    def __getitem__(self, index: Union[int, str]) -> "QuestionBase":
-        """Return the question object given the question index.
+    def _create_subsurvey(self, selected_questions: List["QuestionBase"]) -> "Survey":
+        """Create a new Survey with the specified questions.
+        
+        This helper method creates a new Survey instance containing only the
+        selected questions. The new survey inherits relevant attributes from
+        the parent survey but gets fresh rule collections and memory plans
+        appropriate for the subset of questions.
+        
+        :param selected_questions: List of question objects to include in the new survey
+        :return: New Survey instance with the selected questions
+        """
+        # Create new survey with selected questions
+        new_survey = Survey(questions=selected_questions)
+        
+        # Copy relevant attributes that make sense for a subsurvey
+        if hasattr(self, 'questions_to_randomize') and self.questions_to_randomize:
+            # Only include randomization settings for questions that are in the subsurvey
+            selected_names = {q.question_name for q in selected_questions}
+            relevant_randomization = [name for name in self.questions_to_randomize 
+                                    if name in selected_names]
+            if relevant_randomization:
+                new_survey.questions_to_randomize = relevant_randomization
+        
+        return new_survey
 
-        :param index: The index of the question to get.
+    def __getitem__(self, index: Union[int, str, slice, List[str]]) -> Union["QuestionBase", "Survey"]:
+        """Return question(s) or a new Survey based on the index type.
 
-        >>> s = Survey.example()
-        >>> s[0]
-        Question('multiple_choice', question_name = \"""q0\""", question_text = \"""Do you like school?\""", question_options = ['yes', 'no'])
+        :param index: The index of the question(s) to get. Can be:
+            - int: return single question by position
+            - str: return single question by name  
+            - slice: return new Survey with sliced questions
+            - List[str]: return new Survey with questions selected by name
 
+        Examples:
+            >>> s = Survey.example()
+            >>> s[0]  # Single question by index
+            Question('multiple_choice', question_name = \"""q0\""", question_text = \"""Do you like school?\""", question_options = ['yes', 'no'])
+            
+            >>> sub = s[:2]  # First 2 questions as new Survey
+            >>> len(sub) == 2
+            True
+            >>> sub.question_names == ['q0', 'q1']
+            True
+            
+            >>> s['q0']  # Single question by name
+            Question('multiple_choice', question_name = \"""q0\""", question_text = \"""Do you like school?\""", question_options = ['yes', 'no'])
+            
+            >>> sub2 = s[['q0', 'q2']]  # Questions by name list as new Survey  
+            >>> sub2.question_names == ['q0', 'q2']
+            True
         """
         if isinstance(index, int):
             return self.questions[index]
         elif isinstance(index, str):
-            return getattr(self, index)
+            # Return single question by name
+            question_map = self.question_names_to_questions()
+            if index not in question_map:
+                raise KeyError(f"Question '{index}' not found in survey. Available questions: {list(question_map.keys())}")
+            return question_map[index]
+        elif isinstance(index, slice):
+            # Return a new Survey with sliced questions
+            selected_questions = self.questions[index]
+            return self._create_subsurvey(selected_questions)
+        elif isinstance(index, list) and all(isinstance(name, str) for name in index):
+            # Return a new Survey with questions selected by name
+            question_map = self.question_names_to_questions()
+            selected_questions = []
+            for name in index:
+                if name not in question_map:
+                    raise KeyError(f"Question '{name}' not found in survey. Available questions: {list(question_map.keys())}")
+                selected_questions.append(question_map[name])
+            return self._create_subsurvey(selected_questions)
+        else:
+            raise TypeError(f"Survey indices must be int, str, slice, or List[str], not {type(index)}")
+
+    def select(self, *question_names: str) -> "Survey":
+        """Create a new Survey with questions selected by name.
+        
+        This is a convenient method for selecting multiple questions by name,
+        equivalent to using survey[['name1', 'name2', ...]] but with a more
+        readable syntax.
+        
+        :param question_names: Variable number of question names to select
+        :return: New Survey instance with the selected questions
+        
+        Examples:
+            >>> s = Survey.example() 
+            >>> sub = s.select('q0', 'q2')  # Select questions by name
+            >>> sub.question_names == ['q0', 'q2']
+            True
+            
+            >>> sub2 = s.select('q0')  # Select single question (returns Survey, not Question)
+            >>> len(sub2) == 1 and sub2.question_names == ['q0']
+            True
+        """
+        if not question_names:
+            raise ValueError("At least one question name must be provided")
+        
+        return self[list(question_names)]
 
     def __repr__(self) -> str:
         """Return a string representation of the survey."""

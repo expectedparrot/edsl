@@ -145,7 +145,7 @@ def ensure_ready(method):
         return method(self, *args, **kwargs)
 
     return wrapper
-
+    
 
 class NotReadyObject:
     """A placeholder object that indicates results are not ready yet.
@@ -277,6 +277,10 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         "reasoning_summary",
         "validated",
     ]
+
+    def view(self):
+        from ..widgets.results_viewer import ResultsViewerWidget
+        return ResultsViewerWidget(results=self)
 
     @classmethod
     def from_job_info(cls, job_info: dict) -> "Results":

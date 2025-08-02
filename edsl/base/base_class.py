@@ -149,7 +149,9 @@ class PersistenceMixin:
         Returns:
             None, but prints the class docstring to stdout
         """
-        print(cls.__doc__)
+        from ..widgets.object_docs_viewer import ObjectDocsViewerWidget
+        return ObjectDocsViewerWidget(cls.example())
+        #print(cls.__doc__)
 
     # def push(
     #     self,
