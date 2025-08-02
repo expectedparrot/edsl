@@ -750,7 +750,19 @@ class LanguageModel(
         }
 
         # Try to fetch from cache
-        cached_response, cache_key = cache.fetch(**cache_call_params)
+        if (
+            invigilator is not None
+            and "{{" in invigilator.question.question_text
+            and "}}" in invigilator.question.question_text
+            and ".answer" in invigilator.question.question_text
+        ):
+            remote_fetch = True
+        else:
+            remote_fetch = False
+
+        cached_response, cache_key = cache.fetch(
+            **cache_call_params, remote_fetch=remote_fetch
+        )
         if cache_used := cached_response is not None:
             # Cache hit - use the cached response
             response = json.loads(cached_response)
