@@ -288,6 +288,25 @@ class Survey(Base):
     def question_names_valid(self) -> bool:
         """Check if the question names are valid."""
         return all(q.is_valid_question_name() for q in self.questions)
+    
+    def question_to_attributes(self) -> dict:
+        """Return a dictionary of question attributes.
+        
+        >>> s = Survey.example()
+        >>> s.question_to_attributes()
+        {'q0': {'question_text': 'Do you like school?', 'question_type': 'multiple_choice', 'question_options': ['yes', 'no']}, 'q1': {'question_text': 'Why not?', 'question_type': 'multiple_choice', 'question_options': ['killer bees in cafeteria', 'other']}, 'q2': {'question_text': 'Why?', 'question_type': 'multiple_choice', 'question_options': ['**lack*** of killer bees in cafeteria', 'other']}}
+        """
+        return {
+            q.question_name: {
+                "question_text": q.question_text,
+                "question_type": q.question_type,
+                "question_options": (
+                    None if not hasattr(q, "question_options") else q.question_options
+                ),
+            }
+            for q in self.questions
+        }
+
 
     def draw(self) -> "Survey":
         """Return a new survey with a randomly selected permutation of the options."""

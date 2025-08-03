@@ -289,6 +289,11 @@ class TestSurvey(unittest.TestCase):
         s = self.gen_survey()
         original_names = s.question_names
         
+        # DEBUG: Check if method exists
+        print(f"Survey type: {type(s)}")
+        print(f"Survey module: {s.__class__.__module__}")
+        print(f"Has with_renamed_question: {hasattr(s, 'with_renamed_question')}")
+        
         # Rename the first question
         s_renamed = s.with_renamed_question("like_school", "school_preference")
         

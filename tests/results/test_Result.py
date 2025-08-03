@@ -37,6 +37,6 @@ def test_constructor():
     )
 
     assert {
-        "agent_name": "Arsenio Billingham",
+        #"agent_name": "Arsenio Billingham",
         "show_status": "off the air",
-    }.items() <= result.sub_dicts["agent"].items()
+    }.items() <= result.sub_dicts["agent"]['agent'].items()

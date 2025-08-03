@@ -42,44 +42,38 @@ QuestionName = str
 AnswerValue = Any
 
 
-class AgentNamer:
-    """Maintains a registry of agent names to ensure unique naming."""
-
-    def __init__(self):
-        self._registry = {}
-
-    def get_name(self, agent: "Agent") -> str:
-        """Get or create a unique name for an agent."""
-        agent_id = id(agent)
-        if agent_id not in self._registry:
-            self._registry[agent_id] = f"Agent_{len(self._registry)}"
-        return self._registry[agent_id]
-
-
-# Global instance for agent naming
-agent_namer = AgentNamer().get_name
 
 
 class Result(Base, UserDict):
-    """
-    The Result class captures the complete data from one agent interview.
+    """The Result class captures the complete data from one agent interview.
 
     A Result object stores the agent, scenario, language model, and all answers
     provided during an interview, along with metadata such as token usage,
     caching information, and raw model responses. It provides a rich interface
     for accessing this data and supports serialization for storage and retrieval.
 
-    Key features:
+    The Result class inherits from both Base (for serialization) and UserDict (for
+    dictionary-like behavior), allowing it to be accessed like a dictionary while
+    maintaining a rich object model.
 
-    - Dictionary-like access to all data through the UserDict interface
-    - Properties for convenient access to common attributes (agent, scenario, model, answer)
-    - Rich data structure with sub-dictionaries for organization
-    - Support for scoring results against reference answers
-    - Serialization to/from dictionaries for storage
+    Attributes:
+        agent: The Agent object that was interviewed.
+        scenario: The Scenario object that was presented to the agent.
+        model: The LanguageModel object that was used to generate responses.
+        answer: Dictionary mapping question names to answer values.
+        sub_dicts: Organized sub-dictionaries for different data types.
+        combined_dict: Flattened dictionary combining all sub-dictionaries.
+        problem_keys: List of keys that have naming conflicts.
 
-    Results are typically created by the Jobs system when running interviews and
-    collected into a Results collection for analysis. You rarely need to create
-    Result objects manually.
+    Note:
+        Results are typically created by the Jobs system when running interviews and
+        collected into a Results collection for analysis. You rarely need to create
+        Result objects manually.
+
+    Examples:
+        >>> result = Result.example()
+        >>> result['answer']['how_feeling']
+        'OK'
     """
 
     def __init__(
@@ -103,25 +97,30 @@ class Result(Base, UserDict):
     ):
         """Initialize a Result object.
 
-        :param agent: The Agent object.
-        :param scenario: The Scenario object.
-        :param model: The LanguageModel object.
-        :param iteration: The iteration number.
-        :param answer: The answer string.
-        :param prompt: A dictionary of prompts.
-        :param raw_model_response: The raw model response.
-        :param survey: The Survey object.
-        :param question_to_attributes: A dictionary of question attributes.
-        :param generated_tokens: A dictionary of generated tokens.
-        :param comments_dict: A dictionary of comments.
-        :param reasoning_summaries_dict: A dictionary of reasoning summaries.
-        :param cache_used_dict: A dictionary of cache usage.
-        :param indices: A dictionary of indices.
-
+        Args:
+            agent: The Agent object that was interviewed.
+            scenario: The Scenario object that was presented.
+            model: The LanguageModel object that generated responses.
+            iteration: The iteration number for this result.
+            answer: Dictionary mapping question names to answer values.
+            prompt: Dictionary of prompts used for each question. Defaults to None.
+            raw_model_response: The raw response from the language model. Defaults to None.
+            survey: The Survey object containing the questions. Defaults to None.
+            question_to_attributes: Dictionary of question attributes. Defaults to None.
+            generated_tokens: Dictionary of token usage statistics. Defaults to None.
+            comments_dict: Dictionary of comments for each question. Defaults to None.
+            reasoning_summaries_dict: Dictionary of reasoning summaries. Defaults to None.
+            cache_used_dict: Dictionary indicating cache usage for each question. Defaults to None.
+            indices: Dictionary of indices for data organization. Defaults to None.
+            cache_keys: Dictionary of cache keys for each question. Defaults to None.
+            validated_dict: Dictionary indicating validation status for each question. Defaults to None.
         """
-        self.question_to_attributes = (
-            question_to_attributes or self._create_question_to_attributes(survey)
-        )
+        if not question_to_attributes:
+            if survey:
+                question_to_attributes = survey.question_to_attributes()
+            else:
+                question_to_attributes = {}
+
         data = {
             "agent": agent,
             "scenario": scenario,
@@ -130,7 +129,7 @@ class Result(Base, UserDict):
             "answer": answer,
             "prompt": prompt or {},
             "raw_model_response": raw_model_response or {},
-            "question_to_attributes": self.question_to_attributes,
+            "question_to_attributes": question_to_attributes,
             "generated_tokens": generated_tokens or {},
             "comments_dict": comments_dict or {},
             "reasoning_summaries_dict": reasoning_summaries_dict or {},
@@ -140,132 +139,70 @@ class Result(Base, UserDict):
         }
         super().__init__(**data)
         self.indices = indices
-        self._sub_dicts = self._construct_sub_dicts()
-        (
-            self._combined_dict,
-            self._problem_keys,
-        ) = self._compute_combined_dict_and_problem_keys()
 
-    @staticmethod
-    def _create_question_to_attributes(survey):
-        """Create a dictionary of question attributes."""
-        if survey is None:
-            return {}
-        return {
-            q.question_name: {
-                "question_text": q.question_text,
-                "question_type": q.question_type,
-                "question_options": (
-                    None if not hasattr(q, "question_options") else q.question_options
-                ),
-            }
-            for q in survey.questions
-        }
+        self._rb = None
+        #from .result_builder import ResultBuilder
+        #rb = ResultBuilder(self.data, self.indices)
 
+    @property
+    def rb(self):
+        if self._rb is None:
+            from .result_builder import ResultBuilder
+            rb = ResultBuilder(self.data, self.indices)
+            self._rb = rb
+        return self._rb
+
+    @property
+    def sub_dicts(self):
+        return self.rb.sub_dicts
+
+    @property
+    def key_to_data_type(self):
+        return self.rb.keys_to_data_types
+
+    @property
+    def combined_dict(self):
+        return self.rb.combined_dict
+    
+    @property
+    def problem_keys(self):
+        return self.rb.problem_keys
+    
     @property
     def agent(self) -> "Agent":
         """Return the Agent object."""
-        return self.data["agent"]
-
+        #return self.data["agent"]
+        return self.data['agent']
+      
     @property
     def scenario(self) -> "Scenario":
         """Return the Scenario object."""
-        return self.data["scenario"]
+        #_ = self.rb
+        #return self._get_data("scenario")
+        return self.sub_dicts["scenario"]
 
     @property
     def model(self) -> "LanguageModel":
         """Return the LanguageModel object."""
+        #_ = self.rb
         return self.data["model"]
 
     @property
     def answer(self) -> dict[QuestionName, AnswerValue]:
         """Return the answers."""
-        return self.data["answer"]
-
-    @staticmethod
-    def _create_agent_sub_dict(agent) -> dict:
-        """Create a dictionary of agent details"""
-        if agent.name is None:
-            agent_name = agent_namer(agent)
-        else:
-            agent_name = agent.name
-
-        return {
-            "agent": agent.traits
-            | {"agent_name": agent_name}
-            | {"agent_instruction": agent.instruction},
-        }
-
-    @staticmethod
-    def _create_model_sub_dict(model) -> dict:
-        return {
-            "model": model.parameters
-            | {"model": model.model}
-            | {"inference_service": model._inference_service_},
-        }
-
-    @staticmethod
-    def _iteration_sub_dict(iteration) -> dict:
-        return {
-            "iteration": {"iteration": iteration},
-        }
-
-    def _construct_sub_dicts(self) -> dict[str, dict]:
-        """Construct a dictionary of sub-dictionaries for the Result object."""
-
-        sub_dicts_needing_new_keys = {
-            "question_text": {},
-            "question_options": {},
-            "question_type": {},
-        }
-
-        for question_name in self.data["answer"]:
-            if question_name in self.question_to_attributes:
-                for dictionary_name in sub_dicts_needing_new_keys:
-                    new_key = question_name + "_" + dictionary_name
-                    sub_dicts_needing_new_keys[dictionary_name][new_key] = (
-                        self.question_to_attributes[question_name][dictionary_name]
-                    )
-
-        new_cache_dict = {
-            f"{k}_cache_used": v for k, v in self.data["cache_used_dict"].items()
-        }
-
-        cache_keys = {f"{k}_cache_key": v for k, v in self.data["cache_keys"].items()}
-
-        d = {
-            **self._create_agent_sub_dict(self.data["agent"]),
-            **self._create_model_sub_dict(self.data["model"]),
-            **self._iteration_sub_dict(self.data["iteration"]),
-            "scenario": self.data["scenario"],
-            "answer": self.data["answer"],
-            "prompt": self.data["prompt"],
-            "comment": self.data["comments_dict"],
-            "reasoning_summary": self.data["reasoning_summaries_dict"],
-            "generated_tokens": self.data["generated_tokens"],
-            "raw_model_response": self.data["raw_model_response"],
-            "question_text": sub_dicts_needing_new_keys["question_text"],
-            "question_options": sub_dicts_needing_new_keys["question_options"],
-            "question_type": sub_dicts_needing_new_keys["question_type"],
-            "cache_used": new_cache_dict,
-            "cache_keys": cache_keys,
-            "validated": self.data["validated_dict"],
-        }
-        if hasattr(self, "indices") and self.indices is not None:
-            d["agent"].update({"agent_index": self.indices["agent"]})
-            d["scenario"].update({"scenario_index": self.indices["scenario"]})
-            d["model"].update({"model_index": self.indices["model"]})
-
-        return d
-
-    @property
-    def sub_dicts(self) -> dict[str, dict]:
-        """Return a dictionary where keys are strings for each of the main class attributes/objects."""
-        if self._sub_dicts is None:
-            self._sub_dicts = self._construct_sub_dicts()
-        return self._sub_dicts
+        #_ = self.rb
+        return self.sub_dicts["answer"]
 
     def check_expression(self, expression: str) -> None:
+        """Check if an expression references a problematic key.
+
+        Args:
+            expression: The expression string to check for problematic keys.
+
+        Raises:
+            ResultsColumnNotFoundError: If the expression contains a problematic key
+                that should use the full qualified name instead.
+        """
         for key in self.problem_keys:
             if key in expression and key + "." not in expression:
                 from .exceptions import ResultsColumnNotFoundError
@@ -275,141 +212,45 @@ class Result(Base, UserDict):
                 )
         return None
 
-    def transcript(self, format: str = "simple"):
+    def transcript(self, format: str = "simple") -> str:
         """Return the questions and answers in a human-readable transcript.
 
-        Parameters
-        ----------
-        format : str, optional (``'simple'`` or ``'rich'``)
-            ``'simple'`` (default) returns plain-text:
+        Args:
+            format: The format for the transcript. Either 'simple' or 'rich'.
+                'simple' (default) returns plain-text format with questions, options,
+                and answers separated by blank lines. 'rich' uses the rich library
+                to wrap each Q&A block in a Panel with colors and formatting.
 
-            QUESTION: <question text>
-            OPTIONS: <opt1 / opt2 / ...>   # only when options are available
-            ANSWER:   <answer>
+        Returns:
+            A formatted transcript string of the interview.
 
-            Each block is separated by a blank line.
+        Raises:
+            ImportError: If 'rich' format is requested but the rich library is not installed.
 
-            ``'rich'`` uses the *rich* library (if installed) to wrap each Q&A block in a
-            ``Panel`` and returns the coloured/boxed string. Attempting to use the *rich*
-            format without the dependency available raises ``ImportError``.
+        Examples:
+            >>> result = Result.example()
+            >>> transcript = result.transcript(format="simple")
+            >>> print(transcript)
+            QUESTION: How are you this {{ period }}?
+            OPTIONS: Good / Great / OK / Terrible
+            ANSWER: OK
+            <BLANKLINE>
+            QUESTION: How were you feeling yesterday {{ period }}?
+            OPTIONS: Good / Great / OK / Terrible
+            ANSWER: Great
         """
-
-        if format not in {"simple", "rich"}:
-            raise ValueError("format must be either 'simple' or 'rich'")
-
-        # Helper to extract question text, options, answer value
-        def _components(q_name):
-            meta = self.question_to_attributes.get(q_name, {})
-            q_text = meta.get("question_text", q_name)
-            options = meta.get("question_options")
-
-            # stringify options if they exist
-            opt_str: str | None
-            if options:
-                if isinstance(options, (list, tuple)):
-                    opt_str = " / ".join(map(str, options))
-                elif isinstance(options, dict):
-                    opt_str = " / ".join(f"{k}: {v}" for k, v in options.items())
-                else:
-                    opt_str = str(options)
-            else:
-                opt_str = None
-
-            ans_val = self.answer[q_name]
-            if not isinstance(ans_val, str):
-                ans_val = str(ans_val)
-
-            return q_text, opt_str, ans_val
-
-        # SIMPLE (plain-text) format -------------------------------------
-        if format == "simple":
-            lines: list[str] = []
-            for q_name in self.answer:
-                q_text, opt_str, ans_val = _components(q_name)
-                lines.append(f"QUESTION: {q_text}")
-                if opt_str is not None:
-                    lines.append(f"OPTIONS: {opt_str}")
-                lines.append(f"ANSWER: {ans_val}")
-                lines.append("")
-
-            if lines and lines[-1] == "":
-                lines.pop()  # trailing blank line
-
-            return "\n".join(lines)
-
-        # RICH format ----------------------------------------------------
-        try:
-            from rich.console import Console
-            from rich.panel import Panel
-        except ImportError as exc:
-            raise ImportError(
-                "The 'rich' package is required for format='rich'. Install it with `pip install rich`."
-            ) from exc
-
-        console = Console()
-        with console.capture() as capture:
-            for q_name in self.answer:
-                q_text, opt_str, ans_val = _components(q_name)
-
-                block_lines = [f"[bold]QUESTION:[/bold] {q_text}"]
-                if opt_str is not None:
-                    block_lines.append(f"[italic]OPTIONS:[/italic] {opt_str}")
-                block_lines.append(f"[bold]ANSWER:[/bold] {ans_val}")
-
-                console.print(Panel("\n".join(block_lines), expand=False))
-                console.print()  # blank line between panels
-
-        return capture.get()
+        from .result_transcript import generate_transcript
+        return generate_transcript(self, format)
 
     def code(self):
-        """Return a string of code that can be used to recreate the Result object."""
+        """Return a string of code that can be used to recreate the Result object.
+        
+        Raises:
+            ResultsError: This method is not implemented for Result objects.
+        """
         from .exceptions import ResultsError
 
         raise ResultsError("The code() method is not implemented for Result objects")
-
-    @property
-    def problem_keys(self) -> list[str]:
-        """Return a list of keys that are problematic."""
-        return self._problem_keys
-
-    def _compute_combined_dict_and_problem_keys(
-        self,
-    ) -> tuple[dict[str, Any], list[str]]:
-        combined = {}
-        problem_keys = []
-        for key, sub_dict in self.sub_dicts.items():
-            combined.update(sub_dict)
-            # in some cases, the sub_dict might have keys that conflict with the main dict
-            if key in combined:
-                # The key is already in the combined dict
-                problem_keys = problem_keys + [key]
-
-            combined.update({key: sub_dict})
-            # I *think* this allows us to do do things like "answer.how_feelling" i.e., that the evaluator can use
-            # dot notation to access the subdicts.
-        return combined, problem_keys
-
-    @property
-    def combined_dict(self) -> dict[str, Any]:
-        """Return a dictionary that includes all sub_dicts, but also puts the key-value pairs in each sub_dict as a key_value pair in the combined dictionary.
-
-        >>> r = Result.example()
-        >>> r.combined_dict['how_feeling']
-        'OK'
-        """
-        if self._combined_dict is None or self._problem_keys is None:
-            (
-                self._combined_dict,
-                self._problem_keys,
-            ) = self._compute_combined_dict_and_problem_keys()
-        return self._combined_dict
-
-    @property
-    def get_problem_keys(self) -> list[str]:
-        """Return a list of keys that are problematic."""
-        if self._combined_dict is None or self._problem_keys is None:
-            self._compute_combined_dict_and_problem_keys()
-        return self._problem_keys
 
     def get_value(self, data_type: str, key: str) -> Any:
         """Return the value for a given data type and key.
@@ -419,15 +260,15 @@ class Result(Base, UserDict):
         need to programmatically access values without knowing which data type
         a particular key belongs to.
 
-        Parameters:
-            data_type: The category of data to retrieve from, one of:
+        Args:
+            data_type: The category of data to retrieve from. Valid options include:
                 "agent", "scenario", "model", "answer", "prompt", "comment",
                 "generated_tokens", "raw_model_response", "question_text",
-                "question_options", "question_type", "cache_used", "cache_keys"
-            key: The specific attribute name within that data type
+                "question_options", "question_type", "cache_used", "cache_keys".
+            key: The specific attribute name within that data type.
 
         Returns:
-            The value associated with the key in the specified data type
+            The value associated with the key in the specified data type.
 
         Examples:
             >>> r = Result.example()
@@ -438,72 +279,35 @@ class Result(Base, UserDict):
         """
         return self.sub_dicts[data_type][key]
 
-    @property
-    def key_to_data_type(self) -> dict[str, str]:
-        """A mapping of attribute names to their container data types.
-
-        This property returns a dictionary that maps each attribute name (like 'how_feeling')
-        to its containing data type or category (like 'answer'). This is useful for
-        determining which part of the Result object a particular attribute belongs to,
-        especially when working with data programmatically.
-
-        If a key name appears in multiple data types, the property will automatically
-        rename the conflicting keys by appending the data type name to avoid ambiguity.
-
-        Returns:
-            A dictionary mapping attribute names to their data types
-
-        Examples:
-            >>> r = Result.example()
-            >>> r.key_to_data_type["how_feeling"]
-            'answer'
-            >>> r.key_to_data_type["model"]
-            'model'
-        """
-        d = {}
-        problem_keys = []
-        data_types = sorted(self.sub_dicts.keys())
-        if "answer" in data_types:
-            data_types.remove("answer")
-            data_types = ["answer"] + data_types
-        for data_type in data_types:
-            for key in self.sub_dicts[data_type]:
-                if key in d:
-                    import warnings
-
-                    warnings.warn(
-                        f"Key '{key}' of data type '{data_type}' is already in use. Renaming to {key}_{data_type}.\n"
-                        f"Conflicting data_type for this key at {d[key]}"
-                    )
-                    problem_keys.append((key, data_type))
-                    key = f"{key}_{data_type}"
-                d[key] = data_type
-
-        for key, data_type in problem_keys:
-            self.sub_dicts[data_type][f"{key}_{data_type}"] = self.sub_dicts[
-                data_type
-            ].pop(key)
-        return d
-
     def copy(self) -> Result:
         """Return a copy of the Result object.
 
-        >>> r = Result.example()
-        >>> r2 = r.copy()
-        >>> r == r2
-        True
-        >>> id(r) == id(r2)
-        False
+        Returns:
+            A new Result object that is a copy of this one.
+
+        Examples:
+            >>> r = Result.example()
+            >>> r2 = r.copy()
+            >>> r == r2
+            True
+            >>> id(r) == id(r2)
+            False
         """
         return Result.from_dict(self.to_dict())
 
     def __eq__(self, other) -> bool:
         """Return True if the Result object is equal to another Result object.
 
-        >>> r = Result.example()
-        >>> r == r
-        True
+        Args:
+            other: Another object to compare with this Result.
 
+        Returns:
+            True if the objects are equal based on their hash values, False otherwise.
+
+        Examples:
+            >>> r = Result.example()
+            >>> r == r
+            True
         """
         return hash(self) == hash(other)
 
@@ -512,105 +316,53 @@ class Result(Base, UserDict):
     ) -> dict[str, Any]:
         """Return a dictionary representation of the Result object.
 
-        >>> r = Result.example()
-        >>> r.to_dict()['scenario']
-        {'period': 'morning', 'scenario_index': 0, 'edsl_version': '...', 'edsl_class_name': 'Scenario'}
+        Args:
+            add_edsl_version: Whether to include EDSL version information in the output.
+                Defaults to True.
+            include_cache_info: Whether to include cache information in the output.
+                Defaults to False.
+
+        Returns:
+            A dictionary representation of the Result object containing all relevant data.
+
+        Examples:
+            >>> r = Result.example()
+            >>> data = r.to_dict()
+            >>> data['scenario']['period']
+            'morning'
         """
-
-        def convert_value(value, add_edsl_version=True):
-            if hasattr(value, "to_dict"):
-                return value.to_dict(add_edsl_version=add_edsl_version)
-            else:
-                return value
-
-        d = {}
-        for key, value in self.items():
-            d[key] = convert_value(value, add_edsl_version=add_edsl_version)
-
-            if key == "prompt":
-                new_prompt_dict = {}
-                for prompt_name, prompt_obj in value.items():
-                    new_prompt_dict[prompt_name] = (
-                        prompt_obj
-                        if not hasattr(prompt_obj, "to_dict")
-                        else prompt_obj.to_dict()
-                    )
-                d[key] = new_prompt_dict
-
-        if self.indices is not None:
-            d["indices"] = self.indices
-
-        if add_edsl_version:
-            from .. import __version__
-
-            d["edsl_version"] = __version__
-            d["edsl_class_name"] = "Result"
-
-        if include_cache_info:
-            d["cache_used_dict"] = self.data["cache_used_dict"]
-        else:
-            d.pop("cache_used_dict", None)
-
-        if hasattr(self, "interview_hash"):
-            d["interview_hash"] = self.interview_hash
-
-        # Preserve the order attribute if it exists
-        if hasattr(self, "order"):
-            d["order"] = self.order
-
-        return d
+        from .result_serializer import ResultSerializer
+        return ResultSerializer.to_dict(self, add_edsl_version, include_cache_info)
 
     def __hash__(self):
-        """Return a hash of the Result object."""
+        """Return a hash of the Result object.
+
+        Returns:
+            An integer hash value based on the dictionary representation of the Result.
+        """
         from ..utilities.utilities import dict_hash
 
         return dict_hash(self.to_dict(add_edsl_version=False, include_cache_info=False))
 
     @classmethod
-    @remove_edsl_version
-    def from_dict(self, json_dict: dict) -> Result:
-        """Return a Result object from a dictionary representation."""
+    def from_dict(cls, json_dict: dict) -> Result:
+        """Return a Result object from a dictionary representation.
 
-        from ..agents import Agent
-        from ..scenarios import Scenario
-        from ..language_models import LanguageModel
-        from ..prompts import Prompt
+        Args:
+            json_dict: Dictionary containing Result data.
 
-        prompt_data = json_dict.get("prompt", {})
-        prompt_d = {}
-        for prompt_name, prompt_obj in prompt_data.items():
-            prompt_d[prompt_name] = Prompt.from_dict(prompt_obj)
-
-        result = Result(
-            agent=Agent.from_dict(json_dict["agent"]),
-            scenario=Scenario.from_dict(json_dict["scenario"]),
-            model=LanguageModel.from_dict(json_dict["model"]),
-            iteration=json_dict["iteration"],
-            answer=json_dict["answer"],
-            prompt=prompt_d,  # json_dict["prompt"],
-            raw_model_response=json_dict.get(
-                "raw_model_response", {"raw_model_response": "No raw model response"}
-            ),
-            question_to_attributes=json_dict.get("question_to_attributes", None),
-            generated_tokens=json_dict.get("generated_tokens", {}),
-            comments_dict=json_dict.get("comments_dict", {}),
-            reasoning_summaries_dict=json_dict.get("reasoning_summaries_dict", {}),
-            cache_used_dict=json_dict.get("cache_used_dict", {}),
-            cache_keys=json_dict.get("cache_keys", {}),
-            indices=json_dict.get("indices", None),
-            validated_dict=json_dict.get("validated_dict", {}),
-        )
-        if "interview_hash" in json_dict:
-            result.interview_hash = json_dict["interview_hash"]
-
-        # Restore the order attribute if it exists in the dictionary
-        if "order" in json_dict:
-            result.order = json_dict["order"]
-
-        return result
+        Returns:
+            A new Result object created from the dictionary data.
+        """
+        from .result_serializer import ResultSerializer
+        return ResultSerializer.from_dict(json_dict)
 
     def __repr__(self):
-        """Return a string representation of the Result object."""
+        """Return a string representation of the Result object.
+
+        Returns:
+            A string representation showing the class name and all data parameters.
+        """
         params = ", ".join(f"{key}={repr(value)}" for key, value in self.data.items())
         return f"{self.__class__.__name__}({params})"
 
@@ -618,9 +370,15 @@ class Result(Base, UserDict):
     def example(cls):
         """Return an example Result object.
 
-        >>> Result.example()
-        Result(...)
+        Returns:
+            A sample Result object for testing and demonstration purposes.
 
+        Examples:
+            >>> result = Result.example()
+            >>> type(result)
+            <class 'edsl.results.result.Result'>
+            >>> isinstance(result, Result)
+            True
         """
         from .results import Results
 
@@ -637,26 +395,27 @@ class Result(Base, UserDict):
         If a list is provided, the answer is considered correct if it matches any
         value in the list.
 
-        Parameters:
+        Args:
             answer_key: A dictionary mapping question names to expected answers.
-                       Values can be single items or lists of acceptable answers.
+                Values can be single items or lists of acceptable answers.
 
         Returns:
             A dictionary with keys 'correct', 'incorrect', and 'missing', indicating
             the counts of each answer type.
 
         Examples:
-            >>> Result.example()['answer']
+            >>> result = Result.example()
+            >>> result.answer
             {'how_feeling': 'OK', 'how_feeling_yesterday': 'Great'}
 
             >>> # Using exact match answer key
             >>> answer_key = {'how_feeling': 'OK', 'how_feeling_yesterday': 'Great'}
-            >>> Result.example().score_with_answer_key(answer_key)
+            >>> result.score_with_answer_key(answer_key)
             {'correct': 2, 'incorrect': 0, 'missing': 0}
 
             >>> # Using answer key with multiple acceptable answers
             >>> answer_key = {'how_feeling': 'OK', 'how_feeling_yesterday': ['Great', 'Good']}
-            >>> Result.example().score_with_answer_key(answer_key)
+            >>> result.score_with_answer_key(answer_key)
             {'correct': 2, 'incorrect': 0, 'missing': 0}
         """
         final_scores = {"correct": 0, "incorrect": 0, "missing": 0}
@@ -677,9 +436,22 @@ class Result(Base, UserDict):
     def score(self, scoring_function: Callable) -> Union[int, float]:
         """Score the result using a passed-in scoring function.
 
-        >>> def f(status): return 1 if status == 'Joyful' else 0
-        >>> Result.example().score(f)
-        1
+        Args:
+            scoring_function: A callable that takes parameters from the Result's combined_dict
+                and returns a numeric score.
+
+        Returns:
+            The numeric score returned by the scoring function.
+
+        Raises:
+            ResultsError: If a required parameter for the scoring function is not found
+                in the Result object.
+
+        Examples:
+            >>> def f(status): return 1 if status == 'Joyful' else 0
+            >>> result = Result.example()
+            >>> result.score(f)
+            1
         """
         signature = inspect.signature(scoring_function)
         params = {}
@@ -715,259 +487,20 @@ class Result(Base, UserDict):
 
     @classmethod
     def from_interview(cls, interview) -> Result:
-        """Return a Result object from an interview dictionary, ensuring no reference to the original interview is maintained."""
-        # Copy the valid results to avoid maintaining references
-        model_response_objects = (
-            list(interview.valid_results) if hasattr(interview, "valid_results") else []
-        )
-        # Create a copy of the answers
-        extracted_answers = (
-            dict(interview.answers) if hasattr(interview, "answers") else {}
-        )
+        """Return a Result object from an interview dictionary.
 
-        def get_question_results(
-            model_response_objects,
-        ) -> dict[str, Any]:
-            """Maps the question name to the EDSLResultObjectInput."""
-            question_results = {}
-            for result in model_response_objects:
-                question_results[result.question_name] = result
-            return question_results
+        This method ensures no reference to the original interview is maintained,
+        creating a clean Result object from the interview data.
 
-        def get_cache_keys(model_response_objects) -> dict[str, bool]:
-            cache_keys = {}
-            for result in model_response_objects:
-                cache_keys[result.question_name] = result.cache_key
-            return cache_keys
+        Args:
+            interview: An interview dictionary containing the raw interview data.
 
-        def get_generated_tokens_dict(
-            answer_key_names, question_results
-        ) -> dict[str, str]:
-            generated_tokens_dict = {
-                k + "_generated_tokens": question_results[k].generated_tokens
-                for k in answer_key_names
-            }
-            return generated_tokens_dict
-
-        def get_comments_dict(answer_key_names, question_results) -> dict[str, str]:
-            comments_dict = {
-                k + "_comment": question_results[k].comment for k in answer_key_names
-            }
-            return comments_dict
-
-        def get_reasoning_summaries_dict(
-            answer_key_names, question_results
-        ) -> dict[str, Any]:
-            reasoning_summaries_dict = {}
-            for k in answer_key_names:
-                reasoning_summary = question_results[k].reasoning_summary
-
-                # If reasoning summary is None but we have a raw model response, try to extract it
-                if reasoning_summary is None and hasattr(
-                    question_results[k], "raw_model_response"
-                ):
-                    try:
-                        # Get the model class to access the reasoning_sequence
-                        model_class = (
-                            interview.model.__class__
-                            if hasattr(interview, "model")
-                            else None
-                        )
-
-                        if model_class and hasattr(model_class, "reasoning_sequence"):
-                            from ..language_models.raw_response_handler import (
-                                RawResponseHandler,
-                            )
-
-                            # Create a handler with the model's reasoning sequence
-                            handler = RawResponseHandler(
-                                key_sequence=(
-                                    model_class.key_sequence
-                                    if hasattr(model_class, "key_sequence")
-                                    else None
-                                ),
-                                usage_sequence=(
-                                    model_class.usage_sequence
-                                    if hasattr(model_class, "usage_sequence")
-                                    else None
-                                ),
-                                reasoning_sequence=model_class.reasoning_sequence,
-                            )
-
-                            # Try to extract the reasoning summary
-                            reasoning_summary = handler.get_reasoning_summary(
-                                question_results[k].raw_model_response
-                            )
-                    except Exception:
-                        # If extraction fails, keep it as None
-                        pass
-
-                reasoning_summaries_dict[k + "_reasoning_summary"] = reasoning_summary
-            return reasoning_summaries_dict
-
-        def get_question_name_to_prompts(
-            model_response_objects,
-        ) -> dict[str, dict[str, str]]:
-            question_name_to_prompts = dict({})
-            for result in model_response_objects:
-                question_name = result.question_name
-                question_name_to_prompts[question_name] = {
-                    "user_prompt": result.prompts["user_prompt"],
-                    "system_prompt": result.prompts["system_prompt"],
-                }
-            return question_name_to_prompts
-
-        def get_prompt_dictionary(answer_key_names, question_name_to_prompts):
-            prompt_dictionary = {}
-            for answer_key_name in answer_key_names:
-                prompt_dictionary[answer_key_name + "_user_prompt"] = (
-                    question_name_to_prompts[answer_key_name]["user_prompt"]
-                )
-                prompt_dictionary[answer_key_name + "_system_prompt"] = (
-                    question_name_to_prompts[answer_key_name]["system_prompt"]
-                )
-            return prompt_dictionary
-
-        def get_raw_model_results_and_cache_used_dictionary(model_response_objects):
-            raw_model_results_dictionary = {}
-            cache_used_dictionary = {}
-            for result in model_response_objects:
-                question_name = result.question_name
-                raw_model_results_dictionary[question_name + "_raw_model_response"] = (
-                    result.raw_model_response
-                )
-                raw_model_results_dictionary[question_name + "_input_tokens"] = (
-                    result.input_tokens
-                )
-                raw_model_results_dictionary[question_name + "_output_tokens"] = (
-                    result.output_tokens
-                )
-                raw_model_results_dictionary[
-                    question_name + "_input_price_per_million_tokens"
-                ] = result.input_price_per_million_tokens
-                raw_model_results_dictionary[
-                    question_name + "_output_price_per_million_tokens"
-                ] = result.output_price_per_million_tokens
-                raw_model_results_dictionary[question_name + "_cost"] = (
-                    result.total_cost
-                )
-                one_usd_buys = (
-                    "NA"
-                    if isinstance(result.total_cost, str)
-                    or result.total_cost == 0
-                    or result.total_cost is None
-                    else 1.0 / result.total_cost
-                )
-                raw_model_results_dictionary[question_name + "_one_usd_buys"] = (
-                    one_usd_buys
-                )
-                cache_used_dictionary[question_name] = result.cache_used
-
-            return raw_model_results_dictionary, cache_used_dictionary
-
-        def get_validated_dictionary(model_response_objects):
-            validated_dict = {}
-            for result in model_response_objects:
-                validated_dict[f"{result.question_name}_validated"] = result.validated
-            return validated_dict
-
-        # Save essential information from the interview before clearing references
-        agent_copy = interview.agent.copy() if hasattr(interview, "agent") else None
-        scenario_copy = (
-            interview.scenario.copy() if hasattr(interview, "scenario") else None
-        )
-        model_copy = interview.model.copy() if hasattr(interview, "model") else None
-        iteration = interview.iteration if hasattr(interview, "iteration") else 0
-        survey_copy = (
-            interview.survey.copy()
-            if hasattr(interview, "survey") and interview.survey
-            else None
-        )
-        indices_copy = (
-            dict(interview.indices)
-            if hasattr(interview, "indices") and interview.indices
-            else None
-        )
-        initial_hash = (
-            interview.initial_hash
-            if hasattr(interview, "initial_hash")
-            else hash(interview)
-        )
-
-        # Process data to create dictionaries needed for Result
-        question_results = get_question_results(model_response_objects)
-        answer_key_names = list(question_results.keys())
-        generated_tokens_dict = (
-            get_generated_tokens_dict(answer_key_names, question_results)
-            if answer_key_names
-            else {}
-        )
-        comments_dict = (
-            get_comments_dict(answer_key_names, question_results)
-            if answer_key_names
-            else {}
-        )
-        reasoning_summaries_dict = (
-            get_reasoning_summaries_dict(answer_key_names, question_results)
-            if answer_key_names
-            else {}
-        )
-
-        # Get answers that are in the question results
-        answer_dict = {}
-        for k in answer_key_names:
-            if k in extracted_answers:
-                answer_dict[k] = extracted_answers[k]
-
-        cache_keys = get_cache_keys(model_response_objects)
-
-        question_name_to_prompts = get_question_name_to_prompts(model_response_objects)
-        prompt_dictionary = (
-            get_prompt_dictionary(answer_key_names, question_name_to_prompts)
-            if answer_key_names
-            else {}
-        )
-
-        raw_model_results_dictionary, cache_used_dictionary = (
-            get_raw_model_results_and_cache_used_dictionary(model_response_objects)
-        )
-
-        validated_dictionary = get_validated_dictionary(model_response_objects)
-
-        # Create the Result object with all copied data
-        result = cls(
-            agent=agent_copy,
-            scenario=scenario_copy,
-            model=model_copy,
-            iteration=iteration,
-            answer=answer_dict,
-            prompt=prompt_dictionary,
-            raw_model_response=raw_model_results_dictionary,
-            survey=survey_copy,
-            generated_tokens=generated_tokens_dict,
-            comments_dict=comments_dict,
-            reasoning_summaries_dict=reasoning_summaries_dict,
-            cache_used_dict=cache_used_dictionary,
-            indices=indices_copy,
-            cache_keys=cache_keys,
-            validated_dict=validated_dictionary,
-        )
-
-        # Store only the hash, not the interview
-        result.interview_hash = initial_hash
-
-        # Clear references to help garbage collection of the interview
-        if hasattr(interview, "clear_references"):
-            interview.clear_references()
-
-        # Clear local references to help with garbage collection
-        del model_response_objects
-        del extracted_answers
-        del question_results
-        del answer_key_names
-        del question_name_to_prompts
-
-        return result
+        Returns:
+            A new Result object created from the interview data.
+        """
+        from .result_from_interview import ResultFromInterview
+        converter = ResultFromInterview(interview)
+        return converter.convert()
 
 
 if __name__ == "__main__":
