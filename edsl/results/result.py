@@ -179,7 +179,7 @@ class Result(Base, UserDict):
         """Return the Scenario object."""
         #_ = self.rb
         #return self._get_data("scenario")
-        return self.sub_dicts["scenario"]
+        return self.data["scenario"]
 
     @property
     def model(self) -> "LanguageModel":
@@ -191,7 +191,7 @@ class Result(Base, UserDict):
     def answer(self) -> dict[QuestionName, AnswerValue]:
         """Return the answers."""
         #_ = self.rb
-        return self.sub_dicts["answer"]
+        return self.data["answer"]
 
     def check_expression(self, expression: str) -> None:
         """Check if an expression references a problematic key.
