@@ -73,6 +73,10 @@ from .results_sampler import ResultsSampler
 from .data_type_cache_manager import DataTypeCacheManager
 from .results_analyzer import ResultsAnalyzer
 from .results_remote_fetcher import ResultsRemoteFetcher
+from .results_scorer import ResultsScorer
+from .results_transformer import ResultsTransformer
+from .results_properties import ResultsProperties
+from .results_container import ResultsContainer
 
 from .exceptions import (
     ResultsError,
@@ -83,19 +87,6 @@ from .exceptions import (
     ResultsFilterError,
     ResultsDeserializationError,
 )
-
-
-
-
-
-
-
-
-
-    
-
-
-
 
 class Results(MutableSequence, ResultsOperationsMixin, Base):
     """A collection of Result objects with powerful data analysis capabilities.
@@ -281,6 +272,12 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         # Initialize cache manager for expensive operations
         self._cache_manager = DataTypeCacheManager(self)
 
+        # Initialize properties handler
+        self._properties = ResultsProperties(self)
+
+        # Initialize container handler
+        self._container = ResultsContainer(self)
+
         if name is not None:
             self.name = name
         else:
@@ -291,8 +288,6 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
 
     def add_task_history_entry(self, interview: "Interview") -> None:
         self.task_history.add_interview(interview)
-
-
 
     def get_answers(self, question_name: str) -> list:
         """Get the answers for a given question name.
@@ -409,21 +404,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         This method preserves ordering based on 'order' attribute if present,
         otherwise falls back to 'iteration' attribute.
         """
-        # Collect all items (existing and new)
-        all_items = list(self.data)
-        all_items.extend(other)
-
-        # Sort combined list by order attribute if available, otherwise by iteration
-        def get_sort_key(item):
-            if hasattr(item, "order"):
-                return (0, item.order)  # Order attribute takes precedence
-            return (1, item.data["iteration"])  # Iteration is secondary
-
-        all_items.sort(key=get_sort_key)
-
-        # Clear and refill with sorted items
-        self.data.clear()
-        self.data.extend(all_items)
+        return self._container.extend_sorted(other)
 
     def compute_job_cost(self, include_cached_responses_in_cost: bool = False) -> float:
         """Compute the cost of a completed job in USD.
@@ -467,38 +448,28 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
 
     @ensure_ready
     def __getitem__(self, i):
-        if isinstance(i, int):
-            return self.data[i]
-        if isinstance(i, slice):
-            return self.__class__(survey=self.survey, data=self.data[i])
-        if isinstance(i, str):
-            return self.to_dict()[i]
-        raise ResultsError("Invalid argument type for indexing Results object")
+        return self._container.__getitem__(i)
 
     @ensure_ready
     def __setitem__(self, i, item):
-        self.data[i] = item
-        self._cache_manager.invalidate_cache()
+        return self._container.__setitem__(i, item)
 
     @ensure_ready
     def __delitem__(self, i):
-        del self.data[i]
-        self._cache_manager.invalidate_cache()
+        return self._container.__delitem__(i)
 
     @ensure_ready
     def __len__(self):
-        return len(self.data)
+        return self._container.__len__()
 
     @ensure_ready
     def insert(self, index, item):
-        self.data.insert(index, item)
-        self._cache_manager.invalidate_cache()
+        return self._container.insert(index, item)
 
     @ensure_ready
     def extend(self, other):
         """Extend the Results list with items from another iterable."""
-        self.data.extend(other)
-        self._cache_manager.invalidate_cache()
+        return self._container.extend(other)
 
     def __add__(self, other: Results) -> Results:
         """Add two Results objects together.
@@ -533,26 +504,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             ...     True
             True
         """
-        if self.survey != other.survey:
-            raise ResultsError(
-                "The surveys are not the same so the the results cannot be added together."
-            )
-        if self.created_columns != other.created_columns:
-            raise ResultsError(
-                "The created columns are not the same so they cannot be added together."
-            )
-
-        # Create a new ResultsSQLList with the combined data
-        # combined_data = ResultsSQLList()
-        combined_data = self._data_class()
-        combined_data.extend(self.data)
-        combined_data.extend(other.data)
-
-        return Results(
-            survey=self.survey,
-            data=combined_data,
-            created_columns=self.created_columns,
-        )
+        return self._container.__add__(other)
 
     def _repr_html_(self):
         if not self.completed:
@@ -697,7 +649,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
 
     @property
     def has_unfixed_exceptions(self) -> bool:
-        return self.task_history.has_unfixed_exceptions
+        return self._properties.has_unfixed_exceptions
 
     def __hash__(self) -> int:
         return dict_hash(
@@ -711,7 +663,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
 
     @property
     def hashes(self) -> set:
-        return set(hash(result) for result in self.data)
+        return self._properties.hashes
 
     def _sample_legacy(self, n: int) -> Results:
         """Return a random sample of the results using legacy algorithm.
@@ -768,7 +720,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         >>> r.columns
         ['agent.agent_index', ...]
         """
-        return self._cache_manager.columns
+        return self._properties.columns
 
     @property
     def answer_keys(self) -> dict[str, str]:
@@ -780,20 +732,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         >>> r.answer_keys
         {'how_feeling': 'How are you this {{ period }}?', 'how_feeling_yesterday': 'How were you feeling yesterday {{ period }}?'}
         """
-        from ..utilities.utilities import shorten_string
-
-        if not self.survey:
-            raise ResultsError("Survey is not defined so no answer keys are available.")
-
-        answer_keys = self._cache_manager.data_type_to_keys["answer"]
-        answer_keys = {k for k in answer_keys if "_comment" not in k}
-        questions_text = [
-            self.survey._get_question_by_name(k).question_text for k in answer_keys
-        ]
-        short_question_text = [shorten_string(q, 80) for q in questions_text]
-        initial_dict = dict(zip(answer_keys, short_question_text))
-        sorted_dict = {key: initial_dict[key] for key in sorted(initial_dict)}
-        return sorted_dict
+        return self._properties.answer_keys
 
     @property
     def agents(self) -> AgentList:
@@ -805,9 +744,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         >>> r.agents
         AgentList([Agent(traits = {'status': 'Joyful'}), Agent(traits = {'status': 'Joyful'}), Agent(traits = {'status': 'Sad'}), Agent(traits = {'status': 'Sad'})])
         """
-        from ..agents import AgentList
-
-        return AgentList([r.agent for r in self.data])
+        return self._properties.agents
 
     @property
     def models(self) -> ModelList:
@@ -819,9 +756,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         >>> r.models[0]
         Model(model_name = ...)
         """
-        from ..language_models import ModelList
-
-        return ModelList([r.model for r in self.data])
+        return self._properties.models
 
     def __eq__(self, other):
         return hash(self) == hash(other)
@@ -836,9 +771,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         >>> r.scenarios
         ScenarioList([Scenario({'period': 'morning'}), Scenario({'period': 'afternoon'}), Scenario({'period': 'morning'}), Scenario({'period': 'afternoon'})])
         """
-        from ..scenarios import ScenarioList
-
-        return ScenarioList([r.scenario for r in self.data])
+        return self._properties.scenarios
 
     @property
     def agent_keys(self) -> list[str]:
@@ -850,7 +783,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         >>> r.agent_keys
         ['agent_index', 'agent_instruction', 'agent_name', 'status']
         """
-        return sorted(self._cache_manager.data_type_to_keys["agent"])
+        return self._properties.agent_keys
 
     @property
     def model_keys(self) -> list[str]:
@@ -860,7 +793,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         >>> r.model_keys
         ['frequency_penalty', 'inference_service', 'logprobs', 'max_tokens', 'model', 'model_index', 'presence_penalty', 'temperature', 'top_logprobs', 'top_p']
         """
-        return sorted(self._cache_manager.data_type_to_keys["model"])
+        return self._properties.model_keys
 
     @property
     def scenario_keys(self) -> list[str]:
@@ -870,7 +803,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         >>> r.scenario_keys
         ['period', 'scenario_index']
         """
-        return sorted(self._cache_manager.data_type_to_keys["scenario"])
+        return self._properties.scenario_keys
 
     @property
     def question_names(self) -> list[str]:
@@ -882,9 +815,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         >>> r.question_names
         ['how_feeling', 'how_feeling_yesterday']
         """
-        if self.survey is None:
-            return []
-        return sorted(list(self.survey.question_names))
+        return self._properties.question_names
 
     @property
     def all_keys(self) -> list[str]:
@@ -896,13 +827,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         >>> r.all_keys
         ['agent_index', ...]
         """
-        answer_keys = set(self.answer_keys)
-        all_keys = (
-            answer_keys.union(self.agent_keys)
-            .union(self.scenario_keys)
-            .union(self.model_keys)
-        )
-        return sorted(list(all_keys))
+        return self._properties.all_keys
 
     def first(self) -> Result:
         """Return the first observation in the results.
@@ -915,52 +840,13 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         """
         return self.data[0]
 
-    @staticmethod
-    def _create_evaluator(
-        result: Result, functions_dict: Optional[dict] = None
-    ) -> "EvalWithCompoundTypes":
-        """Create an evaluator for the expression.
-
-        >>> from unittest.mock import Mock
-        >>> result = Mock()
-        >>> result.combined_dict = {'how_feeling': 'OK'}
-
-        >>> evaluator = Results._create_evaluator(result = result, functions_dict = {})
-        >>> evaluator.eval("how_feeling == 'OK'")
-        True
-
-        >>> result.combined_dict = {'answer': {'how_feeling': 'OK'}}
-        >>> evaluator = Results._create_evaluator(result = result, functions_dict = {})
-        >>> evaluator.eval("answer.how_feeling== 'OK'")
-        True
-
-        Note that you need to refer to the answer dictionary in the expression.
-
-        >>> evaluator.eval("how_feeling== 'OK'")
-        Traceback (most recent call last):
-        ...
-        simpleeval.NameNotDefined: 'how_feeling' is not defined for expression 'how_feeling== 'OK''
-        """
-        from simpleeval import EvalWithCompoundTypes
-
-        if functions_dict is None:
-            functions_dict = {}
-        evaluator = EvalWithCompoundTypes(
-            names=result.combined_dict, functions=functions_dict
-        )
-        evaluator.functions.update(int=int, float=float)
-        return evaluator
-
     @ensure_ready
     def mutate(
         self, new_var_string: str, functions_dict: Optional[dict] = None
     ) -> Results:
         """Create a new column based on a computational expression.
 
-        The mutate method allows you to create new derived variables based on existing data.
-        You provide an assignment expression where the left side is the new column name
-        and the right side is a Python expression that computes the value. The expression
-        can reference any existing columns in the Results object.
+        This method delegates to the ResultsTransformer class to handle the mutation operation.
 
         Args:
             new_var_string: A string containing an assignment expression in the form
@@ -971,15 +857,6 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
 
         Returns:
             A new Results object with the additional column.
-
-        Notes:
-            - The expression must contain an equals sign (=) separating the new column name
-              from the computation expression
-            - The new column name must be a valid Python variable name
-            - The expression is evaluated for each Result object individually
-            - The expression can access any data in the Result object using the column names
-            - New columns are added to the "answer" data type
-            - Created columns are tracked in the `created_columns` property
 
         Examples:
             >>> r = Results.example()
@@ -999,40 +876,8 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             ...          functions_dict={'sentiment': sentiment}).select('is_long')
             Dataset([{'answer.is_long': [False, False, True, False]}])
         """
-        # extract the variable name and the expression
-        if "=" not in new_var_string:
-            raise ResultsBadMutationstringError(
-                f"Mutate requires an '=' in the string, but '{new_var_string}' doesn't have one."
-            )
-        raw_var_name, expression = new_var_string.split("=", 1)
-        var_name = raw_var_name.strip()
-        from ..utilities.utilities import is_valid_variable_name
-
-        if not is_valid_variable_name(var_name):
-            raise ResultsInvalidNameError(f"{var_name} is not a valid variable name.")
-
-        # create the evaluator
-        functions_dict = functions_dict or {}
-
-        def new_result(old_result: "Result", var_name: str) -> "Result":
-            evaluator = self._create_evaluator(old_result, functions_dict)
-            value = evaluator.eval(expression)
-            new_result = old_result.copy()
-            new_result["answer"][var_name] = value
-            return new_result
-
-        try:
-            new_data = [new_result(result, var_name) for result in self.data]
-        except Exception as e:
-            raise ResultsMutateError(f"Error in mutate. Exception:{e}")
-
-        new_results = Results(
-            survey=self.survey,
-            data=new_data,
-            created_columns=self.created_columns + [var_name],
-        )
-        new_results._cache_manager.invalidate_cache()
-        return new_results
+        transformer = ResultsTransformer(self)
+        return transformer.mutate(new_var_string, functions_dict)
 
     # Method removed due to duplication (F811)
 
@@ -1040,32 +885,22 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
     def rename(self, old_name: str, new_name: str) -> Results:
         """Rename an answer column in a Results object.
 
-        >>> s = Results.example()
-        >>> s.rename('how_feeling', 'how_feeling_new').select('how_feeling_new')
-        Dataset([{'answer.how_feeling_new': ['OK', 'Great', 'Terrible', 'OK']}])
+        This method delegates to the ResultsTransformer class to handle the renaming operation.
+
+        Args:
+            old_name: The current name of the column to rename
+            new_name: The new name for the column
+
+        Returns:
+            Results: A new Results object with the column renamed
+
+        Examples:
+            >>> s = Results.example()
+            >>> s.rename('how_feeling', 'how_feeling_new').select('how_feeling_new')
+            Dataset([{'answer.how_feeling_new': ['OK', 'Great', 'Terrible', 'OK']}])
         """
-        # Create new Results object with same properties but empty data
-        new_results = Results(
-            survey=self.survey,
-            data=[],
-            created_columns=self.created_columns,
-            data_class=self._data_class,
-        )
-
-        # Update created_columns if old_name was in there
-        if old_name in new_results.created_columns:
-            new_results.created_columns.remove(old_name)
-            new_results.created_columns.append(new_name)
-
-        # Process one result at a time
-        for obs in self.data:
-            new_result = obs.copy()
-            new_result["answer"][new_name] = new_result["answer"][old_name]
-            del new_result["answer"][old_name]
-            new_results.append(new_result)
-
-        new_results._cache_manager.invalidate_cache()
-        return new_results
+        transformer = ResultsTransformer(self)
+        return transformer.rename(old_name, new_name)
 
     @ensure_ready
     def shuffle(self, seed: Optional[str] = "edsl") -> Results:
@@ -1216,12 +1051,14 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
     def _parse_column(self, column: str) -> tuple[str, str]:
         """Parse a column name into a data type and key."""
         if "." in column:
-            return column.split(".")
+            return column.split(".", 1)
         return self._cache_manager.key_to_data_type[column], column
 
     @ensure_ready
     def order_by(self, *columns: str, reverse: bool = False) -> Results:
         """Sort the results by one or more columns.
+
+        This method delegates to the ResultsTransformer class to handle the sorting operation.
 
         Args:
             columns: One or more column names as strings.
@@ -1229,36 +1066,15 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
 
         Returns:
             Results: A new Results object with sorted data.
+
+        Examples:
+            >>> r = Results.example()
+            >>> sorted_results = r.order_by('how_feeling')
+            >>> len(sorted_results) == len(r)
+            True
         """
-
-        def to_numeric_if_possible(v):
-            try:
-                return float(v)
-            except (ValueError, TypeError):
-                return v
-
-        def sort_key(item):
-            key_components = []
-            for col in columns:
-                data_type, key = self._parse_column(col)
-                value = item.get_value(data_type, key)
-                if isinstance(value, (str, bytes)):
-                    key_components.append(str(value))
-                else:
-                    key_components.append(to_numeric_if_possible(value))
-            return tuple(key_components)
-
-        # Create a new sorted view of the data without materializing it
-        sorted_data = sorted(self.data, key=sort_key, reverse=reverse)
-
-        # Create new Results object that uses the sorted iterator
-        return Results(
-            survey=self.survey,
-            data=sorted_data,  # This will be an iterator, not a materialized list
-            created_columns=self.created_columns,
-            data_class=self._data_class,
-            sort_by_iteration=False,
-        )
+        transformer = ResultsTransformer(self)
+        return transformer.order_by(*columns, reverse=reverse)
 
 
 
@@ -1344,23 +1160,38 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             print("No exceptions to show.")
 
     def score(self, f: Callable) -> list:
-        """Score the results using in a function.
+        """Score the results using a function.
 
-        :param f: A function that takes values from a Resul object and returns a score.
+        This method delegates to the ResultsScorer class to handle the scoring operation.
 
-        >>> r = Results.example()
-        >>> def f(status): return 1 if status == 'Joyful' else 0
-        >>> r.score(f)
-        [1, 1, 0, 0]
+        Args:
+            f: A function that takes values from a Result object and returns a score.
+
+        Returns:
+            list: A list of scores, one for each Result object.
+
+        Examples:
+            >>> r = Results.example()
+            >>> def f(status): return 1 if status == 'Joyful' else 0
+            >>> r.score(f)
+            [1, 1, 0, 0]
         """
-        return [r.score(f) for r in self.data]
+        scorer = ResultsScorer(self)
+        return scorer.score(f)
 
     def score_with_answer_key(self, answer_key: dict) -> list:
         """Score the results using an answer key.
 
-        :param answer_key: A dictionary that maps answer values to scores.
+        This method delegates to the ResultsScorer class to handle the scoring operation.
+
+        Args:
+            answer_key: A dictionary that maps answer values to scores.
+
+        Returns:
+            list: A list of scores, one for each Result object.
         """
-        return [r.score_with_answer_key(answer_key) for r in self.data]
+        scorer = ResultsScorer(self)
+        return scorer.score_with_answer_key(answer_key)
 
     def fetch_remote(self, job_info: Any) -> bool:
         """Fetch remote Results object and update this instance with the data.
@@ -1375,17 +1206,6 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
 
         Raises:
             ResultsError: If there's an error during the fetch process.
-
-        Examples:
-            >>> # This is a simplified example since we can't actually test this without a remote server
-            >>> from unittest.mock import Mock, patch
-            >>> # Create a mock job_info and Results
-            >>> job_info = Mock()
-            >>> job_info.job_uuid = "test_uuid"
-            >>> results = Results()
-            >>> # In a real scenario:
-            >>> # results.fetch_remote(job_info)
-            >>> # results.completed  # Would be True if successful
         """
         fetcher = ResultsRemoteFetcher(self)
         return fetcher.fetch_remote(job_info)
@@ -1403,16 +1223,6 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
 
         Raises:
             ResultsError: If no job info is available or if there's an error during fetch.
-
-        Examples:
-            >>> # This is a simplified example since we can't actually test polling
-            >>> from unittest.mock import Mock, patch
-            >>> # Create a mock results object
-            >>> results = Results()
-            >>> # In a real scenario with a running job:
-            >>> # results.job_info = remote_job_info
-            >>> # results.fetch()  # Would poll until complete
-            >>> # results.completed  # Would be True if successful
         """
         fetcher = ResultsRemoteFetcher(self)
         return fetcher.fetch(polling_interval)
@@ -1475,8 +1285,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         
         This property delegates to the ResultsSerializer class.
         """
-        serializer = ResultsSerializer(self)
-        return serializer.shelf_keys
+        return self._properties.shelf_keys
 
     @ensure_ready
     def insert_sorted(self, item: "Result") -> None:
@@ -1494,23 +1303,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             >>> new_result.order = 1.5  # Insert between items
             >>> r.insert_sorted(new_result)
         """
-
-        def get_sort_key(result):
-            if hasattr(result, "order"):
-                return (0, result.order)  # Order attribute takes precedence
-            return (1, result.data["iteration"])  # Iteration is secondary
-
-        # Get the sort key for the new item
-        item_key = get_sort_key(item)
-
-        # Get list of sort keys for existing items
-        keys = [get_sort_key(x) for x in self.data]
-
-        # Find insertion point
-        index = bisect_left(keys, item_key)
-
-        # Insert at the found position
-        self.data.insert(index, item)
+        return self._container.insert_sorted(item)
 
     def insert_from_shelf(self) -> None:
         """Move all shelved results into memory using insert_sorted method.

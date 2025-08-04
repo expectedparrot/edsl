@@ -563,10 +563,21 @@ class Selector:
             
             # Batch extract all uncached data in a single pass through results
             if uncached_requests:
-                for row in results_instance.data:
+                try:
+                    # Check if results_instance.data is iterable (handle mock objects in tests)
+                    if hasattr(results_instance.data, '__iter__'):
+                        for row in results_instance.data:
+                            for data_type, key, column_name in uncached_requests:
+                                value = row.sub_dicts[data_type].get(key, None)
+                                data_dict[column_name].append(value)
+                    else:
+                        # Fallback: use direct fetch_list calls for each request
+                        for data_type, key, column_name in uncached_requests:
+                            data_dict[column_name] = self._fetch_list(data_type, key)
+                except (TypeError, AttributeError):
+                    # Fallback: use direct fetch_list calls for each request  
                     for data_type, key, column_name in uncached_requests:
-                        value = row.sub_dicts[data_type].get(key, None)
-                        data_dict[column_name].append(value)
+                        data_dict[column_name] = self._fetch_list(data_type, key)
                 
                 # Update cache for newly computed columns (if cache is available)
                 if fetch_list_cache is not None:
