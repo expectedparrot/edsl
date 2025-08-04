@@ -37,7 +37,6 @@ print(report.generate())
 
 from __future__ import annotations
 import json
-import random
 import warnings
 from collections import defaultdict
 from typing import Optional, Callable, Any, Union, List, TYPE_CHECKING
@@ -46,6 +45,9 @@ from collections.abc import MutableSequence
 
 from ..base import Base
 from ..caching import Cache, CacheEntry
+
+
+
 
 if TYPE_CHECKING:
     from ..interviews import Interview
@@ -67,6 +69,10 @@ from .results_filter import ResultsFilter
 from .results_serializer import ResultsSerializer
 from .utilities import ResultsSQLList, ensure_fetched, ensure_ready, NotReadyObject
 from .job_cost_calculator import JobCostCalculator
+from .results_sampler import ResultsSampler
+from .data_type_cache_manager import DataTypeCacheManager
+from .results_analyzer import ResultsAnalyzer
+from .results_remote_fetcher import ResultsRemoteFetcher
 
 from .exceptions import (
     ResultsError,
@@ -272,12 +278,8 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
 
         self.task_history = task_history or TaskHistory(interviews=[])
 
-        # Initialize caches for expensive operations
-        self._key_to_data_type_cache = None
-        self._data_type_to_keys_cache = None
-        self._columns_cache = None
-        self._fetch_list_cache = {}
-        self._cache_dirty = True
+        # Initialize cache manager for expensive operations
+        self._cache_manager = DataTypeCacheManager(self)
 
         if name is not None:
             self.name = name
@@ -290,43 +292,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
     def add_task_history_entry(self, interview: "Interview") -> None:
         self.task_history.add_interview(interview)
 
-    def _invalidate_cache(self) -> None:
-        """Invalidate cached expensive operations when data changes."""
-        self._key_to_data_type_cache = None
-        self._data_type_to_keys_cache = None
-        self._columns_cache = None
-        self._fetch_list_cache = {}
-        self._cache_dirty = True
 
-    def _fetch_list(self, data_type: str, key: str) -> list:
-        """Return a list of values from the data for a given data type and key.
-
-        Uses the filtered data, not the original data.
-
-        Args:
-            data_type: The type of data to fetch (e.g., 'answer', 'agent', 'scenario').
-            key: The key to fetch from each data type dictionary.
-
-        Returns:
-            list: A list of values, one from each result in the data.
-
-        Examples:
-            >>> from edsl.results import Results
-            >>> r = Results.example()
-            >>> values = r._fetch_list('answer', 'how_feeling')
-            >>> len(values) == len(r)
-            True
-            >>> all(isinstance(v, (str, type(None))) for v in values)
-            True
-        """
-        cache_key = (data_type, key)
-        if cache_key not in self._fetch_list_cache:
-            returned_list = []
-            for row in self.data:
-                returned_list.append(row.sub_dicts[data_type].get(key, None))
-            self._fetch_list_cache[cache_key] = returned_list
-
-        return self._fetch_list_cache[cache_key]
 
     def get_answers(self, question_name: str) -> list:
         """Get the answers for a given question name.
@@ -346,7 +312,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             >>> len(answers) == len(r)
             True
         """
-        return self._fetch_list("answer", question_name)
+        return self._cache_manager.fetch_list("answer", question_name)
 
     def _summary(self) -> dict:
         """Return a dictionary containing summary statistics about the Results object.
@@ -477,7 +443,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             >>> from edsl.results import Results
             >>> r = Results.example()
             >>> r.compute_job_cost()
-            0
+            0.0
         """
         calculator = JobCostCalculator(self)
         return calculator.compute_job_cost(include_cached_responses_in_cost)
@@ -512,12 +478,12 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
     @ensure_ready
     def __setitem__(self, i, item):
         self.data[i] = item
-        self._invalidate_cache()
+        self._cache_manager.invalidate_cache()
 
     @ensure_ready
     def __delitem__(self, i):
         del self.data[i]
-        self._invalidate_cache()
+        self._cache_manager.invalidate_cache()
 
     @ensure_ready
     def __len__(self):
@@ -526,13 +492,13 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
     @ensure_ready
     def insert(self, index, item):
         self.data.insert(index, item)
-        self._invalidate_cache()
+        self._cache_manager.invalidate_cache()
 
     @ensure_ready
     def extend(self, other):
         """Extend the Results list with items from another iterable."""
         self.data.extend(other)
-        self._invalidate_cache()
+        self._cache_manager.invalidate_cache()
 
     def __add__(self, other: Results) -> Results:
         """Add two Results objects together.
@@ -618,12 +584,12 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
                         f"{data_type} is not a valid data type. Must be in {self.known_data_types}"
                     )
                 if key == "*":
-                    for k in self._data_type_to_keys[data_type]:
+                    for k in self._cache_manager.data_type_to_keys[data_type]:
                         new_fields.append(k)
                 else:
-                    if key not in self._key_to_data_type:
+                    if key not in self._cache_manager.key_to_data_type:
                         raise ResultsColumnNotFoundError(
-                            f"{key} is not a valid key. Must be in {self._key_to_data_type}"
+                            f"{key} is not a valid key. Must be in {self._cache_manager.key_to_data_type}"
                         )
                     new_fields.append(key)
             else:
@@ -748,29 +714,25 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         return set(hash(result) for result in self.data)
 
     def _sample_legacy(self, n: int) -> Results:
-        """Return a random sample of the results.
+        """Return a random sample of the results using legacy algorithm.
 
-        :param n: The number of samples to return.
+        This method delegates to the ResultsSampler class and is kept for
+        backward compatibility. Use sample() instead.
 
-        >>> from edsl.results import Results
-        >>> r = Results.example()
-        >>> len(r.sample(2))
-        2
+        Args:
+            n: The number of samples to return.
+
+        Returns:
+            Results: A new Results object with sampled data.
+
+        Examples:
+            >>> from edsl.results import Results
+            >>> r = Results.example()
+            >>> len(r.sample(2))
+            2
         """
-        indices = None
-
-        for entry in self:
-            key, values = list(entry.items())[0]
-            if indices is None:  # gets the indices for the first time
-                indices = list(range(len(values)))
-                sampled_indices = random.sample(indices, n)
-                if n > len(indices):
-                    raise ResultsError(
-                        f"Cannot sample {n} items from a list of length {len(indices)}."
-                    )
-            entry[key] = [values[i] for i in sampled_indices]
-
-        return self
+        sampler = ResultsSampler(self)
+        return sampler.sample_legacy(n)
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> Results:
@@ -794,49 +756,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         """
         return ResultsSerializer.from_dict(data)
 
-    @property
-    def _key_to_data_type(self) -> dict[str, str]:
-        """
-        Return a mapping of keys (how_feeling, status, etc.) to strings representing data types.
 
-        Objects such as Agent, Answer, Model, Scenario, etc.
-        - Uses the key_to_data_type property of the Result class.
-        - Includes any columns that the user has created with `mutate`
-        """
-        if self._key_to_data_type_cache is None or self._cache_dirty:
-            d: dict = {}
-            for result in self.data:
-                d.update(result.key_to_data_type)
-            for column in self.created_columns:
-                d[column] = "answer"
-            self._key_to_data_type_cache = d
-            self._cache_dirty = False
-
-        return self._key_to_data_type_cache
-
-    @property
-    def _data_type_to_keys(self) -> dict[str, str]:
-        """
-        Return a mapping of strings representing data types (objects such as Agent, Answer, Model, Scenario, etc.) to keys (how_feeling, status, etc.)
-        - Uses the key_to_data_type property of the Result class.
-        - Includes any columns that the user has created with `mutate`
-
-        Example:
-
-        >>> r = Results.example()
-        >>> r._data_type_to_keys
-        defaultdict(...
-        """
-        if self._data_type_to_keys_cache is None or self._cache_dirty:
-            d: dict = defaultdict(set)
-            for result in self.data:
-                for key, value in result.key_to_data_type.items():
-                    d[value].add(key)
-            for column in self.created_columns:
-                d["answer"].add(column)
-            self._data_type_to_keys_cache = d
-
-        return self._data_type_to_keys_cache
 
     @property
     def columns(self) -> list[str]:
@@ -848,13 +768,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         >>> r.columns
         ['agent.agent_index', ...]
         """
-        if self._columns_cache is None or self._cache_dirty:
-            column_names = [f"{v}.{k}" for k, v in self._key_to_data_type.items()]
-            from ..utilities.PrettyList import PrettyList
-
-            self._columns_cache = PrettyList(sorted(column_names))
-
-        return self._columns_cache
+        return self._cache_manager.columns
 
     @property
     def answer_keys(self) -> dict[str, str]:
@@ -871,7 +785,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         if not self.survey:
             raise ResultsError("Survey is not defined so no answer keys are available.")
 
-        answer_keys = self._data_type_to_keys["answer"]
+        answer_keys = self._cache_manager.data_type_to_keys["answer"]
         answer_keys = {k for k in answer_keys if "_comment" not in k}
         questions_text = [
             self.survey._get_question_by_name(k).question_text for k in answer_keys
@@ -936,7 +850,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         >>> r.agent_keys
         ['agent_index', 'agent_instruction', 'agent_name', 'status']
         """
-        return sorted(self._data_type_to_keys["agent"])
+        return sorted(self._cache_manager.data_type_to_keys["agent"])
 
     @property
     def model_keys(self) -> list[str]:
@@ -946,7 +860,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         >>> r.model_keys
         ['frequency_penalty', 'inference_service', 'logprobs', 'max_tokens', 'model', 'model_index', 'presence_penalty', 'temperature', 'top_logprobs', 'top_p']
         """
-        return sorted(self._data_type_to_keys["model"])
+        return sorted(self._cache_manager.data_type_to_keys["model"])
 
     @property
     def scenario_keys(self) -> list[str]:
@@ -956,7 +870,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         >>> r.scenario_keys
         ['period', 'scenario_index']
         """
-        return sorted(self._data_type_to_keys["scenario"])
+        return sorted(self._cache_manager.data_type_to_keys["scenario"])
 
     @property
     def question_names(self) -> list[str]:
@@ -1000,108 +914,6 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         Result(agent...
         """
         return self.data[0]
-
-    # def answer_truncate(
-    #     self, column: str, top_n: int = 5, new_var_name: Optional[str] = None
-    # ) -> Results:
-    #     """Create a new variable that truncates the answers to the top_n.
-
-    #     :param column: The column to truncate.
-    #     :param top_n: The number of top answers to keep.
-    #     :param new_var_name: The name of the new variable. If None, it is the original name + '_truncated'.
-
-    #     Example:
-    #     >>> r = Results.example()
-    #     >>> r.answer_truncate('how_feeling', top_n = 2).select('how_feeling', 'how_feeling_truncated')
-    #     Dataset([{'answer.how_feeling': ['OK', 'Great', 'Terrible', 'OK']}, {'answer.how_feeling_truncated': ['Other', 'Other', 'Other', 'Other']}])
-
-
-    #     """
-    #     if new_var_name is None:
-    #         new_var_name = column + "_truncated"
-    #     answers = list(self.select(column).tally().keys())
-
-    #     def f(x):
-    #         if x in answers[:top_n]:
-    #             return x
-    #         else:
-    #             return "Other"
-
-    #     return self.recode(column, recode_function=f, new_var_name=new_var_name)
-
-    # @ensure_ready
-    # def recode(
-    #     self, column: str, recode_function: Optional[Callable], new_var_name=None
-    # ) -> Results:
-    #     """
-    #     Recode a column in the Results object.
-
-    #     >>> r = Results.example()
-    #     >>> r.recode('how_feeling', recode_function = lambda x: 1 if x == 'Great' else 0).select('how_feeling', 'how_feeling_recoded')
-    #     Dataset([{'answer.how_feeling': ['OK', 'Great', 'Terrible', 'OK']}, {'answer.how_feeling_recoded': [0, 1, 0, 0]}])
-    #     """
-
-    #     if new_var_name is None:
-    #         new_var_name = column + "_recoded"
-    #     new_data = []
-    #     for result in self.data:
-    #         new_result = result.copy()
-    #         value = new_result.get_value("answer", column)
-    #         # breakpoint()
-    #         new_result["answer"][new_var_name] = recode_function(value)
-    #         new_data.append(new_result)
-
-    #     # print("Created new variable", new_var_name)
-    #     new_results = Results(
-    #         survey=self.survey,
-    #         data=new_data,
-    #         created_columns=self.created_columns + [new_var_name],
-    #     )
-    #     new_results._invalidate_cache()
-    #     return new_results
-
-    # @ensure_ready
-    # def add_column(self, column_name: str, values: list) -> Results:
-    #     """Adds columns to Results
-
-    #     >>> r = Results.example()
-    #     >>> r.add_column('a', [1,2,3, 4]).select('a')
-    #     Dataset([{'answer.a': [1, 2, 3, 4]}])
-    #     """
-    #     assert len(values) == len(
-    #         self.data
-    #     ), "The number of values must match the number of results."
-
-    #     # Create new Results object with same properties but empty data
-    #     new_results = Results(
-    #         survey=self.survey,
-    #         data=[],
-    #         created_columns=self.created_columns + [column_name],
-    #         data_class=self._data_class,
-    #     )
-
-    #     # Process one result at a time
-    #     for i, result in enumerate(self.data):
-    #         new_result = result.copy()
-    #         new_result["answer"][column_name] = values[i]
-    #         new_results.append(new_result)
-
-    #     new_results._invalidate_cache()
-    #     return new_results
-
-    # @ensure_ready
-    # def add_columns_from_dict(self, columns: List[dict]) -> Results:
-    #     """Adds columns to Results from a list of dictionaries.
-
-    #     >>> r = Results.example()
-    #     >>> r.add_columns_from_dict([{'a': 1, 'b': 2}, {'a': 3, 'b': 4}, {'a':3, 'b':2}, {'a':3, 'b':2}]).select('a', 'b')
-    #     Dataset([{'answer.a': [1, 3, 3, 3]}, {'answer.b': [2, 4, 2, 2]}])
-    #     """
-    #     keys = list(columns[0].keys())
-    #     for key in keys:
-    #         values = [d[key] for d in columns]
-    #         self = self.add_column(key, values)
-    #     return self
 
     @staticmethod
     def _create_evaluator(
@@ -1219,7 +1031,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             data=new_data,
             created_columns=self.created_columns + [var_name],
         )
-        new_results._invalidate_cache()
+        new_results._cache_manager.invalidate_cache()
         return new_results
 
     # Method removed due to duplication (F811)
@@ -1252,7 +1064,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             del new_result["answer"][old_name]
             new_results.append(new_result)
 
-        new_results._invalidate_cache()
+        new_results._cache_manager.invalidate_cache()
         return new_results
 
     @ensure_ready
@@ -1265,30 +1077,8 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         Returns:
             Results: A new Results object with shuffled data.
         """
-        if seed != "edsl":
-            random.seed(seed)
-
-        # Create new Results object with same properties but empty data
-        shuffled_results = Results(
-            survey=self.survey,
-            data=[],
-            created_columns=self.created_columns,
-            data_class=self._data_class,
-        )
-
-        # First pass: copy data while tracking indices
-        indices = list(range(len(self.data)))
-
-        # Second pass: Fisher-Yates shuffle on indices
-        for i in range(len(indices) - 1, 0, -1):
-            j = random.randrange(i + 1)
-            indices[i], indices[j] = indices[j], indices[i]
-
-        # Final pass: append items in shuffled order
-        for idx in indices:
-            shuffled_results.append(self.data[idx])
-
-        return shuffled_results
+        sampler = ResultsSampler(self)
+        return sampler.shuffle(seed)
 
     @ensure_ready
     def sample(
@@ -1309,50 +1099,8 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         Returns:
             Results: A new Results object containing the sampled data.
         """
-        if seed:
-            random.seed(seed)
-
-        if n is None and frac is None:
-            raise ResultsError("You must specify either n or frac.")
-
-        if n is not None and frac is not None:
-            raise ResultsError("You cannot specify both n and frac.")
-
-        if frac is not None:
-            n = int(frac * len(self.data))
-
-        # Create new Results object with same properties but empty data
-        sampled_results = Results(
-            survey=self.survey,
-            data=[],
-            created_columns=self.created_columns,
-            data_class=self._data_class,
-        )
-
-        if with_replacement:
-            # For sampling with replacement, we can generate indices and sample one at a time
-            indices = (random.randrange(len(self.data)) for _ in range(n))
-            for i in indices:
-                sampled_results.append(self.data[i])
-        else:
-            # For sampling without replacement, use reservoir sampling
-            if n > len(self.data):
-                raise ResultsError(
-                    f"Cannot sample {n} items from a list of length {len(self.data)}."
-                )
-
-            # Reservoir sampling algorithm
-            for i, item in enumerate(self.data):
-                if i < n:
-                    # Fill the reservoir initially
-                    sampled_results.append(item)
-                else:
-                    # Randomly replace items with decreasing probability
-                    j = random.randrange(i + 1)
-                    if j < n:
-                        sampled_results.data[j] = item
-
-        return sampled_results
+        sampler = ResultsSampler(self)
+        return sampler.sample(n=n, frac=frac, with_replacement=with_replacement, seed=seed)
 
     @ensure_ready
     def select(self, *columns: Union[str, list[str]]) -> "Dataset":
@@ -1412,14 +1160,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
 
             raise ResultsError("No data to select from---the Results object is empty.")
 
-        selector = Selector(
-            known_data_types=self.known_data_types,
-            data_type_to_keys=self._data_type_to_keys,
-            key_to_data_type=self._key_to_data_type,
-            fetch_list_func=self._fetch_list,
-            columns=self.columns,
-            survey=self.survey,
-        )
+        selector = Selector.from_cache_manager(self._cache_manager)
         return selector.select(*columns)
 
     @ensure_ready
@@ -1472,19 +1213,11 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
 
         return dict(buckets)
 
-    @ensure_ready
-    def sort_by(self, *columns: str, reverse: bool = False) -> Results:
-        """Sort the results by one or more columns."""
-        warnings.warn(
-            "sort_by is deprecated. Use order_by instead.", DeprecationWarning
-        )
-        return self.order_by(*columns, reverse=reverse)
-
     def _parse_column(self, column: str) -> tuple[str, str]:
         """Parse a column name into a data type and key."""
         if "." in column:
             return column.split(".")
-        return self._key_to_data_type[column], column
+        return self._cache_manager.key_to_data_type[column], column
 
     @ensure_ready
     def order_by(self, *columns: str, reverse: bool = False) -> Results:
@@ -1629,11 +1362,10 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         """
         return [r.score_with_answer_key(answer_key) for r in self.data]
 
-    def fetch_remote(self, job_info: Any) -> None:
+    def fetch_remote(self, job_info: Any) -> bool:
         """Fetch remote Results object and update this instance with the data.
 
-        This is useful when you have a Results object that was created locally but want to sync it with
-        the latest data from the remote server.
+        This method delegates to the ResultsRemoteFetcher class to handle the remote fetching operation.
 
         Args:
             job_info: RemoteJobInfo object containing the job_uuid and other remote job details
@@ -1655,53 +1387,19 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             >>> # results.fetch_remote(job_info)
             >>> # results.completed  # Would be True if successful
         """
-        try:
-            from ..coop import Coop
-            from ..jobs import JobsRemoteInferenceHandler
-
-            # Get the remote job data
-            remote_job_data = JobsRemoteInferenceHandler.check_status(job_info.job_uuid)
-
-            if remote_job_data.get("status") not in ["completed", "failed"]:
-                return False
-                #
-            results_uuid = remote_job_data.get("results_uuid")
-            if not results_uuid:
-                raise ResultsError("No results_uuid found in remote job data")
-
-            # Fetch the remote Results object
-            coop = Coop()
-            remote_results = coop.get(results_uuid, expected_object_type="results")
-
-            # Update this instance with remote data
-            self.data = remote_results.data
-            self.survey = remote_results.survey
-            self.created_columns = remote_results.created_columns
-            self.cache = remote_results.cache
-            self.task_history = remote_results.task_history
-            self.completed = True
-
-            # Set job_uuid and results_uuid from remote data
-            self.job_uuid = job_info.job_uuid
-            if hasattr(remote_results, "results_uuid"):
-                self.results_uuid = remote_results.results_uuid
-
-            return True
-
-        except Exception as e:
-            raise ResultsError(f"Failed to fetch remote results: {str(e)}")
+        fetcher = ResultsRemoteFetcher(self)
+        return fetcher.fetch_remote(job_info)
 
     def fetch(self, polling_interval: Union[float, int] = 1.0) -> Results:
         """Poll the server for job completion and update this Results instance.
 
-        This method continuously polls the remote server until the job is completed or
-        fails, then updates this Results object with the final data.
+        This method delegates to the ResultsRemoteFetcher class to handle the polling and fetching operation.
 
         Args:
             polling_interval: Number of seconds to wait between polling attempts (default: 1.0)
 
         Returns:
-            self: The updated Results instance
+            Results: The updated Results instance
 
         Raises:
             ResultsError: If no job info is available or if there's an error during fetch.
@@ -1716,101 +1414,31 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             >>> # results.fetch()  # Would poll until complete
             >>> # results.completed  # Would be True if successful
         """
-        if not hasattr(self, "job_info"):
-            raise ResultsError(
-                "No job info available - this Results object wasn't created from a remote job"
-            )
-
-        from ..jobs import JobsRemoteInferenceHandler
-
-        try:
-            # Get the remote job data
-            remote_job_data = JobsRemoteInferenceHandler.check_status(
-                self.job_info.job_uuid
-            )
-
-            while remote_job_data.get("status") not in ["completed", "failed"]:
-                print("Waiting for remote job to complete...")
-                import time
-
-                time.sleep(polling_interval)
-                remote_job_data = JobsRemoteInferenceHandler.check_status(
-                    self.job_info.job_uuid
-                )
-
-            # Once complete, fetch the full results
-            self.fetch_remote(self.job_info)
-            return self
-
-        except Exception as e:
-            raise ResultsError(f"Failed to fetch remote results: {str(e)}")
+        fetcher = ResultsRemoteFetcher(self)
+        return fetcher.fetch(polling_interval)
 
     def spot_issues(self, models: Optional[ModelList] = None) -> Results:
-        """Run a survey to spot issues and suggest improvements for prompts that had no model response, returning a new Results object.
-        Future version: Allow user to optionally pass a list of questions to review, regardless of whether they had a null model response.
+        """Run a survey to spot issues and suggest improvements for prompts that had no model response.
+        
+        This method delegates to the ResultsAnalyzer class to handle the analysis and debugging.
+        
+        Args:
+            models: Optional ModelList to use for the analysis. If None, uses the default model.
+            
+        Returns:
+            Results: A new Results object containing the analysis and suggestions for improvement.
+            
+        Notes:
+            Future version: Allow user to optionally pass a list of questions to review, 
+            regardless of whether they had a null model response.
         """
-        from ..questions import QuestionFreeText, QuestionDict
-        from ..surveys import Survey
-        from ..scenarios import Scenario, ScenarioList
-        from ..language_models import ModelList
-        import pandas as pd
-
-        df = self.select(
-            "agent.*", "scenario.*", "answer.*", "raw_model_response.*", "prompt.*"
-        ).to_pandas()
-        scenario_list = []
-
-        for _, row in df.iterrows():
-            for col in df.columns:
-                if col.endswith("_raw_model_response") and pd.isna(row[col]):
-                    q = col.split("_raw_model_response")[0].replace(
-                        "raw_model_response.", ""
-                    )
-
-                    s = Scenario(
-                        {
-                            "original_question": q,
-                            "original_agent_index": row["agent.agent_index"],
-                            "original_scenario_index": row["scenario.scenario_index"],
-                            "original_prompts": f"User prompt: {row[f'prompt.{q}_user_prompt']}\nSystem prompt: {row[f'prompt.{q}_system_prompt']}",
-                        }
-                    )
-
-                    scenario_list.append(s)
-
-        sl = ScenarioList(set(scenario_list))
-
-        q1 = QuestionFreeText(
-            question_name="issues",
-            question_text="""
-            The following prompts generated a bad or null response: '{{ original_prompts }}'
-            What do you think was the likely issue(s)?
-            """,
-        )
-
-        q2 = QuestionDict(
-            question_name="revised",
-            question_text="""
-            The following prompts generated a bad or null response: '{{ original_prompts }}'
-            You identified the issue(s) as '{{ issues.answer }}'.
-            Please revise the prompts to address the issue(s).
-            """,
-            answer_keys=["revised_user_prompt", "revised_system_prompt"],
-        )
-
-        survey = Survey(questions=[q1, q2])
-
-        if models is not None:
-            if not isinstance(models, ModelList):
-                raise ResultsError("models must be a ModelList")
-            results = survey.by(sl).by(models).run()
-        else:
-            results = survey.by(sl).run()  # use the default model
-
-        return results
+        analyzer = ResultsAnalyzer(self)
+        return analyzer.spot_issues(models)
 
     def shelve_result(self, result: "Result") -> str:
         """Store a Result object in persistent storage using its hash as the key.
+
+        This method delegates to the ResultsSerializer class to handle the shelving operation.
 
         Args:
             result: A Result object to store
@@ -1821,19 +1449,13 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         Raises:
             ResultsError: If there's an error storing the Result
         """
-        import shelve
-
-        key = str(hash(result))
-        try:
-            with shelve.open(self._shelve_path) as shelf:
-                shelf[key] = result.to_dict()
-                self._shelf_keys.add(key)
-            return key
-        except Exception as e:
-            raise ResultsError(f"Error storing Result in shelve database: {str(e)}")
+        serializer = ResultsSerializer(self)
+        return serializer.shelve_result(result)
 
     def get_shelved_result(self, key: str) -> "Result":
         """Retrieve a Result object from persistent storage.
+
+        This method delegates to the ResultsSerializer class to handle the retrieval operation.
 
         Args:
             key: The hash key of the Result to retrieve
@@ -1844,24 +1466,17 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         Raises:
             ResultsError: If the key doesn't exist or if there's an error retrieving the Result
         """
-        import shelve
-        from .result import Result
-
-        if key not in self._shelf_keys:
-            raise ResultsError(f"No result found with key: {key}")
-
-        try:
-            with shelve.open(self._shelve_path) as shelf:
-                return Result.from_dict(shelf[key])
-        except Exception as e:
-            raise ResultsError(
-                f"Error retrieving Result from shelve database: {str(e)}"
-            )
+        serializer = ResultsSerializer(self)
+        return serializer.get_shelved_result(key)
 
     @property
     def shelf_keys(self) -> set:
-        """Return a copy of the set of shelved result keys."""
-        return self._shelf_keys.copy()
+        """Return a copy of the set of shelved result keys.
+        
+        This property delegates to the ResultsSerializer class.
+        """
+        serializer = ResultsSerializer(self)
+        return serializer.shelf_keys
 
     @ensure_ready
     def insert_sorted(self, item: "Result") -> None:
@@ -1899,6 +1514,8 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
 
     def insert_from_shelf(self) -> None:
         """Move all shelved results into memory using insert_sorted method.
+        
+        This method delegates to the ResultsSerializer class to handle the shelf operations.
         Clears the shelf after successful insertion.
 
         This method preserves the original order of results by using their 'order'
@@ -1908,33 +1525,13 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         Raises:
             ResultsError: If there's an error accessing or clearing the shelf
         """
-        import shelve
-        from .result import Result
-
-        if not self._shelf_keys:
-            return
-
-        try:
-            # First collect all results from shelf
-            with shelve.open(self._shelve_path) as shelf:
-                # Get and insert all results first
-                for key in self._shelf_keys:
-                    result_dict = shelf[key]
-                    result = Result.from_dict(result_dict)
-                    self.insert_sorted(result)
-
-                # Now clear the shelf
-                for key in self._shelf_keys:
-                    del shelf[key]
-
-            # Clear the tracking set
-            self._shelf_keys.clear()
-
-        except Exception as e:
-            raise ResultsError(f"Error moving results from shelf to memory: {str(e)}")
+        serializer = ResultsSerializer(self)
+        return serializer.insert_from_shelf()
 
     def to_disk(self, filepath: str) -> None:
         """Serialize the Results object to a zip file, preserving the SQLite database.
+
+        This method delegates to the ResultsSerializer class to handle the disk serialization.
 
         This method creates a zip file containing:
         1. The SQLite database file from the data container
@@ -1947,74 +1544,14 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         Raises:
             ResultsError: If there's an error during serialization
         """
-        import zipfile
-        import json
-        import os
-        import tempfile
-        from pathlib import Path
-        import shutil
-
-        data_class = ResultsSQLList
-
-        try:
-            # Create a temporary directory to store files before zipping
-            with tempfile.TemporaryDirectory() as temp_dir:
-                temp_path = Path(temp_dir)
-
-                # 1. Handle the SQLite database
-                db_path = temp_path / "results.db"
-
-                if isinstance(self.data, list):
-                    # If data is a list, create a new SQLiteList
-                    # from .sqlite_list import SQLiteList
-                    new_db = data_class()
-                    new_db.extend(self.data)
-                    shutil.copy2(new_db.db_path, db_path)
-                elif hasattr(self.data, "db_path") and os.path.exists(
-                    self.data.db_path
-                ):
-                    # If data is already a SQLiteList, copy its database
-                    shutil.copy2(self.data.db_path, db_path)
-                else:
-                    # If no database exists, create a new one
-                    # from .sqlite_list import SQLiteList
-                    # new_db = SQLiteList()
-                    new_db = data_class()
-                    new_db.extend(self.data)
-                    shutil.copy2(new_db.db_path, db_path)
-
-                # 2. Create metadata.json
-                metadata = {
-                    "survey": self.survey.to_dict() if self.survey else None,
-                    "created_columns": self.created_columns,
-                    "cache": self.cache.to_dict() if hasattr(self, "cache") else None,
-                    "task_history": (
-                        self.task_history.to_dict()
-                        if hasattr(self, "task_history")
-                        else None
-                    ),
-                    "completed": self.completed,
-                    "job_uuid": self._job_uuid if hasattr(self, "_job_uuid") else None,
-                    "total_results": (
-                        self._total_results if hasattr(self, "_total_results") else None
-                    ),
-                }
-
-                metadata_path = temp_path / "metadata.json"
-                metadata_path.write_text(json.dumps(metadata, indent=4))
-
-                # 3. Create the zip file
-                with zipfile.ZipFile(filepath, "w", zipfile.ZIP_DEFLATED) as zipf:
-                    # Add all files from temp directory to zip
-                    for file in temp_path.glob("*"):
-                        zipf.write(file, file.name)
-
-        except Exception as e:
-            raise ResultsError(f"Error saving Results to disk: {str(e)}")
+        serializer = ResultsSerializer(self)
+        return serializer.to_disk(filepath)
 
     @classmethod
     def from_disk(cls, filepath: str) -> "Results":
         """Load a Results object from a zip file.
+
+        This method delegates to the ResultsSerializer class to handle the disk deserialization.
 
         This method:
         1. Extracts the SQLite database file
@@ -2030,66 +1567,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         Raises:
             ResultsError: If there's an error during deserialization
         """
-        import zipfile
-        import json
-        import tempfile
-        from pathlib import Path
-        from ..surveys import Survey
-        from ..caching import Cache
-        from ..tasks import TaskHistory
-
-        data_class = ResultsSQLList
-
-        try:
-            # Create a temporary directory to extract files
-            with tempfile.TemporaryDirectory() as temp_dir:
-                temp_path = Path(temp_dir)
-
-                # Extract the zip file
-                with zipfile.ZipFile(filepath, "r") as zipf:
-                    zipf.extractall(temp_path)
-
-                # 1. Load metadata
-                metadata_path = temp_path / "metadata.json"
-                metadata = json.loads(metadata_path.read_text())
-
-                # 2. Create a new Results instance
-                results = cls(
-                    survey=(
-                        Survey.from_dict(metadata["survey"])
-                        if metadata["survey"]
-                        else None
-                    ),
-                    created_columns=metadata["created_columns"],
-                    cache=(
-                        Cache.from_dict(metadata["cache"])
-                        if metadata["cache"]
-                        else None
-                    ),
-                    task_history=(
-                        TaskHistory.from_dict(metadata["task_history"])
-                        if metadata["task_history"]
-                        else None
-                    ),
-                    job_uuid=metadata["job_uuid"],
-                    total_results=metadata["total_results"],
-                )
-
-                # 3. Set the SQLite database path if it exists
-                db_path = temp_path / "results.db"
-                if db_path.exists():
-                    # Create a new ResultsSQLList instance
-                    new_db = data_class()
-                    # Copy data from the source database - convert Path to string
-                    new_db.copy_from(str(db_path))
-                    # Set the new database as the results data
-                    results.data = new_db
-
-                results.completed = metadata["completed"]
-                return results
-
-        except Exception as e:
-            raise ResultsError(f"Error loading Results from disk: {str(e)}")
+        return ResultsSerializer.from_disk(filepath)
 
 
 def main():  # pragma: no cover
