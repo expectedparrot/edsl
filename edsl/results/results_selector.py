@@ -69,6 +69,38 @@ class Selector:
         self.survey = survey
         self.items_in_order = []  # Tracks column order for consistent output
 
+    @classmethod
+    def from_cache_manager(cls, cache_manager) -> "Selector":
+        """
+        Create a Selector from a DataTypeCacheManager (simplified constructor).
+        
+        This is the preferred way to create a Selector as it reduces the number of
+        parameters needed and ensures consistency by getting all required data
+        from the cache manager.
+        
+        Args:
+            cache_manager: A DataTypeCacheManager instance that provides access to
+                          all the data and metadata needed by the Selector
+        
+        Returns:
+            Selector: A new Selector instance configured with data from the cache manager
+            
+        Examples:
+            >>> from edsl.results import Results
+            >>> r = Results.example()
+            >>> selector = Selector.from_cache_manager(r._cache_manager)
+            >>> isinstance(selector, Selector)
+            True
+        """
+        return cls(
+            known_data_types=cache_manager.results.known_data_types,
+            data_type_to_keys=cache_manager.data_type_to_keys,
+            key_to_data_type=cache_manager.key_to_data_type,
+            fetch_list_func=cache_manager.fetch_list,
+            columns=cache_manager.columns,
+            survey=cache_manager.results.survey,
+        )
+
     def select(self, *columns: Union[str, List[str]]) -> Optional[Any]:
         """
         Select specific columns from the data and return as a Dataset.
@@ -494,14 +526,36 @@ class Selector:
             # Access Results instance through the bound method
             results_instance = self._fetch_list.__self__
             
+            # If the bound method is from a DataTypeCacheManager, get the Results instance from it
+            if hasattr(results_instance, 'results'):
+                results_instance = results_instance.results
+            
+            # Get the fetch list cache safely (handle test scenarios with mocks)
+            fetch_list_cache = {}
+            try:
+                if hasattr(results_instance, '_cache_manager') and hasattr(results_instance._cache_manager, '_fetch_list_cache'):
+                    cache_obj = results_instance._cache_manager._fetch_list_cache
+                    # Verify it's dict-like by testing if we can use 'in' operator
+                    if hasattr(cache_obj, '__contains__'):
+                        fetch_list_cache = cache_obj
+                elif hasattr(results_instance, '_fetch_list_cache'):
+                    # Fallback for older code or test scenarios
+                    cache_obj = results_instance._fetch_list_cache
+                    # Verify it's dict-like by testing if we can use 'in' operator
+                    if hasattr(cache_obj, '__contains__'):
+                        fetch_list_cache = cache_obj
+            except (AttributeError, TypeError):
+                # If anything goes wrong, fall back to empty dict
+                fetch_list_cache = {}
+            
             for data_type, keys in to_fetch.items():
                 for key in keys:
                     column_name = f"{data_type}.{key}"
                     cache_key = (data_type, key)
                     
-                    if cache_key in results_instance._fetch_list_cache:
+                    if cache_key in fetch_list_cache:
                         # Use cached data
-                        data_dict[column_name] = results_instance._fetch_list_cache[cache_key]
+                        data_dict[column_name] = fetch_list_cache[cache_key]
                     else:
                         # Mark for batch extraction
                         data_dict[column_name] = []
@@ -514,10 +568,11 @@ class Selector:
                         value = row.sub_dicts[data_type].get(key, None)
                         data_dict[column_name].append(value)
                 
-                # Update cache for newly computed columns
-                for data_type, key, column_name in uncached_requests:
-                    cache_key = (data_type, key)
-                    results_instance._fetch_list_cache[cache_key] = data_dict[column_name]
+                # Update cache for newly computed columns (if cache is available)
+                if fetch_list_cache is not None:
+                    for data_type, key, column_name in uncached_requests:
+                        cache_key = (data_type, key)
+                        fetch_list_cache[cache_key] = data_dict[column_name]
             
             return [{key: data_dict[key]} for key in self.items_in_order if key in data_dict]
         else:

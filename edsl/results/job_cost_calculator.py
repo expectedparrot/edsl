@@ -49,7 +49,7 @@ class JobCostCalculator:
             >>> r = Results.example()
             >>> calculator = JobCostCalculator(r)
             >>> calculator.compute_job_cost()
-            0
+            0.0
         """
         total_cost = 0.0
         
