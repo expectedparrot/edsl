@@ -120,7 +120,8 @@ class ResultsFilter:
 
             # Process one result at a time
             for result in self.results.data:
-                evaluator = self.results._create_evaluator(result)
+                from .results_transformer import ResultsTransformer
+                evaluator = ResultsTransformer._create_evaluator(result)
                 result.check_expression(normalized_expression)  # check expression
                 if evaluator.eval(normalized_expression):
                     filtered_results.append(
