@@ -63,6 +63,7 @@ class ResultBuilder:
         self._build_result()
 
     def _build_result(self):
+        """Main build process: construct, analyze conflicts, resolve, and merge."""
         sub_dicts = self._construct_sub_dicts()
         self.keys_to_data_types, conflicts = self._analyze_key_conflicts(sub_dicts)
         resolved_sub_dicts = self._resolve_conflicts(sub_dicts, conflicts)
@@ -74,6 +75,7 @@ class ResultBuilder:
 
 
     def _construct_sub_dicts(self) -> dict[str, dict]:
+        """Construct all sub-dictionaries ready for merging."""
         sub_dicts = {}
         sub_dicts.update(self._build_core_components())
         sub_dicts.update(self._build_question_components())
@@ -118,7 +120,7 @@ class ResultBuilder:
 
     def _resolve_conflicts(self, sub_dicts: dict, conflicts: list) -> dict:
         """Resolve conflicts by renaming keys."""
-        resolved_sub_dicts = {k: v for k, v in sub_dicts.items()}
+        resolved_sub_dicts = {k: dict(v) for k, v in sub_dicts.items()}  # deep copy
         for key, data_type in conflicts:
             if key in resolved_sub_dicts[data_type]:
                 new_key = f"{key}_{data_type}"
@@ -156,11 +158,11 @@ class ResultBuilder:
 
     def _build_core_components(self) -> dict:
         """Build core components (agent, model, iteration)."""
-        return {
-            "agent": self._create_agent_sub_dict(self.data["agent"]),
-            "model": self._create_model_sub_dict(self.data["model"]),
-            "iteration": self._iteration_sub_dict(self.data["iteration"]),
-        }
+        core_components = {}
+        core_components.update(self._create_agent_sub_dict(self.data["agent"]))
+        core_components.update(self._create_model_sub_dict(self.data["model"]))
+        core_components.update(self._iteration_sub_dict(self.data["iteration"]))
+        return core_components
 
     def _build_question_components(self) -> dict:
         """Build question-related sub-dictionaries."""

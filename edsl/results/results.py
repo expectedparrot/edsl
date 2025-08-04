@@ -63,6 +63,10 @@ from ..dataset import ResultsOperationsMixin
 
 from .result import Result
 from ..db_list.sqlite_list import SQLiteList
+from .results_filter import ResultsFilter
+from .results_serializer import ResultsSerializer
+from .utilities import ResultsSQLList, ensure_fetched, ensure_ready, NotReadyObject
+from .job_cost_calculator import JobCostCalculator
 
 from .exceptions import (
     ResultsError,
@@ -75,134 +79,16 @@ from .exceptions import (
 )
 
 
-class ResultsSQLList(SQLiteList):
-    def serialize(self, obj):
-        return json.dumps(obj.to_dict()) if hasattr(obj, "to_dict") else json.dumps(obj)
-
-    def deserialize(self, data):
-        return (
-            Result.from_dict(json.loads(data))
-            if hasattr(Result, "from_dict")
-            else json.loads(data)
-        )
 
 
-def ensure_fetched(method):
-    """A decorator that checks if remote data is loaded, and if not, attempts to fetch it.
-
-    Args:
-        method: The method to decorate.
-
-    Returns:
-        The wrapped method that will ensure data is fetched before execution.
-    """
-
-    def wrapper(self, *args, **kwargs):
-        if not self._fetched:
-            # If not fetched, try fetching now.
-            # (If you know you have job info stored in self.job_info)
-            self.fetch_remote(self.job_info)
-        return method(self, *args, **kwargs)
-
-    return wrapper
 
 
-def ensure_ready(method):
-    """Decorator for Results methods to handle not-ready state.
 
-    If the Results object is not ready, for most methods we return a NotReadyObject.
-    However, for __repr__ (and other methods that need to return a string), we return
-    the string representation of NotReadyObject.
 
-    Args:
-        method: The method to decorate.
 
-    Returns:
-        The wrapped method that will handle not-ready Results objects appropriately.
-
-    Raises:
-        Exception: Any exception from fetch_remote will be caught and printed.
-
-    """
-    from functools import wraps
-
-    @wraps(method)
-    def wrapper(self, *args, **kwargs):
-        if self.completed:
-            return method(self, *args, **kwargs)
-        # Attempt to fetch remote data
-        try:
-            if hasattr(self, "job_info"):
-                self.fetch_remote(self.job_info)
-        except Exception as e:
-            print(f"Error during fetch_remote in {method.__name__}: {e}")
-        if not self.completed:
-            not_ready = NotReadyObject(name=method.__name__, job_info=self.job_info)
-            # For __repr__, ensure we return a string
-            if method.__name__ == "__repr__" or method.__name__ == "__str__":
-                return not_ready.__repr__()
-            return not_ready
-        return method(self, *args, **kwargs)
-
-    return wrapper
     
 
-class NotReadyObject:
-    """A placeholder object that indicates results are not ready yet.
 
-    This class returns itself for all attribute accesses and method calls,
-    displaying a message about the job's running status when represented as a string.
-
-    Attributes:
-        name: The name of the method that was originally called.
-        job_info: Information about the running job.
-
-    """
-
-    def __init__(self, name: str, job_info: "Any"):
-        """Initialize a NotReadyObject.
-
-        Args:
-            name: The name of the method that was attempted to be called.
-            job_info: Information about the running job.
-        """
-        self.name = name
-        self.job_info = job_info
-        # print(f"Not ready to call {name}")
-
-    def __repr__(self):
-        """Generate a string representation showing the job is still running.
-
-        Returns:
-            str: A message indicating the job is still running, along with job details.
-        """
-        message = """Results not ready - job still running on server."""
-        for key, value in self.job_info.creation_data.items():
-            message += f"\n{key}: {value}"
-        return message
-
-    def __getattr__(self, _):
-        """Return self for any attribute access.
-
-        Args:
-            _: The attribute name (ignored).
-
-        Returns:
-            NotReadyObject: Returns self for chaining.
-        """
-        return self
-
-    def __call__(self, *args, **kwargs):
-        """Return self when called as a function.
-
-        Args:
-            *args: Positional arguments (ignored).
-            **kwargs: Keyword arguments (ignored).
-
-        Returns:
-            NotReadyObject: Returns self for chaining.
-        """
-        return self
 
 
 class Results(MutableSequence, ResultsOperationsMixin, Base):
@@ -576,8 +462,9 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
     def compute_job_cost(self, include_cached_responses_in_cost: bool = False) -> float:
         """Compute the cost of a completed job in USD.
 
-        This method calculates the total cost of all model responses in the results.
-        By default, it only counts the cost of responses that were not cached.
+        This method delegates to the JobCostCalculator class to calculate the total
+        cost of all model responses in the results. By default, it only counts the
+        cost of responses that were not cached.
 
         Args:
             include_cached_responses_in_cost: Whether to include the cost of cached
@@ -592,30 +479,8 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             >>> r.compute_job_cost()
             0
         """
-        total_cost = 0
-        for result in self:
-            for key in result["raw_model_response"]:
-                if key.endswith("_cost"):
-                    result_cost = result["raw_model_response"][key]
-
-                    # Extract the question name from the key
-                    question_name = key.removesuffix("_cost")
-
-                    # Get cache status safely - default to False if not found
-                    cache_used = False
-                    if (
-                        "cache_used_dict" in result
-                        and question_name in result["cache_used_dict"]
-                    ):
-                        cache_used = result["cache_used_dict"][question_name]
-
-                    if isinstance(result_cost, (int, float)):
-                        if include_cached_responses_in_cost:
-                            total_cost += result_cost
-                        elif not include_cached_responses_in_cost and not cache_used:
-                            total_cost += result_cost
-
-        return total_cost
+        calculator = JobCostCalculator(self)
+        return calculator.compute_job_cost(include_cached_responses_in_cost)
 
     def code(self):
         """Method for generating code representations.
@@ -791,49 +656,31 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         include_cache_info: bool = True,
         offload_scenarios: bool = True,
     ) -> dict[str, Any]:
-        from ..caching import Cache
-
-        if offload_scenarios:
-            self.optimzie_scenarios()
-        if sort:
-            data = sorted([result for result in self.data], key=lambda x: hash(x))
-        else:
-            data = [result for result in self.data]
-
-        d = {
-            "data": [
-                result.to_dict(
-                    add_edsl_version=add_edsl_version,
-                    include_cache_info=include_cache_info,
-                )
-                for result in data
-            ],
-            "survey": self.survey.to_dict(add_edsl_version=add_edsl_version),
-            "created_columns": self.created_columns,
-        }
-        if include_cache:
-            d.update(
-                {
-                    "cache": (
-                        Cache()
-                        if not hasattr(self, "cache")
-                        else self.cache.to_dict(add_edsl_version=add_edsl_version)
-                    )
-                }
-            )
-        if self.name is not None:
-            d["name"] = self.name
-
-        if self.task_history.has_unfixed_exceptions or include_task_history:
-            d.update({"task_history": self.task_history.to_dict(offload_content=True)})
-
-        if add_edsl_version:
-            from .. import __version__
-
-            d["edsl_version"] = __version__
-            d["edsl_class_name"] = "Results"
-
-        return d
+        """Convert the Results object to a dictionary representation.
+        
+        This method delegates to the ResultsSerializer class to handle the conversion
+        of the Results object to a dictionary format suitable for serialization.
+        
+        Args:
+            sort: Whether to sort the results data by hash before serialization
+            add_edsl_version: Whether to include the EDSL version in the output
+            include_cache: Whether to include cache data in the output
+            include_task_history: Whether to include task history in the output
+            include_cache_info: Whether to include cache information in result data
+            offload_scenarios: Whether to optimize scenarios before serialization
+            
+        Returns:
+            dict[str, Any]: Dictionary representation of the Results object
+        """
+        serializer = ResultsSerializer(self)
+        return serializer.to_dict(
+            sort=sort,
+            add_edsl_version=add_edsl_version,
+            include_cache=include_cache,
+            include_task_history=include_task_history,
+            include_cache_info=include_cache_info,
+            offload_scenarios=offload_scenarios,
+        )
 
     def compare(self, other_results: Results) -> dict:
         """
@@ -926,56 +773,26 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         return self
 
     @classmethod
-    @remove_edsl_version
     def from_dict(cls, data: dict[str, Any]) -> Results:
         """Convert a dictionary to a Results object.
 
-        :param data: A dictionary representation of a Results object.
+        This method delegates to the ResultsSerializer class to handle the conversion
+        of a dictionary representation back to a Results object.
 
-        Example:
+        Args:
+            data: A dictionary representation of a Results object.
 
-        >>> r = Results.example()
-        >>> d = r.to_dict()
-        >>> r2 = Results.from_dict(d)
-        >>> r == r2
-        True
+        Returns:
+            Results: A new Results object created from the dictionary data
+
+        Examples:
+            >>> r = Results.example()
+            >>> d = r.to_dict()
+            >>> r2 = Results.from_dict(d)
+            >>> r == r2
+            True
         """
-        from ..surveys import Survey
-        from ..caching import Cache
-        from .result import Result
-        from ..tasks import TaskHistory
-
-        survey = Survey.from_dict(data["survey"])
-        # Convert dictionaries to Result objects
-        results_data = [Result.from_dict(r) for r in data["data"]]
-        created_columns = data.get("created_columns", None)
-        cache = Cache.from_dict(data.get("cache")) if "cache" in data else Cache()
-        task_history = (
-            TaskHistory.from_dict(data.get("task_history"))
-            if "task_history" in data
-            else TaskHistory(interviews=[])
-        )
-        name = data.get("name", None)
-
-        # Create a Results object with original order preserved
-        # using the empty data list initially
-        params = {
-            "survey": survey,
-            "data": [],  # Start with empty data
-            "created_columns": created_columns,
-            "cache": cache,
-            "task_history": task_history,
-            "name": name
-        }
-
-        try:
-            results = cls(**params)
-            # Add each result individually to respect order attributes
-            for result in results_data:
-                results.append(result)
-        except Exception as e:
-            raise ResultsDeserializationError(f"Error in Results.from_dict: {e}")
-        return results
+        return ResultsSerializer.from_dict(data)
 
     @property
     def _key_to_data_type(self) -> dict[str, str]:
@@ -1103,7 +920,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
 
         >>> r = Results.example()
         >>> r.scenarios
-        ScenarioList([Scenario({'period': 'morning', 'scenario_index': 0}), Scenario({'period': 'afternoon', 'scenario_index': 1}), Scenario({'period': 'morning', 'scenario_index': 0}), Scenario({'period': 'afternoon', 'scenario_index': 1})])
+        ScenarioList([Scenario({'period': 'morning'}), Scenario({'period': 'afternoon'}), Scenario({'period': 'morning'}), Scenario({'period': 'afternoon'})])
         """
         from ..scenarios import ScenarioList
 
@@ -1184,107 +1001,107 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         """
         return self.data[0]
 
-    def answer_truncate(
-        self, column: str, top_n: int = 5, new_var_name: Optional[str] = None
-    ) -> Results:
-        """Create a new variable that truncates the answers to the top_n.
+    # def answer_truncate(
+    #     self, column: str, top_n: int = 5, new_var_name: Optional[str] = None
+    # ) -> Results:
+    #     """Create a new variable that truncates the answers to the top_n.
 
-        :param column: The column to truncate.
-        :param top_n: The number of top answers to keep.
-        :param new_var_name: The name of the new variable. If None, it is the original name + '_truncated'.
+    #     :param column: The column to truncate.
+    #     :param top_n: The number of top answers to keep.
+    #     :param new_var_name: The name of the new variable. If None, it is the original name + '_truncated'.
 
-        Example:
-        >>> r = Results.example()
-        >>> r.answer_truncate('how_feeling', top_n = 2).select('how_feeling', 'how_feeling_truncated')
-        Dataset([{'answer.how_feeling': ['OK', 'Great', 'Terrible', 'OK']}, {'answer.how_feeling_truncated': ['Other', 'Other', 'Other', 'Other']}])
+    #     Example:
+    #     >>> r = Results.example()
+    #     >>> r.answer_truncate('how_feeling', top_n = 2).select('how_feeling', 'how_feeling_truncated')
+    #     Dataset([{'answer.how_feeling': ['OK', 'Great', 'Terrible', 'OK']}, {'answer.how_feeling_truncated': ['Other', 'Other', 'Other', 'Other']}])
 
 
-        """
-        if new_var_name is None:
-            new_var_name = column + "_truncated"
-        answers = list(self.select(column).tally().keys())
+    #     """
+    #     if new_var_name is None:
+    #         new_var_name = column + "_truncated"
+    #     answers = list(self.select(column).tally().keys())
 
-        def f(x):
-            if x in answers[:top_n]:
-                return x
-            else:
-                return "Other"
+    #     def f(x):
+    #         if x in answers[:top_n]:
+    #             return x
+    #         else:
+    #             return "Other"
 
-        return self.recode(column, recode_function=f, new_var_name=new_var_name)
+    #     return self.recode(column, recode_function=f, new_var_name=new_var_name)
 
-    @ensure_ready
-    def recode(
-        self, column: str, recode_function: Optional[Callable], new_var_name=None
-    ) -> Results:
-        """
-        Recode a column in the Results object.
+    # @ensure_ready
+    # def recode(
+    #     self, column: str, recode_function: Optional[Callable], new_var_name=None
+    # ) -> Results:
+    #     """
+    #     Recode a column in the Results object.
 
-        >>> r = Results.example()
-        >>> r.recode('how_feeling', recode_function = lambda x: 1 if x == 'Great' else 0).select('how_feeling', 'how_feeling_recoded')
-        Dataset([{'answer.how_feeling': ['OK', 'Great', 'Terrible', 'OK']}, {'answer.how_feeling_recoded': [0, 1, 0, 0]}])
-        """
+    #     >>> r = Results.example()
+    #     >>> r.recode('how_feeling', recode_function = lambda x: 1 if x == 'Great' else 0).select('how_feeling', 'how_feeling_recoded')
+    #     Dataset([{'answer.how_feeling': ['OK', 'Great', 'Terrible', 'OK']}, {'answer.how_feeling_recoded': [0, 1, 0, 0]}])
+    #     """
 
-        if new_var_name is None:
-            new_var_name = column + "_recoded"
-        new_data = []
-        for result in self.data:
-            new_result = result.copy()
-            value = new_result.get_value("answer", column)
-            # breakpoint()
-            new_result["answer"][new_var_name] = recode_function(value)
-            new_data.append(new_result)
+    #     if new_var_name is None:
+    #         new_var_name = column + "_recoded"
+    #     new_data = []
+    #     for result in self.data:
+    #         new_result = result.copy()
+    #         value = new_result.get_value("answer", column)
+    #         # breakpoint()
+    #         new_result["answer"][new_var_name] = recode_function(value)
+    #         new_data.append(new_result)
 
-        # print("Created new variable", new_var_name)
-        new_results = Results(
-            survey=self.survey,
-            data=new_data,
-            created_columns=self.created_columns + [new_var_name],
-        )
-        new_results._invalidate_cache()
-        return new_results
+    #     # print("Created new variable", new_var_name)
+    #     new_results = Results(
+    #         survey=self.survey,
+    #         data=new_data,
+    #         created_columns=self.created_columns + [new_var_name],
+    #     )
+    #     new_results._invalidate_cache()
+    #     return new_results
 
-    @ensure_ready
-    def add_column(self, column_name: str, values: list) -> Results:
-        """Adds columns to Results
+    # @ensure_ready
+    # def add_column(self, column_name: str, values: list) -> Results:
+    #     """Adds columns to Results
 
-        >>> r = Results.example()
-        >>> r.add_column('a', [1,2,3, 4]).select('a')
-        Dataset([{'answer.a': [1, 2, 3, 4]}])
-        """
-        assert len(values) == len(
-            self.data
-        ), "The number of values must match the number of results."
+    #     >>> r = Results.example()
+    #     >>> r.add_column('a', [1,2,3, 4]).select('a')
+    #     Dataset([{'answer.a': [1, 2, 3, 4]}])
+    #     """
+    #     assert len(values) == len(
+    #         self.data
+    #     ), "The number of values must match the number of results."
 
-        # Create new Results object with same properties but empty data
-        new_results = Results(
-            survey=self.survey,
-            data=[],
-            created_columns=self.created_columns + [column_name],
-            data_class=self._data_class,
-        )
+    #     # Create new Results object with same properties but empty data
+    #     new_results = Results(
+    #         survey=self.survey,
+    #         data=[],
+    #         created_columns=self.created_columns + [column_name],
+    #         data_class=self._data_class,
+    #     )
 
-        # Process one result at a time
-        for i, result in enumerate(self.data):
-            new_result = result.copy()
-            new_result["answer"][column_name] = values[i]
-            new_results.append(new_result)
+    #     # Process one result at a time
+    #     for i, result in enumerate(self.data):
+    #         new_result = result.copy()
+    #         new_result["answer"][column_name] = values[i]
+    #         new_results.append(new_result)
 
-        new_results._invalidate_cache()
-        return new_results
+    #     new_results._invalidate_cache()
+    #     return new_results
 
-    @ensure_ready
-    def add_columns_from_dict(self, columns: List[dict]) -> Results:
-        """Adds columns to Results from a list of dictionaries.
+    # @ensure_ready
+    # def add_columns_from_dict(self, columns: List[dict]) -> Results:
+    #     """Adds columns to Results from a list of dictionaries.
 
-        >>> r = Results.example()
-        >>> r.add_columns_from_dict([{'a': 1, 'b': 2}, {'a': 3, 'b': 4}, {'a':3, 'b':2}, {'a':3, 'b':2}]).select('a', 'b')
-        Dataset([{'answer.a': [1, 3, 3, 3]}, {'answer.b': [2, 4, 2, 2]}])
-        """
-        keys = list(columns[0].keys())
-        for key in keys:
-            values = [d[key] for d in columns]
-            self = self.add_column(key, values)
-        return self
+    #     >>> r = Results.example()
+    #     >>> r.add_columns_from_dict([{'a': 1, 'b': 2}, {'a': 3, 'b': 4}, {'a':3, 'b':2}, {'a':3, 'b':2}]).select('a', 'b')
+    #     Dataset([{'answer.a': [1, 3, 3, 3]}, {'answer.b': [2, 4, 2, 2]}])
+    #     """
+    #     keys = list(columns[0].keys())
+    #     for key in keys:
+    #         values = [d[key] for d in columns]
+    #         self = self.add_column(key, values)
+    #     return self
 
     @staticmethod
     def _create_evaluator(
@@ -1710,43 +1527,15 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             sort_by_iteration=False,
         )
 
-    @staticmethod
-    def has_single_equals(expression: str) -> bool:
-        """Check if an expression contains a single equals sign not part of ==, >=, or <=.
 
-        Args:
-            expression: String expression to check
-
-        Returns:
-            bool: True if there is a standalone = sign
-
-        Examples:
-            >>> Results.has_single_equals("x = 1")
-            True
-            >>> Results.has_single_equals("x == 1")
-            False
-            >>> Results.has_single_equals("x >= 1")
-            False
-            >>> Results.has_single_equals("x <= 1")
-            False
-        """
-        # First remove valid operators that contain =
-        cleaned = (
-            expression.replace("==", "")
-            .replace(">=", "")
-            .replace("<=", "")
-            .replace("!=", "")
-        )
-        return "=" in cleaned
 
     @ensure_ready
     def filter(self, expression: str) -> Results:
         """Filter results based on a boolean expression.
 
-        This method evaluates a boolean expression against each Result object in the
-        collection and returns a new Results object containing only those that match.
-        The expression can reference any column in the data and supports standard
-        Python operators and syntax.
+        This method delegates to the ResultsFilter class to evaluate a boolean expression
+        against each Result object in the collection and returns a new Results object
+        containing only those that match.
 
         Args:
             expression: A string containing a Python expression that evaluates to a boolean.
@@ -1760,17 +1549,6 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         Raises:
             ResultsFilterError: If the expression is invalid or uses improper syntax
                 (like using '=' instead of '==').
-
-        Notes:
-            - Column names can be specified with or without their data type prefix
-              (e.g., both "how_feeling" and "answer.how_feeling" work if unambiguous)
-            - You must use double equals (==) for equality comparison, not single equals (=)
-            - You can use logical operators like 'and', 'or', 'not'
-            - You can use comparison operators like '==', '!=', '>', '<', '>=', '<='
-            - You can use membership tests with 'in'
-            - You can use string methods like '.startswith()', '.contains()', etc.
-            - The expression can be a multi-line string for improved readability
-            - You can use template-style syntax with double curly braces: {{ field }}
 
         Examples:
             >>> r = Results.example()
@@ -1786,78 +1564,9 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             >>> # Filter on agent properties
             >>> r.filter("agent.status == 'Joyful'").select('agent.status')
             Dataset([{'agent.status': ['Joyful', 'Joyful']}])
-
-            >>> # Using multi-line string for complex conditions
-            >>> r.filter('''
-            ...     how_feeling == 'Great'
-            ...     or how_feeling == 'Terrible'
-            ... ''').select('how_feeling')
-            Dataset([{'answer.how_feeling': ['Great', 'Terrible']}])
-
-            >>> # Using template-style syntax with {{}}
-            >>> r.filter("{{ answer.how_feeling }} == 'Great'").select('how_feeling')
-            Dataset([{'answer.how_feeling': ['Great']}])
-
-            >>> # Common error: using = instead of ==
-            >>> try:
-            ...     r.filter("how_feeling = 'Great'")
-            ... except Exception as e:
-            ...     print("ResultsFilterError: You must use '==' instead of '=' in the filter expression.")
-            ResultsFilterError: You must use '==' instead of '=' in the filter expression.
         """
-        # Normalize expression by removing extra whitespace and newlines
-        normalized_expression = " ".join(expression.strip().split())
-
-        # Remove template-style syntax (double curly braces)
-        normalized_expression = normalized_expression.replace("{{", "").replace(
-            "}}", ""
-        )
-
-        if self.has_single_equals(normalized_expression):
-            raise ResultsFilterError(
-                "You must use '==' instead of '=' in the filter expression."
-            )
-
-        try:
-            # Create new Results object with same class as original but empty data
-            filtered_results = Results(
-                survey=self.survey,
-                data=[],  # Empty data list
-                created_columns=self.created_columns,
-                data_class=self._data_class,  # Preserve the original data class
-            )
-
-            # Process one result at a time
-            for result in self.data:
-                evaluator = self._create_evaluator(result)
-                result.check_expression(normalized_expression)  # check expression
-                if evaluator.eval(normalized_expression):
-                    filtered_results.append(
-                        result
-                    )  # Use append method to add matching results
-
-            if len(filtered_results) == 0:
-                import warnings
-
-                warnings.warn("No results remain after applying the filter.")
-
-            return filtered_results
-
-        except ValueError as e:
-            raise ResultsFilterError(
-                f"Error in filter. Exception:{e}",
-                f"The expression you provided was: {expression}",
-                "See https://docs.expectedparrot.com/en/latest/results.html#filtering-results for more details.",
-            )
-        except Exception as e:
-            raise ResultsFilterError(
-                f"Error in filter. Exception:{e}.",
-                f"The expression you provided was: {expression}.",
-                "Please make sure that the expression is a valid Python expression that evaluates to a boolean.",
-                'For example, \'how_feeling == "Great"\' is a valid expression, as is \'how_feeling in ["Great", "Terrible"]\'.',
-                "However, 'how_feeling = \"Great\"' is not a valid expression.",
-                "See https://docs.expectedparrot.com/en/latest/results.html#filtering-results for more details.",
-            )
+        filter_handler = ResultsFilter(self)
+        return filter_handler.filter(expression)
 
     @classmethod
     def example(cls, randomize: bool = False) -> Results:
