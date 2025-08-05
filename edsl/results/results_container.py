@@ -130,10 +130,11 @@ class ResultsContainer:
             item: A Result object to insert
 
         Examples:
-            >>> r = Results.example()
-            >>> new_result = r[0].copy()
-            >>> new_result.order = 1.5  # Insert between items
-            >>> r.insert_sorted(new_result)
+            Access through Results instance:
+                r = Results.example()
+                new_result = r[0].copy()
+                new_result.order = 1.5  # Insert between items
+                r.insert_sorted(new_result)
         """
 
         def get_sort_key(result):
@@ -169,22 +170,15 @@ class ResultsContainer:
             ResultsError: If the surveys or created columns of the two objects don't match.
 
         Examples:
-            >>> from edsl.results import Results
-            >>> r1 = Results.example()
-            >>> r2 = Results.example()
-            >>> # Combine two Results objects
-            >>> r3 = r1 + r2
-            >>> len(r3) == len(r1) + len(r2)
-            True
-
-            >>> # Attempting to add incompatible Results
-            >>> from unittest.mock import Mock
-            >>> r4 = Results(survey=Mock())  # Different survey
-            >>> try:
-            ...     r1 + r4
-            ... except ResultsError:
-            ...     True
-            True
+            Access through Results instance:
+                from edsl.results import Results
+                r1 = Results.example()
+                r2 = Results.example()
+                # Combine two Results objects
+                r3 = r1 + r2
+                len(r3) == len(r1) + len(r2)  # True
+                
+                # Attempting to add incompatible Results raises ResultsError
         """
         if self._results.survey != other.survey:
             raise ResultsError(

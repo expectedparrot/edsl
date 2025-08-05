@@ -77,6 +77,7 @@ from .results_scorer import ResultsScorer
 from .results_transformer import ResultsTransformer
 from .results_properties import ResultsProperties
 from .results_container import ResultsContainer
+from .results_grouper import ResultsGrouper
 
 from .exceptions import (
     ResultsError,
@@ -278,6 +279,9 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         # Initialize container handler
         self._container = ResultsContainer(self)
 
+        # Initialize grouper handler
+        self._grouper = ResultsGrouper(self)
+
         if name is not None:
             self.name = name
         else:
@@ -384,18 +388,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         >>> sorted(result['how_feeling_yesterday'].values())
         ['Good', 'Great', 'OK', 'Terrible']
         """
-        d = {}
-        if agent_key_fields is None:
-            agent_name_keys = self.select('agent.agent_name').to_list()
-        else:
-            agent_name_keys = [f"{separator}".join(x) for x in self.select(*agent_key_fields).to_list()]
-
-        for question in self.survey.questions:
-            question_name = question.question_name
-            answers = self.select(question_name).to_list()
-            d[question_name] = {k:v for k,v in zip(agent_name_keys, answers)}
-
-        return d
+        return self._grouper.agent_answers_by_question(agent_key_fields, separator)
 
 
     def extend_sorted(self, other):
@@ -1028,25 +1021,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             >>> all(isinstance(v, list) for v in buckets.values())
             True
         """
-        if len(columns) == 0:
-            raise ResultsError("You must provide at least one column to bucket_by().")
-
-        # Build buckets using a dictionary that maps key tuples to lists of Result objects
-        from collections import defaultdict
-
-        buckets: dict[tuple, list[Result]] = defaultdict(list)
-
-        for result in self.data:
-            key_values = []
-            for col in columns:
-                # Determine data_type and attribute key
-                data_type, attr_key = self._parse_column(col)
-                # Extract the value from the Result object
-                value = result.get_value(data_type, attr_key)
-                key_values.append(value)
-            buckets[tuple(key_values)].append(result)
-
-        return dict(buckets)
+        return self._grouper.bucket_by(*columns)
 
     def _parse_column(self, column: str) -> tuple[str, str]:
         """Parse a column name into a data type and key."""
