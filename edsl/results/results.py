@@ -162,39 +162,6 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         "validated",
     ]
 
-    def view(self):
-        from ..widgets.results_viewer import ResultsViewerWidget
-        return ResultsViewerWidget(results=self)
-
-    @classmethod
-    def from_job_info(cls, job_info: dict) -> "Results":
-        """Instantiate a Results object from a job info dictionary.
-
-        This method creates a Results object in a not-ready state that will
-        fetch its data from a remote source when methods are called on it.
-
-        Args:
-            job_info: Dictionary containing information about a remote job.
-
-        Returns:
-            Results: A new Results instance with completed=False that will
-                fetch remote data when needed.
-
-        Examples:
-            >>> # Create a job info dictionary
-            >>> job_info = {'job_uuid': '12345', 'creation_data': {'model': 'gpt-4'}}
-            >>> # Create a Results object from the job info
-            >>> results = Results.from_job_info(job_info)
-            >>> results.completed
-            False
-            >>> hasattr(results, 'job_info')
-            True
-        """
-        results = cls()
-        results.completed = False
-        results.job_info = job_info
-        return results
-
     def __init__(
         self,
         survey: Optional[Survey] = None,
@@ -289,6 +256,40 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
 
         if hasattr(self, "_add_output_functions"):
             self._add_output_functions()
+
+    def view(self) -> None:
+        """View the results in a Jupyter notebook."""
+        from ..widgets.results_viewer import ResultsViewerWidget
+        return ResultsViewerWidget(results=self)
+
+    @classmethod
+    def from_job_info(cls, job_info: dict) -> "Results":
+        """Instantiate a Results object from a job info dictionary.
+
+        This method creates a Results object in a not-ready state that will
+        fetch its data from a remote source when methods are called on it.
+
+        Args:
+            job_info: Dictionary containing information about a remote job.
+
+        Returns:
+            Results: A new Results instance with completed=False that will
+                fetch remote data when needed.
+
+        Examples:
+            >>> # Create a job info dictionary
+            >>> job_info = {'job_uuid': '12345', 'creation_data': {'model': 'gpt-4'}}
+            >>> # Create a Results object from the job info
+            >>> results = Results.from_job_info(job_info)
+            >>> results.completed
+            False
+            >>> hasattr(results, 'job_info')
+            True
+        """
+        results = cls()
+        results.completed = False
+        results.job_info = job_info
+        return results
 
     def add_task_history_entry(self, interview: "Interview") -> None:
         self.task_history.add_interview(interview)
@@ -872,8 +873,6 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         transformer = ResultsTransformer(self)
         return transformer.mutate(new_var_string, functions_dict)
 
-    # Method removed due to duplication (F811)
-
     @ensure_ready
     def rename(self, old_name: str, new_name: str) -> Results:
         """Rename an answer column in a Results object.
@@ -1050,8 +1049,6 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         """
         transformer = ResultsTransformer(self)
         return transformer.order_by(*columns, reverse=reverse)
-
-
 
     @ensure_ready
     def filter(self, expression: str) -> Results:
