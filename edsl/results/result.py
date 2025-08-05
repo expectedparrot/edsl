@@ -27,7 +27,6 @@ from collections import UserDict
 from typing import Any, Callable, Optional, TYPE_CHECKING, Union
 
 from ..base import Base
-from ..utilities import remove_edsl_version
 from ..agents import Agent
 from ..scenarios import Scenario
 from ..surveys import Survey
@@ -40,8 +39,6 @@ if TYPE_CHECKING:
 
 QuestionName = str
 AnswerValue = Any
-
-
 
 
 class Result(Base, UserDict):
@@ -127,7 +124,7 @@ class Result(Base, UserDict):
             "model": model,
             "iteration": iteration,
             "answer": answer,
-            "prompt": prompt or {},
+            "prompt": prompt or {},  # keyed dictionaries 
             "raw_model_response": raw_model_response or {},
             "question_to_attributes": question_to_attributes,
             "generated_tokens": generated_tokens or {},
@@ -141,8 +138,51 @@ class Result(Base, UserDict):
         self.indices = indices
 
         self._rb = None
-        #from .result_builder import ResultBuilder
-        #rb = ResultBuilder(self.data, self.indices)
+        self._transformer = None
+
+    @property
+    def transformer(self):
+        """Get the ResultTransformer instance for this Result."""
+        if self._transformer is None:
+            from .result_transformer import ResultTransformer
+            self._transformer = ResultTransformer(self.data)
+        return self._transformer
+
+    def by_question_data(self, flatten_nested_dicts: bool = False, separator: str = "_"):
+        """Organize result data by question with optional flattening of nested dictionaries.
+        
+        This method reorganizes the result data structure to be organized by question name,
+        making it easier to analyze answers and related metadata on a per-question basis.
+        
+        Args:
+            flatten_nested_dicts: Whether to flatten nested dictionaries using the separator.
+                Defaults to False.
+            separator: The separator to use when flattening nested dictionaries.
+                Defaults to "_".
+                
+        Returns:
+            A dictionary organized by question name, with each question containing
+            its associated data (answer, prompt, metadata, etc.).
+        """
+        return self.transformer.by_question_data(flatten_nested_dicts, separator)
+    
+    def to_dataset(self, flatten_nested_dicts: bool = False, separator: str = "_"):
+        """Convert the result to a dataset format.
+        
+        This method transforms the result data into a Dataset object suitable for
+        analysis and data manipulation.
+        
+        Args:
+            flatten_nested_dicts: Whether to flatten nested dictionaries using the separator.
+                Defaults to False.
+            separator: The separator to use when flattening nested dictionaries.
+                Defaults to "_".
+                
+        Returns:
+            A Dataset object containing the result data organized for analysis.
+        """
+        return self.transformer.to_dataset(flatten_nested_dicts, separator)
+     
 
     @property
     def rb(self):
@@ -177,20 +217,16 @@ class Result(Base, UserDict):
     @property
     def scenario(self) -> "Scenario":
         """Return the Scenario object."""
-        #_ = self.rb
-        #return self._get_data("scenario")
         return self.data["scenario"]
 
     @property
     def model(self) -> "LanguageModel":
         """Return the LanguageModel object."""
-        #_ = self.rb
         return self.data["model"]
 
     @property
     def answer(self) -> dict[QuestionName, AnswerValue]:
         """Return the answers."""
-        #_ = self.rb
         return self.data["answer"]
 
     def check_expression(self, expression: str) -> None:
@@ -345,7 +381,7 @@ class Result(Base, UserDict):
         return dict_hash(self.to_dict(add_edsl_version=False, include_cache_info=False))
 
     @classmethod
-    def from_dict(cls, json_dict: dict) -> Result:
+    def from_dict(cls, data: dict) -> Result:
         """Return a Result object from a dictionary representation.
 
         Args:
@@ -355,7 +391,7 @@ class Result(Base, UserDict):
             A new Result object created from the dictionary data.
         """
         from .result_serializer import ResultSerializer
-        return ResultSerializer.from_dict(json_dict)
+        return ResultSerializer.from_dict(data)
 
     def __repr__(self):
         """Return a string representation of the Result object.
@@ -367,7 +403,7 @@ class Result(Base, UserDict):
         return f"{self.__class__.__name__}({params})"
 
     @classmethod
-    def example(cls):
+    def example(cls) -> 'Result':
         """Return an example Result object.
 
         Returns:
