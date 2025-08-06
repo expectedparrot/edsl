@@ -153,21 +153,7 @@ class AgentListCollection(ItemCollection):
         
         Returns:
             ResultsList: A list of Results objects, one for each agent list in the collection.
-                        Each Results object contains the survey responses from agents in that list.
-        
-        Example:
-            >>> from edsl.surveys import Survey
-            >>> from edsl.questions import QuestionMultipleChoice
-            >>> collection = AgentListCollection.example()
-            >>> q = QuestionMultipleChoice(
-            ...     question_name="test",
-            ...     question_text="Test question?",
-            ...     question_options=["A", "B"]
-            ... )
-            >>> survey = Survey([q])
-            >>> results = collection.take_survey(survey)
-            >>> isinstance(results, ResultsList)
-            True
+                        Each Results object contains the survey responses from agents in that list.       
         """
         from ..language_models import Model
         if model is None:
