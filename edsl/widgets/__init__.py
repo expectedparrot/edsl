@@ -15,6 +15,8 @@ from .result_inspector import ResultInspectorWidget
 from .results_inspector import ResultsInspectorWidget
 from .scenario_inspector import ScenarioInspectorWidget
 from .scenario_list_inspector import ScenarioListInspectorWidget
+from .question_inspector import QuestionInspectorWidget
+from .survey_inspector import SurveyInspectorWidget
 
 __all__ = [
     'EDSLBaseWidget',
@@ -28,4 +30,6 @@ __all__ = [
     'ResultsInspectorWidget',
     'ScenarioInspectorWidget',
     'ScenarioListInspectorWidget',
+    'QuestionInspectorWidget',
+    'SurveyInspectorWidget',
 ] 
