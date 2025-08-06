@@ -1027,6 +1027,31 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         if "." in column:
             return column.split(".", 1)
         return self._cache_manager.key_to_data_type[column], column
+    
+    @ensure_ready
+    def sort_by(self, *columns: str, reverse: bool = False) -> Results:
+        """Sort the results by one or more columns.
+
+        This method delegates to the ResultsTransformer class to handle the sorting operation.
+
+        Args:
+            columns: One or more column names as strings.
+            reverse: A boolean that determines whether to sort in reverse order.
+
+        Returns:
+            Results: A new Results object with sorted data.
+
+        Examples:
+            >>> r = Results.example()
+            >>> sorted_results = r.order_by('how_feeling')
+            >>> len(sorted_results) == len(r)
+            True
+        """
+        import warnings 
+        warnings.warn("sort_by is deprecated. Use order_by instead.", DeprecationWarning)
+        transformer = ResultsTransformer(self)
+        return transformer.order_by(*columns, reverse=reverse)
+
 
     @ensure_ready
     def order_by(self, *columns: str, reverse: bool = False) -> Results:
