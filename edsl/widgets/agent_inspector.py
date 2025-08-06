@@ -8,10 +8,10 @@ direct answering methods.
 
 import traitlets
 from typing import Any, Dict, Optional
-from .base_widget import EDSLBaseWidget
+from .inspector_widget import InspectorWidget
 
 
-class AgentInspectorWidget(EDSLBaseWidget):
+class AgentInspectorWidget(InspectorWidget):
     """Interactive widget for comprehensively inspecting EDSL Agent objects.
     
     This widget provides a multi-tabbed interface for exploring all aspects of
@@ -46,9 +46,17 @@ class AgentInspectorWidget(EDSLBaseWidget):
         >>> widget  # Display in Jupyter notebook
     """
 
-    # Traitlets for data communication with frontend
+    # Agent-specific traitlet (inherits object_data from base class)
     agent = traitlets.Any(allow_none=True).tag(sync=False)
-    agent_data = traitlets.Dict().tag(sync=True)
+    
+    # For backward compatibility - maps to base class object_data
+    @property
+    def agent_data(self):
+        return self.object_data
+    
+    @agent_data.setter
+    def agent_data(self, value):
+        self.object_data = value
     
     def __init__(self, agent=None, **kwargs):
         """Initialize the Agent Inspector Widget.
@@ -58,17 +66,15 @@ class AgentInspectorWidget(EDSLBaseWidget):
                   `.agent` property or by calling `inspect(agent)`.
             **kwargs: Additional keyword arguments passed to the base widget.
         """
-        super().__init__(**kwargs)
+        super().__init__(inspected_object=agent, **kwargs)
+        # Set up agent-specific observer
         if agent is not None:
             self.agent = agent
     
     @traitlets.observe('agent')
     def _on_agent_change(self, change):
-        """Update widget data when agent changes."""
-        if change['new'] is not None:
-            self._update_agent_data()
-        else:
-            self.agent_data = {}
+        """Update widget data when agent changes - sync with base class."""
+        self.inspected_object = change['new']
     
     def inspect(self, agent) -> 'AgentInspectorWidget':
         """Set the agent to inspect and return self for method chaining.
@@ -86,55 +92,37 @@ class AgentInspectorWidget(EDSLBaseWidget):
         self.agent = agent
         return self
     
-    def _update_agent_data(self):
-        """Extract and format agent data for the frontend."""
-        if self.agent is None:
-            self.agent_data = {}
+    def _update_object_data(self):
+        """Extract and format agent data using to_dict(full_dict=True)."""
+        if self.inspected_object is None:
+            self.object_data = {}
             return
         
-        try:
-            # Get basic agent information
-            agent_data = {
-                'name': getattr(self.agent, 'name', None),
-                'traits': dict(self.agent.traits) if hasattr(self.agent, 'traits') else {},
-                'codebook': dict(getattr(self.agent, 'codebook', {})),
-                'instruction': getattr(self.agent, 'instruction', ''),
-                'traits_presentation_template': getattr(self.agent, 'traits_presentation_template', None),
-                'trait_categories': getattr(self.agent, 'trait_categories', None),
-                'has_dynamic_traits_function': getattr(self.agent, 'has_dynamic_traits_function', False),
-                'dynamic_traits_function_name': getattr(self.agent, 'dynamic_traits_function_name', None),
-                'answer_question_directly_function_name': getattr(self.agent, 'answer_question_directly_function_name', None)
-            }
-            
-            # Add system information if available
-            if hasattr(self.agent, 'to_dict'):
-                try:
-                    dict_data = self.agent.to_dict(add_edsl_version=True)
-                    agent_data['edsl_version'] = dict_data.get('edsl_version')
-                    agent_data['edsl_class_name'] = dict_data.get('edsl_class_name')
-                except Exception:
-                    # If to_dict fails, continue without version info
-                    pass
-            
-            self.agent_data = agent_data
-            
-        except Exception as e:
-            print(f"Error updating agent data: {e}")
-            self.agent_data = {
-                'error': f"Failed to extract agent data: {str(e)}",
-                'traits': {},
-                'codebook': {},
-                'instruction': '',
-                'has_dynamic_traits_function': False
-            }
-    
-    def refresh(self):
-        """Refresh the widget display by re-extracting agent data.
+        # Use the base class safe conversion method
+        self.object_data = self._safe_to_dict(self.inspected_object)
         
-        Useful if the agent has been modified after the widget was created.
+        # Sync the agent property for backward compatibility
+        if hasattr(self, '_agent_property_sync'):
+            return
+        self._agent_property_sync = True
+        self.agent = self.inspected_object
+        self._agent_property_sync = False
+    
+    def _validate_object(self, obj) -> bool:
+        """Validate that the object is an EDSL Agent.
+        
+        Args:
+            obj: Object to validate
+            
+        Returns:
+            bool: True if object is a valid Agent
         """
-        if self.agent is not None:
-            self._update_agent_data()
+        if obj is None:
+            return True
+        
+        # Check if it's an Agent by looking for key Agent attributes
+        return (hasattr(obj, 'traits') and 
+                (hasattr(obj, 'instruction') or hasattr(obj, 'codebook')))
     
     def export_summary(self) -> Dict[str, Any]:
         """Export a summary of the agent's key characteristics.
@@ -145,48 +133,18 @@ class AgentInspectorWidget(EDSLBaseWidget):
         if not self.agent_data:
             return {}
         
-        return {
-            'name': self.agent_data.get('name', 'Unnamed'),
-            'trait_count': len(self.agent_data.get('traits', {})),
-            'codebook_entries': len(self.agent_data.get('codebook', {})),
-            'has_categories': bool(self.agent_data.get('trait_categories')),
-            'has_dynamic_traits': self.agent_data.get('has_dynamic_traits_function', False),
-            'has_direct_answer': bool(self.agent_data.get('answer_question_directly_function_name')),
-            'instruction_length': len(self.agent_data.get('instruction', ''))
-        }
+        summary = super().export_summary()
+        
+        # Add agent-specific summary information
+        summary.update({
+            'name': self.object_data.get('name', 'Unnamed'),
+            'trait_count': len(self.object_data.get('traits', {})),
+            'codebook_entries': len(self.object_data.get('codebook', {})),
+            'has_categories': bool(self.object_data.get('trait_categories')),
+            'has_dynamic_traits': self.object_data.get('has_dynamic_traits_function', False),
+            'has_direct_answer': bool(self.object_data.get('answer_question_directly_function_name')),
+            'instruction_length': len(self.object_data.get('instruction', ''))
+        })
+        
+        return summary
     
-    def search_traits(self, search_term: str) -> Dict[str, Any]:
-        """Search agent traits by term and return matching entries.
-        
-        Args:
-            search_term: Term to search for in trait keys, values, or descriptions
-            
-        Returns:
-            Dictionary of matching traits with their values and descriptions
-        """
-        if not self.agent_data or not search_term:
-            return {}
-        
-        traits = self.agent_data.get('traits', {})
-        codebook = self.agent_data.get('codebook', {})
-        search_lower = search_term.lower()
-        
-        matches = {}
-        for key, value in traits.items():
-            # Check if search term appears in key, value, or codebook description
-            key_match = search_lower in key.lower()
-            value_match = search_lower in str(value).lower()
-            desc_match = search_lower in codebook.get(key, '').lower()
-            
-            if key_match or value_match or desc_match:
-                matches[key] = {
-                    'value': value,
-                    'description': codebook.get(key, 'No description'),
-                    'match_reasons': {
-                        'key': key_match,
-                        'value': value_match,
-                        'description': desc_match
-                    }
-                }
-        
-        return matches
