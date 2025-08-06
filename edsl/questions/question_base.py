@@ -7,7 +7,7 @@ functionality, interface, and behavior that all questions must implement.
 
 Key features of this module include:
 - Abstract base class that defines the question interface
-- Core validation and serialization capabilities 
+- Core validation and serialization capabilities
 - Integration with language models and agents
 - Support for template-based question generation
 - Connection to response validation and answer processing
@@ -920,26 +920,16 @@ class QuestionBase(
 
     def inspect(self):
         """Create an interactive inspector widget for this question.
-        
+
         This method uses the InspectorWidget registry system to find the appropriate
         inspector widget class for questions and returns an instance of it.
-        
+
         Returns:
             QuestionInspectorWidget instance: Interactive widget for inspecting this question
-            
+
         Raises:
             KeyError: If no question inspector widget is available
             ImportError: If the widgets module cannot be imported
-            
-        Example:
-            >>> from edsl.questions import QuestionMultipleChoice
-            >>> q = QuestionMultipleChoice(
-            ...     question_name="color",
-            ...     question_text="What is your favorite color?",
-            ...     question_options=["Red", "Blue", "Green"]
-            ... )
-            >>> widget = q.inspect()
-            >>> widget  # Display in Jupyter notebook for interactive inspection
         """
         try:
             from ..widgets.question_inspector import QuestionInspectorWidget
@@ -947,7 +937,7 @@ class QuestionBase(
             raise ImportError(
                 "Question inspector widget is not available. Make sure the widgets module is installed."
             ) from e
-        
+
         return QuestionInspectorWidget(self)
 
     # endregion
