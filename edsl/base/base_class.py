@@ -1161,6 +1161,42 @@ class Base(
         results = q.run()
         return results.select("description").first()
     
+    def inspect(self):
+        """Create an interactive inspector widget for this object.
+        
+        This method uses the InspectorWidget registry system to find the appropriate
+        inspector widget class for this object's type and returns an instance of it.
+        
+        Returns:
+            InspectorWidget subclass instance: Interactive widget for inspecting this object
+            
+        Raises:
+            KeyError: If no inspector widget is registered for this object's class
+            ImportError: If the widgets module cannot be imported
+            
+        Example:
+            >>> agent = Agent()
+            >>> widget = agent.inspect()
+            >>> widget  # Display in Jupyter notebook for interactive inspection
+        """
+        try:
+            from ..widgets.inspector_widget import InspectorWidget
+        except ImportError as e:
+            raise ImportError(
+                "Inspector widgets are not available. Make sure the widgets module is installed."
+            ) from e
+        
+        try:
+            return InspectorWidget.create_inspector_for(self)
+        except KeyError as e:
+            available_classes = InspectorWidget.get_registered_classes()
+            raise KeyError(
+                f"No inspector widget found for {self.__class__.__name__}. "
+                f"Available inspectors: {available_classes}. "
+                f"To create a custom inspector, define a class that inherits from InspectorWidget "
+                f"with associated_class = '{self.__class__.__name__}'."
+            ) from e
+    
 
 
 class BaseDiffCollection(UserList):

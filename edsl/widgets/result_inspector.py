@@ -7,17 +7,19 @@ scenario, model, answers, prompts, and raw data structure.
 
 import traitlets
 from typing import Any, Dict, List, Optional
-from .base_widget import EDSLBaseWidget
+from .inspector_widget import InspectorWidget
 
 
-class ResultInspectorWidget(EDSLBaseWidget):
+class ResultInspectorWidget(InspectorWidget):
     """Interactive widget for inspecting individual EDSL Result objects with detailed exploration."""
 
-    # Traitlets for data communication with frontend
-    result = traitlets.Any(allow_none=True).tag(sync=False)
+    # Define which EDSL class this inspector handles
+    associated_class = "Result"
+    
+    # Result-specific data traitlet for JavaScript frontend
     result_data = traitlets.Dict().tag(sync=True)
     
-    # UI state
+    # UI state traitlets (additional to parent class data traitlet)
     active_tab = traitlets.Unicode('overview').tag(sync=True)
     expanded_sections = traitlets.List(['answers']).tag(sync=True)
     copied_item = traitlets.Unicode('').tag(sync=True)
@@ -29,159 +31,90 @@ class ResultInspectorWidget(EDSLBaseWidget):
     section_request = traitlets.Dict({"is_default": True}).tag(sync=True)
     copy_request = traitlets.Dict({"is_default": True}).tag(sync=True)
 
-    def __init__(self, result=None, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, obj=None, **kwargs):
+        """Initialize the Result Inspector Widget.
+        
+        Args:
+            obj: An EDSL Result object to inspect.
+            **kwargs: Additional keyword arguments passed to the base widget.
+        """
+        super().__init__(obj, **kwargs)
         
         # Set up observers for frontend requests
         self.observe(self._on_tab_request, names=["tab_request"])
         self.observe(self._on_section_request, names=["section_request"])
         self.observe(self._on_copy_request, names=["copy_request"])
-        
-        # Initialize with result if provided
-        if result is not None:
-            self.result = result
 
-    @traitlets.observe('result')
-    def _on_result_change(self, change):
-        """Update widget data when result changes."""
-        if change['new'] is not None:
-            self._extract_result_data()
-
-    def _extract_result_data(self):
-        """Extract and process data from the Result object."""
-        if self.result is None:
-            self._reset_data()
+    def _process_object_data(self):
+        """Extract data from Result object using by_question_data() method."""
+        if not self.object or not self.data:
             return
-
+            
         try:
             self.loading = True
             self.error_message = ""
             
-            # Convert result to dictionary format for frontend
-            result_dict = {}
-            
-            # Handle dictionary input
-            if isinstance(self.result, dict):
-                result_dict = self.result
+            # Use by_question_data() to get the properly formatted data for the widget
+            if hasattr(self.object, 'by_question_data'):
+                result_dict = self.object.by_question_data()
+                
+                # Transform the by_question_data structure into the format expected by the widget
+                processed_data = {
+                    'agent': result_dict.get('agent_data', {}),
+                    'scenario': result_dict.get('scenario_data', {}),
+                    'model': {},  # by_question_data doesn't include model, we'll get it from self.data if available
+                    'iteration': 0,  # by_question_data doesn't include iteration
+                    'answer': {},
+                    'prompt': {},
+                    'raw_model_response': {},
+                    'question_to_attributes': {},
+                    'generated_tokens': {},
+                    'comments_dict': {},
+                    'reasoning_summaries_dict': {},
+                    'cache_keys': {},
+                    'validated_dict': {},
+                    'indices': {}
+                }
+                
+                # Process question_data into the various dictionaries the widget expects
+                question_data = result_dict.get('question_data', {})
+                for question_name, question_info in question_data.items():
+                    processed_data['answer'][question_name] = question_info.get('answer')
+                    processed_data['prompt'][question_name] = {
+                        'user_prompt': question_info.get('user_prompt'),
+                        'system_prompt': question_info.get('system_prompt')
+                    }
+                    processed_data['raw_model_response'][question_name] = question_info.get('raw_model_response')
+                    processed_data['question_to_attributes'][question_name] = {
+                        'question_text': question_info.get('question_text'),
+                        'question_type': question_info.get('question_type'),
+                        'question_options': question_info.get('question_options')
+                    }
+                    processed_data['generated_tokens'][question_name] = question_info.get('generated_tokens')
+                    processed_data['comments_dict'][question_name] = question_info.get('comment')
+                    processed_data['reasoning_summaries_dict'][question_name] = question_info.get('reasoning_summary')
+                    processed_data['cache_keys'][question_name] = question_info.get('cache_key')
+                    processed_data['validated_dict'][question_name] = question_info.get('validated')
+                
+                # Add the processed result data to both self.data (parent pattern) and result_data (for JS)
+                self.data.update(processed_data)
+                self.result_data = processed_data
             else:
-                # Handle EDSL Result object - convert to dict
-                try:
-                    result_dict = dict(self.result)
-                except:
-                    # Fallback: manually extract attributes
-                    result_dict = self._extract_result_attributes()
-            
-            # Ensure all expected sections exist with defaults
-            processed_data = {
-                'agent': result_dict.get('agent', {}),
-                'scenario': result_dict.get('scenario', {}),
-                'model': result_dict.get('model', {}),
-                'iteration': result_dict.get('iteration', 0),
-                'answer': result_dict.get('answer', {}),
-                'prompt': result_dict.get('prompt', {}),
-                'raw_model_response': result_dict.get('raw_model_response', {}),
-                'question_to_attributes': result_dict.get('question_to_attributes', {}),
-                'generated_tokens': result_dict.get('generated_tokens', {}),
-                'comments_dict': result_dict.get('comments_dict', {}),
-                'reasoning_summaries_dict': result_dict.get('reasoning_summaries_dict', {}),
-                'cache_keys': result_dict.get('cache_keys', {}),
-                'validated_dict': result_dict.get('validated_dict', {}),
-                'indices': result_dict.get('indices', {})
-            }
-            
-            # Clean up agent data if it's an object
-            if hasattr(processed_data['agent'], '__dict__'):
-                agent_dict = {}
-                if hasattr(processed_data['agent'], 'traits'):
-                    try:
-                        agent_dict['traits'] = dict(processed_data['agent'].traits)
-                    except:
-                        agent_dict['traits'] = {}
-                if hasattr(processed_data['agent'], 'edsl_version'):
-                    agent_dict['edsl_version'] = processed_data['agent'].edsl_version
-                if hasattr(processed_data['agent'], 'edsl_class_name'):
-                    agent_dict['edsl_class_name'] = processed_data['agent'].edsl_class_name
-                if hasattr(processed_data['agent'], 'name'):
-                    agent_dict['name'] = processed_data['agent'].name
-                processed_data['agent'] = agent_dict
-            
-            # Clean up scenario data if it's an object
-            if hasattr(processed_data['scenario'], '__dict__'):
-                scenario_dict = {}
-                for attr in ['period', 'scenario_index', 'edsl_version', 'edsl_class_name']:
-                    if hasattr(processed_data['scenario'], attr):
-                        scenario_dict[attr] = getattr(processed_data['scenario'], attr)
-                # Also extract any scenario variables
-                if hasattr(processed_data['scenario'], '__dict__'):
-                    for key, value in processed_data['scenario'].__dict__.items():
-                        if not key.startswith('_') and key not in scenario_dict:
-                            scenario_dict[key] = value
-                processed_data['scenario'] = scenario_dict
-            
-            # Clean up model data if it's an object
-            if hasattr(processed_data['model'], '__dict__'):
-                model_dict = {}
-                for attr in ['model', 'parameters', 'inference_service', 'edsl_version', 'edsl_class_name']:
-                    if hasattr(processed_data['model'], attr):
-                        model_dict[attr] = getattr(processed_data['model'], attr)
-                processed_data['model'] = model_dict
-            
-            self.result_data = processed_data
+                # Fallback to original logic if by_question_data is not available
+                self.error_message = "Result object does not have by_question_data method"
 
         except Exception as e:
             self.error_message = f"Error processing result: {str(e)}"
-            self._reset_data()
         finally:
             self.loading = False
+    
+    
+    def _validate_object(self, obj) -> bool:
+        """Validate that the object is a Result."""
+        if obj is None:
+            return True
+        return hasattr(obj, 'by_question_data') or type(obj).__name__ == 'Result'
 
-    def _extract_result_attributes(self):
-        """Manually extract attributes from Result object."""
-        result_dict = {}
-        
-        # Common attributes to extract
-        attrs_to_extract = [
-            'agent', 'scenario', 'model', 'iteration', 'answer', 'prompt',
-            'raw_model_response', 'question_to_attributes', 'generated_tokens',
-            'comments_dict', 'reasoning_summaries_dict', 'cache_keys',
-            'validated_dict', 'indices'
-        ]
-        
-        for attr in attrs_to_extract:
-            # Try both getattr and dict-like access
-            if hasattr(self.result, attr):
-                result_dict[attr] = getattr(self.result, attr)
-            elif hasattr(self.result, 'keys') and attr in self.result.keys():
-                try:
-                    result_dict[attr] = self.result[attr]
-                except:
-                    pass
-        
-        # Also extract any other attributes that don't start with underscore
-        if hasattr(self.result, '__dict__'):
-            for key, value in self.result.__dict__.items():
-                if not key.startswith('_') and key not in result_dict:
-                    result_dict[key] = value
-        
-        return result_dict
-
-    def _reset_data(self):
-        """Reset all data to empty state."""
-        self.result_data = {
-            'agent': {},
-            'scenario': {},
-            'model': {},
-            'iteration': 0,
-            'answer': {},
-            'prompt': {},
-            'raw_model_response': {},
-            'question_to_attributes': {},
-            'generated_tokens': {},
-            'comments_dict': {},
-            'reasoning_summaries_dict': {},
-            'cache_keys': {},
-            'validated_dict': {},
-            'indices': {}
-        }
 
     def _on_tab_request(self, change):
         """Handle tab change request from frontend."""
@@ -272,7 +205,7 @@ class ResultInspectorWidget(EDSLBaseWidget):
 # Convenience function for easy import
 def create_result_inspector_widget(result=None):
     """Create and return a new Result Inspector Widget instance."""
-    return ResultInspectorWidget(result=result)
+    return ResultInspectorWidget(obj=result)
 
 
 # Export the main class

@@ -762,7 +762,7 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         else:
             raise ValueError(f"Cannot convert AgentList to {type(target)}")
 
-    def to_dict(self, sorted=False, add_edsl_version=True):
+    def to_dict(self, sorted=False, add_edsl_version=True, full_dict=False):
         """Serialize the AgentList to a dictionary.
 
         >>> AgentList.example().to_dict(add_edsl_version=False)
@@ -783,7 +783,7 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
 
         d = {
             "agent_list": [
-                agent.to_dict(add_edsl_version=add_edsl_version) for agent in data
+                agent.to_dict(add_edsl_version=add_edsl_version, full_dict=full_dict) for agent in data
             ]
         }
 
