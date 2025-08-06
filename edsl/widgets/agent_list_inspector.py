@@ -6,12 +6,11 @@ list format. Users can browse agent cards and click to view detailed information
 for individual agents.
 """
 
-import traitlets
 from typing import Any, Dict, List, Optional
-from .base_widget import EDSLBaseWidget
+from .inspector_widget import InspectorWidget
 
 
-class AgentListInspectorWidget(EDSLBaseWidget):
+class AgentListInspectorWidget(InspectorWidget):
     """Interactive widget for inspecting multiple EDSL Agent objects.
     
     This widget provides a tile-based interface for exploring multiple agents:
@@ -36,153 +35,77 @@ class AgentListInspectorWidget(EDSLBaseWidget):
         >>> widget  # Display in Jupyter notebook
     """
 
-    # Traitlets for data communication with frontend
-    agents = traitlets.Any(allow_none=True).tag(sync=False)
-    agents_data = traitlets.List().tag(sync=True)
+    # Define which EDSL class this inspector handles
+    associated_class = "AgentList"
     
-    def __init__(self, agents=None, **kwargs):
+    def __init__(self, obj=None, **kwargs):
         """Initialize the Agent List Inspector Widget.
         
         Args:
-            agents: A list of EDSL Agent instances to inspect. Can be set later 
-                   via the `.agents` property or by calling `inspect(agents)`.
+            obj: An EDSL AgentList or list of Agent instances to inspect.
             **kwargs: Additional keyword arguments passed to the base widget.
         """
-        super().__init__(**kwargs)
-        if agents is not None:
-            self.agents = agents
+        super().__init__(obj, **kwargs)
     
-    @traitlets.observe('agents')
-    def _on_agents_change(self, change):
-        """Update widget data when agents list changes."""
-        if change['new'] is not None:
-            self._update_agents_data()
-        else:
-            self.agents_data = []
+    def _process_object_data(self):
+        """No additional processing needed - AgentList.to_dict(full_dict=True) has everything we need."""
+        pass
     
-    def inspect(self, agents) -> 'AgentListInspectorWidget':
-        """Set the agents list to inspect and return self for method chaining.
+    def _validate_object(self, obj) -> bool:
+        """Validate that the object is an AgentList or list of agents.
         
         Args:
-            agents: A list of EDSL Agent instances to inspect
+            obj: Object to validate
             
         Returns:
-            Self, for method chaining
-            
-        Example:
-            >>> widget = AgentListInspectorWidget()
-            >>> widget.inspect(my_agents)  # Returns widget for display
+            bool: True if object is valid for this inspector
         """
-        self.agents = agents
-        return self
+        if obj is None:
+            return True
+            
+        # Check if it's an AgentList
+        if hasattr(obj, 'data') and hasattr(obj, '__len__'):
+            return True
+            
+        # Check if it's a list/tuple of agents
+        if isinstance(obj, (list, tuple)):
+            return True
+            
+        # Check if it's some other iterable
+        if hasattr(obj, '__iter__') and not isinstance(obj, str):
+            return True
+            
+        # Single agent is also acceptable
+        return hasattr(obj, 'traits') or type(obj).__name__ == 'Agent'
     
-    def _extract_agent_data(self, agent):
-        """Extract data from a single agent."""
-        try:
-            # Get basic agent information
-            agent_data = {
-                'name': getattr(agent, 'name', None),
-                'traits': dict(agent.traits) if hasattr(agent, 'traits') else {},
-                'codebook': dict(getattr(agent, 'codebook', {})),
-                'instruction': getattr(agent, 'instruction', ''),
-                'traits_presentation_template': getattr(agent, 'traits_presentation_template', None),
-                'trait_categories': getattr(agent, 'trait_categories', None),
-                'has_dynamic_traits_function': getattr(agent, 'has_dynamic_traits_function', False),
-                'dynamic_traits_function_name': getattr(agent, 'dynamic_traits_function_name', None),
-                'answer_question_directly_function_name': getattr(agent, 'answer_question_directly_function_name', None)
-            }
-            
-            # Add system information if available
-            if hasattr(agent, 'to_dict'):
-                try:
-                    dict_data = agent.to_dict(add_edsl_version=True)
-                    agent_data['edsl_version'] = dict_data.get('edsl_version')
-                    agent_data['edsl_class_name'] = dict_data.get('edsl_class_name')
-                except Exception:
-                    # If to_dict fails, continue without version info
-                    pass
-            
-            return agent_data
-            
-        except Exception as e:
-            print(f"Error extracting data from agent: {e}")
-            return {
-                'error': f"Failed to extract agent data: {str(e)}",
-                'traits': {},
-                'codebook': {},
-                'instruction': '',
-                'has_dynamic_traits_function': False
-            }
-    
-    def _update_agents_data(self):
-        """Extract and format data from all agents for the frontend."""
-        if self.agents is None:
-            self.agents_data = []
+    def _enhance_summary(self, summary: Dict[str, Any]):
+        """Add agent list specific summary information."""
+        agents_data = self.data.get('agent_list', [])
+        if not agents_data:
+            summary.update({
+                'agent_count': 0,
+                'named_agents': 0,
+                'total_traits': 0,
+                'avg_traits_per_agent': 0
+            })
             return
-        
-        try:
-            # Handle AgentList objects (which have a .data attribute)
-            if hasattr(self.agents, 'data') and hasattr(self.agents, '__len__'):
-                # This is likely an AgentList
-                agents_list = self.agents.data
-            elif isinstance(self.agents, (list, tuple)):
-                # This is a regular list/tuple
-                agents_list = self.agents
-            elif hasattr(self.agents, '__iter__') and not isinstance(self.agents, str):
-                # This is some other iterable
-                agents_list = list(self.agents)
-            else:
-                # Single agent
-                agents_list = [self.agents]
             
-            agents_data = []
-            for agent in agents_list:
-                if agent is not None:
-                    agent_data = self._extract_agent_data(agent)
-                    agents_data.append(agent_data)
-            
-            self.agents_data = agents_data
-            
-        except Exception as e:
-            print(f"Error updating agents data: {e}")
-            import traceback
-            traceback.print_exc()
-            self.agents_data = []
-    
-    def refresh(self):
-        """Refresh the widget display by re-extracting agents data.
+        total_traits = sum(len(agent.get('traits', {})) for agent in agents_data)
+        named_agents = sum(1 for agent in agents_data if agent.get('name'))
         
-        Useful if any agents have been modified after the widget was created.
-        """
-        if self.agents is not None:
-            self._update_agents_data()
-    
-    def export_summary(self) -> Dict[str, Any]:
-        """Export a summary of all agents' characteristics.
-        
-        Returns:
-            Dictionary containing agents summary information
-        """
-        if not self.agents_data:
-            return {'agent_count': 0}
-        
-        total_traits = sum(len(agent.get('traits', {})) for agent in self.agents_data)
-        total_codebook_entries = sum(len(agent.get('codebook', {})) for agent in self.agents_data)
-        named_agents = sum(1 for agent in self.agents_data if agent.get('name'))
-        agents_with_categories = sum(1 for agent in self.agents_data if agent.get('trait_categories'))
-        dynamic_agents = sum(1 for agent in self.agents_data if agent.get('has_dynamic_traits_function'))
-        direct_answer_agents = sum(1 for agent in self.agents_data if agent.get('answer_question_directly_function_name'))
-        
-        return {
-            'agent_count': len(self.agents_data),
+        summary.update({
+            'agent_count': len(agents_data),
             'named_agents': named_agents,
             'total_traits': total_traits,
-            'avg_traits_per_agent': total_traits / len(self.agents_data) if self.agents_data else 0,
-            'total_codebook_entries': total_codebook_entries,
-            'agents_with_categories': agents_with_categories,
-            'dynamic_agents': dynamic_agents,
-            'direct_answer_agents': direct_answer_agents
-        }
+            'avg_traits_per_agent': total_traits / len(agents_data) if agents_data else 0
+        })
+    
+    @property
+    def agents_data(self):
+        """Get the agents data for frontend compatibility."""
+        return self.data.get('agent_list', [])
+    
+    
     
     def search_agents(self, search_term: str) -> List[Dict[str, Any]]:
         """Search agents by term and return matching entries.
