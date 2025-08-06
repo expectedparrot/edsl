@@ -2431,6 +2431,39 @@ class Survey(Base):
             
         return new_survey
 
+    def inspect(self):
+        """Create an interactive inspector widget for this survey.
+        
+        This method creates a SurveyInspectorWidget that provides an interactive
+        interface for exploring the survey structure, questions, and flow logic.
+        
+        Returns:
+            SurveyInspectorWidget instance: Interactive widget for inspecting this survey
+            
+        Raises:
+            ImportError: If the widgets module cannot be imported
+            
+        Example:
+            >>> from edsl import Survey
+            >>> from edsl.questions import QuestionMultipleChoice
+            >>> q = QuestionMultipleChoice(
+            ...     question_name="color", 
+            ...     question_text="What is your favorite color?",
+            ...     question_options=["Red", "Blue", "Green"]
+            ... )
+            >>> survey = Survey(questions=[q])
+            >>> widget = survey.inspect()
+            >>> widget  # Display in Jupyter notebook for interactive inspection
+        """
+        try:
+            from ..widgets.survey_inspector import SurveyInspectorWidget
+        except ImportError as e:
+            raise ImportError(
+                "Survey inspector widget is not available. Make sure the widgets module is installed."
+            ) from e
+        
+        return SurveyInspectorWidget(self)
+
 
 def main():
     """Run the example survey."""
