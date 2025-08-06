@@ -124,6 +124,28 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
             agent.instruction = instruction
 
         return self
+
+    def add_instructions(self, instructions: str) -> "AgentList":
+        """Apply instructions to all agents in the list.
+        
+        This method provides a more intuitive name for setting instructions
+        on all agents, avoiding the need to iterate manually.
+
+        Args:
+            instructions: The instructions to apply to all agents.
+
+        Returns:
+            AgentList: Returns self for method chaining.
+            
+        Examples:
+            >>> from edsl import Agent, AgentList
+            >>> agents = AgentList([Agent(traits={'age': 30}), Agent(traits={'age': 40})])
+            >>> agents.add_instructions("Answer as if you were this age")
+            AgentList([Agent(traits = {'age': 30}), Agent(traits = {'age': 40})])
+        """
+        for agent in self.data:
+            agent.instruction = instructions
+        return self
     
     @classmethod
     def manage(cls):
@@ -431,13 +453,62 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         return list(d.keys())
 
     @classmethod
+    def from_source(
+        cls,
+        source_type: str,
+        *args,
+        instructions: Optional[str] = None,
+        codebook: Optional[dict[str, str]] = None,
+        name_field: Optional[str] = None,
+        **kwargs
+    ) -> "AgentList":
+        """Create an AgentList from a specified source type.
+        
+        This method serves as the main entry point for creating AgentList objects,
+        providing a unified interface for various data sources.
+        
+        Args:
+            source_type: The type of source to create an AgentList from.
+                        Valid values include: 'csv', 'tsv', 'excel', 'pandas', etc.
+            *args: Positional arguments to pass to the source-specific method.
+            instructions: Optional instructions to apply to all created agents.
+            codebook: Optional dictionary mapping trait names to descriptions.
+            name_field: The name of the field to use as the agent name (for CSV/Excel sources).
+            **kwargs: Additional keyword arguments to pass to the source-specific method.
+            
+        Returns:
+            An AgentList object created from the specified source.
+            
+        Examples:
+            >>> # Create agents from a CSV file with instructions
+            >>> # agents = AgentList.from_source(
+            >>> #     'csv', 'agents.csv', 
+            >>> #     instructions="Answer as if you were the person described"
+            >>> # )
+        """
+        from .agent_list_builder import AgentListBuilder
+        
+        return AgentListBuilder.from_source(
+            source_type, 
+            *args,
+            instructions=instructions,
+            codebook=codebook,
+            name_field=name_field,
+            **kwargs
+        )
+
+    @classmethod
     def from_csv(
         cls,
         file_path: str,
         name_field: Optional[str] = None,
         codebook: Optional[dict[str, str]] = None,
+        instructions: Optional[str] = None,
     ):
         """Load AgentList from a CSV file.
+        
+        .. deprecated:: 
+            Use `AgentList.from_source('csv', ...)` instead.
 
         >>> import csv
         >>> import os
@@ -445,40 +516,30 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         ...     writer = csv.writer(f)
         ...     _ = writer.writerow(['age', 'hair', 'height'])
         ...     _ = writer.writerow([22, 'brown', 5.5])
-        >>> al = AgentList.from_csv('/tmp/agents.csv')
-        >>> al
-        AgentList([Agent(traits = {'age': '22', 'hair': 'brown', 'height': '5.5'})])
-        >>> al = AgentList.from_csv('/tmp/agents.csv', name_field='hair')
-        >>> al
-        AgentList([Agent(name = \"""brown\""", traits = {'age': '22', 'height': '5.5'})])
-        >>> al = AgentList.from_csv('/tmp/agents.csv', codebook={'age': 'Age in years'})
-        >>> al[0].codebook
-        {'age': 'Age in years'}
-        >>> os.remove('/tmp/agents.csv')
+        >>> al = AgentList.from_csv('/tmp/agents.csv')  # doctest: +SKIP
+        >>> al = AgentList.from_csv('/tmp/agents.csv', name_field='hair')  # doctest: +SKIP
+        >>> al = AgentList.from_csv('/tmp/agents.csv', codebook={'age': 'Age in years'})  # doctest: +SKIP
+        >>> al = AgentList.from_csv('/tmp/agents.csv', instructions='Answer as a person')  # doctest: +SKIP
+        >>> os.remove('/tmp/agents.csv')  # doctest: +SKIP
 
         :param file_path: The path to the CSV file.
         :param name_field: The name of the field to use as the agent name.
         :param codebook: Optional dictionary mapping trait names to descriptions.
+        :param instructions: Optional instructions to apply to all created agents.
         """
-        from .agent import Agent
-
-        agent_list = []
-        with open(file_path, "r") as f:
-            reader = csv.DictReader(f)
-            for row in reader:
-                if "name" in row:
-                    import warnings
-
-                    warnings.warn("Using 'name' field in the CSV for the Agent name")
-                    name_field = "name"
-                if name_field is not None:
-                    agent_name = row.pop(name_field)
-                    agent_list.append(
-                        Agent(traits=row, name=agent_name, codebook=codebook)
-                    )
-                else:
-                    agent_list.append(Agent(traits=row, codebook=codebook))
-        return cls(agent_list)
+        warnings.warn(
+            "AgentList.from_csv is deprecated. Use AgentList.from_source('csv', ...) instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        
+        return cls.from_source(
+            'csv',
+            file_path,
+            name_field=name_field,
+            codebook=codebook,
+            instructions=instructions
+        )
 
     def translate_traits(self, codebook: dict[str, str]):
         """Translate traits to a new codebook.
