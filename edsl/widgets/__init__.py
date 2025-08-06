@@ -12,6 +12,9 @@ from .object_docs_viewer import ObjectDocsViewerWidget
 from .agent_inspector import AgentInspectorWidget
 from .agent_list_inspector import AgentListInspectorWidget
 from .result_inspector import ResultInspectorWidget
+from .results_inspector import ResultsInspectorWidget
+from .scenario_inspector import ScenarioInspectorWidget
+from .scenario_list_inspector import ScenarioListInspectorWidget
 
 __all__ = [
     'EDSLBaseWidget',
@@ -22,4 +25,7 @@ __all__ = [
     'AgentInspectorWidget',
     'AgentListInspectorWidget',
     'ResultInspectorWidget',
+    'ResultsInspectorWidget',
+    'ScenarioInspectorWidget',
+    'ScenarioListInspectorWidget',
 ] 
