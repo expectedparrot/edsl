@@ -567,6 +567,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         include_task_history: bool = False,
         include_cache_info: bool = True,
         offload_scenarios: bool = True,
+        full_dict: bool = False,
     ) -> dict[str, Any]:
         """Convert the Results object to a dictionary representation.
         
