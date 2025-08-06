@@ -695,27 +695,6 @@ class Coop(CoopFunctionsMixin):
     ################
     # Widgets
     ################
-    def validate_widget_short_name(self, short_name: str) -> Dict:
-        """
-        Validate a widget short name.
-        """
-        # Check if short_name is empty
-        if not short_name:
-            raise CoopValueError("Widget short name cannot be empty.")
-
-        # Check if short_name starts with a lowercase letter
-        if not short_name[0].isalpha():
-            raise CoopValueError(
-                "Widget short name must start with a lowercase letter."
-            )
-
-        # Check if short_name contains only valid characters (lowercase letters, digits, underscores)
-        for char in short_name:
-            if not (char.islower() or char.isdigit() or char == "_"):
-                raise CoopValueError(
-                    f"Widget short name contains invalid character '{char}'. Only lowercase letters, digits, and underscores are allowed."
-                )
-
     def create_widget(
         self,
         short_name: str,
@@ -744,7 +723,13 @@ class Coop(CoopFunctionsMixin):
         Raises:
             CoopServerResponseError: If there's an error communicating with the server
         """
-        self.validate_widget_short_name(short_name)
+        from ..widgets.base_widget import EDSLBaseWidget
+
+        short_name_is_valid, error_message = EDSLBaseWidget.is_widget_short_name_valid(
+            short_name
+        )
+        if not short_name_is_valid:
+            raise CoopValueError(error_message)
 
         response = self._send_server_request(
             uri="api/v0/widgets",
@@ -914,7 +899,13 @@ class Coop(CoopFunctionsMixin):
         """
         payload = {}
         if short_name is not None:
-            self.validate_widget_short_name(short_name)
+            from ..widgets.base_widget import EDSLBaseWidget
+
+            short_name_is_valid, error_message = (
+                EDSLBaseWidget.is_widget_short_name_valid(short_name)
+            )
+            if not short_name_is_valid:
+                raise CoopValueError(error_message)
             payload["short_name"] = short_name
         if display_name is not None:
             payload["display_name"] = display_name

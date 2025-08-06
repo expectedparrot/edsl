@@ -12,6 +12,8 @@ from .base_widget import EDSLBaseWidget
 class AgentListManagerWidget(EDSLBaseWidget):
     """A widget for managing EDSL AgentLists with table view, pagination, and actions."""
 
+    widget_short_name = "agent_list_manager"
+
     # Traitlets for bidirectional communication
     current_page = traitlets.Int(1).tag(sync=True)
     agent_lists = traitlets.List([]).tag(sync=True)
@@ -19,7 +21,7 @@ class AgentListManagerWidget(EDSLBaseWidget):
     loading = traitlets.Bool(False).tag(sync=True)
     loading_more = traitlets.Bool(False).tag(sync=True)
     error_message = traitlets.Unicode("").tag(sync=True)
-    
+
     # Action requests from frontend
     load_request = traitlets.Dict({"is_default": True}).tag(sync=True)
     load_more_request = traitlets.Dict({"is_default": True}).tag(sync=True)
@@ -33,7 +35,7 @@ class AgentListManagerWidget(EDSLBaseWidget):
         self.observe(self._on_load_more_request, names=["load_more_request"])
         self.observe(self._on_delete_request, names=["delete_request"])
         self.observe(self._on_copy_request, names=["copy_request"])
-        
+
         # Load initial data
         self._load_agent_lists()
 
@@ -42,7 +44,7 @@ class AgentListManagerWidget(EDSLBaseWidget):
         request = change.get("new", {})
         if not request or request.get("is_default"):
             return
-        
+
         # Reset to first page and clear existing data
         self.current_page = 1
         self.agent_lists = []
@@ -54,7 +56,7 @@ class AgentListManagerWidget(EDSLBaseWidget):
         request = change.get("new", {})
         if not request or request.get("is_default"):
             return
-            
+
         if self.has_more_pages and not self.loading_more:
             self.current_page += 1
             self._load_agent_lists(append_mode=True)
@@ -64,7 +66,7 @@ class AgentListManagerWidget(EDSLBaseWidget):
         request = change.get("new", {})
         if not request or request.get("is_default"):
             return
-            
+
         uuid = request.get("uuid")
         if uuid:
             self._delete_agent_list(uuid)
@@ -74,7 +76,7 @@ class AgentListManagerWidget(EDSLBaseWidget):
         request = change.get("new", {})
         if not request or request.get("is_default"):
             return
-            
+
         # For copy requests, we just need to acknowledge - the frontend handles clipboard
         uuid = request.get("uuid")
         if uuid:
@@ -87,56 +89,60 @@ class AgentListManagerWidget(EDSLBaseWidget):
         else:
             self.loading = True
         self.error_message = ""
-        
+
         try:
             from edsl import AgentList
-            
+
             # Get agent lists with pagination
             result = AgentList.list(page=self.current_page)
-            
+
             # The result is a CoopRegularObjects containing Scenario objects
-            agent_lists_data = result if hasattr(result, '__iter__') else []
-            
+            agent_lists_data = result if hasattr(result, "__iter__") else []
+
             # Check if we have more pages (if this page returned fewer than expected items, we're at the end)
             # Most APIs return 10 items per page, so if we get less than 10, we're at the end
             if len(agent_lists_data) < 10:
                 self.has_more_pages = False
-            
+
             # Convert scenario objects to dictionaries for frontend
             formatted_lists = []
             for scenario in agent_lists_data:
                 try:
                     # The actual data is in scenario.data
-                    data = scenario.data if hasattr(scenario, 'data') else {}
-                    
+                    data = scenario.data if hasattr(scenario, "data") else {}
+
                     # Extract relevant fields from the data
-                    formatted_lists.append({
-                        'uuid': data.get('uuid', 'N/A'),
-                        'name': data.get('alias', 'Unnamed'),
-                        'description': data.get('description', ''),
-                        'agent_count': 'N/A',  # This info might not be available in the list
-                        'created_at': data.get('created_ts', ''),
-                        'updated_at': data.get('last_updated_ts', ''),
-                        'owner': data.get('owner_username', ''),
-                        'visibility': data.get('visibility', ''),
-                        'version': data.get('version', ''),
-                        'url': data.get('url', ''),
-                    })
+                    formatted_lists.append(
+                        {
+                            "uuid": data.get("uuid", "N/A"),
+                            "name": data.get("alias", "Unnamed"),
+                            "description": data.get("description", ""),
+                            "agent_count": "N/A",  # This info might not be available in the list
+                            "created_at": data.get("created_ts", ""),
+                            "updated_at": data.get("last_updated_ts", ""),
+                            "owner": data.get("owner_username", ""),
+                            "visibility": data.get("visibility", ""),
+                            "version": data.get("version", ""),
+                            "url": data.get("url", ""),
+                        }
+                    )
                 except Exception as e:
                     # If we can't access data, create a minimal entry
-                    formatted_lists.append({
-                        'uuid': 'Unknown',
-                        'name': 'Error loading AgentList',
-                        'description': f'Error accessing details: {str(e)}',
-                        'agent_count': 0,
-                        'created_at': '',
-                        'updated_at': '',
-                        'owner': '',
-                        'visibility': '',
-                        'version': '',
-                        'url': '',
-                    })
-            
+                    formatted_lists.append(
+                        {
+                            "uuid": "Unknown",
+                            "name": "Error loading AgentList",
+                            "description": f"Error accessing details: {str(e)}",
+                            "agent_count": 0,
+                            "created_at": "",
+                            "updated_at": "",
+                            "owner": "",
+                            "visibility": "",
+                            "version": "",
+                            "url": "",
+                        }
+                    )
+
             # In append mode, add to existing list; otherwise replace
             if append_mode:
                 current_lists = list(self.agent_lists)
@@ -144,7 +150,7 @@ class AgentListManagerWidget(EDSLBaseWidget):
                 self.agent_lists = current_lists
             else:
                 self.agent_lists = formatted_lists
-            
+
         except ImportError as e:
             self.error_message = f"EDSL not installed. Please install with: pip install edsl\nDetails: {str(e)}"
             if not append_mode:
@@ -161,17 +167,21 @@ class AgentListManagerWidget(EDSLBaseWidget):
         """Delete an agent list by UUID."""
         try:
             from edsl import AgentList
-            
+
             # Delete the agent list - the method returns None but throws exception on failure
             AgentList.delete(uuid)
-            
+
             # If we get here, deletion was successful - reload the current page
             self._load_agent_lists()
-                
+
         except ImportError as e:
-            self.error_message = f"EDSL not installed. Please install with: pip install edsl"
+            self.error_message = (
+                f"EDSL not installed. Please install with: pip install edsl"
+            )
         except AttributeError:
-            self.error_message = "Delete functionality not available in current EDSL version"
+            self.error_message = (
+                "Delete functionality not available in current EDSL version"
+            )
         except Exception as e:
             self.error_message = f"Error deleting agent list: {str(e)}"
 
@@ -181,7 +191,7 @@ class AgentListManagerWidget(EDSLBaseWidget):
         self.agent_lists = []
         self.has_more_pages = True
         self._load_agent_lists()
-    
+
     def load_more(self):
         """Load more agent lists."""
         if self.has_more_pages and not self.loading_more:
