@@ -243,34 +243,51 @@ class Agent(Base):
         For details on how these components are used to construct prompts, see
         :py:class:`edsl.agents.Invigilator.InvigilatorBase`.
         """
-        self._initialize_basic_attributes(traits, name, codebook)
-        self._initialize_instruction(instruction)
+        # Initialize basic attributes directly
+        self.name = name
         
         # Initialize current_question early to avoid issues during initialization
         self.current_question = None
         
         # Initialize managers early
         from .agent_direct_answering import AgentDirectAnswering
-        from .agent_dynamic_traits import AgentDynamicTraits
         from .agent_invigilator import AgentInvigilator
-        from .agent_trait_manager import AgentTraitManager
+        from .agent_traits_manager import AgentTraitsManager
         from .agent_prompt import AgentPrompt
+        from .agent_instructions import AgentInstructions
+        from .agent_table import AgentTable
         self.direct_answering = AgentDirectAnswering(self)
-        self.dynamic_traits = AgentDynamicTraits(self)
         self.invigilator = AgentInvigilator(self)
-        self.trait_manager = AgentTraitManager(self)
+        self.traits_manager = AgentTraitsManager(self)
         self.prompt_manager = AgentPrompt(self)
+        self.instructions = AgentInstructions(self)
+        self.table_manager = AgentTable(self)
         
-        self._initialize_dynamic_traits_function(
-            dynamic_traits_function,
-            dynamic_traits_function_source_code,
-            dynamic_traits_function_name,
+        # Maintain backward compatibility aliases
+        self.trait_manager = self.traits_manager  # Alias for backward compatibility
+        self.dynamic_traits = self.traits_manager  # Alias for backward compatibility
+        
+        # Initialize traits and codebook using the unified traits manager
+        self.traits_manager.initialize(traits, codebook)
+        
+        # Initialize instruction using the manager
+        self.instructions.initialize(instruction)
+        
+        # Initialize dynamic traits function
+        self.traits_manager.initialize_dynamic_function(
+            dynamic_traits_function, dynamic_traits_function_source_code, dynamic_traits_function_name
         )
-        self._initialize_answer_question_directly(
+        
+        # Initialize direct answering method
+        self.direct_answering.initialize_from_source_code(
             answer_question_directly_source_code, answer_question_directly_function_name
         )
-        self.dynamic_traits.validate_function()
-        self._initialize_traits_presentation_template(traits_presentation_template)
+        
+        self.traits_manager.validate_dynamic_function()
+        
+        # Initialize traits presentation template
+        self.prompt_manager.initialize_traits_presentation_template(traits_presentation_template)
+        
         self.trait_categories = trait_categories or {}
 
     def with_categories(self, *categories: str) -> Agent:
@@ -301,156 +318,6 @@ class Agent(Base):
         from .agent_chat import AgentChat
 
         return AgentChat(self).run()
-
-    def _initialize_basic_attributes(
-        self, traits: Optional[dict], name: Optional[str], codebook: Optional[dict]
-    ) -> None:
-        """Initialize the basic attributes of the agent.
-
-        Args:
-            traits: Dictionary of agent characteristics
-            name: Name identifier for the agent
-            codebook: Dictionary mapping trait keys to descriptions
-
-        Example:
-            >>> agent = Agent.__new__(Agent)
-            >>> agent._initialize_basic_attributes({'age': 30}, 'John', {'age': 'Age in years'})
-            >>> agent.name
-            'John'
-        """
-        self.name = name
-        
-        # Sanitize traits and codebook for Jinja2 syntax
-        if traits:
-            traits = sanitize_jinja_syntax(traits, "traits")
-        if codebook:
-            codebook = sanitize_jinja_syntax(codebook, "codebook")
-            
-        self._traits = AgentTraits(traits or {}, parent=self)
-        self.codebook = codebook or dict()
-
-    def _initialize_instruction(self, instruction: Optional[str]) -> None:
-        """Initialize the instruction for how the agent should answer questions.
-
-        If no instruction is provided, uses the default instruction.
-
-        Args:
-            instruction: Directive for how the agent should answer questions
-
-        Example:
-            >>> agent = Agent.__new__(Agent)
-            >>> agent._initialize_instruction('Be helpful')
-            >>> agent.instruction
-            'Be helpful'
-        """
-        if instruction is None:
-            self.instruction = self.default_instruction
-            self._instruction = self.default_instruction
-            self.set_instructions = False
-        else:
-            self.instruction = instruction
-            self._instruction = instruction
-            self.set_instructions = True
-
-    def _initialize_traits_presentation_template(
-        self, traits_presentation_template: Optional[str]
-    ) -> None:
-        """Initialize the template for presenting agent traits in prompts.
-
-        This method sets up how the agent's traits will be formatted in language model prompts.
-        The template is a Jinja2 template string that can reference trait values and other
-        agent properties.
-
-        If no template is provided:
-        - If a codebook exists, the method creates a template that displays each trait with its
-          codebook description instead of the raw key names (e.g., "Age in years: 30" instead of "age: 30")
-        - Without a codebook, it uses a default template that displays all traits as a dictionary
-
-        Custom templates always take precedence over automatically generated ones, giving users
-        complete control over how traits are presented.
-
-        Args:
-            traits_presentation_template: Optional Jinja2 template string for formatting traits.
-                If not provided, a default template will be generated.
-
-        Examples:
-            With no template or codebook, traits are shown as a dictionary:
-
-            >>> agent = Agent(traits={"age": 25, "occupation": "engineer"})
-            >>> str(agent.prompt().text)
-            "Your traits: {'age': 25, 'occupation': 'engineer'}"
-
-            With a codebook but no custom template, traits are shown with descriptions:
-
-            >>> codebook = {"age": "Age in years", "occupation": "Current profession"}
-            >>> agent = Agent(traits={"age": 25, "occupation": "engineer"}, codebook=codebook)
-            >>> print(agent.prompt().text)  # doctest: +NORMALIZE_WHITESPACE
-            Your traits:
-            Age in years: 25
-            Current profession: engineer
-
-            With a custom template, that format is used regardless of codebook:
-
-            >>> template = "Person: {{age}} years old, works as {{occupation}}"
-            >>> agent = Agent(traits={"age": 25, "occupation": "engineer"},
-            ...               codebook=codebook, traits_presentation_template=template)
-            >>> str(agent.prompt().text)
-            'Person: 25 years old, works as engineer'
-        """
-        self.prompt_manager.initialize_traits_presentation_template(traits_presentation_template)
-
-    def _initialize_dynamic_traits_function(
-        self,
-        dynamic_traits_function: Optional[Callable],
-        dynamic_traits_function_source_code: Optional[str],
-        dynamic_traits_function_name: Optional[str],
-    ) -> None:
-        """Initialize a function that can dynamically modify agent traits based on questions.
-
-        This allows traits to change based on the question being asked, enabling
-        more sophisticated agent behaviors. The function can be provided directly
-        or as source code that will be compiled.
-
-        Args:
-            dynamic_traits_function: Function object that returns a dictionary of traits
-            dynamic_traits_function_source_code: Source code string for the function
-            dynamic_traits_function_name: Name to assign to the function
-
-        Example:
-            >>> def dynamic_func(): return {'age': 25}
-            >>> agent = Agent(traits={'age': 30})
-            >>> agent._initialize_dynamic_traits_function(dynamic_func, None, None)
-            >>> agent.has_dynamic_traits_function
-            True
-        """
-        self.dynamic_traits.initialize_from_function(
-            dynamic_traits_function, dynamic_traits_function_source_code, dynamic_traits_function_name
-        )
-
-    def _initialize_answer_question_directly(
-        self,
-        answer_question_directly_source_code: Optional[str],
-        answer_question_directly_function_name: Optional[str],
-    ) -> None:
-        """Initialize a method for the agent to directly answer questions without using an LLM.
-
-        This allows creating agents that answer programmatically rather than through
-        language model generation. The direct answering method can be provided as
-        source code that will be compiled and bound to this agent instance.
-
-        Args:
-            answer_question_directly_source_code: Source code for the direct answering method
-            answer_question_directly_function_name: Name to assign to the method
-
-        Example:
-            >>> agent = Agent(traits={'age': 30})
-            >>> agent._initialize_answer_question_directly('def answer(self, q, s): return "test"', 'answer')
-            >>> hasattr(agent, 'answer_question_directly')
-            True
-        """
-        self.direct_answering.initialize_from_source_code(
-            answer_question_directly_source_code, answer_question_directly_function_name
-        )
 
     def drop(self, *field_names: Union[str, List[str]]) -> "Agent":
         """Drop field(s) from the agent.
@@ -598,7 +465,7 @@ class Agent(Base):
         self.direct_answering.transfer_to(new_agent)
 
         # Transfer dynamic traits function if present
-        self.dynamic_traits.transfer_to(new_agent)
+        self.traits_manager.transfer_to(new_agent)
 
         return new_agent
 
@@ -729,13 +596,13 @@ class Agent(Base):
             >>> a.traits
             {'age': 10, 'hair': 'brown', 'height': 5.5}
         """
-        return self.dynamic_traits.get_traits(self.current_question)
+        return self.traits_manager.get_traits(self.current_question)
 
     @contextmanager
     def modify_traits_context(self):
         """Context manager for modifying traits safely.
 
-        Ensures traits are properly wrapped after modification.
+        This method delegates to the traits manager for proper context management.
 
         Yields:
             None
@@ -747,15 +614,13 @@ class Agent(Base):
             >>> agent.traits['age']
             31
         """
-        self.dynamic_traits.check_before_modifying_traits()
-        try:
+        with self.traits_manager.modify_traits_context():
             yield
-        finally:
-            # re-wrap the possibly mutated mapping so future writes remain guarded
-            self._traits = AgentTraits(dict(self._traits), parent=self)
 
     def _check_before_modifying_traits(self) -> None:
         """Check before modifying traits.
+
+        This method delegates to the traits manager for validation.
 
         Raises:
             AgentErrors: If the agent has a dynamic traits function.
@@ -771,13 +636,12 @@ class Agent(Base):
             ...
             edsl.agents.exceptions.AgentErrors: ...
         """
-        self.dynamic_traits.check_before_modifying_traits()
+        self.traits_manager.check_before_modifying_traits()
 
     @traits.setter
     def traits(self, traits: dict[str, Any]):
-        with self.modify_traits_context():
-            # store raw dict temporarily – it will be wrapped by the context manager
-            self._traits = traits
+        """Set traits using the unified traits manager."""
+        self.traits_manager.set_traits_safely(traits)
 
     def to(self, target: Union["QuestionBase", "Jobs", "Survey"]) -> "Jobs":
         """Send the agent to a question, job, or survey.
@@ -803,41 +667,23 @@ class Agent(Base):
     def search_traits(self, search_string: str) -> "RankableItems":
         """Search the agent's traits for a string.
 
+        This method delegates to the traits manager to search through trait
+        descriptions and return ranked matches based on similarity.
+
         Args:
             search_string: The string to search for in trait descriptions
 
         Returns:
             A ScenarioList containing ranked trait matches
+
+        Examples:
+            >>> from edsl.agents import Agent
+            >>> agent = Agent(traits={"age": 30, "occupation": "doctor"})
+            >>> results = agent.search_traits("age")
+            >>> len(results) >= 1
+            True
         """
-        from ..utilities.similarity_rank import RankableItems
-        from ..scenarios import ScenarioList, Scenario
-
-        # Create lists to maintain order between trait names and descriptions
-        trait_names = []
-        descriptions = []
-        for trait, value in self.traits.items():
-            trait_names.append(trait)
-            if trait in self.codebook:
-                trait_description = self.codebook[trait]
-            else:
-                trait_description = trait
-            descriptions.append(trait_description)
-
-        ranked_items = RankableItems(descriptions).ranked_by_similarity(search_string)
-        sl = ScenarioList([])
-        for description, similarity_score, original_index in ranked_items:
-            # Use original_index to get the correct trait name
-            trait_name = trait_names[original_index]
-            sl.append(
-                Scenario(
-                    {
-                        "description": description,
-                        "trait_name": trait_name,
-                        "score": similarity_score,
-                    }
-                )
-            )
-        return sl
+        return self.traits_manager.search_traits(search_string)
 
     def rename(
         self,
@@ -1129,7 +975,7 @@ class Agent(Base):
             >>> clean_agent.traits
             {'age': 30, 'weight': 150}
         """
-        return self.trait_manager.drop_trait_if(bad_value)
+        return self.traits_manager.drop_trait_if(bad_value)
 
 
 
@@ -1264,11 +1110,11 @@ class Agent(Base):
             >>> agent.has_dynamic_traits_function
             False
             >>> def dynamic_func(): return {'age': 25}
-            >>> agent.dynamic_traits.initialize_from_function(dynamic_func)
+            >>> agent.traits_manager.initialize_dynamic_function(dynamic_func)
             >>> agent.has_dynamic_traits_function
             True
         """
-        return self.dynamic_traits.has_function
+        return self.traits_manager.has_dynamic_function
     
     @property
     def dynamic_traits_function(self) -> Optional[Callable]:
@@ -1284,11 +1130,11 @@ class Agent(Base):
             >>> agent.dynamic_traits_function is None
             True
             >>> def dynamic_func(): return {'age': 25}
-            >>> agent.dynamic_traits.initialize_from_function(dynamic_func)
+            >>> agent.traits_manager.initialize_dynamic_function(dynamic_func)
             >>> agent.dynamic_traits_function is not None
             True
         """
-        return self.dynamic_traits.function
+        return self.traits_manager.dynamic_function
     
     @property
     def dynamic_traits_function_name(self) -> str:
@@ -1304,11 +1150,11 @@ class Agent(Base):
             >>> agent.dynamic_traits_function_name
             ''
             >>> def my_func(): return {'age': 25}
-            >>> agent.dynamic_traits.initialize_from_function(my_func)
+            >>> agent.traits_manager.initialize_dynamic_function(my_func)
             >>> agent.dynamic_traits_function_name
             'my_func'
         """
-        return self.dynamic_traits.function_name
+        return self.traits_manager.dynamic_function_name
 
     def __getattr__(self, name: str) -> Any:
         """Get an attribute, checking traits if not found in instance.
@@ -1471,6 +1317,9 @@ class Agent(Base):
     def table(self) -> "Dataset":
         """Create a tabular representation of the agent's traits.
 
+        This method delegates to the table manager to create a structured
+        Dataset containing trait information.
+
         Returns:
             A Dataset containing trait information
 
@@ -1480,21 +1329,13 @@ class Agent(Base):
             >>> len(dataset) == 2
             True
         """
-        from ..scenarios import ScenarioList
-
-        table_data = ScenarioList([])
-        for trait_name, value in self.traits.items():
-            if trait_name in self.codebook:
-                trait_description = self.codebook[trait_name]
-            else:
-                trait_description = trait_name
-            table_data.append(
-                {"Trait": trait_name, "Description": trait_description, "Value": value}
-            )
-        return table_data.to_dataset()
+        return self.table_manager.table()
 
     def _table(self) -> tuple[list[dict], list[str]]:
         """Prepare generic table data.
+
+        This method delegates to the table manager to create generic
+        attribute table data for debugging and introspection.
 
         Returns:
             A tuple of (table_data, column_names)
@@ -1505,11 +1346,7 @@ class Agent(Base):
             >>> 'Attribute' in columns
             True
         """
-        table_data = []
-        for attr_name, attr_value in self.__dict__.items():
-            table_data.append({"Attribute": attr_name, "Value": repr(attr_value)})
-        column_names = ["Attribute", "Value"]
-        return table_data, column_names
+        return self.table_manager.generic_table()
 
     def add_trait(
         self,
@@ -1533,7 +1370,7 @@ class Agent(Base):
             >>> a.add_trait("weight", 150)
             Agent(traits = {'age': 10, 'hair': 'brown', 'height': 5.5, 'weight': 150})
         """
-        return self.trait_manager.add_trait(trait_name_or_dict, value)
+        return self.traits_manager.add_trait(trait_name_or_dict, value)
 
     def remove_trait(self, trait: str) -> "Agent":
         """Remove a trait from the agent.
@@ -1549,7 +1386,7 @@ class Agent(Base):
             >>> a.remove_trait("age")
             Agent(traits = {'hair': 'brown', 'height': 5.5})
         """
-        return self.trait_manager.remove_trait(trait)
+        return self.traits_manager.remove_trait(trait)
 
     def translate_traits(self, values_codebook: dict[str, dict[Any, Any]]) -> "Agent":
         """Translate traits to a new codebook.
@@ -1565,7 +1402,7 @@ class Agent(Base):
             >>> a.translate_traits({"hair": {1:"brown"}})
             Agent(traits = {'age': 10, 'hair': 'brown', 'height': 5.5})
         """
-        return self.trait_manager.translate_traits(values_codebook)
+        return self.traits_manager.translate_traits(values_codebook)
 
     @classmethod
     def example(cls, randomize: bool = False) -> "Agent":
