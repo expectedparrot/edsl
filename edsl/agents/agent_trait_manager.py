@@ -28,6 +28,142 @@ class AgentTraitManager:
         """
         self.agent = agent
 
+    def initialize(self, traits: Optional[dict], codebook: Optional[dict]) -> None:
+        """Initialize the agent's traits and codebook.
+
+        This method sets up the agent's traits and codebook, including sanitization
+        for Jinja2 syntax and proper wrapping of traits in the AgentTraits class.
+
+        Args:
+            traits: Dictionary of agent characteristics
+            codebook: Dictionary mapping trait keys to descriptions
+
+        Examples:
+            Initialize with traits and codebook:
+
+            >>> from edsl.agents import Agent
+            >>> from edsl.agents.agent_trait_manager import AgentTraitManager
+            >>> # Create a minimal agent instance for testing
+            >>> agent = Agent(traits={})  # Start with empty agent
+            >>> agent.trait_manager.initialize({'age': 30}, {'age': 'Age in years'})
+            >>> agent.traits['age']
+            30
+            >>> agent.codebook['age']
+            'Age in years'
+
+            Initialize with empty values:
+
+            >>> agent2 = Agent(traits={})  # Start with empty agent
+            >>> agent2.trait_manager.initialize(None, None)
+            >>> agent2.traits
+            {}
+            >>> agent2.codebook
+            {}
+        """
+        from ..utilities import sanitize_jinja_syntax
+        from .agent_traits import AgentTraits
+        
+        # Sanitize traits and codebook for Jinja2 syntax
+        if traits:
+            traits = sanitize_jinja_syntax(traits, "traits")
+        if codebook:
+            codebook = sanitize_jinja_syntax(codebook, "codebook")
+            
+        self.agent._traits = AgentTraits(traits or {}, parent=self.agent)
+        self.agent.codebook = codebook or dict()
+
+    def search_traits(self, search_string: str) -> "RankableItems":
+        """Search the agent's traits for a string.
+
+        This method searches through the agent's trait descriptions (using codebook
+        descriptions when available) and returns ranked matches based on similarity
+        to the search string.
+
+        Args:
+            search_string: The string to search for in trait descriptions
+
+        Returns:
+            A ScenarioList containing ranked trait matches with description,
+            trait_name, and similarity score
+
+        Examples:
+            Search traits with codebook descriptions:
+
+            >>> from edsl.agents import Agent
+            >>> codebook = {"age": "How old the person is", "occupation": "Their job"}
+            >>> agent = Agent(traits={"age": 30, "occupation": "doctor"}, codebook=codebook)
+            >>> results = agent.trait_manager.search_traits("job")
+            >>> len(results) >= 1
+            True
+            >>> results[0]["trait_name"] == "occupation"
+            True
+            >>> results[0]["score"] > 0.5
+            True
+
+            Search traits without codebook:
+
+            >>> agent2 = Agent(traits={"height": 5.5, "weight": 150})
+            >>> results2 = agent2.trait_manager.search_traits("height")
+            >>> len(results2) >= 1
+            True
+            >>> results2[0]["trait_name"] == "height"
+            True
+            >>> results2[0]["score"] == 1.0
+            True
+        """
+        from ..scenarios import ScenarioList, Scenario
+
+        # Create list of trait information for searching
+        trait_info = []
+        for trait_name, trait_value in self.agent.traits.items():
+            if trait_name in self.agent.codebook:
+                description = self.agent.codebook[trait_name]
+            else:
+                description = trait_name
+            trait_info.append((trait_name, description, trait_value))
+
+        # Simple string matching - prioritize exact matches, then substring matches
+        search_lower = search_string.lower()
+        exact_matches = []
+        partial_matches = []
+        
+        for trait_name, description, trait_value in trait_info:
+            # Check if search string matches trait name or description
+            if search_lower == trait_name.lower() or search_lower == description.lower():
+                exact_matches.append((trait_name, description, 1.0))  # Perfect match
+            elif (search_lower in trait_name.lower() or 
+                  search_lower in description.lower() or 
+                  search_lower in str(trait_value).lower()):
+                # Calculate simple similarity based on substring match
+                name_match = search_lower in trait_name.lower()
+                desc_match = search_lower in description.lower()
+                value_match = search_lower in str(trait_value).lower()
+                
+                # Higher score for name/description matches than value matches
+                score = 0.8 if name_match or desc_match else 0.5
+                partial_matches.append((trait_name, description, score))
+
+        # Combine results, exact matches first
+        all_matches = exact_matches + sorted(partial_matches, key=lambda x: x[2], reverse=True)
+        
+        # If no matches found, return all traits with low scores
+        if not all_matches:
+            all_matches = [(trait_name, description, 0.1) for trait_name, description, _ in trait_info]
+
+        # Create scenario list with results
+        sl = ScenarioList([])
+        for trait_name, description, score in all_matches:
+            sl.append(
+                Scenario(
+                    {
+                        "description": description,
+                        "trait_name": trait_name,
+                        "score": score,
+                    }
+                )
+            )
+        return sl
+
     def add_trait(
         self,
         trait_name_or_dict: Union[str, dict[str, Any]],
