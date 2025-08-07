@@ -21,6 +21,8 @@ class EDSLBaseWidget(anywidget.AnyWidget):
     - Standardized asset management
     """
 
+    _path_to_assets = ["src", "compiled"]
+
     @classmethod
     def get_widget_short_name(cls) -> str:
         """
@@ -118,31 +120,39 @@ class EDSLBaseWidget(anywidget.AnyWidget):
         widget_name = cls.get_widget_short_name()
 
         # Get the directory where this Python file is located
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        src_dir = os.path.join(current_dir, "src")
 
-        js_file = os.path.join(src_dir, "compiled", "esm_files", f"{widget_name}.js")
-        css_file = os.path.join(src_dir, "compiled", "css_files", f"{widget_name}.css")
+        def has_local_files():
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            src_dir = os.path.join(current_dir, *cls._path_to_assets)
+            return os.path.exists(src_dir)
 
-        # Check if local files exist
-        if os.path.exists(js_file) and os.path.exists(css_file):
-            try:
-                with open(js_file, "r", encoding="utf-8") as f:
-                    esm_content = f.read()
-                with open(css_file, "r", encoding="utf-8") as f:
-                    css_content = f.read()
-                return esm_content, css_content
-            except Exception as e:
-                pass
+        if has_local_files():
+            return cls._get_widget_assets_locally(widget_name)
         else:
-            if os.path.exists(src_dir):
-                raise FileNotFoundError(
-                    f"Widget assets for {widget_name} not found at {js_file} and {css_file}."
-                )
-            else:
-                pass
-        # # Fall back to coop mechanism
-        return cls._get_widget_assets_from_coop(widget_name)
+            return cls._get_widget_assets_from_coop(widget_name)
+
+    @classmethod
+    def _get_widget_assets_locally(cls, widget_name: str) -> Tuple[str, str]:
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        src_dir = os.path.join(current_dir, *cls._path_to_assets)
+        js_file = os.path.join(src_dir, "esm_files", f"{widget_name}.js")
+        css_file = os.path.join(src_dir, "css_files", f"{widget_name}.css")
+
+        if not os.path.exists(js_file):
+            raise FileNotFoundError(f"JS file not found for {widget_name} at {js_file}")
+
+        if not os.path.exists(css_file):
+            raise FileNotFoundError(
+                f"CSS file not found for {widget_name} at {css_file}"
+            )
+
+        with open(js_file, "r", encoding="utf-8") as f:
+            esm_content = f.read()
+
+        with open(css_file, "r", encoding="utf-8") as f:
+            css_content = f.read()
+
+        return esm_content, css_content
 
     @classmethod
     def _get_widget_assets_from_coop(cls, widget_name: str) -> Tuple[str, str]:

@@ -39,19 +39,19 @@ class SurveyExport:
 
         return SurveyCSS.default_style().generate_css()
 
-    def get_description(self) -> str:
-        """Return the description of the survey."""
-        from edsl import QuestionFreeText
+    # def get_description(self) -> str:
+    #     """Return the description of the survey."""
+    #     from edsl import QuestionFreeText
 
-        question_texts = "\n".join([q.question_text for q in self.survey._questions])
-        q = QuestionFreeText(
-            question_name="description",
-            question_text=f"""A survey was conducted with the following questions: 
-                             {question_texts}
-                             Please write a description of the survey.
-                             """,
-        )
-        return q.run().select("description").first()
+    #     question_texts = "\n".join([q.question_text for q in self.survey._questions])
+    #     q = QuestionFreeText(
+    #         question_name="description",
+    #         question_text=f"""A survey was conducted with the following questions: 
+    #                          {question_texts}
+    #                          Please write a description of the survey.
+    #                          """,
+    #     )
+    #     return q.run().select("description").first()
 
     def docx(
         self,

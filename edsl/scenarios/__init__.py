@@ -26,6 +26,7 @@ Example:
 from .scenario import Scenario
 from .scenario_list import ScenarioList
 from .file_store import FileStore
+from .file_store_list import FileStoreList
 from .dimension import Dimension, DimensionValue
 
-__all__ = ["Scenario", "ScenarioList", "FileStore", "Dimension", "DimensionValue"]
+__all__ = ["Scenario", "ScenarioList", "FileStore", "FileStoreList", "Dimension", "DimensionValue"]
