@@ -142,8 +142,15 @@ class TestResults(unittest.TestCase):
         # self.assertIn("Terrible", output)
 
     def test_fetch_list(self):
+        # Test that cache_manager.fetch_list works (replaces the old _fetch_list method)
         self.assertEqual(
-            self.example_results._fetch_list("answer", "how_feeling"),
+            self.example_results._cache_manager.fetch_list("answer", "how_feeling"),
+            [result.answer.get("how_feeling") for result in self.example_results.data],
+        )
+        
+        # Also test that get_answers works (which uses cache_manager.fetch_list internally)
+        self.assertEqual(
+            self.example_results.get_answers("how_feeling"),
             [result.answer.get("how_feeling") for result in self.example_results.data],
         )
 

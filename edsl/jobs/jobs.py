@@ -1188,7 +1188,7 @@ class Jobs(Base):
     def duplicate(self):
         return Jobs.from_dict(self.to_dict())
 
-    def to_dict(self, add_edsl_version=True):
+    def to_dict(self, add_edsl_version=True, full_dict=None):
         d = {
             "survey": self.survey.to_dict(add_edsl_version=add_edsl_version),
             "agents": [
@@ -1350,6 +1350,16 @@ class Jobs(Base):
         assert len(scenario_list) == 2
 
         return job
+
+    def inspect(self):
+        """Create an interactive inspector widget for this job."""
+        try:
+            from ..widgets.job_inspector import JobInspectorWidget
+        except ImportError as e:
+            raise ImportError(
+                "Job inspector widget is not available. Make sure the widgets module is installed."
+            ) from e
+        return JobInspectorWidget(self)
 
     def code(self):
         """Return the code to create this instance."""
