@@ -267,7 +267,7 @@ class AgentOperations:
         """
         from .exceptions import AgentErrors
         
-        agent._check_before_modifying_traits()
+        agent.traits_manager.check_before_modifying_traits()
         
         if isinstance(old_name_or_dict, dict) and new_name:
             raise AgentErrors(

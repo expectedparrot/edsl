@@ -66,7 +66,7 @@ class AgentTraits(MutableMapping):
         Raises:
             AgentErrors: If the parent agent has a dynamic traits function.
         """
-        self._parent._check_before_modifying_traits()  # raise if not allowed
+        self._parent.traits_manager.check_before_modifying_traits()  # raise if not allowed
 
     # ---- MutableMapping interface ----------------------------------------
     def __getitem__(self, key: str) -> Any:

@@ -598,46 +598,6 @@ class Agent(Base):
         """
         return self.traits_manager.get_traits(self.current_question)
 
-    @contextmanager
-    def modify_traits_context(self):
-        """Context manager for modifying traits safely.
-
-        This method delegates to the traits manager for proper context management.
-
-        Yields:
-            None
-
-        Example:
-            >>> agent = Agent(traits={'age': 30})
-            >>> with agent.modify_traits_context():
-            ...     agent._traits = {'age': 31}
-            >>> agent.traits['age']
-            31
-        """
-        with self.traits_manager.modify_traits_context():
-            yield
-
-    def _check_before_modifying_traits(self) -> None:
-        """Check before modifying traits.
-
-        This method delegates to the traits manager for validation.
-
-        Raises:
-            AgentErrors: If the agent has a dynamic traits function.
-
-        Examples:
-            >>> a = Agent(traits={"age": 10})
-            >>> a._check_before_modifying_traits()  # Should not raise
-
-            >>> def f(): return {"age": 20}
-            >>> a = Agent(dynamic_traits_function=f)
-            >>> a._check_before_modifying_traits()  # doctest: +SKIP
-            Traceback (most recent call last):
-            ...
-            edsl.agents.exceptions.AgentErrors: ...
-        """
-        self.traits_manager.check_before_modifying_traits()
-
     @traits.setter
     def traits(self, traits: dict[str, Any]):
         """Set traits using the unified traits manager."""
@@ -888,77 +848,6 @@ class Agent(Base):
         )
 
     answer_question = sync_wrapper(async_answer_question)
-
-    def _get_invigilator_class(
-        self, question: "QuestionBase"
-    ) -> Type["InvigilatorBase"]:
-        """Get the invigilator class for a question.
-
-        This method returns the invigilator class that should be used to answer a question.
-        The invigilator class is determined by the type of question and the type of agent.
-
-        Args:
-            question: The question to determine the invigilator class for.
-
-        Returns:
-            Type[InvigilatorBase]: The appropriate invigilator class.
-
-        Examples:
-            >>> a = Agent(traits={"age": 10})
-            >>> from edsl.questions import QuestionFreeText
-            >>> q = QuestionFreeText(question_name="test", question_text="Test")
-            >>> invigilator_class = a._get_invigilator_class(q)
-            >>> invigilator_class.__name__
-            'InvigilatorAI'
-        """
-        return self.invigilator.get_invigilator_class(question)
-
-    def _create_invigilator(
-        self,
-        question: "QuestionBase",
-        cache: Optional["Cache"] = None,
-        scenario: Optional["Scenario"] = None,
-        model: Optional["LanguageModel"] = None,
-        survey: Optional["Survey"] = None,
-        memory_plan: Optional["MemoryPlan"] = None,
-        current_answers: Optional[dict] = None,
-        iteration: int = 0,
-        raise_validation_errors: bool = True,
-        key_lookup: Optional["KeyLookup"] = None,
-    ) -> "InvigilatorBase":
-        """Create an Invigilator (backward compatibility method).
-
-        This method is kept for backward compatibility with existing tests and code
-        that calls _create_invigilator directly. New code should use the invigilator
-        manager methods instead.
-
-        Args:
-            question: The question to be asked
-            cache: The cache for storing responses
-            scenario: The scenario context
-            model: The language model to use
-            survey: The survey context
-            memory_plan: The memory plan to use
-            current_answers: The current answers
-            iteration: The iteration number
-            raise_validation_errors: Whether to raise validation errors
-            key_lookup: The key lookup for API credentials
-
-        Returns:
-            An InvigilatorBase instance for handling the question
-        """
-        return self.invigilator.create_invigilator(
-            question=question,
-            cache=cache,
-            scenario=scenario,
-            model=model,
-            survey=survey,
-            memory_plan=memory_plan,
-            current_answers=current_answers,
-            iteration=iteration,
-            raise_validation_errors=raise_validation_errors,
-            key_lookup=key_lookup,
-        )
 
     def drop_trait_if(self, bad_value: Any) -> "Agent":
         """Drop traits that have a specific bad value.
