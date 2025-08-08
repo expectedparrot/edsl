@@ -1,0 +1,9 @@
+[submodule "edsl/widgets/src"]
+	path = edsl/widgets/src
+	url = git@github.com:expectedparrot/edsl-widgets-src.git
+[submodule "edsl/conjure/src"]
+	path = edsl/conjure/src
+	url = git@github.com:expectedparrot/edsl-conjure.git
+[submodule "edsl/lenny/src"]
+	path = edsl/lenny/src
+	url = git@github.com:expectedparrot/edsl-lenny.git
