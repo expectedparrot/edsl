@@ -143,7 +143,8 @@ class MultipleChoiceResponseValidator(ResponseValidatorABC):
         2. Check for exact matches in the text
         3. Look for substring matches
         4. Normalize whitespace and check for matches
-        5. Check if the answer is a prefix of any option (ignoring trailing spaces/punctuation)
+        5. Check for case-insensitive matches
+        6. Check if the answer is a prefix of any option (ignoring trailing spaces/punctuation)
 
         Parameters:
             response: The invalid response to fix
@@ -179,11 +180,19 @@ class MultipleChoiceResponseValidator(ResponseValidatorABC):
 
         # Strategy 1: Look for exact options in the text
         matches = []
+        response_text_lower = response_text.lower()
         for option in self.question_options:
             option_str = str(option)
+            # Check for exact case-sensitive match first
             if option_str in response_text:
                 if verbose:
-                    print(f"Match found with option: {option_str}")
+                    print(f"Exact match found with option: {option_str}")
+                if option not in matches:
+                    matches.append(option)
+            # Check for case-insensitive match
+            elif option_str.lower() in response_text_lower:
+                if verbose:
+                    print(f"Case-insensitive match found with option: {option_str}")
                 if option not in matches:
                     matches.append(option)
 
@@ -227,7 +236,28 @@ class MultipleChoiceResponseValidator(ResponseValidatorABC):
                     if verbose:
                         print(f"Validation failed for normalized answer: {e}")
 
-        # Strategy 3: Check if the answer is a prefix of any option
+        # Strategy 3: Check for case-insensitive matches
+        response_text_lower = response_text_normalized.lower()
+        for option in self.question_options:
+            option_str = str(option).strip()
+            if option_str.lower() == response_text_lower:
+                if verbose:
+                    print(f"Case-insensitive match found with option: {option}")
+                proposed_data = {
+                    "answer": option,  # Use the exact option from the list
+                    "comment": response.get("comment"),
+                    "generated_tokens": response.get("generated_tokens"),
+                }
+                try:
+                    self.response_model.model_validate(proposed_data)
+                    if verbose:
+                        print(f"Fixed answer with case-insensitive matching: {option}")
+                    return proposed_data
+                except Exception as e:
+                    if verbose:
+                        print(f"Validation failed for case-insensitive answer: {e}")
+
+        # Strategy 4: Check if the answer is a prefix of any option
         # This handles cases where the model returns a partial answer
         # Only apply this strategy if we have a meaningful response text
         if response_text_normalized and not response_text_normalized.lower() == "none":
