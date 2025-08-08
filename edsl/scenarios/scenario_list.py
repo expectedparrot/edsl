@@ -1140,20 +1140,30 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         return ListSource(field_name, values, use_indexes).to_scenario_list()
 
     def select(self, *fields: str) -> ScenarioList:
+        """Select only specified fields from all scenarios in the list.
+
+        This method applies the select operation to each scenario in the list,
+        returning a new ScenarioList where each scenario contains only the 
+        specified fields.
+
+        Args:
+            *fields: Field names to select from each scenario.
+
+        Returns:
+            A new ScenarioList with each scenario containing only the selected fields.
+
+        Raises:
+            KeyError: If any specified field doesn't exist in any scenario.
+
+        Examples:
+            >>> s = ScenarioList([Scenario({'a': 1, 'b': 1}), Scenario({'a': 1, 'b': 2})])
+            >>> s.select('a')
+            ScenarioList([Scenario({'a': 1}), Scenario({'a': 1})])
         """
-        Selects scenarios with only the references fields.
-
-        :param fields: The fields to select.
-
-        Example:
-
-        >>> s = ScenarioList([Scenario({'a': 1, 'b': 1}), Scenario({'a': 1, 'b': 2})])
-        >>> s.select('a')
-        ScenarioList([Scenario({'a': 1}), Scenario({'a': 1})])
-        """
-        from .scenario_selector import ScenarioSelector
-
-        return ScenarioSelector(self).select(*fields)
+        new_sl = ScenarioList(data=[], codebook=self.codebook)
+        for scenario in self:
+            new_sl.append(scenario.select(*fields))
+        return new_sl
 
     def drop(self, *fields: str) -> ScenarioList:
         """Drop fields from the scenarios.
