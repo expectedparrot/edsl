@@ -37,7 +37,6 @@ print(report.generate())
 
 from __future__ import annotations
 import json
-import random
 import warnings
 from collections import defaultdict
 from typing import Optional, Callable, Any, Union, List, TYPE_CHECKING
@@ -46,6 +45,9 @@ from collections.abc import MutableSequence
 
 from ..base import Base
 from ..caching import Cache, CacheEntry
+
+
+
 
 if TYPE_CHECKING:
     from ..interviews import Interview
@@ -63,6 +65,19 @@ from ..dataset import ResultsOperationsMixin
 
 from .result import Result
 from ..db_list.sqlite_list import SQLiteList
+from .results_filter import ResultsFilter
+from .results_serializer import ResultsSerializer
+from .utilities import ResultsSQLList, ensure_fetched, ensure_ready, NotReadyObject
+from .job_cost_calculator import JobCostCalculator
+from .results_sampler import ResultsSampler
+from .data_type_cache_manager import DataTypeCacheManager
+from .results_analyzer import ResultsAnalyzer
+from .results_remote_fetcher import ResultsRemoteFetcher
+from .results_scorer import ResultsScorer
+from .results_transformer import ResultsTransformer
+from .results_properties import ResultsProperties
+from .results_container import ResultsContainer
+from .results_grouper import ResultsGrouper
 
 from .exceptions import (
     ResultsError,
@@ -73,137 +88,6 @@ from .exceptions import (
     ResultsFilterError,
     ResultsDeserializationError,
 )
-
-
-class ResultsSQLList(SQLiteList):
-    def serialize(self, obj):
-        return json.dumps(obj.to_dict()) if hasattr(obj, "to_dict") else json.dumps(obj)
-
-    def deserialize(self, data):
-        return (
-            Result.from_dict(json.loads(data))
-            if hasattr(Result, "from_dict")
-            else json.loads(data)
-        )
-
-
-def ensure_fetched(method):
-    """A decorator that checks if remote data is loaded, and if not, attempts to fetch it.
-
-    Args:
-        method: The method to decorate.
-
-    Returns:
-        The wrapped method that will ensure data is fetched before execution.
-    """
-
-    def wrapper(self, *args, **kwargs):
-        if not self._fetched:
-            # If not fetched, try fetching now.
-            # (If you know you have job info stored in self.job_info)
-            self.fetch_remote(self.job_info)
-        return method(self, *args, **kwargs)
-
-    return wrapper
-
-
-def ensure_ready(method):
-    """Decorator for Results methods to handle not-ready state.
-
-    If the Results object is not ready, for most methods we return a NotReadyObject.
-    However, for __repr__ (and other methods that need to return a string), we return
-    the string representation of NotReadyObject.
-
-    Args:
-        method: The method to decorate.
-
-    Returns:
-        The wrapped method that will handle not-ready Results objects appropriately.
-
-    Raises:
-        Exception: Any exception from fetch_remote will be caught and printed.
-
-    """
-    from functools import wraps
-
-    @wraps(method)
-    def wrapper(self, *args, **kwargs):
-        if self.completed:
-            return method(self, *args, **kwargs)
-        # Attempt to fetch remote data
-        try:
-            if hasattr(self, "job_info"):
-                self.fetch_remote(self.job_info)
-        except Exception as e:
-            print(f"Error during fetch_remote in {method.__name__}: {e}")
-        if not self.completed:
-            not_ready = NotReadyObject(name=method.__name__, job_info=self.job_info)
-            # For __repr__, ensure we return a string
-            if method.__name__ == "__repr__" or method.__name__ == "__str__":
-                return not_ready.__repr__()
-            return not_ready
-        return method(self, *args, **kwargs)
-
-    return wrapper
-    
-
-class NotReadyObject:
-    """A placeholder object that indicates results are not ready yet.
-
-    This class returns itself for all attribute accesses and method calls,
-    displaying a message about the job's running status when represented as a string.
-
-    Attributes:
-        name: The name of the method that was originally called.
-        job_info: Information about the running job.
-
-    """
-
-    def __init__(self, name: str, job_info: "Any"):
-        """Initialize a NotReadyObject.
-
-        Args:
-            name: The name of the method that was attempted to be called.
-            job_info: Information about the running job.
-        """
-        self.name = name
-        self.job_info = job_info
-        # print(f"Not ready to call {name}")
-
-    def __repr__(self):
-        """Generate a string representation showing the job is still running.
-
-        Returns:
-            str: A message indicating the job is still running, along with job details.
-        """
-        message = """Results not ready - job still running on server."""
-        for key, value in self.job_info.creation_data.items():
-            message += f"\n{key}: {value}"
-        return message
-
-    def __getattr__(self, _):
-        """Return self for any attribute access.
-
-        Args:
-            _: The attribute name (ignored).
-
-        Returns:
-            NotReadyObject: Returns self for chaining.
-        """
-        return self
-
-    def __call__(self, *args, **kwargs):
-        """Return self when called as a function.
-
-        Args:
-            *args: Positional arguments (ignored).
-            **kwargs: Keyword arguments (ignored).
-
-        Returns:
-            NotReadyObject: Returns self for chaining.
-        """
-        return self
-
 
 class Results(MutableSequence, ResultsOperationsMixin, Base):
     """A collection of Result objects with powerful data analysis capabilities.
@@ -278,43 +162,11 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         "validated",
     ]
 
-    def view(self):
-        from ..widgets.results_viewer import ResultsViewerWidget
-        return ResultsViewerWidget(results=self)
-
-    @classmethod
-    def from_job_info(cls, job_info: dict) -> "Results":
-        """Instantiate a Results object from a job info dictionary.
-
-        This method creates a Results object in a not-ready state that will
-        fetch its data from a remote source when methods are called on it.
-
-        Args:
-            job_info: Dictionary containing information about a remote job.
-
-        Returns:
-            Results: A new Results instance with completed=False that will
-                fetch remote data when needed.
-
-        Examples:
-            >>> # Create a job info dictionary
-            >>> job_info = {'job_uuid': '12345', 'creation_data': {'model': 'gpt-4'}}
-            >>> # Create a Results object from the job info
-            >>> results = Results.from_job_info(job_info)
-            >>> results.completed
-            False
-            >>> hasattr(results, 'job_info')
-            True
-        """
-        results = cls()
-        results.completed = False
-        results.job_info = job_info
-        return results
-
     def __init__(
         self,
         survey: Optional[Survey] = None,
         data: Optional[list[Result]] = None,
+        name: Optional[str] = None,
         created_columns: Optional[list[str]] = None,
         cache: Optional[Cache] = None,
         job_uuid: Optional[str] = None,
@@ -385,56 +237,62 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
 
         self.task_history = task_history or TaskHistory(interviews=[])
 
-        # Initialize caches for expensive operations
-        self._key_to_data_type_cache = None
-        self._data_type_to_keys_cache = None
-        self._columns_cache = None
-        self._fetch_list_cache = {}
-        self._cache_dirty = True
+        # Initialize cache manager for expensive operations
+        self._cache_manager = DataTypeCacheManager(self)
+
+        # Initialize properties handler
+        self._properties = ResultsProperties(self)
+
+        # Initialize container handler
+        self._container = ResultsContainer(self)
+
+        # Initialize grouper handler
+        self._grouper = ResultsGrouper(self)
+
+        if name is not None:
+            self.name = name
+        else:
+            self.name = None
 
         if hasattr(self, "_add_output_functions"):
             self._add_output_functions()
 
-    def add_task_history_entry(self, interview: "Interview") -> None:
-        self.task_history.add_interview(interview)
+    def view(self) -> None:
+        """View the results in a Jupyter notebook."""
+        from ..widgets.results_viewer import ResultsViewerWidget
+        return ResultsViewerWidget(results=self)
 
-    def _invalidate_cache(self) -> None:
-        """Invalidate cached expensive operations when data changes."""
-        self._key_to_data_type_cache = None
-        self._data_type_to_keys_cache = None
-        self._columns_cache = None
-        self._fetch_list_cache = {}
-        self._cache_dirty = True
+    @classmethod
+    def from_job_info(cls, job_info: dict) -> "Results":
+        """Instantiate a Results object from a job info dictionary.
 
-    def _fetch_list(self, data_type: str, key: str) -> list:
-        """Return a list of values from the data for a given data type and key.
-
-        Uses the filtered data, not the original data.
+        This method creates a Results object in a not-ready state that will
+        fetch its data from a remote source when methods are called on it.
 
         Args:
-            data_type: The type of data to fetch (e.g., 'answer', 'agent', 'scenario').
-            key: The key to fetch from each data type dictionary.
+            job_info: Dictionary containing information about a remote job.
 
         Returns:
-            list: A list of values, one from each result in the data.
+            Results: A new Results instance with completed=False that will
+                fetch remote data when needed.
 
         Examples:
-            >>> from edsl.results import Results
-            >>> r = Results.example()
-            >>> values = r._fetch_list('answer', 'how_feeling')
-            >>> len(values) == len(r)
-            True
-            >>> all(isinstance(v, (str, type(None))) for v in values)
+            >>> # Create a job info dictionary
+            >>> job_info = {'job_uuid': '12345', 'creation_data': {'model': 'gpt-4'}}
+            >>> # Create a Results object from the job info
+            >>> results = Results.from_job_info(job_info)
+            >>> results.completed
+            False
+            >>> hasattr(results, 'job_info')
             True
         """
-        cache_key = (data_type, key)
-        if cache_key not in self._fetch_list_cache:
-            returned_list = []
-            for row in self.data:
-                returned_list.append(row.sub_dicts[data_type].get(key, None))
-            self._fetch_list_cache[cache_key] = returned_list
+        results = cls()
+        results.completed = False
+        results.job_info = job_info
+        return results
 
-        return self._fetch_list_cache[cache_key]
+    def add_task_history_entry(self, interview: "Interview") -> None:
+        self.task_history.add_interview(interview)
 
     def get_answers(self, question_name: str) -> list:
         """Get the answers for a given question name.
@@ -454,7 +312,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             >>> len(answers) == len(r)
             True
         """
-        return self._fetch_list("answer", question_name)
+        return self._cache_manager.fetch_list("answer", question_name)
 
     def _summary(self) -> dict:
         """Return a dictionary containing summary statistics about the Results object.
@@ -519,36 +377,20 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
     def relevant_cache(self, cache: Cache) -> Cache:
         cache_keys = self._cache_keys()
         return cache.subset(cache_keys)
+    
+    def agent_answers_by_question(self, agent_key_fields: Optional[List[str]] = None, separator: str = ",") -> dict:
+        """Returns a dictionary of agent answers.
+        
+        The keys are the agent names and the values are the answers.
+        
+        >>> result = Results.example().agent_answers_by_question()
+        >>> sorted(result['how_feeling'].values())
+        ['Great', 'OK', 'OK', 'Terrible']
+        >>> sorted(result['how_feeling_yesterday'].values())
+        ['Good', 'Great', 'OK', 'Terrible']
+        """
+        return self._grouper.agent_answers_by_question(agent_key_fields, separator)
 
-    # def insert(self, item):
-    #     """Insert a Result object into the Results list in the correct order.
-
-    #     If the Result has an 'order' attribute, it uses that for ordering.
-    #     Otherwise, it falls back to ordering by the 'iteration' attribute.
-
-    #     >>> from edsl.results import Result
-    #     >>> rnew = Result.example()
-    #     >>> results = Results.example()
-    #     >>> results.insert(rnew)
-    #     >>> results[0] == rnew
-    #     True
-    #     >>> results = Results.example()
-    #     >>> rnew.order = 100
-    #     >>> results.insert(rnew)
-    #     >>> results[-1] == rnew  # The new result is at the end
-    #     True
-    #     """
-
-    #     def get_sort_key(result):
-    #         if hasattr(result, "order"):
-    #             return result.order
-    #         return result.data["iteration"]
-
-    #     # Find insertion point using bisect with custom key function
-    #     index = bisect_left([get_sort_key(x) for x in self.data], get_sort_key(item))
-
-    #     # Call the parent class's insert directly
-    #     MutableSequence.insert(self, index, item)
 
     def extend_sorted(self, other):
         """Extend the Results list with items from another iterable.
@@ -556,27 +398,14 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         This method preserves ordering based on 'order' attribute if present,
         otherwise falls back to 'iteration' attribute.
         """
-        # Collect all items (existing and new)
-        all_items = list(self.data)
-        all_items.extend(other)
-
-        # Sort combined list by order attribute if available, otherwise by iteration
-        def get_sort_key(item):
-            if hasattr(item, "order"):
-                return (0, item.order)  # Order attribute takes precedence
-            return (1, item.data["iteration"])  # Iteration is secondary
-
-        all_items.sort(key=get_sort_key)
-
-        # Clear and refill with sorted items
-        self.data.clear()
-        self.data.extend(all_items)
+        return self._container.extend_sorted(other)
 
     def compute_job_cost(self, include_cached_responses_in_cost: bool = False) -> float:
         """Compute the cost of a completed job in USD.
 
-        This method calculates the total cost of all model responses in the results.
-        By default, it only counts the cost of responses that were not cached.
+        This method delegates to the JobCostCalculator class to calculate the total
+        cost of all model responses in the results. By default, it only counts the
+        cost of responses that were not cached.
 
         Args:
             include_cached_responses_in_cost: Whether to include the cost of cached
@@ -589,32 +418,10 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             >>> from edsl.results import Results
             >>> r = Results.example()
             >>> r.compute_job_cost()
-            0
+            0.0
         """
-        total_cost = 0
-        for result in self:
-            for key in result["raw_model_response"]:
-                if key.endswith("_cost"):
-                    result_cost = result["raw_model_response"][key]
-
-                    # Extract the question name from the key
-                    question_name = key.removesuffix("_cost")
-
-                    # Get cache status safely - default to False if not found
-                    cache_used = False
-                    if (
-                        "cache_used_dict" in result
-                        and question_name in result["cache_used_dict"]
-                    ):
-                        cache_used = result["cache_used_dict"][question_name]
-
-                    if isinstance(result_cost, (int, float)):
-                        if include_cached_responses_in_cost:
-                            total_cost += result_cost
-                        elif not include_cached_responses_in_cost and not cache_used:
-                            total_cost += result_cost
-
-        return total_cost
+        calculator = JobCostCalculator(self)
+        return calculator.compute_job_cost(include_cached_responses_in_cost)
 
     def code(self):
         """Method for generating code representations.
@@ -635,38 +442,28 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
 
     @ensure_ready
     def __getitem__(self, i):
-        if isinstance(i, int):
-            return self.data[i]
-        if isinstance(i, slice):
-            return self.__class__(survey=self.survey, data=self.data[i])
-        if isinstance(i, str):
-            return self.to_dict()[i]
-        raise ResultsError("Invalid argument type for indexing Results object")
+        return self._container.__getitem__(i)
 
     @ensure_ready
     def __setitem__(self, i, item):
-        self.data[i] = item
-        self._invalidate_cache()
+        return self._container.__setitem__(i, item)
 
     @ensure_ready
     def __delitem__(self, i):
-        del self.data[i]
-        self._invalidate_cache()
+        return self._container.__delitem__(i)
 
     @ensure_ready
     def __len__(self):
-        return len(self.data)
+        return self._container.__len__()
 
     @ensure_ready
     def insert(self, index, item):
-        self.data.insert(index, item)
-        self._invalidate_cache()
+        return self._container.insert(index, item)
 
     @ensure_ready
     def extend(self, other):
         """Extend the Results list with items from another iterable."""
-        self.data.extend(other)
-        self._invalidate_cache()
+        return self._container.extend(other)
 
     def __add__(self, other: Results) -> Results:
         """Add two Results objects together.
@@ -701,26 +498,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             ...     True
             True
         """
-        if self.survey != other.survey:
-            raise ResultsError(
-                "The surveys are not the same so the the results cannot be added together."
-            )
-        if self.created_columns != other.created_columns:
-            raise ResultsError(
-                "The created columns are not the same so they cannot be added together."
-            )
-
-        # Create a new ResultsSQLList with the combined data
-        # combined_data = ResultsSQLList()
-        combined_data = self._data_class()
-        combined_data.extend(self.data)
-        combined_data.extend(other.data)
-
-        return Results(
-            survey=self.survey,
-            data=combined_data,
-            created_columns=self.created_columns,
-        )
+        return self._container.__add__(other)
 
     def _repr_html_(self):
         if not self.completed:
@@ -752,12 +530,12 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
                         f"{data_type} is not a valid data type. Must be in {self.known_data_types}"
                     )
                 if key == "*":
-                    for k in self._data_type_to_keys[data_type]:
+                    for k in self._cache_manager.data_type_to_keys[data_type]:
                         new_fields.append(k)
                 else:
-                    if key not in self._key_to_data_type:
+                    if key not in self._cache_manager.key_to_data_type:
                         raise ResultsColumnNotFoundError(
-                            f"{key} is not a valid key. Must be in {self._key_to_data_type}"
+                            f"{key} is not a valid key. Must be in {self._cache_manager.key_to_data_type}"
                         )
                     new_fields.append(key)
             else:
@@ -789,48 +567,33 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         include_task_history: bool = False,
         include_cache_info: bool = True,
         offload_scenarios: bool = True,
+        full_dict: bool = False,
     ) -> dict[str, Any]:
-        from ..caching import Cache
-
-        if offload_scenarios:
-            self.optimzie_scenarios()
-        if sort:
-            data = sorted([result for result in self.data], key=lambda x: hash(x))
-        else:
-            data = [result for result in self.data]
-
-        d = {
-            "data": [
-                result.to_dict(
-                    add_edsl_version=add_edsl_version,
-                    include_cache_info=include_cache_info,
-                )
-                for result in data
-            ],
-            "survey": self.survey.to_dict(add_edsl_version=add_edsl_version),
-            "created_columns": self.created_columns,
-        }
-        if include_cache:
-            d.update(
-                {
-                    "cache": (
-                        Cache()
-                        if not hasattr(self, "cache")
-                        else self.cache.to_dict(add_edsl_version=add_edsl_version)
-                    )
-                }
-            )
-
-        if self.task_history.has_unfixed_exceptions or include_task_history:
-            d.update({"task_history": self.task_history.to_dict(offload_content=True)})
-
-        if add_edsl_version:
-            from .. import __version__
-
-            d["edsl_version"] = __version__
-            d["edsl_class_name"] = "Results"
-
-        return d
+        """Convert the Results object to a dictionary representation.
+        
+        This method delegates to the ResultsSerializer class to handle the conversion
+        of the Results object to a dictionary format suitable for serialization.
+        
+        Args:
+            sort: Whether to sort the results data by hash before serialization
+            add_edsl_version: Whether to include the EDSL version in the output
+            include_cache: Whether to include cache data in the output
+            include_task_history: Whether to include task history in the output
+            include_cache_info: Whether to include cache information in result data
+            offload_scenarios: Whether to optimize scenarios before serialization
+            
+        Returns:
+            dict[str, Any]: Dictionary representation of the Results object
+        """
+        serializer = ResultsSerializer(self)
+        return serializer.to_dict(
+            sort=sort,
+            add_edsl_version=add_edsl_version,
+            include_cache=include_cache,
+            include_task_history=include_task_history,
+            include_cache_info=include_cache_info,
+            offload_scenarios=offload_scenarios,
+        )
 
     def compare(self, other_results: Results) -> dict:
         """
@@ -881,7 +644,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
 
     @property
     def has_unfixed_exceptions(self) -> bool:
-        return self.task_history.has_unfixed_exceptions
+        return self._properties.has_unfixed_exceptions
 
     def __hash__(self) -> int:
         return dict_hash(
@@ -895,126 +658,52 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
 
     @property
     def hashes(self) -> set:
-        return set(hash(result) for result in self.data)
+        return self._properties.hashes
 
     def _sample_legacy(self, n: int) -> Results:
-        """Return a random sample of the results.
+        """Return a random sample of the results using legacy algorithm.
 
-        :param n: The number of samples to return.
+        This method delegates to the ResultsSampler class and is kept for
+        backward compatibility. Use sample() instead.
 
-        >>> from edsl.results import Results
-        >>> r = Results.example()
-        >>> len(r.sample(2))
-        2
+        Args:
+            n: The number of samples to return.
+
+        Returns:
+            Results: A new Results object with sampled data.
+
+        Examples:
+            >>> from edsl.results import Results
+            >>> r = Results.example()
+            >>> len(r.sample(2))
+            2
         """
-        indices = None
-
-        for entry in self:
-            key, values = list(entry.items())[0]
-            if indices is None:  # gets the indices for the first time
-                indices = list(range(len(values)))
-                sampled_indices = random.sample(indices, n)
-                if n > len(indices):
-                    raise ResultsError(
-                        f"Cannot sample {n} items from a list of length {len(indices)}."
-                    )
-            entry[key] = [values[i] for i in sampled_indices]
-
-        return self
+        sampler = ResultsSampler(self)
+        return sampler.sample_legacy(n)
 
     @classmethod
-    @remove_edsl_version
     def from_dict(cls, data: dict[str, Any]) -> Results:
         """Convert a dictionary to a Results object.
 
-        :param data: A dictionary representation of a Results object.
+        This method delegates to the ResultsSerializer class to handle the conversion
+        of a dictionary representation back to a Results object.
 
-        Example:
+        Args:
+            data: A dictionary representation of a Results object.
 
-        >>> r = Results.example()
-        >>> d = r.to_dict()
-        >>> r2 = Results.from_dict(d)
-        >>> r == r2
-        True
+        Returns:
+            Results: A new Results object created from the dictionary data
+
+        Examples:
+            >>> r = Results.example()
+            >>> d = r.to_dict()
+            >>> r2 = Results.from_dict(d)
+            >>> r == r2
+            True
         """
-        from ..surveys import Survey
-        from ..caching import Cache
-        from .result import Result
-        from ..tasks import TaskHistory
+        return ResultsSerializer.from_dict(data)
 
-        survey = Survey.from_dict(data["survey"])
-        # Convert dictionaries to Result objects
-        results_data = [Result.from_dict(r) for r in data["data"]]
-        created_columns = data.get("created_columns", None)
-        cache = Cache.from_dict(data.get("cache")) if "cache" in data else Cache()
-        task_history = (
-            TaskHistory.from_dict(data.get("task_history"))
-            if "task_history" in data
-            else TaskHistory(interviews=[])
-        )
 
-        # Create a Results object with original order preserved
-        # using the empty data list initially
-        params = {
-            "survey": survey,
-            "data": [],  # Start with empty data
-            "created_columns": created_columns,
-            "cache": cache,
-            "task_history": task_history,
-        }
-
-        try:
-            results = cls(**params)
-            # Add each result individually to respect order attributes
-            for result in results_data:
-                results.append(result)
-        except Exception as e:
-            raise ResultsDeserializationError(f"Error in Results.from_dict: {e}")
-        return results
-
-    @property
-    def _key_to_data_type(self) -> dict[str, str]:
-        """
-        Return a mapping of keys (how_feeling, status, etc.) to strings representing data types.
-
-        Objects such as Agent, Answer, Model, Scenario, etc.
-        - Uses the key_to_data_type property of the Result class.
-        - Includes any columns that the user has created with `mutate`
-        """
-        if self._key_to_data_type_cache is None or self._cache_dirty:
-            d: dict = {}
-            for result in self.data:
-                d.update(result.key_to_data_type)
-            for column in self.created_columns:
-                d[column] = "answer"
-            self._key_to_data_type_cache = d
-            self._cache_dirty = False
-
-        return self._key_to_data_type_cache
-
-    @property
-    def _data_type_to_keys(self) -> dict[str, str]:
-        """
-        Return a mapping of strings representing data types (objects such as Agent, Answer, Model, Scenario, etc.) to keys (how_feeling, status, etc.)
-        - Uses the key_to_data_type property of the Result class.
-        - Includes any columns that the user has created with `mutate`
-
-        Example:
-
-        >>> r = Results.example()
-        >>> r._data_type_to_keys
-        defaultdict(...
-        """
-        if self._data_type_to_keys_cache is None or self._cache_dirty:
-            d: dict = defaultdict(set)
-            for result in self.data:
-                for key, value in result.key_to_data_type.items():
-                    d[value].add(key)
-            for column in self.created_columns:
-                d["answer"].add(column)
-            self._data_type_to_keys_cache = d
-
-        return self._data_type_to_keys_cache
 
     @property
     def columns(self) -> list[str]:
@@ -1026,13 +715,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         >>> r.columns
         ['agent.agent_index', ...]
         """
-        if self._columns_cache is None or self._cache_dirty:
-            column_names = [f"{v}.{k}" for k, v in self._key_to_data_type.items()]
-            from ..utilities.PrettyList import PrettyList
-
-            self._columns_cache = PrettyList(sorted(column_names))
-
-        return self._columns_cache
+        return self._properties.columns
 
     @property
     def answer_keys(self) -> dict[str, str]:
@@ -1044,20 +727,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         >>> r.answer_keys
         {'how_feeling': 'How are you this {{ period }}?', 'how_feeling_yesterday': 'How were you feeling yesterday {{ period }}?'}
         """
-        from ..utilities.utilities import shorten_string
-
-        if not self.survey:
-            raise ResultsError("Survey is not defined so no answer keys are available.")
-
-        answer_keys = self._data_type_to_keys["answer"]
-        answer_keys = {k for k in answer_keys if "_comment" not in k}
-        questions_text = [
-            self.survey._get_question_by_name(k).question_text for k in answer_keys
-        ]
-        short_question_text = [shorten_string(q, 80) for q in questions_text]
-        initial_dict = dict(zip(answer_keys, short_question_text))
-        sorted_dict = {key: initial_dict[key] for key in sorted(initial_dict)}
-        return sorted_dict
+        return self._properties.answer_keys
 
     @property
     def agents(self) -> AgentList:
@@ -1069,9 +739,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         >>> r.agents
         AgentList([Agent(traits = {'status': 'Joyful'}), Agent(traits = {'status': 'Joyful'}), Agent(traits = {'status': 'Sad'}), Agent(traits = {'status': 'Sad'})])
         """
-        from ..agents import AgentList
-
-        return AgentList([r.agent for r in self.data])
+        return self._properties.agents
 
     @property
     def models(self) -> ModelList:
@@ -1083,9 +751,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         >>> r.models[0]
         Model(model_name = ...)
         """
-        from ..language_models import ModelList
-
-        return ModelList([r.model for r in self.data])
+        return self._properties.models
 
     def __eq__(self, other):
         return hash(self) == hash(other)
@@ -1098,11 +764,9 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
 
         >>> r = Results.example()
         >>> r.scenarios
-        ScenarioList([Scenario({'period': 'morning', 'scenario_index': 0}), Scenario({'period': 'afternoon', 'scenario_index': 1}), Scenario({'period': 'morning', 'scenario_index': 0}), Scenario({'period': 'afternoon', 'scenario_index': 1})])
+        ScenarioList([Scenario({'period': 'morning'}), Scenario({'period': 'afternoon'}), Scenario({'period': 'morning'}), Scenario({'period': 'afternoon'})])
         """
-        from ..scenarios import ScenarioList
-
-        return ScenarioList([r.scenario for r in self.data])
+        return self._properties.scenarios
 
     @property
     def agent_keys(self) -> list[str]:
@@ -1114,7 +778,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         >>> r.agent_keys
         ['agent_index', 'agent_instruction', 'agent_name', 'status']
         """
-        return sorted(self._data_type_to_keys["agent"])
+        return self._properties.agent_keys
 
     @property
     def model_keys(self) -> list[str]:
@@ -1124,7 +788,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         >>> r.model_keys
         ['frequency_penalty', 'inference_service', 'logprobs', 'max_tokens', 'model', 'model_index', 'presence_penalty', 'temperature', 'top_logprobs', 'top_p']
         """
-        return sorted(self._data_type_to_keys["model"])
+        return self._properties.model_keys
 
     @property
     def scenario_keys(self) -> list[str]:
@@ -1134,7 +798,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         >>> r.scenario_keys
         ['period', 'scenario_index']
         """
-        return sorted(self._data_type_to_keys["scenario"])
+        return self._properties.scenario_keys
 
     @property
     def question_names(self) -> list[str]:
@@ -1146,9 +810,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         >>> r.question_names
         ['how_feeling', 'how_feeling_yesterday']
         """
-        if self.survey is None:
-            return []
-        return sorted(list(self.survey.question_names))
+        return self._properties.question_names
 
     @property
     def all_keys(self) -> list[str]:
@@ -1160,13 +822,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         >>> r.all_keys
         ['agent_index', ...]
         """
-        answer_keys = set(self.answer_keys)
-        all_keys = (
-            answer_keys.union(self.agent_keys)
-            .union(self.scenario_keys)
-            .union(self.model_keys)
-        )
-        return sorted(list(all_keys))
+        return self._properties.all_keys
 
     def first(self) -> Result:
         """Return the first observation in the results.
@@ -1179,154 +835,13 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         """
         return self.data[0]
 
-    def answer_truncate(
-        self, column: str, top_n: int = 5, new_var_name: Optional[str] = None
-    ) -> Results:
-        """Create a new variable that truncates the answers to the top_n.
-
-        :param column: The column to truncate.
-        :param top_n: The number of top answers to keep.
-        :param new_var_name: The name of the new variable. If None, it is the original name + '_truncated'.
-
-        Example:
-        >>> r = Results.example()
-        >>> r.answer_truncate('how_feeling', top_n = 2).select('how_feeling', 'how_feeling_truncated')
-        Dataset([{'answer.how_feeling': ['OK', 'Great', 'Terrible', 'OK']}, {'answer.how_feeling_truncated': ['Other', 'Other', 'Other', 'Other']}])
-
-
-        """
-        if new_var_name is None:
-            new_var_name = column + "_truncated"
-        answers = list(self.select(column).tally().keys())
-
-        def f(x):
-            if x in answers[:top_n]:
-                return x
-            else:
-                return "Other"
-
-        return self.recode(column, recode_function=f, new_var_name=new_var_name)
-
-    @ensure_ready
-    def recode(
-        self, column: str, recode_function: Optional[Callable], new_var_name=None
-    ) -> Results:
-        """
-        Recode a column in the Results object.
-
-        >>> r = Results.example()
-        >>> r.recode('how_feeling', recode_function = lambda x: 1 if x == 'Great' else 0).select('how_feeling', 'how_feeling_recoded')
-        Dataset([{'answer.how_feeling': ['OK', 'Great', 'Terrible', 'OK']}, {'answer.how_feeling_recoded': [0, 1, 0, 0]}])
-        """
-
-        if new_var_name is None:
-            new_var_name = column + "_recoded"
-        new_data = []
-        for result in self.data:
-            new_result = result.copy()
-            value = new_result.get_value("answer", column)
-            # breakpoint()
-            new_result["answer"][new_var_name] = recode_function(value)
-            new_data.append(new_result)
-
-        # print("Created new variable", new_var_name)
-        new_results = Results(
-            survey=self.survey,
-            data=new_data,
-            created_columns=self.created_columns + [new_var_name],
-        )
-        new_results._invalidate_cache()
-        return new_results
-
-    @ensure_ready
-    def add_column(self, column_name: str, values: list) -> Results:
-        """Adds columns to Results
-
-        >>> r = Results.example()
-        >>> r.add_column('a', [1,2,3, 4]).select('a')
-        Dataset([{'answer.a': [1, 2, 3, 4]}])
-        """
-        assert len(values) == len(
-            self.data
-        ), "The number of values must match the number of results."
-
-        # Create new Results object with same properties but empty data
-        new_results = Results(
-            survey=self.survey,
-            data=[],
-            created_columns=self.created_columns + [column_name],
-            data_class=self._data_class,
-        )
-
-        # Process one result at a time
-        for i, result in enumerate(self.data):
-            new_result = result.copy()
-            new_result["answer"][column_name] = values[i]
-            new_results.append(new_result)
-
-        new_results._invalidate_cache()
-        return new_results
-
-    @ensure_ready
-    def add_columns_from_dict(self, columns: List[dict]) -> Results:
-        """Adds columns to Results from a list of dictionaries.
-
-        >>> r = Results.example()
-        >>> r.add_columns_from_dict([{'a': 1, 'b': 2}, {'a': 3, 'b': 4}, {'a':3, 'b':2}, {'a':3, 'b':2}]).select('a', 'b')
-        Dataset([{'answer.a': [1, 3, 3, 3]}, {'answer.b': [2, 4, 2, 2]}])
-        """
-        keys = list(columns[0].keys())
-        for key in keys:
-            values = [d[key] for d in columns]
-            self = self.add_column(key, values)
-        return self
-
-    @staticmethod
-    def _create_evaluator(
-        result: Result, functions_dict: Optional[dict] = None
-    ) -> "EvalWithCompoundTypes":
-        """Create an evaluator for the expression.
-
-        >>> from unittest.mock import Mock
-        >>> result = Mock()
-        >>> result.combined_dict = {'how_feeling': 'OK'}
-
-        >>> evaluator = Results._create_evaluator(result = result, functions_dict = {})
-        >>> evaluator.eval("how_feeling == 'OK'")
-        True
-
-        >>> result.combined_dict = {'answer': {'how_feeling': 'OK'}}
-        >>> evaluator = Results._create_evaluator(result = result, functions_dict = {})
-        >>> evaluator.eval("answer.how_feeling== 'OK'")
-        True
-
-        Note that you need to refer to the answer dictionary in the expression.
-
-        >>> evaluator.eval("how_feeling== 'OK'")
-        Traceback (most recent call last):
-        ...
-        simpleeval.NameNotDefined: 'how_feeling' is not defined for expression 'how_feeling== 'OK''
-        """
-        from simpleeval import EvalWithCompoundTypes
-
-        if functions_dict is None:
-            functions_dict = {}
-        evaluator = EvalWithCompoundTypes(
-            names=result.combined_dict, functions=functions_dict
-        )
-        evaluator.functions.update(int=int, float=float)
-        return evaluator
-
     @ensure_ready
     def mutate(
         self, new_var_string: str, functions_dict: Optional[dict] = None
     ) -> Results:
         """Create a new column based on a computational expression.
 
-        The mutate method allows you to create new derived variables based on existing data.
-        You provide an assignment expression where the left side is the new column name
-        and the right side is a Python expression that computes the value. The expression
-        can reference any existing columns in the Results object.
+        This method delegates to the ResultsTransformer class to handle the mutation operation.
 
         Args:
             new_var_string: A string containing an assignment expression in the form
@@ -1337,15 +852,6 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
 
         Returns:
             A new Results object with the additional column.
-
-        Notes:
-            - The expression must contain an equals sign (=) separating the new column name
-              from the computation expression
-            - The new column name must be a valid Python variable name
-            - The expression is evaluated for each Result object individually
-            - The expression can access any data in the Result object using the column names
-            - New columns are added to the "answer" data type
-            - Created columns are tracked in the `created_columns` property
 
         Examples:
             >>> r = Results.example()
@@ -1365,73 +871,29 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             ...          functions_dict={'sentiment': sentiment}).select('is_long')
             Dataset([{'answer.is_long': [False, False, True, False]}])
         """
-        # extract the variable name and the expression
-        if "=" not in new_var_string:
-            raise ResultsBadMutationstringError(
-                f"Mutate requires an '=' in the string, but '{new_var_string}' doesn't have one."
-            )
-        raw_var_name, expression = new_var_string.split("=", 1)
-        var_name = raw_var_name.strip()
-        from ..utilities.utilities import is_valid_variable_name
-
-        if not is_valid_variable_name(var_name):
-            raise ResultsInvalidNameError(f"{var_name} is not a valid variable name.")
-
-        # create the evaluator
-        functions_dict = functions_dict or {}
-
-        def new_result(old_result: "Result", var_name: str) -> "Result":
-            evaluator = self._create_evaluator(old_result, functions_dict)
-            value = evaluator.eval(expression)
-            new_result = old_result.copy()
-            new_result["answer"][var_name] = value
-            return new_result
-
-        try:
-            new_data = [new_result(result, var_name) for result in self.data]
-        except Exception as e:
-            raise ResultsMutateError(f"Error in mutate. Exception:{e}")
-
-        new_results = Results(
-            survey=self.survey,
-            data=new_data,
-            created_columns=self.created_columns + [var_name],
-        )
-        new_results._invalidate_cache()
-        return new_results
-
-    # Method removed due to duplication (F811)
+        transformer = ResultsTransformer(self)
+        return transformer.mutate(new_var_string, functions_dict)
 
     @ensure_ready
     def rename(self, old_name: str, new_name: str) -> Results:
         """Rename an answer column in a Results object.
 
-        >>> s = Results.example()
-        >>> s.rename('how_feeling', 'how_feeling_new').select('how_feeling_new')
-        Dataset([{'answer.how_feeling_new': ['OK', 'Great', 'Terrible', 'OK']}])
+        This method delegates to the ResultsTransformer class to handle the renaming operation.
+
+        Args:
+            old_name: The current name of the column to rename
+            new_name: The new name for the column
+
+        Returns:
+            Results: A new Results object with the column renamed
+
+        Examples:
+            >>> s = Results.example()
+            >>> s.rename('how_feeling', 'how_feeling_new').select('how_feeling_new')
+            Dataset([{'answer.how_feeling_new': ['OK', 'Great', 'Terrible', 'OK']}])
         """
-        # Create new Results object with same properties but empty data
-        new_results = Results(
-            survey=self.survey,
-            data=[],
-            created_columns=self.created_columns,
-            data_class=self._data_class,
-        )
-
-        # Update created_columns if old_name was in there
-        if old_name in new_results.created_columns:
-            new_results.created_columns.remove(old_name)
-            new_results.created_columns.append(new_name)
-
-        # Process one result at a time
-        for obs in self.data:
-            new_result = obs.copy()
-            new_result["answer"][new_name] = new_result["answer"][old_name]
-            del new_result["answer"][old_name]
-            new_results.append(new_result)
-
-        new_results._invalidate_cache()
-        return new_results
+        transformer = ResultsTransformer(self)
+        return transformer.rename(old_name, new_name)
 
     @ensure_ready
     def shuffle(self, seed: Optional[str] = "edsl") -> Results:
@@ -1443,30 +905,8 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         Returns:
             Results: A new Results object with shuffled data.
         """
-        if seed != "edsl":
-            random.seed(seed)
-
-        # Create new Results object with same properties but empty data
-        shuffled_results = Results(
-            survey=self.survey,
-            data=[],
-            created_columns=self.created_columns,
-            data_class=self._data_class,
-        )
-
-        # First pass: copy data while tracking indices
-        indices = list(range(len(self.data)))
-
-        # Second pass: Fisher-Yates shuffle on indices
-        for i in range(len(indices) - 1, 0, -1):
-            j = random.randrange(i + 1)
-            indices[i], indices[j] = indices[j], indices[i]
-
-        # Final pass: append items in shuffled order
-        for idx in indices:
-            shuffled_results.append(self.data[idx])
-
-        return shuffled_results
+        sampler = ResultsSampler(self)
+        return sampler.shuffle(seed)
 
     @ensure_ready
     def sample(
@@ -1487,50 +927,8 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         Returns:
             Results: A new Results object containing the sampled data.
         """
-        if seed:
-            random.seed(seed)
-
-        if n is None and frac is None:
-            raise ResultsError("You must specify either n or frac.")
-
-        if n is not None and frac is not None:
-            raise ResultsError("You cannot specify both n and frac.")
-
-        if frac is not None:
-            n = int(frac * len(self.data))
-
-        # Create new Results object with same properties but empty data
-        sampled_results = Results(
-            survey=self.survey,
-            data=[],
-            created_columns=self.created_columns,
-            data_class=self._data_class,
-        )
-
-        if with_replacement:
-            # For sampling with replacement, we can generate indices and sample one at a time
-            indices = (random.randrange(len(self.data)) for _ in range(n))
-            for i in indices:
-                sampled_results.append(self.data[i])
-        else:
-            # For sampling without replacement, use reservoir sampling
-            if n > len(self.data):
-                raise ResultsError(
-                    f"Cannot sample {n} items from a list of length {len(self.data)}."
-                )
-
-            # Reservoir sampling algorithm
-            for i, item in enumerate(self.data):
-                if i < n:
-                    # Fill the reservoir initially
-                    sampled_results.append(item)
-                else:
-                    # Randomly replace items with decreasing probability
-                    j = random.randrange(i + 1)
-                    if j < n:
-                        sampled_results.data[j] = item
-
-        return sampled_results
+        sampler = ResultsSampler(self)
+        return sampler.sample(n=n, frac=frac, with_replacement=with_replacement, seed=seed)
 
     @ensure_ready
     def select(self, *columns: Union[str, list[str]]) -> "Dataset":
@@ -1590,14 +988,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
 
             raise ResultsError("No data to select from---the Results object is empty.")
 
-        selector = Selector(
-            known_data_types=self.known_data_types,
-            data_type_to_keys=self._data_type_to_keys,
-            key_to_data_type=self._key_to_data_type,
-            fetch_list_func=self._fetch_list,
-            columns=self.columns,
-            survey=self.survey,
-        )
+        selector = Selector.from_cache_manager(self._cache_manager)
         return selector.select(*columns)
 
     @ensure_ready
@@ -1630,43 +1021,19 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             >>> all(isinstance(v, list) for v in buckets.values())
             True
         """
-        if len(columns) == 0:
-            raise ResultsError("You must provide at least one column to bucket_by().")
-
-        # Build buckets using a dictionary that maps key tuples to lists of Result objects
-        from collections import defaultdict
-
-        buckets: dict[tuple, list[Result]] = defaultdict(list)
-
-        for result in self.data:
-            key_values = []
-            for col in columns:
-                # Determine data_type and attribute key
-                data_type, attr_key = self._parse_column(col)
-                # Extract the value from the Result object
-                value = result.get_value(data_type, attr_key)
-                key_values.append(value)
-            buckets[tuple(key_values)].append(result)
-
-        return dict(buckets)
-
-    @ensure_ready
-    def sort_by(self, *columns: str, reverse: bool = False) -> Results:
-        """Sort the results by one or more columns."""
-        warnings.warn(
-            "sort_by is deprecated. Use order_by instead.", DeprecationWarning
-        )
-        return self.order_by(*columns, reverse=reverse)
+        return self._grouper.bucket_by(*columns)
 
     def _parse_column(self, column: str) -> tuple[str, str]:
         """Parse a column name into a data type and key."""
         if "." in column:
-            return column.split(".")
-        return self._key_to_data_type[column], column
-
+            return column.split(".", 1)
+        return self._cache_manager.key_to_data_type[column], column
+    
     @ensure_ready
-    def order_by(self, *columns: str, reverse: bool = False) -> Results:
+    def sort_by(self, *columns: str, reverse: bool = False) -> Results:
         """Sort the results by one or more columns.
+
+        This method delegates to the ResultsTransformer class to handle the sorting operation.
 
         Args:
             columns: One or more column names as strings.
@@ -1674,74 +1041,48 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
 
         Returns:
             Results: A new Results object with sorted data.
-        """
-
-        def to_numeric_if_possible(v):
-            try:
-                return float(v)
-            except (ValueError, TypeError):
-                return v
-
-        def sort_key(item):
-            key_components = []
-            for col in columns:
-                data_type, key = self._parse_column(col)
-                value = item.get_value(data_type, key)
-                if isinstance(value, (str, bytes)):
-                    key_components.append(str(value))
-                else:
-                    key_components.append(to_numeric_if_possible(value))
-            return tuple(key_components)
-
-        # Create a new sorted view of the data without materializing it
-        sorted_data = sorted(self.data, key=sort_key, reverse=reverse)
-
-        # Create new Results object that uses the sorted iterator
-        return Results(
-            survey=self.survey,
-            data=sorted_data,  # This will be an iterator, not a materialized list
-            created_columns=self.created_columns,
-            data_class=self._data_class,
-            sort_by_iteration=False,
-        )
-
-    @staticmethod
-    def has_single_equals(expression: str) -> bool:
-        """Check if an expression contains a single equals sign not part of ==, >=, or <=.
-
-        Args:
-            expression: String expression to check
-
-        Returns:
-            bool: True if there is a standalone = sign
 
         Examples:
-            >>> Results.has_single_equals("x = 1")
+            >>> r = Results.example()
+            >>> sorted_results = r.order_by('how_feeling')
+            >>> len(sorted_results) == len(r)
             True
-            >>> Results.has_single_equals("x == 1")
-            False
-            >>> Results.has_single_equals("x >= 1")
-            False
-            >>> Results.has_single_equals("x <= 1")
-            False
         """
-        # First remove valid operators that contain =
-        cleaned = (
-            expression.replace("==", "")
-            .replace(">=", "")
-            .replace("<=", "")
-            .replace("!=", "")
-        )
-        return "=" in cleaned
+        import warnings 
+        warnings.warn("sort_by is deprecated. Use order_by instead.", DeprecationWarning)
+        transformer = ResultsTransformer(self)
+        return transformer.order_by(*columns, reverse=reverse)
+
+
+    @ensure_ready
+    def order_by(self, *columns: str, reverse: bool = False) -> Results:
+        """Sort the results by one or more columns.
+
+        This method delegates to the ResultsTransformer class to handle the sorting operation.
+
+        Args:
+            columns: One or more column names as strings.
+            reverse: A boolean that determines whether to sort in reverse order.
+
+        Returns:
+            Results: A new Results object with sorted data.
+
+        Examples:
+            >>> r = Results.example()
+            >>> sorted_results = r.order_by('how_feeling')
+            >>> len(sorted_results) == len(r)
+            True
+        """
+        transformer = ResultsTransformer(self)
+        return transformer.order_by(*columns, reverse=reverse)
 
     @ensure_ready
     def filter(self, expression: str) -> Results:
         """Filter results based on a boolean expression.
 
-        This method evaluates a boolean expression against each Result object in the
-        collection and returns a new Results object containing only those that match.
-        The expression can reference any column in the data and supports standard
-        Python operators and syntax.
+        This method delegates to the ResultsFilter class to evaluate a boolean expression
+        against each Result object in the collection and returns a new Results object
+        containing only those that match.
 
         Args:
             expression: A string containing a Python expression that evaluates to a boolean.
@@ -1755,17 +1096,6 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         Raises:
             ResultsFilterError: If the expression is invalid or uses improper syntax
                 (like using '=' instead of '==').
-
-        Notes:
-            - Column names can be specified with or without their data type prefix
-              (e.g., both "how_feeling" and "answer.how_feeling" work if unambiguous)
-            - You must use double equals (==) for equality comparison, not single equals (=)
-            - You can use logical operators like 'and', 'or', 'not'
-            - You can use comparison operators like '==', '!=', '>', '<', '>=', '<='
-            - You can use membership tests with 'in'
-            - You can use string methods like '.startswith()', '.contains()', etc.
-            - The expression can be a multi-line string for improved readability
-            - You can use template-style syntax with double curly braces: {{ field }}
 
         Examples:
             >>> r = Results.example()
@@ -1781,78 +1111,9 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             >>> # Filter on agent properties
             >>> r.filter("agent.status == 'Joyful'").select('agent.status')
             Dataset([{'agent.status': ['Joyful', 'Joyful']}])
-
-            >>> # Using multi-line string for complex conditions
-            >>> r.filter('''
-            ...     how_feeling == 'Great'
-            ...     or how_feeling == 'Terrible'
-            ... ''').select('how_feeling')
-            Dataset([{'answer.how_feeling': ['Great', 'Terrible']}])
-
-            >>> # Using template-style syntax with {{}}
-            >>> r.filter("{{ answer.how_feeling }} == 'Great'").select('how_feeling')
-            Dataset([{'answer.how_feeling': ['Great']}])
-
-            >>> # Common error: using = instead of ==
-            >>> try:
-            ...     r.filter("how_feeling = 'Great'")
-            ... except Exception as e:
-            ...     print("ResultsFilterError: You must use '==' instead of '=' in the filter expression.")
-            ResultsFilterError: You must use '==' instead of '=' in the filter expression.
         """
-        # Normalize expression by removing extra whitespace and newlines
-        normalized_expression = " ".join(expression.strip().split())
-
-        # Remove template-style syntax (double curly braces)
-        normalized_expression = normalized_expression.replace("{{", "").replace(
-            "}}", ""
-        )
-
-        if self.has_single_equals(normalized_expression):
-            raise ResultsFilterError(
-                "You must use '==' instead of '=' in the filter expression."
-            )
-
-        try:
-            # Create new Results object with same class as original but empty data
-            filtered_results = Results(
-                survey=self.survey,
-                data=[],  # Empty data list
-                created_columns=self.created_columns,
-                data_class=self._data_class,  # Preserve the original data class
-            )
-
-            # Process one result at a time
-            for result in self.data:
-                evaluator = self._create_evaluator(result)
-                result.check_expression(normalized_expression)  # check expression
-                if evaluator.eval(normalized_expression):
-                    filtered_results.append(
-                        result
-                    )  # Use append method to add matching results
-
-            if len(filtered_results) == 0:
-                import warnings
-
-                warnings.warn("No results remain after applying the filter.")
-
-            return filtered_results
-
-        except ValueError as e:
-            raise ResultsFilterError(
-                f"Error in filter. Exception:{e}",
-                f"The expression you provided was: {expression}",
-                "See https://docs.expectedparrot.com/en/latest/results.html#filtering-results for more details.",
-            )
-        except Exception as e:
-            raise ResultsFilterError(
-                f"Error in filter. Exception:{e}.",
-                f"The expression you provided was: {expression}.",
-                "Please make sure that the expression is a valid Python expression that evaluates to a boolean.",
-                'For example, \'how_feeling == "Great"\' is a valid expression, as is \'how_feeling in ["Great", "Terrible"]\'.',
-                "However, 'how_feeling = \"Great\"' is not a valid expression.",
-                "See https://docs.expectedparrot.com/en/latest/results.html#filtering-results for more details.",
-            )
+        filter_handler = ResultsFilter(self)
+        return filter_handler.filter(expression)
 
     @classmethod
     def example(cls, randomize: bool = False) -> Results:
@@ -1897,29 +1158,43 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             print("No exceptions to show.")
 
     def score(self, f: Callable) -> list:
-        """Score the results using in a function.
+        """Score the results using a function.
 
-        :param f: A function that takes values from a Resul object and returns a score.
+        This method delegates to the ResultsScorer class to handle the scoring operation.
 
-        >>> r = Results.example()
-        >>> def f(status): return 1 if status == 'Joyful' else 0
-        >>> r.score(f)
-        [1, 1, 0, 0]
+        Args:
+            f: A function that takes values from a Result object and returns a score.
+
+        Returns:
+            list: A list of scores, one for each Result object.
+
+        Examples:
+            >>> r = Results.example()
+            >>> def f(status): return 1 if status == 'Joyful' else 0
+            >>> r.score(f)
+            [1, 1, 0, 0]
         """
-        return [r.score(f) for r in self.data]
+        scorer = ResultsScorer(self)
+        return scorer.score(f)
 
     def score_with_answer_key(self, answer_key: dict) -> list:
         """Score the results using an answer key.
 
-        :param answer_key: A dictionary that maps answer values to scores.
-        """
-        return [r.score_with_answer_key(answer_key) for r in self.data]
+        This method delegates to the ResultsScorer class to handle the scoring operation.
 
-    def fetch_remote(self, job_info: Any) -> None:
+        Args:
+            answer_key: A dictionary that maps answer values to scores.
+
+        Returns:
+            list: A list of scores, one for each Result object.
+        """
+        scorer = ResultsScorer(self)
+        return scorer.score_with_answer_key(answer_key)
+
+    def fetch_remote(self, job_info: Any) -> bool:
         """Fetch remote Results object and update this instance with the data.
 
-        This is useful when you have a Results object that was created locally but want to sync it with
-        the latest data from the remote server.
+        This method delegates to the ResultsRemoteFetcher class to handle the remote fetching operation.
 
         Args:
             job_info: RemoteJobInfo object containing the job_uuid and other remote job details
@@ -1929,174 +1204,49 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
 
         Raises:
             ResultsError: If there's an error during the fetch process.
-
-        Examples:
-            >>> # This is a simplified example since we can't actually test this without a remote server
-            >>> from unittest.mock import Mock, patch
-            >>> # Create a mock job_info and Results
-            >>> job_info = Mock()
-            >>> job_info.job_uuid = "test_uuid"
-            >>> results = Results()
-            >>> # In a real scenario:
-            >>> # results.fetch_remote(job_info)
-            >>> # results.completed  # Would be True if successful
         """
-        try:
-            from ..coop import Coop
-            from ..jobs import JobsRemoteInferenceHandler
-
-            # Get the remote job data
-            remote_job_data = JobsRemoteInferenceHandler.check_status(job_info.job_uuid)
-
-            if remote_job_data.get("status") not in ["completed", "failed"]:
-                return False
-                #
-            results_uuid = remote_job_data.get("results_uuid")
-            if not results_uuid:
-                raise ResultsError("No results_uuid found in remote job data")
-
-            # Fetch the remote Results object
-            coop = Coop()
-            remote_results = coop.get(results_uuid, expected_object_type="results")
-
-            # Update this instance with remote data
-            self.data = remote_results.data
-            self.survey = remote_results.survey
-            self.created_columns = remote_results.created_columns
-            self.cache = remote_results.cache
-            self.task_history = remote_results.task_history
-            self.completed = True
-
-            # Set job_uuid and results_uuid from remote data
-            self.job_uuid = job_info.job_uuid
-            if hasattr(remote_results, "results_uuid"):
-                self.results_uuid = remote_results.results_uuid
-
-            return True
-
-        except Exception as e:
-            raise ResultsError(f"Failed to fetch remote results: {str(e)}")
+        fetcher = ResultsRemoteFetcher(self)
+        return fetcher.fetch_remote(job_info)
 
     def fetch(self, polling_interval: Union[float, int] = 1.0) -> Results:
         """Poll the server for job completion and update this Results instance.
 
-        This method continuously polls the remote server until the job is completed or
-        fails, then updates this Results object with the final data.
+        This method delegates to the ResultsRemoteFetcher class to handle the polling and fetching operation.
 
         Args:
             polling_interval: Number of seconds to wait between polling attempts (default: 1.0)
 
         Returns:
-            self: The updated Results instance
+            Results: The updated Results instance
 
         Raises:
             ResultsError: If no job info is available or if there's an error during fetch.
-
-        Examples:
-            >>> # This is a simplified example since we can't actually test polling
-            >>> from unittest.mock import Mock, patch
-            >>> # Create a mock results object
-            >>> results = Results()
-            >>> # In a real scenario with a running job:
-            >>> # results.job_info = remote_job_info
-            >>> # results.fetch()  # Would poll until complete
-            >>> # results.completed  # Would be True if successful
         """
-        if not hasattr(self, "job_info"):
-            raise ResultsError(
-                "No job info available - this Results object wasn't created from a remote job"
-            )
-
-        from ..jobs import JobsRemoteInferenceHandler
-
-        try:
-            # Get the remote job data
-            remote_job_data = JobsRemoteInferenceHandler.check_status(
-                self.job_info.job_uuid
-            )
-
-            while remote_job_data.get("status") not in ["completed", "failed"]:
-                print("Waiting for remote job to complete...")
-                import time
-
-                time.sleep(polling_interval)
-                remote_job_data = JobsRemoteInferenceHandler.check_status(
-                    self.job_info.job_uuid
-                )
-
-            # Once complete, fetch the full results
-            self.fetch_remote(self.job_info)
-            return self
-
-        except Exception as e:
-            raise ResultsError(f"Failed to fetch remote results: {str(e)}")
+        fetcher = ResultsRemoteFetcher(self)
+        return fetcher.fetch(polling_interval)
 
     def spot_issues(self, models: Optional[ModelList] = None) -> Results:
-        """Run a survey to spot issues and suggest improvements for prompts that had no model response, returning a new Results object.
-        Future version: Allow user to optionally pass a list of questions to review, regardless of whether they had a null model response.
+        """Run a survey to spot issues and suggest improvements for prompts that had no model response.
+        
+        This method delegates to the ResultsAnalyzer class to handle the analysis and debugging.
+        
+        Args:
+            models: Optional ModelList to use for the analysis. If None, uses the default model.
+            
+        Returns:
+            Results: A new Results object containing the analysis and suggestions for improvement.
+            
+        Notes:
+            Future version: Allow user to optionally pass a list of questions to review, 
+            regardless of whether they had a null model response.
         """
-        from ..questions import QuestionFreeText, QuestionDict
-        from ..surveys import Survey
-        from ..scenarios import Scenario, ScenarioList
-        from ..language_models import ModelList
-        import pandas as pd
-
-        df = self.select(
-            "agent.*", "scenario.*", "answer.*", "raw_model_response.*", "prompt.*"
-        ).to_pandas()
-        scenario_list = []
-
-        for _, row in df.iterrows():
-            for col in df.columns:
-                if col.endswith("_raw_model_response") and pd.isna(row[col]):
-                    q = col.split("_raw_model_response")[0].replace(
-                        "raw_model_response.", ""
-                    )
-
-                    s = Scenario(
-                        {
-                            "original_question": q,
-                            "original_agent_index": row["agent.agent_index"],
-                            "original_scenario_index": row["scenario.scenario_index"],
-                            "original_prompts": f"User prompt: {row[f'prompt.{q}_user_prompt']}\nSystem prompt: {row[f'prompt.{q}_system_prompt']}",
-                        }
-                    )
-
-                    scenario_list.append(s)
-
-        sl = ScenarioList(set(scenario_list))
-
-        q1 = QuestionFreeText(
-            question_name="issues",
-            question_text="""
-            The following prompts generated a bad or null response: '{{ original_prompts }}'
-            What do you think was the likely issue(s)?
-            """,
-        )
-
-        q2 = QuestionDict(
-            question_name="revised",
-            question_text="""
-            The following prompts generated a bad or null response: '{{ original_prompts }}'
-            You identified the issue(s) as '{{ issues.answer }}'.
-            Please revise the prompts to address the issue(s).
-            """,
-            answer_keys=["revised_user_prompt", "revised_system_prompt"],
-        )
-
-        survey = Survey(questions=[q1, q2])
-
-        if models is not None:
-            if not isinstance(models, ModelList):
-                raise ResultsError("models must be a ModelList")
-            results = survey.by(sl).by(models).run()
-        else:
-            results = survey.by(sl).run()  # use the default model
-
-        return results
+        analyzer = ResultsAnalyzer(self)
+        return analyzer.spot_issues(models)
 
     def shelve_result(self, result: "Result") -> str:
         """Store a Result object in persistent storage using its hash as the key.
+
+        This method delegates to the ResultsSerializer class to handle the shelving operation.
 
         Args:
             result: A Result object to store
@@ -2107,19 +1257,13 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         Raises:
             ResultsError: If there's an error storing the Result
         """
-        import shelve
-
-        key = str(hash(result))
-        try:
-            with shelve.open(self._shelve_path) as shelf:
-                shelf[key] = result.to_dict()
-                self._shelf_keys.add(key)
-            return key
-        except Exception as e:
-            raise ResultsError(f"Error storing Result in shelve database: {str(e)}")
+        serializer = ResultsSerializer(self)
+        return serializer.shelve_result(result)
 
     def get_shelved_result(self, key: str) -> "Result":
         """Retrieve a Result object from persistent storage.
+
+        This method delegates to the ResultsSerializer class to handle the retrieval operation.
 
         Args:
             key: The hash key of the Result to retrieve
@@ -2130,24 +1274,16 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         Raises:
             ResultsError: If the key doesn't exist or if there's an error retrieving the Result
         """
-        import shelve
-        from .result import Result
-
-        if key not in self._shelf_keys:
-            raise ResultsError(f"No result found with key: {key}")
-
-        try:
-            with shelve.open(self._shelve_path) as shelf:
-                return Result.from_dict(shelf[key])
-        except Exception as e:
-            raise ResultsError(
-                f"Error retrieving Result from shelve database: {str(e)}"
-            )
+        serializer = ResultsSerializer(self)
+        return serializer.get_shelved_result(key)
 
     @property
     def shelf_keys(self) -> set:
-        """Return a copy of the set of shelved result keys."""
-        return self._shelf_keys.copy()
+        """Return a copy of the set of shelved result keys.
+        
+        This property delegates to the ResultsSerializer class.
+        """
+        return self._properties.shelf_keys
 
     @ensure_ready
     def insert_sorted(self, item: "Result") -> None:
@@ -2165,26 +1301,12 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             >>> new_result.order = 1.5  # Insert between items
             >>> r.insert_sorted(new_result)
         """
-
-        def get_sort_key(result):
-            if hasattr(result, "order"):
-                return (0, result.order)  # Order attribute takes precedence
-            return (1, result.data["iteration"])  # Iteration is secondary
-
-        # Get the sort key for the new item
-        item_key = get_sort_key(item)
-
-        # Get list of sort keys for existing items
-        keys = [get_sort_key(x) for x in self.data]
-
-        # Find insertion point
-        index = bisect_left(keys, item_key)
-
-        # Insert at the found position
-        self.data.insert(index, item)
+        return self._container.insert_sorted(item)
 
     def insert_from_shelf(self) -> None:
         """Move all shelved results into memory using insert_sorted method.
+        
+        This method delegates to the ResultsSerializer class to handle the shelf operations.
         Clears the shelf after successful insertion.
 
         This method preserves the original order of results by using their 'order'
@@ -2194,33 +1316,13 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         Raises:
             ResultsError: If there's an error accessing or clearing the shelf
         """
-        import shelve
-        from .result import Result
-
-        if not self._shelf_keys:
-            return
-
-        try:
-            # First collect all results from shelf
-            with shelve.open(self._shelve_path) as shelf:
-                # Get and insert all results first
-                for key in self._shelf_keys:
-                    result_dict = shelf[key]
-                    result = Result.from_dict(result_dict)
-                    self.insert_sorted(result)
-
-                # Now clear the shelf
-                for key in self._shelf_keys:
-                    del shelf[key]
-
-            # Clear the tracking set
-            self._shelf_keys.clear()
-
-        except Exception as e:
-            raise ResultsError(f"Error moving results from shelf to memory: {str(e)}")
+        serializer = ResultsSerializer(self)
+        return serializer.insert_from_shelf()
 
     def to_disk(self, filepath: str) -> None:
         """Serialize the Results object to a zip file, preserving the SQLite database.
+
+        This method delegates to the ResultsSerializer class to handle the disk serialization.
 
         This method creates a zip file containing:
         1. The SQLite database file from the data container
@@ -2233,74 +1335,14 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         Raises:
             ResultsError: If there's an error during serialization
         """
-        import zipfile
-        import json
-        import os
-        import tempfile
-        from pathlib import Path
-        import shutil
-
-        data_class = ResultsSQLList
-
-        try:
-            # Create a temporary directory to store files before zipping
-            with tempfile.TemporaryDirectory() as temp_dir:
-                temp_path = Path(temp_dir)
-
-                # 1. Handle the SQLite database
-                db_path = temp_path / "results.db"
-
-                if isinstance(self.data, list):
-                    # If data is a list, create a new SQLiteList
-                    # from .sqlite_list import SQLiteList
-                    new_db = data_class()
-                    new_db.extend(self.data)
-                    shutil.copy2(new_db.db_path, db_path)
-                elif hasattr(self.data, "db_path") and os.path.exists(
-                    self.data.db_path
-                ):
-                    # If data is already a SQLiteList, copy its database
-                    shutil.copy2(self.data.db_path, db_path)
-                else:
-                    # If no database exists, create a new one
-                    # from .sqlite_list import SQLiteList
-                    # new_db = SQLiteList()
-                    new_db = data_class()
-                    new_db.extend(self.data)
-                    shutil.copy2(new_db.db_path, db_path)
-
-                # 2. Create metadata.json
-                metadata = {
-                    "survey": self.survey.to_dict() if self.survey else None,
-                    "created_columns": self.created_columns,
-                    "cache": self.cache.to_dict() if hasattr(self, "cache") else None,
-                    "task_history": (
-                        self.task_history.to_dict()
-                        if hasattr(self, "task_history")
-                        else None
-                    ),
-                    "completed": self.completed,
-                    "job_uuid": self._job_uuid if hasattr(self, "_job_uuid") else None,
-                    "total_results": (
-                        self._total_results if hasattr(self, "_total_results") else None
-                    ),
-                }
-
-                metadata_path = temp_path / "metadata.json"
-                metadata_path.write_text(json.dumps(metadata, indent=4))
-
-                # 3. Create the zip file
-                with zipfile.ZipFile(filepath, "w", zipfile.ZIP_DEFLATED) as zipf:
-                    # Add all files from temp directory to zip
-                    for file in temp_path.glob("*"):
-                        zipf.write(file, file.name)
-
-        except Exception as e:
-            raise ResultsError(f"Error saving Results to disk: {str(e)}")
+        serializer = ResultsSerializer(self)
+        return serializer.to_disk(filepath)
 
     @classmethod
     def from_disk(cls, filepath: str) -> "Results":
         """Load a Results object from a zip file.
+
+        This method delegates to the ResultsSerializer class to handle the disk deserialization.
 
         This method:
         1. Extracts the SQLite database file
@@ -2316,66 +1358,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         Raises:
             ResultsError: If there's an error during deserialization
         """
-        import zipfile
-        import json
-        import tempfile
-        from pathlib import Path
-        from ..surveys import Survey
-        from ..caching import Cache
-        from ..tasks import TaskHistory
-
-        data_class = ResultsSQLList
-
-        try:
-            # Create a temporary directory to extract files
-            with tempfile.TemporaryDirectory() as temp_dir:
-                temp_path = Path(temp_dir)
-
-                # Extract the zip file
-                with zipfile.ZipFile(filepath, "r") as zipf:
-                    zipf.extractall(temp_path)
-
-                # 1. Load metadata
-                metadata_path = temp_path / "metadata.json"
-                metadata = json.loads(metadata_path.read_text())
-
-                # 2. Create a new Results instance
-                results = cls(
-                    survey=(
-                        Survey.from_dict(metadata["survey"])
-                        if metadata["survey"]
-                        else None
-                    ),
-                    created_columns=metadata["created_columns"],
-                    cache=(
-                        Cache.from_dict(metadata["cache"])
-                        if metadata["cache"]
-                        else None
-                    ),
-                    task_history=(
-                        TaskHistory.from_dict(metadata["task_history"])
-                        if metadata["task_history"]
-                        else None
-                    ),
-                    job_uuid=metadata["job_uuid"],
-                    total_results=metadata["total_results"],
-                )
-
-                # 3. Set the SQLite database path if it exists
-                db_path = temp_path / "results.db"
-                if db_path.exists():
-                    # Create a new ResultsSQLList instance
-                    new_db = data_class()
-                    # Copy data from the source database - convert Path to string
-                    new_db.copy_from(str(db_path))
-                    # Set the new database as the results data
-                    results.data = new_db
-
-                results.completed = metadata["completed"]
-                return results
-
-        except Exception as e:
-            raise ResultsError(f"Error loading Results from disk: {str(e)}")
+        return ResultsSerializer.from_disk(filepath)
 
 
 def main():  # pragma: no cover
