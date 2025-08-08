@@ -70,10 +70,6 @@ class ResultBuilder:
         self.sub_dicts = resolved_sub_dicts
         self.combined_dict, self.problem_keys = self._merge_sub_dicts(resolved_sub_dicts)
 
-
-
-
-
     def _construct_sub_dicts(self) -> dict[str, dict]:
         """Construct all sub-dictionaries ready for merging."""
         sub_dicts = {}
