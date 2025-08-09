@@ -504,7 +504,7 @@ class QuestionRank(QuestionBase):
 
         scenario = scenario or Scenario()
         translated_options = [
-            Template(option).render(scenario) for option in self.question_options
+            Template(str(option)).render(scenario) for option in self.question_options
         ]
         translated_codes = []
         for answer_code in answer_codes:
@@ -533,8 +533,14 @@ class QuestionRank(QuestionBase):
                 selected = random.sample(self.question_options, self.num_selections)
             else:
                 # When human_readable=True but we're configured to use_code,
-                # still use the option text for better test compatibility
-                selected = random.sample(self.question_options, self.num_selections)
+                # For string options: use the option text for better test compatibility
+                # For non-string options: use indices to avoid confusion
+                if all(isinstance(opt, str) for opt in self.question_options):
+                    selected = random.sample(self.question_options, self.num_selections)
+                else:
+                    selected = random.sample(
+                        range(len(self.question_options)), self.num_selections
+                    )
         else:
             # When human_readable=False, always use indices
             selected = random.sample(
