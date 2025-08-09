@@ -17,6 +17,7 @@ from .utilities import (
     random_string,
     shorten_string,
     is_gzipped,
+    sanitize_jinja_syntax,
 )
 
 # Decorator utilities

@@ -1,7 +1,7 @@
 """A list of Agents"""
 
 from __future__ import annotations
-import csv
+# csv import moved to agent_list_factories.py
 import sys
 import random
 import warnings
@@ -14,7 +14,7 @@ from collections import UserList
 from collections.abc import Iterable
 from typing import Any, List, Optional, Union, TYPE_CHECKING
 
-from simpleeval import EvalWithCompoundTypes, NameNotDefined
+# simpleeval imports moved to agent_list_filter.py
 
 from ..base import Base
 from ..utilities import is_notebook, remove_edsl_version, dict_hash
@@ -34,16 +34,10 @@ if TYPE_CHECKING:
     from ..scenarios import ScenarioList
 
 
-def is_iterable(obj):
-    return isinstance(obj, Iterable)
+# is_iterable function moved to agent_list_trait_operations.py
 
 
-class EmptyAgentList:
-    def __repr__(self):
-        return "Empty AgentList"
-
-    def __len__(self):
-        return 0
+# EmptyAgentList moved to agent_list_filter.py
 
 
 # ResultsExportMixin,
@@ -124,6 +118,15 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
             agent.instruction = instruction
 
         return self
+    
+    @classmethod
+    def manage(cls):
+        from ..widgets.agent_list_manager import AgentListManagerWidget
+        return AgentListManagerWidget()
+    
+    def edit(self):
+        from ..widgets.agent_list_builder import AgentListBuilderWidget
+        return AgentListBuilderWidget(self)
 
     def set_traits_presentation_template(
         self, traits_presentation_template: str
@@ -202,7 +205,8 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
             >>> al_dropped[0].traits
             {'hair': 'brown'}
         """
-        return AgentList([a.drop(*field_names) for a in self.data])
+        from .agent_list_trait_operations import AgentListTraitOperations
+        return AgentListTraitOperations.drop(self, *field_names)
 
     def keep(self, *field_names: Union[str, List[str]]) -> AgentList:
         """Keep only the specified fields from all agents in the AgentList.
@@ -248,7 +252,8 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
             >>> al_kept[0].traits
             {'age': 30}
         """
-        return AgentList([a.keep(*field_names) for a in self.data])
+        from .agent_list_trait_operations import AgentListTraitOperations
+        return AgentListTraitOperations.keep(self, *field_names)
 
     def duplicate(self) -> AgentList:
         """Create a deep copy of the AgentList.
@@ -313,10 +318,8 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
             ...                         Agent(traits = {'c': 1, 'b': 2})])
             >>> assert al != al2
         """
-        newagents = []
-        for agent in self:
-            newagents.append(agent.rename(old_name, new_name))
-        return AgentList(newagents)
+        from .agent_list_trait_operations import AgentListTraitOperations
+        return AgentListTraitOperations.rename(self, old_name, new_name)
 
     def select(self, *traits) -> AgentList:
         """Create a new AgentList with only the specified traits.
@@ -334,25 +337,135 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
             >>> al.select('a')
             AgentList([Agent(traits = {'a': 1}), Agent(traits = {'a': 1})])
         """
-        if len(traits) == 1:
-            traits_to_select = [list(traits)[0]]
-        else:
-            traits_to_select = list(traits)
+        from .agent_list_trait_operations import AgentListTraitOperations
+        return AgentListTraitOperations.select(self, *traits)
+    
+    def _apply_names(self, agent_list_data: list["Agent"], trait_keys: tuple[str], remove_traits: bool = True, separator: str = ",", force_name: bool = False) -> None:
+        """Private helper method to apply names to a list of agents.
+        
+        Args:
+            agent_list_data: List of agents to modify
+            trait_keys: The trait keys to use for naming
+            remove_traits: Whether to remove the traits used for naming
+            separator: The separator to use when joining multiple trait values
+            force_name: Whether to force naming even if agents already have names
+        """
+        if not force_name:
+            assert all([agent.name is None for agent in agent_list_data]), "Agents already have names, so naming will not work. Use force_name=True to override."
+        
+        new_names = []
+        if isinstance(trait_keys, str):
+            trait_keys = [trait_keys]
+        for agent in agent_list_data:
+            trait_values = [agent.traits[key] for key in trait_keys]
+            new_name = str(f"{separator}".join([str(value) for value in trait_values]))
+            agent.name = str(new_name)
+            new_names.append(new_name)
+            if remove_traits:
+                for key in trait_keys:
+                    agent.traits.pop(key)
 
-        return AgentList([agent.select(*traits_to_select) for agent in self.data])
+        assert len(new_names) == len(agent_list_data), "The number of new names does not match the number of agents."
 
-    # @classmethod
-    # def from_results(self, results: "Results") -> "AgentList":
-    #     """Create an AgentList from a Results object.
+    def give_names(self, *trait_keys: str, remove_traits: bool = True, separator: str = ",", force_name: bool = False) -> None:
+        """Give names to agents based on the values of the specified traits.
+        
+        >>> from edsl import Agent
+        >>> al = AgentList([Agent(traits = {'a': 1, 'b': 1}),
+        ...                Agent(traits = {'a': 1, 'b': 2})])
+        >>> al.give_names('a')
+        >>> al[0].name
+        '1'
+        """
+        self._apply_names(self.data, trait_keys, remove_traits, separator, force_name)
 
-    #     >>> from edsl import Results
-    #     >>> results = Results.example()
-    #     >>> al = AgentList.from_results(results)
-    #     >>> al
-    #     AgentList([Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5}), Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5})])
-    #     """
-    #     al = results.agent_list
-    #     return al
+    def with_names(self, *trait_keys: str, remove_traits: bool = True, separator: str = ",", force_name: bool = False) -> AgentList:
+        """Return a new AgentList with names based on the values of the specified traits.
+        
+        Args:
+            *trait_keys: The trait keys to use for naming
+            remove_traits: Whether to remove the traits used for naming from the agents
+            separator: The separator to use when joining multiple trait values
+            force_name: Whether to force naming even if agents already have names
+            
+        Returns:
+            AgentList: A new AgentList with named agents
+            
+        >>> from edsl import Agent
+        >>> al = AgentList([Agent(traits = {'a': 1, 'b': 1}),
+        ...                Agent(traits = {'a': 1, 'b': 2})])
+        >>> al_with_names = al.with_names('a')
+        >>> al_with_names[0].name
+        '1'
+        >>> al[0].name is None  # Original unchanged
+        True
+        """
+        # Create a duplicate to avoid modifying the original
+        new_agent_list = self.duplicate()
+        
+        # Apply the naming logic to the duplicated agents using the shared helper
+        self._apply_names(new_agent_list.data, trait_keys, remove_traits, separator, force_name)
+        
+        return new_agent_list
+    
+    def _join(self, other: "AgentList", join_type: str = "inner") -> AgentList:
+        """Join two AgentLists (private method).
+        
+        Args:
+            other: The other AgentList to join
+            join_type: The type of join to perform
+        """
+        from .agent_list_joiner import AgentListJoiner
+        return AgentListJoiner._join_two(self, other, join_type=join_type)
+
+    def join(self, other: "AgentList", join_type: str = "inner") -> "AgentList":
+        """Join this AgentList with another AgentList.
+        
+        Args:
+            other: The other AgentList to join with
+            join_type: The type of join to perform ("inner", "left", or "right")
+            
+        Returns:
+            AgentList: A new AgentList containing the joined results
+            
+        Examples:
+            >>> from edsl import Agent, AgentList
+            >>> al1 = AgentList([Agent(name="John", traits={"age": 30})])
+            >>> al2 = AgentList([Agent(name="John", traits={"height": 180})])
+            >>> joined = al1.join(al2)
+            >>> joined[0].traits
+            {'age': 30, 'height': 180}
+        """
+        from .agent_list_joiner import AgentListJoiner
+        return AgentListJoiner.join_two(self, other, join_type=join_type)
+
+    @classmethod
+    def join_multiple(cls, *agent_lists: "AgentList", join_type: str = "inner") -> "AgentList":
+        """Join multiple AgentLists together.
+        
+        Args:
+            *agent_lists: Variable number of AgentList objects to join
+            join_type: The type of join to perform ("inner", "left", or "right")
+            
+        Returns:
+            AgentList: A new AgentList containing the joined results
+            
+        Raises:
+            ValueError: If fewer than 2 AgentLists are provided
+            
+        Examples:
+            >>> from edsl import Agent, AgentList
+            >>> al1 = AgentList([Agent(name="John", traits={"age": 30})])
+            >>> al2 = AgentList([Agent(name="John", traits={"height": 180})])
+            >>> al3 = AgentList([Agent(name="John", traits={"weight": 75})])
+            >>> joined = AgentList.join_multiple(al1, al2, al3)
+            >>> len(joined)
+            1
+            >>> joined[0].traits
+            {'age': 30, 'height': 180, 'weight': 75}
+        """
+        from .agent_list_joiner import AgentListJoiner
+        return AgentListJoiner.join_multiple(*agent_lists, join_type=join_type)
 
     def filter(self, expression: str) -> AgentList:
         """Filter agents based on a boolean expression.
@@ -383,28 +496,8 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
             >>> len(al.filter("name == 'steve' and a == 1 and b == 2"))
             0
         """
-
-        def create_evaluator(agent: "Agent"):
-            """Create an evaluator for the given agent."""
-            return EvalWithCompoundTypes(names={**agent.traits, "name": agent.name})
-
-        try:
-            new_data = [
-                agent for agent in self.data if create_evaluator(agent).eval(expression)
-            ]
-        except NameNotDefined:
-            e = AgentListError(f"'{expression}' is not a valid expression.")
-            if is_notebook():
-                print(e, file=sys.stderr)
-            else:
-                raise e
-
-            return EmptyAgentList()
-
-        if len(new_data) == 0:
-            return EmptyAgentList()
-
-        return AgentList(new_data)
+        from .agent_list_filter import AgentListFilter
+        return AgentListFilter.filter(self, expression)
 
     @property
     def all_traits(self) -> list[str]:
@@ -416,10 +509,8 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         >>> al.all_traits
         ['age', 'hair']
         """
-        d = {}
-        for agent in self:
-            d.update(agent.traits)
-        return list(d.keys())
+        from .agent_list_trait_operations import AgentListTraitOperations
+        return AgentListTraitOperations.get_all_traits(self)
 
     @classmethod
     def from_csv(
@@ -451,25 +542,8 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         :param name_field: The name of the field to use as the agent name.
         :param codebook: Optional dictionary mapping trait names to descriptions.
         """
-        from .agent import Agent
-
-        agent_list = []
-        with open(file_path, "r") as f:
-            reader = csv.DictReader(f)
-            for row in reader:
-                if "name" in row:
-                    import warnings
-
-                    warnings.warn("Using 'name' field in the CSV for the Agent name")
-                    name_field = "name"
-                if name_field is not None:
-                    agent_name = row.pop(name_field)
-                    agent_list.append(
-                        Agent(traits=row, name=agent_name, codebook=codebook)
-                    )
-                else:
-                    agent_list.append(Agent(traits=row, codebook=codebook))
-        return cls(agent_list)
+        from .agent_list_factories import AgentListFactories
+        return AgentListFactories.from_csv(file_path, name_field=name_field, codebook=codebook)
 
     def translate_traits(self, codebook: dict[str, str]):
         """Translate traits to a new codebook.
@@ -481,10 +555,8 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         >>> al.translate_traits(codebook)
         AgentList([Agent(traits = {'age': 22, 'hair': 'Secret word for green', 'height': 5.5}), Agent(traits = {'age': 22, 'hair': 'Secret word for green', 'height': 5.5})])
         """
-        new_agents = []
-        for agent in self.data:
-            new_agents.append(agent.translate_traits(codebook))
-        return AgentList(new_agents)
+        from .agent_list_trait_operations import AgentListTraitOperations
+        return AgentListTraitOperations.translate_traits(self, codebook)
 
     def remove_trait(self, trait: str):
         """Remove traits from the AgentList.
@@ -495,11 +567,13 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         >>> al.remove_trait('age')
         AgentList([Agent(traits = {'hair': 'brown', 'height': 5.5}), Agent(traits = {'hair': 'brown', 'height': 5.5})])
         """
-        agents = []
-        new_al = self.duplicate()
-        for agent in new_al.data:
-            agents.append(agent.remove_trait(trait))
-        return AgentList(agents)
+        from .agent_list_trait_operations import AgentListTraitOperations
+        return AgentListTraitOperations.remove_trait(self, trait)
+    
+    @property
+    def names(self) -> List[str]:
+        """Returns the names of the agents in the AgentList."""
+        return [agent.name for agent in self.data]
 
     def add_trait(self, trait: str, values: List[Any]) -> AgentList:
         """Adds a new trait to every agent, with values taken from values.
@@ -517,35 +591,35 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         edsl.agents.exceptions.AgentListError: The passed values have to be the same length as the agent list.
         ...
         """
-        if not is_iterable(values):
-            new_agents = []
-            value = values
-            for agent in self.data:
-                new_agents.append(agent.add_trait(trait, value))
-            return AgentList(new_agents)
+        from .agent_list_trait_operations import AgentListTraitOperations
+        return AgentListTraitOperations.add_trait(self, trait, values)
+    
 
-        if len(values) != len(self):
-            e = AgentListError(
-                "The passed values have to be the same length as the agent list."
-            )
-            if is_notebook():
-                print(e, file=sys.stderr)
-            else:
-                raise e
-        new_agents = []
-        for agent, value in zip(self.data, values):
-            new_agents.append(agent.add_trait(trait, value))
-        return AgentList(new_agents)
+    @classmethod
+    def from_results(cls, results: "Results") -> "AgentList":
+        """Create an AgentList from a Results object."""
+        from .agent_list_factories import AgentListFactories
+        return AgentListFactories.from_results(results)
 
     @staticmethod
-    def get_codebook(file_path: str):
-        """Return the codebook for a CSV file.
+    def get_codebook(file_path: str) -> dict:
+        """Returns a codebook dictionary mapping CSV column names to None.
+        
+        Reads the header row of a CSV file and creates a codebook with field names as keys
+        and None as values.
 
-        :param file_path: The path to the CSV file.
+        Args:
+            file_path: Path to the CSV file to read.
+
+        Returns:
+            A dictionary with CSV column names as keys and None as values.
+
+        Raises:
+            FileNotFoundError: If the specified file path does not exist.
+            csv.Error: If there is an error reading the CSV file.
         """
-        with open(file_path, "r") as f:
-            reader = csv.DictReader(f)
-            return {field: None for field in reader.fieldnames}
+        from .agent_list_factories import AgentListFactories
+        return AgentListFactories.get_codebook(file_path)
 
     def __hash__(self) -> int:
         """Return the hash of the AgentList.
@@ -570,7 +644,7 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         else:
             raise ValueError(f"Cannot convert AgentList to {type(target)}")
 
-    def to_dict(self, sorted=False, add_edsl_version=True):
+    def to_dict(self, sorted=False, add_edsl_version=True, full_dict=False):
         """Serialize the AgentList to a dictionary.
 
         >>> AgentList.example().to_dict(add_edsl_version=False)
@@ -583,37 +657,8 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         >>> result['codebook'] == example_codebook
         True
         """
-        if sorted:
-            data = self.data[:]
-            data.sort(key=lambda x: hash(x))
-        else:
-            data = self.data
-
-        d = {
-            "agent_list": [
-                agent.to_dict(add_edsl_version=add_edsl_version) for agent in data
-            ]
-        }
-
-        # Add codebook if all agents have the same codebook
-        if len(self.data) > 0:
-            # Get the first agent's codebook
-            first_codebook = self.data[0].codebook
-
-            # Check if all agents have the same codebook
-            all_same = all(agent.codebook == first_codebook for agent in self.data)
-
-            # Only include codebook if it's non-empty and consistent across all agents
-            if all_same and first_codebook:
-                d["codebook"] = first_codebook
-
-        if add_edsl_version:
-            from edsl import __version__
-
-            d["edsl_version"] = __version__
-            d["edsl_class_name"] = "AgentList"
-
-        return d
+        from .agent_list_serializer import AgentListSerializer
+        return AgentListSerializer.to_dict(self, sorted=sorted, add_edsl_version=add_edsl_version, full_dict=full_dict)
 
     def __eq__(self, other: AgentList) -> bool:
         return self.to_dict(sorted=True, add_edsl_version=False) == other.to_dict(
@@ -724,16 +769,8 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         >>> al2[0].codebook == example_codebook
         True
         """
-        from .agent import Agent
-
-        agents = [Agent.from_dict(agent_dict) for agent_dict in data["agent_list"]]
-        agent_list = cls(agents)
-
-        # Apply codebook if present in the dictionary
-        if "codebook" in data and data["codebook"]:
-            agent_list.set_codebook(data["codebook"])
-
-        return agent_list
+        from .agent_list_factories import AgentListFactories
+        return AgentListFactories.from_dict(data)
 
     @classmethod
     def example(
@@ -752,18 +789,12 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         >>> al[0].codebook
         {'age': 'Age in years'}
         """
-        from .agent import Agent
-
-        agent_list = cls([Agent.example(randomize), Agent.example(randomize)])
-
-        if codebook:
-            agent_list.set_codebook(codebook)
-
-        return agent_list
+        from .agent_list_factories import AgentListFactories
+        return AgentListFactories.example(randomize=randomize, codebook=codebook)
 
     @classmethod
     def from_list(
-        self,
+        cls,
         trait_name: str,
         values: List[Any],
         codebook: Optional[dict[str, str]] = None,
@@ -780,14 +811,8 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         >>> al[0].codebook
         {'age': 'Age in years'}
         """
-        from .agent import Agent
-
-        agent_list = AgentList([Agent({trait_name: value}) for value in values])
-
-        if codebook:
-            agent_list.set_codebook(codebook)
-
-        return agent_list
+        from .agent_list_factories import AgentListFactories
+        return AgentListFactories.from_list(trait_name, values, codebook=codebook)
 
     def __mul__(self, other: AgentList) -> AgentList:
         """Takes the cross product of two AgentLists."""
@@ -805,14 +830,8 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         from edsl import AgentList
         agent_list = AgentList([Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5}), Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5})])
         """
-        lines = [
-            "from edsl import Agent",
-            "from edsl import AgentList",
-        ]
-        lines.append(f"agent_list = AgentList({self.data})")
-        if string:
-            return "\n".join(lines)
-        return lines
+        from .agent_list_code_generator import AgentListCodeGenerator
+        return AgentListCodeGenerator.generate_code(self, string=string)
 
     @classmethod
     def from_scenario_list(cls, scenario_list: "ScenarioList") -> "AgentList":
@@ -832,27 +851,8 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
             >>> al
             AgentList([Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5})])
         """
-        from .agent import Agent  # Use direct relative import
-
-        agents = []
-        for scenario in scenario_list:
-            # Simple implementation to handle the basic test case
-            new_scenario = scenario.copy().data
-            if "name" in new_scenario:
-                new_scenario["agent_name"] = new_scenario.pop("name")
-                new_agent = Agent(traits=new_scenario, name=new_scenario["agent_name"])
-                agents.append(new_agent)
-            else:
-                new_agent = Agent(traits=new_scenario)
-                agents.append(new_agent)
-
-        # Add a debug check to verify we've processed the scenarios correctly
-        if len(agents) != len(scenario_list):
-            raise ValueError(
-                f"Expected {len(scenario_list)} agents, but created {len(agents)}"
-            )
-
-        return cls(agents)
+        from .agent_list_factories import AgentListFactories
+        return AgentListFactories.from_scenario_list(scenario_list)
 
 
 if __name__ == "__main__":

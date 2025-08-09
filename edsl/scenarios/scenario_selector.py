@@ -1,163 +1,305 @@
-from typing import TYPE_CHECKING
+"""
+Module for handling key selection and filtering operations on Scenario objects.
 
+This module provides the ScenarioSelector class which handles the logic for 
+selecting, keeping, and dropping keys from scenarios. It supports both 
+collection-style arguments and variable string arguments for maximum flexibility.
+"""
+
+from __future__ import annotations
+from typing import TYPE_CHECKING, Union, Iterable, List, Set, Any
 
 if TYPE_CHECKING:
-    from .scenario_list import ScenarioList
+    from .scenario import Scenario
 
 
 class ScenarioSelector:
     """
-    A class for performing advanced field selection on ScenarioList objects,
-    including support for wildcard patterns.
-
-    Args:
-        scenario_list: The ScenarioList object to perform selections on
-
-    Examples:
-        >>> from edsl import Scenario, ScenarioList
-        >>> scenarios = ScenarioList([Scenario({'test_1': 1, 'test_2': 2, 'other': 3}), Scenario({'test_1': 4, 'test_2': 5, 'other': 6})])
-        >>> selector = ScenarioSelector(scenarios)
-        >>> selector.select('test*')
-        ScenarioList([Scenario({'test_1': 1, 'test_2': 2}), Scenario({'test_1': 4, 'test_2': 5})])
+    Handles key selection and filtering operations on Scenario objects.
+    
+    This class provides functionality to select specific keys, drop unwanted keys,
+    and keep desired keys from scenarios. It supports both backward-compatible
+    collection arguments and modern variable string arguments.
     """
-
-    def __init__(self, scenario_list: "ScenarioList"):
-        """Initialize with a ScenarioList object."""
-        self.scenario_list = scenario_list
-        self.available_fields = (
-            list(scenario_list.data[0].keys()) if scenario_list.data else []
-        )
-
-    def _match_field_pattern(self, pattern: str, field: str) -> bool:
+    
+    def __init__(self, scenario: "Scenario"):
         """
-        Checks if a field name matches a pattern with wildcards.
-        Supports '*' as wildcard at start or end of pattern.
-
+        Initialize the selector with a scenario.
+        
         Args:
-            pattern: The pattern to match against, may contain '*' at start or end
-            field: The field name to check
-
-        Examples:
-            >>> from edsl import ScenarioList, Scenario
-            >>> selector = ScenarioSelector(ScenarioList([]))
-            >>> selector._match_field_pattern('test*', 'test_field')
-            True
-            >>> selector._match_field_pattern('*field', 'test_field')
-            True
-            >>> selector._match_field_pattern('test', 'test')
-            True
-            >>> selector._match_field_pattern('*test*', 'my_test_field')
-            True
+            scenario: The Scenario object to perform selection operations on.
         """
-        if "*" not in pattern:
-            return pattern == field
-
-        if pattern.startswith("*") and pattern.endswith("*"):
-            return pattern[1:-1] in field
-        elif pattern.startswith("*"):
-            return field.endswith(pattern[1:])
-        elif pattern.endswith("*"):
-            return field.startswith(pattern[:-1])
-        return pattern == field
-
-    def _get_matching_fields(self, patterns: list[str]) -> list[str]:
+        self.scenario = scenario
+    
+    def select(self, *args: Union[str, Iterable[str]]) -> "Scenario":
         """
-        Gets all fields that match any of the given patterns.
-
+        Select a subset of keys from the scenario to create a new scenario.
+        
+        This method creates a new scenario containing only the specified keys
+        from the original scenario. It supports both individual string arguments
+        and collection arguments for backward compatibility.
+        
         Args:
-            patterns: List of field patterns, may contain wildcards
-
+            *args: Either a single collection of keys (for backward compatibility)
+                   or individual string arguments for keys to select.
+                   
         Returns:
-            List of field names that match at least one pattern
-
-        Examples:
-            >>> from edsl import Scenario, ScenarioList
-            >>> scenarios = ScenarioList([
-            ...     Scenario({'test_1': 1, 'test_2': 2, 'other': 3})
-            ... ])
-            >>> selector = ScenarioSelector(scenarios)
-            >>> selector._get_matching_fields(['test*'])
-            ['test_1', 'test_2']
-        """
-        matching_fields = set()
-        for pattern in patterns:
-            matches = [
-                field
-                for field in self.available_fields
-                if self._match_field_pattern(pattern, field)
-            ]
-            matching_fields.update(matches)
-        return sorted(list(matching_fields))
-
-    def select(self, *fields) -> "ScenarioList":
-        """
-        Selects scenarios with only the referenced fields.
-        Supports wildcard patterns using '*' at the start or end of field names.
-
-        Args:
-            *fields: Field names or patterns to select. Patterns may include '*' for wildcards.
-
-        Returns:
-            A new ScenarioList containing only the matched fields.
-
+            A new Scenario containing only the selected keys and their values.
+            
         Raises:
-            ValueError: If no fields match the given patterns.
-
+            KeyError: If any of the specified keys don't exist in the scenario.
+            
         Examples:
-            >>> from edsl import Scenario, ScenarioList
-            >>> scenarios = ScenarioList([
-            ...     Scenario({'test_1': 1, 'test_2': 2, 'other': 3}),
-            ...     Scenario({'test_1': 4, 'test_2': 5, 'other': 6})
-            ... ])
-            >>> selector = ScenarioSelector(scenarios)
-            >>> selector.select('test*')  # Selects all fields starting with 'test'
-            ScenarioList([Scenario({'test_1': 1, 'test_2': 2}), Scenario({'test_1': 4, 'test_2': 5})])
-            >>> selector.select('*_1')  # Selects all fields ending with '_1'
-            ScenarioList([Scenario({'test_1': 1}), Scenario({'test_1': 4})])
-            >>> selector.select('test_1', '*_2')  # Multiple patterns
-            ScenarioList([Scenario({'test_1': 1, 'test_2': 2}), Scenario({'test_1': 4, 'test_2': 5})])
+            Using individual string arguments:
+            >>> from edsl.scenarios import Scenario
+            >>> s = Scenario({"food": "chips", "drink": "water", "dessert": "cake"})
+            >>> selector = ScenarioSelector(s)
+            >>> result = selector.select("food", "drink")
+            >>> result
+            Scenario({'food': 'chips', 'drink': 'water'})
+            
+            Using a collection (backward compatible):
+            >>> result = selector.select(["food", "dessert"])
+            >>> result
+            Scenario({'food': 'chips', 'dessert': 'cake'})
+            
+            Single string argument:
+            >>> result = selector.select("food")
+            >>> result
+            Scenario({'food': 'chips'})
         """
-        if not self.scenario_list.data:
-            return self.scenario_list.__class__([])
-
-        # Convert single string to list for consistent processing
-        patterns = list(fields)
-
-        # Get all fields that match the patterns
-        fields_to_select = self._get_matching_fields(patterns)
-
-        # If no fields match, raise an informative error
-        if not fields_to_select:
-            raise ValueError(
-                f"No fields matched the given patterns: {patterns}. "
-                f"Available fields are: {self.available_fields}"
-            )
-
-        new_sl = self.scenario_list.__class__(
-            data=[], codebook=self.scenario_list.codebook
-        )
-        for scenario in self.scenario_list:
-            new_sl.append(scenario.select(fields_to_select))
-        return new_sl
-
-    def get_available_fields(self) -> list[str]:
+        keys_to_select = self._parse_arguments(*args)
+        return self._create_scenario_with_keys(keys_to_select, include=True)
+    
+    def drop(self, *args: Union[str, Iterable[str]]) -> "Scenario":
         """
-        Returns a list of all available fields in the ScenarioList.
-
+        Drop specified keys from the scenario to create a new scenario.
+        
+        This method creates a new scenario containing all keys except the ones
+        specified for dropping. It supports both individual string arguments
+        and collection arguments for backward compatibility.
+        
+        Args:
+            *args: Either a single collection of keys (for backward compatibility)
+                   or individual string arguments for keys to drop.
+                   
         Returns:
-            List of field names available for selection.
-
+            A new Scenario containing all keys except the dropped ones.
+            
         Examples:
-            >>> from edsl import Scenario, ScenarioList
-            >>> scenarios = ScenarioList([Scenario({'test_1': 1, 'test_2': 2, 'other': 3})])
-            >>> selector = ScenarioSelector(scenarios)
-            >>> selector.get_available_fields()
-            ['other', 'test_1', 'test_2']
+            Using individual string arguments:
+            >>> from edsl.scenarios import Scenario
+            >>> s = Scenario({"food": "chips", "drink": "water", "dessert": "cake"})
+            >>> selector = ScenarioSelector(s)
+            >>> result = selector.drop("drink", "dessert")
+            >>> result
+            Scenario({'food': 'chips'})
+            
+            Using a collection (backward compatible):
+            >>> result = selector.drop(["food"])
+            >>> result
+            Scenario({'drink': 'water', 'dessert': 'cake'})
+            
+            Single string argument:
+            >>> result = selector.drop("dessert")
+            >>> result
+            Scenario({'food': 'chips', 'drink': 'water'})
         """
-        return sorted(self.available_fields)
+        keys_to_drop = self._parse_arguments(*args)
+        return self._create_scenario_with_keys(keys_to_drop, include=False)
+    
+    def keep(self, *args: Union[str, Iterable[str]]) -> "Scenario":
+        """
+        Keep specified keys from the scenario (alias for select).
+        
+        This method is an alias for select() and creates a new scenario 
+        containing only the specified keys from the original scenario.
+        
+        Args:
+            *args: Either a single collection of keys (for backward compatibility)
+                   or individual string arguments for keys to keep.
+                   
+        Returns:
+            A new Scenario containing only the kept keys and their values.
+            
+        Examples:
+            Using individual string arguments:
+            >>> from edsl.scenarios import Scenario
+            >>> s = Scenario({"food": "chips", "drink": "water", "dessert": "cake"})
+            >>> selector = ScenarioSelector(s)
+            >>> result = selector.keep("food", "drink")
+            >>> result
+            Scenario({'food': 'chips', 'drink': 'water'})
+        """
+        return self.select(*args)
+    
+    def _parse_arguments(self, *args: Union[str, Iterable[str]]) -> List[str]:
+        """
+        Parse the variable arguments to extract a list of keys.
+        
+        This method handles both the new variable string argument style and
+        the legacy collection argument style for backward compatibility.
+        
+        Args:
+            *args: Variable arguments that can be either individual strings
+                   or a single collection of strings.
+                   
+        Returns:
+            A list of key strings to operate on.
+            
+        Raises:
+            ValueError: If no arguments are provided or if arguments are invalid.
+            
+        Examples:
+            >>> from edsl.scenarios import Scenario
+            >>> s = Scenario({"a": 1, "b": 2})
+            >>> selector = ScenarioSelector(s)
+            >>> selector._parse_arguments("a", "b")
+            ['a', 'b']
+            >>> selector._parse_arguments(["a", "b"])
+            ['a', 'b']
+            >>> selector._parse_arguments("a")
+            ['a']
+        """
+        if not args:
+            raise ValueError("At least one key must be specified")
+            
+        if len(args) == 1:
+            first_arg = args[0]
+            # Check if it's a single string or a collection
+            if isinstance(first_arg, str):
+                # Single string key
+                return [first_arg]
+            else:
+                # Collection of keys (backward compatibility)
+                try:
+                    return list(first_arg)
+                except TypeError:
+                    raise ValueError(f"Invalid argument type: {type(first_arg)}. Expected string or iterable of strings.")
+        else:
+            # Multiple string arguments
+            for arg in args:
+                if not isinstance(arg, str):
+                    raise ValueError(f"All arguments must be strings when using multiple arguments. Got: {type(arg)}")
+            return list(args)
+    
+    def _create_scenario_with_keys(self, keys: List[str], include: bool) -> "Scenario":
+        """
+        Create a new scenario with specified keys included or excluded.
+        
+        Args:
+            keys: List of keys to include or exclude.
+            include: If True, include only these keys. If False, exclude these keys.
+            
+        Returns:
+            A new Scenario with the specified keys included or excluded.
+            
+        Raises:
+            KeyError: If trying to include keys that don't exist in the scenario.
+        """
+        # Import here to avoid circular imports
+        try:
+            from .scenario import Scenario
+        except ImportError:
+            # For doctest execution
+            from edsl.scenarios.scenario import Scenario
+            
+        new_scenario = Scenario()
+        keys_set = set(keys)
+        
+        if include:
+            # Select mode: include only specified keys
+            for key in keys:
+                if key not in self.scenario:
+                    raise KeyError(f"Key '{key}' not found in scenario")
+                new_scenario[key] = self.scenario[key]
+        else:
+            # Drop mode: include all keys except specified ones
+            for key in self.scenario.keys():
+                if key not in keys_set:
+                    new_scenario[key] = self.scenario[key]
+                    
+        return new_scenario
+    
+    def get_available_keys(self) -> List[str]:
+        """
+        Get all available keys in the scenario.
+        
+        Returns:
+            A list of all keys present in the scenario.
+            
+        Examples:
+            >>> from edsl.scenarios import Scenario
+            >>> s = Scenario({"name": "Alice", "age": 30, "city": "NYC"})
+            >>> selector = ScenarioSelector(s)
+            >>> keys = selector.get_available_keys()
+            >>> sorted(keys)
+            ['age', 'city', 'name']
+        """
+        return list(self.scenario.keys())
+    
+    def has_keys(self, *keys: str) -> bool:
+        """
+        Check if the scenario contains all specified keys.
+        
+        Args:
+            *keys: Keys to check for existence.
+            
+        Returns:
+            True if all specified keys exist in the scenario, False otherwise.
+            
+        Examples:
+            >>> from edsl.scenarios import Scenario
+            >>> s = Scenario({"name": "Alice", "age": 30})
+            >>> selector = ScenarioSelector(s)
+            >>> selector.has_keys("name", "age")
+            True
+            >>> selector.has_keys("name", "city")
+            False
+        """
+        return all(key in self.scenario for key in keys)
+    
+    def has_any_keys(self, *keys: str) -> bool:
+        """
+        Check if the scenario contains any of the specified keys.
+        
+        Args:
+            *keys: Keys to check for existence.
+            
+        Returns:
+            True if any of the specified keys exist in the scenario, False otherwise.
+            
+        Examples:
+            >>> from edsl.scenarios import Scenario
+            >>> s = Scenario({"name": "Alice", "age": 30})
+            >>> selector = ScenarioSelector(s)
+            >>> selector.has_any_keys("name", "city")
+            True
+            >>> selector.has_any_keys("city", "country")
+            False
+        """
+        return any(key in self.scenario for key in keys)
+    
+    def filter_existing_keys(self, *keys: str) -> List[str]:
+        """
+        Filter the provided keys to only include those that exist in the scenario.
+        
+        Args:
+            *keys: Keys to filter.
+            
+        Returns:
+            A list containing only the keys that exist in the scenario.
+            
+        Examples:
+            >>> from edsl.scenarios import Scenario
+            >>> s = Scenario({"name": "Alice", "age": 30})
+            >>> selector = ScenarioSelector(s)
+            >>> selector.filter_existing_keys("name", "city", "age")
+            ['name', 'age']
+        """
+        return [key for key in keys if key in self.scenario]
 
 
 if __name__ == "__main__":
     import doctest
-
     doctest.testmod(optionflags=doctest.ELLIPSIS)

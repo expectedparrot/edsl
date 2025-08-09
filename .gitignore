@@ -45,3 +45,4 @@ probable_junk/
 .env*
 docs/notebooks/drafts/*
 test.py
+edsl/widgets/src/
