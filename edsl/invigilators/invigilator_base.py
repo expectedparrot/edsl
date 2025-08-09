@@ -222,7 +222,7 @@ class InvigilatorBase(ABC):
         from ..surveys.memory import MemoryPlan
         from ..language_models import LanguageModel
         from ..surveys import Survey
-        from ..data import Cache
+        from ..caching import Cache
 
         # Map attribute names to their corresponding classes
         attributes_to_classes = {

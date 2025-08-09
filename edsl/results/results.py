@@ -1129,7 +1129,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         from ..caching import Cache
 
         c = Cache()
-        job = Jobs.example(randomize=randomize)
+        job = Jobs.example(randomize=randomize, test_model=True)
         results = job.run(
             cache=c,
             stop_on_exception=True,
@@ -1138,7 +1138,6 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             disable_remote_cache=True,
             disable_remote_inference=True,
         )
-
         return results
 
     def rich_print(self):

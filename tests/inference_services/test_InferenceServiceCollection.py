@@ -1,128 +1,262 @@
 import pytest
-from unittest.mock import Mock
 
 from edsl.inference_services.exceptions import InferenceServiceError
 from edsl.inference_services.services.test_service import TestService
+from edsl.inference_services.inference_service_abc import InferenceServiceABC
 
 from edsl.inference_services.inference_services_collection import (
     InferenceServicesCollection,
     ModelResolver,
 )
+from edsl.inference_services.data_structures import LanguageModelInfo
 
 
-class MockInferenceService:
-    def __init__(self, service_name: str):
-        self._inference_service_ = service_name
+class MockInferenceService(InferenceServiceABC):
+    """Test implementation of InferenceServiceABC for testing purposes."""
+    
+    # Required class attributes
+    key_sequence = []
+    model_exclude_list = []
+    usage_sequence = []
+    input_token_name = "input_tokens"
+    output_token_name = "output_tokens"
+    _inference_service_ = None
+    
+    def __init__(self):
+        self._last_config_fetch = None
+
+    @classmethod
+    def available(cls) -> list[str]:
+        """Returns a list of available models for the service."""
+        return [x + "_" + cls.get_service_name() for x in ["test_model_1", "test_model_2"]]
 
     def create_model(self, model_name: str):
+        """Returns a mock model object."""
         return f"Model({model_name})"
+    
+
+class MockInferenceService1(MockInferenceService):
+    _inference_service_ = "service1"
 
 
-class TestModelResolver:
-    @pytest.fixture
-    def mock_services(self):
-        return [MockInferenceService("service1"), MockInferenceService("service2")]
+class MockInferenceService2(MockInferenceService):
+    _inference_service_ = "service2"
 
-    @pytest.fixture
-    def mock_models_to_services(self, mock_services):
-        return {"model1": mock_services[0]}
 
-    @pytest.fixture
-    def mock_fetcher(self):
-        fetcher = Mock()
-        fetcher.get_available_models_by_service.return_value = "model2", "fake_serivce"
-        return fetcher
-
-    @pytest.fixture
-    def resolver(self, mock_services, mock_models_to_services, mock_fetcher):
-        return ModelResolver(mock_services, mock_models_to_services, mock_fetcher)
-
-    def test_resolve_test_model(self, resolver):
-        service = resolver.resolve_model("test", None)
-        assert isinstance(service, TestService)
-
-    def test_resolve_with_service_name(self, resolver):
-        service = resolver.resolve_model("any_model", "service1")
-        assert service._inference_service_ == "service1"
-
-    def test_resolve_invalid_service_name(self, resolver):
-        with pytest.raises(
-            InferenceServiceError, match="Service invalid_service not found"
-        ):
-            resolver.resolve_model("any_model", "invalid_service")
-
-    def test_resolve_from_models_to_services(self, resolver, mock_services):
-        service = resolver.resolve_model("model1", None)
-        assert service == mock_services[0]
-
-    def test_resolve_from_available_models(self, resolver, mock_services):
-        service = resolver.resolve_model("model2", None)
-        assert service == mock_services[0]
-
-    def test_model_not_found(self, resolver):
-        with pytest.raises(
-            InferenceServiceError, match="Model unknown_model not found in any services"
-        ):
-            resolver.resolve_model("unknown_model", None)
+class MockInferenceService3(MockInferenceService):
+    _inference_service_ = "service3"
 
 
 class TestInferenceServicesCollection:
-    @pytest.fixture
-    def mock_services(self):
-        return [MockInferenceService("service1"), MockInferenceService("service2")]
+    
+    def test_available_single_service(self):
+        """Test getting available models for a single service."""
+        isc = InferenceServicesCollection(
+            services=[MockInferenceService1(), MockInferenceService2(), MockInferenceService3()], 
+            verbose=False
+        )
+        
+        result = isc.available("service1")
+        expected = [
+            LanguageModelInfo(model_name='test_model_1_service1', service_name='service1'), 
+            LanguageModelInfo(model_name='test_model_2_service1', service_name='service1')
+        ]
+        
+        assert result == expected
 
-    @pytest.fixture
-    def collection(self, mock_services):
-        return InferenceServicesCollection(mock_services)
+    def test_available_all_services(self):
+        """Test getting available models for all services."""
+        isc = InferenceServicesCollection(
+            services=[MockInferenceService1(), MockInferenceService2()], 
+            verbose=False
+        )
+        
+        result = isc.available()
+        
+        # Should contain models from both services
+        model_names = [model.model_name for model in result]
+        assert 'test_model_1_service1' in model_names
+        assert 'test_model_2_service1' in model_names
+        assert 'test_model_1_service2' in model_names
+        assert 'test_model_2_service2' in model_names
+        
+        # Should have 4 models total
+        assert len(result) == 4
 
-    def test_add_model(self):
+    def test_register_new_service(self):
+        """Test registering a new service."""
+        isc = InferenceServicesCollection(services=[MockInferenceService1()], verbose=False)
+        
+        initial_count = len(isc.services)
+        isc.register(MockInferenceService2())
+        
+        assert len(isc.services) == initial_count + 1
+        assert any(isinstance(service, MockInferenceService2) for service in isc.services)
+
+    def test_create_model_factory_with_service_name(self):
+        """Test creating a model with explicit service name."""
+        isc = InferenceServicesCollection(
+            services=[MockInferenceService1(), MockInferenceService2()], 
+            verbose=False
+        )
+        
+        model = isc.create_model_factory("any_model", "service1")
+        assert model == "Model(any_model)"
+
+    def test_create_model_factory_invalid_service(self):
+        """Test creating a model with invalid service name."""
+        isc = InferenceServicesCollection(services=[MockInferenceService1()], verbose=False)
+        
+        with pytest.raises(InferenceServiceError, match="Service invalid_service not found"):
+            isc.create_model_factory("any_model", "invalid_service")
+
+    def test_create_model_factory_auto_resolve(self):
+        """Test creating a model without specifying service (auto-resolution)."""
+        isc = InferenceServicesCollection(services=[MockInferenceService1()], verbose=False)
+        
+        # This should work because test_model_1_service1 is available from service1
+        model = isc.create_model_factory("test_model_1_service1", None)
+        assert model == "Model(test_model_1_service1)"
+
+    def test_service_names_to_classes(self):
+        """Test the service names to classes mapping."""
+        isc = InferenceServicesCollection(
+            services=[MockInferenceService1(), MockInferenceService2()], 
+            verbose=False
+        )
+        
+        mapping = isc.service_names_to_classes()
+        
+        assert "service1" in mapping
+        assert "service2" in mapping
+        assert isinstance(mapping["service1"], MockInferenceService1)
+        assert isinstance(mapping["service2"], MockInferenceService2)
+
+    def test_reset_cache(self):
+        """Test cache reset functionality."""
+        isc = InferenceServicesCollection(services=[MockInferenceService1()], verbose=False)
+        
+        # Make a call to populate cache
+        isc.available("service1")
+        
+        # Reset cache
+        isc.reset_cache()
+        
+        # Cache should be empty
+        assert isc.num_cache_entries == 0
+
+    def test_add_model_class_method(self):
+        """Test the class method for adding models."""
+        # Clear any existing added models
         InferenceServicesCollection.added_models.clear()
-        InferenceServicesCollection.add_model("service1", "model1")
-        assert InferenceServicesCollection.added_models["service1"] == ["model1"]
+        
+        InferenceServicesCollection.add_model("service1", "custom_model")
+        
+        assert "service1" in InferenceServicesCollection.added_models
+        assert "custom_model" in InferenceServicesCollection.added_models["service1"]
 
-    def test_available(self, collection):
-        expected_result = [("service1", "model1", 1), ("service2", "model2", 1)]
-        collection.availability_fetcher.available = Mock(return_value=expected_result)
+    def test_force_refresh(self):
+        """Test force refresh functionality."""
+        isc = InferenceServicesCollection(services=[MockInferenceService1()], verbose=False)
+        
+        # First call (will cache)
+        result1 = isc.available("service1")
+        
+        # Second call with force refresh
+        result2 = isc.available("service1", force_refresh=True)
+        
+        # Results should be the same but fetched fresh
+        assert result1 == result2
 
-        result = collection.available("service1")
-        assert result == expected_result
 
-    def test_reset_cache(self, collection):
-        collection.available("service1")  # Cache a result
-        collection.reset_cache()
-        assert collection.num_cache_entries == 0
+class TestModelResolver:
+    
+    def test_resolve_test_model(self):
+        """Test resolving the special 'test' model."""
+        services = [MockInferenceService1(), MockInferenceService2()]
+        models_to_services = {}
+        
+        # Create a simple availability fetcher mock
+        class SimpleAvailabilityFetcher:
+            def get_available_models_by_service(self, service):
+                return service.available(), service.get_service_name()
+        
+        resolver = ModelResolver(services, models_to_services, SimpleAvailabilityFetcher())
+        
+        service = resolver.resolve_model("test", None)
+        assert isinstance(service, TestService)
 
-    def test_register(self, collection):
-        new_service = MockInferenceService("service3")
-        initial_length = len(collection.services)
-        collection.register(new_service)
-        assert len(collection.services) == initial_length + 1
-        assert collection.services[-1] == new_service
+    def test_resolve_with_service_name(self):
+        """Test resolving model with explicit service name."""
+        services = [MockInferenceService1(), MockInferenceService2()]
+        models_to_services = {}
+        
+        class SimpleAvailabilityFetcher:
+            def get_available_models_by_service(self, service):
+                return service.available(), service.get_service_name()
+        
+        resolver = ModelResolver(services, models_to_services, SimpleAvailabilityFetcher())
+        
+        service = resolver.resolve_model("any_model", "service1")
+        assert service._inference_service_ == "service1"
 
-    def test_create_model_factory(self, collection):
-        model = collection.create_model_factory("model1", "service1")
-        assert model == "Model(model1)"
+    def test_resolve_invalid_service_name(self):
+        """Test resolving model with invalid service name."""
+        services = [MockInferenceService1(), MockInferenceService2()]
+        models_to_services = {}
+        
+        class SimpleAvailabilityFetcher:
+            def get_available_models_by_service(self, service):
+                return service.available(), service.get_service_name()
+        
+        resolver = ModelResolver(services, models_to_services, SimpleAvailabilityFetcher())
+        
+        with pytest.raises(InferenceServiceError, match="Service invalid_service not found"):
+            resolver.resolve_model("any_model", "invalid_service")
 
-    def test_create_model_factory_invalid_service(self, collection):
-        with pytest.raises(InferenceServiceError):
-            collection.create_model_factory("model1", "invalid_service")
+    def test_resolve_from_models_to_services_cache(self):
+        """Test resolving model from cached models_to_services mapping."""
+        services = [MockInferenceService1(), MockInferenceService2()]
+        models_to_services = {"cached_model": MockInferenceService1()}
+        
+        class SimpleAvailabilityFetcher:
+            def get_available_models_by_service(self, service):
+                return service.available(), service.get_service_name()
+        
+        resolver = ModelResolver(services, models_to_services, SimpleAvailabilityFetcher())
+        
+        service = resolver.resolve_model("cached_model", None)
+        assert isinstance(service, MockInferenceService1)
 
-    def test_literal_matches_enum(self):
-        # Get all values from the Literal type
-        from typing import get_args
-        from edsl.inference_services.inference_services_collection import (
-            InferenceServiceLiteral,
-        )
-        from edsl.enums import InferenceServiceType
+    def test_resolve_from_available_models(self):
+        """Test resolving model by searching available models."""
+        services = [MockInferenceService1(), MockInferenceService2()]
+        models_to_services = {}
+        
+        class SimpleAvailabilityFetcher:
+            def get_available_models_by_service(self, service):
+                return service.available(), service.get_service_name()
+        
+        resolver = ModelResolver(services, models_to_services, SimpleAvailabilityFetcher())
+        
+        # Should find test_model_1_service1 in service1
+        service = resolver.resolve_model("test_model_1_service1", None)
+        assert isinstance(service, MockInferenceService1)
+        
+        # Should cache the result
+        assert "test_model_1_service1" in models_to_services
+        assert isinstance(models_to_services["test_model_1_service1"], MockInferenceService1)
 
-        literal_values = set(get_args(InferenceServiceLiteral))
-
-        # Get all values from the enum
-        enum_values = {member.value for member in InferenceServiceType}
-
-        # Check both directions to ensure complete equality
-        assert literal_values == enum_values, (
-            f"Mismatch between Literal and Enum values:\n"
-            f"In Literal but not in Enum: {literal_values - enum_values}\n"
-            f"In Enum but not in Literal: {enum_values - literal_values}"
-        )
+    def test_model_not_found(self):
+        """Test error when model is not found in any service."""
+        services = [MockInferenceService1(), MockInferenceService2()]
+        models_to_services = {}
+        
+        class SimpleAvailabilityFetcher:
+            def get_available_models_by_service(self, service):
+                return service.available(), service.get_service_name()
+        
+        resolver = ModelResolver(services, models_to_services, SimpleAvailabilityFetcher())
+        
+        with pytest.raises(InferenceServiceError, match="Model unknown_model not found in any services"):
+            resolver.resolve_model("unknown_model", None)

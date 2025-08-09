@@ -27,9 +27,6 @@ from collections import UserDict
 from typing import Any, Callable, Optional, TYPE_CHECKING, Union
 
 from ..base import Base
-from ..agents import Agent
-from ..scenarios import Scenario
-from ..surveys import Survey
 
 if TYPE_CHECKING:
     from ..agents import Agent
