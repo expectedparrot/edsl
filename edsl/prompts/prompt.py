@@ -90,35 +90,38 @@ def _cached_render(text: str, frozen_replacements: frozenset) -> str:
     return result
 
 
-class Prompt(PersistenceMixin, RepresentationMixin):
+class Prompt(str, PersistenceMixin, RepresentationMixin):
     """Class for creating a prompt to be used in a survey."""
 
     default_instructions: Optional[str] = "Do good things, friendly LLM!"
 
-    def __len__(self):
-        """Return the length of the prompt text."""
-        return len(self.text)
-
-    @classmethod
-    def prompt_attributes(cls) -> List[str]:
-        """Return the prompt class attributes."""
-        return {k: v for k, v in cls.__dict__.items() if not k.startswith("_")}
+    def __new__(cls, text: Optional[str] = None):
+        """Create a new Prompt instance (required for str subclassing)."""
+        if text is None:
+            if hasattr(cls, "default_instructions"):
+                text = cls.default_instructions
+            else:
+                text = ""
+        if isinstance(text, Prompt):
+            # make it idempotent w/ a prompt
+            text = str(text)
+        
+        # Create the string instance
+        instance = str.__new__(cls, text)
+        return instance
 
     def __init__(self, text: Optional[str] = None):
         """Create a `Prompt` object.
 
         :param text: The text of the prompt.
         """
-        if text is None:
-            if hasattr(self, "default_instructions"):
-                text = self.default_instructions
-            else:
-                text = ""
-        if isinstance(text, Prompt):
-            # make it idempotent w/ a prompt
-            text = text.text
-        self._text = text
+        # String content is already set in __new__, just initialize other attributes
         self.captured_variables = {}
+
+    @classmethod
+    def prompt_attributes(cls) -> List[str]:
+        """Return the prompt class attributes."""
+        return {k: v for k, v in cls.__dict__.items() if not k.startswith("_")}
 
     @classmethod
     def from_txt(cls, filename: str) -> "Prompt":
@@ -170,7 +173,7 @@ class Prompt(PersistenceMixin, RepresentationMixin):
     @property
     def text(self) -> str:
         """Return the `Prompt` text."""
-        return self._text
+        return str(self)
 
     def __add__(self, other_prompt) -> "Prompt":
         """Add two prompts together.
@@ -186,32 +189,10 @@ class Prompt(PersistenceMixin, RepresentationMixin):
         Prompt(text=\"""Hello, {{person}}How are you?\""")
         """
         if isinstance(other_prompt, str):
-            return self.__class__(self.text + other_prompt)
+            return self.__class__(str(self) + other_prompt)
         else:
-            return self.__class__(text=self.text + other_prompt.text)
+            return self.__class__(str(self) + str(other_prompt))
 
-    def __str__(self):
-        """Return the `Prompt` text.
-
-        Example:
-        >>> p = Prompt("Hello, {{person}}")
-        >>> str(p)
-        'Hello, {{person}}'
-        """
-        return self.text
-
-    def __contains__(self, text_to_check) -> bool:
-        """Check if the text_to_check is in the `Prompt` text.
-
-        Example:
-
-        >>> p = Prompt("Hello, {{person}}")
-        >>> "person" in p
-        True
-        >>> "person2" in p
-        False
-        """
-        return text_to_check in self.text
 
     def __repr__(self):
         """Return the `Prompt` text.
@@ -221,11 +202,11 @@ class Prompt(PersistenceMixin, RepresentationMixin):
         >>> p
         Prompt(text=\"""Hello, {{person}}\""")
         """
-        return f'Prompt(text="""{self.text}""")'
+        return f'Prompt(text="""{str(self)}""")'
 
     def template_variables(self) -> list[str]:
         """Return the variables in the template."""
-        return _find_template_variables(self.text)
+        return _find_template_variables(str(self))
 
     def undefined_template_variables(self, replacement_dict: dict) -> list[str]:
         """Return the variables in the template that are not in the replacement_dict.
@@ -294,7 +275,7 @@ class Prompt(PersistenceMixin, RepresentationMixin):
         try:
             template_vars = TemplateVars()
             new_text, captured_vars = self._render(
-                self.text, primary_replacement, template_vars, **additional_replacements
+                str(self), primary_replacement, template_vars, **additional_replacements
             )
             result = Prompt(text=new_text)
             result.captured_variables = captured_vars
@@ -364,7 +345,7 @@ class Prompt(PersistenceMixin, RepresentationMixin):
         {'text': 'Hello, {{person}}', 'class_name': 'Prompt'}
 
         """
-        return {"text": self.text, "class_name": self.__class__.__name__}
+        return {"text": str(self), "class_name": self.__class__.__name__}
 
     @classmethod
     def from_dict(cls, data) -> "Prompt":
