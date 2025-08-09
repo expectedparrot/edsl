@@ -31,10 +31,45 @@ class InferenceServiceABC(ABC):
                 raise InferenceServiceNotImplementedError(
                     f"Class {cls.__name__} must have a '{attr}' attribute."
                 )
+        
+        # Check that 'available' method exists and is a class method
+        if not hasattr(cls, 'available'):
+            from .exceptions import InferenceServiceNotImplementedError
+            raise InferenceServiceNotImplementedError(
+                f"Class {cls.__name__} must have an 'available' method."
+            )
+        
+        # Check that 'available' is a class method by looking in the class __dict__
+        # We need to check the raw descriptor, not the bound method
+        available_method = None
+        for base_cls in cls.__mro__:  # Check the method resolution order
+            if 'available' in base_cls.__dict__:
+                available_method = base_cls.__dict__['available']
+                break
+        
+        if available_method is not None and not isinstance(available_method, classmethod):
+            from .exceptions import InferenceServiceNotImplementedError
+            raise InferenceServiceNotImplementedError(
+                f"Class {cls.__name__} 'available' method must be a class method (use @classmethod decorator)."
+            )
 
     @property
-    def service_name(self):
+    def service_name(self) -> str:
+        """
+        Returns the name of the service.
+        """
         return self._inference_service_
+    
+    @classmethod
+    def get_service_name(cls) -> str:
+        """
+        Returns the name of the service.
+        
+        >>> from edsl.inference_services.services import OpenAIService
+        >>> OpenAIService.get_service_name()
+        'openai'
+        """
+        return cls._inference_service_
 
     @classmethod
     def _should_refresh_coop_config_vars(cls):
@@ -46,17 +81,29 @@ class InferenceServiceABC(ABC):
             return True
         return (datetime.now() - cls._last_config_fetch) > timedelta(hours=24)
 
+    @classmethod
     @abstractmethod
-    def available() -> list[str]:
+    def available(cls) -> list[str]:
         """
         Returns a list of available models for the service.
+
+        >>> example = InferenceServiceABC.example()
+        >>> example.available()
+        ['test_model_1', 'test_model_2']
         """
-        pass
+    
+
+    def __repr__(self) -> str: 
+        return f"<{self.get_service_name()}>"
 
     @abstractmethod
     def create_model():
         """
         Returns a LanguageModel object.
+
+        >>> example = InferenceServiceABC.example()
+        >>> example.create_model(model_name="test_model_1")
+        'Model(test_model_1)'
         """
         pass
 
@@ -74,6 +121,40 @@ class InferenceServiceABC(ABC):
         if s and s[0].isdigit():
             s = "Class" + s
         return s
+    
+    @classmethod
+    def example(cls, return_class: bool = False):
+        """
+        Returns a test implementation of InferenceServiceABC for testing purposes.
+        """
+
+        class TestInferenceService(cls):
+            """Test implementation of InferenceServiceABC for testing purposes."""
+            
+            # Required class attributes
+            key_sequence = []
+            model_exclude_list = []
+            usage_sequence = []
+            input_token_name = "input_tokens"
+            output_token_name = "output_tokens"
+            _inference_service_ = "test_service"
+            
+            def __init__(self):
+                self._inference_service_ = "test_service"
+                self._last_config_fetch = None
+
+            @classmethod
+            def available(cls) -> list[str]:
+                """Returns a list of available models for the service."""
+                return ["test_model_1", "test_model_2"]
+
+            def create_model(self, model_name: str):
+                """Returns a mock model object."""
+                return f"Model({model_name})"
+        if return_class:
+            return TestInferenceService
+        else:
+            return TestInferenceService()
 
 
 if __name__ == "__main__":

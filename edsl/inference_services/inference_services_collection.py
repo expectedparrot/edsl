@@ -78,12 +78,12 @@ class ModelResolver:
 class InferenceServicesCollection:
     added_models = defaultdict(list)  # Moved back to class level
 
-    def __init__(self, services: Optional[List[InferenceServiceABC]] = None):
+    def __init__(self, services: Optional[List[InferenceServiceABC]] = None, verbose: bool = False):
         self.services = services or []
         self._models_to_services: Dict[str, InferenceServiceABC] = {}
 
         self.availability_fetcher = AvailableModelFetcher(
-            self.services, self.added_models
+            services = self.services, added_models = self.added_models, verbose=verbose
         )
         self.resolver = ModelResolver(
             self.services, self._models_to_services, self.availability_fetcher
@@ -95,7 +95,7 @@ class InferenceServicesCollection:
             cls.added_models[service_name].append(model_name)
 
     def service_names_to_classes(self) -> Dict[str, InferenceServiceABC]:
-        return {service._inference_service_: service for service in self.services}
+        return {service.get_service_name(): service for service in self.services}
 
     def available(
         self,

@@ -1,15 +1,20 @@
-from typing import List, Optional, Dict
+from typing import List, Optional, Dict, TYPE_CHECKING
 from collections import UserList
 import uuid
 
 from ..base import ItemCollection
-from ..agents import AgentList
 from ..results import Results
+
+if TYPE_CHECKING:
+    from ..agents import AgentList
 
 class ResultsList(ItemCollection): 
     item_class = Results
 
     def create_agents(self, agent_name_fields: Optional[List[str]] = None, name: Optional[str] = None) -> 'AgentList':
+        # Lazy import to avoid circular dependency
+        from ..agents import AgentList
+        
         if agent_name_fields is None:
             agent_name_fields = ["last_name", "first_name"]
 

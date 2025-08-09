@@ -154,16 +154,7 @@ class Model(metaclass=Meta):
         >>> Model.services()
         [...]
         """
-        return PrettyList(
-            sorted(
-                [
-                    [r._inference_service_]
-                    for r in cls.get_registry().services
-                    if r._inference_service_.lower() != "test"
-                ]
-            ),
-            columns=["Service Name"],
-        )
+        return [r.get_service_name() for r in cls.get_registry().services if r.get_service_name().lower() != "test"]
 
     @classmethod
     def services_with_local_keys(cls) -> set:
