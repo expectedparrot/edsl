@@ -10,3 +10,4 @@ class DeepSeekService(OpenAIService):
     _env_key_name_ = "DEEPSEEK_API_KEY"
     _base_url_ = "https://api.deepseek.com"
     _models_list_cache: List[str] = []
+

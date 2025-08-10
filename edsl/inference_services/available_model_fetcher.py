@@ -115,7 +115,7 @@ class FreshModelFetcher:
         self.cache_handler = cache_handler
         self.verbose = verbose
     
-    def fetch_models(self, service: InferenceServiceABC) -> Tuple[AvailableModels, str]:
+    def fetch_models(self, service: InferenceServiceABC, force_refresh: bool = False) -> Tuple[AvailableModels, str]:
         """Fetch fresh models from service API.
         
         >>> from edsl.inference_services.inference_service_abc import InferenceServiceABC
@@ -132,7 +132,7 @@ class FreshModelFetcher:
             print("Fetching fresh models using ServiceAvailability class")
             print("Service:", service)
         service_models: ModelNamesList = (
-            self.service_availability.get_service_available(service, warn=False)
+            self.service_availability.get_service_available(service, warn=False, force_refresh=force_refresh)
         )
         
         if self.verbose:
@@ -317,15 +317,15 @@ class AvailableModelFetcher:
         # Try cache first
         models_from_cache = self.cached_model_fetcher.fetch_models(service, force_refresh)
         
-        if models_from_cache:
+        if models_from_cache is not None:
             return models_from_cache, service._inference_service_
         else:
             if self.verbose:
                 print("No models found in cache, fetching fresh models")
-            return self.get_available_models_by_service_fresh(service)
+            return self.get_available_models_by_service_fresh(service, force_refresh=force_refresh)
 
     def get_available_models_by_service_fresh(
-        self, service: Union["InferenceServiceABC", InferenceServiceLiteral]
+        self, service: Union["InferenceServiceABC", InferenceServiceLiteral], force_refresh: bool = False
     ) -> Tuple[AvailableModels, InferenceServiceLiteral]:
         """Get models for a single service. This method always fetches fresh data.
 
@@ -340,7 +340,7 @@ class AvailableModelFetcher:
         ([LanguageModelInfo(model_name='test_model_1', service_name='test_service'), LanguageModelInfo(model_name='test_model_2', service_name='test_service')], 'test_service')
         """
         service = self.service_resolver.resolve_service(service)
-        return self.fresh_model_fetcher.fetch_models(service)
+        return self.fresh_model_fetcher.fetch_models(service, force_refresh=force_refresh)
 
     def _fetch_service_by_service_name(
         self, service_name: InferenceServiceLiteral

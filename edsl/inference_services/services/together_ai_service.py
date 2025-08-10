@@ -4,6 +4,7 @@ from .open_ai_service import OpenAIService
 
 import openai
 
+from dataclasses import dataclass
 
 class TogetherAIService(OpenAIService):
     """DeepInfra service class."""
@@ -138,7 +139,8 @@ class TogetherAIService(OpenAIService):
     _async_client_ = openai.AsyncOpenAI
 
     @classmethod
-    def get_model_list(cls, api_token=None):
+    def get_model_info(cls, api_token=None):
+        """Get raw model info without wrapping in ModelInfo."""
         # Togheter.ai has a different response in model list then openai
         # and the OpenAI class returns an error when calling .models.list()
         import requests

@@ -10,7 +10,15 @@ if TYPE_CHECKING:
     from ...language_models import LanguageModel
 
 if TYPE_CHECKING:
-    from ....scenarios.file_store import FileStore
+    from ...scenarios.file_store import FileStore
+
+# BaseModelCard(id='mistral-medium-2505', 
+# capabilities=ModelCapabilities(completion_chat=True, completion_fim=False, function_calling=True, fine_tuning=True, vision=True), 
+# object='model', created=1754790405, owned_by='mistralai', name='mistral-medium-2505', 
+# description='Our frontier-class multimodal model released May 2025.', max_context_length=131072, 
+# aliases=['mistral-medium-latest', 'mistral-medium', 'mistral-large-latest'], deprecation=None, default_model_temperature=0.3, TYPE='base')
+#['id', 'capabilities', 'object', 'created', 'owned_by', 'name', 'description', 'max_context_length', 'aliases', 'deprecation', 'default_model_temperature', 'TYPE']
+
 
 
 class MistralAIService(InferenceServiceABC):
@@ -32,6 +40,18 @@ class MistralAIService(InferenceServiceABC):
 
     _models_list_cache: List[str] = []
     model_exclude_list = []
+
+    @classmethod
+    def get_model_info(cls):
+        """Get raw model info without wrapping in ModelInfo."""
+        from mistralai.client import MistralClient
+        api_key = os.environ.get("MISTRAL_API_KEY")
+        if not api_key:
+            raise ValueError("MISTRAL_API_KEY environment variable not set.")
+
+        client = Mistral(api_key=api_key)
+        models_response = client.models.list()
+        return models_response.data
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)

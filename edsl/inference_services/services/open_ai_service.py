@@ -13,11 +13,51 @@ if TYPE_CHECKING:
 from ..rate_limits_cache import rate_limits
 
 if TYPE_CHECKING:
-    from ....scenarios.file_store import FileStore as Files
-    from ....invigilators.invigilator_base import InvigilatorBase as InvigilatorAI
+    from ...scenarios.file_store import FileStore as Files
+    from ...invigilators.invigilator_base import InvigilatorBase as InvigilatorAI
 
 
 APIToken = NewType("APIToken", str)
+
+
+def beautify_class_name(class_name: str, module_name: str):
+    """Decorator to give dynamically created classes nicer representations."""
+    def decorator(cls):
+        cls.__name__ = class_name
+        cls.__qualname__ = class_name
+        cls.__module__ = module_name
+        return cls
+    return decorator
+
+
+class OpenAIParameterBuilder:
+    """Helper class to construct API parameters based on model type."""
+    
+    @staticmethod
+    def build_params(model: str, messages: list, **model_params) -> dict:
+        """Build API parameters, adjusting for specific model types."""
+        # Base parameters
+        params = {
+            "model": model,
+            "messages": messages,
+            "temperature": model_params.get("temperature", 0.5),
+            "max_tokens": model_params.get("max_tokens", 1000),
+            "top_p": model_params.get("top_p", 1),
+            "frequency_penalty": model_params.get("frequency_penalty", 0),
+            "presence_penalty": model_params.get("presence_penalty", 0),
+            "logprobs": model_params.get("logprobs", False),
+            "top_logprobs": model_params.get("top_logprobs", 3) if model_params.get("logprobs", False) else None,
+        }
+        
+        # Special handling for reasoning models (o1, o3)
+        if "o1" in model or "o3" in model:
+            max_tokens = params.pop("max_tokens")
+            # For reasoning models, use much higher completion tokens to allow for reasoning + response
+            reasoning_tokens = max(max_tokens, 5000)  # At least 5000 tokens for reasoning models
+            params["max_completion_tokens"] = reasoning_tokens
+            params["temperature"] = 1
+            
+        return params
 
 
 class OpenAIService(InferenceServiceABC):
@@ -88,8 +128,8 @@ class OpenAIService(InferenceServiceABC):
     _models_list_cache: List[str] = []
 
     @classmethod
-    def get_model_list(cls, api_key=None):
-        # breakpoint()
+    def get_model_info(cls, api_key=None):
+        """Get raw model info without wrapping in ModelInfo."""
         if api_key is None:
             api_key = os.getenv(cls._env_key_name_)
         raw_list = cls.sync_client(api_key).models.list()
@@ -121,6 +161,7 @@ class OpenAIService(InferenceServiceABC):
         # Import LanguageModel only when actually creating a model
         from ...language_models import LanguageModel
 
+        @beautify_class_name(model_class_name, cls.__module__)
         class LLM(LanguageModel):
             """
             Child class of LanguageModel for interacting with OpenAI models
@@ -213,31 +254,22 @@ class OpenAIService(InferenceServiceABC):
                 client = self.async_client()
                 messages = message_builder.get_messages(sync_client=self.sync_client())
 
-                params = {
-                    "model": self.model,
-                    "messages": messages,
-                    "temperature": self.temperature,
-                    "max_tokens": self.max_tokens,
-                    "top_p": self.top_p,
-                    "frequency_penalty": self.frequency_penalty,
-                    "presence_penalty": self.presence_penalty,
-                    "logprobs": self.logprobs,
-                    "top_logprobs": self.top_logprobs if self.logprobs else None,
-                }
-                if "o1" in self.model or "o3" in self.model:
-                    params.pop("max_tokens")
-                    # For reasoning models, use much higher completion tokens to allow for reasoning + response
-                    reasoning_tokens = max(
-                        self.max_tokens, 5000
-                    )  # At least 5000 tokens for reasoning models
-                    params["max_completion_tokens"] = reasoning_tokens
-                    params["temperature"] = 1
+                # Use OpenAIParameterBuilder to construct parameters
+                params = OpenAIParameterBuilder.build_params(
+                    model=self.model,
+                    messages=messages,
+                    temperature=self.temperature,
+                    max_tokens=self.max_tokens,
+                    top_p=self.top_p,
+                    frequency_penalty=self.frequency_penalty,
+                    presence_penalty=self.presence_penalty,
+                    logprobs=self.logprobs,
+                    top_logprobs=self.top_logprobs
+                )
                 try:
                     response = await client.chat.completions.create(**params)
                 except Exception as e:
                     return {"message": str(e)}
                 return response.model_dump()
-
-        LLM.__name__ = "LanguageModel"
 
         return LLM

@@ -435,7 +435,7 @@ class Jobs(Base):
         from ..language_models.model import Model
         from ..scenarios import Scenario
         self.agents = self.agents or [Agent()]
-        self.models == self._models or [Model()]
+        self.models = self.models or [Model()]
         self.scenarios = self.scenarios or [Scenario()]
 
     def generate_interviews(self) -> Generator:

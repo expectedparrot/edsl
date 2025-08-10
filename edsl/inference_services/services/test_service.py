@@ -36,6 +36,11 @@ class TestService(InferenceServiceABC):
     available_models_url = None
 
     @classmethod
+    def get_model_info(cls):
+        """Get raw model info for test service."""
+        return [{"id": "test", "name": "Test Model", "type": "test"}]
+    
+    @classmethod
     def available(cls) -> list[str]:
         return ["test"]
 
