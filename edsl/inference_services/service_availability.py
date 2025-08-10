@@ -76,7 +76,7 @@ class ServiceAvailability:
         return cls._coop_model_list
 
     def get_service_available(
-        self, service: Type["InferenceServiceABC"], warn: bool = True
+        self, service: Type["InferenceServiceABC"], warn: bool = True, force_refresh: bool = False
     ) -> ModelNamesList:
         """Get available models for a service by trying sources in order.
         
@@ -93,8 +93,8 @@ class ServiceAvailability:
         Note:
             Caches successful result on service._models_list_cache class attribute
         """
-        # Check if service already has cached models
-        if hasattr(service, '_models_list_cache') and service._models_list_cache is not None:
+        # Check if service already has cached models (unless force_refresh is True)
+        if not force_refresh and hasattr(service, '_models_list_cache') and service._models_list_cache is not None:
             if self.verbose:
                 print(f"Using cached models for {service.get_service_name()}: {service._models_list_cache}")
             return service._models_list_cache
@@ -118,8 +118,14 @@ class ServiceAvailability:
             if self.verbose:
                 print(f"Got models from {source}: {result} using ServiceAvailability class for {service.get_service_name()}")
 
-            # Cache successful result on the service class
-            service._models_list_cache = result
+            # Only cache non-empty results - empty results likely indicate transient failures
+            if result:
+                if self.verbose:
+                    print(f"Caching non-empty result for {service.get_service_name()}: {result}")
+                service._models_list_cache = result
+            else:
+                if self.verbose:
+                    print(f"NOT caching empty result for {service.get_service_name()}")
             return result
 
             # except Exception as e:

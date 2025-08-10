@@ -11,8 +11,7 @@ from ..inference_service_abc import InferenceServiceABC
 # Use TYPE_CHECKING to avoid circular imports at runtime
 if TYPE_CHECKING:
     from ...language_models import LanguageModel
-    from ....scenarios.file_store import FileStore as Files
-# from ...coop import Coop
+    from ...scenarios.file_store import FileStore as Files
 
 safety_settings = [
     {
@@ -48,12 +47,9 @@ class GoogleService(InferenceServiceABC):
     )
 
     @classmethod
-    def get_model_list(cls):
-        model_list = []
-        for m in genai.list_models():
-            if "generateContent" in m.supported_generation_methods:
-                model_list.append(m.name.split("/")[-1])
-        return model_list
+    def get_model_info(cls):
+        """Get raw model info without wrapping in ModelInfo."""
+        return list(genai.list_models())
 
     @classmethod
     def available(cls) -> List[str]:

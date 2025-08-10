@@ -7,7 +7,8 @@ from ..inference_service_abc import InferenceServiceABC
 # Use TYPE_CHECKING to avoid circular imports at runtime
 if TYPE_CHECKING:
     from ...language_models import LanguageModel
-    from ....scenarios.file_store import FileStore as Files
+    from ...scenarios.file_store import FileStore as Files
+
 
 
 class AnthropicService(InferenceServiceABC):
@@ -24,15 +25,15 @@ class AnthropicService(InferenceServiceABC):
     available_models_url = "https://docs.anthropic.com/en/docs/about-claude/models"
 
     @classmethod
-    def get_model_list(cls, api_key: str = None):
+    def get_model_info(cls, api_key: str = None):
+        """Get raw model info without wrapping in ModelInfo."""
         import requests
 
         if api_key is None:
             api_key = os.environ.get("ANTHROPIC_API_KEY")
         headers = {"x-api-key": api_key, "anthropic-version": "2023-06-01"}
         response = requests.get("https://api.anthropic.com/v1/models", headers=headers)
-        model_names = [m["id"] for m in response.json()["data"]]
-        return model_names
+        return response.json()["data"]
 
     @classmethod
     def available(cls):

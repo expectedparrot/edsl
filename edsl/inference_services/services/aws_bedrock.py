@@ -34,6 +34,13 @@ class AwsBedrockService(InferenceServiceABC):
     _models_list_cache: List[str] = []
 
     @classmethod
+    def get_model_info(cls):
+        """Get raw model info from AWS Bedrock."""
+        region = os.getenv("AWS_REGION", "us-east-1")
+        client = boto3.client("bedrock", region_name=region)
+        return client.list_foundation_models()["modelSummaries"]
+    
+    @classmethod
     def available(cls):
         """Fetch available models from AWS Bedrock."""
 

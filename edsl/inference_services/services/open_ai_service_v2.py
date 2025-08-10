@@ -89,7 +89,8 @@ class OpenAIServiceV2(InferenceServiceABC):
     _models_list_cache: List[str] = []
 
     @classmethod
-    def get_model_list(cls, api_key: Optional[str] = None) -> List[str]:
+    def get_model_info(cls, api_key: Optional[str] = None):
+        """Get raw model info without wrapping in ModelInfo."""
         if api_key is None:
             api_key = os.getenv(cls._env_key_name_)
         raw = cls.sync_client(api_key).models.list()
