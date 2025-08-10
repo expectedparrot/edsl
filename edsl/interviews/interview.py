@@ -170,7 +170,24 @@ class Interview:
         self.failed_questions = []
 
         self.indices = indices
-        self.initial_hash = hash(self)
+        # Lazy hash initialization - defer expensive computation until needed
+        self._initial_hash = None
+
+    @property
+    def initial_hash(self) -> int:
+        """
+        Lazy computation of the interview hash.
+
+        The hash is expensive to compute (involves serializing the entire interview
+        to dict and then JSON), so we defer it until it's actually needed.
+        This significantly improves Interview creation performance.
+
+        Returns:
+            int: The hash value for this interview configuration
+        """
+        if self._initial_hash is None:
+            self._initial_hash = hash(self)
+        return self._initial_hash
 
     @property
     def cache(self) -> "Cache":

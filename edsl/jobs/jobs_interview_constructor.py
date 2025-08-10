@@ -6,6 +6,8 @@ if TYPE_CHECKING:
     from .jobs import Jobs
     from ..caching import Cache
 
+import time
+
 
 class InterviewsConstructor:
     def __init__(self, jobs: "Jobs", cache: "Cache"):
@@ -29,14 +31,24 @@ class InterviewsConstructor:
         model_index = {
             hash(model): index for index, model in enumerate(self.jobs.models)
         }
-        scenario_index = {
-            hash(scenario): index for index, scenario in enumerate(self.jobs.scenarios)
-        }
+        scenario_index = {}
+        for index, scenario in enumerate(self.jobs.scenarios):
+            scenario.my_hash = hash(scenario)
+            scenario_index[scenario.my_hash] = index
 
         for agent, scenario, model in product(
             self.jobs.agents, self.jobs.scenarios, self.jobs.models
         ):
-            yield Interview(
+            agent_hash = hash(agent)
+            model_hash = hash(model)
+
+            if hasattr(scenario, "my_hash"):
+                scenario_hash = scenario.my_hash
+            else:
+                scenario_hash = hash(scenario)
+                scenario.my_hash = scenario_hash
+
+            interview = Interview(
                 survey=self.jobs.survey.draw(),  # this draw is to support shuffling of question options
                 agent=agent,
                 scenario=scenario,
@@ -45,11 +57,13 @@ class InterviewsConstructor:
                 skip_retry=self.jobs.run_config.parameters.skip_retry,
                 raise_validation_errors=self.jobs.run_config.parameters.raise_validation_errors,
                 indices={
-                    "agent": agent_index[hash(agent)],
-                    "model": model_index[hash(model)],
-                    "scenario": scenario_index[hash(scenario)],
+                    "agent": agent_index[agent_hash],
+                    "model": model_index[model_hash],
+                    "scenario": scenario_index[scenario_hash],
                 },
             )
+
+            yield interview
 
 
 if __name__ == "__main__":
