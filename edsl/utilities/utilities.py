@@ -49,7 +49,19 @@ def time_all_functions(module_or_class):
             setattr(module_or_class, name, time_it(obj))
 
 
+def truncate_base64_in_place(obj):
+    """Recursively truncate any 'base64_string' value to 1000 chars (in place)."""
+    if isinstance(obj, dict):
+        for k, v in obj.items():
+            if k == "base64_string" and isinstance(v, str) and len(v) > 1000:
+                obj[k] = v[:1000]
+            else:
+                truncate_base64_in_place(v)
+
+
 def dict_hash(data: dict):
+    truncate_base64_in_place(data)
+
     return hash(
         int(hashlib.md5(json.dumps(data, sort_keys=True).encode()).hexdigest(), 16)
     )
