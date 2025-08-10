@@ -28,6 +28,12 @@ If you use the EDSL package in your research or projects, please use the followi
 | https://github.com/bandhlab/synthetic-twin-agents-study
 
 
+| *The next generation of experimental research with LLMs*
+| Gary Charness, Brian Jabarian, John A. List 
+| March 2025
+| https://www.nature.com/articles/s41562-025-02137-1
+
+
 | *Social Science Production with LLMs*
 | Eric Vansteenberghe
 | February 2025
