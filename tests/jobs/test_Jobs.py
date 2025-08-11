@@ -135,16 +135,10 @@ def test_jobs_by_models():
     )
     survey = Survey(name="Test Survey", questions=[q])
     
-    # Get available models using the new Model.available() method
-    available_models = Model.available()
-    model1 = available_models[0]
-    
-    # Handle case when fewer than 2 models are available (e.g., in offline mode)
-    if len(available_models) < 2:
-        # Create a second test model for testing purposes
-        model2 = Model("test", service_name="test", canned_response="Test response 2")
-    else:
-        model2 = available_models[1]
+    # Use example models for reliable testing
+    example_models = ModelList.example()
+    model1 = example_models[0]
+    model2 = example_models[1]
     # by without existing models
     job = survey.by(model1)
     assert job.models == ModelList([model1])
