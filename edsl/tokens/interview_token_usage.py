@@ -1,7 +1,7 @@
 from typing import Optional
 
 from .token_usage import TokenUsage
-from ..enums import TokenPricing
+from ..base import TokenPricing
 from .exceptions import TokenUsageError
 
 
