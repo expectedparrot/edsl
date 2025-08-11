@@ -18,10 +18,9 @@ Key steps
 The key steps to creating and conducting a survey are:
 
 | 1. Create `Questions` of various types (multiple choice, checkbox, free text, numerical, linear scale, etc.) and combine them in a `Survey` to administer them together. 
-| 2. *Optional:* Add rules to skip, stop or administer questions based on conditional logic, or provide context of other questions and answers in the survey.
+| 2. *Optional:* Add rules to skip, stop or administer questions based on conditional logic, or pipe context of questions and answers into other questions.
 | 3. *Optional:* Design personas for AI `Agents` to answer the questions.
-| 4. Decide whether to use :ref:`remote_inference` or your own :ref:`api_keys` to run the survey.
-| 5. Send the survey to language `Models` of your choice to generate the responses.
+| 4. Send the survey to language `Models` of your choice to generate the responses.
 
 Sending a survey to a language model generates a dataset of `Results` that includes the responses and other components of the survey. 
 Results can be analyzed and visualized using `built-in methods <https://docs.expectedparrot.com/en/latest/results.html>`_ of the `Results` object.
@@ -48,10 +47,9 @@ The `show_prompts()`, `show_rules()` and `show_flow()` methods can be used to an
 * `show_flow()` - Display a graphic of the flow of a survey, showing the order of questions and any rules that have been applied, and any scenarios and/or agent information that has been added.
 
 When you run a survey you can choose to run it remotely at the Expected Parrot server or locally on your own machine. 
-See :ref:`remote_inference` for more information. 
-
-*New feature in progress:* When you run a job remotely you automatically have access to a universal remote cache of stored responses.
-Learn more about it in the :ref:`remote_caching` section. 
+When you run a job remotely you automatically have access to a universal remote cache of stored responses.
+This allows you to reuse responses from prior jobs, which can save time and resources (cached responses are retrieved for free).
+Learn more in the :ref:`remote_inference` and :ref:`remote_caching` sections. 
 
 You can also choose to run a remote survey in the background by passing the `background=True` parameter to the `run()` method.
 This allows you to continue working (or stop working) while your job completes.
@@ -134,6 +132,22 @@ Alternatively, questions can be added to a survey one at a time:
    survey = Survey().add_question(q1).add_question(q2).add_question(q3).add_question(q4)
 
 
+Randomizing question options
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+If your survey includes multiple choice or checkbox questions, you can randomize the order of the options by passing a list of the question names to the `questions_to_randomize` parameter of the question constructor.
+For example, here we randomize the order of the options for q1 and q2:
+
+.. code-block:: python
+
+   from edsl import Survey
+
+   survey = Survey(questions = [q1, q2, q3, q4], 
+                   questions_to_randomize=["consume_local_news", "sources"])
+
+
+This will randomize the order of the options for both questions when they are administered.
+
 
 Running a survey
 ----------------
@@ -159,31 +173,26 @@ Note that the agent and model can be added in either order, so long as each type
 Job status information 
 ----------------------
 
-When you run a survey, you will see information in the console about the status of the job.
-When the job completes, you can access the `Results` object that is generated in your workspace.
-If you are running a survey remotely, you will also see a link to the results at Coop.
+When you run a survey, you will see a table of information about the job status. 
+When the job completes, you can access the `Results` object that is generated in your workspace and at your account (if the survey is run remotely).
+You can specify the visibility and description of the results when running a survey remotely by passing the `remote_inference_results_visibility` and `remote_inference_description` parameters to the `run()` method, and modify them at your account at any time.
 
-For example, if we ran the survey above remotely we would see a link to the results in the console:
-
-.. code-block:: text
-
-   Results: https://www.expectedparrot.com/content/4cfcf0c6-6aff-4447-90cb-cd9e01111a28.  
+For example, results of the above survey can be viewed at the following page which has been made public: https://www.expectedparrot.com/content/4cfcf0c6-6aff-4447-90cb-cd9e01111a28.  
 
 
-
-Progress report 
+Progress Report 
 ^^^^^^^^^^^^^^^
 
-While a job is running you can view updates in a Progress Report.
-If remote inference is activated, a link to a Progress Report will appear automatically.
+While a job is running you can view updates in a Progress Report with details on questions completed, models used and any exceptions generated.
+If remote inference is activated, a link to a Progress Report will appear automatically in the job status table.
 If you are running a survey locally, you can pass `run(progress_bar=True)` to view a report locally.
 
 
 Exceptions Report 
 ^^^^^^^^^^^^^^^^^
 
-If any exceptions are generated you can view details about them in an Exceptions Report, which includes informatoin about the questions, agents, scenarios and models that generated exceptions together with error messages and tracebacks.
-If remote inference is activated, a link to an Exceptions Report will appear automatically.
+If any exceptions are generated you can view details about them in an Exceptions Report, which includes information about the questions, agents, scenarios and models that generated exceptions together with error messages and tracebacks.
+If remote inference is activated, a link to an Exceptions Report will appear automatically in the job status table.
 If you are running a survey locally, the report details will appear in your console.
 
 
