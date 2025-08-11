@@ -1,7 +1,5 @@
 import warnings
 from typing import TYPE_CHECKING
-from ..scenarios import ScenarioList
-from ..surveys import Survey
 from .exceptions import JobsCompatibilityError
 
 if TYPE_CHECKING:
@@ -75,11 +73,6 @@ class CheckSurveyScenarioCompatibility:
                 if warn:
                     warnings.warn(message)
 
-        # if self.scenarios.has_jinja_braces:
-        #     warnings.warn(
-        #         "The scenarios have Jinja braces ({{ and }}). Converting to '<<' and '>>'. If you want a different conversion, use the convert_jinja_braces method first to modify the scenario."
-        #     )
-        #     self.scenarios = self.scenarios._convert_jinja_braces()
 
 
 if __name__ == "__main__":

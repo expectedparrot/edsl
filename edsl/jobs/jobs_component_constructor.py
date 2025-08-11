@@ -1,12 +1,12 @@
 from typing import Union, Sequence, TYPE_CHECKING
 from .exceptions import JobsValueError
-from ..scenarios import ScenarioList
 
 if TYPE_CHECKING:
     from ..agents import Agent
     from ..language_models import LanguageModel
     from ..scenarios import Scenario
     from .jobs import Jobs
+    from ..scenarios import ScenarioList
 
 
 class JobsComponentConstructor:
@@ -94,6 +94,7 @@ class JobsComponentConstructor:
         [1, 2, 3]
 
         """
+        from ..scenarios import ScenarioList
 
         def did_user_pass_a_sequence(args):
             """Return True if the user passed a sequence, False otherwise.

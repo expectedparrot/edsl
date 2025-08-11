@@ -16,7 +16,33 @@ class InferenceServiceRegistry:
 
     _default_service_preferences = ('anthropic', 'bedrock', 'azure', 'openai', 'deep_infra', 'deepseek', 'google', 'groq', 'mistral', 'ollama', 'openai_v2', 'perplexity', 'test', 'together', 'xai', 'open_router')
     
-    def __init__(self, verbose: bool = True, model_source: Optional[str] = None, service_preferences: Optional[Tuple[str, ...]] = None):
+    def _infer_service_from_model_name_fallback(self, model_name: str) -> Optional[str]:
+        """
+        TEMPORARY FALLBACK: Infer service from model name patterns.
+        
+        This is a temporary solution for deserialization compatibility.
+        TODO: Remove this function once we have proper service info in serialized data.
+        
+        Args:
+            model_name: The model name to infer service for
+            
+        Returns:
+            Service name if pattern matches, None otherwise
+        """
+        # Only handle well-known patterns to minimize risk
+        if model_name.startswith(('gpt-', 'text-davinci', 'text-curie', 'text-babbage', 'text-ada', 'davinci', 'curie', 'babbage', 'ada', 'chatgpt-', 'o1')):
+            return 'openai'
+        elif model_name.startswith('claude'):
+            return 'anthropic'
+        elif model_name.startswith('gemini'):
+            return 'google'
+        elif model_name == 'test':
+            return 'test'
+        
+        # Don't try to guess other services - too risky
+        return None
+    
+    def __init__(self, verbose: bool = False, model_source: Optional[str] = None, service_preferences: Optional[Tuple[str, ...]] = None):
         self._services = {}
         self._registration_times = {}  # Track when services were registered
         self._model_cache = {}  # Cache model lists to avoid repeated API calls
@@ -194,6 +220,53 @@ class InferenceServiceRegistry:
             # Fall back to service APIs
             return self._fetch_models_from_services_internal()
     
+    def fetch_working_models(self, return_type: str = "list"):
+        """
+        Fetch a list of working models from Coop with pricing and capability information.
+        
+        Args:
+            return_type: Either "list" for List[dict] or "scenario_list" for ScenarioList
+        
+        Returns:
+            Either a List of dictionaries or a ScenarioList containing:
+                - service: The service name (e.g., "openai")
+                - model: The model name (e.g., "gpt-4o")
+                - works_with_text: Boolean indicating text capability
+                - works_with_images: Boolean indicating image capability
+                - usd_per_1M_input_tokens: Cost per million input tokens
+                - usd_per_1M_output_tokens: Cost per million output tokens
+        
+        Example:
+            >>> registry = InferenceServiceRegistry()
+            >>> models_list = registry.fetch_working_models("list")
+            >>> models_scenarios = registry.fetch_working_models("scenario_list")
+        """
+        try:
+            if self.verbose:
+                print("[REGISTRY] Fetching working models from Coop API...")
+                
+            from edsl.coop import Coop
+            
+            c = Coop()
+            working_models = c.fetch_working_models()
+            
+            if self.verbose:
+                print(f"[REGISTRY] Coop returned {len(working_models)} working models")
+                
+            if return_type == "list":
+                return working_models
+            elif return_type == "scenario_list":
+                from ..scenarios import ScenarioList, Scenario
+                scenarios = [Scenario(model_data) for model_data in working_models]
+                return ScenarioList(scenarios)
+            else:
+                raise ValueError(f"Invalid return_type '{return_type}'. Must be 'list' or 'scenario_list'")
+                
+        except Exception as e:
+            if self.verbose:
+                print(f"[REGISTRY] Error fetching working models from Coop: {e}")
+            raise e
+    
     def _fetch_models_from_services_internal(self) -> Dict[str, List[Any]]:
         """Internal method to fetch models from service APIs."""
         if self.verbose:
@@ -212,6 +285,14 @@ class InferenceServiceRegistry:
         if not services:
             if self.verbose:
                 print(f"[REGISTRY] Model '{model_name}' not found in any service")
+            
+            # TEMPORARY: Try fallback heuristic (TODO: remove once serialization includes service info)
+            fallback_service = self._infer_service_from_model_name_fallback(model_name)
+            if fallback_service:
+                if self.verbose:
+                    print(f"[REGISTRY] Using FALLBACK heuristic service '{fallback_service}' for model '{model_name}'")
+                return fallback_service
+            
             return None
         
         if self.verbose:
@@ -342,11 +423,32 @@ class InferenceServiceRegistry:
         
         return result
     
-    def create_language_model(self, model_name: str, *args, **kwargs):
-        """Create a language model instance for the given model name."""
-        service_name = self.get_service_for_model(model_name)
-        if not service_name:
-            raise ValueError(f"No service found for model '{model_name}'")
+    def create_language_model(self, model_name: str, service_name: Optional[str] = None, *args, **kwargs):
+        """Create a language model instance for the given model name.
+        
+        Args:
+            model_name: The name of the model to create
+            service_name: Optional service name to use. If None, will lookup the preferred service for the model.
+            *args: Additional positional arguments to pass to the model constructor
+            **kwargs: Additional keyword arguments to pass to the model constructor
+            
+        Returns:
+            A language model class that can be instantiated
+            
+        Raises:
+            ValueError: If no service is found for the model (when service_name is None)
+            KeyError: If the specified service_name is not registered
+        """
+        if service_name is None:
+            # Use automatic lookup as before
+            service_name = self.get_service_for_model(model_name)
+            if not service_name:
+                raise ValueError(f"No service found for model '{model_name}'", 
+                                 f"Available services: {list(self._services.keys())}")
+        else:
+            # Use the explicitly provided service name
+            if self.verbose:
+                print(f"[REGISTRY] Using explicitly provided service '{service_name}' for model '{model_name}'")
             
         service_class = self.get_service_class(service_name)
         service_instance = service_class()
@@ -355,6 +457,32 @@ class InferenceServiceRegistry:
     def refresh_model_cache(self):
         """Force refresh of the model cache."""
         self._build_model_mappings(force_refresh=True)
+    
+    def ensure_model_mappings(self):
+        """Ensure model mappings are built (public method to replace _build_model_mappings)."""
+        self._build_model_mappings()
+    
+    def get_all_model_names(self) -> List[str]:
+        """Get a list of all known model names."""
+        self._build_model_mappings()
+        return list(self._model_to_services.keys())
+    
+    def get_model_to_services_mapping(self) -> Dict[str, List[str]]:
+        """Get the complete mapping of models to their available services."""
+        self._build_model_mappings()
+        return dict(self._model_to_services)
+    
+    def get_service_instances(self):
+        """Get service class instances for all registered services."""
+        service_instances = []
+        for service_name, service_class in self._services.items():
+            if not isinstance(service_class, dict):  # Skip info-only entries
+                try:
+                    service_instances.append(service_class())
+                except Exception:
+                    # Skip services that can't be instantiated
+                    pass
+        return service_instances
     
     def load_models_from_coop(self):
         """

@@ -251,13 +251,13 @@ class Agent(Base):
         
         # Initialize managers early
         from .agent_direct_answering import AgentDirectAnswering
-        from .agent_invigilator import AgentInvigilator
         from .agent_traits_manager import AgentTraitsManager
         from .agent_prompt import AgentPrompt
         from .agent_instructions import AgentInstructions
         from .agent_table import AgentTable
         self.direct_answering = AgentDirectAnswering(self)
-        self.invigilator = AgentInvigilator(self)
+        # Lazy initialize invigilator to avoid importing language_models during Survey import
+        self._invigilator = None
         self.traits_manager = AgentTraitsManager(self)
         self.prompt_manager = AgentPrompt(self)
         self.instructions = AgentInstructions(self)
@@ -289,6 +289,14 @@ class Agent(Base):
         self.prompt_manager.initialize_traits_presentation_template(traits_presentation_template)
         
         self.trait_categories = trait_categories or {}
+
+    @property
+    def invigilator(self):
+        """Lazily initialize the invigilator to avoid importing language_models during Survey import"""
+        if self._invigilator is None:
+            from .agent_invigilator import AgentInvigilator
+            self._invigilator = AgentInvigilator(self)
+        return self._invigilator
 
     def with_categories(self, *categories: str) -> Agent:
         """Return a new agent with the specified categories"""
@@ -1115,7 +1123,7 @@ class Agent(Base):
         items = [
             f'{k} = """{v}"""' if isinstance(v, str) else f"{k} = {v}"
             for k, v in self.data.items()
-            if k != "question_type"
+            if k not in ("question_type", "invigilator")
         ]
         return f"{class_name}({', '.join(items)})"
 

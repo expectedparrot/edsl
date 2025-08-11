@@ -26,8 +26,9 @@ def test_no_model_passed_to_instructions():
 
 def test_model_specific_instructions():
 
-    m1 = Model(Model.available()[0][0], skip_api_key_check=True)
-    m2 = Model(Model.available()[1][0], skip_api_key_check=True)
+    available_models = Model.available()
+    m1 = available_models[0]
+    m2 = available_models[1]
 
     q = QuestionMultipleChoice(
         question_text="How are you?",

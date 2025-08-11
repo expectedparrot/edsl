@@ -10,7 +10,9 @@ from .message_builder import MessageBuilder
 # Use TYPE_CHECKING to avoid circular imports at runtime
 if TYPE_CHECKING:
     from ...language_models import LanguageModel
-from ..rate_limits_cache import rate_limits
+
+#from ..rate_limits_cache import rate_limits
+rate_limits = {}
 
 if TYPE_CHECKING:
     from ...scenarios.file_store import FileStore as Files
@@ -161,7 +163,6 @@ class OpenAIService(InferenceServiceABC):
         # Import LanguageModel only when actually creating a model
         from ...language_models import LanguageModel
 
-        @beautify_class_name(model_class_name, cls.__module__)
         class LLM(LanguageModel):
             """
             Child class of LanguageModel for interacting with OpenAI models
@@ -272,4 +273,8 @@ class OpenAIService(InferenceServiceABC):
                     return {"message": str(e)}
                 return response.model_dump()
 
+        # Ensure the class name is "LanguageModel" for proper serialization
+        LLM.__name__ = "LanguageModel"
+        LLM.__qualname__ = "LanguageModel"
+        
         return LLM
