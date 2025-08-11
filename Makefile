@@ -3,7 +3,7 @@
 ###############
 GIT_ROOT ?= $(shell git rev-parse --show-toplevel)
 PROJECT_NAME ?= $(shell basename $(GIT_ROOT))
-.PHONY: bump docs docstrings find help integration model-report ruff-lint
+.PHONY: bump docs docs-check docstrings find help integration model-report ruff-lint
 
 ###############
 ##@Utils ⭐ 
@@ -190,6 +190,22 @@ docs-view: ## View documentation
 
 docstrings: ## Check docstrings
 	pydocstyle edsl
+
+docs-check: ## Run pydocstyle and ruff documentation checks. Use 'make docs-check DIR' to check specific directory/file
+	@if [ -n "$(filter-out $@,$(MAKECMDGOALS))" ]; then \
+		target="$(filter-out $@,$(MAKECMDGOALS))"; \
+		echo "Running documentation checks on: $$target"; \
+		echo "Running pydocstyle..."; \
+		pydocstyle $$target; \
+		echo "Running ruff documentation checks..."; \
+		poetry run ruff check --select D $$target; \
+	else \
+		echo "Running documentation checks on entire project"; \
+		echo "Running pydocstyle..."; \
+		pydocstyle edsl; \
+		echo "Running ruff documentation checks..."; \
+		poetry run ruff check --select D edsl; \
+	fi
 
 style-report: ## Check docstrings and generate a report
 	python scripts/style_report.py --source edsl --output style_report

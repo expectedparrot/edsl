@@ -1,5 +1,4 @@
-"""
-Asynchronous interview runner module for conducting interviews concurrently.
+"""Asynchronous interview runner module for conducting interviews concurrently.
 
 This module provides functionality to run multiple interviews in parallel
 with controlled concurrency, supporting both error handling and result collection.
@@ -32,17 +31,28 @@ class InterviewBatch:
 
     @classmethod
     def create(cls, chunks: List[Tuple[int, 'Interview']]) -> "InterviewBatch":
+        """Create a new InterviewBatch with empty results and failed lists.
+        
+        Args:
+        ----
+            chunks: List of tuples containing interview indices and Interview objects
+            
+        Returns:
+        -------
+            A new InterviewBatch instance
+
+        """
         return cls(chunks=chunks, results=[], failed=[])
 
 
 class AsyncInterviewRunner:
-    """
-    Runs interviews asynchronously with controlled concurrency.
+    """Runs interviews asynchronously with controlled concurrency.
 
     This class manages the parallel execution of multiple interviews while
     respecting concurrency limits and handling errors appropriately.
 
-    Examples:
+    Examples
+    --------
         >>> from unittest.mock import MagicMock, AsyncMock
         >>> mock_jobs = MagicMock()
         >>> mock_run_config = MagicMock()
@@ -51,17 +61,19 @@ class AsyncInterviewRunner:
         >>> runner = AsyncInterviewRunner(mock_jobs, mock_run_config)
         >>> isinstance(runner._initialized, asyncio.Event)
         True
+
     """
 
     MAX_CONCURRENT = int(config.EDSL_MAX_CONCURRENT_TASKS)  # type: ignore[attr-defined]
 
     def __init__(self, jobs: "Jobs", run_config: RunConfig):
-        """
-        Initialize the AsyncInterviewRunner.
+        """Initialize the AsyncInterviewRunner.
 
         Args:
+        ----
             jobs: The Jobs object that generates interviews
             run_config: Configuration for running the interviews
+
         """
         self.jobs = jobs
         self.run_config = run_config
@@ -178,16 +190,17 @@ class AsyncInterviewRunner:
             del valid_results
 
     def _expand_interviews(self) -> Generator["Interview", None, None]:
-        """
-        Create multiple copies of each interview based on the run configuration.
+        """Create multiple copies of each interview based on the run configuration.
 
         This method expands interviews for repeated runs and ensures each has
         the proper cache configuration.
 
-        Yields:
+        Yields
+        ------
             Interview objects ready to be conducted
 
-        Examples:
+        Examples
+        --------
             >>> from unittest.mock import MagicMock
             >>> mock_jobs = MagicMock()
             >>> mock_interview = MagicMock()
@@ -199,6 +212,7 @@ class AsyncInterviewRunner:
             >>> interviews = list(runner._expand_interviews())
             >>> len(interviews)
             2
+
         """
         for interview in self.jobs.generate_interviews():
             for iteration in range(self.run_config.parameters.n):
@@ -225,19 +239,21 @@ class AsyncInterviewRunner:
         return chunk
 
     async def run(self) -> AsyncGenerator[tuple['Result', 'Interview', int], None]:
-        """
-        Run all interviews asynchronously and yield results as they complete.
+        """Run all interviews asynchronously and yield results as they complete.
 
         This method orchestrates the parallel execution of interviews while
         maintaining controlled concurrency. Results are yielded as soon as
         they become available.
 
-        Yields:
+        Yields
+        ------
             Tuples of (Result, Interview, idx) as interviews complete, where idx is the
             original position index of the interview.
 
-        Raises:
+        Raises
+        ------
             Exception: If stop_on_exception is True and any interview fails
+
         """
         async with self._interview_batch_processor() as processor:
             async for result_tuple in processor:
