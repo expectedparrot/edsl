@@ -3,14 +3,13 @@ from collections import defaultdict
 from typing import List, Optional, TYPE_CHECKING
 
 from ..base import ItemCollection
-
-from . import AgentList
-from ..results import Results, ResultsList
-from ..questions import QuestionFreeText
+from .agent_list import AgentList
 
 if TYPE_CHECKING:
     from ..language_models import LanguageModel
     from ..surveys import Survey
+    from ..results import Results, ResultsList
+    from ..questions import QuestionFreeText
 
 class PersonaGenerator:
     """Handles the generation of persona agents from existing agent collections.
@@ -65,6 +64,8 @@ class PersonaGenerator:
         collection_name = self._get_collection_name(source_collection)
         
         # Generate persona responses from all agents
+        from ..questions import QuestionFreeText
+
         q = QuestionFreeText(question_text=self.agent_generation_prompt, question_name="persona")
         persona_results = q.by(source_collection.combined_agent_list()).run(verbose=False)
         
@@ -158,6 +159,8 @@ class AgentListCollection(ItemCollection):
                         Each Results object contains the survey responses from agents in that list.       
         """
         from ..language_models import Model
+        from ..results import Results, ResultsList
+        
         if model is None:
             model = Model()
         results = survey.by(self.combined_agent_list()).by(model).run(verbose = False)

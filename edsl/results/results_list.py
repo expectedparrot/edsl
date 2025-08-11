@@ -3,7 +3,7 @@ from collections import UserList
 import uuid
 
 from ..base import ItemCollection
-from ..results import Results
+from .results import Results
 
 if TYPE_CHECKING:
     from ..agents import AgentList

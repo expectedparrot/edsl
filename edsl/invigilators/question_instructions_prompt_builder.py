@@ -1,20 +1,21 @@
 from typing import Dict, Set, Any, Union, TYPE_CHECKING
 from warnings import warn
 import logging
-from ..prompts import Prompt
+
+from .prompt_constructor import PromptConstructor
 
 if TYPE_CHECKING:
-    from .prompt_constructor import PromptConstructor
     from ..language_models import Model
     from ..surveys import Survey
     from ..questions import QuestionBase
     from ..scenarios import Scenario
     from ..agents import Agent
+    from ..prompts import Prompt
+
 
 from .question_template_replacements_builder import (
     QuestionTemplateReplacementsBuilder as QTRB,
 )
-
 
 class QuestionInstructionPromptBuilder:
     """Handles the construction and rendering of question instructions."""
@@ -60,7 +61,7 @@ class QuestionInstructionPromptBuilder:
 
         self.captured_variables = {}
 
-    def build(self) -> Prompt:
+    def build(self) -> 'Prompt':
         """Builds the complete question instructions prompt with all necessary components.
 
         Returns:
@@ -126,7 +127,7 @@ class QuestionInstructionPromptBuilder:
 
         return final_prompt
 
-    def _create_base_prompt(self) -> Dict[str, Union[Prompt, Dict[str, Any]]]:
+    def _create_base_prompt(self) -> Dict[str, Union['Prompt', Dict[str, Any]]]:
         """Creates the initial prompt with basic question data.
 
         The data are, e.g., the question name, question text, question options, etc.
@@ -138,6 +139,7 @@ class QuestionInstructionPromptBuilder:
         Returns:
             Dict[str, Union[Prompt, Dict[str, Any]]]: Base question data with prompt and data fields
         """
+        from ..prompts import Prompt
         return {
             "prompt": Prompt(self.question.get_instructions(model=self.model.model)),
             "data": self.question.data.copy(),
@@ -210,7 +212,7 @@ class QuestionInstructionPromptBuilder:
         )
         return prompt_data
 
-    def _render_prompt(self, prompt_data: Dict) -> Prompt:
+    def _render_prompt(self, prompt_data: Dict) -> 'Prompt':
         """Renders the prompt using the replacement dictionary.
 
         Args:
@@ -229,7 +231,7 @@ class QuestionInstructionPromptBuilder:
             # print(f"Captured variables in QIPB: {self.captured_variables}")
         return rendered_prompt
 
-    def _validate_template_variables(self, rendered_prompt: Prompt) -> None:
+    def _validate_template_variables(self, rendered_prompt: 'Prompt') -> None:
         """Validates that all template variables have been properly replaced.
 
         Args:
@@ -259,7 +261,7 @@ class QuestionInstructionPromptBuilder:
                     f"Question name found in undefined_template_variables: {question_name}"
                 )
 
-    def _append_survey_instructions(self, rendered_prompt: Prompt) -> Prompt:
+    def _append_survey_instructions(self, rendered_prompt: 'Prompt') -> 'Prompt':
         """Appends any relevant survey instructions to the rendered prompt.
 
         Args:
@@ -268,6 +270,8 @@ class QuestionInstructionPromptBuilder:
         Returns:
             Prompt: Final prompt with survey instructions
         """
+        from ..prompts import Prompt
+        
         relevant_instructions = self.survey._relevant_instructions(
             self.question.question_name
         )
