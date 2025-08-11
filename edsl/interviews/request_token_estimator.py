@@ -1,7 +1,10 @@
-from ..jobs.fetch_invigilator import FetchInvigilator
-from ..scenarios import FileStore
-
 import math
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ..scenarios import FileStore
+    from .interview import Interview
+    from ..questions import QuestionBase
 
 # Model configs: base tokens and tile tokens only
 VISION_MODELS = {
@@ -100,11 +103,14 @@ def estimate_tokens(model_name, width, height):
 class RequestTokenEstimator:
     """Estimate the number of tokens that will be required to run the focal task."""
 
-    def __init__(self, interview):
+    def __init__(self, interview: 'Interview'):
         self.interview = interview
 
-    def __call__(self, question) -> float:
+    def __call__(self, question: 'QuestionBase') -> float:
         """Estimate the number of tokens that will be required to run the focal task."""
+
+        from ..jobs.fetch_invigilator import FetchInvigilator
+        from ..questions import QuestionBase
 
         invigilator = FetchInvigilator(self.interview)(question=question)
 

@@ -3,10 +3,6 @@ from typing import Dict, Any, Optional, TYPE_CHECKING, Literal
 from functools import cached_property
 import logging
 
-from ..prompts import Prompt
-from ..scenarios import Scenario
-from ..surveys import Survey
-
 from .prompt_helpers import PromptPlan
 from .question_template_replacements_builder import (
     QuestionTemplateReplacementsBuilder,
@@ -21,9 +17,9 @@ if TYPE_CHECKING:
     from ..language_models import LanguageModel
     from ..surveys.memory import MemoryPlan
     from ..scenarios import Scenario
+    from ..prompts import Prompt
 
 logger = logging.getLogger(__name__)
-
 
 class BasePlaceholder:
     """
@@ -286,7 +282,7 @@ class PromptConstructor:
         ).get_question_numerical_value(question_data, key)
 
     @cached_property
-    def agent_instructions_prompt(self) -> Prompt:
+    def agent_instructions_prompt(self) -> 'Prompt':
         """
         Get the agent's core instruction prompt.
 
@@ -300,6 +296,7 @@ class PromptConstructor:
             Prompt(text=\"""You are answering questions as if you were a human. Do not break character.\""")
         """
         from ..agents import Agent
+        from ..prompts import Prompt
 
         if self.agent == Agent():  # if agent is empty, then return an empty prompt
             return Prompt(text="")
@@ -307,7 +304,7 @@ class PromptConstructor:
         return Prompt(text=self.agent.instruction)
 
     @cached_property
-    def agent_persona_prompt(self) -> Prompt:
+    def agent_persona_prompt(self) -> 'Prompt':
         """
         Get the agent's persona characteristics prompt.
 
@@ -321,6 +318,7 @@ class PromptConstructor:
             Prompt(text=\"""Your traits: {'age': 22, 'hair': 'brown', 'height': 5.5}\""")
         """
         from ..agents import Agent
+        from ..prompts import Prompt
 
         if self.agent == Agent():  # if agent is empty, then return an empty prompt
             return Prompt(text="")
@@ -345,7 +343,7 @@ class PromptConstructor:
         )
 
     @staticmethod
-    def _extract_question_and_entry_type(key_entry) -> tuple[str, str]:
+    def _extract_question_and_entry_type(key_entry: str) -> tuple[str, str]:
         """
         Extract the question name and type from a dictionary key entry.
 
@@ -458,7 +456,7 @@ class PromptConstructor:
         ).question_file_keys()
 
     @cached_property
-    def question_instructions_prompt(self) -> Prompt:
+    def question_instructions_prompt(self) -> 'Prompt':
         """
         >>> from edsl.invigilators.invigilators import InvigilatorBase
         >>> i = InvigilatorBase.example()
@@ -468,7 +466,7 @@ class PromptConstructor:
         """
         return self.build_question_instructions_prompt()
 
-    def build_question_instructions_prompt(self) -> Prompt:
+    def build_question_instructions_prompt(self) -> 'Prompt':
         """
         Builds the question instructions prompt by combining question text, options, and formatting.
 
@@ -508,13 +506,14 @@ class PromptConstructor:
         return prompt
 
     @cached_property
-    def prior_question_memory_prompt(self) -> Prompt:
+    def prior_question_memory_prompt(self) -> 'Prompt':
         """
         Get the prompt containing memory of prior questions and answers.
 
         Returns:
             Prompt: A prompt containing the relevant prior question memory
         """
+        from ..prompts import Prompt
         memory_prompt = Prompt(text="")
         if self.memory_plan is not None:
             memory_prompt += self.create_memory_prompt(
@@ -522,7 +521,7 @@ class PromptConstructor:
             ).render(self.scenario | self.prior_answers_dict())
         return memory_prompt
 
-    def create_memory_prompt(self, question_name: str) -> Prompt:
+    def create_memory_prompt(self, question_name: str) -> 'Prompt':
         """
         Create a memory prompt containing previous question answers for the agent.
 

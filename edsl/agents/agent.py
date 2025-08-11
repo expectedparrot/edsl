@@ -61,22 +61,17 @@ from typing import (
 )
 
 from ..base import Base
-from ..scenarios import Scenario
-from ..questions import QuestionScenarioRenderError
+#from ..scenarios import Scenario
 from ..data_transfer_models import AgentResponseDict
+
 from ..utilities import (
     sync_wrapper,
-    create_restricted_function,
     dict_hash,
     remove_edsl_version,
-    sanitize_jinja_syntax,
 )
 
 from .exceptions import (
     AgentErrors,
-    AgentCombinationError,
-    AgentDirectAnswerFunctionError,
-    AgentDynamicTraitsFunctionError,
 )
 
 from .descriptors import (
@@ -123,7 +118,7 @@ class DirectAnswerMethod(Protocol):
         The answer to the question
     """
 
-    def __call__(self, self_: A, question: QuestionBase, scenario: Scenario) -> Any: ...
+    def __call__(self, self_: A, question: 'QuestionBase', scenario: 'Scenario') -> Any: ...
 
 
 class Agent(Base):
@@ -801,11 +796,11 @@ class Agent(Base):
     async def async_answer_question(
         self,
         *,
-        question: QuestionBase,
-        cache: Cache,
-        scenario: Optional[Scenario] = None,
-        survey: Optional[Survey] = None,
-        model: Optional[LanguageModel] = None,
+        question: 'QuestionBase',
+        cache: 'Cache',
+        scenario: Optional['Scenario'] = None,
+        survey: Optional['Survey'] = None,
+        model: Optional['LanguageModel'] = None,
         debug: bool = False,
         memory_plan: Optional[MemoryPlan] = None,
         current_answers: Optional[dict] = None,

@@ -44,10 +44,6 @@ from bisect import bisect_left
 from collections.abc import MutableSequence
 
 from ..base import Base
-from ..caching import Cache, CacheEntry
-
-
-
 
 if TYPE_CHECKING:
     from ..interviews import Interview
@@ -59,6 +55,8 @@ if TYPE_CHECKING:
     from ..language_models import ModelList
     from simpleeval import EvalWithCompoundTypes
     from ..dataset import Dataset
+    from ..caching import Cache, CacheEntry
+
 
 from ..utilities import remove_edsl_version, dict_hash
 from ..dataset import ResultsOperationsMixin
@@ -164,14 +162,14 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
 
     def __init__(
         self,
-        survey: Optional[Survey] = None,
-        data: Optional[list[Result]] = None,
+        survey: Optional['Survey'] = None,
+        data: Optional[list['Result']] = None,
         name: Optional[str] = None,
         created_columns: Optional[list[str]] = None,
-        cache: Optional[Cache] = None,
+        cache: Optional['Cache'] = None,
         job_uuid: Optional[str] = None,
         total_results: Optional[int] = None,
-        task_history: Optional[TaskHistory] = None,
+        task_history: Optional['TaskHistory'] = None,
         sort_by_iteration: bool = False,
         data_class: Optional[type] = list,  # ResultsSQLList,
     ):
@@ -613,6 +611,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         }
 
     def initialize_cache_from_results(self):
+        from ..caching import Cache, CacheEntry
         cache = Cache(data={})
 
         for result in self.data:
