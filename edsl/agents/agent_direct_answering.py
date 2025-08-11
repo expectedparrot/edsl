@@ -3,6 +3,9 @@
 This module provides the AgentDirectAnswering class that manages direct question
 answering methods for Agent instances, including initialization, validation, and
 management of direct answering functions.
+
+>>> import warnings
+>>> warnings.filterwarnings("ignore", message="Warning: overwriting existing answer_question_directly method")
 """
 
 from __future__ import annotations
@@ -112,7 +115,10 @@ class AgentDirectAnswering:
             >>> def bad_func(question):  # Missing 'self' and 'scenario'
             ...     return "Bad"
             >>> try:
-            ...     agent.direct_answering.add_method(bad_func)
+            ...     import warnings
+            ...     with warnings.catch_warnings():
+            ...         warnings.simplefilter("ignore", UserWarning)
+            ...         agent.direct_answering.add_method(bad_func)
             ... except Exception as e:
             ...     print(f"Error: {type(e).__name__}")
             Error: AgentDirectAnswerFunctionError
@@ -121,7 +127,9 @@ class AgentDirectAnswering:
 
         if self.has_method():
             warnings.warn(
-                "Warning: overwriting existing answer_question_directly method"
+                "Warning: overwriting existing answer_question_directly method",
+                UserWarning,
+                stacklevel=2
             )
 
         self.agent.validate_response = validate_response
@@ -149,14 +157,14 @@ class AgentDirectAnswering:
             Remove an existing direct answering method:
 
             >>> from edsl.agents import Agent
-            >>> agent = Agent(traits={'age': 30})
+            >>> agent2 = Agent(traits={'age': 30})
             >>> def answer_func(self, question, scenario):
             ...     return "Direct answer"
-            >>> agent.direct_answering.add_method(answer_func)
-            >>> agent.direct_answering.has_method()
+            >>> agent2.direct_answering.add_method(answer_func)
+            >>> agent2.direct_answering.has_method()
             True
-            >>> agent.direct_answering.remove_method()
-            >>> agent.direct_answering.has_method()
+            >>> agent2.direct_answering.remove_method()
+            >>> agent2.direct_answering.has_method()
             False
 
             Safe to call even if no method exists:
@@ -216,13 +224,13 @@ class AgentDirectAnswering:
             Check for direct answering method:
 
             >>> from edsl.agents import Agent
-            >>> agent = Agent(traits={'age': 30})
-            >>> agent.direct_answering.has_method()
+            >>> agent4 = Agent(traits={'age': 30})
+            >>> agent4.direct_answering.has_method()
             False
             >>> def answer_func(self, question, scenario):
             ...     return "Direct"
-            >>> agent.direct_answering.add_method(answer_func)
-            >>> agent.direct_answering.has_method()
+            >>> agent4.direct_answering.add_method(answer_func)
+            >>> agent4.direct_answering.has_method()
             True
         """
         return hasattr(self.agent, "answer_question_directly")
@@ -237,13 +245,13 @@ class AgentDirectAnswering:
             Get the method:
             
             >>> from edsl.agents import Agent
-            >>> agent = Agent(traits={'age': 30})
-            >>> agent.direct_answering.get_method() is None
+            >>> agent3 = Agent(traits={'age': 30})
+            >>> agent3.direct_answering.get_method() is None
             True
             >>> def answer_func(self, question, scenario):
             ...     return "Direct"
-            >>> agent.direct_answering.add_method(answer_func)
-            >>> method = agent.direct_answering.get_method()
+            >>> agent3.direct_answering.add_method(answer_func)
+            >>> method = agent3.direct_answering.get_method()
             >>> method is not None
             True
         """

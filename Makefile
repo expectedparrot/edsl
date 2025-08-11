@@ -169,6 +169,8 @@ benchmark-test: ## Test that benchmark scripts work properly
 
 bump: ## Bump the version of the package
 	@python scripts/bump_version.py $(filter-out $@,$(MAKECMDGOALS))
+
+# Catch-all rule to handle directory arguments for test-doctests and bump
 %:
 	@:
 
@@ -235,9 +237,16 @@ visualize: ## Visualize the repo structure
 ###############
 ##@Testing 🐛
 ###############
-test: ## Run regular tests (no Coop tests) 
+test: ## Run regular tests (no Coop tests). Use 'make test DIR' to run tests from specific directory
 	make clean-test
-	pytest -xv tests --nocoop
+	@if [ -n "$(filter-out $@,$(MAKECMDGOALS))" ]; then \
+		dir="$(filter-out $@,$(MAKECMDGOALS))"; \
+		echo "Running tests for directory: $$dir"; \
+		pytest -xv $$dir --nocoop; \
+	else \
+		echo "Running all tests"; \
+		pytest -xv tests --nocoop; \
+	fi
 
 test-token-bucket: ## Run token bucket tests
 	make clean-test
@@ -271,28 +280,37 @@ test-data: ## Create serialization test data for the current EDSL version
 	else \
 		python scripts/create_serialization_test_data.py; \
 	fi
-test-doctests: ## Run doctests
+test-doctests: ## Run doctests for a specific directory (e.g., make test-doctests edsl/agents) or all if no directory specified
 	make clean-test
-	#pytest --doctest-modules edsl/base.py
-	pytest --doctest-modules edsl/instructions
-	pytest --doctest-modules edsl/key_management
-	pytest --doctest-modules edsl/prompts
-	pytest --doctest-modules edsl/tasks
-	# Reordered to avoid circular import
-	pytest --doctest-modules edsl/results
-	pytest --doctest-modules edsl/dataset
-	pytest --doctest-modules --ignore=edsl/buckets/token_bucket_client.py --ignore=edsl/buckets/token_bucket_api.py edsl/buckets
-	pytest --doctest-modules edsl/interviews
-	pytest --doctest-modules edsl/tokens
-	pytest --doctest-modules edsl/jobs/
-	pytest --doctest-modules edsl/surveys
-	pytest --doctest-modules edsl/agents
-	pytest --doctest-modules edsl/scenarios
-	pytest --doctest-modules edsl/questions
-	pytest --doctest-modules edsl/utilities
-	pytest --doctest-modules edsl/language_models
-	pytest --doctest-modules edsl/caching
-	pytest --doctest-modules edsl/inference_services
+	@if [ -n "$(filter-out $@,$(MAKECMDGOALS))" ]; then \
+		dir="$(filter-out $@,$(MAKECMDGOALS))"; \
+		echo "Running doctests for directory: $$dir"; \
+		if [ "$$dir" = "edsl/buckets" ]; then \
+			pytest --doctest-modules --ignore=edsl/buckets/token_bucket_client.py --ignore=edsl/buckets/token_bucket_api.py $$dir; \
+		else \
+			pytest --doctest-modules $$dir; \
+		fi; \
+	else \
+		echo "Running doctests for all directories"; \
+		pytest --doctest-modules edsl/instructions; \
+		pytest --doctest-modules edsl/key_management; \
+		pytest --doctest-modules edsl/prompts; \
+		pytest --doctest-modules edsl/tasks; \
+		pytest --doctest-modules edsl/results; \
+		pytest --doctest-modules edsl/dataset; \
+		pytest --doctest-modules --ignore=edsl/buckets/token_bucket_client.py --ignore=edsl/buckets/token_bucket_api.py edsl/buckets; \
+		pytest --doctest-modules edsl/interviews; \
+		pytest --doctest-modules edsl/tokens; \
+		pytest --doctest-modules edsl/jobs/; \
+		pytest --doctest-modules edsl/surveys; \
+		pytest --doctest-modules edsl/agents; \
+		pytest --doctest-modules edsl/scenarios; \
+		pytest --doctest-modules edsl/questions; \
+		pytest --doctest-modules edsl/utilities; \
+		pytest --doctest-modules edsl/language_models; \
+		pytest --doctest-modules edsl/caching; \
+		pytest --doctest-modules edsl/inference_services; \
+	fi
 
 test-doctests-parallel: ## Run doctests in parallel
 	make clean-test

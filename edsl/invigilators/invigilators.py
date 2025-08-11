@@ -219,10 +219,13 @@ class InvigilatorBase(ABC):
         >>> InvigilatorBase.example().answer_question()
         {'message': [{'text': 'SPAM!'}], 'usage': {'prompt_tokens': 1, 'completion_tokens': 1}}
 
-        >>> InvigilatorBase.example(throw_an_exception=True).answer_question()
+        >>> InvigilatorBase.example(throw_an_exception=True).answer_question()  # doctest: +ELLIPSIS
         Traceback (most recent call last):
         ...
-        Exception: This is a test error
+        edsl.inference_services.exceptions.InferenceServiceIntendedError: This is a test error
+        ...
+        Test error - this is an error thrown on purpose to test the error handling in the framework.
+        ...
         """
         from ..agents import Agent
         from ..scenarios import Scenario

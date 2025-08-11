@@ -106,13 +106,13 @@ def create_model(
 
     else:
         # Determine field constraints
-        field_kwargs = {"...": None}
+        field_kwargs = {}
 
         if min_list_items is not None:
-            field_kwargs["min_items"] = min_list_items
+            field_kwargs["min_length"] = min_list_items
 
         if max_list_items is not None:
-            field_kwargs["max_items"] = max_list_items
+            field_kwargs["max_length"] = max_list_items
 
         class ListResponse(BaseModel):
             """
@@ -158,7 +158,7 @@ def create_model(
                 'Apple, Cherry'
             """
 
-            answer: list[Any] = Field(**field_kwargs)
+            answer: list[Any] = Field(..., **field_kwargs)
             comment: Optional[str] = None
             generated_tokens: Optional[str] = None
 
