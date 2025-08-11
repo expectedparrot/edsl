@@ -11,6 +11,26 @@ PROJECT_NAME ?= $(shell basename $(GIT_ROOT))
 help: ## Show this helpful message
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  \033[33m%-25s\033[0m %s\n", $$1, $$2} /^##@/ {printf "\n\033[0;32m%s\033[0m\n", substr($$0, 4)} ' $(MAKEFILE_LIST)
 
+verbose-on: ## Enable verbose mode by setting EDSL_VERBOSE_MODE=True in .env
+	@if [ ! -f .env ]; then touch .env; fi
+	@if [ ! -s .env ] || [ "$$(tail -c 1 .env)" != "" ]; then echo "" >> .env; fi
+	@if grep -q "^EDSL_VERBOSE_MODE=" .env; then \
+		sed -i '' 's/^EDSL_VERBOSE_MODE=.*/EDSL_VERBOSE_MODE=True/' .env; \
+	else \
+		echo "EDSL_VERBOSE_MODE=True" >> .env; \
+	fi
+	@echo "Verbose mode enabled (EDSL_VERBOSE_MODE=True)"
+
+verbose-off: ## Disable verbose mode by setting EDSL_VERBOSE_MODE=False in .env
+	@if [ ! -f .env ]; then touch .env; fi
+	@if [ ! -s .env ] || [ "$$(tail -c 1 .env)" != "" ]; then echo "" >> .env; fi
+	@if grep -q "^EDSL_VERBOSE_MODE=" .env; then \
+		sed -i '' 's/^EDSL_VERBOSE_MODE=.*/EDSL_VERBOSE_MODE=False/' .env; \
+	else \
+		echo "EDSL_VERBOSE_MODE=False" >> .env; \
+	fi
+	@echo "Verbose mode disabled (EDSL_VERBOSE_MODE=False)"
+
 install: ## Install all project deps and create a venv (local)
 	make clean-all
 	@echo "Creating a venv from pyproject.toml and installing deps using poetry..."
@@ -260,6 +280,9 @@ visualize: ## Visualize the repo structure
 ###############
 ##@Testing 🐛
 ###############
+github-tests-locally: ## Run tests on GitHub Actions
+	act
+
 test: ## Run regular tests (no Coop tests). Use 'make test DIR' to run tests from specific directory
 	make clean-test
 	@if [ -n "$(filter-out $@,$(MAKECMDGOALS))" ]; then \
