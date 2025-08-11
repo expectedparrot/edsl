@@ -25,14 +25,12 @@ Typical usage::
 
 from typing import Any, Callable, Dict, List, Optional, Sequence
 import inspect
-import asyncio
 
 import gradio as gr
 
 from .authoring import (
     ServiceDefinition,
     ParameterDefinition,
-    ReturnDefinition,
 )
 from .exceptions import (
     ServiceParameterValidationError,

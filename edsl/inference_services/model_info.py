@@ -1,7 +1,7 @@
 """Unified ModelInfo class for inference services."""
 
 from dataclasses import dataclass
-from typing import Any, Dict, Union
+from typing import Any, Dict
 
 
 def _convert_to_dict(obj: Any) -> Any:

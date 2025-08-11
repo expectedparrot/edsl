@@ -1,12 +1,11 @@
 """Sampling and shuffling functionality for Results objects."""
 import random
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
     from .results import Results
 
 from .exceptions import ResultsError
-from .utilities import ensure_ready
 
 
 class ResultsSampler:

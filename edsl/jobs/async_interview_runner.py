@@ -7,7 +7,7 @@ with controlled concurrency, supporting both error handling and result collectio
 
 from collections.abc import AsyncGenerator, AsyncIterator
 from contextlib import asynccontextmanager
-from typing import List, Generator, Tuple, TYPE_CHECKING
+from typing import List, Generator, Tuple, TYPE_CHECKING, Optional
 from dataclasses import dataclass
 import asyncio
 
@@ -53,7 +53,7 @@ class AsyncInterviewRunner:
         True
     """
 
-    MAX_CONCURRENT = int(config.EDSL_MAX_CONCURRENT_TASKS)
+    MAX_CONCURRENT = int(config.EDSL_MAX_CONCURRENT_TASKS)  # type: ignore[attr-defined]
 
     def __init__(self, jobs: "Jobs", run_config: RunConfig):
         """
@@ -124,7 +124,7 @@ class AsyncInterviewRunner:
 
     async def _run_single_interview(
         self, interview: 'Interview', idx: int
-    ) -> Tuple['Result', 'Interview', int]:
+    ) -> Optional[Tuple['Result', 'Interview', int]]:
         """Execute a single interview with error handling."""
         try:
             await interview.async_conduct_interview(self.run_config)

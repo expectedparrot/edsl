@@ -4,7 +4,6 @@ from typing import Optional, TYPE_CHECKING
 import tempfile
 
 from .scenario_list import ScenarioList
-from .scenario import Scenario
 from .file_store import FileStore
 from ..config import CONFIG
 

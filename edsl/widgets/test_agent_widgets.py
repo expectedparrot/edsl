@@ -246,19 +246,19 @@ def demo_both_widgets():
         for key, value in single_summary.items():
             print(f"  - {key}: {value}")
         
-        print(f"\n📋 List Inspector Summary:")
+        print("\n📋 List Inspector Summary:")
         list_summary = list_widget.export_summary()
         for key, value in list_summary.items():
             print(f"  - {key}: {value}")
         
-        print(f"\n🎯 Usage in Jupyter:")
-        print(f"# Individual agent inspection")
-        print(f"single_widget = AgentInspectorWidget(agent)")
-        print(f"single_widget  # Display widget")
-        print(f"")
-        print(f"# Multiple agents inspection")
-        print(f"list_widget = AgentListInspectorWidget(agents)")
-        print(f"list_widget  # Display widget with clickable cards")
+        print("\n🎯 Usage in Jupyter:")
+        print("# Individual agent inspection")
+        print("single_widget = AgentInspectorWidget(agent)")
+        print("single_widget  # Display widget")
+        print("")
+        print("# Multiple agents inspection")
+        print("list_widget = AgentListInspectorWidget(agents)")
+        print("list_widget  # Display widget with clickable cards")
         
         return single_widget, list_widget
         

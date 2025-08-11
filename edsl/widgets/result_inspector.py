@@ -6,7 +6,6 @@ scenario, model, answers, prompts, and raw data structure.
 """
 
 import traitlets
-from typing import Any, Dict, List, Optional
 from .inspector_widget import InspectorWidget
 
 

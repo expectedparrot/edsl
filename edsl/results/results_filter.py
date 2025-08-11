@@ -5,11 +5,10 @@ on Results objects, including expression validation and evaluation.
 """
 
 import warnings
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .results import Results
-    from .result import Result
 
 from .exceptions import ResultsFilterError
 

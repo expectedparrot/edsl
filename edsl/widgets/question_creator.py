@@ -142,7 +142,7 @@ class QuestionCreatorWidget(EDSLBaseWidget):
                 type_display = "Multiple Choice"
             code += f"# Create a {type_display} question\n"
 
-        code += f"Question(\n"
+        code += "Question(\n"
         code += f'    question_type="{question_type}",\n'
         code += f'    question_name="{question_name}",\n'
         code += f'    question_text="{question_text}"'

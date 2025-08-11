@@ -244,9 +244,9 @@ I'm particularly knowledgeable about:
         for key, value in summary.items():
             print(f"  - {key}: {value}")
             
-        print(f"\nTo display the widget in Jupyter, use:")
-        print(f"widget = demo_widget()")
-        print(f"widget  # This will display the interactive widget")
+        print("\nTo display the widget in Jupyter, use:")
+        print("widget = demo_widget()")
+        print("widget  # This will display the interactive widget")
         
         return widget
         

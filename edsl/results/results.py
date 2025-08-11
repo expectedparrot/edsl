@@ -38,9 +38,7 @@ print(report.generate())
 from __future__ import annotations
 import json
 import warnings
-from collections import defaultdict
 from typing import Optional, Callable, Any, Union, List, TYPE_CHECKING
-from bisect import bisect_left
 from collections.abc import MutableSequence
 
 from ..base import Base
@@ -53,19 +51,17 @@ if TYPE_CHECKING:
     from ..results import Result
     from ..tasks import TaskHistory
     from ..language_models import ModelList
-    from simpleeval import EvalWithCompoundTypes
     from ..dataset import Dataset
-    from ..caching import Cache, CacheEntry
+    from ..caching import Cache
 
 
-from ..utilities import remove_edsl_version, dict_hash
+from ..utilities import dict_hash
 from ..dataset import ResultsOperationsMixin
 
 from .result import Result
-from ..db_list.sqlite_list import SQLiteList
 from .results_filter import ResultsFilter
 from .results_serializer import ResultsSerializer
-from .utilities import ResultsSQLList, ensure_fetched, ensure_ready, NotReadyObject
+from .utilities import ensure_ready
 from .job_cost_calculator import JobCostCalculator
 from .results_sampler import ResultsSampler
 from .data_type_cache_manager import DataTypeCacheManager
@@ -79,12 +75,8 @@ from .results_grouper import ResultsGrouper
 
 from .exceptions import (
     ResultsError,
-    ResultsBadMutationstringError,
     ResultsColumnNotFoundError,
     ResultsInvalidNameError,
-    ResultsMutateError,
-    ResultsFilterError,
-    ResultsDeserializationError,
 )
 
 class Results(MutableSequence, ResultsOperationsMixin, Base):
@@ -1047,7 +1039,6 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             >>> len(sorted_results) == len(r)
             True
         """
-        import warnings 
         warnings.warn("sort_by is deprecated. Use order_by instead.", DeprecationWarning)
         transformer = ResultsTransformer(self)
         return transformer.order_by(*columns, reverse=reverse)

@@ -1,5 +1,4 @@
-"""
-The Jobs module is the core orchestration component of the EDSL framework.
+"""The Jobs module is the core orchestration component of the EDSL framework.
 
 It provides functionality to define, configure, and execute computational jobs that
 involve multiple agents, scenarios, models, and a survey. Jobs are the primary way
@@ -19,7 +18,7 @@ who need to run complex simulations with language models.
 from __future__ import annotations
 import asyncio
 from importlib import import_module
-from typing import Optional, Union, Any, Literal, Sequence, Generator, TYPE_CHECKING
+from typing import Optional, Union, Any, Literal, Sequence, Generator, Tuple, TYPE_CHECKING
 
 from ..base import Base
 from ..utilities import remove_edsl_version
@@ -33,14 +32,29 @@ from .jobs_checks import JobsChecks
 from .data_structures import RunEnvironment, RunParameters, RunConfig
 from .check_survey_scenario_compatibility import CheckSurveyScenarioCompatibility
 from .decorators import with_config
+from ..coop.exceptions import CoopServerResponseError
 
 
 def get_bucket_collection():
+    """Get the BucketCollection class from the buckets module.
+    
+    Returns
+    -------
+        The BucketCollection class.
+
+    """
     buckets_module = import_module("edsl.buckets")
     return buckets_module.BucketCollection
 
 
 def get_interview():
+    """Get the Interview class from the interviews module.
+    
+    Returns
+    -------
+        The Interview class.
+
+    """
     interviews_module = import_module("edsl.interviews.interview")
     return interviews_module.Interview
 
@@ -64,8 +78,7 @@ VisibilityType = Literal["private", "public", "unlisted"]
 
 
 class Jobs(Base):
-    """
-    A collection of agents, scenarios, models, and a survey that orchestrates interviews.
+    """A collection of agents, scenarios, models, and a survey that orchestrates interviews.
 
     The Jobs class is the central component for running large-scale experiments or simulations
     in EDSL. It manages the execution of interviews where agents interact with surveys through
@@ -105,17 +118,24 @@ class Jobs(Base):
         they can be added later using the `by()` method or will be automatically populated
         with defaults when the job is run.
 
-        Parameters:
-            survey (Survey): The survey containing questions to be used in the job
-            agents (Union[list[Agent], AgentList], optional): The agents that will take the survey
-            models (Union[ModelList, list[LanguageModel]], optional): The language models to use
-            scenarios (Union[ScenarioList, list[Scenario]], optional): The scenarios to run
+        Parameters
+        ----------
+        survey : Survey
+            The survey containing questions to be used in the job
+        agents : Union[list[Agent], AgentList], optional
+            The agents that will take the survey
+        models : Union[ModelList, list[LanguageModel]], optional
+            The language models to use
+        scenarios : Union[ScenarioList, list[Scenario]], optional
+            The scenarios to run
 
-        Raises:
+        Raises
+        ------
             ValueError: If the survey contains questions with invalid names
                        (e.g., names containing template variables)
 
-        Examples:
+        Examples
+        --------
             >>> from edsl.surveys import Survey
             >>> from edsl.questions import QuestionFreeText
             >>> q = QuestionFreeText(question_name="name", question_text="What is your name?")
@@ -124,10 +144,12 @@ class Jobs(Base):
             >>> q = QuestionFreeText(question_name="{{ bad_name }}", question_text="What is your name?")
             >>> s = Survey(questions=[q])
 
-        Notes:
+        Notes
+        -----
             - The survey's questions must have valid names without templating variables
             - If agents, models, or scenarios are not provided, defaults will be used when running
             - Upon initialization, a RunConfig is created with default environment and parameters
+
         """
         self.run_config = RunConfig(
             environment=RunEnvironment(), parameters=RunParameters()
@@ -156,16 +178,19 @@ class Jobs(Base):
             )
 
     def add_running_env(self, running_env: RunEnvironment) -> Jobs:
-        """Adds a running environment to the job.
+        """Add a running environment to the job.
 
         Args:
+        ----
             running_env: A RunEnvironment object containing details about the execution
                 environment like API keys and other configuration.
 
         Returns:
+        -------
             Jobs: The Jobs instance with the updated running environment.
 
         Example:
+        -------
             >>> from edsl import Cache
             >>> job = Jobs.example()
             >>> my_cache = Cache.example()
@@ -173,55 +198,68 @@ class Jobs(Base):
             >>> j = job.add_running_env(env)
             >>> j.run_config.environment.cache == my_cache
             True
+
         """
         self.run_config.add_environment(running_env)
         return self
 
     def using_cache(self, cache: "Cache") -> "Jobs":
-        """Adds a Cache object to the job.
+        """Add a Cache object to the job.
 
         Args:
+        ----
             cache: The Cache object to add to the job's configuration.
 
         Returns:
+        -------
             Jobs: The Jobs instance with the updated cache.
+
         """
         self.run_config.add_cache(cache)
         return self
 
     def using_bucket_collection(self, bucket_collection: "BucketCollection") -> "Jobs":
-        """Adds a BucketCollection object to the job.
+        """Add a BucketCollection object to the job.
 
         Args:
+        ----
             bucket_collection: The BucketCollection object to add to the job's configuration.
 
         Returns:
+        -------
             Jobs: The Jobs instance with the updated bucket collection.
+
         """
         self.run_config.add_bucket_collection(bucket_collection)
         return self
 
     def using_key_lookup(self, key_lookup: "KeyLookup") -> "Jobs":
-        """Adds a KeyLookup object to the job.
+        """Add a KeyLookup object to the job.
 
         Args:
+        ----
             key_lookup: The KeyLookup object to add to the job's configuration.
 
         Returns:
+        -------
             Jobs: The Jobs instance with the updated key lookup.
+
         """
         self.run_config.add_key_lookup(key_lookup)
         return self
 
     def using(self, obj) -> "Jobs":
-        """Adds a Cache, BucketCollection, or KeyLookup object to the job.
+        """Add a Cache, BucketCollection, or KeyLookup object to the job.
 
         Args:
+        ----
             obj: The object to add to the job's configuration. Must be one of:
                 Cache, BucketCollection, or KeyLookup.
 
         Returns:
+        -------
             Jobs: The Jobs instance with the updated configuration object.
+
         """
         from ..caching import Cache
         from ..key_management import KeyLookup
@@ -241,6 +279,13 @@ class Jobs(Base):
 
     @property
     def models(self):
+        """Get the models associated with this job.
+        
+        Returns
+        -------
+            ModelList: The models for this job.
+
+        """
         return self._models
 
     @models.setter
@@ -253,7 +298,7 @@ class Jobs(Base):
             else:
                 self._models = value
         else:
-            self._models = ModelList([])
+            self._models = ModelList(None)
 
         # update the bucket collection if it exists
         if self.run_config.environment.bucket_collection is None:
@@ -263,6 +308,13 @@ class Jobs(Base):
 
     @property
     def agents(self):
+        """Get the agents associated with this job.
+        
+        Returns
+        -------
+            AgentList: The agents for this job.
+
+        """
         return self._agents
 
     @agents.setter
@@ -278,8 +330,7 @@ class Jobs(Base):
             self._agents = AgentList([])
 
     def where(self, expression: str) -> Jobs:
-        """
-        Filter the agents, scenarios, and models based on a condition.
+        """Filter the agents, scenarios, and models based on a condition.
 
         :param expression: a condition to filter the agents, scenarios, and models
         """
@@ -288,6 +339,13 @@ class Jobs(Base):
 
     @property
     def scenarios(self) -> ScenarioList:
+        """Get the scenarios associated with this job.
+        
+        Returns
+        -------
+            ScenarioList: The scenarios for this job.
+
+        """
         return self._scenarios
 
     @scenarios.setter
@@ -317,21 +375,24 @@ class Jobs(Base):
             Sequence[Union["Agent", "Scenario", "LanguageModel"]],
         ],
     ) -> "Jobs":
-        """
-        Add agents, scenarios, and language models to a job using a fluent interface.
+        """Add agents, scenarios, and language models to a job using a fluent interface.
 
         This method is the primary way to configure a Jobs instance with components.
         It intelligently handles different types of objects and collections, making
         it easy to build complex job configurations with a concise syntax.
 
-        Parameters:
-            *args: Objects or sequences of objects to add to the job.
-                  Supported types are Agent, Scenario, LanguageModel, and sequences of these.
+        Parameters
+        ----------
+        *args : Union[Agent, Scenario, LanguageModel, Sequence[Union[Agent, Scenario, LanguageModel]]]
+            Objects or sequences of objects to add to the job.
+            Supported types are Agent, Scenario, LanguageModel, and sequences of these.
 
-        Returns:
+        Returns
+        -------
             Jobs: The Jobs instance (self) for method chaining
 
-        Examples:
+        Examples
+        --------
             >>> from edsl.surveys import Survey
             >>> from edsl.questions import QuestionFreeText
             >>> q = QuestionFreeText(question_name="name", question_text="What is your name?")
@@ -352,7 +413,8 @@ class Jobs(Base):
             >>> agents = [Agent(traits={"age": i}) for i in range(5)]
             >>> _ = j.by(agents)
 
-        Notes:
+        Notes
+        -----
             - All objects must implement 'get_value', 'set_value', and '__add__' methods
             - Agent traits: When adding agents with traits to existing agents, the traits are
               combined. Avoid overlapping trait names to prevent unexpected behavior.
@@ -361,6 +423,7 @@ class Jobs(Base):
             - Models: New models with the same attributes will override existing models.
             - The method detects object types automatically and routes them to the appropriate
               collection (agents, scenarios, or models).
+
         """
         from .jobs_component_constructor import JobsComponentConstructor
 
@@ -368,7 +431,6 @@ class Jobs(Base):
 
     def prompts(self, iterations=1) -> "Dataset":
         """Return a Dataset of prompts that will be used.
-
 
         >>> from edsl.jobs import Jobs
         >>> Jobs.example().prompts()
@@ -393,8 +455,8 @@ class Jobs(Base):
         inference_service: str,
         model: str,
     ) -> dict:
-        """
-        Estimate the cost of running the prompts.
+        """Estimate the cost of running the prompts.
+        
         :param iterations: the number of iterations to run
         :param system_prompt: the system prompt
         :param user_prompt: the user prompt
@@ -407,8 +469,7 @@ class Jobs(Base):
         )
 
     def estimate_job_cost(self, iterations: int = 1) -> dict:
-        """
-        Estimate the cost of running the job.
+        """Estimate the cost of running the job.
 
         :param iterations: the number of iterations to run
         """
@@ -417,15 +478,25 @@ class Jobs(Base):
     def estimate_job_cost_from_external_prices(
         self, price_lookup: dict, iterations: int = 1
     ) -> dict:
+        """Estimate the cost of running the job using external price lookup.
+        
+        Args:
+        ----
+            price_lookup: Dictionary containing price information.
+            iterations: Number of iterations to run.
+            
+        Returns:
+        -------
+            dict: Cost estimation details.
+
+        """
         return JobsPrompts.from_jobs(self).estimate_job_cost_from_external_prices(
             price_lookup, iterations
         )
 
     @staticmethod
     def compute_job_cost(job_results: Results) -> float:
-        """
-        Computes the cost of a completed job in USD.
-        """
+        """Compute the cost of a completed job in USD."""
         return job_results.compute_job_cost()
 
     def replace_missing_objects(self) -> None:
@@ -438,8 +509,7 @@ class Jobs(Base):
         self.scenarios = self.scenarios or [Scenario()]
 
     def generate_interviews(self) -> Generator:
-        """
-        Generate interviews.
+        """Generate interviews.
 
         Note that this sets the agents, model and scenarios if they have not been set. This is a side effect of the method.
         This is useful because a user can create a job without setting the agents, models, or scenarios, and the job will still run,
@@ -454,9 +524,8 @@ class Jobs(Base):
         ).create_interviews()
 
     def show_flow(self, filename: Optional[str] = None) -> None:
-        """Visualise either the *Job* dependency/post-processing flow **or** the
-        underlying survey flow.
-
+        """Visualize either the *Job* dependency/post-processing flow **or** the underlying survey flow.
+        
         The method automatically decides which flow to render:
 
         1. If the job has dependencies created via :py:meth:`Jobs.to` (i.e.
@@ -473,7 +542,6 @@ class Jobs(Base):
         >>> job2 = job.select('how_feeling').to_pandas()  # add post-run methods
         >>> job2.show_flow()  # Now visualises job flow
         """
-
         # Decide which visualisation to use
         has_dependencies = getattr(self, "_depends_on", None) is not None
         has_post_methods = bool(getattr(self, "_post_run_methods", []))
@@ -493,8 +561,7 @@ class Jobs(Base):
             ).show_flow(filename=filename)
 
     def interviews(self) -> list:
-        """
-        Return a list of :class:`edsl.jobs.interviews.Interview` objects.
+        """Return a list of :class:`edsl.jobs.interviews.Interview` objects.
 
         It returns one Interview for each combination of Agent, Scenario, and LanguageModel.
         If any of Agents, Scenarios, or LanguageModels are missing, it fills in with defaults.
@@ -527,8 +594,7 @@ class Jobs(Base):
         return jobs
 
     def create_bucket_collection(self) -> "BucketCollection":
-        """
-        Create a collection of buckets for each model.
+        """Create a collection of buckets for each model.
 
         These buckets are used to track API calls and token usage.
 
@@ -547,7 +613,7 @@ class Jobs(Base):
         return bc
 
     def html(self):
-        """Return the HTML representations for each scenario"""
+        """Return the HTML representations for each scenario."""
         links = []
         for index, scenario in enumerate(self.scenarios):
             links.append(
@@ -576,6 +642,7 @@ class Jobs(Base):
 
     def all_question_parameters(self) -> set:
         """Return all the fields in the questions in the survey.
+        
         >>> from edsl.jobs import Jobs
         >>> Jobs.example().all_question_parameters()
         {'period'}
@@ -583,6 +650,13 @@ class Jobs(Base):
         return set.union(*[question.parameters for question in self.survey.questions])
 
     def use_remote_cache(self) -> bool:
+        """Determine whether to use remote cache for this job.
+        
+        Returns
+        -------
+            bool: True if remote cache should be used, False otherwise.
+
+        """
         import requests
 
         if self.run_config.parameters.disable_remote_cache:
@@ -602,7 +676,7 @@ class Jobs(Base):
 
     def _start_remote_inference_job(
         self, job_handler: Optional[JobsRemoteInferenceHandler] = None
-    ) -> Union["Results", None]:
+    ):
         if job_handler is None:
             job_handler = self._create_remote_inference_handler()
 
@@ -625,7 +699,7 @@ class Jobs(Base):
     def _remote_results(
         self,
         config: RunConfig,
-    ) -> Union["Results", None]:
+    ) -> Tuple[Optional["Results"], Optional[str]]:
         from .remote_inference import RemoteJobInfo
 
         background = config.parameters.background
@@ -645,7 +719,7 @@ class Jobs(Base):
             return None, None
 
     def _prepare_to_run(self) -> None:
-        "This makes sure that the job is ready to run and that keys are in place for a remote job."
+        """Prepare the job to run and ensure keys are in place for a remote job."""
         CheckSurveyScenarioCompatibility(self.survey, self.scenarios).check()
 
     def _check_if_remote_keys_ok(self) -> None:
@@ -686,7 +760,6 @@ class Jobs(Base):
 
         # Create a shared function to process interview results
         async def process_interviews(interview_runner, results_obj):
-            prev_interview_ref = None
             async for result, interview, idx in interview_runner.run():
                 # Set the order attribute on the result for correct ordering
                 result.order = idx
@@ -754,8 +827,7 @@ class Jobs(Base):
 
     @property
     def num_interviews(self) -> int:
-        """
-        Calculate the total number of interviews that will be run.
+        """Calculate the total number of interviews that will be run.
 
         >>> Jobs.example().num_interviews
         4
@@ -768,9 +840,8 @@ class Jobs(Base):
         else:
             return len(self) * self.run_config.parameters.n
 
-    def _run(self, config: RunConfig) -> Union[None, "Results"]:
-        """
-        Shared code for run and run_async methods.
+    def _run(self, config: RunConfig) -> Tuple[Optional["Results"], Optional[str]]:
+        """Shared code for run and run_async methods.
 
         This method handles all pre-execution setup including:
         1. Transferring configuration settings from the input config
@@ -779,9 +850,11 @@ class Jobs(Base):
         4. Setting up caching and bucket collections
         5. Attempting remote execution if appropriate
 
-        Returns:
+        Returns
+        -------
             Tuple containing (Results, reason) if remote execution succeeds,
             or (None, reason) if local execution should proceed
+
         """
         # Apply configuration from input config to self.run_config
         for attr_name in [
@@ -848,23 +921,23 @@ class Jobs(Base):
         return None, reason
 
     def then(self, method_name, *args, **kwargs) -> "Jobs":
-        """
-        Schedule a method to be called on the results object after the job runs.
+        """Schedule a method to be called on the results object after the job runs.
 
         This allows for method chaining like:
         jobs.then('to_scenario_list').then('to_pandas').then('head', 10)
 
         Args:
+        ----
             method_name: Name of the method to call on the results
             *args: Positional arguments to pass to the method
             **kwargs: Keyword arguments to pass to the method
+
         """
         self._post_run_methods.append((method_name, args, kwargs))
         return self
 
     def __getattr__(self, name):
-        """
-        Safer version of attribute access for method chaining.
+        """Safer version of attribute access for method chaining.
 
         Only captures specific patterns to avoid masking real AttributeErrors.
         """
@@ -917,8 +990,7 @@ class Jobs(Base):
         )
 
     def _apply_post_run_methods(self, results) -> Any:
-        """
-        Apply all post-run methods to the results object.
+        """Apply all post-run methods to the results object.
 
         Returns the transformed results object, or the original results if no methods were applied.
         """
@@ -970,43 +1042,69 @@ class Jobs(Base):
         return converted_object
 
     @with_config
-    def run(self, *, config: RunConfig) -> "Results":
-        """
-        Runs the job by conducting interviews and returns their results.
+    def run(self, *, config: RunConfig) -> Optional["Results"]:
+        """Run the job by conducting interviews and return their results.
 
         This is the main entry point for executing a job. It processes all interviews
         (combinations of agents, scenarios, and models) and returns a Results object
         containing all responses and metadata.
 
-        Parameters:
-            n (int): Number of iterations to run each interview (default: 1)
-            progress_bar (bool): Whether to show a progress bar (default: False)
-            stop_on_exception (bool): Whether to stop the job if an exception is raised (default: False)
-            check_api_keys (bool): Whether to verify API keys before running (default: False)
-            verbose (bool): Whether to print extra messages during execution (default: True)
-            print_exceptions (bool): Whether to print exceptions as they occur (default: True)
-            remote_cache_description (str, optional): Description for entries in the remote cache
-            remote_inference_description (str, optional): Description for the remote inference job
-            remote_inference_results_visibility (VisibilityType): Visibility of results on Coop ("private", "public", "unlisted")
-            disable_remote_cache (bool): Whether to disable the remote cache (default: False)
-            disable_remote_inference (bool): Whether to disable remote inference (default: False)
-            fresh (bool): Whether to ignore cache and force new results (default: False)
-            skip_retry (bool): Whether to skip retrying failed interviews (default: False)
-            raise_validation_errors (bool): Whether to raise validation errors (default: False)
-            background (bool): Whether to run in background mode (default: False)
-            job_uuid (str, optional): UUID for the job, used for tracking
-            cache (Cache, optional): Cache object to store results
-            bucket_collection (BucketCollection, optional): Object to track API keys
-            key_lookup (KeyLookup, optional): Object to manage API keys
-            memory_threshold (int, optional): Memory threshold in bytes for the Results object's SQLList,
-                controlling when data is offloaded to SQLite storage
-            new_format (bool): If True, uses remote_inference_create method, if False uses old_remote_inference_create method (default: True)
-            expected_parrot_api_key (str, optional): Custom EXPECTED_PARROT_API_KEY to use for this job run
+        Parameters
+        ----------
+        config : RunConfig
+            Configuration object containing runtime parameters and environment settings
+        n : int, optional
+            Number of iterations to run each interview (default: 1)
+        progress_bar : bool, optional
+            Whether to show a progress bar (default: False)
+        stop_on_exception : bool, optional
+            Whether to stop the job if an exception is raised (default: False)
+        check_api_keys : bool, optional
+            Whether to verify API keys before running (default: False)
+        verbose : bool, optional
+            Whether to print extra messages during execution (default: True)
+        print_exceptions : bool, optional
+            Whether to print exceptions as they occur (default: True)
+        remote_cache_description : str, optional
+            Description for entries in the remote cache
+        remote_inference_description : str, optional
+            Description for the remote inference job
+        remote_inference_results_visibility : VisibilityType, optional
+            Visibility of results on Coop ("private", "public", "unlisted")
+        disable_remote_cache : bool, optional
+            Whether to disable the remote cache (default: False)
+        disable_remote_inference : bool, optional
+            Whether to disable remote inference (default: False)
+        fresh : bool, optional
+            Whether to ignore cache and force new results (default: False)
+        skip_retry : bool, optional
+            Whether to skip retrying failed interviews (default: False)
+        raise_validation_errors : bool, optional
+            Whether to raise validation errors (default: False)
+        background : bool, optional
+            Whether to run in background mode (default: False)
+        job_uuid : str, optional
+            UUID for the job, used for tracking
+        cache : Cache, optional
+            Cache object to store results
+        bucket_collection : BucketCollection, optional
+            Object to track API keys
+        key_lookup : KeyLookup, optional
+            Object to manage API keys
+        memory_threshold : int, optional
+            Memory threshold in bytes for the Results object's SQLList,
+            controlling when data is offloaded to SQLite storage
+        new_format : bool, optional
+            If True, uses remote_inference_create method, if False uses old_remote_inference_create method (default: True)
+        expected_parrot_api_key : str, optional
+            Custom EXPECTED_PARROT_API_KEY to use for this job run
 
-        Returns:
+        Returns
+        -------
             Results: A Results object containing all responses and metadata
 
-        Notes:
+        Notes
+        -----
             - This method will first try to use remote inference if available
             - If remote inference is not available, it will run locally
             - For long-running jobs, consider using progress_bar=True
@@ -1020,6 +1118,7 @@ class Jobs(Base):
             >>> m = Model('test')
             >>> results = job.by(m).run(cache=Cache(), progress_bar=False, n=2, disable_remote_inference=True)
             ...
+
         """
         if self._depends_on is not None:
             prior_results = self._depends_on.run(config=config)
@@ -1038,42 +1137,68 @@ class Jobs(Base):
 
     @with_config
     async def run_async(self, *, config: RunConfig) -> "Results":
-        """
-        Asynchronously runs the job by conducting interviews and returns their results.
+        """Asynchronously runs the job by conducting interviews and returns their results.
 
         This method is the asynchronous version of `run()`. It has the same functionality and
         parameters but can be awaited in an async context for better integration with
         asynchronous code.
 
-        Parameters:
-            n (int): Number of iterations to run each interview (default: 1)
-            progress_bar (bool): Whether to show a progress bar (default: False)
-            stop_on_exception (bool): Whether to stop the job if an exception is raised (default: False)
-            check_api_keys (bool): Whether to verify API keys before running (default: False)
-            verbose (bool): Whether to print extra messages during execution (default: True)
-            print_exceptions (bool): Whether to print exceptions as they occur (default: True)
-            remote_cache_description (str, optional): Description for entries in the remote cache
-            remote_inference_description (str, optional): Description for the remote inference job
-            remote_inference_results_visibility (VisibilityType): Visibility of results on Coop ("private", "public", "unlisted")
-            disable_remote_cache (bool): Whether to disable the remote cache (default: False)
-            disable_remote_inference (bool): Whether to disable remote inference (default: False)
-            fresh (bool): Whether to ignore cache and force new results (default: False)
-            skip_retry (bool): Whether to skip retrying failed interviews (default: False)
-            raise_validation_errors (bool): Whether to raise validation errors (default: False)
-            background (bool): Whether to run in background mode (default: False)
-            job_uuid (str, optional): UUID for the job, used for tracking
-            cache (Cache, optional): Cache object to store results
-            bucket_collection (BucketCollection, optional): Object to track API calls
-            key_lookup (KeyLookup, optional): Object to manage API keys
-            memory_threshold (int, optional): Memory threshold in bytes for the Results object's SQLList,
-                controlling when data is offloaded to SQLite storage
-            new_format (bool): If True, uses remote_inference_create method, if False uses old_remote_inference_create method (default: True)
-            expected_parrot_api_key (str, optional): Custom EXPECTED_PARROT_API_KEY to use for this job run
+        Parameters
+        ----------
+        config : RunConfig
+            Configuration object containing runtime parameters and environment settings
+        n : int, optional
+            Number of iterations to run each interview (default: 1)
+        progress_bar : bool, optional
+            Whether to show a progress bar (default: False)
+        stop_on_exception : bool, optional
+            Whether to stop the job if an exception is raised (default: False)
+        check_api_keys : bool, optional
+            Whether to verify API keys before running (default: False)
+        verbose : bool, optional
+            Whether to print extra messages during execution (default: True)
+        print_exceptions : bool, optional
+            Whether to print exceptions as they occur (default: True)
+        remote_cache_description : str, optional
+            Description for entries in the remote cache
+        remote_inference_description : str, optional
+            Description for the remote inference job
+        remote_inference_results_visibility : VisibilityType, optional
+            Visibility of results on Coop ("private", "public", "unlisted")
+        disable_remote_cache : bool, optional
+            Whether to disable the remote cache (default: False)
+        disable_remote_inference : bool, optional
+            Whether to disable remote inference (default: False)
+        fresh : bool, optional
+            Whether to ignore cache and force new results (default: False)
+        skip_retry : bool, optional
+            Whether to skip retrying failed interviews (default: False)
+        raise_validation_errors : bool, optional
+            Whether to raise validation errors (default: False)
+        background : bool, optional
+            Whether to run in background mode (default: False)
+        job_uuid : str, optional
+            UUID for the job, used for tracking
+        cache : Cache, optional
+            Cache object to store results
+        bucket_collection : BucketCollection, optional
+            Object to track API calls
+        key_lookup : KeyLookup, optional
+            Object to manage API keys
+        memory_threshold : int, optional
+            Memory threshold in bytes for the Results object's SQLList,
+            controlling when data is offloaded to SQLite storage
+        new_format : bool, optional
+            If True, uses remote_inference_create method, if False uses old_remote_inference_create method (default: True)
+        expected_parrot_api_key : str, optional
+            Custom EXPECTED_PARROT_API_KEY to use for this job run
 
-        Returns:
+        Returns
+        -------
             Results: A Results object containing all responses and metadata
 
-        Notes:
+        Notes
+        -----
             - This method should be used in async contexts (e.g., with `await`)
             - For non-async contexts, use the `run()` method instead
             - This method is particularly useful in notebook environments or async applications
@@ -1087,6 +1212,7 @@ class Jobs(Base):
             >>> async def run_job():
             ...     results = await job.run_async(cache=Cache(), progress_bar=True)
             ...     return results
+
         """
         self._run(config)
 
@@ -1106,6 +1232,7 @@ class Jobs(Base):
 
     def __len__(self) -> int:
         """Return the number of interviews that will be conducted for one iteration of this job.
+        
         An interview is the result of one survey, taken by one agent, with one model, with one scenario.
 
         >>> from edsl.jobs import Jobs
@@ -1134,18 +1261,22 @@ class Jobs(Base):
           reference *self*, establishing an execution dependency chain.
 
         Args:
+        ----
             question_or_survey_or_jobs (Union[Question, Survey, Jobs]):
                 The object used to build (or identify) the new *Jobs* instance.
 
         Returns:
+        -------
             Jobs: A new *Jobs* instance that depends on the current instance, or
             the target *Jobs* instance when the target itself is a *Jobs*.
 
         Raises:
+        ------
             ValueError: If *question_or_survey_or_jobs* is not one of the
                 supported types.
 
         Examples:
+        --------
             The following doctest demonstrates sending one job to another and
             verifying the dependency link via the private ``_depends_on``
             attribute::
@@ -1158,6 +1289,7 @@ class Jobs(Base):
                 True
                 >>> new_job._depends_on is base_job  # dependency recorded
                 True
+
         """
         from ..questions import QuestionBase
         from ..surveys import Survey
@@ -1184,9 +1316,28 @@ class Jobs(Base):
         return new_jobs
 
     def duplicate(self):
+        """Create a duplicate copy of this Jobs instance.
+        
+        Returns
+        -------
+            Jobs: A new Jobs instance that is a copy of this one.
+
+        """
         return Jobs.from_dict(self.to_dict())
 
     def to_dict(self, add_edsl_version=True, full_dict=None):
+        """Convert the Jobs instance to a dictionary representation.
+        
+        Args:
+        ----
+            add_edsl_version: Whether to include EDSL version information.
+            full_dict: Additional dictionary to merge (currently unused).
+            
+        Returns:
+        -------
+            dict: Dictionary representation of this Jobs instance.
+
+        """
         d = {
             "survey": self.survey.to_dict(add_edsl_version=add_edsl_version),
             "agents": [
@@ -1222,12 +1373,19 @@ class Jobs(Base):
         return d
 
     def table(self):
+        """Return a table view of the job's prompts.
+        
+        Returns
+        -------
+            Table representation of the job's prompts.
+
+        """
         return self.prompts().to_scenario_list().table()
 
     @classmethod
     @remove_edsl_version
     def from_dict(cls, data: dict) -> Jobs:
-        """Creates a Jobs instance from a dictionary."""
+        """Create a Jobs instance from a dictionary."""
         from ..surveys import Survey
         from ..agents import Agent
         from ..language_models import LanguageModel
@@ -1305,7 +1463,6 @@ class Jobs(Base):
 
         def answer_question_directly(self, question, scenario):
             """Return the answer to a question. This is a method that can be added to an agent."""
-
             if random.random() < throw_exception_probability:
                 from .exceptions import JobsErrors
 
@@ -1376,8 +1533,7 @@ class Jobs(Base):
         scenario_list_alias: Optional[str] = None,
         scenario_list_visibility: Optional["VisibilityType"] = "unlisted",
     ):
-        """
-        Send the survey and scenario list to Coop.
+        """Send the survey and scenario list to Coop.
 
         Then, create a project on Coop so you can share the survey with human respondents.
         """
@@ -1433,7 +1589,6 @@ class Jobs(Base):
 
 def main():
     """Run the module's doctests."""
-    from .jobs import Jobs
     from ..caching import Cache
 
     job = Jobs.example()

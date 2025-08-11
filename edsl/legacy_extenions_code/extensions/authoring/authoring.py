@@ -1,6 +1,6 @@
-from abc import ABC, abstractmethod
+from abc import ABC
 from pathlib import Path
-from dataclasses import dataclass, field, asdict, fields, MISSING
+from dataclasses import dataclass, field, asdict, MISSING
 from typing import (
     Optional,
     Dict,
@@ -11,41 +11,31 @@ from typing import (
     List,
     Union,
     TYPE_CHECKING,
-    TypedDict,
 )
-from collections import UserDict
 
 import requests
-from pydantic import create_model, Field, BaseModel
+from pydantic import BaseModel
 import yaml  # Added for YAML serialization
 
 import os
 import sys
 import logging
 
-from fastapi import HTTPException
-from fastapi import APIRouter, Header, HTTPException
-from typing import Callable, Optional, Any, Dict
+from fastapi import APIRouter, Header
 
-from ...surveys import Survey  # Assume Survey is always available
 from ...scenarios import Scenario
-from ...base import RegisterSubclassesMeta
 
 # Import ExtensionService classes from the new module
-from .extension_service import ExtensionService, ExtensionOutput, ExtensionOutputs
+from .extension_service import ExtensionService
 
 from .exceptions import (
-    ExtensionError,
     ServiceConnectionError,
     ServiceResponseError,
     ServiceConfigurationError,
-    ServiceParameterValidationError,
     ServiceDeserializationError,
-    ServiceOutputValidationError,
 )
 
 from .parameter_validation import Parameters
-from .service_caller import ServiceCaller
 from .service_callers import GatewayServiceCaller, DirectServiceCaller
 from .response_processor import ServiceResponseProcessor
 from .model_generation import ModelGenerator

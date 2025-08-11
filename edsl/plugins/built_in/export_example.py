@@ -1,6 +1,6 @@
 # Example plugin that demonstrates exporting objects to the global namespace
 import pluggy
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 
 # Define a hook implementation marker
 hookimpl = pluggy.HookimplMarker("edsl")

@@ -4,7 +4,6 @@ from .open_ai_service import OpenAIService
 
 import openai
 
-from dataclasses import dataclass
 
 class TogetherAIService(OpenAIService):
     """DeepInfra service class."""

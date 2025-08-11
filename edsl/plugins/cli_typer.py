@@ -5,28 +5,20 @@ This module provides a Typer-based CLI for listing, installing,
 updating, and removing EDSL plugins.
 """
 
-import sys
-from typing import Optional, List, Dict, Any
+from typing import Optional, List
 import re
-from pathlib import Path
 
 import typer
 from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
-from rich.text import Text
 from rich import box
 
 from .plugin_host import PluginHost, get_plugin_manager
 from .exceptions import (
     PluginException,
-    PluginNotFoundError,
-    PluginInstallationError,
-    GitHubRepoError,
-    InvalidPluginError,
 )
 from .plugins_registry import (
-    AvailablePlugin,
     get_available_plugins,
     search_plugins,
     get_plugin_details,

@@ -520,7 +520,7 @@ class EDSLShell(cmd.Cmd):
 
             # Display result
             if result is not None:
-                console.print(f"[green]Returned:[/green]")
+                console.print("[green]Returned:[/green]")
                 if isinstance(result, (dict, list)):
                     console.print_json(json.dumps(result, indent=2, default=str))
                 else:
@@ -723,7 +723,7 @@ class EDSLShell(cmd.Cmd):
 
                     # Display result
                     if result is not None:
-                        console.print(f"[green]Returned:[/green]")
+                        console.print("[green]Returned:[/green]")
                         if isinstance(result, (dict, list)):
                             console.print_json(
                                 json.dumps(result, indent=2, default=str)
@@ -1163,7 +1163,7 @@ class EDSLShell(cmd.Cmd):
 
             # Display the result
             if result is not None:
-                console.print(f"[green]Returned:[/green]")
+                console.print("[green]Returned:[/green]")
                 # Check if it's a TableDisplay to avoid double Rich formatting
                 try:
                     from edsl.dataset.display.table_display import TableDisplay
@@ -1297,7 +1297,7 @@ def _create_dynamic_command(method_name: str, method: callable):
 
             # Display result
             if result is not None:
-                console.print(f"[green]Returned:[/green]")
+                console.print("[green]Returned:[/green]")
                 if isinstance(result, (dict, list)):
                     console.print_json(json.dumps(result, indent=2, default=str))
                 else:
@@ -1487,7 +1487,7 @@ def load(
         console.print(f"[cyan]File: {filepath}[/cyan]")
 
         if interactive:
-            console.print(f"\n[yellow]Starting interactive shell...[/yellow]")
+            console.print("\n[yellow]Starting interactive shell...[/yellow]")
             shell = EDSLShell(_loaded_object, _loaded_object_name)
             shell.cmdloop()
         else:
@@ -1851,7 +1851,7 @@ def _load_env_profile(profile: str) -> bool:
     try:
         # Step 1: Backup current .env to .env_bak if it exists
         if env_path.exists():
-            console.print(f"[cyan]Backing up current .env to .env_bak...[/cyan]")
+            console.print("[cyan]Backing up current .env to .env_bak...[/cyan]")
             shutil.copy2(env_path, env_bak_path)
 
         # Step 2: Copy the profile to .env
@@ -2099,7 +2099,7 @@ def list_cli(class_name: str = typer.Argument(..., help="EDSL class name")):
 
         # Display the result
         if result is not None:
-            console.print(f"[green]Returned:[/green]")
+            console.print("[green]Returned:[/green]")
             # Check if it's a TableDisplay to avoid double Rich formatting
             try:
                 from edsl.dataset.display.table_display import TableDisplay
@@ -2390,7 +2390,7 @@ def main():
                 # After piped command execution, start interactive shell if --interactive flag was used
                 if should_continue_interactive:
                     console.print(
-                        f"[yellow]Starting interactive shell after piped command execution...[/yellow]"
+                        "[yellow]Starting interactive shell after piped command execution...[/yellow]"
                     )
                     if _loaded_object:
                         shell = EDSLShell(_loaded_object, _loaded_object_name)
@@ -2405,7 +2405,7 @@ def main():
                 # Still check if we should start interactive mode
                 if _interactive_mode:
                     console.print(
-                        f"[yellow]Starting interactive shell after piped command execution...[/yellow]"
+                        "[yellow]Starting interactive shell after piped command execution...[/yellow]"
                     )
                     if _loaded_object:
                         shell = EDSLShell(_loaded_object, _loaded_object_name)
@@ -2422,7 +2422,7 @@ def main():
                 should_continue_interactive = _execute_single_dot_command()
                 if should_continue_interactive:
                     console.print(
-                        f"[yellow]Starting interactive shell after command execution...[/yellow]"
+                        "[yellow]Starting interactive shell after command execution...[/yellow]"
                     )
                     if _loaded_object:
                         shell = EDSLShell(_loaded_object, _loaded_object_name)
@@ -2435,7 +2435,7 @@ def main():
             except SystemExit:
                 if _interactive_mode:
                     console.print(
-                        f"[yellow]Starting interactive shell after command execution...[/yellow]"
+                        "[yellow]Starting interactive shell after command execution...[/yellow]"
                     )
                     if _loaded_object:
                         shell = EDSLShell(_loaded_object, _loaded_object_name)
@@ -2453,7 +2453,7 @@ def main():
                 # If --interactive flag was used, start interactive shell
                 if _interactive_mode:
                     console.print(
-                        f"[yellow]Starting interactive shell after command execution...[/yellow]"
+                        "[yellow]Starting interactive shell after command execution...[/yellow]"
                     )
                     if _loaded_object:
                         shell = EDSLShell(_loaded_object, _loaded_object_name)

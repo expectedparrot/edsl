@@ -326,7 +326,6 @@ if __name__ == "__main__":
 
     doctest.testmod()
     
-    from edsl.inference_services.services import OpenAIService
     # Import the actual module that services are registering with
     import edsl.inference_services.inference_service_abc as actual_module
     

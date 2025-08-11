@@ -17,6 +17,7 @@ if TYPE_CHECKING:
     from ..language_models import LanguageModel
     from ..surveys.memory import MemoryPlan
     from ..scenarios import Scenario
+    from ..surveys import Survey
     from ..prompts import Prompt
 
 logger = logging.getLogger(__name__)

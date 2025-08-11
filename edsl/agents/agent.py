@@ -41,12 +41,7 @@ more natural responses that properly interpret the agent's characteristics.
 """
 
 from __future__ import annotations
-import copy
-import inspect
-import types
-import warnings
 from uuid import uuid4
-from contextlib import contextmanager
 from typing import (
     Callable,
     Optional,
@@ -56,7 +51,6 @@ from typing import (
     Protocol,
     runtime_checkable,
     TypeVar,
-    Type,
     List,
 )
 
@@ -81,7 +75,6 @@ from .descriptors import (
     NameDescriptor,
 )
 
-from .agent_traits import AgentTraits
 
 if TYPE_CHECKING:
     from ..caching import Cache

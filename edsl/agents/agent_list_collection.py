@@ -8,8 +8,7 @@ from .agent_list import AgentList
 if TYPE_CHECKING:
     from ..language_models import LanguageModel
     from ..surveys import Survey
-    from ..results import Results, ResultsList
-    from ..questions import QuestionFreeText
+    from ..results import Results
 
 class PersonaGenerator:
     """Handles the generation of persona agents from existing agent collections.

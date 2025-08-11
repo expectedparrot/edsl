@@ -5,7 +5,7 @@ Abstract base class for all inspector widgets that display detailed views of EDS
 Provides standardized interface for object inspection with consistent data handling.
 """
 
-from abc import ABCMeta, abstractmethod
+from abc import ABCMeta
 import traitlets
 from typing import Any, Dict, Optional
 from .base_widget import EDSLBaseWidget

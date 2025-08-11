@@ -4,7 +4,7 @@ This module provides the JobCostCalculator class which handles cost computation
 for EDSL jobs, including analysis of model response costs and cache usage.
 """
 
-from typing import TYPE_CHECKING, Iterable
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .results import Results
