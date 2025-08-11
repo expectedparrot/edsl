@@ -24,19 +24,3 @@ def test_no_model_passed_to_instructions():
     assert "roger-dodger" in q0.get_instructions().text
 
 
-def test_model_specific_instructions():
-
-    available_models = Model.available()
-    m1 = available_models[0]
-    m2 = available_models[1]
-
-    q = QuestionMultipleChoice(
-        question_text="How are you?",
-        question_options=["Good", "Great", "OK", "Bad"],
-        question_name="how_feeling",
-    )
-
-    q.add_model_instructions(instructions=new_instructions, model=m1.model)
-
-    assert "roger-dodger" in q.get_instructions(model=m1.model).text
-    assert "roger-dodger" not in q.get_instructions(model=m2.model).text

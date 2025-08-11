@@ -150,9 +150,11 @@ class InferenceServiceRegistry:
         # Get model data based on the current source
         if self._model_source is None:
             if self.verbose:
-                print("[REGISTRY] No model source set - cannot build model mappings")
-            raise ValueError("No model source set. Call set_model_source('coop') or set_model_source('services') first.")
-        elif self._model_source == "coop":
+                print("[REGISTRY] No model source set - defaulting to 'coop' on first use")
+            # Lazily set default model source to coop
+            self._model_source = "coop"
+        
+        if self._model_source == "coop":
             all_models = self._fetch_models_from_coop_internal()
         elif self._model_source == "services":
             all_models = self._fetch_models_from_services_internal()
@@ -236,10 +238,10 @@ class InferenceServiceRegistry:
                 - usd_per_1M_input_tokens: Cost per million input tokens
                 - usd_per_1M_output_tokens: Cost per million output tokens
         
-        Example:
-            >>> registry = InferenceServiceRegistry()
-            >>> models_list = registry.fetch_working_models("list")
-            >>> models_scenarios = registry.fetch_working_models("scenario_list")
+        Example (requires network access):
+            registry = InferenceServiceRegistry()
+            models_list = registry.fetch_working_models("list")
+            models_scenarios = registry.fetch_working_models("scenario_list")
         """
         try:
             if self.verbose:
@@ -278,6 +280,12 @@ class InferenceServiceRegistry:
         """Get the preferred service for a given model name based on user preferences."""
         if self.verbose:
             print(f"[REGISTRY] get_service_for_model('{model_name}') called")
+        
+        # Early check for test models to avoid API calls
+        if model_name == 'test':
+            if self.verbose:
+                print("[REGISTRY] Test model detected, using 'test' service without API calls")
+            return 'test'
             
         self._build_model_mappings()
         services = self._model_to_services.get(model_name, [])
