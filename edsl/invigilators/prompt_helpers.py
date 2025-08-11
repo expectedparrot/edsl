@@ -19,6 +19,7 @@ class PromptList(UserList):
     def reduce(self):
         """Reduce the list of prompts to a single prompt.
 
+        >>> from edsl.prompts import Prompt
         >>> p = PromptList([Prompt("You are a happy-go lucky agent."), Prompt("You are an agent with the following persona: {'age': 22, 'hair': 'brown', 'height': 5.5}")])
         >>> p.reduce()
         Prompt(text=\"""You are a happy-go lucky agent.You are an agent with the following persona: {'age': 22, 'hair': 'brown', 'height': 5.5}\""")
@@ -44,10 +45,11 @@ class PromptPlan:
     >>> p.arrange_components(agent_instructions=1, agent_persona=2, question_instructions=3, prior_question_memory=4)
     {'user_prompt': ..., 'system_prompt': ...}
 
-    >>> p = PromptPlan(user_prompt_order=("agent_instructions", ), system_prompt_order=("question_instructions", "prior_question_memory"))
+    >>> p = PromptPlan(user_prompt_order=("agent_instructions", ), system_prompt_order=("question_instructions", "prior_question_memory"))  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ...
-    ValueError: Invalid plan: must contain each value of PromptComponent exactly once.
+    edsl.invigilators.exceptions.InvigilatorValueError: Invalid plan: must contain each value of PromptComponent exactly once.
+    ...
 
     """
 

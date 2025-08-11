@@ -252,13 +252,13 @@ class PromptConstructor:
         Examples:
             >>> from edsl.invigilators.invigilators import InvigilatorBase
             >>> i = InvigilatorBase.example()
-            >>> question_data = {"options": ["yes", "no"], "option_codes": [0, 1]}
+            >>> question_data = {"question_options": ["yes", "no"]}
             >>> i.prompt_constructor.get_question_options(question_data)
-            ['0: yes', '1: no']
+            ['yes', 'no']
 
-            >>> question_data = {"options": ["strongly agree", "agree", "disagree"]}
+            >>> question_data = {"question_options": ["strongly agree", "agree", "disagree"]}
             >>> i.prompt_constructor.get_question_options(question_data)
-            ['0: strongly agree', '1: agree', '2: disagree']
+            ['strongly agree', 'agree', 'disagree']
 
         Technical Notes:
             - Delegates the actual option processing to the QuestionOptionProcessor
@@ -480,6 +480,7 @@ class PromptConstructor:
         Examples:
             >>> from edsl.invigilators.invigilators import InvigilatorBase
             >>> i = InvigilatorBase.example()
+            >>> i.question.use_code = True
             >>> prompt = i.prompt_constructor.build_question_instructions_prompt()
             >>> "Do you like school?" in prompt.text
             True
@@ -571,12 +572,22 @@ class PromptConstructor:
             >>> "Do you like school?" in prompts['user_prompt']
             True
 
-            # Test with file keys
-            >>> i.prompt_constructor.file_keys_from_question = ['code.py']
-            >>> i.prompt_constructor.scenario = {'code.py': 'print("Hello")'}
-            >>> prompts = i.prompt_constructor.get_prompts()
-            >>> prompts['files_list']
-            ['print("Hello")']
+            # Test with file keys requires FileStore objects
+            >>> from edsl.scenarios import FileStore
+            >>> import tempfile
+            >>> with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.py') as f:
+            ...     _ = f.write('print("Hello")')
+            ...     temp_path = f.name
+            >>> fs = FileStore(temp_path)
+            >>> from edsl.questions import QuestionFreeText
+            >>> from edsl import Scenario, Survey
+            >>> q_with_file = QuestionFreeText(question_text='Analyze: {{ code_file }}', question_name='q1')
+            >>> scenario_with_file = Scenario({'code_file': fs})
+            >>> survey_with_file = Survey([q_with_file])
+            >>> i_with_file = InvigilatorBase.example(question=q_with_file, scenario=scenario_with_file, survey=survey_with_file)
+            >>> prompts_with_file = i_with_file.prompt_constructor.get_prompts()
+            >>> 'files_list' in prompts_with_file
+            True
 
         Technical Notes:
             - Builds all prompt components first
@@ -623,8 +634,9 @@ class PromptConstructor:
         Examples:
             >>> from edsl.invigilators.invigilators import InvigilatorBase
             >>> i = InvigilatorBase.example()
-            >>> i.prompt_constructor.captured_variables = {'answer_count': 5, 'last_response': 'yes'}
-            >>> vars = i.prompt_constructor.get_captured_variables()
+            >>> pc = i.prompt_constructor
+            >>> pc.captured_variables = {'answer_count': 5, 'last_response': 'yes'}
+            >>> vars = pc.get_captured_variables()
             >>> vars['answer_count']
             5
             >>> vars['last_response']

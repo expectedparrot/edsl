@@ -258,8 +258,8 @@ class SurveyExport:
             If True, includes the internal ``question_name`` of each question in
             the rendered LaTeX.
         standalone : bool, default True
-            If True, a full LaTeX document is produced with ``\documentclass`` and
-            ``\begin{document}`` / ``\end{document}``. If False, only the snippet
+            If True, a full LaTeX document is produced with ``\\documentclass`` and
+            ``\\begin{document}`` / ``\\end{document}``. If False, only the snippet
             corresponding to the survey content is written (suitable for inclusion
             in a larger document).
 

@@ -84,7 +84,7 @@ python_files = ["test_*.py", "*_test.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 # Exclude unused directory from test collection and discovery
-ignore = [
+norecursedirs = [
     "edsl/inference_services/unused/",
     "unused/"
 ]

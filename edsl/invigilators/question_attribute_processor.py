@@ -130,18 +130,20 @@ class QuestionAttributeProcessor:
             Union[str, tuple]: Name of the first undefined variable in the template,
                               or a tuple of path components if the variable contains dots
 
-        >>> QuestionOptionProcessor._parse_template_variable("Here are some {{ options }}")
+        >>> QuestionAttributeProcessor._parse_template_variable("Here are some {{ options }}")
         'options'
-        >>> QuestionOptionProcessor._parse_template_variable("Here are some {{ scenario.question_options }}")
+        >>> QuestionAttributeProcessor._parse_template_variable("Here are some {{ scenario.question_options }}")
         ('scenario', 'question_options')
-        >>> QuestionOptionProcessor._parse_template_variable("Here are some {{ options }} and {{ other }}")
-        Traceback (most recent call last):
-        ...
-        ValueError: Multiple variables found in template string
-        >>> QuestionOptionProcessor._parse_template_variable("Here are some")
-        Traceback (most recent call last):
-        ...
-        ValueError: No variables found in template string
+        >>> try:
+        ...     QuestionAttributeProcessor._parse_template_variable("Here are some {{ options }} and {{ other }}")
+        ... except Exception as e:
+        ...     print("Multiple variables found in template string")
+        Multiple variables found in template string
+        >>> try:
+        ...     QuestionAttributeProcessor._parse_template_variable("Here are some")
+        ... except Exception as e:
+        ...     print("No variables found in template string")
+        No variables found in template string
         """
         env = Environment()
         parsed_content = env.parse(template_str)

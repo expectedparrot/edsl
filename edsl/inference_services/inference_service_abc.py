@@ -7,7 +7,7 @@ from .model_info import ModelInfo
 from .inference_service_registry import InferenceServiceRegistry
 
 # Global registry instance  
-_GLOBAL_REGISTRY = InferenceServiceRegistry(verbose=True, model_source="coop")
+_GLOBAL_REGISTRY = InferenceServiceRegistry(verbose=False, model_source="coop")
 
 
 class InferenceServiceABC(ABC):
