@@ -83,7 +83,7 @@ class QuestionBasePromptsMixin:
             # if not model is passed, all the models are mapped to this instruction, including 'None'
             self._model_instructions = {
                 model_name: instructions
-                for model_name in Model.available(name_only=True)
+                for model_name in Model.available().names
             }
             self._model_instructions.update({model: instructions})
         else:

@@ -1,13 +1,8 @@
 from typing import Optional, Literal, TYPE_CHECKING, Any
 from dataclasses import dataclass, asdict
 from collections import UserDict
+
 from ..data_transfer_models import EDSLResultObjectInput
-
-# from edsl.data_transfer_models import VisibilityType
-from ..caching import Cache
-
-# Import BucketCollection lazily to avoid circular imports
-from ..key_management import KeyLookup
 from ..base import Base
 
 from .jobs_runner_status import JobsRunnerStatus
@@ -16,6 +11,8 @@ if TYPE_CHECKING:
     from ..questions.question_base import QuestionBase
     from ..surveys import Survey
     from ..buckets import BucketCollection
+    from ..key_management import KeyLookup
+    from ..caching import Cache
 
 VisibilityType = Literal["private", "public", "unlisted"]
 
@@ -36,11 +33,11 @@ class RunEnvironment:
         jobs_runner_status (JobsRunnerStatus, optional): Tracker for job execution progress
     """
 
-    cache: Optional[Cache] = None
+    cache: Optional['Cache'] = None
     bucket_collection: Optional[
         Any
     ] = None  # Using Any to avoid circular import of BucketCollection
-    key_lookup: Optional[KeyLookup] = None
+    key_lookup: Optional['KeyLookup'] = None
     jobs_runner_status: Optional["JobsRunnerStatus"] = None
 
 
@@ -158,7 +155,7 @@ class RunConfig:
         """
         self.environment.bucket_collection = bucket_collection
 
-    def add_cache(self, cache: Cache) -> None:
+    def add_cache(self, cache: 'Cache') -> None:
         """
         Set or replace the cache in the environment.
 
@@ -167,7 +164,7 @@ class RunConfig:
         """
         self.environment.cache = cache
 
-    def add_key_lookup(self, key_lookup: KeyLookup) -> None:
+    def add_key_lookup(self, key_lookup: 'KeyLookup') -> None:
         """
         Set or replace the key lookup in the environment.
 

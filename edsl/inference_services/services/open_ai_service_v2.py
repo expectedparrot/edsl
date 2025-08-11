@@ -9,13 +9,15 @@ from ..inference_service_abc import InferenceServiceABC
 # Use TYPE_CHECKING to avoid circular imports at runtime
 if TYPE_CHECKING:
     from ...language_models import LanguageModel
-from ..rate_limits_cache import rate_limits
+
+#from ..rate_limits_cache import rate_limits
+rate_limits = {}
 
 # Default to completions API but can use responses API with parameter
 
 if TYPE_CHECKING:
-    from ....scenarios.file_store import FileStore as Files
-    from ....invigilators.invigilator_base import InvigilatorBase as InvigilatorAI
+    from ...scenarios.file_store import FileStore as Files
+    from ...invigilators.invigilator_base import InvigilatorBase as InvigilatorAI
 
 
 APIToken = NewType("APIToken", str)

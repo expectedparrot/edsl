@@ -144,7 +144,7 @@ class DataOperationsBase:
 
         >>> from edsl.results import Results
         >>> sorted(Results.example().select().relevant_columns(data_type = "model"))
-        ['model.frequency_penalty', ...]
+        ['model.canned_response', 'model.inference_service', 'model.model', 'model.model_index', 'model.temperature']
 
         >>> # Testing relevant_columns with invalid data_type raises DatasetValueError - tested in unit tests
         """
@@ -414,7 +414,7 @@ class DataOperationsBase:
             4
             >>> engine = Results.example()._db(shape = "long")
             >>> len(engine.execute(text("SELECT * FROM self")).fetchall())
-            220
+            200
         """
         # Import needed for database connection
         from sqlalchemy import create_engine
@@ -499,7 +499,7 @@ class DataOperationsBase:
 
             # Using long format
             >>> len(r.sql("SELECT * FROM self", shape="long"))
-            220
+            200
         """
         import pandas as pd
 

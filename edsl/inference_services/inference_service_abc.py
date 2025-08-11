@@ -3,16 +3,8 @@ import re
 from datetime import datetime, timedelta
 from typing import Any, List, Dict
 
-try:
-    from .model_info import ModelInfo
-except ImportError:
-    from model_info import ModelInfo
-
-try:
-    from .inference_service_registry import InferenceServiceRegistry
-except ImportError:
-    from inference_service_registry import InferenceServiceRegistry
-
+from .model_info import ModelInfo
+from .inference_service_registry import InferenceServiceRegistry
 
 # Global registry instance  
 _GLOBAL_REGISTRY = InferenceServiceRegistry(verbose=True, model_source="coop")
@@ -210,8 +202,10 @@ class InferenceServiceABC(ABC):
         Example:
             >>> registry = InferenceServiceABC.get_registry_instance()
             >>> registry.set_model_source("coop")
+            >>> original_verbose = registry.verbose
             >>> registry.verbose = True
             >>> current_source = registry.get_model_source()
+            >>> registry.verbose = original_verbose
         """
         return _GLOBAL_REGISTRY
 

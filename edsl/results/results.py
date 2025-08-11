@@ -786,7 +786,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
 
         >>> r = Results.example()
         >>> r.model_keys
-        ['frequency_penalty', 'inference_service', 'logprobs', 'max_tokens', 'model', 'model_index', 'presence_penalty', 'temperature', 'top_logprobs', 'top_p']
+        ['canned_response', 'inference_service', 'model', 'model_index', 'temperature']
         """
         return self._properties.model_keys
 

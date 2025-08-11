@@ -78,6 +78,17 @@ version = "^24.4.2"
 extras = [ "all",]
 version = "^0.9.0"
 
+[tool.pytest.ini_options]
+testpaths = ["tests", "edsl"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+# Exclude unused directory from test collection and discovery
+ignore = [
+    "edsl/inference_services/unused/",
+    "unused/"
+]
+
 [tool.tomlsort.overrides."tool.poetry.dependencies"]
 table_keys = false
 

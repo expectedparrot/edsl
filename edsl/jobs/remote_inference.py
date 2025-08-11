@@ -1,12 +1,12 @@
 from typing import Optional, Union, Literal, TYPE_CHECKING, NewType, Callable, Any
 from dataclasses import dataclass
-from ..coop import CoopServerResponseError
-from ..coop.utils import VisibilityType, CostConverter
-from ..coop.coop import RemoteInferenceResponse, RemoteInferenceCreationInfo
+import time
+from datetime import datetime
+
+
 from .jobs_status_enums import JobsStatus
 from .jobs_remote_inference_logger import JobLogger, JobRunExceptionCounter, ModelCost
 from .exceptions import RemoteInferenceError
-
 
 Seconds = NewType("Seconds", float)
 JobUUID = NewType("JobUUID", str)
@@ -14,6 +14,8 @@ JobUUID = NewType("JobUUID", str)
 if TYPE_CHECKING:
     from ..results import Results
     from .jobs import Jobs
+    from ..coop.utils import VisibilityType
+    from ..coop.coop import RemoteInferenceResponse, RemoteInferenceCreationInfo
 
 
 class RemoteJobConstants:
@@ -26,7 +28,7 @@ class RemoteJobConstants:
 
 @dataclass
 class RemoteJobInfo:
-    creation_data: RemoteInferenceCreationInfo
+    creation_data: "RemoteInferenceCreationInfo"
     job_uuid: JobUUID
     logger: JobLogger
     new_format: bool = True
@@ -83,8 +85,16 @@ class JobsRemoteInferenceHandler:
                 return user_edsl_settings.get("remote_inference", False)
             except requests.ConnectionError:
                 pass
-            except CoopServerResponseError:
-                pass
+            except Exception as e:  # CoopServerResponseError will be imported when needed
+                try:
+                    from ..coop import CoopServerResponseError
+                    if isinstance(e, CoopServerResponseError):
+                        pass
+                    else:
+                        raise
+                except ImportError:
+                    # If coop module is not available, re-raise the original exception
+                    raise e
 
         return False
 
@@ -180,10 +190,11 @@ class JobsRemoteInferenceHandler:
     @staticmethod
     def check_status(
         job_uuid: JobUUID,
+        api_key: Optional[str] = None,
     ) -> "RemoteInferenceResponse":
         from ..coop import Coop
 
-        coop = Coop(api_key=self.api_key)
+        coop = Coop(api_key=api_key)
         return coop.new_remote_inference_get(job_uuid)
 
     def _construct_remote_job_fetcher(
@@ -228,7 +239,7 @@ class JobsRemoteInferenceHandler:
             job_info.logger.job_completed(JobsStatus.CANCELLED)
 
     def _handle_failed_job(
-        self, job_info: RemoteJobInfo, remote_job_data: RemoteInferenceResponse
+        self, job_info: 'RemoteJobInfo', remote_job_data: 'RemoteInferenceResponse'
     ) -> None:
         "Handles a failed job by logging the error and updating the job status."
         latest_job_run_details = remote_job_data.get("latest_job_run_details", {})
@@ -268,7 +279,7 @@ class JobsRemoteInferenceHandler:
         )
 
     def _update_interview_details(
-        self, job_info: RemoteJobInfo, remote_job_data: RemoteInferenceResponse
+        self, job_info: 'RemoteJobInfo', remote_job_data: 'RemoteInferenceResponse'
     ) -> None:
         "Updates the interview details in the job info."
         latest_job_run_details = remote_job_data.get("latest_job_run_details", {})
@@ -298,7 +309,7 @@ class JobsRemoteInferenceHandler:
             job_info.logger.add_info("exception_summary", job_run_exception_counters)
 
     def _handle_partially_failed_job(
-        self, job_info: RemoteJobInfo, remote_job_data: RemoteInferenceResponse
+        self, job_info: 'RemoteJobInfo', remote_job_data: 'RemoteInferenceResponse'
     ) -> None:
         "Handles a partially failed job by logging the error and updating the job status."
         error_report_url = remote_job_data.get("latest_job_run_details", {}).get(
@@ -320,9 +331,7 @@ class JobsRemoteInferenceHandler:
             status=JobsStatus.PARTIALLY_FAILED,
         )
 
-    def _sleep_for_a_bit(self, job_info: RemoteJobInfo, status: str) -> None:
-        import time
-        from datetime import datetime
+    def _sleep_for_a_bit(self, job_info: 'RemoteJobInfo', status: str) -> None:
 
         time_checked = datetime.now().strftime("%Y-%m-%d %I:%M:%S %p")
         job_info.logger.update(
@@ -445,6 +454,8 @@ class JobsRemoteInferenceHandler:
                     "output_cost_usd_with_cache"
                 ] += expense_usage["cost_usd_with_cache"]
 
+        from ..coop.utils import CostConverter
+        
         converter = CostConverter()
         for model_key, model_cost_dict in expenses_by_model.items():
             # Handle full cost (without cache)
@@ -475,10 +486,10 @@ class JobsRemoteInferenceHandler:
 
     def _fetch_results_and_log(
         self,
-        job_info: RemoteJobInfo,
+        job_info: 'RemoteJobInfo',
         job_status: Literal["failed", "partial_failed", "completed"],
         results_uuid: str,
-        remote_job_data: RemoteInferenceResponse,
+        remote_job_data: 'RemoteInferenceResponse',
         object_fetcher: Callable,
     ) -> "Results":
         "Fetches the results object and logs the results URL."
@@ -602,7 +613,7 @@ class JobsRemoteInferenceHandler:
         self,
         iterations: int = 1,
         remote_inference_description: Optional[str] = None,
-        remote_inference_results_visibility: Optional[VisibilityType] = "unlisted",
+        remote_inference_results_visibility: Optional["VisibilityType"] = "unlisted",
         new_format: Optional[bool] = True,
     ) -> Union["Results", None]:
         """

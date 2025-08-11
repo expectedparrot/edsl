@@ -1,23 +1,25 @@
 import math
-from typing import Literal, Optional, Type, Union
+from typing import Literal, Optional, Type, Union, TYPE_CHECKING
 
 from ..agents import Agent, AgentList
 from ..caching import Cache
-from ..language_models import ModelList
 from ..notebooks import Notebook
 from ..results import Results
 from ..scenarios import Scenario, ScenarioList
 from ..surveys import Survey
 
-from ..language_models import LanguageModel
 from ..questions import QuestionBase
+
+if TYPE_CHECKING:
+    from ..language_models import ModelList
+    from ..language_models import LanguageModel
 
 EDSLObject = Union[
     Agent,
     AgentList,
     Cache,
-    LanguageModel,
-    ModelList,
+    "LanguageModel",
+    "ModelList", 
     Notebook,
     Type[QuestionBase],
     Results,
@@ -79,25 +81,39 @@ class ObjectRegistry:
         edsl_class_to_object_type (dict): Maps EDSL class names to object type strings
     """
 
-    objects = [
-        {"object_type": "agent", "edsl_class": Agent},
-        {"object_type": "agent_list", "edsl_class": AgentList},
-        {"object_type": "cache", "edsl_class": Cache},
-        {"object_type": "model", "edsl_class": LanguageModel},
-        {"object_type": "model_list", "edsl_class": ModelList},
-        {"object_type": "notebook", "edsl_class": Notebook},
-        {"object_type": "question", "edsl_class": QuestionBase},
-        {"object_type": "results", "edsl_class": Results},
-        {"object_type": "scenario", "edsl_class": Scenario},
-        {"object_type": "scenario_list", "edsl_class": ScenarioList},
-        {"object_type": "survey", "edsl_class": Survey},
-    ]
+    @classmethod
+    def _get_objects(cls):
+        """Lazy import of language models to avoid circular imports"""
+        from ..language_models import LanguageModel, ModelList
+        
+        return [
+            {"object_type": "agent", "edsl_class": Agent},
+            {"object_type": "agent_list", "edsl_class": AgentList},
+            {"object_type": "cache", "edsl_class": Cache},
+            {"object_type": "model", "edsl_class": LanguageModel},
+            {"object_type": "model_list", "edsl_class": ModelList},
+            {"object_type": "notebook", "edsl_class": Notebook},
+            {"object_type": "question", "edsl_class": QuestionBase},
+            {"object_type": "results", "edsl_class": Results},
+            {"object_type": "scenario", "edsl_class": Scenario},
+            {"object_type": "scenario_list", "edsl_class": ScenarioList},
+            {"object_type": "survey", "edsl_class": Survey},
+        ]
 
-    # Create mappings for efficient lookups
-    object_type_to_edsl_class = {o["object_type"]: o["edsl_class"] for o in objects}
-    edsl_class_to_object_type = {
-        o["edsl_class"].__name__: o["object_type"] for o in objects
-    }
+    @property
+    def objects(self):
+        """Get the objects list with lazy imports"""
+        return self._get_objects()
+
+    @property
+    def object_type_to_edsl_class(self):
+        """Create mapping from object type to EDSL class with lazy imports"""
+        return {o["object_type"]: o["edsl_class"] for o in self.objects}
+
+    @property
+    def edsl_class_to_object_type(self):
+        """Create mapping from EDSL class name to object type with lazy imports"""
+        return {o["edsl_class"].__name__: o["object_type"] for o in self.objects}
 
     @classmethod
     def get_object_type_by_edsl_class(cls, edsl_object: EDSLObject) -> ObjectType:
@@ -131,7 +147,8 @@ class ObjectRegistry:
             edsl_class_name = "QuestionBase"
 
         # Look up the object type
-        object_type = cls.edsl_class_to_object_type.get(edsl_class_name)
+        edsl_class_to_object_type = {o["edsl_class"].__name__: o["object_type"] for o in cls._get_objects()}
+        object_type = edsl_class_to_object_type.get(edsl_class_name)
 
         if isinstance(edsl_object, Scenario):
             return "scenario"
@@ -160,7 +177,8 @@ class ObjectRegistry:
         Raises:
             ValueError: If no mapping exists for the provided object type
         """
-        EDSL_class = cls.object_type_to_edsl_class.get(object_type)
+        object_type_to_edsl_class = {o["object_type"]: o["edsl_class"] for o in cls._get_objects()}
+        EDSL_class = object_type_to_edsl_class.get(object_type)
         if EDSL_class is None:
             from .exceptions import CoopValueError
 
@@ -199,7 +217,7 @@ class ObjectRegistry:
 
         return {
             class_name: o["edsl_class"]
-            for o in cls.objects
+            for o in cls._get_objects()
             if (class_name := o["edsl_class"].__name__) not in subclass_registry
             and class_name not in exclude_classes
         }

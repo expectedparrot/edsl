@@ -149,4 +149,4 @@ def _check_version_on_import():
 
 
 # Run version check on import
-_check_version_on_import()
+# _check_version_on_import()  # Disabled to avoid triggering registry initialization during basic imports

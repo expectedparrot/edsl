@@ -28,7 +28,6 @@ from typing import (
 )
 from typing_extensions import Literal
 from ..base import Base
-from ..agents import Agent
 from ..scenarios import Scenario
 from ..utilities import remove_edsl_version
 
@@ -1233,6 +1232,7 @@ class Survey(Base):
                 set(q_and_a_dict.keys()),
                 set(self.question_names),
             )
+        from ..agents import Agent
         gold_agent = Agent()
 
         def f(self, question, scenario):

@@ -321,6 +321,7 @@ class KeyLookupBuilder:
         >>> from edsl.key_management.exceptions import KeyManagementDuplicateError
 
         >>> builder = KeyLookupBuilder()
+        >>> builder.id_data.clear()  # Clear any pre-existing data
         >>> builder._add_id("AWS_ACCESS_KEY_ID", "AKIA1234", "env")
         >>> builder.id_data["bedrock"].value
         'AKIA1234'

@@ -23,9 +23,8 @@ from typing import Optional, Union, Any, Literal, Sequence, Generator, TYPE_CHEC
 
 from ..base import Base
 from ..utilities import remove_edsl_version
-from ..coop import CoopServerResponseError
-from ..scenarios import Scenario, ScenarioList
-from ..surveys import Survey
+#from ..scenarios import Scenario, ScenarioList
+#from ..surveys import Survey
 
 from .exceptions import JobsValueError, JobsImplementationError
 from .jobs_pricing_estimation import JobsPrompts

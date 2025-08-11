@@ -1,14 +1,16 @@
 import textwrap
 from collections import defaultdict
-from typing import List, Optional
+from typing import List, Optional, TYPE_CHECKING
 
 from ..base import ItemCollection
 
 from . import AgentList
 from ..results import Results, ResultsList
-from ..surveys import Survey
 from ..questions import QuestionFreeText
-from ..language_models import LanguageModel
+
+if TYPE_CHECKING:
+    from ..language_models import LanguageModel
+    from ..surveys import Survey
 
 class PersonaGenerator:
     """Handles the generation of persona agents from existing agent collections.
@@ -142,7 +144,7 @@ class AgentListCollection(ItemCollection):
             new_list.extend(item.add_trait("agent_list_index", iteration))
         return AgentList(new_list)
 
-    def take_survey(self, survey: 'Survey', model: Optional[LanguageModel] = None) -> 'Results':
+    def take_survey(self, survey: 'Survey', model: Optional['LanguageModel'] = None) -> 'Results':
         """All the agents in the collection are run through the survey.
         
         The results are returned as a ResultsList, with each Results object containing 
