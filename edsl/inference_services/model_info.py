@@ -64,6 +64,11 @@ class ModelInfo:
     def id(self) -> str:
         """Get the model ID from raw data (common across all services)."""
         # Most services use 'id', but some might use 'name'
+        if not isinstance(self.raw_data, dict):
+            raise TypeError(
+                f"ModelInfo.raw_data expected dict, got {type(self.raw_data).__name__}: {repr(self.raw_data)}. "
+                f"Service: {self.service_name}, Original class: {self.original_class}"
+            )
         return self.raw_data.get('id') or self.raw_data.get('name', '')
     
     def __repr__(self) -> str:

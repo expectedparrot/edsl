@@ -7,7 +7,7 @@ import requests
 if TYPE_CHECKING:
     from ..coop import Coop
 
-from ..enums import service_to_api_keyname
+from ..base import service_to_api_keyname
 from ..base import BaseException
 from .key_lookup import KeyLookup
 from .models import (

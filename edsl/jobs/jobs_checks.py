@@ -37,7 +37,7 @@ class JobsChecks:
         """
         missing_api_keys = set()
 
-        from ..enums import service_to_api_keyname
+        from ..base import service_to_api_keyname
 
         for model in self.jobs.models:  # + [Model()]:
             if not model.has_valid_api_key():
