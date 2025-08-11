@@ -7,7 +7,7 @@ context management, and guarding logic.
 
 from __future__ import annotations
 import inspect
-from typing import Union, List, Optional, Any, Callable, TYPE_CHECKING
+from typing import Union, Optional, Any, Callable, TYPE_CHECKING
 from contextlib import contextmanager
 
 from ..utilities import sanitize_jinja_syntax, create_restricted_function
@@ -454,7 +454,6 @@ class AgentTraitsManager:
                 # Calculate simple similarity based on substring match
                 name_match = search_lower in trait_name.lower()
                 desc_match = search_lower in description.lower()
-                value_match = search_lower in str(trait_value).lower()
                 
                 # Higher score for name/description matches than value matches
                 score = 0.8 if name_match or desc_match else 0.5

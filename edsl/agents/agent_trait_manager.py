@@ -6,10 +6,11 @@ operations with proper codebook and trait_categories management.
 """
 
 from __future__ import annotations
-from typing import Union, List, Optional, Any, TYPE_CHECKING
+from typing import Union, Optional, Any, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .agent import Agent
+    from ..utilities.similarity_rank import RankableItems
 
 
 class AgentTraitManager:
@@ -137,7 +138,6 @@ class AgentTraitManager:
                 # Calculate simple similarity based on substring match
                 name_match = search_lower in trait_name.lower()
                 desc_match = search_lower in description.lower()
-                value_match = search_lower in str(trait_value).lower()
                 
                 # Higher score for name/description matches than value matches
                 score = 0.8 if name_match or desc_match else 0.5

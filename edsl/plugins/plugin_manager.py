@@ -2,7 +2,6 @@
 import os
 import sys
 import subprocess
-import tempfile
 import importlib
 import importlib.util
 import shutil
@@ -15,12 +14,10 @@ from urllib.parse import urlparse
 
 from .hookspec import EDSLPluginSpec
 from .exceptions import (
-    PluginException,
     PluginNotFoundError,
     PluginInstallationError,
     GitHubRepoError,
     InvalidPluginError,
-    PluginDependencyError,
     PluginMethodError,
 )
 from .. import logger

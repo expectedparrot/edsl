@@ -32,6 +32,7 @@ if TYPE_CHECKING:
     from ..questions import QuestionBase as Question
     from ..surveys import Survey
     from ..scenarios import ScenarioList
+    from ..results import Results
 
 
 def is_iterable(obj):
@@ -456,25 +457,6 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         else:
             raise ValueError(f"Invalid join type: {join_type}")
 
-    def join(self, other: "AgentList", join_type: str = "inner") -> "AgentList":
-        """Join this AgentList with another AgentList.
-        
-        Args:
-            other: The other AgentList to join with
-            join_type: The type of join to perform ("inner", "left", or "right")
-            
-        Returns:
-            AgentList: A new AgentList containing the joined results
-            
-        Examples:
-            >>> from edsl import Agent, AgentList
-            >>> al1 = AgentList([Agent(name="John", traits={"age": 30})])
-            >>> al2 = AgentList([Agent(name="John", traits={"height": 180})])
-            >>> joined = al1.join(al2)
-            >>> joined[0].traits
-            {'age': 30, 'height': 180}
-        """
-        return self._join(other, join_type=join_type)
 
     @classmethod
     def join(cls, *agent_lists: "AgentList", join_type: str = "inner") -> "AgentList":
@@ -710,8 +692,8 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
 
         try:
             assert len(results.agents) == len(results)
-        except:
-            raise ValueError("The number of agents in the results does not match the number of results.")
+        except Exception as e:
+            raise ValueError("The number of agents in the results does not match the number of results.") from e
 
         new_agents = []
         for result in results:

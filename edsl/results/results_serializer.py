@@ -5,7 +5,7 @@ deserialization operations for Results objects, including dictionary conversion,
 object reconstruction, shelve operations, and disk persistence.
 """
 
-from typing import TYPE_CHECKING, Any, Optional, Dict
+from typing import TYPE_CHECKING, Any, Dict
 from ..utilities import remove_edsl_version
 
 if TYPE_CHECKING:

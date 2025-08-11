@@ -44,7 +44,6 @@ class MistralAIService(InferenceServiceABC):
     @classmethod
     def get_model_info(cls):
         """Get raw model info without wrapping in ModelInfo."""
-        from mistralai.client import MistralClient
         api_key = os.environ.get("MISTRAL_API_KEY")
         if not api_key:
             raise ValueError("MISTRAL_API_KEY environment variable not set.")

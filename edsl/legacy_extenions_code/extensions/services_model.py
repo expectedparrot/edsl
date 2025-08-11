@@ -1,10 +1,9 @@
-from typing import Dict, Any, Optional, Type, Generator, Tuple
+from typing import Dict, Any, Optional, Generator, Tuple
 from .authoring import ServiceDefinition
 from ..scenarios import Scenario
 import os
 from collections import UserDict
 
-from .authoring import ServiceDefinition
 
 # refactor to use EDSL config
 API_BASE_URL = os.getenv("EDSL_API_URL", "http://localhost:8000")
@@ -24,7 +23,7 @@ class Services(UserDict):
                 print(
                     f"- {service_name}: {service.description}"
                 )  # Access attributes directly
-            except Exception as e:
+            except Exception:
                 # print(f"Error displaying service '{getattr(service, "name", "Unknown")}': {e}")
                 pass
 

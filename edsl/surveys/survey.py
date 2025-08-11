@@ -33,9 +33,9 @@ from ..utilities import remove_edsl_version
 
 if TYPE_CHECKING:
     from ..questions import QuestionBase
-    from ..agents import Agent
+    from ..agents import Agent, AgentList
     from .dag import DAG
-    from ..language_models import LanguageModel
+    from ..language_models import LanguageModel, ModelList
     from ..caching import Cache
     from ..jobs import Jobs
     from ..results import Results, Result
@@ -1179,7 +1179,7 @@ class Survey(Base):
             question, expression, next_question, before_rule=before_rule
         )
 
-    def by(self, *args: Union["Agent", "Scenario", "LanguageModel"]) -> "Jobs":
+    def by(self, *args: Union["Agent", "Scenario", "LanguageModel", "AgentList", "ScenarioList", "ModelList"]) -> "Jobs":
         """Add components to the survey and return a runnable Jobs object.
 
         This method is the primary way to prepare a survey for execution. It adds the

@@ -1,6 +1,4 @@
 from typing import List, Optional, Dict, TYPE_CHECKING
-from collections import UserList
-import uuid
 
 from ..base import ItemCollection
 from .results import Results

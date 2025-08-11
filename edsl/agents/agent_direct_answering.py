@@ -264,5 +264,5 @@ class AgentDirectAnswering:
             String representation showing the manager and whether it has a method
         """
         has_method = self.has_method()
-        method_info = f"with method" if has_method else "no method"
+        method_info = "with method" if has_method else "no method"
         return f"AgentDirectAnswering(agent={self.agent.name or 'unnamed'}, {method_info})" 

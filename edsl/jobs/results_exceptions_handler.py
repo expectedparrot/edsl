@@ -5,8 +5,7 @@ import sys
 from ..config import CONFIG
 
 if TYPE_CHECKING:
-    from ..scenarios import FileStore
-    from ..coop.coop import Coop
+    pass
 
 
 from .exceptions import JobsErrors

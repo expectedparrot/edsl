@@ -6,7 +6,6 @@ if TYPE_CHECKING:
     from ..language_models import LanguageModel
     from ..scenarios import Scenario
     from .jobs import Jobs
-    from ..scenarios import ScenarioList
 
 
 class JobsComponentConstructor:

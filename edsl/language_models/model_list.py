@@ -4,7 +4,7 @@ from collections import UserList
 from ..base import Base
 
 if TYPE_CHECKING:
-    from .model import Model
+    pass
 
 from ..utilities import remove_edsl_version, dict_hash
 

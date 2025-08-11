@@ -12,10 +12,6 @@ from typing import Any, TYPE_CHECKING
 from ..utilities import remove_edsl_version
 
 if TYPE_CHECKING:
-    from ..agents import Agent
-    from ..scenarios import Scenario
-    from ..language_models import LanguageModel
-    from ..prompts import Prompt
     from .result import Result
 
 
@@ -124,8 +120,6 @@ class ResultSerializer:
         prompt_d = {}
         for prompt_name, prompt_obj in prompt_data.items():
             prompt_d[prompt_name] = Prompt.from_dict(prompt_obj)
-
-        from .results import Result
 
         result = Result(
             agent=Agent.from_dict(json_dict["agent"]),

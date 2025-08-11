@@ -6,7 +6,6 @@ Provides interactive filtering, sampling, and agent selection capabilities.
 """
 
 import traitlets
-from typing import Dict, Any, List, Optional, Union
 from .base_widget import EDSLBaseWidget
 
 

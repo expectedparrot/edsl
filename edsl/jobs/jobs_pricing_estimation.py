@@ -10,7 +10,7 @@ if TYPE_CHECKING:
     from ..surveys import Survey
     from ..interviews import Interview
     from ..invigilators.invigilator_base import Invigilator
-    from ..language_models.price_manager import PriceRetriever
+    from ..dataset import Dataset
 
 from .fetch_invigilator import FetchInvigilator
 

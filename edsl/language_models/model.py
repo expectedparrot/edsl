@@ -1,6 +1,6 @@
 import textwrap
 from random import random
-from typing import Optional, TYPE_CHECKING, List, Dict, Any, Union, Set
+from typing import Optional, TYPE_CHECKING, Any, Union, Set
 
 
 from ..config import CONFIG
@@ -8,7 +8,6 @@ from .exceptions import LanguageModelValueError
 
 # Import only what's needed initially to avoid circular imports
 from ..inference_services import (
-    InferenceServiceABC,
     InferenceServiceError,
 )
 
@@ -32,7 +31,7 @@ class Meta(type):
             A formatted string with usage examples.
         """
         return textwrap.dedent(
-            f"""\
+            """\
         To create an instance, you can do: 
         >>> m = Model('gpt-4-1106-preview', temperature=0.5, ...)
         

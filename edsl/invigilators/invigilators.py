@@ -405,12 +405,12 @@ class InvigilatorAI(InvigilatorBase):
             data = {
                 "answer": (
                     agent_response_dict.edsl_dict.answer
-                    if type(agent_response_dict.edsl_dict.answer) is str
-                    or type(agent_response_dict.edsl_dict.answer) is dict
-                    or type(agent_response_dict.edsl_dict.answer) is list
-                    or type(agent_response_dict.edsl_dict.answer) is int
-                    or type(agent_response_dict.edsl_dict.answer) is float
-                    or type(agent_response_dict.edsl_dict.answer) is bool
+                    if isinstance(agent_response_dict.edsl_dict.answer, str)
+                    or isinstance(agent_response_dict.edsl_dict.answer, dict)
+                    or isinstance(agent_response_dict.edsl_dict.answer, list)
+                    or isinstance(agent_response_dict.edsl_dict.answer, int)
+                    or isinstance(agent_response_dict.edsl_dict.answer, float)
+                    or isinstance(agent_response_dict.edsl_dict.answer, bool)
                     else ""
                 ),
                 "comment": (

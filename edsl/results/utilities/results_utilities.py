@@ -10,7 +10,7 @@ from typing import Any, Callable, TYPE_CHECKING
 from functools import wraps
 
 if TYPE_CHECKING:
-    from ..result import Result
+    pass
 
 from ...db_list.sqlite_list import SQLiteList
 

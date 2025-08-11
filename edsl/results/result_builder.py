@@ -4,7 +4,11 @@ There are two problems:
 1) Keys that are not unique across data types
 2) Keys that have the same name as a data type
 """
-from typing import Any
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ..agents.agent import Agent
 
 
 class QuestionFields:

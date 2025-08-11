@@ -6,13 +6,10 @@ interview and create a properly structured Result object, including handling of 
 prompts, model responses, caching information, and metadata.
 """
 
-from typing import Any, Dict, Optional, TYPE_CHECKING
+from typing import Any, Dict, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from ..agents import Agent
-    from ..scenarios import Scenario
-    from ..language_models import LanguageModel
-    from ..surveys import Survey
+    from .result import Result
 
 
 class ResultFromInterview:

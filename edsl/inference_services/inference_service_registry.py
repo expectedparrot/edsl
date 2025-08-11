@@ -69,7 +69,7 @@ class InferenceServiceRegistry:
         
         if self.verbose:
             print(f"[REGISTRY] Service '{service_name}' registered successfully. Total services: {len(self._services)}")
-            print(f"[REGISTRY] Cache invalidated due to new service registration")
+            print("[REGISTRY] Cache invalidated due to new service registration")
     
     def get_registry(self) -> dict:
         """Returns a copy of all registered services."""
@@ -137,12 +137,12 @@ class InferenceServiceRegistry:
             
         if self._cache_valid and not force_refresh:
             if self.verbose:
-                print(f"[REGISTRY] Using cached model mappings")
+                print("[REGISTRY] Using cached model mappings")
             return
             
         if self.verbose:
             print(f"[REGISTRY] Building fresh model mappings using {self._model_source} source...")
-            print(f"[REGISTRY] Clearing existing mappings")
+            print("[REGISTRY] Clearing existing mappings")
             
         self._model_to_services.clear()
         self._service_to_models.clear()
@@ -192,10 +192,10 @@ class InferenceServiceRegistry:
         self._cache_valid = True
         
         if self.verbose:
-            print(f"[REGISTRY] Model mapping complete!")
+            print("[REGISTRY] Model mapping complete!")
             print(f"[REGISTRY] Total unique models: {len(self._model_to_services)}")
             print(f"[REGISTRY] Total model instances: {total_models}")
-            print(f"[REGISTRY] Cache marked as valid")
+            print("[REGISTRY] Cache marked as valid")
     
     def _fetch_models_from_coop_internal(self) -> Dict[str, List[Any]]:
         """Internal method to fetch models from Coop."""
@@ -560,7 +560,7 @@ class InferenceServiceRegistry:
         self._service_preferences = preferences
         
         if self.verbose:
-            print(f"[REGISTRY] Service preferences updated successfully")
+            print("[REGISTRY] Service preferences updated successfully")
     
     def add_service_preference(self, service_name: str, position: Optional[int] = None):
         """

@@ -90,7 +90,7 @@ class ItemCollection(UserList):
         for item in self:
             try: 
                 length = f'{len(item)} items'
-            except:
+            except (TypeError, AttributeError):
                 length = ""
             lines.append(f"  {item.name} ({item.__class__.__name__}); {length}")
         return "\n".join(lines)

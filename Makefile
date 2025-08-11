@@ -203,8 +203,15 @@ format: ## Run code autoformatters (black).
 	pre-commit install
 	pre-commit run black-jupyter --all-files --all
 
-lint: ## Run code linters (flake8, pylint, mypy).
-	mypy edsl
+lint: ## Run ruff linter with --fix --verbose. Use 'make lint DIR' to lint specific directory/file
+	@if [ -n "$(filter-out $@,$(MAKECMDGOALS))" ]; then \
+		target="$(filter-out $@,$(MAKECMDGOALS))"; \
+		echo "Running ruff linter with --fix on: $$target"; \
+		poetry run ruff check --fix $$target; \
+	else \
+		echo "Running ruff linter with --fix on entire project"; \
+		poetry run ruff check --fix edsl; \
+	fi
 
 ruff-lint: ## Run ruff linter on all modules in sequence
 	poetry run ruff check edsl/instructions
@@ -256,9 +263,16 @@ test-coop: ## Run Coop tests (no regular tests, requires Coop local server runni
 	make clean-test
 	pytest -xv tests --coop
 
-test-coverage: ## Run regular tests and get a coverage report
+test-coverage: ## Run regular tests and get a coverage report. Use 'make test-coverage DIR' to generate coverage for specific directory
 	make clean-test
-	poetry run coverage run -m pytest tests --ignore=tests/stress --ignore=tests/coop && poetry run coverage html
+	@if [ -n "$(filter-out $@,$(MAKECMDGOALS))" ]; then \
+		dir="$(filter-out $@,$(MAKECMDGOALS))"; \
+		echo "Running coverage for directory: $$dir"; \
+		poetry run coverage run -m pytest $$dir --ignore=tests/stress --ignore=tests/coop && poetry run coverage html; \
+	else \
+		echo "Running coverage for all tests"; \
+		poetry run coverage run -m pytest tests --ignore=tests/stress --ignore=tests/coop && poetry run coverage html; \
+	fi
 	@UNAME=`uname`; if [ "$$UNAME" = "Darwin" ]; then \
 		open htmlcov/index.html; \
 	else \
@@ -309,6 +323,7 @@ test-doctests: ## Run doctests for a specific directory (e.g., make test-doctest
 		pytest --doctest-modules edsl/utilities; \
 		pytest --doctest-modules edsl/language_models; \
 		pytest --doctest-modules edsl/caching; \
+		pytest --doctest-modules edsl/invigilators; \
 		pytest --doctest-modules edsl/inference_services; \
 	fi
 

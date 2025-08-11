@@ -5,7 +5,7 @@ container operations for Results objects, including indexing, iteration, modific
 and combination operations.
 """
 
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING
 from bisect import bisect_left
 
 if TYPE_CHECKING:

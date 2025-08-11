@@ -106,7 +106,7 @@ def load_services_builder(path: Union[str, Path] = ".") -> ServicesBuilder:
             with open(app_file, "r", encoding="utf-8") as f:
                 source_code = f.read()
             compile(source_code, str(app_file), "exec")
-            print(f"🔍 DEBUG: File compiles successfully")
+            print("🔍 DEBUG: File compiles successfully")
         except (SyntaxError, IndentationError) as compile_err:
             print(f"❌ COMPILE ERROR in {app_file}:")
             print(f"   Error: {compile_err}")
@@ -115,7 +115,7 @@ def load_services_builder(path: Union[str, Path] = ".") -> ServicesBuilder:
             raise compile_err
 
         spec.loader.exec_module(app_module)
-        print(f"🔍 DEBUG: Successfully executed module")
+        print("🔍 DEBUG: Successfully executed module")
     except IndentationError as e:
         print(f"❌ INDENTATION ERROR in {app_file}:")
         print(f"   Error: {e}")
@@ -154,7 +154,7 @@ def load_services_builder(path: Union[str, Path] = ".") -> ServicesBuilder:
         print(f"❌ IMPORT ERROR when loading {app_file}:")
         print(f"   Error: {e}")
         print(
-            f"   This usually means one of your imports is missing or has syntax errors"
+            "   This usually means one of your imports is missing or has syntax errors"
         )
         print(f"   Check your imports in {app_file}")
 
@@ -213,7 +213,7 @@ def load_services_builder(path: Union[str, Path] = ".") -> ServicesBuilder:
     if not hasattr(app_module, "services"):
         print(f"🔍 DEBUG: Available attributes in app module: {dir(app_module)}")
         raise AttributeError(
-            f"app.py does not contain a 'services' variable of type ServicesBuilder"
+            "app.py does not contain a 'services' variable of type ServicesBuilder"
         )
 
     services = app_module.services
