@@ -1045,8 +1045,6 @@ class LanguageModel(
             model_class = inference_service_registry.create_language_model(model_name, service_name=service_name)
             return model_class(**params_copy)
 
-        # For non-test models or test models without canned_response
-        # Create the instance using the registry (which returns a model class)
         model_class = inference_service_registry.create_language_model(model_name, service_name=service_name)
         return model_class(**data)
 

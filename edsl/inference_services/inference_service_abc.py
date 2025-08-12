@@ -5,16 +5,9 @@ from typing import Any, List, Dict
 
 from ..config import CONFIG
 from .model_info import ModelInfo
-from .inference_service_registry import InferenceServiceRegistry
+#from .inference_service_registry import InferenceServiceRegistry
 
-
-verbose = CONFIG.get('EDSL_VERBOSE_MODE').lower() == 'true'
-
-# Global registry instance with lazy model source  
-_GLOBAL_REGISTRY = InferenceServiceRegistry(
-    verbose=verbose, 
-    model_source=None
-)
+from .registry import GLOBAL_REGISTRY as _GLOBAL_REGISTRY
 
 
 class InferenceServiceABC(ABC):
@@ -69,7 +62,8 @@ class InferenceServiceABC(ABC):
             raise InferenceServiceNotImplementedError(
                 f"Class {cls.__name__} 'available' method must be a class method (use @classmethod decorator)."
             )
-
+        
+ 
     @property
     def service_name(self) -> str:
         """
@@ -88,138 +82,28 @@ class InferenceServiceABC(ABC):
         """
         return cls._inference_service_
 
-    @classmethod
-    def get_registry(cls) -> dict:
-        """
-        Returns the registry of all registered inference service classes.
+    # @classmethod
+    # def get_service_class(cls, service_name: str):
+    #     """
+    #     Returns the class for a given service name from the registry.
         
-        Returns:
-            dict: Dictionary mapping service names to their corresponding classes
+    #     Args:
+    #         service_name (str): The name of the service
             
-        >>> registry = InferenceServiceABC.get_registry()
-        >>> isinstance(registry, dict)
-        True
-        """
-        return _GLOBAL_REGISTRY.get_registry()
-    
-    @classmethod
-    def get_service_class(cls, service_name: str):
-        """
-        Returns the class for a given service name from the registry.
-        
-        Args:
-            service_name (str): The name of the service
+    #     Returns:
+    #         The inference service class
             
-        Returns:
-            The inference service class
+    #     Raises:
+    #         KeyError: If the service name is not found in the registry
             
-        Raises:
-            KeyError: If the service name is not found in the registry
-            
-        >>> # Create a test service to demonstrate
-        >>> test_cls = InferenceServiceABC.example(return_class=True)
-        >>> cls = InferenceServiceABC.get_service_class('test_service')
-        >>> cls.__name__
-        'TestInferenceService'
-        """
-        return _GLOBAL_REGISTRY.get_service_class(service_name)
-    
-    @classmethod
-    def list_registered_services(cls) -> list[str]:
-        """
-        Returns a list of all registered service names.
-        
-        Returns:
-            list[str]: List of service names
-            
-        >>> services = InferenceServiceABC.list_registered_services()
-        >>> isinstance(services, list)
-        True
-        >>> 'test_service' in services
-        True
-        """
-        return _GLOBAL_REGISTRY.list_registered_services()
-    
-    @classmethod
-    def get_all_model_lists(cls, skip_errors: bool = True) -> Dict[str, List[ModelInfo]]:
-        """
-        Get model lists from all registered services using the registry.
-        
-        Args:
-            skip_errors (bool): If True, skip services that fail to get models (e.g., due to missing API keys).
-                               If False, raise exceptions from failing services.
-        
-        Returns:
-            Dict[str, List[ModelInfo]]: Dictionary mapping service names to their model lists
-            
-        Example:
-            >>> # This method makes network calls to fetch models from services
-            >>> # In offline mode, it may hang or return empty results
-            >>> # all_models = InferenceServiceABC.get_all_model_lists()
-            >>> # isinstance(all_models, dict)
-            >>> # True
-            >>> "test example - method requires network access"
-            'test example - method requires network access'
-        """
-        return _GLOBAL_REGISTRY.get_all_model_lists(skip_errors)
-    
-    @classmethod
-    def get_registry_info(cls) -> Dict[str, Any]:
-        """
-        Get serializable information about all registered services.
-        
-        Returns:
-            Dict containing service information, counts, and metadata
-            
-        Example:
-            >>> info = InferenceServiceABC.get_registry_info()
-            >>> isinstance(info, dict)
-            True
-            >>> 'services' in info
-            True
-        """
-        return _GLOBAL_REGISTRY.to_dict()
-    
-    @classmethod
-    def get_service_info(cls, service_name: str) -> Dict[str, Any]:
-        """
-        Get detailed information about a specific service.
-        
-        Args:
-            service_name (str): The name of the service
-            
-        Returns:
-            Dict containing detailed service information
-            
-        Example:
-            >>> info = InferenceServiceABC.get_service_info('test_service')
-            >>> isinstance(info, dict)
-            True
-        """
-        return _GLOBAL_REGISTRY.get_service_info(service_name)
-    
-
-    
-
-    
-    @classmethod
-    def get_registry_instance(cls):
-        """
-        Get direct access to the registry instance for advanced operations.
-        
-        Returns:
-            InferenceServiceRegistry: The global registry instance
-            
-        Example:
-            >>> registry = InferenceServiceABC.get_registry_instance()
-            >>> registry.set_model_source("coop")
-            >>> original_verbose = registry.verbose
-            >>> registry.verbose = True
-            >>> current_source = registry.get_model_source()
-            >>> registry.verbose = original_verbose
-        """
-        return _GLOBAL_REGISTRY
-
+    #     >>> # Create a test service to demonstrate
+    #     >>> test_cls = InferenceServiceABC.example(return_class=True)
+    #     >>> cls = InferenceServiceABC.get_service_class('test_service')
+    #     >>> cls.__name__
+    #     'TestInferenceService'
+    #     """
+    #     return _GLOBAL_REGISTRY.get_service_class(service_name)
+      
     @classmethod
     def _should_refresh_coop_config_vars(cls):
         """
@@ -248,18 +132,17 @@ class InferenceServiceABC(ABC):
         raw_data = cls.get_model_info()
         return [ModelInfo.from_raw(item, cls._inference_service_) for item in raw_data]
     
-    @classmethod
-    @abstractmethod
-    def available(cls) -> list[str]:
-        """
-        Returns a list of available models for the service.
+    # @classmethod
+    # @abstractmethod
+    # def available(cls) -> list[str]:
+    #     """
+    #     Returns a list of available models for the service.
 
-        >>> example = InferenceServiceABC.example()
-        >>> example.available()
-        ['test_model_1', 'test_model_2']
-        """
+    #     >>> example = InferenceServiceABC.example()
+    #     >>> example.available()
+    #     ['test_model_1', 'test_model_2']
+    #     """
     
-
     def __repr__(self) -> str: 
         return f"<{self.get_service_name()}>"
 
@@ -333,17 +216,7 @@ class InferenceServiceABC(ABC):
 
 
 if __name__ == "__main__":
-    import doctest
-
-    doctest.testmod()
-    
-    # Import the actual module that services are registering with
-    import edsl.inference_services.inference_service_abc as actual_module
-    
-    registry = actual_module.InferenceServiceABC.get_registry()
-    # Skip getting model lists as it requires network access
-    # model_lists = actual_module.InferenceServiceABC.get_all_model_lists()
-    
-    print("Registry services:", sorted(registry.keys()))
-    print("Total services in registry:", len(registry))
-    print("OpenAI in registry:", 'openai' in registry)
+    #from .services import *
+    print(_GLOBAL_REGISTRY._services)
+    print("ID")
+    print(id(_GLOBAL_REGISTRY))

@@ -71,5 +71,5 @@ class ModelInfo:
             )
         return self.raw_data.get('id') or self.raw_data.get('name', '')
     
-    def __repr__(self) -> str:
-        return f"ModelInfo(service='{self.service_name}', id='{self.id}', class='{self.original_class}')"
+    # def __repr__(self) -> str:
+    #     return f"ModelInfo(service='{self.service_name}', id='{self.id}', class='{self.original_class}')"

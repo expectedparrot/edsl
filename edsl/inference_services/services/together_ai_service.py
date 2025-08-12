@@ -152,6 +152,7 @@ class TogetherAIService(OpenAIService):
         headers = {"accept": "application/json", "authorization": f"Bearer {api_token}"}
 
         response = requests.get(url, headers=headers)
+        response.raise_for_status()
         return response.json()
 
     @classmethod

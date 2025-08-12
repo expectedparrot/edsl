@@ -33,6 +33,7 @@ class AnthropicService(InferenceServiceABC):
             api_key = os.environ.get("ANTHROPIC_API_KEY")
         headers = {"x-api-key": api_key, "anthropic-version": "2023-06-01"}
         response = requests.get("https://api.anthropic.com/v1/models", headers=headers)
+        response.raise_for_status()
         return response.json()["data"]
 
     @classmethod
