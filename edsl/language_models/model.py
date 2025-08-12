@@ -385,8 +385,7 @@ class Model(metaclass=Meta):
 
         # Validate service_name if provided
         if service_name is not None:
-            if service_name not in registry:
-                available_services = list(registry.list_registered_services())
+            if service_name not in (available_services := registry.list_registered_services()):
                 raise LanguageModelValueError(
                     f"Service {service_name} not found in available services. Available services are: {available_services}"
                 )

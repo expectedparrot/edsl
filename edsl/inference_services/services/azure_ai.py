@@ -51,7 +51,7 @@ class AzureAIService(InferenceServiceABC):
         models_info = []
         azure_endpoints = os.getenv("AZURE_ENDPOINT_URL_AND_KEY", None)
         if not azure_endpoints:
-            return []
+            raise ValueError("AZURE_ENDPOINT_URL_AND_KEY is not defined")
         azure_endpoints = azure_endpoints.split(",")
         for data in azure_endpoints:
             try:
