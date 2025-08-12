@@ -134,6 +134,8 @@ class OpenAIService(InferenceServiceABC):
         """Get raw model info without wrapping in ModelInfo."""
         if api_key is None:
             api_key = os.getenv(cls._env_key_name_)
+        if api_key is None:
+            raise ValueError(f"API key for {cls._inference_service_} is not set")
         raw_list = cls.sync_client(api_key).models.list()
         if hasattr(raw_list, "data"):
             return raw_list.data
