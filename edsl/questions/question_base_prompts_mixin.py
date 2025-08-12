@@ -79,10 +79,19 @@ class QuestionBasePromptsMixin:
             self._model_instructions = {}
         if model is None:
             # if not model is passed, all the models are mapped to this instruction, including 'None'
-            self._model_instructions = {
-                model_name: instructions
-                for model_name in Model.available().names
-            }
+            try:
+                available_models = Model.available()
+                if len(available_models) > 0:
+                    self._model_instructions = {
+                        model_name: instructions
+                        for model_name in available_models.names
+                    }
+                else:
+                    # No models available, use empty dict and let None handle it
+                    self._model_instructions = {}
+            except Exception:
+                # Handle any errors in getting available models
+                self._model_instructions = {}
             self._model_instructions.update({model: instructions})
         else:
             self._model_instructions.update({model: instructions})
