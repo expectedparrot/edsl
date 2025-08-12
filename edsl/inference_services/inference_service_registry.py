@@ -130,7 +130,7 @@ class InferenceServiceRegistry:
                     
         services = self.model_to_services.get(model_name, [])
         if not services:
-            raise ValueError(f"Model '{model_name}' not found in any service")
+            raise ValueError(f"Model '{model_name}' not found in any service. Available models: {list(self.model_to_services.keys())}")
                     
         # Find the first preferred service that provides this model
         for preferred_service in self._service_preferences:
