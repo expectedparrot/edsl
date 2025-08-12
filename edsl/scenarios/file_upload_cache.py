@@ -120,11 +120,11 @@ class FileUploadCache:
             self._locks[file_hash] = asyncio.Lock()
 
         # Acquire lock for this specific file
-        print(f"Acquiring lock for file: {file_hash}")
+        # print(f"Acquiring lock for file: {file_hash}")
         async with self._locks[file_hash]:
             # Double-check after acquiring lock (another task might have uploaded)
             if cache_key in self._cache:
-                print(f"File {file_hash} already uploaded, returning cached result")
+                # print(f"File {file_hash} already uploaded, returning cached result")
                 self._stats["duplicate_prevention_count"] += 1
                 file_store.external_locations[service] = self._cache[cache_key]
                 return self._cache[cache_key]
@@ -137,11 +137,11 @@ class FileUploadCache:
                 if service == "google":
                     # Use async version of upload if available, otherwise run in executor
                     if hasattr(file_store, "async_upload_google"):
-                        print(f"Uploading file {file_store.name} to Google service")
+                        # print(f"Uploading file {file_store.name} to Google service")
                         result = await file_store.async_upload_google()
-                        print(
-                            f"Upload completed in {time.time() - start_time:.2f} seconds"
-                        )
+                        # print(
+                        #     f"Upload completed in {time.time() - start_time:.2f} seconds"
+                        # )
                     else:
                         # Run synchronous upload in thread pool to avoid blocking
                         loop = asyncio.get_event_loop()
