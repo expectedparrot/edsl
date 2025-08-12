@@ -393,9 +393,6 @@ class TokenBucket:
                 break
 
             wait_time = self.wait_time(amount)
-            print(
-                f"Waiting for {wait_time:.2f} seconds to get {amount} tokens. Current tokens: {self.tokens}, capacity: {self.capacity}"
-            )
             if wait_time > 0:
                 await asyncio.sleep(wait_time)
 
