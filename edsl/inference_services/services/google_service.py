@@ -107,8 +107,6 @@ class GoogleService(InferenceServiceABC):
             ) -> Dict[str, Any]:
                 generation_config = self.get_generation_config()
 
-                # print("Entering GoogleService async_execute_model_call ")
-
                 if files_list is None:
                     files_list = []
                 genai.configure(api_key=self.api_token)
@@ -156,19 +154,12 @@ class GoogleService(InferenceServiceABC):
                     )
                     combined_prompt.append(gen_ai_file)
 
-                # print("Exec time to load files in google",time.time()-start)
-
-                # Print cache statistics for debugging
-                # cache_stats = file_upload_cache.get_stats()
-                # print(f"Cache stats - Hits: {cache_stats['cache_hits']}, Misses: {cache_stats['cache_misses']}, "
-                #       f"Duplicates prevented: {cache_stats['duplicate_prevention_count']}")
                 try:
                     # print("Making LLM api call")
                     response = await self.generative_model.generate_content_async(
                         combined_prompt, generation_config=generation_config
                     )
-                    # print("LLM api call completed")
-                    # print("Response:", response.to_dict())
+
                 except Exception as e:
                     return {"message": str(e)}
                 return response.to_dict()
