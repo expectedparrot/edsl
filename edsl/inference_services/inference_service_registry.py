@@ -33,6 +33,8 @@ class InferenceServiceRegistry:
         #    source_preference = ('coop', 'local', 'archive')
         self._source_preference = ['coop','local', 'archive']
 
+        self._used_source = None
+
 
     @property
     def model_to_services(self) -> Dict[str, List[str]]:
@@ -79,6 +81,7 @@ class InferenceServiceRegistry:
             fetchers = ModelInfoFetcherABC.get_registered_fetchers()
             for source in self._source_preference:
                 if source in fetchers:
+                    self._used_source = source
                     model_info_fetcher = fetchers[source](self)
                     try:
                         model_info_fetcher.fetch()
@@ -130,7 +133,12 @@ class InferenceServiceRegistry:
                     
         services = self.model_to_services.get(model_name, [])
         if not services:
-            raise ValueError(f"Model '{model_name}' not found in any service. Available models: {list(self.model_to_services.keys())}")
+            raise ValueError(f"""Model '{model_name}' not found in any service. 
+                             Available models: {list(self.model_to_services.keys())}. 
+                             Available services: {list(self.service_to_models.keys())}
+                            Used source: {self._used_source}
+"""
+                             )
                     
         # Find the first preferred service that provides this model
         for preferred_service in self._service_preferences:
