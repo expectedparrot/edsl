@@ -143,7 +143,8 @@ class MultipleChoiceResponseValidator(ResponseValidatorABC):
         2. Check for exact matches in the text
         3. Look for substring matches
         4. Normalize whitespace and check for matches
-        5. Check if the answer is a prefix of any option (ignoring trailing spaces/punctuation)
+        5. Check for case-insensitive matches
+        6. Check if the answer is a prefix of any option (ignoring trailing spaces/punctuation)
 
         Parameters:
             response: The invalid response to fix
@@ -179,11 +180,19 @@ class MultipleChoiceResponseValidator(ResponseValidatorABC):
 
         # Strategy 1: Look for exact options in the text
         matches = []
+        response_text_lower = response_text.lower()
         for option in self.question_options:
             option_str = str(option)
+            # Check for exact case-sensitive match first
             if option_str in response_text:
                 if verbose:
-                    print(f"Match found with option: {option_str}")
+                    print(f"Exact match found with option: {option_str}")
+                if option not in matches:
+                    matches.append(option)
+            # Check for case-insensitive match
+            elif option_str.lower() in response_text_lower:
+                if verbose:
+                    print(f"Case-insensitive match found with option: {option_str}")
                 if option not in matches:
                     matches.append(option)
 
@@ -227,7 +236,28 @@ class MultipleChoiceResponseValidator(ResponseValidatorABC):
                     if verbose:
                         print(f"Validation failed for normalized answer: {e}")
 
-        # Strategy 3: Check if the answer is a prefix of any option
+        # Strategy 3: Check for case-insensitive matches
+        response_text_lower = response_text_normalized.lower()
+        for option in self.question_options:
+            option_str = str(option).strip()
+            if option_str.lower() == response_text_lower:
+                if verbose:
+                    print(f"Case-insensitive match found with option: {option}")
+                proposed_data = {
+                    "answer": option,  # Use the exact option from the list
+                    "comment": response.get("comment"),
+                    "generated_tokens": response.get("generated_tokens"),
+                }
+                try:
+                    self.response_model.model_validate(proposed_data)
+                    if verbose:
+                        print(f"Fixed answer with case-insensitive matching: {option}")
+                    return proposed_data
+                except Exception as e:
+                    if verbose:
+                        print(f"Validation failed for case-insensitive answer: {e}")
+
+        # Strategy 4: Check if the answer is a prefix of any option
         # This handles cases where the model returns a partial answer
         # Only apply this strategy if we have a meaningful response text
         if response_text_normalized and not response_text_normalized.lower() == "none":
@@ -344,9 +374,9 @@ class QuestionMultipleChoice(QuestionBase):
 
     question_type = "multiple_choice"
     purpose = "When options are known and limited"
-    question_options: Union[list[str], list[list], list[float], list[int]] = (
-        QuestionOptionsDescriptor()
-    )
+    question_options: Union[
+        list[str], list[list], list[float], list[int]
+    ] = QuestionOptionsDescriptor()
     _response_model = None
     response_validator_class = MultipleChoiceResponseValidator
 
@@ -427,7 +457,7 @@ class QuestionMultipleChoice(QuestionBase):
         """
         self.question_name = question_name
         self.question_text = question_text
-        self.question_options = question_options
+        self.question_options = self._clean_nan_from_options(question_options)
 
         self._include_comment = include_comment
         self.use_code = use_code
@@ -438,6 +468,29 @@ class QuestionMultipleChoice(QuestionBase):
     ################
     # Answer methods
     ################
+
+    def _clean_nan_from_options(self, options):
+        """
+        Clean NaN values from question options, replacing them with None.
+
+        Args:
+            options: The original options list
+
+        Returns:
+            List with NaN values replaced by None
+        """
+        import math
+
+        if not isinstance(options, list):
+            return options
+
+        cleaned_options = []
+        for option in options:
+            if isinstance(option, float) and math.isnan(option):
+                cleaned_options.append(None)
+            else:
+                cleaned_options.append(option)
+        return cleaned_options
 
     def create_response_model(self, replacement_dict: dict = None):
         if replacement_dict is None:
@@ -455,7 +508,6 @@ class QuestionMultipleChoice(QuestionBase):
     def _translate_question_options(
         question_options, substitution_dict: dict
     ) -> list[str]:
-
         if isinstance(question_options, str):
             # If dynamic options are provided like {{ options }}, render them with the scenario
             # We can check if it's in the Scenario.
