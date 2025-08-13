@@ -1212,7 +1212,7 @@ class Coop(CoopFunctionsMixin):
             raise CoopObjectTypeError(
                 f"Expected {expected_object_type=} but got {object_type=}"
             )
-        edsl_class = ObjectRegistry.object_type_to_edsl_class.get(object_type)
+        edsl_class = ObjectRegistry.get_edsl_class_by_object_type(object_type)
         object = edsl_class.from_dict(json.loads(json_string))
         if object_type == "results":
             object.initialize_cache_from_results()
@@ -1233,7 +1233,7 @@ class Coop(CoopFunctionsMixin):
         Raises:
             CoopValueError: If any object type is invalid
         """
-        valid_object_types = ObjectRegistry.object_type_to_edsl_class.keys()
+        valid_object_types = [o["object_type"] for o in ObjectRegistry._get_objects()]
         if isinstance(object_type, list):
             invalid_types = [t for t in object_type if t not in valid_object_types]
             if invalid_types:
