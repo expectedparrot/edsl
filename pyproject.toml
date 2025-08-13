@@ -1,15 +1,15 @@
 [build-system]
 build-backend = "poetry.core.masonry.api"
-requires = [ "poetry-core", "setuptools<72.0",]
+requires = ["poetry-core", "setuptools<72.0"]
 
 [tool.poetry]
-authors = [ "John Horton <info@expectedparrot.com>",]
-classifiers = [ "Topic :: Scientific/Engineering :: Artificial Intelligence", "Topic :: Software Development :: Libraries :: Application Frameworks", "Topic :: Software Development :: Libraries :: Python Modules",]
+authors = ["John Horton <info@expectedparrot.com>"]
+classifiers = ["Topic :: Scientific/Engineering :: Artificial Intelligence", "Topic :: Software Development :: Libraries :: Application Frameworks", "Topic :: Software Development :: Libraries :: Python Modules"]
 description = "Create and analyze LLM-based surveys"
 documentation = "https://docs.expectedparrot.com"
 homepage = "https://www.expectedparrot.com/"
-include = [ "edsl/questions/templates/**/*",]
-keywords = [ "LLM", "social science", "surveys", "user research",]
+include = ["edsl/questions/templates/**/*"]
+keywords = ["LLM", "social science", "surveys", "user research"]
 license = "MIT"
 name = "edsl"
 readme = "README.md"
@@ -35,7 +35,7 @@ markdown2 = "^2.4.11"
 pydot = "^2.0.0"
 anthropic = "^0.45.0"
 pygments = "^2.17.2"
-matplotlib = ">=3.8,<3.9"
+matplotlib = "^3.9.0"
 restrictedpython = "^7.1"
 pyreadstat = "1.2.8"
 groq = "0.23.1"
@@ -55,31 +55,25 @@ memory-profiler = "^0.61.0"
 pydantic-settings = "^2.10.1"
 anywidget = "^0.9.18"
 
-[tool.poetry.extras]
-screenshots = [ "playwright",]
-services = [ "fastapi", "uvicorn",]
-
-[tool.poetry.scripts]
-edsl = "edsl.__main__:main"
+[tool.poetry.dependencies.black]
+extras = ["jupyter"]
+version = "^24.4.2"
 
 [tool.poetry.dependencies.fastapi]
 version = "^0.112.1"
 optional = true
 
+[tool.poetry.dependencies.typer]
+extras = ["all"]
+version = "^0.9.0"
+
 [tool.poetry.dependencies.uvicorn]
 version = "^0.30.6"
 optional = true
 
-[tool.poetry.dependencies.black]
-extras = [ "jupyter",]
-version = "^24.4.2"
-
-[tool.poetry.dependencies.typer]
-extras = [ "all",]
-version = "^0.9.0"
-
-[tool.tomlsort.overrides."tool.poetry.dependencies"]
-table_keys = false
+[tool.poetry.extras]
+screenshots = ["playwright"]
+services = ["fastapi", "uvicorn"]
 
 [tool.poetry.group.dev.dependencies]
 click = "^8.0.0"
@@ -107,3 +101,9 @@ sphinx-fontawesome = "^0.0.6"
 sphinx-rtd-theme = "^2.0.0"
 toml = "^0.10.2"
 toml-sort = "^0.23.1"
+
+[tool.poetry.scripts]
+edsl = "edsl.__main__:main"
+
+[tool.tomlsort.overrides."tool.poetry.dependencies"]
+table_keys = false
