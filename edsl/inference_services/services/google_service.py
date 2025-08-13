@@ -123,19 +123,33 @@ class GoogleService(InferenceServiceABC):
                         safety_settings=safety_settings,
                     )
                 combined_prompt = [user_prompt]
+                import time
+
+                start = time.time()
+                # print("Entering google file loads")
+
+                # Use the file upload cache to handle uploads efficiently
+                from ...scenarios.file_upload_cache import file_upload_cache
+
                 for file in files_list:
-                    if "google" not in file.external_locations:
-                        _ = file.upload_google()
-                    gen_ai_file = google.generativeai.types.file_types.File(
-                        file.external_locations["google"]
+                    # Use cache to get or upload the file
+                    # This ensures each unique file is only uploaded once
+                    google_file_info = await file_upload_cache.get_or_upload(
+                        file, service="google"
                     )
 
+                    # Create the Google AI file reference
+                    gen_ai_file = google.generativeai.types.file_types.File(
+                        google_file_info
+                    )
                     combined_prompt.append(gen_ai_file)
 
                 try:
+                    # print("Making LLM api call")
                     response = await self.generative_model.generate_content_async(
                         combined_prompt, generation_config=generation_config
                     )
+
                 except Exception as e:
                     return {"message": str(e)}
                 return response.to_dict()

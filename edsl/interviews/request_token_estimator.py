@@ -129,7 +129,7 @@ class RequestTokenEstimator:
                             width, height = file.get_image_dimensions()
                             token_usage = estimate_tokens(model_name, width, height)
                             file_tokens += token_usage
-                        if file.is_video():
+                        elif file.is_video():
                             model_name = self.interview.model.model
                             duration = file.get_video_metadata()["simplified"][
                                 "duration_seconds"
@@ -139,6 +139,8 @@ class RequestTokenEstimator:
                             )  # (295 tokens per second for video + audio)
                         else:
                             file_tokens += file.size * 0.25
+                        # print("Unsupported file type for token estimation.",file.size* 0.25,file.mime_type)
+
             else:
                 from .exceptions import InterviewTokenError
 
