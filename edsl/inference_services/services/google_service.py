@@ -1,5 +1,5 @@
 # import os
-from typing import Any, Dict, List, Optional, TYPE_CHECKING
+from typing import Any, Dict, Optional, TYPE_CHECKING
 import google
 import google.generativeai as genai
 from google.generativeai.types import GenerationConfig
@@ -11,8 +11,7 @@ from ..inference_service_abc import InferenceServiceABC
 # Use TYPE_CHECKING to avoid circular imports at runtime
 if TYPE_CHECKING:
     from ...language_models import LanguageModel
-    from ....scenarios.file_store import FileStore as Files
-# from ...coop import Coop
+    from ...scenarios.file_store import FileStore as Files
 
 safety_settings = [
     {
@@ -41,23 +40,14 @@ class GoogleService(InferenceServiceABC):
     input_token_name = "prompt_token_count"
     output_token_name = "candidates_token_count"
 
-    model_exclude_list = []
-
     available_models_url = (
         "https://cloud.google.com/vertex-ai/generative-ai/docs/learn/models"
     )
 
     @classmethod
-    def get_model_list(cls):
-        model_list = []
-        for m in genai.list_models():
-            if "generateContent" in m.supported_generation_methods:
-                model_list.append(m.name.split("/")[-1])
-        return model_list
-
-    @classmethod
-    def available(cls) -> List[str]:
-        return cls.get_model_list()
+    def get_model_info(cls):
+        """Get raw model info without wrapping in ModelInfo."""
+        return list(genai.list_models())
 
     @classmethod
     def create_model(
@@ -133,19 +123,33 @@ class GoogleService(InferenceServiceABC):
                         safety_settings=safety_settings,
                     )
                 combined_prompt = [user_prompt]
+                import time
+
+                start = time.time()
+                # print("Entering google file loads")
+
+                # Use the file upload cache to handle uploads efficiently
+                from ...scenarios.file_upload_cache import file_upload_cache
+
                 for file in files_list:
-                    if "google" not in file.external_locations:
-                        _ = file.upload_google()
-                    gen_ai_file = google.generativeai.types.file_types.File(
-                        file.external_locations["google"]
+                    # Use cache to get or upload the file
+                    # This ensures each unique file is only uploaded once
+                    google_file_info = await file_upload_cache.get_or_upload(
+                        file, service="google"
                     )
 
+                    # Create the Google AI file reference
+                    gen_ai_file = google.generativeai.types.file_types.File(
+                        google_file_info
+                    )
                     combined_prompt.append(gen_ai_file)
 
                 try:
+                    # print("Making LLM api call")
                     response = await self.generative_model.generate_content_async(
                         combined_prompt, generation_config=generation_config
                     )
+
                 except Exception as e:
                     return {"message": str(e)}
                 return response.to_dict()

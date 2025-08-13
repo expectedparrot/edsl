@@ -9,13 +9,15 @@ from ..inference_service_abc import InferenceServiceABC
 # Use TYPE_CHECKING to avoid circular imports at runtime
 if TYPE_CHECKING:
     from ...language_models import LanguageModel
-from ..rate_limits_cache import rate_limits
+
+# from ..rate_limits_cache import rate_limits
+rate_limits = {}
 
 # Default to completions API but can use responses API with parameter
 
 if TYPE_CHECKING:
-    from ....scenarios.file_store import FileStore as Files
-    from ....invigilators.invigilator_base import InvigilatorBase as InvigilatorAI
+    from ...scenarios.file_store import FileStore as Files
+    from ...invigilators.invigilator_base import InvigilatorBase as InvigilatorAI
 
 
 APIToken = NewType("APIToken", str)
@@ -89,7 +91,8 @@ class OpenAIServiceV2(InferenceServiceABC):
     _models_list_cache: List[str] = []
 
     @classmethod
-    def get_model_list(cls, api_key: Optional[str] = None) -> List[str]:
+    def get_model_info(cls, api_key: Optional[str] = None):
+        """Get raw model info without wrapping in ModelInfo."""
         if api_key is None:
             api_key = os.getenv(cls._env_key_name_)
         raw = cls.sync_client(api_key).models.list()

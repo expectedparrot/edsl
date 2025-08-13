@@ -1,12 +1,13 @@
-from jinja2 import Environment, meta, TemplateSyntaxError
+import re
 from typing import Any, Set, TYPE_CHECKING
 
-from ..agents import Agent
-from ..scenarios import Scenario
+from jinja2 import Environment, meta, TemplateSyntaxError
 
 if TYPE_CHECKING:
     from .prompt_constructor import PromptConstructor
     from ..questions import QuestionBase
+    from ..agents import Agent
+    from ..scenarios import Scenario
 
 
 class QuestionTemplateReplacementsBuilder:
@@ -32,7 +33,7 @@ class QuestionTemplateReplacementsBuilder:
         self.prior_answers_dict = prior_answers_dict
         self.agent = agent
 
-    def question_file_keys(self):
+    def question_file_keys(self) -> list:
         """
         >>> from ..questions import QuestionMultipleChoice
         >>> from ..scenarios import Scenario
@@ -62,9 +63,10 @@ class QuestionTemplateReplacementsBuilder:
         file_keys = self._find_file_keys(self.scenario)
         return self._extract_file_keys_from_question_text(question_text, file_keys)
 
-    def scenario_file_keys(self):
+    def scenario_file_keys(self) -> list:
         return self._find_file_keys(self.scenario)
 
+    @staticmethod
     def get_jinja2_variables(template_str: str) -> Set[str]:
         """
         Extracts all variable names from a Jinja2 template using Jinja2's built-in parsing.
@@ -102,11 +104,7 @@ class QuestionTemplateReplacementsBuilder:
         """
         from ..scenarios import FileStore
 
-        file_entries = []
-        for key, value in scenario.items():
-            if isinstance(value, FileStore):
-                file_entries.append(key)
-        return file_entries
+        return [key for key, value in scenario.items() if isinstance(value, FileStore)]
 
     @staticmethod
     def _extract_file_keys_from_question_text(
@@ -164,8 +162,6 @@ class QuestionTemplateReplacementsBuilder:
                     # This is a check to make sure there's scenario.something syntax in the template
                     if "scenario." in question_text:
                         # Extract dot-notation scenario references by parsing the template
-                        import re
-
                         scenario_refs = re.findall(
                             r"{{\s*scenario\.(\w+)\s*}}", question_text
                         )

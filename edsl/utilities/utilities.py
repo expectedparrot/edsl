@@ -49,7 +49,19 @@ def time_all_functions(module_or_class):
             setattr(module_or_class, name, time_it(obj))
 
 
+def truncate_base64_in_place(obj):
+    """Recursively truncate any 'base64_string' value to 1000 chars (in place)."""
+    if isinstance(obj, dict):
+        for k, v in obj.items():
+            if k == "base64_string" and isinstance(v, str) and len(v) > 1000:
+                obj[k] = v[:1000]
+            else:
+                truncate_base64_in_place(v)
+
+
 def dict_hash(data: dict):
+    truncate_base64_in_place(data)
+
     return hash(
         int(hashlib.md5(json.dumps(data, sort_keys=True).encode()).hexdigest(), 16)
     )
@@ -421,39 +433,39 @@ def write_api_key_to_env(api_key: str) -> str:
 
 def sanitize_jinja_syntax(data: dict, data_type: str) -> dict:
     """Sanitize values that contain problematic Jinja2 syntax by replacing with safe equivalents.
-    
+
     This function recursively processes a dictionary and escapes any Jinja2 template syntax
     found in string values to prevent unintended template rendering. This is particularly
     useful when user data might contain characters that could be interpreted as Jinja2
     template directives.
-    
+
     Args:
         data: Dictionary to sanitize
         data_type: Type of data being sanitized (for warning messages)
-        
+
     Returns:
         dict: Sanitized copy of the input data with Jinja2 syntax escaped
-        
+
     Examples:
         Basic sanitization of problematic syntax:
-        
+
         >>> data = {"message": "Hello {{name}}", "comment": "Use {# tags #} for comments"}
         >>> result = sanitize_jinja_syntax(data, "test_data")
         >>> # Jinja2 syntax will be escaped to HTML entities
         >>> "&#123;&#123;" in result["message"]  # {{ becomes &#123;&#123;
         True
-        
+
         Nested dictionaries and lists are handled recursively:
-        
+
         >>> nested = {
         ...     "user": {"template": "Hi {{user}}"},
         ...     "items": ["Item {%for i in range(3)%}", "Normal item"]
         ... }
         >>> result = sanitize_jinja_syntax(nested, "nested_data")
         >>> # All nested values are processed
-        
+
         Non-string values are preserved unchanged:
-        
+
         >>> data = {"number": 42, "boolean": True, "text": "{{unsafe}}"}
         >>> result = sanitize_jinja_syntax(data, "mixed_data")
         >>> result["number"] == 42
@@ -462,23 +474,23 @@ def sanitize_jinja_syntax(data: dict, data_type: str) -> dict:
         True
     """
     import warnings
-    
+
     jinja_replacements = {
-        '{#': '&#123;&#35;',  # HTML entities to preserve original meaning
-        '#}': '&#35;&#125;',
-        '{{': '&#123;&#123;',
-        '}}': '&#125;&#125;',
-        '{%': '&#123;&#37;',
-        '%}': '&#37;&#125;'
+        "{#": "&#123;&#35;",  # HTML entities to preserve original meaning
+        "#}": "&#35;&#125;",
+        "{{": "&#123;&#123;",
+        "}}": "&#125;&#125;",
+        "{%": "&#123;&#37;",
+        "%}": "&#37;&#125;",
     }
-    
+
     def sanitize_value(value, key_path=""):
         if isinstance(value, str):
             original_value = value
             for pattern, replacement in jinja_replacements.items():
                 if pattern in value:
                     value = value.replace(pattern, replacement)
-            
+
             if value != original_value:
                 warnings.warn(
                     f"Jinja2 template syntax found in {data_type} "
@@ -487,14 +499,20 @@ def sanitize_jinja_syntax(data: dict, data_type: str) -> dict:
                 )
             return value
         elif isinstance(value, dict):
-            return {k: sanitize_value(v, f"{key_path}.{k}" if key_path else k) 
-                   for k, v in value.items()}
+            return {
+                k: sanitize_value(v, f"{key_path}.{k}" if key_path else k)
+                for k, v in value.items()
+            }
         elif isinstance(value, list):
-            return [sanitize_value(item, f"{key_path}[{i}]" if key_path else f"[{i}]") 
-                   for i, item in enumerate(value)]
+            return [
+                sanitize_value(item, f"{key_path}[{i}]" if key_path else f"[{i}]")
+                for i, item in enumerate(value)
+            ]
         elif isinstance(value, tuple):
-            return tuple(sanitize_value(item, f"{key_path}[{i}]" if key_path else f"[{i}]") 
-                       for i, item in enumerate(value))
+            return tuple(
+                sanitize_value(item, f"{key_path}[{i}]" if key_path else f"[{i}]")
+                for i, item in enumerate(value)
+            )
         return value
-    
+
     return {key: sanitize_value(value, key) for key, value in data.items()}

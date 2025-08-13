@@ -56,6 +56,7 @@ class AgentTraits(MutableMapping):
             parent: The parent Agent instance
         """
         from ..scenarios import Scenario
+
         self._store = Scenario(data)
         self._parent = parent
 
@@ -194,4 +195,4 @@ class AgentTraits(MutableMapping):
             for k, v in other.items():
                 self[k] = v  # will trigger _guard()
             return self
-        return NotImplemented 
+        return NotImplemented

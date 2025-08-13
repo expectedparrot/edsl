@@ -22,10 +22,13 @@ class TemplateManager:
     @lru_cache(maxsize=None)
     def get_template(self, question_type, template_name):
         if (question_type, template_name) not in self._template_cache:
-            with resources.open_text(
-                f"edsl.questions.templates.{question_type}", template_name
-            ) as file:
-                self._template_cache[(question_type, template_name)] = file.read()
+            template_file = (
+                resources.files(f"edsl.questions.templates.{question_type}")
+                / template_name
+            )
+            self._template_cache[(question_type, template_name)] = (
+                template_file.read_text()
+            )
         return self._template_cache[(question_type, template_name)]
 
 
@@ -81,10 +84,19 @@ class QuestionBasePromptsMixin:
             self._model_instructions = {}
         if model is None:
             # if not model is passed, all the models are mapped to this instruction, including 'None'
-            self._model_instructions = {
-                model_name: instructions
-                for model_name in Model.available(name_only=True)
-            }
+            try:
+                available_models = Model.available()
+                if len(available_models) > 0:
+                    self._model_instructions = {
+                        model_name: instructions
+                        for model_name in available_models.names
+                    }
+                else:
+                    # No models available, use empty dict and let None handle it
+                    self._model_instructions = {}
+            except Exception:
+                # Handle any errors in getting available models
+                self._model_instructions = {}
             self._model_instructions.update({model: instructions})
         else:
             self._model_instructions.update({model: instructions})

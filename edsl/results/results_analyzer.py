@@ -17,43 +17,43 @@ from .exceptions import ResultsError
 
 class ResultsAnalyzer:
     """Handles analysis and debugging operations for Results objects.
-    
+
     This class encapsulates specialized analysis functionality for Results objects,
     particularly focused on identifying and suggesting improvements for problematic
     prompts that resulted in null or bad model responses.
-    
+
     Attributes:
         results: The Results object to analyze
     """
-    
+
     def __init__(self, results: "Results"):
         """Initialize the analyzer with a Results object.
-        
+
         Args:
             results: The Results object to analyze
         """
         self.results = results
-    
+
     def spot_issues(self, models: Optional["ModelList"] = None) -> "Results":
         """Run a survey to spot issues and suggest improvements for prompts that had no model response.
-        
+
         This method analyzes the Results object to identify prompts that resulted in null or bad
         model responses, then creates a new survey asking an AI model to identify potential issues
         and suggest improvements for those problematic prompts.
-        
+
         Args:
             models: Optional ModelList to use for the analysis. If None, uses the default model.
-            
+
         Returns:
             Results: A new Results object containing the analysis and suggestions for improvement.
-            
+
         Raises:
             ResultsError: If models parameter is not a ModelList when provided.
-            
+
         Notes:
-            Future version: Allow user to optionally pass a list of questions to review, 
+            Future version: Allow user to optionally pass a list of questions to review,
             regardless of whether they had a null model response.
-            
+
         Examples:
             >>> from edsl.results import Results
             >>> r = Results.example()
@@ -117,4 +117,4 @@ class ResultsAnalyzer:
         else:
             results = survey.by(sl).run()  # use the default model
 
-        return results 
+        return results

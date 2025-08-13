@@ -5,7 +5,7 @@ An interactive widget for inspecting EDSL Survey objects, providing detailed vie
 of questions, rules, flow logic, and survey structure.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict
 from .inspector_widget import InspectorWidget
 
 

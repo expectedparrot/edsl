@@ -19,19 +19,20 @@ from .exceptions import (
     ResultsMutateError,
 )
 
+
 class ResultsTransformer:
     """
     Handles data transformation operations for Results objects.
-    
+
     This class encapsulates methods for transforming Results objects including
     creating new derived columns (mutate), renaming columns, and sorting results,
     providing a clean separation of transformation logic from the main Results class.
     """
-    
+
     def __init__(self, results: "Results"):
         """
         Initialize the ResultsTransformer with a Results object.
-        
+
         Args:
             results: The Results object to perform transformation operations on
         """
@@ -83,10 +84,10 @@ class ResultsTransformer:
 
     def _parse_column(self, column: str) -> tuple[str, str]:
         """Parse a column name into a data type and key.
-        
+
         Args:
             column: Column name to parse, either simple name or "data_type.key" format
-            
+
         Returns:
             tuple[str, str]: (data_type, key) pair
         """
@@ -175,6 +176,7 @@ class ResultsTransformer:
 
         # Import here to avoid circular import
         from . import Results
+
         new_results = Results(
             survey=self.results.survey,
             data=new_data,
@@ -203,7 +205,7 @@ class ResultsTransformer:
         """
         # Import here to avoid circular import
         from . import Results
-        
+
         # Create new Results object with same properties but empty data
         new_results = Results(
             survey=self.results.survey,
@@ -268,7 +270,7 @@ class ResultsTransformer:
 
         # Import here to avoid circular import
         from . import Results
-        
+
         # Create new Results object that uses the sorted iterator
         return Results(
             survey=self.results.survey,
@@ -276,4 +278,4 @@ class ResultsTransformer:
             created_columns=self.results.created_columns,
             data_class=self.results._data_class,
             sort_by_iteration=False,
-        ) 
+        )
